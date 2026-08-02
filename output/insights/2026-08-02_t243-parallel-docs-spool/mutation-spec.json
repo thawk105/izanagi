@@ -1,0 +1,681 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 15000,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "N01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if path.name != expected:",
+          "new": "    if False and path.name != expected:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n01_frontmatter_filename_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "                if key not in seen:",
+          "new": "                if False and key not in seen:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n02_undefined_placeholder_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if symbol.key in seen:",
+          "new": "        if False and symbol.key in seen:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n03_duplicate_symbol_definition_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            if brace >= 0:",
+          "new": "            if False and brace >= 0:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n04_malformed_placeholder_residue_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    texts = [worklog[rotations[0].end():], phase[deferred_start:deferred_end], *archives.values()]",
+          "new": "    texts = [worklog[rotations[0].end():], phase[deferred_start:deferred_end]]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n05_task_allocation_includes_archive_population"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    texts = [worklog[rotations[0].end():], phase[deferred_start:deferred_end], *archives.values()]",
+          "new": "    texts = [worklog[rotations[0].end():], *archives.values()]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n06_task_allocation_includes_deferred_population",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_fold_implicitly_carries_task_added_by_earlier_wave",
+        "orchestrator/tests/test_spool_fold.py::test_p01_valid_single_worklog_fragment_applies",
+        "orchestrator/tests/test_spool_fold.py::test_p02_three_ledgers_with_cross_references_apply"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    return f\"[T-{number:03d}]\" if number < 1000 else f\"[T-{number}]\"",
+          "new": "    return f\"[T-{number}]\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n05_task_allocation_includes_archive_population",
+        "orchestrator/tests/test_spool_fold.py::test_n07_task_id_is_three_digit_canonical",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_fold_implicitly_carries_task_added_by_earlier_wave",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_new_then_existing_update_uses_substantive_base_digest",
+        "orchestrator/tests/test_spool_fold.py::test_p01_valid_single_worklog_fragment_applies",
+        "orchestrator/tests/test_spool_fold.py::test_p02_three_ledgers_with_cross_references_apply"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    section = \"### 次の一手\\n\\n\" + \"\".join(item.block for item in rendered_items)",
+          "new": "    section = \"### 次の一手\\n\\n\" + \"\".join(item.block for item in (rendered_items[:-1] if len(rendered_items) == 3 else rendered_items))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n08_all_carries_preserve_order_and_count"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if actual != expected:",
+          "new": "    if False and actual != expected:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n09_active_conservation_postcondition_rejects_implicit_drop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            if operation.base != expected_base:",
+          "new": "            if False and operation.base != expected_base:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n10_stale_base_digest_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    rendered_worklog = worklog_raw",
+          "new": "    rendered_worklog = worklog_raw.replace(b\"# worklog\\n\", b\"# worklog \\n\", 1)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n11_existing_canonical_bytes_are_only_appended_or_inserted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if fragment.content_sha in seen_content:",
+          "new": "        if False and fragment.content_sha in seen_content:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n13_same_content_replay_is_rejected_by_receipt"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N14",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if len(rendered_worklog) > limit:",
+          "new": "    if False and len(rendered_worklog) > limit:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n14_rotation_keeps_projected_worklog_under_shared_limit",
+        "orchestrator/tests/test_spool_fold.py::test_n15_rotation_updates_archive_index",
+        "orchestrator/tests/test_spool_fold.py::test_rotation_preserves_d70_archive_current_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    return rotated, rel, moved, updated_readme",
+          "new": "    return rotated, rel, moved, archive_readme"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n15_rotation_updates_archive_index"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N16",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if not before_matches:",
+          "new": "        if False and not before_matches:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n16_transaction_rejects_third_state"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N17",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        members = sorted(directory.iterdir(), key=lambda member: member.name)",
+          "new": "        members = list(directory.iterdir())"
+        },
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    symbols.sort(key=lambda symbol: (",
+          "new": "    if False: symbols.sort(key=lambda symbol: ("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n17_fragment_allocation_order_is_explicitly_sorted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N18",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            if name == \"完了\" and re.search(r\"残件(?:[はが:]|：|[ \\t])*あり|一部完了\", output):",
+          "new": "            if False and name == \"完了\" and re.search(r\"残件(?:[はが:]|：|[ \\t])*あり|一部完了\", output):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n18_completion_with_remaining_work_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N19",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    _check_spool_guard(findings)",
+          "new": "    pass  # spool guard 呼出しを無効化"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_main_rejects_schema_violation",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_import_failure_is_finding_without_traceback",
+        "orchestrator/tests/test_check_docs.py::test_n20_spool_guard_rejects_active_transaction_in_git_repo",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_git_marker_with_broken_rev_parse_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N20",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    except (Exception, SystemExit) as exc:  # SystemExit(0) でも検査を蒸発させない。",
+          "new": "    except (Exception, SystemExit) as exc:  # import 失敗を握り潰す変異\n        return"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_import_failure_is_finding_without_traceback"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N21",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            if task_id not in sink_ids:",
+          "new": "            if False and task_id not in sink_ids:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_preservation_rule_still_rejects_implicit_drop",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_dropped_id_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_prose_and_html_comment_do_not_satisfy_sink",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_fences_and_multiline_comment_do_not_satisfy_sink",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_hidden_ledger_items_do_not_satisfy_sink",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_completion_record_does_not_satisfy_sink",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_checks_all_adjacent_transitions",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_checks_latest_archive_rotation_boundary",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_checks_archive_internal_transitions",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_checks_boundaries_between_all_archives",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_latest_archive_is_selected_by_entry_date"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N22",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    if not missing_references and reference_size > DEV_WAVE_AGGREGATE_BYTES:",
+          "new": "    if not missing_references and reference_size > DEV_WAVE_AGGREGATE_BYTES + 1:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_raised_doc_budgets_still_reject_each_new_limit_and_aggregate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N23",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        fold.apply_fold(repository.main, plan)",
+          "new": "        pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_fold_is_called_under_land_lock_and_committed_with_message_file"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N26",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "    records = _status_records(repository.main, \"main\")",
+          "new": "    records = [record for record in _status_records(repository.main, \"main\") if record.startswith(b\"?? \")]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_tracked_and_staged_main_dirt_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N27",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "GLOBAL_ORDINAL_START_DATE = \"2026-07-26\"",
+          "new": "GLOBAL_ORDINAL_START_DATE = \"2026-07-25\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_boundary_constant_shift_is_detected_by_real_corpus_sentinel"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N28",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            except KeyError as exc:",
+          "new": "            except KeyError as exc:\n                for legacy_name, legacy_text in sorted((archives or {}).items()):\n                    legacy_entries = list(ARCHIVE_ENTRY_RE.finditer(legacy_text))\n                    for legacy_index, legacy_heading in enumerate(legacy_entries):\n                        if legacy_heading.group(\"ordinal\") != str(ordinal):\n                            continue\n                        legacy_end = legacy_entries[legacy_index + 1].start() if legacy_index + 1 < len(legacy_entries) else len(legacy_text)\n                        entries_by_ordinal[ordinal] = (f\"docs/archive/{legacy_name}\", legacy_text, legacy_heading, legacy_end)\n                        return items_for(ordinal)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_global_carry_cannot_fall_back_to_legacy_only_target"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N29",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    return entries_by_ordinal",
+          "new": "    if entries_by_ordinal and sorted(entries_by_ordinal) != list(range(min(entries_by_ordinal), max(entries_by_ordinal) + 1)):\n        raise SpoolValidationError([Issue(\"docs/worklog.md\", 1, \"worklog-ordinal-gap\", \"global ordinal に欠番がある\")])\n    return entries_by_ordinal"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_global_ordinal_gap_is_allowed_and_next_uses_max_plus_one"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N30",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            if parsed_entry_date is None:",
+          "new": "            if False and parsed_entry_date is None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_impossible_heading_date_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N31",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "            if _landed_fold_output_path(status, paths):",
+          "new": "            if False and _landed_fold_output_path(status, paths):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n31_landed_interval_cannot_hide_an_earlier_fold",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_deletion_signature",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_folded_receipt_signature"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N32",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        if _pending_fragment_paths(",
+          "new": "        if False and _pending_fragment_paths("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n32_null_declared_fold_rejects_pending_fragment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N33",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        or len(headers.get(b\"parent\", ())) != 1",
+          "new": "        or len(headers.get(b\"parent\", ())) < 1"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n33_merge_fold_is_rejected_by_the_parent_count_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N34",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "            if _ROTATION_PATH_RE.fullmatch(path) is None:",
+          "new": "            if False and _ROTATION_PATH_RE.fullmatch(path) is None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n34_fold_rejects_a_path_outside_the_closed_shape"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N35",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "    if _SUPERVISED_RUN_RE.fullmatch(run_id) is None:",
+          "new": "    if False and _SUPERVISED_RUN_RE.fullmatch(run_id) is None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n35_supervised_slug_mapping_rejects_noncanonical_inputs_and_is_injective"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N36",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/receipt.py",
+          "old": "    fields = _RECEIPT_V1_FIELDS if receipt.schema_version == 1 else _RECEIPT_V2_FIELDS",
+          "new": "    fields = _RECEIPT_V2_FIELDS"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_receipt.py::test_persist_sanitized_receipt_is_create_only",
+        "orchestrator/tests/test_dev_waves_receipt.py::test_n36_v1_encoder_never_adds_fold_field_and_v2_encoder_retains_it"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N37",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    prior_ordinal, active = _extract_latest_active(worklog, archives)",
+          "new": "    prior_ordinal, active = _extract_latest_active(worklog, {})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n37_real_repo_canonical_family_requires_archive_active_history"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P01",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_spool_fold.py",
+          "old": "    _fragment(repo, \"worklog\", _worklog_body(repo, new=((\"follow-up\", \"**P2**: 後続\"),)))",
+          "new": "    _fragment(repo, \"worklog\", _worklog_body(repo, new=((\"follow-up-accepted\", \"**P2**: 後続\"),)))"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "P02",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_spool_fold.py",
+          "old": "        _worklog_body(repo, new=((\"task\", \"{{D:decision}} と {{F:failure}} を追う\"),), prose=\"- {{D:decision}} / {{F:failure}}\"),",
+          "new": "        _worklog_body(repo, new=((\"task\", \"{{D:decision}} と {{F:failure}} を追う\"),), prose=\"- accepted {{D:decision}} / {{F:failure}}\"),"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "P03",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_spool_fold.py",
+          "old": "    assert plan.status == \"noop\" and result.status == \"noop\" and not plan.targets",
+          "new": "    assert (plan.status, result.status, len(plan.targets)) == (\"noop\", \"noop\", 0)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "P04",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_spool_fold.py",
+          "old": "    repo = _repo(tmp_path, limit=10_000)",
+          "new": "    repo = _repo(tmp_path, limit=9_999)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "P05",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    boundary = parsed_boundary or _datetime.date.min",
+          "new": "    boundary = parsed_boundary"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "P06",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_dev_wave_land.py",
+          "old": "def test_p06_supervised_branch_slug_with_matching_fragments_can_fold() -> None:",
+          "new": "def test_p06_supervised_branch_slug_with_matching_fragments_can_fold() -> None:\n    accepted_run_family = True"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "P07",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_dev_waves_git_state.py",
+          "old": "def test_p07_null_declared_fold_accepts_zero_pending_fragments():",
+          "new": "def test_p07_null_declared_fold_accepts_zero_pending_fragments():\n    accepted_null_fold = True"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

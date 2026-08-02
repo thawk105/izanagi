@@ -27,6 +27,19 @@ title: 並行セッションの台帳衝突を spool + land lock 内 fold で機
   すること自体**を禁じ、2 度目は canonical 台帳への正当な書き込みを禁じた。
   最終形は「fold の**署名** (fragment の削除と `FOLDED.md` の変更) だけを禁止する」であり、
   fold は replay 防止のため必ずこの 2 つを行うので防壁は弱まっていない。
+- **変異本走 (anchor `c829d07`、41 変異 = 負例 34 + 正例 7、Pegasus gen_S へ 42 job)**:
+  **負例 34 件すべて KILLED、正例 7 件すべて SURVIVED**。
+  harness の生分類は `KILLED 24 / SURVIVED 5 / MISMATCH 12` で、MISMATCH は親が裁定した。
+  正例 2 件 (P01/P05) の赤は `test_codex_worker_launch.py` という**変異が到達しえないファイル**で、
+  単独再走が 6 passed / 5.25s で全緑のため自己干渉フレークと帰属した (`DW-O18`)。
+  負例 10 件は**事前登録 node が実際に赤くなっており kill は成立**するが、追加 node も赤くなり
+  `DW-M08` の意味で**帰属が単一理由に絞れていない**。単一理由の kill は 26 件、広い kill が 8 件。
+  一次資料は `output/insights/2026-08-02_t243-parallel-docs-spool/`。
+- **上流の意図した挙動変更を、子の誤りと取り違えて「復元」してはならない。**
+  前 wave が main `e2516cc` [T-220] の `[意図した挙動変更]` (foreign handoff の同 bytes・別 inode
+  差し替えを `landed` とする裁定) を実装子の reward hack と誤認し、黙って `rejected` へ狭めていた。
+  他 session が handoff を通常どおり更新する (一時ファイル + rename) だけでこちらの land が止まる。
+  段 6 の**焦点再レビューだけが検出**し、`c829d07` で T-220 の裁定へ戻した。
 - **閉じていないものを閉じたと書かない規律を通した。** 段 3 の A-02 (fold commit の tree が
   fold 計画どおりかは検査していない) は本 wave では閉じず、
   `tools/dev_waves/git_state.py` に限界を明記し、comment・docstring・エラーメッセージ・
