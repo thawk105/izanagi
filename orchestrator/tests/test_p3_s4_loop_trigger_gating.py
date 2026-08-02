@@ -9,6 +9,7 @@ grep (subtype="syntax-contract") と provenance 情報源記録の受け皿 (E �
 from __future__ import annotations
 
 import ast
+import inspect
 import json
 import os
 import sys
@@ -162,6 +163,7 @@ def _assert_exact_admission_guard_and_lookup(source: str) -> None:
     ]
     assert len(admission_defs) == 1
     admission = admission_defs[0]
+    assert [arg.arg for arg in admission.args.args] == ["site"]
     guards = [node for node in admission.body if isinstance(node, ast.If)]
     returns = [node for node in admission.body if isinstance(node, ast.Return)]
     assert len(guards) == 1
@@ -177,7 +179,11 @@ def _assert_exact_admission_guard_and_lookup(source: str) -> None:
     )
     expected_lookup = ast.Call(
         func=ast.Name(id="_lookup", ctx=ast.Load()),
-        args=[ast.Name(id="ENV_TAG", ctx=ast.Load())],
+        args=[ast.Subscript(
+            value=ast.Name(id="_SITE_ENV_TAGS", ctx=ast.Load()),
+            slice=ast.Name(id="site", ctx=ast.Load()),
+            ctx=ast.Load(),
+        )],
         keywords=[],
     )
     assert ast.dump(guards[0].test, include_attributes=False) == ast.dump(
@@ -209,31 +215,64 @@ def _assert_env_names_scoped_to_admission(source: str) -> None:
                              else ast.Tuple(elts=statement.targets, ctx=ast.Store()))
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
     }
-    occurrences = {
-        name: [
-            node for node in ast.walk(tree)
-            if isinstance(node, ast.Name) and node.id == name
-        ]
-        for name in ("ENV_TAG", "_lookup", "_current_site")
-    }
-    assert {name: len(nodes) for name, nodes in occurrences.items()} == {
-        "ENV_TAG": 3,
-        "_lookup": 2,
-        "_current_site": 2,
-    }
-    unexpected = {
-        name: [(node.lineno, type(node.ctx).__name__) for node in nodes
-               if id(node) not in module_assignment_ids
-               and id(node) not in admission_body_ids]
-        for name, nodes in occurrences.items()
-    }
-    assert unexpected == {"ENV_TAG": [], "_lookup": [], "_current_site": []}
+    env_tag_stores = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Name)
+        and node.id == "ENV_TAG"
+        and isinstance(node.ctx, ast.Store)
+    ]
+    assert len(env_tag_stores) == 1
+    assert id(env_tag_stores[0]) in module_assignment_ids
+    lookup_nodes = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Name) and node.id == "_lookup"
+    ]
+    assert len(lookup_nodes) == 2
+    assert all(
+        id(node) in module_assignment_ids or id(node) in admission_body_ids
+        for node in lookup_nodes
+    )
+    current_site_nodes = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Name) and node.id == "_current_site"
+    ]
+    assert len(current_site_nodes) == 3
+    getenv_hits = [
+        node.lineno for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Attribute)
+        and isinstance(node.func.value.value, ast.Name)
+        and node.func.value.value.id == "os"
+        and node.func.value.attr == "environ"
+    ]
+    assert getenv_hits == []
     attribute_occurrences = [
         (node.attr, node.lineno)
         for node in ast.walk(tree)
-        if isinstance(node, ast.Attribute) and node.attr in occurrences
+        if isinstance(node, ast.Attribute)
+        and node.attr in {"ENV_TAG", "_lookup", "_current_site"}
     ]
     assert attribute_occurrences == []
+    record_def = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_record_diff_reject_admitted"
+    )
+    env_keywords = [
+        keyword.value for node in ast.walk(record_def)
+        if isinstance(node, ast.Call)
+        for keyword in node.keywords
+        if keyword.arg == "env_tag"
+    ]
+    assert len(env_keywords) == 1
+    assert ast.dump(env_keywords[0], include_attributes=False) == ast.dump(
+        ast.Attribute(
+            value=ast.Name(id="contract", ctx=ast.Load()),
+            attr="env_tag", ctx=ast.Load(),
+        ),
+        include_attributes=False,
+    )
 
 
 def _replace_once(source: str, old: str, new: str) -> str:
@@ -273,7 +312,9 @@ def _sentinel_contract(*, numactl=("numactl", "--sentinel")):
     )
 
 
-def _measurement_case(monkeypatch, *, site, lookup):
+def _measurement_case(
+    monkeypatch, *, site, lookup, order=None, dependency_prefix="", receipt=None,
+):
     """clean proposal を run_campaign 直前まで進める一時 layout の case。"""
     import contextlib
     from campaign import patchharness
@@ -290,13 +331,21 @@ def _measurement_case(monkeypatch, *, site, lookup):
     monkeypatch.setattr(T, "exploration_campaign_layout", lambda *_args, **_kwargs: lay)
 
     def run_spy(cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs):
+        if order is not None:
+            order.append("run_campaign")
         calls.append({
+            "campaign_id": str(ident.campaign_id(cfg)),
             "env_tag": env_tag,
             "clocks_per_us": clocks_per_us,
             "numactl": numactl,
+            "env_contract": kwargs.get("env_contract"),
+            "dependency_prefix": kwargs.get("dependency_prefix"),
             "campaign_namespace": kwargs.get("campaign_namespace"),
         })
-        return SimpleNamespace(results=[], skipped=0)
+        return SimpleNamespace(
+            results=[], skipped=0, execution_receipt=receipt,
+            campaign_id=str(ident.campaign_id(cfg)), layout_root=lay.root,
+        )
 
     monkeypatch.setattr(T, "run_campaign", run_spy)
     state = L.LoopState(start_ts=time.monotonic())
@@ -307,6 +356,7 @@ def _measurement_case(monkeypatch, *, site, lookup):
         return T.run_one_iteration(
             T.default_cfg(), T.default_perf(), _planner(), coder, auditor, state,
             sub, do_build=True, log=lambda *_args: None,
+            dependency_prefix=dependency_prefix,
         )
 
     return invoke, lay, calls
@@ -362,10 +412,11 @@ def _reject_case(monkeypatch, *, site, reject_kind="syntax",
 
 def test_site_admission_matrix():
     assert T._site_admits_measurement(site_policy.OTHER) is True
+    assert T._site_admits_measurement(site_policy.PEGASUS_COMPUTE) is True
     for site in (
         site_policy.PEGASUS_LOGIN,
-        site_policy.PEGASUS_COMPUTE,
         site_policy.PEGASUS_SUSPECT,
+        "UNKNOWN_SITE",
     ):
         assert T._site_admits_measurement(site) is False
 
@@ -376,6 +427,8 @@ def test_environment_module_surface_and_default_seams():
     assert not hasattr(T, "NUMA")
     assert T._current_site is site_policy.current_site
     assert T._lookup is env_contract.lookup
+    assert "site" not in inspect.signature(T.run_one_iteration).parameters
+    assert "site" not in inspect.signature(T.drive_iteration).parameters
 
 
 def test_contract_sentinel_flows_to_run_campaign(monkeypatch):
@@ -386,15 +439,18 @@ def test_contract_sentinel_flows_to_run_campaign(monkeypatch):
         looked_up.append(env_tag)
         return contract
 
-    invoke, _lay, calls = _measurement_case(
+    invoke, lay, calls = _measurement_case(
         monkeypatch, site=site_policy.OTHER, lookup=lookup,
     )
     invoke()
     assert looked_up == [T.ENV_TAG]
     assert calls == [{
+        "campaign_id": str(ident.campaign_id(T.default_cfg())),
         "env_tag": contract.env_tag,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
+        "env_contract": None,
+        "dependency_prefix": None,
         "campaign_namespace": "exploration",
     }]
 
@@ -418,9 +474,12 @@ def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
     )
     invoke()
     assert calls == [{
+        "campaign_id": str(ident.campaign_id(T.default_cfg())),
         "env_tag": T.ENV_TAG,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
+        "env_contract": None,
+        "dependency_prefix": None,
         "campaign_namespace": "exploration",
     }]
 
@@ -432,6 +491,166 @@ def test_empty_numactl_contract_flows_as_empty_list(monkeypatch):
     )
     invoke()
     assert calls[0]["numactl"] == []
+
+
+def test_campaign_identity_is_unchanged_for_other_and_split_for_compute():
+    cfg = T.default_cfg()
+    other_cfg = T._campaign_cfg_for_site(cfg, site_policy.OTHER)
+    compute_cfg = T._campaign_cfg_for_site(cfg, site_policy.PEGASUS_COMPUTE)
+    assert other_cfg is cfg
+    assert str(ident.campaign_id(other_cfg)) == str(ident.campaign_id(cfg))
+    assert str(ident.campaign_id(other_cfg)) == (
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
+    )
+    assert str(ident.campaign_id(compute_cfg)) == (
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902"
+    )
+    assert compute_cfg.search_config["measurement_env"] == "pegasus"
+    assert "measurement_env" not in cfg.search_config
+
+
+def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
+    tmp_path, monkeypatch,
+):
+    import contextlib
+    from campaign import patchharness
+
+    legacy = CampaignLayout(str(tmp_path / "legacy")).ensure()
+    legacy_digest = os.path.join(legacy.root, T.DIGEST_BASENAME)
+    with open(legacy_digest, "wb") as stream:
+        stream.write(b"legacy-linux-bytes\n")
+    before = {
+        os.path.relpath(os.path.join(root, name), legacy.root):
+            open(os.path.join(root, name), "rb").read()
+        for root, _dirs, files in os.walk(legacy.root)
+        for name in files
+    }
+    compute = CampaignLayout(str(tmp_path / "compute")).ensure()
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        L, "quarantine",
+        lambda *_a, **_k: (SimpleNamespace(), "", "", "fixture-diff"),
+    )
+    monkeypatch.setattr(
+        T, "run_one_iteration",
+        lambda *_a, **_k: {
+            "outcome": "dry-pass", "variant": None,
+            "campaign_id": "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902",
+            "layout_root": compute.root,
+        },
+    )
+    monkeypatch.setattr(L, "make_critic_digest", lambda *_a, **_k: "compute-only\n")
+    monkeypatch.setattr(
+        T, "exploration_campaign_layout",
+        lambda campaign_id: (
+            CampaignLayout(compute.root)
+            if campaign_id == "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902"
+            else pytest.fail("CLI が返却された campaign_id 以外から layout を再計算した")
+        ),
+    )
+    assert T.main(["--no-build", "--no-isolate-worktree"]) == 0
+    after = {
+        os.path.relpath(os.path.join(root, name), legacy.root):
+            open(os.path.join(root, name), "rb").read()
+        for root, _dirs, files in os.walk(legacy.root)
+        for name in files
+    }
+    assert after == before
+    assert open(
+        os.path.join(compute.root, T.DIGEST_BASENAME), encoding="utf-8",
+    ).read() == "compute-only\n"
+
+
+def test_compute_forwards_required_contract_and_records_sink_receipt(monkeypatch):
+    contract = env_contract.lookup("pegasus")
+    order = []
+    receipt = {"schema": "fixture-required-receipt"}
+    invoke, lay, calls = _measurement_case(
+        monkeypatch, site=site_policy.PEGASUS_COMPUTE,
+        lookup=lambda tag: contract if tag == "pegasus" else pytest.fail(tag),
+        order=order,
+        dependency_prefix="/scr/fixture-prefix",
+        receipt=receipt,
+    )
+    invoke()
+    assert order == ["run_campaign"]
+    assert calls[0]["env_contract"] is contract
+    assert calls[0]["dependency_prefix"] == "/scr/fixture-prefix"
+    T._append_provenance_entry(lay, 0, {"outcome": "aborted", "variant": "v-fixture"})
+    with open(T._provenance_path(lay), encoding="utf-8") as f:
+        entry = json.load(f)["entries"]["0"]
+    assert entry["site"] == site_policy.PEGASUS_COMPUTE
+    assert entry["contract_sha256"] == contract.contract_sha256
+    assert entry["execution_receipt"] == receipt
+    assert len(entry["execution_receipt_sha256"]) == 64
+    assert entry["outcome"] == "aborted"
+
+
+def test_attestation_failure_from_campaign_sink_propagates_without_wal(monkeypatch):
+    contract = env_contract.lookup("pegasus")
+    invoke, lay, calls = _measurement_case(
+        monkeypatch, site=site_policy.PEGASUS_COMPUTE,
+        lookup=lambda _tag: contract,
+    )
+    monkeypatch.setattr(
+        T, "run_campaign",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            execution_guard.ExecutionGuardError("fixture probe failure")
+        ),
+    )
+    with pytest.raises(execution_guard.ExecutionGuardError):
+        invoke()
+    assert calls == []
+    assert wal.read_records(lay) == []
+
+
+def test_compute_existing_loop_state_rejected_after_neutralized_freshness(monkeypatch):
+    from campaign import p3_autonomous_workload_trial as autonomous
+
+    contract = env_contract.lookup("pegasus")
+    invoke, lay, calls = _measurement_case(
+        monkeypatch, site=site_policy.PEGASUS_COMPUTE,
+        lookup=lambda _tag: contract,
+    )
+    L.save_loop_state(lay, L.LoopState(start_wall=time.time()))
+    monkeypatch.setattr(autonomous, "_assert_fresh_campaign_state", lambda _layout: None)
+    autonomous._assert_fresh_campaign_state(lay)
+    with pytest.raises(execution_guard.ExecutionGuardError, match="allow_resume=False"):
+        invoke()
+    assert calls == []
+    assert wal.read_records(lay) == []
+
+
+@pytest.mark.parametrize("reject_kind", ["diff-quarantine", "syntax", "auditor"])
+def test_compute_no_resume_precedes_all_reject_writes(monkeypatch, reject_kind):
+    invoke, lay = _reject_case(
+        monkeypatch, site=site_policy.PEGASUS_COMPUTE,
+        reject_kind=reject_kind,
+    )
+    L.save_loop_state(lay, L.LoopState(start_wall=time.time()))
+    state_before = open(L.loop_state_path(lay), "rb").read()
+    with pytest.raises(execution_guard.ExecutionGuardError, match="allow_resume=False"):
+        invoke()
+    assert open(L.loop_state_path(lay), "rb").read() == state_before
+    assert wal.read_records(lay) == []
+    assert not os.path.exists(T._provenance_path(lay))
+
+
+def test_compute_no_resume_rejects_wal_only_crash_tail_without_mutation(monkeypatch):
+    invoke, lay = _reject_case(
+        monkeypatch, site=site_policy.PEGASUS_COMPUTE, reject_kind="syntax",
+    )
+    wal.log(lay, "crash-tail", "build_start", "pegasus", {"fixture": True})
+    before = open(lay.wal_file, "rb").read()
+    assert not os.path.exists(L.loop_state_path(lay))
+    with pytest.raises(execution_guard.ExecutionGuardError, match="allow_resume=False"):
+        invoke()
+    assert open(lay.wal_file, "rb").read() == before
+    assert not os.path.exists(L.loop_state_path(lay))
+    assert not os.path.exists(T._provenance_path(lay))
 
 
 def test_lookup_error_propagates_before_campaign_and_wal(monkeypatch):
@@ -450,16 +669,18 @@ def test_lookup_error_propagates_before_campaign_and_wal(monkeypatch):
     assert wal.read_records(lay) == []
 
 
-def test_measurement_sink_rejects_pegasus_before_campaign_and_wal(monkeypatch):
-    contract = _sentinel_contract()
+def test_measurement_sink_admits_compute_with_pegasus_contract_and_identity(monkeypatch):
+    contract = env_contract.lookup("pegasus")
     invoke, lay, calls = _measurement_case(
         monkeypatch,
         site=site_policy.PEGASUS_COMPUTE,
         lookup=lambda _env_tag: contract,
     )
-    with pytest.raises(execution_guard.ExecutionGuardError):
-        invoke()
-    assert calls == []
+    invoke()
+    assert len(calls) == 1
+    assert calls[0]["env_tag"] == "pegasus"
+    assert calls[0]["env_contract"] is contract
+    assert calls[0]["campaign_id"] != str(ident.campaign_id(T.default_cfg()))
     assert wal.read_records(lay) == []
 
 
@@ -468,14 +689,14 @@ def test_measurement_sink_rejects_pegasus_before_campaign_and_wal(monkeypatch):
     "syntax",
     "auditor",
 ])
-def test_reject_sink_refuses_pegasus_without_wal(monkeypatch, reject_kind):
+def test_reject_sink_compute_records_pegasus_without_attestation(monkeypatch, reject_kind):
     invoke, lay = _reject_case(
         monkeypatch, site=site_policy.PEGASUS_COMPUTE,
-        reject_kind=reject_kind, lookup=lambda _env_tag: _sentinel_contract(),
+        reject_kind=reject_kind, lookup=env_contract.lookup,
     )
-    with pytest.raises(execution_guard.ExecutionGuardError):
-        invoke()
-    assert wal.read_records(lay) == []
+    out = invoke()
+    assert out["outcome"] == "rejected"
+    assert {record.env_tag for record in wal.read_records(lay)} == {"pegasus"}
 
 
 def test_reject_sink_other_writes_two_contract_tagged_records(monkeypatch):
@@ -514,7 +735,7 @@ def test_reject_lookup_error_propagates_without_wal(monkeypatch):
     assert wal.read_records(lay) == []
 
 
-def test_default_path_rejects_pegasus_from_site_policy(monkeypatch):
+def test_default_path_resolves_pegasus_contract_from_site_policy(monkeypatch):
     import importlib.util
 
     module_name = f"{T.__name__}__default_path_test"
@@ -528,8 +749,17 @@ def test_default_path_rejects_pegasus_from_site_policy(monkeypatch):
     monkeypatch.setitem(sys.modules, module_name, fresh_module)
     spec.loader.exec_module(fresh_module)
 
+    assert fresh_module._admit_env_contract(site_policy.PEGASUS_COMPUTE).env_tag == "pegasus"
+
+
+@pytest.mark.parametrize("site", [
+    site_policy.PEGASUS_LOGIN,
+    site_policy.PEGASUS_SUSPECT,
+    "UNKNOWN_SITE",
+])
+def test_admit_env_contract_behaviorally_rejects_non_admitted_sites(site):
     with pytest.raises(execution_guard.ExecutionGuardError):
-        fresh_module._admit_env_contract()
+        T._admit_env_contract(site)
 
 
 def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypatch):
@@ -654,7 +884,14 @@ def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
         lookup_calls += 1
         return _sentinel_contract()
 
-    monkeypatch.setattr(T, "_current_site", lambda: site_policy.PEGASUS_COMPUTE)
+    site_calls = 0
+
+    def current_site():
+        nonlocal site_calls
+        site_calls += 1
+        return site_policy.PEGASUS_COMPUTE
+
+    monkeypatch.setattr(T, "_current_site", current_site)
     monkeypatch.setattr(T, "_lookup", lookup)
     monkeypatch.setattr(
         patchharness, "applied",
@@ -667,8 +904,13 @@ def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
         L.LoopState(start_ts=time.monotonic()), sub, do_build=False, layout=lay,
         log=lambda *_args: None,
     )
-    assert out == {"outcome": "dry-pass", "variant": None}
-    assert lookup_calls == 0
+    assert out == {
+        "outcome": "dry-pass", "variant": None,
+        "campaign_id": "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902",
+        "layout_root": lay.root,
+    }
+    assert site_calls == 1
+    assert lookup_calls == 1
     assert wal.read_records(lay) == []
 
 
@@ -708,7 +950,7 @@ def test_driver_ast_pins_reject_m20_through_m23_source_mutants():
     source = _driver_source()
     m20 = _replace_once(
         source,
-        "return _lookup(ENV_TAG)",
+        "return _lookup(_SITE_ENV_TAGS[site])",
         'return _lookup(os.environ.get("IZANAGI_ENV_TAG", ENV_TAG))',
     )
     m21 = _replace_once(
@@ -735,8 +977,8 @@ def test_driver_ast_pins_reject_m20_through_m23_source_mutants():
     m23 = _replace_once(
         source,
         "env_tag=contract.env_tag",
-        'env_tag=(contract.env_tag if _current_site is not '
-        'site_policy.current_site else "linux-baremetal")',
+        'env_tag=(contract.env_tag if site != site_policy.PEGASUS_COMPUTE '
+        'else "linux-baremetal")',
     )
 
     with pytest.raises(AssertionError):
@@ -789,7 +1031,10 @@ def test_quarantine_and_audit_rejects_forbidden_identifier(monkeypatch):
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_FORBIDDEN_IMPL)
     state = L.LoopState(start_ts=time.monotonic())
     lay = _tmp_layout("syntax")
-    gate = T._quarantine_and_audit(d, coder, auditor, _G, lay, state, _planner(), write=False)
+    gate = T._quarantine_and_audit(
+        d, coder, auditor, _G, lay, state, _planner(), write=False,
+        contract=T._admit_env_contract(site_policy.OTHER),
+    )
     assert gate is not None
     assert gate["outcome"] == "rejected"
     assert gate["digest"]["subtype"] == "syntax-contract"
@@ -811,7 +1056,10 @@ def test_render_rejections_uses_syntax_contract_hint(monkeypatch):
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_FORBIDDEN_IMPL)
     state = L.LoopState(start_ts=time.monotonic())
     lay = _tmp_layout("synthint")
-    T._quarantine_and_audit(d, coder, auditor, _G, lay, state, _planner(), write=False)
+    T._quarantine_and_audit(
+        d, coder, auditor, _G, lay, state, _planner(), write=False,
+        contract=T._admit_env_contract(site_policy.OTHER),
+    )
     out = render_rejections([], [], {}, None, diff_rejections=load_diff_rejections(lay))
     tail = out.split("syntax-contract")[-1]
     assert "構文契約違反" in tail
@@ -826,8 +1074,11 @@ def test_quarantine_and_audit_dry_pass_when_clean_and_digest_matches(monkeypatch
     auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(d))
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
     state = L.LoopState(start_ts=time.monotonic())
-    gate = T._quarantine_and_audit(d, coder, auditor, _G, _tmp_layout("pass"), state,
-                                   _planner(), write=False)
+    gate = T._quarantine_and_audit(
+        d, coder, auditor, _G, _tmp_layout("pass"), state,
+        _planner(), write=False,
+        contract=T._admit_env_contract(site_policy.PEGASUS_COMPUTE),
+    )
     assert gate is None
 
 
@@ -838,8 +1089,11 @@ def test_quarantine_and_audit_raises_on_digest_mismatch(monkeypatch):
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
     state = L.LoopState(start_ts=time.monotonic())
     try:
-        T._quarantine_and_audit(d, coder, auditor, _G, _tmp_layout("mm"), state,
-                                _planner(), write=False)
+        T._quarantine_and_audit(
+            d, coder, auditor, _G, _tmp_layout("mm"), state,
+            _planner(), write=False,
+            contract=T._admit_env_contract(site_policy.PEGASUS_COMPUTE),
+        )
         raise AssertionError("digest 不一致を素通しした")
     except AuditorGateFailure as e:
         assert "digest" in str(e)
@@ -853,7 +1107,10 @@ def test_auditor_reject_carries_trigger_axis_identity(monkeypatch):
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
     state = L.LoopState(start_ts=time.monotonic())
     lay = _tmp_layout("audrej")
-    gate = T._quarantine_and_audit(d, coder, auditor, _G, lay, state, _planner(), write=False)
+    gate = T._quarantine_and_audit(
+        d, coder, auditor, _G, lay, state, _planner(), write=False,
+        contract=T._admit_env_contract(site_policy.OTHER),
+    )
     assert gate["digest"]["subtype"] == "auditor-violation"
     assert gate["digest"]["template_diff_id"] == T.MARKER_ID
     assert gate["digest"]["diff_region"] == T.SOURCE_REL
@@ -1034,9 +1291,10 @@ def test_parse_extra_source():
 
 # ==== drive_iteration (checkpoint 継続 + provenance funnel) =====================
 
-def test_drive_iteration_stops_before_running_but_writes_header():
+def test_drive_iteration_stops_before_running_but_writes_header(monkeypatch):
     """入口停止でも provenance ヘッダは焼かれる (ヘッダは入口 = build 前、FC-1(a))。
     sub に不在パスを渡しても到達しないことが実行前停止の証拠。"""
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     lay = _tmp_layout("stopbefore")
     seed = L.LoopState(iteration=0, start_wall=time.time(),
                        reverse_recommendations=L.REVERSE_STREAK - 1)
@@ -1050,6 +1308,30 @@ def test_drive_iteration_stops_before_running_but_writes_header():
     assert out["ran"] is False
     assert out["stop_reason"] == "reverse-exhausted"
     assert os.path.exists(T._provenance_path(lay))
+
+
+def test_compute_no_resume_precedes_drive_entry_stop_and_provenance(monkeypatch):
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.PEGASUS_COMPUTE)
+    lay = _tmp_layout("compute-stop-before")
+    seed = L.LoopState(
+        iteration=0, start_wall=time.time(),
+        reverse_recommendations=L.REVERSE_STREAK - 1,
+    )
+    L.save_loop_state(lay, seed)
+    state_before = open(L.loop_state_path(lay), "rb").read()
+    coder = T.CoderProposalTriggerGating(
+        axis=T.MARKER_ID, implementation=_CLEAN_IMPL,
+    )
+    auditor = AuditorVerdict(verdict="pass", diff_digest="a" * 64)
+    with pytest.raises(execution_guard.ExecutionGuardError, match="allow_resume=False"):
+        T.drive_iteration(
+            T.default_cfg(), T.default_perf(), _planner(), coder, auditor,
+            prior_critic_reverse=True, sub="/must-not-run", do_build=False,
+            layout=lay,
+        )
+    assert open(L.loop_state_path(lay), "rb").read() == state_before
+    assert not os.path.exists(T._provenance_path(lay))
+    assert wal.read_records(lay) == []
 
 
 def _pinned_clean_sub_or_skip():

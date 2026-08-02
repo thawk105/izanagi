@@ -40,6 +40,9 @@ from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
                     STAGE_BUILD_DONE, STAGE_BUILD_START, STAGE_COMMIT,
                     STAGE_VERIFY_DONE)
 
+_DEFAULT_CXX = buildcache.DEFAULT_CXX
+_compilers_for_current_site = buildcache.compilers_for_current_site
+
 
 def variant_id(genome: Genome, src_token: str = source_digest.STOCK) -> str:
     """genome 正準表現 + コード差 (src_token, D23) の安定ハッシュ = variant の id (WAL キー)。
@@ -428,7 +431,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              expected_perf_sha256: Optional[str] = None,
              env_contract: Optional[ExecutionEnvironmentContract] = None,
              record_rep_returncodes: bool = False,
-             qualification_policy: Optional[QualificationPipelinePolicy] = None) -> EvalResult:
+             qualification_policy: Optional[QualificationPipelinePolicy] = None,
+             dependency_prefix: str = "") -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -452,7 +456,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
 
     `env_contract` は v2 consumer 専用の opt-in。指定時だけ contract namespace の
     `build_v2` を使い、未指定 caller (p3 loop を含む) は legacy build の呼出し形も
-    namespace も不変に保つ。
+    namespace も不変に保つ。`dependency_prefix` は非空時だけ v2 build へ素通しし、
+    空の既存 caller では build_v2 の呼出し形を変えない。
 
     `record_rep_returncodes` も既定 False の opt-in。True の official oracle 経路だけ、
     採用した再測定 round と identity で一意に対応する rep rc を bench_done に残す。
@@ -525,7 +530,13 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # identity 核に持ち込まない, 規律2)。
     if src_token is None:
         try:
-            src_tok = source_digest.resolve(genome, ccbench_commit, ccbench_dir)
+            _, resolved_cxx = _compilers_for_current_site()
+            if resolved_cxx == _DEFAULT_CXX:
+                src_tok = source_digest.resolve(genome, ccbench_commit, ccbench_dir)
+            else:
+                src_tok = source_digest.resolve(
+                    genome, ccbench_commit, ccbench_dir, resolved_cxx,
+                )
         except RuntimeError as e:
             v0 = variant_id(genome)        # stock id で abort を記録 (WAL キーを残す)
             emit(layout, v0, STAGE_BUILD_START, env_tag, {"genome": genome.canonical()})
@@ -572,17 +583,20 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                     "env_contract は ExecutionEnvironmentContract でなければならない"
                 )
             default_ccbench = buildcache._ccbench_dir()
+            resolved_cc, resolved_cxx = _compilers_for_current_site()
             common = {
                 "contract": env_contract,
                 "ccbench_commit": ccbench_commit,
                 "src_token": src_tok,
-                "cc": buildcache.DEFAULT_CC,
-                "cxx": buildcache.DEFAULT_CXX,
+                "cc": resolved_cc,
+                "cxx": resolved_cxx,
                 "cache_root": cache_root or os.path.join(
                     default_ccbench, "build-variants",
                 ),
                 "ccbench_dir": ccbench_dir,
             }
+            if dependency_prefix:
+                common["dependency_prefix"] = dependency_prefix
             if qualification_policy is None:
                 tr = buildcache.build_v2(genome, trace=True, **common)
                 pf = buildcache.build_v2(genome, trace=False, **common)
