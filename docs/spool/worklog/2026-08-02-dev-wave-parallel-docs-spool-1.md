@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-02
 wave: dev-wave-parallel-docs-spool
 seq: 1
-title: 並行セッションの台帳衝突を spool + land lock 内 fold で機械化する — 実装は完了したが supervised runner を壊すため land を見送る (コード + docs、branch worktree-dev-wave-parallel-docs-spool、受入全走 = Pegasus gen_S 計算ノードで 4907 passed / 19 skipped)
+title: 並行セッションの台帳衝突を spool + land lock 内 fold で機械化し、land blocker 2 件を閉じて land する — 親の裁定が 2 度広すぎて受入を赤にした (コード + docs、branch worktree-dev-wave-parallel-docs-spool、anchor commit 2743e0d、受入全走 = Pegasus gen_S 計算ノードで 5185 passed / 19 skipped)
 ---
 
 ## 本文
@@ -13,11 +13,24 @@ title: 並行セッションの台帳衝突を spool + land lock 内 fold で機
   衝突するのを解消したい」に対する実装。決定は {{D:parallel-doc-spool}} と
   {{D:dev-wave-budget-raise}}、失敗は {{F:guard-expectation-inversion}} と
   {{F:parent-ruling-forces-serial-only}}。
-- **land は見送った。** 実装・検査は完了しているが、段 6 レビューが指摘し親が一次資料で追認した
-  とおり、fold 後は main が wave tip の子 commit になるため `tools/dev_waves/checker.py` の
-  `wave_tip_before == receipt.landed_main_sha` が必ず破れる。supervised branch 名
-  `dev-wave/{run_id}/wNNN` の `/` も spool の wave slug 規則が拒否する。
-  **最初の fragment 付き supervised wave が停止する**ため、land しない裁定とした。
+- **land blocker 2 件を閉じた (再開 wave)。** (1) worklog の ordinal namespace が 2 世代あり
+  (2026-07-25 以前は日ごとに振り直す旧規約、07-26 の `(1)` から global 単調増加)、数値が衝突する
+  ため fold が実 repo で必ず `status=invalid` になっていた。見出し日付による世代分離を入れ、
+  **実装前 `invalid` → 実装後 `planned`** を実測した。(2) fold commit は main が wave tip の子に
+  なるため supervised runner が拒否していた。receipt v2 (`fold_commit_sha` を required かつ
+  nullable) と共有 verifier を入れ、`schema_v1.json` は 1 byte も変えずに閉じた。
+- **欠番と日付非単調を不変条件にしなかった。** 実 corpus には過去に欠番が実在し、
+  07-28 (42) の後に 07-29 (39)〜(41) がある。連続性・単調性を仮定した設計は実データで壊れる。
+- **本 wave 最大の失敗は親自身の裁定だった。** 段 6 の受入が 2 度赤 (44 → 28 → 0) になったが、
+  どちらも実装子の誤りではなく**親の裁定 §2.2(c) が広すぎた**ことが原因である。
+  1 度目は「landed 区間は fold 所有 path に触れない」として **wave が自分の fragment を commit
+  すること自体**を禁じ、2 度目は canonical 台帳への正当な書き込みを禁じた。
+  最終形は「fold の**署名** (fragment の削除と `FOLDED.md` の変更) だけを禁止する」であり、
+  fold は replay 防止のため必ずこの 2 つを行うので防壁は弱まっていない。
+- **閉じていないものを閉じたと書かない規律を通した。** 段 3 の A-02 (fold commit の tree が
+  fold 計画どおりかは検査していない) は本 wave では閉じず、
+  `tools/dev_waves/git_state.py` に限界を明記し、comment・docstring・エラーメッセージ・
+  テスト名のいずれにも「保証する」旨を書かないことを不変条件にした。親が機械走査で確認した。
 - **親 brief が 4 点で反証された。** とくに archive ローテーションを scope 外とした判断が誤りで、
   spool 単独では実衝突が 15→12 件 (2 割減) にしか減らず、残る 18 file-instance の 94.4% が archive
   だった。直列 fold にローテーションを含めると **15→1 件**になることを段 6 レビューが独立に追認した。
@@ -47,17 +60,20 @@ title: 並行セッションの台帳衝突を spool + land lock 内 fold で機
 
 ### 新規
 
-- {{T:spool-supervisor-compat}} **P1・新規 (本エントリ)・land blocker**: `tools/dev_waves` の
-  supervised runner を fold 後の commit topology へ対応させる。receipt に `tested_wave_tip` と
-  `fold_commit` を分け、`fold_commit^ == tested_wave_tip` を検証する。branch 名 → wave slug の
-  衝突しない正準 encoding も要る。**これが閉じるまで本 wave は land できない。**
-- {{T:spool-archive-ordinal-convention}} **P1・新規 (本エントリ)・land blocker**: fold が実 repo で
-  動かない。archive の worklog は ordinal が日ごとに振り直される旧規約を持つ
-  (`2026-07-04 (2)` と `2026-07-05 (2)` が同一ファイルに共存) 一方、fold はグローバル一意を仮定し
-  `docs/archive/worklog-phase3-0702-0713.md:529` で `status=invalid` になる。
-  ordinal の一意性を (日付, ordinal) スコープにするか、archive を採番母集団から外して
-  現行 worklog だけから次 ordinal を採るかを決める。**実 repo の canonical 族を入力とする
-  smoke テストを受入に必須化する** ({{F:green-suite-cannot-run-on-real-repo}})。
+- {{T:spool-fold-plan-verification}} **P2・新規 (本エントリ)**: fold commit の tree が fold 計画
+  どおりであることを検査していない (段 3 の A-02)。現在の検査は commit の**形**と、landed 区間に
+  fold の署名が無いことまでである。閉じるには checker が `plan_fold` を再計算して blob 単位で
+  照合する必要があり、checker の read-only 軽量性という設計前提と衝突する。
+  **保証していないものを保証すると書かない**規律は実装・テスト名まで通してある。
+- {{T:spool-fold-crash-recovery}} **P3・新規 (本エントリ)**: fold 適用後・`git add` 前の SIGKILL は
+  fail-closed で止まる (false green にはならない) が、transaction state が消えているため
+  自動 rollback / resume ができず手動回復が要る (段 3 の A-07)。
+- {{T:spool-mutation-attribution}} **P3・新規 (本エントリ)**: 事前登録した変異のうち
+  N12 (冪等性)・N24 (fold rc 無視)・N25 (pending 0 件 postcondition) は、
+  **単独理由で赤くなる anchor が実装に存在しない**ため本走から除外した。
+  N12 は GC 後の 2 回目が fragment 0 件の no-op に落ちる、N24 は現行 API が rc でなく例外を返す、
+  N25 は staged-path closure と commit 後検査が同じ入力を先に拒否する、が理由である。
+  gate は存在するが**変異で検出力を示せない**状態であり、配線か変異定義のどちらかを直す。
 - {{T:spool-canonical-write-gate}} **P1・新規 (本エントリ)**: 「wave は canonical を編集しない」を
   機械強制する。land が incoming audited range に canonical 3 台帳・archive・`FOLDED.md` の変更を
   含む場合を拒否し、導入 migration だけ exact commit/path/hash で許す。現状は文章だけで、
