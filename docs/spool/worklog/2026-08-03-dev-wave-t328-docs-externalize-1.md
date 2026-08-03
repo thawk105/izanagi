@@ -45,7 +45,7 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   `tmp_path` 木、izanagi 側は `izanagi-t126-submit-stage.*` の 39.5 MB が支配的で残り 186 件は計 166 KB、
   (iii) **job を跨いでは持ち越さない** (直後に別 job を同じ `bnode005` へ投げて不在を確認)。
   計算ノードの `/tmp` は tmpfs でなく nvme 上 xfs なのでメモリも圧迫しない。`<unclassified>` は 0 件
-- **測定中に偽赤を踏んだ ({{F:raw-qsub-interpreter-false-red}})。** 生 qsub から
+- **測定中に偽赤を踏んだ (F84 の再発)。** 生 qsub から
   `python3 tools/run_tests.py` を呼ぶと計算ノードの既定 `python3` が 3.10 未満で
   **116 failed / 2,085 errors**、interpreter を固定しても孫 process が PATH の `python3` を拾って
   **19 failed** が残った。PATH shim を置いて緑になった。正規経路で同一ファイルを単独再走すると
@@ -74,16 +74,25 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   マージすればいい。あとで一気にやろうとするからコストが高い」。是正として wave 中は節目ごとに
   main の位置を見て固定 SHA で都度マージする。本 wave はユーザー指示によりこの context のまま
   `ea6ca43` を合流させて land を再試行した
-- **4 度目の停止で land helper の新しい欠陥を実測した ({{T:land-merge-fold-signature}})。**
+- **4 度目の停止で land helper の欠陥を実測し、branch を待機させた。**
   合流自体は競合ゼロで成功したが、land が `fold-failed: landed-fold-owned-path` で止まった。
   監査 commit 列は `git rev-list --reverse main..tip` との完全一致が要求されるので
   (`tools/dev_wave_land.py:963`) merge commit を監査対象から外せず、その merge commit を
   第一親と比べると main 側の fold が触った `docs/spool/FOLDED.md` が `M` で現れる。
   landed 区間の検査 (`tools/dev_waves/git_state.py:557-562`) は wave の自前 fold を止めるためのもので、
   **「main の fold を取り込んだ merge」と区別できない**。過去の `merge(main)` 8 本を調べたところ
-  `FOLDED.md` を含むものは 0 件で、fold 機構の導入後に main を合流させた wave は本 wave が最初である。
-  **ユーザー裁定により根治は別 wave で行い、本 branch はそれまで待機する** (rebase・force・
-  fold 所有ファイルの手編集による迂回は行わない)
+  `FOLDED.md` を含むものは 0 件で、fold 機構の導入後に main を合流させた wave は本 wave が最初だった。
+  **ユーザー裁定により根治は別 wave で行い、本 branch はそれまで待機した** (rebase・force・
+  fold 所有ファイルの手編集による迂回は行っていない)
+- **同じ欠陥を [T-313] wave が独立に踏み、(132) の land-merge-signature wave が D132 で根治した。**
+  本 wave が起票を保留している間に、`verify_declared_fold_commit` の署名判定が
+  「trusted main cutoff の外側で加えた変更」を対象とする形へ改まり、`8440786` として main へ入った。
+  **同型欠陥が異なる wave で独立に 2 件再現した** (`DW-G03` が族一般化を許す条件) が、
+  根治は既に済んでいるため本エントリでは新規 T を起票しない。本 branch は再開 wave として
+  `8440786` の main 祖先性を実測確認したうえで local main `055081e` を固定 SHA で合流し、
+  受入全走を最終 tip で回し直して land した。**待機の判断そのものは正しかった** —
+  迂回していれば D132 の設計 (累積差分案・三 tree 免除案がいずれも敵対検証で破れた) を
+  得られないまま、fold 署名の防壁だけが緩んでいた
 
 - **[T-270] のフレークを再観測した (5 例目)。** 受入全走 `878446` が
   `test_s8b_floor_campaign.py` 4 件で赤 (4 failed / 5222 passed)、同じ tip の再走 `878453` は
@@ -145,19 +154,9 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   入口は外部 supervisor 自身へ「最初の `claude -p` spawn 前に `DW-CTX` を読む」と課すが、
   `tools/dev_waves/daemon.py` / `worker.py` に読取処理は無く、prompt を組み立てるだけである。
   現在 fake-only なので runtime blocked。台帳には「無人継続まで閉じた」と書かない
-- {{T:land-merge-fold-signature}} **P1・新規 (本エントリ、実測。ユーザー裁定済み → 別 wave で根治)**:
-  **fold commit を含む local main を合流させた wave は、現行 land helper では land できない。**
-  監査 commit 列は `git rev-list --reverse main..tip` と完全一致が要る (`tools/dev_wave_land.py:963`)
-  ため merge commit を外せず、その第一親差分に `M docs/spool/FOLDED.md` が現れて
-  `landed-fold-owned-path` (`tools/dev_waves/git_state.py:557-562`) に掛かる。
-  同検査の目的は「wave が自前で fold するのを止める」ことだが、取り込んだ main の fold と区別できない。
-  修正案は (a) 親 2 つの commit を検査対象から外す、(b) 第一親側の差分だけを見る、
-  (c) 取り込み先 main に既に存在する fold 出力を除外する、のいずれか。
-  **`DW-O23` の stale 復旧手順 (固定 SHA の wave-side merge) が構造的に成立しないので P1。**
-  「こまめに main を合流する」運用にするほど踏む頻度が上がる
 - {{T:qsub-interpreter-contract}} **P3・新規 (本エントリ、実測。マシン固有部分は本 wave で解消)**:
   生 `qsub` から計算ノードで pytest を走らせる経路に interpreter 契約が無く、
-  既定 `python3` が 3.10 未満のため偽赤が出る ({{F:raw-qsub-interpreter-false-red}})。
+  既定 `python3` が 3.10 未満のため偽赤が出る (F84 の再発)。
   **マシン固有事実 (既定 `python3` の版・shim の要否・`-o`/`-e` の落ち先) は段 8 で
   `docs/pegasus-runbook.md` §3 へ書いた** — 横断 docs にマシン密結合を持ち込まない規律に従い、
   ここが正しい正本である。残るのは「親が計算ノードで pytest を走らせる直前に正規経路を使う」
