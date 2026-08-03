@@ -67,7 +67,7 @@ title: [T-367] 走行中ジョブへの qdel を fresh qstat gate で禁じる �
 - [T-367] fresh qstat gate を 4 経路へ実装し、敵対検証と変異で裏取りして land した。
   保証の射程と残余リスクは本文に明記した。
   remaining: none
-  base: 8eadde755aef3784c31ba20d304aae7f27422e0c0888cc07191cc253f98acf21
+  base: 37599c25a3b568f354010a75515242319ca394c16def48d24ea48e9668671158
 
 ### 新規
 
