@@ -39,6 +39,7 @@ run でのみ骨格の上に重ねる。**この分離が偽陰性を生まな�
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import shutil
@@ -48,7 +49,10 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import buildcache, site_policy                           # noqa: E402
+from campaign import buildcache, site_policy, source_digest            # noqa: E402
+from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+                                      build_run_context, derive_build_admission,
+                                      require_build_admission)
 from campaign.axis_trigger_gating import (                             # noqa: E402
     INSTR_PATCH, MISATTR_DEFINE, MISATTR_PATCH, PIN, TEMPLATE_PATCH, _BASE)
 from campaign.layout import repo_output_root                           # noqa: E402
@@ -101,13 +105,14 @@ def _run_cmake_build(cmd: list[str], *, site=None) -> None:
 
 def _build(
         bdir: str, extra_cxx_define: str = "", genome: Genome = None, *,
-        site=None,
+        site=None, admission_receipts: list[dict] | None = None,
 ) -> str:
     """working-tree (patch 適用済み) を TRACE=1 で fresh build し binary パスを返す。
 
     genome は明示引数 (省略時は本モジュールの GENOME)。s8a_trigger_freq.py が import
     再利用するため、呼び出し側の genome でビルドし「JSON の genome 欄 ≠ 実ビルド」の
-    無警告ドリフトを塞ぐ (実装レビュー 2026-07-11 F1)。"""
+    無警告ドリフトを塞ぐ (実装レビュー 2026-07-11 F1)。patched source と generator
+    input を registered S8A receipt に束縛し、検証後の canonical admission を呼出側へ返す。"""
     sub = os.path.join(_repo_root(), "external", "ccbench")
     defines = (genome or GENOME).cmake_defines() + ["-DCCBENCH_TRACE=1"]
     if extra_cxx_define:
@@ -123,6 +128,32 @@ def _build(
                 resolved_site, "cmake configure/build"
             )
         )
+    evidence = source_digest.resolve_evidence(
+        genome or GENOME, PIN, ccbench_dir=sub,
+    )
+    build_context = build_run_context(
+        generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+    )
+    generator_input = {
+        "schema": "s8a-trigger-characterization-input/v1",
+        "genome": (genome or GENOME).canonical(),
+        "trace": True,
+        "extra_cxx_define": extra_cxx_define,
+    }
+    input_sha256 = hashlib.sha256(json.dumps(
+        generator_input, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")).hexdigest()
+    capability = attest_generator_output(
+        build_context, evidence, generator_input_sha256=input_sha256,
+    )
+    admission = derive_build_admission(
+        build_context, evidence, generator_receipt=capability,
+    )
+    require_build_admission(
+        admission, expected_policy=build_context.policy, expected_source=evidence,
+    )
+    if admission_receipts is not None:
+        admission_receipts.append(admission.as_wal_receipt())
     subprocess.run(cfg, check=True, capture_output=True, text=True)
     _run_cmake_build(
         ["cmake", "--build", bdir, "--target", "ycsb_silo.exe"],
@@ -210,7 +241,9 @@ def main() -> int:
     patches = os.path.join(root, "patches")
 
     result = {"env_tag": ENV_TAG, "ccbench_commit": PIN,
-              "genome": GENOME.canonical(), "clocks_per_us": CLK, "runs": {}}
+              "genome": GENOME.canonical(), "clocks_per_us": CLK,
+              "build_admissions": [],
+              "runs": {}}
 
     bdir_sk = tempfile.mkdtemp(prefix="izanagi_s8a_sk_")
     bdir_mi = tempfile.mkdtemp(prefix="izanagi_s8a_mi_")
@@ -220,10 +253,15 @@ def main() -> int:
         with applied(os.path.join(patches, SKELETON_PATCH), PIN, sub):
             apply_patch(os.path.join(patches, INSTR_PATCH), sub)
             print("== build skeleton+instr (TRACE=1) ==")
-            bin_sk = _build(bdir_sk)
+            bin_sk = _build(
+                bdir_sk, admission_receipts=result["build_admissions"],
+            )
             apply_patch(os.path.join(patches, MISATTR_PATCH), sub)
             print(f"== build +misattr (-D{MISATTR_DEFINE}=1) ==")
-            bin_mi = _build(bdir_mi, MISATTR_DEFINE)
+            bin_mi = _build(
+                bdir_mi, MISATTR_DEFINE,
+                admission_receipts=result["build_admissions"],
+            )
 
             print("== skeleton multi-thread (t4) ==")
             result["runs"]["skeleton_multi"] = _one_run(bin_sk, MULTI_FLAGS,

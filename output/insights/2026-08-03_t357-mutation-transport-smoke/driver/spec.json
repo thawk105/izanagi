@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "G01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if path.name != expected:",
+          "new": "    if False and path.name != expected:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n01_frontmatter_filename_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "G03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if symbol.key in seen:",
+          "new": "        if False and symbol.key in seen:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n03_duplicate_symbol_definition_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "G04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            if brace >= 0:",
+          "new": "            if False and brace >= 0:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n04_malformed_placeholder_residue_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

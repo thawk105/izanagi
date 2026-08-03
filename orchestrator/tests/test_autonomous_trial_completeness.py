@@ -18,12 +18,25 @@ if str(_ROOT) not in sys.path:
 
 from orchestrator.campaign import autonomous_trial_completeness as C  # noqa: E402
 from orchestrator.campaign import p3_autonomous_workload_trial as A  # noqa: E402
+from orchestrator.campaign import layer3_report as L3                 # noqa: E402
+from orchestrator.campaign import pipeline as P                       # noqa: E402
+from orchestrator.campaign.build_admission import (                  # noqa: E402
+    GeneratorId,
+    build_run_context,
+    derive_build_admission,
+)
+from orchestrator.campaign.pin import CURRENT_PIN                    # noqa: E402
+from orchestrator.campaign.model import Genome                       # noqa: E402
+from orchestrator.campaign.source_digest import (                    # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    SourceEvidence,
+)
 
 
 _ROLES = ("planner", "coder", "auditor", "critic")
 _TRIAL_SCHEMA_VERSION = "p3-autonomous-workload-trial/v2"
 _REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v2"
-_LAYER3_SCHEMA_VERSION = "layer3-material-report/v2"
+_LAYER3_SCHEMA_VERSION = "layer3-material-report/v3"
 _LAYER3_GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
 _TRANSPORT_RECEIPT = {
     "schema_version": "claude-transport-receipt/v1",
@@ -63,7 +76,7 @@ _GOLDEN_WORKLOADS = {
         "output_sha256": "7744886ad2d3b1a6e5fdefe969a8b527b1dfc997aec85459596dc3c89680c664",
     },
 }
-_GOLDEN_CAMPAIGN_IDS = {
+_PRE_T343_NO_BUILD_CAMPAIGN_IDS = {
     ("fixture-completeness", "ycsb-a"): (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     ),
@@ -80,6 +93,43 @@ _GOLDEN_CAMPAIGN_IDS = {
         "p3-t178-ycsb-a-workload-conditioned-autonomous-4395f9d1"
     ),
 }
+_T343_POLICY_BOUND_CAMPAIGN_IDS = {
+    ("fixture-completeness", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-623e929a"
+    ),
+    ("fixture-completeness", "ycsb-b"): (
+        "p3-t178-ycsb-b-workload-conditioned-autonomous-6225b974"
+    ),
+    ("fixture-completeness", "ycsb-c"): (
+        "p3-t178-ycsb-c-workload-conditioned-autonomous-f967c773"
+    ),
+    ("trial-a", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-ebcbf812"
+    ),
+    ("trial-b", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-cf7c34b4"
+    ),
+}
+_LITERAL_ADMISSION_DECISION = {
+    "schema_version": "campaign-artifact-admission-decision/v1",
+    "classification": "admitted-new-schema",
+    "admission_status": "admitted",
+    "verification_status": "not-evaluated-by-overlay",
+    "campaign_id": "literal-campaign",
+    "campaign_path": "campaigns/literal-campaign",
+    "campaign_lock_sha256": "1" * 64,
+    "wal_sha256": "2" * 64,
+    "policy_sha256": "3" * 64,
+    "attempt_receipt_sha256s": ["4" * 64],
+    "validator": {
+        "identity": "orchestrator.campaign.artifact_admission",
+        "sha256": "5" * 64,
+    },
+    "overlay": {
+        "ledger_sha256": "6" * 64,
+        "record_key": None,
+    },
+}
 _DESCRIPTOR_SCHEMA_SHA256 = (
     "e60203b021a77a6d5a7d09bafd59525acd4173fa1ade099ec145a2b9d3ddc653"
 )
@@ -90,7 +140,7 @@ def _golden_cell_metadata(
 ) -> dict:
     golden = _GOLDEN_WORKLOADS[workload]
     read_ratio = int(golden["rratio"])
-    campaign_id = _GOLDEN_CAMPAIGN_IDS[(trial_id, workload)]
+    campaign_id = _PRE_T343_NO_BUILD_CAMPAIGN_IDS[(trial_id, workload)]
     return {
         "workload_flags": {
             "ycsb_zipf_skew": "0.9",
@@ -114,6 +164,7 @@ def _golden_cell_metadata(
         },
         "campaign_id": campaign_id,
         "campaign_root": str(campaign_parent / "campaigns" / campaign_id),
+        "admission_decision": {"admission_status": "not-applicable"},
     }
 
 
@@ -1126,12 +1177,15 @@ def _layer3_campaign(
     workload_flags = metadata["workload_flags"]
     descriptor = metadata["descriptor"]
     descriptor_binding = metadata["descriptor_binding"]
-    campaign_id = metadata["campaign_id"]
+    campaign_id = _T343_POLICY_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
+    metadata["campaign_id"] = campaign_id
+    metadata["campaign_root"] = str(output_root / "campaigns" / campaign_id)
     campaign = output_root / "campaigns" / campaign_id
     (campaign / "runs").mkdir(parents=True)
     (campaign / "reports").mkdir()
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     lock = {
-        "ccbench_commit": "d706650",
+        "ccbench_commit": CURRENT_PIN,
         "search_config": {
             "axis": "silo-backoff-trigger-gating",
             "descriptor_schema": "8b-v1",
@@ -1146,6 +1200,7 @@ def _layer3_campaign(
             "verify": "legacy+s2",
             "workload": workload,
             "ycsb": workload_flags,
+            "build_admission": dict(context.policy.as_preimage()),
         },
         "search_tag": "workload-conditioned-autonomous",
         "spec_content": (
@@ -1162,18 +1217,52 @@ def _layer3_campaign(
     state_path.write_text(
         json.dumps({"whiteboard": []}), encoding="utf-8",
     )
+    genome_value = Genome("fixture", {})
+    genome = genome_value.canonical()
+    variant = P.variant_id(genome_value)
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(tmp_path.resolve()),
+        ccbench_commit=CURRENT_PIN,
+        genome_sha256=hashlib.sha256(genome.encode()).hexdigest(),
+        src_token="stock",
+        source_bytes_sha256="a" * 64,
+        tracked_clean=True,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+    )
+    receipt = derive_build_admission(context, evidence).as_wal_receipt()
+    attempt_id = "attempt-1"
+    terminal = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    }
     records = [
         {
-            "ts": 1.0, "stage": "build_start", "variant": "v1",
-            "env_tag": "fixture-env", "payload": {"genome": "g", "src_token": "s"},
+            "ts": 1.0, "stage": "build_start", "variant": variant,
+            "env_tag": "fixture-env", "payload": {
+                "build_attempt_id": attempt_id,
+                "genome": genome,
+                "src_token": "stock",
+                "build_admission": receipt,
+                "build_admission_receipt_sha256": receipt["receipt_sha256"],
+            },
         },
         {
-            "ts": 2.0, "stage": "bench_done", "variant": "v1",
+            "ts": 2.0, "stage": "build_done", "variant": variant,
+            "env_tag": "fixture-env", "payload": dict(terminal),
+        },
+        {
+            "ts": 3.0, "stage": "bench_done", "variant": variant,
             "env_tag": "fixture-env",
             "payload": {
                 "tps": [1.0], "median_tps": 1.0, "cv": 0.0, "rounds": 1,
                 "leading_indicators": {},
             },
+        },
+        {
+            "ts": 4.0, "stage": "commit", "variant": variant,
+            "env_tag": "fixture-env", "payload": dict(terminal),
         },
     ]
     wal_path = campaign / "runs" / "wal.jsonl"
@@ -1181,72 +1270,9 @@ def _layer3_campaign(
         "".join(json.dumps(record) + "\n" for record in records),
         encoding="utf-8",
     )
-    refs = [_test_wal_ref(record) for record in records]
-    search_detail = {
-        "scanned_files": 0,
-        "candidate_files": [],
-        "skipped_no_floor_block": [],
-        "campaign_has_no_ycsb": False,
-        "criteria": {
-            "records": 100_000,
-            "threads": 4,
-            "workload": workload_flags,
-        },
-        "mismatches": [],
-    }
-    no_floor = {
-        "value": None,
-        "provenance": "no-matching-env-record",
-        "source": None,
-        "search": search_detail,
-    }
-    layer3_source = _ROOT / "orchestrator/campaign/layer3_report.py"
-    persisted = {
-        "schema_version": _LAYER3_SCHEMA_VERSION,
-        "meta": {
-            "campaign_id": campaign_id,
-            "campaign_path": campaign.relative_to(tmp_path).as_posix(),
-            "ccbench_commit": lock["ccbench_commit"],
-            "generated_from_head": "a" * 40,
-            "generator": {
-                "identity": _LAYER3_GENERATOR_IDENTITY,
-                "sha256": hashlib.sha256(layer3_source.read_bytes()).hexdigest(),
-            },
-        },
-        "workload": lock["search_config"],
-        "variants": [{
-            "variant": "v1",
-            "genome": ["g"],
-            "src_token": ["s"],
-            "events": records,
-        }],
-        "runs": [{
-            **records[1]["payload"],
-            "variant": "v1",
-            "source_ref": refs[1],
-        }],
-        "verifications": [],
-        "rejects": [{
-            "variant": "v1",
-            "reason": "commit-event-absent",
-            "source_ref": refs[1],
-        }],
-        "aborts": [],
-        "noise_floor": {
-            "within_run": copy.deepcopy(no_floor),
-            "between_run": copy.deepcopy(no_floor),
-        },
-        "env_tags": ["fixture-env"],
-        "whiteboard": [],
-        "whiteboard_provenance": "loop_state",
-        "artifact_refs": [
-            _file_ref(lock_path, campaign),
-            _file_ref(state_path, campaign),
-            _file_ref(wal_path, campaign),
-        ],
-        "source_refs": sorted(refs),
-        "mechanism_hypotheses": [],
-    }
+    persisted = L3.build_report(
+        campaign, generated_from_head="a" * 40, output_root=output_root,
+    )
     persisted_path = campaign / "reports" / "layer3_report.json"
     persisted_path.write_text(
         json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
@@ -1255,6 +1281,7 @@ def _layer3_campaign(
     cell = {
         "workload": workload,
         **metadata,
+        "admission_decision": copy.deepcopy(persisted["admission_decision"]),
         "generations": [],
         "stop_reason": "supervisor-error",
     }
@@ -1290,10 +1317,61 @@ def test_campaign_identity_is_pinned_without_producer_helper_oracle(tmp_path) ->
         tmp_path
     )
     assert cell["campaign_id"] == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-623e929a"
     )
+    assert _PRE_T343_NO_BUILD_CAMPAIGN_IDS[(
+        "fixture-completeness", "ycsb-a",
+    )] == "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     report = _campaign_report(cell)
     C.assert_campaign_layer3_chain(report=report, output_root=output_root)
+
+
+def test_independent_literal_layer3_admission_decision_is_accepted() -> None:
+    """Layer3 producer を呼ばず、独立 literal receipt を consumer へ与える。"""
+    report = {
+        "schema_version": _LAYER3_SCHEMA_VERSION,
+        "admission_decision": copy.deepcopy(_LITERAL_ADMISSION_DECISION),
+    }
+    assert C._require_exact_layer3_admission_decision(
+        report,
+        expected=_LITERAL_ADMISSION_DECISION,
+        label="literal layer3 report",
+    ) == _LITERAL_ADMISSION_DECISION
+
+
+@pytest.mark.parametrize("path,replacement", [
+    (("schema_version",), "campaign-artifact-admission-decision/v0"),
+    (("classification",), "historical-pre-admission-schema"),
+    (("admission_status",), "legacy-unclassified"),
+    (("verification_status",), "historically-certified"),
+    (("campaign_id",), "other-campaign"),
+    (("campaign_path",), "campaigns/other-campaign"),
+    (("campaign_lock_sha256",), "a" * 64),
+    (("wal_sha256",), "b" * 64),
+    (("policy_sha256",), "c" * 64),
+    (("attempt_receipt_sha256s",), ["d" * 64]),
+    (("validator", "identity"), "other.validator"),
+    (("validator", "sha256"), "e" * 64),
+    (("overlay", "ledger_sha256"), "f" * 64),
+    (("overlay", "record_key"), "other-record"),
+])
+def test_independent_literal_admission_receipt_field_mutations_are_rejected(
+    path, replacement,
+) -> None:
+    mutated = copy.deepcopy(_LITERAL_ADMISSION_DECISION)
+    target = mutated
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = replacement
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match="admission decision differs from validator",
+    ):
+        C._require_exact_layer3_admission_decision(
+            {"admission_decision": mutated},
+            expected=_LITERAL_ADMISSION_DECISION,
+            label="literal layer3 report",
+        )
 
 
 def test_campaign_chain_rejects_missing_persisted_report(tmp_path) -> None:

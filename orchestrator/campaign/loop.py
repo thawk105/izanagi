@@ -12,17 +12,19 @@ Phase 1 は探索 = 列挙 (全 genome)。Phase 2 で LLM 誘導の選択/変異
 from __future__ import annotations
 
 import json
+import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Sequence
 
 from . import (buildcache, env_attestation, env_contract as env_contract_registry,
                execution_guard, ident, site_policy, source_digest, wal)
-from .build_admission import BuildAdmission, require_build_admission
+from .build_admission import BuildRunContext
 from .env_contract import ExecutionEnvironmentContract
 from .layout import campaign_layout, exploration_campaign_layout
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
-from .pipeline import (EvalResult, PerfConfig, S2_TAG, SEARCH_CONFIG_VERIFY_KEY,
+from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_TAG,
+                       SEARCH_CONFIG_VERIFY_KEY,
                        VERIFY_LEGACY_PLUS_S2, evaluate, s2_correctness_workload,
                        variant_id)
 
@@ -97,15 +99,18 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  do_bench: bool = True, output_root: str = "",
                  log=print, ccbench_dir: str = "", cache_root: str = "",
                  env_contract=None, dependency_prefix: str = "", *,
-                 admission: BuildAdmission,
+                 build_context: BuildRunContext,
+                 capability_resolver: Optional[AdmissionCapabilityResolver] = None,
                  campaign_namespace: str = "official") -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。`campaign_namespace` は
     official / exploration の閉じた path selector。namespace は campaign-id に含めず、
     `env_contract` と `dependency_prefix` は非既定時だけ素通しして既定 caller の
-    evaluate 呼出し形を保つ。`admission` は provenance class を必須指定し、
-    pipeline と materializer へそのまま伝播する。"""
-    admission = require_build_admission(admission)
+    evaluate 呼出し形を保つ。`build_context` の安定 policy を campaign identity へ束縛し、
+    source ごとの capability resolver は evidence 解決後の pipeline へ渡す。"""
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
     if campaign_namespace == "official":
         layout_constructor = campaign_layout
     elif campaign_namespace == "exploration":
@@ -129,7 +134,9 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         extra_correctness = [(S2_TAG, s2_correctness_workload())]
 
     # 同一性を照合した後に限り、replay 前に無終端 tail を物理修復する。
-    repair = ident.ensure_resumable_wal(cfg, layout)
+    repair = ident.ensure_resumable_wal(
+        cfg, layout, admission_policy=build_context.policy,
+    )
     log(f"[campaign] {cid}  ({layout.root})")
     if repair.status == "repaired":
         log("[campaign] WAL tail repair: " + json.dumps({
@@ -143,7 +150,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         }, ensure_ascii=False, sort_keys=True))
 
     # リカバリ: terminal な variant はスキップ
-    states = wal.replay(layout)
+    states = wal.replay(layout, admission_policy=build_context.policy)
     terminal = wal.terminal_variants(states)
     # transient infra 失敗による abort (identity-error = g++/git 一時失敗、*-probe-error =
     # 競合検知 pgrep 一時失敗) は genome-intrinsic な失敗 (verifier-red / build-error /
@@ -173,12 +180,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         # 確定不能は stock id で fails-closed abort (best-effort skip を持ち込まない, 規律2)。
         try:
             _, resolved_cxx = _compilers_for_current_site()
-            if resolved_cxx == _DEFAULT_CXX:
-                src_tok = source_digest.resolve(g, cfg.ccbench_commit, ccbench_dir)
-            else:
-                src_tok = source_digest.resolve(
-                    g, cfg.ccbench_commit, ccbench_dir, resolved_cxx,
-                )
+            evidence_cxx = _DEFAULT_CXX if resolved_cxx == _DEFAULT_CXX else resolved_cxx
+            source_evidence = source_digest.resolve_evidence(
+                g, cfg.ccbench_commit, ccbench_dir=ccbench_dir, cxx=evidence_cxx,
+            )
+            src_tok = source_evidence.src_token
         except RuntimeError as e:
             v0 = variant_id(g)              # identity 不明ゆえ canonical のみの stock id
             if v0 in done:
@@ -192,12 +198,14 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     f"terminal 済み → この run はスキップ (環境修復後の次 run で再評価): {e}")
                 continue
             done.add(v0)
+            attempt_id = secrets.token_hex(16)
             wal.log(layout, v0, STAGE_BUILD_START, env_tag, {
                 "genome": g.canonical(),
-                "build_admission": admission.as_wal_receipt(),
+                "build_attempt_id": attempt_id,
             })
             wal.log(layout, v0, STAGE_ABORT, env_tag,
-                    {"reason": "identity-error", "error": str(e)})
+                    {"reason": "identity-error", "error": str(e),
+                     "build_attempt_id": attempt_id})
             log(f"[campaign] {v0} identity 確定不能 → abort 隔離して継続: {e}")
             s.results.append(EvalResult(genome=g, variant=v0, certified=False,
                                         aborted=True,
@@ -223,15 +231,29 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                          do_settle=(do_bench and first_bench),
                          src_token=src_tok, extra_correctness=extra_correctness,
                          log=log, ccbench_dir=ccbench_dir, cache_root=cache_root,
-                         admission=admission, **evaluate_options)
+                         build_context=build_context,
+                         capability_resolver=capability_resolver,
+                         source_evidence=source_evidence,
+                         **evaluate_options)
         except Exception as e:   # noqa: BLE001  この variant 固有の失敗を隔離する
             # 想定外の例外も abort として terminal 化し、再起動で同地点の再クラッシュを
             # 防ぐ (overnight 耐性 / A)。KeyboardInterrupt 等は Exception 外なので通す。
             if isinstance(e, (wal.WalAppendError, wal.WalFramingError)):
                 # WAL I/O が壊れた同じ台帳へ診断を重ねない。元の構造化例外を保つ。
                 raise
-            wal.log(layout, v, STAGE_ABORT, env_tag,
-                    {"reason": f"eval-exception: {type(e).__name__}: {e}"})
+            abort_payload = {"reason": f"eval-exception: {type(e).__name__}: {e}"}
+            replayed = wal.replay(layout, admission_policy=build_context.policy).get(v)
+            if replayed is not None:
+                active = [
+                    attempt for attempt in replayed.attempts.values()
+                    if not attempt.committed and not attempt.aborted
+                ]
+                if len(active) == 1:
+                    abort_payload["build_attempt_id"] = active[0].attempt_id
+                    if active[0].receipt_sha256 is not None:
+                        abort_payload["build_admission_receipt_sha256"] = \
+                            active[0].receipt_sha256
+            wal.log(layout, v, STAGE_ABORT, env_tag, abort_payload)
             log(f"[campaign] {v} 評価中に例外 → abort 隔離して継続: {e}")
             r = EvalResult(genome=g, variant=v, certified=False, aborted=True,
                            notes=[f"評価中の例外 → reject ({e})"])

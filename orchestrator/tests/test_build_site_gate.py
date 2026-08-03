@@ -2,6 +2,7 @@
 """実 cmake build の site gate と build jobs provenance の回帰テスト。"""
 from __future__ import annotations
 
+import hashlib
 import inspect
 import json
 import subprocess
@@ -29,10 +30,18 @@ from campaign.env_contract import (  # noqa: E402
     ExecutionEnvironmentContract,
     IsolationPolicy,
 )
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    GeneratorId,
+    build_run_context,
+    derive_build_admission,
+)
 from campaign.model import Genome  # noqa: E402
-
-_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
+from campaign.pin import CURRENT_PIN  # noqa: E402
+from campaign.source_digest import (  # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    SOURCE_EVIDENCE_SCHEMA,
+    SourceEvidence,
+)
 
 
 _COVERAGE_MODULES = (
@@ -72,7 +81,28 @@ def _contract() -> ExecutionEnvironmentContract:
     )
 
 
+def _stock_bundle(genome: Genome, ccbench_dir: Path):
+    """現行 pin の clean stock evidence から fixture 用 capability を導出する。"""
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    evidence = SourceEvidence(
+        schema_version=SOURCE_EVIDENCE_SCHEMA,
+        source_root=str(ccbench_dir.resolve()),
+        ccbench_commit=CURRENT_PIN,
+        genome_sha256=hashlib.sha256(
+            genome.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token="stock",
+        source_bytes_sha256=hashlib.sha256(b"site-gate-stock-source").hexdigest(),
+        tracked_clean=True,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+    )
+    return context, evidence, derive_build_admission(context, evidence)
+
+
 def _fake_v2_builds(root: Path, sites: tuple[str, ...]):
+    genome = Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = _stock_bundle(genome, root / "ccbench")
     toolchain = {
         "cc": {
             "requested": "test-cc",
@@ -95,6 +125,7 @@ def _fake_v2_builds(root: Path, sites: tuple[str, ...]):
         assert_worktree_within_allowlist=lambda *a, **k: None,
         assert_trace_diff_matches_head=lambda *a, **k: None,
         resolve=lambda *a, **k: "stock",
+        resolve_evidence=lambda *a, **k: evidence,
     )
     calls = []
 
@@ -119,10 +150,12 @@ def _fake_v2_builds(root: Path, sites: tuple[str, ...]):
         stack.enter_context(patch.object(buildcache, "_run", fake_run))
         for site in sites:
             results.append(buildcache.build_v2(
-                Genome("silo", {"BACK_OFF": 1}),
-                admission=_STOCK_ADMISSION,
+                genome,
+                admission=admission,
+                build_context=context,
+                source_evidence=evidence,
                 contract=_contract(),
-                ccbench_commit="a" * 40,
+                ccbench_commit=CURRENT_PIN,
                 trace=True,
                 src_token="stock",
                 cc="test-cc",
@@ -135,11 +168,14 @@ def _fake_v2_builds(root: Path, sites: tuple[str, ...]):
 
 
 def _fake_legacy_build(root: Path, *, site: str, jobs: int | None):
+    genome = Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = _stock_bundle(genome, root / "ccbench")
     fake_source_digest = SimpleNamespace(
         STOCK="stock",
         assert_worktree_within_allowlist=lambda *a, **k: None,
         assert_trace_diff_matches_head=lambda *a, **k: None,
         resolve=lambda *a, **k: "stock",
+        resolve_evidence=lambda *a, **k: evidence,
     )
     calls = []
 
@@ -160,14 +196,16 @@ def _fake_legacy_build(root: Path, *, site: str, jobs: int | None):
         ))
         stack.enter_context(patch.object(buildcache, "_run", fake_run))
         result = buildcache.build(
-            Genome("silo", {"BACK_OFF": 1}),
-            ccbench_commit="a" * 40,
+            genome,
+            ccbench_commit=CURRENT_PIN,
             trace=True,
             cache_root=str(root / "cache"),
             ccbench_dir=str(root / "ccbench"),
             src_token="stock",
             jobs=jobs,
-            admission=_STOCK_ADMISSION,
+            admission=admission,
+            build_context=context,
+            source_evidence=evidence,
             site=site,
         )
     return result, calls
@@ -263,7 +301,10 @@ def test_other_default_jobs_remain_j16():
     assert f"-DCMAKE_C_COMPILER={buildcache.DEFAULT_CC}" in result.configure_argv
     assert f"-DCMAKE_CXX_COMPILER={buildcache.DEFAULT_CXX}" in result.configure_argv
     assert Path(result.build_dir).name == buildcache.cache_key(
-        Genome("silo", {"BACK_OFF": 1}), "a" * 40, True, src_token="stock",
+        Genome("silo", {"BACK_OFF": 1}), CURRENT_PIN, True, src_token="stock",
+        admission=_stock_bundle(
+            Genome("silo", {"BACK_OFF": 1}), Path(tmp) / "ccbench",
+        )[2],
     )
 
 

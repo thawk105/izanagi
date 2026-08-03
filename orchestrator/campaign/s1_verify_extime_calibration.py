@@ -23,6 +23,7 @@ read-heavy.system_gate の完全一致を要求する。
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -39,7 +40,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import (axis_trigger_gating, buildcache, p3_s4_loop, pin,  # noqa: E402
                       s1_known_axes_freeze, s8a_trigger_sweep, source_digest)
-from campaign.build_admission import BuildAdmission, BuildProvenance    # noqa: E402
+from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+                                      build_run_context, derive_build_admission)
 from campaign.layout import repo_output_root                              # noqa: E402
 from campaign.p2_2 import (CLK, NUMA, RECORDS, THREADS,                  # noqa: E402
                            _assert_single_tenant)
@@ -337,11 +339,22 @@ def _build_target(target: Mapping) -> Dict:
         if not quarantine.passed:
             raise CalibrationError(
                 f"g_rl の diff quarantine が reject: {quarantine.reason}")
-        src_token = source_digest.resolve(genome, PIN, str(sub))
+        build_context = build_run_context(generator_id=GeneratorId.S1_EXTIME_CALIBRATION)
+        evidence = source_digest.resolve_evidence(genome, PIN, ccbench_dir=str(sub))
+        src_token = evidence.src_token
+        capability = attest_generator_output(
+            build_context, evidence,
+            generator_input_sha256=hashlib.sha256(
+                json.dumps(target, sort_keys=True, default=str).encode("utf-8")
+            ).hexdigest(),
+        )
         built = buildcache.build(genome, PIN, trace=True, ccbench_dir=str(sub),
                                  src_token=src_token,
-                                 admission=BuildAdmission(
-                                     BuildProvenance.MACHINE_SWEEP))
+                                 admission=derive_build_admission(
+                                     build_context, evidence,
+                                     generator_receipt=capability),
+                                 build_context=build_context,
+                                 source_evidence=evidence)
     return {
         "binary": built.binary,
         "src_token": src_token,

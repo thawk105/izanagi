@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import argparse
 import copy
 import contextlib
 import errno
@@ -20,10 +21,14 @@ sys.path.insert(0, str(TESTS))
 sys.path.insert(0, str(ORCH))
 
 from campaign import pipeline, wal  # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
+                                      add_coder_build_authority_argument,
+                                      build_run_context)
 from campaign.layout import CampaignLayout  # noqa: E402
 from campaign.model import Genome, STAGE_BUILD_START, STAGE_S1_SESSION  # noqa: E402
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
+from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256, STOCK,  # noqa: E402
+                                    SourceEvidence)
 from campaign import s1_direct_comparison as S  # noqa: E402
 from campaign import t080_freeze_migration as T080  # noqa: E402
 from s1_expected_goldens import (  # noqa: E402
@@ -32,7 +37,16 @@ from s1_expected_goldens import (  # noqa: E402
     EXPECTED_SORT,
 )
 
-_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
+
+def _evidence(*, stock=True, commit=None):
+    return SourceEvidence(
+        schema_version="source-evidence/v1", source_root="/ccbench",
+        ccbench_commit=commit or _freeze()["ccbench_pin"], genome_sha256="1" * 64,
+        src_token=STOCK if stock else "2" * 64, source_bytes_sha256="3" * 64,
+        tracked_clean=stock,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256 if stock else "4" * 64,
+        tracked_paths=() if stock else ("cc/silo/include/transaction.hh",),
+    )
 
 
 def _freeze() -> dict:
@@ -76,7 +90,9 @@ def _write_freeze(tmp_path: Path, document: dict | None = None) -> Path:
 
 @contextlib.contextmanager
 def _prepared(cell, pin):
-    yield S.PreparedCell(Genome("silo", {"BACK_OFF": 1}), "stock", "/ccbench", "/cache")
+    yield S.PreparedCell(
+        Genome("silo", {"BACK_OFF": 1}), "stock", "/ccbench", "/cache",
+    )
 
 
 @contextlib.contextmanager
@@ -193,7 +209,10 @@ def test_prepare_backoff_fixed_best_preserves_evolve_block(tmp_path, monkeypatch
     monkeypatch.setattr(
         patchharness, "applied",
         lambda *args, **kwargs: applied.append(args) or _fixture_backoff_patch(backoff))
-    monkeypatch.setattr(S.source_digest, "resolve", lambda *args: "fixture-source")
+    monkeypatch.setattr(
+        S.source_digest, "resolve",
+        lambda *args, **kwargs: "fixture-source",
+    )
     monkeypatch.setattr(loop_axis, "quarantine", lambda *args, **kwargs: pytest.fail("hole を置換してはならない"))
     cell = {
         "configuration": "backoff_fixed_best",
@@ -252,7 +271,10 @@ def _capture_prepare_quarantine(
         patchharness, "checkout", lambda *args, **kwargs: _fixture_checkout(worktree))
     monkeypatch.setattr(
         patchharness, "applied", lambda *args, **kwargs: _fixture_checkout(worktree))
-    monkeypatch.setattr(S.source_digest, "resolve", lambda *args: "fixture-source")
+    monkeypatch.setattr(
+        S.source_digest, "resolve",
+        lambda *args, **kwargs: "fixture-source",
+    )
     monkeypatch.setattr(loop_axis, "quarantine", fake_quarantine)
 
     with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969"):
@@ -657,8 +679,8 @@ def test_develop_calls_legacy_plus_s2_without_bench_18_times(tmp_path):
         assert kwargs["screening"] is None
         assert kwargs["numactl"] == S.NUMACTL
         assert kwargs["bench_max_rounds"] == 1
-        assert kwargs["admission"].provenance_class is BuildProvenance.HUMAN_REVIEWED
-        assert kwargs["admission"].coder_derived_opt_in is False
+        assert type(kwargs["build_context"]) is BuildRunContext
+        assert callable(kwargs["capability_resolver"])
         assert [(tag, wl.flags) for tag, wl in kwargs["extra_correctness"]] == [
             (pipeline.S2_TAG, pipeline.s2_correctness_workload().flags)]
 
@@ -813,12 +835,25 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
     monkeypatch.setattr(pipeline, "remeasure_until_stable", fake_remeasure)
     genome = Genome("silo", {"BACK_OFF": 1})
     perf = PerfConfig(records=1000, threads=2)
+    parser = argparse.ArgumentParser()
+    add_coder_build_authority_argument(parser)
+    context = build_run_context(
+        generator_id=GeneratorId.BACKOFF_SWEEP,
+        coder_authority=parser.parse_args(
+            ["--allow-coder-derived-build"]
+        ).coder_build_authority,
+    )
+    evidence = _evidence(stock=False, commit="deadbeef")
+    monkeypatch.setattr(
+        pipeline.source_digest, "resolve_evidence", lambda *a, **k: evidence,
+    )
 
     for max_rounds in (None, 1):
         layout = CampaignLayout(str(tmp_path / f"c-{max_rounds}")).ensure()
         kwargs = {} if max_rounds is None else {"bench_max_rounds": max_rounds}
         result = pipeline.evaluate(
             genome, layout, "test-env", "deadbeef", perf, 1800,
-            log=lambda msg: None, admission=_STOCK_ADMISSION, **kwargs)
+            log=lambda msg: None, build_context=context,
+            source_evidence=evidence, **kwargs)
         assert result.certified
     assert captured == [3, 1]

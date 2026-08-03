@@ -25,6 +25,8 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import pipeline, wal                                # noqa: E402
+from campaign.artifact_admission import (AdmittedCampaign,        # noqa: E402
+                                         require_admitted_campaign)
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT, STAGE_VERIFY_DONE)
@@ -189,7 +191,15 @@ def _parse_flags(canonical: str) -> Dict[str, int]:
     return {k: int(v) for k, v in (kv.split("=") for kv in body.split(","))}
 
 
-def load_workload(layout: CampaignLayout) -> List[GenomeLI]:
+def _validated_records(view: AdmittedCampaign):
+    if type(view) is not AdmittedCampaign:
+        raise TypeError(
+            "raw-WAL critic loader requires require_admitted_campaign() view"
+        )
+    return view.records
+
+
+def load_workload(view: AdmittedCampaign) -> List[GenomeLI]:
     """campaign WAL から **committed** genome の leading indicators を読む。
 
     bench_done だけで拾うと、bench は走ったが COMMIT 前にクラッシュした half-evaluated
@@ -199,7 +209,7 @@ def load_workload(layout: CampaignLayout) -> List[GenomeLI]:
     li_of: Dict[str, Dict] = {}
     committed: set = set()
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in wal.read_records(layout):
+    for r in _validated_records(view):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
         elif r.stage == STAGE_BENCH_DONE:
@@ -219,7 +229,7 @@ def load_workload(layout: CampaignLayout) -> List[GenomeLI]:
     return out
 
 
-def load_rejections(layout: CampaignLayout) -> List[Rejection]:
+def load_rejections(view: AdmittedCampaign) -> List[Rejection]:
     """campaign WAL から verify-red で reject された variant の構造化 anomaly を読む。
 
     規律3 (正しさシグナルを後付けにしない) の次手入力経路: verifier の構造化 anomaly が
@@ -233,7 +243,7 @@ def load_rejections(layout: CampaignLayout) -> List[Rejection]:
     srctok_of: Dict[str, str] = {}
     out: List[Rejection] = []
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in wal.read_records(layout):
+    for r in _validated_records(view):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
             srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
@@ -255,7 +265,7 @@ def load_rejections(layout: CampaignLayout) -> List[Rejection]:
 
 
 def load_liveness_rejections(
-        layout: CampaignLayout) -> Tuple[List[LivenessRejection], Dict[str, int]]:
+        view: AdmittedCampaign) -> Tuple[List[LivenessRejection], Dict[str, int]]:
     """campaign WAL から liveness-red (verify に到達する前に死んだ) abort を読む。
 
     verify payload を持つ abort (verify-red) は `load_rejections` の領分 — 本関数は
@@ -272,7 +282,7 @@ def load_liveness_rejections(
     out: List[LivenessRejection] = []
     other: Counter = Counter()
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in wal.read_records(layout):
+    for r in _validated_records(view):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
             srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
@@ -298,7 +308,7 @@ def load_liveness_rejections(
     return out, dict(other)
 
 
-def load_screen_rejections(layout: CampaignLayout) -> List[ScreenRejection]:
+def load_screen_rejections(view: AdmittedCampaign) -> List[ScreenRejection]:
     """bench-first screening の正常棄却を identity + reason だけで復元する。
 
     未認証性能値は WAL の監査面にだけ留め、critic 射影には載せない。したがって本 loader
@@ -308,7 +318,7 @@ def load_screen_rejections(layout: CampaignLayout) -> List[ScreenRejection]:
     srctok_of: Dict[str, str] = {}
     out: List[ScreenRejection] = []
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in wal.read_records(layout):
+    for r in _validated_records(view):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
             srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
@@ -322,7 +332,7 @@ def load_screen_rejections(layout: CampaignLayout) -> List[ScreenRejection]:
     return out
 
 
-def load_diff_rejections(layout: CampaignLayout) -> List[DiffQuarantineRejection]:
+def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection]:
     """campaign WAL から diff 検疫 (段 4 4a) で reject された variant を読む (規律3 の第 4 経路)。
 
     diff 検疫は pipeline.evaluate の**手前**で発火するため abort payload に verify も
@@ -339,7 +349,7 @@ def load_diff_rejections(layout: CampaignLayout) -> List[DiffQuarantineRejection
     srctok_of: Dict[str, str] = {}
     out: List[DiffQuarantineRejection] = []
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in wal.read_records(layout):
+    for r in _validated_records(view):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
             srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
@@ -384,7 +394,7 @@ class VerifyAbortSignal:
         return (self.aborts / tot) if tot else None
 
 
-def load_verify_abort_signals(layout: CampaignLayout) -> List[VerifyAbortSignal]:
+def load_verify_abort_signals(view: AdmittedCampaign) -> List[VerifyAbortSignal]:
     """STAGE_VERIFY_DONE の commits/aborts を variant 別に読む。
 
     verify まで到達した run のみ (liveness-red は VERIFY_DONE 手前で abort するため
@@ -402,7 +412,7 @@ def load_verify_abort_signals(layout: CampaignLayout) -> List[VerifyAbortSignal]
     srctok_of: Dict[str, str] = {}
     seen: Dict[str, Dict] = {}
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in wal.read_records(layout):
+    for r in _validated_records(view):
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
             srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
@@ -444,8 +454,10 @@ def axis_effects(genomes: List[GenomeLI], axis: str) -> AxisEffect:
 
 
 def build_digest(tag: str, workload: Dict[str, str],
-                 layout: CampaignLayout) -> WorkloadDigest:
-    genomes = load_workload(layout)
+                 view: AdmittedCampaign | CampaignLayout) -> WorkloadDigest:
+    if type(view) is not AdmittedCampaign:
+        view = require_admitted_campaign(view)
+    genomes = load_workload(view)
     axes = [axis_effects(genomes, a) for a in _AXES]
     fastest = genomes[0] if genomes else None
     return WorkloadDigest(tag=tag, workload=workload, genomes=genomes,
@@ -691,12 +703,12 @@ def main(argv) -> int:
     ap.add_argument("--tag", default="phase3", help="--campaign-dir 時の表示タグ")
     a = ap.parse_args(argv[1:])
     if a.campaign_dir:
-        lay = CampaignLayout(root=a.campaign_dir)
-        parts = [render_text([build_digest(a.tag, {}, lay)])]
-        lrs, other = load_liveness_rejections(lay)
-        parts.append(render_rejections(load_rejections(lay), lrs, other,
-                                       load_verify_abort_signals(lay),
-                                       screen_rejections=load_screen_rejections(lay)))
+        view = require_admitted_campaign(CampaignLayout(root=a.campaign_dir))
+        parts = [render_text([build_digest(a.tag, {}, view)])]
+        lrs, other = load_liveness_rejections(view)
+        parts.append(render_rejections(load_rejections(view), lrs, other,
+                                       load_verify_abort_signals(view),
+                                       screen_rejections=load_screen_rejections(view)))
         print("\n".join(parts))
         return 0
     digests = load_p2_2_digests()

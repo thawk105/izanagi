@@ -13,6 +13,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Collection, Mapping, Optional, Sequence, Union
 
+from .effort_levels import CLAUDE_EFFORTS
 from .redaction import assert_sanitized, sanitize_detail
 
 
@@ -799,6 +800,10 @@ def parse_worker_spec(raw: bytes) -> WorkerSpec:
         raise DevWavesError(ReasonCode.BUDGET_INVALID, {"label": "per_wave_budget_usd", "kind": "non-positive"})
     model = _required_string(item["model"], _MODEL_RE, label="model")
     effort = _required_string(item["effort"], _EFFORT_RE, label="effort")
+    if effort not in CLAUDE_EFFORTS:
+        raise DevWavesError(ReasonCode.INVALID_ARGS, {
+            "label": "effort", "kind": "unknown",
+        })
     return WorkerSpec(
         SCHEMA_VERSION,
         _required_string(item["supervisor_run_id"], _ID_RE, label="supervisor_run_id"),
@@ -852,6 +857,10 @@ def validate_child_argv(argv: Sequence[str]) -> None:
     main_worktree = argv[7].split("=", 1)[1]
     if not _MODEL_RE.fullmatch(model) or not _EFFORT_RE.fullmatch(effort):
         raise DevWavesError(ReasonCode.INVALID_ARGS, {"label": "child-argv", "kind": "model-effort"})
+    if effort not in CLAUDE_EFFORTS:
+        raise DevWavesError(ReasonCode.INVALID_ARGS, {
+            "label": "effort", "kind": "unknown",
+        })
     schema_value = _strict_argument_loads(
         schema_text.encode("utf-8"), label="argv-json-schema",
     )

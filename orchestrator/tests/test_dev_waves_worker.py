@@ -22,6 +22,7 @@ from tools.dev_waves.schema import DevWavesError, ReasonCode, WorkerSpec, canoni
 from tools.dev_waves.worker import (
     PidIdentity,
     build_child_argv,
+    load_worker_spec,
     pid_identity_digest,
     read_pid_identity,
     run_worker,
@@ -44,13 +45,13 @@ def _fake(root: Path, body: str) -> Path:
     return path
 
 
-def _spec(root: Path, fake: Path, *, timeout: int = 3, output_cap: int = 100_000,
-          file_cap: int = 100_000) -> WorkerSpec:
+def _spec(root: Path, fake: Path, *, effort: str = "high", timeout: int = 3,
+          output_cap: int = 100_000, file_cap: int = 100_000) -> WorkerSpec:
     schema_text = canonical_bytes(load_receipt_schema()).decode("utf-8")
     return WorkerSpec(
         1, "run-1", 1, str(fake), hashlib.sha256(fake.read_bytes()).hexdigest(),
         str(root), (("PATH", os.environ.get("PATH", "/usr/bin")),),
-        "claude-test-20260721", "high", str(root), str(root / "manifest.json"),
+        "claude-test-20260721", effort, str(root), str(root / "manifest.json"),
         schema_text, hashlib.sha256(schema_text.encode()).hexdigest(), Decimal("1"),
         timeout, output_cap, file_cap, str(root / "stdout.json"),
         str(root / "stderr.log"), str(root / "child-start.json"),
@@ -84,6 +85,22 @@ def test_exact_argv_comes_from_schema_grammar_and_has_no_forbidden_token():
         assert argv[0] == "-p" and argv[-1].endswith(str(root / "manifest.json"))
         assert len(argv) == 9
         assert "--continue" not in argv and "--dangerously-skip-permissions" not in argv
+
+
+def test_persisted_unknown_effort_is_rejected_by_child_argv_path():
+    with _fresh_dir() as tmp:
+        root = Path(tmp)
+        spec_path = root / "worker-spec.json"
+        spec_path.write_bytes(canonical_bytes(
+            _spec(root, _fake(root, "print('{}',end='')\n"), effort="none")
+        ))
+        try:
+            build_child_argv(load_worker_spec(spec_path))
+        except DevWavesError as exc:
+            assert exc.code is ReasonCode.INVALID_ARGS
+            assert exc.detail == {"label": "effort", "kind": "unknown"}
+        else:
+            raise AssertionError("child argv path accepted persisted unknown effort")
 
 
 def test_sigstop_identity_is_durable_before_fake_exec_and_environment_is_closed():

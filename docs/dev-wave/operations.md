@@ -92,7 +92,7 @@ NO-GO が続く場合は fix を重ねず 3 巡を上限とし、親が変異で
 
 ## DW-O17 — commit trailer
 
-trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage file→`--message-file`単独rc=0
+trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage file→`--dry-run -F`単独rc=0
 →`commit -F`→既定full-history監査とする。mergeは`OLD_HEAD`を保存し、fast-forwardならincoming監査
 →`--ff-only`→full監査、merge commitなら`merge --no-ff --no-commit <tip>`→競合解消→同じpreflight
 →`commit -F`→full監査とする。自動message/`--no-edit`は禁止。`OLD_HEAD..HEAD`は補助で、correctionを
@@ -117,7 +117,7 @@ cwd を必ず repo root にする。nested subprocess の import path による�
 
 ## DW-O20 — clean-tree gate
 
-専用handoffはworktree外（背景jobはjob tmp）に置き、untracked handoffを残してgateを走らせない。
+専用handoffはworktree外（背景jobはrepo外）に置き、untracked handoffを残してgateを走らせない。
 cwdが既にworktreeなら作成せず、directory/branch不一致をhandoff・worklogへ記録してwaveの
 worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.py`（背景jobは
 `--external-handoff <handoff>`付き）を実行し、非0なら停止する。HEAD差は`--ff-only`だけで揃える（F48）。

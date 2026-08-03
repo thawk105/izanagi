@@ -42,6 +42,7 @@ import difflib
 import json
 import os
 import re
+import secrets
 import sys
 import time
 from dataclasses import dataclass, field
@@ -50,8 +51,10 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, wal                                    # noqa: E402
-from campaign.build_admission import (BuildAdmission, BuildProvenance,  # noqa: E402
-                                      require_build_admission)
+from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
+                                      add_coder_build_authority_argument,
+                                      build_run_context)
+from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
                                       parse_template_file)
@@ -234,10 +237,13 @@ def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: s
     だけで消費されない片肺を作らない)。build/verify には到達しないので verify payload も
     fitness も無い (正しさゲート手前の失格 = 採用しない、規律2)。"""
     v = diffq_variant_id(genome, implementation)
+    attempt_id = secrets.token_hex(16)
     wal.log(layout, v, STAGE_BUILD_START, env_tag,
-            {"genome": genome.canonical(), "src_token": ""})
+            {"genome": genome.canonical(), "src_token": "",
+             "build_attempt_id": attempt_id})
     wal.log(layout, v, STAGE_ABORT, env_tag,
             {"reason": DIFF_QUARANTINE_REASON,
+             "build_attempt_id": attempt_id,
              "genome": genome.canonical(),
              "diff_quarantine": res.digest or {}})
     return v
@@ -254,14 +260,15 @@ def make_critic_digest(layout: CampaignLayout, tag: str = "p3-s4",
     rejection の構造化 anomaly を還流させない対照アーム (main-experiment の LLM ablation、
     合流 1 点の切替。phase3.md 段 6 の第 3 アーム reason-only は段 6)。緑 LI は両アーム
     共通 (性能数値は trace-disabled build 由来、規律1)。"""
-    green = render_text([build_digest(tag, {}, layout)])
+    view = require_admitted_campaign(layout.root)
+    green = render_text([build_digest(tag, {}, view)])
     if not reflux:
         return green
-    livs, other = load_liveness_rejections(layout)
+    livs, other = load_liveness_rejections(view)
     red = render_rejections(
-        load_rejections(layout), livs, other,
-        load_verify_abort_signals(layout),
-        diff_rejections=load_diff_rejections(layout))
+        load_rejections(view), livs, other,
+        load_verify_abort_signals(view),
+        diff_rejections=load_diff_rejections(view))
     return green + "\n\n" + red
 
 
@@ -513,7 +520,7 @@ def _repo_root() -> str:
 def default_cfg(reflux: bool = True) -> CampaignConfig:
     """段 4 自律ループの campaign 設定。reflux (還流 on/off) は search_config に焼き、
     LLM ablation の対照を identity で分離する (別 campaign = 別 output dir、混ざらない)。"""
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug="p3-s4-loop", search_tag="s4-autonomous",
         spec_content=("P3 後続段 4: coder 自律ループ。planner が方向 (値なし) を提案し "
                       "coder が勝ち筋値を見ずに backoff 値を合成、diff 検疫 (4a) を通した "
@@ -524,6 +531,8 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                        "reflux": "on" if reflux else "off",
                        "records": 100_000, "threads": 4},
         trial="p3-s4-loop")
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    return ident.bind_admission_policy(cfg, context.policy)
 
 
 def default_perf() -> PerfConfig:
@@ -612,7 +621,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                       state: LoopState, sub: str, do_build: bool,
                       layout: Optional[CampaignLayout] = None, log=print,
                       cache_root: str = "",
-                      admission: Optional[BuildAdmission] = None) -> Dict:
+                      build_context: Optional[BuildRunContext] = None) -> Dict:
     """1 iteration の機械部分を回す (LLM proposal は引数で受け取る)。
 
     do_build=True: applied(TEMPLATE_PATCH) 下で挿入→検疫→(pass なら)run_campaign。
@@ -631,8 +640,11 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     Returns: {"outcome": rejected|certified|aborted|dry-pass, "variant": ..., ...}。
     """
     from campaign.patchharness import applied
-    if do_build:
-        admission = require_build_admission(admission)
+    if build_context is None and not do_build:
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
                              "BACKOFF_FIXED": int(coder.value)})
     # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
@@ -649,7 +661,9 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                          f"{layout.root} != cfg 由来")
     layout.ensure()
     # reject も campaign の初回 WAL write なので、repair 無しの identity gate を先行する。
-    ident.ensure_campaign_identity(cfg, layout)
+    ident.ensure_campaign_identity(
+        cfg, layout, admission_policy=build_context.policy,
+    )
 
     if not do_build:
         # dry-run: 骨格を一時適用せず、骨格入りソースを合成して検疫だけ試す経路は
@@ -674,7 +688,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                               ccbench_dir=sub, cache_root=cache_root,
-                              admission=admission,
+                              build_context=build_context,
                               campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
@@ -745,7 +759,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     prior_critic_reverse: Optional[bool], sub: str, do_build: bool,
                     layout: Optional[CampaignLayout] = None, log=print,
                     cache_root: str = "",
-                    admission: Optional[BuildAdmission] = None) -> Dict:
+                    build_context: Optional[BuildRunContext] = None) -> Dict:
     """段 4b の 1 iteration をメインセッション駆動で回す (checkpoint 経由の cross-process 継続)。
 
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
@@ -756,6 +770,11 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
 
     Returns: run_one_iteration の dict + {"stop_reason", "iteration", "ran"}。ran=False は
     入口停止 (iteration 未消費) を表す。"""
+    if build_context is None and not do_build:
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
@@ -776,7 +795,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     # co-locate させ layout 分裂 (digest 空) を防ぐ (監査 2026-07-08)。
     out = run_one_iteration(cfg, perf, planner, coder, state, sub,
                             do_build=do_build, layout=layout, log=log,
-                            cache_root=cache_root, admission=admission)
+                            cache_root=cache_root, build_context=build_context)
     save_loop_state(layout, state)
 
     digest_txt = make_critic_digest(
@@ -798,8 +817,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="P3 後続段 4 coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫の配線のみ確認")
-    ap.add_argument("--allow-coder-derived-build", action="store_true",
-                    help="CODER_DERIVED source の build をこの CLI run に限り明示許可")
+    add_coder_build_authority_argument(ap)
     ap.add_argument("--value", type=float, default=20.0,
                     help="fixture の backoff 値 (coder proposal の代わり)")
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
@@ -811,9 +829,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="段5 git worktree 隔離: 共有 external/ccbench でなく使い捨て "
                          "worktree で apply/build/verify する (既定 OFF = 既存動作と完全互換)")
     a = ap.parse_args(argv if argv is not None else sys.argv[1:])
-    admission = None if a.no_build else BuildAdmission(
-        BuildProvenance.CODER_DERIVED,
-        coder_derived_opt_in=a.allow_coder_derived_build,
+    if not a.no_build and a.coder_build_authority is None:
+        raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")
+    build_context = build_run_context(
+        generator_id=GeneratorId.BACKOFF_SWEEP,
+        coder_authority=None if a.no_build else a.coder_build_authority,
     )
 
     root = _repo_root()
@@ -825,6 +845,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     patchharness.assert_pinned_clean(fixed_sub, PIN)
 
     cfg = default_cfg(reflux=(a.reflux == "on"))
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
     perf = default_perf()
 
     # 段5 git worktree 隔離 (opt-in): 有効時は 1 回だけ使い捨て worktree を作り、build
@@ -847,7 +868,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         with wt_cm as sub:
             out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
                                   do_build=not a.no_build, cache_root=cache_root,
-                                  admission=admission)
+                                  build_context=build_context)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
@@ -875,7 +896,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     with wt_cm as sub:
         out = run_one_iteration(cfg, perf, planner, coder, state, sub,
                                 do_build=not a.no_build, cache_root=cache_root,
-                                admission=admission)
+                                build_context=build_context)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
@@ -888,7 +909,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     stop = check_stop(state)
 
     # WAL 機械判定 (宣言でなくレコードを gate に — kickoff/D30 様式)。
-    dqs = load_diff_rejections(layout)
+    critic_view = require_admitted_campaign(layout.root)
+    dqs = load_diff_rejections(critic_view)
     # iteration の WAL 非依存を **差分**で実証する (1==1 の恒真 assert にしない): loop の
     # iteration は WAL レコード数と一致しない = WAL から導出していないことの witness (D39 決定2)。
     n_wal = len(list(wal.read_records(layout)))

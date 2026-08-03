@@ -13,14 +13,63 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
+from .build_admission import BuildAdmissionPolicy
 from .layout import CampaignLayout
 from .model import CampaignConfig, CampaignId
 from . import wal
 
 if TYPE_CHECKING:
     from .pipeline import ScreeningConfig
+
+
+ADMISSION_POLICY_SEARCH_KEY = "build_admission"
+
+
+def bind_admission_policy(
+        cfg: CampaignConfig, policy: BuildAdmissionPolicy,
+) -> CampaignConfig:
+    """Return a config whose campaign identity contains the exact admission policy."""
+    if type(policy) is not BuildAdmissionPolicy:
+        raise TypeError("policy は BuildRunContext.policy の exact value が必要")
+    expected = dict(policy.as_preimage())
+    existing = cfg.search_config.get(ADMISSION_POLICY_SEARCH_KEY)
+    if existing is not None and existing != expected:
+        raise ValueError("search_config の admission policy が run context と不一致")
+    return replace(
+        cfg,
+        search_config={**cfg.search_config, ADMISSION_POLICY_SEARCH_KEY: expected},
+    )
+
+
+def verify_admission_preimage(
+        policy: BuildAdmissionPolicy, stored_preimage: Optional[str],
+) -> None:
+    """Require an exact lock schema and the current run's admission policy."""
+    if type(policy) is not BuildAdmissionPolicy:
+        raise TypeError("policy は BuildRunContext.policy の exact value が必要")
+    if stored_preimage is None:
+        raise IdentityMismatch("admission-aware campaign には campaign.lock が必要")
+    try:
+        stored = json.loads(stored_preimage)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise IdentityMismatch("campaign.lock が正準 JSON でない") from exc
+    expected_top = {
+        "spec_content", "ccbench_commit", "search_tag", "search_config", "trial",
+    }
+    if type(stored) is not dict or set(stored) != expected_top:
+        raise IdentityMismatch("campaign.lock の top-level exact key 集合が不正")
+    search_config = stored["search_config"]
+    if type(search_config) is not dict:
+        raise IdentityMismatch("campaign.lock search_config が object でない")
+    actual = search_config.get(ADMISSION_POLICY_SEARCH_KEY)
+    expected = policy.as_preimage()
+    if actual != expected:
+        raise IdentityMismatch(
+            "campaign.lock の admission policy が current run context と不一致"
+        )
 
 
 def screening_search_config(
@@ -80,6 +129,10 @@ def canonical_preimage(cfg: CampaignConfig) -> str:
     (ablation/Tier/scale) + trial。**slug は覆わない** (人間ラベルで spec_content が
     真の同一性源、要件: 名前でなく内容)。**env/date/実測値は覆わない** (派生値)。
     """
+    if ADMISSION_POLICY_SEARCH_KEY not in cfg.search_config:
+        raise ValueError(
+            "campaign identity には search_config.build_admission policy が必須"
+        )
     obj: Dict[str, Any] = {
         "spec_content": cfg.spec_content,
         "ccbench_commit": cfg.ccbench_commit,
@@ -111,12 +164,16 @@ class IdentityMismatch(Exception):
         self.reason = reason
 
 
-def verify_against_lock(cfg: CampaignConfig, stored_preimage: str) -> None:
+def verify_against_lock(
+        cfg: CampaignConfig, stored_preimage: str, *,
+        admission_policy: BuildAdmissionPolicy,
+) -> None:
     """再開時の関所: 現在 config の正準 pre-image が格納済み lock と一致するか。
 
     一致しなければ IdentityMismatch (黙ってマージしない、D13)。8 hex 衝突や、
     ハッシュに含めていない軸の相違を捕まえる最終防壁。
     """
+    verify_admission_preimage(admission_policy, stored_preimage)
     cur = canonical_preimage(cfg)
     if cur != stored_preimage:
         raise IdentityMismatch(
@@ -126,7 +183,8 @@ def verify_against_lock(cfg: CampaignConfig, stored_preimage: str) -> None:
 
 
 def ensure_resumable_wal(
-        cfg: CampaignConfig, layout: CampaignLayout,
+        cfg: CampaignConfig, layout: CampaignLayout, *,
+        admission_policy: BuildAdmissionPolicy,
 ) -> wal.WalTailRepairResult:
     """identity を確定してからに限り WAL の無終端 tail を物理修復する。
 
@@ -134,12 +192,13 @@ def ensure_resumable_wal(
     しない。初回 campaign (lock 無し・WAL byte 無し) だけは原子的に lock を
     作成し、その後に機構層の repair を呼ぶ。
     """
-    ensure_campaign_identity(cfg, layout)
+    ensure_campaign_identity(cfg, layout, admission_policy=admission_policy)
     return wal.repair_truncated_tail(layout)
 
 
 def ensure_campaign_identity(
-        cfg: CampaignConfig, layout: CampaignLayout,
+        cfg: CampaignConfig, layout: CampaignLayout, *,
+        admission_policy: BuildAdmissionPolicy,
 ) -> bool:
     """repair を行わず campaign.lock を原子的に確立・照合する。
 
@@ -147,9 +206,15 @@ def ensure_campaign_identity(
     byte がある場合は identity 不明のため拒否する。既存 lock との競合敗者は
     lock を再読して同一 config なら False を返す。
     """
+    if cfg.search_config.get(ADMISSION_POLICY_SEARCH_KEY) != admission_policy.as_preimage():
+        raise IdentityMismatch(
+            "campaign config の admission policy が current run context と不一致"
+        )
     stored = wal.read_lock(layout)
     if stored is not None:
-        verify_against_lock(cfg, stored)
+        verify_against_lock(
+            cfg, stored, admission_policy=admission_policy,
+        )
         return False
 
     # lock 作成前に WAL の lstat/open/fstat を行う。EIO 等は fail-closed に伝播する。
@@ -171,5 +236,5 @@ def ensure_campaign_identity(
             "campaign.lock の原子的獲得に失敗し、既存 lock も読めない。",
             reason="lock-create-failed",
         )
-    verify_against_lock(cfg, stored)
+    verify_against_lock(cfg, stored, admission_policy=admission_policy)
     return False

@@ -32,6 +32,8 @@ from typing import List
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, replay, wal                           # noqa: E402
+from campaign.build_admission import (GeneratorId,                # noqa: E402
+                                      build_run_context)
 from campaign.genome import SILO_SPACE                            # noqa: E402
 from campaign.layout import CampaignLayout, repo_output_root      # noqa: E402
 from campaign.model import (CampaignConfig, STAGE_BENCH_DONE,     # noqa: E402
@@ -42,6 +44,13 @@ from campaign.search_baselines import reached_cost               # noqa: E402
 from critic.online_digest import online_digest_text              # noqa: E402
 
 BUDGET = len(SILO_SPACE.enumerate())          # 予算上限 N=8 (最悪 = 全探索に縮退)
+
+# Guided は source build を行わないが、新規 trial の identity は T-343 の
+# admission-policy epoch に属する。同一 process の start/evaluate が同じ
+# nonce-free policy object を使い、generator identity を build authority として
+# 誤用しない（context 自体は build sink へ渡さない）。
+_NO_BUILD_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+_NO_BUILD_POLICY = _NO_BUILD_CONTEXT.policy
 
 
 def _workload_of(tag: str) -> dict:
@@ -85,13 +94,14 @@ def _trial_config(meta: dict, trial: str) -> CampaignConfig:
     seed = meta["seed"]
     if not isinstance(tag, str) or not isinstance(workload, dict):
         raise ValueError("guided meta の tag/workload 型が不正")
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug="p2-5-guided", search_tag="critic-replay",
         spec_content="P2-5 critic-in-the-loop replay trial",
         ccbench_commit="p2-2-replay-landscape",
         search_config={"tag": tag, "workload": workload, "seed": str(seed)},
         trial=trial,
     )
+    return ident.bind_admission_policy(cfg, _NO_BUILD_POLICY)
 
 
 def _surface_repair(result: wal.WalTailRepairResult) -> None:
@@ -159,7 +169,9 @@ def cmd_start(args) -> int:
     meta = {"tag": tag, "workload": workload,
             "seed": args.seed, "trial": args.trial}
     # 既存 WAL 拒否 → lock 原子獲得 → meta の順。競合敗者は meta/WAL に触れない。
-    if not ident.ensure_campaign_identity(_trial_config(meta, args.trial), layout):
+    if not ident.ensure_campaign_identity(
+            _trial_config(meta, args.trial), layout,
+            admission_policy=_NO_BUILD_POLICY):
         print(json.dumps({
             "rejected": "campaign.lock は別 start が先に獲得済み",
             "reason": "campaign-lock-already-acquired",
@@ -183,7 +195,9 @@ def cmd_evaluate(args) -> int:
         return 2
     meta = _read_meta(layout)
     cfg = _trial_config(meta, args.trial)  # trial exact 検査より前に repair しない
-    _surface_repair(ident.ensure_resumable_wal(cfg, layout))
+    _surface_repair(ident.ensure_resumable_wal(
+        cfg, layout, admission_policy=_NO_BUILD_POLICY,
+    ))
     tag, workload = meta["tag"], meta["workload"]
     landscape = replay.load_landscape(tag)
     evaluated = set(_evaluated_canon(layout))

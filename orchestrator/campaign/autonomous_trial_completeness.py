@@ -24,9 +24,12 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     if str(_ROOT_FOR_IMPORT) not in sys.path:
         sys.path.insert(0, str(_ROOT_FOR_IMPORT))
     from orchestrator.campaign import layer3_report as _layer3_report
+    from orchestrator.campaign.artifact_admission import (ArtifactAdmissionError,
+                                                           require_admitted_campaign)
     from orchestrator.campaign.layer3_report import canonical_record_ref
 else:
     from . import layer3_report as _layer3_report
+    from .artifact_admission import ArtifactAdmissionError, require_admitted_campaign
     from .layer3_report import canonical_record_ref
 
 
@@ -45,6 +48,14 @@ _TERMINAL_EVENTS = frozenset({
 _ROLE_ORDER = ("planner", "coder", "auditor", "critic")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _GIT_OBJECT_ID_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
+_ADMISSION_DECISION_KEYS = frozenset({
+    "schema_version", "classification", "admission_status",
+    "verification_status", "campaign_id", "campaign_path",
+    "campaign_lock_sha256", "wal_sha256", "policy_sha256",
+    "attempt_receipt_sha256s", "validator", "overlay",
+})
+_ADMISSION_VALIDATOR_KEYS = frozenset({"identity", "sha256"})
+_ADMISSION_OVERLAY_KEYS = frozenset({"ledger_sha256", "record_key"})
 
 
 class AutonomousTrialCompletenessError(RuntimeError):
@@ -845,6 +856,30 @@ def assert_autonomous_trial_completeness(
         _mapping(cell, gate="report-shape", label=f"cells[{index}]")
         for index, cell in enumerate(raw_cells)
     ]
+    do_build = report.get("do_build")
+    for index, cell in enumerate(cells):
+        decision = cell.get("admission_decision")
+        if do_build is False:
+            if decision != {"admission_status": "not-applicable"}:
+                _fail(
+                    "artifact-admission",
+                    f"cells[{index}] no-build admission decision is not exact",
+                )
+        elif do_build is True:
+            decision = _mapping(
+                decision, gate="artifact-admission",
+                label=f"cells[{index}].admission_decision",
+            )
+            if (
+                decision.get("schema_version")
+                != "campaign-artifact-admission-decision/v1"
+                or decision.get("admission_status") != "admitted"
+                or decision.get("classification") != "admitted-new-schema"
+            ):
+                _fail(
+                    "artifact-admission",
+                    f"cells[{index}] build admission decision is not positive",
+                )
     terminal = _check_terminal_projection(report=report, events=events, cells=cells)
     budget = report.get("generation_budget_per_workload")
     if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:
@@ -922,6 +957,34 @@ def _without_generated_from_head(report: Mapping[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _require_exact_layer3_admission_decision(
+    report: Mapping[str, Any], *, expected: Mapping[str, Any], label: str,
+) -> Mapping[str, Any]:
+    """Validate Layer3's detached decision independently of a fresh Layer3 rebuild."""
+    report = _mapping(report, gate="campaign-chain", label=label)
+    decision = _mapping(
+        report.get("admission_decision"), gate="campaign-chain",
+        label=f"{label}.admission_decision",
+    )
+    if set(decision) != _ADMISSION_DECISION_KEYS:
+        _fail("campaign-chain", f"{label} admission decision exact keys differ")
+    validator = _mapping(
+        decision.get("validator"), gate="campaign-chain",
+        label=f"{label}.admission_decision.validator",
+    )
+    overlay = _mapping(
+        decision.get("overlay"), gate="campaign-chain",
+        label=f"{label}.admission_decision.overlay",
+    )
+    if set(validator) != _ADMISSION_VALIDATOR_KEYS:
+        _fail("campaign-chain", f"{label} admission validator exact keys differ")
+    if set(overlay) != _ADMISSION_OVERLAY_KEYS:
+        _fail("campaign-chain", f"{label} admission overlay exact keys differ")
+    if _canonical_bytes(decision) != _canonical_bytes(expected):
+        _fail("campaign-chain", f"{label} admission decision differs from validator")
+    return decision
+
+
 def assert_campaign_layer3_chain(
     *, report: Mapping[str, Any], output_root: Path,
 ) -> None:
@@ -959,6 +1022,9 @@ def assert_campaign_layer3_chain(
             _fail("campaign-chain", f"cells[{index}].descriptor differs from producer")
         if cell.get("descriptor_binding") != expected_binding:
             _fail("campaign-chain", f"cells[{index}].descriptor_binding differs from producer")
+        context = producer.build_run_context(
+            generator_id=producer.GeneratorId.S8A_TRIGGER_SWEEP,
+        )
         expected_cfg = producer._campaign_for(
             workload=workload,
             workload_flags=workload_flags,
@@ -966,8 +1032,9 @@ def assert_campaign_layer3_chain(
             descriptor_record=expected_binding,
             trial_id=trial_id,
             generations=budget,
+            build_context=context,
         )
-        expected_campaign_id = str(producer.trigger.ident.campaign_id(expected_cfg))
+        expected_campaign_id = str(producer.ident.campaign_id(expected_cfg))
         if campaign_id != expected_campaign_id:
             _fail("campaign-chain", f"cells[{index}] campaign_id differs from producer derivation")
         campaign_root = _path_identity(
@@ -987,6 +1054,21 @@ def assert_campaign_layer3_chain(
         meta = persisted.get("meta")
         if not isinstance(meta, Mapping) or meta.get("campaign_id") != campaign_id:
             _fail("campaign-chain", "persisted layer3 campaign identity mismatch")
+        try:
+            expected_decision = require_admitted_campaign(
+                campaign_root,
+            ).decision.as_receipt()
+        except ArtifactAdmissionError as exc:
+            raise AutonomousTrialCompletenessError(
+                "[campaign-chain] independent campaign admission validation failed"
+            ) from exc
+        _require_exact_layer3_admission_decision(
+            persisted, expected=expected_decision, label="persisted layer3 report",
+        )
+        _require_exact_layer3_admission_decision(
+            {"admission_decision": cell.get("admission_decision")},
+            expected=expected_decision, label=f"cells[{index}]",
+        )
         fresh = _fresh_layer3_for_comparison(
             campaign_root=campaign_root,
             persisted_path=persisted_path,
@@ -1013,6 +1095,8 @@ def verify_autonomous_trial_files(
     assert_autonomous_trial_completeness(
         report=report, attempt_journal=Path(attempt_journal),
     )
+    if report.get("do_build") is True and campaign_output_root is None:
+        _fail("campaign-chain", "build trial verification requires campaign_output_root")
     if campaign_output_root is not None:
         assert_campaign_layer3_chain(
             report=report, output_root=Path(campaign_output_root),
