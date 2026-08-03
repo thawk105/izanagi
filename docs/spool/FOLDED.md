@@ -35,3 +35,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:fold-signature-completeness":"[T-365]","T:supervised-land-cutoff":"[T-366]"},"authored":"2026-08-03","content_sha256":"d32e618476419626f9b282a933ee70f08fe0ef50c75c3816f2b48cf1e04ffd4c","seq":1,"wave":"dev-wave-land-merge-signature"}
 - {"allocations":{"D:land-signature-outside-trusted-cutoff":"D132"},"authored":"2026-08-03","content_sha256":"9926e972272c5d04cccd4b769dc5436dc7e36b3f38a751e3b5e57fff274bb5de","seq":2,"wave":"dev-wave-land-merge-signature"}
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"4e874ed400eb217d959fc8c5d068264e4c858290997f0dc63ba57280d6a27f80","seq":3,"wave":"dev-wave-land-merge-signature"}
+
+- {"allocations":{"T:active-job-qdel-prohibition":"[T-367]","T:dev-wave-child-test-execution-contract":"[T-369]","T:dispatch-timeout-input-validation":"[T-370]","T:running-job-state-evidence":"[T-368]"},"authored":"2026-08-03","content_sha256":"7d9cc592d8311f571e4c63e1ac5f929bbb82c5c4622dd3f74f64d13e5bc461ff","seq":1,"wave":"dev-wave-t363-deadline"}
+- {"allocations":{"D:run-observation-deadline":"D133"},"authored":"2026-08-03","content_sha256":"cd85fa5a70a9ab5dee78bb46e4d314779cf0933c3c2cce5ac163902ed96e6b74","seq":2,"wave":"dev-wave-t363-deadline"}
+- {"allocations":{"F:diagnostic-only-mutation-counted-as-kill":"F86","F:untrusted-run-latch-poisoning":"F85"},"authored":"2026-08-03","content_sha256":"5daa65e3be52edd7dba96811a8e916b4c12f4c9f54e81f0b4e0ea0afbdfd65ab","seq":3,"wave":"dev-wave-t363-deadline"}
