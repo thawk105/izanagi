@@ -71,3 +71,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:land-window-vs-acceptance":"[T-389]","T:output-snapshot-test-flake":"[T-388]"},"authored":"2026-08-03","content_sha256":"4490a59485358aaf5b9c44457437cc33513180565ab95b9eab5242def77fcb8b","seq":3,"wave":"dev-wave-t293-perf-site"}
 
 - {"allocations":{"T:d122-optin-retirement":"[T-390]"},"authored":"2026-08-03","content_sha256":"c62232f63ebe3c3be9696b56fb1806027384f1761a4033ba2674a1e1ea7c708e","seq":1,"wave":"rulings-2026-08-03-i"}
+
+- {"allocations":{"T:dispatch-condition-verbatim-gate":"[T-391]","T:land-without-check-receipt":"[T-393]","T:qsub-interpreter-contract":"[T-395]","T:reference-preamble-unreachable":"[T-392]","T:supervisor-dwctx-unwired":"[T-394]"},"authored":"2026-08-03","content_sha256":"f2caf24448c840621abbccbd6d41f6e3e7ca1453675f073760e4800505752a4c","seq":1,"wave":"dev-wave-t328-docs-externalize"}
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"59062836230a95e3fe066b822e98cb981796c22f336c6e13aa0a33b21cb5a012","seq":2,"wave":"dev-wave-t328-docs-externalize"}
