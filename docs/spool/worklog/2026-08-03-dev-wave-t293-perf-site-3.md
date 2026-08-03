@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-03
 wave: dev-wave-t293-perf-site
 seq: 3
-title: [T-293] perf_candidates は stale ではなかった — 計算ノード実測で 3 因を分離し恒久対応を裁定へ返す (コード + docs、branch worktree-dev-wave-t293-perf-site)
+title: [T-293] perf_candidates は stale ではなかった — 計算ノード実測で 3 因を分離し恒久対応を裁定へ返す (コード + docs、branch worktree-dev-wave-t293-perf-site、受入全走 = Pegasus gen_S 計算ノード request 882024 で 5385 passed / 19 skipped、実装差分は probe 2 file のため変異 matrix は対象外)
 ---
 
 ## 本文
@@ -63,20 +63,23 @@ title: [T-293] perf_candidates は stale ではなかった — 計算ノード�
   計算ノードが修正前の版を読んで `check_docs` の `worklog-action-order` に当たった。
   **未 commit の docs を載せたまま受入を走らせたのが原因**で、3 回目は commit 後の clean tree で走らせた
 
-- **land は 3 度追い越された。** 1 度目は `dev_wave_land.py` が
+- **land は 4 度追い越された。** 1 度目は `dev_wave_land.py` が
   `rejected / tested main is not an ancestor of tested wave tip` を返した (受入全走の最中に
   main が `57f65b5` → `24a9478` へ進んだ)。DW-O23 に従い同 wave 内で巻き戻さず fresh context で
   再開し、既存 branch を再利用して `4c5e97c` を取り込んだが、**受入を投入し終える前に**
   23:15:59 の land で main が `055081e` へ進み、投入済みの走行 (request `882014`) は land に
   使えなくなった。`055081e` へ付け直した走行 (request `882015`、`5385 passed / 19 skipped`、
   rc=0、統合 commit `729728a`) は green だったが、その 5 分の最中の 23:30:25 に 3 度目の land が
-  入り、`7ac6b2c` へ 3 度目の付け直しをした
+  入った。`7ac6b2c` へ付け直した走行 (request `882020`、同じく `5385 passed / 19 skipped`、rc=0、
+  統合 commit `65687c2`) も、その投入 3 秒前の 23:37:13 に 4 度目の land を受けた。
+  **`1348a66` へ 4 度目の付け直しをし、統合 commit `77d8aee` の clean tree で走らせた
+  受入全走 (request `882024`、`5385 passed / 19 skipped`、rc=0) の直後に land した**
 - **`882014` の打ち切りはログイン側の dispatch だけを止めたので、計算ノードの request は孤児になった。**
   ちょうど取り込んだ裁定 [T-367] が「走行中のジョブは殺さない」を採っており、`qdel` も
   auto mode の分類器が拒否したため実行していない。孤児は walltime で自然終了する
-- **local main の land 間隔は実測で 6〜14 分である** (fold の commit 時刻 = 22:45:58 / 22:59:31 /
-  23:09:34 / 23:15:59 / 23:30:25)。受入全走が約 5 分かかるため、並行 wave が 4 本走る間は
-  追い越しが常態化する ({{T:land-window-vs-acceptance}})
+- **local main の land 間隔は実測で 6〜16 分である** (fold の commit 時刻 = 22:45:58 / 22:59:31 /
+  23:09:34 / 23:15:59 / 23:30:25 / 23:37:13)。受入全走が約 5 分かかるため、並行 wave が 4 本と
+  ユーザーの裁定セッションが同時に走る間は追い越しが常態化する ({{T:land-window-vs-acceptance}})
 
 ## 次の一手差分
 
@@ -103,8 +106,8 @@ title: [T-293] perf_candidates は stale ではなかった — 計算ノード�
 
 - {{T:land-window-vs-acceptance}} **P3・新規 (本エントリ)**:
   land は「main 取り込み → 受入全走 → `dev_wave_land.py`」を要求するが、受入全走は約 5 分かかり、
-  2026-08-03 実測の local main の land 間隔は 6〜14 分である。並行 wave が 4 本走る間は追い越しが
-  常態化し、本 wave は計 3 回やり直した (1 度 `rejected`、2 度は投入済み走行の破棄)。
+  2026-08-03 実測の local main の land 間隔は 6〜16 分である。並行 wave が 4 本走る間は追い越しが
+  常態化し、本 wave は計 4 回やり直した (1 度は `rejected`、3 度は green の走行結果を捨てた)。
   直列化の方法 (land 待ち行列、lock 内での main 取り込み、受入の増分化) は防壁と裁定境界に
   触るため実装せず裁定へ返す。最も安い緩和 (受入投入の直前に main HEAD を再確認する) すら
   `docs/dev-wave/operations.md` が 8354/8400 bytes で余裕 46 bytes しかなく DW-O23 へ書けない
