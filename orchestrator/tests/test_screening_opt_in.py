@@ -14,6 +14,11 @@ sys.path.insert(0, _ORCH)
 from campaign import backoff_sweep as B                         # noqa: E402
 from campaign import s6_sort_sweep as S6                        # noqa: E402
 from campaign import s8a_trigger_sweep as S8                    # noqa: E402
+from campaign.build_admission import (GeneratorId,               # noqa: E402
+                                      build_run_context)
+
+
+_BUILD_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
 
 
 def test_autonomous_loop_has_no_screening_wiring():
@@ -39,7 +44,9 @@ def test_backoff_screening_cli_is_default_off_and_explicit_on(monkeypatch):
     assert B.main(["backoff_sweep.py", "balanced"]) == 0
     assert calls[-1][1]["screening_enabled"] is False
 
-    monkeypatch.setattr(B.wal, "replay", lambda _layout: {})
+    monkeypatch.setattr(
+        B.wal, "replay", lambda _layout, *, admission_policy: {},
+    )
     assert B.main(["backoff_sweep.py", "balanced", "--screening",
                    "--calibration-dir", "/floor"] ) == 0
     assert calls[-1][1] == {
@@ -56,8 +63,13 @@ def test_backoff_screening_cli_is_default_off_and_explicit_on(monkeypatch):
 
 def test_backoff_minimal_screening_selection_and_identity():
     tag, workload = B.WORKLOADS[-1]
-    full = B.config_for(tag, workload)
-    minimal = B.config_for(tag, workload, screening_fixed_us=100)
+    full = B.ident.bind_admission_policy(
+        B.config_for(tag, workload), _BUILD_CONTEXT.policy,
+    )
+    minimal = B.ident.bind_admission_policy(
+        B.config_for(tag, workload, screening_fixed_us=100),
+        _BUILD_CONTEXT.policy,
+    )
     assert "screening_fixed_us" not in full.search_config
     assert minimal.search_config["screening_fixed_us"] == 100
     assert str(B.ident.campaign_id(full)) != str(B.ident.campaign_id(minimal))

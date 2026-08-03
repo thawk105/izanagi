@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import os
+import json
 import signal
 import subprocess
 import time
@@ -19,9 +20,9 @@ sys.path.insert(0, str(_HERE.parent))
 import test_campaign as campaign_fixtures  # noqa: E402
 from campaign import env_contract, pipeline  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
-    BuildAdmission,
-    BuildAdmissionError,
     BuildProvenance,
+    GeneratorId,
+    build_run_context,
 )
 from campaign.model import Genome  # noqa: E402
 from qualification.artifacts import (  # noqa: E402
@@ -42,17 +43,16 @@ from qualification.t126_driver import (  # noqa: E402
     RC_ATTESTATION,
     MonotonicEnvelope,
     QualificationDriverError,
-    _QUALIFICATION_BUILD_ADMISSION,
     run_series,
 )
 
-_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
-
-
-def test_qualification_entry_uses_pinned_source_admission():
-    assert _QUALIFICATION_BUILD_ADMISSION == _STOCK_ADMISSION
-    assert _QUALIFICATION_BUILD_ADMISSION.provenance_class is \
-        BuildProvenance.STOCK_OR_PINNED
+def test_qualification_entry_constructs_run_context_for_live_member_build():
+    source = (_ROOT / "orchestrator/qualification/t126_driver.py").read_text(
+        encoding="utf-8"
+    )
+    assert "build_run_context(" in source
+    assert "build_context=build_context" in source
+    assert "BuildAdmission(" not in source
 
 
 def test_qualification_policy_rejects_unadmitted_coder_before_build_spy(tmp_path):
@@ -61,6 +61,65 @@ def test_qualification_policy_rejects_unadmitted_coder_before_build_spy(tmp_path
         capability, layout, round_index=1, role="subject")
     policy = pipeline.QualificationPipelinePolicy.t126_pegasus(sink)
     pegasus = env_contract.lookup("pegasus")
+    genome = Genome("silo", {"BACK_OFF": 1})
+    perf = pipeline.PerfConfig(
+        records=1_000_000, threads=48,
+        workload={
+            "ycsb_zipf_skew": "0.9", "ycsb_rratio": "95",
+            "ycsb_rmw": "0", "ycsb_max_ope": "10",
+        }, extime=3, reps=5,
+    )
+    dirty = campaign_fixtures._source_evidence(
+        genome, "d706650", src_token="2" * 64,
+        source_root=str(tmp_path / "dirty-coder-source"),
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    builds = []
+    original_source_digest = pipeline.source_digest
+    monkey_source_digest = type("SourceDigestSpy", (), {
+        "STOCK": pipeline.source_digest.STOCK,
+        "resolve_evidence": staticmethod(lambda *_args, **_kwargs: dirty),
+    })
+    original_build_v2 = pipeline.buildcache.build_v2
+    pipeline.source_digest = monkey_source_digest
+    pipeline.buildcache.build_v2 = lambda *_args, **_kwargs: builds.append(_kwargs)
+    try:
+        result = pipeline.evaluate(
+            genome, layout, "pegasus", "d706650", perf, 2100, numactl=(),
+            extra_correctness=[
+                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+            ],
+            do_bench=True, do_settle=True, src_token=dirty.src_token,
+            cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
+            env_contract=pegasus, record_rep_returncodes=True,
+            qualification_policy=policy, log=lambda *_: None,
+            build_context=context,
+        )
+    finally:
+        pipeline.source_digest = original_source_digest
+        pipeline.buildcache.build_v2 = original_build_v2
+    assert result.aborted and not result.certified
+    assert builds == []
+    records = load_jsonl_strict(
+        layout.attempt_dir / "rounds/0001/subject/evaluation-events.jsonl"
+    )
+    assert [row["evaluation_stage"] for row in records] == [
+        "qualification_build_start",
+        "qualification_evaluation_rejected",
+    ]
+    abort_payload = json.loads(records[-1]["payload"]["canonical_json"])
+    assert abort_payload["reason"] == "admission-error"
+    assert abort_payload["error"].startswith("BuildAdmissionError:")
+
+
+def test_qualification_policy_missing_context_is_separate_signature_error(tmp_path):
+    _, capability, layout, _ = _fsm(tmp_path)
+    policy = pipeline.QualificationPipelinePolicy.t126_pegasus(
+        QualificationEventSink(
+            capability, layout, round_index=1, role="subject",
+        )
+    )
+    pegasus = env_contract.lookup("pegasus")
     perf = pipeline.PerfConfig(
         records=1_000_000, threads=48,
         workload={
@@ -68,22 +127,62 @@ def test_qualification_policy_rejects_unadmitted_coder_before_build_spy(tmp_path
             "ycsb_rmw": "0", "ycsb_max_ope": "10",
         },
     )
-    bad = object.__new__(BuildAdmission)
-    object.__setattr__(bad, "provenance_class", BuildProvenance.CODER_DERIVED)
-    object.__setattr__(bad, "coder_derived_opt_in", False)
-    with campaign_fixtures._mock_pipeline(certified=True) as calls:
-        with pytest.raises(BuildAdmissionError):
-            pipeline.evaluate(
-                Genome("silo", {"BACK_OFF": 1}), layout, "pegasus", "deadbeef",
-                perf, 2100, numactl=(), src_token="stock",
-                env_contract=pegasus, qualification_policy=policy,
-                admission=bad,
-            )
-    assert calls.builds == []
+    with pytest.raises(TypeError, match="build_context"):
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), layout, "pegasus", "deadbeef",
+            perf, 2100, numactl=(), env_contract=pegasus,
+            qualification_policy=policy, build_context=None,
+        )
     assert not (
-        layout.attempt_dir
-        / "rounds/0001/subject/evaluation-events.jsonl"
+        layout.attempt_dir / "rounds/0001/subject/evaluation-events.jsonl"
     ).exists()
+
+
+def test_qualification_stock_source_reaches_build_with_exact_class(
+        tmp_path, monkeypatch):
+    _, capability, layout, _ = _fsm(tmp_path)
+    policy = pipeline.QualificationPipelinePolicy.t126_pegasus(
+        QualificationEventSink(
+            capability, layout, round_index=1, role="subject",
+        )
+    )
+    pegasus = env_contract.lookup("pegasus")
+    genome = Genome("silo", {"BACK_OFF": 1})
+    perf = pipeline.PerfConfig(
+        records=1_000_000, threads=48,
+        workload={
+            "ycsb_zipf_skew": "0.9", "ycsb_rratio": "95",
+            "ycsb_rmw": "0", "ycsb_max_ope": "10",
+        }, extime=3, reps=5,
+    )
+    stock = campaign_fixtures._source_evidence(
+        genome, "d706650", source_root=str(tmp_path / "clean-stock-source"),
+    )
+    seen = []
+
+    monkeypatch.setattr(
+        pipeline.source_digest, "resolve_evidence",
+        lambda *_args, **_kwargs: stock,
+    )
+
+    def stop_at_build(*_args, **kwargs):
+        seen.append(kwargs["admission"].provenance)
+        raise RuntimeError("stop after stock admission")
+
+    monkeypatch.setattr(pipeline.buildcache, "build_v2", stop_at_build)
+    result = pipeline.evaluate(
+        genome, layout, "pegasus", "d706650", perf, 2100, numactl=(),
+        extra_correctness=[
+            (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+        ],
+        do_bench=True, do_settle=True, src_token=stock.src_token,
+        cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
+        env_contract=pegasus, record_rep_returncodes=True,
+        qualification_policy=policy, log=lambda *_: None,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+    )
+    assert result.aborted and not result.certified
+    assert seen == [BuildProvenance.STOCK_BASELINE]
 
 
 def _fsm(tmp_path: Path):
@@ -268,7 +367,7 @@ def test_exact_pegasus_empty_numactl_opt_in_emits_nonformal_evidence(tmp_path):
             cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
             env_contract=pegasus, record_rep_returncodes=True,
             qualification_policy=policy, log=lambda *_: None,
-            admission=_STOCK_ADMISSION,
+            build_context=campaign_fixtures._BUILD_CONTEXT,
         )
     assert result.certified and not result.aborted
     records = load_jsonl_strict(
@@ -307,7 +406,7 @@ def test_m4a_producer_settled_gate_rejects_before_terminal_commit(
             cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
             env_contract=pegasus, record_rep_returncodes=True,
             qualification_policy=policy, log=lambda *_: None,
-            admission=_STOCK_ADMISSION,
+            build_context=campaign_fixtures._BUILD_CONTEXT,
         )
     assert result.aborted is True
     stages = [
@@ -346,7 +445,7 @@ def test_qualification_opt_in_rejects_nonexact_numactl_before_writes(
             ],
             src_token="stock", bench_max_rounds=1, env_contract=pegasus,
             record_rep_returncodes=True, qualification_policy=policy,
-            admission=_STOCK_ADMISSION,
+            build_context=campaign_fixtures._BUILD_CONTEXT,
         )
     assert not (
         layout.attempt_dir / "rounds/0001/subject/evaluation-events.jsonl"
@@ -395,7 +494,7 @@ def test_exact_sink_layout_capability_chain_rejects_laundering_before_write(
             do_bench=True, do_settle=True, src_token="stock",
             bench_max_rounds=1, env_contract=pegasus,
             record_rep_returncodes=True, qualification_policy=policy,
-            admission=_STOCK_ADMISSION,
+            build_context=campaign_fixtures._BUILD_CONTEXT,
         )
     assert not (
         layout.attempt_dir / "rounds/0001/subject/evaluation-events.jsonl"

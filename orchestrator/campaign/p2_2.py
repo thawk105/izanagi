@@ -28,7 +28,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.genome import SILO_SPACE                          # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import GeneratorId, build_run_context  # noqa: E402
 from campaign.layout import repo_output_root                    # noqa: E402
 from campaign.loop import run_campaign                          # noqa: E402
 from campaign.model import CampaignConfig                       # noqa: E402
@@ -133,10 +133,11 @@ def run_workload(tag: str, workload: dict, log=print):
     cfg = config_for(tag, workload)
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=workload,
                       extime=EXTIME, reps=REPS)
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
 
     log(f"\n=== P2-2 workload={tag}  ({workload})  {len(genomes)} genome ===")
     s = run_campaign(cfg, genomes, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                     admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED))
+                     build_context=build_context)
 
     rows = [(r.fitness_tps, r) for r in s.results if r.fitness_tps is not None]
     rows.sort(key=lambda t: t[0], reverse=True)

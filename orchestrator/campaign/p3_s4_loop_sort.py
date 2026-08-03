@@ -65,8 +65,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, pin, wal                              # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
-from campaign.build_admission import (BuildAdmission, BuildProvenance,  # noqa: E402
-                                      require_build_admission)
+from campaign.artifact_admission import require_admitted_campaign # noqa: E402
+from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
+                                      add_coder_build_authority_argument,
+                                      build_run_context)
 from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict, assert_digest_matches,
                                    auditor_reject_result, compute_diff_digest,
@@ -177,7 +179,7 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
     sort-strategy 採用の根拠にした「S2 が実際に hot key 競合を踏む」という前提を
     この driver 自身で満たさないと D41 の条件付き採用の土台が崩れる (敵対レビュー
     2026-07-10 で必須修正と判定)。"""
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug="p3-s5-sort-loop", search_tag="s5-sort-autonomous",
         spec_content=("P3 後続段 5: sort-strategy (write_set 施錠順序 comparator) coder "
                       "自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋を見ずに "
@@ -190,6 +192,8 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                        "records": 100_000, "threads": 4,
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial="p3-s5-sort-loop")
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    return ident.bind_admission_policy(cfg, context.policy)
 
 
 default_perf = L.default_perf   # 軸非依存 (kickoff 規模、有意性を主張しない配線規模)
@@ -209,7 +213,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                       state: L.LoopState, sub: str, do_build: bool,
                       layout: Optional[CampaignLayout] = None, log=print,
                       cache_root: str = "",
-                      admission: Optional[BuildAdmission] = None) -> Dict:
+                      build_context: Optional[BuildRunContext] = None) -> Dict:
     """1 iteration の機械部分を回す (backoff 版 `run_one_iteration` と同型の構造)。
 
     genome は `SORT_VARIANT=1` を焼く (`BACKOFF_FIXED` 相当なし)。auditor gate は
@@ -217,8 +221,11 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     dry/build で quarantine 呼び出しを重複させていたが、本 driver は auditor gate が
     増えた分ここで共通化した)。"""
     from campaign.patchharness import applied
-    if do_build:
-        admission = require_build_admission(admission)
+    if build_context is None and not do_build:
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
     genome = Genome("silo", {**_BASE, "SORT_VARIANT": 1})
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
@@ -228,7 +235,9 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                          f"{layout.root} != cfg 由来")
     layout.ensure()
     # auditor/diff reject も初回 WAL write になりうるため identity を先に確立する。
-    ident.ensure_campaign_identity(cfg, layout)
+    ident.ensure_campaign_identity(
+        cfg, layout, admission_policy=build_context.policy,
+    )
 
     with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
         gate = _quarantine_and_audit(sub, coder, auditor, genome, layout, state, planner,
@@ -239,7 +248,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             return {"outcome": "dry-pass", "variant": None}
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                               ccbench_dir=sub, cache_root=cache_root,
-                              admission=admission,
+                              build_context=build_context,
                               campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
@@ -296,12 +305,17 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     prior_critic_reverse: Optional[bool], sub: str, do_build: bool,
                     layout: Optional[CampaignLayout] = None, log=print,
                     cache_root: str = "",
-                    admission: Optional[BuildAdmission] = None) -> Dict:
+                    build_context: Optional[BuildRunContext] = None) -> Dict:
     """段 5 sort-strategy の 1 iteration をメインセッション駆動で回す (backoff 版
     `drive_iteration` と同型: checkpoint 復元 → critic feedback 畳込み → 入口
     check_stop → iteration++ → run_one_iteration → checkpoint 保存 → digest 書き出し →
     末尾 check_stop)。checkpoint/whiteboard/停止判定は `L.` 側の汎用実装をそのまま使う
     (backoff 軸と同じ LoopState 型・同じ収束/予算/逆方向枯渇の規約)。"""
+    if build_context is None and not do_build:
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
@@ -320,7 +334,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     state.iteration += 1
     out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
                             do_build=do_build, layout=layout, log=log,
-                            cache_root=cache_root, admission=admission)
+                            cache_root=cache_root, build_context=build_context)
     L.save_loop_state(layout, state)
 
     digest_txt = L.make_critic_digest(
@@ -363,8 +377,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="P3 後続段 5 sort-strategy coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫→auditor gate の配線のみ確認")
-    ap.add_argument("--allow-coder-derived-build", action="store_true",
-                    help="CODER_DERIVED source の build をこの CLI run に限り明示許可")
+    add_coder_build_authority_argument(ap)
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
@@ -386,9 +399,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return 0 if out["passed"] else 1
 
-    admission = None if a.no_build else BuildAdmission(
-        BuildProvenance.CODER_DERIVED,
-        coder_derived_opt_in=a.allow_coder_derived_build,
+    if not a.no_build and a.coder_build_authority is None:
+        raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")
+
+    build_context = build_run_context(
+        generator_id=GeneratorId.BACKOFF_SWEEP,
+        coder_authority=None if a.no_build else a.coder_build_authority,
     )
 
     from campaign import patchharness
@@ -398,6 +414,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     patchharness.assert_pinned_clean(fixed_sub, PIN)
 
     cfg = default_cfg(reflux=(a.reflux == "on"))
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
     perf = default_perf()
 
     isolate = not a.no_isolate_worktree
@@ -416,7 +433,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         with wt_cm as sub:
             out = drive_iteration(cfg, perf, planner, coder, auditor, prior_rev, sub,
                                   do_build=not a.no_build, cache_root=cache_root,
-                                  admission=admission)
+                                  build_context=build_context)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
@@ -453,7 +470,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                                  uncertainty="fixture (機械 E2E 用、実 auditor 未使用)")
         out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
                                 do_build=not a.no_build, cache_root=cache_root,
-                                admission=admission)
+                                build_context=build_context)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
@@ -464,7 +481,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         f.write(digest_txt)
 
     stop = L.check_stop(state)
-    dqs = load_diff_rejections(layout)
+    critic_view = require_admitted_campaign(layout.root)
+    dqs = load_diff_rejections(critic_view)
     n_wal = len(list(wal.read_records(layout)))
     checks = {
         f"iteration(={state.iteration}) が WAL レコード数(={n_wal})と独立 (WAL 由来でない)":

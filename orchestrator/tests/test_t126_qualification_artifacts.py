@@ -15,7 +15,19 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
-from campaign import layer3_report  # noqa: E402
+from campaign import layer3_report, pipeline  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    GeneratorId,
+    build_run_context,
+    derive_build_admission,
+)
+from campaign.model import Genome  # noqa: E402
+from campaign.pin import CURRENT_PIN  # noqa: E402
+from campaign.source_digest import (  # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    STOCK,
+    SourceEvidence,
+)
 from qualification.artifacts import (  # noqa: E402
     QualificationArtifactError,
     QualificationRoot,
@@ -235,14 +247,43 @@ def _formal_campaign(tmp_path: Path):
     output_root = tmp_path / "repo" / "output"
     campaign = output_root / "campaigns" / "formal-shaped"
     (campaign / "runs").mkdir(parents=True)
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    genome = Genome("silo", {})
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(campaign.resolve()),
+        ccbench_commit=CURRENT_PIN,
+        genome_sha256=hashlib.sha256(
+            genome.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token=STOCK,
+        source_bytes_sha256="a" * 64,
+        tracked_clean=True,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+    )
+    receipt = derive_build_admission(context, evidence).as_wal_receipt()
     (campaign / "campaign.lock").write_text(json.dumps({
-        "ccbench_commit": "deadbeef",
-        "search_config": {"records": 1, "threads": 1},
+        "ccbench_commit": CURRENT_PIN,
+        "search_config": {
+            "records": 1,
+            "threads": 1,
+            "build_admission": dict(context.policy.as_preimage()),
+        },
         "search_tag": "test", "spec_content": "x", "trial": "t",
     }), encoding="utf-8")
     record = {
-        "ts": 1.0, "stage": "build_start", "variant": "v",
-        "env_tag": "test-env", "payload": {"genome": "g", "src_token": "s"},
+        "ts": 1.0,
+        "stage": "build_start",
+        "variant": pipeline.variant_id(genome, STOCK),
+        "env_tag": "test-env",
+        "payload": {
+            "genome": genome.canonical(),
+            "src_token": STOCK,
+            "build_attempt_id": "formal-fixture-attempt",
+            "build_admission": receipt,
+            "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        },
     }
     (campaign / "runs/wal.jsonl").write_text(
         json.dumps(record) + "\n", encoding="utf-8")
@@ -282,7 +323,7 @@ def test_m2_normal_formal_campaign_remains_accepted(tmp_path):
     campaign, output_root = _formal_campaign(tmp_path)
     report = layer3_report.build_report(
         campaign, generated_from_head="fixed", output_root=output_root)
-    assert report["schema_version"] == "layer3-material-report/v2"
+    assert report["schema_version"] == "layer3-material-report/v3"
     assert report["meta"]["campaign_id"] == "formal-shaped"
 
 

@@ -44,14 +44,16 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import buildcache, site_policy                           # noqa: E402
+from campaign import buildcache, site_policy, source_digest            # noqa: E402
 from campaign.layout import repo_output_root                           # noqa: E402
 from campaign.model import Genome                                      # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
 from campaign.patchharness import applied, assert_pinned_clean         # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance   # noqa: E402
+from campaign.build_admission import (GeneratorId, build_run_context,  # noqa: E402
+                                      derive_build_admission)
 from campaign.pipeline import (CorrectnessWorkload, S2_FLAGS,           # noqa: E402
                                _parse_abort_counts)
+from campaign.materializer_admission import non_admissible_materializer  # noqa: E402
 
 PIN = "dff0f1e"
 ENV_TAG = "linux-baremetal"
@@ -294,9 +296,13 @@ def main() -> int:
     assert_pinned_clean(sub, PIN)
 
     print("=== stock build (buildcache — kickoff seed が残っていれば cache-hit) ===")
-    stock_admission = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
-    bt = buildcache.build(STOCK_G, PIN, trace=True, admission=stock_admission)
-    bp = buildcache.build(STOCK_G, PIN, trace=False, admission=stock_admission)
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    evidence = source_digest.resolve_evidence(STOCK_G, PIN)
+    stock_admission = derive_build_admission(build_context, evidence)
+    build_args = {"admission": stock_admission, "build_context": build_context,
+                  "source_evidence": evidence}
+    bt = buildcache.build(STOCK_G, PIN, trace=True, **build_args)
+    bp = buildcache.build(STOCK_G, PIN, trace=False, **build_args)
     print(f"  trace={bt.bin_hash[:12]} ({'cache' if bt.cached else 'fresh'}) / "
           f"perf={bp.bin_hash[:12]} ({'cache' if bp.cached else 'fresh'})")
 
@@ -304,6 +310,9 @@ def main() -> int:
         "config_name": "s2-verify",
         "env_tag": ENV_TAG, "ccbench_commit": PIN, "clocks_per_us": CLK,
         "genome": STOCK_G.canonical(), "s2_flags": S2_FLAGS,
+        "diagnostic_build_admission": non_admissible_materializer(
+            "orchestrator.campaign.s2_verify_calibration._broken_build_and_verify"
+        ),
         "legacy_correctness_flags": CorrectnessWorkload().flags,
         "gate_thresholds": {
             "gate1_ratio_band": GATE1_RATIO_BAND, "gate1_min_aborts": GATE1_MIN_ABORTS,

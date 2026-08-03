@@ -2,14 +2,19 @@
 """8b binding identity / 実体化の共有 producer モジュール。
 
 oracle driver と floor campaign が共有する binding identity 生成と使い捨て worktree の
-実体化契約を単一正本として持つ。binding_sha256 の canonical 化 helper もここが producer 側の
-唯一の定義である。
+実体化契約、および ratified freeze entry と実体化 source を束縛する review capability を
+単一正本として持つ。binding_sha256 の canonical 化 helper もここが producer 側の唯一の
+定義である。
 
 依存方向: このモジュールは ``s1_direct_comparison`` (PreparedCell / prepare_cell)・``pipeline``
-(variant_id)・標準ライブラリだけに依存する。``s8b_oracle_driver`` / ``s8b_floor_campaign`` を
-import してはいけない (逆 import 禁止 — ``materialization → s1 → pipeline`` の acyclic を保つ)。
-consumer 側の例外契約 (OracleDriverError / FloorCampaignError) への変換は各 consumer が境界で行い、
-本モジュールは ``MaterializationError`` だけを送出する。
+(variant_id)・``build_admission`` / ``source_digest``・標準ライブラリだけに依存する。
+``s8b_oracle_driver`` / ``s8b_floor_campaign`` を import してはいけない (逆 import 禁止 —
+``materialization → s1 → pipeline`` の acyclic を保つ)。
+consumer 側の例外契約 (OracleDriverError / FloorCampaignError) への変換は各 consumer が境界で行う。
+
+review capability は canonical body と内部一貫性を証明するだけで、人間の真正な review 行為を
+認証しない。同一 process の issuer、shell materializer、calibrator の任意 executable path、
+S8b content-addressed store の resume loader は閉じておらず、security credit を与えない。
 """
 from __future__ import annotations
 
@@ -25,7 +30,23 @@ _ORCHESTRATOR = _HERE.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import pipeline  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    REVIEW_RECEIPT_SCHEMA,
+    ReviewId,
+    ReviewReceipt,
+    verify_review_receipt,
+)
+from campaign.materializer_admission import (  # noqa: E402
+    CLOSED_PYTHON_MATERIALIZER_SITES,
+)
 from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
+from campaign.source_digest import SourceEvidence  # noqa: E402
+
+
+# Compatibility view for the repository-wide AST closure sentinel.  The sole
+# registrations and their admitted/non-admissible dispositions live in
+# materializer_admission; this module owns no second registry.
+NON_ADMISSIBLE_MATERIALIZERS = CLOSED_PYTHON_MATERIALIZER_SITES
 
 
 class MaterializationError(RuntimeError):
@@ -44,6 +65,39 @@ def _canonical_bytes(value) -> bytes:
 
 def _canonical_sha256(value) -> str:
     return hashlib.sha256(_canonical_bytes(value)).hexdigest()
+
+
+def _admission_receipt_sha256(value) -> str:
+    """build_admission の canonical JSON (ensure_ascii=True) と exact 同型。"""
+    rendered = json.dumps(
+        value, ensure_ascii=True, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(rendered).hexdigest()
+
+
+def reviewed_source_capability(
+        *, review_id: ReviewId, source: SourceEvidence,
+        input_sha256: str) -> ReviewReceipt:
+    """Ratified freeze input と exact source evidence を canonical review body に束縛する。
+
+    ``verify_review_receipt`` が構造と source equality を再検証する。これは署名付き human
+    attestation の発行器ではなく、freeze ratification の process-local projection である。
+    """
+    if type(review_id) is not ReviewId:
+        raise MaterializationError("review_id が registered ReviewId の exact member でない")
+    if type(source) is not SourceEvidence:
+        raise MaterializationError("source が resolve_evidence() 由来の exact value でない")
+    body = {
+        "schema": REVIEW_RECEIPT_SCHEMA,
+        "review_id": review_id.value,
+        "source": source.as_receipt(),
+        "input_sha256": input_sha256,
+    }
+    body["receipt_sha256"] = _admission_receipt_sha256(body)
+    try:
+        return verify_review_receipt(review_id, source, receipt=body)
+    except (TypeError, ValueError, RuntimeError) as exc:
+        raise MaterializationError(f"review capability を束縛できない: {exc}") from exc
 
 
 def binding_entry(freeze: Mapping, holdout_id: str, configuration_id: str) -> Mapping:

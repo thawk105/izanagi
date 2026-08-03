@@ -2,6 +2,7 @@
 """buildcache v2 の contract namespace / 完成 manifest / 並行 claim 回帰。"""
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -20,16 +21,109 @@ _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH))
 
 from campaign import buildcache  # noqa: E402
-from campaign.build_admission import (BuildAdmission, BuildAdmissionError,  # noqa: E402
-                                      BuildProvenance)
+from campaign.build_admission import (  # noqa: E402
+    BuildAdmission,
+    BuildAdmissionError,
+    GeneratorId,
+    ReviewId,
+    add_coder_build_authority_argument,
+    attest_generator_output,
+    build_run_context,
+    derive_build_admission,
+    verify_review_receipt,
+)
 from campaign.env_contract import (  # noqa: E402
     CalibrationRef,
     ExecutionEnvironmentContract,
     IsolationPolicy,
 )
 from campaign.model import Genome  # noqa: E402
+from campaign.pin import CURRENT_PIN  # noqa: E402
+from campaign.source_digest import SourceEvidence  # noqa: E402
 
-_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
+
+def _source_evidence(genome: Genome, commit: str, source_root: str) -> SourceEvidence:
+    canonical = genome.canonical().encode("utf-8")
+    return SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(Path(source_root).resolve()),
+        ccbench_commit=commit,
+        genome_sha256=hashlib.sha256(canonical).hexdigest(),
+        src_token="stock",
+        source_bytes_sha256=hashlib.sha256(b"stock-source").hexdigest(),
+        tracked_clean=True,
+        tracked_diff_sha256=hashlib.sha256(b"").hexdigest(),
+        tracked_paths=(),
+    )
+
+
+def _admission_bundle(genome: Genome, commit: str, source_root: str):
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    evidence = _source_evidence(genome, commit, source_root)
+    receipt = attest_generator_output(
+        context, evidence, generator_input_sha256="1" * 64,
+    )
+    admission = derive_build_admission(
+        context, evidence, generator_receipt=receipt,
+    )
+    return context, evidence, admission
+
+
+def _dirty_evidence(genome: Genome, commit: str, source_root: str) -> SourceEvidence:
+    base = _source_evidence(genome, commit, source_root)
+    return SourceEvidence(
+        schema_version=base.schema_version,
+        source_root=base.source_root,
+        ccbench_commit=base.ccbench_commit,
+        genome_sha256=base.genome_sha256,
+        src_token="2" * 64,
+        source_bytes_sha256="3" * 64,
+        tracked_clean=False,
+        tracked_diff_sha256="4" * 64,
+        tracked_paths=("include/backoff.hh",),
+    )
+
+
+def _all_class_admissions(genome: Genome, source_root: str):
+    stock_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    stock_evidence = _source_evidence(genome, CURRENT_PIN, source_root)
+    stock = derive_build_admission(stock_context, stock_evidence)
+
+    evidence = _dirty_evidence(genome, "a" * 40, source_root)
+    machine_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    generator = attest_generator_output(
+        machine_context, evidence, generator_input_sha256="1" * 64,
+    )
+    machine = derive_build_admission(
+        machine_context, evidence, generator_receipt=generator,
+    )
+
+    review_unsigned = {
+        "schema": "source-review/v1",
+        "review_id": ReviewId.S1_KNOWN_AXES.value,
+        "source": evidence.as_receipt(),
+        "input_sha256": "5" * 64,
+    }
+    review_body = dict(review_unsigned)
+    review_body["receipt_sha256"] = hashlib.sha256(
+        json.dumps(
+            review_unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    review = verify_review_receipt(
+        ReviewId.S1_KNOWN_AXES, evidence, receipt=review_body,
+    )
+    human_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    human = derive_build_admission(human_context, evidence, review_receipt=review)
+
+    parser = argparse.ArgumentParser()
+    add_coder_build_authority_argument(parser)
+    authority = parser.parse_args(["--allow-coder-derived-build"]).coder_build_authority
+    coder_context = build_run_context(
+        generator_id=GeneratorId.BACKOFF_SWEEP, coder_authority=authority,
+    )
+    coder = derive_build_admission(coder_context, evidence)
+    return stock, machine, human, coder
 
 
 def _contract(seed: int) -> ExecutionEnvironmentContract:
@@ -79,7 +173,9 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
             STOCK="stock",
             assert_worktree_within_allowlist=lambda *a, **k: None,
             assert_trace_diff_matches_head=lambda *a, **k: None,
-            resolve=lambda *a, **k: "stock",
+            resolve_evidence=lambda genome, commit, *, ccbench_dir, cxx: (
+                _source_evidence(genome, commit, ccbench_dir)
+            ),
         ),
     )
     monkeypatch.setattr(buildcache, "_assert_no_trace_symbols", lambda *a, **k: None)
@@ -97,8 +193,15 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
            ccbench_dir: str = "", timeout_s: int | None = None,
            dependency_prefix: str = "", site: str | None = None):
+    genome = Genome("silo", {"BACK_OFF": 1})
+    source_root = ccbench_dir or str(tmp_path / "ccbench")
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, source_root,
+    )
     kwargs = dict(
-        admission=_STOCK_ADMISSION,
+        admission=admission,
+        build_context=context,
+        source_evidence=evidence,
         contract=contract,
         ccbench_commit="a" * 40,
         trace=trace,
@@ -114,7 +217,7 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
     if site is not None:
         kwargs["site"] = site
     return buildcache.build_v2(
-        Genome("silo", {"BACK_OFF": 1}),
+        genome,
         **kwargs,
     )
 
@@ -133,14 +236,14 @@ def test_v2_custom_ccbench_tree_drives_commit_allowlist_identity_and_trace_check
         lambda sub: calls["allowlist"].append(sub)
     )
 
-    def resolve(_genome, _commit, sub, _cxx):
-        calls["resolve"].append(sub)
-        return "stock"
+    def resolve_evidence(genome, commit, *, ccbench_dir, cxx):
+        calls["resolve"].append(ccbench_dir)
+        return _source_evidence(genome, commit, ccbench_dir)
 
     def trace_diff(_genome, _commit, sub, _cxx):
         calls["trace_diff"].append(sub)
 
-    buildcache.source_digest.resolve = resolve
+    buildcache.source_digest.resolve_evidence = resolve_evidence
     buildcache.source_digest.assert_trace_diff_matches_head = trace_diff
 
     fresh = _build(tmp_path, _contract(1), trace=False, ccbench_dir=str(custom))
@@ -176,9 +279,14 @@ def test_v2_ccbench_path_is_not_cache_preimage_when_src_token_is_identical(
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
     default = _build(tmp_path, _contract(1), trace=True)
+    # Different lexical paths to the same canonical source root keep the exact
+    # SourceEvidence/receipt identical.  A genuinely different prepared root is
+    # intentionally a different T-343 admission identity even if its bytes match.
+    alias = tmp_path / "same-content-prepared-tree"
+    alias.symlink_to(tmp_path / "ccbench", target_is_directory=True)
     custom = _build(
         tmp_path, _contract(1), trace=True,
-        ccbench_dir=str(tmp_path / "same-content-prepared-tree"),
+        ccbench_dir=str(alias),
     )
     assert not default.cached and custom.cached
     assert custom.build_dir == default.build_dir
@@ -411,8 +519,12 @@ def test_v2_never_hits_legacy_entry(tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path, payload=b"v2")
     genome = Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(tmp_path / "ccbench"),
+    )
     legacy = tmp_path / "cache" / buildcache.cache_key(
-        genome, "a" * 40, True, src_token="stock", cc="test-cc", cxx="test-cxx"
+        genome, "a" * 40, True, src_token="stock", cc="test-cc", cxx="test-cxx",
+        admission=admission,
     ) / "cc" / "silo" / "ycsb_silo.exe"
     legacy.parent.mkdir(parents=True)
     legacy.write_bytes(b"legacy")
@@ -420,6 +532,112 @@ def test_v2_never_hits_legacy_entry(tmp_path, monkeypatch):
     assert not result.cached
     assert Path(result.binary).read_bytes() == b"v2"
     assert "/contracts/" in result.build_dir
+
+
+def test_legacy_key_binds_admission_for_all_classes(tmp_path):
+    genome = Genome("silo", {"BACK_OFF": 1})
+    admissions = _all_class_admissions(genome, str(tmp_path / "ccbench"))
+    keys = {
+        buildcache.cache_key(
+            genome, "a" * 40, False, src_token="stock", admission=admission,
+        )
+        for admission in admissions
+    }
+    assert len(keys) == 4
+
+
+def test_legacy_hit_requires_exact_admission_sidecar(tmp_path, monkeypatch):
+    _fake_build_environment(monkeypatch, tmp_path)
+    genome = Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(tmp_path / "ccbench"),
+    )
+    key = buildcache.cache_key(
+        genome, "a" * 40, True, admission=admission,
+    )
+    binary = tmp_path / "cache" / key / "cc" / "silo" / "ycsb_silo.exe"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"old-entry-under-new-key")
+    build_calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
+    )
+    with pytest.raises(buildcache.BuildCacheError, match="legacy admission sidecar"):
+        buildcache.build(
+            genome,
+            "a" * 40,
+            True,
+            cache_root=str(tmp_path / "cache"),
+            admission=admission,
+            build_context=context,
+            source_evidence=evidence,
+        )
+    assert build_calls == []
+    assert binary.read_bytes() == b"old-entry-under-new-key"
+
+
+def test_legacy_fresh_publish_includes_sidecar_and_remains_a_hit(tmp_path, monkeypatch):
+    _fake_build_environment(monkeypatch, tmp_path, payload=b"legacy-fresh")
+    genome = Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(tmp_path / "ccbench"),
+    )
+    kwargs = {
+        "cache_root": str(tmp_path / "cache"),
+        "admission": admission,
+        "build_context": context,
+        "source_evidence": evidence,
+    }
+    fresh = buildcache.build(genome, "a" * 40, True, **kwargs)
+    hit = buildcache.build(genome, "a" * 40, True, **kwargs)
+    sidecar = json.loads(
+        (Path(fresh.build_dir) / "admission.json").read_text(encoding="utf-8")
+    )
+    assert not fresh.cached and hit.cached
+    assert set(sidecar) == {"schema_version", "admission"}
+    assert sidecar["admission"] == admission.as_cache_identity()
+
+
+def test_v2_preimage_binds_exact_admission(tmp_path):
+    genome = Genome("silo", {"BACK_OFF": 1})
+    admissions = _all_class_admissions(genome, str(tmp_path / "ccbench"))
+    toolchain = {
+        role: {"requested": role, "realpath": f"/tool/{role}", "version_first_line": "v1"}
+        for role in ("cc", "cxx", "cmake")
+    }
+    digests = {
+        buildcache._v2_identity(
+            genome,
+            "a" * 40,
+            False,
+            "stock",
+            "cc",
+            "cxx",
+            toolchain,
+            site="test",
+            dependency_prefix=[],
+            admission=dict(admission.as_cache_identity()),
+        )[1]
+        for admission in admissions
+    }
+    assert len(digests) == 4
+
+
+def test_completion_manifest_rejects_missing_receipt(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    result = _build(tmp_path, _contract(1))
+    manifest_path = Path(result.build_dir) / "completion.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("admission")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    build_calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
+    )
+    with pytest.raises(buildcache.BuildCacheError, match="field 集合"):
+        _build(tmp_path, _contract(1))
+    assert build_calls == []
 
 
 def test_v2_contract_trace_four_quadrants_are_distinct(tmp_path, monkeypatch):
@@ -489,9 +707,9 @@ def test_v2_runs_all_observer_and_identity_checks_on_fresh_and_hit(tmp_path, mon
     _fake_build_environment(monkeypatch, tmp_path)
     calls = {"resolve": 0, "trace_diff": 0, "nm": 0}
 
-    def resolved(*args, **kwargs):
+    def resolved(genome, commit, *, ccbench_dir, cxx):
         calls["resolve"] += 1
-        return "stock"
+        return _source_evidence(genome, commit, ccbench_dir)
 
     def trace_diff(*args, **kwargs):
         calls["trace_diff"] += 1
@@ -499,7 +717,7 @@ def test_v2_runs_all_observer_and_identity_checks_on_fresh_and_hit(tmp_path, mon
     def no_trace(*args, **kwargs):
         calls["nm"] += 1
 
-    buildcache.source_digest.resolve = resolved
+    buildcache.source_digest.resolve_evidence = resolved
     buildcache.source_digest.assert_trace_diff_matches_head = trace_diff
     monkeypatch.setattr(buildcache, "_assert_no_trace_symbols", no_trace)
     fresh = _build(tmp_path, _contract(1), trace=False)
@@ -520,6 +738,7 @@ def test_v2_manifest_records_complete_identity(tmp_path, monkeypatch):
     preimage.pop("site", None)  # M7 は専用 cache-miss node だけへ帰属させる。
     preimage.pop("dependency_prefix", None)  # M8 も専用 node だけへ帰属させる。
     assert preimage == {
+        "admission": manifest["admission"],
         "cc": "test-cc",
         "ccbench_commit": "a" * 40,
         "cxx": "test-cxx",
@@ -528,32 +747,56 @@ def test_v2_manifest_records_complete_identity(tmp_path, monkeypatch):
         "toolchain_manifest_sha256": manifest["preimage"]["toolchain_manifest_sha256"],
         "trace": False,
     }
+    assert manifest["admission"] == manifest["preimage"]["admission"]
+    assert set(manifest["admission"]) == {
+        "schema", "class", "policy_sha256", "source", "generator_id",
+        "review_id", "input_sha256", "generator_receipt", "review_receipt",
+        "authority_kind", "receipt_sha256",
+    }
     assert len(manifest["preimage"]["toolchain_manifest_sha256"]) == 64
     assert manifest["toolchain"]["cxx"]["version_first_line"] == "cxx version A"
     assert manifest["binary"]["sha256"] == hashlib.sha256(b"manifest-payload").hexdigest()
 
 
 _CHILD = r"""
-import json, os, sys, time
+import hashlib, json, os, sys, time
 from pathlib import Path
 from types import SimpleNamespace
 sys.path.insert(0, sys.argv[1])
 from campaign import buildcache
-from campaign.build_admission import BuildAdmission, BuildProvenance
+from campaign.build_admission import (
+    GeneratorId, attest_generator_output, build_run_context, derive_build_admission,
+)
 from campaign.env_contract import CalibrationRef, ExecutionEnvironmentContract, IsolationPolicy
 from campaign.model import Genome
-
-_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
+from campaign.source_digest import SourceEvidence
 
 root, sync, tools = map(Path, sys.argv[2:5])
 os.environ["PATH"] = str(tools) + os.pathsep + os.environ.get("PATH", "")
 buildcache._ccbench_dir = lambda: str(root / "ccbench")
 buildcache._verify_ccbench_commit = lambda *a, **k: None
+genome = Genome("silo", {"BACK_OFF": 1})
+source_root = str((root / "ccbench").resolve())
+evidence = SourceEvidence(
+    schema_version="source-evidence/v1", source_root=source_root,
+    ccbench_commit="a" * 40,
+    genome_sha256=hashlib.sha256(genome.canonical().encode()).hexdigest(),
+    src_token="stock", source_bytes_sha256=hashlib.sha256(b"stock-source").hexdigest(),
+    tracked_clean=True, tracked_diff_sha256=hashlib.sha256(b"").hexdigest(),
+    tracked_paths=(),
+)
+context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+generator_receipt = attest_generator_output(
+    context, evidence, generator_input_sha256="1" * 64,
+)
+admission = derive_build_admission(
+    context, evidence, generator_receipt=generator_receipt,
+)
 buildcache.source_digest = SimpleNamespace(
     STOCK="stock",
     assert_worktree_within_allowlist=lambda *a, **k: None,
     assert_trace_diff_matches_head=lambda *a, **k: None,
-    resolve=lambda *a, **k: "stock",
+    resolve_evidence=lambda *a, **k: evidence,
 )
 buildcache._assert_no_trace_symbols = lambda *a, **k: None
 
@@ -605,7 +848,7 @@ while not (sync / "go").exists():
     time.sleep(0.01)
 try:
     result = buildcache.build_v2(
-        Genome("silo", {"BACK_OFF": 1}), admission=_STOCK_ADMISSION,
+        genome, admission=admission, build_context=context, source_evidence=evidence,
         contract=contract, ccbench_commit="a" * 40,
         trace=True, src_token="stock", cc="test-cc", cxx="test-cxx",
         cache_root=str(root / "cache"),
@@ -664,22 +907,23 @@ def test_v2_two_real_processes_only_one_claims(tmp_path):
 def test_v2_contract_is_required(tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
+    genome = Genome("silo", {})
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(tmp_path / "ccbench"),
+    )
     kwargs = dict(
-        admission=_STOCK_ADMISSION,
+        admission=admission, build_context=context, source_evidence=evidence,
         ccbench_commit="a" * 40, trace=True, src_token="stock",
         cc="test-cc", cxx="test-cxx", cache_root=str(tmp_path / "cache"),
     )
     with pytest.raises(TypeError):
-        buildcache.build_v2(Genome("silo", {}), **kwargs)
+        buildcache.build_v2(genome, **kwargs)
     with pytest.raises((TypeError, buildcache.BuildCacheError)):
-        buildcache.build_v2(Genome("silo", {}), contract=None, **kwargs)
+        buildcache.build_v2(genome, contract=None, **kwargs)
 
 
 def _forged_unadmitted_coder():
-    value = object.__new__(BuildAdmission)
-    object.__setattr__(value, "provenance_class", BuildProvenance.CODER_DERIVED)
-    object.__setattr__(value, "coder_derived_opt_in", False)
-    return value
+    return object.__new__(BuildAdmission)
 
 
 @pytest.mark.parametrize("api", ["legacy", "v2"])
@@ -692,15 +936,20 @@ def test_materializer_rejects_unadmitted_coder_before_identity_spy(
         lambda *_args, **_kwargs: identity_calls.append("identity"),
     )
     genome = Genome("silo", {})
+    context, evidence, _ = _admission_bundle(
+        genome, "a" * 40, str(Path(buildcache._ccbench_dir()).resolve()),
+    )
     with pytest.raises(BuildAdmissionError):
         if api == "legacy":
             buildcache.build(
                 genome, "a" * 40, trace=True,
                 admission=_forged_unadmitted_coder(),
+                build_context=context, source_evidence=evidence,
             )
         else:
             buildcache.build_v2(
                 genome, admission=_forged_unadmitted_coder(), contract=None,
+                build_context=context, source_evidence=evidence,
                 ccbench_commit="a" * 40, trace=True, src_token="stock",
                 cc="cc", cxx="cxx", cache_root="/not-reached",
             )

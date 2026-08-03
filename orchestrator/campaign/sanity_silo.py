@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.genome import SILO_SPACE                          # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import GeneratorId, build_run_context  # noqa: E402
 from campaign.loop import run_campaign                          # noqa: E402
 from campaign.model import CampaignConfig                       # noqa: E402
 from campaign.pipeline import PerfConfig                        # noqa: E402
@@ -31,6 +31,7 @@ CLK = 1800
 
 
 def main() -> int:
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     # 両 no-wait=0 (wait validation) は livelock で計測不能と P2-2 で確定したため、
     # SILO_SPACE.enumerate() が no-wait XOR 制約で最初から除外する (= 8 genome)。
     # P2-0 当時の手動除外 (_trace_evaluable) は genome.py の制約に昇格して不要になった。
@@ -50,7 +51,7 @@ def main() -> int:
         print(f"  - {g.canonical()}")
     s = run_campaign(
         cfg, genomes, perf, ENV_TAG, CLK, do_bench=False,
-        admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
+        build_context=build_context,
     )
 
     print(f"\n committed(certified)={s.committed} aborted={s.aborted} "

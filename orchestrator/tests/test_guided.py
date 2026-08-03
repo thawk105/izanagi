@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import atexit
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -20,11 +21,22 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import guided, ident, replay, wal                   # noqa: E402
+from campaign import guided, ident, pipeline, replay, wal         # noqa: E402
+from campaign.build_admission import (                            # noqa: E402
+    GeneratorId,
+    build_run_context,
+    derive_build_admission,
+)
 from campaign.genome import SILO_SPACE                            # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
-                            STAGE_COMMIT)
+                            STAGE_BUILD_DONE, STAGE_COMMIT,
+                            CampaignConfig, Genome)
+from campaign.pin import CURRENT_PIN                              # noqa: E402
+from campaign.source_digest import (                              # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    SourceEvidence,
+)
 from campaign.search_baselines import (exact_perm_pvalue_A,       # noqa: E402
                                        expectation, oracle_ceiling,
                                        prob_superiority,
@@ -76,10 +88,57 @@ def test_online_digest_leakage_assert():
     STAGE_COMMIT 由来ゆえ同一 layout 経路では恒真化する (D26)。中立性の真の担保は WAL 分離
     + load_p2_2 非 import。ここで固定するのは「iterations を誤って渡した配線ミスを捕える」挙動。"""
     lay = _tmp_layout()
-    for g in (_G.format(b=0, l=1, t=0, w=0), _G.format(b=1, l=1, t=0, w=0)):
-        wal.log(lay, g, STAGE_BUILD_START, "test", {"genome": g})
-        wal.log(lay, g, STAGE_BENCH_DONE, "test", {"leading_indicators": {"throughput_tps": 1.0}})
-        wal.log(lay, g, STAGE_COMMIT, "test", {"fitness_tps": 1.0})
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    cfg = ident.bind_admission_policy(CampaignConfig(
+        spec_slug="guided-online-digest-fixture",
+        search_tag="critic-replay",
+        spec_content="guided online digest post-policy fixture",
+        ccbench_commit=CURRENT_PIN,
+        search_config={"fixture": "post-admission-schema"},
+        trial="online-digest",
+    ), context.policy)
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    genomes = (
+        _G.format(b=0, l=1, t=0, w=0),
+        _G.format(b=1, l=1, t=0, w=0),
+    )
+    for ordinal, canonical in enumerate(genomes):
+        genome = Genome("silo", replay.parse_flags(canonical))
+        evidence = SourceEvidence(
+            schema_version="source-evidence/v1",
+            source_root=os.path.realpath(lay.root),
+            ccbench_commit=CURRENT_PIN,
+            genome_sha256=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+            src_token="stock",
+            source_bytes_sha256=hashlib.sha256(
+                f"guided-fixture:{canonical}".encode("utf-8")
+            ).hexdigest(),
+            tracked_clean=True,
+            tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+            tracked_paths=(),
+        )
+        receipt = derive_build_admission(context, evidence).as_wal_receipt()
+        attempt_id = f"guided-fixture-attempt-{ordinal}"
+        propagated = {
+            "build_attempt_id": attempt_id,
+            "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        }
+        variant = pipeline.variant_id(genome)
+        wal.log(lay, variant, STAGE_BUILD_START, "test", {
+            "genome": canonical,
+            "src_token": "stock",
+            "build_admission": receipt,
+            **propagated,
+        })
+        wal.log(lay, variant, STAGE_BUILD_DONE, "test", dict(propagated))
+        wal.log(lay, variant, STAGE_BENCH_DONE, "test", {
+            "leading_indicators": {"throughput_tps": 1.0},
+            **propagated,
+        })
+        wal.log(lay, variant, STAGE_COMMIT, "test", {
+            "fitness_tps": 1.0,
+            **propagated,
+        })
     # committed 2 genome。iterations=1 と誤計算したら sanity が発火する。
     try:
         online_digest(lay, "x", {}, iterations=1)
@@ -216,7 +275,10 @@ def test_cmd_evaluate_repairs_committed_tail_before_four_new_frames():
     meta = {"tag": "balanced", "workload": {"ycsb_rratio": "50"},
             "seed": "7", "trial": trial}
     guided._write_meta(layout, meta)
-    ident.ensure_resumable_wal(guided._trial_config(meta, trial), layout)
+    ident.ensure_resumable_wal(
+        guided._trial_config(meta, trial), layout,
+        admission_policy=guided._NO_BUILD_POLICY,
+    )
     first, second = SILO_SPACE.enumerate()[:2]
     guided._log_eval(layout, _gr(first.canonical(), 100.0))
     with open(layout.wal_file, "ab") as stream:
@@ -314,7 +376,9 @@ def test_cmd_start_atomic_loser_is_structured_and_touches_no_meta_or_wal():
     meta = {"tag": "balanced", "workload": guided._workload_of("balanced"),
             "seed": "7", "trial": trial}
     assert ident.ensure_campaign_identity(
-        guided._trial_config(meta, trial), layout) is True
+        guided._trial_config(meta, trial), layout,
+        admission_policy=guided._NO_BUILD_POLICY,
+    ) is True
 
     stderr = io.StringIO()
     with contextlib.redirect_stderr(stderr):
@@ -324,6 +388,35 @@ def test_cmd_start_atomic_loser_is_structured_and_touches_no_meta_or_wal():
     assert rejection["reason"] == "campaign-lock-already-acquired"
     assert not os.path.exists(guided._meta_path(layout))
     assert not os.path.exists(layout.wal_file)
+
+
+def test_cmd_evaluate_does_not_rewrite_pre_policy_lock():
+    """既存 pre-T343 guided trial は current policy へ黙って移植しない。"""
+    root = _tmp_layout().root
+    trial = "historical-guided-lock"
+    layout = guided._trial_layout(trial, root).ensure()
+    meta = {"tag": "balanced", "workload": {"ycsb_rratio": "50"},
+            "seed": "7", "trial": trial}
+    guided._write_meta(layout, meta)
+    historical = json.dumps({
+        "ccbench_commit": "p2-2-replay-landscape",
+        "search_config": {
+            "seed": "7", "tag": "balanced",
+            "workload": {"ycsb_rratio": "50"},
+        },
+        "search_tag": "critic-replay",
+        "spec_content": "P2-5 critic-in-the-loop replay trial",
+        "trial": trial,
+    }, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    wal.write_lock(layout, historical)
+
+    try:
+        guided.cmd_evaluate(types.SimpleNamespace(
+            trial=trial, root=root, genome="B0-L-W0"))
+        raise AssertionError("pre-policy lock の current-policy resume を拒否すべき")
+    except ident.IdentityMismatch:
+        pass
+    assert wal.read_lock(layout) == historical
 
 
 def test_cmd_start_existing_wal_is_rejected_before_lock_and_meta():

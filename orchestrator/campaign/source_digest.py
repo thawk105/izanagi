@@ -65,7 +65,8 @@ import hashlib
 import os
 import re
 import subprocess
-from typing import Dict, Iterable, List
+from dataclasses import dataclass
+from typing import Dict, Iterable, List, Mapping
 
 from .model import Genome
 
@@ -81,6 +82,104 @@ EVOLVE_BLOCK_SOURCES = ("include/backoff.hh", "cc/silo/transaction.cc")
 ALLOWLIST = frozenset({"cmake/Options.cmake", "include/backoff.hh", "cc/silo/transaction.cc"})
 
 STOCK = "stock"        # 後方互換: working-tree==HEAD baseline のときの src トークン
+SOURCE_EVIDENCE_SCHEMA = "source-evidence/v1"
+EMPTY_TRACKED_DIFF_SHA256 = hashlib.sha256(b"").hexdigest()
+
+
+def _is_sha256(value: object) -> bool:
+    if type(value) is not str or len(value) != 64:
+        return False
+    try:
+        int(value, 16)
+    except ValueError:
+        return False
+    return value == value.lower()
+
+
+@dataclass(frozen=True, slots=True)
+class SourceEvidence:
+    """One source-root-bound evidence projection for build admission.
+
+    ``source_root`` records which checkout was inspected, while ``tracked_clean``, the tracked
+    diff digest, and ``tracked_paths`` are derived from one status snapshot.  The checkout remains
+    mutable: this value does not close the ABA/mixed-snapshot window between capture and build.
+    """
+
+    schema_version: str
+    source_root: str
+    ccbench_commit: str
+    genome_sha256: str
+    src_token: str
+    source_bytes_sha256: str
+    tracked_clean: bool
+    tracked_diff_sha256: str
+    tracked_paths: tuple[str, ...]
+
+    _KEYS = frozenset({
+        "schema", "source_root", "ccbench_commit", "genome_sha256", "src_token",
+        "source_bytes_sha256", "tracked_clean", "tracked_diff_sha256", "tracked_paths",
+    })
+
+    def __post_init__(self) -> None:
+        if self.schema_version != SOURCE_EVIDENCE_SCHEMA:
+            raise ValueError("SourceEvidence schema_version が不正")
+        if type(self.source_root) is not str or not os.path.isabs(self.source_root):
+            raise ValueError("SourceEvidence source_root は absolute path が必要")
+        if type(self.ccbench_commit) is not str or not self.ccbench_commit:
+            raise ValueError("SourceEvidence ccbench_commit が不正")
+        if not _is_sha256(self.genome_sha256):
+            raise ValueError("SourceEvidence genome_sha256 が不正")
+        if self.src_token != STOCK and not _is_sha256(self.src_token):
+            raise ValueError("SourceEvidence src_token が不正")
+        if not _is_sha256(self.source_bytes_sha256):
+            raise ValueError("SourceEvidence source_bytes_sha256 が不正")
+        if type(self.tracked_clean) is not bool:
+            raise ValueError("SourceEvidence tracked_clean は exact bool が必要")
+        if not _is_sha256(self.tracked_diff_sha256):
+            raise ValueError("SourceEvidence tracked_diff_sha256 が不正")
+        if (type(self.tracked_paths) is not tuple
+                or any(type(path) is not str or not path for path in self.tracked_paths)
+                or self.tracked_paths != tuple(sorted(set(self.tracked_paths)))):
+            raise ValueError("SourceEvidence tracked_paths は sorted unique tuple[str, ...] が必要")
+        if self.tracked_clean != (not self.tracked_paths):
+            raise ValueError("SourceEvidence tracked_clean と tracked_paths が不整合")
+        if self.tracked_clean != (self.tracked_diff_sha256 == EMPTY_TRACKED_DIFF_SHA256):
+            raise ValueError("SourceEvidence tracked_clean と tracked diff digest が不整合")
+
+    def as_receipt(self) -> dict[str, object]:
+        return {
+            "schema": self.schema_version,
+            "source_root": self.source_root,
+            "ccbench_commit": self.ccbench_commit,
+            "genome_sha256": self.genome_sha256,
+            "src_token": self.src_token,
+            "source_bytes_sha256": self.source_bytes_sha256,
+            "tracked_clean": self.tracked_clean,
+            "tracked_diff_sha256": self.tracked_diff_sha256,
+            "tracked_paths": list(self.tracked_paths),
+        }
+
+    @classmethod
+    def from_receipt(cls, value: object) -> "SourceEvidence":
+        if not isinstance(value, Mapping) or set(value) != cls._KEYS:
+            got = sorted(repr(key) for key in value) if isinstance(value, Mapping) else type(value).__name__
+            raise ValueError(
+                f"SourceEvidence receipt key 集合が不正: expected={sorted(cls._KEYS)} got={got}"
+            )
+        paths = value["tracked_paths"]
+        if type(paths) is not list or any(type(path) is not str for path in paths):
+            raise ValueError("SourceEvidence receipt tracked_paths は list[str] が必要")
+        return cls(
+            schema_version=value["schema"],
+            source_root=value["source_root"],
+            ccbench_commit=value["ccbench_commit"],
+            genome_sha256=value["genome_sha256"],
+            src_token=value["src_token"],
+            source_bytes_sha256=value["source_bytes_sha256"],
+            tracked_clean=value["tracked_clean"],
+            tracked_diff_sha256=value["tracked_diff_sha256"],
+            tracked_paths=tuple(paths),
+        )
 
 # TU 注入マクロ (T-148): -D でなく取り込み側 TU の #define で供給されるマクロ。単体 preprocess の
 # 素文脈では常に未定義 = 条件枝が dead になり、枝内編集が digest に不可視 (stock 偽 alias) になる。
@@ -659,14 +758,9 @@ def src_token(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     return STOCK if cur == base else cur
 
 
-def assert_worktree_within_allowlist(ccbench_dir: str = "") -> None:
-    """submodule working-tree の tracked 改変が ALLOWLIST 内か検査する (fails-closed)。
+def _tracked_status_paths(ccbench_dir: str = "") -> tuple[str, ...]:
+    """Return sorted tracked paths from one porcelain snapshot; ignore untracked output."""
 
-    coder の編集面は EVOLVE-BLOCK (= template patch が touch するファイル) に閉じている
-    べき。それを超えた tracked 改変 (例 transaction.cc の M) は source_digest が覆わない
-    偽 hit 源 (D23 finding F-allowlist) なので停止する。untracked (??、build 生成物等) は
-    無視する。git が無い/失敗は identity 核なので fails-closed。
-    """
     sub = ccbench_dir or _ccbench_dir()
     try:
         r = subprocess.run(["git", "-C", sub, "status", "--porcelain"],
@@ -679,7 +773,7 @@ def assert_worktree_within_allowlist(ccbench_dir: str = "") -> None:
         raise RuntimeError(
             f"source_digest: git status 失敗 (rc={r.returncode}) → fails-closed。\n"
             f"  {r.stderr.strip()[-300:]}")
-    extra = set()
+    paths = set()
     for line in r.stdout.splitlines():
         if not line.strip():
             continue
@@ -689,13 +783,97 @@ def assert_worktree_within_allowlist(ccbench_dir: str = "") -> None:
         if " -> " in path:                   # rename: "old -> new"
             path = path.split(" -> ")[-1]
         path = path.strip()
-        if path not in ALLOWLIST:
-            extra.add(path)
+        if path:
+            paths.add(path)
+    return tuple(sorted(paths))
+
+
+def _assert_paths_within_allowlist(paths: Iterable[str]) -> None:
+    extra = set(paths) - set(ALLOWLIST)
     if extra:
         raise RuntimeError(
             "source_digest: ALLOWLIST 外の tracked 改変を検知 → 偽 cache hit を防ぐため "
             f"停止 (coder の編集面が EVOLVE-BLOCK を逸脱)。allowlist={sorted(ALLOWLIST)} "
             f"外={sorted(extra)} (D23)")
+
+
+def _tracked_diff_sha256(ccbench_dir: str = "") -> str:
+    """Hash the full staged+unstaged tracked diff against HEAD, including binary patches."""
+
+    sub = ccbench_dir or _ccbench_dir()
+    try:
+        r = subprocess.run(
+            ["git", "-C", sub, "diff", "--binary", "HEAD", "--"],
+            capture_output=True,
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        raise RuntimeError(
+            f"source_digest: git diff 起動失敗 ({e}) — tracked diff evidence を "
+            "確定できず fails-closed (T-342)"
+        ) from e
+    if r.returncode != 0:
+        stderr = r.stderr.decode("utf-8", errors="replace") if isinstance(r.stderr, bytes) else r.stderr
+        raise RuntimeError(
+            f"source_digest: git diff 失敗 (rc={r.returncode}) → fails-closed。\n"
+            f"  {(stderr or '').strip()[-300:]}"
+        )
+    payload = r.stdout if isinstance(r.stdout, bytes) else r.stdout.encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def assert_worktree_within_allowlist(ccbench_dir: str = "") -> None:
+    """submodule working-tree の tracked 改変が ALLOWLIST 内か検査する (fails-closed)。
+
+    coder の編集面は EVOLVE-BLOCK (= template patch が touch するファイル) に閉じている
+    べき。それを超えた tracked 改変 (例 transaction.cc の M) は source_digest が覆わない
+    偽 hit 源 (D23 finding F-allowlist) なので停止する。untracked (??、build 生成物等) は
+    無視する。git が無い/失敗は identity 核なので fails-closed。
+    """
+
+    _assert_paths_within_allowlist(_tracked_status_paths(ccbench_dir))
+
+
+def resolve_evidence(
+    genome: Genome,
+    ccbench_commit: str,
+    *,
+    ccbench_dir: str = "",
+    cxx: str = "g++-13",
+) -> SourceEvidence:
+    """Resolve build evidence and bind it to the inspected source root.
+
+    The status snapshot yields ``tracked_clean`` and the exact tracked path set; its corresponding
+    full tracked diff is hashed before source normalization.  The checkout is still mutable, so a
+    later consumer must compare a freshly resolved full ``SourceEvidence`` at the build boundary.
+    """
+
+    sub = ccbench_dir or _ccbench_dir()
+    source_root = os.path.realpath(os.path.abspath(sub))
+    tracked_paths = _tracked_status_paths(sub)
+    _assert_paths_within_allowlist(tracked_paths)
+    tracked_diff_sha256 = _tracked_diff_sha256(sub)
+    if (not tracked_paths) != (tracked_diff_sha256 == EMPTY_TRACKED_DIFF_SHA256):
+        raise RuntimeError(
+            "source_digest: git status と tracked diff が同一 clean/dirty 状態を示さない — "
+            "取得中の source 変更または mixed snapshot の疑いのため fails-closed (T-342)"
+        )
+    assert_includes_match_head(genome, ccbench_commit, sub, cxx)
+    assert_conditional_macros_covered(genome, sub, cxx)
+    current = compute(genome, sub, cxx)
+    base = baseline(genome, ccbench_commit, sub, cxx)
+    token = STOCK if current == base else current
+    genome_sha256 = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
+    return SourceEvidence(
+        schema_version=SOURCE_EVIDENCE_SCHEMA,
+        source_root=source_root,
+        ccbench_commit=ccbench_commit,
+        genome_sha256=genome_sha256,
+        src_token=token,
+        source_bytes_sha256=current,
+        tracked_clean=not tracked_paths,
+        tracked_diff_sha256=tracked_diff_sha256,
+        tracked_paths=tracked_paths,
+    )
 
 
 def resolve(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",

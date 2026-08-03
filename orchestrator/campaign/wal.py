@@ -27,8 +27,22 @@ import time
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional
 
+from .build_admission import (
+    BuildAdmissionError,
+    BuildAdmissionPolicy,
+    validate_build_admission_receipt,
+)
 from .layout import CampaignLayout
-from .model import (STAGE_ABORT, STAGE_COMMIT, WAL_STAGES, EvalState, WalRecord)
+from .model import (
+    STAGE_ABORT,
+    STAGE_BUILD_DONE,
+    STAGE_BUILD_START,
+    STAGE_COMMIT,
+    WAL_STAGES,
+    BuildAttemptState,
+    EvalState,
+    WalRecord,
+)
 
 
 # ---- シリアライズ ----
@@ -69,6 +83,10 @@ class WalAppendError(RuntimeError):
         self.written_bytes = written_bytes
         self.phase = phase
         self.cause = cause
+
+
+class AttemptTopologyError(ValueError):
+    """Admission-aware WAL records do not form attempt-local transactions."""
 
 
 @dataclass(frozen=True)
@@ -563,10 +581,154 @@ def read_records(layout: CampaignLayout) -> List[WalRecord]:
     return records
 
 
-def replay(layout: CampaignLayout) -> Dict[str, EvalState]:
-    """WAL をリプレイし variant ごとの評価状態を復元する。"""
+def _lock_declares_admission_policy(layout: CampaignLayout) -> bool:
+    stored = read_lock(layout)
+    if stored is None:
+        return False
+    try:
+        value = json.loads(stored)
+    except (json.JSONDecodeError, TypeError):
+        return False
+    search = value.get("search_config") if type(value) is dict else None
+    return type(search) is dict and "build_admission" in search
+
+
+def _receipt_sha(payload: Dict, *, stage: str) -> str:
+    value = payload.get("build_admission_receipt_sha256")
+    if (type(value) is not str or len(value) != 64
+            or any(ch not in "0123456789abcdef" for ch in value)):
+        raise AttemptTopologyError(
+            f"{stage}: build_admission_receipt_sha256 が exact lowercase SHA-256 でない"
+        )
+    return value
+
+
+def _validate_attempt_topology(
+        records: List[WalRecord], *, admission_policy: BuildAdmissionPolicy,
+) -> Dict[str, Dict[str, BuildAttemptState]]:
+    if type(admission_policy) is not BuildAdmissionPolicy:
+        raise TypeError("admission_policy は BuildRunContext.policy の exact value が必要")
+    by_variant: Dict[str, Dict[str, BuildAttemptState]] = {}
+    global_attempts: Dict[str, BuildAttemptState] = {}
+    active: Dict[str, BuildAttemptState] = {}
+    for record in records:
+        payload = record.payload
+        if record.stage == STAGE_BUILD_START:
+            attempt_id = payload.get("build_attempt_id")
+            if type(attempt_id) is not str or not attempt_id:
+                raise AttemptTopologyError("build_start: build_attempt_id が欠落または不正")
+            if attempt_id in global_attempts:
+                raise AttemptTopologyError(
+                    f"build_start: duplicate attempt id: {attempt_id}"
+                )
+            if record.variant in active:
+                raise AttemptTopologyError(
+                    f"build_start: variant に未終端 attempt がある: "
+                    f"active={active[record.variant].attempt_id} next={attempt_id}"
+                )
+            receipt = payload.get("build_admission")
+            receipt_sha = None
+            if receipt is not None:
+                try:
+                    checked = validate_build_admission_receipt(
+                        receipt, expected_policy=admission_policy,
+                    )
+                except BuildAdmissionError as exc:
+                    raise AttemptTopologyError(
+                        f"build_start: admission receipt canonicality/policy 不一致: {exc}"
+                    ) from exc
+                receipt_sha = _receipt_sha(payload, stage=record.stage)
+                if checked["receipt_sha256"] != receipt_sha:
+                    raise AttemptTopologyError(
+                        "build_start: receipt body と伝播 SHA が不一致"
+                    )
+            elif "build_admission_receipt_sha256" in payload:
+                raise AttemptTopologyError(
+                    "build_start: receipt 無し attempt に receipt SHA がある"
+                )
+            attempt = BuildAttemptState(
+                attempt_id=attempt_id,
+                variant=record.variant,
+                receipt_sha256=receipt_sha,
+                stages_seen=[record.stage],
+            )
+            global_attempts[attempt_id] = attempt
+            by_variant.setdefault(record.variant, {})[attempt_id] = attempt
+            active[record.variant] = attempt
+            continue
+
+        if record.stage in {STAGE_BUILD_DONE, STAGE_COMMIT}:
+            attempt_id = payload.get("build_attempt_id")
+            attempt = global_attempts.get(attempt_id) if type(attempt_id) is str else None
+            if attempt is None or attempt.variant != record.variant:
+                raise AttemptTopologyError(
+                    f"{record.stage}: matching build_start attempt がない"
+                )
+            if active.get(record.variant) is not attempt:
+                raise AttemptTopologyError(
+                    f"{record.stage}: attempt は active でない: {attempt_id}"
+                )
+            if attempt.receipt_sha256 is None:
+                raise AttemptTopologyError(
+                    f"{record.stage}: receiptless pre-build attempt は terminal build stage を持てない"
+                )
+            if _receipt_sha(payload, stage=record.stage) != attempt.receipt_sha256:
+                raise AttemptTopologyError(
+                    f"{record.stage}: 別 attempt の receipt SHA が流用された"
+                )
+            if record.stage == STAGE_BUILD_DONE:
+                if attempt.build_done:
+                    raise AttemptTopologyError("build_done: 同一 attempt で重複")
+                attempt.build_done = True
+            else:
+                if not attempt.build_done:
+                    raise AttemptTopologyError("commit: build_done より前または別 attempt")
+                if attempt.committed:
+                    raise AttemptTopologyError("commit: 同一 attempt で重複")
+                attempt.committed = True
+                active.pop(record.variant, None)
+            attempt.stages_seen.append(record.stage)
+            continue
+
+        if record.stage == STAGE_ABORT:
+            attempt_id = payload.get("build_attempt_id")
+            if attempt_id is None:
+                if record.variant in active:
+                    raise AttemptTopologyError(
+                        "abort: active attempt があるのに build_attempt_id が欠落"
+                    )
+                continue
+            attempt = global_attempts.get(attempt_id) if type(attempt_id) is str else None
+            if (attempt is None or attempt.variant != record.variant
+                    or active.get(record.variant) is not attempt):
+                raise AttemptTopologyError("abort: matching active attempt がない")
+            if attempt.receipt_sha256 is None:
+                if "build_admission_receipt_sha256" in payload:
+                    raise AttemptTopologyError("abort: receiptless attempt に receipt SHA がある")
+            elif _receipt_sha(payload, stage=record.stage) != attempt.receipt_sha256:
+                raise AttemptTopologyError("abort: attempt receipt SHA が不一致")
+            attempt.aborted = True
+            attempt.stages_seen.append(record.stage)
+            active.pop(record.variant, None)
+    return by_variant
+
+
+def replay(
+        layout: CampaignLayout, *,
+        admission_policy: Optional[BuildAdmissionPolicy] = None,
+) -> Dict[str, EvalState]:
+    """WAL をリプレイし、new-schema lock では attempt topology も検証する。"""
+    records = read_records(layout)
+    if admission_policy is None and _lock_declares_admission_policy(layout):
+        raise AttemptTopologyError(
+            "admission-aware campaign replay には current admission_policy が必要"
+        )
+    attempts = (
+        _validate_attempt_topology(records, admission_policy=admission_policy)
+        if admission_policy is not None else {}
+    )
     states: Dict[str, EvalState] = {}
-    for r in read_records(layout):
+    for r in records:
         st = states.get(r.variant)
         if st is None:
             st = EvalState(variant=r.variant)
@@ -580,6 +742,8 @@ def replay(layout: CampaignLayout) -> Dict[str, EvalState]:
         elif r.stage == STAGE_ABORT:
             st.aborted = True
             st.last_terminal = r
+    for variant, variant_attempts in attempts.items():
+        states.setdefault(variant, EvalState(variant=variant)).attempts = variant_attempts
     return states
 
 

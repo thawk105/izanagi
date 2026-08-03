@@ -1,28 +1,24 @@
 # -*- coding: utf-8 -*-
 """P3 kickoff driver — coder 全配線 1 周の機械判定 (phase3.md 完了条件 2 項)。
 
-完了条件 1 (identity 後方互換): coder の no-op variant (#if 枝 = #else 枝の逐語複写)
-が stock と同一 identity (src_token=stock) に解決され、stock genome が **cache-hit**
-で certified commit する — マーカー挿入 + coder 編集が既存 identity を動かさない実証。
+完了条件 1 (dirty no-op admission): coder の no-op variant (#if 枝 = #else 枝の逐語複写)
+も tracked tree は dirty なので stock/cache-hit とみなさず、CLI token を要求して coder
+namespace の **cache-miss** で certified commit する。
 完了条件 2 (合成枝の 1 周): 純 timing variant (静的 backoff 値 1 つ。値は人間が与える
 = kickoff のリーク制御、coder は値を発明しない) が stock と**別の** variant_id /
 cache_key に解決され **cache-miss で新規ビルド**され、verify (abort>0 = 合成枝が
 verify 中に実行された証拠) → bench → WAL certified commit まで 1 周する。
 どちらも WAL で機械確認する (宣言でなくレコードを gate にする、D30 の教訓)。
 
-**seed 段**: 現 pin の stock ビルドキャッシュが無い場合に備え、素の tree (pinned-clean)
-で stock genome を buildcache.build する (campaign WAL 非経由 = 本番 run の cache-hit
-記録を汚さない)。P2-2 のキャッシュは旧 pin (6656e93) 宣言で作られており現 pin
-(dff0f1e) とは cache_key 不一致 = 再利用されない (pin 前進で全 miss は設計どおり)。
-seed の素 tree ビルドと条件 1 の no-op patch 下 resolve が同じ identity に解決される
-ことが、完了条件 1 の実証の実体。
+旧 seed stock cache は使わない。dirty no-op は source bytes が stock と同値でも tracked
+evidence が dirty のため coder receipt を要求し、新しい admission namespaceへ入る。
 
 variant patch は coder (サブエージェント) の編集から orchestrator が patch 化したもの
 (patches/variant-*.patch)。駆動順序 = applied() (apply → resolve → build → revert) に
 run_campaign を包む。fitness は配線テストであり baseline ではない (wiring 規模、規律4)。
 
   python3 orchestrator/campaign/p3_kickoff.py --allow-coder-derived-build
-      # seed → 条件1 → 条件2 → 判定
+      # 条件1 → 条件2 → 判定
 """
 from __future__ import annotations
 
@@ -32,8 +28,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import buildcache, ident, wal                       # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign import ident, wal                                   # noqa: E402
+from campaign.build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
+                                      add_coder_build_authority_argument,
+                                      build_run_context)
 from campaign.layout import exploration_campaign_layout           # noqa: E402
 from campaign.loop import run_campaign                            # noqa: E402
 from campaign.model import CampaignConfig, Genome                 # noqa: E402
@@ -86,55 +84,49 @@ def _perf() -> PerfConfig:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="P3 coder wiring kickoff")
-    parser.add_argument("--allow-coder-derived-build", action="store_true",
-                        help="CODER_DERIVED patch build をこの CLI run に限り明示許可")
+    add_coder_build_authority_argument(parser)
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
-    admission = BuildAdmission(
-        BuildProvenance.CODER_DERIVED,
-        coder_derived_opt_in=args.allow_coder_derived_build,
+    if args.coder_build_authority is None:
+        raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")
+    build_context = build_run_context(
+        generator_id=GeneratorId.BACKOFF_SWEEP,
+        coder_authority=args.coder_build_authority,
     )
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
     _assert_single_tenant()
 
-    cfg, perf = _cfg(), _perf()
-    print("=== seed: 素の tree (pinned-clean) で stock genome をビルド (WAL 非経由) ===")
+    cfg, perf = ident.bind_admission_policy(_cfg(), build_context.policy), _perf()
     assert_pinned_clean(sub, PIN)
-    for trace in (True, False):
-        b = buildcache.build(
-            STOCK_G, PIN, trace=trace,
-            admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
-        )
-        print(f"  seed build trace={int(trace)}: {b.bin_hash}"
-              f" ({'cache' if b.cached else 'fresh'})")
-
-    print("\n=== 完了条件 1: no-op variant 下で stock genome → cache-hit commit ===")
+    print("=== 完了条件 1: dirty no-op → coder namespace の cache-miss commit ===")
     with applied(os.path.join(root, NOOP_PATCH), PIN, sub):
         s1 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
-                          admission=admission,
+                          build_context=build_context,
                           campaign_namespace="exploration")
 
     print("\n=== 完了条件 2: 純 timing static50 → cache-miss 新規ビルド 1 周 ===")
     with applied(os.path.join(root, STATIC_PATCH), PIN, sub):
         s2 = run_campaign(cfg, [STATIC_G], perf, ENV_TAG, CLK, numactl=NUMA,
-                          admission=admission,
+                          build_context=build_context,
                           campaign_namespace="exploration")
 
     # --- WAL 機械判定 (完了条件の文言どおり。宣言でなくレコードを gate にする) ---
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-    v1 = variant_id(STOCK_G)                       # 条件1: stock id (src 省略) のはず
+    v1 = next((r.variant for r in s1.results), variant_id(STOCK_G))
     r1 = wal.records_by_stage(layout, v1)
     v2 = next((r.variant for r in s2.results), None)
     r2 = wal.records_by_stage(layout, v2) if v2 else {}
 
     checks = {
-        # 条件 1: src_token=stock / trace+perf とも cache-hit / certified commit
-        "1. no-op が stock identity (src_token=stock)":
-            r1.get("build_start", {}).get("src_token") == "stock",
-        "1. stock genome が cache-hit (trace)":
-            r1.get("build_done", {}).get("trace_cached") is True,
-        "1. stock genome が cache-hit (perf)":
-            r1.get("build_done", {}).get("perf_cached") is True,
+        # 条件 1: dirty no-op は coder authority/new namespace が必須
+        "1. no-op が dirty coder admission":
+            v1 is not None
+            and (r1.get("build_start", {}).get("build_admission") or {}).get("class")
+            == "coder-authored",
+        "1. dirty no-op が cache-miss (trace)":
+            r1.get("build_done", {}).get("trace_cached") is False,
+        "1. dirty no-op が cache-miss (perf)":
+            r1.get("build_done", {}).get("perf_cached") is False,
         "1. certified commit":
             "commit" in r1,
         # 条件 2: 別 id / cache-miss 新規ビルド / verify abort>0 / certified commit

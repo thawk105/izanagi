@@ -20,6 +20,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 
@@ -343,7 +344,11 @@ def _fixed_prepare(cell, ccbench_pin):
 def _make_emitter_build():
     def build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
               jobs=16, ccbench_dir="", src_token=None, contract=None,
-              timeout_s=None, admission=None):
+              timeout_s=None, admission=None, build_context=None,
+              source_evidence=None):
+        assert admission is not None
+        assert build_context is not None
+        assert source_evidence is not None
         assert trace is False
         assert ccbench_dir == _fixed_prepare.ccbench_dir
         assert timeout_s == 900
@@ -713,6 +718,43 @@ def _emitter_artifact_paths(run_dir: Path, root: Path) -> dict[str, str]:
     }
 
 
+def _run_official_fixture_campaign(
+        protocol, verified, *, build_fn, **kwargs) -> dict:
+    """official-shaped bytes を作る pytest 専用入口。
+
+    materializer は production core の引数 seam へ渡さず、既定 gateway の局所パッチとして
+    fixture 内に閉じる。これにより production の ``official + build_fn`` 拒否集合へ fixture
+    専用の例外を追加しない。
+    """
+    def fixture_evidence(genome, ccbench_commit, *, ccbench_dir="", **_ignored):
+        source_root = str(Path(ccbench_dir).resolve())
+        source_sha = hashlib.sha256(
+            f"{source_root}\0{ccbench_commit}\0{genome.canonical()}".encode("utf-8")
+        ).hexdigest()
+        return FLOOR.source_digest.SourceEvidence(
+            schema_version=FLOOR.source_digest.SOURCE_EVIDENCE_SCHEMA,
+            source_root=source_root,
+            ccbench_commit=ccbench_commit,
+            genome_sha256=hashlib.sha256(
+                genome.canonical().encode("utf-8")
+            ).hexdigest(),
+            src_token=source_sha,
+            source_bytes_sha256=source_sha,
+            tracked_clean=True,
+            tracked_diff_sha256=FLOOR.source_digest.EMPTY_TRACKED_DIFF_SHA256,
+            tracked_paths=(),
+        )
+
+    with mock.patch.object(FLOOR, "_assert_official_permitted", lambda _mode: None), \
+            mock.patch.object(FLOOR.buildcache, "build_v2", build_fn), \
+            mock.patch.object(
+                FLOOR.source_digest, "resolve_evidence", fixture_evidence,
+            ):
+        return FLOOR._run_campaign_core(
+            protocol, verified, mode="official", **kwargs,
+        )
+
+
 def build_production_emitter_g1(
         tmp_path: Path, *, mutate=None, mutate_g1=None, extra_closure=None,
         journal_manifest_before_g=False, executable_role=None,
@@ -722,7 +764,7 @@ def build_production_emitter_g1(
     """決定的観測下の production-emitter bytes で base→C→G→A を構築する。
 
     build/measure/provenance は固定 seam であり、実 build・実測の代表 bytes ではない。
-    public official 拒否は変更せず、テスト専用 ``_run_campaign_core`` だけを使う。
+    public/core の official materializer 拒否は変更せず、pytest 専用入口だけを使う。
     emitter on-disk bytes と再直列化 bytes の byte-identity を検証するのは cert のみ。
     manifest/journal/result は parse 後の content 級 fixture として扱う。
     """
@@ -760,8 +802,8 @@ def build_production_emitter_g1(
             for rel in paths
         }
 
-    outcome = FLOOR._run_campaign_core(
-        protocol, verified, out_root=out_root, mode="official",
+    outcome = _run_official_fixture_campaign(
+        protocol, verified, out_root=out_root,
         measure_fn=_emitter_measure, probe_fn=lambda: (1, "", ""),
         sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
         prepare_fn=_fixed_prepare, now_fn=lambda: now,
@@ -948,8 +990,8 @@ def append_production_emitter_g2(root: Path, g1: dict, g1_sha: str,
         )
 
     now = _FIXED_NOW + dt.timedelta(minutes=2)
-    outcome = FLOOR._run_campaign_core(
-        protocol, verified, out_root=out_root, mode="official",
+    outcome = _run_official_fixture_campaign(
+        protocol, verified, out_root=out_root,
         measure_fn=_emitter_measure, probe_fn=lambda: (1, "", ""),
         sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
         prepare_fn=_fixed_prepare, now_fn=lambda: now,
