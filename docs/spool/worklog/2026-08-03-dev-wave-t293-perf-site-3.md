@@ -49,12 +49,14 @@ title: "[T-293] perf_candidates は stale ではなかった — 計算ノード
 - 一次資料 = `output/insights/2026-08-03_t293-perf-site/` (README・逐語 10 本・裁定パッケージ)、
   実測 = `output/env/pegasus/t293-perf-site/0_881946.nqsv/` と `0_881960.nqsv/`
 
-- **受入全走の 1 回目で 1 件の赤が出たが、実装差分に帰属しない。**
-  `test_pilot_resume_rejects_launch_certificate_contamination[certificate-file]` が
-  `repo_before == _real_output_snapshot()` で落ちた。本 wave の差分は
-  `tools/pegasus/probes/` の新規 2 file だけで当該テストへ到達しない。**単独再走は 3 passed で緑**
-  だったので、DW-O18 に従いフレークとして {{T:output-snapshot-test-flake}} に起票し、
-  受入は再走した
+- **受入全走は 3 回走らせ、3 回目が緑である (`5263 passed / 19 skipped`、rc=0、request `881995`)。**
+  1 回目 (`881962`) は `test_pilot_resume_rejects_launch_certificate_contamination[certificate-file]`
+  が `repo_before == _real_output_snapshot()` で落ちた。本 wave の差分は `tools/pegasus/probes/` の
+  新規 2 file だけで当該テストへ到達せず、**単独再走は 3 passed で緑**だったので、DW-O18 に従い
+  フレークとして {{T:output-snapshot-test-flake}} に起票した。
+  **2 回目 (`881967`) の赤は親の手順ミスである** — fragment の action 節順序を直す直前に投入したため、
+  計算ノードが修正前の版を読んで `check_docs` の `worklog-action-order` に当たった。
+  **未 commit の docs を載せたまま受入を走らせたのが原因**で、3 回目は commit 後の clean tree で走らせた
 
 ## 次の一手差分
 

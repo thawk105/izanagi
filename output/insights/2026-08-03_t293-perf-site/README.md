@@ -104,6 +104,18 @@ gate もテストも新設しないため、**変異 matrix は対象外**であ
 (`/usr/bin/python3` は symlink で `_executable` に拒否される)。実物の `_executable` で確認し、
 `Path(sys.executable).resolve()` へ直した。潰していなければ計算ノードの枠を無駄にしていた。
 
+## 受入
+
+計算ノードへ dispatch した全走を 3 回行い、**3 回目が緑**である。
+
+| # | request | 結果 | 扱い |
+|---|---|---|---|
+| 1 | `881962` | 1 failed / 5262 passed / 19 skipped | `test_pilot_resume_rejects_launch_certificate_contamination` のフレーク。差分は当該テストへ到達せず、単独再走 (3 passed) で再現しない (DW-O18) |
+| 2 | `881967` | 1 failed / 5262 passed / 19 skipped | **親の手順ミス** — fragment の節順序を直す直前に投入し、計算ノードが修正前の版を読んだ |
+| 3 | `881995` | **5263 passed / 19 skipped、rc=0** | commit 済みの clean tree での受入 |
+
+`python3 tools/check_docs.py` は違反なし。`python3 tools/spool_fold.py --dry-run` は `planned`。
+
 ## 一次資料
 
 - 実測: `output/env/pegasus/t293-perf-site/0_881946.nqsv/` と `0_881960.nqsv/`
