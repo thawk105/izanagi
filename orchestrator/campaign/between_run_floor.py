@@ -38,8 +38,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from calibrator.analyze import noise_floor                       # noqa: E402
 from calibrator.runner import measure_point                      # noqa: E402
 from calibrator.stability import between_run_noise_floor        # noqa: E402
-from campaign import buildcache, pin                             # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign import buildcache, pin, source_digest              # noqa: E402
+from campaign.build_admission import (GeneratorId, build_run_context,  # noqa: E402
+                                      derive_build_admission)
 from campaign.layout import env_scope_dir                    # noqa: E402
 from campaign.model import Genome                                # noqa: E402
 from campaign.p2_2 import (CLK, ENV_TAG, EXTIME,                 # noqa: E402
@@ -157,9 +158,12 @@ def main(argv) -> int:
 
     _assert_single_tenant()             # campaign 冒頭の単一テナント確認 (規律4)
     print("[build] baseline (B0-L-W0, perf=trace-disabled) ...")
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    evidence = source_digest.resolve_evidence(BASELINE, CCBENCH_COMMIT)
     br = buildcache.build(
         BASELINE, ccbench_commit=CCBENCH_COMMIT, trace=False,
-        admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
+        admission=derive_build_admission(build_context, evidence),
+        build_context=build_context, source_evidence=evidence,
     )
     print(f"[build] {'cache hit' if br.cached else 'built'}: {br.binary}")
 

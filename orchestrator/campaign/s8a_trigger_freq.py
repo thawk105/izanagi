@@ -132,6 +132,7 @@ def main(argv) -> int:
                           "設計入力 (構造的性質で trace I/O に不変)。"),
               "env_tag": ENV_TAG, "ccbench_commit": PIN,
               "genome": GENOME.canonical(), "clocks_per_us": CLK,
+              "build_admissions": [],
               "records": RECORDS, "threads": THREADS, "extime": EXTIME,
               "reason_names": list(REASON_NAMES),
               "gateable_reasons": list(GATEABLE_REASONS),
@@ -142,7 +143,10 @@ def main(argv) -> int:
         with applied(os.path.join(patches, TEMPLATE_PATCH), PIN, sub):
             apply_patch(os.path.join(patches, INSTR_PATCH), sub)
             print("== build skeleton+instr (TRACE=1) ==")
-            binary = _build(bdir, genome=GENOME)   # 自前 GENOME を明示 (レビュー F1)
+            binary = _build(
+                bdir, genome=GENOME,
+                admission_receipts=result["build_admissions"],
+            )   # 自前 GENOME を明示 (レビュー F1)
             for tag, workload in wls:
                 print(f"== freq run  workload={tag}  ({workload}) ==")
                 tally, aborts = _run_freq(binary, workload)

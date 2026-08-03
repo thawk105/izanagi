@@ -110,6 +110,19 @@ RETRYABLE_ABORT_REASONS = frozenset({
 
 
 @dataclass
+class BuildAttemptState:
+    """Replay state for one admission-bound build attempt."""
+
+    attempt_id: str
+    variant: str
+    receipt_sha256: Optional[str]
+    stages_seen: List[str] = field(default_factory=list)
+    build_done: bool = False
+    committed: bool = False
+    aborted: bool = False
+
+
+@dataclass
 class EvalState:
     """1 variant の評価状態 (WAL リプレイで復元)。
 
@@ -126,6 +139,7 @@ class EvalState:
     # last (最終レコード全般) 基準だと「abort → 修復後の再評価が in-flight クラッシュ
     # (BUILD_START が最後)」で判定から漏れ、permanent skip が復活する (D25 の破れ)。
     last_terminal: Optional[WalRecord] = None
+    attempts: Dict[str, BuildAttemptState] = field(default_factory=dict)
 
     @property
     def terminal(self) -> bool:

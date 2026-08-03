@@ -16,6 +16,7 @@ manifest.schedule 権威 + attempt registry / env contract 結線 / duration 台
 """
 from __future__ import annotations
 
+import ast
 import contextlib
 import dataclasses
 import datetime as dt
@@ -44,13 +45,22 @@ from campaign import campaign_claim, reservation  # noqa: E402
 from campaign import env_attestation  # noqa: E402
 from campaign import s8b_floor_campaign  # noqa: E402
 from campaign import s8b_floor_stats  # noqa: E402
+from campaign import s8b_materialization  # noqa: E402
 from campaign import s8b_launch_cert  # noqa: E402
 from campaign import s8b_prediction_runner  # noqa: E402
 from campaign import s8b_selector_freeze  # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    BuildProvenance,
+    GeneratorId,
+    ReviewId,
+    build_run_context,
+    derive_build_admission,
+    require_build_admission,
+)
 from campaign.model import Genome  # noqa: E402
 from campaign.p2_2 import ENV_TAG  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from campaign.source_digest import SourceEvidence  # noqa: E402
 from campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -66,8 +76,6 @@ _CONFIGS = (
     "system_gate", "ident_all", "stock_common",
 )
 _STOCK = "stock_common"
-_HUMAN_REVIEWED_ADMISSION = BuildAdmission(BuildProvenance.HUMAN_REVIEWED)
-
 _HOLDOUT_SHAPE = {
     "rr79": {
         "records": 730079, "threads": 17,
@@ -96,6 +104,35 @@ _BASE_TPS = {
 }
 
 _FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+
+
+def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
+    del cxx
+    source_root = str(Path(ccbench_dir or "/fixture/ccbench").resolve())
+    seed = f"{genome.canonical()}\0{source_root}".encode("utf-8")
+    token = hashlib.sha256(seed).hexdigest()
+    return SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=source_root,
+        ccbench_commit=ccbench_commit,
+        genome_sha256=hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+        src_token=token,
+        source_bytes_sha256=hashlib.sha256(b"fixture-source").hexdigest(),
+        tracked_clean=False,
+        tracked_diff_sha256=hashlib.sha256(b"fixture-diff").hexdigest(),
+        tracked_paths=("include/backoff.hh",),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_source_evidence_for_materializer_seams(monkeypatch, request):
+    """Fake PreparedCell 用の source evidence。slow real-build controls は実 resolver を使う。"""
+    if request.node.name.startswith("test_slow_real_"):
+        return
+
+    monkeypatch.setattr(
+        s8b_floor_campaign.source_digest, "resolve_evidence", _fixture_source_evidence,
+    )
 
 
 def _holdout_entries(holdout_id: str) -> dict:
@@ -201,10 +238,17 @@ def _fake_prepare(cell, ccbench_pin):
 def _make_fake_build(build_root: Path):
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
-                   timeout_s=None, admission=None):
+                   timeout_s=None, admission=None, build_context=None,
+                   source_evidence=None):
+        del jobs
         assert admission is not None
         assert admission.provenance_class is BuildProvenance.HUMAN_REVIEWED
-        assert admission.coder_derived_opt_in is False
+        assert source_evidence is not None
+        assert require_build_admission(
+            admission,
+            expected_policy=build_context.policy,
+            expected_source=source_evidence,
+        ) is admission
         assert trace is False, "floor 計測は trace-disabled build (規律1)"
         assert ccbench_dir, "prepare_cell の隔離 ccbench_dir を build_v2 へ渡す"
         assert timeout_s == 900, "floor v2 build hard timeout を固定する"
@@ -256,16 +300,21 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
         {"_floor_preflight_fn": _fixture_floor_preflight}
         if mode == "official" and resume_dir is None else {}
     )
-    return entrypoint(
-        protocol, freeze_doc, out_root=out_root, mode=mode, resume_dir=resume_dir,
+    kwargs = dict(
+        out_root=out_root, mode=mode, resume_dir=resume_dir,
         measure_fn=measure_fn, probe_fn=probe_fn,
         sleep_fn=sleep_fn or (lambda s: None),
         monotonic_fn=monotonic_fn or (lambda: 0.0),
         prepare_fn=_fake_prepare, now_fn=now_fn or (lambda: _FIXED_NOW),
-        build_fn=fake_build,
         durable_root_policy=_durable_policy(Path(out_root)),
         **extra,
     )
+    if mode == "official":
+        with mock.patch.object(
+                s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
+                mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
+            return entrypoint(protocol, freeze_doc, **kwargs)
+    return entrypoint(protocol, freeze_doc, build_fn=fake_build, **kwargs)
 
 
 def _fixture_floor_preflight(
@@ -720,17 +769,23 @@ def _deterministic_official_artifacts(base: Path) -> dict:
             cache_root=str(base / "prepared-cache"),
         )
 
-    outcome = s8b_floor_campaign._run_campaign_core(
-        protocol, verified, out_root=out_root, mode="official",
-        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
-        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
-        monotonic_fn=lambda: 0.0, prepare_fn=rooted_prepare,
-        now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
-        process_identity_fn=_fixed_process, execution_receipt_fn=_fixed_receipt,
-        build_fn=fake_build, repo_root=repo_root,
-        durable_root_policy=_durable_policy(out_root),
-        _floor_preflight_fn=_fixture_floor_preflight,
-    )
+    with mock.patch.object(
+            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
+            mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+            mock.patch.object(
+                s8b_floor_campaign.source_digest, "resolve_evidence",
+                _fixture_source_evidence,
+            ):
+        outcome = s8b_floor_campaign._run_campaign_core(
+            protocol, verified, out_root=out_root, mode="official",
+            measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+            monotonic_fn=lambda: 0.0, prepare_fn=rooted_prepare,
+            now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
+            process_identity_fn=_fixed_process, execution_receipt_fn=_fixed_receipt,
+            repo_root=repo_root, durable_root_policy=_durable_policy(out_root),
+            _floor_preflight_fn=_fixture_floor_preflight,
+        )
     run_dir = Path(outcome["run_dir"])
     names = (
         "launch_certificate.json", "manifest.json", "journal.jsonl", "result.json",
@@ -1059,6 +1114,18 @@ def test_main_official_mode_always_refused(tmp_path, capsys):
     assert "§8" in payload["reason"]
 
 
+def test_run_campaign_core_rejects_official_materializer_injection_before_side_effects(
+        tmp_path):
+    """wrapper を通らない core 直呼びでも任意 materializer は official に入れない。"""
+    out_root = tmp_path / "out"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="materializer"):
+        s8b_floor_campaign._run_campaign_core(
+            None, None, out_root=out_root, mode="official",
+            build_fn=lambda *_args, **_kwargs: None,
+        )
+    assert not out_root.exists()
+
+
 def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
     """production wrapper は default official も従来どおり拒否し副作用 0。"""
     freeze = _freeze_document()
@@ -1074,6 +1141,117 @@ def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
                 out_root=out_root, mode="official",
             )
     assert not out_root.exists()  # 書き込み 0 回
+
+
+def test_materializer_registry_covers_all_python_build_launches():
+    """Direct CMake は deny registry、buildcache caller は U1/U2 gateway 引数を必須化する。"""
+    campaign_root = ROOT / "orchestrator/campaign"
+    direct_cmake: set[str] = set()
+    missing_admission: list[str] = []
+    seen_gateways: set[str] = set()
+    admitted_gateways = {
+        "orchestrator/campaign/pipeline.py:evaluate",
+        "orchestrator/campaign/s8b_floor_campaign.py:build_cells",
+    }
+
+    def static_keyword_names(call, owner) -> set[str]:
+        """Direct keyword と呼出し前の単一 literal ``**dict`` だけを静的展開する。"""
+        names = {keyword.arg for keyword in call.keywords if keyword.arg is not None}
+        if not isinstance(owner, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return names
+        for keyword in call.keywords:
+            if keyword.arg is not None or not isinstance(keyword.value, ast.Name):
+                continue
+            bindings = []
+            for node in ast.walk(owner):
+                if not isinstance(node, ast.Assign) or node.lineno >= call.lineno:
+                    continue
+                if not any(
+                        isinstance(target, ast.Name)
+                        and target.id == keyword.value.id
+                        for target in node.targets):
+                    continue
+                if isinstance(node.value, ast.Dict):
+                    bindings.append(node.value)
+            if len(bindings) != 1:
+                continue
+            keys = bindings[0].keys
+            if all(
+                    isinstance(key, ast.Constant) and isinstance(key.value, str)
+                    for key in keys):
+                names.update(key.value for key in keys)
+        return names
+
+    for path in sorted(campaign_root.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        relative = path.relative_to(ROOT).as_posix()
+        parents = {}
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                parents[child] = node
+
+        for function in (
+                node for node in ast.walk(tree)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))):
+            strings = {
+                node.value for node in ast.walk(function)
+                if isinstance(node, ast.Constant) and isinstance(node.value, str)
+            }
+            if "--build" in strings and relative != "orchestrator/campaign/buildcache.py":
+                direct_cmake.add(f"{relative}:{function.name}")
+
+        for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
+            target = call.func
+            parts = []
+            while isinstance(target, ast.Attribute):
+                parts.append(target.attr)
+                target = target.value
+            if isinstance(target, ast.Name):
+                parts.append(target.id)
+            qualified = ".".join(reversed(parts))
+            owner = call
+            while owner in parents and not isinstance(
+                    owner, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                owner = parents[owner]
+            function_name = owner.name if isinstance(
+                owner, (ast.FunctionDef, ast.AsyncFunctionDef)) else "<module>"
+            site = f"{relative}:{function_name}"
+            is_buildcache_call = (
+                qualified.endswith("buildcache.build")
+                or qualified.endswith("buildcache.build_v2")
+            )
+            is_floor_materializer_call = (
+                qualified == "build_fn"
+                and site == "orchestrator/campaign/s8b_floor_campaign.py:build_cells"
+            )
+            if not is_buildcache_call and not is_floor_materializer_call:
+                continue
+            required = {"admission", "build_context", "source_evidence"}
+            if site in admitted_gateways:
+                seen_gateways.add(site)
+                if is_floor_materializer_call:
+                    keywords = static_keyword_names(call, owner)
+                    if not required <= keywords:
+                        missing_admission.append(
+                            f"{relative}:{call.lineno}:{qualified}"
+                        )
+                elif site.endswith(":evaluate"):
+                    function_strings = {
+                        node.value for node in ast.walk(owner)
+                        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    }
+                    if not required <= function_strings:
+                        missing_admission.append(
+                            f"{relative}:{call.lineno}:{qualified}:gateway-preimage"
+                        )
+                continue
+            keywords = static_keyword_names(call, owner)
+            if not required <= keywords:
+                missing_admission.append(f"{relative}:{call.lineno}:{qualified}")
+
+    assert direct_cmake == set(s8b_materialization.NON_ADMISSIBLE_MATERIALIZERS)
+    assert seen_gateways == admitted_gateways
+    assert missing_admission == []
 
 
 @pytest.mark.parametrize("seam_name,seam_value", [
@@ -2379,12 +2557,22 @@ def test_slow_real_prepare_cell_to_buildcache_canary_one_configuration(tmp_path)
     with s8b_floor_campaign._prepared_binding(
             freeze=freeze, holdout_id=cell["holdout_id"],
             configuration_id=cell["configuration_id"], ccbench_pin=pin,
-            prepare_fn=s8b_floor_campaign.prepare_cell) as (_identity, prepared):
+            prepare_fn=s8b_floor_campaign.prepare_cell) as (identity, prepared):
+        evidence = s8b_floor_campaign.source_digest.resolve_evidence(
+            prepared.genome, pin, ccbench_dir=prepared.ccbench_dir,
+            cxx=s8b_floor_campaign.buildcache.DEFAULT_CXX,
+        )
+        context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+        review = s8b_materialization.reviewed_source_capability(
+            review_id=ReviewId.S8B_FLOOR, source=evidence,
+            input_sha256=identity["entry_sha256"],
+        )
+        admission = derive_build_admission(context, evidence, review_receipt=review)
         result = s8b_floor_campaign.buildcache.build(
             prepared.genome, ccbench_commit=pin, trace=False,
             cache_root=str(tmp_path / "cache"), ccbench_dir=prepared.ccbench_dir,
-            src_token=prepared.src_token, jobs=1,
-            admission=_HUMAN_REVIEWED_ADMISSION,
+            src_token=evidence.src_token, jobs=1, admission=admission,
+            build_context=context, source_evidence=evidence,
         )
     assert Path(result.binary).is_file()
     assert s8b_floor_campaign.buildcache.is_full_sha256(result.bin_sha256)
@@ -2412,12 +2600,23 @@ def test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration(tmp_pa
     with s8b_floor_campaign._prepared_binding(
             freeze=freeze, holdout_id=cell["holdout_id"],
             configuration_id=cell["configuration_id"], ccbench_pin=pin,
-            prepare_fn=s8b_floor_campaign.prepare_cell) as (_identity, prepared):
+            prepare_fn=s8b_floor_campaign.prepare_cell) as (identity, prepared):
+        evidence = s8b_floor_campaign.source_digest.resolve_evidence(
+            prepared.genome, pin, ccbench_dir=prepared.ccbench_dir,
+            cxx=s8b_floor_campaign.buildcache.DEFAULT_CXX,
+        )
+        context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+        review = s8b_materialization.reviewed_source_capability(
+            review_id=ReviewId.S8B_FLOOR, source=evidence,
+            input_sha256=identity["entry_sha256"],
+        )
+        admission = derive_build_admission(context, evidence, review_receipt=review)
         result = s8b_floor_campaign.buildcache.build_v2(
-            prepared.genome, admission=_HUMAN_REVIEWED_ADMISSION,
+            prepared.genome, admission=admission, build_context=context,
+            source_evidence=evidence,
             contract=contract, ccbench_commit=pin, trace=False,
             cache_root=str(tmp_path / "cache"), ccbench_dir=prepared.ccbench_dir,
-            src_token=prepared.src_token, cc=s8b_floor_campaign.buildcache.DEFAULT_CC,
+            src_token=evidence.src_token, cc=s8b_floor_campaign.buildcache.DEFAULT_CC,
             cxx=s8b_floor_campaign.buildcache.DEFAULT_CXX, timeout_s=900,
         )
     assert Path(result.binary).is_file()
@@ -2994,17 +3193,21 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     expected = s8b_floor_campaign.clean_scan_digest(
         repo_root, freeze_allowlist=bounded_allowlist,
     )
-    outcome = s8b_floor_campaign._run_campaign_core(
-        protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
-        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
-        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
-        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
-        host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
-        execution_receipt_fn=_fixed_receipt,
-        build_fn=_make_fake_build(tmp_path / "ignored"), repo_root=repo_root,
-        durable_root_policy=_durable_policy(tmp_path / "out"),
-        _floor_preflight_fn=lambda *args, **kwargs: bounded_allowlist,
-    )
+    fake_build = _make_fake_build(tmp_path / "ignored")
+    with mock.patch.object(
+            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
+            mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
+        outcome = s8b_floor_campaign._run_campaign_core(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+            mode="official",
+            measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+            monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
+            process_identity_fn=_fixed_process, execution_receipt_fn=_fixed_receipt,
+            repo_root=repo_root, durable_root_policy=_durable_policy(tmp_path / "out"),
+            _floor_preflight_fn=lambda *args, **kwargs: bounded_allowlist,
+        )
     cert = json.loads((Path(outcome["run_dir"]) / "launch_certificate.json").read_bytes())
     assert cert["clean_scan_digest"] == expected
 
@@ -3377,13 +3580,15 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         reps=5, value_fn=lambda _cell_id: 1000.0,
         env_tag="pegasus", extime_s=5,
     )
+    monkeypatch.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None)
+    monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", recording_build)
     outcome = s8b_floor_campaign._run_campaign_core(
         protocol, freeze, out_root=out_root, mode="official",
         measure_fn=measure, probe_fn=lambda: (1, "", ""),
         sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
         prepare_fn=prepare, now_fn=lambda: _FIXED_NOW,
         host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
-        execution_receipt_fn=None, build_fn=recording_build,
+        execution_receipt_fn=None,
         repo_root=clone_root, durable_root_policy=_durable_policy(out_root),
         _floor_preflight_fn=None,
     )
@@ -3637,14 +3842,16 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
     monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", build_spy)
     monkeypatch.setattr(
         s8b_floor_campaign, "_after_certificate_issued_noop", after_spy)
-    outcome = s8b_floor_campaign._run_campaign_core(
-        protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
-        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
-        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
-        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
-        durable_root_policy=_durable_policy(tmp_path / "out"),
-        _floor_preflight_fn=_fixture_floor_preflight,
-    )
+    with mock.patch.object(
+            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None):
+        outcome = s8b_floor_campaign._run_campaign_core(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
+            measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+            monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+            durable_root_policy=_durable_policy(tmp_path / "out"),
+            _floor_preflight_fn=_fixture_floor_preflight,
+        )
     assert outcome["status"] == "completed"
     assert calls == {
         "calibration": 1, "machine_pin": 1, "host": 1, "process": 1,
@@ -3871,18 +4078,19 @@ def test_second_scan_digest_shift_persists_claim_but_issues_no_certificate(
         s8b_floor_campaign, "clean_scan_digest",
         lambda root, *, freeze_allowlist: next(digests),
     )
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean_scan_digest"):
-        s8b_floor_campaign._run_campaign_core(
-            ctx["protocol"], _verified_freeze(ctx["freeze"]),
-            out_root=ctx["out_root"], mode="official", measure_fn=_forbid_measure,
-            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
-            monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
-            now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
-            process_identity_fn=_fixed_process,
-            build_fn=_make_fake_build(tmp_path / "bin"), repo_root=ctx["repo_root"],
-            durable_root_policy=_durable_policy(ctx["out_root"]),
-            _floor_preflight_fn=lambda *args, **kwargs: {},
-        )
+    with mock.patch.object(
+            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None):
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean_scan_digest"):
+            s8b_floor_campaign._run_campaign_core(
+                ctx["protocol"], _verified_freeze(ctx["freeze"]),
+                out_root=ctx["out_root"], mode="official", measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+                monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+                now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
+                process_identity_fn=_fixed_process, repo_root=ctx["repo_root"],
+                durable_root_policy=_durable_policy(ctx["out_root"]),
+                _floor_preflight_fn=lambda *args, **kwargs: {},
+            )
     assert len(list(claim_root.glob("*.claim"))) == 1
     assert not list(ctx["out_root"].rglob("launch_certificate.json"))
 
@@ -3967,7 +4175,7 @@ def test_checkpoint_callback_is_after_cert_validation_and_before_launch_start(
                 mode="official", measure_fn=_forbid_measure,
                 probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
                 monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
-                now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "ignored"),
+                now_fn=lambda: _FIXED_NOW,
                 after_certificate_issued_fn=checkpoint,
                 durable_root_policy=_durable_policy(tmp_path / "out"),
                 _floor_preflight_fn=_fixture_floor_preflight,
@@ -3997,7 +4205,7 @@ def test_checkpoint_raw_hash_recheck_fires_before_launch_start(tmp_path, monkeyp
                 mode="official", measure_fn=_forbid_measure,
                 probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
                 monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
-                now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "ignored"),
+                now_fn=lambda: _FIXED_NOW,
                 after_certificate_issued_fn=mutate_cert,
                 durable_root_policy=_durable_policy(tmp_path / "out"),
                 _floor_preflight_fn=_fixture_floor_preflight,

@@ -469,10 +469,28 @@ def test_floor_manifest_golden_stable():
                            ccbench_dir="/tmp/cc", cache_root="/tmp/ca")
 
     contract = ec.lookup("linux-baremetal")
+
+    def fixture_evidence(genome, ccbench_commit, *, ccbench_dir="", **_ignored):
+        source_sha = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
+        return floor.source_digest.SourceEvidence(
+            schema_version=floor.source_digest.SOURCE_EVIDENCE_SCHEMA,
+            source_root=str(Path(ccbench_dir).resolve()),
+            ccbench_commit=ccbench_commit,
+            genome_sha256=source_sha,
+            src_token=source_sha,
+            source_bytes_sha256=source_sha,
+            tracked_clean=True,
+            tracked_diff_sha256=floor.source_digest.EMPTY_TRACKED_DIFF_SHA256,
+            tracked_paths=(),
+        )
+
     with mock.patch.object(
             floor.buildcache, "build_v2",
             side_effect=lambda genome, **kw: _FakeBuildResult(
-                genome.canonical(), kw["contract"].contract_sha256)):
+                genome.canonical(), kw["contract"].contract_sha256)), \
+            mock.patch.object(
+                floor.source_digest, "resolve_evidence", fixture_evidence,
+            ):
         built = floor.build_cells(
             freeze, cells, ccbench_pin="pin-x",
             out_root=Path("/tmp/out"), prepare_fn=prepare_fn,

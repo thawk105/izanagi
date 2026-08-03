@@ -6,37 +6,180 @@ pytest でも 素の `python orchestrator/tests/test_critic.py` でも走る。
 from __future__ import annotations
 
 import atexit
+import hashlib
 import os
 import shutil
 import sys
 import tempfile
+from pathlib import Path
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import pipeline, wal                                # noqa: E402
+from campaign import ident, pipeline, wal                         # noqa: E402
+from campaign.artifact_admission import (CampaignNotAdmitted,     # noqa: E402
+                                         require_admitted_campaign)
+from campaign.build_admission import (                            # noqa: E402
+    GeneratorId,
+    attest_generator_output,
+    build_run_context,
+    derive_build_admission,
+)
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
-                            STAGE_BUILD_START, STAGE_COMMIT, STAGE_VERIFY_DONE)
+                            STAGE_BUILD_DONE, STAGE_BUILD_START,
+                            STAGE_COMMIT, STAGE_VERIFY_DONE,
+                            CampaignConfig, Genome)
+from campaign.pin import CURRENT_PIN                              # noqa: E402
+from campaign.source_digest import (                              # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    SourceEvidence,
+)
 from critic.digest import (STOCK_SRC_TOKEN, LivenessRejection,    # noqa: E402
-                           build_digest, load_liveness_rejections,
-                           load_rejections, load_screen_rejections,
-                           load_verify_abort_signals,
+                           build_digest, load_diff_rejections,
+                           load_liveness_rejections, load_rejections,
+                           load_screen_rejections, load_verify_abort_signals,
+                           load_workload,
                            render_rejections, render_text)
+
+
+_ADMISSION_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
 
 
 def _tmp_layout():
     d = tempfile.mkdtemp(prefix="izanagi_critic_")
     atexit.register(shutil.rmtree, d, ignore_errors=True)
-    return CampaignLayout(root=d).ensure()
+    layout = CampaignLayout(root=d).ensure()
+    cfg = ident.bind_admission_policy(CampaignConfig(
+        spec_slug="critic-fixture",
+        search_tag="test",
+        spec_content="critic post-policy fixture",
+        ccbench_commit=CURRENT_PIN,
+        search_config={"records": 1, "threads": 1},
+        trial="test",
+    ), _ADMISSION_CONTEXT.policy)
+    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    return layout
+
+
+def _view(layout):
+    return require_admitted_campaign(layout)
+
+
+def _genome_value(canonical: str) -> Genome:
+    protocol, body = canonical.split("|", 1)
+    flags = {}
+    if body:
+        for field in body.split(","):
+            name, value = field.split("=", 1)
+            flags[name] = int(value)
+    genome = Genome(protocol, flags)
+    assert genome.canonical() == canonical
+    return genome
+
+
+def _start_attempt(
+    lay: CampaignLayout, genome: str, *, src_token: str = STOCK_SRC_TOKEN,
+) -> tuple[str, str, str, str]:
+    """Write one canonical post-policy BUILD_START and return its binding."""
+    genome_value = _genome_value(genome)
+    dirty = src_token != STOCK_SRC_TOKEN
+    admitted_src_token = (
+        hashlib.sha256(f"fixture-src-token:{src_token}".encode("utf-8")).hexdigest()
+        if dirty else STOCK_SRC_TOKEN
+    )
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=os.path.realpath(lay.root),
+        ccbench_commit=CURRENT_PIN,
+        genome_sha256=hashlib.sha256(genome.encode("utf-8")).hexdigest(),
+        src_token=admitted_src_token,
+        source_bytes_sha256=hashlib.sha256(
+            f"fixture-source:{genome}:{src_token}".encode("utf-8")
+        ).hexdigest(),
+        tracked_clean=not dirty,
+        tracked_diff_sha256=(
+            hashlib.sha256(
+                f"fixture-diff:{genome}:{src_token}".encode("utf-8")
+            ).hexdigest()
+            if dirty else EMPTY_TRACKED_DIFF_SHA256
+        ),
+        tracked_paths=(("include/fixture.hh",) if dirty else ()),
+    )
+    capability = None
+    if dirty:
+        capability = attest_generator_output(
+            _ADMISSION_CONTEXT,
+            evidence,
+            generator_input_sha256=hashlib.sha256(
+                f"fixture-input:{genome}:{src_token}".encode("utf-8")
+            ).hexdigest(),
+        )
+    admission = derive_build_admission(
+        _ADMISSION_CONTEXT, evidence, generator_receipt=capability,
+    )
+    receipt = admission.as_wal_receipt()
+    variant = pipeline.variant_id(genome_value, admitted_src_token)
+    attempt_id = "critic-fixture-attempt-%d" % sum(
+        record.stage == STAGE_BUILD_START for record in wal.read_records(lay)
+    )
+    wal.log(lay, variant, STAGE_BUILD_START, "test", {
+        "genome": genome,
+        "src_token": admitted_src_token,
+        "build_attempt_id": attempt_id,
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    })
+    return variant, attempt_id, receipt["receipt_sha256"], admitted_src_token
+
+
+def _attempt_event(
+    lay: CampaignLayout, attempt: tuple[str, str, str, str], stage: str,
+    payload: dict,
+) -> None:
+    variant, attempt_id, receipt_sha, _src_token = attempt
+    wal.log(lay, variant, stage, "test", {
+        **payload,
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": receipt_sha,
+    })
+
+
+@pytest.mark.parametrize("loader", [
+    load_workload,
+    load_rejections,
+    load_liveness_rejections,
+    load_screen_rejections,
+    load_diff_rejections,
+    load_verify_abort_signals,
+])
+def test_every_raw_loader_requires_validated_view(loader) -> None:
+    layout = _tmp_layout()
+    with pytest.raises(TypeError, match="require_admitted_campaign"):
+        loader(layout)
+
+
+def test_real_legacy_s4_critic_entry_is_rejected() -> None:
+    campaign = (
+        Path(__file__).resolve().parents[2]
+        / "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387"
+    )
+    with pytest.raises(CampaignNotAdmitted, match="legacy-unclassified"):
+        require_admitted_campaign(campaign)
 
 
 def _write(lay, genome, committed=True, **li):
-    wal.log(lay, genome, STAGE_BUILD_START, "test", {"genome": genome})
-    wal.log(lay, genome, STAGE_BENCH_DONE, "test", {"leading_indicators": li})
+    attempt = _start_attempt(lay, genome)
+    _attempt_event(lay, attempt, STAGE_BUILD_DONE, {})
+    _attempt_event(lay, attempt, STAGE_BENCH_DONE, {"leading_indicators": li})
     if committed:                                  # digest は committed のみ拾う
-        wal.log(lay, genome, STAGE_COMMIT, "test", {"fitness_tps": li.get("throughput_tps")})
+        _attempt_event(
+            lay, attempt, STAGE_COMMIT,
+            {"fitness_tps": li.get("throughput_tps")},
+        )
 
 
 _G = "silo|BACK_OFF={b},NO_WAIT_LOCKING_IN_VALIDATION={l},NO_WAIT_OF_TICTOC={t},WAL={w}"
@@ -129,19 +272,20 @@ def test_load_rejections_surfaces_structured_anomaly():
     red = _G.format(b=1, l=1, t=0, w=0)
     builderr = _G.format(b=0, l=1, t=0, w=0)
     # verify-red の variant (pipeline が書く形 = abort payload に verify 構造)
-    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red, "src_token": "codediff1"})
-    wal.log(lay, red, STAGE_ABORT, "test",
-            {"reason": "non-serializable",
-             "verify": {"verdict": "non-serializable", "anomaly_count": 1,
-                        "anomalies": [{"phenomenon": "G2", "cycle": [1, 2],
-                                       "edges": [{"from": 1, "to": 2, "types": ["rw"],
-                                                  "reasons": [{"type": "rw", "key": "aa"}]}]}],
-                        "integrity": {"clean": True}}})
+    red_attempt = _start_attempt(lay, red, src_token="codediff1")
+    _attempt_event(lay, red_attempt, STAGE_ABORT, {
+        "reason": "non-serializable",
+        "verify": {"verdict": "non-serializable", "anomaly_count": 1,
+                   "anomalies": [{"phenomenon": "G2", "cycle": [1, 2],
+                                  "edges": [{"from": 1, "to": 2, "types": ["rw"],
+                                             "reasons": [{"type": "rw", "key": "aa"}]}]}],
+                   "integrity": {"clean": True}},
+    })
     # verify を持たない abort (build-error) は規律3 の次手入力ではない → 除外
-    wal.log(lay, builderr, STAGE_BUILD_START, "test", {"genome": builderr})
-    wal.log(lay, builderr, STAGE_ABORT, "test", {"reason": "build-error"})
+    builderr_attempt = _start_attempt(lay, builderr)
+    _attempt_event(lay, builderr_attempt, STAGE_ABORT, {"reason": "build-error"})
 
-    rej = load_rejections(lay)
+    rej = load_rejections(_view(lay))
     assert len(rej) == 1                          # build-error は除外
     assert rej[0].genome == red
     assert rej[0].flags["BACK_OFF"] == 1          # genome flags まで復元
@@ -151,8 +295,8 @@ def test_load_rejections_surfaces_structured_anomaly():
     assert rej[0].integrity == {"clean": True}
     # コード軸の識別 (D23): 同 canonical 別コードの RED variant が alias しないよう
     # WAL キーと src_token も次手入力に載る
-    assert rej[0].variant == red
-    assert rej[0].src_token == "codediff1"
+    assert rej[0].variant == red_attempt[0]
+    assert rej[0].src_token == red_attempt[3]
 
 
 def test_load_liveness_rejections_surfaces_reason_and_extra():
@@ -161,30 +305,34 @@ def test_load_liveness_rejections_surfaces_reason_and_extra():
     集約される (詳細は返さないが沈黙もさせない)。verify-red は混ざらない。"""
     lay = _tmp_layout()
     to = _G.format(b=1, l=1, t=0, w=0)
-    wal.log(lay, to, STAGE_BUILD_START, "test", {"genome": to, "src_token": "codediff9"})
-    wal.log(lay, to, STAGE_ABORT, "test", {"reason": "trace-timeout", "timeout_s": 120.0})
+    to_attempt = _start_attempt(lay, to, src_token="codediff9")
+    _attempt_event(lay, to_attempt, STAGE_ABORT, {
+        "reason": "trace-timeout", "timeout_s": 120.0,
+    })
     te = _G.format(b=0, l=1, t=0, w=0)
-    wal.log(lay, te, STAGE_BUILD_START, "test", {"genome": te})
-    wal.log(lay, te, STAGE_ABORT, "test",
-            {"reason": "trace-empty", "commits": 0, "aborts": 4321})
+    te_attempt = _start_attempt(lay, te)
+    _attempt_event(lay, te_attempt, STAGE_ABORT, {
+        "reason": "trace-empty", "commits": 0, "aborts": 4321,
+    })
     b1 = _G.format(b=0, l=0, t=1, w=0)
-    wal.log(lay, b1, STAGE_BUILD_START, "test", {"genome": b1})
-    wal.log(lay, b1, STAGE_ABORT, "test", {"reason": "build-error"})
+    b1_attempt = _start_attempt(lay, b1)
+    _attempt_event(lay, b1_attempt, STAGE_ABORT, {"reason": "build-error"})
     b2 = _G.format(b=1, l=0, t=1, w=0)
-    wal.log(lay, b2, STAGE_BUILD_START, "test", {"genome": b2})
-    wal.log(lay, b2, STAGE_ABORT, "test",
-            {"reason": "eval-exception: TypeError: boom"})   # 動的部は正規化で畳む
+    b2_attempt = _start_attempt(lay, b2)
+    _attempt_event(lay, b2_attempt, STAGE_ABORT,
+                   {"reason": "eval-exception: TypeError: boom"})
     vr = _G.format(b=1, l=1, t=0, w=1)
-    wal.log(lay, vr, STAGE_BUILD_START, "test", {"genome": vr})
-    wal.log(lay, vr, STAGE_ABORT, "test",
-            {"reason": "non-serializable",
-             "verify": {"verdict": "non-serializable"}})
+    vr_attempt = _start_attempt(lay, vr)
+    _attempt_event(lay, vr_attempt, STAGE_ABORT, {
+        "reason": "non-serializable",
+        "verify": {"verdict": "non-serializable"},
+    })
 
-    lrs, other = load_liveness_rejections(lay)
+    lrs, other = load_liveness_rejections(_view(lay))
     assert {l.reason for l in lrs} == {"trace-timeout", "trace-empty"}
     lto = next(l for l in lrs if l.reason == "trace-timeout")
     assert lto.extra.get("timeout_s") == 120.0
-    assert lto.variant == to and lto.src_token == "codediff9"
+    assert lto.variant == to_attempt[0] and lto.src_token == to_attempt[3]
     assert lto.flags["BACK_OFF"] == 1
     lte = next(l for l in lrs if l.reason == "trace-empty")
     assert lte.extra.get("commits") == 0 and lte.extra.get("aborts") == 4321
@@ -199,9 +347,8 @@ def test_screen_rejection_loader_is_disjoint_and_render_hides_uncertified_metric
     """
     lay = _tmp_layout()
     genome = _G.format(b=1, l=1, t=0, w=0)
-    wal.log(lay, "screened-out", STAGE_BUILD_START, "test",
-            {"genome": genome, "src_token": "codediff-screen"})
-    wal.log(lay, "screened-out", STAGE_ABORT, "test", {
+    attempt = _start_attempt(lay, genome, src_token="codediff-screen")
+    _attempt_event(lay, attempt, STAGE_ABORT, {
         "reason": pipeline.SCREEN_REJECTION_REASON,
         "screen": {
             "median_tps": 12345, "cv": 0.01, "baseline_tps": 20000,
@@ -214,17 +361,17 @@ def test_screen_rejection_loader_is_disjoint_and_render_hides_uncertified_metric
     abort = next(r for r in records if r.stage == STAGE_ABORT)
     assert abort.payload["screen"]["median_tps"] == 12345  # 正対照
 
-    assert load_rejections(lay) == []
-    liveness, other = load_liveness_rejections(lay)
+    assert load_rejections(_view(lay)) == []
+    liveness, other = load_liveness_rejections(_view(lay))
     assert liveness == [] and other == {}
-    screened = load_screen_rejections(lay)
+    screened = load_screen_rejections(_view(lay))
     assert len(screened) == 1
     assert vars(screened[0]) == {
         "genome": genome,
         "flags": {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
                   "NO_WAIT_OF_TICTOC": 0, "WAL": 0},
-        "variant": "screened-out",
-        "src_token": "codediff-screen",
+        "variant": attempt[0],
+        "src_token": attempt[3],
         "reason": pipeline.SCREEN_REJECTION_REASON,
     }
 
@@ -243,17 +390,19 @@ def test_rejection_types_keep_forward_workload_tag():
     verify-red / liveness-red の両型が生値で保持する (形の確定は D36 実装時)。"""
     lay = _tmp_layout()
     red = _G.format(b=1, l=1, t=0, w=0)
-    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red})
-    wal.log(lay, red, STAGE_ABORT, "test",
-            {"reason": "non-serializable", "workload": {"tag": "s2"},
-             "verify": {"verdict": "non-serializable", "anomalies": [],
-                        "integrity": {}}})
+    red_attempt = _start_attempt(lay, red)
+    _attempt_event(lay, red_attempt, STAGE_ABORT, {
+        "reason": "non-serializable", "workload": {"tag": "s2"},
+        "verify": {"verdict": "non-serializable", "anomalies": [],
+                   "integrity": {}},
+    })
     lv = _G.format(b=0, l=1, t=0, w=0)
-    wal.log(lay, lv, STAGE_BUILD_START, "test", {"genome": lv})
-    wal.log(lay, lv, STAGE_ABORT, "test",
-            {"reason": "trace-timeout", "workload": {"tag": "s2"}})
-    rej = load_rejections(lay)
-    lrs, _ = load_liveness_rejections(lay)
+    lv_attempt = _start_attempt(lay, lv)
+    _attempt_event(lay, lv_attempt, STAGE_ABORT, {
+        "reason": "trace-timeout", "workload": {"tag": "s2"},
+    })
+    rej = load_rejections(_view(lay))
+    lrs, _ = load_liveness_rejections(_view(lay))
     assert rej[0].workload == {"tag": "s2"}
     assert lrs[0].workload == {"tag": "s2"}
     assert "workload" not in lrs[0].extra      # 別フィールドに分離 (extra と二重化しない)
@@ -278,11 +427,12 @@ def test_render_rejections_cycle_shape_shows_total_cycles():
     明示する — witness 数を全数と誤読させない (S2 で total 4,053 / witness 20 の前例)。"""
     lay = _tmp_layout()
     red = _G.format(b=1, l=1, t=0, w=0)
-    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red, "src_token": "cd1"})
-    wal.log(lay, red, STAGE_ABORT, "test",
-            {"reason": "non-serializable",
-             "verify": _red_verify_payload(total_cycles=57)})
-    out = render_rejections(load_rejections(lay), [], {}, None)
+    attempt = _start_attempt(lay, red, src_token="cd1")
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "non-serializable",
+        "verify": _red_verify_payload(total_cycles=57),
+    })
+    out = render_rejections(load_rejections(_view(lay)), [], {}, None)
     assert "cycle 全数 57 / witness 1 件" in out
     assert "抜粋" in out                                # 切り詰めの明示
     assert "T1 → T2" in out and "rw key=aa" in out      # どの依存を断つかが読める
@@ -313,18 +463,19 @@ def test_render_rejections_carries_no_perf_tokens():
     「赤に fitness を付けない」を散文でなく否定 assert で固定。"""
     lay = _tmp_layout()
     red = _G.format(b=1, l=1, t=0, w=0)
-    wal.log(lay, red, STAGE_BUILD_START, "test", {"genome": red, "src_token": "cd1"})
-    wal.log(lay, red, STAGE_ABORT, "test",
-            {"reason": "non-serializable", "verify": _red_verify_payload()})
+    red_attempt = _start_attempt(lay, red, src_token="cd1")
+    _attempt_event(lay, red_attempt, STAGE_ABORT, {
+        "reason": "non-serializable", "verify": _red_verify_payload(),
+    })
     lrs = [LivenessRejection(genome=red, flags={}, reason="trace-timeout",
                              extra={"timeout_s": 120.0}, variant="v1")]
     stock = _G.format(b=0, l=1, t=0, w=0)
-    wal.log(lay, stock, STAGE_BUILD_START, "test",
-            {"genome": stock, "src_token": STOCK_SRC_TOKEN})
-    wal.log(lay, stock, STAGE_VERIFY_DONE, "test",
-            {"verdict": "serializable", "commits": 900, "aborts": 100})
-    out = render_rejections(load_rejections(lay), lrs, {"build-error": 1},
-                            load_verify_abort_signals(lay))
+    stock_attempt = _start_attempt(lay, stock)
+    _attempt_event(lay, stock_attempt, STAGE_VERIFY_DONE, {
+        "verdict": "serializable", "commits": 900, "aborts": 100,
+    })
+    out = render_rejections(load_rejections(_view(lay)), lrs, {"build-error": 1},
+                            load_verify_abort_signals(_view(lay)))
     low = out.lower()
     for tok in ("fitness", "throughput", "tps", "latency"):
         assert tok not in low, f"rejection 節に性能語彙 {tok} が混入"
@@ -349,13 +500,15 @@ def test_integrity_class_rejection_closes_loop():
     (broken-silo) だけで規律3 閉ループを certify しない (phase3.md 残存リスク節)。"""
     lay = _tmp_layout()
     v = _G.format(b=1, l=1, t=0, w=0)
-    wal.log(lay, v, STAGE_BUILD_START, "test", {"genome": v, "src_token": "cdI"})
-    wal.log(lay, v, STAGE_ABORT, "test",
-            {"reason": "indeterminate",
-             "verify": _indeterminate_verify_payload(
-                 txns=97, missing=3,
-                 notes=["missing txids sample: [7, 8, 9]"])})
-    rej = load_rejections(lay)
+    attempt = _start_attempt(lay, v, src_token="cdI")
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "indeterminate",
+        "verify": _indeterminate_verify_payload(
+            txns=97, missing=3,
+            notes=["missing txids sample: [7, 8, 9]"],
+        ),
+    })
+    rej = load_rejections(_view(lay))
     assert len(rej) == 1 and rej[0].verdict == "indeterminate"
     assert rej[0].integrity["missing_txids"] == 3
     out = render_rejections(rej, [], {}, None)
@@ -379,12 +532,12 @@ def test_write_intent_rejection_is_mechanism_gap_not_cycle():
         "permutation_violations": 0,
         "write_intent_violations": 1,
     })
-    wal.log(lay, v, STAGE_BUILD_START, "test",
-            {"genome": v, "src_token": "cdWI"})
-    wal.log(lay, v, STAGE_ABORT, "test",
-            {"reason": "indeterminate", "verify": payload})
+    attempt = _start_attempt(lay, v, src_token="cdWI")
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "indeterminate", "verify": payload,
+    })
 
-    out = render_rejections(load_rejections(lay), [], {}, None)
+    out = render_rejections(load_rejections(_view(lay)), [], {}, None)
     assert "機構欠落型 (write intent coverage)" in out
     assert "write-set membership / API 意図の復元" in out
     assert "cycle 帰属を捏造しない" in out
@@ -399,11 +552,12 @@ def test_empty_dsg_rejection_renders_explicitly():
     (実 run では trace-empty が手前で先取るが、verifier 単体経路では到達する形)。"""
     lay = _tmp_layout()
     v = _G.format(b=0, l=1, t=0, w=0)
-    wal.log(lay, v, STAGE_BUILD_START, "test", {"genome": v, "src_token": "cdE"})
-    wal.log(lay, v, STAGE_ABORT, "test",
-            {"reason": "indeterminate",
-             "verify": _indeterminate_verify_payload(txns=0, clean=True)})
-    out = render_rejections(load_rejections(lay), [], {}, None)
+    attempt = _start_attempt(lay, v, src_token="cdE")
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "indeterminate",
+        "verify": _indeterminate_verify_payload(txns=0, clean=True),
+    })
+    out = render_rejections(load_rejections(_view(lay)), [], {}, None)
     assert "trace が空 (txns=0)" in out
     assert "緑ではない" in out                       # クリーンでも certify しない旨
 
@@ -412,15 +566,16 @@ def test_verify_abort_signal_stock_contrast():
     """J1 シグナル: verify run の abort 率を stock 対照比つきで表示 (閾値判定なし)。"""
     lay = _tmp_layout()
     stock = _G.format(b=0, l=1, t=0, w=0)
-    wal.log(lay, stock, STAGE_BUILD_START, "test",
-            {"genome": stock, "src_token": STOCK_SRC_TOKEN})
-    wal.log(lay, stock, STAGE_VERIFY_DONE, "test",
-            {"verdict": "serializable", "commits": 900, "aborts": 100})
+    stock_attempt = _start_attempt(lay, stock)
+    _attempt_event(lay, stock_attempt, STAGE_VERIFY_DONE, {
+        "verdict": "serializable", "commits": 900, "aborts": 100,
+    })
     var = _G.format(b=1, l=1, t=0, w=0)
-    wal.log(lay, var, STAGE_BUILD_START, "test", {"genome": var, "src_token": "cd2"})
-    wal.log(lay, var, STAGE_VERIFY_DONE, "test",
-            {"verdict": "serializable", "commits": 600, "aborts": 400})
-    out = render_rejections([], [], {}, load_verify_abort_signals(lay))
+    var_attempt = _start_attempt(lay, var, src_token="cd2")
+    _attempt_event(lay, var_attempt, STAGE_VERIFY_DONE, {
+        "verdict": "serializable", "commits": 600, "aborts": 400,
+    })
+    out = render_rejections([], [], {}, load_verify_abort_signals(_view(lay)))
     assert "rate=10.00%" in out                       # stock 100/1000
     assert "rate=40.00%" in out and "stock 比 4.0×" in out
 
@@ -430,10 +585,11 @@ def test_verify_abort_signal_no_stock_and_legacy_are_explicit():
     3 形は明示表示 (欠落を無言で流さない)。"""
     lay = _tmp_layout()
     var = _G.format(b=1, l=1, t=0, w=0)
-    wal.log(lay, var, STAGE_BUILD_START, "test", {"genome": var, "src_token": "cd3"})
-    wal.log(lay, var, STAGE_VERIFY_DONE, "test",
-            {"verdict": "serializable", "commits": 500})     # aborts 無し = 旧形式
-    out = render_rejections([], [], {}, load_verify_abort_signals(lay))
+    attempt = _start_attempt(lay, var, src_token="cd3")
+    _attempt_event(lay, attempt, STAGE_VERIFY_DONE, {
+        "verdict": "serializable", "commits": 500,
+    })                                                     # aborts 無し = 旧形式
+    out = render_rejections([], [], {}, load_verify_abort_signals(_view(lay)))
     assert "stock 対照なし" in out
     assert "aborts 記録なし (旧形式 WAL)" in out
     out2 = render_rejections([], [], {}, [])
@@ -448,15 +604,16 @@ def test_verify_abort_signal_prefers_first_pass_when_s2_writes_second_record():
     legacy パス (常に最初) を先勝ちで採用しスケールを揃える。"""
     lay = _tmp_layout()
     stock = _G.format(b=0, l=1, t=0, w=0)
-    wal.log(lay, stock, STAGE_BUILD_START, "test",
-            {"genome": stock, "src_token": STOCK_SRC_TOKEN})
-    wal.log(lay, stock, STAGE_VERIFY_DONE, "test",
-            {"verdict": "serializable", "commits": 900, "aborts": 100,
-             "workload": {"tag": "legacy"}})
-    wal.log(lay, stock, STAGE_VERIFY_DONE, "test",
-            {"verdict": "serializable", "commits": 1_500_000, "aborts": 500_000,
-             "workload": {"tag": "s2"}})
-    out = load_verify_abort_signals(lay)
+    attempt = _start_attempt(lay, stock)
+    _attempt_event(lay, attempt, STAGE_VERIFY_DONE, {
+        "verdict": "serializable", "commits": 900, "aborts": 100,
+        "workload": {"tag": "legacy"},
+    })
+    _attempt_event(lay, attempt, STAGE_VERIFY_DONE, {
+        "verdict": "serializable", "commits": 1_500_000, "aborts": 500_000,
+        "workload": {"tag": "s2"},
+    })
+    out = load_verify_abort_signals(_view(lay))
     assert len(out) == 1
     assert out[0].commits == 900 and out[0].aborts == 100  # S2 (2 件目) でなく legacy を採用
 

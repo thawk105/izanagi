@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.layout import repo_output_root  # noqa: E402
 from campaign.patchharness import applied, checkout  # noqa: E402
+from campaign.materializer_admission import non_admissible_materializer  # noqa: E402
 
 
 CONFIGURE_TIMEOUT_S = 120.0
@@ -700,6 +701,9 @@ def _make_payload(
         "env_contract_applicable": False,
         "correctness_only": True,
         "not_integrated": True,
+        "build_admission": non_admissible_materializer(
+            "orchestrator.campaign.t152_write_intent_coverage._build"
+        ),
         "ccbench_sha": sha,
         "toolchain": {"cc": cc_record, "cxx": cxx_record},
         "deps_prefix": deps_record,

@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -33,16 +34,28 @@ from verifier import result_to_dict, verify_trace_dir          # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
 
 from . import buildcache, env_contract as _env_contract, ident, source_digest, wal  # noqa: E402
-from .build_admission import BuildAdmission, require_build_admission  # noqa: E402
+from .build_admission import (  # noqa: E402
+    BuildAdmission,
+    BuildAdmissionError,
+    BuildRunContext,
+    GeneratorReceipt,
+    ReviewReceipt,
+    derive_build_admission,
+    require_build_admission,
+)
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
 from .env_contract import ExecutionEnvironmentContract          # noqa: E402
 from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
                     STAGE_BUILD_DONE, STAGE_BUILD_START, STAGE_COMMIT,
                     STAGE_VERIFY_DONE)
+from .source_digest import SourceEvidence                         # noqa: E402
 
 _DEFAULT_CXX = buildcache.DEFAULT_CXX
 _compilers_for_current_site = buildcache.compilers_for_current_site
+
+BuildCapability = GeneratorReceipt | ReviewReceipt | None
+AdmissionCapabilityResolver = Callable[[SourceEvidence], BuildCapability]
 
 
 def variant_id(genome: Genome, src_token: str = source_digest.STOCK) -> str:
@@ -434,7 +447,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              record_rep_returncodes: bool = False,
              qualification_policy: Optional[QualificationPipelinePolicy] = None,
              dependency_prefix: str = "", *,
-             admission: BuildAdmission) -> EvalResult:
+             build_context: BuildRunContext,
+             capability_resolver: Optional[AdmissionCapabilityResolver] = None,
+             source_evidence: Optional[SourceEvidence] = None) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -474,8 +489,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
     bench_lock + numactl 下で回す (決定4-4)。既定 legacy は軽量ゆえ従来どおり
     並列可 (lock.py の設計方針)。"""
-    admission = require_build_admission(admission)
-    admission_receipt = admission.as_wal_receipt()
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    if capability_resolver is not None and not callable(capability_resolver):
+        raise TypeError("capability_resolver は callable または None が必要")
     if (isinstance(bench_max_rounds, bool) or not isinstance(bench_max_rounds, int)
             or bench_max_rounds < 1):
         raise ValueError("bench_max_rounds は 1 以上の整数でなければならない")
@@ -532,40 +549,90 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # caller (src_token=None) は自己計算し、identity を確定できない (allowlist 逸脱 /
     # preprocess 失敗 / git show 失敗) なら fails-closed で評価しない (best-effort skip を
     # identity 核に持ち込まない, 規律2)。
-    if src_token is None:
-        try:
-            _, resolved_cxx = _compilers_for_current_site()
-            if resolved_cxx == _DEFAULT_CXX:
-                src_tok = source_digest.resolve(genome, ccbench_commit, ccbench_dir)
-            else:
-                src_tok = source_digest.resolve(
-                    genome, ccbench_commit, ccbench_dir, resolved_cxx,
+    build_attempt_id = secrets.token_hex(16)
+
+    def _prebuild_abort(reason: str, error: BaseException) -> EvalResult:
+        v0 = variant_id(genome)
+        emit(layout, v0, STAGE_BUILD_START, env_tag, {
+            "genome": genome.canonical(),
+            "build_attempt_id": build_attempt_id,
+        })
+        emit(layout, v0, STAGE_ABORT, env_tag, {
+            "reason": reason,
+            "error": _exc_summary(error),
+            "build_attempt_id": build_attempt_id,
+        })
+        log(f"  [eval {v0}] abort: {reason} ({error})")
+        result = EvalResult(
+            genome=genome, variant=v0, certified=False, aborted=True,
+        )
+        result.notes.append(f"pre-build evidence 確定不能 → reject ({error})")
+        return result
+
+    try:
+        _, resolved_cxx = _compilers_for_current_site()
+        evidence_cxx = _DEFAULT_CXX if resolved_cxx == _DEFAULT_CXX else resolved_cxx
+        current_evidence = source_digest.resolve_evidence(
+            genome,
+            ccbench_commit,
+            ccbench_dir=ccbench_dir,
+            cxx=evidence_cxx,
+        )
+        if source_evidence is not None:
+            if type(source_evidence) is not SourceEvidence:
+                raise BuildAdmissionError(
+                    "source_evidence は resolve_evidence() 由来の exact value が必要"
                 )
-        except RuntimeError as e:
-            v0 = variant_id(genome)        # stock id で abort を記録 (WAL キーを残す)
-            emit(layout, v0, STAGE_BUILD_START, env_tag, {
-                "genome": genome.canonical(),
-                "build_admission": admission_receipt,
-            })
-            emit(layout, v0, STAGE_ABORT, env_tag,
-                 {"reason": "identity-error", "error": _exc_summary(e)})
-            log(f"  [eval {v0}] abort: identity-error ({e})")
-            r = EvalResult(genome=genome, variant=v0, certified=False, aborted=True)
-            r.notes.append(f"source_digest 確定不能 → reject ({e})")
-            return r
-    else:
-        src_tok = src_token
+            if source_evidence != current_evidence:
+                raise BuildAdmissionError(
+                    "caller の SourceEvidence が current source と不一致"
+                )
+        evidence = current_evidence
+        if src_token is not None and src_token != evidence.src_token:
+            raise BuildAdmissionError("src_token が current SourceEvidence と不一致")
+        capability = capability_resolver(evidence) if capability_resolver is not None else None
+        generator_receipt = capability if type(capability) is GeneratorReceipt else None
+        review_receipt = capability if type(capability) is ReviewReceipt else None
+        if capability is not None and generator_receipt is None and review_receipt is None:
+            raise BuildAdmissionError(
+                "capability_resolver は sealed GeneratorReceipt/ReviewReceipt/None だけを返せる"
+            )
+        admission = derive_build_admission(
+            build_context,
+            evidence,
+            generator_receipt=generator_receipt,
+            review_receipt=review_receipt,
+        )
+        admission = require_build_admission(
+            admission,
+            expected_policy=build_context.policy,
+            expected_source=evidence,
+        )
+    except (BuildAdmissionError, RuntimeError) as exc:
+        reason = "identity-error" if isinstance(exc, RuntimeError) \
+            and not isinstance(exc, BuildAdmissionError) else "admission-error"
+        return _prebuild_abort(reason, exc)
+
+    src_tok = evidence.src_token
+    admission_receipt = admission.as_wal_receipt()
     v = variant_id(genome, src_tok)
     res = EvalResult(genome=genome, variant=v, certified=False, aborted=False)
     emit(layout, v, STAGE_BUILD_START, env_tag, {
         "genome": genome.canonical(),
         "src_token": src_tok,
+        "build_attempt_id": build_attempt_id,
         "build_admission": admission_receipt,
+        "build_admission_receipt_sha256": admission.receipt_sha256,
     })
 
     def _abort(reason: str, note: str, extra: Optional[Dict] = None,
               workload_tag: Optional[str] = None) -> EvalResult:
-        payload = {"reason": reason, **(extra or {})}
+        payload = {
+            "reason": reason,
+            "build_attempt_id": build_attempt_id,
+            "build_admission_receipt_sha256": admission.receipt_sha256,
+            **(extra or {}),
+        }
         if workload_tag is not None:
             # D36 決定4-3: どの verify 構成で壊れたかを次手生成が帰属できるようにする。
             payload["workload"] = {"tag": workload_tag}
@@ -582,12 +649,14 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             tr = buildcache.build(
                 genome, ccbench_commit, trace=True, src_token=src_tok,
                 ccbench_dir=ccbench_dir, cache_root=cache_root,
-                admission=admission,
+                admission=admission, build_context=build_context,
+                source_evidence=evidence,
             )
             pf = buildcache.build(
                 genome, ccbench_commit, trace=False, src_token=src_tok,
                 ccbench_dir=ccbench_dir, cache_root=cache_root,
-                admission=admission,
+                admission=admission, build_context=build_context,
+                source_evidence=evidence,
             )
         else:
             if not isinstance(env_contract, ExecutionEnvironmentContract):
@@ -607,6 +676,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 ),
                 "ccbench_dir": ccbench_dir,
                 "admission": admission,
+                "build_context": build_context,
+                "source_evidence": evidence,
             }
             if dependency_prefix:
                 common["dependency_prefix"] = dependency_prefix
@@ -632,6 +703,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # 対称性維持で不変)。trace_bin_sha256/perf_bin_sha256 (exact 64 lowercase hex) が照合系列。
     emit(layout, v, STAGE_BUILD_DONE, env_tag,
          {"trace_bin": tr.bin_hash, "perf_bin": pf.bin_hash,
+          "build_attempt_id": build_attempt_id,
+          "build_admission_receipt_sha256": admission.receipt_sha256,
           "trace_bin_sha256": tr.bin_sha256, "perf_bin_sha256": pf.bin_sha256,
           "trace_cached": tr.cached, "perf_cached": pf.cached,
           # fitness 計測に使う perf (trace-disabled) build の再現コマンド (規律1)。
@@ -843,6 +916,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                     "fitness_tps": None,
                     "note": "no-bench",
                     "verify_configs": verify_tags,
+                    "build_attempt_id": build_attempt_id,
+                    "build_admission_receipt_sha256": admission.receipt_sha256,
                 })
             else:
                 qualification_policy.event_sink.emit(
@@ -850,6 +925,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                         "fitness_tps": None,
                         "note": "no-bench",
                         "verify_configs": verify_tags,
+                        "build_attempt_id": build_attempt_id,
+                        "build_admission_receipt_sha256": admission.receipt_sha256,
                     },
                 )
             return res
@@ -886,6 +963,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             "fitness_tps": bench.median_tps, "cv": bench.cv,
             "high_variance": bench.high_variance, "unstable": bench.unstable,
             "verify_configs": verify_tags,
+            "build_attempt_id": build_attempt_id,
+            "build_admission_receipt_sha256": admission.receipt_sha256,
         }
         if active_screening is not None:
             commit_payload["screened"] = True

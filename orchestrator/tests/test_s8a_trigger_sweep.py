@@ -17,12 +17,14 @@ from __future__ import annotations
 
 import contextlib
 import errno
+import hashlib
 import itertools
 import json
 import os
 import re
 import sys
 import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -37,15 +39,37 @@ from campaign import pipeline                                      # noqa: E402
 from campaign import p3_s4_loop as L                               # noqa: E402
 from campaign import s8a_trigger_sweep as W                        # noqa: E402
 from campaign import wal                                           # noqa: E402
+from campaign.artifact_admission import CampaignNotAdmitted         # noqa: E402
 from campaign.build_admission import (BuildAdmissionError,            # noqa: E402
-                                      BuildProvenance)
+                                      BuildProvenance, GeneratorId,
+                                      attest_generator_output,
+                                      build_run_context,
+                                      derive_build_admission)
 from campaign.model import STAGE_BUILD_START                       # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
+from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
+                                    STOCK, SourceEvidence)
 
 # 頻度実測の予想結果 (シート導出: YCSB では node/absent 構造ゼロ)。テストは実測に
 # 依存しない — 代表として 3 ビットの実効集合で列挙の機械性質を検査する。
 EFF3 = ["lock-conflict", "readvali-tid", "readvali-locked"]
+_CHARACTERIZATION_GENOME = (
+    "silo|ADD_ANALYSIS=1,BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,"
+    "NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
+)
+_CHARACTERIZATION_PIN = "d706650"
+_ADMISSION_POLICY_SHA256 = (
+    "0473e9bee960f49e85b7175d92d7470ffb02db3c7ddfae85de4d197efcddebee"
+)
+_PRE_T343_S8A_CAMPAIGN_IDS = {
+    "balanced": "p3-s8a-trigger-sweep-balanced-sweep-c2d838b8",
+    "write-heavy": "p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8",
+}
+_T343_S8A_CAMPAIGN_IDS = {
+    "balanced": "p3-s8a-trigger-sweep-balanced-sweep-fc683dde",
+    "write-heavy": "p3-s8a-trigger-sweep-write-heavy-sweep-5569ad76",
+}
 
 # ==== 述語生成の構成的安全 =====================================================
 
@@ -229,10 +253,44 @@ def test_workload_trial_effective_baked_into_identity():
 
 
 def test_default_off_campaign_ids_remain_historical_values():
-    assert str(ident.campaign_id(W.config_for("balanced", EFF3))) == \
-        "p3-s8a-trigger-sweep-balanced-sweep-c2d838b8"
-    assert str(ident.campaign_id(W.config_for("write-heavy", EFF3))) == \
-        "p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8"
+    """pre-T343 の明示 preimage と現行 policy-bound ID を対で固定する。"""
+    workloads = {
+        "balanced": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
+        "write-heavy": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"},
+    }
+    historical = {}
+    for tag, workload in workloads.items():
+        preimage = {
+            "spec_content": (
+                "P3 段 8a D 段: silo-backoff-trigger-gating 機械列挙 sweep (偵察、D46 型)。"
+                "preliminary = 事前登録外カテゴリ、断定 verdict なし、(c) 判定は出さない。"
+                "firewall: E 段へは軸の生死二値のみ (D48 条件 7)・段 6 正式 grid へ材料流用"
+                "しない。素の sweep は適応 Backoff_ との連成地形 (直交性主張は adaptive-off "
+                f"限定)。空間 = reason-subset-v1: 実効要因 {EFF3} の部分集合 2^N "
+                f"(kUnset→true 固定) + ident_all + stock。workload={tag}。"
+            ),
+            "ccbench_commit": "d706650",
+            "search_tag": "sweep",
+            "search_config": {
+                "scale": "silo", "axis": "silo-backoff-trigger-gating",
+                "generator": "reason-subset-v1",
+                "space": "reason-subsets(effective)+identall+stock",
+                "effective_reasons": EFF3,
+                "workload": tag, "ycsb": workload,
+                "records": 1_000_000, "threads": 48,
+                "verify": "legacy+s2",
+            },
+            "trial": "p3-s8a-trigger-sweep",
+        }
+        digest = hashlib.sha256(json.dumps(
+            preimage, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode("utf-8")).hexdigest()[:8]
+        historical[tag] = f"p3-s8a-trigger-sweep-{tag}-sweep-{digest}"
+    assert historical == _PRE_T343_S8A_CAMPAIGN_IDS
+    assert {
+        tag: str(ident.campaign_id(W.config_for(tag, EFF3)))
+        for tag in workloads
+    } == _T343_S8A_CAMPAIGN_IDS
 
 
 def test_config_wires_s2_verify_and_provenance():
@@ -304,8 +362,9 @@ def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     assert len(wal.read_records(layout)) == 4
 
 
-def test_public_sweep_assigns_stock_and_machine_admission_exactly(monkeypatch):
-    """M4: stock と決定論的候補の class 差だけを単独で固定する。"""
+def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
+        monkeypatch):
+    """public sweep→実 pipeline admission 境界で exact class 差を固定する。"""
     from campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
@@ -314,20 +373,67 @@ def test_public_sweep_assigns_stock_and_machine_admission_exactly(monkeypatch):
     _install_public_reject_sweep_fakes(monkeypatch, layout)
     machine_name = W.candidates(EFF3)[0][0]
     seen = []
+    passed = SimpleNamespace(passed=True)
+    expected_pin = "d706650"  # repo policy から逆算しない独立 pin
 
-    def fake_eval(name, *_args, admission, **_kwargs):
-        seen.append((name, admission.provenance_class,
-                     admission.coder_derived_opt_in))
-        return {"variant_id": name, "category": "fixture", "src_token": "stock",
-                "outcome": "certified"}
+    def evidence_for(genome, commit, source_root):
+        assert commit == expected_pin == W.PIN
+        machine = genome.flags["BACKOFF_TRIGGER_GATING"] == 1
+        return SourceEvidence(
+            schema_version="source-evidence/v1",
+            source_root=os.path.abspath(source_root),
+            ccbench_commit=expected_pin,
+            genome_sha256=hashlib.sha256(
+                genome.canonical().encode("utf-8")
+            ).hexdigest(),
+            src_token="6" * 64 if machine else STOCK,
+            source_bytes_sha256="7" * 64,
+            tracked_clean=not machine,
+            tracked_diff_sha256=(
+                "8" * 64 if machine else EMPTY_TRACKED_DIFF_SHA256
+            ),
+            tracked_paths=("cc/silo/transaction.cc",) if machine else (),
+        )
 
-    monkeypatch.setattr(W, "_eval_one", fake_eval)
+    def resolve(genome, commit, ccbench_dir="", **_kwargs):
+        return evidence_for(genome, commit, ccbench_dir).src_token
+
+    def resolve_evidence(genome, commit, *, ccbench_dir="", **_kwargs):
+        return evidence_for(genome, commit, ccbench_dir)
+
+    def stop_at_build(_genome, _commit, trace, **kwargs):
+        assert trace is True
+        receipt = kwargs["admission"].as_wal_receipt()
+        seen.append((
+            kwargs["admission"].provenance,
+            receipt["generator_receipt"] is not None,
+            kwargs["build_context"],
+        ))
+        raise RuntimeError("stop after admission boundary")
+
+    def run_through_pipeline(cfg, genomes, perf, env_tag, clocks_per_us, **kwargs):
+        result = pipeline.evaluate(
+            genomes[0], layout, env_tag, cfg.ccbench_commit, perf,
+            clocks_per_us, do_bench=False, log=lambda _line: None,
+            ccbench_dir=kwargs["ccbench_dir"],
+            cache_root=kwargs["cache_root"],
+            build_context=kwargs["build_context"],
+            capability_resolver=kwargs["capability_resolver"],
+        )
+        return SimpleNamespace(results=[result])
+
+    monkeypatch.setattr(L, "quarantine", lambda *_a, **_k: (passed, "", "", ""))
+    monkeypatch.setattr(W.source_digest, "resolve", resolve)
+    monkeypatch.setattr(pipeline.source_digest, "resolve_evidence", resolve_evidence)
+    monkeypatch.setattr(pipeline.buildcache, "build", stop_at_build)
+    monkeypatch.setattr(W, "run_campaign", run_through_pipeline)
     W.run_sweep("balanced", names=[W.STOCK_NAME, machine_name], isolate=False,
                 log=lambda _line: None)
-    assert seen == [
-        (W.STOCK_NAME, BuildProvenance.STOCK_OR_PINNED, False),
-        (machine_name, BuildProvenance.MACHINE_SWEEP, False),
+    assert [(provenance, has_generator) for provenance, has_generator, _ in seen] == [
+        (BuildProvenance.STOCK_BASELINE, False),
+        (BuildProvenance.MACHINE_GENERATED, True),
     ]
+    assert seen[0][2] is seen[1][2]
 
 
 def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatch):
@@ -348,8 +454,8 @@ def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatc
                     log=lambda _line: None)
 
 
-def test_eval_one_propagates_keyword_admission_to_build_entry(monkeypatch):
-    """F4: 実 `_eval_one` の検疫通過側を通し、未定義名への退行を殺す。"""
+def test_eval_one_propagates_context_and_source_capability_to_build_entry(monkeypatch):
+    """検疫通過後の build は policy context と source-bound resolver を受ける。"""
     from campaign import patchharness
     from campaign.layout import CampaignLayout
 
@@ -357,7 +463,7 @@ def test_eval_one_propagates_keyword_admission_to_build_entry(monkeypatch):
         root=tempfile.mkdtemp(prefix="izanagi_s8a_eval_admission_")
     ).ensure()
     name = W.candidates(EFF3)[0][0]
-    admission = W._candidate_admission(name)
+    context = W.build_run_context(generator_id=W.GeneratorId.S8A_TRIGGER_SWEEP)
     passed = SimpleNamespace(passed=True)
     seen = []
     monkeypatch.setattr(
@@ -369,7 +475,7 @@ def test_eval_one_propagates_keyword_admission_to_build_entry(monkeypatch):
     monkeypatch.setattr(W.source_digest, "resolve", lambda *_a, **_k: "b" * 64)
 
     def build_entry(*_args, **kwargs):
-        seen.append(kwargs["admission"])
+        seen.append((kwargs["build_context"], kwargs["capability_resolver"]))
         return SimpleNamespace(
             results=[SimpleNamespace(certified=True, aborted=False)]
         )
@@ -378,10 +484,11 @@ def test_eval_one_propagates_keyword_admission_to_build_entry(monkeypatch):
     result = W._eval_one(
         name, EFF3, W.config_for("balanced", EFF3), W.perf_for("balanced"),
         layout, "/fixture/sub", "/fixture/template.patch", "",
-        admission=admission, log=lambda _line: None,
+        build_context=context, log=lambda _line: None,
     )
     assert result["outcome"] == "certified"
-    assert seen == [admission]
+    assert seen[0][0] is context
+    assert callable(seen[0][1])
 
 
 def test_public_sweep_full_frame_fsync_eio_stops_before_next_candidate(
@@ -421,9 +528,66 @@ def test_public_sweep_full_frame_fsync_eio_stops_before_next_candidate(
 
 # ==== 頻度実測 (必須前提 (a)) 消費の fails-closed ==============================
 
+def _canonical_sha(value):
+    return hashlib.sha256(json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")).hexdigest()
+
+
+def _characterization_receipt():
+    source = {
+        "schema": "source-evidence/v1",
+        "source_root": "/tmp/izanagi-s8a-characterization",
+        "ccbench_commit": _CHARACTERIZATION_PIN,
+        "genome_sha256": hashlib.sha256(
+            _CHARACTERIZATION_GENOME.encode("utf-8")
+        ).hexdigest(),
+        "src_token": "2" * 64,
+        "source_bytes_sha256": "3" * 64,
+        "tracked_clean": False,
+        "tracked_diff_sha256": "4" * 64,
+        "tracked_paths": ["cc/silo/transaction.cc"],
+    }
+    generator_input = {
+        "schema": "s8a-trigger-characterization-input/v1",
+        "genome": _CHARACTERIZATION_GENOME,
+        "trace": True,
+        "extra_cxx_define": "",
+    }
+    input_sha = _canonical_sha(generator_input)
+    generator = {
+        "schema": "generator-receipt/v1",
+        "generator_id": "s8a-trigger-sweep",
+        "source": source,
+        "generator_input_sha256": input_sha,
+    }
+    generator["receipt_sha256"] = _canonical_sha(generator)
+    receipt = {
+        "schema": "build-admission/v1",
+        "class": "machine-generated",
+        "policy_sha256": _ADMISSION_POLICY_SHA256,
+        "source": source,
+        "generator_id": "s8a-trigger-sweep",
+        "review_id": None,
+        "input_sha256": input_sha,
+        "generator_receipt": generator,
+        "review_receipt": None,
+        "authority_kind": None,
+    }
+    receipt["receipt_sha256"] = _canonical_sha(receipt)
+    return receipt
+
+
 def _freq_doc(effective, conservation_ok=True, partial=False):
-    doc = {"workloads": {t: {"conservation_ok": conservation_ok}
-                         for t in ("read-heavy", "balanced", "write-heavy")}}
+    doc = {
+        "ccbench_commit": _CHARACTERIZATION_PIN,
+        "genome": _CHARACTERIZATION_GENOME,
+        "build_admissions": [_characterization_receipt()],
+        "workloads": {
+            t: {"conservation_ok": conservation_ok}
+            for t in ("read-heavy", "balanced", "write-heavy")
+        },
+    }
     if not partial:
         doc["effective_reasons"] = effective
     return doc
@@ -468,19 +632,49 @@ def test_load_effective_reasons_unknown_reason(monkeypatch):
         W.load_effective_reasons()
 
 
+def test_load_effective_reasons_rejects_receiptless_characterization(monkeypatch):
+    doc = _freq_doc(EFF3)
+    del doc["build_admissions"]
+    _with_freq(monkeypatch, doc)
+    with pytest.raises(RuntimeError, match="receipt が exact に必要"):
+        W.load_effective_reasons()
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda doc: doc["build_admissions"][0].update(
+            policy_sha256="0" * 64), "schema/policy"),
+        (lambda doc: doc["build_admissions"][0]["source"].update(
+            ccbench_commit="wrong-pin"), "outer SHA"),
+        (lambda doc: doc.update(genome="silo|WAL=1"), "producer と不一致"),
+    ],
+)
+def test_load_effective_reasons_rejects_mismatched_receipts(
+        monkeypatch, mutation, message):
+    doc = _freq_doc(EFF3)
+    mutation(doc)
+    _with_freq(monkeypatch, doc)
+    with pytest.raises(RuntimeError, match=message):
+        W.load_effective_reasons()
+
+
 # ==== replay / provenance / floor (s6 裁定の踏襲) ==============================
 
 def test_replay_outcome_distinguishes_commit_and_abort(monkeypatch):
-    from campaign.model import STAGE_ABORT, STAGE_COMMIT
-
-    def fake(layout, vid):
-        return {"c": {STAGE_COMMIT: {}, STAGE_ABORT: None},
-                "a": {STAGE_COMMIT: None, STAGE_ABORT: {}},
-                "u": {STAGE_COMMIT: None, STAGE_ABORT: None}}[vid]
-    monkeypatch.setattr(W.wal, "records_by_stage", fake)
-    assert W._replay_outcome(None, "c") == "replayed-certified"
-    assert W._replay_outcome(None, "a") == "replayed-aborted"
-    assert W._replay_outcome(None, "u") == "replayed-unknown"
+    context = W.build_run_context(generator_id=W.GeneratorId.S8A_TRIGGER_SWEEP)
+    states = {
+        "c": SimpleNamespace(committed=True, aborted=False),
+        "a": SimpleNamespace(committed=False, aborted=True),
+    }
+    monkeypatch.setattr(
+        W.wal, "replay",
+        lambda _layout, *, admission_policy: (
+            states if admission_policy == context.policy else {}),
+    )
+    assert W._replay_outcome(None, "c", context) == "replayed-certified"
+    assert W._replay_outcome(None, "a", context) == "replayed-aborted"
+    assert W._replay_outcome(None, "u", context) == "replayed-unknown"
 
 
 class _FakeLayout:
@@ -531,6 +725,64 @@ def test_floor_uncalibrated_fails_closed():
                                  {"abort_rate": 0})               # 基準 0 も判定不能
 
 
+def _install_post_policy_screen_fixture(layout):
+    """receipt に束縛した合成 sweep WAL と variant id を作る。"""
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    Path(layout.lock_file).write_text(json.dumps({
+        "ccbench_commit": W.PIN,
+        "search_config": {
+            "records": 1,
+            "threads": 1,
+            "build_admission": dict(context.policy.as_preimage()),
+        },
+        "search_tag": "test",
+        "spec_content": "test",
+        "trial": "test",
+    }), encoding="utf-8")
+    variants = {}
+    for ordinal, label in enumerate(("screen", "certified"), start=1):
+        genome = W._genome(1)
+        src_token = str(ordinal) * 64
+        evidence = SourceEvidence(
+            schema_version="source-evidence/v1",
+            source_root=os.path.abspath(layout.root),
+            ccbench_commit=W.PIN,
+            genome_sha256=hashlib.sha256(
+                genome.canonical().encode("utf-8")
+            ).hexdigest(),
+            src_token=src_token,
+            source_bytes_sha256=str(ordinal + 2) * 64,
+            tracked_clean=False,
+            tracked_diff_sha256=str(ordinal + 4) * 64,
+            tracked_paths=("cc/silo/transaction.cc",),
+        )
+        generator = attest_generator_output(
+            context,
+            evidence,
+            generator_input_sha256=hashlib.sha256(
+                label.encode("utf-8")
+            ).hexdigest(),
+        )
+        receipt = derive_build_admission(
+            context, evidence, generator_receipt=generator,
+        ).as_wal_receipt()
+        variant = pipeline.variant_id(genome, src_token)
+        attempt = f"screen-fixture-{label}"
+        variants[label] = (variant, attempt, receipt)
+        W.wal.log(layout, variant, "build_start", W.ENV_TAG, {
+            "genome": genome.canonical(),
+            "src_token": src_token,
+            "build_attempt_id": attempt,
+            "build_admission": receipt,
+            "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        })
+        W.wal.log(layout, variant, "build_done", W.ENV_TAG, {
+            "build_attempt_id": attempt,
+            "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        })
+    return variants
+
+
 def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch):
     """BENCH_DONE は certified の証拠ではない。screen 数値は WAL にだけ保持する。"""
     from campaign.layout import CampaignLayout
@@ -538,7 +790,12 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8ascreen_")
     ).ensure()
-    W.wal.log(layout, "v-screen", W.STAGE_BENCH_DONE, W.ENV_TAG, {
+    variants = _install_post_policy_screen_fixture(layout)
+    screen_variant, screen_attempt, screen_receipt = variants["screen"]
+    certified_variant, certified_attempt, certified_receipt = (
+        variants["certified"]
+    )
+    W.wal.log(layout, screen_variant, W.STAGE_BENCH_DONE, W.ENV_TAG, {
         "median_tps": 12345,
         "cv": 0.01,
         "unstable": True,
@@ -548,11 +805,13 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
             "llc_miss_rate": 0.34,
         },
     })
-    W.wal.log(layout, "v-screen", W.STAGE_ABORT, W.ENV_TAG, {
+    W.wal.log(layout, screen_variant, W.STAGE_ABORT, W.ENV_TAG, {
         "reason": pipeline.SCREEN_REJECTION_REASON,
         "screen": {"median_tps": 12345},
+        "build_attempt_id": screen_attempt,
+        "build_admission_receipt_sha256": screen_receipt["receipt_sha256"],
     })
-    W.wal.log(layout, "v-certified", W.STAGE_BENCH_DONE, W.ENV_TAG, {
+    W.wal.log(layout, certified_variant, W.STAGE_BENCH_DONE, W.ENV_TAG, {
         "median_tps": 6789,
         "cv": 0.02,
         "unstable": False,
@@ -562,12 +821,15 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
             "llc_miss_rate": 0.21,
         },
     })
-    # 空 payload も COMMIT の存在として扱う (truthiness で判定しない)。
-    W.wal.log(layout, "v-certified", W.STAGE_COMMIT, W.ENV_TAG, {})
+    # post-policy COMMIT は attempt と receipt SHA を必須にする。
+    W.wal.log(layout, certified_variant, W.STAGE_COMMIT, W.ENV_TAG, {
+        "build_attempt_id": certified_attempt,
+        "build_admission_receipt_sha256": certified_receipt["receipt_sha256"],
+    })
 
     entries = {
-        "screened-out": {"variant_id": "v-screen", "category": "subset"},
-        "certified": {"variant_id": "v-certified", "category": "subset"},
+        "screened-out": {"variant_id": screen_variant, "category": "subset"},
+        "certified": {"variant_id": certified_variant, "category": "subset"},
     }
     rows = {r["name"]: r for r in W._load_rows(layout, entries)}
     rejected = rows["screened-out"]
@@ -589,7 +851,7 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
 
     abort_payload = next(
         r.payload for r in W.wal.read_records(layout)
-        if r.variant == "v-screen" and r.stage == W.STAGE_ABORT
+        if r.variant == screen_variant and r.stage == W.STAGE_ABORT
     )
     assert abort_payload["screen"]["median_tps"] == 12345
 
@@ -608,3 +870,10 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
     assert "screening 正常棄却" in text
     assert pipeline.SCREEN_REJECTION_REASON in text
     assert "12345" not in text.replace(",", "")
+
+
+def test_real_legacy_trigger_campaign_cannot_be_certified_by_commit_only():
+    campaign = (Path(_ORCH).parent / "output" / "campaigns" /
+                "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5")
+    with pytest.raises(CampaignNotAdmitted, match="legacy-unclassified"):
+        W._load_rows(str(campaign), {})
