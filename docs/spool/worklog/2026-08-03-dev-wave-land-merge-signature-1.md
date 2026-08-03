@@ -45,6 +45,18 @@ title: 並行開発を止めていた land の fold 署名判定を trusted main
   今日も受理される。(ii) supervised runner (checker / daemon) は receipt の初期 `base_main_sha` に
   束縛されており、正規 main merge を拒否したままである。いずれも本 wave では受理集合を
   広げも狭めもしていない。
+- **禁止集合の置き所を 4 回書き直した。** (1) 親の当初案「累積差分」は段 2 が棄却、
+  (2) 段 2 案「三 tree 免除」は段 3 レンズ B が棄却、(3) 採用案「trusted がちょうど 1 つ」は
+  **本 wave 自身の land が実測で棄却** — worktree を main から切った直後に main を取り込むと
+  両 parent が trusted になり、「main に追いついてから作業を始める」正規形が禁止される
+  (F82 の 4 度目)、(4) 補遺 初版「極大 trusted parent を無条件に選ぶ」は**実装子が契約どおり
+  停止して棄却** (fix round 3 の octopus 負例と矛盾)。
+  最終形は「全 parent が trusted のときだけ極大 trusted parent を選ぶ」で、
+  untrusted parent を含む merge の判定は一切変えていない。
+  補遺の変異 M09〜M12 は 4 件とも kill (SURVIVED ゼロ)。
+- 変異 M11 の走行で無関係な module のテストが 1 本赤になったが、単独再走で緑だった。
+  `DW-O18` に従いフレークとして扱い、実装差分へ帰属しない
+  (`orchestrator/tests/test_codex_worker_launch.py::test_fake_stdout_matches_observed_cli_event_shape`)。
 - 逐語 = `output/insights/2026-08-03_land-merge-signature/`。
 
 ## 次の一手差分

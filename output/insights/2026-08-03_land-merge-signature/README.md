@@ -18,8 +18,12 @@
 | `s6-fix1-report.md` | 6 | fix round 1 — subprocess 削減・量化の固定・land 配線 E2E |
 | `s6-fix2-report.md` | 6 | fix round 2 — 新設 E2E の receipt fixture を実 planner 準拠へ |
 | `s6-fix3-report.md` | 6 | fix round 3 — 変異が暴いた量化の穴を負例 2 本で塞ぐ |
+| `s4-ruling-addendum.md` | 4 | 裁定 補遺 (改訂 2)。全 parent が trusted な merge の扱い |
+| `s6-fix4-stop-report.md` | 6 | 補遺 初版に対する実装子の**停止報告**。既存テストとの矛盾を指摘 |
+| `s6-fix5-report.md` | 6 | 補遺 改訂 2 の実装 |
 | `mutation-spec.json` / `mutation-ledger-run1.json` | 6 | 変異本走 1 回目 (8 件)。**erratum を含む初回結果** |
 | `mutation-spec-2.json` / `mutation-ledger-2.json` | 6 | fix3 後の M03 / M04 再走 |
+| `mutation-spec-3.json` / `mutation-ledger-3.json` | 6 | 補遺 実装後の M09〜M12
 
 ## 何が壊れていて、何を直したか
 
@@ -53,6 +57,21 @@ fix3 で「走査から落とされる側の parent からしか署名が見え�
 再走で M03 / M04 とも期待 node ちょうどで KILLED。
 M06 / M07 は kill されたが期待より多くの node が赤で、**冗長 gate** として記録する
 (単独変異の証拠からは外す)。初回台帳は `DW-M02` に従い消さずに残す。
+
+## 禁止集合の置き所を 4 回言い当てられた
+
+本 wave は防壁の判定領域を 4 回書き直した。いずれも独立の検証が突いた。
+
+1. 親の当初案「累積差分」→ 段 2 プランが棄却 (tree 復元を見逃す)。
+2. 段 2 案「三 tree 免除」→ 段 3 レンズ B が棄却 (免除が path 単位で transaction を分割できる)。
+3. 採用案「trusted がちょうど 1 つ」→ **本 wave 自身の land が実測で棄却**。
+   worktree を main から切った直後に main を取り込むと両 parent が trusted になり、
+   「main に追いついてから作業を始める」という正規形が禁止される (F82 の 4 度目)。
+4. 補遺 初版「極大 trusted parent を無条件に選ぶ」→ **実装子が契約どおり停止して棄却**。
+   fix round 3 で新設した octopus 負例と矛盾する。
+
+最終形は「全 parent が trusted のときだけ極大 trusted parent を選ぶ」で、
+untrusted parent を含む merge の判定は一切変えていない。
 
 ## この wave が閉じていないこと (ユーザー裁定へ)
 
