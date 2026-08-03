@@ -94,7 +94,7 @@ GIT_COMMANDS: Mapping[str, tuple[str, ...]] = {
     "tree-diff": (
         "diff-tree", "-r", "--no-commit-id", "--name-status", "-z", "--no-renames",
     ),
-    "commit-parents": ("rev-list", "--parents", "--max-count=1"),
+    "commit-parents": ("rev-list", "--parents", "--no-walk=unsorted"),
     "tree-paths": ("ls-tree", "-r", "-z", "--name-only"),
     "clone-isolated": ("-c", "protocol.file.allow=always", "clone", "--no-local", "--no-checkout", "--quiet"),
 }
@@ -631,23 +631,54 @@ def _tree_diff(
     )
 
 
-def _parse_commit_parents(raw: bytes, commit_sha: str) -> tuple[str, ...]:
+def _parse_commit_parent_batch(
+    raw: bytes,
+    commit_shas: Sequence[str],
+) -> tuple[tuple[str, ...], ...]:
     try:
         lines = raw.decode("ascii", errors="strict").splitlines()
     except UnicodeDecodeError:
         raise DevWavesError(ReasonCode.INVALID_RUN, {
             "label": "fold-parents", "kind": "encoding",
         }) from None
-    fields = lines[0].split(" ") if len(lines) == 1 else []
-    if (
-        not fields
-        or fields[0] != commit_sha
-        or any(_SHA_RE.fullmatch(value) is None for value in fields)
-    ):
+    if len(lines) != len(commit_shas):
         raise DevWavesError(ReasonCode.INVALID_RUN, {
             "label": "fold-parents", "kind": "record",
         })
-    return tuple(fields[1:])
+    parent_rows = []
+    for line, commit_sha in zip(lines, commit_shas):
+        fields = line.split(" ")
+        if (
+            not fields
+            or fields[0] != commit_sha
+            or any(_SHA_RE.fullmatch(value) is None for value in fields)
+        ):
+            raise DevWavesError(ReasonCode.INVALID_RUN, {
+                "label": "fold-parents", "kind": "record",
+            })
+        parent_rows.append(tuple(fields[1:]))
+    return tuple(parent_rows)
+
+
+def _parse_commit_parents(raw: bytes, commit_sha: str) -> tuple[str, ...]:
+    return _parse_commit_parent_batch(raw, (commit_sha,))[0]
+
+
+def _commit_parent_batch(
+    repo_root: os.PathLike[str] | str,
+    commit_shas: Sequence[str],
+    *,
+    timeout_s: float,
+) -> tuple[tuple[str, ...], ...]:
+    return _parse_commit_parent_batch(
+        _run(
+            repo_root,
+            "commit-parents",
+            extra=commit_shas,
+            timeout_s=timeout_s,
+        ).stdout,
+        commit_shas,
+    )
 
 
 def _commit_parents(
@@ -656,27 +687,19 @@ def _commit_parents(
     *,
     timeout_s: float,
 ) -> tuple[str, ...]:
-    return _parse_commit_parents(
-        _run(
-            repo_root,
-            "commit-parents",
-            extra=(commit_sha,),
-            timeout_s=timeout_s,
-        ).stdout,
-        commit_sha,
-    )
+    return _commit_parent_batch(
+        repo_root, (commit_sha,), timeout_s=timeout_s,
+    )[0]
 
 
 def _landed_commit_diff(
     repo_root: os.PathLike[str] | str,
     commit_sha: str,
+    parents: Sequence[str],
     *,
     trusted_main_cutoff_sha: Optional[str],
     deadline_ns: int,
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    parents = _commit_parents(
-        repo_root, commit_sha, timeout_s=_left(deadline_ns),
-    )
     if len(parents) < 2:
         return _commit_diff(
             repo_root, commit_sha, timeout_s=_left(deadline_ns),
@@ -829,10 +852,14 @@ def verify_declared_fold_commit(
     if commits[-1] != tip:
         return _fold_fail("wave-tip")
 
-    for commit in commits:
+    parent_rows = _commit_parent_batch(
+        repo_root, commits, timeout_s=_left(deadline_ns),
+    )
+    for commit, parents in zip(commits, parent_rows):
         for status, paths in _landed_commit_diff(
             repo_root,
             commit,
+            parents,
             trusted_main_cutoff_sha=cutoff,
             deadline_ns=deadline_ns,
         ):

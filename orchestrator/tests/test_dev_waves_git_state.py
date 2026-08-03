@@ -19,6 +19,7 @@ from tools.dev_waves.git_state import (
     _commit_parents,
     _diff_entries,
     _landed_fold_output_path,
+    _parse_commit_parent_batch,
     _parse_commit_parents,
     create_exact_worktree,
     create_isolated_checkout,
@@ -106,6 +107,12 @@ def test_landed_diff_commands_pin_merge_and_root_contract():
             "--find-renames", "--find-copies", "--find-copies-harder",
             "--break-rewrites",
         )) for token in command)
+
+
+def test_commit_parent_command_is_one_ordered_batch():
+    assert GIT_COMMANDS["commit-parents"] == (
+        "rev-list", "--parents", "--no-walk=unsorted",
+    )
 
 
 def test_identity_main_resolution_and_inherited_git_environment_are_ignored():
@@ -430,6 +437,110 @@ def test_landed_interval_allows_main_fold_merge_from_trusted_cutoff():
             landed_main_sha=merge_tip,
             landed_commits=landed,
             wave_tip=merge_tip,
+        )
+        assert result.ok, result
+
+
+def test_proper_ancestor_of_cutoff_is_the_unique_trusted_parent():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        divergence = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "switch", "-c", "wave")
+        _code_commit(repo)
+        _git(repo, "switch", "main")
+        assert _git(repo, "rev-parse", "HEAD") == divergence
+        trusted_parent = _fold_commit(repo, pending)
+        (repo / "cutoff.txt").write_text("cutoff\n", encoding="utf-8")
+        cutoff = _commit(repo, "advance trusted cutoff", "cutoff.txt")
+        _git(repo, "switch", "wave")
+        _git(repo, "merge", "--no-ff", "--no-edit", trusted_parent)
+        merge_tip = _git(repo, "rev-parse", "HEAD")
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert trusted_parent != cutoff
+        assert result.ok, result
+
+
+def test_zero_trusted_merge_scans_signature_visible_only_from_second_parent():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.parent.mkdir(parents=True, exist_ok=True)
+        folded.write_text("# folded\n", encoding="utf-8")
+        cutoff = _commit(repo, "seed folded receipt", "docs/spool/FOLDED.md")
+
+        _git(repo, "switch", "-c", "second-parent")
+        pending = _seed_pending(repo)
+        second_parent = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "switch", "main")
+        folded.write_text("# folded\nfirst parent\n", encoding="utf-8")
+        first_parent = _commit(repo, "prepare safe first parent", "docs/spool/FOLDED.md")
+        tree = _git(repo, "rev-parse", f"{first_parent}^{{tree}}")
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", first_parent,
+            "-p", second_parent,
+            "-m", "zero trusted merge",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+        assert not (repo / pending[0]).exists()
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_octopus_with_exactly_one_trusted_parent_is_accepted():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        divergence = _git(repo, "rev-parse", "HEAD")
+
+        _git(repo, "switch", "-c", "side-one")
+        (repo / "side-one.txt").write_text("one\n", encoding="utf-8")
+        side_one = _commit(repo, "side one", "side-one.txt")
+        _git(repo, "switch", "main")
+        _git(repo, "switch", "-c", "side-two")
+        assert _git(repo, "rev-parse", "HEAD") == divergence
+        (repo / "side-two.txt").write_text("two\n", encoding="utf-8")
+        side_two = _commit(repo, "side two", "side-two.txt")
+        _git(repo, "switch", "main")
+        cutoff = _fold_commit(repo, pending)
+        tree = _git(repo, "rev-parse", f"{cutoff}^{{tree}}")
+        octopus = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", cutoff,
+            "-p", side_one,
+            "-p", side_two,
+            "-m", "unique trusted octopus",
+        )
+        _git(repo, "reset", "--hard", octopus)
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=octopus,
+            landed_commits=(octopus,),
+            wave_tip=octopus,
         )
         assert result.ok, result
 
@@ -774,6 +885,26 @@ def test_new_git_output_parsers_fail_closed_on_malformed_or_missing_data():
             assert exc.code is ReasonCode.INVALID_RUN
         else:
             raise AssertionError("missing commit object was accepted")
+
+
+def test_commit_parent_batch_parser_rejects_count_order_unknown_and_encoding():
+    commit = "a" * 40
+    second = "b" * 40
+    unknown = "c" * 40
+    malformed_parent_batches = (
+        f"{commit}\n".encode("ascii"),
+        f"{commit}\n{second}\n{unknown}\n".encode("ascii"),
+        f"{second}\n{commit}\n".encode("ascii"),
+        f"{commit}\n{unknown}\n".encode("ascii"),
+        f"{commit}\n{second}\n".encode("ascii") + b"\xff",
+    )
+    for raw in malformed_parent_batches:
+        try:
+            _parse_commit_parent_batch(raw, (commit, second))
+        except DevWavesError as exc:
+            assert exc.code is ReasonCode.INVALID_RUN
+        else:
+            raise AssertionError("malformed commit parent batch was accepted")
 
 
 def test_landed_interval_allows_fragment_modification():
