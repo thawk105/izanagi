@@ -1,0 +1,8 @@
+host=bnode005 pbs_jobid=0:878402.nqsv start=2026-08-03T13:08:51+09:00
+head=e0b9073ade90dc59578ad30fa8c8ffbe312b9b4e
+interpreter=/bin/python3.10 (Python 3.10.12)
+nested_python3=/home/SFC/tanab/.claude/jobs/61a0e66d/tmp/wave-t328/shimbin/python3 (Python 3.10.12)
+pytest_rc=0
+duration_s=224
+end=2026-08-03T13:12:36+09:00
+DONE rc=0
