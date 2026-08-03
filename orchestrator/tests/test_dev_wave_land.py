@@ -1489,6 +1489,58 @@ class _FakeFoldModule:
         self._apply(repo, plan)
 
 
+def _land_main_fold_for_resync(repo: _Repo, winner: Path) -> str:
+    (repo.main / ".git" / "info" / "exclude").write_text(
+        ".codex/worktrees/\n.claude/worktrees/\n",
+        encoding="utf-8",
+    )
+    relative, _fragment, _content = _fake_pending_fragment(
+        repo, winner, wave_slug="resync-main",
+    )
+    winner_tip = _git(winner, "rev-parse", "HEAD")
+
+    def apply(repo_path: Path, _plan) -> None:
+        (repo_path / relative).unlink()
+        receipt = {
+            "allocations": {},
+            "authored": "2000-01-01",
+            "content_sha256": hashlib.sha256(_content.encode("utf-8")).hexdigest(),
+            "seq": 1,
+            "wave": "resync-main",
+        }
+        folded = repo_path / "docs/spool/FOLDED.md"
+        folded.write_text(
+            folded.read_text(encoding="utf-8")
+            + "- "
+            + json.dumps(
+                receipt,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    module = _FakeFoldModule(
+        _FakeFoldPlan(
+            relative,
+            targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+        ),
+        apply,
+    )
+    with (
+        _patched_land_attr("_load_spool_fold", lambda: module),
+        _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+    ):
+        result = _land(repo.request(winner, tip=winner_tip))
+    assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+    assert result.fold_commit_sha == result.main_after
+    assert result.fold_commit_sha is not None
+    assert LAND._load_spool_fold().validate_spool_layout(repo.main) == []
+    return result.fold_commit_sha
+
+
 def test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit() -> None:
     """P03: fragment 0 件では既存 landed/already-landed を bit 単位で固定する。"""
 
@@ -2533,6 +2585,70 @@ def test_same_base_two_wave_winner_stale_resync_loser_land_e2e() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == resynced_tip
         assert _snapshot(foreign_untracked) == foreign_untracked_before
         assert {path: _snapshot(path) for path in watched_before} == watched_before
+
+
+def test_main_fold_resync_reaches_no_fold_and_declared_fold_consumers() -> None:
+    """main-side fold を merge した wave が land の両 cutoff 配線を通る。"""
+
+    for declared_fold in (False, True):
+        with _repo(waves=(("codex", "winner"), ("claude", "loser"))) as repo:
+            winner = repo.waves["winner"]
+            loser = repo.waves["loser"]
+            main_fold = _land_main_fold_for_resync(repo, winner)
+
+            if declared_fold:
+                relative, _fragment, _content = _fake_pending_fragment(
+                    repo, loser, wave_slug="resync-loser",
+                )
+            else:
+                repo.commit(loser, "loser.txt", "loser\n")
+                relative = None
+            _git(loser, "merge", "--no-edit", "main")
+            resynced_tip = _git(loser, "rev-parse", "HEAD")
+            audited = repo.audited(main_fold, resynced_tip, loser)
+            assert main_fold not in audited
+            assert audited[-1] == resynced_tip
+
+            if relative is None:
+                result = _land(
+                    repo.request(
+                        loser,
+                        base=main_fold,
+                        tip=resynced_tip,
+                        audited=audited,
+                    )
+                )
+            else:
+                def apply(repo_path: Path, _plan) -> None:
+                    (repo_path / relative).unlink()
+                    folded = repo_path / "docs/spool/FOLDED.md"
+                    folded.write_text(
+                        folded.read_text(encoding="utf-8") + "- loser fold\n",
+                        encoding="utf-8",
+                    )
+
+                module = _FakeFoldModule(
+                    _FakeFoldPlan(
+                        relative,
+                        targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+                    ),
+                    apply,
+                )
+                with (
+                    _patched_land_attr("_load_spool_fold", lambda: module),
+                    _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+                ):
+                    result = _land(
+                        repo.request(
+                            loser,
+                            base=main_fold,
+                            tip=resynced_tip,
+                            audited=audited,
+                        )
+                    )
+
+            assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+            assert _git(repo.main, "merge-base", "--is-ancestor", main_fold, "HEAD") == ""
 
 
 def test_cli_emits_json_and_uses_only_sha_target_ff() -> None:

@@ -53,12 +53,14 @@ title: [T-338] RF 統計設計の裁定パッケージを起草 — floor 単独
   `docs/dev-wave/**` の byte 予算に阻まれ、既裁定 ([T-359] = 運用の穴は [T-328] の外出し枠へ相乗り、
   予算値の独立審査はしない) に従って [T-341] へ足した。**予算上限を上げる変更は提案していない。**
   事故の記録は新規 F を採らず F77 の再発として追記した (同型再発は既存 F へ顕在化させる規則)
-- **段 9 の land が構造的に拒否され、本 wave は local main へ着地していない。**
-  `tools/dev_wave_land.py` が `status="fold-failed"` /
-  `reason="declared fold shape rejected: landed-fold-owned-path"` を返し、main は 1 byte も動かなかった。
-  原因は local main を取り込んだ merge commit だけが判定に触れたことで、詳細と 3 つの是正候補は
-  {{F:land-rejects-wave-side-merge-of-folded-main}}。**rebase / force で迂回していない** (規律どおり)。
-  branch `worktree-dev-wave-t338-rf-statdesign` に全成果物が commit 済みで残っている
+- **段 9 の land が 1 回拒否され、最新 main の取り込みで解けた。** 1 回目は
+  `status="fold-failed"` / `reason="declared fold shape rejected: landed-fold-owned-path"` で、
+  local main を取り込んだ merge commit だけが判定に触れた (main は 1 byte も動かず fail-closed)。
+  親はこれを新規の構造欠陥と判断して F を起票し「wave 側だけでは解けない」と書いたが、
+  **これは誤りだった** — 同じ穴は並行 wave が既に D132 で裁定・修正しており、その修正が
+  本 wave の base より後に main へ入っていた。すなわち親は**古い版の land ツールで判定していた**
+  (land は wave worktree の checkout 版で走る)。**起票した F は重複なので取り下げた。**
+  最新 main を取り込んで再走し、規律どおり rebase / force は一切使っていない
 - 設計判断は {{D:rf-statdesign-package}}。一次資料 =
   `output/insights/2026-08-03_t338-rf-statistical-design/` (`package.md` が成果物本体)
 

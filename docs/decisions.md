@@ -6410,3 +6410,76 @@ leg 1 のそれは **login node** の `/usr/bin/python3.10` である。実際�
 
 **理由:** `DW-S04` の「scope 外の real 所見は実装せず、設計択一・所見・推奨案を裁定パッケージで
 ユーザーへ返す」に従う。D117 決定 (4) が第 3 task を明示的に裁定へ返している。
+
+## D132. landed 区間の fold 署名は「trusted main cutoff の外側で加えた変更」に対して判定する (2026-08-03)
+
+**決定**: `verify_declared_fold_commit` の fold 署名判定は、各 landed commit が
+**trusted main cutoff の外側で加えた変更**を対象にする。parent が 2 以上の commit では、
+tested main cutoff の祖先である parent がちょうど 1 つのときだけ、その parent との差分を
+判定にかける。0 個または 2 個以上のとき、および cutoff が渡されない呼び出し経路では、
+全 parent との差分を判定にかける (fail-closed)。署名 2 条件
+(`M docs/spool/FOLDED.md` / spool fragment の削除・rename source) は変更しない。
+
+**理由**: ff-only が main へ適用するのは「wave が trusted main の上に加えたもの」だけである。
+それ以前の実装は `git diff-tree -m` で親ごとの差分を見ていたため、`DW-O23` が指示する
+「land 前の wave 側 main 取り込み merge」が、wave 側の親との差分に main が既に取り込み済みの
+fold 署名を必ず含み、常に拒否された。fold は 2026-08-02 以降すべての land が `FOLDED.md` を
+変更するので、main が動いた後に取り込みが要る wave は正規手段では land できなかった。
+
+**採らなかった案**:
+- **累積差分** (`base..tip` の端点比較): hidden fold の後に protected tree を base へ戻す履歴を
+  見逃す。fold の効果が消えても canonical 台帳の偽造内容だけが残る経路がある。
+- **merge の署名を三 tree 等式で免除**: 免除が path 単位なので、protected 2 path を main 親から、
+  canonical 台帳を wave 親から採る merge が通る。fold は複数 path を同時に動かす transaction
+  であり、path を独立に証明しても transaction の由来は証明できない。加えて
+  commit × parent × key × 候補で git subprocess が増え、共有 deadline で正規履歴を
+  timeout 拒否しうる。
+
+**この決定が保証しないこと**: 署名 2 条件は lock 外 fold の**十分条件ではない**。
+canonical 台帳だけを書き換える履歴、`T` (gitlink) を経由する復元、同一 commit 内の A→D は
+判定を通る。これは本決定の前から存在する性質で、本決定は受理集合をこの方向へ広げも狭めもしない。
+閉じるには fold transaction の意味検証が要り、「legacy wave が canonical を直接編集する」
+現行契約と衝突するため、独立の裁定を要する。
+
+**射程**: land CLI 経路のみ。supervised runner (checker / daemon) は receipt の初期
+`base_main_sha` に束縛されており cutoff の意味が違うため、正規 main merge を拒否したままである。
+
+## D133. dispatch の実行監視予算は「rc=0 の RUN 初観測」から数える (2026-08-03)
+
+**決定:** `tools/pegasus/dispatch_compute.py` の監視 deadline を二段階にする。
+
+1. **pre-RUN**: 従来どおり `submitted_at` 起点で、実効上界は
+   `min(submitted + queue_wait_timeout_s, submitted + walltime_s + overall_grace_s)`。
+2. **post-RUN**: `qstat` が rc=0 で当該 request を含み、パーサが最初に `RUN` と判定した観測時刻から
+   `walltime_s + overall_grace_s` へ**一度だけ**張り直す。
+
+張り直しの latch は `run_seen` とは別に持つ。`run_seen` / `queue_wait_s` /
+`queue_wait_observed` / `state_history` / receipt schema の意味は変えない。
+
+**射程 (この決定が保証しないこと):**
+
+- 起点は scheduler 上の実 RUN 開始ではなく**親の初観測**である。両者の差 (poll 粒度、qstat 所要、
+  `pre-running` を RUN と分類すること) は残る。
+- rc≠0 の stdout に `RUN` が含まれるだけでは張り直さない。後続の rc=0 の RUN で回復する。
+- RUN を観測できないまま実際は走行中のジョブ (UNKNOWN、未認識状態、poll での見逃し) は保護しない。
+- **infra error 時に走行中ジョブへ qdel を打つ経路そのものは変えていない。**
+  したがって本決定は D131 の共通前提 6 (「`total_deadline` の修正**と** active job に対する
+  qdel の禁止」) の前半だけを満たす。
+
+**理由:**
+
+- 順番待ちには `queue_wait_timeout_s` という独立した上界が既にある。同じ待ち時間を実行監視予算からも
+  差し引くのは二重計上であり、超過時に `_best_effort_qdel` が走行中ジョブを殺していた。
+- 早期 qdel の成立条件は概ね `Q < W+G < Q+D` (Q=順番待ち、W=walltime、G=grace、D=実行時間)。
+  既定 (W=30 分、G=300 秒、queue 上限 900 秒) の受入全走はこの条件を満たしうる実経路である。
+- 張り直しを rc=0 に束縛するのは、信頼できない観測で予算を延ばさない fail-closed 側の選択である。
+  ただし latch を `run_seen` と共有すると偽 RUN が回復経路を潰すため、latch を分離する。
+
+**却下した選択肢:**
+
+- **pre-RUN 段を `queue_wait_timeout_s` 単独へ委ねる** — 未知状態のまま滞留するジョブの上界が
+  queue 上限だけになり、既存の受理集合 (未知状態の overall 上界) を変える。
+- **任意の `RUN` 文字列で張り直す** — rc≠0 の malformed 出力や schema drift でも予算が延び、
+  監視が実質無制限へ倒れうる。
+- **UNKNOWN を RUN 扱いして保護する** — scheduler の schema drift と malformed 出力を長時間受理する
+  ことになり、正しさ防壁を緩める方向である。別途、権威ある証拠での RUN 確認として設計する。
