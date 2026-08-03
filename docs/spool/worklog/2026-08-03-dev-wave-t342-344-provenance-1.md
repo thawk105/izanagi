@@ -52,6 +52,10 @@ title: [T-342/T-343/T-344] build provenance を source 由来 capability へ移�
   `python3 tools/check_ai_provenance.py` は 809 件で違反なし。
 - 変異は 12 件を事前登録した。段 6 レビュー 2 が M3/M7/M9/M10/M11 を「別例外・別検査・広すぎる
   mutation surface により帰属しない」と判定したため、5 件を coherent な変異へ再照準した。
+- **段 8 の自己改善は 2 件を実測したが、予算に収まらないため裁定へ返した。** 文面を書いて
+  `check_docs.py` にかけたところ `docs/dev-wave/**` の合計が hard ceiling を 368 bytes 超えた。
+  予算引き上げは通常の自己改善に含めず、節の削除はユーザー裁定に限る規律に従い、編集を戻した。
+  内容は {{T:dev-wave-patch-baseline-and-runner-host}} に記録した。
 
 ## 次の一手差分
 
@@ -101,6 +105,13 @@ title: [T-342/T-343/T-344] build provenance を source 由来 capability へ移�
 - {{T:immutable-source-snapshot}} **P3・新規**: evidence 発行と build の間に working tree が動いて
   戻る ABA / 混在 snapshot が閉じていない。本 wave は evidence と build の source root を同一に
   束縛して記録するに留めた。
+- {{T:dev-wave-patch-baseline-and-runner-host}} **P3・新規・裁定待ち**: dev-wave reference へ足したい
+  実測済みの是正 2 件が、`docs/dev-wave/**` の合計予算に 368 bytes 収まらない。
+  (a) `DW-S05-A` の「所有パス限定 patch」は、前段を適用済みの tree へ HEAD 差分を当てると
+  二重適用で競合する。段が積み上がったら所有ファイルの直接反映にすべきである (本 wave で実測)。
+  (b) `DW-S05-C` に計測機と実行ホストが分かれる環境の指示が無く、親が毎回 prompt で補っている。
+  子は計測機へ dispatch できない。**予算引き上げは提案しない。** 択は
+  (i) 既存節の意味等価な縮約で捻出、(ii) 陳腐化節の削除 (ユーザー裁定が要る)、(iii) 見送り。
 - {{T:no-build-attempt-canonical-form}} **P2・新規**: 成功する no-build 試行を表す正規形が無い。
   `guided.py` は receiptless な `BUILD_START → VERIFY_DONE → BENCH_DONE → COMMIT` を書くが、
   共有 topology が受理するのは receiptful な `BUILD_START → BUILD_DONE → COMMIT` と
