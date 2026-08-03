@@ -50,3 +50,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:admission-issuer-trust-boundary":"[T-378]","T:dev-wave-patch-baseline-and-runner-host":"[T-386]","T:historical-artifact-reclassification":"[T-381]","T:immutable-source-snapshot":"[T-384]","T:materializer-closure-shell":"[T-379]","T:mutation-reaim-m02-m08-m11":"[T-385]","T:no-build-attempt-canonical-form":"[T-387]","T:s8b-refreeze-receipt-chain":"[T-383]","T:t126-control-remeasurement":"[T-382]","T:transitive-provenance-freeze":"[T-380]"},"authored":"2026-08-03","content_sha256":"d3d35e380a4f9b1f4cf17e8cebc6fae51a87cc6f549c1eff7245579da91d9df1","seq":1,"wave":"dev-wave-t342-344-provenance"}
 - {"allocations":{"D:provenance-capability":"D136"},"authored":"2026-08-03","content_sha256":"5da4015117c0db8c9761b4572a6d4af679cf0351b1404b21c805cc4dafc3b3ce","seq":2,"wave":"dev-wave-t342-344-provenance"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"14e86826e564a356beb5aaee639ee3a8f421803abffea8fc7c296f48e3f4b2b5","seq":1,"wave":"dev-wave-t313-read-budget"}
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"6d5781e3f7bd01d54325233a29dd8ea7b613202a97b8ae5bba82c7583851a2e7","seq":2,"wave":"dev-wave-t313-read-budget"}
