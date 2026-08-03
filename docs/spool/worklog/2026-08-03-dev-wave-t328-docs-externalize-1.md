@@ -64,7 +64,7 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
 - [T-282] 全走前後の prefix 別 snapshot を実測し、repo 残留ゼロ・`/tmp` 残留は job 内に閉じることを
   確定した。恒久 tool は置かない (段 2 プランと段 3 両レンズが一致して過剰と判定)。
   再測手段は `output/insights/2026-08-03_t328-devwave-docs-externalize/t282-residue-measurement.md`
-  base: 91c81316372ffd93628ff67f30c06c395fe9b42b4b20a265dc44d913822e7284
+  base: 5952a6daf1308e481b7d8a7534ee571fc9e9ed499cc86f28e9a2a61eab3bca3f
 
 ### 更新
 
@@ -79,14 +79,14 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   (b) を採る場合でも、条件 dispatch の発火条件逐語検査・前置きの dispatch 到達性・節 ID の全族一意性・
   consumer 閉包 (`SKILL.md` / `docs/README.md` / 自己改善 routing / `LIVING_DOCS`)・
   failures の逆方向 pointer の是正がすべて scope に入る
-  base: 07b55613cbfab36e8d271e76eb80664f0ed0e9dc993f92027adc6f48a41e35ff
+  base: 35f99f4e06273849642c006fc0e959f41327f7ae771c6cfe8735e0ae5fc019f4
 - [T-264] **P3・(a) の stale 判定を撤回**: 段 1 brief が (a)「実装子 prompt に最初から
   『テスト実走は親』と書く」を `DW-O05` で充足済みと判定したのは誤りである。`DW-O05` の発火条件は
   「read-only codex に相談・レビューさせる直前」で、workspace-write の実装子には渡らない。
   (a) は未充足のまま残る。(c)「予算 gate 対象では変異を byte 中立に」は `DW-M01` の単一理由性で
   部分的に充足済みで、真に足りないのは `tools/mutation_harness.py` の byte 長検査という機械 gate。
   統合先の枠は [T-328] の裁定に依存する
-  base: a681e873f538b2068f049549acc2ee8822aeb79f00957ea5f87be0a6e7e6b671
+  base: ef835903f0d744bf1004a90b3e4f42d1ab4197e4c74458f7b47522422a05aa12
 
 ### 新規
 
