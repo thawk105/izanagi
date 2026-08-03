@@ -426,6 +426,114 @@ def test_n31_landed_interval_cannot_hide_an_earlier_fold():
         assert (not result.ok) and result.detail == "landed-fold-owned-path"
 
 
+def test_all_trusted_chain_accepts_main_fold_merge_without_wave_commit():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        older_parent = _git(repo, "rev-parse", "HEAD")
+        main_fold = _fold_commit(repo, pending)
+        tree = _git(repo, "rev-parse", f"{main_fold}^{{tree}}")
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", older_parent,
+            "-p", main_fold,
+            "-m", "catch up to folded main without wave commits",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+
+        assert _git(repo, "merge-base", older_parent, main_fold) == older_parent
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=main_fold,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert result.ok, result
+
+
+def test_all_trusted_chain_rejects_fragment_deleted_by_merge_resolution():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        older_parent = _git(repo, "rev-parse", "HEAD")
+        pending = _seed_pending(repo)
+        newer_parent = _git(repo, "rev-parse", "HEAD")
+        tree = _git(repo, "rev-parse", f"{older_parent}^{{tree}}")
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", older_parent,
+            "-p", newer_parent,
+            "-m", "delete trusted fragment in merge resolution",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+
+        assert not (repo / pending[0]).exists()
+        assert _git(repo, "merge-base", older_parent, newer_parent) == older_parent
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=newer_parent,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_all_trusted_incomparable_maxima_keep_all_parent_scan():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.parent.mkdir(parents=True, exist_ok=True)
+        folded.write_text("# folded\n", encoding="utf-8")
+        common = _commit(repo, "seed folded receipt", "docs/spool/FOLDED.md")
+
+        _git(repo, "switch", "-c", "trusted-one")
+        folded.write_text("# folded\none\n", encoding="utf-8")
+        first_parent = _commit(repo, "first trusted parent", "docs/spool/FOLDED.md")
+        _git(repo, "switch", "main")
+        _git(repo, "switch", "-c", "trusted-two", common)
+        folded.write_text("# folded\ntwo\n", encoding="utf-8")
+        second_parent = _commit(repo, "second trusted parent", "docs/spool/FOLDED.md")
+
+        first_tree = _git(repo, "rev-parse", f"{first_parent}^{{tree}}")
+        cutoff = _git(
+            repo,
+            "commit-tree",
+            first_tree,
+            "-p", first_parent,
+            "-p", second_parent,
+            "-m", "trusted cutoff joins both parents",
+        )
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            first_tree,
+            "-p", first_parent,
+            "-p", second_parent,
+            "-m", "ambiguous maximal trusted parents",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+
+        assert _git(repo, "merge-base", first_parent, second_parent) == common
+        assert _git(repo, "merge-base", first_parent, cutoff) == first_parent
+        assert _git(repo, "merge-base", second_parent, cutoff) == second_parent
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
 def test_landed_interval_allows_main_fold_merge_from_trusted_cutoff():
     with _fresh() as tmp:
         repo = _repo(Path(tmp))

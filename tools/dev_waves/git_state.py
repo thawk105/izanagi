@@ -707,16 +707,37 @@ def _landed_commit_diff(
 
     diff_parents = parents
     if trusted_main_cutoff_sha is not None:
+        ancestor_cache: dict[tuple[str, str], bool] = {}
+
+        def is_ancestor(before: str, after: str) -> bool:
+            key = (before, after)
+            if key not in ancestor_cache:
+                ancestor_cache[key] = _is_ancestor(
+                    repo_root,
+                    before,
+                    after,
+                    timeout_s=_left(deadline_ns),
+                )
+            return ancestor_cache[key]
+
         trusted = tuple(
             parent for parent in parents
-            if _is_ancestor(
-                repo_root,
-                parent,
-                trusted_main_cutoff_sha,
-                timeout_s=_left(deadline_ns),
-            )
+            if is_ancestor(parent, trusted_main_cutoff_sha)
         )
-        if len(trusted) == 1:
+        if len(trusted) == len(parents):
+            # A finite parent poset has one maximal element exactly when one
+            # candidate is a descendant of every other element.  Find and
+            # verify that candidate in two linear passes.
+            maximal = trusted[0]
+            for parent in trusted[1:]:
+                if is_ancestor(maximal, parent):
+                    maximal = parent
+            if all(
+                parent == maximal or is_ancestor(parent, maximal)
+                for parent in trusted
+            ):
+                diff_parents = (maximal,)
+        elif len(trusted) == 1:
             diff_parents = trusted
 
     entries = []
