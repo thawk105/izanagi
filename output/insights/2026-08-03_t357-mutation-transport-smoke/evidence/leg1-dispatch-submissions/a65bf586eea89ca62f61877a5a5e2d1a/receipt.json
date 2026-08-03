@@ -1,0 +1,405 @@
+{
+  "f49_compute_marker": {
+    "hostname": "bnode001",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree/output/pegasus-dispatch/a65bf586eea89ca62f61877a5a5e2d1a/compute-visible.json",
+    "pbs_jobid": "0:878501.nqsv",
+    "present": true,
+    "valid": true
+  },
+  "f49_immediate": {
+    "qstat_succeeded": true,
+    "qstat_visible": true
+  },
+  "immediate_qstat": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request ID: 878501.nqsv\n    Request Name = izdw-a65bf586ee\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Queued\n    Previous State          = (none)\n    State Transition Time   = Mon Aug  3 15:03:17 2026\n    State Transition Reason = SUBMIT\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree/output/pegasus-dispatch/a65bf586eea89ca62f61877a5a5e2d1a/izdw-a65bf586ee.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree/output/pegasus-dispatch/a65bf586eea89ca62f61877a5a5e2d1a/izdw-a65bf586ee.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Mon Aug  3 15:03:17 2026\n    Entered Queue Time   = Mon Aug  3 15:03:17 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    bnode001(1)\n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 1800S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     1800S Warn:     1800S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+  },
+  "immediate_qstat_attempts": [
+    {
+      "attempt": 1,
+      "classification": "success-request-visible",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Request ID: 878501.nqsv\n    Request Name = izdw-a65bf586ee\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Queued\n    Previous State          = (none)\n    State Transition Time   = Mon Aug  3 15:03:17 2026\n    State Transition Reason = SUBMIT\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree/output/pegasus-dispatch/a65bf586eea89ca62f61877a5a5e2d1a/izdw-a65bf586ee.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree/output/pegasus-dispatch/a65bf586eea89ca62f61877a5a5e2d1a/izdw-a65bf586ee.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Mon Aug  3 15:03:17 2026\n    Entered Queue Time   = Mon Aug  3 15:03:17 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    bnode001(1)\n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 1800S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     1800S Warn:     1800S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+    }
+  ],
+  "normalized_request_id": "878501.nqsv",
+  "outcome": {
+    "accounting_verified": true,
+    "kind": "child",
+    "rc": 1
+  },
+  "preflight": {
+    "qstat_Q": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "[EXECUTION QUEUE] Batch Server Host: nqsv\n=========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD HOL SUS MIG STG\n--------------- --- ---- ------- ---- ----------------------------------------------------\ngen_L             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_M             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_S             1  149 ENA ACT   30  139   0   0 124   0  12   0   0   3   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------------------\n <TOTAL>                               139   0   0 124   0  12   0   0   3   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------------------\n\n[INTERACTIVE QUEUE] Batch Server Host: nqsv\n===========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD SUS\n--------------- --- ---- ------- ---- ----------------------------------------\ndebug             1  149 ENA ACT   60    1   0   0   0   0   1   0   0   0   0 \ninteractive       1  149 ENA ACT   20    0   0   0   0   0   0   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------\n <TOTAL>                                 1   0   0   0   0   1   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------\n\nRouting Queue does not exist on nqsv.\n\n[NETWORK QUEUE] Batch Server Host: nqsv\n=======================================\nQueueName       StagingMachine       ENA STS PRI RLM  TOT WAI QUE RUN\n--------------- -------------------- --------------- ----------------\nDefaultNetQue    (any)               ENA ACT   0   4    0   0   0   0 \n--------------- -------------------- --------------- ----------------\n <TOTAL>                                        1000    0   0   0   0\n--------------- -------------------- --------------- ----------------\n\n"
+    }
+  },
+  "qdel": {
+    "attempted": false
+  },
+  "qsub": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request 878501.nqsv submitted to queue: gen_S.\n"
+  },
+  "queue_wait_observed": true,
+  "queue_wait_s": 5.225748582975939,
+  "request": {
+    "args": [
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "job_name": "izdw-a65bf586ee",
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S",
+    "task": "tests",
+    "walltime": "00:30:00"
+  },
+  "request_id": "878501.nqsv",
+  "result": {
+    "child_rc": 1,
+    "error": null,
+    "hostname": "bnode001",
+    "interpreter": "/usr/bin/python3.10",
+    "pbs_jobid": "0:878501.nqsv",
+    "schema_version": "pegasus-dispatch-result/v1",
+    "stage": "child"
+  },
+  "scheduler_logs": {
+    "accounting_present": true,
+    "stderr": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree/output/pegasus-dispatch/a65bf586eea89ca62f61877a5a5e2d1a/izdw-a65bf586ee.e878501",
+      "size": 547,
+      "tail": "\n============================================================\nRequest ID:             878501.nqsv\nRequest Name:           izdw-a65bf586ee\nQueue:                  gen_S@nqsv\nNumber of Jobs:         1\nUser Name:              tanab\nGroup Name:             SFC\nCreated Request Time:   Mon Aug  3 15:03:17 2026\nStarted Request Time:   Mon Aug  3 15:03:25 2026\nEnded Request Time:     Mon Aug  3 15:07:32 2026\nResources Information:\n  Elapse:               252S\n  Remaining Elapse:     1548S\n============================================================\n"
+    },
+    "stdout": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree/output/pegasus-dispatch/a65bf586eea89ca62f61877a5a5e2d1a/izdw-a65bf586ee.o878501",
+      "size": 7499,
+      "tail": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [5282 items]\n\n.............s.................................ssss...............s..... [  1%]\n........................................................................ [  2%]\n........................................................................ [  4%]\n........................................................................ [  5%]\n........................................................................ [  6%]\n.............s.....s.s........s......................................... [  8%]\n........................................................................ [  9%]\n........................................................................ [ 10%]\n........................................................................ [ 12%]\n........................................................................ [ 13%]\n........................................................................ [ 14%]\n........................................................................ [ 16%]\n........................................................................ [ 17%]\n........................................................................ [ 19%]\n........................................................................ [ 20%]\n.....................................................s.s.s.............. [ 21%]\n..........s............................................................. [ 23%]\n........................................................................ [ 24%]\n........................................................................ [ 25%]\n........................................................................ [ 27%]\n........................................................................ [ 28%]\n........................................................................ [ 29%]\n........................................................................ [ 31%]\n........................................................................ [ 32%]\n........................................................................ [ 34%]\n........................................................................ [ 35%]\n........................................................................ [ 36%]\n........................................................................ [ 38%]\n........................................................................ [ 39%]\n........................................................................ [ 40%]\n........................................................................ [ 42%]\n........................................................................ [ 43%]\n........................................................................ [ 44%]\n........................................................................ [ 46%]\n........................................................................ [ 47%]\n......................s................................................. [ 49%]\n........................................................................ [ 50%]\n........................................................................ [ 51%]\n........................................................................ [ 53%]\n........................................................................ [ 54%]\n........................................................................ [ 55%]\n........................................................................ [ 57%]\n........................................................................ [ 58%]\n......................................ss................................ [ 59%]\n........................................................................ [ 61%]\n........................................................................ [ 62%]\n........................................................................ [ 64%]\n........................................................................ [ 65%]\n........................s............................................... [ 66%]\n........................................................................ [ 68%]\n........................................................................ [ 69%]\n........................................................................ [ 70%]\n........................................................................ [ 72%]\n........................................................................ [ 73%]\n........................................................................ [ 74%]\n........................................................................ [ 76%]\n........................................................................ [ 77%]\n........................................................................ [ 79%]\n........................................................................ [ 80%]\n........................................................................ [ 81%]\n........................................................................ [ 83%]\n........................................................................ [ 84%]\n..................................F..................................... [ 85%]\n........................................................................ [ 87%]\n........................................................................ [ 88%]\n........................................................................ [ 89%]\n........................................................................ [ 91%]\n........................................................................ [ 92%]\n........................................................................ [ 94%]\n........................................................................ [ 95%]\n........................................................................ [ 96%]\n........................................................................ [ 98%]\n..s..................................................................... [ 99%]\n..........................                                               [100%]\n=================================== FAILURES ===================================\n_______________ test_n03_duplicate_symbol_definition_is_rejected _______________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_n03_duplicate_symbol_defi0')\n\n    def test_n03_duplicate_symbol_definition_is_rejected(tmp_path: Path) -> None:\n        \"\"\"N03: 同一 wave/namespace/slug の重複定義を last-wins にしない。\"\"\"\n    \n        repo = _repo(tmp_path)\n        _fragment(repo, \"decisions\", \"## {{D:same}}. first\\n\", seq=1)\n        _fragment(repo, \"decisions\", \"## {{D:same}}. second\\n\", seq=2)\n        codes = [issue.code for issue in spool_fold.validate_spool_tree(repo)]\n>       assert codes == [\"symbol-duplicate\"]\nE       AssertionError: assert [] == ['symbol-duplicate']\nE         \nE         Right contains one more item: 'symbol-duplicate'\nE         Use -v to get more diff\n\norchestrator/tests/test_spool_fold.py:395: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_spool_fold.py::test_n03_duplicate_symbol_definition_is_rejected\n============ 1 failed, 5262 passed, 19 skipped in 246.36s (0:04:06) ============\n"
+    }
+  },
+  "schema_version": "pegasus-dispatch-receipt/v2",
+  "state_history": [
+    {
+      "elapsed_s": 1.250687128980644,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "QUE"
+    },
+    {
+      "elapsed_s": 6.3707575460430235,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 11.490618788986467,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 16.606584569090046,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 21.72255246306304,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 26.842479777056724,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 31.966435607057065,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 37.066855602082796,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 42.19036731706001,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 47.310289932996966,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 52.43471077806316,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 57.56252673000563,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 62.67457710404415,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 67.78652880806476,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 72.90654981508851,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 78.03057338704821,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 83.15469564008527,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 88.2745398900006,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 93.39473933307454,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 98.49853346403688,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 103.60640307399444,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 108.72650017298292,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 113.85054196603596,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 118.97058197006118,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 124.08671780803706,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 129.20633707998786,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 134.3264155969955,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 139.45050469308626,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 144.57455890998244,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 149.69852344703395,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 154.81852430908475,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 159.94251938606612,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 165.06664145702962,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 170.17076106800232,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 175.29475572600495,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 180.406537731993,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 185.52647710801102,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 190.65480140107684,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 195.77475376601797,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 200.89436955901328,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 206.00243742007297,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 211.12260409607552,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 216.2426476930268,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 221.35454253701027,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 226.47456939902622,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 231.57092987501528,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 236.69300915906206,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 241.81450867303647,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 246.93865560309496,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 252.05861738405656,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 257.174854871002,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 262.2983785860706,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "END"
+    }
+  ],
+  "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree/output/pegasus-dispatch/a65bf586eea89ca62f61877a5a5e2d1a",
+  "terminal_reason": "scheduler-end-state"
+}
