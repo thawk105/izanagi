@@ -336,6 +336,7 @@ def _base_command(
     job_id: str = "job-a",
     wave_id: str = "wave-a",
     sandbox: str = "read-only",
+    reasoning: str = "high",
     max_attempts: int = 1,
     max_wall: str = "3",
     max_calls: int = 100,
@@ -378,7 +379,7 @@ def _base_command(
         "--model",
         "gpt-5.6-sol",
         "--reasoning",
-        "high",
+        reasoning,
         "--max-wall-clock-s",
         max_wall,
         "--max-model-calls",
@@ -518,6 +519,55 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     assert len(manifest["sessions"]) == 1
     for pid in _leader_pids(paths):
         _assert_pid_gone(pid)
+
+
+def test_unknown_reasoning_is_rejected_before_child_launch(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        reasoning="none",
+    )
+
+    completed = subprocess.run(
+        command,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 2
+    assert "invalid choice" in completed.stderr
+    assert "--reasoning" in completed.stderr
+    assert not paths["receipt"].exists()
+    assert not paths["manifest"].exists()
+    assert not paths["pid_dir"].exists()
+    assert not paths["counter"].exists()
+    assert not paths["artifact"].exists()
+    assert not paths["output"].exists()
+    assert not paths["codex_home"].exists()
+
+
+@pytest.mark.parametrize(
+    "reasoning",
+    ("low", "medium", "high", "xhigh", "max"),
+)
+def test_all_repo_policy_reasoning_values_are_accepted(
+    tmp_path: Path,
+    reasoning: str,
+) -> None:
+    completed, receipt, _paths = _run_case(
+        tmp_path,
+        "normal",
+        reasoning=reasoning,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert receipt is not None
+    assert receipt["reasoning"] == reasoning
 
 
 def test_limit_stop_is_never_accepted(tmp_path: Path) -> None:
