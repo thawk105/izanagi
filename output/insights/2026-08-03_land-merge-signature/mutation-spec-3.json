@@ -1,0 +1,72 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "            maximal = trusted[0]\n            for parent in trusted[1:]:\n                if is_ancestor(maximal, parent):\n                    maximal = parent",
+          "new": "            maximal = trusted[0]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_all_trusted_chain_rejects_fragment_deleted_by_merge_resolution"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "            if all(\n                parent == maximal or is_ancestor(parent, maximal)\n                for parent in trusted\n            ):\n                diff_parents = (maximal,)",
+          "new": "            if True:\n                diff_parents = (maximal,)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_all_trusted_incomparable_maxima_keep_all_parent_scan"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        if len(trusted) == len(parents):",
+          "new": "        if len(trusted) >= 1:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_octopus_with_multiple_trusted_parents_rejects_signature_visible_only_from_untrusted_parent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        if len(trusted) == len(parents):",
+          "new": "        if False and len(trusted) == len(parents):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_all_trusted_chain_accepts_main_fold_merge_without_wave_commit"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
