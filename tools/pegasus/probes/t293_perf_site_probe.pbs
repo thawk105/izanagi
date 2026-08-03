@@ -60,9 +60,28 @@ MARKER_EPOCH=$(date +%s) || exit 2
   } > "$OUT/marker"
 ) || exit 2
 
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+PY=""
+for candidate in python3 python3.10 python3.11 python3.12; do
+  resolved=$(command -v -- "$candidate" 2>/dev/null || true)
+  [[ -n "$resolved" ]] || continue
+  if "$resolved" -I -S -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3,10) else 1)' \
+      >/dev/null 2>&1; then
+    PY=$(realpath -e -- "$resolved")
+    break
+  fi
+done
+[[ -n "$PY" ]] || exit 2
+
 (
   set -o noclobber
-  python3 -I -B "$REAL_WORKDIR/tools/pegasus/probes/t293_perf_site_probe.py" \
+  printf '%s\n' "$PY" > "$OUT/interpreter"
+) || exit 2
+
+(
+  set -o noclobber
+  "$PY" -I -B "$REAL_WORKDIR/tools/pegasus/probes/t293_perf_site_probe.py" \
     --repo-root "$REAL_WORKDIR" \
     --output "$OUT/probe.json" \
     --expect-policy-sha256 "$EXPECT_POLICY_SHA256" \
