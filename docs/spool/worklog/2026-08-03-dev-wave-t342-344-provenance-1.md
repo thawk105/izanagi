@@ -52,6 +52,14 @@ title: [T-342/T-343/T-344] build provenance を source 由来 capability へ移�
   `python3 tools/check_ai_provenance.py` は 809 件で違反なし。
 - 変異は 12 件を事前登録した。段 6 レビュー 2 が M3/M7/M9/M10/M11 を「別例外・別検査・広すぎる
   mutation surface により帰属しない」と判定したため、5 件を coherent な変異へ再照準した。
+- **変異本走 = 計算ノードで registered 12 / completed 12 / KILLED 7 / MISMATCH 5 / SURVIVED 0 /
+  TIMEOUT 0** (baseline PASSED)。MISMATCH 5 件は親が裁定した — M01 と M09 は登録の node 集合が
+  過大・過少だっただけで単一理由の real kill、M02 と M08 は殺せているが無効化した不変条件が
+  suite 全体に load-bearing で**帰属不成立**、M11 は登録 node に加えて説明できない 2 node が
+  赤くなったため `DW-O18` に従い帰属を保留した。再照準と追試は計算ノードの全走を要するため
+  後続へ送り、初回結果は erratum 付きで凍結した (`DW-M02`)。
+  **M10 が exact 一致で殺されたことが T-344 の中核の実測証拠**である — overlay の deny を無効化すると、
+  実 3 campaign を使う 6 つの consumer 入口が同時に赤くなる。
 - **段 8 の自己改善は 2 件を実測したが、予算に収まらないため裁定へ返した。** 文面を書いて
   `check_docs.py` にかけたところ `docs/dev-wave/**` の合計が hard ceiling を 368 bytes 超えた。
   予算引き上げは通常の自己改善に含めず、節の削除はユーザー裁定に限る規律に従い、編集を戻した。
@@ -105,6 +113,11 @@ title: [T-342/T-343/T-344] build provenance を source 由来 capability へ移�
 - {{T:immutable-source-snapshot}} **P3・新規**: evidence 発行と build の間に working tree が動いて
   戻る ABA / 混在 snapshot が閉じていない。本 wave は evidence と build の source root を同一に
   束縛して記録するに留めた。
+- {{T:mutation-reaim-m02-m08-m11}} **P3・新規**: 変異 M02 / M08 の帰属不成立と M11 の未説明 2 node を
+  閉じる。M02 は repo 正本 pin の照合を外すと受理集合が開く方向でなく閉じる方向へ動くため、
+  gate の歯を示す証拠にならない。M08 は campaign preimage から policy を外すと全 campaign ID が
+  変わり identity pin が一斉に赤くなる。いずれも「無効化しても正常な隣接検査を保つ」変異へ
+  再照準する。M11 は `test_codex_worker_launch.py` の 2 node を単独再走して再現性を実測する。
 - {{T:dev-wave-patch-baseline-and-runner-host}} **P3・新規・裁定待ち**: dev-wave reference へ足したい
   実測済みの是正 2 件が、`docs/dev-wave/**` の合計予算に 368 bytes 収まらない。
   (a) `DW-S05-A` の「所有パス限定 patch」は、前段を適用済みの tree へ HEAD 差分を当てると
