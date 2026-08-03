@@ -230,14 +230,27 @@ def test_limit_signatures_have_no_numeric_defaults():
             assert parameter.default is inspect.Parameter.empty
 
 
-def _valid_argv():
+def _valid_argv(effort="high"):
     schema_text = schema.canonical_bytes({"type": "object"}).decode()
     return [
-        "-p", "--model=claude-test-20260721", "--effort=high",
+        "-p", "--model=claude-test-20260721", f"--effort={effort}",
         "--permission-mode=auto", "--output-format=json",
         f"--json-schema={schema_text}", "--max-budget-usd=1.25",
         "--add-dir=/repo/main", "/dev-wave --supervised-manifest /run/w001/manifest.json",
     ]
+
+
+def _valid_worker_spec(effort="high"):
+    receipt_schema_text = schema.canonical_bytes({"type": "object"}).decode()
+    receipt_digest = hashlib.sha256(receipt_schema_text.encode()).hexdigest()
+    return schema.WorkerSpec(
+        1, "run-1", 1, "/bin/fake", "a" * 64, "/runtime/w001",
+        (("HOME", "/isolated/home"), ("PATH", "/usr/bin")),
+        "claude-test-20260721", effort, "/repo/main", "/runtime/w001/manifest.json",
+        receipt_schema_text, receipt_digest, Decimal("1.25"), 10, 1000, 10000,
+        "/runtime/w001/stdout.json", "/runtime/w001/stderr.log",
+        "/runtime/w001/child-start.json", "/runtime/w001/worker-exit.json",
+    )
 
 
 def test_exact_child_argv_accepts_only_canonical_order_and_equals_tokens():
@@ -253,6 +266,43 @@ def test_exact_child_argv_accepts_only_canonical_order_and_equals_tokens():
     split_option = list(argv)
     split_option[1:2] = ["--model", "claude-test-20260721"]
     _expect_error(lambda: schema.validate_child_argv(split_option))
+
+
+def test_worker_spec_rejects_unknown_effort():
+    worker_error = _expect_error(
+        lambda: schema.parse_worker_spec(schema.canonical_bytes(_valid_worker_spec("none"))),
+        schema.ReasonCode.INVALID_ARGS,
+    )
+    assert worker_error.detail == {"label": "effort", "kind": "unknown"}
+
+
+def test_child_argv_rejects_unknown_effort():
+    argv_error = _expect_error(
+        lambda: schema.validate_child_argv(_valid_argv("none")),
+        schema.ReasonCode.INVALID_ARGS,
+    )
+    assert argv_error.detail == {"label": "effort", "kind": "unknown"}
+
+
+def test_worker_spec_and_child_argv_accept_every_allowed_effort():
+    for effort in ("low", "medium", "high", "xhigh", "max"):
+        worker = _valid_worker_spec(effort)
+        assert schema.parse_worker_spec(schema.canonical_bytes(worker)) == worker, effort
+        assert schema.validate_child_argv(_valid_argv(effort)) is None, effort
+
+
+def test_effort_shape_errors_precede_membership_errors():
+    worker_error = _expect_error(
+        lambda: schema.parse_worker_spec(schema.canonical_bytes(_valid_worker_spec("HIGH"))),
+        schema.ReasonCode.INVALID_ARGS,
+    )
+    assert worker_error.detail == {"label": "effort", "kind": "string"}
+
+    argv_error = _expect_error(
+        lambda: schema.validate_child_argv(_valid_argv("HIGH")),
+        schema.ReasonCode.INVALID_ARGS,
+    )
+    assert argv_error.detail == {"label": "child-argv", "kind": "model-effort"}
 
 
 def test_wire_dataclasses_are_frozen_and_canonical():
@@ -297,16 +347,7 @@ def test_manifest_and_worker_spec_boundaries_are_closed():
     )
     assert schema.parse_wave_manifest(schema.canonical_bytes(wave)) == wave
 
-    receipt_schema_text = schema.canonical_bytes({"type": "object"}).decode()
-    receipt_digest = hashlib.sha256(receipt_schema_text.encode()).hexdigest()
-    worker = schema.WorkerSpec(
-        1, "run-1", 1, "/bin/fake", "a" * 64, "/runtime/w001",
-        (("HOME", "/isolated/home"), ("PATH", "/usr/bin")),
-        "claude-test-20260721", "high", "/repo/main", "/runtime/w001/manifest.json",
-        receipt_schema_text, receipt_digest, Decimal("1.25"), 10, 1000, 10000,
-        "/runtime/w001/stdout.json", "/runtime/w001/stderr.log",
-        "/runtime/w001/child-start.json", "/runtime/w001/worker-exit.json",
-    )
+    worker = _valid_worker_spec()
     assert schema.parse_worker_spec(schema.canonical_bytes(worker)) == worker
     value = json.loads(schema.canonical_bytes(worker))
     value["scenario"] = "success"

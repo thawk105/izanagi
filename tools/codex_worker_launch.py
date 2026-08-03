@@ -38,6 +38,7 @@ from orchestrator.codex_roles.events import (  # noqa: E402
     strict_json_loads,
 )
 from tools import check_codex_output as _validator  # noqa: E402
+from tools.dev_waves.effort_levels import CODEX_REASONING_EFFORTS  # noqa: E402
 from tools.dev_waves.schema import (  # noqa: E402
     DevWavesError,
     canonical_bytes,
@@ -2472,7 +2473,9 @@ def _parser() -> argparse.ArgumentParser:
         required=True,
     )
     run.add_argument("--model", default="gpt-5.6-sol")
-    run.add_argument("--reasoning", required=True)
+    run.add_argument(
+        "--reasoning", choices=CODEX_REASONING_EFFORTS, required=True
+    )
     run.add_argument(
         "--max-wall-clock-s", type=_positive_decimal, required=True
     )
