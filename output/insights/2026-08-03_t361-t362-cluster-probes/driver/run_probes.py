@@ -910,7 +910,7 @@ def _monitor_request(
     recorder: Recorder, request_id: str, walltime_seconds: int
 ) -> dict[str, Any]:
     started = time.monotonic()
-    queue_deadline = started + QUE_DEADLINE_SECONDS
+    queue_deadline = started + QUEUE_DEADLINE_SECONDS
     execution_deadline: float | None = None
     seen_visible = False
     seen_run = False
