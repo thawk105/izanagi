@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-03
 wave: dev-wave-t293-perf-site
 seq: 3
-title: "[T-293] perf_candidates は stale ではなかった — 計算ノード実測で 3 因を分離し恒久対応を裁定へ返す (コード + docs、branch worktree-dev-wave-t293-perf-site)"
+title: [T-293] perf_candidates は stale ではなかった — 計算ノード実測で 3 因を分離し恒久対応を裁定へ返す (コード + docs、branch worktree-dev-wave-t293-perf-site)
 ---
 
 ## 本文
