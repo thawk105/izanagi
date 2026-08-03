@@ -24,9 +24,21 @@ seq: 2
   ことで受理集合が再び過剰に縮小した。F82 が定めた再発検知「新設 gate の裁定には正例を必ず
   1 つ書く」の正例 =「wave が main を取り込む merge commit を含む landed 区間が受理される」が
   今回も書かれていなかった。
-  恒久対応の候補 (実装は別 wave): 署名判定を merge commit では第 1 親でなく merge base
-  (または `--cc`) に対して行う、あるいは landed 区間から merge commit を除外して
-  「main に無い変更」だけを署名判定にかける。
+  **潜在していた期間と発火条件**: `-m` は導入時 (`2743e0d`) から入っていたが、`27f693f` が署名を
+  「作成 (`A`) ではなく変更 (`M`)」へ絞ったため、`FOLDED.md` が新規作成だった時期の merge は
+  素通りしていた (実証: 過去に land できた merge `6af21d7` の当該 status は `A`、
+  本 wave の merge `ee28642` は `M`)。**2 回目以降の fold が main に載った時点で発火する**穴であり、
+  本 wave が最初の一本である。
+- **設計上の誤り**: ff-only が main へ適用するのは `main..tip` の累積差分だけで、途中 commit の
+  状態は main にならない。したがって「wave が fold を密輸したか」の判定領域は累積差分しかない。
+  commit ごとの判定は (i) main 自身の既 land 履歴を wave 側の親との差分として再び見てしまう点で
+  過剰、(ii) 範囲内で現れて消える変更は land しない点で無意味である。
+  `verify_declared_fold_commit` の docstring は「**landed 区間**に … 変更がないこと」と累積で
+  書いており、**説明と実装が食い違っていた**。
+- **恒久対応 (実装は別 wave)**: 署名 2 条件はそのままに、判定対象を
+  `git diff --name-status --no-renames <tested-main>..<tip>` の累積差分へ移す。
+  F82 の再発検知が要求する正例 =「main を取り込む merge commit を含む landed 区間が受理される」
+  を裁定文とテストに固定する。
   検出: [T-313] wave の段 9 land が `status=fold-failed` / `reason=landed-fold-owned-path` で停止
   (main は `ea6ca43` のまま未変更)。
 
