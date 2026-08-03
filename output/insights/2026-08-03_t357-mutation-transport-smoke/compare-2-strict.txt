@@ -1,0 +1,554 @@
+判定に使った条件（実際に評価した gate から導出）:
+- spec が UTF-8 JSON object として読める
+- leg1 が UTF-8 JSON object として読める
+- leg2 が UTF-8 JSON object として読める
+- spec の field 集合が schema 定義と完全一致
+- spec.schema == SPEC_SCHEMA (izanagi-dev-wave-mutation-spec/v1)
+- spec.estimated_run_seconds が正数
+- spec.timeout_seconds が正数
+- spec.hang_timeout_seconds が正数
+- spec.mutations が非空 list
+- spec.mutations[0] の field 集合が schema 定義と完全一致
+- spec.mutations[0].id が非空文字列
+- spec.mutations[0].expected_nodes が非空文字列 list
+- spec.mutations[0].category/expected_status が文字列
+- spec.mutations[0].hang_risk が bool
+- spec.mutations[0].replacements が非空 replacement list
+- spec.mutations[0].replacements[0] の field 集合が schema 定義と完全一致
+- spec.mutations[0].replacements[0] の file/old/new が文字列
+- spec.mutations[1] の field 集合が schema 定義と完全一致
+- spec.mutations[1].id が非空文字列
+- spec.mutations[1].expected_nodes が非空文字列 list
+- spec.mutations[1].category/expected_status が文字列
+- spec.mutations[1].hang_risk が bool
+- spec.mutations[1].replacements が非空 replacement list
+- spec.mutations[1].replacements[0] の field 集合が schema 定義と完全一致
+- spec.mutations[1].replacements[0] の file/old/new が文字列
+- spec.mutations[2] の field 集合が schema 定義と完全一致
+- spec.mutations[2].id が非空文字列
+- spec.mutations[2].expected_nodes が非空文字列 list
+- spec.mutations[2].category/expected_status が文字列
+- spec.mutations[2].hang_risk が bool
+- spec.mutations[2].replacements が非空 replacement list
+- spec.mutations[2].replacements[0] の field 集合が schema 定義と完全一致
+- spec.mutations[2].replacements[0] の file/old/new が文字列
+- spec mutation ID 列に重複がない
+- leg1 の field 集合が schema 定義と完全一致
+- leg1.schema == LEDGER_SCHEMA (izanagi-dev-wave-mutation/v4)
+- leg1.repo_head == expected anchor ea6ca433eb83d666ec64f3629cc35c769a2b5c19
+- leg1.spec_sha256 == 実 spec file SHA-256
+- leg1.runner_identity の field 集合が schema 定義と完全一致
+- leg1.runner_sha256 が runner_identity の実 hash
+- leg1.runner_identity.runner_mode == 'dispatch'
+- leg1.runner_identity.command が非空文字列 list
+- leg1.runner_identity.entrypoint_sha256 が正規 hash
+- leg1.runner_identity.pytest_distribution_sha256 が正規 hash
+- leg1.runner_identity.repo_tree が正規 hash
+- leg1.runner_identity.entrypoint_kind が文字列
+- leg1.runner_identity.dispatch_entrypoint_path が dispatch identity
+- leg1.runner_identity.dispatch_entrypoint_sha256 が dispatch identity
+- leg1.runner_identity.dispatch_head_blob_sha256 が dispatch identity
+- leg1.tool_identity の field 集合が schema 定義と完全一致
+- leg1.tool_sha256 == tool_identity.sha256
+- leg1.tool_identity.head_blob_sha256 == tool_identity.sha256
+- leg1.procedure の field 集合が schema 定義と完全一致
+- leg1.procedure.runner_mode == 'dispatch'
+- leg1.procedure.test_command == runner_identity.command
+- leg1.procedure.timeout_seconds が正数
+- leg1.procedure.hang_timeout_seconds が正数
+- leg1.procedure.registration_preflight が object
+- leg1.procedure.registration_sha256 が registration_preflight の実 hash
+- leg1.procedure.collection の field 集合が schema 定義と完全一致
+- leg1.procedure.collection.status == 'PASSED'
+- leg1.procedure.collection.rc は bool でない int 0
+- leg1.procedure.collection.collected_nodes が非空文字列 list
+- leg1.procedure.collection.duration_s が非負数
+- leg1.procedure.collection.artifact の field 集合が schema 定義と完全一致
+- leg1.procedure.collection.artifact.runner_mode == 'dispatch'
+- leg1.procedure.collection.artifact.stdout が文字列
+- leg1.procedure.collection.artifact.stdout_sha256 が実 stdout bytes と一致
+- leg1.procedure.collection.artifact.receipt_path が dispatch path 文字列
+- leg1.procedure.collection.artifact.job_stdout_path が dispatch path 文字列
+- leg1.procedure.collection の raw collection stdout に nodeid がある
+- leg1.procedure.collection.collected_nodes が raw stdout の _normalize_node 後順序列と一致
+- leg1.procedure.collection.repo_head == top-level repo_head
+- leg1.procedure.collection.spec_sha256 == top-level spec_sha256
+- leg1.procedure.collection.runner_sha256 == top-level runner_sha256
+- leg1.procedure.collection.tool_sha256 == top-level tool_sha256
+- leg1.baseline の field 集合が schema 定義と完全一致
+- leg1.baseline.rc が bool でない int/null
+- leg1.baseline.failed_nodes が文字列 list
+- leg1.baseline.timed_out が bool
+- leg1.baseline.duration_s が非負数
+- leg1.baseline.artifact_error が string/null
+- leg1.baseline.test_output_tail が文字列 list
+- leg1.baseline.artifact の field 集合が schema 定義と完全一致
+- leg1.baseline.artifact.runner_mode == 'dispatch'
+- leg1.baseline.artifact.stdout が文字列
+- leg1.baseline.artifact.stdout_sha256 が実 stdout bytes と一致
+- leg1.baseline.artifact.receipt_path が dispatch path 文字列
+- leg1.baseline.artifact.job_stdout_path が dispatch path 文字列
+- leg1.baseline.test_output_sha256 が実 stdout bytes と一致
+- leg1.baseline.status == 'PASSED'
+- leg1.baseline.rc は bool でない int 0
+- leg1.baseline.failed_nodes == []
+- leg1.baseline.timed_out is false
+- leg1.baseline.artifact_error is null
+- leg1.baseline.repo_head が同じ ledger の evidence binding と一致
+- leg1.baseline.spec_sha256 が同じ ledger の evidence binding と一致
+- leg1.baseline.runner_sha256 が同じ ledger の evidence binding と一致
+- leg1.baseline.tool_sha256 が同じ ledger の evidence binding と一致
+- leg1.baseline.collection_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations が非空 list
+- leg1.mutations[0] の field 集合が schema 定義と完全一致
+- leg1.mutations[0].rc が bool でない int/null
+- leg1.mutations[0].failed_nodes が文字列 list
+- leg1.mutations[0].timed_out が bool
+- leg1.mutations[0].duration_s が非負数
+- leg1.mutations[0].artifact_error が string/null
+- leg1.mutations[0].test_output_tail が文字列 list
+- leg1.mutations[0].artifact の field 集合が schema 定義と完全一致
+- leg1.mutations[0].artifact.runner_mode == 'dispatch'
+- leg1.mutations[0].artifact.stdout が文字列
+- leg1.mutations[0].artifact.stdout_sha256 が実 stdout bytes と一致
+- leg1.mutations[0].artifact.receipt_path が dispatch path 文字列
+- leg1.mutations[0].artifact.job_stdout_path が dispatch path 文字列
+- leg1.mutations[0].test_output_sha256 が実 stdout bytes と一致
+- leg1.mutations[0].id が非空文字列
+- leg1.mutations[0].matches_expectation is true
+- leg1.mutations[0].expected_status == status
+- leg1.mutations[0].expected_nodes/failed_nodes が文字列 list
+- leg1.mutations[0].category が文字列
+- leg1.mutations[0].hang_risk が bool
+- leg1.mutations[0].anchor_counts が object
+- leg1.mutations[0].injection_diff_sha256 が SHA-256
+- leg1.mutations[0].replacements が非空 replacement list
+- leg1.mutations[0].replacements[0] の field 集合が schema 定義と完全一致
+- leg1.mutations[0].replacements[0] の file/old/new が文字列
+- leg1.mutations[0].repo_head が同じ ledger の evidence binding と一致
+- leg1.mutations[0].spec_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[0].runner_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[0].tool_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[0].collection_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[1] の field 集合が schema 定義と完全一致
+- leg1.mutations[1].rc が bool でない int/null
+- leg1.mutations[1].failed_nodes が文字列 list
+- leg1.mutations[1].timed_out が bool
+- leg1.mutations[1].duration_s が非負数
+- leg1.mutations[1].artifact_error が string/null
+- leg1.mutations[1].test_output_tail が文字列 list
+- leg1.mutations[1].artifact の field 集合が schema 定義と完全一致
+- leg1.mutations[1].artifact.runner_mode == 'dispatch'
+- leg1.mutations[1].artifact.stdout が文字列
+- leg1.mutations[1].artifact.stdout_sha256 が実 stdout bytes と一致
+- leg1.mutations[1].artifact.receipt_path が dispatch path 文字列
+- leg1.mutations[1].artifact.job_stdout_path が dispatch path 文字列
+- leg1.mutations[1].test_output_sha256 が実 stdout bytes と一致
+- leg1.mutations[1].id が非空文字列
+- leg1.mutations[1].matches_expectation is true
+- leg1.mutations[1].expected_status == status
+- leg1.mutations[1].expected_nodes/failed_nodes が文字列 list
+- leg1.mutations[1].category が文字列
+- leg1.mutations[1].hang_risk が bool
+- leg1.mutations[1].anchor_counts が object
+- leg1.mutations[1].injection_diff_sha256 が SHA-256
+- leg1.mutations[1].replacements が非空 replacement list
+- leg1.mutations[1].replacements[0] の field 集合が schema 定義と完全一致
+- leg1.mutations[1].replacements[0] の file/old/new が文字列
+- leg1.mutations[1].repo_head が同じ ledger の evidence binding と一致
+- leg1.mutations[1].spec_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[1].runner_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[1].tool_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[1].collection_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[2] の field 集合が schema 定義と完全一致
+- leg1.mutations[2].rc が bool でない int/null
+- leg1.mutations[2].failed_nodes が文字列 list
+- leg1.mutations[2].timed_out が bool
+- leg1.mutations[2].duration_s が非負数
+- leg1.mutations[2].artifact_error が string/null
+- leg1.mutations[2].test_output_tail が文字列 list
+- leg1.mutations[2].artifact の field 集合が schema 定義と完全一致
+- leg1.mutations[2].artifact.runner_mode == 'dispatch'
+- leg1.mutations[2].artifact.stdout が文字列
+- leg1.mutations[2].artifact.stdout_sha256 が実 stdout bytes と一致
+- leg1.mutations[2].artifact.receipt_path が dispatch path 文字列
+- leg1.mutations[2].artifact.job_stdout_path が dispatch path 文字列
+- leg1.mutations[2].test_output_sha256 が実 stdout bytes と一致
+- leg1.mutations[2].id が非空文字列
+- leg1.mutations[2].matches_expectation is true
+- leg1.mutations[2].expected_status == status
+- leg1.mutations[2].expected_nodes/failed_nodes が文字列 list
+- leg1.mutations[2].category が文字列
+- leg1.mutations[2].hang_risk が bool
+- leg1.mutations[2].anchor_counts が object
+- leg1.mutations[2].injection_diff_sha256 が SHA-256
+- leg1.mutations[2].replacements が非空 replacement list
+- leg1.mutations[2].replacements[0] の field 集合が schema 定義と完全一致
+- leg1.mutations[2].replacements[0] の file/old/new が文字列
+- leg1.mutations[2].repo_head が同じ ledger の evidence binding と一致
+- leg1.mutations[2].spec_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[2].runner_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[2].tool_sha256 が同じ ledger の evidence binding と一致
+- leg1.mutations[2].collection_sha256 が同じ ledger の evidence binding と一致
+- leg1.summary が object
+- leg1.nonterminal_history == []
+- leg1 mutation ID 順序列 == spec ID 順序列
+- leg1 record 数 == spec 件数
+- leg1.procedure.timeout_seconds == spec.timeout_seconds
+- leg1.procedure.hang_timeout_seconds == spec.hang_timeout_seconds
+- leg1.mutations[0].id == spec.G01.id
+- leg1.mutations[0].expected_status == spec.G01.expected_status
+- leg1.mutations[0].expected_nodes == spec.G01.expected_nodes
+- leg1.mutations[0].category == spec.G01.category
+- leg1.mutations[0].hang_risk == spec.G01.hang_risk
+- leg1.mutations[0].replacements == spec.G01.replacements
+- leg1.registration_preflight.G01 の field 集合が schema 定義と完全一致
+- leg1.registration_preflight.G01.expected_status == spec
+- leg1.registration_preflight.G01.expected_nodes == spec
+- leg1.registration_preflight.G01.replacements == spec
+- leg1.mutations[0].anchor_counts == registration_preflight.G01.anchor_counts
+- leg1.mutations[0].injection_diff_sha256 == registration_preflight.G01.injection_diff_sha256
+- leg1.mutations[0].registration_sha256 が mutation preflight の実 hash
+- leg1.mutations[1].id == spec.G03.id
+- leg1.mutations[1].expected_status == spec.G03.expected_status
+- leg1.mutations[1].expected_nodes == spec.G03.expected_nodes
+- leg1.mutations[1].category == spec.G03.category
+- leg1.mutations[1].hang_risk == spec.G03.hang_risk
+- leg1.mutations[1].replacements == spec.G03.replacements
+- leg1.registration_preflight.G03 の field 集合が schema 定義と完全一致
+- leg1.registration_preflight.G03.expected_status == spec
+- leg1.registration_preflight.G03.expected_nodes == spec
+- leg1.registration_preflight.G03.replacements == spec
+- leg1.mutations[1].anchor_counts == registration_preflight.G03.anchor_counts
+- leg1.mutations[1].injection_diff_sha256 == registration_preflight.G03.injection_diff_sha256
+- leg1.mutations[1].registration_sha256 が mutation preflight の実 hash
+- leg1.mutations[2].id == spec.G04.id
+- leg1.mutations[2].expected_status == spec.G04.expected_status
+- leg1.mutations[2].expected_nodes == spec.G04.expected_nodes
+- leg1.mutations[2].category == spec.G04.category
+- leg1.mutations[2].hang_risk == spec.G04.hang_risk
+- leg1.mutations[2].replacements == spec.G04.replacements
+- leg1.registration_preflight.G04 の field 集合が schema 定義と完全一致
+- leg1.registration_preflight.G04.expected_status == spec
+- leg1.registration_preflight.G04.expected_nodes == spec
+- leg1.registration_preflight.G04.replacements == spec
+- leg1.mutations[2].anchor_counts == registration_preflight.G04.anchor_counts
+- leg1.mutations[2].injection_diff_sha256 == registration_preflight.G04.injection_diff_sha256
+- leg1.mutations[2].registration_sha256 が mutation preflight の実 hash
+- leg1.baseline.registration_sha256 が全 registration_preflight の実 hash
+- leg2 の field 集合が schema 定義と完全一致
+- leg2.schema == LEDGER_SCHEMA (izanagi-dev-wave-mutation/v4)
+- leg2.repo_head == expected anchor ea6ca433eb83d666ec64f3629cc35c769a2b5c19
+- leg2.spec_sha256 == 実 spec file SHA-256
+- leg2.runner_identity の field 集合が schema 定義と完全一致
+- leg2.runner_sha256 が runner_identity の実 hash
+- leg2.runner_identity.runner_mode == 'local'
+- leg2.runner_identity.command が非空文字列 list
+- leg2.runner_identity.entrypoint_sha256 が正規 hash
+- leg2.runner_identity.pytest_distribution_sha256 が正規 hash
+- leg2.runner_identity.repo_tree が正規 hash
+- leg2.runner_identity.entrypoint_kind が文字列
+- leg2.runner_identity.dispatch_entrypoint_path が local 経路では null
+- leg2.runner_identity.dispatch_entrypoint_sha256 が local 経路では null
+- leg2.runner_identity.dispatch_head_blob_sha256 が local 経路では null
+- leg2.tool_identity の field 集合が schema 定義と完全一致
+- leg2.tool_sha256 == tool_identity.sha256
+- leg2.tool_identity.head_blob_sha256 == tool_identity.sha256
+- leg2.procedure の field 集合が schema 定義と完全一致
+- leg2.procedure.runner_mode == 'local'
+- leg2.procedure.test_command == runner_identity.command
+- leg2.procedure.timeout_seconds が正数
+- leg2.procedure.hang_timeout_seconds が正数
+- leg2.procedure.registration_preflight が object
+- leg2.procedure.registration_sha256 が registration_preflight の実 hash
+- leg2.procedure.collection の field 集合が schema 定義と完全一致
+- leg2.procedure.collection.status == 'PASSED'
+- leg2.procedure.collection.rc は bool でない int 0
+- leg2.procedure.collection.collected_nodes が非空文字列 list
+- leg2.procedure.collection.duration_s が非負数
+- leg2.procedure.collection.artifact の field 集合が schema 定義と完全一致
+- leg2.procedure.collection.artifact.runner_mode == 'local'
+- leg2.procedure.collection.artifact.stdout が文字列
+- leg2.procedure.collection.artifact.stdout_sha256 が実 stdout bytes と一致
+- leg2.procedure.collection.artifact.receipt_path が local 経路では null
+- leg2.procedure.collection.artifact.job_stdout_path が local 経路では null
+- leg2.procedure.collection の raw collection stdout に nodeid がある
+- leg2.procedure.collection.collected_nodes が raw stdout の _normalize_node 後順序列と一致
+- leg2.procedure.collection.repo_head == top-level repo_head
+- leg2.procedure.collection.spec_sha256 == top-level spec_sha256
+- leg2.procedure.collection.runner_sha256 == top-level runner_sha256
+- leg2.procedure.collection.tool_sha256 == top-level tool_sha256
+- leg2.baseline の field 集合が schema 定義と完全一致
+- leg2.baseline.rc が bool でない int/null
+- leg2.baseline.failed_nodes が文字列 list
+- leg2.baseline.timed_out が bool
+- leg2.baseline.duration_s が非負数
+- leg2.baseline.artifact_error が string/null
+- leg2.baseline.test_output_tail が文字列 list
+- leg2.baseline.artifact の field 集合が schema 定義と完全一致
+- leg2.baseline.artifact.runner_mode == 'local'
+- leg2.baseline.artifact.stdout が文字列
+- leg2.baseline.artifact.stdout_sha256 が実 stdout bytes と一致
+- leg2.baseline.artifact.receipt_path が local 経路では null
+- leg2.baseline.artifact.job_stdout_path が local 経路では null
+- leg2.baseline.test_output_sha256 が実 stdout bytes と一致
+- leg2.baseline.status == 'PASSED'
+- leg2.baseline.rc は bool でない int 0
+- leg2.baseline.failed_nodes == []
+- leg2.baseline.timed_out is false
+- leg2.baseline.artifact_error is null
+- leg2.baseline.repo_head が同じ ledger の evidence binding と一致
+- leg2.baseline.spec_sha256 が同じ ledger の evidence binding と一致
+- leg2.baseline.runner_sha256 が同じ ledger の evidence binding と一致
+- leg2.baseline.tool_sha256 が同じ ledger の evidence binding と一致
+- leg2.baseline.collection_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations が非空 list
+- leg2.mutations[0] の field 集合が schema 定義と完全一致
+- leg2.mutations[0].rc が bool でない int/null
+- leg2.mutations[0].failed_nodes が文字列 list
+- leg2.mutations[0].timed_out が bool
+- leg2.mutations[0].duration_s が非負数
+- leg2.mutations[0].artifact_error が string/null
+- leg2.mutations[0].test_output_tail が文字列 list
+- leg2.mutations[0].artifact の field 集合が schema 定義と完全一致
+- leg2.mutations[0].artifact.runner_mode == 'local'
+- leg2.mutations[0].artifact.stdout が文字列
+- leg2.mutations[0].artifact.stdout_sha256 が実 stdout bytes と一致
+- leg2.mutations[0].artifact.receipt_path が local 経路では null
+- leg2.mutations[0].artifact.job_stdout_path が local 経路では null
+- leg2.mutations[0].test_output_sha256 が実 stdout bytes と一致
+- leg2.mutations[0].id が非空文字列
+- leg2.mutations[0].matches_expectation is true
+- leg2.mutations[0].expected_status == status
+- leg2.mutations[0].expected_nodes/failed_nodes が文字列 list
+- leg2.mutations[0].category が文字列
+- leg2.mutations[0].hang_risk が bool
+- leg2.mutations[0].anchor_counts が object
+- leg2.mutations[0].injection_diff_sha256 が SHA-256
+- leg2.mutations[0].replacements が非空 replacement list
+- leg2.mutations[0].replacements[0] の field 集合が schema 定義と完全一致
+- leg2.mutations[0].replacements[0] の file/old/new が文字列
+- leg2.mutations[0].repo_head が同じ ledger の evidence binding と一致
+- leg2.mutations[0].spec_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[0].runner_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[0].tool_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[0].collection_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[1] の field 集合が schema 定義と完全一致
+- leg2.mutations[1].rc が bool でない int/null
+- leg2.mutations[1].failed_nodes が文字列 list
+- leg2.mutations[1].timed_out が bool
+- leg2.mutations[1].duration_s が非負数
+- leg2.mutations[1].artifact_error が string/null
+- leg2.mutations[1].test_output_tail が文字列 list
+- leg2.mutations[1].artifact の field 集合が schema 定義と完全一致
+- leg2.mutations[1].artifact.runner_mode == 'local'
+- leg2.mutations[1].artifact.stdout が文字列
+- leg2.mutations[1].artifact.stdout_sha256 が実 stdout bytes と一致
+- leg2.mutations[1].artifact.receipt_path が local 経路では null
+- leg2.mutations[1].artifact.job_stdout_path が local 経路では null
+- leg2.mutations[1].test_output_sha256 が実 stdout bytes と一致
+- leg2.mutations[1].id が非空文字列
+- leg2.mutations[1].matches_expectation is true
+- leg2.mutations[1].expected_status == status
+- leg2.mutations[1].expected_nodes/failed_nodes が文字列 list
+- leg2.mutations[1].category が文字列
+- leg2.mutations[1].hang_risk が bool
+- leg2.mutations[1].anchor_counts が object
+- leg2.mutations[1].injection_diff_sha256 が SHA-256
+- leg2.mutations[1].replacements が非空 replacement list
+- leg2.mutations[1].replacements[0] の field 集合が schema 定義と完全一致
+- leg2.mutations[1].replacements[0] の file/old/new が文字列
+- leg2.mutations[1].repo_head が同じ ledger の evidence binding と一致
+- leg2.mutations[1].spec_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[1].runner_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[1].tool_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[1].collection_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[2] の field 集合が schema 定義と完全一致
+- leg2.mutations[2].rc が bool でない int/null
+- leg2.mutations[2].failed_nodes が文字列 list
+- leg2.mutations[2].timed_out が bool
+- leg2.mutations[2].duration_s が非負数
+- leg2.mutations[2].artifact_error が string/null
+- leg2.mutations[2].test_output_tail が文字列 list
+- leg2.mutations[2].artifact の field 集合が schema 定義と完全一致
+- leg2.mutations[2].artifact.runner_mode == 'local'
+- leg2.mutations[2].artifact.stdout が文字列
+- leg2.mutations[2].artifact.stdout_sha256 が実 stdout bytes と一致
+- leg2.mutations[2].artifact.receipt_path が local 経路では null
+- leg2.mutations[2].artifact.job_stdout_path が local 経路では null
+- leg2.mutations[2].test_output_sha256 が実 stdout bytes と一致
+- leg2.mutations[2].id が非空文字列
+- leg2.mutations[2].matches_expectation is true
+- leg2.mutations[2].expected_status == status
+- leg2.mutations[2].expected_nodes/failed_nodes が文字列 list
+- leg2.mutations[2].category が文字列
+- leg2.mutations[2].hang_risk が bool
+- leg2.mutations[2].anchor_counts が object
+- leg2.mutations[2].injection_diff_sha256 が SHA-256
+- leg2.mutations[2].replacements が非空 replacement list
+- leg2.mutations[2].replacements[0] の field 集合が schema 定義と完全一致
+- leg2.mutations[2].replacements[0] の file/old/new が文字列
+- leg2.mutations[2].repo_head が同じ ledger の evidence binding と一致
+- leg2.mutations[2].spec_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[2].runner_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[2].tool_sha256 が同じ ledger の evidence binding と一致
+- leg2.mutations[2].collection_sha256 が同じ ledger の evidence binding と一致
+- leg2.summary が object
+- leg2.nonterminal_history == []
+- leg2 mutation ID 順序列 == spec ID 順序列
+- leg2 record 数 == spec 件数
+- leg2.procedure.timeout_seconds == spec.timeout_seconds
+- leg2.procedure.hang_timeout_seconds == spec.hang_timeout_seconds
+- leg2.mutations[0].id == spec.G01.id
+- leg2.mutations[0].expected_status == spec.G01.expected_status
+- leg2.mutations[0].expected_nodes == spec.G01.expected_nodes
+- leg2.mutations[0].category == spec.G01.category
+- leg2.mutations[0].hang_risk == spec.G01.hang_risk
+- leg2.mutations[0].replacements == spec.G01.replacements
+- leg2.registration_preflight.G01 の field 集合が schema 定義と完全一致
+- leg2.registration_preflight.G01.expected_status == spec
+- leg2.registration_preflight.G01.expected_nodes == spec
+- leg2.registration_preflight.G01.replacements == spec
+- leg2.mutations[0].anchor_counts == registration_preflight.G01.anchor_counts
+- leg2.mutations[0].injection_diff_sha256 == registration_preflight.G01.injection_diff_sha256
+- leg2.mutations[0].registration_sha256 が mutation preflight の実 hash
+- leg2.mutations[1].id == spec.G03.id
+- leg2.mutations[1].expected_status == spec.G03.expected_status
+- leg2.mutations[1].expected_nodes == spec.G03.expected_nodes
+- leg2.mutations[1].category == spec.G03.category
+- leg2.mutations[1].hang_risk == spec.G03.hang_risk
+- leg2.mutations[1].replacements == spec.G03.replacements
+- leg2.registration_preflight.G03 の field 集合が schema 定義と完全一致
+- leg2.registration_preflight.G03.expected_status == spec
+- leg2.registration_preflight.G03.expected_nodes == spec
+- leg2.registration_preflight.G03.replacements == spec
+- leg2.mutations[1].anchor_counts == registration_preflight.G03.anchor_counts
+- leg2.mutations[1].injection_diff_sha256 == registration_preflight.G03.injection_diff_sha256
+- leg2.mutations[1].registration_sha256 が mutation preflight の実 hash
+- leg2.mutations[2].id == spec.G04.id
+- leg2.mutations[2].expected_status == spec.G04.expected_status
+- leg2.mutations[2].expected_nodes == spec.G04.expected_nodes
+- leg2.mutations[2].category == spec.G04.category
+- leg2.mutations[2].hang_risk == spec.G04.hang_risk
+- leg2.mutations[2].replacements == spec.G04.replacements
+- leg2.registration_preflight.G04 の field 集合が schema 定義と完全一致
+- leg2.registration_preflight.G04.expected_status == spec
+- leg2.registration_preflight.G04.expected_nodes == spec
+- leg2.registration_preflight.G04.replacements == spec
+- leg2.mutations[2].anchor_counts == registration_preflight.G04.anchor_counts
+- leg2.mutations[2].injection_diff_sha256 == registration_preflight.G04.injection_diff_sha256
+- leg2.mutations[2].registration_sha256 が mutation preflight の実 hash
+- leg2.baseline.registration_sha256 が全 registration_preflight の実 hash
+- 両 ledger の非除外 field が全て再帰的に完全一致
+- collection.collected_nodes の件数・内容・重複度・順序が完全一致
+- collection raw stdout の nodeid 件数・内容・重複度・順序が完全一致
+cross-ledger 完全一致から除外した field（再帰比較が参照する policy から導出）:
+- $.date: run ごとの記録時刻
+- $.updated_at: run ごとの更新時刻
+- $.runner_sha256: 経路固有 field を含む runner_identity 全体の派生 hash
+- $.runner_identity.runner_mode: 比較対象である transport の差
+- $.runner_identity.dispatch_entrypoint_path: dispatch 経路にだけ存在する path
+- $.runner_identity.dispatch_entrypoint_sha256: dispatch 経路にだけ存在する entrypoint identity
+- $.runner_identity.dispatch_head_blob_sha256: dispatch 経路にだけ存在する HEAD blob identity
+- $.runner_identity.executable_path: 実行 host 上の解決済み Python path
+- $.runner_identity.executable_sha256: 実行 host 上の outer Python bytes
+- $.runner_identity.entrypoint_path: worktree の絶対 path
+- $.tool_identity.path: worktree の絶対 path
+- $.procedure.runner_mode: 比較対象である transport の差
+- $.procedure.collection.duration_s: collection の経路別所要時間
+- $.procedure.collection.runner_sha256: 経路固有 runner identity の派生 hash
+- $.procedure.collection.artifact.runner_mode: 比較対象である transport の差
+- $.procedure.collection.artifact.receipt_path: dispatch 経路にだけ存在する receipt path
+- $.procedure.collection.artifact.job_stdout_path: dispatch 経路にだけ存在する stdout path
+- $.procedure.collection.artifact.stdout: full bytes は時刻を含むため除外し、raw nodeid 順序列を別 gate で比較
+- $.procedure.collection.artifact.stdout_sha256: 時刻を含む collection stdout の派生 hash
+- $.baseline.duration_s: test run の経路別所要時間
+- $.baseline.runner_sha256: 経路固有 runner identity の派生 hash
+- $.baseline.collection_sha256: 時刻を含む collection stdout の派生 hash
+- $.baseline.test_output_sha256: 時刻を含む test stdout の派生 hash
+- $.baseline.artifact.runner_mode: 比較対象である transport の差
+- $.baseline.artifact.receipt_path: dispatch 経路にだけ存在する receipt path
+- $.baseline.artifact.job_stdout_path: dispatch 経路にだけ存在する stdout path
+- $.baseline.artifact.stdout: pytest の所要時間等を含む経路別 stdout
+- $.baseline.artifact.stdout_sha256: 経路別 test stdout の派生 hash
+- $.mutations[*].duration_s: test run の経路別所要時間
+- $.mutations[*].runner_sha256: 経路固有 runner identity の派生 hash
+- $.mutations[*].collection_sha256: 時刻を含む collection stdout の派生 hash
+- $.mutations[*].test_output_sha256: 時刻を含む test stdout の派生 hash
+- $.mutations[*].artifact.runner_mode: 比較対象である transport の差
+- $.mutations[*].artifact.receipt_path: dispatch 経路にだけ存在する receipt path
+- $.mutations[*].artifact.job_stdout_path: dispatch 経路にだけ存在する stdout path
+- $.mutations[*].artifact.stdout: pytest の所要時間等を含む経路別 stdout
+- $.mutations[*].artifact.stdout_sha256: 経路別 test stdout の派生 hash
+注: 除外 field も型・実 hash・leg 固有 route 契約の対象になり、実データで差があれば下に全件表示する。
+_normalize_node 衝突監査:
+- ledger.collected_nodes は _normalize_node 後に順序を保って重複除去された key であり、生 nodeid 件数とは限らない。
+- _normalize_node は nodeid 全体の backslash を slash に変えるため、parameter id も衝突しうる。
+- leg1: raw_nodeids=5282, normalized_deduplicated_keys=5281, loss=1
+  collision key="orchestrator/tests/test_s8b_ratified_verify.py::test_closure_path_raw_posix_grammar_rejected_unit[output//x]" <- ["orchestrator/tests/test_s8b_ratified_verify.py::test_closure_path_raw_posix_grammar_rejected_unit[output//x]", "orchestrator/tests/test_s8b_ratified_verify.py::test_closure_path_raw_posix_grammar_rejected_unit[output\\\\x]"]
+- leg2: raw_nodeids=5282, normalized_deduplicated_keys=5281, loss=1
+  collision key="orchestrator/tests/test_s8b_ratified_verify.py::test_closure_path_raw_posix_grammar_rejected_unit[output//x]" <- ["orchestrator/tests/test_s8b_ratified_verify.py::test_closure_path_raw_posix_grammar_rejected_unit[output//x]", "orchestrator/tests/test_s8b_ratified_verify.py::test_closure_path_raw_posix_grammar_rejected_unit[output\\\\x]"]
+実データで一致しなかった field（完全一覧）:
+- $.baseline.artifact.job_stdout_path: 経路差; dispatch 経路にだけ存在する stdout path; leg1=<string bytes=145 sha256=e0de773128840e988ebca9f2ab231d2513350d97da77cb616fc22a0dfd8641a9>, leg2=null
+- $.baseline.artifact.receipt_path: 経路差; dispatch 経路にだけ存在する receipt path; leg1=<string bytes=134 sha256=43db96c881b1e0c8fa9a231127660647d3d046caea87ec42f370a51f8db57e5c>, leg2=null
+- $.baseline.artifact.runner_mode: 経路差; 比較対象である transport の差; leg1="dispatch", leg2="local"
+- $.baseline.artifact.stdout: 経路差; pytest の所要時間等を含む経路別 stdout; leg1=<string bytes=6320 sha256=62da5d5863ffa81c892aa2bc954189ac65d7f22592d3e1b189293bb74c75987f>, leg2=<string bytes=6320 sha256=9b17cedbe274d3eabedf3d4fbbc49343710ccb95a6bcd69d261eafe76b0b6499>
+- $.baseline.artifact.stdout_sha256: 経路差; 経路別 test stdout の派生 hash; leg1="62da5d5863ffa81c892aa2bc954189ac65d7f22592d3e1b189293bb74c75987f", leg2="9b17cedbe274d3eabedf3d4fbbc49343710ccb95a6bcd69d261eafe76b0b6499"
+- $.baseline.collection_sha256: 経路差; 時刻を含む collection stdout の派生 hash; leg1="304168413cdc28356721995da52ee4b4b4dc656bba99000357cd0d1285a5479d", leg2="0ee9ca1adde35f0c343357b78619555bb81b5f10ac21c2b82261a0a017882c05"
+- $.baseline.duration_s: 経路差; test run の経路別所要時間; leg1=272.589, leg2=249.048
+- $.baseline.runner_sha256: 経路差; 経路固有 runner identity の派生 hash; leg1="641c2cab06d9058fa7ff38590f37b3676df1bd0bb5bf18ec8b5c51ea2a805eda", leg2="c7c32dd0a0ecd86c2bde17dd35e3a782d2a11ddec179fe68d4a431882a162cc2"
+- $.baseline.test_output_sha256: 経路差; 時刻を含む test stdout の派生 hash; leg1="62da5d5863ffa81c892aa2bc954189ac65d7f22592d3e1b189293bb74c75987f", leg2="9b17cedbe274d3eabedf3d4fbbc49343710ccb95a6bcd69d261eafe76b0b6499"
+- $.date: 経路差; run ごとの記録時刻; leg1="2026-08-03T05:50:29.954574+00:00", leg2="2026-08-03T06:41:44.925346+00:00"
+- $.mutations[0].artifact.job_stdout_path: 経路差; dispatch 経路にだけ存在する stdout path; leg1=<string bytes=145 sha256=b2bea30f634bb44dcb8d43d1eff99ca582b6736e821af54d25a172c0cbf673e5>, leg2=null
+- $.mutations[0].artifact.receipt_path: 経路差; dispatch 経路にだけ存在する receipt path; leg1=<string bytes=134 sha256=d5fe7e0c90e065e3a1f2e5a019a9fc89726aaa8c5d78938cff050cf402a711e0>, leg2=null
+- $.mutations[0].artifact.runner_mode: 経路差; 比較対象である transport の差; leg1="dispatch", leg2="local"
+- $.mutations[0].artifact.stdout: 経路差; pytest の所要時間等を含む経路別 stdout; leg1=<string bytes=7464 sha256=5cf362fe9a35ea5bebfff36174e6da2961f8032bec4211f7801b23860345e633>, leg2=<string bytes=7462 sha256=6dab3b5fbed639ad594e097ee0de2d27926b49e7625be10b4b3e1709eb3bc26e>
+- $.mutations[0].artifact.stdout_sha256: 経路差; 経路別 test stdout の派生 hash; leg1="5cf362fe9a35ea5bebfff36174e6da2961f8032bec4211f7801b23860345e633", leg2="6dab3b5fbed639ad594e097ee0de2d27926b49e7625be10b4b3e1709eb3bc26e"
+- $.mutations[0].collection_sha256: 経路差; 時刻を含む collection stdout の派生 hash; leg1="304168413cdc28356721995da52ee4b4b4dc656bba99000357cd0d1285a5479d", leg2="0ee9ca1adde35f0c343357b78619555bb81b5f10ac21c2b82261a0a017882c05"
+- $.mutations[0].duration_s: 経路差; test run の経路別所要時間; leg1=492.708, leg2=243.115
+- $.mutations[0].runner_sha256: 経路差; 経路固有 runner identity の派生 hash; leg1="641c2cab06d9058fa7ff38590f37b3676df1bd0bb5bf18ec8b5c51ea2a805eda", leg2="c7c32dd0a0ecd86c2bde17dd35e3a782d2a11ddec179fe68d4a431882a162cc2"
+- $.mutations[0].test_output_sha256: 経路差; 時刻を含む test stdout の派生 hash; leg1="5cf362fe9a35ea5bebfff36174e6da2961f8032bec4211f7801b23860345e633", leg2="6dab3b5fbed639ad594e097ee0de2d27926b49e7625be10b4b3e1709eb3bc26e"
+- $.mutations[1].artifact.job_stdout_path: 経路差; dispatch 経路にだけ存在する stdout path; leg1=<string bytes=145 sha256=80a85ddfec7f3e7af60c72599bda76376ffbead7d0dcbbfc203925da745eafdb>, leg2=null
+- $.mutations[1].artifact.receipt_path: 経路差; dispatch 経路にだけ存在する receipt path; leg1=<string bytes=134 sha256=8df0f7b0ba6f31478f8eb22f49f3ae1e77e61c3caba30a67b8449ab6517e9710>, leg2=null
+- $.mutations[1].artifact.runner_mode: 経路差; 比較対象である transport の差; leg1="dispatch", leg2="local"
+- $.mutations[1].artifact.stdout: 経路差; pytest の所要時間等を含む経路別 stdout; leg1=<string bytes=7499 sha256=3ff99814884a8085edcb55fd73b2b40af1da99d063e0c2171d0bf818304eec81>, leg2=<string bytes=7499 sha256=25ca49fd71a6045c8e8290e78b65ca114149911f31409ef1e5c604cf64d65fbf>
+- $.mutations[1].artifact.stdout_sha256: 経路差; 経路別 test stdout の派生 hash; leg1="3ff99814884a8085edcb55fd73b2b40af1da99d063e0c2171d0bf818304eec81", leg2="25ca49fd71a6045c8e8290e78b65ca114149911f31409ef1e5c604cf64d65fbf"
+- $.mutations[1].collection_sha256: 経路差; 時刻を含む collection stdout の派生 hash; leg1="304168413cdc28356721995da52ee4b4b4dc656bba99000357cd0d1285a5479d", leg2="0ee9ca1adde35f0c343357b78619555bb81b5f10ac21c2b82261a0a017882c05"
+- $.mutations[1].duration_s: 経路差; test run の経路別所要時間; leg1=267.418, leg2=249.573
+- $.mutations[1].runner_sha256: 経路差; 経路固有 runner identity の派生 hash; leg1="641c2cab06d9058fa7ff38590f37b3676df1bd0bb5bf18ec8b5c51ea2a805eda", leg2="c7c32dd0a0ecd86c2bde17dd35e3a782d2a11ddec179fe68d4a431882a162cc2"
+- $.mutations[1].test_output_sha256: 経路差; 時刻を含む test stdout の派生 hash; leg1="3ff99814884a8085edcb55fd73b2b40af1da99d063e0c2171d0bf818304eec81", leg2="25ca49fd71a6045c8e8290e78b65ca114149911f31409ef1e5c604cf64d65fbf"
+- $.mutations[2].artifact.job_stdout_path: 経路差; dispatch 経路にだけ存在する stdout path; leg1=<string bytes=145 sha256=437b2cd47eb72c89fb9eae88ac981ebd27ac08202791fd9200ffdd83df157e4b>, leg2=null
+- $.mutations[2].artifact.receipt_path: 経路差; dispatch 経路にだけ存在する receipt path; leg1=<string bytes=134 sha256=71807f9852882afc2aab979126116b70ab8ad4fc8e10d5087d2c18008a16e454>, leg2=null
+- $.mutations[2].artifact.runner_mode: 経路差; 比較対象である transport の差; leg1="dispatch", leg2="local"
+- $.mutations[2].artifact.stdout: 経路差; pytest の所要時間等を含む経路別 stdout; leg1=<string bytes=7451 sha256=327e0f2c65805e3866f6f1a3a9e54e1248b3bcb986ab28b930990b4d9a53bb6e>, leg2=<string bytes=7452 sha256=d707a69b7024f33086f9076be33b1058089fddf8db1ca5d8ba8e1e853a104e57>
+- $.mutations[2].artifact.stdout_sha256: 経路差; 経路別 test stdout の派生 hash; leg1="327e0f2c65805e3866f6f1a3a9e54e1248b3bcb986ab28b930990b4d9a53bb6e", leg2="d707a69b7024f33086f9076be33b1058089fddf8db1ca5d8ba8e1e853a104e57"
+- $.mutations[2].collection_sha256: 経路差; 時刻を含む collection stdout の派生 hash; leg1="304168413cdc28356721995da52ee4b4b4dc656bba99000357cd0d1285a5479d", leg2="0ee9ca1adde35f0c343357b78619555bb81b5f10ac21c2b82261a0a017882c05"
+- $.mutations[2].duration_s: 経路差; test run の経路別所要時間; leg1=502.767, leg2=248.378
+- $.mutations[2].runner_sha256: 経路差; 経路固有 runner identity の派生 hash; leg1="641c2cab06d9058fa7ff38590f37b3676df1bd0bb5bf18ec8b5c51ea2a805eda", leg2="c7c32dd0a0ecd86c2bde17dd35e3a782d2a11ddec179fe68d4a431882a162cc2"
+- $.mutations[2].test_output_sha256: 経路差; 時刻を含む test stdout の派生 hash; leg1="327e0f2c65805e3866f6f1a3a9e54e1248b3bcb986ab28b930990b4d9a53bb6e", leg2="d707a69b7024f33086f9076be33b1058089fddf8db1ca5d8ba8e1e853a104e57"
+- $.procedure.collection.artifact.job_stdout_path: 経路差; dispatch 経路にだけ存在する stdout path; leg1=<string bytes=145 sha256=8aac4b3e18bdf04fb9d794814e8a1409a23d7c95e6dc51c4c7622b96e564603c>, leg2=null
+- $.procedure.collection.artifact.receipt_path: 経路差; dispatch 経路にだけ存在する receipt path; leg1=<string bytes=134 sha256=2b9b18011ebef87a51c77afb53f35b6105c199819484c284d6c66ddd6690f773>, leg2=null
+- $.procedure.collection.artifact.runner_mode: 経路差; 比較対象である transport の差; leg1="dispatch", leg2="local"
+- $.procedure.collection.artifact.stdout: 経路差; full bytes は時刻を含むため除外し、raw nodeid 順序列を別 gate で比較; leg1=<string bytes=577952 sha256=e9db9a021fa8a8bdff3159d20ca169b7e052de89c3e38da52a443ebca0616419>, leg2=<string bytes=577952 sha256=47713ac03348450ce1068844a56beec7c56f8dd55fb74e5231c55f355d044f5c>
+- $.procedure.collection.artifact.stdout_sha256: 経路差; 時刻を含む collection stdout の派生 hash; leg1="e9db9a021fa8a8bdff3159d20ca169b7e052de89c3e38da52a443ebca0616419", leg2="47713ac03348450ce1068844a56beec7c56f8dd55fb74e5231c55f355d044f5c"
+- $.procedure.collection.duration_s: 経路差; collection の経路別所要時間; leg1=31.973, leg2=2.084
+- $.procedure.collection.runner_sha256: 経路差; 経路固有 runner identity の派生 hash; leg1="641c2cab06d9058fa7ff38590f37b3676df1bd0bb5bf18ec8b5c51ea2a805eda", leg2="c7c32dd0a0ecd86c2bde17dd35e3a782d2a11ddec179fe68d4a431882a162cc2"
+- $.procedure.runner_mode: 経路差; 比較対象である transport の差; leg1="dispatch", leg2="local"
+- $.procedure.test_command[0]: 非等価性; 意味論的一致を要求する非除外 field。合否は NO-GO; leg1="/usr/bin/python3.10", leg2="/bin/python3.10"
+- $.runner_identity.command[0]: 非等価性; 意味論的一致を要求する非除外 field。合否は NO-GO; leg1="/usr/bin/python3.10", leg2="/bin/python3.10"
+- $.runner_identity.dispatch_entrypoint_path: 経路差; dispatch 経路にだけ存在する path; leg1="/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree/tools/pegasus/dispatch_compute.py", leg2=null
+- $.runner_identity.dispatch_entrypoint_sha256: 経路差; dispatch 経路にだけ存在する entrypoint identity; leg1="190b56181c12ddba2a3ca0a7dd3dc302bbe73ad84ca7b788d6779a0cea77236a", leg2=null
+- $.runner_identity.dispatch_head_blob_sha256: 経路差; dispatch 経路にだけ存在する HEAD blob identity; leg1="190b56181c12ddba2a3ca0a7dd3dc302bbe73ad84ca7b788d6779a0cea77236a", leg2=null
+- $.runner_identity.executable_sha256: 経路差; 実行 host 上の outer Python bytes; leg1="7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86", leg2="d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49"
+- $.runner_identity.runner_mode: 経路差; 比較対象である transport の差; leg1="dispatch", leg2="local"
+- $.runner_sha256: 経路差; 経路固有 field を含む runner_identity 全体の派生 hash; leg1="641c2cab06d9058fa7ff38590f37b3676df1bd0bb5bf18ec8b5c51ea2a805eda", leg2="c7c32dd0a0ecd86c2bde17dd35e3a782d2a11ddec179fe68d4a431882a162cc2"
+- $.updated_at: 経路差; run ごとの更新時刻; leg1="2026-08-03T06:16:07.118549+00:00", leg2="2026-08-03T06:58:17.642488+00:00"
+Python command path の判断:
+- /usr/bin/python3.10 と /bin/python3.10 は path alias の可能性があるが、同じ executable bytes の証拠がない。
+- ledger の executable_sha256 も異なるため、test_command/command の差は隠さず非等価性として NO-GO にする。
+- executable_path/executable_sha256 自体は transport host 差として除外するが、この除外で command 差は消えない。
+NO-GO
+合否差分:
+- leg1.tool identity/hash が不一致
+- leg2.tool identity/hash が不一致
+- 非除外 field に 2 件の非等価差分

@@ -1,0 +1,9 @@
+diagnostic command -v python3: /bin/python3
+Python 3.10.12
+diagnostic command -v python3.10: /bin/python3.10
+Python 3.10.12
+diagnostic selected interpreter: /usr/bin/python3.10
+Python 3.10.12
+diagnostic PATH: /bin:/home/SFC/tanab/.local/bin:/home/SFC/tanab/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin
+diagnostic hostname: bnode001
+mutation estimate: 3 mutation(s) x 240.000s, baseline=1 run(s), total=4 run(s)/960.000s; actual execution requires an outer-limit-free detached path

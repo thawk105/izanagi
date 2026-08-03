@@ -1,0 +1,15 @@
+{
+  "args": [
+    "-rf",
+    "-p",
+    "no:cacheprovider",
+    "-n",
+    "0",
+    "--collect-only",
+    "-q"
+  ],
+  "environment": {},
+  "repo_root": "/work/1/SFC/tanab/dev-wave-jobs/t357-mutation-batch/g01/worktree",
+  "schema_version": "pegasus-dispatch-request/v2",
+  "task": "tests"
+}
