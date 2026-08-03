@@ -1,0 +1,13 @@
+判定条件:
+- spec 順の各 mutation {id, status, failed_nodes, matches_expectation} が完全一致
+- repo_head が一致
+- spec_sha256 が一致
+- 両 ledger の record 数が spec 件数と一致
+- 両 baseline の status が "PASSED"
+比較対象外 field: runner_mode, receipt_path, job_stdout_path, duration_s, runner_sha256
+collection 観測: collected_nodes の件数と集合だけを比較し、差は合否に含めない
+mutation 射影差分:
+- なし
+collection 観測:
+- 一致: count=5281, set_equal=true
+GO
