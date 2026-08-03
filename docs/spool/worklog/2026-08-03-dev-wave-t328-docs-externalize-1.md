@@ -74,6 +74,16 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   マージすればいい。あとで一気にやろうとするからコストが高い」。是正として wave 中は節目ごとに
   main の位置を見て固定 SHA で都度マージする。本 wave はユーザー指示によりこの context のまま
   `ea6ca43` を合流させて land を再試行した
+- **4 度目の停止で land helper の新しい欠陥を実測した ({{T:land-merge-fold-signature}})。**
+  合流自体は競合ゼロで成功したが、land が `fold-failed: landed-fold-owned-path` で止まった。
+  監査 commit 列は `git rev-list --reverse main..tip` との完全一致が要求されるので
+  (`tools/dev_wave_land.py:963`) merge commit を監査対象から外せず、その merge commit を
+  第一親と比べると main 側の fold が触った `docs/spool/FOLDED.md` が `M` で現れる。
+  landed 区間の検査 (`tools/dev_waves/git_state.py:557-562`) は wave の自前 fold を止めるためのもので、
+  **「main の fold を取り込んだ merge」と区別できない**。過去の `merge(main)` 8 本を調べたところ
+  `FOLDED.md` を含むものは 0 件で、fold 機構の導入後に main を合流させた wave は本 wave が最初である。
+  **ユーザー裁定により根治は別 wave で行い、本 branch はそれまで待機する** (rebase・force・
+  fold 所有ファイルの手編集による迂回は行わない)
 
 - **[T-270] のフレークを再観測した (5 例目)。** 受入全走 `878446` が
   `test_s8b_floor_campaign.py` 4 件で赤 (4 failed / 5222 passed)、同じ tip の再走 `878453` は
@@ -135,6 +145,16 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   入口は外部 supervisor 自身へ「最初の `claude -p` spawn 前に `DW-CTX` を読む」と課すが、
   `tools/dev_waves/daemon.py` / `worker.py` に読取処理は無く、prompt を組み立てるだけである。
   現在 fake-only なので runtime blocked。台帳には「無人継続まで閉じた」と書かない
+- {{T:land-merge-fold-signature}} **P1・新規 (本エントリ、実測。ユーザー裁定済み → 別 wave で根治)**:
+  **fold commit を含む local main を合流させた wave は、現行 land helper では land できない。**
+  監査 commit 列は `git rev-list --reverse main..tip` と完全一致が要る (`tools/dev_wave_land.py:963`)
+  ため merge commit を外せず、その第一親差分に `M docs/spool/FOLDED.md` が現れて
+  `landed-fold-owned-path` (`tools/dev_waves/git_state.py:557-562`) に掛かる。
+  同検査の目的は「wave が自前で fold するのを止める」ことだが、取り込んだ main の fold と区別できない。
+  修正案は (a) 親 2 つの commit を検査対象から外す、(b) 第一親側の差分だけを見る、
+  (c) 取り込み先 main に既に存在する fold 出力を除外する、のいずれか。
+  **`DW-O23` の stale 復旧手順 (固定 SHA の wave-side merge) が構造的に成立しないので P1。**
+  「こまめに main を合流する」運用にするほど踏む頻度が上がる
 - {{T:qsub-interpreter-contract}} **P3・新規 (本エントリ、実測。マシン固有部分は本 wave で解消)**:
   生 `qsub` から計算ノードで pytest を走らせる経路に interpreter 契約が無く、
   既定 `python3` が 3.10 未満のため偽赤が出る ({{F:raw-qsub-interpreter-false-red}})。
