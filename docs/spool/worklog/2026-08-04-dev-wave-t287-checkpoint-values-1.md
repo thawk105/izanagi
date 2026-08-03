@@ -64,7 +64,12 @@ title: [T-287] checkpoint 復元境界の whiteboard 3 値を閉じた値域で�
   (`output/insights/2026-08-03_t361-t362-cluster-probes/evidence/.../home-read-write.probe.raw`) で
   rc=2 になるもので、**本 wave の差分に 1 件も含まれず main 側に既に存在した**。
   main のチェックアウトで直接実行しても同じ rc=2 を実測した。`DW-STOP` は「検査が赤なら
-  該当段へ進まず停止する」と定めるので land せず、3 commit を wave branch に残して停止した
+  該当段へ進まず停止する」と定めるので land せず、3 commit を wave branch に残して停止した。
+  **この赤は既に [T-407] として起票済みであり、本 wave は新規タスクを重複起票しない。**
+  ただし [T-407] は P2 で登録されている一方、**実測では全 wave の land を塞ぐ**
+  (受入全走が緑にならないため `DW-STOP` が必ず発火する)。優先度の再評価が要る。
+  gate (`8976c14`、2026-07-29) が blob の land (`9b0f044`、2026-08-04) より先に存在したことも
+  併せて実測した — 当該 wave は機械 gate が赤の状態で land したことになる
 
 ## 次の一手差分
 
@@ -90,12 +95,6 @@ title: [T-287] checkpoint 復元境界の whiteboard 3 値を閉じた値域で�
 - {{T:t287-checkpoint-integrity}} **P2・新規**: in-domain 改竄 (`rejected` → `fail` 等) は値域検査では
   防げず、`iteration` 整合・entry 件数上限・campaign/run origin 束縛でしか閉じない。
   (99) の原問題のうち本裁定が含まなかった部分。裁定パッケージ §3
-- {{T:ruleops-nonutf8-evidence}} **P1・新規**: local main の受入全走が
-  `test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo` で赤である
-  ({{F:nonutf8-evidence-blob-lands-red}})。`tools/ruleops.py inventory` が非 UTF-8 の証跡 blob を
-  UTF-8 として読み rc=2 になる。**すべての wave の land を塞ぐので最優先。**
-  択一は (1) 走査を binary-safe にする、(2) 証跡をテキスト表現で保存する規約にする、
-  (3) evidence 配下を走査対象から外す (gate の射程が縮むので最後の手段)
 - {{T:mutation-harness-node-normalization}} **P2・新規**: `tools/mutation_harness.py` が real-repo
   直列化対象 node の期待を表現できない ({{F:mutation-harness-realrepo-node}})。preflight は素の
   pytest node id を、実測突き合わせは `@real-repo` 接尾辞付きを要求し両立しない。

@@ -23,7 +23,7 @@ seq: 3
   `python3 tools/ruleops.py inventory --repo .` を直接実行しても同じ rc=2 になることを実測した。
   gate 側 (`8976c14`、2026-07-29) は blob の land (`9b0f044`、2026-08-04) より**先に存在した**ので、
   当該 wave は機械 gate が赤の状態で land したことになる。
-- 恒久対応: 未定 — {{T:ruleops-nonutf8-evidence}} で択一をユーザー裁定へ返す。
+- 恒久対応: 未定 — 既存の [T-407] が択一を持つ (本 wave は重複起票しない)。
   候補は (1) `ruleops.py` の走査を binary-safe にする (証跡は生 bytes を保つのが本来)、
   (2) 証跡 blob を base64 等のテキスト表現で保存する規約にする、
   (3) `output/insights/**/evidence/**` を inventory の走査対象から外す。
