@@ -34,14 +34,26 @@ title: [T-287] checkpoint 復元境界の whiteboard 3 値を閉じた値域で�
     (負例の破損 entry が常に末尾だったため)。完全一致メッセージも `result` + `受領型=str` の 1 形しか
     固定せず、許可値を result 集合に固定する変異と型名を `str` に誤報する変異が生存した
   - 2 巡目 fix で位置 (先頭/中間/末尾) とパラメータ (3 field × 非 str 2 型) の両クラスを閉じた
-- **変異本走で事前登録の表記ゆれが露見した (F33 同型)。** 初回は M1 が MISMATCH で停止した。
-  mutant 自体は kill されており (rc=1、期待 8 node がすべて赤)、原因は `drive_iteration` 系 3 node が
-  記録側で `@real-repo` 接尾辞付きになることを事前登録が知らなかったことだけである。
-  `DW-M08` の「突き合わせ前に同じ形式へ正規化する」に従って spec を訂正し再走した。
-  初回台帳は `mutation-ledger-v1-mismatch.json` として erratum に残した (`DW-M02`)
+- **変異事前登録を 2 度再照準した。2 度目で harness 側の穴が判明した ({{F:mutation-harness-realrepo-node}})。**
+  初回 M1 (`result` から `rejected` 削除) は mutant 自体は kill されていた (rc=1、期待 8 node がすべて赤)
+  が、`drive_iteration` 系 3 node が記録側で `@real-repo` 接尾辞付きになるため `MISMATCH` で停止した。
+  接尾辞を付けて再登録すると、今度は preflight が「期待 node が pytest collection に実在しない」で停止した。
+  **`tools/mutation_harness.py` は preflight で素の node id を、突き合わせで接尾辞付きを要求し、
+  両立しない。** `DW-M01` / `DW-M03` に従い、real-repo node を巻き込まない単一理由の変異
+  (`magnitude` から `large` 削除) へ差し替え、期待 node は推測せず一時変異の実測 (`DW-O19` の
+  復元規律、復元後 `git diff HEAD` = 0 行) で確定した。初回台帳は erratum に残した (`DW-M02`)
+- **変異本走は 7/7 KILLED、MISMATCH 0、SURVIVED 0、baseline PASSED。** 焦点再レビューが静的に
+  「fix 1 巡目後も生存する」と指摘した M6 (末尾 entry だけ検査) と M7 (許可値リスト固定) も実測 kill した
 - **段 3 / 段 6 の敵対子が独立に見つけた real 所見 4 件を実装せず裁定へ返す** ({{T:t287-producer-domain}}、
   {{T:t287-layer3-reader}}、{{T:t287-checkpoint-integrity}}、{{T:t287-error-message-redaction}})。
   裁定パッケージは `output/insights/2026-08-04_t287-checkpoint-values/adjudication-package.md`
+- **段 8 自己改善は候補 1 件を実装せず裁定へ返した。** `DW-G05` は成果物影響を「書け」としか言わず、
+  「**その変更が実際にその影響を止めるか**」を確認させない。本 wave の親 brief がまさにそこで
+  過大表現したので、確認を義務づける 2 行を足そうとした。しかし `docs/dev-wave/**` は
+  **25196 / 25200 bytes** で残枠 4 bytes しかなく、追記が hard ceiling に触れた。自己改善契約の
+  「予算のために安全義務を削除・弱化してはならない」「収まらなければ変更を止めてユーザー裁定へ返す」
+  に従い編集を撤回した。択一は裁定パッケージ §5 (推奨 = 発火実績なし L2 節の剪定、ただし
+  剪定対象の選定自体がユーザー裁定を要する)
 - 受入は Pegasus gen_S 計算ノードで実測した。焦点 3 file = 154 passed、全走 = 5393 passed / 19 skipped。
   `check_docs.py` rc=0、provenance full 監査 rc=0。codex 実装子は Pegasus ログインノード規律に従い
   pytest を実走せず、緑の主張もしなかった (実測はすべて親)
@@ -70,6 +82,11 @@ title: [T-287] checkpoint 復元境界の whiteboard 3 値を閉じた値域で�
 - {{T:t287-checkpoint-integrity}} **P2・新規**: in-domain 改竄 (`rejected` → `fail` 等) は値域検査では
   防げず、`iteration` 整合・entry 件数上限・campaign/run origin 束縛でしか閉じない。
   (99) の原問題のうち本裁定が含まなかった部分。裁定パッケージ §3
+- {{T:mutation-harness-node-normalization}} **P2・新規**: `tools/mutation_harness.py` が real-repo
+  直列化対象 node の期待を表現できない ({{F:mutation-harness-realrepo-node}})。preflight は素の
+  pytest node id を、実測突き合わせは `@real-repo` 接尾辞付きを要求し両立しない。
+  `_normalize_node` に runner 接尾辞の正規化を入れ、`DW-M08` が求める「突き合わせ前に同じ形式へ
+  正規化する」を harness 自身に持たせる。現状はその面の変異が事前登録できず黙って落ちる
 - {{T:t287-error-message-redaction}} **P3・新規**: `state_from_dict()` の**既存**エラーが未信頼の
   checkpoint 文字列 (未知キー名・`delta_pct` 値) を再掲し、`attempts.jsonl` と `report.json` の
   error message に残る。本 wave が作った defect ではなく、修正には既存テストの期待値変更を伴う。

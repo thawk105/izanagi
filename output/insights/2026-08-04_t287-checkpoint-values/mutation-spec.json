@@ -1,0 +1,135 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    (\"magnitude\", frozenset({\"small\", \"medium\", \"large\"})),",
+          "new": "    (\"magnitude\", frozenset({\"small\", \"medium\"})),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_checkpoint_whiteboard_value_domains_match_closed_literals",
+        "orchestrator/tests/test_p3_s4_loop.py::test_checkpoint_direction_and_magnitude_domains_match_role_policy",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_accepts_each_closed_whiteboard_value",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_exact_whiteboard_value_error_message"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            if type(value) is not str or value not in allowed:",
+          "new": "            if type(value) is not str or False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_unrecognized_whiteboard_strings",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_invalid_values_in_later_whiteboard_entry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_exact_whiteboard_value_error_message",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_whiteboard_fields_in_domain_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            if type(value) is not str or value not in allowed:",
+          "new": "            if value not in allowed:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_non_string_whiteboard_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_exact_whiteboard_value_error_message"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    (\"result\", frozenset({\"success\", \"fail\", \"rejected\"})),",
+          "new": "    (\"result\", frozenset({\"success\", \"fail\", \"rejected\", \"ok\"})),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_checkpoint_whiteboard_value_domains_match_closed_literals",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_invalid_values_in_later_whiteboard_entry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_exact_whiteboard_value_error_message",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_whiteboard_fields_in_domain_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    (\"direction\", frozenset({\"increase\", \"decrease\", \"explore_both\"})),",
+          "new": "    (\"direction\", frozenset({\"increase\", \"decrease\", \"explore_both\", \"grow\"})),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_checkpoint_whiteboard_value_domains_match_closed_literals",
+        "orchestrator/tests/test_p3_s4_loop.py::test_checkpoint_direction_and_magnitude_domains_match_role_policy",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_invalid_values_in_later_whiteboard_entry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_exact_whiteboard_value_error_message",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_whiteboard_fields_in_domain_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            if type(value) is not str or value not in allowed:",
+          "new": "            if index == len(d[\"whiteboard\"]) - 1 and (type(value) is not str or value not in allowed):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_invalid_values_in_later_whiteboard_entry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_exact_whiteboard_value_error_message"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "                sorted_allowed = sorted(allowed)",
+          "new": "                sorted_allowed = [\"fail\", \"rejected\", \"success\"]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_exact_whiteboard_value_error_message"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
