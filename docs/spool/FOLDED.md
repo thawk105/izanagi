@@ -74,3 +74,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dispatch-condition-verbatim-gate":"[T-391]","T:land-without-check-receipt":"[T-393]","T:qsub-interpreter-contract":"[T-395]","T:reference-preamble-unreachable":"[T-392]","T:supervisor-dwctx-unwired":"[T-394]"},"authored":"2026-08-03","content_sha256":"f2caf24448c840621abbccbd6d41f6e3e7ca1453675f073760e4800505752a4c","seq":1,"wave":"dev-wave-t328-docs-externalize"}
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"59062836230a95e3fe066b822e98cb981796c22f336c6e13aa0a33b21cb5a012","seq":2,"wave":"dev-wave-t328-docs-externalize"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"f36202a292b2842bae3d274e5dc02e47d4fcd2d4828cfa8f0e914d0acbf4ad9e","seq":1,"wave":"dev-wave-task-inventory"}
