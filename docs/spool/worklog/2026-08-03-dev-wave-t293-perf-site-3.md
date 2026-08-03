@@ -46,6 +46,11 @@ title: "[T-293] perf_candidates は stale ではなかった — 計算ノード
 - エージェント工数: 親 1、子 6 (実装 1 / 敵対レビュー 2 / 焦点再レビュー 1 / fix 4 は 4 回だが
   うち 2 回は 1 点修正)。計算ノード job 3 本 (`881946` probe 1 回目 / `881960` probe 2 回目 /
   `881962` 受入全走)
+- **段 8 自己改善: 候補 1 件を [T-328] の外出し枠へ相乗りさせる ([T-359] の既裁定に従う)。**
+  **受入全走は統合 commit 後の clean tree で走らせる** — 未 commit の docs を載せたまま投げると、
+  計算ノードは投入時点の worktree bytes を読むため、直後に直した版とずれて赤になる。本 wave で
+  実際に 1 job (`881967`) を無駄にした。DW-O18 は cwd の規定しか持たず、この点を書いていない。
+  **dev-wave docs は予算のため編集しない** (memory の既裁定どおり dev-wave 系へは移らない)
 - 一次資料 = `output/insights/2026-08-03_t293-perf-site/` (README・逐語 10 本・裁定パッケージ)、
   実測 = `output/env/pegasus/t293-perf-site/0_881946.nqsv/` と `0_881960.nqsv/`
 
