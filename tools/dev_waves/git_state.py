@@ -89,7 +89,7 @@ GIT_COMMANDS: Mapping[str, tuple[str, ...]] = {
     "commit-object": ("cat-file", "commit"),
     "commit-diff": (
         "diff-tree", "--root", "-r", "-m", "--no-commit-id",
-        "--name-status", "-z", "-M", "-C",
+        "--name-status", "-z", "--no-renames",
     ),
     "tree-paths": ("ls-tree", "-r", "-z", "--name-only"),
     "clone-isolated": ("-c", "protocol.file.allow=always", "clone", "--no-local", "--no-checkout", "--quiet"),
@@ -760,7 +760,7 @@ def verify_declared_fold_commit(
     for status, paths in _commit_diff(
         repo_root, fold_sha, timeout_s=_left(deadline_ns),
     ):
-        if status.startswith(("R", "C")) or status not in {"M", "D", "A"}:
+        if status not in {"M", "D", "A"}:
             return _fold_fail("path-status")
         path = paths[0]
         if status == "M":
