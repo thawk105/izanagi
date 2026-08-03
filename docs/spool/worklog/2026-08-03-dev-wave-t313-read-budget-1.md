@@ -45,6 +45,12 @@ title: [T-313] 常時読量 gate は実装せず裁定へ返した — 裁定根
 - 段 8 でもう 1 件、`DW-O17` の実行不能な命令を実測で見つけた。message file の事前検査に
   `--message-file` を指示しているが、この機体の git 2.34.1 に当該 option は存在しない
   (`unknown option`)。実際に効く `--dry-run -F` へ是正した (byte は 2 減)。
+- **段 9 の land が停止した (F82 の 3 度目の再発)。** 受入は merge 後も緑
+  (5263 passed / 19 skipped、Pegasus gen_S request `878487`) だが、`dev_wave_land.py` が
+  `status=fold-failed` / `reason=landed-fold-owned-path` を返した。原因は fold 署名検査が
+  merge commit の親ごとの差分を見るため、`DW-O23` が指示する wave 側 main 取り込みの merge に
+  main 側 fold の署名が必ず含まれること。main は `ea6ca43` のまま未変更で、迂回はしていない。
+  本 wave の成果は branch `worktree-dev-wave-t313-read-budget` (tip `9fbed42` + 本記録) に残る。
 
 ## 次の一手差分
 
