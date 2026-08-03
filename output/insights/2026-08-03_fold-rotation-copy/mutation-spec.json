@@ -1,6 +1,6 @@
 {
   "schema": "izanagi-dev-wave-mutation-spec/v1",
-  "estimated_run_seconds": 3000,
+  "estimated_run_seconds": 240,
   "timeout_seconds": 1200,
   "hang_timeout_seconds": 600,
   "mutations": [
