@@ -120,9 +120,11 @@ def _worklog_body(
     *,
     carry: tuple[str, ...] = ("[T-001]",),
     completed: tuple[tuple[str, str, str], ...] = (),
+    completion_remaining: bool = False,
     updated: tuple[tuple[str, str, str], ...] = (),
     new: tuple[tuple[str, str], ...] = (),
     deferred: tuple[tuple[str, str, str, str], ...] = (),
+    deferred_appends: tuple[tuple[str, str], ...] = (),
     prose: str = "- fold 本文",
 ) -> str:
     sections = [f"## 本文\n\n{prose}\n", "## 次の一手差分\n"]
@@ -132,6 +134,8 @@ def _worklog_body(
         blocks = ""
         for task_id, text, base in completed:
             blocks += f"- {task_id} {text}\n  base: {base}\n"
+            if completion_remaining:
+                blocks += "  remaining: none\n"
         sections.append("### 完了\n\n" + blocks)
     if updated:
         blocks = ""
@@ -150,6 +154,11 @@ def _worklog_body(
             for task_id, text, base in entries:
                 value += f"- {task_id} {text}\n  base: {base}\n"
         sections.append(value)
+    if deferred_appends:
+        sections.append(
+            "### 見送り追記\n\n"
+            + "".join(f"- {task_id}{suffix}\n" for task_id, suffix in deferred_appends)
+        )
     return "\n".join(section.rstrip("\n") for section in sections) + "\n"
 
 
@@ -168,6 +177,25 @@ def _raises(code: str, callable_object, *args):
 
 def _target(plan, rel: str):
     return next(target for target in plan.targets if target.path == rel)
+
+
+def _phase_after(repo: Path) -> bytes:
+    return _target(
+        spool_fold.plan_fold(repo, fold_date="2026-08-02"),
+        "docs/phase3.md",
+    ).after_bytes
+
+
+def _line_end_offset(raw: bytes, marker: bytes) -> int:
+    start = raw.index(marker)
+    return raw.index(b"\n", start)
+
+
+def _splice_exact(raw: bytes, insertions: tuple[tuple[int, bytes], ...]) -> bytes:
+    rendered = raw
+    for offset, payload in sorted(insertions, reverse=True):
+        rendered = rendered[:offset] + payload + rendered[offset:]
+    return rendered
 
 
 def test_legacy_daily_ordinals_are_excluded_from_global_namespace(tmp_path: Path) -> None:
@@ -535,6 +563,7 @@ def test_all_mutating_operation_blocks_resolve_placeholders(tmp_path: Path) -> N
         repo,
         carry=(),
         completed=(("[T-001]", "完了 {{D:shared}}", _digest(_active_block("[T-001]"))),),
+        completion_remaining=True,
         updated=(("[T-002]", "更新 {{D:shared}}", _digest(_active_block("[T-002]"))),),
         deferred=(("研究・計測系", "[T-003]", "見送り — 理由: {{D:shared}}", _digest(_active_block("[T-003]"))),),
     )
@@ -649,6 +678,58 @@ def test_n14_rotation_keeps_projected_worklog_under_shared_limit(tmp_path: Path)
     assert len(_target(plan, "docs/worklog.md").after_bytes) <= 320
 
 
+def test_rotation_can_archive_original_latest_to_fit_projected_entry(tmp_path: Path) -> None:
+    """F1: 新 entry だけを現行に残す分割点まで元 latest を連続移動できる。"""
+
+    repo = _repo(tmp_path, limit=100_000)
+    with (repo / "docs/worklog.md").open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write(
+            "\n## 2026-08-01 (2) — latest original entry\n\n"
+            + "- latest body "
+            + ("capacity bytes " * 30)
+            + "\n\n### 次の一手\n\n- [T-001] 現本文 [T-001]\n"
+        )
+    original = (repo / "docs/worklog.md").read_bytes()
+    _fragment(repo, "worklog", _worklog_body(repo, prose="- projected entry"))
+
+    preview = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    projected = _target(preview, "docs/worklog.md").after_bytes
+    projected_text = projected.decode("utf-8")
+    projected_entries = list(spool_fold.WORKLOG_ENTRY_RE.finditer(projected_text))
+    assert [entry.group("ordinal") for entry in projected_entries] == ["1", "2", "3"]
+    first_entry_start = len(projected_text[: projected_entries[0].start()].encode("utf-8"))
+    second_entry_start = len(projected_text[: projected_entries[1].start()].encode("utf-8"))
+    new_entry_start = len(projected_text[: projected_entries[2].start()].encode("utf-8"))
+    expected_current = projected[:first_entry_start] + projected[new_entry_start:]
+    old_split_current = projected[:first_entry_start] + projected[second_entry_start:]
+    limit = len(expected_current)
+    assert len(old_split_current) > limit
+    _write(repo / "tools/check_docs.py", f"WORKLOG_ROTATE_BYTES = {limit}\n")
+    _commit(repo, "capacity fixture")
+
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    assert plan.rotation_path is not None
+    archive = _target(plan, plan.rotation_path).after_bytes
+    current = _target(plan, "docs/worklog.md").after_bytes
+    assert archive.rstrip(b"\n") == original[first_entry_start:].rstrip(b"\n")
+    archive_entries = list(spool_fold.WORKLOG_ENTRY_RE.finditer(archive.decode("utf-8")))
+    assert [entry.group("ordinal") for entry in archive_entries] == ["1", "2"]
+    assert current == expected_current
+    assert len(current) <= limit
+    archive_latest_ids = set(
+        spool_fold.TASK_RE.findall(_next_action(_entry(archive.decode("utf-8"), 2)))
+    )
+    current_first_ids = set(
+        spool_fold.TASK_RE.findall(_next_action(_entry(current.decode("utf-8"), 3)))
+    )
+    assert archive_latest_ids == current_first_ids == {"[T-001]"}
+
+    result = spool_fold.apply_fold(repo, plan)
+    assert result.status == "applied"
+    assert (repo / "docs/worklog.md").read_bytes() == current
+    assert (repo / plan.rotation_path).read_bytes() == archive
+
+
 def test_n15_rotation_updates_archive_index(tmp_path: Path) -> None:
     """N15: 新 archive file を README の現在の収容物へ同 transaction で載せる。"""
 
@@ -688,16 +769,32 @@ def test_interrupted_transaction_resumes_before_and_after_targets(tmp_path: Path
     """transaction resume: after target は skip、before target は適用し、全 after 後だけ GC する。"""
 
     repo = _repo(tmp_path)
-    _fragment(repo, "worklog", _worklog_body(repo))
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(repo, deferred_appends=(("[T-050]", " 発火記録: resume"),)),
+    )
     _commit(repo, "fragment")
     plan = spool_fold.plan_fold(repo)
     state_path = spool_fold._state_path(repo)
     state = json.dumps(spool_fold._plan_state(plan), ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode() + b"\n"
     spool_fold._atomic_write(state_path, state)
-    first = plan.targets[0]
-    spool_fold._atomic_write(repo / first.path, first.after_bytes)
-    result = spool_fold.apply_fold(repo, plan)
-    assert result.status == "resumed" and first.path in result.resumed_paths
+    phase_target = _target(plan, "docs/phase3.md")
+    spool_fold._atomic_write(repo / phase_target.path, phase_target.after_bytes)
+    writes: list[Path] = []
+    atomic_write = spool_fold._atomic_write
+
+    def recording_atomic_write(path: Path, data: bytes) -> None:
+        writes.append(path.resolve())
+        atomic_write(path, data)
+
+    spool_fold._atomic_write = recording_atomic_write
+    try:
+        result = spool_fold.apply_fold(repo, plan)
+    finally:
+        spool_fold._atomic_write = atomic_write
+    assert result.status == "resumed" and phase_target.path in result.resumed_paths
+    assert (repo / phase_target.path).resolve() not in writes
     assert all((repo / target.path).read_bytes() == target.after_bytes for target in plan.targets)
     assert all(not (repo / rel).exists() for rel in plan.gc_paths)
     assert not state_path.exists()
@@ -749,10 +846,537 @@ def test_n18_completion_with_remaining_work_is_rejected(tmp_path: Path) -> None:
 
     repo = _repo(tmp_path)
     base = _digest(_active_block("[T-001]"))
-    body = _worklog_body(repo, carry=(), completed=(("[T-001]", "一部完了だが残件あり", base),))
+    body = _worklog_body(
+        repo,
+        carry=(),
+        completed=(("[T-001]", "一部完了だが残件あり", base),),
+        completion_remaining=True,
+    )
     _fragment(repo, "worklog", body)
     issues = spool_fold.validate_spool_tree(repo)
     assert [issue.code for issue in issues] == ["completion-remaining"]
+
+
+def test_completion_without_remaining_field_is_rejected(tmp_path: Path) -> None:
+    """T-352-1: 禁制語がなくても構造 field のない完了を受理しない。"""
+
+    repo = _repo(tmp_path)
+    body = _worklog_body(
+        repo,
+        carry=(),
+        completed=(("[T-001]", "初期処置を終了", _digest(_active_block("[T-001]"))),),
+    )
+    _fragment(repo, "worklog", body)
+    _raises("completion-remaining-field", spool_fold.plan_fold, repo)
+
+
+def test_completion_remaining_field_rejects_noncanonical_values(tmp_path: Path) -> None:
+    """T-352-2: `none` 以外と末尾コメント付きの値を閉じた語彙から拒否する。"""
+
+    for index, value in enumerate(("None", "なし", "some", "0", "none # comment"), 1):
+        parent = tmp_path / f"value-{index}"
+        parent.mkdir()
+        repo = _repo(parent)
+        base = _digest(_active_block("[T-001]"))
+        body = (
+            "## 本文\n\n- body\n\n## 次の一手差分\n\n### 完了\n\n"
+            f"- [T-001] 終了\n  base: {base}\n  remaining: {value}\n"
+        )
+        _fragment(repo, "worklog", body)
+        _raises("completion-remaining-field", spool_fold.plan_fold, repo)
+
+
+def test_completion_remaining_field_rejects_duplicates(tmp_path: Path) -> None:
+    """T-352-3: trailer 内の remaining field は exact-one。"""
+
+    repo = _repo(tmp_path)
+    base = _digest(_active_block("[T-001]"))
+    body = (
+        "## 本文\n\n- body\n\n## 次の一手差分\n\n### 完了\n\n"
+        f"- [T-001] 終了\n  base: {base}\n"
+        "  remaining: none\n  remaining: none\n"
+    )
+    _fragment(repo, "worklog", body)
+    _raises("completion-remaining-field", spool_fold.plan_fold, repo)
+
+
+def test_completion_remaining_decoys_in_fence_and_comment_are_rejected(tmp_path: Path) -> None:
+    """T-352-4: 本文中の fence/comment decoy を trailer field と数えない。"""
+
+    decoys = (
+        "  ```yaml\n  remaining: none\n  ```\n",
+        "  <!--\n  remaining: none\n  -->\n",
+    )
+    for index, decoy in enumerate(decoys, 1):
+        parent = tmp_path / f"decoy-{index}"
+        parent.mkdir()
+        repo = _repo(parent)
+        base = _digest(_active_block("[T-001]"))
+        body = (
+            "## 本文\n\n- body\n\n## 次の一手差分\n\n### 完了\n\n"
+            "- [T-001] 初期処置だけ終了。後続作業は明日\n"
+            f"{decoy}  base: {base}\n"
+        )
+        _fragment(repo, "worklog", body)
+        _raises("completion-remaining-field", spool_fold.plan_fold, repo)
+
+
+def test_completion_remaining_in_unclosed_list_relative_fences_is_rejected(tmp_path: Path) -> None:
+    """F2: raw 4/5-space の backtick/tilde fence 内 decoy を field と数えない。"""
+
+    cases = (("`", 4), ("`", 5), ("~", 4), ("~", 5))
+    for index, (marker, indent) in enumerate(cases, 1):
+        parent = tmp_path / f"list-relative-fence-{index}"
+        parent.mkdir()
+        repo = _repo(parent)
+        base = _digest(_active_block("[T-001]"))
+        body = (
+            "## 本文\n\n- body\n\n## 次の一手差分\n\n### 完了\n\n"
+            "- [T-001] 初期処置だけ終了。後続作業は明日\n"
+            f"  base: {base}\n"
+            f"{' ' * indent}{marker * 3}yaml\n"
+            "  remaining: none\n"
+        )
+        _fragment(repo, "worklog", body)
+        _raises("completion-remaining-field", spool_fold.plan_fold, repo)
+
+
+def test_valid_completion_remaining_field_is_removed_from_canonical(tmp_path: Path) -> None:
+    """T-352-5: valid field は authoring metadata であり canonical へ漏らさない。"""
+
+    repo = _repo(tmp_path)
+    body = _worklog_body(
+        repo,
+        carry=(),
+        completed=(("[T-001]", "終端完了", _digest(_active_block("[T-001]"))),),
+        completion_remaining=True,
+    )
+    _fragment(repo, "worklog", body)
+    rendered = _target(
+        spool_fold.plan_fold(repo, fold_date="2026-08-02"),
+        "docs/worklog.md",
+    ).after_bytes.decode("utf-8")
+    assert "- [T-001] 終端完了" in rendered
+    assert "remaining:" not in rendered
+
+
+def test_completion_base_and_remaining_trailer_order_is_independent(tmp_path: Path) -> None:
+    """T-352-6: base と remaining は trailer 内でどちらの順でも受理する。"""
+
+    repo = _repo(tmp_path, active=("[T-001]", "[T-002]"))
+    base1 = _digest(_active_block("[T-001]"))
+    base2 = _digest(_active_block("[T-002]"))
+    body = (
+        "## 本文\n\n- body\n\n## 次の一手差分\n\n### 完了\n\n"
+        f"- [T-001] base が先\n  base: {base1}\n  remaining: none\n"
+        f"- [T-002] remaining が先\n  remaining: none\n  base: {base2}\n"
+    )
+    _fragment(repo, "worklog", body)
+    rendered = _target(
+        spool_fold.plan_fold(repo, fold_date="2026-08-02"),
+        "docs/worklog.md",
+    ).after_bytes.decode("utf-8")
+    assert "- [T-001] base が先" in rendered
+    assert "- [T-002] remaining が先" in rendered
+    assert "  base:" not in rendered and "  remaining:" not in rendered
+
+
+def test_update_and_defer_do_not_require_remaining_field(tmp_path: Path) -> None:
+    """T-352-7: remaining field の必須化を更新・見送りへ広げない。"""
+
+    repo = _repo(tmp_path, active=("[T-001]", "[T-002]"))
+    body = _worklog_body(
+        repo,
+        carry=(),
+        updated=(("[T-001]", "更新後", _digest(_active_block("[T-001]"))),),
+        deferred=(("研究・計測系", "[T-002]", "見送り — 理由: 固定", _digest(_active_block("[T-002]"))),),
+    )
+    _fragment(repo, "worklog", body)
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    worklog = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    phase = _target(plan, "docs/phase3.md").after_bytes.decode("utf-8")
+    assert "- [T-001] 更新後" in worklog
+    assert "- [T-002] 見送り — 理由: 固定" in phase
+
+
+def test_deferred_append_targets_single_line_item_head(tmp_path: Path) -> None:
+    """T-358-9: 1 行 item の ID 行末へ suffix だけを挿入する。"""
+
+    repo = _repo(tmp_path)
+    suffix = " 発火記録: 単一"
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", suffix),)))
+    before = (repo / "docs/phase3.md").read_bytes()
+    offset = _line_end_offset(before, b"- [T-050] ")
+    assert _phase_after(repo) == before[:offset] + suffix.encode("utf-8") + before[offset:]
+
+
+def test_deferred_append_accepts_first_suffix_seen_outside_head_line_end(tmp_path: Path) -> None:
+    """F3: 同じ bytes が継続行・comment・head prose 内にあっても初回追記を受理する。"""
+
+    suffix = " 発火記録: 初回"
+    target_blocks = (
+        "- [T-050] 継続行に例示を持つ\n  例示:" + suffix + "\n",
+        "- [T-050] comment に例示を持つ\n  <!--" + suffix + " -->\n",
+        "- [T-050] head prose 内の例示" + suffix + " は未追記\n",
+    )
+    for index, target_block in enumerate(target_blocks, 1):
+        parent = tmp_path / f"suffix-context-{index}"
+        parent.mkdir()
+        repo = _repo(parent)
+        phase = (repo / "docs/phase3.md").read_text(encoding="utf-8").replace(
+            "- [T-050] 既存見送り — 理由: seed\n",
+            target_block,
+        )
+        _write(repo / "docs/phase3.md", phase)
+        _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", suffix),)))
+        before = (repo / "docs/phase3.md").read_bytes()
+        offset = _line_end_offset(before, b"- [T-050] ")
+        after = _phase_after(repo)
+        assert after == before[:offset] + suffix.encode("utf-8") + before[offset:]
+
+
+def test_deferred_append_multiline_target_preserves_continuations(tmp_path: Path) -> None:
+    """T-358-10: 複数行 target でも先頭行末へ追記し継続行を不変に保つ。"""
+
+    repo = _repo(tmp_path)
+    phase = (repo / "docs/phase3.md").read_text(encoding="utf-8")
+    phase = phase.replace(
+        "- [T-050] 既存見送り — 理由: seed\n",
+        "- [T-050] 複数行の先頭  \n  継続行その一\n  継続行その二\n",
+    )
+    _write(repo / "docs/phase3.md", phase)
+    suffix = " 発火記録: 複数行"
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", suffix),)))
+    before = (repo / "docs/phase3.md").read_bytes()
+    offset = _line_end_offset(before, b"- [T-050] ")
+    after = _phase_after(repo)
+    assert after == before[:offset] + suffix.encode("utf-8") + before[offset:]
+    assert "\n  継続行その一\n  継続行その二\n".encode("utf-8") in after
+
+
+def test_deferred_append_fenced_target_does_not_break_fence(tmp_path: Path) -> None:
+    """T-358-11: target block の fenced code を閉じ行ごと byte-exact に保つ。"""
+
+    repo = _repo(tmp_path)
+    phase = (repo / "docs/phase3.md").read_text(encoding="utf-8")
+    fenced = (
+        "- [T-050] fence を持つ先頭\n"
+        "  ```text\n"
+        "  - [T-999] fence 内の例\n"
+        "  ```\n"
+        "  fence 後の継続\n"
+    )
+    phase = phase.replace("- [T-050] 既存見送り — 理由: seed\n", fenced)
+    _write(repo / "docs/phase3.md", phase)
+    suffix = " 発火記録: fence 安全"
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", suffix),)))
+    before = (repo / "docs/phase3.md").read_bytes()
+    offset = _line_end_offset(before, b"- [T-050] ")
+    after = _phase_after(repo)
+    assert after == before[:offset] + suffix.encode("utf-8") + before[offset:]
+    assert fenced.split("\n", 1)[1].encode("utf-8") in after
+
+
+def test_deferred_append_is_byte_exact_for_all_insertion_shapes(tmp_path: Path) -> None:
+    """T-358-12: 単一・同一複数・複数対象・複数行を exact splice で固定する。"""
+
+    parent = tmp_path / "single"
+    parent.mkdir()
+    repo = _repo(parent)
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", " A"),)))
+    before = (repo / "docs/phase3.md").read_bytes()
+    offset = _line_end_offset(before, b"- [T-050] ")
+    assert _phase_after(repo) == before[:offset] + b" A" + before[offset:]
+
+    parent = tmp_path / "same-target"
+    parent.mkdir()
+    repo = _repo(parent)
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(repo, deferred_appends=(("[T-050]", " A"), ("[T-050]", " B"))),
+    )
+    before = (repo / "docs/phase3.md").read_bytes()
+    offset = _line_end_offset(before, b"- [T-050] ")
+    assert _phase_after(repo) == before[:offset] + b" A B" + before[offset:]
+
+    parent = tmp_path / "multiple-targets"
+    parent.mkdir()
+    repo = _repo(parent)
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(repo, deferred_appends=(("[T-050]", " A"), ("[T-051]", " B"))),
+    )
+    before = (repo / "docs/phase3.md").read_bytes()
+    insertions = (
+        (_line_end_offset(before, b"- [T-050] "), b" A"),
+        (_line_end_offset(before, b"- [T-051] "), b" B"),
+    )
+    assert _phase_after(repo) == _splice_exact(before, insertions)
+
+    parent = tmp_path / "multiline-target"
+    parent.mkdir()
+    repo = _repo(parent)
+    phase = (repo / "docs/phase3.md").read_text(encoding="utf-8").replace(
+        "- [T-050] 既存見送り — 理由: seed\n",
+        "- [T-050] 複数行先頭\n  継続行  \n  最終行\n",
+    )
+    _write(repo / "docs/phase3.md", phase)
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", " A"),)))
+    before = (repo / "docs/phase3.md").read_bytes()
+    offset = _line_end_offset(before, b"- [T-050] ")
+    assert _phase_after(repo) == before[:offset] + b" A" + before[offset:]
+
+
+def test_empty_deferred_append_section_is_rejected(tmp_path: Path) -> None:
+    """T-358-13: 使用した見送り追記 section は item 1 件以上を要求する。"""
+
+    repo = _repo(tmp_path)
+    body = _worklog_body(repo).rstrip("\n") + "\n\n### 見送り追記\n"
+    _fragment(repo, "worklog", body)
+    _raises("deferred-append-empty", spool_fold.plan_fold, repo)
+
+
+def test_multiline_deferred_append_item_is_rejected(tmp_path: Path) -> None:
+    """T-358-14: 見送り追記 item は 1 物理行だけに限定する。"""
+
+    repo = _repo(tmp_path)
+    body = _worklog_body(
+        repo,
+        deferred_appends=(("[T-050]", " 最初の行\n  継続行"),),
+    )
+    _fragment(repo, "worklog", body)
+    _raises("deferred-append-shape", spool_fold.plan_fold, repo)
+
+
+def test_empty_or_whitespace_deferred_append_suffix_is_rejected(tmp_path: Path) -> None:
+    """T-358-15/F4: 空 suffix を shape gate で拒否する独立 node。"""
+
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", ""),)))
+    _raises("deferred-append-shape", spool_fold.plan_fold, repo)
+
+
+def test_whitespace_only_deferred_append_suffix_is_rejected(tmp_path: Path) -> None:
+    """T-358-15/F4: 空白だけの suffix を shape gate で拒否する独立 node。"""
+
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", "   "),)))
+    _raises("deferred-append-shape", spool_fold.plan_fold, repo)
+
+
+def test_deferred_append_missing_target_is_rejected(tmp_path: Path) -> None:
+    """T-358-16: 見送り台帳に存在しない ID を fail-closed にする。"""
+
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-999]", " 発火"),)))
+    _raises("deferred-append-missing", spool_fold.plan_fold, repo)
+
+
+def test_deferred_append_cannot_target_completion_record(tmp_path: Path) -> None:
+    """T-358-17: 裁定・完了記録 region の ID は探索対象に含めない。"""
+
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-052]", " 発火"),)))
+    _raises("deferred-append-missing", spool_fold.plan_fold, repo)
+
+
+def test_deferred_append_rejects_visible_duplicate_target_ids(tmp_path: Path) -> None:
+    """T-358-18: 可視な top-level target ID が複数なら曖昧な追記をしない。"""
+
+    repo = _repo(tmp_path)
+    phase = (repo / "docs/phase3.md").read_text(encoding="utf-8").replace(
+        "- [T-051] 既存見送り — 理由: seed\n",
+        "- [T-050] 可視な重複 — 理由: duplicate\n"
+        "- [T-051] 既存見送り — 理由: seed\n",
+    )
+    _write(repo / "docs/phase3.md", phase)
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", " 発火"),)))
+    _raises("deferred-append-duplicate", spool_fold.plan_fold, repo)
+
+
+def test_deferred_append_ignores_comment_and_fence_decoy_items(tmp_path: Path) -> None:
+    """T-358-19: comment/fence 内の item を target または重複として数えない。"""
+
+    parent = tmp_path / "visible-target"
+    parent.mkdir()
+    repo = _repo(parent)
+    decoys = (
+        "<!--\n- [T-050] comment decoy\n- [T-999] comment only\n-->\n\n"
+        "```text\n- [T-050] fence decoy\n- [T-999] fence only\n```\n\n"
+    )
+    phase = (repo / "docs/phase3.md").read_text(encoding="utf-8").replace(
+        "### プロセス文書系\n\n",
+        "### プロセス文書系\n\n" + decoys,
+    )
+    _write(repo / "docs/phase3.md", phase)
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", " 発火"),)))
+    before = (repo / "docs/phase3.md").read_bytes()
+    offset = _line_end_offset(before, b"- [T-050] \xe6\x97\xa2\xe5\xad\x98")
+    assert _phase_after(repo) == before[:offset] + " 発火".encode("utf-8") + before[offset:]
+
+    parent = tmp_path / "decoy-only"
+    parent.mkdir()
+    repo = _repo(parent)
+    phase = (repo / "docs/phase3.md").read_text(encoding="utf-8").replace(
+        "### プロセス文書系\n\n",
+        "### プロセス文書系\n\n" + decoys,
+    )
+    _write(repo / "docs/phase3.md", phase)
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-999]", " 発火"),)))
+    _raises("deferred-append-missing", spool_fold.plan_fold, repo)
+
+
+def test_deferred_append_before_defer_section_is_rejected(tmp_path: Path) -> None:
+    """T-358-20: 見送り追記を見送りより前へ置く action 順序違反を拒否する。"""
+
+    repo = _repo(tmp_path)
+    base = _digest(_active_block("[T-001]"))
+    body = (
+        "## 本文\n\n- body\n\n## 次の一手差分\n\n"
+        "### 見送り追記\n\n- [T-050] 発火\n\n"
+        "### 見送り\n\n#### プロセス文書系\n\n"
+        f"- [T-001] 見送り — 理由: 固定\n  base: {base}\n"
+    )
+    _fragment(repo, "worklog", body)
+    _raises("worklog-action-order", spool_fold.plan_fold, repo)
+
+
+def test_deferred_append_can_target_item_deferred_earlier_in_same_fold(tmp_path: Path) -> None:
+    """T-358-21: Fragment.key 順の逐次 phase に対して見送り追記を適用する。"""
+
+    repo = _repo(tmp_path)
+    deferred_text = "同じ fold で新設 — 理由: 逐次意味論"
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            deferred=(("プロセス文書系", "[T-001]", deferred_text, _digest(_active_block("[T-001]"))),),
+        ),
+        wave="sequential-wave",
+        seq=1,
+    )
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(repo, carry=(), deferred_appends=(("[T-001]", " 発火記録: 同一 fold"),)),
+        wave="sequential-wave",
+        seq=2,
+    )
+    phase = _phase_after(repo).decode("utf-8")
+    assert f"- [T-001] {deferred_text} 発火記録: 同一 fold\n" in phase
+
+
+def test_deferred_append_resolves_cross_ledger_placeholder(tmp_path: Path) -> None:
+    """T-358-22: suffix の cross-ledger placeholder を plan 時に解決する。"""
+
+    repo = _repo(tmp_path)
+    _fragment(
+        repo,
+        "decisions",
+        "## {{D:append-decision}}. 追記の根拠\n\n**決定:** 固定。\n",
+        wave="cross-append",
+        seq=1,
+    )
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            deferred_appends=(("[T-050]", " 発火記録: {{D:append-decision}}"),),
+        ),
+        wave="cross-append",
+        seq=2,
+    )
+    phase = _phase_after(repo).decode("utf-8")
+    assert "発火記録: D2" in phase
+    assert "{{D:append-decision}}" not in phase
+
+
+def test_deferred_append_order_is_deterministic_by_fragment_key_and_item_index(tmp_path: Path) -> None:
+    """T-358-23: 固定日付で wave/seq/item index 順となり FS/hash 順へ依存しない。"""
+
+    repo = _repo(tmp_path)
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(repo, deferred_appends=(("[T-050]", " B1"),)),
+        wave="wave-b",
+        seq=1,
+    )
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(repo, deferred_appends=(("[T-050]", " A10"),)),
+        wave="wave-a",
+        seq=10,
+    )
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            deferred_appends=(("[T-050]", " A2-first"), ("[T-050]", " A2-second")),
+        ),
+        wave="wave-a",
+        seq=2,
+    )
+    first = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    second = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    assert first.as_dict() == second.as_dict()
+    phase = _target(first, "docs/phase3.md").after_bytes.decode("utf-8")
+    target_line = next(line for line in phase.splitlines() if line.startswith("- [T-050] "))
+    assert target_line.endswith(" A2-first A2-second A10 B1")
+
+
+def test_deferred_append_rejects_replayed_identical_suffix(tmp_path: Path) -> None:
+    """T-358-24: wrapper を変えた同一 suffix の再投入も二重挿入しない。"""
+
+    repo = _repo(tmp_path)
+    suffix = " 発火記録: replay guard"
+    _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", suffix),)))
+    _commit(repo, "first append fragment")
+    spool_fold.apply_fold(repo, spool_fold.plan_fold(repo, fold_date="2026-08-02"))
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(repo, deferred_appends=(("[T-050]", suffix),), prose="- wrapper changed"),
+        seq=2,
+        title="changed wrapper",
+    )
+    _raises("deferred-append-duplicate-suffix", spool_fold.plan_fold, repo)
+
+
+def test_deferred_append_only_fragment_preserves_all_active_tasks(tmp_path: Path) -> None:
+    """T-358-25: 見送り追記を active 遷移へ混ぜず全 task を暗黙 carry する。"""
+
+    repo = _repo(tmp_path, active=("[T-001]", "[T-002]", "[T-003]"))
+    suffix = " 発火"
+    path = _fragment(
+        repo,
+        "worklog",
+        _worklog_body(repo, carry=(), deferred_appends=(("[T-050]", suffix),)),
+    )
+    fragment, fragment_issues = spool_fold._fragment_from_file(repo, "worklog", path)
+    assert fragment_issues == [] and fragment is not None
+    delta, delta_issues = spool_fold._parse_worklog_delta(fragment)
+    assert delta_issues == [] and delta is not None
+    assert delta.operations == ()
+    assert tuple((append.task_id, append.suffix) for append in delta.deferred_appends) == (
+        ("[T-050]", suffix),
+    )
+
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    worklog = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert _next_action(_entry(worklog, 2)) == (
+        "### 次の一手\n\n"
+        "- [T-001] 変わらず ((1) 参照)\n"
+        "- [T-002] 変わらず ((1) 参照)\n"
+        "- [T-003] 変わらず ((1) 参照)\n"
+    )
 
 
 def test_p01_valid_single_worklog_fragment_applies(tmp_path: Path) -> None:
@@ -825,6 +1449,7 @@ def test_completion_update_and_defer_form_explicit_sinks(tmp_path: Path) -> None
         repo,
         carry=(),
         completed=(("[T-001]", "**完了 (本エントリ)**: 終端", _digest(_active_block("[T-001]"))),),
+        completion_remaining=True,
         updated=(("[T-002]", "**P1**: 更新本文", _digest(_active_block("[T-002]"))),),
         deferred=(("研究・計測系", "[T-003]", "見送り — 理由: 条件未成立", _digest(_active_block("[T-003]"))),),
     )
