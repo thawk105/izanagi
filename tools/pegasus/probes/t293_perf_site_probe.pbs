@@ -1,0 +1,107 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=00:10:00
+#PBS -b 1
+
+if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" \
+      || -z "${EXPECT_POLICY_SHA256:-}" || -z "${EXPECT_HEAD:-}" \
+      || -z "${EXPECT_PROBE_SHA256:-}" || -z "${EXPECT_PBS_SHA256:-}" \
+      || -z "${EXPECT_SUBMISSION_SHA256:-}" ]]; then
+  exit 2
+fi
+
+umask 077
+REAL_WORKDIR=$(realpath -e -- "$PBS_O_WORKDIR") || exit 2
+if [[ "$REAL_WORKDIR" != "$PBS_O_WORKDIR" ]]; then
+  exit 2
+fi
+
+check_no_symlink_components() {
+  local path=$1
+  local component
+  local current=/
+  local -a components
+  [[ "$path" == /* ]] || return 1
+  IFS=/ read -r -a components <<< "$path"
+  for component in "${components[@]}"; do
+    [[ -z "$component" ]] && continue
+    if [[ "$current" == / ]]; then
+      current="/$component"
+    else
+      current="$current/$component"
+    fi
+    [[ ! -L "$current" ]] || return 1
+  done
+}
+
+JOB_TAG=${PBS_JOBID//:/_}
+OUT_PARENT="$REAL_WORKDIR/output/env/pegasus/t293-perf-site"
+OUT="$OUT_PARENT/$JOB_TAG"
+
+check_no_symlink_components "$OUT_PARENT" || exit 2
+mkdir -p "$OUT_PARENT" || exit 2
+check_no_symlink_components "$OUT_PARENT" || exit 2
+if [[ -e "$OUT" || -L "$OUT" ]]; then
+  exit 2
+fi
+mkdir -m 700 "$OUT" || exit 2
+check_no_symlink_components "$OUT" || exit 2
+
+MARKER_HOSTNAME=$(hostname) || exit 2
+MARKER_EPOCH=$(date +%s) || exit 2
+# marker は shell が計算ノードで開始した証拠であり、probe 完走の証拠ではない。
+(
+  set -o noclobber
+  {
+    printf 'hostname=%s\n' "$MARKER_HOSTNAME"
+    printf 'PBS_JOBID=%s\n' "$PBS_JOBID"
+    printf 'epoch=%s\n' "$MARKER_EPOCH"
+  } > "$OUT/marker"
+) || exit 2
+
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+PY=""
+for candidate in python3 python3.10 python3.11 python3.12; do
+  resolved=$(command -v -- "$candidate" 2>/dev/null || true)
+  [[ -n "$resolved" ]] || continue
+  if "$resolved" -I -S -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3,10) else 1)' \
+      >/dev/null 2>&1; then
+    PY=$(realpath -e -- "$resolved")
+    break
+  fi
+done
+[[ -n "$PY" ]] || exit 2
+
+(
+  set -o noclobber
+  printf '%s\n' "$PY" > "$OUT/interpreter"
+) || exit 2
+
+(
+  set -o noclobber
+  "$PY" -I -B "$REAL_WORKDIR/tools/pegasus/probes/t293_perf_site_probe.py" \
+    --repo-root "$REAL_WORKDIR" \
+    --output "$OUT/probe.json" \
+    --expect-policy-sha256 "$EXPECT_POLICY_SHA256" \
+    --expect-head "$EXPECT_HEAD" \
+    --expect-probe-sha256 "$EXPECT_PROBE_SHA256" \
+    --expect-pbs-sha256 "$EXPECT_PBS_SHA256" \
+    --expect-submission-sha256 "$EXPECT_SUBMISSION_SHA256" \
+    > "$OUT/probe.log" 2>&1
+)
+PROBE_RC=$?
+
+(
+  set -o noclobber
+  printf '%s\n' "$PROBE_RC" > "$OUT/probe.rc"
+) || exit 2
+
+# done-marker は probe が最後まで走った証拠で、marker とは役割が異なる。
+(
+  set -o noclobber
+  printf 'probe_rc=%s\n' "$PROBE_RC" > "$OUT/done-marker"
+) || exit 2
+
+exit "$PROBE_RC"

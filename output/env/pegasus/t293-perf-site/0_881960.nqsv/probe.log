@@ -1,0 +1,428 @@
+{
+  "binding": {
+    "attempted": true,
+    "expected_head": "0c8d6eec1cc7e8b63ba435a509da8e38942b7672",
+    "expected_pbs_sha256": "7143052852f69833ea6b6a839b59fe897676eed242372fd1c759137c3a3e9b4d",
+    "expected_policy_sha256": "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac",
+    "expected_probe_sha256": "9a992293abe1497b6159e67e67bf9ed7a6f43e638bd8d65b6ee67671ac90b030",
+    "expected_submission_sha256": "1c19581c176786080a65cffe580f0da54e42623ad260ff13b0ec26e64383cc69",
+    "head": "0c8d6eec1cc7e8b63ba435a509da8e38942b7672",
+    "matched": true,
+    "pbs_sha256": "7143052852f69833ea6b6a839b59fe897676eed242372fd1c759137c3a3e9b4d",
+    "policy_sha256": "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac",
+    "probe_sha256": "9a992293abe1497b6159e67e67bf9ed7a6f43e638bd8d65b6ee67671ac90b030",
+    "submission_sha256": "1c19581c176786080a65cffe580f0da54e42623ad260ff13b0ec26e64383cc69"
+  },
+  "consistency": {
+    "functional_candidates": [],
+    "inconsistent": false,
+    "real_prepare_failure_stage": "cc",
+    "real_prepare_ok": false,
+    "real_resolution_resolved": false,
+    "reasons": []
+  },
+  "control_note": "同じ計算ノードの同じ run で、実在する sys.executable を解決し、起動時に不存在を確認した候補を解決しない二側 control により resolver の感度を確認する。",
+  "control_resolution": {
+    "attempted": true,
+    "candidates": [
+      "/nonexistent/izanagi-t293-control/perf"
+    ],
+    "error": {
+      "message": "required executable unavailable: perf",
+      "type": "SubmissionPreparationError"
+    },
+    "name": "perf",
+    "resolved": false
+  },
+  "control_sensitivity": "two-sided-ok",
+  "environment_observation": {
+    "attempted": true,
+    "linux_tools_inventory": [
+      {
+        "executable": true,
+        "exists": true,
+        "is_file": true,
+        "is_symlink": false,
+        "path": "/usr/lib/linux-tools-5.15.0-100/perf"
+      },
+      {
+        "executable": true,
+        "exists": true,
+        "is_file": true,
+        "is_symlink": false,
+        "path": "/usr/lib/linux-tools-5.15.0-135/perf"
+      },
+      {
+        "executable": true,
+        "exists": true,
+        "is_file": true,
+        "is_symlink": true,
+        "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf"
+      },
+      {
+        "executable": true,
+        "exists": true,
+        "is_file": true,
+        "is_symlink": true,
+        "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf"
+      }
+    ],
+    "perf_event_paranoid": {
+      "path": "/proc/sys/kernel/perf_event_paranoid",
+      "value": "0"
+    },
+    "toolchain_which": {
+      "cmake": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/cmake",
+      "g++-13": null,
+      "gcc-13": null,
+      "python3": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/python3"
+    }
+  },
+  "individual_executable_resolutions": {
+    "attempted": true,
+    "results": {
+      "cc": {
+        "attempted": true,
+        "candidates": [
+          "gcc-13"
+        ],
+        "error": {
+          "message": "required executable unavailable: cc",
+          "type": "SubmissionPreparationError"
+        },
+        "name": "cc",
+        "note": "simulated: candidates replicated from prepare_toolchain",
+        "resolved": false
+      },
+      "cmake": {
+        "attempted": true,
+        "candidates": [
+          "cmake"
+        ],
+        "name": "cmake",
+        "note": "simulated: candidates replicated from prepare_toolchain",
+        "path": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "resolved": true,
+        "sha256": "93ea19dfc3fdae3cc78f0bafbdfe3e41c9deb1a3c1bc889b29cc1532210e40df",
+        "version": "cmake version 3.25.0"
+      },
+      "cxx": {
+        "attempted": true,
+        "candidates": [
+          "g++-13"
+        ],
+        "error": {
+          "message": "required executable unavailable: cxx",
+          "type": "SubmissionPreparationError"
+        },
+        "name": "cxx",
+        "note": "simulated: candidates replicated from prepare_toolchain",
+        "resolved": false
+      },
+      "perf": {
+        "attempted": true,
+        "candidates": [
+          "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+          "/usr/lib/linux-tools/5.15.0-100-generic/perf"
+        ],
+        "error": {
+          "message": "required executable unavailable: perf",
+          "type": "SubmissionPreparationError"
+        },
+        "name": "perf",
+        "resolved": false
+      },
+      "python": {
+        "attempted": true,
+        "candidates": [
+          "python3",
+          "python3.10",
+          "python3.11"
+        ],
+        "name": "python",
+        "note": "simulated: candidates replicated from prepare_toolchain",
+        "path": "/usr/bin/python3.10",
+        "resolved": true,
+        "sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+        "version": "Python 3.10.12"
+      }
+    }
+  },
+  "linux_tools_inventory": [
+    {
+      "executable": true,
+      "exists": true,
+      "is_file": true,
+      "is_symlink": false,
+      "path": "/usr/lib/linux-tools-5.15.0-100/perf"
+    },
+    {
+      "executable": true,
+      "exists": true,
+      "is_file": true,
+      "is_symlink": false,
+      "path": "/usr/lib/linux-tools-5.15.0-135/perf"
+    },
+    {
+      "executable": true,
+      "exists": true,
+      "is_file": true,
+      "is_symlink": true,
+      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf"
+    },
+    {
+      "executable": true,
+      "exists": true,
+      "is_file": true,
+      "is_symlink": true,
+      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf"
+    }
+  ],
+  "measurement_errors": [],
+  "measurement_layers": {
+    "control_resolution": {
+      "attempted": true
+    },
+    "environment_observation": {
+      "attempted": true
+    },
+    "individual_executable_resolutions": {
+      "attempted": true
+    },
+    "policy_candidates": {
+      "attempted": true
+    },
+    "real_executable_resolution": {
+      "attempted": true
+    },
+    "real_prepare_toolchain": {
+      "attempted": true
+    },
+    "simulated_smoke": {
+      "attempted": true
+    }
+  },
+  "negative_control_preflight": {
+    "executable": false,
+    "exists": false,
+    "is_file": false,
+    "is_symlink": false,
+    "path": "/nonexistent/izanagi-t293-control/perf"
+  },
+  "ok": true,
+  "ok_semantics": "ok は期待 HEAD・policy・probe・PBS・submission の binding が一致し、必須 field が完備し、全測定層を試行して完了でき、正の control が解決し負の control が未解決だったことを表す。候補未解決や smoke 不合格は正当な否定結果であり、それ自体では ok を false にしない。",
+  "perf_event_paranoid": {
+    "path": "/proc/sys/kernel/perf_event_paranoid",
+    "value": "0"
+  },
+  "policy_candidates": [
+    {
+      "attempted": true,
+      "executable": true,
+      "exists": true,
+      "functional": false,
+      "is_file": true,
+      "is_symlink": true,
+      "limitation": "模擬測定は production が行う canonical path の SHA-256 と inode/size/mtime の安定性検査を再現しない。",
+      "note": "simulated: argv replicated from prepare_toolchain",
+      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+      "smoke": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+          "stat",
+          "-x,",
+          "-e",
+          "LLC-load-misses,LLC-loads,instructions,cycles",
+          "--",
+          "true"
+        ],
+        "attempted": true,
+        "executed": true,
+        "note": "simulated: argv replicated from prepare_toolchain",
+        "rc": 0,
+        "stderr": "102,,LLC-load-misses,261558,100.00,6.79,of all LL-cache accesses\n1503,,LLC-loads,261558,100.00,,\n601877,,instructions,261558,100.00,0.77,insn per cycle\n786453,,cycles,261558,100.00,,\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+          "--version"
+        ],
+        "attempted": true,
+        "executed": true,
+        "rc": 0,
+        "stderr": "",
+        "stdout": "perf version 5.15.178\n"
+      }
+    },
+    {
+      "attempted": true,
+      "executable": true,
+      "exists": true,
+      "functional": false,
+      "is_file": true,
+      "is_symlink": true,
+      "limitation": "模擬測定は production が行う canonical path の SHA-256 と inode/size/mtime の安定性検査を再現しない。",
+      "note": "simulated: argv replicated from prepare_toolchain",
+      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+      "smoke": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+          "stat",
+          "-x,",
+          "-e",
+          "LLC-load-misses,LLC-loads,instructions,cycles",
+          "--",
+          "true"
+        ],
+        "attempted": true,
+        "executed": true,
+        "note": "simulated: argv replicated from prepare_toolchain",
+        "rc": 0,
+        "stderr": "5,,LLC-load-misses,254843,100.00,0.33,of all LL-cache accesses\n1520,,LLC-loads,254843,100.00,,\n610284,,instructions,254843,100.00,0.79,insn per cycle\n768940,,cycles,254843,100.00,,\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+          "--version"
+        ],
+        "attempted": true,
+        "executed": true,
+        "rc": 0,
+        "stderr": "",
+        "stdout": "perf version 5.15.143\n"
+      }
+    }
+  ],
+  "policy_file": {
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t293-perf-site/tools/pegasus/policy.json",
+    "sha256": "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac"
+  },
+  "positive_control_preflight": {
+    "executable": true,
+    "exists": true,
+    "is_absolute": true,
+    "is_file": true,
+    "is_symlink": false,
+    "path": "/usr/bin/python3.10"
+  },
+  "positive_control_resolution": {
+    "attempted": true,
+    "candidates": [
+      "/usr/bin/python3.10"
+    ],
+    "name": "python",
+    "note": "symlink を解決した実体 path を使う。_executable は symlink 候補を拒否するため。",
+    "path": "/usr/bin/python3.10",
+    "resolved": true,
+    "sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "version": "Python 3.10.12"
+  },
+  "real_executable_resolution": {
+    "attempted": true,
+    "candidates": [
+      "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+      "/usr/lib/linux-tools/5.15.0-100-generic/perf"
+    ],
+    "error": {
+      "message": "required executable unavailable: perf",
+      "type": "SubmissionPreparationError"
+    },
+    "name": "perf",
+    "resolved": false
+  },
+  "real_prepare_toolchain": {
+    "attempted": true,
+    "error": {
+      "message": "required executable unavailable: cc",
+      "type": "SubmissionPreparationError"
+    },
+    "failure_stage": "cc",
+    "ok": false
+  },
+  "required_fields": [
+    "schema_version",
+    "ok",
+    "ok_semantics",
+    "site.hostname",
+    "site.uname_release",
+    "site.PBS_JOBID",
+    "site.observed_epoch",
+    "site.cwd",
+    "sample_scope",
+    "control_note",
+    "control_sensitivity",
+    "required_fields",
+    "required_fields_complete",
+    "positive_control_preflight.path",
+    "positive_control_preflight.exists",
+    "positive_control_preflight.is_file",
+    "positive_control_preflight.is_symlink",
+    "positive_control_preflight.executable",
+    "positive_control_preflight.is_absolute",
+    "negative_control_preflight.path",
+    "negative_control_preflight.exists",
+    "binding.attempted",
+    "binding.matched",
+    "binding.expected_head",
+    "binding.head",
+    "binding.expected_policy_sha256",
+    "binding.policy_sha256",
+    "binding.expected_probe_sha256",
+    "binding.probe_sha256",
+    "binding.expected_pbs_sha256",
+    "binding.pbs_sha256",
+    "binding.expected_submission_sha256",
+    "binding.submission_sha256",
+    "policy_file.path",
+    "policy_file.sha256",
+    "measurement_layers.environment_observation.attempted",
+    "measurement_layers.policy_candidates.attempted",
+    "measurement_layers.real_executable_resolution.attempted",
+    "measurement_layers.individual_executable_resolutions.attempted",
+    "measurement_layers.real_prepare_toolchain.attempted",
+    "measurement_layers.simulated_smoke.attempted",
+    "measurement_layers.control_resolution.attempted",
+    "environment_observation.attempted",
+    "policy_candidates",
+    "real_executable_resolution.attempted",
+    "real_executable_resolution.resolved",
+    "individual_executable_resolutions.attempted",
+    "individual_executable_resolutions.results",
+    "real_prepare_toolchain.attempted",
+    "real_prepare_toolchain.ok",
+    "real_prepare_toolchain.failure_stage",
+    "simulated_smoke.attempted",
+    "positive_control_resolution.attempted",
+    "positive_control_resolution.resolved",
+    "control_resolution.attempted",
+    "control_resolution.resolved",
+    "consistency.inconsistent",
+    "consistency.reasons",
+    "measurement_errors"
+  ],
+  "required_fields_complete": true,
+  "sample_scope": "この結果は hostname=bnode005 + observed_epoch=1785763480 + policy sha256=b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac の1標本であり、gen_S の全 bnode や将来の allocation へ一般化しない。",
+  "schema_version": "t293-perf-site-probe/v1",
+  "simulated_smoke": {
+    "attempted": true,
+    "executed": false,
+    "note": "simulated: argv replicated from prepare_toolchain",
+    "reason": "real executable resolution did not resolve perf",
+    "skipped": true
+  },
+  "site": {
+    "PBS_JOBID": "0:881960.nqsv",
+    "cwd": "/home/SFC/tanab",
+    "hostname": "bnode005",
+    "observed_epoch": 1785763480,
+    "uname_release": "5.15.0-173-generic"
+  },
+  "toolchain_which": {
+    "cmake": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/cmake",
+    "g++-13": null,
+    "gcc-13": null,
+    "python3": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/python3"
+  }
+}
