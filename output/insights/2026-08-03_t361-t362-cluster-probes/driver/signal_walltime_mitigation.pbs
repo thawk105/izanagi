@@ -1,0 +1,42 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -b 1
+#PBS --accept-sigterm=yes
+#PBS -l elapstim_req="00:03:00,00:02:00"
+#PBS --warning-signal=elapstim:SIGTERM
+#PBS -N t362_mitig
+
+set -euo pipefail
+umask 077
+
+: "${T362_RUN_ROOT:?T362_RUN_ROOT is required}"
+: "${T362_DRIVER_ROOT:?T362_DRIVER_ROOT is required}"
+: "${T362_MODE:?T362_MODE is required}"
+: "${T362_RUN_NONCE:?T362_RUN_NONCE is required}"
+: "${T362_ATTEMPT_ID:?T362_ATTEMPT_ID is required}"
+[[ "$T362_RUN_NONCE" == "$T362_ATTEMPT_ID" ]] || exit 16
+[[ "$T362_MODE" == "mitigation" ]] || { printf '%s\n' 'T362_MODE must be mitigation' >&2; exit 16; }
+[[ "$T362_RUN_ROOT" == /* && -d "$T362_RUN_ROOT" && ! -L "$T362_RUN_ROOT" ]] || exit 16
+[[ "$T362_DRIVER_ROOT" == /* && -d "$T362_DRIVER_ROOT" && ! -L "$T362_DRIVER_ROOT" ]] || exit 16
+
+PROBE="$T362_DRIVER_ROOT/signal_interpreter_probe.py"
+SIGNAL_PROBE="$T362_DRIVER_ROOT/signal_probe.py"
+[[ -f "$PROBE" && ! -L "$PROBE" && -f "$SIGNAL_PROBE" && ! -L "$SIGNAL_PROBE" ]] || exit 16
+
+selected=""
+for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
+    resolved=$(command -v "$candidate" 2>/dev/null || true)
+    if [[ -n "$resolved" ]] && "$resolved" "$PROBE" >/dev/null 2>&1; then
+        selected=$resolved
+        break
+    fi
+done
+if [[ -z "$selected" ]]; then
+    exit 16
+fi
+
+export PATH="$(dirname "$selected"):$PATH"
+export PYTHONDONTWRITEBYTECODE=1
+"$selected" "$SIGNAL_PROBE" bootstrap --layer job-script
+exec "$selected" "$SIGNAL_PROBE" parent

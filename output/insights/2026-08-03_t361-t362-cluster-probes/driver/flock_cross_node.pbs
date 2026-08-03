@@ -1,0 +1,65 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -b 2
+#PBS -l elapstim_req=00:05:00
+#PBS -N t361-flock
+
+umask 077
+set -euo pipefail
+
+write_failure() {
+    printf 'T361 bootstrap failure: %s\n' "$1" >&2
+}
+
+for required in T361_RUN_ROOT T361_HOME_ROOT T361_DRIVER_ROOT; do
+    if [[ -z "${!required:-}" ]]; then
+        write_failure "missing-${required}"
+        exit 16
+    fi
+done
+
+for root in "$T361_RUN_ROOT" "$T361_HOME_ROOT" "$T361_DRIVER_ROOT"; do
+    if [[ "$root" != /* ]] || [[ ! -d "$root" ]] || [[ -L "$root" ]]; then
+        write_failure "unsafe-root:${root}"
+        exit 16
+    fi
+done
+
+if [[ ! -r "${PBS_NODEFILE:-}" ]] || [[ -L "${PBS_NODEFILE:-}" ]]; then
+    write_failure nodefile
+    exit 16
+fi
+
+case "${T361_RECON_ONLY:-0}" in
+    0|1) ;;
+    *)
+        write_failure recon-mode
+        exit 16
+        ;;
+esac
+
+PROBE="$T361_DRIVER_ROOT/flock_interpreter_probe.py"
+DRIVER="$T361_DRIVER_ROOT/flock_probe.py"
+if [[ ! -f "$PROBE" ]] || [[ -L "$PROBE" ]] ||
+   [[ ! -f "$DRIVER" ]] || [[ -L "$DRIVER" ]]; then
+    write_failure driver
+    exit 16
+fi
+
+selected=""
+for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
+    resolved=$(command -v "$candidate" 2>/dev/null || true)
+    if [[ -n "$resolved" ]] && "$resolved" "$PROBE" >/dev/null 2>&1; then
+        selected=$resolved
+        break
+    fi
+done
+if [[ -z "$selected" ]]; then
+    write_failure interpreter
+    exit 16
+fi
+
+export PATH="$(dirname "$selected"):$PATH"
+export T361_RECON_ONLY="${T361_RECON_ONLY:-0}"
+exec "$selected" "$DRIVER" node
