@@ -111,8 +111,10 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   入口は外部 supervisor 自身へ「最初の `claude -p` spawn 前に `DW-CTX` を読む」と課すが、
   `tools/dev_waves/daemon.py` / `worker.py` に読取処理は無く、prompt を組み立てるだけである。
   現在 fake-only なので runtime blocked。台帳には「無人継続まで閉じた」と書かない
-- {{T:qsub-interpreter-contract}} **P2・新規 (本エントリ、実測)**:
+- {{T:qsub-interpreter-contract}} **P3・新規 (本エントリ、実測。マシン固有部分は本 wave で解消)**:
   生 `qsub` から計算ノードで pytest を走らせる経路に interpreter 契約が無く、
   既定 `python3` が 3.10 未満のため偽赤が出る ({{F:raw-qsub-interpreter-false-red}})。
-  `tools/pegasus/dispatch_compute.py` の `_INTERPRETER_CANDIDATES` と PATH 張り替えを
-  `DW-O18` 側へ写す。**統合先の枠は [T-328] の裁定に依存する**
+  **マシン固有事実 (既定 `python3` の版・shim の要否・`-o`/`-e` の落ち先) は段 8 で
+  `docs/pegasus-runbook.md` §3 へ書いた** — 横断 docs にマシン密結合を持ち込まない規律に従い、
+  ここが正しい正本である。残るのは「親が計算ノードで pytest を走らせる直前に正規経路を使う」
+  という**環境非依存の手順**を `DW-O18` 側へ足すかで、**その枠は [T-328] の裁定に依存する**

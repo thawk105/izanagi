@@ -121,6 +121,26 @@ node 数を指定する場合は `-b` を使う。次は 2 node の例。
 リクエストは node 単位で割り当てられ (gen_S は CPU 48/48 固定、§1)、GPU も各 node 1 枚で
 固定されるため、メモリ量や GPU 枚数を指定する PBS directive は通常不要である。
 
+### バッチジョブから Python を呼ぶときの interpreter (2026-08-03 実測)
+
+**計算ノードの既定 `python3` は 3.10 未満である。** バッチスクリプトから `python3` をそのまま
+呼ぶと、`@dataclass(..., slots=True)` が
+`TypeError: dataclass() got an unexpected keyword argument 'slots'` で落ちる。
+`python3.10` は別名で存在する (`/bin/python3.10` = Python 3.10.12 を実測)。
+
+`tools/pegasus/dispatch_compute.py` はこれを内側で吸収しており、`_INTERPRETER_CANDIDATES`
+(`python3.10` を優先) で interpreter を選び、`PATH` の先頭へその dirname を足してから子を起動する。
+**したがって pytest は `tools/run_tests.py` に任せ、ログインノードから自動 dispatch させるのが
+正規経路である。**
+
+生 `qsub` でバッチを書く場合は、同じ吸収を自分で行う。interpreter を `python3.10` に固定するだけでは
+不十分で、**孫 process が `PATH` の `python3` を拾う**ため、`python3` → `python3.10` の shim を
+`PATH` 先頭へ置く必要がある。実測では、固定なしで 116 failed / 2,085 errors、interpreter 固定だけで
+19 failed、shim まで置いて 5,226 passed / rc=0 だった (経緯と request ID は失敗台帳)。
+
+`-o` / `-e` は既定で投入時ディレクトリへ `<script>.o<ID>` / `<script>.e<ID>` として落ちる。
+worktree から投入するときは絶対パスを明示し、worktree root を untracked ファイルで汚さない。
+
 ### ジョブの状態確認と削除
 
 自分のジョブ一覧と、特定ジョブの詳細を確認する。
