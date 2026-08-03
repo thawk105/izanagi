@@ -21,6 +21,10 @@ docs/spool/
   failures/README.md   + fragment
 ```
 
+**各 ledger の README も必ず読む。** 本書は共通規則 (命名・frontmatter・placeholder・fold の契約) の
+正本で、action 節の文法と必須 field は ledger 別 README が正本である。共通規則だけを見て fragment を
+書くと、新しい必須 field を落として fold 全体が止まる。
+
 fragment のファイル名は **`<authored>-<wave>-<seq>.md`**。
 
 - `authored` = `YYYY-MM-DD`。**provenance 専用**で、canonical の日付・エントリ番号には使わない
@@ -77,7 +81,8 @@ fold が行うこと:
 1. fragment を決定的順序 (`wave`, `seq`, ledger, path) で読む
 2. T / D / F を D70 の採番規則 (現行 worklog のローテーション以後 + `docs/archive/worklog-*.md` +
    `docs/phase3.md` 見送り台帳の最大値 + 1) で採番し、placeholder を解決する
-3. canonical 3 台帳へ**追記**する (既存 bytes は 1 byte も書き換えない)
+3. canonical 3 台帳へ**追記**する。既存 bytes を書き換えるのは、既存 F エントリへの `## 再発` 挿入と、
+   見送り台帳の既存項目への 1 行追記 (`見送り追記`) だけで、いずれも挿入であって削除・並べ替えをしない
 4. worklog の `### 次の一手` を「前エントリの順序を保存し、carry は
    `変わらず ((直前エントリ番号) 参照)`、新規は末尾追加」で全文再生成する
 5. `docs/worklog.md` が閾値を超えるなら過去エントリを `docs/archive/` へ移し、
@@ -86,7 +91,8 @@ fold が行うこと:
 
 ## 不変条件
 
-- canonical の**既存 bytes は不変**。fold は追記と、既存 F エントリ・見送り台帳への挿入だけを行う。
+- canonical の**既存 bytes は不変**。fold は追記と、既存 F エントリ・見送り台帳への挿入
+  (新規項目の挿入、および既存項目の先頭行の行末への 1 行追記) だけを行う。
 - fold は**決定的かつ冪等**。時刻・mtime・ディレクトリ列挙順を出力に使わない。
 - **触れなかった active な T は自動的に carry される。** 脱落は
   「出力 active 集合 == 入力 active 集合 − 完了 − 見送り + 新規」の保存則検査が塞ぐ
@@ -99,6 +105,6 @@ fold が行うこと:
 
 - **wave branch を破棄すれば fragment も消える。** これは未 commit の worklog エントリを捨てるのと
   同じであり、fold 固有の新しい危険ではない。
-- 意味の正しさは検査しない。`完了` と書かれた項に本当に残件がないかは、
-  「残件あり」「一部完了」という語の検出までしか見ない。
+- 意味の正しさは検査しない。`完了` の終端性は `remaining: none` という**構造 field の宣言**と、
+  「残件あり」「一部完了」という語の検出までしか見ない。宣言が事実かどうかは書き手の責任である。
 - `### 次の一手` の並び順は**優先度順ではない**。優先度は各項の本文に書く。

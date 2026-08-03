@@ -58,6 +58,11 @@ DEFERRED_HEADING_RE = re.compile(r"^## 見送り台帳(?:[ \t].*)?$", re.MULTILI
 COMPLETION_HEADING_RE = re.compile(r"^### 裁定・完了記録(?:[ \t].*)?$", re.MULTILINE)
 H3_RE = re.compile(r"^### (?P<title>[^\n]+)$", re.MULTILINE)
 H4_RE = re.compile(r"^#### (?P<title>[^\n]+)$", re.MULTILINE)
+TOP_LEVEL_ITEM_RE = re.compile(
+    r"^(?:[1-9][0-9]*\.|-)[ \t]+(?P<text>[^\n]*)$", re.MULTILINE
+)
+FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,}).*$")
+MACHINE_FIELD_RE = re.compile(r"  (?P<name>[a-z][a-z0-9_-]*): .+")
 FRAGMENT_FILE_RE = re.compile(
     r"(?P<authored>\d{4}-\d{2}-\d{2})-(?P<wave>[a-z0-9]+(?:-[a-z0-9]+)*)-"
     r"(?P<seq>[1-9][0-9]*)\.md"
@@ -209,9 +214,16 @@ class _Operation:
 
 
 @dataclasses.dataclass(frozen=True)
+class _DeferredAppend:
+    task_id: str
+    suffix: str
+
+
+@dataclasses.dataclass(frozen=True)
 class _WorklogDelta:
     prose: str
     operations: tuple[_Operation, ...]
+    deferred_appends: tuple[_DeferredAppend, ...]
 
 
 def _sha256(data: bytes) -> str:
@@ -339,6 +351,105 @@ def _item_continuations_are_indented(block: str) -> bool:
     return all(not line or line.startswith("  ") for line in block.rstrip("\n").split("\n")[1:])
 
 
+def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
+    """HTML comment を同じ長さの空白へ置換し、行をまたぐ状態を返す。"""
+
+    visible: list[str] = []
+    cursor = 0
+    while cursor < len(line):
+        if in_comment:
+            end = line.find("-->", cursor)
+            if end < 0:
+                visible.append(" " * (len(line) - cursor))
+                cursor = len(line)
+            else:
+                end += len("-->")
+                visible.append(" " * (end - cursor))
+                cursor = end
+                in_comment = False
+            continue
+
+        start = line.find("<!--", cursor)
+        if start < 0:
+            visible.append(line[cursor:])
+            cursor = len(line)
+        else:
+            visible.append(line[cursor:start])
+            cursor = start
+            in_comment = True
+    return "".join(visible), in_comment
+
+
+def _visible_markdown_lines_in_container(
+    text: str,
+    *,
+    list_container_width: int,
+) -> list[tuple[str, int, str]]:
+    """指定した list container 内で可視行と offset・改行を返す。"""
+
+    lines: list[tuple[str, int, str]] = []
+    in_comment = False
+    fence: tuple[str, int] | None = None
+    offset = 0
+
+    def fence_view(line: str) -> str:
+        prefix = " " * list_container_width
+        if prefix and line.startswith(prefix):
+            return line[list_container_width:]
+        return line
+
+    for raw_line in text.splitlines(keepends=True):
+        line = raw_line.rstrip("\r\n")
+        newline = raw_line[len(line):]
+        if fence is not None:
+            marker_char, marker_len = fence
+            relative = fence_view(line)
+            stripped = relative.lstrip(" \t")
+            indent = len(relative) - len(stripped)
+            if indent <= 3 and re.fullmatch(
+                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
+            ):
+                fence = None
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        # fence opener の info string 内にある `<!--` は comment 開始ではない。
+        if not in_comment:
+            fence_match = FENCE_OPEN_RE.fullmatch(fence_view(line))
+            if fence_match is not None:
+                marker = fence_match.group("marker")
+                fence = (marker[0], len(marker))
+                lines.append(("", offset, newline))
+                offset += len(raw_line)
+                continue
+
+        visible, in_comment = _mask_html_comments(line, in_comment)
+        fence_match = FENCE_OPEN_RE.fullmatch(fence_view(visible))
+        if fence_match is not None:
+            marker = fence_match.group("marker")
+            fence = (marker[0], len(marker))
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        lines.append((visible, offset, newline))
+        offset += len(raw_line)
+    return lines
+
+
+def _visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
+    """top-level の code fence / HTML comment 外の可視行を返す。"""
+
+    return _visible_markdown_lines_in_container(text, list_container_width=0)
+
+
+def _visible_item_markdown_lines(text: str) -> list[tuple[str, int, str]]:
+    """`- ` item container 相対の code fence / comment 外の可視行を返す。"""
+
+    return _visible_markdown_lines_in_container(text, list_container_width=2)
+
+
 def _strip_base(rel: str, whole: str, block: str, offset: int) -> tuple[str, str | None, list[Issue]]:
     matches = list(re.finditer(r"^  base: (?P<digest>[0-9a-f]{64})$", block, re.MULTILINE))
     if len(matches) != 1:
@@ -353,6 +464,40 @@ def _strip_base(rel: str, whole: str, block: str, offset: int) -> tuple[str, str
     output = block[:line_start] + block[line_end:]
     output = output.rstrip("\n") + "\n"
     return output, match.group("digest"), []
+
+
+def _strip_completion_remaining(rel: str, whole: str, block: str, offset: int) -> tuple[str, list[Issue]]:
+    """item 末尾の可視な機械 field 群から exact-one remaining を除く。"""
+
+    trailer: list[tuple[str, int, int]] = []
+    for visible, line_offset, newline in reversed(_visible_item_markdown_lines(block)):
+        field = MACHINE_FIELD_RE.fullmatch(visible)
+        if field is None:
+            break
+        trailer.append((field.group("name"), line_offset, line_offset + len(visible) + len(newline)))
+    remaining = [entry for entry in trailer if entry[0] == "remaining"]
+    if len(remaining) != 1:
+        return block, [
+            _issue(
+                rel,
+                whole,
+                offset,
+                "completion-remaining-field",
+                f"{rel}: `完了` item 末尾には `  remaining: none` が 1 件必要",
+            )
+        ]
+    _, line_start, line_end = remaining[0]
+    if block[line_start:line_end].rstrip("\n") != "  remaining: none":
+        return block, [
+            _issue(
+                rel,
+                whole,
+                offset,
+                "completion-remaining-field",
+                f"{rel}: `完了` item 末尾には `  remaining: none` が 1 件必要",
+            )
+        ]
+    return block[:line_start] + block[line_end:], []
 
 
 def _parse_worklog_delta(fragment: Fragment) -> tuple[_WorklogDelta | None, list[Issue]]:
@@ -372,7 +517,7 @@ def _parse_worklog_delta(fragment: Fragment) -> tuple[_WorklogDelta | None, list
         delta_start += 1
     delta_body = body[delta_start:]
     sections = list(re.finditer(r"^### (?P<title>[^\n]+)$", delta_body, re.MULTILINE))
-    allowed = ("carry", "完了", "更新", "新規", "見送り")
+    allowed = ("carry", "完了", "更新", "新規", "見送り", "見送り追記")
     names = [section.group("title") for section in sections]
     if len(names) != len(set(names)) or any(name not in allowed for name in names):
         issues.append(Issue(rel, _line(body, delta_start), "worklog-actions", f"{rel}: action 節が重複または未知"))
@@ -383,6 +528,7 @@ def _parse_worklog_delta(fragment: Fragment) -> tuple[_WorklogDelta | None, list
     if delta_body[:prefix_end].strip():
         issues.append(_issue(rel, body, delta_start, "worklog-action-content", f"{rel}: action H3 より前に未解釈 content がある"))
     operations: list[_Operation] = []
+    deferred_appends: list[_DeferredAppend] = []
     for index, section in enumerate(sections):
         name = section.group("title")
         start = section.end()
@@ -391,6 +537,40 @@ def _parse_worklog_delta(fragment: Fragment) -> tuple[_WorklogDelta | None, list
         end = sections[index + 1].start() if index + 1 < len(sections) else len(delta_body)
         section_body = delta_body[start:end]
         absolute = delta_start + start
+        if name == "見送り追記":
+            nonblank = False
+            cursor = 0
+            for raw_line in section_body.splitlines(keepends=True):
+                line = raw_line.rstrip("\n")
+                if not line.strip():
+                    cursor += len(raw_line)
+                    continue
+                nonblank = True
+                match = re.fullmatch(
+                    r"- (?P<id>\[T-(?:0(?:0[1-9]|[1-9][0-9])|[1-9][0-9]{2,})\])"
+                    r"(?P<suffix> (?=[^\n]*\S)[^\n]+)",
+                    line,
+                )
+                if match is None:
+                    issues.append(_issue(
+                        rel,
+                        body,
+                        absolute + cursor,
+                        "deferred-append-shape",
+                        f"{rel}: 見送り追記は 1 行の `- [T-NNN] <suffix>` に限る",
+                    ))
+                else:
+                    deferred_appends.append(_DeferredAppend(match.group("id"), match.group("suffix")))
+                cursor += len(raw_line)
+            if not nonblank:
+                issues.append(_issue(
+                    rel,
+                    body,
+                    absolute,
+                    "deferred-append-empty",
+                    f"{rel}: 見送り追記には item が 1 件以上必要",
+                ))
+            continue
         if name == "見送り":
             categories = list(H4_RE.finditer(section_body))
             if not categories:
@@ -462,12 +642,17 @@ def _parse_worklog_delta(fragment: Fragment) -> tuple[_WorklogDelta | None, list
                     issues.append(_issue(rel, body, item_offset, "carry-shape", f"{rel}: carry は ID だけを列挙する"))
                 operations.append(_Operation("carry", match.group("id"), block, None))
                 continue
-            output, digest, base_issues = _strip_base(rel, body, block, item_offset)
+            completion_issues: list[Issue] = []
+            output = block
+            if name == "完了":
+                output, completion_issues = _strip_completion_remaining(rel, body, output, item_offset)
+                issues.extend(completion_issues)
+            output, digest, base_issues = _strip_base(rel, body, output, item_offset)
             issues.extend(base_issues)
             if name == "完了" and re.search(r"残件(?:[はが:]|：|[ \t])*あり|一部完了", output):
                 issues.append(_issue(rel, body, item_offset, "completion-remaining", f"{rel}: 残件ありの item を `完了` にできない"))
             operations.append(_Operation(name, match.group("id"), output, digest))
-    return _WorklogDelta(prose, tuple(operations)), issues
+    return _WorklogDelta(prose, tuple(operations), tuple(deferred_appends)), issues
 
 
 def _decision_symbols(fragment: Fragment) -> tuple[list[Symbol], list[Issue]]:
@@ -1227,6 +1412,109 @@ def _insert_deferred(phase: str, additions: Mapping[str, Sequence[str]]) -> str:
     return rendered
 
 
+def _deferred_items(phase: str) -> dict[str, list[tuple[int, int, int]]]:
+    """可視な見送り top-level item を ID -> (先頭, 行末, block末尾) で索引する。"""
+
+    visible_lines = _visible_markdown_lines(phase)
+    ledgers = [
+        (offset, offset + len(visible))
+        for visible, offset, _ in visible_lines
+        if DEFERRED_HEADING_RE.fullmatch(visible) is not None
+    ]
+    completions = [
+        offset
+        for visible, offset, _ in visible_lines
+        if COMPLETION_HEADING_RE.fullmatch(visible) is not None
+    ]
+    if len(ledgers) != 1 or len(completions) != 1 or completions[0] <= ledgers[0][1]:
+        raise SpoolValidationError([
+            Issue(
+                "docs/phase3.md",
+                1,
+                "deferred-ledger",
+                "見送り台帳/裁定・完了記録を一意抽出できない",
+            )
+        ])
+    region_start, region_end = ledgers[0][1], completions[0]
+    items: dict[str, list[tuple[int, int, int]]] = {}
+    found: list[tuple[str, int, int]] = []
+    boundaries: list[int] = []
+    region = phase[region_start:region_end]
+    for visible, line_offset, _ in _visible_markdown_lines(region):
+        absolute = region_start + line_offset
+        if H3_RE.fullmatch(visible) is not None:
+            boundaries.append(absolute)
+            continue
+        item = TOP_LEVEL_ITEM_RE.fullmatch(visible)
+        if item is None:
+            continue
+        boundaries.append(absolute)
+        task = re.match(
+            r"^(?P<id>\[T-(?:0(?:0[1-9]|[1-9][0-9])|[1-9][0-9]{2,})\])(?=$|[ \t])",
+            item.group("text"),
+        )
+        if task is None:
+            continue
+        line_end = phase.find("\n", absolute, region_end)
+        if line_end < 0:
+            line_end = region_end
+        found.append((task.group("id"), absolute, line_end))
+    for task_id, item_start, line_end in found:
+        block_end = next((boundary for boundary in boundaries if boundary > item_start), region_end)
+        items.setdefault(task_id, []).append((item_start, line_end, block_end))
+    return items
+
+
+def _insert_deferred_appends(phase: str, appends: Sequence[_DeferredAppend]) -> str:
+    if not appends:
+        return phase
+    items = _deferred_items(phase)
+    grouped: dict[str, list[str]] = {}
+    positions: dict[str, int] = {}
+    seen_suffixes: dict[str, list[str]] = {}
+    for append in appends:
+        targets = items.get(append.task_id, [])
+        if not targets:
+            raise SpoolValidationError([
+                Issue(
+                    "docs/phase3.md",
+                    1,
+                    "deferred-append-missing",
+                    f"見送り追記 target {append.task_id} が不存在",
+                )
+            ])
+        if len(targets) != 1:
+            raise SpoolValidationError([
+                Issue(
+                    "docs/phase3.md",
+                    _line(phase, targets[1][0]),
+                    "deferred-append-duplicate",
+                    f"見送り追記 target {append.task_id} が重複",
+                )
+            ])
+        item_start, line_end, _ = targets[0]
+        head_line = phase[item_start:line_end]
+        seen = seen_suffixes.setdefault(append.task_id, [])
+        if head_line.rstrip("\n").endswith(append.suffix) or append.suffix in seen:
+            raise SpoolValidationError([
+                Issue(
+                    "docs/phase3.md",
+                    _line(phase, item_start),
+                    "deferred-append-duplicate-suffix",
+                    f"見送り追記 target {append.task_id} に同一 suffix が存在",
+                )
+            ])
+        grouped.setdefault(append.task_id, []).append(append.suffix)
+        positions[append.task_id] = line_end
+        seen.append(append.suffix)
+    rendered = phase
+    for task_id in sorted(grouped, key=lambda value: positions[value], reverse=True):
+        offset = positions[task_id]
+        payload = "".join(grouped[task_id])
+        rendered = rendered[:offset] + payload + rendered[offset:]
+    return rendered
+
+
 def _render_decisions(fragment: Fragment, fold_date: str, allocations: Mapping[tuple[str, str, str], str]) -> str:
     rendered = _replace_placeholders(fragment.body, fragment.wave, allocations)
     lines: list[str] = []
@@ -1336,15 +1624,35 @@ def _rotate_worklog(
     original_text = _decode_canonical("docs/worklog.md", original)
     projected_text = _decode_canonical("docs/worklog.md", projected)
     original_entries = list(WORKLOG_ENTRY_RE.finditer(original_text))
-    if len(original_entries) < 2:
-        raise SpoolValidationError([Issue("docs/worklog.md", 1, "rotation-capacity", "閾値超過だが seed を残して移動できる過去 entry がない")])
-    move_start = len(original_text[: original_entries[0].start()].encode("utf-8"))
-    keep_start = len(original_text[: original_entries[-1].start()].encode("utf-8"))
-    moved = original[move_start:keep_start]
-    rotated = original[:move_start] + projected[keep_start:]
+    projected_entries = list(WORKLOG_ENTRY_RE.finditer(projected_text))
+    has_new_entries = len(projected_entries) > len(original_entries)
+    if not has_new_entries:
+        if len(original_entries) < 2:
+            raise SpoolValidationError([Issue("docs/worklog.md", 1, "rotation-capacity", "閾値超過だが seed を残して移動できる過去 entry がない")])
+        move_start = len(original_text[: original_entries[0].start()].encode("utf-8"))
+        keep_start = len(original_text[: original_entries[-1].start()].encode("utf-8"))
+        moved = original[move_start:keep_start]
+        rotated = original[:move_start] + projected[keep_start:]
+        moved_entries = original_entries[:-1]
+    else:
+        move_start = len(projected_text[: projected_entries[0].start()].encode("utf-8"))
+        rotated = b""
+        keep_start = 0
+        moved_entries: list[re.Match[str]] = []
+        for split in range(1, len(projected_entries)):
+            keep_start = len(
+                projected_text[: projected_entries[split].start()].encode("utf-8")
+            )
+            candidate = projected[:move_start] + projected[keep_start:]
+            if len(candidate) <= limit:
+                rotated = candidate
+                moved_entries = projected_entries[:split]
+                break
+        if not moved_entries:
+            raise SpoolValidationError([Issue("docs/worklog.md", 1, "rotation-capacity", "過去 entry を移動しても閾値を超える")])
+        moved = projected[move_start:keep_start]
     if len(rotated) > limit:
         raise SpoolValidationError([Issue("docs/worklog.md", 1, "rotation-capacity", "過去 entry を移動しても閾値を超える")])
-    moved_entries = original_entries[:-1]
     name = _rotation_name(moved_entries)
     rel = f"docs/archive/{name}"
     if (repo / rel).exists() or (repo / rel).is_symlink():
@@ -1492,6 +1800,14 @@ def plan_fold(
         entry, active, deferred = _render_worklog_entry(fragment, delta, fold_date, ordinal, prior_ordinal, active, allocations)
         rendered_worklog = _append_bytes(rendered_worklog, entry)
         rendered_phase = _insert_deferred(rendered_phase, deferred)
+        rendered_appends = tuple(
+            _DeferredAppend(
+                append.task_id,
+                _replace_placeholders(append.suffix, fragment.wave, allocations),
+            )
+            for append in delta.deferred_appends
+        )
+        rendered_phase = _insert_deferred_appends(rendered_phase, rendered_appends)
         prior_ordinal = ordinal
         ordinal += 1
 

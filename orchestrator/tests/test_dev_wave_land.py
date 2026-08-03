@@ -1638,6 +1638,123 @@ def test_fold_is_called_under_land_lock_and_committed_with_message_file() -> Non
         assert "-m" not in commit_args and "--no-edit" not in commit_args
 
 
+def test_land_folds_rotation_inside_lock() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        rotate_limit = 900
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        historic_body = "- " + ("historic rotation bytes " * 90) + "\n"
+        worklog = (
+            "# worklog\n\n## ローテーション\n\n---\n\n"
+            "## 2026-08-01 (1) — old entry large enough to rotate\n\n"
+            f"{historic_body}\n### 次の一手\n\n- [T-001] historic task\n\n"
+            "## 2026-08-02 (2) — current entry\n\n- current body\n\n"
+            "### 次の一手\n\n- [T-001] current task\n"
+        )
+        canonical = {
+            "docs/worklog.md": worklog,
+            "docs/decisions.md": (
+                "# decisions\n\n## D1. seed (2026-08-01)\n\n**決定:** seed\n"
+            ),
+            "docs/failures.md": (
+                "# failures\n\n## エントリ\n\n### F1. seed [手順漏れ]\n"
+                "- 事象: seed\n- 根本原因: seed\n- 恒久対応: seed\n- 再発検知: seed\n"
+            ),
+            "docs/phase3.md": (
+                "# phase3\n\n## 見送り台帳\n\n### プロセス文書系\n\n"
+                "- [T-050] 既存見送り — 理由: seed\n\n"
+                "### 研究・計測系\n\n- [T-051] 既存見送り — 理由: seed\n\n"
+                "### 裁定・完了記録\n\n- [T-052] 完了済み\n"
+            ),
+            "docs/archive/README.md": "# archive\n\n## 現在の収容物\n",
+            "tools/check_docs.py": f"WORKLOG_ROTATE_BYTES = {rotate_limit}\n",
+        }
+        for relative, content in canonical.items():
+            path = wave / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8", newline="\n")
+        fragment_relative = "docs/spool/worklog/2026-08-03-test-wave-1.md"
+        (wave / fragment_relative).write_text(
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: worklog\n"
+            "authored: 2026-08-03\n"
+            "wave: test-wave\n"
+            "seq: 1\n"
+            "title: rotation land\n"
+            "---\n"
+            "## 本文\n\n- folded under the land lock\n\n"
+            "## 次の一手差分\n\n### carry\n\n- [T-001]\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        _git(wave, "add", "-A")
+        _git(wave, "commit", "-qm", "add rotating fold fixture")
+        tip = _git(wave, "rev-parse", "HEAD")
+        request = repo.request(wave, tip=tip)
+        real_fold = LAND._load_spool_fold()
+
+        class ObservedFold:
+            def __init__(self):
+                self.lock_observed = False
+                self.rotation_path: str | None = None
+
+            def __getattr__(self, name: str):
+                return getattr(real_fold, name)
+
+            def plan_fold(self, repo_path: Path, *, fold_date: str):
+                plan = real_fold.plan_fold(repo_path, fold_date=fold_date)
+                assert plan.rotation_path is not None, plan
+                self.rotation_path = plan.rotation_path
+                return plan
+
+            def apply_fold(self, repo_path: Path, plan):
+                contender = os.open(
+                    repo.main / ".git" / "dev-wave-land.lock",
+                    os.O_RDWR | os.O_NOFOLLOW,
+                )
+                try:
+                    try:
+                        fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    except BlockingIOError:
+                        self.lock_observed = True
+                    else:
+                        raise AssertionError("rotation fold ran outside the land lock")
+                finally:
+                    os.close(contender)
+                return real_fold.apply_fold(repo_path, plan)
+
+        observed = ObservedFold()
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: observed),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        ):
+            result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert observed.lock_observed
+        assert observed.rotation_path is not None
+        assert (repo.main / observed.rotation_path).is_file()
+        rotation_name = Path(observed.rotation_path).name
+        archive_readme = (repo.main / "docs/archive/README.md").read_text(
+            encoding="utf-8",
+        )
+        assert rotation_name in archive_readme
+        assert (repo.main / "docs/worklog.md").stat().st_size <= rotate_limit
+        assert result.fold_commit_sha == result.main_after
+        declared = LAND.verify_declared_fold_commit(
+            repo.main,
+            fold_commit_sha=result.fold_commit_sha,
+            landed_main_sha=result.main_after,
+            landed_commits=request.audited_commits,
+            wave_tip=tip,
+        )
+        assert declared.ok, declared
+
+
 def test_p06_supervised_branch_slug_with_matching_fragments_can_fold() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
