@@ -53,6 +53,12 @@ title: [T-338] RF 統計設計の裁定パッケージを起草 — floor 単独
   `docs/dev-wave/**` の byte 予算に阻まれ、既裁定 ([T-359] = 運用の穴は [T-328] の外出し枠へ相乗り、
   予算値の独立審査はしない) に従って [T-341] へ足した。**予算上限を上げる変更は提案していない。**
   事故の記録は新規 F を採らず F77 の再発として追記した (同型再発は既存 F へ顕在化させる規則)
+- **段 9 の land が構造的に拒否され、本 wave は local main へ着地していない。**
+  `tools/dev_wave_land.py` が `status="fold-failed"` /
+  `reason="declared fold shape rejected: landed-fold-owned-path"` を返し、main は 1 byte も動かなかった。
+  原因は local main を取り込んだ merge commit だけが判定に触れたことで、詳細と 3 つの是正候補は
+  {{F:land-rejects-wave-side-merge-of-folded-main}}。**rebase / force で迂回していない** (規律どおり)。
+  branch `worktree-dev-wave-t338-rf-statdesign` に全成果物が commit 済みで残っている
 - 設計判断は {{D:rf-statdesign-package}}。一次資料 =
   `output/insights/2026-08-03_t338-rf-statistical-design/` (`package.md` が成果物本体)
 
