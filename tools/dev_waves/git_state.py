@@ -88,9 +88,13 @@ GIT_COMMANDS: Mapping[str, tuple[str, ...]] = {
     "branch-tip": ("rev-parse", "--verify"),
     "commit-object": ("cat-file", "commit"),
     "commit-diff": (
-        "diff-tree", "--root", "-r", "-m", "--no-commit-id",
+        "diff-tree", "--root", "-r", "--no-commit-id",
         "--name-status", "-z", "--no-renames",
     ),
+    "tree-diff": (
+        "diff-tree", "-r", "--no-commit-id", "--name-status", "-z", "--no-renames",
+    ),
+    "commit-parents": ("rev-list", "--parents", "--max-count=1"),
     "tree-paths": ("ls-tree", "-r", "-z", "--name-only"),
     "clone-isolated": ("-c", "protocol.file.allow=always", "clone", "--no-local", "--no-checkout", "--quiet"),
 }
@@ -610,6 +614,99 @@ def _commit_diff(
     )
 
 
+def _tree_diff(
+    repo_root: os.PathLike[str] | str,
+    before_sha: str,
+    after_sha: str,
+    *,
+    timeout_s: float,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    return _diff_entries(
+        _run(
+            repo_root,
+            "tree-diff",
+            extra=(before_sha, after_sha),
+            timeout_s=timeout_s,
+        ).stdout
+    )
+
+
+def _parse_commit_parents(raw: bytes, commit_sha: str) -> tuple[str, ...]:
+    try:
+        lines = raw.decode("ascii", errors="strict").splitlines()
+    except UnicodeDecodeError:
+        raise DevWavesError(ReasonCode.INVALID_RUN, {
+            "label": "fold-parents", "kind": "encoding",
+        }) from None
+    fields = lines[0].split(" ") if len(lines) == 1 else []
+    if (
+        not fields
+        or fields[0] != commit_sha
+        or any(_SHA_RE.fullmatch(value) is None for value in fields)
+    ):
+        raise DevWavesError(ReasonCode.INVALID_RUN, {
+            "label": "fold-parents", "kind": "record",
+        })
+    return tuple(fields[1:])
+
+
+def _commit_parents(
+    repo_root: os.PathLike[str] | str,
+    commit_sha: str,
+    *,
+    timeout_s: float,
+) -> tuple[str, ...]:
+    return _parse_commit_parents(
+        _run(
+            repo_root,
+            "commit-parents",
+            extra=(commit_sha,),
+            timeout_s=timeout_s,
+        ).stdout,
+        commit_sha,
+    )
+
+
+def _landed_commit_diff(
+    repo_root: os.PathLike[str] | str,
+    commit_sha: str,
+    *,
+    trusted_main_cutoff_sha: Optional[str],
+    deadline_ns: int,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    parents = _commit_parents(
+        repo_root, commit_sha, timeout_s=_left(deadline_ns),
+    )
+    if len(parents) < 2:
+        return _commit_diff(
+            repo_root, commit_sha, timeout_s=_left(deadline_ns),
+        )
+
+    diff_parents = parents
+    if trusted_main_cutoff_sha is not None:
+        trusted = tuple(
+            parent for parent in parents
+            if _is_ancestor(
+                repo_root,
+                parent,
+                trusted_main_cutoff_sha,
+                timeout_s=_left(deadline_ns),
+            )
+        )
+        if len(trusted) == 1:
+            diff_parents = trusted
+
+    entries = []
+    for parent in diff_parents:
+        entries.extend(_tree_diff(
+            repo_root,
+            parent,
+            commit_sha,
+            timeout_s=_left(deadline_ns),
+        ))
+    return tuple(entries)
+
+
 def _identity_line_valid(line: bytes, *, fixed_identity: Optional[str] = None) -> bool:
     try:
         text = line.decode("utf-8", errors="strict")
@@ -700,6 +797,7 @@ def verify_declared_fold_commit(
     repo_root: os.PathLike[str] | str,
     *,
     fold_commit_sha: Optional[str],
+    trusted_main_cutoff_sha: Optional[str] = None,
     landed_main_sha: str,
     landed_commits: Sequence[str],
     wave_tip: str,
@@ -713,6 +811,10 @@ def verify_declared_fold_commit(
     landed_main = _validate_base(landed_main_sha)
     tip = _validate_base(wave_tip)
     commits = tuple(_validate_base(value) for value in landed_commits)
+    cutoff = (
+        None if trusted_main_cutoff_sha is None
+        else _validate_base(trusted_main_cutoff_sha)
+    )
     if not commits:
         return _fold_fail("landed-commits-empty")
     if fold_commit_sha is not None:
@@ -728,8 +830,11 @@ def verify_declared_fold_commit(
         return _fold_fail("wave-tip")
 
     for commit in commits:
-        for status, paths in _commit_diff(
-            repo_root, commit, timeout_s=_left(deadline_ns),
+        for status, paths in _landed_commit_diff(
+            repo_root,
+            commit,
+            trusted_main_cutoff_sha=cutoff,
+            deadline_ns=deadline_ns,
         ):
             if _landed_fold_output_path(status, paths):
                 return _fold_fail("landed-fold-owned-path")
