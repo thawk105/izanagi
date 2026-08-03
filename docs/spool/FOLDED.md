@@ -63,3 +63,9 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"ae6ef36877be5e24de9db7e6339388f6c8df3aabd72f2518c38820226462e936","seq":1,"wave":"rulings-2026-08-03-f"}
 
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"739d824f486924d860d4c29c5b57795b6ae6f2599c2767af46dd0c2257ec0fbf","seq":1,"wave":"rulings-2026-08-03-g"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"5ebd74ff64db1310ad6bc2776faaed52cb679adf933d9603514fc4afa51c92a4","seq":1,"wave":"rulings-2026-08-03-h"}
+
+- {"allocations":{"F:compute-node-default-python-is-oneapi":"F88","F:python-and-shell-executable-acceptance-diverge":"F89"},"authored":"2026-08-03","content_sha256":"3a1fd1fb2277aed2f582e5b5a69753c3d07c834459301e18f039b81a0a472cc5","seq":1,"wave":"dev-wave-t293-perf-site"}
+- {"allocations":{"D:two-sided-control-for-gateless-measurement":"D137"},"authored":"2026-08-03","content_sha256":"fb897941ed2b60cde65eed9f43c1daae42ff22761dd658bf6b19ed150c6fa2d6","seq":2,"wave":"dev-wave-t293-perf-site"}
+- {"allocations":{"T:land-window-vs-acceptance":"[T-389]","T:output-snapshot-test-flake":"[T-388]"},"authored":"2026-08-03","content_sha256":"4490a59485358aaf5b9c44457437cc33513180565ab95b9eab5242def77fcb8b","seq":3,"wave":"dev-wave-t293-perf-site"}
