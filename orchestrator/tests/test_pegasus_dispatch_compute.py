@@ -48,6 +48,7 @@ class _Scheduler:
         marker=True,
         initial_qstat_failures=0,
         initial_qstat_error="temporary qstat failure",
+        qstat_error_stdout="",
         qsub_stdout=None,
         stdout=b"",
         stderr_prefix=b"",
@@ -61,6 +62,7 @@ class _Scheduler:
         self.marker = marker
         self.initial_qstat_failures = initial_qstat_failures
         self.initial_qstat_error = initial_qstat_error
+        self.qstat_error_stdout = qstat_error_stdout
         self.qsub_stdout = qsub_stdout
         self.stdout = stdout
         self.stderr_prefix = stderr_prefix
@@ -169,7 +171,12 @@ class _Scheduler:
                     ),
                 )
             if state == "ERROR":
-                return self._completed(command, rc=153, stderr="temporary qstat failure")
+                return self._completed(
+                    command,
+                    rc=153,
+                    stdout=self.qstat_error_stdout,
+                    stderr="temporary qstat failure",
+                )
             return self._completed(
                 command,
                 stdout=f"Request ID = {_JOB_ID}\nRequest State = {state}\n",
@@ -179,7 +186,16 @@ class _Scheduler:
         raise AssertionError(f"unexpected scheduler command: {command}")
 
 
-def _dispatch(tmp_path: Path, scheduler: _Scheduler, **kwargs):
+def _dispatch(
+    tmp_path: Path,
+    scheduler: _Scheduler,
+    *,
+    poll_interval_s=5,
+    queue_wait_timeout_s=20,
+    accounting_grace_s=0,
+    nonce="fixture-nonce",
+    **kwargs,
+):
     clock = _Clock()
     rc = DC.dispatch(
         ["orchestrator/tests/test_sample.py", "-q"],
@@ -194,13 +210,13 @@ def _dispatch(tmp_path: Path, scheduler: _Scheduler, **kwargs):
         run_command=scheduler,
         clock=clock,
         sleep=clock.sleep,
-        poll_interval_s=5,
-        queue_wait_timeout_s=20,
-        accounting_grace_s=0,
-        nonce="fixture-nonce",
+        poll_interval_s=poll_interval_s,
+        queue_wait_timeout_s=queue_wait_timeout_s,
+        accounting_grace_s=accounting_grace_s,
+        nonce=nonce,
         **kwargs,
     )
-    return rc, tmp_path / "dispatch" / "fixture-nonce"
+    return rc, tmp_path / "dispatch" / nonce
 
 
 def test_dispatch_state_machine_returns_child_rc_after_accounting(tmp_path):
@@ -1329,6 +1345,136 @@ def test_overall_walltime_plus_grace_bound_qdels_running_job(tmp_path):
         ),
     )
     assert "overall-timeout" in receipt["outcome"]["reason"]
+
+
+def test_queue_wait_does_not_consume_observed_run_budget(tmp_path):
+    scheduler = _Scheduler(states=("QUE", "QUE", "RUN", "RUN", "DONE"))
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        walltime="00:00:02",
+        overall_grace_s=1,
+        poll_interval_s=1,
+        queue_wait_timeout_s=10,
+        accounting_grace_s=0,
+    )
+
+    assert rc == 0
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["queue_wait_s"] == 2.0
+    assert receipt["queue_wait_observed"] is True
+
+
+def test_overall_grace_allows_done_at_observed_run_deadline(tmp_path):
+    scheduler = _Scheduler(states=(
+        "QUE", "RUN", "UNRECOGNIZED", "UNRECOGNIZED", "DONE",
+    ))
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        walltime="00:00:02",
+        overall_grace_s=1,
+        poll_interval_s=1,
+        queue_wait_timeout_s=10,
+        accounting_grace_s=0,
+    )
+
+    assert rc == 0
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert "overall-timeout" not in receipt["outcome"].get("reason", "")
+
+
+def test_post_run_unknown_state_uses_first_observation_deadline(tmp_path):
+    scheduler = _Scheduler(states=(
+        "QUE", "RUN", "RUN", "UNRECOGNIZED", "UNRECOGNIZED",
+    ))
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        walltime="00:00:02",
+        overall_grace_s=1,
+        poll_interval_s=1,
+        queue_wait_timeout_s=10,
+        accounting_grace_s=0,
+    )
+
+    assert rc == DC.INFRA_RC
+    assert any(command[0] == "qdel" for command, _ in scheduler.commands)
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert "overall-timeout" in receipt["outcome"]["reason"]
+    assert receipt["state_history"][-1]["elapsed_s"] == 4.0
+    assert any(item["state"] == "RUN" for item in receipt["state_history"])
+
+
+def test_nonzero_qstat_run_stdout_does_not_restart_deadline(tmp_path):
+    trusted = _Scheduler(states=(
+        "QUE", "RUN", "UNRECOGNIZED", "UNRECOGNIZED", "UNRECOGNIZED",
+    ))
+    trusted_rc, trusted_submission = _dispatch(
+        tmp_path,
+        trusted,
+        walltime="00:00:02",
+        overall_grace_s=1,
+        poll_interval_s=1,
+        queue_wait_timeout_s=10,
+        accounting_grace_s=0,
+        nonce="trusted-run",
+    )
+    trusted_receipt = json.loads(
+        (trusted_submission / "receipt.json").read_text(encoding="utf-8"),
+    )
+
+    untrusted = _Scheduler(
+        states=("QUE", "ERROR", "UNRECOGNIZED", "UNRECOGNIZED"),
+        qstat_error_stdout="Request State = RUN\n",
+    )
+    untrusted_rc, untrusted_submission = _dispatch(
+        tmp_path,
+        untrusted,
+        walltime="00:00:02",
+        overall_grace_s=1,
+        poll_interval_s=1,
+        queue_wait_timeout_s=10,
+        accounting_grace_s=0,
+        nonce="untrusted-run",
+    )
+    untrusted_receipt = json.loads(
+        (untrusted_submission / "receipt.json").read_text(encoding="utf-8"),
+    )
+
+    assert trusted_rc == DC.INFRA_RC
+    assert trusted_receipt["state_history"][-1]["elapsed_s"] == 4.0
+    assert untrusted_rc == DC.INFRA_RC
+    assert any(command[0] == "qdel" for command, _ in untrusted.commands)
+    assert "overall-timeout" in untrusted_receipt["outcome"]["reason"]
+    assert untrusted_receipt["state_history"][-1]["elapsed_s"] == 3.0
+    assert untrusted_receipt["state_history"][-1]["state"] == "UNKNOWN"
+    assert untrusted_receipt["queue_wait_s"] == 1.0
+    assert untrusted_receipt["queue_wait_observed"] is True
+
+
+def test_trusted_run_after_nonzero_run_stdout_restarts_deadline(tmp_path):
+    scheduler = _Scheduler(
+        states=("QUE", "ERROR", "RUN", "RUN", "DONE"),
+        qstat_error_stdout="Request State = RUN\n",
+    )
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        walltime="00:00:02",
+        overall_grace_s=1,
+        poll_interval_s=1,
+        queue_wait_timeout_s=10,
+        accounting_grace_s=0,
+    )
+
+    assert rc == 0
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["queue_wait_s"] == 1.0
+    assert receipt["queue_wait_observed"] is True
 
 
 def test_unknown_scheduler_state_remains_bounded_by_overall_timeout(tmp_path):

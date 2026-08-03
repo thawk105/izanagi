@@ -1,0 +1,598 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/3f61d8e0342f58eb543e631923e3aca7/izdw-3f61d8e034.o881920",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/3f61d8e0342f58eb543e631923e3aca7/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [90 items]\n\n........................................................................ [ 80%]\n..................                                                       [100%]\n============================== 90 passed in 2.13s ==============================\n",
+      "stdout_sha256": "549bddae665604c893a7ac9e533dde63abe032e3c0a1a0c8bcb974c5168f7636"
+    },
+    "artifact_error": null,
+    "collection_sha256": "994a667478a4d3d3f1b0bc24fa0cc8a90994137e065117144de90feecfa4ae07",
+    "duration_s": 21.718,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "d55ef841ac724a6b83ac3c4585075a12883fe278af49dac3e125af4fa5bc2e63",
+    "repo_head": "aa79e3f2e4556b33396977ea2708e93f93757d1e",
+    "runner_sha256": "ea3d6e0253f27005dbe6082488df341045a52fd97e68deb02e29f78d17a4d78a",
+    "spec_sha256": "42dbe0be12cc5e36e29b4eee1b90fec230b5d4e4f63f78fb9ad787ac5a8e07a4",
+    "status": "PASSED",
+    "test_output_sha256": "549bddae665604c893a7ac9e533dde63abe032e3c0a1a0c8bcb974c5168f7636",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "d2a138dd810a86d6fde326b3c4b0e3b3dda540312d99a78cc785cb98d4aae6a3"
+  },
+  "date": "2026-08-03T13:09:41.970934+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/5a890e931d012b90472fbedd41b776ee/izdw-5a890e931d.o881921",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/5a890e931d012b90472fbedd41b776ee/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [90 items]\n\n........................................................................ [ 80%]\n............FFFFF.                                                       [100%]\n=================================== FAILURES ===================================\n_____________ test_queue_wait_does_not_consume_observed_run_budget _____________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_queue_wait_does_not_consu0')\n\n    def test_queue_wait_does_not_consume_observed_run_budget(tmp_path):\n        scheduler = _Scheduler(states=(\"QUE\", \"QUE\", \"RUN\", \"RUN\", \"DONE\"))\n        rc, submission = _dispatch(\n            tmp_path,\n            scheduler,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n        )\n    \n>       assert rc == 0\nE       assert 16 == 0\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1362: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-fixture-no)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\n___________ test_overall_grace_allows_done_at_observed_run_deadline ____________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_overall_grace_allows_done0')\n\n    def test_overall_grace_allows_done_at_observed_run_deadline(tmp_path):\n        scheduler = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\", \"DONE\",\n        ))\n        rc, submission = _dispatch(\n            tmp_path,\n            scheduler,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n        )\n    \n>       assert rc == 0\nE       assert 16 == 0\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1383: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-fixture-no)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\n_________ test_trusted_run_after_nonzero_run_stdout_restarts_deadline __________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_trusted_run_after_nonzero0')\n\n    def test_trusted_run_after_nonzero_run_stdout_restarts_deadline(tmp_path):\n        scheduler = _Scheduler(\n            states=(\"QUE\", \"ERROR\", \"RUN\", \"RUN\", \"DONE\"),\n            qstat_error_stdout=\"Request State = RUN\\n\",\n        )\n        rc, submission = _dispatch(\n            tmp_path,\n            scheduler,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n        )\n    \n>       assert rc == 0\nE       assert 16 == 0\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1473: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-fixture-no)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: QSTAT_ERROR\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\n_________ test_post_run_unknown_state_uses_first_observation_deadline __________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_post_run_unknown_state_us0')\n\n    def test_post_run_unknown_state_uses_first_observation_deadline(tmp_path):\n        scheduler = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\",\n        ))\n        rc, submission = _dispatch(\n            tmp_path,\n            scheduler,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n        )\n    \n        assert rc == DC.INFRA_RC\n        assert any(command[0] == \"qdel\" for command, _ in scheduler.commands)\n        receipt = json.loads((submission / \"receipt.json\").read_text(encoding=\"utf-8\"))\n        assert \"overall-timeout\" in receipt[\"outcome\"][\"reason\"]\n>       assert receipt[\"state_history\"][-1][\"elapsed_s\"] == 4.0\nE       assert 3.0 == 4.0\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1407: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-fixture-no)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\n___________ test_nonzero_qstat_run_stdout_does_not_restart_deadline ____________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_nonzero_qstat_run_stdout_0')\n\n    def test_nonzero_qstat_run_stdout_does_not_restart_deadline(tmp_path):\n        trusted = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\", \"UNRECOGNIZED\",\n        ))\n        trusted_rc, trusted_submission = _dispatch(\n            tmp_path,\n            trusted,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n            nonce=\"trusted-run\",\n        )\n        trusted_receipt = json.loads(\n            (trusted_submission / \"receipt.json\").read_text(encoding=\"utf-8\"),\n        )\n    \n        untrusted = _Scheduler(\n            states=(\"QUE\", \"ERROR\", \"UNRECOGNIZED\", \"UNRECOGNIZED\"),\n            qstat_error_stdout=\"Request State = RUN\\n\",\n        )\n        untrusted_rc, untrusted_submission = _dispatch(\n            tmp_path,\n            untrusted,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n            nonce=\"untrusted-run\",\n        )\n        untrusted_receipt = json.loads(\n            (untrusted_submission / \"receipt.json\").read_text(encoding=\"utf-8\"),\n        )\n    \n        assert trusted_rc == DC.INFRA_RC\n>       assert trusted_receipt[\"state_history\"][-1][\"elapsed_s\"] == 4.0\nE       assert 3.0 == 4.0\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1448: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-trusted-ru)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n[Pegasus dispatch] job を gen_S へ投入します (izdw-untrusted-)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: QSTAT_ERROR\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\nPegasus dispatch infrastructure failure: overall-timeout\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_does_not_consume_observed_run_budget\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline\n========================= 5 failed, 85 passed in 2.11s =========================\n",
+        "stdout_sha256": "8320a608c2eb314fbc770c858000796c61a7695c6cad24a8217482fe502d980d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "994a667478a4d3d3f1b0bc24fa0cc8a90994137e065117144de90feecfa4ae07",
+      "duration_s": 21.755,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_does_not_consume_observed_run_budget",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_does_not_consume_observed_run_budget",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline"
+      ],
+      "hang_risk": false,
+      "id": "M1-anchor-submitted-at",
+      "injection_diff_sha256": "215b65a7fc4ab83d8b376f8088949b32fb77b471fe7d19fe7831031ebca0f5fc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d52224e8444305786f6b6c6c52ec1dd78317ef951bcf6d450f134e0d3a9b6f4e",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "                    run_observed_at = submitted_at",
+          "old": "                    run_observed_at = now"
+        }
+      ],
+      "repo_head": "aa79e3f2e4556b33396977ea2708e93f93757d1e",
+      "runner_sha256": "ea3d6e0253f27005dbe6082488df341045a52fd97e68deb02e29f78d17a4d78a",
+      "spec_sha256": "42dbe0be12cc5e36e29b4eee1b90fec230b5d4e4f63f78fb9ad787ac5a8e07a4",
+      "status": "KILLED",
+      "test_output_sha256": "8320a608c2eb314fbc770c858000796c61a7695c6cad24a8217482fe502d980d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d2a138dd810a86d6fde326b3c4b0e3b3dda540312d99a78cc785cb98d4aae6a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/6b22f99866787dc41f5c3d2757d1beec/izdw-6b22f99866.o881922",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/6b22f99866787dc41f5c3d2757d1beec/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [90 items]\n\n........................................................................ [ 80%]\n..............FFF.                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_post_run_unknown_state_uses_first_observation_deadline __________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_post_run_unknown_state_us0')\n\n    def test_post_run_unknown_state_uses_first_observation_deadline(tmp_path):\n        scheduler = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\",\n        ))\n        rc, submission = _dispatch(\n            tmp_path,\n            scheduler,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n        )\n    \n        assert rc == DC.INFRA_RC\n        assert any(command[0] == \"qdel\" for command, _ in scheduler.commands)\n        receipt = json.loads((submission / \"receipt.json\").read_text(encoding=\"utf-8\"))\n        assert \"overall-timeout\" in receipt[\"outcome\"][\"reason\"]\n>       assert receipt[\"state_history\"][-1][\"elapsed_s\"] == 4.0\nE       assert 3.0 == 4.0\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1407: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-fixture-no)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\n___________ test_overall_grace_allows_done_at_observed_run_deadline ____________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_overall_grace_allows_done0')\n\n    def test_overall_grace_allows_done_at_observed_run_deadline(tmp_path):\n        scheduler = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\", \"DONE\",\n        ))\n        rc, submission = _dispatch(\n            tmp_path,\n            scheduler,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n        )\n    \n>       assert rc == 0\nE       assert 16 == 0\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1383: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-fixture-no)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\n___________ test_nonzero_qstat_run_stdout_does_not_restart_deadline ____________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_nonzero_qstat_run_stdout_0')\n\n    def test_nonzero_qstat_run_stdout_does_not_restart_deadline(tmp_path):\n        trusted = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\", \"UNRECOGNIZED\",\n        ))\n        trusted_rc, trusted_submission = _dispatch(\n            tmp_path,\n            trusted,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n            nonce=\"trusted-run\",\n        )\n        trusted_receipt = json.loads(\n            (trusted_submission / \"receipt.json\").read_text(encoding=\"utf-8\"),\n        )\n    \n        untrusted = _Scheduler(\n            states=(\"QUE\", \"ERROR\", \"UNRECOGNIZED\", \"UNRECOGNIZED\"),\n            qstat_error_stdout=\"Request State = RUN\\n\",\n        )\n        untrusted_rc, untrusted_submission = _dispatch(\n            tmp_path,\n            untrusted,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n            nonce=\"untrusted-run\",\n        )\n        untrusted_receipt = json.loads(\n            (untrusted_submission / \"receipt.json\").read_text(encoding=\"utf-8\"),\n        )\n    \n        assert trusted_rc == DC.INFRA_RC\n>       assert trusted_receipt[\"state_history\"][-1][\"elapsed_s\"] == 4.0\nE       assert 3.0 == 4.0\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1448: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-trusted-ru)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n[Pegasus dispatch] job を gen_S へ投入します (izdw-untrusted-)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: QSTAT_ERROR\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\nPegasus dispatch infrastructure failure: overall-timeout\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline\n========================= 3 failed, 87 passed in 2.08s =========================\n",
+        "stdout_sha256": "2f07bfdd212027252d74f41fb8f8b4d906521b2f80ad18e6a0cb3b46ba29689a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "994a667478a4d3d3f1b0bc24fa0cc8a90994137e065117144de90feecfa4ae07",
+      "duration_s": 26.864,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline"
+      ],
+      "hang_risk": false,
+      "id": "M2-drop-overall-grace",
+      "injection_diff_sha256": "6e110d5ca6cdbd9e5d340a2d5ef6c8aa1a2285fc36bbe2609d52574ceffd4125",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fe359e140d73e54f2690a66e5d72b99a25c10850f8891005395b96e9e9d0ffb1",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "                        run_observed_at + walltime_s",
+          "old": "                        run_observed_at + walltime_s + overall_grace_s"
+        }
+      ],
+      "repo_head": "aa79e3f2e4556b33396977ea2708e93f93757d1e",
+      "runner_sha256": "ea3d6e0253f27005dbe6082488df341045a52fd97e68deb02e29f78d17a4d78a",
+      "spec_sha256": "42dbe0be12cc5e36e29b4eee1b90fec230b5d4e4f63f78fb9ad787ac5a8e07a4",
+      "status": "KILLED",
+      "test_output_sha256": "2f07bfdd212027252d74f41fb8f8b4d906521b2f80ad18e6a0cb3b46ba29689a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d2a138dd810a86d6fde326b3c4b0e3b3dda540312d99a78cc785cb98d4aae6a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/39b3f48a30b776989855cbe5e746bbee/izdw-39b3f48a30.o881923",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/39b3f48a30b776989855cbe5e746bbee/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [90 items]\n\n........................................................................ [ 80%]\n...............FF.                                                       [100%]\n=================================== FAILURES ===================================\n___________ test_overall_walltime_plus_grace_bound_qdels_running_job ___________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_overall_walltime_plus_gra0')\n\n    def test_overall_walltime_plus_grace_bound_qdels_running_job(tmp_path):\n        scheduler = _Scheduler(states=(\"RUN\", \"RUN\", \"RUN\"))\n        clock = _Clock()\n        rc = DC.dispatch(\n            [],\n            repo_root=_REPO,\n            output_root=tmp_path / \"dispatch\",\n            walltime=\"00:00:01\",\n            overall_grace_s=0,\n            run_command=scheduler,\n            clock=clock,\n            sleep=clock.sleep,\n            poll_interval_s=1,\n            queue_wait_timeout_s=20,\n            nonce=\"overall\",\n        )\n>       assert rc == DC.INFRA_RC\nE       assert 0 == 16\nE        +  where 16 = DC.INFRA_RC\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1340: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-overall)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: END\n[Pegasus dispatch] request 424242.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /tmp/pytest-of-tanab/pytest-0/popen-gw21/test_overall_walltime_plus_gra0/dispatch/overall/receipt.json へ保存しました (child rc=0)\n----------------------------- Captured stderr call -----------------------------\n[Pegasus dispatch] request 0:424242.nqsv child stderr begin\n| Request ID:             424242.nqsv\n| Started Request Time:   Thu Jul 30 10:03:23 2026\n| Ended Request Time:     Thu Jul 30 10:10:20 2026\n|   Elapse:               421S\n[Pegasus dispatch] request 0:424242.nqsv child stderr end\n_________ test_post_run_unknown_state_uses_first_observation_deadline __________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_post_run_unknown_state_us0')\n\n    def test_post_run_unknown_state_uses_first_observation_deadline(tmp_path):\n        scheduler = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\",\n        ))\n        rc, submission = _dispatch(\n            tmp_path,\n            scheduler,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n        )\n    \n>       assert rc == DC.INFRA_RC\nE       assert 0 == 16\nE        +  where 16 = DC.INFRA_RC\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1403: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-fixture-no)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n[Pegasus dispatch] request 424242.nqsv の状態: END\n[Pegasus dispatch] request 424242.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /tmp/pytest-of-tanab/pytest-0/popen-gw24/test_post_run_unknown_state_us0/dispatch/fixture-nonce/receipt.json へ保存しました (child rc=0)\n----------------------------- Captured stderr call -----------------------------\n[Pegasus dispatch] request 0:424242.nqsv child stderr begin\n| Request ID:             424242.nqsv\n| Started Request Time:   Thu Jul 30 10:03:23 2026\n| Ended Request Time:     Thu Jul 30 10:10:20 2026\n|   Elapse:               421S\n[Pegasus dispatch] request 0:424242.nqsv child stderr end\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline\n========================= 2 failed, 88 passed in 2.10s =========================\n",
+        "stdout_sha256": "4be8a8e0698dce7854e0ad89cca601cf0a3122210e4578a004e72f21330b556b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "994a667478a4d3d3f1b0bc24fa0cc8a90994137e065117144de90feecfa4ae07",
+      "duration_s": 21.756,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline"
+      ],
+      "hang_risk": true,
+      "id": "M3-rebase-every-run",
+      "injection_diff_sha256": "a7adaacea0741dacf7a94be4704317d6dad85fe57cfbabbd752cd17b7487546c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d1a7e74574a31b7f560228148b9c45c442a4dbbd42a39938ee5ebef66ee22f8b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "                if current.returncode == 0:",
+          "old": "                if current.returncode == 0 and not run_deadline_rebased:"
+        }
+      ],
+      "repo_head": "aa79e3f2e4556b33396977ea2708e93f93757d1e",
+      "runner_sha256": "ea3d6e0253f27005dbe6082488df341045a52fd97e68deb02e29f78d17a4d78a",
+      "spec_sha256": "42dbe0be12cc5e36e29b4eee1b90fec230b5d4e4f63f78fb9ad787ac5a8e07a4",
+      "status": "KILLED",
+      "test_output_sha256": "4be8a8e0698dce7854e0ad89cca601cf0a3122210e4578a004e72f21330b556b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d2a138dd810a86d6fde326b3c4b0e3b3dda540312d99a78cc785cb98d4aae6a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/1e5e2ead0fff8446839852f980745fdb/izdw-1e5e2ead0f.o881924",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/1e5e2ead0fff8446839852f980745fdb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [90 items]\n\n........................................................................ [ 80%]\n................F.                                                       [100%]\n=================================== FAILURES ===================================\n___________ test_nonzero_qstat_run_stdout_does_not_restart_deadline ____________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_nonzero_qstat_run_stdout_0')\n\n    def test_nonzero_qstat_run_stdout_does_not_restart_deadline(tmp_path):\n        trusted = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\", \"UNRECOGNIZED\",\n        ))\n        trusted_rc, trusted_submission = _dispatch(\n            tmp_path,\n            trusted,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n            nonce=\"trusted-run\",\n        )\n        trusted_receipt = json.loads(\n            (trusted_submission / \"receipt.json\").read_text(encoding=\"utf-8\"),\n        )\n    \n        untrusted = _Scheduler(\n            states=(\"QUE\", \"ERROR\", \"UNRECOGNIZED\", \"UNRECOGNIZED\"),\n            qstat_error_stdout=\"Request State = RUN\\n\",\n        )\n        untrusted_rc, untrusted_submission = _dispatch(\n            tmp_path,\n            untrusted,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n            nonce=\"untrusted-run\",\n        )\n        untrusted_receipt = json.loads(\n            (untrusted_submission / \"receipt.json\").read_text(encoding=\"utf-8\"),\n        )\n    \n        assert trusted_rc == DC.INFRA_RC\n        assert trusted_receipt[\"state_history\"][-1][\"elapsed_s\"] == 4.0\n>       assert untrusted_rc == DC.INFRA_RC\nE       assert 0 == 16\nE        +  where 16 = DC.INFRA_RC\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1449: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-trusted-ru)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n[Pegasus dispatch] job を gen_S へ投入します (izdw-untrusted-)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: QSTAT_ERROR\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n[Pegasus dispatch] request 424242.nqsv の状態: END\n[Pegasus dispatch] request 424242.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /tmp/pytest-of-tanab/pytest-0/popen-gw25/test_nonzero_qstat_run_stdout_0/dispatch/untrusted-run/receipt.json へ保存しました (child rc=0)\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\n[Pegasus dispatch] request 0:424242.nqsv child stderr begin\n| Request ID:             424242.nqsv\n| Started Request Time:   Thu Jul 30 10:03:23 2026\n| Ended Request Time:     Thu Jul 30 10:10:20 2026\n|   Elapse:               421S\n[Pegasus dispatch] request 0:424242.nqsv child stderr end\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline\n========================= 1 failed, 89 passed in 2.11s =========================\n",
+        "stdout_sha256": "0b7ba2bef412e2a92f91e8ccab0c7acef5209e012ec9a5050ad1ab698afba70a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "994a667478a4d3d3f1b0bc24fa0cc8a90994137e065117144de90feecfa4ae07",
+      "duration_s": 21.74,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline"
+      ],
+      "hang_risk": false,
+      "id": "M4-trust-any-run-stdout",
+      "injection_diff_sha256": "6dae44084f80def5a415761e64f82cab8a9e93a9161b66ef7011bb238e4b445c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ba792403c4f86edd6cdcbb33e7997126cb6ca0cd314d5aa616c3818e91ba5f20",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "                if True and not run_deadline_rebased:",
+          "old": "                if current.returncode == 0 and not run_deadline_rebased:"
+        }
+      ],
+      "repo_head": "aa79e3f2e4556b33396977ea2708e93f93757d1e",
+      "runner_sha256": "ea3d6e0253f27005dbe6082488df341045a52fd97e68deb02e29f78d17a4d78a",
+      "spec_sha256": "42dbe0be12cc5e36e29b4eee1b90fec230b5d4e4f63f78fb9ad787ac5a8e07a4",
+      "status": "KILLED",
+      "test_output_sha256": "0b7ba2bef412e2a92f91e8ccab0c7acef5209e012ec9a5050ad1ab698afba70a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d2a138dd810a86d6fde326b3c4b0e3b3dda540312d99a78cc785cb98d4aae6a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/20e5dde4a04cd43cbdeee5bb06ee3ece/izdw-20e5dde4a0.o881925",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/20e5dde4a04cd43cbdeee5bb06ee3ece/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [90 items]\n\n........................................................................ [ 80%]\n................F.                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_trusted_run_after_nonzero_run_stdout_restarts_deadline __________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_trusted_run_after_nonzero0')\n\n    def test_trusted_run_after_nonzero_run_stdout_restarts_deadline(tmp_path):\n        scheduler = _Scheduler(\n            states=(\"QUE\", \"ERROR\", \"RUN\", \"RUN\", \"DONE\"),\n            qstat_error_stdout=\"Request State = RUN\\n\",\n        )\n        rc, submission = _dispatch(\n            tmp_path,\n            scheduler,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n        )\n    \n>       assert rc == 0\nE       assert 16 == 0\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1473: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-fixture-no)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: QSTAT_ERROR\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n----------------------------- Captured stderr call -----------------------------\nPegasus dispatch infrastructure failure: overall-timeout\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline\n========================= 1 failed, 89 passed in 2.10s =========================\n",
+        "stdout_sha256": "6b70d167ce85f245d0dcdb52d0f076fce4965118fcf608735a467f4c61325541"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "994a667478a4d3d3f1b0bc24fa0cc8a90994137e065117144de90feecfa4ae07",
+      "duration_s": 21.75,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline"
+      ],
+      "hang_risk": false,
+      "id": "M5-latch-back-to-run-seen",
+      "injection_diff_sha256": "2fa40ae12d152dff3dc3efb6c45374da8aa03a6029a013f274757b663d4b3631",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "51bc64750c4058c408d697ca54d530d8bdb20fab96743e59699b9f50af5ba2d5",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "                if current.returncode == 0 and not run_seen:",
+          "old": "                if current.returncode == 0 and not run_deadline_rebased:"
+        }
+      ],
+      "repo_head": "aa79e3f2e4556b33396977ea2708e93f93757d1e",
+      "runner_sha256": "ea3d6e0253f27005dbe6082488df341045a52fd97e68deb02e29f78d17a4d78a",
+      "spec_sha256": "42dbe0be12cc5e36e29b4eee1b90fec230b5d4e4f63f78fb9ad787ac5a8e07a4",
+      "status": "KILLED",
+      "test_output_sha256": "6b70d167ce85f245d0dcdb52d0f076fce4965118fcf608735a467f4c61325541",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d2a138dd810a86d6fde326b3c4b0e3b3dda540312d99a78cc785cb98d4aae6a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/8f2dc232f43e79cd1d499f402c268786/izdw-8f2dc232f4.o881932",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/8f2dc232f43e79cd1d499f402c268786/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [90 items]\n\n........................................................................ [ 80%]\n.............FFFF.                                                       [100%]\n=================================== FAILURES ===================================\n_______ test_unknown_scheduler_state_remains_bounded_by_overall_timeout ________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_unknown_scheduler_state_r0')\n\n    def test_unknown_scheduler_state_remains_bounded_by_overall_timeout(tmp_path):\n        scheduler = _Scheduler(states=(\"UNRECOGNIZED\",) * 4)\n        clock = _Clock()\n        rc = DC.dispatch(\n            [],\n            repo_root=_REPO,\n            output_root=tmp_path / \"dispatch\",\n            walltime=\"00:00:01\",\n            overall_grace_s=0,\n            run_command=scheduler,\n            clock=clock,\n            sleep=clock.sleep,\n            poll_interval_s=1,\n            queue_wait_timeout_s=20,\n            nonce=\"unknown\",\n        )\n>       assert rc == DC.INFRA_RC\nE       assert 0 == 16\nE        +  where 16 = DC.INFRA_RC\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1496: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-unknown)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n[Pegasus dispatch] request 424242.nqsv の状態: END\n[Pegasus dispatch] request 424242.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /tmp/pytest-of-tanab/pytest-0/popen-gw27/test_unknown_scheduler_state_r0/dispatch/unknown/receipt.json へ保存しました (child rc=0)\n----------------------------- Captured stderr call -----------------------------\n[Pegasus dispatch] request 0:424242.nqsv child stderr begin\n| Request ID:             424242.nqsv\n| Started Request Time:   Thu Jul 30 10:03:23 2026\n| Ended Request Time:     Thu Jul 30 10:10:20 2026\n|   Elapse:               421S\n[Pegasus dispatch] request 0:424242.nqsv child stderr end\n_________ test_post_run_unknown_state_uses_first_observation_deadline __________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_post_run_unknown_state_us0')\n\n    def test_post_run_unknown_state_uses_first_observation_deadline(tmp_path):\n        scheduler = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\",\n        ))\n        rc, submission = _dispatch(\n            tmp_path,\n            scheduler,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n        )\n    \n>       assert rc == DC.INFRA_RC\nE       assert 0 == 16\nE        +  where 16 = DC.INFRA_RC\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1403: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-fixture-no)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n[Pegasus dispatch] request 424242.nqsv の状態: END\n[Pegasus dispatch] request 424242.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /tmp/pytest-of-tanab/pytest-0/popen-gw24/test_post_run_unknown_state_us0/dispatch/fixture-nonce/receipt.json へ保存しました (child rc=0)\n----------------------------- Captured stderr call -----------------------------\n[Pegasus dispatch] request 0:424242.nqsv child stderr begin\n| Request ID:             424242.nqsv\n| Started Request Time:   Thu Jul 30 10:03:23 2026\n| Ended Request Time:     Thu Jul 30 10:10:20 2026\n|   Elapse:               421S\n[Pegasus dispatch] request 0:424242.nqsv child stderr end\n___________ test_overall_walltime_plus_grace_bound_qdels_running_job ___________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_overall_walltime_plus_gra0')\n\n    def test_overall_walltime_plus_grace_bound_qdels_running_job(tmp_path):\n        scheduler = _Scheduler(states=(\"RUN\", \"RUN\", \"RUN\"))\n        clock = _Clock()\n        rc = DC.dispatch(\n            [],\n            repo_root=_REPO,\n            output_root=tmp_path / \"dispatch\",\n            walltime=\"00:00:01\",\n            overall_grace_s=0,\n            run_command=scheduler,\n            clock=clock,\n            sleep=clock.sleep,\n            poll_interval_s=1,\n            queue_wait_timeout_s=20,\n            nonce=\"overall\",\n        )\n>       assert rc == DC.INFRA_RC\nE       assert 0 == 16\nE        +  where 16 = DC.INFRA_RC\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1340: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-overall)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: END\n[Pegasus dispatch] request 424242.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /tmp/pytest-of-tanab/pytest-0/popen-gw21/test_overall_walltime_plus_gra0/dispatch/overall/receipt.json へ保存しました (child rc=0)\n----------------------------- Captured stderr call -----------------------------\n[Pegasus dispatch] request 0:424242.nqsv child stderr begin\n| Request ID:             424242.nqsv\n| Started Request Time:   Thu Jul 30 10:03:23 2026\n| Ended Request Time:     Thu Jul 30 10:10:20 2026\n|   Elapse:               421S\n[Pegasus dispatch] request 0:424242.nqsv child stderr end\n___________ test_nonzero_qstat_run_stdout_does_not_restart_deadline ____________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_nonzero_qstat_run_stdout_0')\n\n    def test_nonzero_qstat_run_stdout_does_not_restart_deadline(tmp_path):\n        trusted = _Scheduler(states=(\n            \"QUE\", \"RUN\", \"UNRECOGNIZED\", \"UNRECOGNIZED\", \"UNRECOGNIZED\",\n        ))\n        trusted_rc, trusted_submission = _dispatch(\n            tmp_path,\n            trusted,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n            nonce=\"trusted-run\",\n        )\n        trusted_receipt = json.loads(\n            (trusted_submission / \"receipt.json\").read_text(encoding=\"utf-8\"),\n        )\n    \n        untrusted = _Scheduler(\n            states=(\"QUE\", \"ERROR\", \"UNRECOGNIZED\", \"UNRECOGNIZED\"),\n            qstat_error_stdout=\"Request State = RUN\\n\",\n        )\n        untrusted_rc, untrusted_submission = _dispatch(\n            tmp_path,\n            untrusted,\n            walltime=\"00:00:02\",\n            overall_grace_s=1,\n            poll_interval_s=1,\n            queue_wait_timeout_s=10,\n            accounting_grace_s=0,\n            nonce=\"untrusted-run\",\n        )\n        untrusted_receipt = json.loads(\n            (untrusted_submission / \"receipt.json\").read_text(encoding=\"utf-8\"),\n        )\n    \n>       assert trusted_rc == DC.INFRA_RC\nE       assert 0 == 16\nE        +  where 16 = DC.INFRA_RC\n\norchestrator/tests/test_pegasus_dispatch_compute.py:1447: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[Pegasus dispatch] job を gen_S へ投入します (izdw-trusted-ru)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: RUN\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n[Pegasus dispatch] request 424242.nqsv の状態: END\n[Pegasus dispatch] request 424242.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /tmp/pytest-of-tanab/pytest-0/popen-gw25/test_nonzero_qstat_run_stdout_0/dispatch/trusted-run/receipt.json へ保存しました (child rc=0)\n[Pegasus dispatch] job を gen_S へ投入します (izdw-untrusted-)\n[Pegasus dispatch] request ID 424242.nqsv を受理しました\n[Pegasus dispatch] request 424242.nqsv の状態: QUE\n[Pegasus dispatch] request 424242.nqsv の状態: QSTAT_ERROR\n[Pegasus dispatch] request 424242.nqsv の状態: UNKNOWN\n[Pegasus dispatch] request 424242.nqsv の状態: END\n[Pegasus dispatch] request 424242.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /tmp/pytest-of-tanab/pytest-0/popen-gw25/test_nonzero_qstat_run_stdout_0/dispatch/untrusted-run/receipt.json へ保存しました (child rc=0)\n----------------------------- Captured stderr call -----------------------------\n[Pegasus dispatch] request 0:424242.nqsv child stderr begin\n| Request ID:             424242.nqsv\n| Started Request Time:   Thu Jul 30 10:03:23 2026\n| Ended Request Time:     Thu Jul 30 10:10:20 2026\n|   Elapse:               421S\n[Pegasus dispatch] request 0:424242.nqsv child stderr end\n[Pegasus dispatch] request 0:424242.nqsv child stderr begin\n| Request ID:             424242.nqsv\n| Started Request Time:   Thu Jul 30 10:03:23 2026\n| Ended Request Time:     Thu Jul 30 10:10:20 2026\n|   Elapse:               421S\n[Pegasus dispatch] request 0:424242.nqsv child stderr end\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_unknown_scheduler_state_remains_bounded_by_overall_timeout\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job\nFAILED orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline\n========================= 4 failed, 86 passed in 2.08s =========================\n",
+        "stdout_sha256": "3865ff83a57823cdbe778aeb66c4ed8e73a8ce404f3365f7c0615bea6d94f1fb"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "994a667478a4d3d3f1b0bc24fa0cc8a90994137e065117144de90feecfa4ae07",
+      "duration_s": 21.731,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_unknown_scheduler_state_remains_bounded_by_overall_timeout"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_unknown_scheduler_state_remains_bounded_by_overall_timeout",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline"
+      ],
+      "hang_risk": true,
+      "id": "P1-disable-overall-deadline",
+      "injection_diff_sha256": "02e1a39115b1b0d76d71b12f985902dbe1a2d7b4a4b91e67cf20ced05c0f7c72",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "545d6a21fdb7dcdea56f218fe7728be9eb6fe31a67d25c857ba94da12202aa1e",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "            if False:\n                raise DispatchError(\"overall-timeout\")",
+          "old": "            if now >= total_deadline:\n                raise DispatchError(\"overall-timeout\")"
+        }
+      ],
+      "repo_head": "aa79e3f2e4556b33396977ea2708e93f93757d1e",
+      "runner_sha256": "ea3d6e0253f27005dbe6082488df341045a52fd97e68deb02e29f78d17a4d78a",
+      "spec_sha256": "42dbe0be12cc5e36e29b4eee1b90fec230b5d4e4f63f78fb9ad787ac5a8e07a4",
+      "status": "KILLED",
+      "test_output_sha256": "3865ff83a57823cdbe778aeb66c4ed8e73a8ce404f3365f7c0615bea6d94f1fb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d2a138dd810a86d6fde326b3c4b0e3b3dda540312d99a78cc785cb98d4aae6a3"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/91dc25119436dca0a9b519e027ffa655/izdw-91dc251194.o881919",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/output/pegasus-dispatch/91dc25119436dca0a9b519e027ffa655/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_pegasus_dispatch_compute.py::test_dispatch_state_machine_returns_child_rc_after_accounting\norchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_child_relays_stdout_to_parent_stdout\norchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_child_relays_only_last_sixty_four_kib_of_stdout\norchestrator/tests/test_pegasus_dispatch_compute.py::test_success_relays_only_last_four_kib_of_stdout\norchestrator/tests/test_pegasus_dispatch_compute.py::test_child_stderr_relays_only_to_parent_stderr\norchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_limits_are_literal_four_and_sixty_four_kib\norchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_exception_does_not_change_child_rc\norchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_does_not_swallow_signal_or_system_exit[raised0]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_does_not_swallow_signal_or_system_exit[raised1]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_signal_from_first_emit_is_re_raised_before_abort_notice\norchestrator/tests/test_pegasus_dispatch_compute.py::test_broken_pipe_stops_relay_redirects_fd_and_reports_on_other_stream\norchestrator/tests/test_pegasus_dispatch_compute.py::test_stderr_broken_pipe_reports_relay_abort_on_parent_stdout\norchestrator/tests/test_pegasus_dispatch_compute.py::test_broken_pipe_on_relay_and_notice_redirects_both_streams\norchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_exception_closes_started_frame_with_abort_notice\norchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_abort_notice_does_not_swallow_signal_or_system_exit[raised0]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_abort_notice_does_not_swallow_signal_or_system_exit[raised1]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_exception_happens_after_receipt_is_persisted\norchestrator/tests/test_pegasus_dispatch_compute.py::test_missing_compute_marker_relays_collected_stdout\norchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_grace_failure_relays_collected_stdout\norchestrator/tests/test_pegasus_dispatch_compute.py::test_post_collection_exception_relays_collected_stdout\norchestrator/tests/test_pegasus_dispatch_compute.py::test_m7_dispatcher_request_allowlist_isolated_redundant_gate\norchestrator/tests/test_pegasus_dispatch_compute.py::test_m7_job_script_unset_isolated_redundant_gate\norchestrator/tests/test_pegasus_dispatch_compute.py::test_fa1_rc0_request_disappearance_is_terminal_within_one_poll\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Request State = QUE\\n-QUE]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Request State = STG\\n-QUE]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Staging\\n-QUE]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Queued\\n-QUE]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Running\\n-RUN]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Held\\n-HLD]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Request State = EXT\\n-END]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Exiting\\n-END]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Post-running\\n-END]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Completed\\n-END]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_error_during_poll_does_not_end_or_latch_job\norchestrator/tests/test_pegasus_dispatch_compute.py::test_job_script_binds_interpreter_path_repo_and_no_network_bootstrap\norchestrator/tests/test_pegasus_dispatch_compute.py::test_fa15_job_name_logs_match_job_script_and_are_collected\norchestrator/tests/test_pegasus_dispatch_compute.py::test_fa15_dispatch_script_log_names_remain_backward_compatible\norchestrator/tests/test_pegasus_dispatch_compute.py::test_fa15_logs_for_another_request_id_are_not_discovered\norchestrator/tests/test_pegasus_dispatch_compute.py::test_m5_dual_layer_interpreter_rejection_changes_acceptance_only_together\norchestrator/tests/test_pegasus_dispatch_compute.py::test_interpreter_stage_failure_is_fail_closed_and_preserved_in_receipt\norchestrator/tests/test_pegasus_dispatch_compute.py::test_m6_qstat_success_without_request_qdels_and_create_only_latches\norchestrator/tests/test_pegasus_dispatch_compute.py::test_immediate_qstat_transient_failure_retries_without_latching\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[Not permitted to access-permission]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[Permission denied-permission]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[EACCES-permission]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[not authorized for request-permission]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[connection refused-transient]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[request timeout-transient]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[server busy-transient]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[unclassified scheduler error-transient]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_f47_literal_not_permitted_response_qdels_and_latches\norchestrator/tests/test_pegasus_dispatch_compute.py::test_immediate_qstat_failures_exhaust_to_infra_without_latching\norchestrator/tests/test_pegasus_dispatch_compute.py::test_compute_marker_is_cross_namespace_evidence_without_release_handshake\norchestrator/tests/test_pegasus_dispatch_compute.py::test_missing_compute_marker_latches_only_after_visible_job_terminates\norchestrator/tests/test_pegasus_dispatch_compute.py::test_create_only_nonce_collision_is_setup_infra_rc_with_receipt\norchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_grace_failure_is_invocation_only_and_does_not_latch\norchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[worker recovered from MemoryError\\n]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 999999.nqsv\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nStarted Request Time: now\\nElapse: 1S\\n]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_accepts_measured_nqsv_shape_only_when_id_matches\norchestrator/tests/test_pegasus_dispatch_compute.py::test_success_without_any_persisted_receipt_is_infra_rc\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_logs_are_tail_bounded_with_explicit_omission\norchestrator/tests/test_pegasus_dispatch_compute.py::test_hld_queue_timeout_qdels_and_receipts\norchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_starts_when_qsub_returns_not_before_preflight\norchestrator/tests/test_pegasus_dispatch_compute.py::test_fast_job_without_observed_run_records_queue_wait_upper_bound\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qsub_parse_failure_discovers_request_and_attempts_qdel\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qsub_success_signal_during_receipt_capture_discovers_and_qdels[Signals.SIGINT]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_qsub_success_signal_during_receipt_capture_discovers_and_qdels[Signals.SIGTERM]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_exception_after_qsub_qdels_and_receipts\norchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job\norchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_does_not_consume_observed_run_budget\norchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline\norchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline\norchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline\norchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline\norchestrator/tests/test_pegasus_dispatch_compute.py::test_unknown_scheduler_state_remains_bounded_by_overall_timeout\norchestrator/tests/test_pegasus_dispatch_compute.py::test_progress_output_is_explicitly_flushed\norchestrator/tests/test_pegasus_dispatch_compute.py::test_walltime_override_is_bound_to_pbs_and_total_bound\norchestrator/tests/test_pegasus_dispatch_compute.py::test_task_kind_enum_is_closed_and_unknown_task_is_setup_infra_rc\norchestrator/tests/test_pegasus_dispatch_compute.py::test_provenance_task_binds_child_script_and_empty_env_allowlist\norchestrator/tests/test_pegasus_dispatch_compute.py::test_provenance_probe_omits_pytest_and_xdist_imports\norchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_accepts_v1_request_as_tests_task\norchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_rejects_unknown_schema_and_task[unknown-schema]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_rejects_unknown_schema_and_task[unknown-task]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_rejects_unknown_schema_and_task[non-string-task]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_launches_task_specific_child_script[tests-run_tests.py]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_launches_task_specific_child_script[provenance-check_ai_provenance.py]\norchestrator/tests/test_pegasus_dispatch_compute.py::test_tests_task_remains_default_and_receipt_records_task\norchestrator/tests/test_pegasus_dispatch_compute.py::test_run_tests_default_dispatch_passes_tests_task\norchestrator/tests/test_pegasus_dispatch_compute.py::test_dev_wave_check_maps_dispatch_infra_rc_off_provenance_reason\n\n90 tests collected in 0.12s\n",
+        "stdout_sha256": "ecf894f39a5779b8e02197186098ecd21d8902b5388d607109df55c8aa23eb0f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_dispatch_state_machine_returns_child_rc_after_accounting",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_child_relays_stdout_to_parent_stdout",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_child_relays_only_last_sixty_four_kib_of_stdout",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_success_relays_only_last_four_kib_of_stdout",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_child_stderr_relays_only_to_parent_stderr",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_limits_are_literal_four_and_sixty_four_kib",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_exception_does_not_change_child_rc",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_does_not_swallow_signal_or_system_exit[raised0]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_does_not_swallow_signal_or_system_exit[raised1]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_signal_from_first_emit_is_re_raised_before_abort_notice",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_broken_pipe_stops_relay_redirects_fd_and_reports_on_other_stream",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_stderr_broken_pipe_reports_relay_abort_on_parent_stdout",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_broken_pipe_on_relay_and_notice_redirects_both_streams",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_exception_closes_started_frame_with_abort_notice",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_abort_notice_does_not_swallow_signal_or_system_exit[raised0]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_abort_notice_does_not_swallow_signal_or_system_exit[raised1]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_relay_exception_happens_after_receipt_is_persisted",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_missing_compute_marker_relays_collected_stdout",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_grace_failure_relays_collected_stdout",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_collection_exception_relays_collected_stdout",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_m7_dispatcher_request_allowlist_isolated_redundant_gate",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_m7_job_script_unset_isolated_redundant_gate",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_fa1_rc0_request_disappearance_is_terminal_within_one_poll",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Request State = QUE/n-QUE]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Request State = STG/n-QUE]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Staging/n-QUE]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Queued/n-QUE]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Running/n-RUN]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Held/n-HLD]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Request State = EXT/n-END]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Exiting/n-END]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Post-running/n-END]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms[Current State           = Completed/n-END]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_error_during_poll_does_not_end_or_latch_job",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_script_binds_interpreter_path_repo_and_no_network_bootstrap",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_fa15_job_name_logs_match_job_script_and_are_collected",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_fa15_dispatch_script_log_names_remain_backward_compatible",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_fa15_logs_for_another_request_id_are_not_discovered",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_m5_dual_layer_interpreter_rejection_changes_acceptance_only_together",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_interpreter_stage_failure_is_fail_closed_and_preserved_in_receipt",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_m6_qstat_success_without_request_qdels_and_create_only_latches",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_immediate_qstat_transient_failure_retries_without_latching",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[Not permitted to access-permission]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[Permission denied-permission]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[EACCES-permission]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[not authorized for request-permission]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[connection refused-transient]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[request timeout-transient]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[server busy-transient]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qstat_nonzero_response_classification_boundaries[unclassified scheduler error-transient]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_f47_literal_not_permitted_response_qdels_and_latches",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_immediate_qstat_failures_exhaust_to_infra_without_latching",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_compute_marker_is_cross_namespace_evidence_without_release_handshake",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_missing_compute_marker_latches_only_after_visible_job_terminates",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_create_only_nonce_collision_is_setup_infra_rc_with_receipt",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_grace_failure_is_invocation_only_and_does_not_latch",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[worker recovered from MemoryError/n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 999999.nqsv/nStarted Request Time: now/nEnded Request Time: later/nElapse: 1S/n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv/nStarted Request Time: now/nElapse: 1S/n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_accepts_measured_nqsv_shape_only_when_id_matches",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_success_without_any_persisted_receipt_is_infra_rc",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_logs_are_tail_bounded_with_explicit_omission",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_hld_queue_timeout_qdels_and_receipts",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_starts_when_qsub_returns_not_before_preflight",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_fast_job_without_observed_run_records_queue_wait_upper_bound",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qsub_parse_failure_discovers_request_and_attempts_qdel",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qsub_success_signal_during_receipt_capture_discovers_and_qdels[Signals.SIGINT]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qsub_success_signal_during_receipt_capture_discovers_and_qdels[Signals.SIGTERM]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_scheduler_exception_after_qsub_qdels_and_receipts",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_does_not_consume_observed_run_budget",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_unknown_scheduler_state_remains_bounded_by_overall_timeout",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_progress_output_is_explicitly_flushed",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_walltime_override_is_bound_to_pbs_and_total_bound",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_task_kind_enum_is_closed_and_unknown_task_is_setup_infra_rc",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_provenance_task_binds_child_script_and_empty_env_allowlist",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_provenance_probe_omits_pytest_and_xdist_imports",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_accepts_v1_request_as_tests_task",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_rejects_unknown_schema_and_task[unknown-schema]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_rejects_unknown_schema_and_task[unknown-task]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_rejects_unknown_schema_and_task[non-string-task]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_launches_task_specific_child_script[tests-run_tests.py]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_launches_task_specific_child_script[provenance-check_ai_provenance.py]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_tests_task_remains_default_and_receipt_records_task",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_run_tests_default_dispatch_passes_tests_task",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_dev_wave_check_maps_dispatch_infra_rc_off_provenance_reason"
+      ],
+      "duration_s": 21.76,
+      "rc": 0,
+      "repo_head": "aa79e3f2e4556b33396977ea2708e93f93757d1e",
+      "runner_sha256": "ea3d6e0253f27005dbe6082488df341045a52fd97e68deb02e29f78d17a4d78a",
+      "spec_sha256": "42dbe0be12cc5e36e29b4eee1b90fec230b5d4e4f63f78fb9ad787ac5a8e07a4",
+      "status": "PASSED",
+      "tool_sha256": "d2a138dd810a86d6fde326b3c4b0e3b3dda540312d99a78cc785cb98d4aae6a3"
+    },
+    "hang_timeout_seconds": 1500.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-anchor-submitted-at": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_does_not_consume_observed_run_budget",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "215b65a7fc4ab83d8b376f8088949b32fb77b471fe7d19fe7831031ebca0f5fc",
+        "replacements": [
+          {
+            "file": "tools/pegasus/dispatch_compute.py",
+            "new": "                    run_observed_at = submitted_at",
+            "old": "                    run_observed_at = now"
+          }
+        ]
+      },
+      "M2-drop-overall-grace": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6e110d5ca6cdbd9e5d340a2d5ef6c8aa1a2285fc36bbe2609d52574ceffd4125",
+        "replacements": [
+          {
+            "file": "tools/pegasus/dispatch_compute.py",
+            "new": "                        run_observed_at + walltime_s",
+            "old": "                        run_observed_at + walltime_s + overall_grace_s"
+          }
+        ]
+      },
+      "M3-rebase-every-run": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a7adaacea0741dacf7a94be4704317d6dad85fe57cfbabbd752cd17b7487546c",
+        "replacements": [
+          {
+            "file": "tools/pegasus/dispatch_compute.py",
+            "new": "                if current.returncode == 0:",
+            "old": "                if current.returncode == 0 and not run_deadline_rebased:"
+          }
+        ]
+      },
+      "M4-trust-any-run-stdout": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6dae44084f80def5a415761e64f82cab8a9e93a9161b66ef7011bb238e4b445c",
+        "replacements": [
+          {
+            "file": "tools/pegasus/dispatch_compute.py",
+            "new": "                if True and not run_deadline_rebased:",
+            "old": "                if current.returncode == 0 and not run_deadline_rebased:"
+          }
+        ]
+      },
+      "M5-latch-back-to-run-seen": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2fa40ae12d152dff3dc3efb6c45374da8aa03a6029a013f274757b663d4b3631",
+        "replacements": [
+          {
+            "file": "tools/pegasus/dispatch_compute.py",
+            "new": "                if current.returncode == 0 and not run_seen:",
+            "old": "                if current.returncode == 0 and not run_deadline_rebased:"
+          }
+        ]
+      },
+      "P1-disable-overall-deadline": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_qdels_running_job",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_post_run_unknown_state_uses_first_observation_deadline",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_run_stdout_does_not_restart_deadline",
+          "orchestrator/tests/test_pegasus_dispatch_compute.py::test_unknown_scheduler_state_remains_bounded_by_overall_timeout"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "02e1a39115b1b0d76d71b12f985902dbe1a2d7b4a4b91e67cf20ced05c0f7c72",
+        "replacements": [
+          {
+            "file": "tools/pegasus/dispatch_compute.py",
+            "new": "            if False:\n                raise DispatchError(\"overall-timeout\")",
+            "old": "            if now >= total_deadline:\n                raise DispatchError(\"overall-timeout\")"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "d55ef841ac724a6b83ac3c4585075a12883fe278af49dac3e125af4fa5bc2e63",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_pegasus_dispatch_compute.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "aa79e3f2e4556b33396977ea2708e93f93757d1e",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_pegasus_dispatch_compute.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "1476a5f62869ed6bd87490566d2c65aa398ba15c439d2c385ab696ec4e543740",
+    "dispatch_head_blob_sha256": "1476a5f62869ed6bd87490566d2c65aa398ba15c439d2c385ab696ec4e543740",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "57f4cb7b07c8aca7c94cfa20a0ea1b1fc8adadac",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "ea3d6e0253f27005dbe6082488df341045a52fd97e68deb02e29f78d17a4d78a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "42dbe0be12cc5e36e29b4eee1b90fec230b5d4e4f63f78fb9ad787ac5a8e07a4",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t363-deadline/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "d2a138dd810a86d6fde326b3c4b0e3b3dda540312d99a78cc785cb98d4aae6a3",
+  "updated_at": "2026-08-03T13:13:59.100526+00:00"
+}

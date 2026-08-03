@@ -1675,6 +1675,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 記録: worklog 2026-08-02 (108)、一次資料 =
   `output/insights/2026-08-01_t139-remainder-adjudication.md`
 
+
+- **再発: 2026-08-03** — 本 F の恒久対応どおり `nohup bash -c '...' &` で段 2 の codex 子を投入したが、
+  **`nohup` でも子は tool 呼び出しの終了とともに死んだ** (ログは 3 分ぶん残り `.done` は不在)。
+  すなわち本 F が記録した「背景 job では `nohup` で投入し」は**十分条件ではない**。
+  一方で「`.done` 不在を根拠に再投入しない — 先に生存確認する」は効いた — 親は再投入前に
+  `ps` で同一 artifact を書く process が 0 本であることを実測し、二重起動を起こしていない
+  (1 回目のログは別名で保全した)。実際に生き残ったのは、`&` も `nohup` も使わず
+  **harness 管理の background 実行へ `bash -c '<cmd>; echo $? > <log>.done'` をそのまま渡す**経路で、
+  投入 20 秒後に `ps` と log 増加で生存を実測した。成果物影響ゼロ (near-miss)。
+  `DW-O01` への明文化は本 F の記録どおり byte 予算に阻まれたままであり、
+  必要 63 bytes に対し `operations.md` の余裕は 44 bytes、意味等価な縮約 1 件で 15 bytes 回収しても
+  **4 bytes 足りない**ことを実測した (この数値を [T-341] へ足した)
 ### F78. docs だけの wave が、sha256 で pin された事前登録文書を編集して凍結閉包を壊した [手順漏れ] [誤前提]
 
 - 事象: [T-244] 還流設計 wave (docs のみ) が `docs/phase3-main-experiment.md` へ 3 行追記したところ、
@@ -1822,3 +1834,34 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   等価と判断しない**。
 - 近縁: F32 (変異 harness の復元・単一走行)、F41 (親のテスト cwd と偽赤)、
   F57 (全走でだけ落ちる失敗)
+
+### F85. 信頼できない観測が回復経路を潰す latch を作りかけた [恒真ゲート]
+
+- 事象: [T-363] の段 5 実装で、実行予算の張り直しを「信頼できる (qstat rc=0 の) RUN 観測」に
+  束縛する際、既存の `run_seen` latch を共用した。その結果、rc≠0 の qstat stdout に
+  `Request State = RUN` が含まれるだけで `run_seen` が立ち、**その後に正常な rc=0 の RUN を
+  観測しても張り直せない**状態が残った。塞いだはずの欠陥 (順番待ちが実行予算を削る) が、
+  別経路でそのまま残る形だった。段 6 の敵対レビューが must-fix として摘出し、統合 commit 前に閉じた
+- 根本原因: 「証拠の信頼性で gate する」新しい条件を、**別の意味を持つ既存 latch へ後付けした**。
+  `run_seen` は「観測記録を 1 度だけ書く」ための latch であって「予算を張り直したか」ではない。
+  gate を足すと latch の意味が 2 つになり、厳しい側の条件が緩い側の latch に食われた
+- 恒久対応: 意味の異なる latch を分離する (`run_deadline_rebased` を新設)。回帰テストとして
+  `orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline`
+  を置き、latch を `run_seen` へ戻す変異を事前登録して kill を実測した
+- 再発検知: 上記 node と、変異 spec の `M5-latch-back-to-run-seen` (期待 KILLED)
+
+### F86. 受理集合を変えない変異を kill に数えかけた [恒真ゲート]
+
+- 事象: 同 wave の変異事前登録で、`overall_grace_s` の項を落とす変異を KILLED として登録した。
+  実際にはその変異が赤にするのは `state_history[-1].elapsed_s` が 4.0 → 3.0 になる診断値の差だけで、
+  rc・qdel・`outcome` はいずれも変わらなかった。**受理集合が変わらない赤を耐性の証拠として
+  数えることになり**、変異台帳の `KILLED` を 1 件過大計上する状態だった。段 6 の焦点再レビューが
+  差し戻した
+- 根本原因: 期待 kill テストを「その変異で赤くなるテスト」で選び、`DW-M03` が要求する
+  「受理集合か fail-closed 挙動が期待方向へ変わったか」で選んでいなかった
+- 恒久対応: 受理集合の差になる正例テスト
+  (`orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline`)
+  を追加し、当該変異の kill 根拠をそこへ移した。変異台帳には各 node が
+  「受理集合の赤」か「診断だけの赤」かを区別して記録する
+- 再発検知: 変異 spec の `M2-drop-overall-grace` の `expected_nodes` に上記正例が入っていること。
+  焦点再レビューで「受理集合の赤 / 診断だけの赤」の区別を要求する
