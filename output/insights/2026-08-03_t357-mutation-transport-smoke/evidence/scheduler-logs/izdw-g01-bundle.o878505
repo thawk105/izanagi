@@ -1,0 +1,1 @@
+mutation estimate: 3 mutation(s) x 240.000s, baseline=1 run(s), total=4 run(s)/960.000s; actual execution requires an outer-limit-free detached path
