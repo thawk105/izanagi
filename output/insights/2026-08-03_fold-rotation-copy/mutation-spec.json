@@ -1,0 +1,172 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 3000,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        \"--name-status\", \"-z\", \"--no-renames\",",
+          "new": "        \"--name-status\", \"-z\", \"-M\", \"-C\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        \"--name-status\", \"-z\", \"--no-renames\",\n    ),",
+          "new": "        \"--name-status\", \"-z\", \"--no-renames\", \"-M\",\n    ),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        if status not in {\"M\", \"D\", \"A\"}:",
+          "new": "        if False and status not in {\"M\", \"D\", \"A\"}:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_typechange_status"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "            if archive_adds > 1:",
+          "new": "            if archive_adds > 2:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_two_rotation_archives"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "    if archive_readme_modified and archive_adds != 1:",
+          "new": "    if False and archive_readme_modified and archive_adds != 1:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_archive_readme_without_rotation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "    deleted_path = paths[0] if status == \"D\" or status.startswith(\"R\") else None",
+          "new": "    deleted_path = paths[0] if status.startswith(\"R\") else None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_deletion_signature",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "    deleted_path = paths[0] if status == \"D\" or status.startswith(\"R\") else None",
+          "new": "    deleted_path = paths[0] if status == \"D\" else None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_rename_record"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        path_count = 2 if status.startswith((\"R\", \"C\")) else 1",
+          "new": "        path_count = 1"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_diff_entries_parses_two_paths_for_rename_and_copy_records"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "            if _ROTATION_PATH_RE.fullmatch(path) is None:",
+          "new": "            if False and _ROTATION_PATH_RE.fullmatch(path) is None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n34_fold_rejects_a_path_outside_the_closed_shape"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P01",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "            if archive_adds > 1:",
+          "new": "            if archive_adds > 0:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
