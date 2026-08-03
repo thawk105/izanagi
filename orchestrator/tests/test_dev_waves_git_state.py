@@ -559,6 +559,39 @@ def test_landed_interval_without_cutoff_keeps_all_parent_scan():
         assert (not result.ok) and result.detail == "landed-fold-owned-path"
 
 
+def test_landed_interval_without_cutoff_rejects_signature_visible_only_from_second_parent():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.parent.mkdir(parents=True, exist_ok=True)
+        folded.write_text("# folded\n", encoding="utf-8")
+        first_parent = _commit(repo, "seed first parent", "docs/spool/FOLDED.md")
+
+        _git(repo, "switch", "-c", "second-parent")
+        folded.write_text("# folded\nsecond parent\n", encoding="utf-8")
+        second_parent = _commit(repo, "change second parent receipt", "docs/spool/FOLDED.md")
+        _git(repo, "switch", "main")
+        tree = _git(repo, "rev-parse", f"{first_parent}^{{tree}}")
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", first_parent,
+            "-p", second_parent,
+            "-m", "second parent signature",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
 def test_main_fold_merge_rejects_deleting_fragment_present_on_trusted_main():
     with _fresh() as tmp:
         repo = _repo(Path(tmp))
@@ -684,6 +717,43 @@ def test_octopus_with_multiple_trusted_parents_keeps_all_parent_scan():
             trusted_main_cutoff_sha=cutoff,
             landed_main_sha=octopus,
             landed_commits=landed,
+            wave_tip=octopus,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_octopus_with_multiple_trusted_parents_rejects_signature_visible_only_from_untrusted_parent():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.parent.mkdir(parents=True, exist_ok=True)
+        folded.write_text("# folded\n", encoding="utf-8")
+        first_trusted = _commit(repo, "seed trusted receipt", "docs/spool/FOLDED.md")
+        (repo / "cutoff.txt").write_text("cutoff\n", encoding="utf-8")
+        cutoff = _commit(repo, "advance trusted cutoff", "cutoff.txt")
+
+        _git(repo, "switch", "-c", "untrusted", first_trusted)
+        folded.write_text("# folded\nuntrusted parent\n", encoding="utf-8")
+        untrusted = _commit(repo, "change untrusted receipt", "docs/spool/FOLDED.md")
+        _git(repo, "switch", "main")
+        tree = _git(repo, "rev-parse", f"{cutoff}^{{tree}}")
+        octopus = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", first_trusted,
+            "-p", cutoff,
+            "-p", untrusted,
+            "-m", "untrusted parent signature",
+        )
+        _git(repo, "reset", "--hard", octopus)
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=octopus,
+            landed_commits=(octopus,),
             wave_tip=octopus,
         )
         assert (not result.ok) and result.detail == "landed-fold-owned-path"
