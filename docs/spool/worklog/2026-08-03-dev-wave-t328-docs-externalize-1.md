@@ -68,6 +68,11 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   **並行 wave `worktree-dev-wave-fold-rotation-copy` が同じ機構を扱っており**、main は
   `e0b9073` のまま無変更。`DW-STOP` に従い rebase・force・他 session 所有物の変更で迂回していない
 
+- **[T-270] のフレークを再観測した (5 例目)。** 受入全走 `878446` が
+  `test_s8b_floor_campaign.py` 4 件で赤 (4 failed / 5222 passed)、同じ tip の再走 `878453` は
+  **5226 passed / 19 skipped** で緑。本 wave の差分は docs のみで当該ファイルへ到達しえない。
+  `DW-O18` に従い実装差分へ帰属せずフレークとして記録する
+
 ## 次の一手差分
 
 ### 完了
