@@ -57,3 +57,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"588251e77feffabebb9d9c29800f3b97c479581d8901fd171865cf0514c85bd5","seq":1,"wave":"rulings-2026-08-03-c"}
 
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"d1055e8fdff60cd713f1cb40317d85b0fba78394a9eb4392b1fa2e0c41a67795","seq":1,"wave":"rulings-2026-08-03-d"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"028fa5a334105c0b776007b1deed6aa0bdfd146126f05e82339a108085c7b145","seq":1,"wave":"rulings-2026-08-03-e"}
