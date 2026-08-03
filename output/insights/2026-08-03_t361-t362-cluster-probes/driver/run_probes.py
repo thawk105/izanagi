@@ -1288,6 +1288,78 @@ def _collect_accounting(
     }
 
 
+def _saved_nqsv_stderr_accounting(
+    work_root: Path, request_id: str
+) -> dict[str, Any]:
+    scheduler_root = work_root / "scheduler"
+    expected = _normalize_request_id(request_id)
+    errors: list[str] = []
+    files: list[dict[str, Any]] = []
+    matching_blocks: list[dict[str, Any]] = []
+    if scheduler_root.is_symlink() or not scheduler_root.is_dir():
+        errors.append(f"scheduler output root is absent or unsafe: {scheduler_root}")
+    else:
+        for path in sorted(scheduler_root.glob("*.e")):
+            if path.is_symlink() or not path.is_file():
+                errors.append(f"unsafe scheduler stderr: {path}")
+                continue
+            try:
+                payload = path.read_bytes()
+            except OSError as exc:
+                errors.append(f"cannot read scheduler stderr {path}: {exc}")
+                continue
+            text = payload.decode("utf-8", errors="replace")
+            request_fields = list(REQUEST_ID_FIELD_RE.finditer(text))
+            file_record = {
+                "path": str(path),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "size": len(payload),
+                "request_block_count": len(request_fields),
+            }
+            files.append(file_record)
+            for index, request_field in enumerate(request_fields):
+                block_end = (
+                    request_fields[index + 1].start()
+                    if index + 1 < len(request_fields)
+                    else len(text)
+                )
+                block = text[request_field.start() : block_end]
+                raw_request_id = request_field.group(1)
+                try:
+                    observed = _normalize_request_id(raw_request_id)
+                except ControllerError:
+                    errors.append(
+                        f"invalid Request ID field in scheduler stderr {path}: "
+                        f"{raw_request_id!r}"
+                    )
+                    continue
+                if observed != expected:
+                    errors.append(
+                        f"scheduler stderr Request ID mismatch in {path}: "
+                        f"expected {expected}, observed {observed}"
+                    )
+                    continue
+                ended_field = ACCOUNTING_ENDED_RE.search(block)
+                if ended_field is None:
+                    continue
+                matching_blocks.append(
+                    file_record
+                    | {
+                        "normalized_request_id": observed,
+                        "request_id_field_raw": request_field.group(0).strip(),
+                        "ended_request_time_field_raw": ended_field.group(0).strip(),
+                    }
+                )
+    return {
+        "expected_request_id": expected,
+        "scheduler_root": str(scheduler_root),
+        "files": files,
+        "matching_ended_request_blocks": matching_blocks,
+        "errors": errors,
+        "valid": bool(matching_blocks) and not errors,
+    }
+
+
 def _collect_job_outputs(work_root: Path, expected_jobs: int) -> dict[str, Any]:
     scheduler_root = work_root / "scheduler"
     manifest: list[dict[str, Any]] = []
@@ -2466,6 +2538,7 @@ class Controller:
                 "qstat_request_absent": True,
                 "qwait_terminal_receipt_valid": True,
                 "accounting_ended_request_valid": True,
+                "termination_evidence_paths": ["qsub_nonzero_without_request_id"],
                 "valid": (
                     submission["valid"] is True
                     and attempt.request.get("qsub_returncode") != 0
@@ -2493,7 +2566,26 @@ class Controller:
         )
         accounting = _collect_accounting(recorder, request_id, attempt.leg.nodes)
         qwait_validation = _qwait_valid(attempt.leg, qwait)
+        saved_nqsv_stderr = _saved_nqsv_stderr_accounting(
+            attempt.work_root, request_id
+        )
         qstat_absent = qstat.get("returncode") == 0 and not bool(qstat.get("visible"))
+        accounting_terminal_commands = [
+            name
+            for name, value in accounting.get("commands", {}).items()
+            if value.get("returncode") == 0
+            and value.get("accounting_validation", {}).get("valid") is True
+        ]
+        termination_evidence_paths: list[str] = []
+        if qwait_validation["valid"] is True:
+            termination_evidence_paths.append("1_qwait_raw")
+        termination_evidence_paths.extend(
+            f"2_resolve_{name}_I_raw" for name in accounting_terminal_commands
+        )
+        if saved_nqsv_stderr["valid"] is True and qstat_absent:
+            termination_evidence_paths.append(
+                "3_saved_nqsv_stderr_accounting_plus_qstat_absence"
+            )
         proof = {
             "schema": RESOLUTION_SCHEMA,
             "attempt_id": attempt.attempt_id,
@@ -2505,15 +2597,20 @@ class Controller:
             "qstat_state_raw": qstat.get("state"),
             "qwait_terminal_receipt_valid": qwait_validation["valid"],
             "accounting_ended_request_valid": accounting.get("valid") is True,
+            "resolve_accounting_terminal_commands": accounting_terminal_commands,
             "accounting_commands": {
                 name: value.get("accounting_validation")
                 for name, value in accounting.get("commands", {}).items()
             },
+            "saved_nqsv_stderr_accounting": saved_nqsv_stderr,
+            "termination_evidence_paths": termination_evidence_paths,
+            "terminal_evidence_disjunction_valid": bool(
+                termination_evidence_paths
+            ),
             "valid": (
                 submission["valid"] is True
                 and qstat_absent
-                and qwait_validation["valid"] is True
-                and accounting.get("valid") is True
+                and bool(termination_evidence_paths)
             ),
             "time_ns": time.time_ns(),
         }
@@ -2721,6 +2818,9 @@ class Controller:
                 "schema": RESOLUTION_SCHEMA,
                 "resolution_id": terminal_bundle["resolution_id"],
                 "resolved_after_controller_interruption": True,
+                "termination_evidence_paths": terminal_bundle[
+                    "terminal_proof"
+                ]["termination_evidence_paths"],
             },
             "time_ns": time.time_ns(),
         }
@@ -2781,6 +2881,9 @@ class Controller:
                     "request_id": item.get("request_id"),
                     "admissible": item.get("admissible"),
                     "dangerous": item.get("dangerous"),
+                    "termination_evidence_paths": item.get(
+                        "external_root_terminal_proof", {}
+                    ).get("termination_evidence_paths", []),
                 }
                 for item in outcomes
             ],

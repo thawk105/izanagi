@@ -23,11 +23,19 @@ controller が request 投入後に異常終了し、`_controller/sessions/` と
 PYTHONDONTWRITEBYTECODE=1 python3 output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py resolve
 ```
 
-`resolve` は singleton lock を取って未解決 session と attempt を列挙し、まず全 submitted attempt について
-現在の `qstat -J -f` で request 不在を確認し、`qwait`、`racctjob -I`、`racctreq -I` の exact request ID・
-Started / Ended / Elapse を照合する。**1 attempt でもこの終端の連言を実証できなければ、どの attempt も
-解決済みにせず fail-closed で止まる。** request がまだ見える場合、権限・一時エラー、qwait の期待 rc
-不一致、会計欠測も同じ扱いであり、走行中かもしれない job を閉じない。
+`resolve` は singleton lock を取って未解決 session と attempt を列挙し、全 submitted attempt について
+現在の `qstat -J -f` が rc=0 で request 不在を示すことを共通の前提にする。そのうえで終端は次の 3 経路の
+論理和で実証し、成立した経路を `terminal-proof.json` の `termination_evidence_paths` に残す。
+
+1. `resolve` が取得した `qwait` raw が leg 固有の期待 rc と raw 条件を満たす。
+2. `resolve` が実際に取得した `racctjob -I <request>` または `racctreq -I <request>` raw の少なくとも一方が、
+   exact request ID と Started / Ended / Elapse の条件を満たす。取得失敗や不完全な会計は証拠にしない。
+3. scheduler dir に収集済みの `.e` の NQSV 会計 block が exact `Request ID` と `Ended Request Time` を持ち、
+   同時に上記の現在 `qstat` 不在が成立する。`.e` 単独では終端証拠にしない。
+
+**1 attempt でも `qstat` 不在と上記論理和を実証できなければ、どの attempt も解決済みにせず
+fail-closed で止まる。** request がまだ見える場合、権限・一時エラー、3 経路すべての欠測も同じ扱いであり、
+走行中かもしれない job を閉じない。
 
 全 attempt の終端を実証した後だけ、投入時 preflight・qsub raw・compute marker・probe / observer raw・
 job output・会計を通常 `run` と同じ validity conjunction で再検査する。T-361 の Execution Host は現在の
