@@ -9,7 +9,8 @@ title: [T-342/T-343/T-344] build provenance を source 由来 capability へ移�
 
 ## 本文
 
-- ユーザー裁定 3 件 ((126) 参照) を**一体で**実装した。分割すると片方が迂回路になるという
+- ユーザー裁定 3 件 (裁定の記録は 2026-08-02 の `/rulings` エントリ) を**一体で**実装した。
+  分割すると片方が迂回路になるという
   ユーザーの明示に従い、capability 化・4 identity 面への束縛・overlay を同じ変更集合に入れた。
   設計判断は {{D:provenance-capability}}、scope 外へ返した 8 件は同 D の末尾に列挙した。
 - **段 1 の前提実測で親の不変条件が 1 つ誤っていた。** `s1_known_axes_freeze.py` の sha pin を
@@ -73,21 +74,21 @@ title: [T-342/T-343/T-344] build provenance を source 由来 capability へ移�
   clean stock / source 束縛 review receipt / run 束縛 generator receipt / parser 発行 token の順で
   導出する。CLI opt-in は plain bool を廃した。
   remaining: none
-  base: 177519f7bca374a4957ed87540ea8baccc7dea8599cfee994cafb494ccc73328
+  base: bc9fb1e0a08fc0a2126cfc7429238a5f8514f71177671a4f31e73853a21b8fb4
 
 - [T-343] admission を 4 つの identity 面すべてへ束縛した。legacy cache key は stock を含む全 class で
   receipt digest を織り込み exact-schema sidecar を必須化、v2 は preimage と completion manifest の
   両方、campaign は canonical preimage へ policy を入れ、replay は attempt ID 単位で receipt を照合する。
   receipt 欠落の旧 entry は拒否し、明示 migration は作っていない。
   remaining: none
-  base: fd6d751ad79ee455cb48a74c5c419c82eb6498c6d834e79936764aa61228c35d
+  base: bf385ee11cad877c27809dbc31a626dfec6bacf30814cc0a08ffc806fa64c369
 
 - [T-344] 旧 loop campaign 3 件を deny-only overlay で `legacy-unclassified` と宣言し、
   admission-aware な選択・材料レポート・certified 判定から既定除外した。`verification_status` と
   `admission_status` を別次元にし、歴史的 verifier 判定は否定していない。凍結 bytes は 1 byte も
   変えていない。
   remaining: none
-  base: 9805d7175add2acfd7effcd228e3c6ab08e35421caa0e95234717c6b880736b1
+  base: 775ae7560e9d302a70b11e046ab92777efaea22400c31a094df602bd5e5a6a1c
 
 ### 新規
 
