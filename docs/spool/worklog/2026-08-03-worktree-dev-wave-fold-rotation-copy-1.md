@@ -35,7 +35,12 @@ title: fold 機構の裁定 3 件を 1 wave で実装 — land 不能の rename/
   `projected_worklog_bytes = 93277` (閾値以下)、target に `docs/phase3.md` が入り、
   fragment 順は ruling 5 件 → 本 wave になった。修正前は entry 121 を移せず 104,462 bytes で
   失敗する構成である
-- 受入全走 = Pegasus gen_S 計算ノード request `878425` で **5263 passed / 19 skipped**
+- 受入全走 = Pegasus gen_S 計算ノード request `878425` で **5263 passed / 19 skipped**。
+  変異本走 = 事前登録 24 件が**全件 KILLED・期待 node 一致** (T-357 分 10、拡張分 14)。
+  拡張分の初回は MISMATCH 5 件で、いずれも gate は壊れてテストが検出しており原因は親の
+  期待 node の精度不足だった。初回台帳を残したうえで是正して再走した
+- **段 8 の改善候補 3 件は docs 予算超過で保留した。** `docs/dev-wave/**` は既に hard ceiling
+  近傍で、実測に基づく 3 行の追記が予算を割った。自己改善契約に従い変更を取り下げ裁定へ回す
 - 素材: 「単体テストが全緑でも実経路の失敗が残る」ことを、同じ wave の中で 2 度観測した。
   1 度目は本タスクの発端 (実 land だけが落ちた)、2 度目は上記の rotation-capacity である
 
@@ -58,6 +63,20 @@ title: fold 機構の裁定 3 件を 1 wave で実装 — land 不能の rename/
   慣行は変えず手段だけを補った。
   remaining: none
   base: cce7f7f2a76b950dcfb92c38d17798b75e5a37cd74bdcfdcf4c444209925ae46
+
+### 新規
+
+- {{T:dev-wave-reference-budget-overflow}} **P3・新規・裁定待ち**: 段 8 で実測した dev-wave の
+  運用の穴 3 件を、`docs/dev-wave/**` の予算超過で reference へ統合できず保留した。
+  (a) workspace-write の codex 子も、計算ノードへの dispatch が sandbox 内で認証エラーになる環境では
+  テストを実走できない (`DW-O05` は read-only 子の話しか書いていない。本 wave では実装子・fix 子
+  5 本すべてが該当した)。(b) 変異本走中に untracked を 1 つ作ると harness が停止し、止めた後に
+  commit すると HEAD 束縛で resume できなくなる (本 wave で 1 回やり直した)。(c) session 終了で
+  子 process が落ちる環境では切り離して起動する必要がある。3 行の追記で
+  `docs/dev-wave/mutation.md` が 4056/3750 bytes、`operations.md` が 8629/8400 bytes、
+  合計 25845/25200 bytes になったため、自己改善契約に従い変更を取り下げた。
+  **[T-328] の外出し (入口 + 条件付き reference) が入れば同じ枠で解ける**ため、そこへ相乗りするか、
+  予算値の独立審査を行うかの裁定が要る
 
 ### 見送り追記
 
