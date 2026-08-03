@@ -1,0 +1,28 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M08R",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            if state not in {\"QUE\", \"HLD\"}:\n                return denied(",
+          "new": "            if True:\n                return denied("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_fresh_qstat_gate_accepts_que_hld_and_stg_snapshots[QUE-QUE]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_fresh_qstat_gate_accepts_que_hld_and_stg_snapshots[HLD-HLD]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_fresh_qstat_gate_accepts_que_hld_and_stg_snapshots[STG-QUE]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_hld_queue_timeout_qdels_and_receipts",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qsub_parse_failure_discovers_request_and_attempts_qdel"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
