@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-03
 wave: dev-wave-t328-docs-externalize
 seq: 1
-title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた — 実装せずユーザー再裁定へ返し、[T-282] を実測で閉じた (docs のみ、branch worktree-dev-wave-t328-docs-externalize、全走 = Pegasus gen_S 計算ノード request 878402 で 5226 passed / 19 skipped、変異 matrix = 対象外)"
+title: [T-328] docs/dev-wave/** の外出しは D94 が既に却下していた — 実装せずユーザー再裁定へ返し、[T-282] を実測で閉じ、land helper の根治 (D132) を待って land した (docs のみ、branch worktree-dev-wave-t328-docs-externalize、受入全走 = Pegasus gen_S 計算ノード request 882023 で 5385 passed / 19 skipped、変異 matrix = 対象外)
 ---
 
 ## 本文
