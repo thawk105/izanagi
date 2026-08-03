@@ -6801,3 +6801,117 @@ build 上限と計数規則。いずれも設計本文に「書けなかった�
 **研究状態への影響: なし。** 本 wave は docs と insights のみで、production 挙動、実験の受理集合、
 certified 選択、材料レポート、proof chain、凍結 bytes はいずれも不変である。
 実装差分が無いため変異 matrix と受入全走は対象外である。
+
+## D139. NQSV は walltime 超過で SIGKILL を直送する — 既定構成では harness の `finally` 復元は原理的に走らない (2026-08-04)
+
+**決定 (1): 既定構成における walltime 超過時の signal は SIGKILL であり、grace は無い。**
+Pegasus `gen_S` の request `882048.nqsv` で実測した。根拠はスケジューラ自身の出力である。
+
+```text
+%NQSV(INFO): Batch job received signal SIGKILL. (Exceeded per-req elapse time limit)
+```
+
+**signal 種別を「観測されなかったこと」から推定したのではない。** 会計は
+`Elapse: 184S` / `Remaining Elapse: 0S` であり経過時間制限による終了を示す (比較: 自発終了した
+request `882038.nqsv` は `Remaining Elapse: 287S`)。ここでいう既定構成とは
+`--accept-sigterm` を指定せず `elapstim_req` の警告値も省略した形で、
+`tools/pegasus/dispatch_compute.py` の `_job_script` が現に使っている構成と同じである。
+
+**決定 (2): 3 層のいずれにも signal は届かず、`finally` は走らなかった。**
+job script (bash trap)、Python 親 (`mutation_harness._install_signal_handlers` と同型の handler)、
+`start_new_session=True` の孫の 3 層すべてで signal 受信記録がゼロだった。Python 親の heartbeat は
+178.9 秒続いて途絶え、`after_signal` は最後まで未設定のままだった。
+**`finally` が復元するはずの canary は `MUTATED` のまま残った。**
+3 層すべてが起動して heartbeat を書いていたので、「届かなかった」と「起動していなかった」は
+区別できている。login 側 observer による canary の読み返しと ack が成立してから測定に入っている。
+
+**決定 (3): したがって D130 決定 (3) の条件 3 は既定構成では充足しない。**
+`mutation_harness` の cleanup は `_restore_targets` の手前に `_stop_process` があり、pytest 子へ
+SIGTERM を送って最大 5 秒、SIGKILL 後さらに最大 5 秒待つ。**grace が 0 である以上、この 10 秒超の
+cleanup 列は最初の 1 歩も実行されない。** 変異が当たったままの tree が残る (F32 の再発型)。
+変異本走を計算ノードの 1 ジョブへ束ねる設計は、次のいずれかを備えないと着手できない。
+
+1. 捕捉可能な signal と十分な grace を与える構成が実在することの実測、
+2. walltime 内に必ず終わる設計、
+3. 外部から残留変異を検出・復元する経路。
+
+**決定 (4): 捕捉可能な構成の有無は未解決である。**
+`--accept-sigterm=yes` + `elapstim_req="max,warn"` (warn < max) + `--warning-signal=elapstim:SIGTERM`
+の mitigation leg と、SIGUSR1 で警告 signal を錨にする split-warning leg は投入されなかった。
+man 上は warn 省略時 warn=max、`--warning-signal` 既定は SIGTERM、`--accept-sigterm` 既定は `no`
+であるから、**mitigation 構成が捕捉可能な signal を与える可能性は残る。実測するまで結論しない。**
+
+**理由:**
+- D130 決定 (3) 条件 3 が「NQSV が SIGTERM を送るか grace があるかが未確認」と明記しており、
+  本 wave はその実測を担った。
+- 判定語彙は実測前に固定した — 観測されなかった signal は `UNKNOWN` と記録し `SIGKILL` と
+  断定しない。本決定が `SIGKILL` と書けるのは、**スケジューラ自身が signal 名を出力したから**である。
+
+**却下した選択肢:**
+- **実 harness を使い捨て checkout 上で walltime kill する** — F32 の事故そのものを本番 harness で
+  再演する行為であり、失敗時の残骸と他 wave への波及が大きい。probe 側で cleanup の時間形状を
+  再現する形にした。
+- **grace を「観測されなかった signal」から推定する** — `--accept-sigterm` 既定が `no` である以上、
+  捕捉不能な TERM と SIGKILL 直送を区別できない。スケジューラの明示出力だけを根拠にした。
+
+## D140. Lustre の flock は測定した bnode 対では cross-node で排他した — ただし確定は Execution Host 照合を待つ (2026-08-04)
+
+**決定 (1): `/work`・`/home` とも cross-node の全試行で排他された。**
+`#PBS -b 2` (既定 topology `distrib`) の request `882038.nqsv` を `bnode001` と `bnode005` で走らせ、
+両 filesystem について cross-node 6/6 が `BLOCKED` だった。**silent fail-open は観測されていない。**
+計算ノード側の `/proc/self/mountinfo` は両ノードとも `lustre` かつ `flock` あり `localflock` なしで、
+source と options の signature が一致した。
+
+**決定 (2): それでも `dangerous` は `null` のままであり、安全と読み替えてはならない。**
+当該 attempt は controller が実行時欠陥で落ちた回のものであり、`qstat -J -f` の Execution Host と
+marker の一対一照合が完了していない。probe は照合前に安全を宣言しない設計であり、
+`PENDING_EXECUTION_HOST_VALIDATION` / `valid_for_safety_conclusion: false` を保った。
+**後から安全側へ倒していない。** これは fail-closed が意図どおり働いた実例である。
+
+**決定 (3): 自己検査はすべて通過しており、観測そのものは有効である。**
+holder が lock file へ書いた nonce を contender が**開いた fd 経由**で読む backing object の照合、
+両 bnode での陽性対照 (同一ノード内の排他) と陰性対照 (未保持時の取得成功)、
+`/proc/self/mountinfo` からの最深 mount 解決、filesystem ごとに 1 fd を全 trial 通して保持する
+long-hold のすべてが成立した。lock helper は `mutation_harness._lock_for` と同じ open flags
+(`O_CREAT|O_RDWR|O_APPEND|O_NOFOLLOW`, mode 0600) と同じ `fcntl.flock(LOCK_EX|LOCK_NB)` を使う。
+
+**決定 (4): 射程を限定する。**
+本結果は **測定した exact host pair・当日の kernel・当該 mount** に限る。`mount.lustre(8)` は
+distributed coherence を「`flock` option を使う client 同士」に限定しており、異なる option の
+client が混在しうる。gen_S 全体へ一般化してはならない。数時間保持も再現していない。
+**さらに本結果は Lustre `flock` primitive についてのものであり、D131 共通前提 1 (shared / legacy
+lock の移行と二重走行の窓) を閉じない。** 移行期に旧 process が node-local `/tmp`、新 process が
+Lustre lock を取る窓は、flock がどれだけ正しく効いても残る。
+
+**理由:**
+- D130 決定 (3) 条件 2 が「cross-node で効くか、silent fail-open しないかは未実測」と定めており、
+  本 wave はその primitive の実測を担った。
+- 判定基準は実測前に固定した — 自己検査が通らない実行の観測は読まない、`localflock` を見たら
+  観測に関わらず危険側へ倒す、無効な試行の `dangerous` は `false` ではなく `null` にする。
+
+**却下した選択肢:**
+- **login node と計算ノードの対で測る** — 別 client の mount option が異なりうるため、
+  bnode 間の問いに答えない。補助証拠に留めた。
+- **OpenMPI で第 2 ノードへ到達する** — `-b 2` の既定 `distrib` が同一スクリプトを両ノードで
+  起動することを man から確認でき、実測でも成立した。fallback は発火条件を書けないため実装しない。
+
+## D141. 実測 wave の投入・回収・費用管理は controller が機械強制する — 親の手作業に委ねない (2026-08-04)
+
+**決定:** 実機へ probe を投入する wave では、投入前 preflight、完全な `qsub -v` argv の生成と記録、
+request 数と累積 requested node-min の投入前予約、有効性検査 (計算ノード側 marker・`qstat` 可視・
+会計痕跡)、証拠回収、`git` 追跡確認**後にだけ**行う staging 撤去 までを、1 本の login 側 controller が
+直列に強制する。**親が手で `qsub` してはならない。**
+
+**理由:**
+- 段 6 の独立した 2 レビューが同じ指摘へ収束した — 手作業に委ねると argv・hash・deadline・会計・
+  追跡確認のいずれかが抜けたまま、都合のよい部分結果を authoritative へ格上げできる。
+- 実際に効いた例がある。`.gitignore` は `*.o` を無視するので、job の stdout をそのままの名前で
+  証拠にすると commit されず staging 削除後に失われる。controller が `.stdout.raw` /
+  `.stderr.raw` へ改名し、元名を manifest に残す形にして塞いだ。
+- 費用も同様である。requested node-min の上限は controller が投入前に検査し、実消費は
+  `rbudgetcheck` の前後差分で記録する。node-minute → point の換算率は一次資料から確認できないため
+  推測しない (本 wave の実測: 13 requested node-min に対し減少 0.29 point)。
+
+**却下した選択肢:**
+- **親の投入工程として文書に手順を書く** — 本 wave の段 4 で親が一度そう裁定し、段 6 のレビューが
+  誤りだと突いた。手順書は「都合のよい部分結果の採用」を機械的に防げない。
