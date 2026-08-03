@@ -18,6 +18,7 @@ from .daemon import (
     SupervisorProfile,
     doctor,
 )
+from .effort_levels import CLAUDE_EFFORTS
 from .git_state import resolve_main_worktree, resolve_repo_identity
 from .protocol import exchange
 from .schema import (
@@ -89,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--fake-child-sha256", required=True)
     serve.add_argument("--model", required=True)
     serve.add_argument("--allowed-model", action="append", required=True)
-    serve.add_argument("--effort", required=True)
+    serve.add_argument("--effort", choices=CLAUDE_EFFORTS, required=True)
     serve.add_argument("--check-timeout-s", type=_positive_int, required=True)
     serve.add_argument("--termination-grace-s", type=_nonnegative_float, required=True)
     serve.add_argument("--required-hook", action="append", type=_required_hook, required=True)

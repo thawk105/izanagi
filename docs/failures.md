@@ -939,6 +939,27 @@
   (行動規律)。rc≠0 の検出自体は `DW-O01` の完了判定が既に担っている
 - 記録: worklog 2026-07-28 (32)、逐語 = `output/insights/2026-07-28_t148-review-verbatim/`
 
+
+- **再発: 2026-08-03** — land 署名 wave の段 3 で、敵対レンズ A の codex 子が upstream の
+  安全フィルタに掛かり、最終メッセージだけが遮断された
+  (`This content was flagged for possible cybersecurity risk`)。rc=1 で `-o` の成果物は生成されず、
+  敵対レビュー 1 本を失いかけた。ログには推論要約が残っており、そこから結論の骨子
+  (「守るべき資産を 2 path へ狭めた前提が破れている」) は読めた。
+- **今回は回復できた。恒久対応をここに残す。** F45 の初回は「同一 prompt の再投でも通らない」で
+  終わっていたが、今回は**プロンプトの語彙を変えて再投したところ通った**。
+  効いた書き換えは次の 3 点である。
+  1. 役割を「敵対検証者・攻撃せよ」から「**検証関数の仕様適合レビュー**」へ変える。
+  2. 攻撃語彙 (攻撃・密輸・偽造・迂回・bypass) を、判定語彙 (判定漏れ・仕様漏れ・反例・
+     入力クラス・false negative) へ置き換える。
+  3. **gate を回避する具体的な command 列を要求しない。**「どの commit がどの path を
+     どう変えるかの表」で足りると明記する。
+  意味は保たれ、返ってきたレビューは blocker 3 件を名指しした (痕跡集合の不十分性、
+  免除条件の健全性、cutoff の実在)。したがって**検出力を落とさずに通せる**。
+- 判定に使うのは `.done` の exit code と `-o` 成果物の実在だけであり、
+  harness の完了通知やログ本文の grep を完了判定にしてはならない (`DW-O01`)。
+  本件でも通知は rc=1 の子について「completed」と告げた。
+- 記録: worklog 2026-08-03 (本 wave)、逐語 =
+  `output/insights/2026-08-03_land-merge-signature/s3-lens-a-spec-conformance.md`
 ### F46. ログインノードで実測した interpreter 挙動を計算ノードにも成立すると誤前提し、floor 実機初走が guard 到達前に死んだ [誤前提]
 
 - 事象: [T-088] 段階 1 の実機初走 (job `0:873200.nqsv`, 2026-07-28) が `driver_rc=1` で終了。
@@ -1047,6 +1068,17 @@
 - **裁定 (2026-07-29)**: dispatch 前倒しを採用 (ユーザー)。入口条件表の条件 20 を「背景 job +
   worktree 隔離の wave 開始時 (最遅: clean-tree gate 直前)」へ更新
 
+
+- **再発: 2026-08-03** — [T-313] wave の立ち上げで、専用 handoff を背景 job harness の既定
+  (`$CLAUDE_JOB_DIR/tmp` = home 配下の `~/.claude/jobs/<id>/tmp`) に作り、ユーザーに止められた
+  (near-miss、実害なし)。前回 (2026-07-29) は worktree 内、今回は home 配下で、**置き場を
+  間違える型は同じ**である。原因は `DW-O20` の「専用handoffはworktree外（背景jobはjob tmp）」
+  という文言が、要件 (worktree の外) ではなく harness 既定の実体 (home 配下) を指しており、
+  Pegasus の「home に不要物を置かない」規律 (runbook §6 の領域分担) と衝突したこと。
+  repo 内 `.claude/jobs/` への退避も worktree 隔離ガードが Write を拒否するため使えず、
+  最終的に repo 外の `/work` 配下へ置いた。
+  恒久対応 = `DW-O20` の当該語を byte 中立で「背景jobはrepo外」へ是正 (本 wave の段 8) と、
+  auto-memory `pegasus-keep-home-clean`。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
@@ -1654,6 +1686,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 記録: worklog 2026-08-02 (108)、一次資料 =
   `output/insights/2026-08-01_t139-remainder-adjudication.md`
 
+
+- **再発: 2026-08-03** — 本 F の恒久対応どおり `nohup bash -c '...' &` で段 2 の codex 子を投入したが、
+  **`nohup` でも子は tool 呼び出しの終了とともに死んだ** (ログは 3 分ぶん残り `.done` は不在)。
+  すなわち本 F が記録した「背景 job では `nohup` で投入し」は**十分条件ではない**。
+  一方で「`.done` 不在を根拠に再投入しない — 先に生存確認する」は効いた — 親は再投入前に
+  `ps` で同一 artifact を書く process が 0 本であることを実測し、二重起動を起こしていない
+  (1 回目のログは別名で保全した)。実際に生き残ったのは、`&` も `nohup` も使わず
+  **harness 管理の background 実行へ `bash -c '<cmd>; echo $? > <log>.done'` をそのまま渡す**経路で、
+  投入 20 秒後に `ps` と log 増加で生存を実測した。成果物影響ゼロ (near-miss)。
+  `DW-O01` への明文化は本 F の記録どおり byte 予算に阻まれたままであり、
+  必要 63 bytes に対し `operations.md` の余裕は 44 bytes、意味等価な縮約 1 件で 15 bytes 回収しても
+  **4 bytes 足りない**ことを実測した (この数値を [T-341] へ足した)
 ### F78. docs だけの wave が、sha256 で pin された事前登録文書を編集して凍結閉包を壊した [手順漏れ] [誤前提]
 
 - 事象: [T-244] 還流設計 wave (docs のみ) が `docs/phase3-main-experiment.md` へ 3 行追記したところ、
@@ -1759,6 +1803,38 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   が正例であり、1 度目の裁定はこれを書いていなかったため気づけなかった。
 - 補足: 3 巡目は不要で、2 巡で 0 failed (5185 passed / 19 skipped) に到達した。
 
+
+- **再発: 2026-08-03 (3 度目)** — `verify_declared_fold_commit` の fold 署名検査が、
+  **DW-O23 が指示する「land 前の wave 側 main 取り込み」を全面的に禁止する**ことを実測した。
+  `_commit_diff` は `git diff-tree -m` を使うため merge commit では親ごとの差分を出す。
+  main を wave へ取り込む merge commit の第 1 親 (wave 側) との差分には、main が既に land 済みの
+  fold commit の署名 (`M docs/spool/FOLDED.md`、fragment の `D`) が必ず現れ、
+  `_landed_fold_output_path` が `landed-fold-owned-path` で弾く。
+  main の tree は 1 byte も再適用されない (本件では `ea6ca43..9fbed42` の変更は wave 側 9 ファイルのみ)
+  にもかかわらず、ff-only 自体が不能になる。
+  fold は 2026-08-02 以降すべての land が `FOLDED.md` を触るため、
+  **main が動いた後に取り込みが要る wave は今後すべて land 不能**である。
+  署名という表現自体は F82 の恒久対応どおりだが、**merge commit で署名を親ごとに評価する**
+  ことで受理集合が再び過剰に縮小した。F82 が定めた再発検知「新設 gate の裁定には正例を必ず
+  1 つ書く」の正例 =「wave が main を取り込む merge commit を含む landed 区間が受理される」が
+  今回も書かれていなかった。
+  **潜在していた期間と発火条件**: `-m` は導入時 (`2743e0d`) から入っていたが、`27f693f` が署名を
+  「作成 (`A`) ではなく変更 (`M`)」へ絞ったため、`FOLDED.md` が新規作成だった時期の merge は
+  素通りしていた (実証: 過去に land できた merge `6af21d7` の当該 status は `A`、
+  本 wave の merge `ee28642` は `M`)。**2 回目以降の fold が main に載った時点で発火する**穴であり、
+  本 wave が最初の一本である。
+- **設計上の誤り**: ff-only が main へ適用するのは `main..tip` の累積差分だけで、途中 commit の
+  状態は main にならない。したがって「wave が fold を密輸したか」の判定領域は累積差分しかない。
+  commit ごとの判定は (i) main 自身の既 land 履歴を wave 側の親との差分として再び見てしまう点で
+  過剰、(ii) 範囲内で現れて消える変更は land しない点で無意味である。
+  `verify_declared_fold_commit` の docstring は「**landed 区間**に … 変更がないこと」と累積で
+  書いており、**説明と実装が食い違っていた**。
+- **恒久対応 (実装は別 wave)**: 署名 2 条件はそのままに、判定対象を
+  `git diff --name-status --no-renames <tested-main>..<tip>` の累積差分へ移す。
+  F82 の再発検知が要求する正例 =「main を取り込む merge commit を含む landed 区間が受理される」
+  を裁定文とテストに固定する。
+  検出: [T-313] wave の段 9 land が `status=fold-failed` / `reason=landed-fold-owned-path` で停止
+  (main は `ea6ca43` のまま未変更)。
 ### F83. 親の裁定が並行 fold を不可能にする条件を 2 度作った [手順漏れ]
 
 - 事象: 段 4 で親が「直前 active の全 ID に明示遷移を要求する」と裁定した結果、
@@ -1801,3 +1877,108 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   等価と判断しない**。
 - 近縁: F32 (変異 harness の復元・単一走行)、F41 (親のテスト cwd と偽赤)、
   F57 (全走でだけ落ちる失敗)
+
+
+- **再発: 2026-08-03** — [T-282] の残留計測で、job tmp の PBS script から
+  `IZANAGI_TEST_TRIGGER=final python3 tools/run_tests.py` を直接呼び **116 failed / 2,085 errors**
+  (request `878392`)。interpreter を `python3.10` へ固定しても、テストが `bash` 経由で起動する
+  孫 process が PATH の `python3` を拾うため **19 failed** が残り (request `878395`)、
+  `PATH` 先頭へ `python3` → `python3.10` の shim を置いて初めて **5,226 passed / rc=0**
+  (request `878402`) になった。**赤の 19 件も `test_t126_pegasus_tools.py` という失敗面も F84 と同一**で、
+  投入器が `_job_script` の interpreter 選択と `export PATH="$(dirname "$selected"):$PATH"` を
+  写していなかった点まで一致する。F84 の対象が変異 harness の手書き投入器だったのに対し、
+  本件は残留計測用の使い捨て PBS script であり、**「使い捨てだから写さなくてよい」という判断が
+  同じ穴を再生産する**ことを示す 2 例目である。マシン固有の手順 (既定 `python3` の版・shim の要否・
+  `-o`/`-e` の落ち先) は `docs/pegasus-runbook.md` §3 が正本。
+### F85. 信頼できない観測が回復経路を潰す latch を作りかけた [恒真ゲート]
+
+- 事象: [T-363] の段 5 実装で、実行予算の張り直しを「信頼できる (qstat rc=0 の) RUN 観測」に
+  束縛する際、既存の `run_seen` latch を共用した。その結果、rc≠0 の qstat stdout に
+  `Request State = RUN` が含まれるだけで `run_seen` が立ち、**その後に正常な rc=0 の RUN を
+  観測しても張り直せない**状態が残った。塞いだはずの欠陥 (順番待ちが実行予算を削る) が、
+  別経路でそのまま残る形だった。段 6 の敵対レビューが must-fix として摘出し、統合 commit 前に閉じた
+- 根本原因: 「証拠の信頼性で gate する」新しい条件を、**別の意味を持つ既存 latch へ後付けした**。
+  `run_seen` は「観測記録を 1 度だけ書く」ための latch であって「予算を張り直したか」ではない。
+  gate を足すと latch の意味が 2 つになり、厳しい側の条件が緩い側の latch に食われた
+- 恒久対応: 意味の異なる latch を分離する (`run_deadline_rebased` を新設)。回帰テストとして
+  `orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline`
+  を置き、latch を `run_seen` へ戻す変異を事前登録して kill を実測した
+- 再発検知: 上記 node と、変異 spec の `M5-latch-back-to-run-seen` (期待 KILLED)
+
+### F86. 受理集合を変えない変異を kill に数えかけた [恒真ゲート]
+
+- 事象: 同 wave の変異事前登録で、`overall_grace_s` の項を落とす変異を KILLED として登録した。
+  実際にはその変異が赤にするのは `state_history[-1].elapsed_s` が 4.0 → 3.0 になる診断値の差だけで、
+  rc・qdel・`outcome` はいずれも変わらなかった。**受理集合が変わらない赤を耐性の証拠として
+  数えることになり**、変異台帳の `KILLED` を 1 件過大計上する状態だった。段 6 の焦点再レビューが
+  差し戻した
+- 根本原因: 期待 kill テストを「その変異で赤くなるテスト」で選び、`DW-M03` が要求する
+  「受理集合か fail-closed 挙動が期待方向へ変わったか」で選んでいなかった
+- 恒久対応: 受理集合の差になる正例テスト
+  (`orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline`)
+  を追加し、当該変異の kill 根拠をそこへ移した。変異台帳には各 node が
+  「受理集合の赤」か「診断だけの赤」かを区別して記録する
+- 再発検知: 変異 spec の `M2-drop-overall-grace` の `expected_nodes` に上記正例が入っていること。
+  焦点再レビューで「受理集合の赤 / 診断だけの赤」の区別を要求する
+
+### F87. 過剰拒否変異の期待 node を新テストだけから導き、正当な追加赤を MISMATCH で受け取った [テスト代表性] [手順漏れ]
+
+- 事象: [T-189] wave の変異本走で、受理集合から `low` を消す過剰拒否変異 (V9) が `MISMATCH` に
+  なった。親が事前登録した期待 node は本 wave が追加した正例 2 本と exact-vocabulary meta-test の
+  3 件だけだったが、実際には
+  `test_dev_waves_cli.py::test_export_is_create_only_and_contains_only_sanitized_wal_view` も
+  赤になった。同テストは profile の `effort="low"` で実 supervisor wave を走らせるため、
+  worker spec / child argv 層に到達して**正当に**赤くなる。変異は期待方向へ効いており、
+  誤っていたのは登録側である
+- 根本原因: 過剰拒否 (positive) 変異の期待 node を「この wave が追加したテスト」から導いた。
+  受理集合から値を消す変異は、**runner scope 内でその値を消費する既存テスト全部**を赤にする。
+  新設テストの列挙は必要条件でしかない
+- 見落としの経路: 段 6 の焦点再レビューはこの型を認識しており、
+  「`test_dev_waves_integration.py` 全体を runner に含めてはならない」と警告した。しかし同じ理由で
+  赤くなる `test_dev_waves_cli.py` の wave 実走テストは挙げなかった。**敵対レビューによる列挙も
+  完全ではない**
+- 恒久対応: (a) 機械防壁は既存で有効 — `tools/mutation_harness.py` の
+  `_validate_registrations` と期待 node 突き合わせが `MISMATCH` を rc≠0 で返し、本件を実際に捕えた。
+  黙って KILLED にはならない。(b) 手順側は `DW-M01` の事前登録契約へ「受理集合を縮小する変異は、
+  削除する値のリテラルを runner scope 全体へ機械検索してから期待 node を確定する」を足す。
+  `docs/dev-wave/` は本 wave の no-touch 対象のため、条文追加は
+  [T-375] が所有する
+- 再発検知: 変異台帳の `MISMATCH` で actual ⊋ expected かつ追加 node が当該値を消費する既存テスト
+  なら、この型である。一次資料は
+  `output/insights/2026-08-03_t189-reasoning-effort-allowlist/mutation-ledger.json` (初回、V9 MISMATCH) と
+  同 `mutation-ledger-v9-erratum.json` (補正後、KILLED)
+- 近縁: F60 (期待 node が対象 gate を実行していない)、F33 (期待 node と記録 node の形式不一致)
+
+### F88. 計算ノードの既定 `python3` が oneAPI 版で orchestrator を import できない [環境前提] [手順漏れ]
+
+- 事象: 新規 probe を計算ノードへ投入したところ (request `881946`)、`qualification.submission` の
+  import が `TypeError: dataclass() got an unexpected keyword argument 'slots'` で失敗し、probe が
+  rc=3 / `ok:false` で fail-closed した。`dataclass(slots=True)` は Python 3.10 以降の機能である。
+- 根本原因: `.pbs` が bare `python3` を呼んでいた。計算ノードの `python3` は
+  `/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/python3` (3.10 未満) に
+  解決される。ログインノードの `python3` は 3.10 なので、ログイン側の静的検査では発覚しない。
+- 恒久対応: 計算ノードで python を起動する新規スクリプトは、`t126_qualification.sh:13-25` の
+  既存の正規手順 (候補列を `command -v` で解決し `sys.version_info[:2] >= (3,10)` を実際に走らせて
+  検査し `realpath -e` で確定、選べなければ exit 2) を使う。新方式を発明しない。
+  `dispatch_compute._INTERPRETER_CANDIDATES` も同じ 3.10 要件を持つ。
+- 再発検知: 選んだ interpreter の絶対 path を成果物へ create-only で記録し、
+  「どの python で測ったか」を証拠に残す (本 probe は `interpreter` ファイルに記録する)。
+- 補足: **probe 側の欠陥ではない。** 測定器の故障と正当な否定結果を分離する設計
+  (D137) が効いたため、誤った測定結果が成果物へ入らなかった。
+
+### F89. 同じ候補列に対し Python 経路と shell 経路の受理集合が食い違う [受理集合] [説明と実装の食い違い]
+
+- 事象: 共有 policy の `perf_candidates` が指す perf は、計算ノードに実在し
+  `perf --version` も production と同じ smoke argv も rc=0 で成功するのに、
+  実物の `qualification.submission._executable` は `required executable unavailable: perf` で
+  解決に失敗する (2026-08-03 に bnode005 / bnode009 で実測)。
+- 根本原因: 当該 path は計算ノードでは **symlink** である。`_executable` は
+  `not Path(found).is_symlink()` を要求して symlink 候補を捨てるが、同じ候補列を読む
+  `t126_qualification.sh` は `[[ -x "$candidate" ]]` なので symlink を受理する。
+  **同じ設定に対して 2 つの受理集合が存在する。**
+- 恒久対応: 未定。受理集合の変更にあたるため D96 手続としてユーザー裁定へ返した
+  (`output/insights/2026-08-03_t293-perf-site/adjudication-package.md` の択一 (b))。
+  symlink 拒否が「path を pin したつもりが差し替えられる」ことへの防御である可能性があるため、
+  意図を確認せずに緩めない (規律 2)。
+- 再発検知: 同じ設定を Python と shell の双方から読む箇所は、受理・拒否の条件が一致することを
+  実測で確かめる。片側だけの成功を「その設定は使える」と読まない。

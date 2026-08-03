@@ -38,10 +38,14 @@ fail-closed の原則: 縮退・欠測・不正入力・競合はすべて null 
 config の数値はコードに既定値を持たず入力必須にする (F14 対策)。CLI に env・経路・数値の上書き面は
 作らない。
 
-official mode は production ``run_campaign`` wrapper で従来どおり無条件拒否する。private
-``_run_campaign_core`` は staged fixture 専用で、official への全 seam 注入を public wrapper が
-副作用前に拒否する。pilot artifact は ``eligible_for_refreeze: false``、official の private core
-完走 artifact は二相 finalize の completed terminal 後 publish に限って true となる。
+official mode の無条件拒否は private core 自体で行い、public wrapper の迂回を許さない。さらに
+official core は ``build_fn`` 注入を副作用前に拒否し、admission-aware な ``buildcache.build_v2``
+だけを materializer として使う。pilot artifact は ``eligible_for_refreeze: false``、official の
+private core 完走 artifact は二相 finalize の completed terminal 後 publish に限って true となる。
+
+既知限界: ``eligible_for_refreeze`` は依然として receipt chain ではなく ``mode`` 由来であり、
+content-addressed store から resume 時に binary を取得する経路も admission receipt へ閉じていない。
+この二面には security credit を与えない。
 """
 from __future__ import annotations
 
@@ -73,8 +77,13 @@ from calibrator.runner import (  # noqa: E402
     classify_competing_probe,
     measure_point,
 )
-from campaign import buildcache, s8b_floor_stats  # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign import buildcache, s8b_floor_stats, source_digest  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    GeneratorId,
+    ReviewId,
+    build_run_context,
+    derive_build_admission,
+)
 from campaign import t080_freeze_migration as _t080_migration  # noqa: E402
 from campaign import s8b_floor_contract as _floor_contract  # noqa: E402
 from campaign import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
@@ -100,6 +109,7 @@ from campaign.s1_direct_comparison import prepare_cell  # noqa: E402
 from campaign.s8b_materialization import (  # noqa: E402
     MaterializationError,
     prepared_binding,
+    reviewed_source_capability,
 )
 from campaign.s8b_launch_cert import (  # noqa: E402
     LAUNCH_CERT_SCHEMA,
@@ -964,6 +974,9 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 out_root: Path, prepare_fn, contract, build_fn=None) -> dict[str, dict]:
     """全セルを実体化し、runner/store 専用の absolute-path runtime view を返す。"""
     build_fn = build_fn or buildcache.build_v2
+    # Human-reviewed admission では generator id は persistent receipt に入らない。API が要求する
+    # run context の registered member として、S8b の直前 producer である S8a を選ぶ。
+    build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     cache_root = str(out_root / "s8b-build-cache")
     built: dict[str, dict] = {}
     for cell in cells:
@@ -973,9 +986,24 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id, ccbench_pin=ccbench_pin,
                 prepare_fn=prepare_fn) as (identity, prepared):
+            evidence = source_digest.resolve_evidence(
+                prepared.genome,
+                ccbench_pin,
+                ccbench_dir=prepared.ccbench_dir,
+                cxx=buildcache.DEFAULT_CXX,
+            )
+            review = reviewed_source_capability(
+                review_id=ReviewId.S8B_FLOOR,
+                source=evidence,
+                input_sha256=identity["entry_sha256"],
+            )
+            admission = derive_build_admission(
+                build_context, evidence, review_receipt=review,
+            )
             result = build_fn(
                 prepared.genome,
-                admission=BuildAdmission(BuildProvenance.HUMAN_REVIEWED),
+                admission=admission, build_context=build_context,
+                source_evidence=evidence,
                 contract=contract, ccbench_commit=ccbench_pin,
                 trace=False, cache_root=cache_root, src_token=prepared.src_token,
                 cc=buildcache.DEFAULT_CC, cxx=buildcache.DEFAULT_CXX,
@@ -2668,7 +2696,6 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         if non_default:
             raise FloorCampaignError(
                 f"official mode への非 default seam 注入を拒否する: {non_default}")
-    _assert_official_permitted(mode)
     return _run_campaign_core(
         protocol, freeze_doc, out_root=out_root, mode=mode, resume_dir=resume_dir,
         measure_fn=measure_fn, probe_fn=probe_fn, sleep_fn=sleep_fn,
@@ -2695,10 +2722,19 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     ``probe_fn() -> (rc, stdout, stderr)`` / ``sleep_fn`` / ``monotonic_fn`` / ``prepare_fn`` /
     ``now_fn() -> datetime``。CLI main はこれらを実物で束ねるだけにする。
 
-    public wrapper を通らない staged builder/test 専用 core。CLI/env bypass は持たず、production
-    public official は wrapper の ``_assert_official_permitted`` と seam 注入拒否を必ず通る。
+    public wrapper を通らない staged builder/test 専用 core。official permit gate と materializer
+    固定はこの core 自体が行い、wrapper 迂回時にも admission-aware gateway を外せない。
     """
     mode = _validate_mode(mode)
+    if mode == "official" and build_fn is not None:
+        raise FloorCampaignError(
+            "official mode への非 default materializer 注入を拒否する: ['build_fn']"
+        )
+    if mode == "official":
+        build_fn = buildcache.build_v2
+    else:
+        build_fn = build_fn or buildcache.build_v2
+    _assert_official_permitted(mode)
 
     if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):
         raise FloorCampaignError("freeze_doc が load_verified_freeze の戻り値でない")
@@ -2707,7 +2743,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     probe_fn = probe_fn or _default_probe_fn
     host_provenance_fn = host_provenance_fn or _host_provenance
     process_identity_fn = process_identity_fn or _process_identity
-    build_fn = build_fn or buildcache.build_v2
     repo_root = ROOT if repo_root is None else Path(repo_root)
     after_certificate_issued_fn = (
         after_certificate_issued_fn or _after_certificate_issued_noop)

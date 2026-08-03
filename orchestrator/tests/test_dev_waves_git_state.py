@@ -16,8 +16,11 @@ from tools.dev_waves.git_state import (
     FOLD_AUTHOR_IDENTITY,
     FOLD_COMMIT_MESSAGE,
     GIT_COMMANDS,
+    _commit_parents,
     _diff_entries,
     _landed_fold_output_path,
+    _parse_commit_parent_batch,
+    _parse_commit_parents,
     create_exact_worktree,
     create_isolated_checkout,
     read_child_git_trace,
@@ -90,6 +93,26 @@ def test_commit_diff_disables_move_detection_by_contract():
         token for token in command
         if token.startswith(move_detection_long_prefixes)
     ]
+
+
+def test_landed_diff_commands_pin_merge_and_root_contract():
+    commit_diff = GIT_COMMANDS["commit-diff"]
+    tree_diff = GIT_COMMANDS["tree-diff"]
+    assert "-m" not in commit_diff
+    assert "--root" in commit_diff
+    assert "--root" not in tree_diff
+    for command in (commit_diff, tree_diff):
+        assert "--no-renames" in command
+        assert not any(token.startswith((
+            "--find-renames", "--find-copies", "--find-copies-harder",
+            "--break-rewrites",
+        )) for token in command)
+
+
+def test_commit_parent_command_is_one_ordered_batch():
+    assert GIT_COMMANDS["commit-parents"] == (
+        "rev-list", "--parents", "--no-walk=unsorted",
+    )
 
 
 def test_identity_main_resolution_and_inherited_git_environment_are_ignored():
@@ -252,6 +275,24 @@ def _fold_commit(repo: Path, fragments: tuple[str, ...], *, extra_path: str | No
     return _git(repo, "rev-parse", "HEAD")
 
 
+def _main_fold_merge(repo: Path) -> tuple[str, str, tuple[str, ...]]:
+    pending = _seed_pending(repo)
+    divergence = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "switch", "-c", "wave")
+    _code_commit(repo)
+    _git(repo, "switch", "main")
+    assert _git(repo, "rev-parse", "HEAD") == divergence
+    main_fold = _fold_commit(repo, pending)
+    _git(repo, "switch", "wave")
+    _git(repo, "merge", "--no-ff", "--no-edit", main_fold)
+    merge_tip = _git(repo, "rev-parse", "HEAD")
+    landed = tuple(
+        _git(repo, "rev-list", "--reverse", f"{main_fold}..{merge_tip}").splitlines()
+    )
+    assert landed[-1] == merge_tip
+    return main_fold, merge_tip, landed
+
+
 def test_declared_fold_accepts_exact_direct_child_shape_without_plan_comparison():
     with _fresh() as tmp:
         repo = _repo(Path(tmp))
@@ -381,6 +422,447 @@ def test_n31_landed_interval_cannot_hide_an_earlier_fold():
         result = verify_declared_fold_commit(
             repo, fold_commit_sha=second_fold, landed_main_sha=second_fold,
             landed_commits=(tip, first_fold), wave_tip=first_fold,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_all_trusted_chain_accepts_main_fold_merge_without_wave_commit():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        older_parent = _git(repo, "rev-parse", "HEAD")
+        main_fold = _fold_commit(repo, pending)
+        tree = _git(repo, "rev-parse", f"{main_fold}^{{tree}}")
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", older_parent,
+            "-p", main_fold,
+            "-m", "catch up to folded main without wave commits",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+
+        assert _git(repo, "merge-base", older_parent, main_fold) == older_parent
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=main_fold,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert result.ok, result
+
+
+def test_all_trusted_chain_rejects_fragment_deleted_by_merge_resolution():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        older_parent = _git(repo, "rev-parse", "HEAD")
+        pending = _seed_pending(repo)
+        newer_parent = _git(repo, "rev-parse", "HEAD")
+        tree = _git(repo, "rev-parse", f"{older_parent}^{{tree}}")
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", older_parent,
+            "-p", newer_parent,
+            "-m", "delete trusted fragment in merge resolution",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+
+        assert not (repo / pending[0]).exists()
+        assert _git(repo, "merge-base", older_parent, newer_parent) == older_parent
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=newer_parent,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_all_trusted_incomparable_maxima_keep_all_parent_scan():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.parent.mkdir(parents=True, exist_ok=True)
+        folded.write_text("# folded\n", encoding="utf-8")
+        common = _commit(repo, "seed folded receipt", "docs/spool/FOLDED.md")
+
+        _git(repo, "switch", "-c", "trusted-one")
+        folded.write_text("# folded\none\n", encoding="utf-8")
+        first_parent = _commit(repo, "first trusted parent", "docs/spool/FOLDED.md")
+        _git(repo, "switch", "main")
+        _git(repo, "switch", "-c", "trusted-two", common)
+        folded.write_text("# folded\ntwo\n", encoding="utf-8")
+        second_parent = _commit(repo, "second trusted parent", "docs/spool/FOLDED.md")
+
+        first_tree = _git(repo, "rev-parse", f"{first_parent}^{{tree}}")
+        cutoff = _git(
+            repo,
+            "commit-tree",
+            first_tree,
+            "-p", first_parent,
+            "-p", second_parent,
+            "-m", "trusted cutoff joins both parents",
+        )
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            first_tree,
+            "-p", first_parent,
+            "-p", second_parent,
+            "-m", "ambiguous maximal trusted parents",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+
+        assert _git(repo, "merge-base", first_parent, second_parent) == common
+        assert _git(repo, "merge-base", first_parent, cutoff) == first_parent
+        assert _git(repo, "merge-base", second_parent, cutoff) == second_parent
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_landed_interval_allows_main_fold_merge_from_trusted_cutoff():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        main_fold, merge_tip, landed = _main_fold_merge(repo)
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=main_fold,
+            landed_main_sha=merge_tip,
+            landed_commits=landed,
+            wave_tip=merge_tip,
+        )
+        assert result.ok, result
+
+
+def test_proper_ancestor_of_cutoff_is_the_unique_trusted_parent():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        divergence = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "switch", "-c", "wave")
+        _code_commit(repo)
+        _git(repo, "switch", "main")
+        assert _git(repo, "rev-parse", "HEAD") == divergence
+        trusted_parent = _fold_commit(repo, pending)
+        (repo / "cutoff.txt").write_text("cutoff\n", encoding="utf-8")
+        cutoff = _commit(repo, "advance trusted cutoff", "cutoff.txt")
+        _git(repo, "switch", "wave")
+        _git(repo, "merge", "--no-ff", "--no-edit", trusted_parent)
+        merge_tip = _git(repo, "rev-parse", "HEAD")
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert trusted_parent != cutoff
+        assert result.ok, result
+
+
+def test_zero_trusted_merge_scans_signature_visible_only_from_second_parent():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.parent.mkdir(parents=True, exist_ok=True)
+        folded.write_text("# folded\n", encoding="utf-8")
+        cutoff = _commit(repo, "seed folded receipt", "docs/spool/FOLDED.md")
+
+        _git(repo, "switch", "-c", "second-parent")
+        pending = _seed_pending(repo)
+        second_parent = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "switch", "main")
+        folded.write_text("# folded\nfirst parent\n", encoding="utf-8")
+        first_parent = _commit(repo, "prepare safe first parent", "docs/spool/FOLDED.md")
+        tree = _git(repo, "rev-parse", f"{first_parent}^{{tree}}")
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", first_parent,
+            "-p", second_parent,
+            "-m", "zero trusted merge",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+        assert not (repo / pending[0]).exists()
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_octopus_with_exactly_one_trusted_parent_is_accepted():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        divergence = _git(repo, "rev-parse", "HEAD")
+
+        _git(repo, "switch", "-c", "side-one")
+        (repo / "side-one.txt").write_text("one\n", encoding="utf-8")
+        side_one = _commit(repo, "side one", "side-one.txt")
+        _git(repo, "switch", "main")
+        _git(repo, "switch", "-c", "side-two")
+        assert _git(repo, "rev-parse", "HEAD") == divergence
+        (repo / "side-two.txt").write_text("two\n", encoding="utf-8")
+        side_two = _commit(repo, "side two", "side-two.txt")
+        _git(repo, "switch", "main")
+        cutoff = _fold_commit(repo, pending)
+        tree = _git(repo, "rev-parse", f"{cutoff}^{{tree}}")
+        octopus = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", cutoff,
+            "-p", side_one,
+            "-p", side_two,
+            "-m", "unique trusted octopus",
+        )
+        _git(repo, "reset", "--hard", octopus)
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=octopus,
+            landed_commits=(octopus,),
+            wave_tip=octopus,
+        )
+        assert result.ok, result
+
+
+def test_landed_interval_without_cutoff_keeps_all_parent_scan():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        _main_fold, merge_tip, landed = _main_fold_merge(repo)
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            landed_main_sha=merge_tip,
+            landed_commits=landed,
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_landed_interval_without_cutoff_rejects_signature_visible_only_from_second_parent():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.parent.mkdir(parents=True, exist_ok=True)
+        folded.write_text("# folded\n", encoding="utf-8")
+        first_parent = _commit(repo, "seed first parent", "docs/spool/FOLDED.md")
+
+        _git(repo, "switch", "-c", "second-parent")
+        folded.write_text("# folded\nsecond parent\n", encoding="utf-8")
+        second_parent = _commit(repo, "change second parent receipt", "docs/spool/FOLDED.md")
+        _git(repo, "switch", "main")
+        tree = _git(repo, "rev-parse", f"{first_parent}^{{tree}}")
+        merge_tip = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", first_parent,
+            "-p", second_parent,
+            "-m", "second parent signature",
+        )
+        _git(repo, "reset", "--hard", merge_tip)
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            landed_main_sha=merge_tip,
+            landed_commits=(merge_tip,),
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_main_fold_merge_rejects_deleting_fragment_present_on_trusted_main():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo, 2)
+        divergence = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "switch", "-c", "wave")
+        _code_commit(repo)
+        _git(repo, "switch", "main")
+        assert _git(repo, "rev-parse", "HEAD") == divergence
+        main_fold = _fold_commit(repo, pending[:1])
+        _git(repo, "switch", "wave")
+        _git(repo, "merge", "--no-ff", "--no-commit", main_fold)
+        (repo / pending[1]).unlink()
+        merge_tip = _commit(repo, "delete trusted main fragment in resolution", pending[1])
+        landed = tuple(
+            _git(repo, "rev-list", "--reverse", f"{main_fold}..{merge_tip}").splitlines()
+        )
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=main_fold,
+            landed_main_sha=merge_tip,
+            landed_commits=landed,
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_main_fold_merge_rejects_folded_resolution_different_from_trusted_main():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        divergence = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "switch", "-c", "wave")
+        _code_commit(repo)
+        _git(repo, "switch", "main")
+        assert _git(repo, "rev-parse", "HEAD") == divergence
+        main_fold = _fold_commit(repo, pending)
+        _git(repo, "switch", "wave")
+        _git(repo, "merge", "--no-ff", "--no-commit", main_fold)
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.write_text(
+            folded.read_text(encoding="utf-8") + "resolution\n",
+            encoding="utf-8",
+        )
+        merge_tip = _commit(repo, "change folded receipt in resolution", "docs/spool/FOLDED.md")
+        landed = tuple(
+            _git(repo, "rev-list", "--reverse", f"{main_fold}..{merge_tip}").splitlines()
+        )
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=main_fold,
+            landed_main_sha=merge_tip,
+            landed_commits=landed,
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_merge_without_trusted_parent_rejects_resolution_signature():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo)
+        cutoff = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "switch", "-c", "side")
+        (repo / "side.txt").write_text("side\n", encoding="utf-8")
+        _commit(repo, "side branch", "side.txt")
+        _git(repo, "switch", "main")
+        _git(repo, "switch", "-c", "wave")
+        _code_commit(repo)
+        _git(repo, "merge", "--no-ff", "--no-commit", "side")
+        (repo / pending[0]).unlink()
+        merge_tip = _commit(repo, "delete fragment in untrusted merge", pending[0])
+        landed = tuple(
+            _git(repo, "rev-list", "--reverse", f"{cutoff}..{merge_tip}").splitlines()
+        )
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=merge_tip,
+            landed_commits=landed,
+            wave_tip=merge_tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_octopus_with_multiple_trusted_parents_keeps_all_parent_scan():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        first_trusted = _git(repo, "rev-parse", "HEAD")
+        pending = _seed_pending(repo)
+        cutoff = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "switch", "-c", "wave")
+        wave_parent = _code_commit(repo)
+        (repo / pending[0]).unlink()
+        (repo / "docs/spool/FOLDED.md").unlink()
+        signature_tree_commit = _commit(
+            repo,
+            "prepare octopus result tree",
+            pending[0],
+            "docs/spool/FOLDED.md",
+        )
+        tree = _git(repo, "rev-parse", f"{signature_tree_commit}^{{tree}}")
+        octopus = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", first_trusted,
+            "-p", cutoff,
+            "-p", wave_parent,
+            "-m", "octopus resolution",
+        )
+        _git(repo, "reset", "--hard", octopus)
+        landed = tuple(
+            _git(repo, "rev-list", "--reverse", f"{cutoff}..{octopus}").splitlines()
+        )
+        assert landed[-1] == octopus
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=octopus,
+            landed_commits=landed,
+            wave_tip=octopus,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_octopus_with_multiple_trusted_parents_rejects_signature_visible_only_from_untrusted_parent():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        folded = repo / "docs/spool/FOLDED.md"
+        folded.parent.mkdir(parents=True, exist_ok=True)
+        folded.write_text("# folded\n", encoding="utf-8")
+        first_trusted = _commit(repo, "seed trusted receipt", "docs/spool/FOLDED.md")
+        (repo / "cutoff.txt").write_text("cutoff\n", encoding="utf-8")
+        cutoff = _commit(repo, "advance trusted cutoff", "cutoff.txt")
+
+        _git(repo, "switch", "-c", "untrusted", first_trusted)
+        folded.write_text("# folded\nuntrusted parent\n", encoding="utf-8")
+        untrusted = _commit(repo, "change untrusted receipt", "docs/spool/FOLDED.md")
+        _git(repo, "switch", "main")
+        tree = _git(repo, "rev-parse", f"{cutoff}^{{tree}}")
+        octopus = _git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p", first_trusted,
+            "-p", cutoff,
+            "-p", untrusted,
+            "-m", "untrusted parent signature",
+        )
+        _git(repo, "reset", "--hard", octopus)
+
+        result = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=None,
+            trusted_main_cutoff_sha=cutoff,
+            landed_main_sha=octopus,
+            landed_commits=(octopus,),
+            wave_tip=octopus,
         )
         assert (not result.ok) and result.detail == "landed-fold-owned-path"
 
@@ -550,6 +1032,57 @@ def test_diff_entries_parses_two_paths_for_rename_and_copy_records():
     )
     assert len(entries) == 2
     assert all(len(paths) == 2 for _status, paths in entries)
+
+
+def test_new_git_output_parsers_fail_closed_on_malformed_or_missing_data():
+    commit = "a" * 40
+    malformed_parent_outputs = (
+        b"",
+        f"{commit}\n{commit}\n".encode("ascii"),
+        f"{commit} not-a-sha\n".encode("ascii"),
+        b"\xff\n",
+    )
+    for raw in malformed_parent_outputs:
+        try:
+            _parse_commit_parents(raw, commit)
+        except DevWavesError as exc:
+            assert exc.code is ReasonCode.INVALID_RUN
+        else:
+            raise AssertionError("malformed commit parent output was accepted")
+    try:
+        _diff_entries(b"M\0\xff\0")
+    except DevWavesError as exc:
+        assert exc.code is ReasonCode.INVALID_RUN
+    else:
+        raise AssertionError("non-UTF-8 diff path was accepted")
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        try:
+            _commit_parents(repo, commit, timeout_s=5)
+        except DevWavesError as exc:
+            assert exc.code is ReasonCode.INVALID_RUN
+        else:
+            raise AssertionError("missing commit object was accepted")
+
+
+def test_commit_parent_batch_parser_rejects_count_order_unknown_and_encoding():
+    commit = "a" * 40
+    second = "b" * 40
+    unknown = "c" * 40
+    malformed_parent_batches = (
+        f"{commit}\n".encode("ascii"),
+        f"{commit}\n{second}\n{unknown}\n".encode("ascii"),
+        f"{second}\n{commit}\n".encode("ascii"),
+        f"{commit}\n{unknown}\n".encode("ascii"),
+        f"{commit}\n{second}\n".encode("ascii") + b"\xff",
+    )
+    for raw in malformed_parent_batches:
+        try:
+            _parse_commit_parent_batch(raw, (commit, second))
+        except DevWavesError as exc:
+            assert exc.code is ReasonCode.INVALID_RUN
+        else:
+            raise AssertionError("malformed commit parent batch was accepted")
 
 
 def test_landed_interval_allows_fragment_modification():

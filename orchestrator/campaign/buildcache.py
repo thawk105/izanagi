@@ -24,9 +24,15 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from . import site_policy, source_digest
-from .build_admission import BuildAdmission, require_build_admission
+from .build_admission import (
+    BuildAdmission,
+    BuildRunContext,
+    require_build_admission,
+    validate_build_admission_receipt,
+)
 from .env_contract import ExecutionEnvironmentContract
 from .model import Genome
+from .source_digest import SourceEvidence
 
 # バイナリ digest の二系列契約 (敵対相談 A-6 裁定):
 #   - 16 文字系列 = `sha256-prefix-16 / legacy-display-only`。WAL の `trace_bin`/`perf_bin`、
@@ -38,6 +44,8 @@ from .model import Genome
 _SHA256_HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
 _V2_SCHEMA = "buildcache/v2"
 _V2_COMPLETION_MANIFEST = "completion.json"
+_LEGACY_ADMISSION_SCHEMA = "buildcache-legacy-admission/v1"
+_LEGACY_ADMISSION_SIDECAR = "admission.json"
 
 
 class BuildError(RuntimeError):
@@ -121,7 +129,8 @@ DEFAULT_CC, DEFAULT_CXX = "gcc-13", "g++-13"
 
 def cache_key(genome: Genome, ccbench_commit: str, trace: bool,
               src_token: str = source_digest.STOCK,
-              cc: str = DEFAULT_CC, cxx: str = DEFAULT_CXX) -> str:
+              cc: str = DEFAULT_CC, cxx: str = DEFAULT_CXX, *,
+              admission: BuildAdmission) -> str:
     """内容キー。Phase 3 で coder がコードを書き換えるので src_token (preprocess 後
     ハッシュ, D23) を pre-image に織り込み、同 genome 別ソースの偽 hit を防ぐ。
     stock (working-tree==HEAD) は src を省き旧キーを温存 (後方互換)。
@@ -129,11 +138,28 @@ def cache_key(genome: Genome, ccbench_commit: str, trace: bool,
     既評価 genome だけ旧コンパイラのバイナリで偽 hit し、同一 campaign 内で baseline と
     variant のビルド条件が食い違う (コンパイラ差はバックオフ級の差を容易に上回る)。
     既定ツールチェーンは省いて旧キーを温存 (src_token と同型の後方互換規則)。"""
+    if type(admission) is not BuildAdmission:
+        raise TypeError("admission は derive_build_admission() 由来の exact value が必要")
     src = "" if src_token == source_digest.STOCK else f"|src={src_token}"
     tc = "" if (cc, cxx) == (DEFAULT_CC, DEFAULT_CXX) else f"|cc={cc}|cxx={cxx}"
-    raw = f"{genome.canonical()}|{ccbench_commit}|trace={int(trace)}{src}{tc}"
+    raw = (f"{genome.canonical()}|{ccbench_commit}|trace={int(trace)}{src}{tc}"
+           f"|adm={admission.receipt_sha256}")
     h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
     return f"{genome.protocol}_{h}_t{int(trace)}"
+
+
+def _validate_request_evidence(
+        genome: Genome, ccbench_commit: str, sub: str,
+        source_evidence: SourceEvidence,
+) -> None:
+    genome_sha256 = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
+    if source_evidence.genome_sha256 != genome_sha256:
+        raise BuildCacheError("SourceEvidence genome digest が build request と不一致")
+    if source_evidence.ccbench_commit != ccbench_commit:
+        raise BuildCacheError("SourceEvidence ccbench commit が build request と不一致")
+    expected_root = os.path.realpath(os.path.abspath(sub))
+    if source_evidence.source_root != expected_root:
+        raise BuildCacheError("SourceEvidence source root が build request と不一致")
 
 
 @dataclass(frozen=True)
@@ -221,6 +247,7 @@ def _v2_identity(
         genome: Genome, ccbench_commit: str, trace: bool, src_token: str,
         cc: str, cxx: str, toolchain: Dict[str, Dict[str, str]],
         *, site: str, dependency_prefix: List[str],
+        admission: Dict[str, Any],
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
     toolchain_sha256 = hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest()
@@ -234,6 +261,7 @@ def _v2_identity(
         "toolchain_manifest_sha256": toolchain_sha256,
         "site": site,
         "dependency_prefix": dependency_prefix,
+        "admission": admission,
     }
     return preimage, hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
 
@@ -289,10 +317,57 @@ def _read_completion_manifest(path: str) -> Dict[str, Any]:
     return value
 
 
+def _read_legacy_admission_sidecar(path: str) -> Dict[str, Any]:
+    if os.path.islink(path) or not os.path.isfile(path):
+        raise BuildCacheError(
+            f"legacy admission sidecar が欠落または通常ファイルでない: {path}"
+        )
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read()
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+        raise BuildCacheError(
+            f"legacy admission sidecar を厳密に読めない: {path}: {exc}"
+        ) from exc
+    if type(value) is not dict or set(value) != {"schema_version", "admission"}:
+        actual = sorted(value) if type(value) is dict else type(value).__name__
+        raise BuildCacheError(
+            f"legacy admission sidecar field 集合が不一致: {path}: actual={actual}"
+        )
+    return value
+
+
+def _validate_legacy_admission_sidecar(
+        bdir: str, *, admission: BuildAdmission,
+        build_context: BuildRunContext, source_evidence: SourceEvidence,
+) -> None:
+    path = os.path.join(bdir, _LEGACY_ADMISSION_SIDECAR)
+    sidecar = _read_legacy_admission_sidecar(path)
+    if sidecar["schema_version"] != _LEGACY_ADMISSION_SCHEMA:
+        raise BuildCacheError(f"legacy admission sidecar schema 不一致: {path}")
+    try:
+        checked = validate_build_admission_receipt(
+            sidecar["admission"],
+            expected_policy=build_context.policy,
+            expected_source=source_evidence,
+        )
+    except (TypeError, ValueError, RuntimeError) as exc:
+        raise BuildCacheError(
+            f"legacy admission sidecar receipt 検証失敗: {path}: {exc}"
+        ) from exc
+    if (checked != admission.as_cache_identity()
+            or checked.get("receipt_sha256") != admission.receipt_sha256):
+        raise BuildCacheError(
+            f"legacy admission sidecar/current admission 完全一致検査に失敗: {path}"
+        )
+
+
 def _validate_v2_entry(
         bdir: str, *, preimage: Dict[str, Any], digest: str,
         toolchain: Dict[str, Dict[str, str]], binary_relpath: str,
-        contract_sha256: str,
+        contract_sha256: str, admission: Dict[str, Any],
+        build_context: BuildRunContext, source_evidence: SourceEvidence,
 ) -> tuple[str, str]:
     """完成 entry を manifest と binary bytes の両方で検証する。修復はしない。"""
     if os.path.islink(bdir) or not os.path.isdir(bdir):
@@ -301,7 +376,7 @@ def _validate_v2_entry(
     manifest = _read_completion_manifest(manifest_path)
     expected_keys = {
         "schema_version", "completion_marker", "full_build_digest",
-        "contract_sha256", "preimage", "toolchain", "binary",
+        "contract_sha256", "preimage", "toolchain", "binary", "admission",
     }
     if set(manifest) != expected_keys:
         raise BuildCacheError(
@@ -318,6 +393,28 @@ def _validate_v2_entry(
         raise BuildCacheError(f"v2 contract namespace sha256 不一致: {manifest_path}")
     if manifest["preimage"] != preimage:
         raise BuildCacheError(f"v2 pre-image 完全一致検査に失敗: {manifest_path}")
+    if (preimage.get("admission") != admission
+            or manifest["admission"] != admission
+            or manifest["admission"] != preimage.get("admission")):
+        raise BuildCacheError(
+            f"v2 admission の pre-image/manifest/current 完全一致検査に失敗: "
+            f"{manifest_path}"
+        )
+    try:
+        checked_admission = validate_build_admission_receipt(
+            manifest["admission"],
+            expected_policy=build_context.policy,
+            expected_source=source_evidence,
+        )
+    except (TypeError, ValueError, RuntimeError) as exc:
+        raise BuildCacheError(
+            f"v2 admission receipt canonicality/current evidence 検証失敗: "
+            f"{manifest_path}: {exc}"
+        ) from exc
+    if checked_admission != admission:
+        raise BuildCacheError(
+            f"v2 admission receipt canonical projection 不一致: {manifest_path}"
+        )
     if manifest["toolchain"] != toolchain:
         raise BuildCacheError(f"v2 toolchain manifest 完全一致検査に失敗: {manifest_path}")
     if hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest() != \
@@ -464,17 +561,18 @@ def _release_v2_claim(claim: str, parent: str) -> None:
 
 def build_v2(
         genome: Genome, *, admission: BuildAdmission,
+        build_context: BuildRunContext, source_evidence: SourceEvidence,
         contract: ExecutionEnvironmentContract,
-        ccbench_commit: str, trace: bool, src_token: str,
+        ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
-    ``admission`` は caller が分類した request を materializer 境界で再検査する。ただし
-    source bytes から provenance を導出する capability ではなく、cache preimage / completion
-    manifest / replay identity にもまだ束縛しない。この層だけでは閉じていない。
+    ``admission`` は pipeline が current source evidence から導出した sealed value に限る。
+    materializer 境界で context/source と再検証し、完全な receipt を cache preimage と
+    completion manifest の双方へ束縛する。
 
     ``contract`` を省略できる legacy fallback は意図的に持たない。legacy caller は従来の
     :func:`build` / :func:`cache_key` namespace に隔離したまま、floor/oracle の v2 consumer
@@ -486,7 +584,19 @@ def build_v2(
     ``dependency_prefix`` は configure argv へ明示し、subprocess 環境の同名変数を除く。
     空なら argv と環境継承を変えず、ambient 値の正準形だけを identity に束縛する。
     """
-    admission = require_build_admission(admission)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    if type(source_evidence) is not SourceEvidence:
+        raise TypeError("source_evidence は resolve_evidence() 由来の exact value が必要")
+    admission = require_build_admission(
+        admission,
+        expected_policy=build_context.policy,
+        expected_source=source_evidence,
+    )
+    admission_identity = dict(admission.as_cache_identity())
+    if src_token is not None and src_token != source_evidence.src_token:
+        raise BuildCacheError("src_token が current SourceEvidence と不一致")
+    src_token = source_evidence.src_token
     if not isinstance(contract, ExecutionEnvironmentContract):
         raise TypeError("contract は ExecutionEnvironmentContract の必須引数 (None/fallback 不可)")
     if type(trace) is not bool:
@@ -528,12 +638,14 @@ def build_v2(
             f"contract.contract_sha256 が full lowercase sha256 でない: {contract_sha256!r}"
         )
     sub = ccbench_dir or _ccbench_dir()
+    _validate_request_evidence(genome, ccbench_commit, sub, source_evidence)
     _verify_ccbench_commit(sub, ccbench_commit)
     source_digest.assert_worktree_within_allowlist(sub)
     toolchain = _toolchain_manifest(cc, cxx)
     preimage, digest = _v2_identity(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
         site=actual_site, dependency_prefix=effective_dependency_prefix,
+        admission=admission_identity,
     )
     parent = os.path.join(root, "contracts", contract_sha256)
     bdir = os.path.join(parent, digest)
@@ -556,9 +668,12 @@ def build_v2(
         binary, bin_sha256 = _validate_v2_entry(
             bdir, preimage=preimage, digest=digest, toolchain=toolchain,
             binary_relpath=binary_relpath, contract_sha256=contract_sha256,
+            admission=admission_identity,
+            build_context=build_context, source_evidence=source_evidence,
         )
-        _recheck_src_token(
-            genome, ccbench_commit, sub, cxx, src_token, bdir, built_fresh=False,
+        _recheck_source_evidence(
+            genome, ccbench_commit, sub, cxx, source_evidence, bdir,
+            built_fresh=False,
         )
         _assert_trace_diff(
             genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
@@ -616,8 +731,9 @@ def build_v2(
         # legacy 経路と同じ 3 検査を publish 前に全て通す。identity / diff-of-diffs
         # 不一致では既存 helper の fresh-build 規約どおり staging を破棄するが、claim は
         # stale receipt として残す。不完全 entry を完成 namespace へは出さない。
-        _recheck_src_token(
-            genome, ccbench_commit, sub, cxx, src_token, staging, built_fresh=True,
+        _recheck_source_evidence(
+            genome, ccbench_commit, sub, cxx, source_evidence, staging,
+            built_fresh=True,
         )
         _assert_trace_diff(
             genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
@@ -638,6 +754,7 @@ def build_v2(
             "full_build_digest": digest,
             "contract_sha256": contract_sha256,
             "preimage": preimage,
+            "admission": admission_identity,
             "toolchain": toolchain,
             "binary": {
                 "relative_path": binary_relpath,
@@ -672,23 +789,35 @@ def build_v2(
 def build(genome: Genome, ccbench_commit: str, trace: bool,
           cache_root: str = "", cc: str = DEFAULT_CC, cxx: str = DEFAULT_CXX,
           jobs: Optional[int] = None, ccbench_dir: str = "",
-          src_token: Optional[str] = None,
-          *, admission: BuildAdmission, site: Optional[str] = None) -> BuildResult:
+          src_token: Optional[str] = None, *, admission: BuildAdmission,
+          build_context: BuildRunContext, source_evidence: SourceEvidence,
+          site: Optional[str] = None) -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
-    admission は caller 自己申告の class を materializer の最初に再検査するが、source
-    bytes 由来の capability でも cache/replay 束縛でもない。この層だけでは閉じていない。
-    src_token=None なら working-tree から計算する (D23: identity と materialization を
-    結合し TOCTOU 偽 hit を防ぐ — working-tree が変われば cache_key が変わる)。呼び手
-    (pipeline.evaluate) は trace/perf で同一値を共有するため事前計算して渡してよい。"""
-    admission = require_build_admission(admission)
+    ``build_context`` / ``source_evidence`` / evidence-derived ``admission`` を exact
+    再検証し、receipt digest を key と sidecar の両方へ束縛する。``src_token`` は互換用の
+    期待値に限り、current evidence と不一致なら拒否する。"""
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    if type(source_evidence) is not SourceEvidence:
+        raise TypeError("source_evidence は resolve_evidence() 由来の exact value が必要")
+    admission = require_build_admission(
+        admission,
+        expected_policy=build_context.policy,
+        expected_source=source_evidence,
+    )
+    if src_token is not None and src_token != source_evidence.src_token:
+        raise BuildCacheError("src_token が current SourceEvidence と不一致")
+    src_token = source_evidence.src_token
     sub = ccbench_dir or _ccbench_dir()
+    _validate_request_evidence(genome, ccbench_commit, sub, source_evidence)
     _verify_ccbench_commit(sub, ccbench_commit)        # 偽キャッシュヒット防止 (honest)
     source_digest.assert_worktree_within_allowlist(sub)  # coder の編集面が EVOLVE-BLOCK 内か (D23)
-    if src_token is None:
-        src_token = source_digest.src_token(genome, ccbench_commit, sub, cxx)
     root = cache_root or os.path.join(sub, "build-variants")
-    key = cache_key(genome, ccbench_commit, trace, src_token, cc=cc, cxx=cxx)
+    key = cache_key(
+        genome, ccbench_commit, trace, src_token, cc=cc, cxx=cxx,
+        admission=admission,
+    )
     bdir = os.path.join(root, key)
     target = f"ycsb_{genome.protocol}.exe"
     binary = os.path.join(bdir, "cc", genome.protocol, target)
@@ -707,10 +836,18 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     cfg_str, build_str = " ".join(cfg), " ".join(build_cmd)
 
     if os.path.exists(binary):
+        _validate_legacy_admission_sidecar(
+            bdir,
+            admission=admission,
+            build_context=build_context,
+            source_evidence=source_evidence,
+        )
         # cache hit でも identity を再照合する: resolve→hit 判定の間に working-tree が
         # 動いていると「今の tree と食い違うバイナリ」を今の key で返してしまう。
-        _recheck_src_token(genome, ccbench_commit, sub, cxx, src_token,
-                           bdir, built_fresh=False)
+        _recheck_source_evidence(
+            genome, ccbench_commit, sub, cxx, source_evidence,
+            bdir, built_fresh=False,
+        )
         _assert_trace_diff(genome, ccbench_commit, sub, cxx, bdir, built_fresh=False)
         if not trace:
             _assert_no_trace_symbols(binary)     # 規律1: 既存 perf binary も継続検査
@@ -722,42 +859,84 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                            ccbench_root=os.path.abspath(sub))
 
     _clear_stale_build_dir(bdir, binary)
-    if site is None:
-        _run(cfg, "configure")
-        _run(build_cmd, "build")
-    else:
-        _run(cfg, "configure", site=resolved_site)
-        _run(build_cmd, "build", site=resolved_site)
-    if not os.path.exists(binary):
-        raise RuntimeError(f"build succeeded but binary missing: {binary}")
+    os.makedirs(root, exist_ok=True)
+    staging = f"{bdir}.staging-{os.getpid()}-{secrets.token_hex(16)}"
+    staging_binary = os.path.join(staging, "cc", genome.protocol, target)
+    staging_cfg = [
+        "cmake", "-S", sub, "-B", staging, "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF", f"-DCMAKE_C_COMPILER={cc}",
+        f"-DCMAKE_CXX_COMPILER={cxx}",
+    ] + defines
+    staging_build_cmd = [
+        "cmake", "--build", staging, "--target", target,
+        "-j", str(resolved_jobs),
+    ]
+    try:
+        if site is None:
+            _run(staging_cfg, "configure")
+            _run(staging_build_cmd, "build")
+        else:
+            _run(staging_cfg, "configure", site=resolved_site)
+            _run(staging_build_cmd, "build", site=resolved_site)
+        if not os.path.exists(staging_binary):
+            raise RuntimeError(f"build succeeded but binary missing: {staging_binary}")
     # TOCTOU 遮断 (phase3.md blocking / D30): resolve→build 間に working-tree が動くと
     # digest と実バイナリが食い違ったまま**共有ビルドキャッシュ (campaign 非依存) に永続**し、
     # 以後 cache hit で沈黙再利用される (偽 cache hit = 規律2 直撃)。build 完了直後に
     # src_token を再計算して照合し、不一致は build dir ごと破棄して fails-closed。
-    _recheck_src_token(genome, ccbench_commit, sub, cxx, src_token,
-                       bdir, built_fresh=True)
-    _assert_trace_diff(genome, ccbench_commit, sub, cxx, bdir, built_fresh=True)
-    if not trace:
-        _assert_no_trace_symbols(binary)         # 規律1: 新規 perf binary に trace 漏れが無いか
+        _recheck_source_evidence(
+            genome, ccbench_commit, sub, cxx, source_evidence,
+            staging, built_fresh=True,
+        )
+        _assert_trace_diff(
+            genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
+        )
+        if not trace:
+            _assert_no_trace_symbols(staging_binary)
+        bin_sha256 = full_sha256(staging_binary)
+        _write_fsynced_json(
+            os.path.join(staging, _LEGACY_ADMISSION_SIDECAR),
+            {
+                "schema_version": _LEGACY_ADMISSION_SCHEMA,
+                "admission": admission.as_cache_identity(),
+            },
+        )
+        _fsync_file(staging_binary)
+        _fsync_dir(staging)
+        if os.path.lexists(bdir):
+            raise BuildCacheError(
+                f"legacy publish 先が build 中に出現したため上書きしない: {bdir}"
+            )
+        os.rename(staging, bdir)
+        _fsync_dir(root)
+    except Exception:
+        if os.path.exists(staging):
+            _discard_build_dir(staging)
+        raise
     return BuildResult(genome=genome, trace=trace, binary=binary,
-                       bin_sha256=full_sha256(binary), build_dir=bdir, cached=False,
-                       configure_cmd=cfg_str, build_cmd=build_str,
-                       configure_argv=tuple(cfg), build_argv=tuple(build_cmd),
+                       bin_sha256=bin_sha256, build_dir=bdir, cached=False,
+                       configure_cmd=" ".join(staging_cfg),
+                       build_cmd=" ".join(staging_build_cmd),
+                       configure_argv=tuple(staging_cfg),
+                       build_argv=tuple(staging_build_cmd),
                        cache_root=os.path.abspath(root),
                        ccbench_root=os.path.abspath(sub))
 
 
-def _recheck_src_token(genome: Genome, ccbench_commit: str, sub: str, cxx: str,
-                       expected: str, bdir: str, built_fresh: bool) -> None:
-    """build 出口の identity 再照合 (TOCTOU 遮断)。resolve 時の src_token と、いま現在の
-    working-tree から再計算した src_token が一致することを assert する (fails-closed)。
+def _recheck_source_evidence(
+        genome: Genome, ccbench_commit: str, sub: str, cxx: str,
+        expected: SourceEvidence, bdir: str, built_fresh: bool,
+) -> None:
+    """build 出口で current SourceEvidence 全体を exact 再照合する。
 
-    再計算は resolve と同じ単一窓口 (source_digest.resolve = allowlist 検査 + src_token) —
+    再計算は resolve_evidence の単一窓口 —
     tree が動いて allowlist 外改変が入ったケースも同時に捕える。数十 ms で規律4 に反しない
     (phase3.md タスク定義)。新規ビルドの不一致は汚染バイナリの永続を防ぐため build dir を
     破棄する。cache hit の不一致は既存 (過去の正当な) 成果物なので破棄せず停止のみ。"""
     try:
-        actual = source_digest.resolve(genome, ccbench_commit, sub, cxx)
+        actual = source_digest.resolve_evidence(
+            genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,
+        )
     except RuntimeError:
         # resolve 自体の失敗 (TOCTOU 汚染 / git・g++ の transient 障害を区別できない)。
         # identity 不明のバイナリは共有キャッシュに残さない (偽 hit 防止 > 再ビルドコスト) —
@@ -770,8 +949,8 @@ def _recheck_src_token(genome: Genome, ccbench_commit: str, sub: str, cxx: str,
         if built_fresh:
             _discard_build_dir(bdir)
         raise RuntimeError(
-            f"TOCTOU 検知: build {'後' if built_fresh else '(cache hit)'} の src_token "
-            f"再計算 ({actual[:16]}) が resolve 時 ({expected[:16]}) と不一致 — "
+            f"TOCTOU 検知: build {'後' if built_fresh else '(cache hit)'} の "
+            "SourceEvidence 再計算が resolve 時と不一致 — "
             "resolve→build 間に working-tree が動いた。汚染バイナリを共有キャッシュに"
             f"永続させないため{'破棄して' if built_fresh else ''}停止する "
             "(fails-closed, phase3.md blocking / D30)")
@@ -786,7 +965,7 @@ def _assert_trace_diff(genome: Genome, ccbench_commit: str, sub: str, cxx: str,
     #ifdef TRACE 内側への挙動差隠蔽を見逃す — その補完で、述語の実体は
     source_digest.assert_trace_diff_matches_head。不一致・preprocess 失敗の variant
     バイナリは規律1 違反 (検証コードが perf ビルドに混入しうる) の疑いを晴らせないので、
-    新規ビルドは build dir ごと破棄して共有キャッシュに残さない (_recheck_src_token と
+    新規ビルドは build dir ごと破棄して共有キャッシュに残さない (_recheck_source_evidence と
     同じ非対称: cache hit 側は既存の正当な成果物なので破棄せず停止のみ)。"""
     try:
         source_digest.assert_trace_diff_matches_head(genome, ccbench_commit, sub, cxx)

@@ -1,0 +1,43 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        if len(trusted) == 1:\n            diff_parents = trusted",
+          "new": "        if len(trusted) >= 1:\n            diff_parents = trusted"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_octopus_with_multiple_trusted_parents_rejects_signature_visible_only_from_untrusted_parent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "    diff_parents = parents\n    if trusted_main_cutoff_sha is not None:",
+          "new": "    diff_parents = parents[:1]\n    if trusted_main_cutoff_sha is not None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_without_cutoff_rejects_signature_visible_only_from_second_parent",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_zero_trusted_merge_scans_signature_visible_only_from_second_parent",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_octopus_with_multiple_trusted_parents_keeps_all_parent_scan",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_octopus_with_multiple_trusted_parents_rejects_signature_visible_only_from_untrusted_parent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

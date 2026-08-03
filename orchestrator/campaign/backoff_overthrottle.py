@@ -19,6 +19,7 @@ backoff ケーススタディの最致命の穴は「stock 適応が sweet spot 
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 
@@ -26,8 +27,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from calibrator.benchparse import abort_rate                     # noqa: E402
 from calibrator.runner import run_once                            # noqa: E402
-from campaign import buildcache                                   # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign import buildcache, source_digest                    # noqa: E402
+from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+                                      build_run_context, derive_build_admission)
 from campaign.backoff_sweep import SWEEP_US, _BASE                # noqa: E402
 from campaign.model import Genome                                 # noqa: E402
 from campaign.p2_2 import (CCBENCH_COMMIT, CLK, NUMA, RECORDS,     # noqa: E402
@@ -64,11 +66,22 @@ def measure(tag: str, workload: dict, log=print):
     log(f"{'label':>12} | {'backoff_spin%':>13} | {'abort%':>7} | {'tps(AA計装込)':>14} | "
         f"{'eff_tps=tps/(1-spin)':>20}")
     rows = []
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_OVERTHROTTLE)
     for label, flags in _points():
         g = Genome("silo", flags)
+        evidence = source_digest.resolve_evidence(g, CCBENCH_COMMIT)
+        capability = attest_generator_output(
+            build_context, evidence,
+            generator_input_sha256=hashlib.sha256(
+                f"backoff-overthrottle/v1|{g.canonical()}".encode("utf-8")
+            ).hexdigest(),
+        )
         b = buildcache.build(
             g, CCBENCH_COMMIT, trace=False,
-            admission=BuildAdmission(BuildProvenance.MACHINE_SWEEP),
+            admission=derive_build_admission(
+                build_context, evidence, generator_receipt=capability,
+            ),
+            build_context=build_context, source_evidence=evidence,
         )
         spins, tpss, aborts = [], [], []
         for _ in range(REPS):

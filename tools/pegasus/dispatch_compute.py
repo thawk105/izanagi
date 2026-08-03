@@ -1044,6 +1044,7 @@ def _dispatch_impl(
     active = False
     request_was_visible = False
     run_seen = False
+    run_deadline_rebased = False
     stdout_record: Optional[dict[str, Any]] = None
     stderr_record: Optional[dict[str, Any]] = None
     old_handlers: dict[int, Any] = {}
@@ -1212,10 +1213,19 @@ def _dispatch_impl(
                     if request_absent else "scheduler-end-state"
                 )
                 break
-            if state == "RUN" and not run_seen:
-                run_seen = True
-                receipt["queue_wait_s"] = max(0.0, now - queue_started)
-                receipt["queue_wait_observed"] = True
+            if state == "RUN":
+                if current.returncode == 0 and not run_deadline_rebased:
+                    run_deadline_rebased = True
+                    # scheduler 上の実 RUN 開始ではなく、親が信頼できる
+                    # RUN を初観測した時刻。
+                    run_observed_at = now
+                    total_deadline = (
+                        run_observed_at + walltime_s + overall_grace_s
+                    )
+                if not run_seen:
+                    run_seen = True
+                    receipt["queue_wait_s"] = max(0.0, now - queue_started)
+                    receipt["queue_wait_observed"] = True
             if not run_seen and now - queue_started >= queue_wait_timeout_s:
                 raise DispatchError("queue-wait-timeout")
             if now >= total_deadline:

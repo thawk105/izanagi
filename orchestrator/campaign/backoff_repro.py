@@ -16,6 +16,7 @@ build(cache hit)→verify(正しさゲート)→bench。
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 from typing import Optional
@@ -23,7 +24,8 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, source_digest, wal                   # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+                                      build_run_context)
 from campaign.backoff_sweep import _BASE                         # noqa: E402
 from campaign.layout import campaign_layout                      # noqa: E402
 from campaign.loop import run_campaign                           # noqa: E402
@@ -92,11 +94,20 @@ def run_workload(tag: str, log=print) -> dict:
     o = ORIG[tag]
     gs = _genomes_reversed(o["best_us"])
     cfg = _config(tag, o["workload"])
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    capability_resolver = lambda evidence: attest_generator_output(
+        build_context, evidence,
+        generator_input_sha256=hashlib.sha256(
+            f"backoff-repro/v1|{evidence.genome_sha256}".encode("utf-8")
+        ).hexdigest(),
+    )
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=o["workload"],
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff repro  workload={tag}  逆順 {[g.flags['BACKOFF_FIXED'] for g in gs]} ===")
     s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                     admission=BuildAdmission(BuildProvenance.MACHINE_SWEEP))
+                     build_context=build_context,
+                     capability_resolver=capability_resolver)
 
     layout = campaign_layout(str(ident.campaign_id(cfg)))
     # WAL キーは run_campaign が src_token まで確定した variant id (D24)。identity を再計算せず

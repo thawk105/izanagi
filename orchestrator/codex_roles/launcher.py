@@ -82,6 +82,9 @@ MAX_STDERR_BYTES = 4 * 1024 * 1024
 MAX_PROMPT_BYTES = 8 * 1024 * 1024
 
 _MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
+SAFE_ADAPTER_CODEX_REASONING_EFFORTS = frozenset(
+    {"low", "medium", "high", "xhigh"}
+)
 _SAFE_FEATURES_DISABLED = (
     "apps",
     "artifact",
@@ -352,7 +355,7 @@ def _safe_adapter(role: str, projected_input: Any,
     spec = get_role_spec(role, root)
     if not _MODEL_RE.fullmatch(spec.codex_model):
         raise RuntimeIsolationError(f"manifestのCodex modelが不正: {spec.codex_model!r}")
-    if spec.codex_reasoning_effort not in {"low", "medium", "high", "xhigh"}:
+    if spec.codex_reasoning_effort not in SAFE_ADAPTER_CODEX_REASONING_EFFORTS:
         raise RuntimeIsolationError(
             f"manifestのreasoning effortが許可外: {spec.codex_reasoning_effort!r}"
         )

@@ -29,3 +29,50 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"f05d442d254306f07fe1a699c278288e4189f58437eda4f96ebb6f737c06bbe4","seq":1,"wave":"rulings-2026-08-03-a"}
 
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"91c398edcd92f5d69a992fb4436db0cfc85ef72f06921819ec599d5d9e0672bf","seq":1,"wave":"rulings-2026-08-03-b"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"29aa3202b41f594be5075fb3f12d0f99545ab75c4f9069d0a8f34b17d098cc93","seq":1,"wave":"dev-wave-t296-layer-c-calibration"}
+
+- {"allocations":{"T:fold-signature-completeness":"[T-365]","T:supervised-land-cutoff":"[T-366]"},"authored":"2026-08-03","content_sha256":"d32e618476419626f9b282a933ee70f08fe0ef50c75c3816f2b48cf1e04ffd4c","seq":1,"wave":"dev-wave-land-merge-signature"}
+- {"allocations":{"D:land-signature-outside-trusted-cutoff":"D132"},"authored":"2026-08-03","content_sha256":"9926e972272c5d04cccd4b769dc5436dc7e36b3f38a751e3b5e57fff274bb5de","seq":2,"wave":"dev-wave-land-merge-signature"}
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"4e874ed400eb217d959fc8c5d068264e4c858290997f0dc63ba57280d6a27f80","seq":3,"wave":"dev-wave-land-merge-signature"}
+
+- {"allocations":{"T:active-job-qdel-prohibition":"[T-367]","T:dev-wave-child-test-execution-contract":"[T-369]","T:dispatch-timeout-input-validation":"[T-370]","T:running-job-state-evidence":"[T-368]"},"authored":"2026-08-03","content_sha256":"7d9cc592d8311f571e4c63e1ac5f929bbb82c5c4622dd3f74f64d13e5bc461ff","seq":1,"wave":"dev-wave-t363-deadline"}
+- {"allocations":{"D:run-observation-deadline":"D133"},"authored":"2026-08-03","content_sha256":"cd85fa5a70a9ab5dee78bb46e4d314779cf0933c3c2cce5ac163902ed96e6b74","seq":2,"wave":"dev-wave-t363-deadline"}
+- {"allocations":{"F:diagnostic-only-mutation-counted-as-kill":"F86","F:untrusted-run-latch-poisoning":"F85"},"authored":"2026-08-03","content_sha256":"5daa65e3be52edd7dba96811a8e916b4c12f4c9f54e81f0b4e0ea0afbdfd65ab","seq":3,"wave":"dev-wave-t363-deadline"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"10c157d7c2177eb5563f2004ee7f25aa558c9c7a490a402e8f49e331e89ea8fe","seq":1,"wave":"dev-wave-t338-rf-statdesign"}
+- {"allocations":{"D:rf-statdesign-package":"D134"},"authored":"2026-08-03","content_sha256":"37c23ce027db0bf8c4a916d56926d7bf6940abf1627b7a402daae6f0848c716a","seq":2,"wave":"dev-wave-t338-rf-statdesign"}
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"54dcc8f90749feeb95dbfad4578f299665d5590e30c2bd01330238a739e6c500","seq":3,"wave":"dev-wave-t338-rf-statdesign"}
+
+- {"allocations":{"T:codex-launch-fake-flake":"[T-377]","T:devwave-m01-shrink-mutation-enumeration":"[T-375]","T:devwave-s01-provisional-refutation-probe":"[T-376]","T:effort-vocabulary-subset-binding":"[T-372]","T:model-reasoning-compat-gate":"[T-371]","T:profile-effort-early-check":"[T-374]","T:task-runs-reasoning-validity":"[T-373]"},"authored":"2026-08-03","content_sha256":"7648a74030a2ad38bfe476caebe0ffe6b94e5fcf4e220ca64bc43c018defaafd","seq":1,"wave":"dev-wave-t189-reasoning-allowlist"}
+- {"allocations":{"D:effort-allowlist-inside-supervisor-digest":"D135"},"authored":"2026-08-03","content_sha256":"cef16ab8ed93c041ed810bba3a2e28308b6773338de807b224720953cfa93f9c","seq":2,"wave":"dev-wave-t189-reasoning-allowlist"}
+- {"allocations":{"F:positive-mutation-node-enumeration":"F87"},"authored":"2026-08-03","content_sha256":"35f37e81daded8d838a16f1051b13ee168ea1ff9e99ce89fc032cf7cc90a5a79","seq":3,"wave":"dev-wave-t189-reasoning-allowlist"}
+
+- {"allocations":{"T:admission-issuer-trust-boundary":"[T-378]","T:dev-wave-patch-baseline-and-runner-host":"[T-386]","T:historical-artifact-reclassification":"[T-381]","T:immutable-source-snapshot":"[T-384]","T:materializer-closure-shell":"[T-379]","T:mutation-reaim-m02-m08-m11":"[T-385]","T:no-build-attempt-canonical-form":"[T-387]","T:s8b-refreeze-receipt-chain":"[T-383]","T:t126-control-remeasurement":"[T-382]","T:transitive-provenance-freeze":"[T-380]"},"authored":"2026-08-03","content_sha256":"d3d35e380a4f9b1f4cf17e8cebc6fae51a87cc6f549c1eff7245579da91d9df1","seq":1,"wave":"dev-wave-t342-344-provenance"}
+- {"allocations":{"D:provenance-capability":"D136"},"authored":"2026-08-03","content_sha256":"5da4015117c0db8c9761b4572a6d4af679cf0351b1404b21c805cc4dafc3b3ce","seq":2,"wave":"dev-wave-t342-344-provenance"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"14e86826e564a356beb5aaee639ee3a8f421803abffea8fc7c296f48e3f4b2b5","seq":1,"wave":"dev-wave-t313-read-budget"}
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"6d5781e3f7bd01d54325233a29dd8ea7b613202a97b8ae5bba82c7583851a2e7","seq":2,"wave":"dev-wave-t313-read-budget"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"588251e77feffabebb9d9c29800f3b97c479581d8901fd171865cf0514c85bd5","seq":1,"wave":"rulings-2026-08-03-c"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"d1055e8fdff60cd713f1cb40317d85b0fba78394a9eb4392b1fa2e0c41a67795","seq":1,"wave":"rulings-2026-08-03-d"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"028fa5a334105c0b776007b1deed6aa0bdfd146126f05e82339a108085c7b145","seq":1,"wave":"rulings-2026-08-03-e"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"ae6ef36877be5e24de9db7e6339388f6c8df3aabd72f2518c38820226462e936","seq":1,"wave":"rulings-2026-08-03-f"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"739d824f486924d860d4c29c5b57795b6ae6f2599c2767af46dd0c2257ec0fbf","seq":1,"wave":"rulings-2026-08-03-g"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"5ebd74ff64db1310ad6bc2776faaed52cb679adf933d9603514fc4afa51c92a4","seq":1,"wave":"rulings-2026-08-03-h"}
+
+- {"allocations":{"F:compute-node-default-python-is-oneapi":"F88","F:python-and-shell-executable-acceptance-diverge":"F89"},"authored":"2026-08-03","content_sha256":"3a1fd1fb2277aed2f582e5b5a69753c3d07c834459301e18f039b81a0a472cc5","seq":1,"wave":"dev-wave-t293-perf-site"}
+- {"allocations":{"D:two-sided-control-for-gateless-measurement":"D137"},"authored":"2026-08-03","content_sha256":"fb897941ed2b60cde65eed9f43c1daae42ff22761dd658bf6b19ed150c6fa2d6","seq":2,"wave":"dev-wave-t293-perf-site"}
+- {"allocations":{"T:land-window-vs-acceptance":"[T-389]","T:output-snapshot-test-flake":"[T-388]"},"authored":"2026-08-03","content_sha256":"4490a59485358aaf5b9c44457437cc33513180565ab95b9eab5242def77fcb8b","seq":3,"wave":"dev-wave-t293-perf-site"}
+
+- {"allocations":{"T:d122-optin-retirement":"[T-390]"},"authored":"2026-08-03","content_sha256":"c62232f63ebe3c3be9696b56fb1806027384f1761a4033ba2674a1e1ea7c708e","seq":1,"wave":"rulings-2026-08-03-i"}
+
+- {"allocations":{"T:dispatch-condition-verbatim-gate":"[T-391]","T:land-without-check-receipt":"[T-393]","T:qsub-interpreter-contract":"[T-395]","T:reference-preamble-unreachable":"[T-392]","T:supervisor-dwctx-unwired":"[T-394]"},"authored":"2026-08-03","content_sha256":"f2caf24448c840621abbccbd6d41f6e3e7ca1453675f073760e4800505752a4c","seq":1,"wave":"dev-wave-t328-docs-externalize"}
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"59062836230a95e3fe066b822e98cb981796c22f336c6e13aa0a33b21cb5a012","seq":2,"wave":"dev-wave-t328-docs-externalize"}
+
+- {"allocations":{},"authored":"2026-08-03","content_sha256":"f36202a292b2842bae3d274e5dc02e47d4fcd2d4828cfa8f0e914d0acbf4ad9e","seq":1,"wave":"dev-wave-task-inventory"}

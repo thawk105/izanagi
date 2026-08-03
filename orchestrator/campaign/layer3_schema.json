@@ -3,9 +3,9 @@
   "title": "Izanagi Layer 3 material report",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "meta", "workload", "variants", "runs", "verifications", "rejects", "aborts", "noise_floor", "env_tags", "whiteboard", "whiteboard_provenance", "artifact_refs", "source_refs", "mechanism_hypotheses"],
+  "required": ["schema_version", "meta", "workload", "variants", "runs", "verifications", "rejects", "aborts", "noise_floor", "env_tags", "whiteboard", "whiteboard_provenance", "artifact_refs", "source_refs", "admission_decision", "mechanism_hypotheses"],
   "properties": {
-    "schema_version": {"const": "layer3-material-report/v2"},
+    "schema_version": {"const": "layer3-material-report/v3"},
     "meta": {"type": "object", "additionalProperties": false, "required": ["campaign_id", "campaign_path", "ccbench_commit", "generated_from_head", "generator"], "properties": {"campaign_id": {"type": "string", "minLength": 1}, "campaign_path": {"type": "string", "minLength": 1}, "ccbench_commit": {"type": "string"}, "generated_from_head": {"type": "string", "minLength": 1, "description": "provenance only; excluded from deterministic comparison because HEAD can move"}, "generator": {"type": "object", "additionalProperties": false, "required": ["identity", "sha256"], "properties": {"identity": {"const": "orchestrator.campaign.layer3_report"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}},
     "workload": {"type": "object"},
     "variants": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["variant", "genome", "src_token", "events"], "properties": {"variant": {"type": "string"}, "genome": {"type": "array", "items": {"type": "string"}}, "src_token": {"type": "array", "items": {"type": "string"}}, "events": {"type": "array", "items": {"type": "object"}}}}},
@@ -19,6 +19,41 @@
     "whiteboard_provenance": {"enum": ["loop_state", "absent"]},
     "artifact_refs": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
     "source_refs": {"type": "array", "items": {"type": "string", "pattern": "^(wal|wb):[0-9a-f]{64}$"}},
+    "admission_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "classification", "admission_status", "verification_status", "campaign_id", "campaign_path", "campaign_lock_sha256", "wal_sha256", "policy_sha256", "attempt_receipt_sha256s", "validator", "overlay"],
+      "properties": {
+        "schema_version": {"const": "campaign-artifact-admission-decision/v1"},
+        "classification": {"enum": ["admitted-new-schema", "historical-pre-admission-schema"]},
+        "admission_status": {"enum": ["admitted", "historical-not-reclassified"]},
+        "verification_status": {"const": "not-evaluated-by-overlay"},
+        "campaign_id": {"type": "string", "minLength": 1},
+        "campaign_path": {"type": "string", "minLength": 1},
+        "campaign_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "wal_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "attempt_receipt_sha256s": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+        "validator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["identity", "sha256"],
+          "properties": {
+            "identity": {"const": "orchestrator.campaign.artifact_admission"},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        "overlay": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ledger_sha256", "record_key"],
+          "properties": {
+            "ledger_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "record_key": {"type": ["string", "null"]}
+          }
+        }
+      }
+    },
     "mechanism_hypotheses": {"type": "array", "maxItems": 0, "description": "原料配線設計 = docs/ 側の設計文書に従い、実装時に v3 へ上げる"}
   },
   "definitions": {
