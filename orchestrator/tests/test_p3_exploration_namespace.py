@@ -18,7 +18,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import ident, layout as layout_module                 # noqa: E402
+from campaign import ident, layout as layout_module, wal            # noqa: E402
 from campaign import patchharness                                  # noqa: E402
 from campaign import p3_kickoff as KICKOFF                          # noqa: E402
 from campaign import p3_s4_loop as LOOP                             # noqa: E402
@@ -148,8 +148,13 @@ def test_iteration_public_entry_routes_runtime_layout_and_selector(
     roots = _spy_driver_layout(monkeypatch, tmp_path, module)
     selectors = []
 
-    def run_sink(*_args, **kwargs):
+    def run_sink(*run_args, **kwargs):
         selectors.append(kwargs.get("campaign_namespace"))
+        cfg = run_args[0]
+        campaign_id = str(ident.campaign_id(cfg))
+        sink_layout = module.exploration_campaign_layout(campaign_id).ensure()
+        wal.write_lock(sink_layout, ident.canonical_preimage(cfg))
+        Path(sink_layout.wal_file).touch(exist_ok=True)
         return SimpleNamespace(results=[], skipped=0)
 
     monkeypatch.setattr(module, "run_campaign", run_sink)
@@ -290,8 +295,13 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
     roots = _spy_driver_layout(monkeypatch, tmp_path, module)
     selectors = []
 
-    def run_sink(*_args, **kwargs):
+    def run_sink(*run_args, **kwargs):
         selectors.append(kwargs.get("campaign_namespace"))
+        cfg = run_args[0]
+        campaign_id = str(ident.campaign_id(cfg))
+        sink_layout = module.exploration_campaign_layout(campaign_id).ensure()
+        wal.write_lock(sink_layout, ident.canonical_preimage(cfg))
+        Path(sink_layout.wal_file).touch(exist_ok=True)
         return SimpleNamespace(results=[], skipped=0)
 
     monkeypatch.setattr(module, "run_campaign", run_sink)

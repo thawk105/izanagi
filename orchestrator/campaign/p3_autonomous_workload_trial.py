@@ -116,8 +116,11 @@ else:
 # survive package and direct-script entry points alike.
 from campaign import ident  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
+    BuildAdmissionError,
     BuildRunContext,
+    CoderBuildAuthority,
     GeneratorId,
+    add_coder_build_authority_argument,
     build_run_context,
 )
 
@@ -526,9 +529,11 @@ def _campaign_for(
         search_config=search_config,
         trial=f"{trial_id}-{workload}",
     )
-    if build_context is not None:
-        cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    return cfg
+    if type(build_context) is not BuildRunContext:
+        raise AutonomousTrialError(
+            "autonomous campaign identity requires one shared BuildRunContext"
+        )
+    return ident.bind_admission_policy(cfg, build_context.policy)
 
 
 def _perf_for(workload_flags: Mapping[str, str]) -> PerfConfig:
@@ -1233,6 +1238,10 @@ def _run_workload(
         transport_admission=transport_admission,
         transport_receipt=transport_receipt,
     )
+    if type(build_context) is not BuildRunContext:
+        raise AutonomousTrialError(
+            "workload requires the trial's shared BuildRunContext"
+        )
     flags = WORKLOADS[workload]
     descriptor, descriptor_record = _descriptor_for(flags)
     cfg = _campaign_for(
@@ -1242,10 +1251,8 @@ def _run_workload(
         descriptor_record=descriptor_record,
         trial_id=trial_id,
         generations=generations,
-        build_context=build_context if do_build else None,
+        build_context=build_context,
     )
-    if do_build and type(build_context) is not BuildRunContext:
-        raise AutonomousTrialError("build workload requires one shared BuildRunContext")
     campaign_id = str(ident.campaign_id(cfg))
     if do_build:
         layout = exploration_campaign_layout(campaign_id)
@@ -1524,6 +1531,7 @@ def run_trial(
     providers: Mapping[str, Any] | None = None,
     drive: Callable[..., Mapping[str, Any]] = trigger.drive_iteration,
     preview: Callable[..., Mapping[str, Any]] = _preview,
+    coder_authority: CoderBuildAuthority | None = None,
 ) -> dict[str, Any]:
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
@@ -1554,6 +1562,10 @@ def run_trial(
         do_build,
         allow_pegasus_compute_transport=allow_pegasus_compute_transport,
     )
+    if do_build and coder_authority is None:
+        raise AutonomousTrialError(
+            "build trial requires parser-issued --allow-coder-derived-build authority"
+        )
     run_root = Path(run_root)
     if run_root.exists() or run_root.is_symlink():
         raise AutonomousTrialError(
@@ -1566,9 +1578,9 @@ def run_trial(
     journal = AttemptJournal(run_root / "attempts.jsonl")
     started = _now_iso()
     started_monotonic = time.monotonic()
-    build_context = (
-        build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
-        if do_build else None
+    build_context = build_run_context(
+        generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+        coder_authority=coder_authority if do_build else None,
     )
     transport_admission: ClaudeTransportAdmission | None = None
     transport_receipt: dict[str, Any] | None = None
@@ -1694,6 +1706,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--max-generations", type=int, default=1)
     parser.add_argument("--max-wall-seconds", type=int, default=DEFAULT_MAX_WALL_S)
     parser.add_argument("--no-build", action="store_true")
+    add_coder_build_authority_argument(parser)
     parser.add_argument("--claude-executable", default="claude")
     parser.add_argument(
         "--allow-pegasus-compute-transport",
@@ -1719,6 +1732,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         not args.no_build,
         allow_pegasus_compute_transport=args.allow_pegasus_compute_transport,
     )
+    if not args.no_build and args.coder_build_authority is None:
+        raise BuildAdmissionError(
+            "--allow-coder-derived-build の明示 opt-in が必要"
+        )
     run_root = (
         Path(args.run_root)
         if args.run_root
@@ -1752,6 +1769,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             max_wall_s=args.max_wall_seconds,
             claude_executable=args.claude_executable,
             allow_pegasus_compute_transport=args.allow_pegasus_compute_transport,
+            coder_authority=(
+                None if args.no_build else args.coder_build_authority
+            ),
         )
     print(json.dumps({
         "status": report["status"],

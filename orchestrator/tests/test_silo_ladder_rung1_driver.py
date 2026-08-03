@@ -224,9 +224,6 @@ def _evidence(spec: dict) -> dict:
             "evaluation_role": "ability_probe",
             "research_goal_eligible": False,
             "recovery_measurement_eligibility": False,
-            "build_admission": driver.non_admissible_materializer(
-                "orchestrator.campaign.silo_ladder_rung1._build_variant"
-            ),
         },
         "activation_contract": {
             "macro": driver.RUNG_MACRO,

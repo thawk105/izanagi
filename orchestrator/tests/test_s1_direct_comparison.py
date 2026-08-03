@@ -209,7 +209,10 @@ def test_prepare_backoff_fixed_best_preserves_evolve_block(tmp_path, monkeypatch
     monkeypatch.setattr(
         patchharness, "applied",
         lambda *args, **kwargs: applied.append(args) or _fixture_backoff_patch(backoff))
-    monkeypatch.setattr(S.source_digest, "resolve", lambda *args: "fixture-source")
+    monkeypatch.setattr(
+        S.source_digest, "resolve",
+        lambda *args, **kwargs: "fixture-source",
+    )
     monkeypatch.setattr(loop_axis, "quarantine", lambda *args, **kwargs: pytest.fail("hole を置換してはならない"))
     cell = {
         "configuration": "backoff_fixed_best",
@@ -268,7 +271,10 @@ def _capture_prepare_quarantine(
         patchharness, "checkout", lambda *args, **kwargs: _fixture_checkout(worktree))
     monkeypatch.setattr(
         patchharness, "applied", lambda *args, **kwargs: _fixture_checkout(worktree))
-    monkeypatch.setattr(S.source_digest, "resolve", lambda *args: "fixture-source")
+    monkeypatch.setattr(
+        S.source_digest, "resolve",
+        lambda *args, **kwargs: "fixture-source",
+    )
     monkeypatch.setattr(loop_axis, "quarantine", fake_quarantine)
 
     with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969"):

@@ -30,6 +30,7 @@ from campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
 from campaign import site_policy                                    # noqa: E402
 from campaign import wal                                            # noqa: E402
+from campaign.artifact_admission import require_admitted_campaign   # noqa: E402
 from campaign.auditor_gate import AuditorGateFailure, AuditorVerdict  # noqa: E402
 from campaign.build_admission import (GeneratorId, add_coder_build_authority_argument,  # noqa: E402
                                       build_run_context)
@@ -85,6 +86,23 @@ _CLEAN_IMPL = ("  izanagi_gate_pass = "
                "(izanagi_abort_reason_ != IzanagiAbortReason::kNodeVali);")
 _FORBIDDEN_IMPL = "  izanagi_gate_pass = (thid_ % 2 == 0);"
 _DIFF_QUARANTINE_IMPL = "#define EVIL 1\n" + _CLEAN_IMPL
+_PRE_T343_OTHER_CAMPAIGN_ID = (
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
+)
+_PRE_T343_COMPUTE_CAMPAIGN_ID = (
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902"
+)
+_T343_OTHER_CAMPAIGN_ID = (
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-0e79a5f1"
+)
+_T343_COMPUTE_CAMPAIGN_ID = (
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-63bc09ae"
+)
+
+
+def _critic_view(layout: CampaignLayout):
+    wal.write_lock(layout, ident.canonical_preimage(T.default_cfg()))
+    return require_admitted_campaign(layout)
 
 
 def _mk_template_dir() -> str:
@@ -514,12 +532,10 @@ def test_campaign_identity_is_unchanged_for_other_and_split_for_compute():
     compute_cfg = T._campaign_cfg_for_site(cfg, site_policy.PEGASUS_COMPUTE)
     assert other_cfg is cfg
     assert str(ident.campaign_id(other_cfg)) == str(ident.campaign_id(cfg))
-    assert str(ident.campaign_id(other_cfg)) == (
-        "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
-    )
-    assert str(ident.campaign_id(compute_cfg)) == (
-        "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902"
-    )
+    assert str(ident.campaign_id(other_cfg)) == _T343_OTHER_CAMPAIGN_ID
+    assert str(ident.campaign_id(compute_cfg)) == _T343_COMPUTE_CAMPAIGN_ID
+    assert _PRE_T343_OTHER_CAMPAIGN_ID.endswith("3f72ecd5")
+    assert _PRE_T343_COMPUTE_CAMPAIGN_ID.endswith("75727902")
     assert compute_cfg.search_config["measurement_env"] == "pegasus"
     assert "measurement_env" not in cfg.search_config
 
@@ -553,7 +569,7 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
         T, "run_one_iteration",
         lambda *_a, **_k: {
             "outcome": "dry-pass", "variant": None,
-            "campaign_id": "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902",
+            "campaign_id": _T343_COMPUTE_CAMPAIGN_ID,
             "layout_root": compute.root,
         },
     )
@@ -562,7 +578,7 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
         T, "exploration_campaign_layout",
         lambda campaign_id: (
             CampaignLayout(compute.root)
-            if campaign_id == "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902"
+            if campaign_id == _T343_COMPUTE_CAMPAIGN_ID
             else pytest.fail("CLI が返却された campaign_id 以外から layout を再計算した")
         ),
     )
@@ -974,7 +990,7 @@ def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
     )
     assert out == {
         "outcome": "dry-pass", "variant": None,
-        "campaign_id": "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902",
+        "campaign_id": _T343_COMPUTE_CAMPAIGN_ID,
         "layout_root": lay.root,
     }
     assert site_calls == 1
@@ -1108,7 +1124,7 @@ def test_quarantine_and_audit_rejects_forbidden_identifier(monkeypatch):
     assert gate["digest"]["subtype"] == "syntax-contract"
     assert gate["digest"]["rejection_type"] == "diff-quarantine"
     # 既存 consumer がそのまま拾える (相乗り経路)
-    dqs = load_diff_rejections(lay)
+    dqs = load_diff_rejections(_critic_view(lay))
     assert len(dqs) == 1 and dqs[0].subtype == "syntax-contract"
     # evidence はマッチ識別子名のみ — coder の gate 式本文を critic へ運ばない (リーク裁定)
     assert "thid_" in gate["digest"]["evidence"]
@@ -1128,7 +1144,10 @@ def test_render_rejections_uses_syntax_contract_hint(monkeypatch):
         d, coder, auditor, _G, lay, state, _planner(), write=False,
         contract=T._admit_env_contract(site_policy.OTHER),
     )
-    out = render_rejections([], [], {}, None, diff_rejections=load_diff_rejections(lay))
+    out = render_rejections(
+        [], [], {}, None,
+        diff_rejections=load_diff_rejections(_critic_view(lay)),
+    )
     tail = out.split("syntax-contract")[-1]
     assert "構文契約違反" in tail
     assert "フレーム/hole 逸脱" not in tail[:400]

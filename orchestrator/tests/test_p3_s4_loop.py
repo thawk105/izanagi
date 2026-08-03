@@ -37,7 +37,8 @@ from campaign.projection_guard import (                            # noqa: E402
 )
 from campaign.diff_quarantine import DiffRejectSubtype            # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import Genome, STAGE_ABORT                    # noqa: E402
+from campaign.model import (Genome, STAGE_ABORT,                  # noqa: E402
+                            STAGE_BUILD_START)
 from critic.digest import (DIFF_QUARANTINE_REASON,                 # noqa: E402
                            load_diff_rejections,
                            load_liveness_rejections, render_rejections)
@@ -65,13 +66,21 @@ class Backoff {
 _SRC_REL = "backoff.hh"
 _G = Genome("silo", {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0,
                      "WAL": 0, "BACK_OFF": 1, "BACKOFF_FIXED": 20})
+_PRE_T343_DIFF_REJECT_START_KEYS = frozenset({"genome", "src_token"})
+_PRE_T343_DIFF_REJECT_ABORT_KEYS = frozenset({
+    "reason", "genome", "diff_quarantine",
+})
+_T343_DIFF_REJECT_START_KEYS = (
+    _PRE_T343_DIFF_REJECT_START_KEYS | {"build_attempt_id"}
+)
+_T343_DIFF_REJECT_ABORT_KEYS = (
+    _PRE_T343_DIFF_REJECT_ABORT_KEYS | {"build_attempt_id"}
+)
 
 
 def _critic_view(layout: CampaignLayout):
-    """Issue the sole validated raw-WAL view used by critic loaders."""
-    Path(layout.lock_file).write_text(
-        json.dumps({"search_config": {}}, sort_keys=True), encoding="utf-8",
-    )
+    """実 policy-bound lock と attempt topology から critic view を発行する。"""
+    wal.write_lock(layout, ident.canonical_preimage(L.default_cfg()))
     return require_admitted_campaign(layout)
 
 
@@ -261,9 +270,12 @@ def test_comment_reject_wal_to_critic_digest_does_not_repeat_payload():
         and r.payload.get("reason") == DIFF_QUARANTINE_REASON
     ]
     assert len(reject_records) == 1
-    assert set(reject_records[0].payload) == {
-        "reason", "genome", "diff_quarantine",
-    }
+    start_records = [r for r in raw_records if r.stage == STAGE_BUILD_START]
+    assert len(start_records) == 1
+    assert set(start_records[0].payload) == _T343_DIFF_REJECT_START_KEYS
+    assert set(reject_records[0].payload) == _T343_DIFF_REJECT_ABORT_KEYS
+    assert start_records[0].payload["build_attempt_id"] == \
+        reject_records[0].payload["build_attempt_id"]
 
     loaded = load_diff_rejections(_critic_view(lay))
     assert len(loaded) == 1
@@ -471,8 +483,14 @@ def test_make_critic_digest_reflux_off_drops_red_section():
     lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_s4loop_reflux_"))
     lay.ensure()
     L.record_diff_reject(lay, _G, "#define X 1\ndouble now_backoff = 20.0;", res)
-    on = L.make_critic_digest(lay, reflux=True)
-    off = L.make_critic_digest(lay, reflux=False)
+    _critic_view(lay)
+    real_require = L.require_admitted_campaign
+    with unittest.mock.patch.object(
+        L, "require_admitted_campaign", side_effect=real_require,
+    ) as require_spy:
+        on = L.make_critic_digest(lay, reflux=True)
+        off = L.make_critic_digest(lay, reflux=False)
+    assert require_spy.call_count == 2  # 各入口で一度だけ発行し全 loader が共有
     assert "diff-quarantine" in on            # on アームは赤を還流
     assert "diff-quarantine" not in off       # off アームは落とす
 

@@ -2,6 +2,7 @@
 """D12 層3材料レポートの決定論的な完全射影を検査する。"""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -14,11 +15,103 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
 from campaign import layer3_report, model  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    GeneratorId,
+    build_run_context,
+    derive_build_admission,
+)
+from campaign.pin import CURRENT_PIN  # noqa: E402
+from campaign.source_digest import (  # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    SourceEvidence,
+)
 
 
 ROOT = _HERE.parent.parent
 REAL_CAMPAIGN = ROOT / "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
 YCSB = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
+ABORTED_FIXTURE_VARIANT = "2225adf39fa3"
+REJECTED_FIXTURE_VARIANT = "d85dc0fc5a6e"
+
+
+def _admission_bound_records(tmp_path: Path, records: list[dict]) -> tuple[list[dict], dict]:
+    """Turn semantic Layer3 fixtures into independently generated post-policy WAL."""
+    copied = json.loads(json.dumps(records))
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    labels = list(dict.fromkeys(record["variant"] for record in copied))
+    by_label = {label: [record for record in copied if record["variant"] == label]
+                for label in labels}
+    bindings = {}
+    for ordinal, label in enumerate(labels):
+        group = by_label[label]
+        stages = {record["stage"] for record in group}
+        needs_start = bool(stages & {
+            "build_start", "build_done", "verify_done", "bench_done", "commit",
+        })
+        if not needs_start:
+            continue
+        protocol = f"fixture-{hashlib.sha256(label.encode()).hexdigest()[:8]}"
+        canonical = f"{protocol}|"
+        variant = hashlib.sha256(canonical.encode()).hexdigest()[:12]
+        evidence = SourceEvidence(
+            schema_version="source-evidence/v1",
+            source_root=str(tmp_path.resolve()),
+            ccbench_commit=CURRENT_PIN,
+            genome_sha256=hashlib.sha256(canonical.encode()).hexdigest(),
+            src_token="stock",
+            source_bytes_sha256="a" * 64,
+            tracked_clean=True,
+            tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+            tracked_paths=(),
+        )
+        receipt = derive_build_admission(context, evidence).as_wal_receipt()
+        bindings[label] = {
+            "attempt": f"fixture-attempt-{ordinal}",
+            "canonical": canonical,
+            "variant": variant,
+            "receipt": receipt,
+        }
+
+    rendered = []
+    started = set()
+    for record in copied:
+        label = record["variant"]
+        binding = bindings.get(label)
+        if binding is None:
+            rendered.append(record)
+            continue
+        if label not in started and record["stage"] != "build_start":
+            rendered.append({
+                "ts": record["ts"],
+                "stage": "build_start",
+                "variant": binding["variant"],
+                "env_tag": record["env_tag"],
+                "payload": {
+                    "genome": binding["canonical"],
+                    "src_token": "stock",
+                    "build_attempt_id": binding["attempt"],
+                    "build_admission": binding["receipt"],
+                    "build_admission_receipt_sha256": binding["receipt"]["receipt_sha256"],
+                },
+            })
+            started.add(label)
+        record["variant"] = binding["variant"]
+        if record["stage"] == "build_start":
+            record["payload"].update({
+                "genome": binding["canonical"],
+                "src_token": "stock",
+                "build_attempt_id": binding["attempt"],
+                "build_admission": binding["receipt"],
+                "build_admission_receipt_sha256": binding["receipt"]["receipt_sha256"],
+            })
+            started.add(label)
+        elif record["stage"] in {"build_done", "commit", "abort"}:
+            record["payload"]["build_attempt_id"] = binding["attempt"]
+            record["payload"]["build_admission_receipt_sha256"] = (
+                binding["receipt"]["receipt_sha256"]
+            )
+        rendered.append(record)
+    return rendered, dict(context.policy.as_preimage())
 
 
 def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
@@ -26,11 +119,16 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     output_root = tmp_path / "repo" / "output"
     root = output_root / "campaigns" / "campaign"
     (root / "runs").mkdir(parents=True)
-    search_config = {"records": 100000, "threads": 4}
+    records, admission_policy = _admission_bound_records(tmp_path, records)
+    search_config = {
+        "records": 100000,
+        "threads": 4,
+        "build_admission": admission_policy,
+    }
     if ycsb is not None:
         search_config["ycsb"] = ycsb
     (root / "campaign.lock").write_text(json.dumps({
-        "ccbench_commit": "abc123", "search_config": search_config,
+        "ccbench_commit": CURRENT_PIN, "search_config": search_config,
         "search_tag": "test", "spec_content": "test", "trial": "trial",
     }), encoding="utf-8")
     if loop_state:
@@ -68,8 +166,8 @@ def test_campaign_without_loop_state_has_empty_absent_whiteboard(tmp_path):
     assert not any(ref.startswith("wb:") for ref in report["source_refs"])
     assert report["schema_version"] == "layer3-material-report/v3"
     decision = report["admission_decision"]
-    assert decision["classification"] == "historical-pre-admission-schema"
-    assert decision["admission_status"] == "historical-not-reclassified"
+    assert decision["classification"] == "admitted-new-schema"
+    assert decision["admission_status"] == "admitted"
     assert decision["overlay"]["record_key"] is None
 
 
@@ -282,7 +380,7 @@ def test_body_event_omission_is_detected(tmp_path, monkeypatch):
 
 
 def test_duplicate_wal_and_whiteboard_fail_closed(tmp_path):
-    duplicate = _record("build_start", genome="g", src_token="s")
+    duplicate = _bench()
     campaign, output_root = _campaign(tmp_path, [duplicate, duplicate])
     with pytest.raises(layer3_report.Layer3ReportError, match="完全重複"):
         layer3_report.build_report(campaign, generated_from_head="fixed", output_root=output_root)
@@ -402,12 +500,12 @@ def test_abort_event_renders_abort_view_and_commit_absent_reject(tmp_path):
         campaign, out, generated_from_head="fixed", output_root=output_root)
     assert out.is_file()
     assert report["aborts"] == [{
-        "variant": "aborted",
+        "variant": ABORTED_FIXTURE_VARIANT,
         "reason": "build-error",
         "source_ref": report["aborts"][0]["source_ref"],
     }]
     assert report["aborts"][0]["source_ref"] in report["source_refs"]
-    assert report["rejects"][0]["variant"] == "aborted"
+    assert report["rejects"][0]["variant"] == ABORTED_FIXTURE_VARIANT
     assert report["rejects"][0]["reason"] == "commit-event-absent"
 
 
@@ -424,7 +522,7 @@ def test_variant_without_commit_is_reject_with_primary_reference(tmp_path):
         _record("build_start", "rejected", genome="g", src_token="s"), _bench("rejected"),
     ])
     report = layer3_report.build_report(campaign, generated_from_head="fixed", output_root=output_root)
-    assert report["rejects"][0]["variant"] == "rejected"
+    assert report["rejects"][0]["variant"] == REJECTED_FIXTURE_VARIANT
     assert report["rejects"][0]["reason"] == "commit-event-absent"
     assert report["rejects"][0]["source_ref"] in report["source_refs"]
 

@@ -36,22 +36,17 @@ from campaign.build_admission import (  # noqa: E402
     ReviewReceipt,
     verify_review_receipt,
 )
+from campaign.materializer_admission import (  # noqa: E402
+    CLOSED_PYTHON_MATERIALIZER_SITES,
+)
 from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from campaign.source_digest import SourceEvidence  # noqa: E402
 
 
-# Direct-CMake CCBench producers that are intentionally diagnostic/evidence-only.  The
-# repository-wide AST sentinel in test_s8b_floor_campaign.py requires every direct producer to
-# remain in this registry or move behind the admission-aware buildcache gateway.
-NON_ADMISSIBLE_MATERIALIZERS = frozenset({
-    "orchestrator/campaign/s2_verify_calibration.py:_broken_build_and_verify",
-    "orchestrator/campaign/s3_lock_coverage.py:_build_broken",
-    "orchestrator/campaign/s5_permutation_coverage.py:_build_broken",
-    "orchestrator/campaign/s8a_trigger_coverage.py:_build",
-    "orchestrator/campaign/silo_ladder_rung1.py:_build_variant",
-    "orchestrator/campaign/silo_ladder_rung1.py:_correctness_command",
-    "orchestrator/campaign/t152_write_intent_coverage.py:_build",
-})
+# Compatibility view for the repository-wide AST closure sentinel.  The sole
+# registrations and their admitted/non-admissible dispositions live in
+# materializer_admission; this module owns no second registry.
+NON_ADMISSIBLE_MATERIALIZERS = CLOSED_PYTHON_MATERIALIZER_SITES
 
 
 class MaterializationError(RuntimeError):

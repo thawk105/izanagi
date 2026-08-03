@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import errno
+import hashlib
 import itertools
 import json
 import os
@@ -38,9 +39,15 @@ from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign import s6_sort_sweep as W                           # noqa: E402
 from campaign import wal                                         # noqa: E402
 from campaign.artifact_admission import CampaignNotAdmitted       # noqa: E402
-from campaign.build_admission import BuildAdmissionError              # noqa: E402
+from campaign.build_admission import (BuildAdmissionError,            # noqa: E402
+                                      BuildProvenance, GeneratorId,
+                                      attest_generator_output,
+                                      build_run_context,
+                                      derive_build_admission)
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
+from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
+                                    STOCK, SourceEvidence)
 
 # ==== C++ 比較式 → Python モデルの機械導出 ====================================
 # 生成器 (_one/_two/_mk) が出す式形のみ受理する。受理できない式は即 fail
@@ -311,23 +318,74 @@ def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     assert len(wal.read_records(layout)) == 4
 
 
-def test_public_sweep_reuses_one_build_context_for_stock_and_machine(monkeypatch):
-    """Policy を含む同一 run context が sweep 全点へ渡る。"""
+def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
+        monkeypatch):
+    """public sweep→実 pipeline admission 境界で exact class 差を固定する。"""
     layout = _tmp_layout()
     _install_public_reject_sweep_fakes(monkeypatch, layout)
     machine_name = W.CANDIDATES[0][0]
     seen = []
+    passed = SimpleNamespace(passed=True)
+    expected_pin = "d706650"  # repo policy から逆算しない独立 pin
 
-    def fake_eval(name, *_args, build_context, **_kwargs):
-        seen.append((name, build_context))
-        return {"variant_id": name, "category": "fixture", "src_token": "stock",
-                "outcome": "certified"}
+    def evidence_for(genome, commit, source_root):
+        assert commit == expected_pin == W.PIN
+        machine = genome.flags["SORT_VARIANT"] == 1
+        return SourceEvidence(
+            schema_version="source-evidence/v1",
+            source_root=os.path.abspath(source_root),
+            ccbench_commit=expected_pin,
+            genome_sha256=hashlib.sha256(
+                genome.canonical().encode("utf-8")
+            ).hexdigest(),
+            src_token="6" * 64 if machine else STOCK,
+            source_bytes_sha256="7" * 64,
+            tracked_clean=not machine,
+            tracked_diff_sha256=(
+                "8" * 64 if machine else EMPTY_TRACKED_DIFF_SHA256
+            ),
+            tracked_paths=("cc/silo/transaction.cc",) if machine else (),
+        )
 
-    monkeypatch.setattr(W, "_eval_one", fake_eval)
+    def resolve(genome, commit, ccbench_dir="", **_kwargs):
+        return evidence_for(genome, commit, ccbench_dir).src_token
+
+    def resolve_evidence(genome, commit, *, ccbench_dir="", **_kwargs):
+        return evidence_for(genome, commit, ccbench_dir)
+
+    def stop_at_build(_genome, _commit, trace, **kwargs):
+        assert trace is True
+        receipt = kwargs["admission"].as_wal_receipt()
+        seen.append((
+            kwargs["admission"].provenance,
+            receipt["generator_receipt"] is not None,
+            kwargs["build_context"],
+        ))
+        raise RuntimeError("stop after admission boundary")
+
+    def run_through_pipeline(cfg, genomes, perf, env_tag, clocks_per_us, **kwargs):
+        result = pipeline.evaluate(
+            genomes[0], layout, env_tag, cfg.ccbench_commit, perf,
+            clocks_per_us, do_bench=False, log=lambda _line: None,
+            ccbench_dir=kwargs["ccbench_dir"],
+            cache_root=kwargs["cache_root"],
+            build_context=kwargs["build_context"],
+            capability_resolver=kwargs["capability_resolver"],
+        )
+        return SimpleNamespace(results=[result])
+
+    monkeypatch.setattr(L, "quarantine", lambda *_a, **_k: (passed, "", "", ""))
+    monkeypatch.setattr(W.source_digest, "resolve", resolve)
+    monkeypatch.setattr(pipeline.source_digest, "resolve_evidence", resolve_evidence)
+    monkeypatch.setattr(pipeline.buildcache, "build", stop_at_build)
+    monkeypatch.setattr(W, "run_campaign", run_through_pipeline)
     W.run_sweep("balanced", names=[W.STOCK_NAME, machine_name], isolate=False,
                 log=lambda _line: None)
-    assert [name for name, _context in seen] == [W.STOCK_NAME, machine_name]
-    assert seen[0][1] is seen[1][1]
+    assert [(provenance, has_generator) for provenance, has_generator, _ in seen] == [
+        (BuildProvenance.STOCK_BASELINE, False),
+        (BuildProvenance.MACHINE_GENERATED, True),
+    ]
+    assert seen[0][2] is seen[1][2]
 
 
 def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatch):
@@ -461,13 +519,73 @@ def test_floor_uncalibrated_fails_closed():
     assert W._floor_uncalibrated({"category": "full-order", "abort_rate": None}, stock)
 
 
+def _install_post_policy_screen_fixture(layout):
+    """receipt に束縛した合成 sweep WAL と variant id を作る。"""
+    context = build_run_context(generator_id=GeneratorId.S6_SORT_SWEEP)
+    Path(layout.lock_file).write_text(json.dumps({
+        "ccbench_commit": W.PIN,
+        "search_config": {
+            "records": 1,
+            "threads": 1,
+            "build_admission": dict(context.policy.as_preimage()),
+        },
+        "search_tag": "test",
+        "spec_content": "test",
+        "trial": "test",
+    }), encoding="utf-8")
+    variants = {}
+    for ordinal, label in enumerate(("screen", "certified"), start=1):
+        genome = W._genome(1)
+        src_token = str(ordinal) * 64
+        evidence = SourceEvidence(
+            schema_version="source-evidence/v1",
+            source_root=os.path.abspath(layout.root),
+            ccbench_commit=W.PIN,
+            genome_sha256=hashlib.sha256(
+                genome.canonical().encode("utf-8")
+            ).hexdigest(),
+            src_token=src_token,
+            source_bytes_sha256=str(ordinal + 2) * 64,
+            tracked_clean=False,
+            tracked_diff_sha256=str(ordinal + 4) * 64,
+            tracked_paths=("cc/silo/transaction.cc",),
+        )
+        generator = attest_generator_output(
+            context,
+            evidence,
+            generator_input_sha256=hashlib.sha256(
+                label.encode("utf-8")
+            ).hexdigest(),
+        )
+        receipt = derive_build_admission(
+            context, evidence, generator_receipt=generator,
+        ).as_wal_receipt()
+        variant = pipeline.variant_id(genome, src_token)
+        attempt = f"screen-fixture-{label}"
+        variants[label] = (variant, attempt, receipt)
+        W.wal.log(layout, variant, "build_start", W.ENV_TAG, {
+            "genome": genome.canonical(),
+            "src_token": src_token,
+            "build_attempt_id": attempt,
+            "build_admission": receipt,
+            "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        })
+        W.wal.log(layout, variant, "build_done", W.ENV_TAG, {
+            "build_attempt_id": attempt,
+            "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        })
+    return variants
+
+
 def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch):
     """BENCH_DONE は certified の証拠ではない。screen 数値は WAL にだけ保持する。"""
     layout = _tmp_layout()
-    Path(layout.lock_file).write_text(
-        json.dumps({"search_config": {}}), encoding="utf-8",
+    variants = _install_post_policy_screen_fixture(layout)
+    screen_variant, screen_attempt, screen_receipt = variants["screen"]
+    certified_variant, certified_attempt, certified_receipt = (
+        variants["certified"]
     )
-    W.wal.log(layout, "v-screen", W.STAGE_BENCH_DONE, W.ENV_TAG, {
+    W.wal.log(layout, screen_variant, W.STAGE_BENCH_DONE, W.ENV_TAG, {
         "median_tps": 12345,
         "cv": 0.01,
         "unstable": True,
@@ -477,11 +595,13 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
             "llc_miss_rate": 0.34,
         },
     })
-    W.wal.log(layout, "v-screen", W.STAGE_ABORT, W.ENV_TAG, {
+    W.wal.log(layout, screen_variant, W.STAGE_ABORT, W.ENV_TAG, {
         "reason": pipeline.SCREEN_REJECTION_REASON,
         "screen": {"median_tps": 12345},
+        "build_attempt_id": screen_attempt,
+        "build_admission_receipt_sha256": screen_receipt["receipt_sha256"],
     })
-    W.wal.log(layout, "v-certified", W.STAGE_BENCH_DONE, W.ENV_TAG, {
+    W.wal.log(layout, certified_variant, W.STAGE_BENCH_DONE, W.ENV_TAG, {
         "median_tps": 6789,
         "cv": 0.02,
         "unstable": False,
@@ -491,12 +611,15 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
             "llc_miss_rate": 0.21,
         },
     })
-    # 空 payload も COMMIT の存在として扱う (truthiness で判定しない)。
-    W.wal.log(layout, "v-certified", W.STAGE_COMMIT, W.ENV_TAG, {})
+    # post-policy COMMIT は attempt と receipt SHA を必須にする。
+    W.wal.log(layout, certified_variant, W.STAGE_COMMIT, W.ENV_TAG, {
+        "build_attempt_id": certified_attempt,
+        "build_admission_receipt_sha256": certified_receipt["receipt_sha256"],
+    })
 
     entries = {
-        "screened-out": {"variant_id": "v-screen", "category": "full-order"},
-        "certified": {"variant_id": "v-certified", "category": "full-order"},
+        "screened-out": {"variant_id": screen_variant, "category": "full-order"},
+        "certified": {"variant_id": certified_variant, "category": "full-order"},
     }
     rows = {r["name"]: r for r in W._load_rows(layout, entries)}
     rejected = rows["screened-out"]
@@ -518,7 +641,7 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
 
     abort_payload = next(
         r.payload for r in W.wal.read_records(layout)
-        if r.variant == "v-screen" and r.stage == W.STAGE_ABORT
+        if r.variant == screen_variant and r.stage == W.STAGE_ABORT
     )
     assert abort_payload["screen"]["median_tps"] == 12345
 

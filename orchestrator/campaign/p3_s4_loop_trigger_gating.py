@@ -420,7 +420,7 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
     spec_slug/search_tag/trial は本軸固有 (sort からの流用禁止 — campaign 出力の軸別
     分離、regression SF3 裁定)。verify は legacy+S2 (D43 必須修正の型を踏襲 — S2 の
     hot key 競合が abort 要因を実際に踏む構成でないと gate 述語の評価土台が崩れる)。"""
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug="p3-s8a-trigger-loop", search_tag="s8a-trigger-autonomous",
         spec_content=("P3 段 8a E 段: silo-backoff-trigger-gating (abort 要因別 backoff "
                       "gate 述語) coder 自律ループ。planner が方向 (値なし) を提案し "
@@ -434,6 +434,8 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                        "records": 100_000, "threads": 4,
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial="p3-s8a-trigger-loop")
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    return ident.bind_admission_policy(cfg, context.policy)
 
 
 default_perf = L.default_perf   # 軸非依存 (配線規模、有意性を主張しない)

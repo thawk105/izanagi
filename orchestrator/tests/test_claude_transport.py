@@ -19,6 +19,10 @@ if str(_ROOT) not in sys.path:
 from orchestrator.campaign import claude_transport as T  # noqa: E402
 from orchestrator.campaign import claude_projected_provider as CP  # noqa: E402
 from orchestrator.campaign import p3_autonomous_workload_trial as A  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    GeneratorId,
+    build_run_context,
+)
 from orchestrator.campaign.claude_projected_provider import (  # noqa: E402
     ClaudeProjectedRoleProvider,
 )
@@ -102,6 +106,10 @@ _METERED_TRANSPORT_KEYS = (
 
 def _copy_receipt() -> dict:
     return json.loads(json.dumps(_VALID_RECEIPT))
+
+
+def _no_build_context():
+    return build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
 
 
 def _source(
@@ -1635,6 +1643,7 @@ def test_success_consumer_keeps_valid_receipt_in_journal_and_report(
         active_providers=providers,
         fatal_error=None,
         transport_receipt=run_receipt,
+        build_context=_no_build_context(),
     )
     assert report["status"] == "complete"
     assert report["transport_receipt"] == _copy_receipt()
@@ -1919,6 +1928,7 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
             active_providers={},
             fatal_error=None,
             transport_receipt=receipt,
+            build_context=_no_build_context(),
         )
     finally:
         A._run_workload = original_run_workload
@@ -1966,6 +1976,7 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
             active_providers={},
             fatal_error=None,
             transport_receipt=receipt,
+            build_context=_no_build_context(),
         )
     finally:
         A.time.monotonic = original_monotonic
@@ -2000,6 +2011,7 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
             started_monotonic=0.0,
             max_wall_s=1,
             transport_receipt=receipt,
+            build_context=_no_build_context(),
         )
     finally:
         A.time.monotonic = original_monotonic

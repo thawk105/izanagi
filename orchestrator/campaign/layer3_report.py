@@ -219,7 +219,13 @@ def _variant_rows(records: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def _view_row(event: Mapping[str, Any]) -> Dict[str, Any]:
-    return {**event["payload"], "variant": event["variant"],
+    payload = {
+        key: value for key, value in event["payload"].items()
+        if key not in {
+            "build_attempt_id", "build_admission_receipt_sha256",
+        }
+    }
+    return {**payload, "variant": event["variant"],
             "source_ref": canonical_record_ref("wal", event)}
 
 
@@ -366,6 +372,10 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
     try:
         admitted_campaign = require_admitted_campaign(campaign_dir)
     except ArtifactAdmissionError as exc:
+        if str(exc) == "post-policy campaign WAL has a truncated tail":
+            # Keep Layer 3's established framing diagnosis while the shared
+            # admission gate remains fail-closed for the same malformed bytes.
+            _read_wal(campaign_dir / "runs" / "wal.jsonl")
         raise Layer3ReportError(f"campaign admission 検証に失敗: {exc}") from exc
     except wal.WalFramingError as exc:
         raise Layer3ReportError(

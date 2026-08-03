@@ -5,24 +5,26 @@ The overlay is a deny-only ledger.  It does not revise the verifier verdict that
 was recorded at the time: ``verification_status`` and T-316
 ``admission_status`` are deliberately independent dimensions.
 
-The positive-receipt rule is forward-only.  A lock whose ``search_config``
-contains ``build_admission`` is a post-policy artifact and must have canonical
-policy-bound attempt receipts.  An unlisted lock without that key is historical
-and remains readable; this module does not perform the out-of-scope repository-
-wide reclassification of all historical artifacts.
+The positive-receipt rule is forward-only, but artifact bytes do not get to
+declare themselves historical.  An unlisted receiptless artifact remains
+readable only when its path, lock, and WAL exactly match the ledger's trusted
+pre-policy Git snapshot.  This proves known history without performing the out-
+of-scope repository-wide reclassification of all historical artifacts.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Mapping
 
-from . import wal
+from . import pipeline, wal
 from .build_admission import GeneratorId, build_run_context
 from .layout import CampaignLayout
-from .model import STAGE_BUILD_START
+from .model import Genome, STAGE_BUILD_START
 
 
 LEDGER_SCHEMA = "legacy-campaign-admission-overlay/v1"
@@ -38,7 +40,7 @@ _LEDGER_KEYS = frozenset({
 _AUTHORITY_KEYS = frozenset({"kind", "ruling_id"})
 _GENERATION_KEYS = frozenset({
     "scope", "input_projection", "verification_dimension", "admission_dimension",
-    "membership_rule",
+    "membership_rule", "historicity_rule",
 })
 _INPUT_KEYS = (
     "path", "campaign_id", "campaign_lock_sha256", "wal_sha256",
@@ -61,6 +63,17 @@ class OverlayMutationError(ArtifactAdmissionError):
 
 class CampaignNotAdmitted(ArtifactAdmissionError):
     """A valid decision explicitly excludes the campaign from admitted use."""
+
+
+@dataclass(frozen=True, slots=True)
+class ImmutableWalRecord:
+    """Deep-immutable projection of one parser-validated WAL record."""
+
+    variant: str
+    stage: str
+    env_tag: str
+    ts: float
+    payload: Mapping[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,8 +124,19 @@ class AdmittedCampaign:
     """Immutable validated raw-WAL view; raw consumers accept only this type."""
 
     layout: CampaignLayout
-    records: tuple[Any, ...]
+    records: tuple[ImmutableWalRecord, ...]
     decision: CampaignAdmissionDecision
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.layout) is not CampaignLayout
+            or type(self.decision) is not CampaignAdmissionDecision
+            or type(self.records) is not tuple
+            or not all(type(record) is ImmutableWalRecord for record in self.records)
+        ):
+            raise TypeError(
+                "AdmittedCampaign requires the validator's immutable projection"
+            )
 
     @property
     def root(self) -> str:
@@ -151,6 +175,29 @@ def _canonical_bytes(value: object) -> bytes:
         ).encode("utf-8")
     except (TypeError, ValueError) as exc:
         raise OverlayLedgerError("overlay value is not canonical JSON") from exc
+
+
+def _deep_immutable(value: Any) -> Any:
+    if type(value) is dict:
+        return MappingProxyType({
+            key: _deep_immutable(item) for key, item in value.items()
+        })
+    if type(value) is list:
+        return tuple(_deep_immutable(item) for item in value)
+    return value
+
+
+def _immutable_records(records: tuple[Any, ...]) -> tuple[ImmutableWalRecord, ...]:
+    return tuple(
+        ImmutableWalRecord(
+            variant=record.variant,
+            stage=record.stage,
+            env_tag=record.env_tag,
+            ts=record.ts,
+            payload=_deep_immutable(record.payload),
+        )
+        for record in records
+    )
 
 
 def _reject_constant(value: str) -> None:
@@ -234,6 +281,10 @@ def _load_ledger() -> tuple[dict[str, Any], str]:
                 "deny admission-aware selection as legacy-unclassified"
             ),
             "membership_rule": "no inferred, prefix, or future campaign membership",
+            "historicity_rule": (
+                "unlisted receiptless artifacts require exact path, campaign.lock, "
+                "and WAL bytes in created_from_commit"
+            ),
         }
     ):
         raise OverlayLedgerError("overlay generation_rule exact keys differ")
@@ -242,6 +293,8 @@ def _load_ledger() -> tuple[dict[str, Any], str]:
         raise OverlayLedgerError("overlay membership must contain exactly three records")
     paths: set[str] = set()
     ids: set[str] = set()
+    lock_shas: set[str] = set()
+    wal_shas: set[str] = set()
     for record in records:
         if type(record) is not dict or set(record) != _RECORD_KEYS:
             raise OverlayLedgerError("overlay record exact keys differ")
@@ -257,10 +310,17 @@ def _load_ledger() -> tuple[dict[str, Any], str]:
             or record["admission_status"] != "legacy-unclassified"
         ):
             raise OverlayLedgerError("overlay record value contract differs")
-        if record["path"] in paths or record["campaign_id"] in ids:
-            raise OverlayLedgerError("overlay path/campaign_id membership is not unique")
+        if (
+            record["path"] in paths
+            or record["campaign_id"] in ids
+            or record["campaign_lock_sha256"] in lock_shas
+            or record["wal_sha256"] in wal_shas
+        ):
+            raise OverlayLedgerError("overlay identity/hash membership is not unique")
         paths.add(record["path"])
         ids.add(record["campaign_id"])
+        lock_shas.add(record["campaign_lock_sha256"])
+        wal_shas.add(record["wal_sha256"])
     projection = [{key: record[key] for key in _INPUT_KEYS} for record in records]
     if (
         not _is_sha256(value["input_set_sha256"])
@@ -292,6 +352,75 @@ def _current_policy():
     return build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP).policy
 
 
+def _git_snapshot_sha256(commit: str, path: str) -> str | None:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(_REPO_ROOT), "show", f"{commit}:{path}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0:
+        return None
+    return hashlib.sha256(completed.stdout).hexdigest()
+
+
+def _is_proven_pre_policy_artifact(
+    *, relative: str | None, ledger: Mapping[str, Any],
+    lock_sha: str, wal_sha: str,
+) -> bool:
+    if relative is None:
+        return False
+    commit = ledger["created_from_commit"]
+    return (
+        _git_snapshot_sha256(commit, f"{relative}/campaign.lock") == lock_sha
+        and _git_snapshot_sha256(commit, f"{relative}/runs/wal.jsonl") == wal_sha
+    )
+
+
+def _parse_canonical_genome(value: object) -> Genome:
+    if type(value) is not str or "|" not in value:
+        raise ArtifactAdmissionError(
+            "post-policy build_start genome is not canonical"
+        )
+    protocol, body = value.split("|", 1)
+    if not protocol:
+        raise ArtifactAdmissionError(
+            "post-policy build_start genome is not canonical"
+        )
+    flags: dict[str, int] = {}
+    if body:
+        for assignment in body.split(","):
+            if "=" not in assignment:
+                raise ArtifactAdmissionError(
+                    "post-policy build_start genome is not canonical"
+                )
+            key, encoded = assignment.split("=", 1)
+            if not key or key in flags:
+                raise ArtifactAdmissionError(
+                    "post-policy build_start genome is not canonical"
+                )
+            try:
+                flags[key] = int(encoded)
+            except ValueError as exc:
+                raise ArtifactAdmissionError(
+                    "post-policy build_start genome is not canonical"
+                ) from exc
+    try:
+        genome = Genome(protocol=protocol, flags=flags)
+    except (TypeError, ValueError) as exc:
+        raise ArtifactAdmissionError(
+            "post-policy build_start genome is not canonical"
+        ) from exc
+    if genome.canonical() != value:
+        raise ArtifactAdmissionError(
+            "post-policy build_start genome is not canonical"
+        )
+    return genome
+
+
 def _inspect_campaign(
     campaign: CampaignLayout | str | Path,
 ) -> tuple[CampaignAdmissionDecision, tuple[Any, ...]]:
@@ -308,35 +437,53 @@ def _inspect_campaign(
     lock_sha = _sha256_file(lock_path)
     wal_sha = _sha256_file(wal_path)
     validator_sha = _sha256_file(Path(__file__))
-    records, truncated = wal.read_records_checked(layout)
-    build_start_count = sum(record.stage == STAGE_BUILD_START for record in records)
-
-    known = [
+    identity_matches = [
         record for record in ledger["records"]
         if record["campaign_id"] == campaign_id
         or (relative is not None and record["path"] == relative)
     ]
-    if known:
-        if len(known) != 1:
+    hash_matches = [
+        record for record in ledger["records"]
+        if record["campaign_lock_sha256"] == lock_sha
+        or record["wal_sha256"] == wal_sha
+    ]
+    candidates = {
+        _record_key(record): record
+        for record in (*identity_matches, *hash_matches)
+    }
+    if candidates:
+        if len(candidates) != 1:
             raise OverlayLedgerError("overlay identity lookup is ambiguous")
-        record = known[0]
-        actual = {
-            "path": relative,
-            "campaign_id": campaign_id,
-            "campaign_lock_sha256": lock_sha,
-            "wal_sha256": wal_sha,
-            "build_start_count": build_start_count,
-        }
-        expected = {key: record[key] for key in _INPUT_KEYS}
-        if actual != expected or truncated:
+        record = next(iter(candidates.values()))
+        # A ruled overlay member is identified by its exact bytes before any
+        # semantic WAL parse.  A byte mutation may itself make the WAL malformed;
+        # that must remain an overlay-tampering verdict rather than fall through
+        # to the generic WAL parser/error surface.
+        hashes_are_exact = (
+            lock_sha == record["campaign_lock_sha256"]
+            and wal_sha == record["wal_sha256"]
+        )
+        identity_is_exact = (
+            relative == record["path"]
+            and campaign_id == record["campaign_id"]
+        )
+        if not hashes_are_exact:
             raise OverlayMutationError(
                 "known overlay campaign bytes/path/topology differ from the ruled record"
             )
+        records, truncated = wal.read_records_checked(layout)
+        build_start_count = sum(item.stage == STAGE_BUILD_START for item in records)
+        if build_start_count != record["build_start_count"] or truncated:
+            raise OverlayMutationError(
+                "known overlay campaign bytes/path/topology differ from the ruled record"
+            )
+        # Exact ruled bytes remain denied after relocation.  Path/id are retained
+        # in the receipt as ledger provenance, not trusted as the membership key.
         return CampaignAdmissionDecision(
             classification="overlay-denied",
             admission_status=record["admission_status"],
             verification_status=record["verification_status"],
-            campaign_id=campaign_id,
+            campaign_id=record["campaign_id"] if not identity_is_exact else campaign_id,
             campaign_path=record["path"],
             campaign_lock_sha256=lock_sha,
             wal_sha256=wal_sha,
@@ -347,11 +494,25 @@ def _inspect_campaign(
             validator_sha256=validator_sha,
         ), tuple(records)
 
+    records, truncated = wal.read_records_checked(layout)
+
     lock_raw = lock_path.read_bytes()
     lock = _decode_json(lock_raw, label="campaign.lock")
     search = lock.get("search_config") if type(lock) is dict else None
     if type(search) is not dict or "build_admission" not in search:
-        # Forward-only boundary: do not blanket-reclassify unlisted historical artifacts.
+        if not _is_proven_pre_policy_artifact(
+            relative=relative,
+            ledger=ledger,
+            lock_sha=lock_sha,
+            wal_sha=wal_sha,
+        ):
+            raise ArtifactAdmissionError(
+                "receiptless campaign historicity is not proven by the pre-policy snapshot"
+            )
+        if _sha256_file(lock_path) != lock_sha or _sha256_file(wal_path) != wal_sha:
+            raise ArtifactAdmissionError(
+                "campaign bytes changed during admission validation"
+            )
         return CampaignAdmissionDecision(
             classification="historical-pre-admission-schema",
             admission_status="historical-not-reclassified",
@@ -401,6 +562,12 @@ def _inspect_campaign(
             raise ArtifactAdmissionError(
                 "post-policy build_start source evidence differs from WAL/lock identity"
             )
+        genome_value = _parse_canonical_genome(genome)
+        expected_variant = pipeline.variant_id(genome_value, src_token)
+        if record.variant != expected_variant:
+            raise ArtifactAdmissionError(
+                "post-policy WAL variant differs from canonical genome/source identity"
+            )
         receipt_shas.append(receipt["receipt_sha256"])
 
     # Detect an in-place rewrite between hashing and semantic validation.
@@ -441,4 +608,8 @@ def require_admitted_campaign(
             f"overlay={decision.overlay_ledger_sha256} "
             f"record={decision.overlay_record_key}"
         )
-    return AdmittedCampaign(layout=_layout(campaign), records=records, decision=decision)
+    return AdmittedCampaign(
+        layout=_layout(campaign),
+        records=_immutable_records(records),
+        decision=decision,
+    )

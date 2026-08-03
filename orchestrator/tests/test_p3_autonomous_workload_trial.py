@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import argparse
 import ast
 import gc
 import hashlib
@@ -31,6 +32,18 @@ from orchestrator.campaign import claude_projected_provider as P
 
 class _CliGateReached(Exception):
     """Sentinel proving that an accepted CLI path reached its next operation."""
+
+
+def _no_build_context():
+    return A.build_run_context(generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP)
+
+
+def _coder_authority():
+    parser = argparse.ArgumentParser()
+    A.add_coder_build_authority_argument(parser)
+    return parser.parse_args([
+        "--allow-coder-derived-build",
+    ]).coder_build_authority
 
 
 def _fake_drive(
@@ -124,10 +137,31 @@ def _actual_campaign_layout(
         descriptor_record=descriptor_record,
         trial_id=trial_id,
         generations=1,
+        build_context=_no_build_context(),
     )
     return A.CampaignLayout(
         str(run_root / "campaigns" / str(A.trigger.ident.campaign_id(cfg)))
     )
+
+
+def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
+    flags = A.WORKLOADS["ycsb-a"]
+    descriptor, descriptor_record = A._descriptor_for(flags)
+    context = _no_build_context()
+    cfg = A._campaign_for(
+        workload="ycsb-a", workload_flags=flags,
+        descriptor=descriptor, descriptor_record=descriptor_record,
+        trial_id="fixture-completeness", generations=1,
+        build_context=context,
+    )
+    assert cfg.search_config["build_admission"] == context.policy.as_preimage()
+    assert str(A.ident.campaign_id(cfg)) == (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-623e929a"
+    )
+    pre_t343_no_build_id = (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
+    )
+    assert str(A.ident.campaign_id(cfg)) != pre_t343_no_build_id
 
 
 def test_generation_budget_boundary_at_ratified_launch() -> None:
@@ -673,6 +707,23 @@ def test_run_trial_rejects_compute_build_before_artifact_or_provider(
     assert not run_root.exists()
 
 
+def test_run_trial_other_build_requires_parser_authority_before_artifact(
+    tmp_path, monkeypatch,
+) -> None:
+    run_root = tmp_path / "run"
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    with pytest.raises(A.AutonomousTrialError, match="parser-issued"):
+        A.run_trial(
+            trial_id="other-build-missing-authority",
+            workloads=["ycsb-a"], generations=1,
+            provider_kind="claude-headless", run_root=run_root,
+            sub="/unused", do_build=True,
+        )
+    assert not run_root.exists()
+
+
 def test_8c_internal_entrypoints_have_no_site_injection_surface() -> None:
     assert "site" not in inspect.signature(A._run_workload).parameters
     assert "site" not in inspect.signature(A._finish_trial).parameters
@@ -868,6 +919,7 @@ def test_run_workload_rejects_existing_campaign_state(tmp_path, monkeypatch) -> 
             trial_id="existing-state-rejected",
             started_monotonic=time.monotonic(),
             max_wall_s=60,
+            build_context=_no_build_context(),
         )
 
 
@@ -897,6 +949,7 @@ def test_run_workload_accepts_fresh_campaign_state(tmp_path, monkeypatch) -> Non
         max_wall_s=60,
         drive=_fake_drive,
         preview=_fake_preview,
+        build_context=_no_build_context(),
     )
     assert [generation["outcome"] for generation in result["generations"]] == [
         "dry-pass"
@@ -930,6 +983,7 @@ def test_run_workload_rejects_actual_existing_campaign_state(tmp_path) -> None:
             trial_id=trial_id,
             started_monotonic=time.monotonic(),
             max_wall_s=60,
+            build_context=_no_build_context(),
         )
 
 
@@ -960,6 +1014,7 @@ def test_run_workload_accepts_actual_fresh_campaign_layout(tmp_path) -> None:
         max_wall_s=60,
         drive=_fake_drive,
         preview=_fake_preview,
+        build_context=_no_build_context(),
     )
     assert [generation["outcome"] for generation in result["generations"]] == [
         "dry-pass"
@@ -1059,6 +1114,7 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
     ):
         assert do_build is True
         assert type(build_context) is A.BuildRunContext
+        assert build_context._authority_nonce is not None
         passed_layouts.append(layout)
         Path(layout.root).mkdir(parents=True, exist_ok=True)
         (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
@@ -1087,6 +1143,7 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
         providers=providers,
         drive=drive_build,
         preview=_fake_preview,
+        coder_authority=_coder_authority(),
     )
     expected = (
         tmp_path / "exploration" / "campaigns" / report["cells"][0]["campaign_id"]
@@ -1119,6 +1176,7 @@ def test_run_workload_no_build_stays_trial_local(tmp_path) -> None:
         max_wall_s=60,
         drive=_fake_drive,
         preview=_fake_preview,
+        build_context=_no_build_context(),
     )
 
     assert Path(result["campaign_root"]) == (

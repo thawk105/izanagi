@@ -287,3 +287,12 @@ def test_source_evidence_receipt_is_exact_and_rejects_forged_clean_bit():
     forged["tracked_clean"] = True
     with pytest.raises(ValueError, match="tracked_clean"):
         SourceEvidence.from_receipt(forged)
+
+
+def _run() -> int:
+    """pytest fixtures を含む全 node を素の runner からも実行する。"""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ from orchestrator.campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, Sourc
 
 
 ROOT = Path(__file__).resolve().parents[2]
-LEDGER_RAW_SHA256 = "d3a5d293a60bb2e87a04ca676b51adf6bba6f8ed3c2b61ac74cc384028fedf0b"
+LEDGER_RAW_SHA256 = "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93"
 EXPECTED_RECORDS = (
     (
         "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387",
@@ -43,6 +44,11 @@ EXPECTED_RECORDS = (
         2,
     ),
 )
+KNOWN_HISTORICAL = (
+    "output/campaigns/p2-2-silo-balanced-enumerate-f1588056",
+    "f15880560640c76223fb7c20ed4f8b1e6d4596ae80c94bdbc55c95d5201a180f",
+    "d6e98161d8cc3a011688316c3a180a532c0374c87fbbcc30934106f51f95f34c",
+)
 
 
 def _write_campaign(root: Path, lock: dict, records: list[dict]) -> Path:
@@ -60,7 +66,7 @@ def _write_campaign(root: Path, lock: dict, records: list[dict]) -> Path:
 
 def _record(stage: str, payload: dict, *, ts: float) -> dict:
     return {
-        "variant": "v1", "stage": stage, "env_tag": "test", "ts": ts,
+        "variant": "6a803ba39f7b", "stage": stage, "env_tag": "test", "ts": ts,
         "payload": payload,
     }
 
@@ -164,11 +170,101 @@ def test_overlay_named_campaign_with_changed_hash_is_tampering_not_fallthrough(
         A.classify_campaign(copied)
 
 
+def test_overlay_exact_bytes_remain_denied_after_relocation(tmp_path: Path) -> None:
+    source = ROOT / EXPECTED_RECORDS[0][0]
+    copied = tmp_path / "renamed-campaign"
+    (copied / "runs").mkdir(parents=True)
+    (copied / "campaign.lock").write_bytes((source / "campaign.lock").read_bytes())
+    (copied / "runs/wal.jsonl").write_bytes(
+        (source / "runs/wal.jsonl").read_bytes()
+    )
+
+    decision = A.classify_campaign(copied)
+    assert decision.classification == "overlay-denied"
+    assert decision.overlay_record_key is not None
+    with pytest.raises(A.CampaignNotAdmitted, match="legacy-unclassified"):
+        A.require_admitted_campaign(copied)
+
+
+@pytest.mark.parametrize("mutated_file", ["campaign.lock", "runs/wal.jsonl"])
+def test_overlay_invariant_tuple_partial_match_is_tampering(
+    tmp_path: Path, mutated_file: str,
+) -> None:
+    source = ROOT / EXPECTED_RECORDS[1][0]
+    copied = tmp_path / "relocated-and-mutated"
+    (copied / "runs").mkdir(parents=True)
+    (copied / "campaign.lock").write_bytes((source / "campaign.lock").read_bytes())
+    (copied / "runs/wal.jsonl").write_bytes(
+        (source / "runs/wal.jsonl").read_bytes()
+    )
+    target = copied / mutated_file
+    target.write_bytes(target.read_bytes() + b"\n")
+
+    with pytest.raises(A.OverlayMutationError, match="known overlay campaign"):
+        A.classify_campaign(copied)
+
+
 def test_unlisted_post_policy_campaign_requires_exact_attempt_receipt(tmp_path: Path) -> None:
     campaign = _new_schema_campaign(tmp_path)
     admitted = A.require_admitted_campaign(campaign)
     assert admitted.decision.classification == "admitted-new-schema"
     assert len(admitted.decision.attempt_receipt_sha256s) == 1
+
+
+def test_post_policy_variant_is_rederived_from_genome_and_source(tmp_path: Path) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    for record in records:
+        record["variant"] = "ffffffffffff"
+    wal_path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(A.ArtifactAdmissionError, match="variant differs"):
+        A.require_admitted_campaign(campaign)
+
+
+def test_post_policy_variant_without_build_start_remains_admissible(tmp_path: Path) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    records.insert(2, {
+        "variant": "ffffffffffff",
+        "stage": "verify_done",
+        "env_tag": "test",
+        "ts": 2.5,
+        "payload": {"certified": True},
+    })
+    wal_path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+
+    admitted = A.require_admitted_campaign(campaign)
+    assert admitted.decision.classification == "admitted-new-schema"
+    assert any(
+        record.variant == "ffffffffffff" and record.stage == "verify_done"
+        for record in admitted.records
+    )
+
+
+def test_admitted_view_is_deeply_immutable(tmp_path: Path) -> None:
+    admitted = A.require_admitted_campaign(_new_schema_campaign(tmp_path))
+    start = admitted.records[0]
+    with pytest.raises(FrozenInstanceError):
+        start.stage = "commit"
+    with pytest.raises(TypeError):
+        start.payload["genome"] = "silo|BACK_OFF=1"
+    with pytest.raises(TypeError):
+        start.payload["build_admission"]["source"]["src_token"] = "mutated"
 
 
 def test_unlisted_post_policy_receiptless_terminal_is_denied(tmp_path: Path) -> None:
@@ -177,7 +273,7 @@ def test_unlisted_post_policy_receiptless_terminal_is_denied(tmp_path: Path) -> 
         A.require_admitted_campaign(campaign)
 
 
-def test_unlisted_pre_policy_historical_campaign_is_not_blanket_denied(tmp_path: Path) -> None:
+def test_unlisted_receiptless_campaign_cannot_self_declare_history(tmp_path: Path) -> None:
     campaign = _write_campaign(
         tmp_path / "historical",
         {
@@ -187,6 +283,24 @@ def test_unlisted_pre_policy_historical_campaign_is_not_blanket_denied(tmp_path:
         },
         [_record("build_start", {"genome": "g", "src_token": "old"}, ts=1.0)],
     )
+    with pytest.raises(A.ArtifactAdmissionError, match="historicity is not proven"):
+        A.require_admitted_campaign(campaign)
+
+
+def test_exact_pre_policy_git_snapshot_artifact_remains_readable() -> None:
+    path, lock_sha, wal_sha = KNOWN_HISTORICAL
+    campaign = ROOT / path
+    assert hashlib.sha256((campaign / "campaign.lock").read_bytes()).hexdigest() == lock_sha
+    assert hashlib.sha256((campaign / "runs/wal.jsonl").read_bytes()).hexdigest() == wal_sha
     admitted = A.require_admitted_campaign(campaign)
     assert admitted.decision.classification == "historical-pre-admission-schema"
     assert admitted.decision.admission_status == "historical-not-reclassified"
+
+
+def _run() -> int:
+    """pytest fixtures/parametrize を含む全 node を素の runner からも実行する。"""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

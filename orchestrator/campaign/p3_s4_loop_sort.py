@@ -65,6 +65,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, pin, wal                              # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
+from campaign.artifact_admission import require_admitted_campaign # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
@@ -178,7 +179,7 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
     sort-strategy 採用の根拠にした「S2 が実際に hot key 競合を踏む」という前提を
     この driver 自身で満たさないと D41 の条件付き採用の土台が崩れる (敵対レビュー
     2026-07-10 で必須修正と判定)。"""
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug="p3-s5-sort-loop", search_tag="s5-sort-autonomous",
         spec_content=("P3 後続段 5: sort-strategy (write_set 施錠順序 comparator) coder "
                       "自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋を見ずに "
@@ -191,6 +192,8 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                        "records": 100_000, "threads": 4,
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial="p3-s5-sort-loop")
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    return ident.bind_admission_policy(cfg, context.policy)
 
 
 default_perf = L.default_perf   # 軸非依存 (kickoff 規模、有意性を主張しない配線規模)
@@ -478,7 +481,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         f.write(digest_txt)
 
     stop = L.check_stop(state)
-    dqs = load_diff_rejections(layout)
+    critic_view = require_admitted_campaign(layout.root)
+    dqs = load_diff_rejections(critic_view)
     n_wal = len(list(wal.read_records(layout)))
     checks = {
         f"iteration(={state.iteration}) が WAL レコード数(={n_wal})と独立 (WAL 由来でない)":

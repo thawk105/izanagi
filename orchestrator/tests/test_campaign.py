@@ -67,8 +67,6 @@ _BUILD_CONTEXT = build_run_context(
         ["--allow-coder-derived-build"]
     ).coder_build_authority,
 )
-
-
 def _source_evidence(
         genome_value: Genome, commit: str, *, src_token: str = "stock",
         source_root: str = "/tmp/izanagi-test-ccbench",
@@ -97,6 +95,51 @@ def _admission_for(
         genome_value, commit, src_token=src_token, source_root=source_root,
     )
     return derive_build_admission(_BUILD_CONTEXT, evidence)
+
+
+def _write_receiptful_attempt(
+        layout: CampaignLayout, genome_value: Genome, variant: str, *,
+        attempt_id: str, terminal: str, reason: str | None = None,
+) -> None:
+    """Seed one canonical post-policy attempt without bypassing topology checks."""
+    admission = _admission_for(genome_value, "deadbeef")
+    receipt = admission.as_wal_receipt()
+    propagated = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    }
+    wal.log(layout, variant, STAGE_BUILD_START, "test-env", {
+        "genome": genome_value.canonical(),
+        "src_token": receipt["source"]["src_token"],
+        "build_attempt_id": attempt_id,
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    })
+    if terminal == STAGE_COMMIT:
+        wal.log(layout, variant, STAGE_BUILD_DONE, "test-env", dict(propagated))
+        wal.log(layout, variant, STAGE_COMMIT, "test-env", {
+            **propagated, "fitness_tps": 100.0,
+        })
+    elif terminal == STAGE_ABORT:
+        wal.log(layout, variant, STAGE_ABORT, "test-env", {
+            **propagated, "reason": reason or "fixture-abort",
+        })
+    else:  # pragma: no cover - helper calls are closed in this module
+        raise AssertionError(f"unsupported fixture terminal: {terminal}")
+
+
+def _write_prebuild_abort(
+        layout: CampaignLayout, genome_value: Genome, variant: str, *,
+        attempt_id: str, reason: str,
+) -> None:
+    wal.log(layout, variant, STAGE_BUILD_START, "test-env", {
+        "genome": genome_value.canonical(),
+        "build_attempt_id": attempt_id,
+    })
+    wal.log(layout, variant, STAGE_ABORT, "test-env", {
+        "reason": reason,
+        "build_attempt_id": attempt_id,
+    })
 
 
 # ===== genome 列挙 =====
@@ -192,6 +235,32 @@ def _bound(cfg: CampaignConfig) -> CampaignConfig:
 
 _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-45ca7ab9"
 _T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-4347a1fd"
+_PRE_T343_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-4891e99f",
+    "backoff-sweep-silo-balanced-sweep-3d39fe94",
+    "backoff-sweep-silo-read-heavy-sweep-9d37b4cf",
+})
+_T343_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-c7e53c07",
+    "backoff-sweep-silo-balanced-sweep-09c1364f",
+    "backoff-sweep-silo-read-heavy-sweep-adad17bc",
+})
+_PRE_T343_S6_CAMPAIGN_IDS = frozenset({
+    "p3-s6-sort-sweep-balanced-sweep-dd25aa8c",
+    "p3-s6-sort-sweep-write-heavy-sweep-0484feef",
+})
+_T343_S6_CAMPAIGN_IDS = frozenset({
+    "p3-s6-sort-sweep-balanced-sweep-c5a978ca",
+    "p3-s6-sort-sweep-write-heavy-sweep-dde984c3",
+})
+
+
+def _campaign_id_from_historical_preimage(spec_slug, search_tag, preimage):
+    rendered = json.dumps(
+        preimage, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    )
+    digest = hashlib.sha256(rendered.encode("utf-8")).hexdigest()[:8]
+    return f"{spec_slug}-{search_tag}-{digest}"
 
 
 def test_campaign_id_deterministic():
@@ -199,9 +268,19 @@ def test_campaign_id_deterministic():
 
 
 def test_campaign_id_binds_admission_policy():
+    historical = _campaign_id_from_historical_preimage(
+        "readheavy-locont", "fullsearch", {
+            "spec_content": "rratio=95,skew=0.9",
+            "ccbench_commit": "977e194",
+            "search_tag": "fullsearch",
+            "search_config": {"tier": "0-1", "scale": "silo"},
+            "trial": None,
+        },
+    )
     current = str(ident.campaign_id(_cfg()))
+    assert historical == _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID
     assert current == _T343_REPRESENTATIVE_CAMPAIGN_ID
-    assert current != _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID
+    assert current != historical
 
 
 def test_campaign_id_content_sensitive():
@@ -326,29 +405,75 @@ def test_screening_float_identity_does_not_collapse_distinct_values():
 
 
 def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
-    """repr 正準化は screening key が無い歴史的 campaign の pre-image に触れない。"""
+    """pre-T343 の明示 preimage と現行 policy-bound ID を対で固定する。"""
     import dataclasses
 
     from campaign.backoff_sweep import WORKLOADS as BACKOFF_WORKLOADS
     from campaign.backoff_sweep import config_for as backoff_config
     from campaign.s6_sort_sweep import config_for as s6_config
 
-    # 歴史的 id は当時の ccbench pin (dff0f1e) で刻まれている。driver の現行 pin が
-    # 進んでも pre-image 検査が成立するよう、照合はここで歴史的 pin に固定する。
-    expected = {
-        str(ident.campaign_id(dataclasses.replace(
-            backoff_config(tag, workload), ccbench_commit="dff0f1e")))
+    workloads = {
+        "write-heavy": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"},
+        "balanced": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
+        "read-heavy": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"},
+    }
+    historical_backoff = {
+        _campaign_id_from_historical_preimage(
+            f"backoff-sweep-silo-{tag}", "sweep", {
+                "spec_content": (
+                    f"P2 case study: silo static-backoff sweep — workload={tag}"
+                ),
+                "ccbench_commit": "dff0f1e",
+                "search_tag": "sweep",
+                "search_config": {
+                    "scale": "silo-backoff", "base": "L-W0",
+                    "sweep_us": [2, 5, 10, 25, 50, 100],
+                    "workload": tag, "records": 1_000_000, "threads": 48,
+                    "ycsb": workload,
+                },
+                "trial": "p2-backoff",
+            },
+        )
+        for tag, workload in workloads.items()
+    }
+    assert historical_backoff == _PRE_T343_BACKOFF_CAMPAIGN_IDS
+
+    current_backoff = {
+        str(ident.campaign_id(_bound(dataclasses.replace(
+            backoff_config(tag, workload), ccbench_commit="dff0f1e"))))
         for tag, workload in BACKOFF_WORKLOADS
     }
-    assert expected == {
-        "backoff-sweep-silo-write-heavy-sweep-4891e99f",
-        "backoff-sweep-silo-balanced-sweep-3d39fe94",
-        "backoff-sweep-silo-read-heavy-sweep-9d37b4cf",
-    }
-    assert str(ident.campaign_id(s6_config("balanced"))) == \
-        "p3-s6-sort-sweep-balanced-sweep-dd25aa8c"
-    assert str(ident.campaign_id(s6_config("write-heavy"))) == \
-        "p3-s6-sort-sweep-write-heavy-sweep-0484feef"
+    assert current_backoff == _T343_BACKOFF_CAMPAIGN_IDS
+
+    historical_s6 = set()
+    for tag in ("balanced", "write-heavy"):
+        historical_s6.add(_campaign_id_from_historical_preimage(
+            f"p3-s6-sort-sweep-{tag}", "sweep", {
+                "spec_content": (
+                    "P3 段6前提 (i): sort comparator 空間の機械列挙 sweep (偵察、D44)。"
+                    "preliminary = 事前登録外カテゴリ、断定 verdict なし、(c) 判定は出さない。"
+                    "空間 = mech-enum-v1: keys{storage_,key_,rcdptr_} x dir{asc,desc} x "
+                    "lexicographic-prefix + nosort、全点 SWO-by-construction。"
+                    f"workload={tag}。"
+                ),
+                "ccbench_commit": "d706650",
+                "search_tag": "sweep",
+                "search_config": {
+                    "scale": "silo", "axis": "silo-writeset-sort",
+                    "generator": "mech-enum-v1",
+                    "space": "keys{S,K,P}xdir{a,d}xprefix+nosort",
+                    "workload": tag, "ycsb": workloads[tag],
+                    "records": 1_000_000, "threads": 48,
+                    "verify": "legacy+s2",
+                },
+                "trial": "p3-s6-sort-sweep",
+            },
+        ))
+    assert historical_s6 == _PRE_T343_S6_CAMPAIGN_IDS
+    assert {
+        str(ident.campaign_id(s6_config(tag)))
+        for tag in ("balanced", "write-heavy")
+    } == _T343_S6_CAMPAIGN_IDS
 
 
 def test_identity_mismatch_guard():
@@ -1540,7 +1665,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     # mock し stock 固定 (source_digest 自体は専用テストで実機検証する)。
     def fake_source_resolve(genome_value, commit, *, ccbench_dir="", cxx="g++-13"):
         bench_calls.source_resolve_calls.append((
-            (genome_value, commit), {"ccbench_dir": ccbench_dir, "cxx": cxx},
+            (genome_value, commit, ccbench_dir, cxx), {},
         ))
         return _source_evidence(
             genome_value,
@@ -2341,7 +2466,9 @@ def test_pipeline_screening_keeps_existing_bench_failure_reasons():
         r, calls = _eval(lay, screening=_screening(), **mock_kw)
         assert r.aborted and not r.certified and r.fitness_tps is None
         assert len(calls) == 1 and len(calls.trace) == 0
-        terminal = wal.replay(lay)[r.variant].last_terminal
+        terminal = wal.replay(
+            lay, admission_policy=_BUILD_CONTEXT.policy,
+        )[r.variant].last_terminal
         assert terminal.stage == STAGE_ABORT and terminal.payload["reason"] == reason
 
 
@@ -2621,7 +2748,10 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
     )
     patch("source_digest", types.SimpleNamespace(
         STOCK="stock", assert_worktree_within_allowlist=lambda *a, **k: None,
-        src_token=lambda *a, **k: "stock", resolve=lambda *a, **k: "stock"))
+        resolve_evidence=lambda genome_value, commit, **kwargs: _source_evidence(
+            genome_value, commit,
+            source_root=kwargs.get("ccbench_dir") or "/tmp/izanagi-test-ccbench",
+        )))
     patch("_run_trace", fake_run_trace)
     patch("verify_trace_dir", fake_verify)
     patch("bench_lock", fake_lock)
@@ -2828,10 +2958,10 @@ def test_loop_probe_error_is_retryable_after_recovery():
         lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
         wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
         # run1: probe 故障 → terminal abort (evaluate は呼ばれた体で WAL を直書き)
-        wal.log(lay, v, STAGE_BUILD_START, "test-env",
-                {"genome": g.canonical(), "src_token": "stock"})
-        wal.log(lay, v, STAGE_ABORT, "test-env",
-                {"reason": reason, "probe_error": {"kind": "exec-failure"}})
+        _write_receiptful_attempt(
+            lay, g, v, attempt_id=f"loop-probe-{reason}",
+            terminal=STAGE_ABORT, reason=reason,
+        )
 
         calls = []
 
@@ -2871,9 +3001,15 @@ def test_screening_driver_probe_error_is_retryable_after_recovery():
         lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
         wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
         # run1: terminal abort (evaluate は呼ばれた体で WAL を直書き)
-        wal.log(lay, v, STAGE_BUILD_START, "test-env",
-                {"genome": g.canonical(), "src_token": "stock"})
-        wal.log(lay, v, STAGE_ABORT, "test-env", {"reason": reason})
+        if reason == "identity-error":
+            _write_prebuild_abort(
+                lay, g, v, attempt_id=f"screen-{reason}", reason=reason,
+            )
+        else:
+            _write_receiptful_attempt(
+                lay, g, v, attempt_id=f"screen-{reason}",
+                terminal=STAGE_ABORT, reason=reason,
+            )
 
         calls = []
 
@@ -2883,14 +3019,15 @@ def test_screening_driver_probe_error_is_retryable_after_recovery():
                               variant=pipeline.variant_id(g, kw.get("src_token")),
                               certified=True, aborted=False, fitness_tps=100.0)
 
-        saved = SD.evaluate
+        saved, saved_sd = SD.evaluate, SD.source_digest
         SD.evaluate = fake_eval
+        SD.source_digest = _sd_mock("stock")
         try:
             res = SD.evaluate_candidate(
                 cfg, lay, g, PerfConfig(records=1, threads=1), "test-env", 1800,
                 screening=None, src_token="stock", log=lambda *a: None, build_context=_BUILD_CONTEXT)
         finally:
-            SD.evaluate = saved
+            SD.evaluate, SD.source_digest = saved, saved_sd
         if reason in retryable:
             assert len(calls) == 1 and res is not None and res.certified, reason
         else:
@@ -2977,9 +3114,12 @@ def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
     contract = ec.lookup("pegasus")
     prefix = "/scr/job/gflags;/scr/job/glog"
 
-    def resolve(*args, **kwargs):
-        captured["resolve"].append((args, kwargs))
-        return "stock"
+    def resolve(genome_value, commit, *, ccbench_dir="", cxx="g++-13"):
+        captured["resolve"].append(((genome_value, commit, ccbench_dir, cxx), {}))
+        return _source_evidence(
+            genome_value, commit,
+            source_root=ccbench_dir or "/tmp/izanagi-test-ccbench",
+        )
 
     def fake_eval(g, *args, **kwargs):
         captured["evaluate"].append(kwargs)
@@ -2997,7 +3137,7 @@ def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
     saved_compilers = L._compilers_for_current_site
     saved_authorize = L._authorize_measurement
     L.evaluate = fake_eval
-    L.source_digest = types.SimpleNamespace(STOCK="stock", resolve=resolve)
+    L.source_digest = types.SimpleNamespace(STOCK="stock", resolve_evidence=resolve)
     L._compilers_for_current_site = lambda: ("gcc", "g++")
     L._authorize_measurement = lambda *args, **kwargs: {"fixture": "receipt"}
     try:
@@ -3089,6 +3229,10 @@ def _sd_mock(src_token):
             raise src_token
     else:
         def _resolve(genome_value, commit, *, ccbench_dir="", cxx="g++-13"):
+            if src_token != "stock" and len(src_token) != 64:
+                # The loop-only tests replace evaluate() itself; preserve their
+                # opaque identity sentinel without treating it as build evidence.
+                return types.SimpleNamespace(src_token=src_token)
             return _source_evidence(
                 genome_value,
                 commit,
@@ -3239,7 +3383,7 @@ def test_loop_isolates_failing_genome():
     assert s.aborted == 1 and s.committed == 1
     # 例外 variant は WAL に abort 記録 → 再起動で terminal_variants がスキップ
     bad = pipeline.variant_id(genomes[0])
-    assert wal.replay(lay)[bad].aborted
+    assert wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)[bad].aborted
 
 
 def test_loop_dedup_identical_genome_in_one_run():
@@ -3293,8 +3437,10 @@ def test_loop_recovery_skips_committed_src_token_variant():
     # 前回 run の成果を WAL に seed: src_token id で commit 済み (terminal)
     lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
     wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
-    wal.log(lay, src_id, STAGE_BUILD_START, "test-env", {"genome": g.canonical()})
-    wal.log(lay, src_id, STAGE_COMMIT, "test-env", {"fitness_tps": 100.0})
+    _write_receiptful_attempt(
+        lay, g, src_id, attempt_id="recovery-codediff",
+        terminal=STAGE_COMMIT,
+    )
 
     calls = []
 
@@ -3325,7 +3471,7 @@ def test_loop_isolates_identity_error():
     s, lay = _loop_with_fake_eval(fake_eval, genomes, "id-err",
                                   src_token=RuntimeError("g++ 不在"))
     assert s.aborted == 2 and s.committed == 0 and s.evaluated == 2
-    st = wal.replay(lay)
+    st = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
     for g in genomes:
         assert st[pipeline.variant_id(g)].aborted        # identity 不明ゆえ stock id で abort
 
@@ -3378,11 +3524,14 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
     lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
     wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
     # run1: identity-error abort (stock id)
-    wal.log(lay, v_stock, STAGE_BUILD_START, "test-env", {"genome": g.canonical()})
-    wal.log(lay, v_stock, STAGE_ABORT, "test-env",
-            {"reason": "identity-error", "error": "g++ 一時不在"})
+    _write_prebuild_abort(
+        lay, g, v_stock, attempt_id="identity-error-1",
+        reason="identity-error",
+    )
     # run2: 修復後の再評価が BUILD_START を書いた直後にクラッシュ (COMMIT/ABORT なし)
-    wal.log(lay, v_stock, STAGE_BUILD_START, "test-env", {"genome": g.canonical()})
+    wal.log(lay, v_stock, STAGE_BUILD_START, "test-env", {
+        "genome": g.canonical(), "build_attempt_id": "identity-crash-2",
+    })
 
     calls = []
 
@@ -3417,8 +3566,10 @@ def test_loop_identity_skip_is_visible_when_stock_id_terminal():
     lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
     wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
     # 過去 run で stock id が commit 済み (coder variant の working-tree で再開する状況)
-    wal.log(lay, v_stock, STAGE_BUILD_START, "test-env", {"genome": g.canonical()})
-    wal.log(lay, v_stock, STAGE_COMMIT, "test-env", {"fitness_tps": 100.0})
+    _write_receiptful_attempt(
+        lay, g, v_stock, attempt_id="identity-skip-commit",
+        terminal=STAGE_COMMIT,
+    )
 
     saved_sd = L.source_digest
     L.source_digest = _sd_mock(RuntimeError("git 一時故障"))

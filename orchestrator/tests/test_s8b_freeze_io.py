@@ -254,7 +254,11 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
 
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
-                   timeout_s=None, admission=None):
+                   timeout_s=None, admission=None, build_context=None,
+                   source_evidence=None):
+        assert admission is not None
+        assert build_context is not None
+        assert source_evidence is not None
         assert ccbench_dir == "/fx/ccbench"
         assert timeout_s == 900
         d = Path(cache_root) / "fixture" / src_token.replace("::", "__")
@@ -273,6 +277,20 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
 
     seen = {}
 
+    def fixture_evidence(genome, ccbench_commit, *, ccbench_dir="", **_ignored):
+        source_sha = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
+        return floor.source_digest.SourceEvidence(
+            schema_version=floor.source_digest.SOURCE_EVIDENCE_SCHEMA,
+            source_root=str(Path(ccbench_dir).resolve()),
+            ccbench_commit=ccbench_commit,
+            genome_sha256=source_sha,
+            src_token=source_sha,
+            source_bytes_sha256=source_sha,
+            tracked_clean=True,
+            tracked_diff_sha256=floor.source_digest.EMPTY_TRACKED_DIFF_SHA256,
+            tracked_paths=(),
+        )
+
     def spy_measure_point(binary, records, threads, clocks_per_us, **kw):
         seen["clocks_per_us"] = clocks_per_us
         seen["numactl"] = kw.get("numactl")
@@ -285,6 +303,7 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
                                run_cmd=shlex.join(argv))
 
     with mock.patch.object(floor.buildcache, "build_v2", fake_build), \
+         mock.patch.object(floor.source_digest, "resolve_evidence", fixture_evidence), \
          mock.patch.object(floor, "measure_point", spy_measure_point):
         floor.run_campaign(protocol, verified, out_root=tmp_path / "out", mode="pilot",
                            measure_fn=None, probe_fn=lambda: (1, "", ""),

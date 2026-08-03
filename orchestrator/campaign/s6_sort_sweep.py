@@ -170,7 +170,7 @@ def config_for(tag: str, trial: str = TRIAL_MAIN) -> CampaignConfig:
     identity をハッシュで分離し variant_id クロス汚染を構造的に防ぐ (機構レンズ
     should-fix、backoff_sweep.config_for と同型)。"""
     workload = WORKLOADS[tag]
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug=f"p3-s6-sort-sweep-{tag}", search_tag="sweep",
         spec_content=(
             "P3 段6前提 (i): sort comparator 空間の機械列挙 sweep (偵察、D44)。"
@@ -185,6 +185,8 @@ def config_for(tag: str, trial: str = TRIAL_MAIN) -> CampaignConfig:
                        "records": RECORDS, "threads": THREADS,
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial=trial)
+    context = build_run_context(generator_id=GeneratorId.S6_SORT_SWEEP)
+    return ident.bind_admission_policy(cfg, context.policy)
 
 
 def perf_for(tag: str) -> PerfConfig:
@@ -272,7 +274,9 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                 prov[STOCK_NAME] = baseline_entry
                 _write_provenance(layout, tag, trial, prov)
             # quarantine reject が最初の WAL write でも self-seal しないよう先行する。
-            ident.ensure_campaign_identity(cfg, layout)
+            ident.ensure_campaign_identity(
+                cfg, layout, admission_policy=build_context.policy,
+            )
             for name in sel_names:
                 if screening_enabled and name == STOCK_NAME:
                     continue

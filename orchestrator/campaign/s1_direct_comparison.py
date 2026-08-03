@@ -213,7 +213,7 @@ def config_for(document: Mapping, role: str) -> CampaignConfig:
         raise DriverError("freeze の ccbench_pin/schedule_hash が文字列でない")
     verify_mode = (pipeline.VERIFY_LEGACY_PLUS_S2
                    if role == "develop" else pipeline.LEGACY_TAG)
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug=f"s1-direct-{role}", search_tag="direct-comparison",
         spec_content=("S-1 登録追試の計測実行系。freeze の18セルと固定 schedule を "
                       "pipeline.evaluate の COMMIT 唯一経路で実行する。"),
@@ -226,6 +226,8 @@ def config_for(document: Mapping, role: str) -> CampaignConfig:
         # v1 は prepare_cell 実体化バグを含む実行系で走ったため identity を分離する。
         trial="s1-direct-v2",
     )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    return ident.bind_admission_policy(cfg, context.policy)
 
 
 def layout_for(document: Mapping, role: str, output_root: str = "") -> CampaignLayout:
@@ -552,8 +554,9 @@ def prepare_cell(cell: Mapping, ccbench_pin: str):
         elif patch_only_path is not None:
             stack.enter_context(patchharness.applied(
                 str(patch_only_path), ccbench_pin, ccbench_dir=sub))
-        evidence = source_digest.resolve_evidence(genome, ccbench_pin, ccbench_dir=sub)
-        src_token = evidence.src_token
+        # The materializer boundary re-resolves and validates full SourceEvidence.
+        # Preparation only needs the stable variant token for scheduling/identity.
+        src_token = source_digest.resolve(genome, ccbench_pin, ccbench_dir=sub)
         yield PreparedCell(genome=genome, src_token=src_token,
                            ccbench_dir=sub, cache_root=cache_root)
 

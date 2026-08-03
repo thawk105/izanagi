@@ -78,7 +78,8 @@ from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.build_admission import (BuildAdmissionError,         # noqa: E402
                                       BuildRunContext, GeneratorId,
                                       attest_generator_output,
-                                      build_run_context)
+                                      build_run_context,
+                                      validate_build_admission_receipt)
 from campaign.layout import campaign_layout, repo_output_root     # noqa: E402
 from campaign.loop import run_campaign                            # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
@@ -139,6 +140,59 @@ def load_effective_reasons() -> List[str]:
                            " (D48 必須前提 (a): 不感ビット未確定のまま sweep を設計しない)")
     with open(path, encoding="utf-8") as f:
         j = json.load(f)
+    if type(j) is not dict:
+        raise RuntimeError(f"頻度実測が JSON object でない: {path}")
+    artifact_commit = j.get("ccbench_commit")
+    artifact_genome = j.get("genome")
+    if artifact_commit != PIN or type(artifact_genome) is not str:
+        raise RuntimeError(
+            f"頻度実測の source identity が不正: ccbench_commit={artifact_commit!r}, "
+            f"genome={artifact_genome!r}"
+        )
+    expected_genome = Genome("silo", dict(T._BASE, ADD_ANALYSIS=1)).canonical()
+    if artifact_genome != expected_genome:
+        raise RuntimeError(
+            "頻度実測の genome が S8a characterization producer と不一致"
+        )
+    receipts = j.get("build_admissions")
+    if type(receipts) is not list or len(receipts) != 1:
+        raise RuntimeError(
+            "頻度実測の build_admissions は characterization build 1 件の "
+            "receipt が exact に必要"
+        )
+    receipt_context = build_run_context(
+        generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+    )
+    expected_genome_sha = hashlib.sha256(
+        artifact_genome.encode("utf-8")
+    ).hexdigest()
+    expected_input_sha = hashlib.sha256(json.dumps({
+        "schema": "s8a-trigger-characterization-input/v1",
+        "genome": artifact_genome,
+        "trace": True,
+        "extra_cxx_define": "",
+    }, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode(
+        "utf-8"
+    )).hexdigest()
+    for index, receipt in enumerate(receipts):
+        try:
+            checked = validate_build_admission_receipt(
+                receipt, expected_policy=receipt_context.policy,
+            )
+        except (BuildAdmissionError, TypeError, ValueError) as exc:
+            raise RuntimeError(
+                f"頻度実測の build_admissions[{index}] が不正: {exc}"
+            ) from exc
+        source = checked["source"]
+        if (checked["class"] != "machine-generated"
+                or checked["generator_id"] != "s8a-trigger-sweep"
+                or checked["input_sha256"] != expected_input_sha
+                or source["ccbench_commit"] != artifact_commit
+                or source["genome_sha256"] != expected_genome_sha):
+            raise RuntimeError(
+                f"頻度実測の build_admissions[{index}] が "
+                "artifact source/genome/commit または S8a generator input と不一致"
+            )
     if "effective_reasons" not in j:
         raise RuntimeError(f"頻度実測が部分実行 (effective_reasons 欠落): {path} — "
                            "全 workload で回し直すこと (fails-closed)")
@@ -211,7 +265,7 @@ def config_for(tag: str, effective: Sequence[str],
     (variant_id クロス汚染の構造的防止、s6_sort_sweep と同型) + 実効ビットが変われば
     別 campaign (列挙空間の異なる sweep を同一 WAL に混ぜない)。"""
     workload = WORKLOADS[tag]
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug=f"p3-s8a-trigger-sweep-{tag}", search_tag="sweep",
         spec_content=(
             "P3 段 8a D 段: silo-backoff-trigger-gating 機械列挙 sweep (偵察、D46 型)。"
@@ -229,6 +283,8 @@ def config_for(tag: str, effective: Sequence[str],
                        "records": RECORDS, "threads": THREADS,
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial=trial)
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    return ident.bind_admission_policy(cfg, context.policy)
 
 
 def perf_for(tag: str) -> PerfConfig:
@@ -320,7 +376,9 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                 prov[IDENT_NAME] = baseline_entry
                 _write_provenance(layout, tag, trial, effective, prov)
             # quarantine reject が最初の WAL write でも self-seal しないよう先行する。
-            ident.ensure_campaign_identity(cfg, layout)
+            ident.ensure_campaign_identity(
+                cfg, layout, admission_policy=build_context.policy,
+            )
             for name in sel_names:
                 if screening_enabled and name == IDENT_NAME:
                     continue

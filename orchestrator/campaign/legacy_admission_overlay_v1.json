@@ -17,7 +17,8 @@
     ],
     "verification_dimension": "preserve the verifier verdict recorded at the time",
     "admission_dimension": "deny admission-aware selection as legacy-unclassified",
-    "membership_rule": "no inferred, prefix, or future campaign membership"
+    "membership_rule": "no inferred, prefix, or future campaign membership",
+    "historicity_rule": "unlisted receiptless artifacts require exact path, campaign.lock, and WAL bytes in created_from_commit"
   },
   "records": [
     {

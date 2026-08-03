@@ -2885,10 +2885,16 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
                 receipt=execution_guard.build_receipt(contract),
                 perf_sha_by_cell=perf)
 
+        stable_receipt_epoch = driver._t080_migration.ReceiptResolution(
+            "never-issued", (), None, "c" * 40,
+        )
+
         driver.DEFAULT_BUDGET_PATH = {str(budget_path)!r}
         with mock.patch.object(
                 driver, "_gate_check_validated",
                 return_value=driver.GateDecision(True, [], None)), \\
+             mock.patch.object(driver, "_resolve_t080_receipt",
+                               return_value=stable_receipt_epoch), \\
              mock.patch.object(driver.s8b_ratified_freeze,
                                "load_ratified_freeze", return_value=ratified), \\
              mock.patch.object(driver.s8b_ratified_freeze,

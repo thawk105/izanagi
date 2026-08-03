@@ -42,6 +42,7 @@ import difflib
 import json
 import os
 import re
+import secrets
 import sys
 import time
 from dataclasses import dataclass, field
@@ -53,6 +54,7 @@ from campaign import ident, wal                                    # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
+from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
                                       parse_template_file)
@@ -235,10 +237,13 @@ def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: s
     だけで消費されない片肺を作らない)。build/verify には到達しないので verify payload も
     fitness も無い (正しさゲート手前の失格 = 採用しない、規律2)。"""
     v = diffq_variant_id(genome, implementation)
+    attempt_id = secrets.token_hex(16)
     wal.log(layout, v, STAGE_BUILD_START, env_tag,
-            {"genome": genome.canonical(), "src_token": ""})
+            {"genome": genome.canonical(), "src_token": "",
+             "build_attempt_id": attempt_id})
     wal.log(layout, v, STAGE_ABORT, env_tag,
             {"reason": DIFF_QUARANTINE_REASON,
+             "build_attempt_id": attempt_id,
              "genome": genome.canonical(),
              "diff_quarantine": res.digest or {}})
     return v
@@ -255,14 +260,15 @@ def make_critic_digest(layout: CampaignLayout, tag: str = "p3-s4",
     rejection の構造化 anomaly を還流させない対照アーム (main-experiment の LLM ablation、
     合流 1 点の切替。phase3.md 段 6 の第 3 アーム reason-only は段 6)。緑 LI は両アーム
     共通 (性能数値は trace-disabled build 由来、規律1)。"""
-    green = render_text([build_digest(tag, {}, layout)])
+    view = require_admitted_campaign(layout.root)
+    green = render_text([build_digest(tag, {}, view)])
     if not reflux:
         return green
-    livs, other = load_liveness_rejections(layout)
+    livs, other = load_liveness_rejections(view)
     red = render_rejections(
-        load_rejections(layout), livs, other,
-        load_verify_abort_signals(layout),
-        diff_rejections=load_diff_rejections(layout))
+        load_rejections(view), livs, other,
+        load_verify_abort_signals(view),
+        diff_rejections=load_diff_rejections(view))
     return green + "\n\n" + red
 
 
@@ -514,7 +520,7 @@ def _repo_root() -> str:
 def default_cfg(reflux: bool = True) -> CampaignConfig:
     """段 4 自律ループの campaign 設定。reflux (還流 on/off) は search_config に焼き、
     LLM ablation の対照を identity で分離する (別 campaign = 別 output dir、混ざらない)。"""
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug="p3-s4-loop", search_tag="s4-autonomous",
         spec_content=("P3 後続段 4: coder 自律ループ。planner が方向 (値なし) を提案し "
                       "coder が勝ち筋値を見ずに backoff 値を合成、diff 検疫 (4a) を通した "
@@ -525,6 +531,8 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                        "reflux": "on" if reflux else "off",
                        "records": 100_000, "threads": 4},
         trial="p3-s4-loop")
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    return ident.bind_admission_policy(cfg, context.policy)
 
 
 def default_perf() -> PerfConfig:
@@ -901,7 +909,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     stop = check_stop(state)
 
     # WAL 機械判定 (宣言でなくレコードを gate に — kickoff/D30 様式)。
-    dqs = load_diff_rejections(layout)
+    critic_view = require_admitted_campaign(layout.root)
+    dqs = load_diff_rejections(critic_view)
     # iteration の WAL 非依存を **差分**で実証する (1==1 の恒真 assert にしない): loop の
     # iteration は WAL レコード数と一致しない = WAL から導出していないことの witness (D39 決定2)。
     n_wal = len(list(wal.read_records(layout)))

@@ -111,7 +111,7 @@ def _all_class_admissions(genome: Genome, source_root: str):
         ).encode("utf-8")
     ).hexdigest()
     review = verify_review_receipt(
-        ReviewId.S1_KN_AXES, evidence, receipt=review_body,
+        ReviewId.S1_KNOWN_AXES, evidence, receipt=review_body,
     )
     human_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     human = derive_build_admission(human_context, evidence, review_receipt=review)
@@ -279,9 +279,14 @@ def test_v2_ccbench_path_is_not_cache_preimage_when_src_token_is_identical(
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
     default = _build(tmp_path, _contract(1), trace=True)
+    # Different lexical paths to the same canonical source root keep the exact
+    # SourceEvidence/receipt identical.  A genuinely different prepared root is
+    # intentionally a different T-343 admission identity even if its bytes match.
+    alias = tmp_path / "same-content-prepared-tree"
+    alias.symlink_to(tmp_path / "ccbench", target_is_directory=True)
     custom = _build(
         tmp_path, _contract(1), trace=True,
-        ccbench_dir=str(tmp_path / "same-content-prepared-tree"),
+        ccbench_dir=str(alias),
     )
     assert not default.cached and custom.cached
     assert custom.build_dir == default.build_dir

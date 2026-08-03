@@ -38,6 +38,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, pipeline, wal                          # noqa: E402
+from campaign.artifact_admission import require_admitted_campaign # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
@@ -166,8 +167,9 @@ def main(argv=None) -> int:
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     r1 = wal.records_by_stage(layout, v1) if v1 else {}
     r2 = wal.records_by_stage(layout, v2) if v2 else {}
-    livs, other = load_liveness_rejections(layout)
-    rejs = load_rejections(layout)
+    critic_view = require_admitted_campaign(layout.root)
+    livs, other = load_liveness_rejections(critic_view)
+    rejs = load_rejections(critic_view)
 
     checks = {
         "赤1. trace-timeout abort (coder 発 liveness-red)":
@@ -196,7 +198,7 @@ def main(argv=None) -> int:
     # --- digest 書き出し (critic の読みに渡す。integrity 型は合成 fixture を併記) ---
     digest_txt = render_rejections(
         rejs + [_synthetic_integrity_rejection()], livs, other,
-        load_verify_abort_signals(layout))
+        load_verify_abort_signals(critic_view))
     out_path = os.path.join(layout.root, "s4_rejections_digest.txt")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(digest_txt)

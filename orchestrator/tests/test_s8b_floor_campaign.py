@@ -106,30 +106,33 @@ _BASE_TPS = {
 _FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
 
 
+def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
+    del cxx
+    source_root = str(Path(ccbench_dir or "/fixture/ccbench").resolve())
+    seed = f"{genome.canonical()}\0{source_root}".encode("utf-8")
+    token = hashlib.sha256(seed).hexdigest()
+    return SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=source_root,
+        ccbench_commit=ccbench_commit,
+        genome_sha256=hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+        src_token=token,
+        source_bytes_sha256=hashlib.sha256(b"fixture-source").hexdigest(),
+        tracked_clean=False,
+        tracked_diff_sha256=hashlib.sha256(b"fixture-diff").hexdigest(),
+        tracked_paths=("include/backoff.hh",),
+    )
+
+
 @pytest.fixture(autouse=True)
 def _synthetic_source_evidence_for_materializer_seams(monkeypatch, request):
     """Fake PreparedCell 用の source evidence。slow real-build controls は実 resolver を使う。"""
     if request.node.name.startswith("test_slow_real_"):
         return
 
-    def resolve(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
-        del cxx
-        source_root = str(Path(ccbench_dir or "/fixture/ccbench").resolve())
-        seed = f"{genome.canonical()}\0{source_root}".encode("utf-8")
-        token = hashlib.sha256(seed).hexdigest()
-        return SourceEvidence(
-            schema_version="source-evidence/v1",
-            source_root=source_root,
-            ccbench_commit=ccbench_commit,
-            genome_sha256=hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
-            src_token=token,
-            source_bytes_sha256=hashlib.sha256(b"fixture-source").hexdigest(),
-            tracked_clean=False,
-            tracked_diff_sha256=hashlib.sha256(b"fixture-diff").hexdigest(),
-            tracked_paths=("include/backoff.hh",),
-        )
-
-    monkeypatch.setattr(s8b_floor_campaign.source_digest, "resolve_evidence", resolve)
+    monkeypatch.setattr(
+        s8b_floor_campaign.source_digest, "resolve_evidence", _fixture_source_evidence,
+    )
 
 
 def _holdout_entries(holdout_id: str) -> dict:
@@ -768,7 +771,11 @@ def _deterministic_official_artifacts(base: Path) -> dict:
 
     with mock.patch.object(
             s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
-            mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
+            mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+            mock.patch.object(
+                s8b_floor_campaign.source_digest, "resolve_evidence",
+                _fixture_source_evidence,
+            ):
         outcome = s8b_floor_campaign._run_campaign_core(
             protocol, verified, out_root=out_root, mode="official",
             measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
@@ -1147,6 +1154,34 @@ def test_materializer_registry_covers_all_python_build_launches():
         "orchestrator/campaign/s8b_floor_campaign.py:build_cells",
     }
 
+    def static_keyword_names(call, owner) -> set[str]:
+        """Direct keyword と呼出し前の単一 literal ``**dict`` だけを静的展開する。"""
+        names = {keyword.arg for keyword in call.keywords if keyword.arg is not None}
+        if not isinstance(owner, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return names
+        for keyword in call.keywords:
+            if keyword.arg is not None or not isinstance(keyword.value, ast.Name):
+                continue
+            bindings = []
+            for node in ast.walk(owner):
+                if not isinstance(node, ast.Assign) or node.lineno >= call.lineno:
+                    continue
+                if not any(
+                        isinstance(target, ast.Name)
+                        and target.id == keyword.value.id
+                        for target in node.targets):
+                    continue
+                if isinstance(node.value, ast.Dict):
+                    bindings.append(node.value)
+            if len(bindings) != 1:
+                continue
+            keys = bindings[0].keys
+            if all(
+                    isinstance(key, ast.Constant) and isinstance(key.value, str)
+                    for key in keys):
+                names.update(key.value for key in keys)
+        return names
+
     for path in sorted(campaign_root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         relative = path.relative_to(ROOT).as_posix()
@@ -1195,7 +1230,7 @@ def test_materializer_registry_covers_all_python_build_launches():
             if site in admitted_gateways:
                 seen_gateways.add(site)
                 if is_floor_materializer_call:
-                    keywords = {keyword.arg for keyword in call.keywords}
+                    keywords = static_keyword_names(call, owner)
                     if not required <= keywords:
                         missing_admission.append(
                             f"{relative}:{call.lineno}:{qualified}"
@@ -1210,7 +1245,7 @@ def test_materializer_registry_covers_all_python_build_launches():
                             f"{relative}:{call.lineno}:{qualified}:gateway-preimage"
                         )
                 continue
-            keywords = {keyword.arg for keyword in call.keywords}
+            keywords = static_keyword_names(call, owner)
             if not required <= keywords:
                 missing_admission.append(f"{relative}:{call.lineno}:{qualified}")
 
@@ -3807,14 +3842,16 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
     monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", build_spy)
     monkeypatch.setattr(
         s8b_floor_campaign, "_after_certificate_issued_noop", after_spy)
-    outcome = s8b_floor_campaign._run_campaign_core(
-        protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
-        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
-        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
-        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
-        durable_root_policy=_durable_policy(tmp_path / "out"),
-        _floor_preflight_fn=_fixture_floor_preflight,
-    )
+    with mock.patch.object(
+            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None):
+        outcome = s8b_floor_campaign._run_campaign_core(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
+            measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+            monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+            durable_root_policy=_durable_policy(tmp_path / "out"),
+            _floor_preflight_fn=_fixture_floor_preflight,
+        )
     assert outcome["status"] == "completed"
     assert calls == {
         "calibration": 1, "machine_pin": 1, "host": 1, "process": 1,

@@ -23,6 +23,7 @@ sys.path.insert(0, _ORCH)
 from campaign import ident, p3_s4_loop as L                         # noqa: E402
 from campaign import p3_s4_loop_sort as S                           # noqa: E402
 from campaign import wal                                            # noqa: E402
+from campaign.artifact_admission import require_admitted_campaign   # noqa: E402
 from campaign.diff_quarantine import DiffRejectSubtype              # noqa: E402
 from campaign.layout import CampaignLayout                          # noqa: E402
 from campaign.model import Genome                                   # noqa: E402
@@ -75,6 +76,11 @@ def _mk_template_dir() -> str:
 
 def _tmp_layout(tag: str) -> CampaignLayout:
     return CampaignLayout(root=tempfile.mkdtemp(prefix=f"izanagi_s5sortloop_{tag}_")).ensure()
+
+
+def _critic_view(layout: CampaignLayout):
+    wal.write_lock(layout, ident.canonical_preimage(S.default_cfg()))
+    return require_admitted_campaign(layout)
 
 
 def _planner() -> "L.PlannerProposal":
@@ -171,7 +177,7 @@ def test_quarantine_and_audit_rejects_auditor_verdict_reject():
     # whiteboard には粗い "rejected" のみ (violations 本文は転写しない、規律2/6)
     assert state.whiteboard[-1].result == "rejected"
     # 既存 consumer (load_diff_rejections) がそのまま拾える (新規 loader 不要)
-    dqs = load_diff_rejections(lay)
+    dqs = load_diff_rejections(_critic_view(lay))
     assert len(dqs) == 1 and dqs[0].subtype == "auditor-violation"
 
 
@@ -187,7 +193,7 @@ def test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_su
     lay = _tmp_layout("auditunc")
     gate = S._quarantine_and_audit(d, coder, auditor, _G, lay, state, _planner(), write=False)
     assert gate["digest"]["subtype"] == "auditor-uncertain"
-    dqs = load_diff_rejections(lay)
+    dqs = load_diff_rejections(_critic_view(lay))
     assert dqs[0].subtype == "auditor-uncertain"
     assert dqs[0].subtype != "auditor-violation"
 
@@ -203,7 +209,10 @@ def test_render_rejections_uses_auditor_hint_for_auditor_subtypes():
     state = L.LoopState(start_ts=time.monotonic())
     lay = _tmp_layout("renderhint")
     S._quarantine_and_audit(d, coder, auditor, _G, lay, state, _planner(), write=False)
-    out = render_rejections([], [], {}, None, diff_rejections=load_diff_rejections(lay))
+    out = render_rejections(
+        [], [], {}, None,
+        diff_rejections=load_diff_rejections(_critic_view(lay)),
+    )
     assert "auditor" in out
     assert "フレーム/hole 逸脱" not in out.split("auditor-violation")[-1][:400]
 
