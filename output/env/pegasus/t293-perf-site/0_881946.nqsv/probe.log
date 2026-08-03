@@ -1,0 +1,357 @@
+{
+  "binding": {
+    "attempted": true,
+    "expected_head": "a9cb4bb9d4376762098c6b226e5c7c7ca3e5b479",
+    "expected_pbs_sha256": "afa4526aa7c7df0e87c21b1bc7a8bb0b8381e03c71a2a5eee71c1b7205bb4021",
+    "expected_policy_sha256": "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac",
+    "expected_probe_sha256": "9a992293abe1497b6159e67e67bf9ed7a6f43e638bd8d65b6ee67671ac90b030",
+    "expected_submission_sha256": "1c19581c176786080a65cffe580f0da54e42623ad260ff13b0ec26e64383cc69",
+    "head": "a9cb4bb9d4376762098c6b226e5c7c7ca3e5b479",
+    "matched": true,
+    "pbs_sha256": "afa4526aa7c7df0e87c21b1bc7a8bb0b8381e03c71a2a5eee71c1b7205bb4021",
+    "policy_sha256": "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac",
+    "probe_sha256": "9a992293abe1497b6159e67e67bf9ed7a6f43e638bd8d65b6ee67671ac90b030",
+    "submission_sha256": "1c19581c176786080a65cffe580f0da54e42623ad260ff13b0ec26e64383cc69"
+  },
+  "consistency": {
+    "inconsistent": false,
+    "reasons": []
+  },
+  "control_note": "同じ計算ノードの同じ run で、実在する sys.executable を解決し、起動時に不存在を確認した候補を解決しない二側 control により resolver の感度を確認する。",
+  "control_resolution": {
+    "attempted": false,
+    "error": {
+      "message": "dataclass() got an unexpected keyword argument 'slots'",
+      "type": "TypeError"
+    },
+    "reason": "qualification.submission could not be imported",
+    "resolved": false
+  },
+  "control_sensitivity": "not-established",
+  "environment_observation": {
+    "attempted": true,
+    "linux_tools_inventory": [
+      {
+        "executable": true,
+        "exists": true,
+        "is_file": true,
+        "is_symlink": false,
+        "path": "/usr/lib/linux-tools-5.15.0-100/perf"
+      },
+      {
+        "executable": true,
+        "exists": true,
+        "is_file": true,
+        "is_symlink": false,
+        "path": "/usr/lib/linux-tools-5.15.0-135/perf"
+      },
+      {
+        "executable": true,
+        "exists": true,
+        "is_file": true,
+        "is_symlink": true,
+        "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf"
+      },
+      {
+        "executable": true,
+        "exists": true,
+        "is_file": true,
+        "is_symlink": true,
+        "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf"
+      }
+    ],
+    "perf_event_paranoid": {
+      "path": "/proc/sys/kernel/perf_event_paranoid",
+      "value": "0"
+    },
+    "toolchain_which": {
+      "cmake": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/cmake",
+      "g++-13": null,
+      "gcc-13": null,
+      "python3": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/python3"
+    }
+  },
+  "individual_executable_resolutions": {
+    "attempted": false,
+    "error": {
+      "message": "dataclass() got an unexpected keyword argument 'slots'",
+      "type": "TypeError"
+    },
+    "reason": "qualification.submission could not be imported",
+    "results": {}
+  },
+  "linux_tools_inventory": [
+    {
+      "executable": true,
+      "exists": true,
+      "is_file": true,
+      "is_symlink": false,
+      "path": "/usr/lib/linux-tools-5.15.0-100/perf"
+    },
+    {
+      "executable": true,
+      "exists": true,
+      "is_file": true,
+      "is_symlink": false,
+      "path": "/usr/lib/linux-tools-5.15.0-135/perf"
+    },
+    {
+      "executable": true,
+      "exists": true,
+      "is_file": true,
+      "is_symlink": true,
+      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf"
+    },
+    {
+      "executable": true,
+      "exists": true,
+      "is_file": true,
+      "is_symlink": true,
+      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf"
+    }
+  ],
+  "measurement_errors": [
+    {
+      "message": "dataclass() got an unexpected keyword argument 'slots'",
+      "stage": "submission_import",
+      "type": "TypeError"
+    }
+  ],
+  "measurement_layers": {
+    "control_resolution": {
+      "attempted": false
+    },
+    "environment_observation": {
+      "attempted": true
+    },
+    "individual_executable_resolutions": {
+      "attempted": false
+    },
+    "policy_candidates": {
+      "attempted": true
+    },
+    "real_executable_resolution": {
+      "attempted": false
+    },
+    "real_prepare_toolchain": {
+      "attempted": false
+    },
+    "simulated_smoke": {
+      "attempted": false
+    }
+  },
+  "negative_control_preflight": {
+    "executable": false,
+    "exists": false,
+    "is_file": false,
+    "is_symlink": false,
+    "path": "/nonexistent/izanagi-t293-control/perf"
+  },
+  "ok": false,
+  "ok_semantics": "ok は期待 HEAD・policy・probe・PBS・submission の binding が一致し、必須 field が完備し、全測定層を試行して完了でき、正の control が解決し負の control が未解決だったことを表す。候補未解決や smoke 不合格は正当な否定結果であり、それ自体では ok を false にしない。",
+  "perf_event_paranoid": {
+    "path": "/proc/sys/kernel/perf_event_paranoid",
+    "value": "0"
+  },
+  "policy_candidates": [
+    {
+      "attempted": true,
+      "executable": true,
+      "exists": true,
+      "functional": false,
+      "is_file": true,
+      "is_symlink": true,
+      "limitation": "模擬測定は production が行う canonical path の SHA-256 と inode/size/mtime の安定性検査を再現しない。",
+      "note": "simulated: argv replicated from prepare_toolchain",
+      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+      "smoke": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+          "stat",
+          "-x,",
+          "-e",
+          "LLC-load-misses,LLC-loads,instructions,cycles",
+          "--",
+          "true"
+        ],
+        "attempted": true,
+        "executed": true,
+        "note": "simulated: argv replicated from prepare_toolchain",
+        "rc": 0,
+        "stderr": "111,,LLC-load-misses,260649,100.00,7.83,of all LL-cache accesses\n1418,,LLC-loads,260649,100.00,,\n618480,,instructions,260649,100.00,0.79,insn per cycle\n782075,,cycles,260649,100.00,,\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+          "--version"
+        ],
+        "attempted": true,
+        "executed": true,
+        "rc": 0,
+        "stderr": "",
+        "stdout": "perf version 5.15.178\n"
+      }
+    },
+    {
+      "attempted": true,
+      "executable": true,
+      "exists": true,
+      "functional": false,
+      "is_file": true,
+      "is_symlink": true,
+      "limitation": "模擬測定は production が行う canonical path の SHA-256 と inode/size/mtime の安定性検査を再現しない。",
+      "note": "simulated: argv replicated from prepare_toolchain",
+      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+      "smoke": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+          "stat",
+          "-x,",
+          "-e",
+          "LLC-load-misses,LLC-loads,instructions,cycles",
+          "--",
+          "true"
+        ],
+        "attempted": true,
+        "executed": true,
+        "note": "simulated: argv replicated from prepare_toolchain",
+        "rc": 0,
+        "stderr": "5,,LLC-load-misses,256035,100.00,0.36,of all LL-cache accesses\n1385,,LLC-loads,256035,100.00,,\n602734,,instructions,256035,100.00,0.78,insn per cycle\n770766,,cycles,256035,100.00,,\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+          "--version"
+        ],
+        "attempted": true,
+        "executed": true,
+        "rc": 0,
+        "stderr": "",
+        "stdout": "perf version 5.15.143\n"
+      }
+    }
+  ],
+  "policy_file": {
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t293-perf-site/tools/pegasus/policy.json",
+    "sha256": "b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac"
+  },
+  "positive_control_preflight": {
+    "executable": true,
+    "exists": true,
+    "is_absolute": true,
+    "is_file": true,
+    "is_symlink": true,
+    "path": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/python3"
+  },
+  "positive_control_resolution": {
+    "attempted": false,
+    "error": {
+      "message": "dataclass() got an unexpected keyword argument 'slots'",
+      "type": "TypeError"
+    },
+    "reason": "qualification.submission could not be imported",
+    "resolved": false
+  },
+  "real_executable_resolution": {
+    "attempted": false,
+    "error": {
+      "message": "dataclass() got an unexpected keyword argument 'slots'",
+      "type": "TypeError"
+    },
+    "reason": "qualification.submission could not be imported",
+    "resolved": false
+  },
+  "real_prepare_toolchain": {
+    "attempted": false,
+    "error": {
+      "message": "dataclass() got an unexpected keyword argument 'slots'",
+      "type": "TypeError"
+    },
+    "failure_stage": null,
+    "ok": false,
+    "reason": "qualification.submission could not be imported"
+  },
+  "required_fields": [
+    "schema_version",
+    "ok",
+    "ok_semantics",
+    "site.hostname",
+    "site.uname_release",
+    "site.PBS_JOBID",
+    "site.observed_epoch",
+    "site.cwd",
+    "sample_scope",
+    "control_note",
+    "control_sensitivity",
+    "required_fields",
+    "required_fields_complete",
+    "positive_control_preflight.path",
+    "positive_control_preflight.exists",
+    "positive_control_preflight.is_file",
+    "positive_control_preflight.is_symlink",
+    "positive_control_preflight.executable",
+    "positive_control_preflight.is_absolute",
+    "negative_control_preflight.path",
+    "negative_control_preflight.exists",
+    "binding.attempted",
+    "binding.matched",
+    "binding.expected_head",
+    "binding.head",
+    "binding.expected_policy_sha256",
+    "binding.policy_sha256",
+    "binding.expected_probe_sha256",
+    "binding.probe_sha256",
+    "binding.expected_pbs_sha256",
+    "binding.pbs_sha256",
+    "binding.expected_submission_sha256",
+    "binding.submission_sha256",
+    "policy_file.path",
+    "policy_file.sha256",
+    "measurement_layers.environment_observation.attempted",
+    "measurement_layers.policy_candidates.attempted",
+    "measurement_layers.real_executable_resolution.attempted",
+    "measurement_layers.individual_executable_resolutions.attempted",
+    "measurement_layers.real_prepare_toolchain.attempted",
+    "measurement_layers.simulated_smoke.attempted",
+    "measurement_layers.control_resolution.attempted",
+    "environment_observation.attempted",
+    "policy_candidates",
+    "real_executable_resolution.attempted",
+    "real_executable_resolution.resolved",
+    "individual_executable_resolutions.attempted",
+    "individual_executable_resolutions.results",
+    "real_prepare_toolchain.attempted",
+    "real_prepare_toolchain.ok",
+    "real_prepare_toolchain.failure_stage",
+    "simulated_smoke.attempted",
+    "positive_control_resolution.attempted",
+    "positive_control_resolution.resolved",
+    "control_resolution.attempted",
+    "control_resolution.resolved",
+    "consistency.inconsistent",
+    "consistency.reasons",
+    "measurement_errors"
+  ],
+  "required_fields_complete": true,
+  "sample_scope": "この結果は hostname=bnode009 + observed_epoch=1785763142 + policy sha256=b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac の1標本であり、gen_S の全 bnode や将来の allocation へ一般化しない。",
+  "schema_version": "t293-perf-site-probe/v1",
+  "simulated_smoke": {
+    "attempted": false,
+    "reason": "qualification.submission could not be imported"
+  },
+  "site": {
+    "PBS_JOBID": "0:881946.nqsv",
+    "cwd": "/home/SFC/tanab",
+    "hostname": "bnode009",
+    "observed_epoch": 1785763142,
+    "uname_release": "5.15.0-173-generic"
+  },
+  "toolchain_which": {
+    "cmake": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/cmake",
+    "g++-13": null,
+    "gcc-13": null,
+    "python3": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/python3"
+  }
+}
