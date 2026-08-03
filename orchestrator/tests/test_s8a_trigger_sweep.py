@@ -23,6 +23,7 @@ import os
 import re
 import sys
 import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -37,8 +38,8 @@ from campaign import pipeline                                      # noqa: E402
 from campaign import p3_s4_loop as L                               # noqa: E402
 from campaign import s8a_trigger_sweep as W                        # noqa: E402
 from campaign import wal                                           # noqa: E402
-from campaign.build_admission import (BuildAdmissionError,            # noqa: E402
-                                      BuildProvenance)
+from campaign.artifact_admission import CampaignNotAdmitted         # noqa: E402
+from campaign.build_admission import BuildAdmissionError              # noqa: E402
 from campaign.model import STAGE_BUILD_START                       # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
@@ -304,8 +305,8 @@ def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     assert len(wal.read_records(layout)) == 4
 
 
-def test_public_sweep_assigns_stock_and_machine_admission_exactly(monkeypatch):
-    """M4: stock と決定論的候補の class 差だけを単独で固定する。"""
+def test_public_sweep_reuses_one_build_context_for_stock_and_machine(monkeypatch):
+    """Policy を含む同一 run context が sweep 全点へ渡る。"""
     from campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
@@ -315,19 +316,16 @@ def test_public_sweep_assigns_stock_and_machine_admission_exactly(monkeypatch):
     machine_name = W.candidates(EFF3)[0][0]
     seen = []
 
-    def fake_eval(name, *_args, admission, **_kwargs):
-        seen.append((name, admission.provenance_class,
-                     admission.coder_derived_opt_in))
+    def fake_eval(name, *_args, build_context, **_kwargs):
+        seen.append((name, build_context))
         return {"variant_id": name, "category": "fixture", "src_token": "stock",
                 "outcome": "certified"}
 
     monkeypatch.setattr(W, "_eval_one", fake_eval)
     W.run_sweep("balanced", names=[W.STOCK_NAME, machine_name], isolate=False,
                 log=lambda _line: None)
-    assert seen == [
-        (W.STOCK_NAME, BuildProvenance.STOCK_OR_PINNED, False),
-        (machine_name, BuildProvenance.MACHINE_SWEEP, False),
-    ]
+    assert [name for name, _context in seen] == [W.STOCK_NAME, machine_name]
+    assert seen[0][1] is seen[1][1]
 
 
 def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatch):
@@ -348,8 +346,8 @@ def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatc
                     log=lambda _line: None)
 
 
-def test_eval_one_propagates_keyword_admission_to_build_entry(monkeypatch):
-    """F4: 実 `_eval_one` の検疫通過側を通し、未定義名への退行を殺す。"""
+def test_eval_one_propagates_context_and_source_capability_to_build_entry(monkeypatch):
+    """検疫通過後の build は policy context と source-bound resolver を受ける。"""
     from campaign import patchharness
     from campaign.layout import CampaignLayout
 
@@ -357,7 +355,7 @@ def test_eval_one_propagates_keyword_admission_to_build_entry(monkeypatch):
         root=tempfile.mkdtemp(prefix="izanagi_s8a_eval_admission_")
     ).ensure()
     name = W.candidates(EFF3)[0][0]
-    admission = W._candidate_admission(name)
+    context = W.build_run_context(generator_id=W.GeneratorId.S8A_TRIGGER_SWEEP)
     passed = SimpleNamespace(passed=True)
     seen = []
     monkeypatch.setattr(
@@ -369,7 +367,7 @@ def test_eval_one_propagates_keyword_admission_to_build_entry(monkeypatch):
     monkeypatch.setattr(W.source_digest, "resolve", lambda *_a, **_k: "b" * 64)
 
     def build_entry(*_args, **kwargs):
-        seen.append(kwargs["admission"])
+        seen.append((kwargs["build_context"], kwargs["capability_resolver"]))
         return SimpleNamespace(
             results=[SimpleNamespace(certified=True, aborted=False)]
         )
@@ -378,10 +376,11 @@ def test_eval_one_propagates_keyword_admission_to_build_entry(monkeypatch):
     result = W._eval_one(
         name, EFF3, W.config_for("balanced", EFF3), W.perf_for("balanced"),
         layout, "/fixture/sub", "/fixture/template.patch", "",
-        admission=admission, log=lambda _line: None,
+        build_context=context, log=lambda _line: None,
     )
     assert result["outcome"] == "certified"
-    assert seen == [admission]
+    assert seen[0][0] is context
+    assert callable(seen[0][1])
 
 
 def test_public_sweep_full_frame_fsync_eio_stops_before_next_candidate(
@@ -471,16 +470,19 @@ def test_load_effective_reasons_unknown_reason(monkeypatch):
 # ==== replay / provenance / floor (s6 裁定の踏襲) ==============================
 
 def test_replay_outcome_distinguishes_commit_and_abort(monkeypatch):
-    from campaign.model import STAGE_ABORT, STAGE_COMMIT
-
-    def fake(layout, vid):
-        return {"c": {STAGE_COMMIT: {}, STAGE_ABORT: None},
-                "a": {STAGE_COMMIT: None, STAGE_ABORT: {}},
-                "u": {STAGE_COMMIT: None, STAGE_ABORT: None}}[vid]
-    monkeypatch.setattr(W.wal, "records_by_stage", fake)
-    assert W._replay_outcome(None, "c") == "replayed-certified"
-    assert W._replay_outcome(None, "a") == "replayed-aborted"
-    assert W._replay_outcome(None, "u") == "replayed-unknown"
+    context = W.build_run_context(generator_id=W.GeneratorId.S8A_TRIGGER_SWEEP)
+    states = {
+        "c": SimpleNamespace(committed=True, aborted=False),
+        "a": SimpleNamespace(committed=False, aborted=True),
+    }
+    monkeypatch.setattr(
+        W.wal, "replay",
+        lambda _layout, *, admission_policy: (
+            states if admission_policy == context.policy else {}),
+    )
+    assert W._replay_outcome(None, "c", context) == "replayed-certified"
+    assert W._replay_outcome(None, "a", context) == "replayed-aborted"
+    assert W._replay_outcome(None, "u", context) == "replayed-unknown"
 
 
 class _FakeLayout:
@@ -538,6 +540,9 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8ascreen_")
     ).ensure()
+    Path(layout.lock_file).write_text(
+        json.dumps({"search_config": {}}), encoding="utf-8",
+    )
     W.wal.log(layout, "v-screen", W.STAGE_BENCH_DONE, W.ENV_TAG, {
         "median_tps": 12345,
         "cv": 0.01,
@@ -608,3 +613,10 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
     assert "screening 正常棄却" in text
     assert pipeline.SCREEN_REJECTION_REASON in text
     assert "12345" not in text.replace(",", "")
+
+
+def test_real_legacy_trigger_campaign_cannot_be_certified_by_commit_only():
+    campaign = (Path(_ORCH).parent / "output" / "campaigns" /
+                "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5")
+    with pytest.raises(CampaignNotAdmitted, match="legacy-unclassified"):
+        W._load_rows(str(campaign), {})

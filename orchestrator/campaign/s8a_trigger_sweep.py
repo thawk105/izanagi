@@ -61,6 +61,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import itertools
 import json
 import os
@@ -73,8 +74,11 @@ from campaign import axis_trigger_gating as T                     # noqa: E402
 from campaign import (ident, pipeline, screening_driver,          # noqa: E402
                       source_digest, wal)
 from campaign import p3_s4_loop as L                              # noqa: E402
-from campaign.build_admission import (BuildAdmission, BuildAdmissionError,  # noqa: E402
-                                      BuildProvenance, require_build_admission)
+from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
+from campaign.build_admission import (BuildAdmissionError,         # noqa: E402
+                                      BuildRunContext, GeneratorId,
+                                      attest_generator_output,
+                                      build_run_context)
 from campaign.layout import campaign_layout, repo_output_root     # noqa: E402
 from campaign.loop import run_campaign                            # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
@@ -238,14 +242,12 @@ def _genome(gating: int) -> Genome:
     return Genome("silo", {**T._BASE, "BACKOFF_TRIGGER_GATING": gating})
 
 
-_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
-_MACHINE_SWEEP_ADMISSION = BuildAdmission(BuildProvenance.MACHINE_SWEEP)
-
-
-def _candidate_admission(name: str) -> BuildAdmission:
-    """stock は pinned、決定論的列挙候補は machine sweep として分類する。"""
-    return require_build_admission(
-        _STOCK_ADMISSION if name == STOCK_NAME else _MACHINE_SWEEP_ADMISSION
+def _capability_resolver(name: str, context: BuildRunContext, implementation: str | None):
+    if name == STOCK_NAME:
+        return lambda _source: None
+    input_sha = hashlib.sha256((implementation or "").encode("utf-8")).hexdigest()
+    return lambda source: attest_generator_output(
+        context, source, generator_input_sha256=input_sha,
     )
 
 
@@ -275,7 +277,10 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
     if unknown:
         raise ValueError(f"未知の候補名: {unknown} (選択肢: {all_names})")
 
-    cfg = config_for(tag, effective, trial)
+    build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    cfg = ident.bind_admission_policy(
+        config_for(tag, effective, trial), build_context.policy,
+    )
     perf = perf_for(tag)
     layout = campaign_layout(str(ident.campaign_id(cfg)))
     if not screening_enabled:
@@ -301,12 +306,12 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                     baseline_entry.update(_eval_one(
                         IDENT_NAME, effective, screen_cfg, perf, screen_layout,
                         sub, patch, cache_root,
-                        admission=_candidate_admission(IDENT_NAME), log=log,
+                        build_context=build_context, log=log,
                         force=True))
 
                 prepared = screening_driver.prepare_screening_campaign(
                     cfg, WORKLOADS[tag], baseline_ref, measure_baseline,
-                    calibration_dir=calibration_dir)
+                    calibration_dir=calibration_dir, build_context=build_context)
                 cfg, layout, active_screening = (
                     prepared.cfg, prepared.layout, prepared.screening)
                 n_points = len(set(sel_names) | {IDENT_NAME})
@@ -322,7 +327,7 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                 try:
                     entry = _eval_one(name, effective, cfg, perf, layout, sub,
                                       patch, cache_root,
-                                      admission=_candidate_admission(name), log=log,
+                                      build_context=build_context, log=log,
                                       screening=active_screening)
                 except (wal.WalAppendError, wal.WalFramingError):
                     # 壊れた同一 WAL に driver-error/reject を重ねず sweep 全体を止める。
@@ -366,9 +371,8 @@ def _candidate_ref(name: str, effective: Sequence[str], cfg: CampaignConfig,
 def _eval_one(name: str, effective: Sequence[str], cfg: CampaignConfig,
               perf: PerfConfig, layout, sub: str, patch: str, cache_root: str,
               log=print, *, screening=None, force: bool = False,
-              admission: BuildAdmission) -> Dict:
+              build_context: BuildRunContext) -> Dict:
     from campaign.patchharness import applied
-    admission = require_build_admission(admission)
     if name == STOCK_NAME:
         cat, impl = "stock", None
         genome = _genome(0)
@@ -388,38 +392,41 @@ def _eval_one(name: str, effective: Sequence[str], cfg: CampaignConfig,
                         "outcome": "quarantine-reject"}
         src_tok = source_digest.resolve(genome, cfg.ccbench_commit, sub)
         vid = variant_id(genome, src_tok)
+        capability_resolver = _capability_resolver(name, build_context, impl)
         log(f"  --- {name} ({cat}) variant={vid} src={src_tok[:12]} ---")
         if screening is None and not force:
             summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA,
                                    log=log, ccbench_dir=sub, cache_root=cache_root,
-                                   admission=admission)
+                                   build_context=build_context,
+                                   capability_resolver=capability_resolver)
             r = summary.results[0] if summary.results else None
         else:
             r = screening_driver.evaluate_candidate(
                 cfg, layout, genome, perf, ENV_TAG, CLK, screening=screening,
-                admission=admission,
+                build_context=build_context,
+                capability_resolver=capability_resolver,
                 numactl=NUMA, src_token=src_tok, force=force, log=log,
                 ccbench_dir=sub, cache_root=cache_root)
     if r is not None:
         if r.certified and not r.aborted:
             outcome = "certified"
         else:
-            terminal = wal.replay(layout).get(vid)
+            terminal = wal.replay(layout, admission_policy=build_context.policy).get(vid)
             reason = (terminal.last_terminal.payload.get("reason")
                       if terminal and terminal.last_terminal else None)
             outcome = ("screen-rejected"
                        if reason == pipeline.SCREEN_REJECTION_REASON else "aborted")
     else:
-        outcome = _replay_outcome(layout, vid)   # WAL replay で skip (中断再開時)
+        outcome = _replay_outcome(layout, vid, build_context)   # WAL replay で skip
     return {"variant_id": vid, "category": cat, "src_token": src_tok,
             "outcome": outcome}
 
 
-def _replay_outcome(layout, vid: str) -> str:
-    recs = wal.records_by_stage(layout, vid)
-    if recs.get(STAGE_COMMIT) is not None:
+def _replay_outcome(layout, vid: str, build_context: BuildRunContext) -> str:
+    state = wal.replay(layout, admission_policy=build_context.policy).get(vid)
+    if state is not None and state.committed:
         return "replayed-certified"
-    if recs.get(STAGE_ABORT) is not None:
+    if state is not None and state.aborted:
         return "replayed-aborted"
     return "replayed-unknown"
 
@@ -457,12 +464,16 @@ def _write_provenance(layout, tag: str, trial: str, effective: Sequence[str],
 # ==== 集計 (記述統計のみ — 断定 verdict を出さない) ============================
 
 def _load_rows(layout, prov_entries: Dict[str, Dict]) -> List[Dict]:
+    view = require_admitted_campaign(layout)
+    by_variant: Dict[str, Dict[str, Dict]] = {}
+    for record in view.records:
+        by_variant.setdefault(record.variant, {})[record.stage] = record.payload
     rows = []
     for name, e in prov_entries.items():
         vid = e.get("variant_id")
         if not vid:
             continue
-        recs = wal.records_by_stage(layout, vid)
+        recs = by_variant.get(vid, {})
         commit = recs.get(STAGE_COMMIT)
         certified = commit is not None
         # BENCH_DONE は screening 経路では uncertified のまま存在し得る。性能値は
@@ -487,7 +498,10 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
     """WAL 直読みの記述統計レポート。比較基準 = ident_all (恒等 gate、D49 申し送り (a))。
     退化点は subset レンジ集計から分離。unstable 点はレンジ集計から除外。"""
     effective = load_effective_reasons()
-    cfg = config_for(tag, effective, trial)
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    cfg = ident.bind_admission_policy(
+        config_for(tag, effective, trial), context.policy,
+    )
     layout = campaign_layout(str(ident.campaign_id(cfg)))
     ppath = os.path.join(layout.root, "reports", "s8a_trigger_sweep_provenance.json")
     if not os.path.exists(ppath):

@@ -845,6 +845,30 @@ def assert_autonomous_trial_completeness(
         _mapping(cell, gate="report-shape", label=f"cells[{index}]")
         for index, cell in enumerate(raw_cells)
     ]
+    do_build = report.get("do_build")
+    for index, cell in enumerate(cells):
+        decision = cell.get("admission_decision")
+        if do_build is False:
+            if decision != {"admission_status": "not-applicable"}:
+                _fail(
+                    "artifact-admission",
+                    f"cells[{index}] no-build admission decision is not exact",
+                )
+        elif do_build is True:
+            decision = _mapping(
+                decision, gate="artifact-admission",
+                label=f"cells[{index}].admission_decision",
+            )
+            if (
+                decision.get("schema_version")
+                != "campaign-artifact-admission-decision/v1"
+                or decision.get("admission_status") != "admitted"
+                or decision.get("classification") != "admitted-new-schema"
+            ):
+                _fail(
+                    "artifact-admission",
+                    f"cells[{index}] build admission decision is not positive",
+                )
     terminal = _check_terminal_projection(report=report, events=events, cells=cells)
     budget = report.get("generation_budget_per_workload")
     if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:
@@ -959,6 +983,9 @@ def assert_campaign_layer3_chain(
             _fail("campaign-chain", f"cells[{index}].descriptor differs from producer")
         if cell.get("descriptor_binding") != expected_binding:
             _fail("campaign-chain", f"cells[{index}].descriptor_binding differs from producer")
+        context = producer.build_run_context(
+            generator_id=producer.GeneratorId.S8A_TRIGGER_SWEEP,
+        )
         expected_cfg = producer._campaign_for(
             workload=workload,
             workload_flags=workload_flags,
@@ -966,8 +993,9 @@ def assert_campaign_layer3_chain(
             descriptor_record=expected_binding,
             trial_id=trial_id,
             generations=budget,
+            build_context=context,
         )
-        expected_campaign_id = str(producer.trigger.ident.campaign_id(expected_cfg))
+        expected_campaign_id = str(producer.ident.campaign_id(expected_cfg))
         if campaign_id != expected_campaign_id:
             _fail("campaign-chain", f"cells[{index}] campaign_id differs from producer derivation")
         campaign_root = _path_identity(
@@ -987,6 +1015,8 @@ def assert_campaign_layer3_chain(
         meta = persisted.get("meta")
         if not isinstance(meta, Mapping) or meta.get("campaign_id") != campaign_id:
             _fail("campaign-chain", "persisted layer3 campaign identity mismatch")
+        if cell.get("admission_decision") != persisted.get("admission_decision"):
+            _fail("campaign-chain", "cell admission decision differs from persisted layer3")
         fresh = _fresh_layer3_for_comparison(
             campaign_root=campaign_root,
             persisted_path=persisted_path,
@@ -1013,6 +1043,8 @@ def verify_autonomous_trial_files(
     assert_autonomous_trial_completeness(
         report=report, attempt_journal=Path(attempt_journal),
     )
+    if report.get("do_build") is True and campaign_output_root is None:
+        _fail("campaign-chain", "build trial verification requires campaign_output_root")
     if campaign_output_root is not None:
         assert_campaign_layer3_chain(
             report=report, output_root=Path(campaign_output_root),

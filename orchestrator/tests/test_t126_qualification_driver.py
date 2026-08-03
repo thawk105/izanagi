@@ -18,11 +18,6 @@ sys.path.insert(0, str(_HERE.parent))
 
 import test_campaign as campaign_fixtures  # noqa: E402
 from campaign import env_contract, pipeline  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
-    BuildAdmission,
-    BuildAdmissionError,
-    BuildProvenance,
-)
 from campaign.model import Genome  # noqa: E402
 from qualification.artifacts import (  # noqa: E402
     QualificationArtifactError,
@@ -42,17 +37,16 @@ from qualification.t126_driver import (  # noqa: E402
     RC_ATTESTATION,
     MonotonicEnvelope,
     QualificationDriverError,
-    _QUALIFICATION_BUILD_ADMISSION,
     run_series,
 )
 
-_STOCK_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
-
-
-def test_qualification_entry_uses_pinned_source_admission():
-    assert _QUALIFICATION_BUILD_ADMISSION == _STOCK_ADMISSION
-    assert _QUALIFICATION_BUILD_ADMISSION.provenance_class is \
-        BuildProvenance.STOCK_OR_PINNED
+def test_qualification_entry_constructs_run_context_for_live_member_build():
+    source = (_ROOT / "orchestrator/qualification/t126_driver.py").read_text(
+        encoding="utf-8"
+    )
+    assert "build_run_context(" in source
+    assert "build_context=build_context" in source
+    assert "BuildAdmission(" not in source
 
 
 def test_qualification_policy_rejects_unadmitted_coder_before_build_spy(tmp_path):
@@ -68,16 +62,13 @@ def test_qualification_policy_rejects_unadmitted_coder_before_build_spy(tmp_path
             "ycsb_rmw": "0", "ycsb_max_ope": "10",
         },
     )
-    bad = object.__new__(BuildAdmission)
-    object.__setattr__(bad, "provenance_class", BuildProvenance.CODER_DERIVED)
-    object.__setattr__(bad, "coder_derived_opt_in", False)
     with campaign_fixtures._mock_pipeline(certified=True) as calls:
-        with pytest.raises(BuildAdmissionError):
+        with pytest.raises(TypeError, match="build_context"):
             pipeline.evaluate(
                 Genome("silo", {"BACK_OFF": 1}), layout, "pegasus", "deadbeef",
                 perf, 2100, numactl=(), src_token="stock",
                 env_contract=pegasus, qualification_policy=policy,
-                admission=bad,
+                build_context=None,
             )
     assert calls.builds == []
     assert not (
@@ -268,7 +259,7 @@ def test_exact_pegasus_empty_numactl_opt_in_emits_nonformal_evidence(tmp_path):
             cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
             env_contract=pegasus, record_rep_returncodes=True,
             qualification_policy=policy, log=lambda *_: None,
-            admission=_STOCK_ADMISSION,
+            build_context=campaign_fixtures._BUILD_CONTEXT,
         )
     assert result.certified and not result.aborted
     records = load_jsonl_strict(
@@ -307,7 +298,7 @@ def test_m4a_producer_settled_gate_rejects_before_terminal_commit(
             cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
             env_contract=pegasus, record_rep_returncodes=True,
             qualification_policy=policy, log=lambda *_: None,
-            admission=_STOCK_ADMISSION,
+            build_context=campaign_fixtures._BUILD_CONTEXT,
         )
     assert result.aborted is True
     stages = [
@@ -346,7 +337,7 @@ def test_qualification_opt_in_rejects_nonexact_numactl_before_writes(
             ],
             src_token="stock", bench_max_rounds=1, env_contract=pegasus,
             record_rep_returncodes=True, qualification_policy=policy,
-            admission=_STOCK_ADMISSION,
+            build_context=campaign_fixtures._BUILD_CONTEXT,
         )
     assert not (
         layout.attempt_dir / "rounds/0001/subject/evaluation-events.jsonl"
@@ -395,7 +386,7 @@ def test_exact_sink_layout_capability_chain_rejects_laundering_before_write(
             do_bench=True, do_settle=True, src_token="stock",
             bench_max_rounds=1, env_contract=pegasus,
             record_rep_returncodes=True, qualification_policy=policy,
-            admission=_STOCK_ADMISSION,
+            build_context=campaign_fixtures._BUILD_CONTEXT,
         )
     assert not (
         layout.attempt_dir / "rounds/0001/subject/evaluation-events.jsonl"

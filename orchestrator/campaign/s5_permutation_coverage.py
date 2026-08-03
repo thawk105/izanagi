@@ -33,12 +33,14 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import buildcache, pin, site_policy                      # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign import buildcache, pin, site_policy, source_digest       # noqa: E402
+from campaign.build_admission import (GeneratorId, build_run_context,  # noqa: E402
+                                      derive_build_admission)
 from campaign.layout import repo_output_root                           # noqa: E402
 from campaign.model import Genome                                      # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
 from campaign.patchharness import applied, assert_pinned_clean         # noqa: E402
+from campaign.materializer_admission import non_admissible_materializer  # noqa: E402
 
 PIN = pin.CURRENT_PIN                    # d706650 (izanagi-trace, permutation 保存 assert 込み)
 ENV_TAG = "linux-baremetal"
@@ -177,13 +179,19 @@ def main() -> int:
     assert_pinned_clean(sub, PIN)
 
     result = {"env_tag": ENV_TAG, "ccbench_commit": PIN,
-              "genome": STOCK_G.canonical(), "clocks_per_us": CLK, "runs": {}}
+              "genome": STOCK_G.canonical(), "clocks_per_us": CLK,
+              "diagnostic_build_admission": non_admissible_materializer(
+                  "orchestrator.campaign.s5_permutation_coverage._build_broken"),
+              "runs": {}}
 
     # --- 1. stock control (no patch): assert は正しい sort で沈黙するはず ---
     print("== stock control (no patch, TRACE=1) ==")
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    evidence = source_digest.resolve_evidence(STOCK_G, PIN)
     bstock = buildcache.build(
         STOCK_G, PIN, trace=True,
-        admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
+        admission=derive_build_admission(build_context, evidence),
+        build_context=build_context, source_evidence=evidence,
     )
     result["runs"]["stock_single"] = _variant_run(bstock.binary, SINGLE_FLAGS,
                                                    "stock/single")

@@ -34,7 +34,13 @@ import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    BuildRunContext,
+    GeneratorId,
+    ReviewId,
+    ReviewReceipt,
+    build_run_context,
+)
 from campaign import env_attestation  # noqa: E402
 from campaign import execution_guard  # noqa: E402
 from campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
@@ -49,8 +55,8 @@ from campaign import t080_freeze_migration as migration  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from campaign.source_digest import SourceEvidence  # noqa: E402
 
-_HUMAN_REVIEWED_ADMISSION = BuildAdmission(BuildProvenance.HUMAN_REVIEWED)
 from test_schema_v2 import _valid_document as _valid_calibration_v2  # noqa: E402
 
 
@@ -2283,8 +2289,27 @@ def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
         assert kwargs["do_bench"] is True
         assert kwargs["screening"] is None
         assert kwargs["env_contract"] is ec.lookup(V2_ENV_TAG)
-        assert kwargs["admission"].provenance_class is BuildProvenance.HUMAN_REVIEWED
-        assert kwargs["admission"].coder_derived_opt_in is False
+        assert "admission" not in kwargs
+        assert type(kwargs["build_context"]) is BuildRunContext
+        assert callable(kwargs["capability_resolver"])
+        evidence = SourceEvidence(
+            schema_version="source-evidence/v1",
+            source_root=str((tmp_path / "oracle-source-Ω").resolve()),
+            ccbench_commit=call["ccbench_commit"],
+            genome_sha256=hashlib.sha256(
+                call["genome"].canonical().encode("utf-8")
+            ).hexdigest(),
+            src_token="1" * 64,
+            source_bytes_sha256="2" * 64,
+            tracked_clean=False,
+            tracked_diff_sha256="3" * 64,
+            tracked_paths=("include/backoff.hh",),
+        )
+        capability = kwargs["capability_resolver"](evidence)
+        assert type(capability) is ReviewReceipt
+        capability_body = capability.as_receipt()
+        assert capability_body["review_id"] == ReviewId.S8B_ORACLE.value
+        assert capability_body["source"] == evidence.as_receipt()
         assert len(kwargs["extra_correctness"]) == 1
         tag, workload = kwargs["extra_correctness"][0]
         assert tag == pipeline.S2_TAG
@@ -3864,10 +3889,11 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
         built.append(result)
         return result
 
+    build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     with driver._prepared_binding(
             freeze=freeze, holdout_id=holdout_id,
             configuration_id=configuration_id, ccbench_pin=pin,
-            prepare_fn=driver.prepare_cell) as (_identity, prepared), \
+            prepare_fn=driver.prepare_cell) as (identity, prepared), \
             mock.patch.object(pipeline.buildcache, "build_v2", recording_build_v2), \
             mock.patch.object(pipeline, "_run_trace", return_value=(1, 0, 1)), \
             mock.patch.object(pipeline, "verify_trace_dir", side_effect=lambda _p: _green_vr()), \
@@ -3881,7 +3907,14 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
             contract.clocks_per_us, do_bench=False,
             src_token=prepared.src_token, ccbench_dir=prepared.ccbench_dir,
             cache_root=str(tmp_path / "cache"), env_contract=contract,
-            log=lambda _message: None, admission=_HUMAN_REVIEWED_ADMISSION,
+            log=lambda _message: None, build_context=build_context,
+            capability_resolver=lambda source: (
+                s8b_materialization.reviewed_source_capability(
+                    review_id=ReviewId.S8B_ORACLE,
+                    source=source,
+                    input_sha256=identity["entry_sha256"],
+                )
+            ),
         )
 
     assert result.certified and not result.aborted

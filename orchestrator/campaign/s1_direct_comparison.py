@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import datetime as dt
+import hashlib
 import json
 import math
 import os
@@ -31,11 +32,12 @@ from campaign.layout import CampaignLayout, campaign_layout, repo_output_root  #
 from campaign.model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
 from campaign import pipeline  # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import (REVIEW_RECEIPT_SCHEMA,  # noqa: E402
+                                      GeneratorId, ReviewId, build_run_context,
+                                      verify_review_receipt)
 
 
 ENV_TAG = "linux-baremetal"
-_BUILD_ADMISSION = BuildAdmission(BuildProvenance.HUMAN_REVIEWED)
 CLOCKS_PER_US = 1800
 NUMACTL = ["numactl", "--interleave=all"]
 TOTAL_BUDGET_S = 43_200.0
@@ -227,15 +229,18 @@ def config_for(document: Mapping, role: str) -> CampaignConfig:
 
 
 def layout_for(document: Mapping, role: str, output_root: str = "") -> CampaignLayout:
-    cfg = config_for(document, role)
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    cfg = ident.bind_admission_policy(config_for(document, role), context.policy)
     return campaign_layout(str(ident.campaign_id(cfg)), output_root=output_root)
 
 
 def _ensure_campaign(
-        cfg: CampaignConfig, layout: CampaignLayout,
+        cfg: CampaignConfig, layout: CampaignLayout, *, admission_policy,
 ) -> wal.WalTailRepairResult:
     layout.ensure()
-    return ident.ensure_resumable_wal(cfg, layout)
+    return ident.ensure_resumable_wal(
+        cfg, layout, admission_policy=admission_policy,
+    )
 
 
 def session_events_from_records(records: Sequence) -> List[Dict]:
@@ -547,7 +552,8 @@ def prepare_cell(cell: Mapping, ccbench_pin: str):
         elif patch_only_path is not None:
             stack.enter_context(patchharness.applied(
                 str(patch_only_path), ccbench_pin, ccbench_dir=sub))
-        src_token = source_digest.resolve(genome, ccbench_pin, sub)
+        evidence = source_digest.resolve_evidence(genome, ccbench_pin, ccbench_dir=sub)
+        src_token = evidence.src_token
         yield PreparedCell(genome=genome, src_token=src_token,
                            ccbench_dir=sub, cache_root=cache_root)
 
@@ -618,7 +624,8 @@ def run_role(
     point = _operating_point(document)
     workload_flags = _workload_flags(document)
     schedule = schedule_for_role(document, role)
-    cfg = config_for(document, role)
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    cfg = ident.bind_admission_policy(config_for(document, role), build_context.policy)
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root=output_root)
 
     if dry_run:
@@ -631,7 +638,9 @@ def run_role(
         from campaign.p2_2 import _assert_single_tenant
         single_tenant_fn = _assert_single_tenant
     try:
-        repair = _ensure_campaign(cfg, layout)
+        repair = _ensure_campaign(
+            cfg, layout, admission_policy=build_context.policy,
+        )
         if repair.status == "repaired":
             log("S-1 WAL tail repair: " + json.dumps({
                 "status": repair.status,
@@ -740,6 +749,27 @@ def run_role(
             session_started = False
             try:
                 with prepare_cell_fn(item.cell, cfg.ccbench_commit) as prepared:
+                    review_input_sha = hashlib.sha256(
+                        json.dumps(item.cell, sort_keys=True, separators=(",", ":"),
+                                   ensure_ascii=True).encode("utf-8")
+                    ).hexdigest()
+
+                    def review_capability(evidence):
+                        unsigned = {
+                            "schema": REVIEW_RECEIPT_SCHEMA,
+                            "review_id": ReviewId.S1_KNOWN_AXES.value,
+                            "source": evidence.as_receipt(),
+                            "input_sha256": review_input_sha,
+                        }
+                        receipt = dict(unsigned)
+                        receipt["receipt_sha256"] = hashlib.sha256(
+                            json.dumps(unsigned, sort_keys=True, separators=(",", ":"),
+                                       ensure_ascii=True).encode("utf-8")
+                        ).hexdigest()
+                        return verify_review_receipt(
+                            ReviewId.S1_KNOWN_AXES, evidence, receipt=receipt,
+                        )
+
                     # variant_id は evaluate 直前に確定し、session-start を必ず先行耐久化する。
                     variant = pipeline.variant_id(prepared.genome, prepared.src_token)
                     _append_event(layout, _base_event(item, variant, attempt))
@@ -754,7 +784,8 @@ def run_role(
                         src_token=prepared.src_token, log=log,
                         ccbench_dir=prepared.ccbench_dir, cache_root=prepared.cache_root,
                         screening=None, bench_max_rounds=1,
-                        admission=_BUILD_ADMISSION,
+                        build_context=build_context,
+                        capability_resolver=review_capability,
                     )
                     try:
                         result = evaluate_fn(

@@ -25,10 +25,9 @@ if str(_ORCHESTRATOR) not in sys.path:
     sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import env_attestation, env_contract, pipeline, reservation, source_digest  # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import GeneratorId, build_run_context  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 
-_QUALIFICATION_BUILD_ADMISSION = BuildAdmission(BuildProvenance.STOCK_OR_PINNED)
 from qualification.artifacts import (  # noqa: E402
     QualificationArtifactError,
     QualificationEventSink,
@@ -513,6 +512,9 @@ class ForkedMemberRunner:
                 full_source_digest = source_digest.compute(
                     genome, ccbench_dir=str(self.ccbench_dir),
                 )
+                build_context = build_run_context(
+                    generator_id=GeneratorId.BACKOFF_SWEEP,
+                )
                 live_member_id = _member_identity(
                     ccbench_gitlink=self.ccbench_gitlink,
                     source_token=full_source_digest,
@@ -532,14 +534,13 @@ class ForkedMemberRunner:
                     ],
                     do_bench=True,
                     do_settle=True,
-                    src_token=full_source_digest,
                     ccbench_dir=str(self.ccbench_dir),
                     cache_root=str(self.cache_root),
                     bench_max_rounds=self.protocol["workload"]["bench_max_rounds"],
                     env_contract=contract,
                     record_rep_returncodes=True,
                     qualification_policy=policy,
-                    admission=_QUALIFICATION_BUILD_ADMISSION,
+                    build_context=build_context,
                     log=lambda *args, **kwargs: None,
                 )
                 if not result.certified or result.aborted:

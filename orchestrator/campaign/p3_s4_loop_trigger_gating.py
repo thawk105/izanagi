@@ -53,8 +53,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import env_contract, execution_guard, ident, site_policy, wal  # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
-from campaign.build_admission import (BuildAdmission, BuildProvenance,  # noqa: E402
-                                      require_build_admission)
+from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
+                                      add_coder_build_authority_argument,
+                                      build_run_context)
 from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict, assert_digest_matches,
                                    auditor_reject_result, parse_auditor_dict,
@@ -462,15 +463,17 @@ def _run_one_iteration_resolved(
         layout: CampaignLayout, contract: env_contract.ExecutionEnvironmentContract,
         resolved_site: str, log=print, cache_root: str = "",
         dependency_prefix: str = "",
-        admission: Optional[BuildAdmission] = None,
+        build_context: Optional[BuildRunContext] = None,
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。"""
     from campaign.patchharness import applied
-    if do_build:
-        admission = require_build_admission(admission)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     genome = Genome("silo", dict(_BASE))
     layout.ensure()
-    ident.ensure_campaign_identity(campaign_cfg, layout)
+    ident.ensure_campaign_identity(
+        campaign_cfg, layout, admission_policy=build_context.policy,
+    )
 
     with applied(_template_patch_path(_repo_root()), PIN, sub):
         gate = _quarantine_and_audit(
@@ -491,7 +494,7 @@ def _run_one_iteration_resolved(
         summary = run_campaign(
             campaign_cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
             numactl=list(contract.numactl), log=log, ccbench_dir=sub,
-            cache_root=cache_root, admission=admission,
+            cache_root=cache_root, build_context=build_context,
             campaign_namespace="exploration",
             **campaign_options,
         )
@@ -531,7 +534,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                       layout: Optional[CampaignLayout] = None, log=print,
                       cache_root: str = "", *,
                       dependency_prefix: str = "",
-                      admission: Optional[BuildAdmission] = None) -> Dict:
+                      build_context: Optional[BuildRunContext] = None) -> Dict:
     """1 iteration の機械部分 (sort 版と同型の構造。genome は _BASE をそのまま焼く —
     FLAG=1 は軸定数モジュールの _BASE に含まれる)。
 
@@ -541,6 +544,11 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     resolved_site = _current_site()
     contract = _admit_env_contract(resolved_site)
     campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
+    if build_context is None and not do_build:
+        build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    campaign_cfg = ident.bind_admission_policy(campaign_cfg, build_context.policy)
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
     elif do_build and layout.root != exploration_campaign_layout(
@@ -552,7 +560,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         campaign_cfg, perf, planner, coder, auditor, state, sub, do_build,
         layout, contract, resolved_site, log=log, cache_root=cache_root,
         dependency_prefix=dependency_prefix,
-        admission=admission,
+        build_context=build_context,
     )
 
 
@@ -598,7 +606,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     cache_root: str = "", proposal_path: str = "",
                     extra_sources: Sequence[Dict[str, str]] = (), *,
                     dependency_prefix: str = "",
-                    admission: Optional[BuildAdmission] = None) -> Dict:
+                    build_context: Optional[BuildRunContext] = None) -> Dict:
     """段 8a trigger-gating の 1 iteration をメインセッション駆動で回す (sort 版と
     同型の骨格 + provenance 配線)。
 
@@ -611,6 +619,11 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     resolved_site = _current_site()
     contract = _admit_env_contract(resolved_site)
     campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
+    if build_context is None and not do_build:
+        build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    campaign_cfg = ident.bind_admission_policy(campaign_cfg, build_context.policy)
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
     _assert_resume_allowed(contract, layout)
@@ -635,7 +648,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         campaign_cfg, perf, planner, coder, auditor, state, sub, do_build,
         layout, contract, resolved_site, log=log, cache_root=cache_root,
         dependency_prefix=dependency_prefix,
-        admission=admission,
+        build_context=build_context,
     )
     _append_provenance_entry(layout, state.iteration, {
         "proposal_path": proposal_path,
@@ -684,8 +697,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         description="P3 段 8a trigger-gating coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫→構文契約→auditor gate の配線のみ確認")
-    ap.add_argument("--allow-coder-derived-build", action="store_true",
-                    help="CODER_DERIVED source の build をこの CLI run に限り明示許可")
+    add_coder_build_authority_argument(ap)
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
@@ -713,9 +725,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return 0 if out["passed"] else 1
 
-    admission = None if a.no_build else BuildAdmission(
-        BuildProvenance.CODER_DERIVED,
-        coder_derived_opt_in=a.allow_coder_derived_build,
+    if not a.no_build and a.coder_build_authority is None:
+        raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")
+
+    build_context = build_run_context(
+        generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+        coder_authority=None if a.no_build else a.coder_build_authority,
     )
 
     from campaign import patchharness
@@ -725,6 +740,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     patchharness.assert_pinned_clean(fixed_sub, PIN)
 
     cfg = default_cfg(reflux=(a.reflux == "on"))
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
     perf = default_perf()
 
     isolate = not a.no_isolate_worktree
@@ -745,7 +761,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                                   do_build=not a.no_build, cache_root=cache_root,
                                   proposal_path=os.path.abspath(a.run_iteration),
                                   extra_sources=extra_sources,
-                                  admission=admission)
+                                  build_context=build_context)
         expected_layout = exploration_campaign_layout(out["campaign_id"])
         layout = CampaignLayout(out["layout_root"])
         if layout.root != expected_layout.root:
@@ -783,7 +799,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                                  uncertainty="fixture (機械 E2E 用、実 auditor 未使用)")
         out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
                                 do_build=not a.no_build, cache_root=cache_root,
-                                admission=admission)
+                                build_context=build_context)
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     expected_layout = exploration_campaign_layout(out["campaign_id"])

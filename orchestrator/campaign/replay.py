@@ -27,6 +27,8 @@ from typing import Dict, List, Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import wal                                          # noqa: E402
+from campaign.artifact_admission import (AdmittedCampaign,        # noqa: E402
+                                         require_admitted_campaign)
 from campaign.genome import SILO_SPACE                            # noqa: E402
 from campaign.layout import CampaignLayout, repo_output_root      # noqa: E402
 from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
@@ -85,7 +87,7 @@ def genome_from_label(label: str) -> Genome:
 
 
 def discover_campaign_dir(slug: str, search_tag: str,
-                          output_root: str = "") -> CampaignLayout:
+                          output_root: str = "") -> AdmittedCampaign:
     """campaign dir を `<slug>-<search_tag>-*` の名前 prefix で discover する。
 
     C1 回避 (phase2.md 選択肢a): campaign-id の再計算 (`ident.campaign_id(config_for(...))`)
@@ -102,10 +104,10 @@ def discover_campaign_dir(slug: str, search_tag: str,
             f"campaign dir ({slug}-{search_tag}): WAL を持つ dir がちょうど 1 つ要るが "
             f"{len(hits)} 個: {[os.path.basename(h) for h in hits]}。"
             "C1 回避で dir 名 prefix discover している。re-run で重複したら明示解決せよ。")
-    return CampaignLayout(root=hits[0])
+    return require_admitted_campaign(CampaignLayout(root=hits[0]))
 
 
-def discover_p2_2_dir(tag: str, output_root: str = "") -> CampaignLayout:
+def discover_p2_2_dir(tag: str, output_root: str = "") -> AdmittedCampaign:
     """P2-2 campaign dir を slug-tag prefix で discover (discover_campaign_dir の特化形)。"""
     return discover_campaign_dir(f"{P2_2_SLUG}-{tag}", P2_2_SEARCH_TAG, output_root)
 
@@ -115,13 +117,13 @@ def load_landscape(tag: str, output_root: str = "") -> Dict[str, GenomeResult]:
 
     digest.load_workload と同じく **committed (= 全段通過) genome のみ**採る
     (half-evaluated を混ぜない、A: atomicity)。"""
-    lay = discover_p2_2_dir(tag, output_root)
+    view = discover_p2_2_dir(tag, output_root)
     genome_of: Dict[str, str] = {}
     bench_of: Dict[str, dict] = {}
     certified_of: Dict[str, bool] = {}
     committed: set = set()
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in wal.read_records(lay):
+    for r in view.records:
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
         elif r.stage == STAGE_BENCH_DONE:

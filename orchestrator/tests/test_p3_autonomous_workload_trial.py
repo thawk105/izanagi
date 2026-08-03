@@ -541,6 +541,9 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
 
     assert report["status"] == "complete"
     cell = report["cells"][0]
+    assert cell["admission_decision"] == {
+        "admission_status": "not-applicable",
+    }
     generation_record = cell["generations"][0]
     assert generation_record["outcome"] == "certified"
 
@@ -774,6 +777,7 @@ def test_compute_build_requires_matching_t276_transport_admission(
 
 
 def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 2)
     monkeypatch.setattr(
         A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
     )
@@ -785,6 +789,7 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
         A, "exploration_campaign_layout", lambda _campaign_id: campaign,
     )
     calls = []
+    context = A.build_run_context(generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP)
 
     def drive(*args, layout, **kwargs):
         calls.append((args, kwargs))
@@ -805,14 +810,18 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
         for role in ("planner", "coder", "auditor", "critic")
     }
     result = A._run_workload(
-        workload="ycsb-a", generations=1, providers=providers,
+        workload="ycsb-a", generations=2, providers=providers,
         journal=A.AttemptJournal(run_root / "attempts.jsonl"), run_root=run_root,
         sub="/unused", do_build=True, cache_root="",
         trial_id="other-build-positive", started_monotonic=time.monotonic(),
         max_wall_s=60, drive=drive, preview=_fake_preview,
+        build_context=context,
     )
-    assert len(calls) == 1
-    assert result["generations"][0]["outcome"] == "certified"
+    assert len(calls) == 2
+    assert all(kwargs["build_context"] is context for _args, kwargs in calls)
+    assert [item["outcome"] for item in result["generations"]] == [
+        "certified", "certified",
+    ]
 
 
 def test_run_workload_direct_call_rejects_unapproved_budget(tmp_path) -> None:
@@ -979,12 +988,14 @@ def test_run_workload_build_passes_exploration_layout_to_trigger(
         lambda campaign_id: factory(campaign_id, str(tmp_path)),
     )
     passed_layouts = []
+    context = A.build_run_context(generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP)
 
     def drive_build(
         cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
-        cache_root="", proposal_path="", extra_sources=(),
+        cache_root="", proposal_path="", extra_sources=(), build_context=None,
     ):
         assert do_build is True
+        assert build_context is context
         passed_layouts.append(layout)
         Path(layout.root).mkdir(parents=True, exist_ok=True)
         return {
@@ -1009,6 +1020,7 @@ def test_run_workload_build_passes_exploration_layout_to_trigger(
         max_wall_s=60,
         drive=drive_build,
         preview=_fake_preview,
+        build_context=context,
     )
 
     expected = tmp_path / "exploration" / "campaigns" / result["campaign_id"]
@@ -1031,11 +1043,22 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
     )
     passed_layouts = []
 
+    def fake_finalize(cell):
+        cell["admission_decision"] = {
+            "schema_version": "campaign-artifact-admission-decision/v1",
+            "admission_status": "admitted",
+            "classification": "admitted-new-schema",
+        }
+
+    monkeypatch.setattr(A, "_finalize_build_cell_admission", fake_finalize)
+    monkeypatch.setattr(A, "assert_campaign_layer3_chain", lambda **_kwargs: None)
+
     def drive_build(
         cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
-        cache_root="", proposal_path="", extra_sources=(),
+        cache_root="", proposal_path="", extra_sources=(), build_context=None,
     ):
         assert do_build is True
+        assert type(build_context) is A.BuildRunContext
         passed_layouts.append(layout)
         Path(layout.root).mkdir(parents=True, exist_ok=True)
         (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(

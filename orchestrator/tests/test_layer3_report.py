@@ -51,25 +51,11 @@ def _bench(variant="v1", **extra):
                    rounds=1, leading_indicators={}, **extra)
 
 
-def test_real_campaign_schema_bijection_views_and_no_matching_floor(tmp_path):
+def test_real_legacy_s8a_campaign_is_rejected(tmp_path):
     out = tmp_path / "report.json"
-    report = layer3_report.render(REAL_CAMPAIGN, out, generated_from_head="fixed-head")
-    assert out.is_file()
-    assert len(report["source_refs"]) == 14  # WAL 12 + whiteboard 2
-    assert report["schema_version"] == "layer3-material-report/v2"
-    assert report["whiteboard_provenance"] == "loop_state"
-    assert len(report["runs"]) == 2
-    assert len(report["verifications"]) == 4
-    assert all(row["source_ref"].startswith("wal:") for row in report["runs"] + report["verifications"])
-    assert report["rejects"] == []
-    assert report["aborts"] == []
-    for kind in ("within_run", "between_run"):
-        floor = report["noise_floor"][kind]
-        assert floor["value"] is None
-        assert floor["provenance"] == "no-matching-env-record"
-        assert floor["source"] is None
-        assert floor["search"]["campaign_has_no_ycsb"] is True
-    layer3_report._validate_schema(json.loads(out.read_text(encoding="utf-8")))
+    with pytest.raises(layer3_report.Layer3ReportError, match="legacy-unclassified"):
+        layer3_report.render(REAL_CAMPAIGN, out, generated_from_head="fixed-head")
+    assert not out.exists()
 
 
 def test_campaign_without_loop_state_has_empty_absent_whiteboard(tmp_path):
@@ -80,6 +66,23 @@ def test_campaign_without_loop_state_has_empty_absent_whiteboard(tmp_path):
     assert report["whiteboard"] == []
     assert report["whiteboard_provenance"] == "absent"
     assert not any(ref.startswith("wb:") for ref in report["source_refs"])
+    assert report["schema_version"] == "layer3-material-report/v3"
+    decision = report["admission_decision"]
+    assert decision["classification"] == "historical-pre-admission-schema"
+    assert decision["admission_status"] == "historical-not-reclassified"
+    assert decision["overlay"]["record_key"] is None
+
+
+def test_legacy_v2_report_schema_remains_readable(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    legacy = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    legacy["schema_version"] = "layer3-material-report/v2"
+    del legacy["admission_decision"]
+    layer3_report._validate_schema(legacy)
 
 
 def test_bench_rep_returncodes_passes_real_view_and_schema(tmp_path):
@@ -116,8 +119,11 @@ def test_existing_empty_loop_state_keeps_loop_state_provenance(tmp_path):
 
 
 @pytest.mark.parametrize("provenance", [None, "unknown"])
-def test_schema_rejects_missing_or_invalid_whiteboard_provenance(provenance):
-    report = layer3_report.build_report(REAL_CAMPAIGN, generated_from_head="fixed")
+def test_schema_rejects_missing_or_invalid_whiteboard_provenance(provenance, tmp_path):
+    campaign, output_root = _campaign(tmp_path, [_record("build_start", genome="g", src_token="s")])
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
     if provenance is None:
         del report["whiteboard_provenance"]
     else:
@@ -127,12 +133,15 @@ def test_schema_rejects_missing_or_invalid_whiteboard_provenance(provenance):
 
 
 def test_relative_and_absolute_campaign_paths_are_byte_identical(tmp_path, monkeypatch):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
     first = tmp_path / "first.json"
     second = tmp_path / "second.json"
-    monkeypatch.chdir(ROOT)
-    relative = REAL_CAMPAIGN.relative_to(ROOT)
-    layer3_report.render(relative, first, generated_from_head="f" * 40)
-    layer3_report.render(REAL_CAMPAIGN, second, generated_from_head="f" * 40)
+    monkeypatch.chdir(output_root.parent)
+    relative = campaign.relative_to(output_root.parent)
+    layer3_report.render(relative, first, generated_from_head="f" * 40, output_root=output_root)
+    layer3_report.render(campaign, second, generated_from_head="f" * 40, output_root=output_root)
     assert first.read_bytes() == second.read_bytes()
     assert json.loads(first.read_text())["meta"]["campaign_path"] == relative.as_posix()
 
@@ -422,7 +431,10 @@ def test_variant_without_commit_is_reject_with_primary_reference(tmp_path):
 
 @pytest.mark.parametrize("section", ["variants", "runs", "verifications", "rejects", "aborts", "whiteboard"])
 def test_schema_rejects_empty_material_items(section, tmp_path):
-    report = layer3_report.build_report(REAL_CAMPAIGN, generated_from_head="fixed")
+    campaign, output_root = _campaign(tmp_path, [_record("build_start", genome="g", src_token="s")])
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
     report[section] = [{}]
     with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
         layer3_report._validate_schema(report)

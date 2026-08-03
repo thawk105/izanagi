@@ -1,0 +1,51 @@
+{
+  "schema_version": "legacy-campaign-admission-overlay/v1",
+  "authority": {
+    "kind": "deny-only-admission-overlay",
+    "ruling_id": "T-342+T-343+T-344/s4-ruling/1-C"
+  },
+  "created_from_commit": "e0b9073ade90dc59578ad30fa8c8ffbe312b9b4e",
+  "input_set_sha256": "c3b0d4f27b44cf264b7642a6efadfed07b2fc2605dfb777eec0362391589b436",
+  "generation_rule": {
+    "scope": "exactly the three receiptless loop campaigns named by the stage-4 ruling",
+    "input_projection": [
+      "path",
+      "campaign_id",
+      "campaign_lock_sha256",
+      "wal_sha256",
+      "build_start_count"
+    ],
+    "verification_dimension": "preserve the verifier verdict recorded at the time",
+    "admission_dimension": "deny admission-aware selection as legacy-unclassified",
+    "membership_rule": "no inferred, prefix, or future campaign membership"
+  },
+  "records": [
+    {
+      "path": "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387",
+      "campaign_id": "p3-s4-loop-s4-autonomous-0b53a387",
+      "campaign_lock_sha256": "0b53a3876589a61ae35b318237751015acebb3761e612e4374f9944ffca7f7c9",
+      "wal_sha256": "2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611",
+      "build_start_count": 3,
+      "verification_status": "historically-certified",
+      "admission_status": "legacy-unclassified"
+    },
+    {
+      "path": "output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d",
+      "campaign_id": "p3-s5-sort-loop-s5-sort-autonomous-3be89e0d",
+      "campaign_lock_sha256": "3be89e0ddad8e8b2b37d35168c49affe7889ea580831973dc0d6d9706aaa4f97",
+      "wal_sha256": "b901f23a502e4d3843454de807ca01666c145ee7d9d424a957bb366ef3e793a5",
+      "build_start_count": 1,
+      "verification_status": "historically-certified",
+      "admission_status": "legacy-unclassified"
+    },
+    {
+      "path": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5",
+      "campaign_id": "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5",
+      "campaign_lock_sha256": "3f72ecd58a6df4018d136bcbb8abb276114ba8d302c64aaf792c473ae4b1de0c",
+      "wal_sha256": "a539648d29afce9be036eba519b53f21fd1f8e1fb7bfe24549f4ec3ceac31ea3",
+      "build_start_count": 2,
+      "verification_status": "historically-certified",
+      "admission_status": "legacy-unclassified"
+    }
+  ]
+}

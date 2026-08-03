@@ -13,8 +13,9 @@ report 本体を再走査して得る multiset を独立に比較し、view の 
 構造化され、schema_version を上げて契約を拡張するまで解除しない。
 noise floor は within_run = 1 測定の品質、between_run = run 間比較の採否 floor として区別する（p2_2.py の A2 注記と同じ区別）。
 abort variant も commit-event-absent のため rejects に載り、詳細理由は aborts view が保持する。
-schema v1 で生成済みの実レポートは、generator sha を内包する記録済み artifact であり、
-v2 への更新のために再生成しない。
+schema v1/v2 で生成済みの実レポートは、generator sha を内包する記録済み artifact
+であり、v3 への更新のために再生成しない。schema reader は v2 を引き続き受理するが、
+新規生成は admission decision receipt を必須にした v3 だけを発行する。
 ``generated_from_head`` は provenance であり、決定論比較の対象外である（HEAD が動けば
 変わる）。
 """
@@ -35,13 +36,18 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import jsonschema
 
 
-SCHEMA_VERSION = "layer3-material-report/v2"
+SCHEMA_VERSION = "layer3-material-report/v3"
+LEGACY_SCHEMA_VERSION = "layer3-material-report/v2"
 GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
 STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "commit", "abort"))
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
 from campaign import wal  # noqa: E402
+from campaign.artifact_admission import (  # noqa: E402
+    ArtifactAdmissionError,
+    require_admitted_campaign,
+)
 
 
 _SCHEMA_PATH = _HERE / "layer3_schema.json"
@@ -183,6 +189,13 @@ def _assert_bijection(records: Sequence[Mapping[str, Any]], whiteboard: Sequence
 
 def _validate_schema(report: Mapping[str, Any]) -> None:
     schema = _read_json(_SCHEMA_PATH)
+    if report.get("schema_version") == LEGACY_SCHEMA_VERSION:
+        # A v2 artifact is immutable historical evidence.  Derive its reader
+        # schema from v3 by removing only the forward admission receipt.
+        schema = json.loads(json.dumps(schema))
+        schema["properties"]["schema_version"] = {"const": LEGACY_SCHEMA_VERSION}
+        schema["required"].remove("admission_decision")
+        schema["properties"].pop("admission_decision")
     try:
         jsonschema.Draft7Validator(schema).validate(report)
     except jsonschema.ValidationError as exc:
@@ -350,6 +363,19 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
     output_root = Path(output_root) if output_root is not None else _DEFAULT_OUTPUT_ROOT
     if not campaign_dir.is_dir():
         raise Layer3ReportError("campaign directory が存在しない: %s" % campaign_dir)
+    try:
+        admitted_campaign = require_admitted_campaign(campaign_dir)
+    except ArtifactAdmissionError as exc:
+        raise Layer3ReportError(f"campaign admission 検証に失敗: {exc}") from exc
+    except wal.WalFramingError as exc:
+        raise Layer3ReportError(
+            "WAL framing が不正: %s: %s"
+            % (campaign_dir / "runs" / "wal.jsonl", exc)
+        ) from exc
+    except (json.JSONDecodeError, wal.WalLineError) as exc:
+        raise Layer3ReportError(
+            "WAL record が不正: %s: %s" % (type(exc).__name__, exc)
+        ) from exc
     _reject_qualification_ancestry(campaign_dir, output_root.resolve().parent)
     lock = _read_json(campaign_dir / "campaign.lock")
     state_path = campaign_dir / "loop_state.json"
@@ -382,6 +408,13 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         raise Layer3ReportError("campaign.lock のキーが不正")
     _assert_unique_refs("wb", whiteboard, "whiteboard")
     records = _read_wal(campaign_dir / "runs" / "wal.jsonl")
+    if (
+        _sha256_file(campaign_dir / "campaign.lock")
+        != admitted_campaign.decision.campaign_lock_sha256
+        or _sha256_file(campaign_dir / "runs" / "wal.jsonl")
+        != admitted_campaign.decision.wal_sha256
+    ):
+        raise Layer3ReportError("campaign bytes changed after admission validation")
     if _contains_qualification_lineage(records):
         raise Layer3ReportError(
             "qualification lineage は formal Layer3 入力として受理しない")
@@ -420,6 +453,7 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         "whiteboard": sorted(whiteboard, key=lambda item: canonical_record_ref("wb", item)),
         "whiteboard_provenance": whiteboard_provenance,
         "artifact_refs": _artifact_refs(campaign_dir), "source_refs": [],
+        "admission_decision": admitted_campaign.decision.as_receipt(),
         "mechanism_hypotheses": [],
     }
     report["source_refs"] = sorted(_report_primary_refs(report).elements())

@@ -11,12 +11,13 @@ import os
 from dataclasses import dataclass, replace
 from typing import Callable, Dict, Optional, Sequence
 
-from . import ident, source_digest, wal
-from .build_admission import BuildAdmission, require_build_admission
+from . import buildcache, ident, source_digest, wal
+from .build_admission import BuildRunContext
 from .layout import CampaignLayout, campaign_layout, repo_output_root
 from .model import (STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT,
                     CampaignConfig, Genome)
-from .pipeline import (EvalResult, PerfConfig, S2_TAG, SEARCH_CONFIG_VERIFY_KEY,
+from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_TAG,
+                       SEARCH_CONFIG_VERIFY_KEY,
                        ScreeningConfig, VERIFY_LEGACY_PLUS_S2, evaluate,
                        s2_correctness_workload, variant_id)
 
@@ -76,8 +77,11 @@ def prepare_screening_campaign(
         measure_baseline: Callable[[CampaignConfig, CampaignLayout], None], *,
         calibration_dir: str = "", output_root: str = "", k: float = 1.5,
         high_abort_factor: float = 2.0,
-        reanchor_threshold_s: float = 1800.0, log=print) -> PreparedScreening:
+        reanchor_threshold_s: float = 1800.0, log=print,
+        build_context: BuildRunContext) -> PreparedScreening:
     """identity焼き込み→同一campaign baseline実測→runtime config生成を一括実行する。"""
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if not baseline_ref:
         raise ValueError("baseline_ref が欠落")
     if "screening" in base_cfg.search_config:
@@ -92,8 +96,11 @@ def prepare_screening_campaign(
     policy = ident.screening_policy_search_config(
         baseline_ref, floor, k, high_abort_factor)
     cfg = replace(base_cfg, search_config={**base_cfg.search_config, **policy})
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root).ensure()
-    _surface_repair(ident.ensure_resumable_wal(cfg, layout), log)
+    _surface_repair(ident.ensure_resumable_wal(
+        cfg, layout, admission_policy=build_context.policy,
+    ), log)
 
     before = sum(1 for rec in wal.read_records(layout)
                  if rec.variant == baseline_ref and rec.stage == STAGE_BENCH_DONE)
@@ -127,18 +134,31 @@ def prepare_screening_campaign(
 def evaluate_candidate(
         cfg: CampaignConfig, layout: CampaignLayout, genome: Genome,
         perf: PerfConfig, env_tag: str, clocks_per_us: int, *,
-        admission: BuildAdmission,
+        build_context: BuildRunContext,
         screening: Optional[ScreeningConfig],
+        capability_resolver: Optional[AdmissionCapabilityResolver] = None,
         numactl: Optional[Sequence[str]] = None, src_token: Optional[str] = None,
         do_settle: bool = False, force: bool = False, log=print,
         ccbench_dir: str = "", cache_root: str = "") -> Optional[EvalResult]:
     """sweep候補を1点評価する。forceはbaseline再アンカー専用。"""
-    admission = require_build_admission(admission)
-    _surface_repair(ident.ensure_resumable_wal(cfg, layout), log)
-    src_tok = src_token if src_token is not None else source_digest.resolve(
-        genome, cfg.ccbench_commit, ccbench_dir)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    _surface_repair(ident.ensure_resumable_wal(
+        cfg, layout, admission_policy=build_context.policy,
+    ), log)
+    _, resolved_cxx = buildcache.compilers_for_current_site()
+    evidence = source_digest.resolve_evidence(
+        genome,
+        cfg.ccbench_commit,
+        ccbench_dir=ccbench_dir,
+        cxx=resolved_cxx,
+    )
+    if src_token is not None and src_token != evidence.src_token:
+        raise ValueError("src_token が current SourceEvidence と不一致")
+    src_tok = evidence.src_token
     vid = variant_id(genome, src_tok)
-    state = wal.replay(layout).get(vid)
+    state = wal.replay(layout, admission_policy=build_context.policy).get(vid)
     # transient な環境故障 abort (identity/probe-error) は permanent skip にせず再評価する
     # (loop.py と同じ retryable 契約, D25/B-3)。
     if (not force and state is not None and state.terminal
@@ -153,13 +173,25 @@ def evaluate_candidate(
             numactl=numactl, do_settle=do_settle, src_token=src_tok,
             extra_correctness=extra_correctness, screening=screening, log=log,
             ccbench_dir=ccbench_dir, cache_root=cache_root,
-            admission=admission)
+            build_context=build_context,
+            capability_resolver=capability_resolver,
+            source_evidence=evidence)
     except (KeyboardInterrupt, SystemExit):
         raise
     except Exception as exc:  # candidate固有失敗をWALへ隔離。loop.pyと同じ境界。
         if isinstance(exc, (wal.WalAppendError, wal.WalFramingError)):
             raise
-        wal.log(layout, vid, STAGE_ABORT, env_tag,
-                {"reason": f"eval-exception: {type(exc).__name__}: {exc}"})
+        payload = {"reason": f"eval-exception: {type(exc).__name__}: {exc}"}
+        replayed = wal.replay(layout, admission_policy=build_context.policy).get(vid)
+        if replayed is not None:
+            active = [
+                attempt for attempt in replayed.attempts.values()
+                if not attempt.committed and not attempt.aborted
+            ]
+            if len(active) == 1:
+                payload["build_attempt_id"] = active[0].attempt_id
+                if active[0].receipt_sha256 is not None:
+                    payload["build_admission_receipt_sha256"] = active[0].receipt_sha256
+        wal.log(layout, vid, STAGE_ABORT, env_tag, payload)
         return EvalResult(genome=genome, variant=vid, certified=False, aborted=True,
                           notes=[f"評価中の例外 → reject ({exc})"])

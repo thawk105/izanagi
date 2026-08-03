@@ -24,7 +24,11 @@ ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import model, pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    GeneratorId,
+    ReviewId,
+    build_run_context,
+)
 from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from campaign import campaign_claim as _campaign_claim  # noqa: E402
 from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
@@ -43,6 +47,7 @@ from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E4
 from campaign.s8b_materialization import (  # noqa: E402
     MaterializationError,
     prepared_binding as _materialization_prepared_binding,
+    reviewed_source_capability,
 )
 from campaign import s1_known_axes_freeze, s8b_holdout_freeze  # noqa: E402
 from campaign.s8b_oracle_manifest import (  # noqa: E402
@@ -56,7 +61,6 @@ SESSION_STAGE = model.STAGE_S8B_ORACLE_SESSION
 SESSION_ISSUER = model.S8B_ORACLE_SESSION_ISSUER
 DEFAULT_FREEZE_PATH = ROOT / "output/s8b-freeze/holdout_freeze.json"
 DEFAULT_BUDGET_PATH = ROOT / "output/s8b-budget/time_ledger.json"
-_BUILD_ADMISSION = BuildAdmission(BuildProvenance.HUMAN_REVIEWED)
 _BINDING_KEYS = {
     "genome_canonical", "src_token", "variant_id", "entry_sha256",
     "binding_sha256",
@@ -1149,6 +1153,9 @@ def run_block(
     env_tag = run_contract["env_tag"]
     evaluate_fn = evaluate_fn or pipeline.evaluate
     prepare_fn = prepare_fn or prepare_cell
+    # Human-reviewed admission の persistent receipt に generator id は入らない。run context
+    # の閉じた registry member には S8b の直前 producer である S8a を用いる。
+    build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     layout = campaign_layout(campaign_id, output_root=str(output_root))
 
     # v2 実走前の一括検査 (run marker 作成前・第一防壁): launch_validate +
@@ -1352,7 +1359,16 @@ def run_block(
                                 ccbench_dir=prepared_for_eval.ccbench_dir,
                                 cache_root=prepared_for_eval.cache_root,
                                 screening=None,
-                                admission=_BUILD_ADMISSION,
+                                build_context=build_context,
+                                capability_resolver=(
+                                    lambda source, input_sha256=(
+                                        actual_binding["entry_sha256"]
+                                    ): reviewed_source_capability(
+                                        review_id=ReviewId.S8B_ORACLE,
+                                        source=source,
+                                        input_sha256=input_sha256,
+                                    )
+                                ),
                                 bench_max_rounds=run_contract["bench_max_rounds"],
                                 env_contract=plan.contract,
                                 # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を

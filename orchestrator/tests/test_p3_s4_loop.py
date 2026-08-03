@@ -27,6 +27,7 @@ from campaign import ident, p3_s4_loop as L                        # noqa: E402
 from campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
 from campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
 from campaign import source_digest, wal                            # noqa: E402
+from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.loop import CampaignSummary                          # noqa: E402
 from campaign.pipeline import variant_id                           # noqa: E402
 from campaign.projection_guard import (                            # noqa: E402
@@ -64,6 +65,14 @@ class Backoff {
 _SRC_REL = "backoff.hh"
 _G = Genome("silo", {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0,
                      "WAL": 0, "BACK_OFF": 1, "BACKOFF_FIXED": 20})
+
+
+def _critic_view(layout: CampaignLayout):
+    """Issue the sole validated raw-WAL view used by critic loaders."""
+    Path(layout.lock_file).write_text(
+        json.dumps({"search_config": {}}, sort_keys=True), encoding="utf-8",
+    )
+    return require_admitted_campaign(layout)
 
 
 def _mk_template_dir():
@@ -165,7 +174,7 @@ def test_record_and_load_diff_rejection_roundtrip():
     lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_s4loop_wal_"))
     lay.ensure()
     v = L.record_diff_reject(lay, _G, "#define X 1\ndouble now_backoff = 20.0;", res)
-    dqs = load_diff_rejections(lay)
+    dqs = load_diff_rejections(_critic_view(lay))
     assert len(dqs) == 1
     dq = dqs[0]
     assert dq.variant == v
@@ -209,7 +218,7 @@ def test_diff_reject_not_double_counted_in_liveness_other():
     lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_s4loop_wal2_"))
     lay.ensure()
     L.record_diff_reject(lay, _G, "#define X 1\ndouble now_backoff = 20.0;", res)
-    livs, other = load_liveness_rejections(lay)
+    livs, other = load_liveness_rejections(_critic_view(lay))
     assert livs == []                            # liveness ではない
     assert DIFF_QUARANTINE_REASON not in other   # other にも混ざらない
 
@@ -222,7 +231,9 @@ def test_render_rejections_diff_section_has_no_perf_tokens():
     lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_s4loop_wal3_"))
     lay.ensure()
     L.record_diff_reject(lay, _G, "#define X 1\ndouble now_backoff = 20.0;", res)
-    out = render_rejections([], [], {}, None, diff_rejections=load_diff_rejections(lay))
+    out = render_rejections(
+        [], [], {}, None, diff_rejections=load_diff_rejections(_critic_view(lay)),
+    )
     assert "diff-quarantine:hole-escape" in out
     for tok in ("throughput", "fitness", "ops/sec", "tps"):
         assert tok not in out.lower()
@@ -254,7 +265,7 @@ def test_comment_reject_wal_to_critic_digest_does_not_repeat_payload():
         "reason", "genome", "diff_quarantine",
     }
 
-    loaded = load_diff_rejections(lay)
+    loaded = load_diff_rejections(_critic_view(lay))
     assert len(loaded) == 1
     out = render_rejections([], [], {}, None, diff_rejections=loaded)
     assert "diff-quarantine:hole-escape" in out
@@ -269,7 +280,9 @@ def test_render_rejections_diff_only_not_all_green():
     lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_s4loop_wal4_"))
     lay.ensure()
     L.record_diff_reject(lay, _G, "#define X 1\ndouble now_backoff = 20.0;", res)
-    out = render_rejections([], [], {}, None, diff_rejections=load_diff_rejections(lay))
+    out = render_rejections(
+        [], [], {}, None, diff_rejections=load_diff_rejections(_critic_view(lay)),
+    )
     assert "全 variant 緑" not in out
 
 

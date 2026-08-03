@@ -37,6 +37,7 @@ if str(_IMPORT_ROOT) not in sys.path:
 
 from orchestrator.campaign import env_contract, patchharness
 from orchestrator.campaign import silo_ladder_rung1_contract as patch_contract
+from orchestrator.campaign.materializer_admission import non_admissible_materializer
 
 
 SCHEMA_VERSION = "silo_ladder_rung1/v1"
@@ -1235,13 +1236,16 @@ def _validate_schema(document: Any) -> EvidenceFailure | None:
         return EvidenceFailure("schema", "top-level identity is invalid")
     if not _exact_keys(document["classification"], {
         "evaluation_role", "research_goal_eligible",
-        "recovery_measurement_eligibility",
+        "recovery_measurement_eligibility", "build_admission",
     }):
         return EvidenceFailure("schema", "classification schema mismatch")
     if document["classification"] != {
         "evaluation_role": "ability_probe",
         "research_goal_eligible": False,
         "recovery_measurement_eligibility": False,
+        "build_admission": non_admissible_materializer(
+            "orchestrator.campaign.silo_ladder_rung1._build_variant"
+        ),
     }:
         return EvidenceFailure("schema", "classification values mismatch")
     if document["activation_contract"] != {
@@ -4678,6 +4682,9 @@ def _collect_command(
             "evaluation_role": "ability_probe",
             "research_goal_eligible": False,
             "recovery_measurement_eligibility": False,
+            "build_admission": non_admissible_materializer(
+                "orchestrator.campaign.silo_ladder_rung1._build_variant"
+            ),
         },
         "activation_contract": {
             "macro": RUNG_MACRO,

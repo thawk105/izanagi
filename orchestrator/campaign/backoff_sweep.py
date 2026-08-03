@@ -19,6 +19,7 @@ backoff は timing のみ変える (CC 論理は不変) ので serializable の�
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import sys
 from typing import Optional
@@ -26,7 +27,8 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.loop import run_campaign                          # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
+                                      attest_generator_output, build_run_context)
 from campaign.layout import CampaignLayout                      # noqa: E402
 from campaign.model import CampaignConfig, Genome               # noqa: E402
 from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,  # noqa: E402
@@ -35,8 +37,6 @@ from campaign.pipeline import PerfConfig                        # noqa: E402
 from campaign import ident, pin, screening_driver, source_digest, wal  # noqa: E402
 from campaign.loop import CampaignSummary                       # noqa: E402
 from campaign.pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
-
-_BUILD_ADMISSION = BuildAdmission(BuildProvenance.MACHINE_SWEEP)
 
 CCBENCH_COMMIT = pin.CURRENT_PIN      # d706650 — literal 保持をやめ pin 正本へ (between_run_floor と同型)
 
@@ -82,6 +82,8 @@ def config_for(tag: str, workload: dict, *,
 
 
 def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
+                           build_context: BuildRunContext,
+                           capability_resolver,
                            confirm_each_candidate=False):
     baseline = gs[0]
     baseline_ref = variant_id(
@@ -91,12 +93,13 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
     def measure_baseline(screen_cfg, layout):
         measured.append(screening_driver.evaluate_candidate(
             screen_cfg, layout, baseline, perf, ENV_TAG, CLK,
-            admission=_BUILD_ADMISSION,
+            build_context=build_context,
+            capability_resolver=capability_resolver,
             screening=None, numactl=NUMA, force=True, do_settle=True, log=log))
 
     prepared = screening_driver.prepare_screening_campaign(
         cfg, workload, baseline_ref, measure_baseline,
-        calibration_dir=calibration_dir)
+        calibration_dir=calibration_dir, build_context=build_context)
     s = CampaignSummary(campaign_id=str(ident.campaign_id(prepared.cfg)),
                         layout_root=prepared.layout.root, total=len(gs))
     results = [measured[0]]
@@ -106,7 +109,8 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
         _assert_single_tenant()
         results.append(screening_driver.evaluate_candidate(
             prepared.cfg, prepared.layout, genome, perf, ENV_TAG, CLK,
-            admission=_BUILD_ADMISSION,
+            build_context=build_context,
+            capability_resolver=capability_resolver,
             screening=prepared.screening, numactl=NUMA, log=log))
     for result in results:
         if result is None:
@@ -138,16 +142,27 @@ def run_workload(tag: str, workload: dict, log=print, *,
                 f"screening_fixed_us は既存 sweep 点から一意に選ぶ: {screening_fixed_us}")
         gs = [gs[0], selected[0]]
     cfg = config_for(tag, workload, screening_fixed_us=screening_fixed_us)
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    capability_resolver = lambda evidence: attest_generator_output(
+        build_context, evidence,
+        generator_input_sha256=hashlib.sha256(
+            f"backoff-sweep/v1|{evidence.genome_sha256}".encode("utf-8")
+        ).hexdigest(),
+    )
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=workload,
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff sweep  workload={tag}  ({workload})  {len(gs)} genome ===")
     if screening_enabled:
         s = _run_screened_workload(
             cfg, gs, perf, workload, calibration_dir, log,
+            build_context=build_context,
+            capability_resolver=capability_resolver,
             confirm_each_candidate=confirm_each_candidate)
     else:
         s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                         admission=_BUILD_ADMISSION)
+                         build_context=build_context,
+                         capability_resolver=capability_resolver)
 
     rows = [(r.fitness_tps, r) for r in s.results if r.fitness_tps is not None]
     rows.sort(key=lambda t: t[0], reverse=True)
@@ -188,12 +203,13 @@ def main(argv) -> int:
     print("\n=== backoff sweep 完了 ===")
     for tag, s in summaries:
         print(f"  {tag}: {s.campaign_id}  committed={s.committed} aborted={s.aborted}")
+    replay_policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
     def unexpected_abort(summary):
         layout = CampaignLayout(summary.layout_root)
         return any(
             st.last_terminal is not None
             and st.last_terminal.payload.get("reason") != SCREEN_REJECTION_REASON
-            for st in wal.replay(layout).values()
+            for st in wal.replay(layout, admission_policy=replay_policy).values()
             if st.aborted and not st.committed)
 
     ok = all(not unexpected_abort(s) for _, s in summaries) if a.screening else \

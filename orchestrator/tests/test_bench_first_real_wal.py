@@ -8,6 +8,7 @@ fixture 出所: campaign
 from __future__ import annotations
 
 import shutil
+import json
 import sys
 from pathlib import Path
 
@@ -18,6 +19,7 @@ _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH))
 
 from campaign import p2_2_report, replay, s6_sort_sweep, s8a_trigger_sweep, wal  # noqa: E402
+from campaign.artifact_admission import require_admitted_campaign                # noqa: E402
 from campaign.backoff_repro import _bench_tps                              # noqa: E402
 from campaign.layout import CampaignLayout                                # noqa: E402
 from campaign.model import STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT     # noqa: E402
@@ -40,6 +42,9 @@ _REJECTED_GENOME = (
 def real_screen_layout(tmp_path) -> CampaignLayout:
     layout = CampaignLayout(str(tmp_path / "campaign")).ensure()
     shutil.copyfile(_FIXTURE, layout.wal_file)
+    Path(layout.lock_file).write_text(
+        json.dumps({"search_config": {}}), encoding="utf-8",
+    )
     return layout
 
 
@@ -67,11 +72,12 @@ def test_real_wal_fixture_preserves_positive_control_shape(real_screen_layout):
 
 
 def test_real_wal_critic_loaders_hide_uncertified_metrics(real_screen_layout):
-    workload = load_workload(real_screen_layout)
+    view = require_admitted_campaign(real_screen_layout)
+    workload = load_workload(view)
     assert len(workload) == 1 and workload[0].genome == _BASELINE_GENOME
     assert workload[0].li["throughput_tps"] == 8470959.0
 
-    rejected = load_screen_rejections(real_screen_layout)
+    rejected = load_screen_rejections(view)
     assert len(rejected) == 1
     assert rejected[0].genome == _REJECTED_GENOME
     projected = vars(rejected[0])
@@ -101,6 +107,9 @@ def test_real_wal_replay_landscape_requires_commit(tmp_path):
         root / "campaigns" / "p2-2-silo-real-screen-enumerate-fixture"
     )).ensure()
     shutil.copyfile(_FIXTURE, layout.wal_file)
+    Path(layout.lock_file).write_text(
+        json.dumps({"search_config": {}}), encoding="utf-8",
+    )
     landscape = replay.load_landscape("real-screen", str(root))
     assert set(landscape) == {_BASELINE_GENOME}
     assert landscape[_BASELINE_GENOME].fitness_tps == 8470959.0

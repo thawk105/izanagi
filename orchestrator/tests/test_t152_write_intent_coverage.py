@@ -820,6 +820,7 @@ def test_payload_records_semantics_links_limitations_and_no_stdout_counts():
             "as throughput)"
         ),
     }
+    assert payload["build_admission"]["admission_status"] == "non-admissible"
     assert payload["known_limitations"] == [
         "delete_record cancel-previous-write mirroring is not exercised by this "
         "characterization: BOMB does not execute update->delete for the same key "

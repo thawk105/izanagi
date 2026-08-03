@@ -22,6 +22,7 @@ default 0=inert で stock 不変)。絶対規律4: 単一テナント直列・pg
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -34,8 +35,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from calibrator.benchparse import (abort_rate as parse_abort,    # noqa: E402
                                    parse_bench_stdout, throughput_tps)
-from campaign import buildcache                                  # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign import buildcache, source_digest                   # noqa: E402
+from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+                                      build_run_context, derive_build_admission)
 from campaign.layout import env_scope_dir                    # noqa: E402
 from campaign.model import Genome                                # noqa: E402
 from campaign.p2_2 import (CCBENCH_COMMIT, CLK, ENV_TAG, EXTIME,  # noqa: E402
@@ -131,9 +133,20 @@ def _median(xs):
 def profile_point(backoff_us, workload, log=print):
     """1 backoff 量を REPS 回 profile し、有用 IPC を含む集計を返す。"""
     g = _genome(backoff_us)
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_PROFILE)
+    evidence = source_digest.resolve_evidence(g, CCBENCH_COMMIT)
+    capability = attest_generator_output(
+        build_context, evidence,
+        generator_input_sha256=hashlib.sha256(
+            f"backoff-profile/v1|{g.canonical()}".encode("utf-8")
+        ).hexdigest(),
+    )
     br = buildcache.build(
         g, ccbench_commit=CCBENCH_COMMIT, trace=False,
-        admission=BuildAdmission(BuildProvenance.MACHINE_SWEEP),
+        admission=derive_build_admission(
+            build_context, evidence, generator_receipt=capability,
+        ),
+        build_context=build_context, source_evidence=evidence,
     )
     _assert_single_tenant()        # 各点の頭で再確認 (長い perf ループでも fail-closed, 規律4)
     runs = []

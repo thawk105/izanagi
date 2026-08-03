@@ -38,7 +38,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import ident, pipeline, wal                          # noqa: E402
-from campaign.build_admission import BuildAdmission, BuildProvenance  # noqa: E402
+from campaign.build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
+                                      add_coder_build_authority_argument,
+                                      build_run_context)
 from campaign.layout import exploration_campaign_layout            # noqa: E402
 from campaign.loop import run_campaign                             # noqa: E402
 from campaign.model import CampaignConfig, Genome                  # noqa: E402
@@ -127,24 +129,25 @@ def _synthetic_integrity_rejection() -> Rejection:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="P3 coder-derived red-path fixture")
-    parser.add_argument("--allow-coder-derived-build", action="store_true",
-                        help="CODER_DERIVED RED patch build をこの CLI run に限り明示許可")
+    add_coder_build_authority_argument(parser)
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
-    coder_admission = BuildAdmission(
-        BuildProvenance.CODER_DERIVED,
-        coder_derived_opt_in=args.allow_coder_derived_build,
+    if args.coder_build_authority is None:
+        raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")
+    build_context = build_run_context(
+        generator_id=GeneratorId.BACKOFF_SWEEP,
+        coder_authority=args.coder_build_authority,
     )
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
     _assert_single_tenant()
     assert_pinned_clean(sub, PIN)
-    cfg, perf = _cfg(), _perf()
+    cfg, perf = ident.bind_admission_policy(_cfg(), build_context.policy), _perf()
 
     print("=== 赤 1: coder 発 liveness-red (過大 backoff → trace-timeout、完全 E2E) ===")
     print(f"  期待: build → trace run が {pipeline.TRACE_TIMEOUT_S:.0f}s timeout → abort")
     with applied(os.path.join(root, RED_PATCH), PIN, sub):
         s1 = run_campaign(cfg, [RED_G], perf, ENV_TAG, CLK, numactl=NUMA,
-                          admission=coder_admission,
+                          build_context=build_context,
                           campaign_namespace="exploration")
     v1 = next((r.variant for r in s1.results), None)
 
@@ -153,7 +156,7 @@ def main(argv=None) -> int:
     pipeline._run_trace = _fixture_run_trace
     try:
         s2 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
-                          admission=BuildAdmission(BuildProvenance.STOCK_OR_PINNED),
+                          build_context=build_context,
                           campaign_namespace="exploration")
     finally:
         pipeline._run_trace = saved

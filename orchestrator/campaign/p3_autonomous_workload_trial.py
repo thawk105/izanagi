@@ -40,6 +40,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     from orchestrator.campaign import p3_s4_loop as loop_core
     from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger
     from orchestrator.campaign.autonomous_trial_completeness import (
+        assert_campaign_layer3_chain,
         assert_autonomous_trial_completeness,
     )
     from orchestrator.campaign.auditor_gate import AuditorVerdict, parse_auditor_dict
@@ -54,6 +55,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
         ensure_exploration_namespace,
         exploration_campaign_layout,
     )
+    from orchestrator.campaign import layer3_report
     from orchestrator.campaign.model import CampaignConfig
     from orchestrator.campaign.patchharness import applied, assert_pinned_clean, checkout
     from orchestrator.campaign.pipeline import PerfConfig
@@ -74,7 +76,10 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 else:
     from . import p3_s4_loop as loop_core
     from . import p3_s4_loop_trigger_gating as trigger
-    from .autonomous_trial_completeness import assert_autonomous_trial_completeness
+    from .autonomous_trial_completeness import (
+        assert_campaign_layer3_chain,
+        assert_autonomous_trial_completeness,
+    )
     from .auditor_gate import AuditorVerdict, parse_auditor_dict
     from .claude_projected_provider import ClaudeProjectedRoleProvider
     from .claude_transport import (
@@ -87,6 +92,7 @@ else:
         ensure_exploration_namespace,
         exploration_campaign_layout,
     )
+    from . import layer3_report
     from .model import CampaignConfig
     from .patchharness import applied, assert_pinned_clean, checkout
     from .pipeline import PerfConfig
@@ -104,6 +110,16 @@ else:
         _sha256,
         _write_bytes_bound,
     )
+
+# The axis driver imports the campaign namespace directly.  Keep the U1 run
+# context and identity types on that same module identity so exact-type seals
+# survive package and direct-script entry points alike.
+from campaign import ident  # noqa: E402
+from campaign.build_admission import (  # noqa: E402
+    BuildRunContext,
+    GeneratorId,
+    build_run_context,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -482,6 +498,7 @@ class AttemptJournal:
 def _campaign_for(
     *, workload: str, workload_flags: Mapping[str, str], descriptor: Mapping[str, Any],
     descriptor_record: Mapping[str, Any], trial_id: str, generations: int,
+    build_context: BuildRunContext | None = None,
 ) -> CampaignConfig:
     base = trigger.default_cfg(reflux=True)
     search_config = dict(base.search_config)
@@ -496,7 +513,7 @@ def _campaign_for(
         "stop_policy": "fixed-generations-no-performance-early-stop",
         "pilot_scope": "exploratory-ycsb-abc",
     })
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug=f"p3-t178-{workload}",
         search_tag="workload-conditioned-autonomous",
         spec_content=(
@@ -509,6 +526,9 @@ def _campaign_for(
         search_config=search_config,
         trial=f"{trial_id}-{workload}",
     )
+    if build_context is not None:
+        cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    return cfg
 
 
 def _perf_for(workload_flags: Mapping[str, str]) -> PerfConfig:
@@ -989,6 +1009,33 @@ def _assert_build_transport_admitted(
     )
 
 
+def _finalize_build_cell_admission(cell: Mapping[str, Any]) -> None:
+    """Render and validate the Layer-3/admission chain before report publish."""
+    campaign_root_value = cell.get("campaign_root")
+    if not isinstance(campaign_root_value, str) or not campaign_root_value:
+        raise AutonomousTrialError("build cell has no campaign_root for admission validation")
+    campaign_root = Path(campaign_root_value).resolve()
+    reports = campaign_root / "reports"
+    if not reports.is_dir():
+        raise AutonomousTrialError("build cell campaign has no reports directory")
+    persisted = reports / "layer3_report.json"
+    if persisted.exists() or persisted.is_symlink():
+        raise AutonomousTrialError("fresh build cell already has a Layer-3 report")
+    try:
+        layer3 = layer3_report.render(
+            campaign_root,
+            persisted,
+            output_root=campaign_root.parent.parent,
+        )
+    except layer3_report.Layer3ReportError as exc:
+        raise AutonomousTrialError(
+            f"build cell campaign admission/Layer-3 validation failed: {exc}"
+        ) from exc
+    if not isinstance(cell, dict):
+        raise AutonomousTrialError("build cell must be mutable before report finalization")
+    cell["admission_decision"] = layer3["admission_decision"]
+
+
 def _finish_trial(
     *,
     trial_id: str,
@@ -1009,6 +1056,7 @@ def _finish_trial(
     fatal_error: dict[str, str] | None,
     transport_receipt: Mapping[str, Any] | None,
     transport_admission: ClaudeTransportAdmission | None = None,
+    build_context: BuildRunContext | None = None,
 ) -> dict[str, Any]:
     if fatal_error is None:
         _assert_build_transport_admitted(
@@ -1048,6 +1096,7 @@ def _finish_trial(
                     _partial=partial,
                     transport_receipt=transport_receipt,
                     transport_admission=transport_admission,
+                    build_context=build_context,
                 )
             except Exception as exc:
                 fatal_error = {
@@ -1096,6 +1145,11 @@ def _finish_trial(
         )
         else "partial"
     )
+    for cell in cells:
+        if do_build:
+            _finalize_build_cell_admission(cell)
+        else:
+            cell["admission_decision"] = {"admission_status": "not-applicable"}
     report = {
         "schema_version": REPORT_SCHEMA_VERSION,
         "trial_id": trial_id,
@@ -1142,6 +1196,16 @@ def _finish_trial(
         report=report,
         attempt_journal=run_root / "attempts.jsonl",
     )
+    if do_build and cells:
+        campaign_parents = {
+            Path(cell["campaign_root"]).resolve().parent.parent for cell in cells
+        }
+        if len(campaign_parents) != 1:
+            raise AutonomousTrialError("build cells do not share one campaign output root")
+        assert_campaign_layer3_chain(
+            report=report,
+            output_root=next(iter(campaign_parents)),
+        )
     if _sha256((run_root / "attempts.jsonl").read_bytes()) != report[
         "attempt_journal_sha256"
     ]:
@@ -1161,6 +1225,7 @@ def _run_workload(
     _partial: dict[str, Any] | None = None,
     transport_receipt: Mapping[str, Any] | None = None,
     transport_admission: ClaudeTransportAdmission | None = None,
+    build_context: BuildRunContext | None = None,
 ) -> dict[str, Any]:
     _validate_generation_budget(generations)
     _assert_build_transport_admitted(
@@ -1177,12 +1242,16 @@ def _run_workload(
         descriptor_record=descriptor_record,
         trial_id=trial_id,
         generations=generations,
+        build_context=build_context if do_build else None,
     )
+    if do_build and type(build_context) is not BuildRunContext:
+        raise AutonomousTrialError("build workload requires one shared BuildRunContext")
+    campaign_id = str(ident.campaign_id(cfg))
     if do_build:
-        layout = exploration_campaign_layout(str(trigger.ident.campaign_id(cfg)))
+        layout = exploration_campaign_layout(campaign_id)
     else:
         layout = CampaignLayout(
-            str(run_root / "campaigns" / str(trigger.ident.campaign_id(cfg)))
+            str(run_root / "campaigns" / campaign_id)
         )
     _assert_fresh_campaign_state(layout)
     result: dict[str, Any] = {
@@ -1190,7 +1259,7 @@ def _run_workload(
         "workload_flags": dict(flags),
         "descriptor": descriptor,
         "descriptor_binding": descriptor_record,
-        "campaign_id": str(trigger.ident.campaign_id(cfg)),
+        "campaign_id": campaign_id,
         "campaign_root": layout.root,
         "generations": [],
         "stop_reason": "fixed-generation-budget",
@@ -1360,6 +1429,17 @@ def _run_workload(
             "descriptor_sha256": descriptor_record["output_sha256"],
         }
         _write_bytes_bound(proposal_path, _canonical_json_bytes(proposal_value))
+        drive_kwargs = {
+            "layout": layout,
+            "cache_root": cache_root,
+            "proposal_path": str(proposal_path),
+            "extra_sources": ({
+                "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+                "role": "T-178 unattended Python supervisor and descriptor projection",
+            },),
+        }
+        if do_build:
+            drive_kwargs["build_context"] = build_context
         outcome = dict(
             drive(
                 cfg,
@@ -1370,13 +1450,7 @@ def _run_workload(
                 prior_reverse,
                 sub,
                 do_build,
-                layout=layout,
-                cache_root=cache_root,
-                proposal_path=str(proposal_path),
-                extra_sources=({
-                    "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
-                    "role": "T-178 unattended Python supervisor and descriptor projection",
-                },),
+                **drive_kwargs,
             )
         )
         required_harness = {"outcome", "variant", "stop_reason", "iteration", "ran"}
@@ -1492,6 +1566,10 @@ def run_trial(
     journal = AttemptJournal(run_root / "attempts.jsonl")
     started = _now_iso()
     started_monotonic = time.monotonic()
+    build_context = (
+        build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+        if do_build else None
+    )
     transport_admission: ClaudeTransportAdmission | None = None
     transport_receipt: dict[str, Any] | None = None
     source_env_snapshot: dict[str, str] | None = None
@@ -1585,6 +1663,7 @@ def run_trial(
             fatal_error=fatal_error,
             transport_receipt=transport_receipt,
             transport_admission=transport_admission,
+            build_context=build_context,
         )
     finally:
         if owns_active_providers:
