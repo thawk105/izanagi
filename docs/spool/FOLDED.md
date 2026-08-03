@@ -87,3 +87,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:guarded-qdel-proof-chain":"[T-405]","T:orphan-job-reconciliation":"[T-403]","T:qdel-target-discovery-identity":"[T-404]","T:receipt-persist-signal-window":"[T-406]","T:ruleops-non-utf8-blob-red":"[T-407]"},"authored":"2026-08-04","content_sha256":"b00bf4b306a4137f64bc096f677b92c161a3ac6f18a33ab3000dccbb3fc19b64","seq":1,"wave":"wave-t367-qdel-guard"}
 - {"allocations":{"D:fresh-qstat-gate-scope":"D142"},"authored":"2026-08-04","content_sha256":"410a8dacb939a86bb225c1c0fff08e8d39d8f877d9e606e8b77936f6cff63539","seq":2,"wave":"wave-t367-qdel-guard"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"7f80e82b700387cdc41dc61c7ecc42559cc7fb6a04f40b740b66b2d98a2cb73b","seq":1,"wave":"rulings-2026-08-04-a"}
