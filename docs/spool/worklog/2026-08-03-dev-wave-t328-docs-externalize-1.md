@@ -56,6 +56,17 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   (受入全走ではない)
 - 作業物の置き場をユーザー是正に従い `/work/1/SFC/tanab/dev-wave-jobs/` へ移した
   (背景 job 既定の `~/.claude/jobs` を Pegasus の home に残さない)
+- **段 9 の land が 2 度止まった。** 1 度目は親が `base:` digest を末尾 entry の carry 一行から
+  取ったため (`fold-failed: [T-328] の base digest が現本文と不一致`)。fold は
+  `変わらず ((N) 参照)` を遡って**実質的に書かれた entry の block** を digest する
+  (`tools/spool_fold.py` の `substantive_digest`)。修正して再投入した 2 度目は
+  **`fold-failed: declared fold shape rejected: path-status`** で止まった。
+  本エントリで `docs/worklog.md` が 97,061 → 閾値 100,000 bytes を超えるため fold が
+  ローテーションを行い、`docs/archive/worklog-*.md` が現行 worklog からの**コピーとして生成される**。
+  land 側の shape 検査 (`tools/dev_waves/git_state.py:764`) は `git diff-tree -M -C` を使うので
+  この追加が `C` (copy) 状態で返り、`status.startswith(("R", "C"))` で拒否される。
+  **並行 wave `worktree-dev-wave-fold-rotation-copy` が同じ機構を扱っており**、main は
+  `e0b9073` のまま無変更。`DW-STOP` に従い rebase・force・他 session 所有物の変更で迂回していない
 
 ## 次の一手差分
 
