@@ -74,21 +74,21 @@ title: [T-342/T-343/T-344] build provenance を source 由来 capability へ移�
   clean stock / source 束縛 review receipt / run 束縛 generator receipt / parser 発行 token の順で
   導出する。CLI opt-in は plain bool を廃した。
   remaining: none
-  base: bc9fb1e0a08fc0a2126cfc7429238a5f8514f71177671a4f31e73853a21b8fb4
+  base: e43a817a846e9aa4dd515d7e75511b3a820dbcbcce028ffe505e387a8d68d172
 
 - [T-343] admission を 4 つの identity 面すべてへ束縛した。legacy cache key は stock を含む全 class で
   receipt digest を織り込み exact-schema sidecar を必須化、v2 は preimage と completion manifest の
   両方、campaign は canonical preimage へ policy を入れ、replay は attempt ID 単位で receipt を照合する。
   receipt 欠落の旧 entry は拒否し、明示 migration は作っていない。
   remaining: none
-  base: bf385ee11cad877c27809dbc31a626dfec6bacf30814cc0a08ffc806fa64c369
+  base: e8f33a10cf7f0e11cd2b7e42b9148306d85062b5725e5fd3b041ec2d35149de2
 
 - [T-344] 旧 loop campaign 3 件を deny-only overlay で `legacy-unclassified` と宣言し、
   admission-aware な選択・材料レポート・certified 判定から既定除外した。`verification_status` と
   `admission_status` を別次元にし、歴史的 verifier 判定は否定していない。凍結 bytes は 1 byte も
   変えていない。
   remaining: none
-  base: 775ae7560e9d302a70b11e046ab92777efaea22400c31a094df602bd5e5a6a1c
+  base: 4efaf6d066feda171b774f7138b930cee252546556f1f311fdc0f0eb2f11d3be
 
 ### 新規
 
