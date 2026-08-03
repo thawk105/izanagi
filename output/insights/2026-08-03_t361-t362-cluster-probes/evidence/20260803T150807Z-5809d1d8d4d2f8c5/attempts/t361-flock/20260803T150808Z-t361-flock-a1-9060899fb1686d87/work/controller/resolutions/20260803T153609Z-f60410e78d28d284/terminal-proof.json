@@ -1,0 +1,38 @@
+{
+  "accounting_commands": {
+    "racctjob": {
+      "elapse_field_present": false,
+      "ended_field_present": false,
+      "expected_request_id": "882038.nqsv",
+      "invalid_request_id_fields": [],
+      "matching_request_record_count": 0,
+      "minimum_matching_records": 2,
+      "observed_normalized_request_ids": [],
+      "started_field_present": false,
+      "valid": false
+    },
+    "racctreq": {
+      "elapse_field_present": false,
+      "ended_field_present": false,
+      "expected_request_id": "882038.nqsv",
+      "invalid_request_id_fields": [],
+      "matching_request_record_count": 0,
+      "minimum_matching_records": 1,
+      "observed_normalized_request_ids": [],
+      "started_field_present": false,
+      "valid": false
+    }
+  },
+  "accounting_ended_request_valid": false,
+  "attempt_id": "20260803T150808Z-t361-flock-a1-9060899fb1686d87",
+  "qstat_classification": "ok",
+  "qstat_request_absent": true,
+  "qstat_state_raw": null,
+  "qwait_terminal_receipt_valid": false,
+  "request_id": "882038.nqsv",
+  "saved_qsub_receipt_errors": [],
+  "saved_qsub_receipt_valid": true,
+  "schema": "izanagi-t361-t362-controller-resolution/v1",
+  "time_ns": 1785771385702513519,
+  "valid": false
+}

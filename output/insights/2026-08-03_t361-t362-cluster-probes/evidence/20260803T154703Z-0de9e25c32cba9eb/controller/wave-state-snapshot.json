@@ -1,0 +1,99 @@
+{
+  "authoritative_attempts": {},
+  "created_time_ns": 1785769687730063769,
+  "cumulative_requested_node_min": 13,
+  "initial_budget": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 1,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-before-controller-session",
+    "remaining_point_raw": "313.97",
+    "returncode": 0
+  },
+  "initial_four_budget_after": null,
+  "latest_budget_after_request": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 94,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-after-request",
+    "remaining_point_raw": "313.68",
+    "returncode": 0
+  },
+  "request_count": 2,
+  "request_limit": 6,
+  "requested_node_min_limit": 40,
+  "requests": [
+    {
+      "admissible": false,
+      "attempt_id": "20260803T150808Z-t361-flock-a1-9060899fb1686d87",
+      "budget_after": {
+        "budget_identity_raw": "SFC",
+        "command_sequence": 13,
+        "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+        "purpose": "resolve-rbudgetcheck-after-request",
+        "remaining_point_raw": "313.74",
+        "returncode": 0
+      },
+      "completed": true,
+      "completed_time_ns": 1785772009007030505,
+      "cumulative_requested_node_min": 10,
+      "external_root_terminal_proven": true,
+      "leg": "t361-flock",
+      "qsub_argv": [
+        "qsub",
+        "-v",
+        "T361_ATTEMPT_ID=20260803T150808Z-t361-flock-a1-9060899fb1686d87,T361_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T361_HOME_ROOT=/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87,T361_RECON_ONLY=0,T361_RUN_NONCE=20260803T150808Z-t361-flock-a1-9060899fb1686d87,T361_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87",
+        "-o",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/scheduler/t361-flock.%r.%03j.o",
+        "-e",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/scheduler/t361-flock.%r.%03j.e",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_cross_node.pbs"
+      ],
+      "qsub_returncode": 0,
+      "request_id": "882038.nqsv",
+      "request_ordinal": 1,
+      "requested_node_min": 10,
+      "reserved_before_qsub_time_ns": 1785769688566345019,
+      "resolution_id": "20260803T154627Z-48225721d7617863",
+      "resolved_after_controller_interruption": true,
+      "selected_as_authoritative": false,
+      "submitted_time_ns": 1785769688571037460
+    },
+    {
+      "admissible": false,
+      "attempt_id": "20260803T154703Z-t362-default-a1-bb51e2680bf2dc05",
+      "budget_after": {
+        "budget_identity_raw": "SFC",
+        "command_sequence": 94,
+        "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+        "purpose": "rbudgetcheck-after-request",
+        "remaining_point_raw": "313.68",
+        "returncode": 0
+      },
+      "completed": true,
+      "completed_time_ns": 1785772520256067890,
+      "cumulative_requested_node_min": 13,
+      "external_root_terminal_proven": false,
+      "leg": "t362-default",
+      "qsub_argv": [
+        "qsub",
+        "-v",
+        "T362_ATTEMPT_ID=20260803T154703Z-t362-default-a1-bb51e2680bf2dc05,T362_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T362_MODE=default,T362_RUN_NONCE=20260803T154703Z-t362-default-a1-bb51e2680bf2dc05,T362_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05",
+        "-o",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05/scheduler/t362-default.%r.%03j.o",
+        "-e",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05/scheduler/t362-default.%r.%03j.e",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_default.pbs"
+      ],
+      "qsub_returncode": 0,
+      "request_id": "882048.nqsv",
+      "request_ordinal": 2,
+      "requested_node_min": 3,
+      "reserved_before_qsub_time_ns": 1785772023929697785,
+      "selected_as_authoritative": false,
+      "submitted_time_ns": 1785772023932581120
+    }
+  ],
+  "schema": "izanagi-t361-t362-controller-wave-state/v1",
+  "updated_time_ns": 1785772520256080805
+}

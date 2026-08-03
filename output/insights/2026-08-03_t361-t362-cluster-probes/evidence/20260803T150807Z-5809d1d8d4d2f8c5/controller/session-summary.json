@@ -1,0 +1,21 @@
+{
+  "authoritative_attempts": {},
+  "cumulative_requested_node_min": 10,
+  "request_count": 1,
+  "resolved_attempts": [
+    {
+      "admissible": false,
+      "attempt_id": "20260803T150808Z-t361-flock-a1-9060899fb1686d87",
+      "dangerous": null,
+      "leg": "t361-flock",
+      "request_id": "882038.nqsv",
+      "termination_evidence_paths": [
+        "3_saved_nqsv_stderr_accounting_plus_qstat_absence"
+      ]
+    }
+  ],
+  "resolved_time_ns": 1785772009056961745,
+  "schema": "izanagi-t361-t362-controller-resolution/v1",
+  "session_id": "20260803T150807Z-5809d1d8d4d2f8c5",
+  "verdict_note": "Resolution proves scheduler/accounting termination before closing attempts. It does not turn missing observations into safe conclusions."
+}

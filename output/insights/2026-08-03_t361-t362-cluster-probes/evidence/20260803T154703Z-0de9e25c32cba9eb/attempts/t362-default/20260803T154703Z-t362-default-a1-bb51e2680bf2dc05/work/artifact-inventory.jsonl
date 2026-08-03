@@ -1,0 +1,16 @@
+{"cleanup":false,"pid":2463112,"producer":"compute","purpose":"compute identity marker retained for controller validation","relative_path":"run_marker.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236883749186}
+{"cleanup":false,"pid":2463112,"producer":"compute","purpose":"compute runtime metadata","relative_path":"run_metadata.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236897169047}
+{"cleanup":false,"pid":2463112,"producer":"compute","purpose":"job-script control events","relative_path":"control-job-script.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236898495988}
+{"cleanup":false,"pid":2463112,"producer":"compute","purpose":"job-script signal events","relative_path":"events-job-script.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236899457424}
+{"cleanup":false,"pid":2463112,"producer":"compute","purpose":"job-script durable startup heartbeat","relative_path":"heartbeats-job-script.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236900342698}
+{"cleanup":false,"pid":2463108,"producer":"compute","purpose":"parent signal and cleanup events","relative_path":"events-parent.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236988979693}
+{"cleanup":false,"pid":2463108,"producer":"compute","purpose":"parent durable heartbeats","relative_path":"heartbeats-parent.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236990131335}
+{"cleanup":false,"pid":2463108,"producer":"compute","purpose":"parent signal-writer control","relative_path":"control-parent.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236991058707}
+{"cleanup":true,"pid":2463108,"producer":"compute","purpose":"mutable restoration canary","relative_path":"canary.txt","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236991912452}
+{"cleanup":true,"pid":2463108,"producer":"compute","purpose":"ready identity marker","relative_path":"ready.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236992850904}
+{"cleanup":true,"pid":2463108,"producer":"compute","purpose":"grandchild startup marker","relative_path":"grandchild_started.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236993771506}
+{"cleanup":true,"pid":2463108,"producer":"compute","purpose":"login readback acknowledgment","relative_path":"canary_readback_ack.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785772236994634305}
+{"cleanup":false,"pid":2463113,"producer":"compute","purpose":"grandchild signal events","relative_path":"events-grandchild.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785772237048971442}
+{"cleanup":false,"pid":2463113,"producer":"compute","purpose":"grandchild signal-writer control","relative_path":"control-grandchild.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785772237049988859}
+{"cleanup":false,"pid":2463113,"producer":"compute","purpose":"grandchild durable heartbeats","relative_path":"heartbeats-grandchild.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785772237050865282}
+{"cleanup":true,"pid":2463113,"producer":"compute","purpose":"grandchild startup marker","relative_path":"grandchild_started.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785772237051733217}

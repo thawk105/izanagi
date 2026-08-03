@@ -1,0 +1,17 @@
+
+%NQSV(INFO): Batch job received signal SIGKILL. (Exceeded per-req elapse time limit)
+
+============================================================
+Request ID:             882048.nqsv
+Request Name:           t362_def
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Tue Aug  4 00:47:03 2026
+Started Request Time:   Tue Aug  4 00:50:36 2026
+Ended Request Time:     Tue Aug  4 00:53:36 2026
+Resources Information:
+  Elapse:               184S
+  Remaining Elapse:     0S
+============================================================

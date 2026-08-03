@@ -1,0 +1,31 @@
+{
+  "errors": [],
+  "execution_hosts_normalized_order": [],
+  "execution_hosts_raw_order": [],
+  "marker_host_set": [
+    "bnode001",
+    "bnode005"
+  ],
+  "marker_identities": [
+    {
+      "host": "bnode005",
+      "job_number": 1,
+      "normalized_request_id": "882038.nqsv",
+      "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/recon/job-markers/marker.1e3ebaac5fa91385621b73f4f6a3e30b38707ab94e8466db.json",
+      "sha256": "c7b6142e284685e62210519818073eb10c2a778c6e08f0ad7952dbbbb59e0c9f"
+    },
+    {
+      "host": "bnode001",
+      "job_number": 0,
+      "normalized_request_id": "882038.nqsv",
+      "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/recon/job-markers/marker.e6a19d0839c8ec26f345b73e09200418a20e98e1f6e25f52.json",
+      "sha256": "eae6ab3b6640cd0dfe61bcd4a479788b6bc787f5f36ed78ba039a71ad8bee566"
+    }
+  ],
+  "marker_paths": [
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/recon/job-markers/marker.1e3ebaac5fa91385621b73f4f6a3e30b38707ab94e8466db.json",
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/recon/job-markers/marker.e6a19d0839c8ec26f345b73e09200418a20e98e1f6e25f52.json"
+  ],
+  "one_to_one_job_number_host_binding": false,
+  "valid": false
+}

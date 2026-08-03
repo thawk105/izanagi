@@ -1,0 +1,74 @@
+{
+  "accounting_commands": {
+    "racctjob": {
+      "elapse_field_present": false,
+      "ended_field_present": false,
+      "expected_request_id": "882038.nqsv",
+      "invalid_request_id_fields": [],
+      "matching_request_record_count": 0,
+      "minimum_matching_records": 2,
+      "observed_normalized_request_ids": [],
+      "started_field_present": false,
+      "valid": false
+    },
+    "racctreq": {
+      "elapse_field_present": false,
+      "ended_field_present": false,
+      "expected_request_id": "882038.nqsv",
+      "invalid_request_id_fields": [],
+      "matching_request_record_count": 0,
+      "minimum_matching_records": 1,
+      "observed_normalized_request_ids": [],
+      "started_field_present": false,
+      "valid": false
+    }
+  },
+  "accounting_ended_request_valid": false,
+  "attempt_id": "20260803T150808Z-t361-flock-a1-9060899fb1686d87",
+  "qstat_classification": "ok",
+  "qstat_request_absent": true,
+  "qstat_state_raw": null,
+  "qwait_terminal_receipt_valid": false,
+  "request_id": "882038.nqsv",
+  "resolve_accounting_terminal_commands": [],
+  "saved_nqsv_stderr_accounting": {
+    "errors": [],
+    "expected_request_id": "882038.nqsv",
+    "files": [
+      {
+        "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/scheduler/t361-flock.882038.nqsv.000.e",
+        "request_block_count": 1,
+        "sha256": "94411c66af170491318dbad30eed7435ff2aebe35e7d7ee75ed00422f44d9e68",
+        "size": 540
+      },
+      {
+        "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/scheduler/t361-flock.882038.nqsv.001.e",
+        "request_block_count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      }
+    ],
+    "matching_ended_request_blocks": [
+      {
+        "ended_request_time_field_raw": "Ended Request Time:     Tue Aug  4 00:12:02 2026",
+        "normalized_request_id": "882038.nqsv",
+        "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/scheduler/t361-flock.882038.nqsv.000.e",
+        "request_block_count": 1,
+        "request_id_field_raw": "Request ID:             882038.nqsv",
+        "sha256": "94411c66af170491318dbad30eed7435ff2aebe35e7d7ee75ed00422f44d9e68",
+        "size": 540
+      }
+    ],
+    "scheduler_root": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/scheduler",
+    "valid": true
+  },
+  "saved_qsub_receipt_errors": [],
+  "saved_qsub_receipt_valid": true,
+  "schema": "izanagi-t361-t362-controller-resolution/v1",
+  "terminal_evidence_disjunction_valid": true,
+  "termination_evidence_paths": [
+    "3_saved_nqsv_stderr_accounting_plus_qstat_absence"
+  ],
+  "time_ns": 1785772003974390676,
+  "valid": true
+}

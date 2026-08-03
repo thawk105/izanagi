@@ -1,0 +1,64 @@
+{
+  "evidence_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/evidence/20260803T154703Z-0de9e25c32cba9eb/controller",
+  "file_count": 9,
+  "git_add_returncode": 0,
+  "git_check_ignore_all_not_ignored": true,
+  "git_ls_files_all_matched": true,
+  "inventory": {
+    "directories": [
+      ".",
+      "controller",
+      "controller/raw"
+    ],
+    "files": [
+      {
+        "path": "attempts.jsonl",
+        "sha256": "4a00294c923d58c7b16870f7b2fac58658864a1c986f09f6ae8bfe65a237a2fd",
+        "size": 1276
+      },
+      {
+        "path": "controller/commands.jsonl",
+        "sha256": "ed227abbb7c32e7a2ec883ad3c240e0204db9d92055af2322a6f3139cf60775a",
+        "size": 1083
+      },
+      {
+        "path": "controller/raw/00001-rbudgetcheck-before-controller-session.stderr.raw",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "path": "controller/raw/00001-rbudgetcheck-before-controller-session.stdout.raw",
+        "sha256": "6304f7070e26951c39f501bc2b603a7e9f7dc527846d37c1afccbf2d1d83828f",
+        "size": 176
+      },
+      {
+        "path": "controller/raw/00002-rbudgetcheck-after-wave.stderr.raw",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "path": "controller/raw/00002-rbudgetcheck-after-wave.stdout.raw",
+        "sha256": "535bbdca263840bbff50819815ddf9f10b6e924d0e1b549fbf5d44e17a059eab",
+        "size": 176
+      },
+      {
+        "path": "request-ledger.jsonl",
+        "sha256": "e957e61ef3908925c630f64cd28baa5fee63c69215fc60054992053c5d4e3939",
+        "size": 1212
+      },
+      {
+        "path": "session-summary.json",
+        "sha256": "569f18f62d2e74407ad95edab52fd9a3fb9af7e804b252da06afd016d3f5d94f",
+        "size": 2389
+      },
+      {
+        "path": "wave-state-snapshot.json",
+        "sha256": "ff18f89bfb7e65f1cb9a3da888123a9d2e0e118aa73cd03082043b1d3165ee3b",
+        "size": 4875
+      }
+    ],
+    "root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/evidence/20260803T154703Z-0de9e25c32cba9eb/controller"
+  },
+  "schema": "izanagi-t361-t362-controller-tracking/v1",
+  "time_ns": 1785772520908966853
+}

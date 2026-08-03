@@ -1,0 +1,31 @@
+{
+  "errors": [],
+  "expected_job_count_per_stream": 1,
+  "files": [
+    {
+      "original_name": "t362-default.882048.nqsv.000.o",
+      "original_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05/scheduler/t362-default.882048.nqsv.000.o",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_size": 0,
+      "saved_name": "t362-default.882048.nqsv.000.stdout.raw",
+      "saved_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05/scheduler/t362-default.882048.nqsv.000.stdout.raw",
+      "stream": "stdout"
+    },
+    {
+      "original_name": "t362-default.882048.nqsv.000.e",
+      "original_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05/scheduler/t362-default.882048.nqsv.000.e",
+      "original_sha256": "948ed44595f3aacc8c4505d6dc138537460f3e4108a8527134d9344188c0b70e",
+      "original_size": 623,
+      "saved_name": "t362-default.882048.nqsv.000.stderr.raw",
+      "saved_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05/scheduler/t362-default.882048.nqsv.000.stderr.raw",
+      "stream": "stderr"
+    }
+  ],
+  "note": ".o/.e are auxiliary; absence is preserved but is not alone an admissibility failure",
+  "observed_counts": {
+    "stderr": 1,
+    "stdout": 1
+  },
+  "schema": "izanagi-t361-t362-controller/v1",
+  "time_ns": 1785772507080471871
+}

@@ -1,0 +1,85 @@
+{
+  "attempt_id": "20260803T150808Z-t361-flock-a1-9060899fb1686d87",
+  "dangerous": null,
+  "errors": [
+    "qstat Execution Host binding is not valid"
+  ],
+  "execution_host_validation": {
+    "errors": [],
+    "execution_hosts_normalized_order": [],
+    "execution_hosts_raw_order": [],
+    "marker_host_set": [
+      "bnode001",
+      "bnode005"
+    ],
+    "marker_identities": [
+      {
+        "host": "bnode005",
+        "job_number": 1,
+        "normalized_request_id": "882038.nqsv",
+        "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/recon/job-markers/marker.1e3ebaac5fa91385621b73f4f6a3e30b38707ab94e8466db.json",
+        "sha256": "c7b6142e284685e62210519818073eb10c2a778c6e08f0ad7952dbbbb59e0c9f"
+      },
+      {
+        "host": "bnode001",
+        "job_number": 0,
+        "normalized_request_id": "882038.nqsv",
+        "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/recon/job-markers/marker.e6a19d0839c8ec26f345b73e09200418a20e98e1f6e25f52.json",
+        "sha256": "eae6ab3b6640cd0dfe61bcd4a479788b6bc787f5f36ed78ba039a71ad8bee566"
+      }
+    ],
+    "marker_paths": [
+      "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/recon/job-markers/marker.1e3ebaac5fa91385621b73f4f6a3e30b38707ab94e8466db.json",
+      "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/recon/job-markers/marker.e6a19d0839c8ec26f345b73e09200418a20e98e1f6e25f52.json"
+    ],
+    "one_to_one_job_number_host_binding": false,
+    "valid": false
+  },
+  "filesystem_results": {
+    "home": {
+      "dangerous": null,
+      "execution_host_validation": "INVALID_OR_INCOMPLETE",
+      "filesystem": "home",
+      "raw_attempt_outcome_set": [
+        "BLOCKED"
+      ],
+      "raw_attempt_outcomes": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "source_provisional_verdict": "PENDING_EXECUTION_HOST_VALIDATION",
+      "valid_for_safety_conclusion": false,
+      "verdict": "BLOCKED_EXPECTED"
+    },
+    "work": {
+      "dangerous": null,
+      "execution_host_validation": "INVALID_OR_INCOMPLETE",
+      "filesystem": "work",
+      "raw_attempt_outcome_set": [
+        "BLOCKED"
+      ],
+      "raw_attempt_outcomes": [
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "source_provisional_verdict": "PENDING_EXECUTION_HOST_VALIDATION",
+      "valid_for_safety_conclusion": false,
+      "verdict": "BLOCKED_EXPECTED"
+    }
+  },
+  "overall_verdict": "INVALID_CONTROL",
+  "result_state": "INVALID_NOT_AUTHORITATIVE",
+  "schema": "izanagi-t361-flock-controller-final/v1",
+  "source_probe_result_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/flock-result.json",
+  "source_probe_result_sha256": "57fd8d354c14c525db897156deadd1d3abcc6638adf353216cda2bd629d40fc1",
+  "time_ns": 1785772004629688358,
+  "valid_for_safety_conclusion": false
+}
