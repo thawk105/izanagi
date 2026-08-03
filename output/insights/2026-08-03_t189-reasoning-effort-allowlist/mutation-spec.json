@@ -1,0 +1,206 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 2400,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "V1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    run.add_argument(\n        \"--reasoning\", choices=CODEX_REASONING_EFFORTS, required=True\n    )",
+          "new": "    run.add_argument(\n        \"--reasoning\", required=True\n    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_unknown_reasoning_is_rejected_before_child_launch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/cli.py",
+          "old": "    serve.add_argument(\"--effort\", choices=CLAUDE_EFFORTS, required=True)",
+          "new": "    serve.add_argument(\"--effort\", required=True)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_cli.py::test_serve_rejects_unknown_effort_as_invalid_choice"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/schema.py",
+          "old": "    model = _required_string(item[\"model\"], _MODEL_RE, label=\"model\")\n    effort = _required_string(item[\"effort\"], _EFFORT_RE, label=\"effort\")\n    if effort not in CLAUDE_EFFORTS:\n        raise DevWavesError(ReasonCode.INVALID_ARGS, {\n            \"label\": \"effort\", \"kind\": \"unknown\",\n        })",
+          "new": "    model = _required_string(item[\"model\"], _MODEL_RE, label=\"model\")\n    effort = _required_string(item[\"effort\"], _EFFORT_RE, label=\"effort\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_schema.py::test_worker_spec_rejects_unknown_effort"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/schema.py",
+          "old": "    if not _MODEL_RE.fullmatch(model) or not _EFFORT_RE.fullmatch(effort):\n        raise DevWavesError(ReasonCode.INVALID_ARGS, {\"label\": \"child-argv\", \"kind\": \"model-effort\"})\n    if effort not in CLAUDE_EFFORTS:\n        raise DevWavesError(ReasonCode.INVALID_ARGS, {\n            \"label\": \"effort\", \"kind\": \"unknown\",\n        })",
+          "new": "    if not _MODEL_RE.fullmatch(model) or not _EFFORT_RE.fullmatch(effort):\n        raise DevWavesError(ReasonCode.INVALID_ARGS, {\"label\": \"child-argv\", \"kind\": \"model-effort\"})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_schema.py::test_child_argv_rejects_unknown_effort"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V5",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/schema.py",
+          "old": "    model = _required_string(item[\"model\"], _MODEL_RE, label=\"model\")\n    effort = _required_string(item[\"effort\"], _EFFORT_RE, label=\"effort\")\n    if effort not in CLAUDE_EFFORTS:\n        raise DevWavesError(ReasonCode.INVALID_ARGS, {\n            \"label\": \"effort\", \"kind\": \"unknown\",\n        })",
+          "new": "    model = _required_string(item[\"model\"], _MODEL_RE, label=\"model\")\n    effort = _required_string(item[\"effort\"], _EFFORT_RE, label=\"effort\")"
+        },
+        {
+          "file": "tools/dev_waves/schema.py",
+          "old": "    if not _MODEL_RE.fullmatch(model) or not _EFFORT_RE.fullmatch(effort):\n        raise DevWavesError(ReasonCode.INVALID_ARGS, {\"label\": \"child-argv\", \"kind\": \"model-effort\"})\n    if effort not in CLAUDE_EFFORTS:\n        raise DevWavesError(ReasonCode.INVALID_ARGS, {\n            \"label\": \"effort\", \"kind\": \"unknown\",\n        })",
+          "new": "    if not _MODEL_RE.fullmatch(model) or not _EFFORT_RE.fullmatch(effort):\n        raise DevWavesError(ReasonCode.INVALID_ARGS, {\"label\": \"child-argv\", \"kind\": \"model-effort\"})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_schema.py::test_worker_spec_rejects_unknown_effort",
+        "orchestrator/tests/test_dev_waves_schema.py::test_child_argv_rejects_unknown_effort",
+        "orchestrator/tests/test_dev_waves_worker.py::test_persisted_unknown_effort_is_rejected_by_child_argv_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/effort_levels.py",
+          "old": "CLAUDE_EFFORTS: tuple[str, ...] = (\"low\", \"medium\", \"high\", \"xhigh\", \"max\")",
+          "new": "CLAUDE_EFFORTS: tuple[str, ...] = (\"low\", \"medium\", \"high\", \"xhigh\", \"max\", \"none\")"
+        },
+        {
+          "file": "tools/dev_waves/effort_levels.py",
+          "old": "CODEX_REASONING_EFFORTS: tuple[str, ...] = (\n    \"low\",\n    \"medium\",\n    \"high\",\n    \"xhigh\",\n    \"max\",\n)",
+          "new": "CODEX_REASONING_EFFORTS: tuple[str, ...] = (\n    \"low\",\n    \"medium\",\n    \"high\",\n    \"xhigh\",\n    \"max\",\n    \"none\",\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_unknown_reasoning_is_rejected_before_child_launch",
+        "orchestrator/tests/test_dev_waves_cli.py::test_serve_rejects_unknown_effort_as_invalid_choice",
+        "orchestrator/tests/test_dev_waves_schema.py::test_worker_spec_rejects_unknown_effort",
+        "orchestrator/tests/test_dev_waves_schema.py::test_child_argv_rejects_unknown_effort",
+        "orchestrator/tests/test_dev_waves_worker.py::test_persisted_unknown_effort_is_rejected_by_child_argv_path",
+        "orchestrator/tests/test_effort_levels.py::test_effort_vocabularies_are_exact_and_ordered"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V7",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/effort_levels.py",
+          "old": "CLAUDE_EFFORTS: tuple[str, ...] = (\"low\", \"medium\", \"high\", \"xhigh\", \"max\")",
+          "new": "CLAUDE_EFFORTS: tuple[str, ...] = (\"low\", \"medium\", \"high\", \"xhigh\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_cli.py::test_serve_accepts_every_allowed_effort",
+        "orchestrator/tests/test_dev_waves_schema.py::test_worker_spec_and_child_argv_accept_every_allowed_effort",
+        "orchestrator/tests/test_effort_levels.py::test_effort_vocabularies_are_exact_and_ordered"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V8",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/effort_levels.py",
+          "old": "CODEX_REASONING_EFFORTS: tuple[str, ...] = (\n    \"low\",\n    \"medium\",\n    \"high\",\n    \"xhigh\",\n    \"max\",\n)",
+          "new": "CODEX_REASONING_EFFORTS: tuple[str, ...] = (\n    \"low\",\n    \"medium\",\n    \"high\",\n    \"xhigh\",\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[max]",
+        "orchestrator/tests/test_effort_levels.py::test_effort_vocabularies_are_exact_and_ordered"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V9",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/effort_levels.py",
+          "old": "CLAUDE_EFFORTS: tuple[str, ...] = (\"low\", \"medium\", \"high\", \"xhigh\", \"max\")",
+          "new": "CLAUDE_EFFORTS: tuple[str, ...] = (\"medium\", \"high\", \"xhigh\", \"max\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_cli.py::test_serve_accepts_every_allowed_effort",
+        "orchestrator/tests/test_dev_waves_schema.py::test_worker_spec_and_child_argv_accept_every_allowed_effort",
+        "orchestrator/tests/test_effort_levels.py::test_effort_vocabularies_are_exact_and_ordered"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/schema.py",
+          "old": "    effort = _required_string(item[\"effort\"], _EFFORT_RE, label=\"effort\")",
+          "new": "    effort = item[\"effort\"]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_schema.py::test_effort_shape_errors_precede_membership_errors"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/codex_roles/launcher.py",
+          "old": "SAFE_ADAPTER_CODEX_REASONING_EFFORTS = frozenset(\n    {\"low\", \"medium\", \"high\", \"xhigh\"}\n)",
+          "new": "SAFE_ADAPTER_CODEX_REASONING_EFFORTS = frozenset(\n    {\"low\", \"medium\", \"high\", \"xhigh\", \"ultra\"}\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_effort_levels.py::test_launcher_reasoning_policy_is_subset_of_repo_policy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
