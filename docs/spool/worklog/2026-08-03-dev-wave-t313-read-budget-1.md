@@ -40,6 +40,9 @@ title: [T-313] 常時読量 gate は実装せず裁定へ返した — 裁定根
 - 背景 job の handoff 置き場を harness 既定の home 配下に作り、ユーザーに止められた
   (F50 の再発。前回は worktree 内、今回は home 配下で置き場を間違える型は同じ)。
   恒久対応として `DW-O20` の当該語を byte 中立で「背景jobはrepo外」へ是正した。
+- 段 8 でもう 1 件、`DW-O17` の実行不能な命令を実測で見つけた。message file の事前検査に
+  `--message-file` を指示しているが、この機体の git 2.34.1 に当該 option は存在しない
+  (`unknown option`)。実際に効く `--dry-run -F` へ是正した (byte は 2 減)。
 
 ## 次の一手差分
 
