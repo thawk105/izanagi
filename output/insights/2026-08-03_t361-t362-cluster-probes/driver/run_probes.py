@@ -34,6 +34,7 @@ ATTEMPT_SCHEMA = "izanagi-t361-t362-controller-attempt/v1"
 PREFLIGHT_SCHEMA = "izanagi-t361-t362-controller-preflight/v1"
 TRACKING_SCHEMA = "izanagi-t361-t362-controller-tracking/v1"
 WAVE_STATE_SCHEMA = "izanagi-t361-t362-controller-wave-state/v1"
+RESOLUTION_SCHEMA = "izanagi-t361-t362-controller-resolution/v1"
 T361_RESULT_SCHEMA = "izanagi-t361-flock-result/v1"
 T361_FINAL_SCHEMA = "izanagi-t361-flock-controller-final/v1"
 T362_MARKER_SCHEMA = "t362-signal-marker/v2"
@@ -134,6 +135,20 @@ class Leg:
     requested_node_min: int
 
 
+@dataclass(frozen=True)
+class UnresolvedAttempt:
+    session_id: str
+    session_root: Path
+    request_index: int
+    leg: Leg
+    attempt_id: str
+    request_id: str | None
+    work_root: Path
+    home_root: Path
+    request: Mapping[str, Any]
+    ledger_entry: Mapping[str, Any]
+
+
 LEGS = (
     Leg("t361-flock", "flock_cross_node.pbs", None, 2, 300, 10),
     Leg("t362-default", "signal_walltime_default.pbs", "default", 1, 180, 3),
@@ -224,6 +239,26 @@ def _read_json_object(path: Path) -> dict[str, Any]:
     if type(value) is not dict:
         raise ControllerError(f"JSON value is not an object: {path}")
     return value
+
+
+def _read_jsonl_objects(path: Path) -> list[dict[str, Any]]:
+    if path.is_symlink() or not path.is_file():
+        raise ControllerError(f"required JSONL is absent or unsafe: {path}")
+    values: list[dict[str, Any]] = []
+    try:
+        with path.open("r", encoding="utf-8") as stream:
+            for line_number, line in enumerate(stream, 1):
+                if not line.strip():
+                    raise ControllerError(f"blank JSONL record at {path}:{line_number}")
+                value = json.loads(line)
+                if type(value) is not dict:
+                    raise ControllerError(
+                        f"JSONL record is not an object at {path}:{line_number}"
+                    )
+                values.append(value)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ControllerError(f"cannot read JSONL objects {path}: {exc}") from exc
+    return values
 
 
 def _normalize_request_id(value: str) -> str:
@@ -769,6 +804,210 @@ class Recorder:
             "stdout": stdout.decode("utf-8", errors="replace"),
             "stderr": stderr.decode("utf-8", errors="replace"),
         }
+
+
+def _recorded_command_results(controller_root: Path) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    if controller_root.is_symlink() or not controller_root.is_dir():
+        raise ControllerError(f"saved controller evidence root is unsafe: {controller_root}")
+    for events_path in sorted(controller_root.rglob("commands.jsonl")):
+        if events_path.is_symlink() or not events_path.is_file():
+            raise ControllerError(f"saved command ledger is unsafe: {events_path}")
+        recorder_root = events_path.parent
+        for receipt in _read_jsonl_objects(events_path):
+            if "returncode" not in receipt:
+                continue
+            argv = receipt.get("argv")
+            if type(argv) is not list or not argv or not all(
+                type(item) is str for item in argv
+            ):
+                raise ControllerError(f"saved command argv is malformed: {events_path}")
+            streams: dict[str, bytes] = {}
+            for stream_name in ("stdout", "stderr"):
+                relative = receipt.get(f"{stream_name}_path")
+                expected_hash = receipt.get(f"{stream_name}_sha256")
+                if type(relative) is not str or type(expected_hash) is not str:
+                    raise ControllerError(
+                        f"saved command {stream_name} receipt is malformed: {events_path}"
+                    )
+                relative_path = Path(relative)
+                if relative_path.is_absolute() or ".." in relative_path.parts:
+                    raise ControllerError(
+                        f"saved command raw path escapes its recorder root: {relative}"
+                    )
+                candidate = recorder_root / relative_path
+                _assert_no_symlink_components(candidate)
+                if candidate.is_symlink() or not candidate.is_file():
+                    raise ControllerError(f"saved command raw is absent or unsafe: {candidate}")
+                payload = candidate.read_bytes()
+                if hashlib.sha256(payload).hexdigest() != expected_hash:
+                    raise ControllerError(f"saved command raw hash mismatch: {candidate}")
+                streams[stream_name] = payload
+            results.append(
+                dict(receipt)
+                | {
+                    "commands_path": str(events_path),
+                    "stdout": streams["stdout"].decode("utf-8", errors="replace"),
+                    "stderr": streams["stderr"].decode("utf-8", errors="replace"),
+                }
+            )
+    return results
+
+
+def _saved_submission_validation(
+    work_root: Path, request: Mapping[str, Any]
+) -> dict[str, Any]:
+    errors: list[str] = []
+    result: dict[str, Any] | None = None
+    try:
+        matches = [
+            item
+            for item in _recorded_command_results(work_root / "controller")
+            if item.get("purpose") == "qsub"
+        ]
+        if len(matches) != 1:
+            errors.append(f"expected exactly one saved qsub receipt, observed {len(matches)}")
+        else:
+            result = matches[0]
+            if result.get("argv") != request.get("qsub_argv"):
+                errors.append("saved qsub argv does not match persistent reservation")
+            if result.get("returncode") != request.get("qsub_returncode"):
+                errors.append("saved qsub return code does not match persistent reservation")
+            if request.get("qsub_returncode") == 0:
+                try:
+                    observed_id = _parse_request_id(str(result.get("stdout", "")))
+                except ControllerError as exc:
+                    errors.append(str(exc))
+                else:
+                    if observed_id != request.get("request_id"):
+                        errors.append("saved qsub stdout request ID does not match reservation")
+            else:
+                try:
+                    _parse_request_id(str(result.get("stdout", "")))
+                except ControllerError:
+                    pass
+                else:
+                    errors.append("nonzero qsub receipt unexpectedly contains a request ID")
+    except ControllerError as exc:
+        errors.append(str(exc))
+    return {
+        "valid": not errors,
+        "errors": errors,
+        "receipt": None
+        if result is None
+        else {
+            key: value
+            for key, value in result.items()
+            if key not in {"stdout", "stderr"}
+        },
+    }
+
+
+def _saved_budget_capture(work_root: Path, purpose: str) -> dict[str, Any]:
+    try:
+        matches = [
+            item
+            for item in _recorded_command_results(work_root / "controller")
+            if item.get("purpose") == purpose
+        ]
+    except ControllerError as exc:
+        return {
+            "purpose": purpose,
+            "returncode": None,
+            "budget_identity_raw": None,
+            "remaining_point_raw": None,
+            "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+            "saved_evidence_error": str(exc),
+        }
+    result = matches[0] if len(matches) == 1 else None
+    parsed = (
+        _budget_remaining(str(result["stdout"]))
+        if result is not None and result.get("returncode") == 0
+        else None
+    )
+    return {
+        "purpose": purpose,
+        "returncode": None if result is None else result.get("returncode"),
+        "budget_identity_raw": parsed[0] if parsed is not None else None,
+        "remaining_point_raw": str(parsed[1]) if parsed is not None else None,
+        "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+        "saved_command_count": len(matches),
+    }
+
+
+def _saved_scheduler_evidence(work_root: Path, request_id: str) -> dict[str, Any]:
+    errors: list[str] = []
+    observations: list[dict[str, Any]] = []
+    try:
+        results = _recorded_command_results(work_root / "controller")
+    except ControllerError as exc:
+        results = []
+        errors.append(str(exc))
+    for result in results:
+        argv = result.get("argv")
+        if argv != ["qstat", "-J", "-f", request_id]:
+            continue
+        stdout = str(result.get("stdout", ""))
+        classification = _classify_qstat(
+            int(result["returncode"]), stdout, str(result.get("stderr", ""))
+        )
+        observations.append(
+            {
+                "returncode": result["returncode"],
+                "classification": classification,
+                "visible": result["returncode"] == 0
+                and _request_visible(stdout, request_id),
+                "state": _scheduler_state(stdout),
+                "execution_hosts": _execution_hosts(stdout),
+                "commands_path": result["commands_path"],
+                "stdout_path": result["stdout_path"],
+                "stdout_sha256": result["stdout_sha256"],
+                "started_time_ns": result.get("started_time_ns"),
+            }
+        )
+    host_observations = [
+        item
+        for item in observations
+        if item["visible"] and len(item["execution_hosts"]) > 0
+    ]
+    host_sets = {tuple(item["execution_hosts"]) for item in host_observations}
+    if len(host_sets) > 1:
+        errors.append("saved qstat Execution Host observations disagree")
+    selected = host_observations[-1] if len(host_sets) == 1 else None
+    return {
+        "observations": observations,
+        "qstat_visible": any(item["visible"] for item in observations),
+        "qstat_no_transient_error": bool(observations)
+        and all(item["classification"] == "ok" for item in observations),
+        "execution_hosts_raw_order": []
+        if selected is None
+        else selected["execution_hosts"],
+        "execution_hosts_raw_evidence": None
+        if selected is None
+        else {
+            "commands_path": selected["commands_path"],
+            "stdout_path": selected["stdout_path"],
+            "stdout_sha256": selected["stdout_sha256"],
+            "source": "saved-qstat-J-f-raw",
+        },
+        "errors": errors,
+        "valid": not errors,
+    }
+
+
+def _saved_observer_returncode(work_root: Path) -> int:
+    try:
+        matches = [
+            item
+            for item in _recorded_command_results(work_root / "controller")
+            if item.get("purpose") == "signal-observer"
+            and item.get("event") == "background_finished"
+        ]
+    except ControllerError:
+        return 127
+    if len(matches) != 1 or type(matches[0].get("returncode")) is not int:
+        return 127
+    return int(matches[0]["returncode"])
 
 
 def _start_background(
@@ -1366,6 +1605,87 @@ def _qwait_valid(leg: Leg, qwait: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _evaluate_attempt_evidence(
+    *,
+    leg: Leg,
+    work_root: Path,
+    attempt_id: str,
+    request_id: str | None,
+    qsub_returncode: int,
+    qsub_receipt_valid: bool,
+    preflight_valid: bool,
+    monitor: Mapping[str, Any],
+    qwait: Mapping[str, Any],
+    observer_returncode: int,
+    accounting: Mapping[str, Any],
+    outputs: Mapping[str, Any],
+    budget_before: Mapping[str, Any],
+    budget_after: Mapping[str, Any],
+) -> dict[str, Any]:
+    qwait_validation = _qwait_valid(leg, qwait)
+    validity: dict[str, Any] = {
+        "qsub_rc_zero": qsub_returncode == 0,
+        "request_id_parsed": request_id is not None,
+        "qsub_receipt_valid": qsub_receipt_valid,
+        "preflight_valid": preflight_valid,
+        "qstat_visible": bool(monitor.get("qstat_visible")),
+        "qstat_no_transient_error": not bool(
+            monitor.get("qstat_transient_error_seen", True)
+        ),
+        "qstat_no_permission_error": not bool(
+            monitor.get("qstat_permission_error", True)
+        ),
+        "request_not_active_at_deadline": not bool(
+            monitor.get("active_at_execution_deadline", True)
+        ),
+        "accounting_valid": bool(accounting.get("valid")),
+        "qwait_valid": bool(qwait_validation["valid"]),
+        "job_output_collection_error_free": not outputs["errors"],
+        "rbudgetcheck_before_rc_zero": budget_before.get("returncode") == 0,
+        "rbudgetcheck_after_rc_zero": budget_after.get("returncode") == 0,
+    }
+    if request_id is not None and leg.key == "t361-flock":
+        marker_validation = _t361_marker_validation(
+            work_root,
+            request_id,
+            monitor.get("execution_hosts_raw_order", []),
+        )
+        _atomic_json(
+            work_root / "controller" / "t361-qstat-execution-host-comparison.json",
+            marker_validation,
+        )
+        result_validation = _finalize_t361_result(
+            work_root, attempt_id, marker_validation
+        )
+        observer_validation = None
+        validity["compute_marker_valid"] = marker_validation["valid"]
+        validity["execution_host_binding_valid"] = marker_validation["valid"]
+        validity["probe_result_self_checks_valid"] = result_validation["valid"]
+    elif request_id is not None:
+        marker_validation = _t362_marker_validation(
+            work_root, request_id, leg, attempt_id
+        )
+        result_validation = None
+        observer_validation = _signal_observation_valid(
+            work_root, observer_returncode
+        )
+        validity["compute_marker_valid"] = marker_validation["valid"]
+        validity["observer_acceptance_valid"] = observer_validation["valid"]
+    else:
+        marker_validation = {"valid": False, "errors": ["request ID unavailable"]}
+        result_validation = None
+        observer_validation = None
+        validity["compute_marker_valid"] = False
+    return {
+        "qwait_validation": qwait_validation,
+        "marker_validation": marker_validation,
+        "probe_result_validation": result_validation,
+        "observer_validation": observer_validation,
+        "validity_conjunction": validity,
+        "admissible": all(value is True for value in validity.values()),
+    }
+
+
 def _budget_remaining(text: str) -> tuple[str, Decimal] | None:
     matches: list[tuple[str, Decimal]] = []
     for line in text.splitlines():
@@ -1462,6 +1782,101 @@ def _run_git(repo_root: Path, argv: Sequence[str]) -> subprocess.CompletedProces
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise ControllerError(f"git evidence command failed to execute: {argv}: {exc}") from exc
+
+
+def _saved_preflight_validation(
+    *,
+    repo_root: Path,
+    work_root: Path,
+    home_root: Path,
+    leg: Leg,
+    attempt_id: str,
+    qsub_argv: Sequence[str],
+) -> dict[str, Any]:
+    errors: list[str] = []
+    path = work_root / "controller" / "preflight.json"
+    try:
+        preflight = _read_json_object(path)
+    except ControllerError as exc:
+        return {"path": str(path), "valid": False, "errors": [str(exc)]}
+    if preflight.get("schema") != PREFLIGHT_SCHEMA:
+        errors.append("saved preflight schema mismatch")
+    if preflight.get("leg") != leg.key:
+        errors.append("saved preflight leg mismatch")
+    if preflight.get("attempt_id") != attempt_id:
+        errors.append("saved preflight attempt-id mismatch")
+    if preflight.get("qsub_argv") != list(qsub_argv):
+        errors.append("saved preflight qsub argv mismatch")
+    paths = preflight.get("paths")
+    if type(paths) is not dict:
+        errors.append("saved preflight paths are malformed")
+    else:
+        if paths.get("work_attempt_root") != str(work_root):
+            errors.append("saved preflight work root mismatch")
+        if paths.get("home_attempt_root") != str(home_root):
+            errors.append("saved preflight home root mismatch")
+
+    source_commit = preflight.get("source_commit")
+    hashes = preflight.get("driver_hashes")
+    if type(source_commit) is not str or not re.fullmatch(r"[0-9a-f]{40,64}", source_commit):
+        errors.append("saved preflight source commit is malformed")
+    elif type(hashes) is not dict or set(hashes) != set(DRIVER_FILES):
+        errors.append("saved preflight driver hash set is malformed")
+    else:
+        for name in DRIVER_FILES:
+            expected = hashes.get(name)
+            if type(expected) is not dict:
+                errors.append(f"saved preflight driver hash is malformed: {name}")
+                continue
+            relative = str((EVIDENCE_RELATIVE.parent / "driver" / name))
+            blob = _run_git(
+                repo_root, ["git", "show", f"{source_commit}:{relative}"]
+            )
+            if blob.returncode != 0:
+                errors.append(f"cannot recover submitted driver blob from source commit: {name}")
+                continue
+            if expected.get("sha256") != hashlib.sha256(blob.stdout).hexdigest():
+                errors.append(f"submitted driver blob hash mismatch: {name}")
+            if expected.get("size") != len(blob.stdout):
+                errors.append(f"submitted driver blob size mismatch: {name}")
+
+        comparison = preflight.get("canonical_byte_comparison")
+        if type(comparison) is not dict:
+            errors.append("saved canonical byte comparison is malformed")
+        else:
+            canonical = _run_git(
+                repo_root,
+                ["git", "show", f"{source_commit}:tools/pegasus/dispatch_compute.py"],
+            )
+            if canonical.returncode != 0:
+                errors.append("cannot recover submitted canonical dispatcher blob")
+            elif comparison.get("canonical_sha256") != hashlib.sha256(
+                canonical.stdout
+            ).hexdigest():
+                errors.append("submitted canonical dispatcher hash mismatch")
+
+    probes = preflight.get("read_write_probes")
+    if type(probes) is not dict:
+        errors.append("saved read/write probes are malformed")
+    else:
+        for name, expected_path in (
+            ("work", work_root / "controller" / "work-read-write.probe.raw"),
+            ("home", home_root / "home-read-write.probe.raw"),
+        ):
+            probe = probes.get(name)
+            if type(probe) is not dict or probe.get("path") != str(expected_path):
+                errors.append(f"saved {name} read/write probe path mismatch")
+            elif expected_path.is_symlink() or not expected_path.is_file():
+                errors.append(f"saved {name} read/write probe is absent or unsafe")
+            elif probe.get("sha256") != _sha256(expected_path):
+                errors.append(f"saved {name} read/write probe hash mismatch")
+    return {
+        "path": str(path),
+        "sha256": _sha256(path),
+        "source_commit": source_commit,
+        "valid": not errors,
+        "errors": errors,
+    }
 
 
 def _track_evidence(repo_root: Path, evidence_root: Path) -> dict[str, Any]:
@@ -1584,14 +1999,14 @@ def _remove_attempt_roots(
 
 
 class Controller:
-    def __init__(self):
+    def __init__(self, *, resolving: bool = False):
         self.driver_root = _driver_root()
         self.repo_root = _repo_root(self.driver_root)
         self.home_base = _home_base()
-        controller_base = WORK_BASE / "_controller"
-        _assert_no_symlink_components(controller_base)
-        controller_base.mkdir(mode=0o700, parents=True, exist_ok=True)
-        lock_path = controller_base / "controller.lock"
+        self.controller_base = WORK_BASE / "_controller"
+        _assert_no_symlink_components(self.controller_base)
+        self.controller_base.mkdir(mode=0o700, parents=True, exist_ok=True)
+        lock_path = self.controller_base / "controller.lock"
         self.lock_descriptor = os.open(
             lock_path,
             os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0),
@@ -1609,18 +2024,22 @@ class Controller:
         except OSError as exc:
             os.close(self.lock_descriptor)
             raise ControllerError("another probe controller holds controller.lock") from exc
-        sessions_root = controller_base / "sessions"
-        sessions_root.mkdir(mode=0o700, exist_ok=True)
-        stale_sessions = [path for path in sessions_root.iterdir()]
-        if stale_sessions:
+        self.sessions_root = self.controller_base / "sessions"
+        self.sessions_root.mkdir(mode=0o700, exist_ok=True)
+        self.stale_sessions = sorted(self.sessions_root.iterdir())
+        if self.stale_sessions and not resolving:
             raise ControllerError(
                 "an earlier controller session is unresolved; no new request may be submitted: "
-                + ", ".join(str(path) for path in sorted(stale_sessions))
+                + ", ".join(str(path) for path in self.stale_sessions)
             )
-        self.wave_state_path = controller_base / "wave-state.json"
+        self.wave_state_path = self.controller_base / "wave-state.json"
         if self.wave_state_path.exists():
             self.wave_state = _read_json_object(self.wave_state_path)
         else:
+            if resolving and self.stale_sessions:
+                raise ControllerError(
+                    "unresolved sessions exist but persistent wave-state.json is absent"
+                )
             self.wave_state = {
                 "schema": WAVE_STATE_SCHEMA,
                 "request_limit": REQUEST_LIMIT,
@@ -1662,15 +2081,18 @@ class Controller:
             )
         ]
         if unresolved:
-            raise ControllerError(
-                "persistent wave state contains an active or terminal-unproven attempt; "
-                "no new request may be submitted: "
-                + ", ".join(str(value) for value in unresolved)
-            )
+            if not resolving:
+                raise ControllerError(
+                    "persistent wave state contains an active or terminal-unproven attempt; "
+                    "no new request may be submitted: "
+                    + ", ".join(str(value) for value in unresolved)
+                )
+        if resolving:
+            return
         timestamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
         self.session_id = f"{timestamp}-{secrets.token_hex(8)}"
         self.runtime_root = _mkdir_fresh(
-            WORK_BASE / "_controller", "sessions", self.session_id
+            self.controller_base, "sessions", self.session_id
         )
         self.recorder = Recorder(self.runtime_root / "controller")
         self.ledger = self.runtime_root / "request-ledger.jsonl"
@@ -1881,6 +2303,571 @@ class Controller:
             request["selected_as_authoritative"] = False
         self._persist_wave_state()
 
+    def _discover_unresolved_attempts(self) -> list[UnresolvedAttempt]:
+        request_by_id = {
+            str(request["attempt_id"]): index
+            for index, request in enumerate(self.wave_state["requests"])
+        }
+        unresolved_by_id = {
+            str(request["attempt_id"]): index
+            for index, request in enumerate(self.wave_state["requests"])
+            if request.get("completed") is not True
+            or (
+                request.get("qsub_returncode") == 0
+                and request.get("external_root_terminal_proven") is not True
+            )
+        }
+        discovered: list[UnresolvedAttempt] = []
+        seen_ledgers: set[str] = set()
+        for session_root in self.stale_sessions:
+            session_id = session_root.name
+            _safe_component(session_id, "session ID")
+            if session_root.is_symlink() or not session_root.is_dir():
+                raise ControllerError(f"unresolved session root is unsafe: {session_root}")
+            ledger_path = session_root / "request-ledger.jsonl"
+            attempts_path = session_root / "attempts.jsonl"
+            ledgers = _read_jsonl_objects(ledger_path) if ledger_path.exists() else []
+            events = _read_jsonl_objects(attempts_path) if attempts_path.exists() else []
+            created_events: dict[str, Mapping[str, Any]] = {}
+            session_ledger_ids: set[str] = set()
+            for event in events:
+                if event.get("event") != "attempt_roots_created":
+                    continue
+                attempt_id = event.get("attempt_id")
+                if type(attempt_id) is not str or attempt_id in created_events:
+                    raise ControllerError(
+                        f"session {session_id} has a malformed or duplicate attempt root event"
+                    )
+                created_events[attempt_id] = event
+            for ledger in ledgers:
+                if ledger.get("schema") != SCHEMA:
+                    raise ControllerError(f"session {session_id} request ledger schema mismatch")
+                attempt_id = ledger.get("attempt_id")
+                if type(attempt_id) is not str or attempt_id in seen_ledgers:
+                    raise ControllerError(
+                        f"session {session_id} has a malformed or duplicate attempt ledger"
+                    )
+                seen_ledgers.add(attempt_id)
+                session_ledger_ids.add(attempt_id)
+                if attempt_id not in request_by_id:
+                    raise ControllerError(
+                        f"session {session_id} ledger attempt is absent from wave state: "
+                        f"{attempt_id}"
+                    )
+                request_index = request_by_id[attempt_id]
+                request = self.wave_state["requests"][request_index]
+                for key in (
+                    "request_ordinal",
+                    "leg",
+                    "attempt_id",
+                    "requested_node_min",
+                    "cumulative_requested_node_min",
+                    "qsub_argv",
+                    "qsub_returncode",
+                    "request_id",
+                    "submitted_time_ns",
+                ):
+                    if ledger.get(key) != request.get(key):
+                        raise ControllerError(
+                            f"session {session_id} ledger does not match wave state for "
+                            f"{attempt_id}: {key}"
+                        )
+                if attempt_id not in unresolved_by_id:
+                    continue
+                leg_key = request.get("leg")
+                assert type(leg_key) is str
+                leg = LEG_BY_KEY[leg_key]
+                event = created_events.get(attempt_id)
+                if event is None:
+                    raise ControllerError(
+                        f"session {session_id} lacks the attempt root event for {attempt_id}"
+                    )
+                work_root = WORK_BASE / leg.key / attempt_id
+                home_root = self.home_base / leg.key / attempt_id
+                if event.get("leg") != leg.key:
+                    raise ControllerError(f"attempt root event leg mismatch for {attempt_id}")
+                if event.get("work_root") != str(work_root):
+                    raise ControllerError(f"attempt root event /work path mismatch for {attempt_id}")
+                if event.get("home_root") != str(home_root):
+                    raise ControllerError(f"attempt root event /home path mismatch for {attempt_id}")
+                for root, base, label in (
+                    (work_root, WORK_BASE, "work attempt root"),
+                    (home_root, self.home_base, "home attempt root"),
+                ):
+                    _assert_absolute_below(root, base, label)
+                    _assert_no_symlink_components(root)
+                    if root.is_symlink() or not root.is_dir():
+                        raise ControllerError(f"unresolved {label} is absent or unsafe: {root}")
+                qsub_returncode = request.get("qsub_returncode")
+                request_id = request.get("request_id")
+                if type(qsub_returncode) is not int:
+                    raise ControllerError(
+                        f"attempt {attempt_id} has no durable qsub completion receipt"
+                    )
+                if qsub_returncode == 0:
+                    if type(request_id) is not str:
+                        raise ControllerError(
+                            f"submitted attempt {attempt_id} has no durable request ID"
+                        )
+                    request_id = _normalize_request_id(request_id)
+                elif request_id is not None:
+                    raise ControllerError(
+                        f"failed qsub attempt {attempt_id} unexpectedly has a request ID"
+                    )
+                discovered.append(
+                    UnresolvedAttempt(
+                        session_id=session_id,
+                        session_root=session_root,
+                        request_index=request_index,
+                        leg=leg,
+                        attempt_id=attempt_id,
+                        request_id=request_id,
+                        work_root=work_root,
+                        home_root=home_root,
+                        request=dict(request),
+                        ledger_entry=dict(ledger),
+                    )
+                )
+            orphan_created = sorted(set(created_events) - session_ledger_ids)
+            if orphan_created:
+                raise ControllerError(
+                    f"session {session_id} contains attempts without a durable qsub ledger; "
+                    "submission state is unknowable: " + ", ".join(orphan_created)
+                )
+        missing = sorted(set(unresolved_by_id) - seen_ledgers)
+        if missing:
+            raise ControllerError(
+                "persistent unresolved attempts have no unresolved session ledger: "
+                + ", ".join(missing)
+            )
+        return sorted(discovered, key=lambda item: int(item.request["request_ordinal"]))
+
+    def _collect_resolution_terminal_proof(
+        self, attempt: UnresolvedAttempt
+    ) -> dict[str, Any]:
+        resolution_id = (
+            time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+            + f"-{secrets.token_hex(8)}"
+        )
+        resolution_root = (
+            attempt.work_root / "controller" / "resolutions" / resolution_id
+        )
+        resolution_root.mkdir(mode=0o700, parents=True)
+        recorder = Recorder(resolution_root)
+        submission = _saved_submission_validation(attempt.work_root, attempt.request)
+        if attempt.request_id is None:
+            proof = {
+                "schema": RESOLUTION_SCHEMA,
+                "attempt_id": attempt.attempt_id,
+                "request_id": None,
+                "saved_qsub_receipt_valid": submission["valid"],
+                "saved_qsub_receipt_errors": submission["errors"],
+                "qsub_returncode_nonzero": attempt.request.get("qsub_returncode") != 0,
+                "qstat_request_absent": True,
+                "qwait_terminal_receipt_valid": True,
+                "accounting_ended_request_valid": True,
+                "valid": (
+                    submission["valid"] is True
+                    and attempt.request.get("qsub_returncode") != 0
+                ),
+                "reason": "qsub returned nonzero and did not yield a request ID",
+                "time_ns": time.time_ns(),
+            }
+            _atomic_json(resolution_root / "terminal-proof.json", proof)
+            return {
+                "resolution_id": resolution_id,
+                "resolution_root": str(resolution_root),
+                "qstat": {},
+                "qwait": {"returncode": None, "stdout": "", "stderr": ""},
+                "accounting": {"valid": False, "commands": {}},
+                "terminal_proof": proof,
+                "recorder": recorder,
+            }
+
+        request_id = attempt.request_id
+        qstat = _bounded_qstat(recorder, request_id, "resolve-terminal-qstat")
+        qwait = recorder.record(
+            ["qwait", "-t", str(COMMAND_TIMEOUT_SECONDS), request_id],
+            "resolve-terminal-qwait",
+            timeout=COMMAND_TIMEOUT_SECONDS + 5,
+        )
+        accounting = _collect_accounting(recorder, request_id, attempt.leg.nodes)
+        qwait_validation = _qwait_valid(attempt.leg, qwait)
+        qstat_absent = qstat.get("returncode") == 0 and not bool(qstat.get("visible"))
+        proof = {
+            "schema": RESOLUTION_SCHEMA,
+            "attempt_id": attempt.attempt_id,
+            "request_id": request_id,
+            "saved_qsub_receipt_valid": submission["valid"],
+            "saved_qsub_receipt_errors": submission["errors"],
+            "qstat_request_absent": qstat_absent,
+            "qstat_classification": qstat.get("classification"),
+            "qstat_state_raw": qstat.get("state"),
+            "qwait_terminal_receipt_valid": qwait_validation["valid"],
+            "accounting_ended_request_valid": accounting.get("valid") is True,
+            "accounting_commands": {
+                name: value.get("accounting_validation")
+                for name, value in accounting.get("commands", {}).items()
+            },
+            "valid": (
+                submission["valid"] is True
+                and qstat_absent
+                and qwait_validation["valid"] is True
+                and accounting.get("valid") is True
+            ),
+            "time_ns": time.time_ns(),
+        }
+        _atomic_json(resolution_root / "terminal-proof.json", proof)
+        return {
+            "resolution_id": resolution_id,
+            "resolution_root": str(resolution_root),
+            "qstat": qstat,
+            "qwait": qwait,
+            "accounting": accounting,
+            "terminal_proof": proof,
+            "recorder": recorder,
+        }
+
+    def _record_resolved_attempt_outcome(
+        self,
+        *,
+        attempt: UnresolvedAttempt,
+        admissible: bool,
+        budget_after: Mapping[str, Any],
+        resolution_id: str,
+    ) -> None:
+        request = self.wave_state["requests"][attempt.request_index]
+        if request.get("attempt_id") != attempt.attempt_id:
+            raise ControllerError("resolved request index no longer matches attempt-id")
+        request["completed"] = True
+        request["admissible"] = admissible
+        request["external_root_terminal_proven"] = True
+        request["budget_after"] = dict(budget_after)
+        request["completed_time_ns"] = time.time_ns()
+        request["resolved_after_controller_interruption"] = True
+        request["resolution_id"] = resolution_id
+        self.latest_budget = dict(budget_after)
+        if self.wave_state.get("initial_four_budget_after") is None and all(
+            any(
+                item.get("leg") == candidate.key and item.get("completed") is True
+                for item in self.wave_state["requests"]
+            )
+            for candidate in LEGS
+        ):
+            self.wave_state["initial_four_budget_after"] = dict(budget_after)
+        self.authoritative = {}
+        for item in self.wave_state["requests"]:
+            item["selected_as_authoritative"] = False
+            leg_key = item.get("leg")
+            if item.get("admissible") is True and leg_key not in self.authoritative:
+                assert type(leg_key) is str
+                self.authoritative[leg_key] = str(item["attempt_id"])
+                item["selected_as_authoritative"] = True
+        self._persist_wave_state()
+
+    def _resolve_attempt(
+        self, attempt: UnresolvedAttempt, terminal_bundle: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        recorder = terminal_bundle["recorder"]
+        assert isinstance(recorder, Recorder)
+        submission = _saved_submission_validation(attempt.work_root, attempt.request)
+        preflight = _saved_preflight_validation(
+            repo_root=self.repo_root,
+            work_root=attempt.work_root,
+            home_root=attempt.home_root,
+            leg=attempt.leg,
+            attempt_id=attempt.attempt_id,
+            qsub_argv=attempt.request["qsub_argv"],
+        )
+        saved_scheduler = (
+            _saved_scheduler_evidence(attempt.work_root, attempt.request_id)
+            if attempt.request_id is not None
+            else {
+                "observations": [],
+                "qstat_visible": False,
+                "qstat_no_transient_error": False,
+                "execution_hosts_raw_order": [],
+                "execution_hosts_raw_evidence": None,
+                "errors": [],
+                "valid": True,
+            }
+        )
+        current_qstat = terminal_bundle["qstat"]
+        current_hosts = current_qstat.get("execution_hosts", [])
+        if current_qstat.get("visible") and current_hosts:
+            execution_hosts = list(current_hosts)
+            execution_host_evidence = {
+                "stdout_path": current_qstat.get("stdout_path"),
+                "stdout_sha256": current_qstat.get("stdout_sha256"),
+                "source": "resolve-current-qstat-J-f-raw",
+            }
+        else:
+            execution_hosts = list(saved_scheduler["execution_hosts_raw_order"])
+            execution_host_evidence = saved_scheduler["execution_hosts_raw_evidence"]
+        qstat_observations = list(saved_scheduler["observations"])
+        qstat_observations.append(
+            {
+                "returncode": current_qstat.get("returncode"),
+                "classification": current_qstat.get("classification"),
+                "visible": current_qstat.get("visible"),
+                "state": current_qstat.get("state"),
+                "execution_hosts": current_qstat.get("execution_hosts"),
+                "stdout_path": current_qstat.get("stdout_path"),
+                "stdout_sha256": current_qstat.get("stdout_sha256"),
+                "source": "resolve-current-qstat-J-f-raw",
+            }
+        )
+        monitor = {
+            "qstat_visible": saved_scheduler["qstat_visible"]
+            or bool(current_qstat.get("visible")),
+            "qstat_run_seen": any(
+                item.get("state") == "RUN" for item in qstat_observations
+            ),
+            "qstat_transient_error_seen": (
+                not saved_scheduler["valid"]
+                or any(
+                    item.get("classification") != "ok"
+                    for item in qstat_observations
+                )
+            ),
+            "qstat_permission_error": any(
+                item.get("classification") == "permission"
+                for item in qstat_observations
+            ),
+            "active_at_execution_deadline": False,
+            "terminal_reason": "RESOLVED_AFTER_CONTROLLER_INTERRUPTION",
+            "execution_hosts_raw_order": execution_hosts,
+            "execution_hosts_raw_evidence": execution_host_evidence,
+            "saved_scheduler_evidence": saved_scheduler,
+            "resolution_terminal_qstat_absent": terminal_bundle[
+                "terminal_proof"
+            ]["qstat_request_absent"],
+        }
+        outputs = _collect_job_outputs(attempt.work_root, attempt.leg.nodes)
+        budget_before = _saved_budget_capture(
+            attempt.work_root, "rbudgetcheck-before-qsub"
+        )
+        budget_after = _budget_capture(
+            recorder, "resolve-rbudgetcheck-after-request"
+        )
+        observer_returncode = (
+            _saved_observer_returncode(attempt.work_root)
+            if attempt.leg.mode is not None
+            else 127
+        )
+        evaluation = _evaluate_attempt_evidence(
+            leg=attempt.leg,
+            work_root=attempt.work_root,
+            attempt_id=attempt.attempt_id,
+            request_id=attempt.request_id,
+            qsub_returncode=int(attempt.request["qsub_returncode"]),
+            qsub_receipt_valid=bool(submission["valid"]),
+            preflight_valid=bool(preflight["valid"]),
+            monitor=monitor,
+            qwait=terminal_bundle["qwait"],
+            observer_returncode=observer_returncode,
+            accounting=terminal_bundle["accounting"],
+            outputs=outputs,
+            budget_before=budget_before,
+            budget_after=budget_after,
+        )
+        validity = evaluation["validity_conjunction"]
+        validity["resolution_terminal_proof_valid"] = (
+            terminal_bundle["terminal_proof"]["valid"] is True
+        )
+        admissible = all(value is True for value in validity.values())
+        attempt_result = {
+            "schema": ATTEMPT_SCHEMA,
+            "session_id": attempt.session_id,
+            "leg": attempt.leg.key,
+            "attempt_id": attempt.attempt_id,
+            "request_id": attempt.request_id,
+            "request_ordinal": attempt.request["request_ordinal"],
+            "requested_node_min": attempt.request["requested_node_min"],
+            "cumulative_requested_node_min": attempt.request[
+                "cumulative_requested_node_min"
+            ],
+            "qsub_argv": attempt.request["qsub_argv"],
+            "qsub_receipt": submission["receipt"],
+            "saved_submission_validation": submission,
+            "saved_preflight_validation": preflight,
+            "monitor": monitor,
+            "qwait_validation": evaluation["qwait_validation"],
+            "accounting_validation": {
+                "valid": terminal_bundle["accounting"].get("valid"),
+                "commands": {
+                    name: value.get("accounting_validation")
+                    for name, value in terminal_bundle["accounting"]
+                    .get("commands", {})
+                    .items()
+                },
+            },
+            "job_output_manifest": outputs,
+            "marker_validation": evaluation["marker_validation"],
+            "probe_result_validation": evaluation["probe_result_validation"],
+            "observer_validation": evaluation["observer_validation"],
+            "external_root_terminal_proof": terminal_bundle["terminal_proof"],
+            "budget_before": budget_before,
+            "budget_after": budget_after,
+            "budget_delta": _budget_delta(budget_before, budget_after),
+            "validity_conjunction": validity,
+            "admissible": admissible,
+            "dangerous": None,
+            "dangerous_note": (
+                "recovery never infers a safety verdict; invalid evidence remains null, "
+                "and valid T-361 evidence is finalized only after Execution Host binding"
+            ),
+            "resolution": {
+                "schema": RESOLUTION_SCHEMA,
+                "resolution_id": terminal_bundle["resolution_id"],
+                "resolved_after_controller_interruption": True,
+            },
+            "time_ns": time.time_ns(),
+        }
+        _atomic_json(
+            attempt.work_root / "controller" / "attempt-result.json", attempt_result
+        )
+        copied = _copy_attempt_evidence(
+            repo_root=self.repo_root,
+            session_id=attempt.session_id,
+            leg=attempt.leg,
+            attempt_id=attempt.attempt_id,
+            work_root=attempt.work_root,
+            home_root=attempt.home_root,
+        )
+        self._record_resolved_attempt_outcome(
+            attempt=attempt,
+            admissible=admissible,
+            budget_after=budget_after,
+            resolution_id=str(terminal_bundle["resolution_id"]),
+        )
+        cleanup = _remove_attempt_roots(
+            work_root=attempt.work_root,
+            home_root=attempt.home_root,
+            leg=attempt.leg,
+            attempt_id=attempt.attempt_id,
+        )
+        _append_jsonl(
+            attempt.session_root / "attempts.jsonl",
+            {
+                "event": "interrupted_attempt_resolved_staged_and_roots_removed",
+                "leg": attempt.leg.key,
+                "attempt_id": attempt.attempt_id,
+                "request_id": attempt.request_id,
+                "admissible": admissible,
+                "evidence_destination": copied["destination"],
+                "cleanup": cleanup,
+                "resolution_id": terminal_bundle["resolution_id"],
+                "time_ns": time.time_ns(),
+            },
+        )
+        return attempt_result
+
+    def _finalize_resolved_session(
+        self, session_root: Path, outcomes: Sequence[Mapping[str, Any]]
+    ) -> None:
+        session_id = session_root.name
+        summary = {
+            "schema": RESOLUTION_SCHEMA,
+            "session_id": session_id,
+            "resolved_time_ns": time.time_ns(),
+            "request_count": self.request_count,
+            "cumulative_requested_node_min": self.cumulative_node_min,
+            "authoritative_attempts": self.authoritative,
+            "resolved_attempts": [
+                {
+                    "attempt_id": item.get("attempt_id"),
+                    "leg": item.get("leg"),
+                    "request_id": item.get("request_id"),
+                    "admissible": item.get("admissible"),
+                    "dangerous": item.get("dangerous"),
+                }
+                for item in outcomes
+            ],
+            "verdict_note": (
+                "Resolution proves scheduler/accounting termination before closing attempts. "
+                "It does not turn missing observations into safe conclusions."
+            ),
+        }
+        _atomic_json(session_root / "wave-state-snapshot.json", self.wave_state)
+        _atomic_json(session_root / "session-summary.json", summary)
+        destination = self.repo_root / EVIDENCE_RELATIVE / session_id / "controller"
+        if destination.exists():
+            raise ControllerError(
+                f"resolved controller evidence destination exists: {destination}"
+            )
+        shutil.copytree(session_root, destination, copy_function=shutil.copy2)
+        source = _tree_inventory(session_root)
+        copied = _tree_inventory(destination)
+        source_projection = [
+            (item["path"], item["sha256"], item["size"])
+            for item in source["files"]
+        ]
+        copied_projection = [
+            (item["path"], item["sha256"], item["size"])
+            for item in copied["files"]
+        ]
+        if source_projection != copied_projection:
+            raise ControllerError("resolved controller runtime copy differs from source")
+        tracking = _track_evidence(self.repo_root, destination)
+        _atomic_json(destination / "tracking-receipt.json", tracking)
+        _track_evidence(self.repo_root, destination)
+        expected = self.sessions_root / session_id
+        if session_root != expected:
+            raise ControllerError("resolved controller session cleanup target mismatch")
+        _assert_no_symlink_components(session_root)
+        if session_root.is_symlink():
+            raise ControllerError("resolved controller session became a symlink")
+        shutil.rmtree(session_root)
+
+    def resolve(self) -> int:
+        print("unresolved controller sessions:")
+        for session_root in self.stale_sessions:
+            print(f"  {session_root}")
+        attempts = self._discover_unresolved_attempts()
+        if not self.stale_sessions:
+            print("  none")
+            return 0
+        print("unresolved attempts:")
+        for attempt in attempts:
+            print(
+                f"  {attempt.attempt_id}: leg={attempt.leg.key} "
+                f"request_id={attempt.request_id}"
+            )
+
+        terminal_bundles: dict[str, dict[str, Any]] = {}
+        terminal_failures: list[str] = []
+        for attempt in attempts:
+            bundle = self._collect_resolution_terminal_proof(attempt)
+            terminal_bundles[attempt.attempt_id] = bundle
+            if bundle["terminal_proof"]["valid"] is not True:
+                terminal_failures.append(attempt.attempt_id)
+        if terminal_failures:
+            raise ControllerError(
+                "resolution stopped before changing attempt state because scheduler/qwait/"
+                "accounting termination is unproven for: "
+                + ", ".join(terminal_failures)
+            )
+
+        outcomes_by_session: dict[str, list[dict[str, Any]]] = {
+            root.name: [] for root in self.stale_sessions
+        }
+        for attempt in attempts:
+            outcome = self._resolve_attempt(
+                attempt, terminal_bundles[attempt.attempt_id]
+            )
+            outcomes_by_session[attempt.session_id].append(outcome)
+        for session_root in self.stale_sessions:
+            self._finalize_resolved_session(
+                session_root, outcomes_by_session[session_root.name]
+            )
+        print(
+            f"resolved {len(attempts)} interrupted attempt(s); "
+            f"request_count={self.request_count}, "
+            f"cumulative_requested_node_min={self.cumulative_node_min}"
+        )
+        return 0
+
     def run_attempt(self, leg: Leg, ordinal: int) -> dict[str, Any]:
         attempt_id = self._attempt_id(leg, ordinal)
         work_root = _mkdir_fresh(WORK_BASE, leg.key, attempt_id)
@@ -1935,10 +2922,6 @@ class Controller:
             qsub_returncode=int(qsub["returncode"]),
         )
 
-        validity: dict[str, Any] = {
-            "qsub_rc_zero": qsub["returncode"] == 0,
-            "request_id_parsed": request_id is not None,
-        }
         observer_bundle: tuple[subprocess.Popen[bytes], dict[str, Any], Any, Any] | None = None
         qwait_bundle: tuple[subprocess.Popen[bytes], dict[str, Any], Any, Any] | None = None
         monitor: dict[str, Any] = {}
@@ -2015,61 +2998,32 @@ class Controller:
         outputs = _collect_job_outputs(work_root, leg.nodes)
         budget_after = _budget_capture(attempt_recorder, "rbudgetcheck-after-request")
         self.latest_budget = budget_after
-        qwait_validation = _qwait_valid(leg, qwait)
-        validity.update(
-            {
-                "qstat_visible": bool(monitor.get("qstat_visible")),
-                "qstat_no_transient_error": not bool(
-                    monitor.get("qstat_transient_error_seen", True)
-                ),
-                "qstat_no_permission_error": not bool(
-                    monitor.get("qstat_permission_error", True)
-                ),
-                "request_not_active_at_deadline": not bool(
-                    monitor.get("active_at_execution_deadline", True)
-                ),
-                "accounting_valid": bool(accounting.get("valid")),
-                "qwait_valid": bool(qwait_validation["valid"]),
-                "job_output_collection_error_free": not outputs["errors"],
-                "rbudgetcheck_before_rc_zero": budget_before["returncode"] == 0,
-                "rbudgetcheck_after_rc_zero": budget_after["returncode"] == 0,
-            }
+        evaluation = _evaluate_attempt_evidence(
+            leg=leg,
+            work_root=work_root,
+            attempt_id=attempt_id,
+            request_id=request_id,
+            qsub_returncode=int(qsub["returncode"]),
+            qsub_receipt_valid=True,
+            preflight_valid=True,
+            monitor=monitor,
+            qwait=qwait,
+            observer_returncode=(
+                int(observer["returncode"])
+                if type(observer.get("returncode")) is int
+                else 127
+            ),
+            accounting=accounting,
+            outputs=outputs,
+            budget_before=budget_before,
+            budget_after=budget_after,
         )
-
-        if request_id is not None and leg.key == "t361-flock":
-            marker_validation = _t361_marker_validation(
-                work_root,
-                request_id,
-                monitor.get("execution_hosts_raw_order", []),
-            )
-            _atomic_json(
-                controller_root / "t361-qstat-execution-host-comparison.json",
-                marker_validation,
-            )
-            result_validation = _finalize_t361_result(
-                work_root, attempt_id, marker_validation
-            )
-            observer_validation = None
-            validity["compute_marker_valid"] = marker_validation["valid"]
-            validity["execution_host_binding_valid"] = marker_validation["valid"]
-            validity["probe_result_self_checks_valid"] = result_validation["valid"]
-        elif request_id is not None:
-            marker_validation = _t362_marker_validation(
-                work_root, request_id, leg, attempt_id
-            )
-            result_validation = None
-            observer_validation = _signal_observation_valid(
-                work_root, int(observer.get("returncode", 127))
-            )
-            validity["compute_marker_valid"] = marker_validation["valid"]
-            validity["observer_acceptance_valid"] = observer_validation["valid"]
-        else:
-            marker_validation = {"valid": False, "errors": ["request ID unavailable"]}
-            result_validation = None
-            observer_validation = None
-            validity["compute_marker_valid"] = False
-
-        admissible = all(value is True for value in validity.values())
+        qwait_validation = evaluation["qwait_validation"]
+        marker_validation = evaluation["marker_validation"]
+        result_validation = evaluation["probe_result_validation"]
+        observer_validation = evaluation["observer_validation"]
+        validity = evaluation["validity_conjunction"]
+        admissible = bool(evaluation["admissible"])
         external_root_terminal_proof = {
             "request_id_available": request_id is not None,
             "request_not_active_at_controller_stop": not bool(
@@ -2352,6 +3306,13 @@ def _parser() -> argparse.ArgumentParser:
         "run",
         help="run the fixed four-leg transaction and bounded failed-leg retries",
     )
+    subparsers.add_parser(
+        "resolve",
+        help=(
+            "prove interrupted attempts terminal, validate saved evidence, and close "
+            "unresolved sessions without submitting requests"
+        ),
+    )
     return parser
 
 
@@ -2359,6 +3320,8 @@ def main() -> int:
     arguments = _parser().parse_args()
     if arguments.command == "run":
         return Controller().run()
+    if arguments.command == "resolve":
+        return Controller(resolving=True).resolve()
     raise AssertionError(arguments.command)
 
 

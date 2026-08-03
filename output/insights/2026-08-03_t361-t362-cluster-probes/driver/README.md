@@ -14,6 +14,32 @@ requested node-min 上限 40 の範囲で最大 2 本再試行する。成功済
 PYTHONDONTWRITEBYTECODE=1 python3 output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py run
 ```
 
+## 中断 session の回収
+
+controller が request 投入後に異常終了し、`_controller/sessions/` と未完の wave state が残った場合だけ、
+次を login node で先に実行する。`resolve` 自身は `qsub` / `qdel` を呼ばず、新しい request を投入しない。
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py resolve
+```
+
+`resolve` は singleton lock を取って未解決 session と attempt を列挙し、まず全 submitted attempt について
+現在の `qstat -J -f` で request 不在を確認し、`qwait`、`racctjob -I`、`racctreq -I` の exact request ID・
+Started / Ended / Elapse を照合する。**1 attempt でもこの終端の連言を実証できなければ、どの attempt も
+解決済みにせず fail-closed で止まる。** request がまだ見える場合、権限・一時エラー、qwait の期待 rc
+不一致、会計欠測も同じ扱いであり、走行中かもしれない job を閉じない。
+
+全 attempt の終端を実証した後だけ、投入時 preflight・qsub raw・compute marker・probe / observer raw・
+job output・会計を通常 `run` と同じ validity conjunction で再検査する。T-361 の Execution Host は現在の
+`qstat -J -f` raw、そこで取得不能なら hash 照合済みの保存済み `qstat -J -f` raw だけを使う。host の
+一対一照合を含む連言を確定できない attempt は `admissible:false`、`dangerous:null` の無効 attempt として
+解決し、後付けの安全判定へ倒さない。T-362 も observer rc=0 と全 acceptance condition の論理積を保ち、
+未観測 signal は `UNKNOWN` のまま扱う。
+
+解決は既存 wave-state の request 行を完了化するだけで、予約済み request 数と requested node-min の累積を
+減算・削除しない。最初の admissible attempt だけを authoritative に保つため、成功済み leg はその後の
+`run` で再投入されない。`resolve` が rc=0 で session を回収した後、必要なら通常の `run` command を再実行する。
+
 controller は `qsub` の直前に毎回、次を fail-closed で検査して `controller/preflight.json` に残す。
 
 - `PATH`、`qsub` / `qstat` / `qdel` / `qwait` / `racctjob` / `racctreq` / `rbudgetcheck` / `git`
