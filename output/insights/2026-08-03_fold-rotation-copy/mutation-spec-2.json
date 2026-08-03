@@ -1,0 +1,253 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "N01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if len(remaining) != 1:",
+          "new": "    if len(remaining) < 1:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_duplicates"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if block[line_start:line_end].rstrip(\"\\n\") != \"  remaining: none\":",
+          "new": "    if False and block[line_start:line_end].rstrip(\"\\n\") != \"  remaining: none\":"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_noncanonical_values"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    for visible, line_offset, newline in reversed(_visible_item_markdown_lines(block)):",
+          "new": "    for visible, line_offset, newline in reversed(_visible_markdown_lines(block)):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_in_unclosed_list_relative_fences_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    return block[:line_start] + block[line_end:], []",
+          "new": "    return block, []"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_completion_base_and_remaining_trailer_order_is_independent",
+        "orchestrator/tests/test_spool_fold.py::test_valid_completion_remaining_field_is_removed_from_canonical"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            if name == \"完了\" and re.search(r\"残件(?:[はが:]|：|[ \\t])*あり|一部完了\", output):",
+          "new": "            if False and name == \"完了\" and re.search(r\"残件(?:[はが:]|：|[ \\t])*あり|一部完了\", output):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n18_completion_with_remaining_work_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if fence is not None:",
+          "new": "        if False and fence is not None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_in_unclosed_list_relative_fences_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        positions[append.task_id] = line_end",
+          "new": "        positions[append.task_id] = block_end"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_accepts_first_suffix_seen_outside_head_line_end",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_can_target_item_deferred_earlier_in_same_fold",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_fenced_target_does_not_break_fence",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_is_byte_exact_for_all_insertion_shapes",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_multiline_target_preserves_continuations",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_only_fragment_preserves_all_active_tasks",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_order_is_deterministic_by_fragment_key_and_item_index",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_replayed_identical_suffix",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_resolves_cross_ledger_placeholder",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_targets_single_line_item_head",
+        "orchestrator/tests/test_spool_fold.py::test_interrupted_transaction_resumes_before_and_after_targets"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        targets = items.get(append.task_id, [])",
+          "new": "        targets = items.get(append.task_id, []) or [(0, 0, 0)]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_cannot_target_completion_record",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_missing_target_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    region_start, region_end = ledgers[0][1], completions[0]",
+          "new": "    region_start, region_end = ledgers[0][1], len(phase)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_cannot_target_completion_record"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if len(targets) != 1:",
+          "new": "        if False and len(targets) != 1:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_visible_duplicate_target_ids"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if head_line.rstrip(\"\\n\").endswith(append.suffix) or append.suffix in seen:",
+          "new": "        if False and (head_line.rstrip(\"\\n\").endswith(append.suffix) or append.suffix in seen):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_replayed_identical_suffix"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    allowed = (\"carry\", \"完了\", \"更新\", \"新規\", \"見送り\", \"見送り追記\")",
+          "new": "    allowed = (\"carry\", \"完了\", \"更新\", \"新規\", \"見送り追記\", \"見送り\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_before_defer_section_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        for split in range(1, len(projected_entries)):",
+          "new": "        for split in range(1, len(original_entries)):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_rotation_can_archive_original_latest_to_fit_projected_entry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P02",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            if name == \"完了\":",
+          "new": "            if name in {\"完了\", \"更新\"}:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_all_mutating_operation_blocks_resolve_placeholders",
+        "orchestrator/tests/test_spool_fold.py::test_completion_update_and_defer_form_explicit_sinks",
+        "orchestrator/tests/test_spool_fold.py::test_global_carry_resolves_global_entry_not_legacy_collision",
+        "orchestrator/tests/test_spool_fold.py::test_n10_mutating_action_requires_base_field",
+        "orchestrator/tests/test_spool_fold.py::test_n10_stale_base_digest_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_new_then_existing_update_uses_substantive_base_digest",
+        "orchestrator/tests/test_spool_fold.py::test_update_and_defer_do_not_require_remaining_field"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

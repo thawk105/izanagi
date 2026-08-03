@@ -16,6 +16,8 @@ from tools.dev_waves.git_state import (
     FOLD_AUTHOR_IDENTITY,
     FOLD_COMMIT_MESSAGE,
     GIT_COMMANDS,
+    _diff_entries,
+    _landed_fold_output_path,
     create_exact_worktree,
     create_isolated_checkout,
     read_child_git_trace,
@@ -68,6 +70,26 @@ def test_git_command_table_has_no_forbidden_mutating_verb():
     flattened = {token for command in GIT_COMMANDS.values() for token in command}
     assert forbidden.isdisjoint(flattened)
     assert "--no-fetch" in GIT_COMMANDS["submodule-update"]
+
+
+def test_commit_diff_disables_move_detection_by_contract():
+    command = GIT_COMMANDS["commit-diff"]
+    safe_short_options = {"-r", "-m", "-z"}
+    move_detection_long_prefixes = (
+        "--find-renames", "--find-copies",
+        "--find-copies-harder", "--break-rewrites",
+    )
+    assert "--no-renames" in command
+    assert not [
+        token for token in command
+        if token.startswith("-")
+        and not token.startswith("--")
+        and token not in safe_short_options
+    ]
+    assert not [
+        token for token in command
+        if token.startswith(move_detection_long_prefixes)
+    ]
 
 
 def test_identity_main_resolution_and_inherited_git_environment_are_ignored():
@@ -242,6 +264,113 @@ def test_declared_fold_accepts_exact_direct_child_shape_without_plan_comparison(
         assert result.ok, result
 
 
+def test_declared_fold_accepts_rotation_that_git_would_report_as_copy():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        worklog = repo / "docs/worklog.md"
+        worklog.parent.mkdir(parents=True, exist_ok=True)
+        worklog.write_text(
+            "".join(f"worklog line {index:03d}: deterministic source bytes\n" for index in range(128)),
+            encoding="utf-8",
+        )
+        _commit(repo, "seed copy source", "docs/worklog.md")
+        tip, pending = _wave_fragment_commit(repo)
+
+        original_worklog = worklog.read_bytes()
+        rotation = repo / "docs/archive/worklog-phase3-0803-1.md"
+        rotation.parent.mkdir(parents=True, exist_ok=True)
+        rotation.write_bytes(original_worklog)
+        worklog.write_text("current worklog after deterministic rotation\n", encoding="utf-8")
+        _git(repo, "add", "--", "docs/worklog.md", rotation.relative_to(repo).as_posix())
+        fold = _fold_commit(repo, pending)
+
+        control = _git(
+            repo, "diff-tree", "--root", "-r", "-m", "--no-commit-id",
+            "--name-status", "-M", "-C", fold,
+        ).splitlines()
+        assert any(
+            line.startswith("C")
+            and line.endswith(
+                "\tdocs/worklog.md\tdocs/archive/worklog-phase3-0803-1.md"
+            )
+            for line in control
+        ), control
+        assert rotation.read_bytes() == original_worklog
+
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert result.ok, result
+
+
+def test_declared_fold_rejects_two_rotation_archives():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        tip, pending = _wave_fragment_commit(repo)
+        rotations = (
+            "docs/archive/worklog-phase3-0803-1.md",
+            "docs/archive/worklog-phase3-0803-2.md",
+        )
+        for index, relative in enumerate(rotations, 1):
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"rotation {index}\n", encoding="utf-8")
+        _git(repo, "add", "--", *rotations)
+        fold = _fold_commit(repo, pending)
+
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert (not result.ok) and result.detail == "archive-count", result
+
+
+def test_declared_fold_rejects_archive_readme_without_rotation():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        readme = repo / "docs/archive/README.md"
+        readme.parent.mkdir(parents=True, exist_ok=True)
+        readme.write_text("# archive\n", encoding="utf-8")
+        _commit(repo, "seed archive index", "docs/archive/README.md")
+        tip, pending = _wave_fragment_commit(repo)
+        readme.write_text("# archive\n\nindex changed without rotation\n", encoding="utf-8")
+        _git(repo, "add", "--", "docs/archive/README.md")
+        fold = _fold_commit(repo, pending)
+
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert (not result.ok) and result.detail == "archive-readme", result
+
+
+def test_declared_fold_rejects_typechange_status():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        rotation_relative = "docs/archive/worklog-phase3-0803-1.md"
+        rotation = repo / rotation_relative
+        rotation.parent.mkdir(parents=True, exist_ok=True)
+        rotation.write_text("regular rotation\n", encoding="utf-8")
+        _commit(repo, "seed regular rotation", rotation_relative)
+        tip, pending = _wave_fragment_commit(repo)
+        rotation.unlink()
+        rotation.symlink_to("rotation-target.md")
+        _git(repo, "add", "--", rotation_relative)
+        fold = _fold_commit(repo, pending)
+        control = _git(
+            repo, "diff-tree", "--root", "-r", "-m", "--no-commit-id",
+            "--name-status", "--no-renames", fold,
+        ).splitlines()
+        assert f"T\t{rotation_relative}" in control, control
+
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert (not result.ok) and result.detail == "path-status", result
+
+
 def test_n31_landed_interval_cannot_hide_an_earlier_fold():
     with _fresh() as tmp:
         repo = _repo(Path(tmp))
@@ -383,6 +512,44 @@ def test_landed_interval_rejects_fragment_deletion_signature():
             landed_commits=(tip,), wave_tip=tip,
         )
         assert (not result.ok) and result.detail == "landed-fold-owned-path"
+
+
+def test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add():
+    with _fresh() as tmp:
+        repo = _repo(Path(tmp))
+        pending = _seed_pending(repo, 2)
+        destination = "docs/outside.md"
+        (repo / pending[0]).rename(repo / destination)
+        tip = _commit(repo, "wave renames fragment", pending[0], destination)
+        fold = _fold_commit(repo, pending[1:])
+
+        result = verify_declared_fold_commit(
+            repo, fold_commit_sha=fold, landed_main_sha=fold,
+            landed_commits=(tip,), wave_tip=tip,
+        )
+        assert (not result.ok) and result.detail == "landed-fold-owned-path", result
+
+
+def test_landed_interval_rejects_fragment_rename_reported_as_rename_record():
+    fragment = f"docs/spool/worklog/2000-01-01-dev-wave-dw-{'a' * 32}-w001-1.md"
+    assert _landed_fold_output_path("R100", (fragment, "docs/outside.md"))
+    assert not _landed_fold_output_path(
+        "R100", ("docs/not-a-fragment.md", "docs/outside.md"),
+    )
+
+
+def test_diff_entries_parses_two_paths_for_rename_and_copy_records():
+    raw = (
+        b"R100\0docs/old.md\0docs/new.md\0"
+        b"C085\0docs/source.md\0docs/copy.md\0"
+    )
+    entries = _diff_entries(raw)
+    assert entries == (
+        ("R100", ("docs/old.md", "docs/new.md")),
+        ("C085", ("docs/source.md", "docs/copy.md")),
+    )
+    assert len(entries) == 2
+    assert all(len(paths) == 2 for _status, paths in entries)
 
 
 def test_landed_interval_allows_fragment_modification():
