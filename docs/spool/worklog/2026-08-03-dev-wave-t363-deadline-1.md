@@ -89,6 +89,16 @@ title: [T-363] 順番待ちが dispatch の実行監視予算を削る欠陥を�
   任意の UNKNOWN を RUN 扱いする案は採らない (scheduler の schema drift と malformed 出力を
   長時間受理するため)。scheduler の権威ある証拠 (started timestamp 等) で RUN を確認する案の可否を
   設計する。{{T:active-job-qdel-prohibition}} と同じ束
+- {{T:dev-wave-child-test-execution-contract}} **P3・ユーザー裁定待ち**: dev-wave の実装子契約と
+  実行環境制約が噛み合っていない 2 点。**どちらも `docs/dev-wave/**` の byte 予算 (合計 25,200 に対し
+  現在 25,198) が塞いでおり、段 8 の自動是正では入れられなかった** (予算引き上げは自己改善の対象外)。
+  (a) `DW-S05-C` は実装子に「緑を主張するなら走らせた nodeid を併記」と求めるが、計測機の runbook が
+  子のテスト実走を禁じる環境では適用できず、`DW-O05` (read-only 子) と同じ「実測は親が行う」を
+  workspace-write 子にも書く必要がある。本 wave では親が prompt へ都度手書きした。
+  (b) 凍結境界の「実装面は Codex が書く」は段 1 の前提実測 probe にも掛かるため、`DW-S01` の
+  「コード変更を伴う前提は実編集・即時復元で測る」を親が実行できない。本 wave は
+  「変異 V1/V2 の期待赤が前提実測を兼ねる」で解決した。択一は **(a) 予算内へ収める縮約**、
+  **(b) 予算の再配分**、**(c) prompt 規律のまま明文化しない** のいずれか
 - {{T:dispatch-timeout-input-validation}} **P2・新規**: `queue_wait_timeout_s` /
   `overall_grace_s` / `accounting_grace_s` / `poll_interval_s` が `NaN` / `inf` / 巨大有限値を
   受理し、監視ループの上界が消える。CLI は `type=float` なので `nan` / `inf` が通る。
