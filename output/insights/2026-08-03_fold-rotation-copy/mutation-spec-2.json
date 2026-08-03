@@ -63,6 +63,7 @@
         }
       ],
       "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_completion_base_and_remaining_trailer_order_is_independent",
         "orchestrator/tests/test_spool_fold.py::test_valid_completion_remaining_field_is_removed_from_canonical"
       ],
       "expected_status": "KILLED",
@@ -95,7 +96,6 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_decoys_in_fence_and_comment_are_rejected",
         "orchestrator/tests/test_spool_fold.py::test_completion_remaining_in_unclosed_list_relative_fences_is_rejected",
         "orchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items"
       ],
@@ -113,9 +113,18 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_spool_fold.py::test_deferred_append_multiline_target_preserves_continuations",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_accepts_first_suffix_seen_outside_head_line_end",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_can_target_item_deferred_earlier_in_same_fold",
         "orchestrator/tests/test_spool_fold.py::test_deferred_append_fenced_target_does_not_break_fence",
-        "orchestrator/tests/test_spool_fold.py::test_deferred_append_is_byte_exact_for_all_insertion_shapes"
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_is_byte_exact_for_all_insertion_shapes",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_multiline_target_preserves_continuations",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_only_fragment_preserves_all_active_tasks",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_order_is_deterministic_by_fragment_key_and_item_index",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_replayed_identical_suffix",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_resolves_cross_ledger_placeholder",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_targets_single_line_item_head",
+        "orchestrator/tests/test_spool_fold.py::test_interrupted_transaction_resumes_before_and_after_targets"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
@@ -131,6 +140,8 @@
         }
       ],
       "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_cannot_target_completion_record",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items",
         "orchestrator/tests/test_spool_fold.py::test_deferred_append_missing_target_is_rejected"
       ],
       "expected_status": "KILLED",
@@ -227,6 +238,12 @@
         }
       ],
       "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_all_mutating_operation_blocks_resolve_placeholders",
+        "orchestrator/tests/test_spool_fold.py::test_completion_update_and_defer_form_explicit_sinks",
+        "orchestrator/tests/test_spool_fold.py::test_global_carry_resolves_global_entry_not_legacy_collision",
+        "orchestrator/tests/test_spool_fold.py::test_n10_mutating_action_requires_base_field",
+        "orchestrator/tests/test_spool_fold.py::test_n10_stale_base_digest_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_new_then_existing_update_uses_substantive_base_digest",
         "orchestrator/tests/test_spool_fold.py::test_update_and_defer_do_not_require_remaining_field"
       ],
       "expected_status": "KILLED",

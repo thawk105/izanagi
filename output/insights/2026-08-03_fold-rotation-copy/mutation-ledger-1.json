@@ -1,0 +1,905 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/e1a38ad4ad189da24e4dbe96690ab24d/izdw-e1a38ad4ad.o878429",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/e1a38ad4ad189da24e4dbe96690ab24d/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n........................................................................ [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n============================= 167 passed in 3.89s ==============================\n",
+      "stdout_sha256": "5ab30efe0ebe0c4275d4419277595e56648c5a7adb6d3b95bedefe2b9b61c48f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+    "duration_s": 31.946,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "3d6690f18654e36cd6d51df471896068aa0c8194e91a7746e055d092e269b217",
+    "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+    "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+    "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+    "status": "PASSED",
+    "test_output_sha256": "5ab30efe0ebe0c4275d4419277595e56648c5a7adb6d3b95bedefe2b9b61c48f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+  },
+  "date": "2026-08-03T04:33:25.035454+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/6e8f4d2bd8586f8bc39387cff95b5f38/izdw-6e8f4d2bd8.o878430",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/6e8f4d2bd8586f8bc39387cff95b5f38/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n......F...........................F..................................... [ 43%]\n........................................................F............... [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n_____________ test_commit_diff_disables_move_detection_by_contract _____________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_diff_disables_move_detection_by_contract():\n        command = GIT_COMMANDS[\"commit-diff\"]\n        safe_short_options = {\"-r\", \"-m\", \"-z\"}\n        move_detection_long_prefixes = (\n            \"--find-renames\", \"--find-copies\",\n            \"--find-copies-harder\", \"--break-rewrites\",\n        )\n>       assert \"--no-renames\" in command\nE       AssertionError: assert '--no-renames' in ('diff-tree', '--root', '-r', '-m', '--no-commit-id', '--name-status', ...)\n\norchestrator/tests/test_dev_waves_git_state.py:82: AssertionError\n______ test_declared_fold_accepts_rotation_that_git_would_report_as_copy _______\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_declared_fold_accepts_rotation_that_git_would_report_as_copy():\n        with _fresh() as tmp:\n            repo = _repo(Path(tmp))\n            worklog = repo / \"docs/worklog.md\"\n            worklog.parent.mkdir(parents=True, exist_ok=True)\n            worklog.write_text(\n                \"\".join(f\"worklog line {index:03d}: deterministic source bytes\\n\" for index in range(128)),\n                encoding=\"utf-8\",\n            )\n            _commit(repo, \"seed copy source\", \"docs/worklog.md\")\n            tip, pending = _wave_fragment_commit(repo)\n    \n            original_worklog = worklog.read_bytes()\n            rotation = repo / \"docs/archive/worklog-phase3-0803-1.md\"\n            rotation.parent.mkdir(parents=True, exist_ok=True)\n            rotation.write_bytes(original_worklog)\n            worklog.write_text(\"current worklog after deterministic rotation\\n\", encoding=\"utf-8\")\n            _git(repo, \"add\", \"--\", \"docs/worklog.md\", rotation.relative_to(repo).as_posix())\n            fold = _fold_commit(repo, pending)\n    \n            control = _git(\n                repo, \"diff-tree\", \"--root\", \"-r\", \"-m\", \"--no-commit-id\",\n                \"--name-status\", \"-M\", \"-C\", fold,\n            ).splitlines()\n            assert any(\n                line.startswith(\"C\")\n                and line.endswith(\n                    \"\\tdocs/worklog.md\\tdocs/archive/worklog-phase3-0803-1.md\"\n                )\n                for line in control\n            ), control\n            assert rotation.read_bytes() == original_worklog\n    \n            result = verify_declared_fold_commit(\n                repo, fold_commit_sha=fold, landed_main_sha=fold,\n                landed_commits=(tip,), wave_tip=tip,\n            )\n>           assert result.ok, result\nE           AssertionError: DeclaredFoldVerification(ok=False, reason=<ReasonCode.COMMIT_MISMATCH: 'commit-mismatch'>, detail='path-status')\nE           assert False\nE            +  where False = DeclaredFoldVerification(ok=False, reason=<ReasonCode.COMMIT_MISMATCH: 'commit-mismatch'>, detail='path-status').ok\n\norchestrator/tests/test_dev_waves_git_state.py:304: AssertionError\n_____________________ test_land_folds_rotation_inside_lock _____________________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_land_folds_rotation_inside_lock() -> None:\n        with _repo() as repo:\n            wave = repo.waves[\"one\"]\n            rotate_limit = 900\n            (repo.main / \".git\" / \"info\" / \"exclude\").write_text(\n                \".codex/worktrees/\\n\",\n                encoding=\"utf-8\",\n            )\n            historic_body = \"- \" + (\"historic rotation bytes \" * 90) + \"\\n\"\n            worklog = (\n                \"# worklog\\n\\n## ローテーション\\n\\n---\\n\\n\"\n                \"## 2026-08-01 (1) — old entry large enough to rotate\\n\\n\"\n                f\"{historic_body}\\n### 次の一手\\n\\n- [T-001] historic task\\n\\n\"\n                \"## 2026-08-02 (2) — current entry\\n\\n- current body\\n\\n\"\n                \"### 次の一手\\n\\n- [T-001] current task\\n\"\n            )\n            canonical = {\n                \"docs/worklog.md\": worklog,\n                \"docs/decisions.md\": (\n                    \"# decisions\\n\\n## D1. seed (2026-08-01)\\n\\n**決定:** seed\\n\"\n                ),\n                \"docs/failures.md\": (\n                    \"# failures\\n\\n## エントリ\\n\\n### F1. seed [手順漏れ]\\n\"\n                    \"- 事象: seed\\n- 根本原因: seed\\n- 恒久対応: seed\\n- 再発検知: seed\\n\"\n                ),\n                \"docs/phase3.md\": (\n                    \"# phase3\\n\\n## 見送り台帳\\n\\n### プロセス文書系\\n\\n\"\n                    \"- [T-050] 既存見送り — 理由: seed\\n\\n\"\n                    \"### 研究・計測系\\n\\n- [T-051] 既存見送り — 理由: seed\\n\\n\"\n                    \"### 裁定・完了記録\\n\\n- [T-052] 完了済み\\n\"\n                ),\n                \"docs/archive/README.md\": \"# archive\\n\\n## 現在の収容物\\n\",\n                \"tools/check_docs.py\": f\"WORKLOG_ROTATE_BYTES = {rotate_limit}\\n\",\n            }\n            for relative, content in canonical.items():\n                path = wave / relative\n                path.parent.mkdir(parents=True, exist_ok=True)\n                path.write_text(content, encoding=\"utf-8\", newline=\"\\n\")\n            fragment_relative = \"docs/spool/worklog/2026-08-03-test-wave-1.md\"\n            (wave / fragment_relative).write_text(\n                \"---\\n\"\n                \"schema: izanagi-spool-v1\\n\"\n                \"ledger: worklog\\n\"\n                \"authored: 2026-08-03\\n\"\n                \"wave: test-wave\\n\"\n                \"seq: 1\\n\"\n                \"title: rotation land\\n\"\n                \"---\\n\"\n                \"## 本文\\n\\n- folded under the land lock\\n\\n\"\n                \"## 次の一手差分\\n\\n### carry\\n\\n- [T-001]\\n\",\n                encoding=\"utf-8\",\n                newline=\"\\n\",\n            )\n            _git(wave, \"add\", \"-A\")\n            _git(wave, \"commit\", \"-qm\", \"add rotating fold fixture\")\n            tip = _git(wave, \"rev-parse\", \"HEAD\")\n            request = repo.request(wave, tip=tip)\n            real_fold = LAND._load_spool_fold()\n    \n            class ObservedFold:\n                def __init__(self):\n                    self.lock_observed = False\n                    self.rotation_path: str | None = None\n    \n                def __getattr__(self, name: str):\n                    return getattr(real_fold, name)\n    \n                def plan_fold(self, repo_path: Path, *, fold_date: str):\n                    plan = real_fold.plan_fold(repo_path, fold_date=fold_date)\n                    assert plan.rotation_path is not None, plan\n                    self.rotation_path = plan.rotation_path\n                    return plan\n    \n                def apply_fold(self, repo_path: Path, plan):\n                    contender = os.open(\n                        repo.main / \".git\" / \"dev-wave-land.lock\",\n                        os.O_RDWR | os.O_NOFOLLOW,\n                    )\n                    try:\n                        try:\n                            fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)\n                        except BlockingIOError:\n                            self.lock_observed = True\n                        else:\n                            raise AssertionError(\"rotation fold ran outside the land lock\")\n                    finally:\n                        os.close(contender)\n                    return real_fold.apply_fold(repo_path, plan)\n    \n            observed = ObservedFold()\n            with (\n                _patched_land_attr(\"_load_spool_fold\", lambda: observed),\n                _patched_land_attr(\"_preflight_fold_message\", lambda *_args: None),\n            ):\n                result = _land(request)\n    \n>           assert (result.rc, result.status) == (LAND.RC_OK, \"landed\"), result\nE           AssertionError: LandResult(rc=26, status='fold-failed', reason='fold failed: RuntimeError: declared fold shape rejected: path-status',...='08a3986761bef842c34c6ace6d69b7b1d5d9aec4', wave_tip='115f803308fbb88bd9be3050559bdd5d4181c041', fold_commit_sha=None)\nE           assert (26, 'fold-failed') == (0, 'landed')\nE             \nE             At index 0 diff: 26 != 0\nE             Use -v to get more diff\n\norchestrator/tests/test_dev_wave_land.py:1737: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy\nFAILED orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock\n======================== 3 failed, 164 passed in 3.94s =========================\n",
+        "stdout_sha256": "682a1e0012789e1bc2b50affa5c5a115384239a9fe7aa19099ffd18442d81154"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 31.974,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "6c9575df8d345305d464b9a195696402ea6308418413ca009bb36ab6463c93c2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ebe481aa8d5bae011d12328c562b95d5457938816f6962fc0c9c98f7354645b6",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "        \"--name-status\", \"-z\", \"-M\", \"-C\",",
+          "old": "        \"--name-status\", \"-z\", \"--no-renames\","
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "682a1e0012789e1bc2b50affa5c5a115384239a9fe7aa19099ffd18442d81154",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/ff3bab1a336117be28c07f2461dfe6a8/izdw-ff3bab1a33.o878431",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/ff3bab1a336117be28c07f2461dfe6a8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n......F................................................................. [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n_____________ test_commit_diff_disables_move_detection_by_contract _____________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_diff_disables_move_detection_by_contract():\n        command = GIT_COMMANDS[\"commit-diff\"]\n        safe_short_options = {\"-r\", \"-m\", \"-z\"}\n        move_detection_long_prefixes = (\n            \"--find-renames\", \"--find-copies\",\n            \"--find-copies-harder\", \"--break-rewrites\",\n        )\n        assert \"--no-renames\" in command\n>       assert not [\n            token for token in command\n            if token.startswith(\"-\")\n            and not token.startswith(\"--\")\n            and token not in safe_short_options\n        ]\nE       AssertionError: assert not ['-M']\n\norchestrator/tests/test_dev_waves_git_state.py:83: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract\n======================== 1 failed, 166 passed in 3.85s =========================\n",
+        "stdout_sha256": "981103984c9badebaa6274607f87066b9861be0cf17f5f6d38cc63694fdc9164"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 31.995,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "26b05193c85753e43f81701872a7fa8aeed2bea30e8f3bf4bec27618dca2a9b5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ec2d26fb5e07ce94212000ba77752bfdf60e8c2626009b751d50a2e4938a4ed4",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "        \"--name-status\", \"-z\", \"--no-renames\", \"-M\",\n    ),",
+          "old": "        \"--name-status\", \"-z\", \"--no-renames\",\n    ),"
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "981103984c9badebaa6274607f87066b9861be0cf17f5f6d38cc63694fdc9164",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/3d1e74c0c3802febf818ce4a70cc0a87/izdw-3d1e74c0c3.o878432",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/3d1e74c0c3802febf818ce4a70cc0a87/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n..............................F......................................... [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n_________________ test_declared_fold_rejects_typechange_status _________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_declared_fold_rejects_typechange_status():\n        with _fresh() as tmp:\n            repo = _repo(Path(tmp))\n            rotation_relative = \"docs/archive/worklog-phase3-0803-1.md\"\n            rotation = repo / rotation_relative\n            rotation.parent.mkdir(parents=True, exist_ok=True)\n            rotation.write_text(\"regular rotation\\n\", encoding=\"utf-8\")\n            _commit(repo, \"seed regular rotation\", rotation_relative)\n            tip, pending = _wave_fragment_commit(repo)\n            rotation.unlink()\n            rotation.symlink_to(\"rotation-target.md\")\n            _git(repo, \"add\", \"--\", rotation_relative)\n            fold = _fold_commit(repo, pending)\n            control = _git(\n                repo, \"diff-tree\", \"--root\", \"-r\", \"-m\", \"--no-commit-id\",\n                \"--name-status\", \"--no-renames\", fold,\n            ).splitlines()\n            assert f\"T\\t{rotation_relative}\" in control, control\n    \n            result = verify_declared_fold_commit(\n                repo, fold_commit_sha=fold, landed_main_sha=fold,\n                landed_commits=(tip,), wave_tip=tip,\n            )\n>           assert (not result.ok) and result.detail == \"path-status\", result\nE           AssertionError: DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape')\nE           assert (not True)\nE            +  where True = DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape').ok\n\norchestrator/tests/test_dev_waves_git_state.py:371: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_typechange_status\n======================== 1 failed, 166 passed in 3.94s =========================\n",
+        "stdout_sha256": "c4d0cdafbcfc04e447015e61e6bb40dc70958020519f63ea2f16c22555b19583"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 26.886,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_typechange_status"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_typechange_status"
+      ],
+      "hang_risk": false,
+      "id": "M03",
+      "injection_diff_sha256": "f5a4bd2f21d3529ced29a4ad6205f49a2b59ef1778e71646a56d28ef3d0cadbe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0c198a73a1bc483710953a9f1c04c29fa59556f3e6fef979be14fa92da5cf5f6",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "        if False and status not in {\"M\", \"D\", \"A\"}:",
+          "old": "        if status not in {\"M\", \"D\", \"A\"}:"
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "c4d0cdafbcfc04e447015e61e6bb40dc70958020519f63ea2f16c22555b19583",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/e1cf1f9d8ba231a89ca844c795c914fd/izdw-e1cf1f9d8b.o878433",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/e1cf1f9d8ba231a89ca844c795c914fd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n..................F..................................................... [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n_______________ test_declared_fold_rejects_two_rotation_archives _______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_declared_fold_rejects_two_rotation_archives():\n        with _fresh() as tmp:\n            repo = _repo(Path(tmp))\n            tip, pending = _wave_fragment_commit(repo)\n            rotations = (\n                \"docs/archive/worklog-phase3-0803-1.md\",\n                \"docs/archive/worklog-phase3-0803-2.md\",\n            )\n            for index, relative in enumerate(rotations, 1):\n                path = repo / relative\n                path.parent.mkdir(parents=True, exist_ok=True)\n                path.write_text(f\"rotation {index}\\n\", encoding=\"utf-8\")\n            _git(repo, \"add\", \"--\", *rotations)\n            fold = _fold_commit(repo, pending)\n    \n            result = verify_declared_fold_commit(\n                repo, fold_commit_sha=fold, landed_main_sha=fold,\n                landed_commits=(tip,), wave_tip=tip,\n            )\n>           assert (not result.ok) and result.detail == \"archive-count\", result\nE           AssertionError: DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape')\nE           assert (not True)\nE            +  where True = DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape').ok\n\norchestrator/tests/test_dev_waves_git_state.py:326: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_two_rotation_archives\n======================== 1 failed, 166 passed in 3.96s =========================\n",
+        "stdout_sha256": "6d400bc01b0a361228e9eb7b0e4d55c2088da69047431cbdd561b9914303f256"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 31.983,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_two_rotation_archives"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_two_rotation_archives"
+      ],
+      "hang_risk": false,
+      "id": "M04",
+      "injection_diff_sha256": "7d53e9f818fcf1c97de0beccd72e17508a995bc35d007918f2d9b7ec268f80b4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e9f9cbd72c9661a82aeff20803a74b6afbcd7e14571b23ff1232b1c3319a4534",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "            if archive_adds > 2:",
+          "old": "            if archive_adds > 1:"
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "6d400bc01b0a361228e9eb7b0e4d55c2088da69047431cbdd561b9914303f256",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/d7b498275fed12ee068189f60521af65/izdw-d7b498275f.o878434",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/d7b498275fed12ee068189f60521af65/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n.........................F.............................................. [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n__________ test_declared_fold_rejects_archive_readme_without_rotation __________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_declared_fold_rejects_archive_readme_without_rotation():\n        with _fresh() as tmp:\n            repo = _repo(Path(tmp))\n            readme = repo / \"docs/archive/README.md\"\n            readme.parent.mkdir(parents=True, exist_ok=True)\n            readme.write_text(\"# archive\\n\", encoding=\"utf-8\")\n            _commit(repo, \"seed archive index\", \"docs/archive/README.md\")\n            tip, pending = _wave_fragment_commit(repo)\n            readme.write_text(\"# archive\\n\\nindex changed without rotation\\n\", encoding=\"utf-8\")\n            _git(repo, \"add\", \"--\", \"docs/archive/README.md\")\n            fold = _fold_commit(repo, pending)\n    \n            result = verify_declared_fold_commit(\n                repo, fold_commit_sha=fold, landed_main_sha=fold,\n                landed_commits=(tip,), wave_tip=tip,\n            )\n>           assert (not result.ok) and result.detail == \"archive-readme\", result\nE           AssertionError: DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape')\nE           assert (not True)\nE            +  where True = DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape').ok\n\norchestrator/tests/test_dev_waves_git_state.py:345: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_archive_readme_without_rotation\n======================== 1 failed, 166 passed in 4.03s =========================\n",
+        "stdout_sha256": "0c99926936e3fe43fe0c3496e3bf9b2493ce9000f07eabfe33e15982a8b9ed4b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 31.92,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_archive_readme_without_rotation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_archive_readme_without_rotation"
+      ],
+      "hang_risk": false,
+      "id": "M05",
+      "injection_diff_sha256": "0123cc24bcef02c5a54c64d8af19d8bde439aa95a1850d667cbe53f17caa08b7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "94691a08149ceaf8aaadb7b7cd4e6b65fb86ec36ed02ef59790cf84759f2e182",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "    if False and archive_readme_modified and archive_adds != 1:",
+          "old": "    if archive_readme_modified and archive_adds != 1:"
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "0c99926936e3fe43fe0c3496e3bf9b2493ce9000f07eabfe33e15982a8b9ed4b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/851be0b2ab624e32d2321eef4def6ad1/izdw-851be0b2ab.o878435",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/851be0b2ab624e32d2321eef4def6ad1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n..........................FF............................................ [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n___________ test_landed_interval_rejects_fragment_deletion_signature ___________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_landed_interval_rejects_fragment_deletion_signature():\n        with _fresh() as tmp:\n            repo = _repo(Path(tmp))\n            pending = _seed_pending(repo, 2)\n            (repo / pending[0]).unlink()\n            tip = _commit(repo, \"wave deletes fragment\", pending[0])\n            fold = _fold_commit(repo, pending[1:])\n            result = verify_declared_fold_commit(\n                repo, fold_commit_sha=fold, landed_main_sha=fold,\n                landed_commits=(tip,), wave_tip=tip,\n            )\n>           assert (not result.ok) and result.detail == \"landed-fold-owned-path\"\nE           AssertionError: assert (not True)\nE            +  where True = DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape').ok\n\norchestrator/tests/test_dev_waves_git_state.py:514: AssertionError\n___ test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add ____\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add():\n        with _fresh() as tmp:\n            repo = _repo(Path(tmp))\n            pending = _seed_pending(repo, 2)\n            destination = \"docs/outside.md\"\n            (repo / pending[0]).rename(repo / destination)\n            tip = _commit(repo, \"wave renames fragment\", pending[0], destination)\n            fold = _fold_commit(repo, pending[1:])\n    \n            result = verify_declared_fold_commit(\n                repo, fold_commit_sha=fold, landed_main_sha=fold,\n                landed_commits=(tip,), wave_tip=tip,\n            )\n>           assert (not result.ok) and result.detail == \"landed-fold-owned-path\", result\nE           AssertionError: DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape')\nE           assert (not True)\nE            +  where True = DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape').ok\n\norchestrator/tests/test_dev_waves_git_state.py:530: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_deletion_signature\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add\n======================== 2 failed, 165 passed in 3.98s =========================\n",
+        "stdout_sha256": "b71dac86d34e895e7be1a44eb5759ed19bba3a7f2147dc64d7c7f61536637ea6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 31.937,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_deletion_signature",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_deletion_signature",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add"
+      ],
+      "hang_risk": false,
+      "id": "M06",
+      "injection_diff_sha256": "42efddd15d8ad488d33498afa70a42095a8f2370042025832e2929f40d77ea19",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d5e5af070954a8bd585aee1875f7f8f86a4c94f3971ab0922c3bc82d52a00592",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "    deleted_path = paths[0] if status.startswith(\"R\") else None",
+          "old": "    deleted_path = paths[0] if status == \"D\" or status.startswith(\"R\") else None"
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "b71dac86d34e895e7be1a44eb5759ed19bba3a7f2147dc64d7c7f61536637ea6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/e5ddb5a8aa16da7ac5e70022b1604318/izdw-e5ddb5a8aa.o878436",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/e5ddb5a8aa16da7ac5e70022b1604318/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n......F................................................................. [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n____ test_landed_interval_rejects_fragment_rename_reported_as_rename_record ____\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_landed_interval_rejects_fragment_rename_reported_as_rename_record():\n        fragment = f\"docs/spool/worklog/2000-01-01-dev-wave-dw-{'a' * 32}-w001-1.md\"\n>       assert _landed_fold_output_path(\"R100\", (fragment, \"docs/outside.md\"))\nE       AssertionError: assert False\nE        +  where False = _landed_fold_output_path('R100', ('docs/spool/worklog/2000-01-01-dev-wave-dw-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-w001-1.md', 'docs/outside.md'))\n\norchestrator/tests/test_dev_waves_git_state.py:535: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_rename_record\n======================== 1 failed, 166 passed in 3.93s =========================\n",
+        "stdout_sha256": "1efff8139152deba8d602b99fca7ec4aca424f78c42c448dbfd88c66e3369564"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 31.949,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_rename_record"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_rename_record"
+      ],
+      "hang_risk": false,
+      "id": "M07",
+      "injection_diff_sha256": "5cead1f350026daf65857c120fc2066268cccc391af4f5d36f6d587fe5d2a884",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5fcca1c3d4339767af7a5e78450931900066500b6efd76494e0e10933e0ff3fa",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "    deleted_path = paths[0] if status == \"D\" else None",
+          "old": "    deleted_path = paths[0] if status == \"D\" or status.startswith(\"R\") else None"
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "1efff8139152deba8d602b99fca7ec4aca424f78c42c448dbfd88c66e3369564",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/35d46120950b570d06c21219d6922172/izdw-35d4612095.o878437",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/35d46120950b570d06c21219d6922172/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n......F................................................................. [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n________ test_diff_entries_parses_two_paths_for_rename_and_copy_records ________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_diff_entries_parses_two_paths_for_rename_and_copy_records():\n        raw = (\n            b\"R100\\0docs/old.md\\0docs/new.md\\0\"\n            b\"C085\\0docs/source.md\\0docs/copy.md\\0\"\n        )\n        entries = _diff_entries(raw)\n>       assert entries == (\n            (\"R100\", (\"docs/old.md\", \"docs/new.md\")),\n            (\"C085\", (\"docs/source.md\", \"docs/copy.md\")),\n        )\nE       AssertionError: assert (('R100', ('d...s/copy.md',))) == (('R100', ('d...cs/copy.md')))\nE         \nE         At index 0 diff: ('R100', ('docs/old.md',)) != ('R100', ('docs/old.md', 'docs/new.md'))\nE         Left contains one more item: ('docs/source.md', ('docs/copy.md',))\nE         Use -v to get more diff\n\norchestrator/tests/test_dev_waves_git_state.py:547: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_diff_entries_parses_two_paths_for_rename_and_copy_records\n======================== 1 failed, 166 passed in 3.94s =========================\n",
+        "stdout_sha256": "b4a91b3ed069554d09c4be6092007a8213146a6d5ffcd1216f5abaf17ca2bb5b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 32.009,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_diff_entries_parses_two_paths_for_rename_and_copy_records"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_diff_entries_parses_two_paths_for_rename_and_copy_records"
+      ],
+      "hang_risk": false,
+      "id": "M08",
+      "injection_diff_sha256": "f8bfb469ef5c50da8eceb27c106162174df508e22541b289d01fefa16cbda950",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "18e94e1b9142078208f6154819169438f8adfb903152e3d049c9e9d972333003",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "        path_count = 1",
+          "old": "        path_count = 2 if status.startswith((\"R\", \"C\")) else 1"
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "b4a91b3ed069554d09c4be6092007a8213146a6d5ffcd1216f5abaf17ca2bb5b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/1b7ccd0fbfd173ec0a0569c28bbdbcfe/izdw-1b7ccd0fbf.o878438",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/1b7ccd0fbfd173ec0a0569c28bbdbcfe/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n....................F................................................... [ 43%]\n........................................................................ [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n____________ test_n34_fold_rejects_a_path_outside_the_closed_shape _____________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_n34_fold_rejects_a_path_outside_the_closed_shape():\n        with _fresh() as tmp:\n            repo = _repo(Path(tmp))\n            pending = _seed_pending(repo)\n            tip = _code_commit(repo)\n            fold = _fold_commit(repo, pending, extra_path=\"outside.txt\")\n            result = verify_declared_fold_commit(\n                repo, fold_commit_sha=fold, landed_main_sha=fold,\n                landed_commits=(tip,), wave_tip=tip,\n            )\n>           assert (not result.ok) and result.detail == \"added-path\"\nE           AssertionError: assert (not True)\nE            +  where True = DeclaredFoldVerification(ok=True, reason=None, detail='fold-shape').ok\n\norchestrator/tests/test_dev_waves_git_state.py:595: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_n34_fold_rejects_a_path_outside_the_closed_shape\n======================== 1 failed, 166 passed in 4.00s =========================\n",
+        "stdout_sha256": "4670b1d94dda2fedf407e7d6652edb1fc039917bb8d34c1089dd84aad13a462a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 31.915,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n34_fold_rejects_a_path_outside_the_closed_shape"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n34_fold_rejects_a_path_outside_the_closed_shape"
+      ],
+      "hang_risk": false,
+      "id": "M09",
+      "injection_diff_sha256": "fb1dd20f8626cdb9274e0c0c46db402a0c4ef42ca9ba814e5609f5b9ad96d4f2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "aafbbccc39daca6a30a14f89f9c8b1b6e644a6c6bec83e2b0f98d6fe7d9e7aa8",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "            if False and _ROTATION_PATH_RE.fullmatch(path) is None:",
+          "old": "            if _ROTATION_PATH_RE.fullmatch(path) is None:"
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "4670b1d94dda2fedf407e7d6652edb1fc039917bb8d34c1089dd84aad13a462a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/cdd53c28018afc9b8ca7b9829cf20ea3/izdw-cdd53c2801.o878439",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/cdd53c28018afc9b8ca7b9829cf20ea3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [167 items]\n\n...............................F........................................ [ 43%]\n.....................................F.................................. [ 86%]\n.......................                                                  [100%]\n=================================== FAILURES ===================================\n______ test_declared_fold_accepts_rotation_that_git_would_report_as_copy _______\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_declared_fold_accepts_rotation_that_git_would_report_as_copy():\n        with _fresh() as tmp:\n            repo = _repo(Path(tmp))\n            worklog = repo / \"docs/worklog.md\"\n            worklog.parent.mkdir(parents=True, exist_ok=True)\n            worklog.write_text(\n                \"\".join(f\"worklog line {index:03d}: deterministic source bytes\\n\" for index in range(128)),\n                encoding=\"utf-8\",\n            )\n            _commit(repo, \"seed copy source\", \"docs/worklog.md\")\n            tip, pending = _wave_fragment_commit(repo)\n    \n            original_worklog = worklog.read_bytes()\n            rotation = repo / \"docs/archive/worklog-phase3-0803-1.md\"\n            rotation.parent.mkdir(parents=True, exist_ok=True)\n            rotation.write_bytes(original_worklog)\n            worklog.write_text(\"current worklog after deterministic rotation\\n\", encoding=\"utf-8\")\n            _git(repo, \"add\", \"--\", \"docs/worklog.md\", rotation.relative_to(repo).as_posix())\n            fold = _fold_commit(repo, pending)\n    \n            control = _git(\n                repo, \"diff-tree\", \"--root\", \"-r\", \"-m\", \"--no-commit-id\",\n                \"--name-status\", \"-M\", \"-C\", fold,\n            ).splitlines()\n            assert any(\n                line.startswith(\"C\")\n                and line.endswith(\n                    \"\\tdocs/worklog.md\\tdocs/archive/worklog-phase3-0803-1.md\"\n                )\n                for line in control\n            ), control\n            assert rotation.read_bytes() == original_worklog\n    \n            result = verify_declared_fold_commit(\n                repo, fold_commit_sha=fold, landed_main_sha=fold,\n                landed_commits=(tip,), wave_tip=tip,\n            )\n>           assert result.ok, result\nE           AssertionError: DeclaredFoldVerification(ok=False, reason=<ReasonCode.COMMIT_MISMATCH: 'commit-mismatch'>, detail='archive-count')\nE           assert False\nE            +  where False = DeclaredFoldVerification(ok=False, reason=<ReasonCode.COMMIT_MISMATCH: 'commit-mismatch'>, detail='archive-count').ok\n\norchestrator/tests/test_dev_waves_git_state.py:304: AssertionError\n_____________________ test_land_folds_rotation_inside_lock _____________________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_land_folds_rotation_inside_lock() -> None:\n        with _repo() as repo:\n            wave = repo.waves[\"one\"]\n            rotate_limit = 900\n            (repo.main / \".git\" / \"info\" / \"exclude\").write_text(\n                \".codex/worktrees/\\n\",\n                encoding=\"utf-8\",\n            )\n            historic_body = \"- \" + (\"historic rotation bytes \" * 90) + \"\\n\"\n            worklog = (\n                \"# worklog\\n\\n## ローテーション\\n\\n---\\n\\n\"\n                \"## 2026-08-01 (1) — old entry large enough to rotate\\n\\n\"\n                f\"{historic_body}\\n### 次の一手\\n\\n- [T-001] historic task\\n\\n\"\n                \"## 2026-08-02 (2) — current entry\\n\\n- current body\\n\\n\"\n                \"### 次の一手\\n\\n- [T-001] current task\\n\"\n            )\n            canonical = {\n                \"docs/worklog.md\": worklog,\n                \"docs/decisions.md\": (\n                    \"# decisions\\n\\n## D1. seed (2026-08-01)\\n\\n**決定:** seed\\n\"\n                ),\n                \"docs/failures.md\": (\n                    \"# failures\\n\\n## エントリ\\n\\n### F1. seed [手順漏れ]\\n\"\n                    \"- 事象: seed\\n- 根本原因: seed\\n- 恒久対応: seed\\n- 再発検知: seed\\n\"\n                ),\n                \"docs/phase3.md\": (\n                    \"# phase3\\n\\n## 見送り台帳\\n\\n### プロセス文書系\\n\\n\"\n                    \"- [T-050] 既存見送り — 理由: seed\\n\\n\"\n                    \"### 研究・計測系\\n\\n- [T-051] 既存見送り — 理由: seed\\n\\n\"\n                    \"### 裁定・完了記録\\n\\n- [T-052] 完了済み\\n\"\n                ),\n                \"docs/archive/README.md\": \"# archive\\n\\n## 現在の収容物\\n\",\n                \"tools/check_docs.py\": f\"WORKLOG_ROTATE_BYTES = {rotate_limit}\\n\",\n            }\n            for relative, content in canonical.items():\n                path = wave / relative\n                path.parent.mkdir(parents=True, exist_ok=True)\n                path.write_text(content, encoding=\"utf-8\", newline=\"\\n\")\n            fragment_relative = \"docs/spool/worklog/2026-08-03-test-wave-1.md\"\n            (wave / fragment_relative).write_text(\n                \"---\\n\"\n                \"schema: izanagi-spool-v1\\n\"\n                \"ledger: worklog\\n\"\n                \"authored: 2026-08-03\\n\"\n                \"wave: test-wave\\n\"\n                \"seq: 1\\n\"\n                \"title: rotation land\\n\"\n                \"---\\n\"\n                \"## 本文\\n\\n- folded under the land lock\\n\\n\"\n                \"## 次の一手差分\\n\\n### carry\\n\\n- [T-001]\\n\",\n                encoding=\"utf-8\",\n                newline=\"\\n\",\n            )\n            _git(wave, \"add\", \"-A\")\n            _git(wave, \"commit\", \"-qm\", \"add rotating fold fixture\")\n            tip = _git(wave, \"rev-parse\", \"HEAD\")\n            request = repo.request(wave, tip=tip)\n            real_fold = LAND._load_spool_fold()\n    \n            class ObservedFold:\n                def __init__(self):\n                    self.lock_observed = False\n                    self.rotation_path: str | None = None\n    \n                def __getattr__(self, name: str):\n                    return getattr(real_fold, name)\n    \n                def plan_fold(self, repo_path: Path, *, fold_date: str):\n                    plan = real_fold.plan_fold(repo_path, fold_date=fold_date)\n                    assert plan.rotation_path is not None, plan\n                    self.rotation_path = plan.rotation_path\n                    return plan\n    \n                def apply_fold(self, repo_path: Path, plan):\n                    contender = os.open(\n                        repo.main / \".git\" / \"dev-wave-land.lock\",\n                        os.O_RDWR | os.O_NOFOLLOW,\n                    )\n                    try:\n                        try:\n                            fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)\n                        except BlockingIOError:\n                            self.lock_observed = True\n                        else:\n                            raise AssertionError(\"rotation fold ran outside the land lock\")\n                    finally:\n                        os.close(contender)\n                    return real_fold.apply_fold(repo_path, plan)\n    \n            observed = ObservedFold()\n            with (\n                _patched_land_attr(\"_load_spool_fold\", lambda: observed),\n                _patched_land_attr(\"_preflight_fold_message\", lambda *_args: None),\n            ):\n                result = _land(request)\n    \n>           assert (result.rc, result.status) == (LAND.RC_OK, \"landed\"), result\nE           AssertionError: LandResult(rc=26, status='fold-failed', reason='fold failed: RuntimeError: declared fold shape rejected: archive-count...='f8b29884502a4115f2a5873873b894a59f47d237', wave_tip='235c32d93d7a6161512bd2c2cf6ca3794f0350f0', fold_commit_sha=None)\nE           assert (26, 'fold-failed') == (0, 'landed')\nE             \nE             At index 0 diff: 26 != 0\nE             Use -v to get more diff\n\norchestrator/tests/test_dev_wave_land.py:1737: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy\nFAILED orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock\n======================== 2 failed, 165 passed in 4.09s =========================\n",
+        "stdout_sha256": "32089f5cbfe46bf25c3dcdde65f373b9cbf4edf8a505bcbb18a238c2ab481272"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "2df332d1e6486a2fac2f6c8ed028e3ac14112af68cd5d9731fbf53eabcbef690",
+      "duration_s": 31.902,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock"
+      ],
+      "hang_risk": false,
+      "id": "P01",
+      "injection_diff_sha256": "06621def4c4cc0cfc15af7e69a6b8d5f456057b6320f28bdc40812c8ab89d2e3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8f15f57608a36c8ade9310e0bf89b389b0b42ad96c9ecd050f7b2834011226e6",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "            if archive_adds > 0:",
+          "old": "            if archive_adds > 1:"
+        }
+      ],
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "KILLED",
+      "test_output_sha256": "32089f5cbfe46bf25c3dcdde65f373b9cbf4edf8a505bcbb18a238c2ab481272",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/c2c3ea01cb539ff2cb6d49e344827b5b/izdw-c2c3ea01cb.o878428",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/output/pegasus-dispatch/c2c3ea01cb539ff2cb6d49e344827b5b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_dev_waves_git_state.py::test_git_command_table_has_no_forbidden_mutating_verb\norchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract\norchestrator/tests/test_dev_waves_git_state.py::test_identity_main_resolution_and_inherited_git_environment_are_ignored\norchestrator/tests/test_dev_waves_git_state.py::test_exact_base_worktree_uses_runtime_namespace_and_requested_branch\norchestrator/tests/test_dev_waves_git_state.py::test_main_dirty_and_submodule_dirty_are_separate_facts_and_no_fetch_update_works\norchestrator/tests/test_dev_waves_git_state.py::test_shallow_and_replace_refs_are_rejected\norchestrator/tests/test_dev_waves_git_state.py::test_verify_ff_chain_requires_exact_order_and_noncompleted_main_unchanged\norchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_exact_direct_child_shape_without_plan_comparison\norchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy\norchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_two_rotation_archives\norchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_archive_readme_without_rotation\norchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_typechange_status\norchestrator/tests/test_dev_waves_git_state.py::test_n31_landed_interval_cannot_hide_an_earlier_fold\norchestrator/tests/test_dev_waves_git_state.py::test_n32_null_declared_fold_rejects_pending_fragment\norchestrator/tests/test_dev_waves_git_state.py::test_p07_null_declared_fold_accepts_zero_pending_fragments\norchestrator/tests/test_dev_waves_git_state.py::test_n33_merge_fold_is_rejected_by_the_parent_count_gate\norchestrator/tests/test_dev_waves_git_state.py::test_fold_commit_with_encoding_header_is_accepted\norchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_allows_every_non_signature_document_path\norchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_allows_folded_receipt_creation\norchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_deletion_signature\norchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add\norchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_rename_record\norchestrator/tests/test_dev_waves_git_state.py::test_diff_entries_parses_two_paths_for_rename_and_copy_records\norchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_allows_fragment_modification\norchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_folded_receipt_signature\norchestrator/tests/test_dev_waves_git_state.py::test_n34_fold_rejects_a_path_outside_the_closed_shape\norchestrator/tests/test_dev_waves_git_state.py::test_n35_supervised_slug_mapping_rejects_noncanonical_inputs_and_is_injective\norchestrator/tests/test_dev_waves_git_state.py::test_trust_root_and_isolated_checkout_are_bound_to_audited_sha\norchestrator/tests/test_dev_waves_git_state.py::test_structured_git_trace_detects_push_and_malformed_tail\norchestrator/tests/test_dev_wave_land.py::test_basic_land_accepts_registered_claude_and_codex_children\norchestrator/tests/test_dev_wave_land.py::test_handoff_state_vocabulary_is_not_a_land_gate\norchestrator/tests/test_dev_wave_land.py::test_colliding_untracked_rejected_without_main_or_foreign_artifact_change\norchestrator/tests/test_dev_wave_land.py::test_noncolliding_foreign_session_untracked_does_not_block_land\norchestrator/tests/test_dev_wave_land.py::test_safe_child_name_rule_rejects_only_dangerous_names\norchestrator/tests/test_dev_wave_land.py::test_tracked_and_staged_main_dirt_are_rejected\norchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_of_any_shape_does_not_block_land\norchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_of_any_shape_is_protected_from_target_collision\norchestrator/tests/test_dev_wave_land.py::test_nested_untracked_under_foreign_handoff_directory\norchestrator/tests/test_dev_wave_land.py::test_handoff_readme_remains_a_landable_target\norchestrator/tests/test_dev_wave_land.py::test_untracked_handoff_readme_colliding_with_target_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_untracked_nested_repository_record_collides_with_target\norchestrator/tests/test_dev_wave_land.py::test_unregistered_alias_child_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_ignored_registered_container_and_unrelated_cache_are_accepted\norchestrator/tests/test_dev_wave_land.py::test_ignored_unregistered_container_child_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_target_collision_with_existing_ignored_path_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_target_collision_with_existing_ignored_ancestor_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_target_collision_with_foreign_control_artifact_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_unsafe_container_child_bytes_are_rejected\norchestrator/tests/test_dev_wave_land.py::test_shallow_graft_replace_filter_and_promisor_are_rejected\norchestrator/tests/test_dev_wave_land.py::test_hooks_and_fsmonitor_are_disabled_for_land\norchestrator/tests/test_dev_wave_land.py::test_gitlink_change_lands_but_cannot_report_success_before_d16_sync\norchestrator/tests/test_dev_wave_land.py::test_deleted_gitlink_recovery_requires_worktree_and_nested_metadata_absent\norchestrator/tests/test_dev_wave_land.py::test_gitlink_to_normal_tree_recovery_preserves_target_entry\norchestrator/tests/test_dev_wave_land.py::test_gitlink_to_normal_blob_recovery_preserves_target_entry\norchestrator/tests/test_dev_wave_land.py::test_audited_sequence_and_moved_wave_tip_are_exact\norchestrator/tests/test_dev_wave_land.py::test_audited_sequence_reverse_order_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_audited_sequence_extra_commit_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_audited_sequence_same_length_wrong_commit_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_nonblocking_common_lock_reports_lock_busy\norchestrator/tests/test_dev_wave_land.py::test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit\norchestrator/tests/test_dev_wave_land.py::test_zero_fragment_still_rejects_missing_spool_layout_before_ff\norchestrator/tests/test_dev_wave_land.py::test_candidate_fold_plan_failure_happens_before_ff\norchestrator/tests/test_dev_wave_land.py::test_fold_is_called_under_land_lock_and_committed_with_message_file\norchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock\norchestrator/tests/test_dev_wave_land.py::test_p06_supervised_branch_slug_with_matching_fragments_can_fold\norchestrator/tests/test_dev_wave_land.py::test_land_accepts_its_fold_commit_with_repository_commit_encoding\norchestrator/tests/test_dev_wave_land.py::test_n35_supervised_branch_rejects_fragment_from_another_slug_before_ff\norchestrator/tests/test_dev_wave_land.py::test_fold_failure_rolls_back_ff_and_never_returns_landed\norchestrator/tests/test_dev_wave_land.py::test_pending_fragment_postcondition_failure_is_fold_failure\norchestrator/tests/test_dev_wave_land.py::test_generated_canonical_validation_failure_rolls_back_ff\norchestrator/tests/test_dev_wave_land.py::test_failed_cas_rollback_has_distinct_rc_and_status\norchestrator/tests/test_dev_wave_land.py::test_active_transaction_resumes_before_main_dirty_gate\norchestrator/tests/test_dev_wave_land.py::test_not_landed_is_distinct_from_postcondition_failure\norchestrator/tests/test_dev_wave_land.py::test_partial_merge_mutation_is_nonretryable_postcondition_failure\norchestrator/tests/test_dev_wave_land.py::test_unobservable_post_merge_head_is_nonretryable_failure\norchestrator/tests/test_dev_wave_land.py::test_control_plane_replacement_around_status_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_control_plane_replacement_after_collision_inspection_is_rejected\norchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_edited_in_place_around_status_does_not_block_land\norchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_appearing_mid_flight_is_still_rejected\norchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_disappearing_mid_flight_is_still_rejected\norchestrator/tests/test_dev_wave_land.py::test_handoff_directory_replacement_around_status_is_still_rejected\norchestrator/tests/test_dev_wave_land.py::test_post_land_is_not_failed_by_foreign_handoff_activity\norchestrator/tests/test_dev_wave_land.py::test_git_operation_surface_is_read_only_except_sha_ff_merge\norchestrator/tests/test_dev_wave_land.py::test_merge_child_inherits_only_explicit_lock_not_other_parent_fd\norchestrator/tests/test_dev_wave_land.py::test_wave_move_after_merge_is_landed_postcondition_failed\norchestrator/tests/test_dev_wave_land.py::test_tracked_dirt_appearing_after_successful_merge_is_postcondition_failed\norchestrator/tests/test_dev_wave_land.py::test_merge_child_inherits_lock_fd_if_helper_is_killed\norchestrator/tests/test_dev_wave_land.py::test_same_base_two_wave_winner_stale_resync_loser_land_e2e\norchestrator/tests/test_dev_wave_land.py::test_cli_emits_json_and_uses_only_sha_target_ff\norchestrator/tests/test_spool_fold.py::test_legacy_daily_ordinals_are_excluded_from_global_namespace\norchestrator/tests/test_spool_fold.py::test_global_max_ordinal_ignores_larger_legacy_ordinal\norchestrator/tests/test_spool_fold.py::test_global_ordinal_duplicate_is_rejected\norchestrator/tests/test_spool_fold.py::test_global_ordinal_gap_is_allowed_and_next_uses_max_plus_one\norchestrator/tests/test_spool_fold.py::test_global_carry_resolves_global_entry_not_legacy_collision\norchestrator/tests/test_spool_fold.py::test_global_carry_cannot_fall_back_to_legacy_only_target\norchestrator/tests/test_spool_fold.py::test_boundary_constant_shift_is_detected_by_real_corpus_sentinel\norchestrator/tests/test_spool_fold.py::test_real_corpus_sentinel_rejects_missing_boundary_date\norchestrator/tests/test_spool_fold.py::test_impossible_heading_date_is_rejected\norchestrator/tests/test_spool_fold.py::test_fold_date_may_precede_the_current_entry_date\norchestrator/tests/test_spool_fold.py::test_n01_frontmatter_filename_mismatch_is_rejected\norchestrator/tests/test_spool_fold.py::test_n02_undefined_placeholder_is_rejected\norchestrator/tests/test_spool_fold.py::test_n03_duplicate_symbol_definition_is_rejected\norchestrator/tests/test_spool_fold.py::test_n04_malformed_placeholder_residue_is_rejected\norchestrator/tests/test_spool_fold.py::test_n05_task_allocation_includes_archive_population\norchestrator/tests/test_spool_fold.py::test_n06_task_allocation_includes_deferred_population\norchestrator/tests/test_spool_fold.py::test_n07_task_id_is_three_digit_canonical\norchestrator/tests/test_spool_fold.py::test_n08_all_carries_preserve_order_and_count\norchestrator/tests/test_spool_fold.py::test_implicit_and_explicit_carry_render_identically\norchestrator/tests/test_spool_fold.py::test_n09_active_conservation_postcondition_rejects_implicit_drop\norchestrator/tests/test_spool_fold.py::test_parallel_fold_implicitly_carries_task_added_by_earlier_wave\norchestrator/tests/test_spool_fold.py::test_parallel_new_then_existing_update_uses_substantive_base_digest\norchestrator/tests/test_spool_fold.py::test_non_active_transition_target_remains_rejected\norchestrator/tests/test_spool_fold.py::test_n10_stale_base_digest_is_rejected\norchestrator/tests/test_spool_fold.py::test_n10_mutating_action_requires_base_field\norchestrator/tests/test_spool_fold.py::test_all_mutating_operation_blocks_resolve_placeholders\norchestrator/tests/test_spool_fold.py::test_worklog_reserved_heading_in_prose_is_rejected\norchestrator/tests/test_spool_fold.py::test_worklog_action_prefix_payload_is_not_dropped\norchestrator/tests/test_spool_fold.py::test_failure_section_payload_without_valid_h3_is_rejected\norchestrator/tests/test_spool_fold.py::test_n11_existing_canonical_bytes_are_only_appended_or_inserted\norchestrator/tests/test_spool_fold.py::test_n12_second_fold_after_gc_is_noop\norchestrator/tests/test_spool_fold.py::test_n13_same_content_replay_is_rejected_by_receipt\norchestrator/tests/test_spool_fold.py::test_changed_content_cannot_reuse_folded_symbol_identity\norchestrator/tests/test_spool_fold.py::test_n14_rotation_keeps_projected_worklog_under_shared_limit\norchestrator/tests/test_spool_fold.py::test_rotation_can_archive_original_latest_to_fit_projected_entry\norchestrator/tests/test_spool_fold.py::test_n15_rotation_updates_archive_index\norchestrator/tests/test_spool_fold.py::test_n16_transaction_rejects_third_state\norchestrator/tests/test_spool_fold.py::test_interrupted_transaction_resumes_before_and_after_targets\norchestrator/tests/test_spool_fold.py::test_n17_fragment_allocation_order_is_explicitly_sorted\norchestrator/tests/test_spool_fold.py::test_explicit_fold_date_controls_plan_bytes_and_transaction_state\norchestrator/tests/test_spool_fold.py::test_explicit_dry_run_plan_object_is_directly_applicable\norchestrator/tests/test_spool_fold.py::test_n18_completion_with_remaining_work_is_rejected\norchestrator/tests/test_spool_fold.py::test_completion_without_remaining_field_is_rejected\norchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_noncanonical_values\norchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_duplicates\norchestrator/tests/test_spool_fold.py::test_completion_remaining_decoys_in_fence_and_comment_are_rejected\norchestrator/tests/test_spool_fold.py::test_completion_remaining_in_unclosed_list_relative_fences_is_rejected\norchestrator/tests/test_spool_fold.py::test_valid_completion_remaining_field_is_removed_from_canonical\norchestrator/tests/test_spool_fold.py::test_completion_base_and_remaining_trailer_order_is_independent\norchestrator/tests/test_spool_fold.py::test_update_and_defer_do_not_require_remaining_field\norchestrator/tests/test_spool_fold.py::test_deferred_append_targets_single_line_item_head\norchestrator/tests/test_spool_fold.py::test_deferred_append_accepts_first_suffix_seen_outside_head_line_end\norchestrator/tests/test_spool_fold.py::test_deferred_append_multiline_target_preserves_continuations\norchestrator/tests/test_spool_fold.py::test_deferred_append_fenced_target_does_not_break_fence\norchestrator/tests/test_spool_fold.py::test_deferred_append_is_byte_exact_for_all_insertion_shapes\norchestrator/tests/test_spool_fold.py::test_empty_deferred_append_section_is_rejected\norchestrator/tests/test_spool_fold.py::test_multiline_deferred_append_item_is_rejected\norchestrator/tests/test_spool_fold.py::test_empty_or_whitespace_deferred_append_suffix_is_rejected\norchestrator/tests/test_spool_fold.py::test_whitespace_only_deferred_append_suffix_is_rejected\norchestrator/tests/test_spool_fold.py::test_deferred_append_missing_target_is_rejected\norchestrator/tests/test_spool_fold.py::test_deferred_append_cannot_target_completion_record\norchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_visible_duplicate_target_ids\norchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items\norchestrator/tests/test_spool_fold.py::test_deferred_append_before_defer_section_is_rejected\norchestrator/tests/test_spool_fold.py::test_deferred_append_can_target_item_deferred_earlier_in_same_fold\norchestrator/tests/test_spool_fold.py::test_deferred_append_resolves_cross_ledger_placeholder\norchestrator/tests/test_spool_fold.py::test_deferred_append_order_is_deterministic_by_fragment_key_and_item_index\norchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_replayed_identical_suffix\norchestrator/tests/test_spool_fold.py::test_deferred_append_only_fragment_preserves_all_active_tasks\norchestrator/tests/test_spool_fold.py::test_p01_valid_single_worklog_fragment_applies\norchestrator/tests/test_spool_fold.py::test_p02_three_ledgers_with_cross_references_apply\norchestrator/tests/test_spool_fold.py::test_p03_empty_spool_is_noop\norchestrator/tests/test_spool_fold.py::test_p04_below_threshold_does_not_rotate\norchestrator/tests/test_spool_fold.py::test_completion_update_and_defer_form_explicit_sinks\norchestrator/tests/test_spool_fold.py::test_rotation_preserves_d70_archive_current_boundary\norchestrator/tests/test_spool_fold.py::test_cli_dry_run_emits_json_without_writes\norchestrator/tests/test_spool_fold.py::test_n37_real_repo_canonical_family_requires_archive_active_history\norchestrator/tests/test_spool_fold.py::test_real_worklog_105_to_106_next_action_is_byte_exact_golden\n\n167 tests collected in 0.22s\n",
+        "stdout_sha256": "417aa8bdc64bd57f4dc2cc26f8c9f5042d5bd4a1439cc20c643d9205e66563e7"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_git_command_table_has_no_forbidden_mutating_verb",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_identity_main_resolution_and_inherited_git_environment_are_ignored",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_exact_base_worktree_uses_runtime_namespace_and_requested_branch",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_main_dirty_and_submodule_dirty_are_separate_facts_and_no_fetch_update_works",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_shallow_and_replace_refs_are_rejected",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_verify_ff_chain_requires_exact_order_and_noncompleted_main_unchanged",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_exact_direct_child_shape_without_plan_comparison",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_two_rotation_archives",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_archive_readme_without_rotation",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_typechange_status",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n31_landed_interval_cannot_hide_an_earlier_fold",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n32_null_declared_fold_rejects_pending_fragment",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_p07_null_declared_fold_accepts_zero_pending_fragments",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n33_merge_fold_is_rejected_by_the_parent_count_gate",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_fold_commit_with_encoding_header_is_accepted",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_allows_every_non_signature_document_path",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_allows_folded_receipt_creation",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_deletion_signature",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_rename_record",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_diff_entries_parses_two_paths_for_rename_and_copy_records",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_allows_fragment_modification",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_folded_receipt_signature",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n34_fold_rejects_a_path_outside_the_closed_shape",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_n35_supervised_slug_mapping_rejects_noncanonical_inputs_and_is_injective",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_trust_root_and_isolated_checkout_are_bound_to_audited_sha",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_structured_git_trace_detects_push_and_malformed_tail",
+        "orchestrator/tests/test_dev_wave_land.py::test_basic_land_accepts_registered_claude_and_codex_children",
+        "orchestrator/tests/test_dev_wave_land.py::test_handoff_state_vocabulary_is_not_a_land_gate",
+        "orchestrator/tests/test_dev_wave_land.py::test_colliding_untracked_rejected_without_main_or_foreign_artifact_change",
+        "orchestrator/tests/test_dev_wave_land.py::test_noncolliding_foreign_session_untracked_does_not_block_land",
+        "orchestrator/tests/test_dev_wave_land.py::test_safe_child_name_rule_rejects_only_dangerous_names",
+        "orchestrator/tests/test_dev_wave_land.py::test_tracked_and_staged_main_dirt_are_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_of_any_shape_does_not_block_land",
+        "orchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_of_any_shape_is_protected_from_target_collision",
+        "orchestrator/tests/test_dev_wave_land.py::test_nested_untracked_under_foreign_handoff_directory",
+        "orchestrator/tests/test_dev_wave_land.py::test_handoff_readme_remains_a_landable_target",
+        "orchestrator/tests/test_dev_wave_land.py::test_untracked_handoff_readme_colliding_with_target_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_untracked_nested_repository_record_collides_with_target",
+        "orchestrator/tests/test_dev_wave_land.py::test_unregistered_alias_child_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_ignored_registered_container_and_unrelated_cache_are_accepted",
+        "orchestrator/tests/test_dev_wave_land.py::test_ignored_unregistered_container_child_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_target_collision_with_existing_ignored_path_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_target_collision_with_existing_ignored_ancestor_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_target_collision_with_foreign_control_artifact_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_unsafe_container_child_bytes_are_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_shallow_graft_replace_filter_and_promisor_are_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_hooks_and_fsmonitor_are_disabled_for_land",
+        "orchestrator/tests/test_dev_wave_land.py::test_gitlink_change_lands_but_cannot_report_success_before_d16_sync",
+        "orchestrator/tests/test_dev_wave_land.py::test_deleted_gitlink_recovery_requires_worktree_and_nested_metadata_absent",
+        "orchestrator/tests/test_dev_wave_land.py::test_gitlink_to_normal_tree_recovery_preserves_target_entry",
+        "orchestrator/tests/test_dev_wave_land.py::test_gitlink_to_normal_blob_recovery_preserves_target_entry",
+        "orchestrator/tests/test_dev_wave_land.py::test_audited_sequence_and_moved_wave_tip_are_exact",
+        "orchestrator/tests/test_dev_wave_land.py::test_audited_sequence_reverse_order_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_audited_sequence_extra_commit_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_audited_sequence_same_length_wrong_commit_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_nonblocking_common_lock_reports_lock_busy",
+        "orchestrator/tests/test_dev_wave_land.py::test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit",
+        "orchestrator/tests/test_dev_wave_land.py::test_zero_fragment_still_rejects_missing_spool_layout_before_ff",
+        "orchestrator/tests/test_dev_wave_land.py::test_candidate_fold_plan_failure_happens_before_ff",
+        "orchestrator/tests/test_dev_wave_land.py::test_fold_is_called_under_land_lock_and_committed_with_message_file",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock",
+        "orchestrator/tests/test_dev_wave_land.py::test_p06_supervised_branch_slug_with_matching_fragments_can_fold",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_its_fold_commit_with_repository_commit_encoding",
+        "orchestrator/tests/test_dev_wave_land.py::test_n35_supervised_branch_rejects_fragment_from_another_slug_before_ff",
+        "orchestrator/tests/test_dev_wave_land.py::test_fold_failure_rolls_back_ff_and_never_returns_landed",
+        "orchestrator/tests/test_dev_wave_land.py::test_pending_fragment_postcondition_failure_is_fold_failure",
+        "orchestrator/tests/test_dev_wave_land.py::test_generated_canonical_validation_failure_rolls_back_ff",
+        "orchestrator/tests/test_dev_wave_land.py::test_failed_cas_rollback_has_distinct_rc_and_status",
+        "orchestrator/tests/test_dev_wave_land.py::test_active_transaction_resumes_before_main_dirty_gate",
+        "orchestrator/tests/test_dev_wave_land.py::test_not_landed_is_distinct_from_postcondition_failure",
+        "orchestrator/tests/test_dev_wave_land.py::test_partial_merge_mutation_is_nonretryable_postcondition_failure",
+        "orchestrator/tests/test_dev_wave_land.py::test_unobservable_post_merge_head_is_nonretryable_failure",
+        "orchestrator/tests/test_dev_wave_land.py::test_control_plane_replacement_around_status_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_control_plane_replacement_after_collision_inspection_is_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_edited_in_place_around_status_does_not_block_land",
+        "orchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_appearing_mid_flight_is_still_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_disappearing_mid_flight_is_still_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_handoff_directory_replacement_around_status_is_still_rejected",
+        "orchestrator/tests/test_dev_wave_land.py::test_post_land_is_not_failed_by_foreign_handoff_activity",
+        "orchestrator/tests/test_dev_wave_land.py::test_git_operation_surface_is_read_only_except_sha_ff_merge",
+        "orchestrator/tests/test_dev_wave_land.py::test_merge_child_inherits_only_explicit_lock_not_other_parent_fd",
+        "orchestrator/tests/test_dev_wave_land.py::test_wave_move_after_merge_is_landed_postcondition_failed",
+        "orchestrator/tests/test_dev_wave_land.py::test_tracked_dirt_appearing_after_successful_merge_is_postcondition_failed",
+        "orchestrator/tests/test_dev_wave_land.py::test_merge_child_inherits_lock_fd_if_helper_is_killed",
+        "orchestrator/tests/test_dev_wave_land.py::test_same_base_two_wave_winner_stale_resync_loser_land_e2e",
+        "orchestrator/tests/test_dev_wave_land.py::test_cli_emits_json_and_uses_only_sha_target_ff",
+        "orchestrator/tests/test_spool_fold.py::test_legacy_daily_ordinals_are_excluded_from_global_namespace",
+        "orchestrator/tests/test_spool_fold.py::test_global_max_ordinal_ignores_larger_legacy_ordinal",
+        "orchestrator/tests/test_spool_fold.py::test_global_ordinal_duplicate_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_global_ordinal_gap_is_allowed_and_next_uses_max_plus_one",
+        "orchestrator/tests/test_spool_fold.py::test_global_carry_resolves_global_entry_not_legacy_collision",
+        "orchestrator/tests/test_spool_fold.py::test_global_carry_cannot_fall_back_to_legacy_only_target",
+        "orchestrator/tests/test_spool_fold.py::test_boundary_constant_shift_is_detected_by_real_corpus_sentinel",
+        "orchestrator/tests/test_spool_fold.py::test_real_corpus_sentinel_rejects_missing_boundary_date",
+        "orchestrator/tests/test_spool_fold.py::test_impossible_heading_date_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_fold_date_may_precede_the_current_entry_date",
+        "orchestrator/tests/test_spool_fold.py::test_n01_frontmatter_filename_mismatch_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n02_undefined_placeholder_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n03_duplicate_symbol_definition_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n04_malformed_placeholder_residue_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n05_task_allocation_includes_archive_population",
+        "orchestrator/tests/test_spool_fold.py::test_n06_task_allocation_includes_deferred_population",
+        "orchestrator/tests/test_spool_fold.py::test_n07_task_id_is_three_digit_canonical",
+        "orchestrator/tests/test_spool_fold.py::test_n08_all_carries_preserve_order_and_count",
+        "orchestrator/tests/test_spool_fold.py::test_implicit_and_explicit_carry_render_identically",
+        "orchestrator/tests/test_spool_fold.py::test_n09_active_conservation_postcondition_rejects_implicit_drop",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_fold_implicitly_carries_task_added_by_earlier_wave",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_new_then_existing_update_uses_substantive_base_digest",
+        "orchestrator/tests/test_spool_fold.py::test_non_active_transition_target_remains_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n10_stale_base_digest_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n10_mutating_action_requires_base_field",
+        "orchestrator/tests/test_spool_fold.py::test_all_mutating_operation_blocks_resolve_placeholders",
+        "orchestrator/tests/test_spool_fold.py::test_worklog_reserved_heading_in_prose_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_worklog_action_prefix_payload_is_not_dropped",
+        "orchestrator/tests/test_spool_fold.py::test_failure_section_payload_without_valid_h3_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n11_existing_canonical_bytes_are_only_appended_or_inserted",
+        "orchestrator/tests/test_spool_fold.py::test_n12_second_fold_after_gc_is_noop",
+        "orchestrator/tests/test_spool_fold.py::test_n13_same_content_replay_is_rejected_by_receipt",
+        "orchestrator/tests/test_spool_fold.py::test_changed_content_cannot_reuse_folded_symbol_identity",
+        "orchestrator/tests/test_spool_fold.py::test_n14_rotation_keeps_projected_worklog_under_shared_limit",
+        "orchestrator/tests/test_spool_fold.py::test_rotation_can_archive_original_latest_to_fit_projected_entry",
+        "orchestrator/tests/test_spool_fold.py::test_n15_rotation_updates_archive_index",
+        "orchestrator/tests/test_spool_fold.py::test_n16_transaction_rejects_third_state",
+        "orchestrator/tests/test_spool_fold.py::test_interrupted_transaction_resumes_before_and_after_targets",
+        "orchestrator/tests/test_spool_fold.py::test_n17_fragment_allocation_order_is_explicitly_sorted",
+        "orchestrator/tests/test_spool_fold.py::test_explicit_fold_date_controls_plan_bytes_and_transaction_state",
+        "orchestrator/tests/test_spool_fold.py::test_explicit_dry_run_plan_object_is_directly_applicable",
+        "orchestrator/tests/test_spool_fold.py::test_n18_completion_with_remaining_work_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_completion_without_remaining_field_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_noncanonical_values",
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_duplicates",
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_decoys_in_fence_and_comment_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_in_unclosed_list_relative_fences_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_valid_completion_remaining_field_is_removed_from_canonical",
+        "orchestrator/tests/test_spool_fold.py::test_completion_base_and_remaining_trailer_order_is_independent",
+        "orchestrator/tests/test_spool_fold.py::test_update_and_defer_do_not_require_remaining_field",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_targets_single_line_item_head",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_accepts_first_suffix_seen_outside_head_line_end",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_multiline_target_preserves_continuations",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_fenced_target_does_not_break_fence",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_is_byte_exact_for_all_insertion_shapes",
+        "orchestrator/tests/test_spool_fold.py::test_empty_deferred_append_section_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_multiline_deferred_append_item_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_empty_or_whitespace_deferred_append_suffix_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_whitespace_only_deferred_append_suffix_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_missing_target_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_cannot_target_completion_record",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_visible_duplicate_target_ids",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_before_defer_section_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_can_target_item_deferred_earlier_in_same_fold",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_resolves_cross_ledger_placeholder",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_order_is_deterministic_by_fragment_key_and_item_index",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_replayed_identical_suffix",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_only_fragment_preserves_all_active_tasks",
+        "orchestrator/tests/test_spool_fold.py::test_p01_valid_single_worklog_fragment_applies",
+        "orchestrator/tests/test_spool_fold.py::test_p02_three_ledgers_with_cross_references_apply",
+        "orchestrator/tests/test_spool_fold.py::test_p03_empty_spool_is_noop",
+        "orchestrator/tests/test_spool_fold.py::test_p04_below_threshold_does_not_rotate",
+        "orchestrator/tests/test_spool_fold.py::test_completion_update_and_defer_form_explicit_sinks",
+        "orchestrator/tests/test_spool_fold.py::test_rotation_preserves_d70_archive_current_boundary",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_emits_json_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_n37_real_repo_canonical_family_requires_archive_active_history",
+        "orchestrator/tests/test_spool_fold.py::test_real_worklog_105_to_106_next_action_is_byte_exact_golden"
+      ],
+      "duration_s": 21.731,
+      "rc": 0,
+      "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+      "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+      "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+      "status": "PASSED",
+      "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract",
+          "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy",
+          "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6c9575df8d345305d464b9a195696402ea6308418413ca009bb36ab6463c93c2",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "        \"--name-status\", \"-z\", \"-M\", \"-C\",",
+            "old": "        \"--name-status\", \"-z\", \"--no-renames\","
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_diff_disables_move_detection_by_contract"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "26b05193c85753e43f81701872a7fa8aeed2bea30e8f3bf4bec27618dca2a9b5",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "        \"--name-status\", \"-z\", \"--no-renames\", \"-M\",\n    ),",
+            "old": "        \"--name-status\", \"-z\", \"--no-renames\",\n    ),"
+          }
+        ]
+      },
+      "M03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_typechange_status"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f5a4bd2f21d3529ced29a4ad6205f49a2b59ef1778e71646a56d28ef3d0cadbe",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "        if False and status not in {\"M\", \"D\", \"A\"}:",
+            "old": "        if status not in {\"M\", \"D\", \"A\"}:"
+          }
+        ]
+      },
+      "M04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_two_rotation_archives"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7d53e9f818fcf1c97de0beccd72e17508a995bc35d007918f2d9b7ec268f80b4",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "            if archive_adds > 2:",
+            "old": "            if archive_adds > 1:"
+          }
+        ]
+      },
+      "M05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_rejects_archive_readme_without_rotation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0123cc24bcef02c5a54c64d8af19d8bde439aa95a1850d667cbe53f17caa08b7",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "    if False and archive_readme_modified and archive_adds != 1:",
+            "old": "    if archive_readme_modified and archive_adds != 1:"
+          }
+        ]
+      },
+      "M06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_deletion_signature",
+          "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_delete_and_add"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "42efddd15d8ad488d33498afa70a42095a8f2370042025832e2929f40d77ea19",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "    deleted_path = paths[0] if status.startswith(\"R\") else None",
+            "old": "    deleted_path = paths[0] if status == \"D\" or status.startswith(\"R\") else None"
+          }
+        ]
+      },
+      "M07": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_landed_interval_rejects_fragment_rename_reported_as_rename_record"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5cead1f350026daf65857c120fc2066268cccc391af4f5d36f6d587fe5d2a884",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "    deleted_path = paths[0] if status == \"D\" else None",
+            "old": "    deleted_path = paths[0] if status == \"D\" or status.startswith(\"R\") else None"
+          }
+        ]
+      },
+      "M08": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_diff_entries_parses_two_paths_for_rename_and_copy_records"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f8bfb469ef5c50da8eceb27c106162174df508e22541b289d01fefa16cbda950",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "        path_count = 1",
+            "old": "        path_count = 2 if status.startswith((\"R\", \"C\")) else 1"
+          }
+        ]
+      },
+      "M09": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_n34_fold_rejects_a_path_outside_the_closed_shape"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fb1dd20f8626cdb9274e0c0c46db402a0c4ef42ca9ba814e5609f5b9ad96d4f2",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "            if False and _ROTATION_PATH_RE.fullmatch(path) is None:",
+            "old": "            if _ROTATION_PATH_RE.fullmatch(path) is None:"
+          }
+        ]
+      },
+      "P01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_declared_fold_accepts_rotation_that_git_would_report_as_copy",
+          "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "06621def4c4cc0cfc15af7e69a6b8d5f456057b6320f28bdc40812c8ab89d2e3",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "            if archive_adds > 0:",
+            "old": "            if archive_adds > 1:"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "3d6690f18654e36cd6d51df471896068aa0c8194e91a7746e055d092e269b217",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_dev_waves_git_state.py",
+      "orchestrator/tests/test_dev_wave_land.py",
+      "orchestrator/tests/test_spool_fold.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1200.0
+  },
+  "repo_head": "b600f3bb0e3fa616e16fabb0ad5e951f0c183d5a",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_dev_waves_git_state.py",
+      "orchestrator/tests/test_dev_wave_land.py",
+      "orchestrator/tests/test_spool_fold.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "190b56181c12ddba2a3ca0a7dd3dc302bbe73ad84ca7b788d6779a0cea77236a",
+    "dispatch_head_blob_sha256": "190b56181c12ddba2a3ca0a7dd3dc302bbe73ad84ca7b788d6779a0cea77236a",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e2e5e959ca564a8a447a3d33d96b99d359d456a2",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "fc53c915cc8709ab3667fb68983691df5a92c1bcba1d367de24230462c1e6d17",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "43f19a3ab653c2b4fbe7531499a288dbc38905c394c8ecc174b6e12cc11c6088",
+  "summary": {
+    "KILLED": 10,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 10,
+    "matching": 10,
+    "recorded": 10,
+    "registered": 10
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fold-rotation-copy/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "86b3d75fc0e8d330bda2944798e88ddf13d60c9df715b778ccdde60c2446bf1f",
+  "updated_at": "2026-08-03T04:39:14.904222+00:00"
+}
