@@ -65,8 +65,15 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   ローテーションを行い、`docs/archive/worklog-*.md` が現行 worklog からの**コピーとして生成される**。
   land 側の shape 検査 (`tools/dev_waves/git_state.py:764`) は `git diff-tree -M -C` を使うので
   この追加が `C` (copy) 状態で返り、`status.startswith(("R", "C"))` で拒否される。
-  **並行 wave `worktree-dev-wave-fold-rotation-copy` が同じ機構を扱っており**、main は
-  `e0b9073` のまま無変更。`DW-STOP` に従い rebase・force・他 session 所有物の変更で迂回していない
+  3 度目は `stale-main` — lock 取得中に main が `e0b9073` → `ea6ca43` へ前進した。
+  `DW-STOP` に従い rebase・force・他 session 所有物の変更で迂回していない
+- **原因は親の合流が遅すぎたこと (ユーザー是正)。** main を wave 開始時と land 直前しか見ておらず、
+  land を試みた時点で **16 commit 遅れ**ていた。並行 wave `dev-wave-fold-rotation-copy` は
+  途中で `397cbea` (形検査から rename/copy 検出を外す) を main へ入れており、**都度合流していれば
+  2 度目の停止は起きずに済んだ**。ユーザーの指摘は「定期的に main が進んでいないかチェックして
+  マージすればいい。あとで一気にやろうとするからコストが高い」。是正として wave 中は節目ごとに
+  main の位置を見て固定 SHA で都度マージする。本 wave はユーザー指示によりこの context のまま
+  `ea6ca43` を合流させて land を再試行した
 
 - **[T-270] のフレークを再観測した (5 例目)。** 受入全走 `878446` が
   `test_s8b_floor_campaign.py` 4 件で赤 (4 failed / 5222 passed)、同じ tip の再走 `878453` は
@@ -80,7 +87,8 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
 - [T-282] 全走前後の prefix 別 snapshot を実測し、repo 残留ゼロ・`/tmp` 残留は job 内に閉じることを
   確定した。恒久 tool は置かない (段 2 プランと段 3 両レンズが一致して過剰と判定)。
   再測手段は `output/insights/2026-08-03_t328-devwave-docs-externalize/t282-residue-measurement.md`
-  base: 5952a6daf1308e481b7d8a7534ee571fc9e9ed499cc86f28e9a2a61eab3bca3f
+  remaining: none
+  base: 29960a942effcd77dd29c8c1f285408eab1b5c89f52a8ab82c97a43f965325c3
 
 ### 更新
 
@@ -95,7 +103,7 @@ title: "[T-328] docs/dev-wave/** の外出しは D94 が既に却下していた
   (b) を採る場合でも、条件 dispatch の発火条件逐語検査・前置きの dispatch 到達性・節 ID の全族一意性・
   consumer 閉包 (`SKILL.md` / `docs/README.md` / 自己改善 routing / `LIVING_DOCS`)・
   failures の逆方向 pointer の是正がすべて scope に入る
-  base: 35f99f4e06273849642c006fc0e959f41327f7ae771c6cfe8735e0ae5fc019f4
+  base: 108003e9d77d9b6dc30cde9ce143029f02c4e83435333728de4bfcc6a8f77af7
 - [T-264] **P3・(a) の stale 判定を撤回**: 段 1 brief が (a)「実装子 prompt に最初から
   『テスト実走は親』と書く」を `DW-O05` で充足済みと判定したのは誤りである。`DW-O05` の発火条件は
   「read-only codex に相談・レビューさせる直前」で、workspace-write の実装子には渡らない。
