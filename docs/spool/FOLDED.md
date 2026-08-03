@@ -76,3 +76,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"59062836230a95e3fe066b822e98cb981796c22f336c6e13aa0a33b21cb5a012","seq":2,"wave":"dev-wave-t328-docs-externalize"}
 
 - {"allocations":{},"authored":"2026-08-03","content_sha256":"f36202a292b2842bae3d274e5dc02e47d4fcd2d4828cfa8f0e914d0acbf4ad9e","seq":1,"wave":"dev-wave-task-inventory"}
+
+- {"allocations":{"T:placeholder-gate-recursion":"[T-398]","T:sort-integrity-witness":"[T-397]","T:trigger-gating-ast-allowlist":"[T-396]"},"authored":"2026-08-04","content_sha256":"26f92431e71090c8aeee302188f5266c9b548f32a327786f77ed8464ba8cfeac","seq":1,"wave":"dev-wave-t244-p6-contract"}
+- {"allocations":{"D:p6-inductive-contract":"D138"},"authored":"2026-08-04","content_sha256":"c25095af63bd4871facf99ead5c10192439db6f56e507401b5356b82f121530a","seq":2,"wave":"dev-wave-t244-p6-contract"}
+- {"allocations":{"F:placeholder-gate-nonrecursive":"F90"},"authored":"2026-08-04","content_sha256":"c300bf9f2ca8b278b3b335effc5c227bf985480ea9d37d3171a6da6eec4d86f6","seq":3,"wave":"dev-wave-t244-p6-contract"}
