@@ -49,6 +49,20 @@ _SUBMIT_CAPS = [
 ]
 
 
+def _serve_args(effort: str) -> list[str]:
+    return [
+        "serve", "--repo-root", "/repo", "--profile", "default",
+        "--fake-child-executable", "/bin/fake",
+        "--fake-child-sha256", "a" * 64,
+        "--model", "claude-test-20260721", "--allowed-model", "claude-test-20260721",
+        "--effort", effort, "--check-timeout-s", "5", "--termination-grace-s", "1",
+        "--required-hook", "Bash::deny-push", "--max-waves", "1",
+        "--max-per-wave-timeout-s", "5", "--max-total-timeout-s", "5",
+        "--max-per-wave-budget-usd", "1", "--max-total-budget-usd", "1",
+        "--max-wave-output-bytes", "65536", "--max-run-bytes", "131072",
+    ]
+
+
 def test_bootstrap_imports_package_not_same_named_script() -> None:
     result = subprocess.run(
         [sys.executable, str(_REPO / "tools" / "dev_waves.py"), "--help"],
@@ -119,6 +133,24 @@ def test_serve_requires_every_absolute_cap_hook_and_model_allowlist() -> None:
         for option in action.option_strings
     }
     assert required <= observed
+
+
+def test_serve_rejects_unknown_effort_as_invalid_choice() -> None:
+    diagnostic = io.StringIO()
+    with contextlib.redirect_stderr(diagnostic):
+        try:
+            cli.build_parser().parse_args(_serve_args("none"))
+        except SystemExit as exc:
+            assert exc.code == 2
+        else:
+            raise AssertionError("dev-waves serve accepted unknown effort")
+    assert "invalid choice" in diagnostic.getvalue()
+
+
+def test_serve_accepts_every_allowed_effort() -> None:
+    for effort in ("low", "medium", "high", "xhigh", "max"):
+        parsed = cli.build_parser().parse_args(_serve_args(effort))
+        assert parsed.effort == effort, effort
 
 
 def test_server_profile_strict_decode_rejects_duplicate_unknown_and_nan() -> None:
@@ -358,6 +390,8 @@ def _run() -> int:
     test_bootstrap_imports_package_not_same_named_script()
     test_missing_limit_is_audited_at_root_and_never_creates_run()
     test_serve_requires_every_absolute_cap_hook_and_model_allowlist()
+    test_serve_rejects_unknown_effort_as_invalid_choice()
+    test_serve_accepts_every_allowed_effort()
     test_server_profile_strict_decode_rejects_duplicate_unknown_and_nan()
     test_compact_status_never_contains_raw_output_or_session_identifier()
     test_nested_submit_and_resume_are_rejected_before_socket_or_local_open()

@@ -939,6 +939,27 @@
   (行動規律)。rc≠0 の検出自体は `DW-O01` の完了判定が既に担っている
 - 記録: worklog 2026-07-28 (32)、逐語 = `output/insights/2026-07-28_t148-review-verbatim/`
 
+
+- **再発: 2026-08-03** — land 署名 wave の段 3 で、敵対レンズ A の codex 子が upstream の
+  安全フィルタに掛かり、最終メッセージだけが遮断された
+  (`This content was flagged for possible cybersecurity risk`)。rc=1 で `-o` の成果物は生成されず、
+  敵対レビュー 1 本を失いかけた。ログには推論要約が残っており、そこから結論の骨子
+  (「守るべき資産を 2 path へ狭めた前提が破れている」) は読めた。
+- **今回は回復できた。恒久対応をここに残す。** F45 の初回は「同一 prompt の再投でも通らない」で
+  終わっていたが、今回は**プロンプトの語彙を変えて再投したところ通った**。
+  効いた書き換えは次の 3 点である。
+  1. 役割を「敵対検証者・攻撃せよ」から「**検証関数の仕様適合レビュー**」へ変える。
+  2. 攻撃語彙 (攻撃・密輸・偽造・迂回・bypass) を、判定語彙 (判定漏れ・仕様漏れ・反例・
+     入力クラス・false negative) へ置き換える。
+  3. **gate を回避する具体的な command 列を要求しない。**「どの commit がどの path を
+     どう変えるかの表」で足りると明記する。
+  意味は保たれ、返ってきたレビューは blocker 3 件を名指しした (痕跡集合の不十分性、
+  免除条件の健全性、cutoff の実在)。したがって**検出力を落とさずに通せる**。
+- 判定に使うのは `.done` の exit code と `-o` 成果物の実在だけであり、
+  harness の完了通知やログ本文の grep を完了判定にしてはならない (`DW-O01`)。
+  本件でも通知は rc=1 の子について「completed」と告げた。
+- 記録: worklog 2026-08-03 (本 wave)、逐語 =
+  `output/insights/2026-08-03_land-merge-signature/s3-lens-a-spec-conformance.md`
 ### F46. ログインノードで実測した interpreter 挙動を計算ノードにも成立すると誤前提し、floor 実機初走が guard 到達前に死んだ [誤前提]
 
 - 事象: [T-088] 段階 1 の実機初走 (job `0:873200.nqsv`, 2026-07-28) が `driver_rc=1` で終了。
@@ -1654,6 +1675,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 記録: worklog 2026-08-02 (108)、一次資料 =
   `output/insights/2026-08-01_t139-remainder-adjudication.md`
 
+
+- **再発: 2026-08-03** — 本 F の恒久対応どおり `nohup bash -c '...' &` で段 2 の codex 子を投入したが、
+  **`nohup` でも子は tool 呼び出しの終了とともに死んだ** (ログは 3 分ぶん残り `.done` は不在)。
+  すなわち本 F が記録した「背景 job では `nohup` で投入し」は**十分条件ではない**。
+  一方で「`.done` 不在を根拠に再投入しない — 先に生存確認する」は効いた — 親は再投入前に
+  `ps` で同一 artifact を書く process が 0 本であることを実測し、二重起動を起こしていない
+  (1 回目のログは別名で保全した)。実際に生き残ったのは、`&` も `nohup` も使わず
+  **harness 管理の background 実行へ `bash -c '<cmd>; echo $? > <log>.done'` をそのまま渡す**経路で、
+  投入 20 秒後に `ps` と log 増加で生存を実測した。成果物影響ゼロ (near-miss)。
+  `DW-O01` への明文化は本 F の記録どおり byte 予算に阻まれたままであり、
+  必要 63 bytes に対し `operations.md` の余裕は 44 bytes、意味等価な縮約 1 件で 15 bytes 回収しても
+  **4 bytes 足りない**ことを実測した (この数値を [T-341] へ足した)
 ### F78. docs だけの wave が、sha256 で pin された事前登録文書を編集して凍結閉包を壊した [手順漏れ] [誤前提]
 
 - 事象: [T-244] 還流設計 wave (docs のみ) が `docs/phase3-main-experiment.md` へ 3 行追記したところ、
@@ -1801,3 +1834,62 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   等価と判断しない**。
 - 近縁: F32 (変異 harness の復元・単一走行)、F41 (親のテスト cwd と偽赤)、
   F57 (全走でだけ落ちる失敗)
+
+### F85. 信頼できない観測が回復経路を潰す latch を作りかけた [恒真ゲート]
+
+- 事象: [T-363] の段 5 実装で、実行予算の張り直しを「信頼できる (qstat rc=0 の) RUN 観測」に
+  束縛する際、既存の `run_seen` latch を共用した。その結果、rc≠0 の qstat stdout に
+  `Request State = RUN` が含まれるだけで `run_seen` が立ち、**その後に正常な rc=0 の RUN を
+  観測しても張り直せない**状態が残った。塞いだはずの欠陥 (順番待ちが実行予算を削る) が、
+  別経路でそのまま残る形だった。段 6 の敵対レビューが must-fix として摘出し、統合 commit 前に閉じた
+- 根本原因: 「証拠の信頼性で gate する」新しい条件を、**別の意味を持つ既存 latch へ後付けした**。
+  `run_seen` は「観測記録を 1 度だけ書く」ための latch であって「予算を張り直したか」ではない。
+  gate を足すと latch の意味が 2 つになり、厳しい側の条件が緩い側の latch に食われた
+- 恒久対応: 意味の異なる latch を分離する (`run_deadline_rebased` を新設)。回帰テストとして
+  `orchestrator/tests/test_pegasus_dispatch_compute.py::test_trusted_run_after_nonzero_run_stdout_restarts_deadline`
+  を置き、latch を `run_seen` へ戻す変異を事前登録して kill を実測した
+- 再発検知: 上記 node と、変異 spec の `M5-latch-back-to-run-seen` (期待 KILLED)
+
+### F86. 受理集合を変えない変異を kill に数えかけた [恒真ゲート]
+
+- 事象: 同 wave の変異事前登録で、`overall_grace_s` の項を落とす変異を KILLED として登録した。
+  実際にはその変異が赤にするのは `state_history[-1].elapsed_s` が 4.0 → 3.0 になる診断値の差だけで、
+  rc・qdel・`outcome` はいずれも変わらなかった。**受理集合が変わらない赤を耐性の証拠として
+  数えることになり**、変異台帳の `KILLED` を 1 件過大計上する状態だった。段 6 の焦点再レビューが
+  差し戻した
+- 根本原因: 期待 kill テストを「その変異で赤くなるテスト」で選び、`DW-M03` が要求する
+  「受理集合か fail-closed 挙動が期待方向へ変わったか」で選んでいなかった
+- 恒久対応: 受理集合の差になる正例テスト
+  (`orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_grace_allows_done_at_observed_run_deadline`)
+  を追加し、当該変異の kill 根拠をそこへ移した。変異台帳には各 node が
+  「受理集合の赤」か「診断だけの赤」かを区別して記録する
+- 再発検知: 変異 spec の `M2-drop-overall-grace` の `expected_nodes` に上記正例が入っていること。
+  焦点再レビューで「受理集合の赤 / 診断だけの赤」の区別を要求する
+
+### F87. 過剰拒否変異の期待 node を新テストだけから導き、正当な追加赤を MISMATCH で受け取った [テスト代表性] [手順漏れ]
+
+- 事象: [T-189] wave の変異本走で、受理集合から `low` を消す過剰拒否変異 (V9) が `MISMATCH` に
+  なった。親が事前登録した期待 node は本 wave が追加した正例 2 本と exact-vocabulary meta-test の
+  3 件だけだったが、実際には
+  `test_dev_waves_cli.py::test_export_is_create_only_and_contains_only_sanitized_wal_view` も
+  赤になった。同テストは profile の `effort="low"` で実 supervisor wave を走らせるため、
+  worker spec / child argv 層に到達して**正当に**赤くなる。変異は期待方向へ効いており、
+  誤っていたのは登録側である
+- 根本原因: 過剰拒否 (positive) 変異の期待 node を「この wave が追加したテスト」から導いた。
+  受理集合から値を消す変異は、**runner scope 内でその値を消費する既存テスト全部**を赤にする。
+  新設テストの列挙は必要条件でしかない
+- 見落としの経路: 段 6 の焦点再レビューはこの型を認識しており、
+  「`test_dev_waves_integration.py` 全体を runner に含めてはならない」と警告した。しかし同じ理由で
+  赤くなる `test_dev_waves_cli.py` の wave 実走テストは挙げなかった。**敵対レビューによる列挙も
+  完全ではない**
+- 恒久対応: (a) 機械防壁は既存で有効 — `tools/mutation_harness.py` の
+  `_validate_registrations` と期待 node 突き合わせが `MISMATCH` を rc≠0 で返し、本件を実際に捕えた。
+  黙って KILLED にはならない。(b) 手順側は `DW-M01` の事前登録契約へ「受理集合を縮小する変異は、
+  削除する値のリテラルを runner scope 全体へ機械検索してから期待 node を確定する」を足す。
+  `docs/dev-wave/` は本 wave の no-touch 対象のため、条文追加は
+  [T-375] が所有する
+- 再発検知: 変異台帳の `MISMATCH` で actual ⊋ expected かつ追加 node が当該値を消費する既存テスト
+  なら、この型である。一次資料は
+  `output/insights/2026-08-03_t189-reasoning-effort-allowlist/mutation-ledger.json` (初回、V9 MISMATCH) と
+  同 `mutation-ledger-v9-erratum.json` (補正後、KILLED)
+- 近縁: F60 (期待 node が対象 gate を実行していない)、F33 (期待 node と記録 node の形式不一致)

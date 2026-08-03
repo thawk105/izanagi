@@ -1,0 +1,27 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 2400,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "V9",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/effort_levels.py",
+          "old": "CLAUDE_EFFORTS: tuple[str, ...] = (\"low\", \"medium\", \"high\", \"xhigh\", \"max\")",
+          "new": "CLAUDE_EFFORTS: tuple[str, ...] = (\"medium\", \"high\", \"xhigh\", \"max\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_cli.py::test_serve_accepts_every_allowed_effort",
+        "orchestrator/tests/test_dev_waves_cli.py::test_export_is_create_only_and_contains_only_sanitized_wal_view",
+        "orchestrator/tests/test_dev_waves_schema.py::test_worker_spec_and_child_argv_accept_every_allowed_effort",
+        "orchestrator/tests/test_effort_levels.py::test_effort_vocabularies_are_exact_and_ordered"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

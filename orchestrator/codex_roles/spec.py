@@ -67,6 +67,7 @@ _ROLE_KEYS = {
 }
 _CLAUDE_KEYS = {"model", "effort", "tools"}
 _CODEX_KEYS = {"model", "model_reasoning_effort"}
+ROLE_MANIFEST_CODEX_REASONING_EFFORTS = frozenset({"medium", "high"})
 _CONSUMER_KEYS = {"path", "parser", "required_fields"}
 _RUNTIME_ACTIVATION_KEYS = {
     "status",
@@ -607,7 +608,7 @@ def load_role_specs(root: Path | None = None) -> dict[str, RoleSpec]:
         codex_effort = codex["model_reasoning_effort"]
         if codex_model not in {"gpt-5.6-sol", "gpt-5.6-terra"}:
             raise RoleSpecError(f"{label}.codex.model: bundled catalog slug が必要")
-        if codex_effort not in {"medium", "high"}:
+        if codex_effort not in ROLE_MANIFEST_CODEX_REASONING_EFFORTS:
             raise RoleSpecError(f"{label}.codex.model_reasoning_effort: medium|high")
         if source.model == "opus" and (codex_model, codex_effort) != ("gpt-5.6-sol", "high"):
             raise RoleSpecError(
