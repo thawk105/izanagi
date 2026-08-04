@@ -103,3 +103,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-04","content_sha256":"a9121e7ad6e7b45609896bedef785942a8a1f9b862fa534e0291ad96fd321282","seq":1,"wave":"rulings-2026-08-04-g"}
 
 - {"allocations":{"T:rulings-claim-verification":"[T-413]"},"authored":"2026-08-04","content_sha256":"5b82b4513fe0d88494d2547ba806345a3b1e7c9b5db120b865d73ddc31beb669","seq":1,"wave":"rulings-2026-08-04-h"}
+
+- {"allocations":{"T:mutation-harness-node-normalization":"[T-417]","T:t287-checkpoint-integrity":"[T-416]","T:t287-error-message-redaction":"[T-418]","T:t287-layer3-reader":"[T-415]","T:t287-producer-domain":"[T-414]"},"authored":"2026-08-04","content_sha256":"a48cfa60ee02930450fa8c8b95e16b3ebf2dbf3c87c0a61840be6ae81c61b665","seq":1,"wave":"dev-wave-t287-checkpoint-values"}
+- {"allocations":{"F:mutation-harness-realrepo-node":"F95"},"authored":"2026-08-04","content_sha256":"3f406e81f057d2b6f4ff17136e8db6d2a7862bcdba05bbde3d5a73acefdc4d27","seq":2,"wave":"dev-wave-t287-checkpoint-values"}
+- {"allocations":{"F:nonutf8-evidence-blob-lands-red":"F96"},"authored":"2026-08-04","content_sha256":"301c27b0776dd1198f49b0327c4fa36229f978230738b57acb3e2d5b4b8ecd13","seq":3,"wave":"dev-wave-t287-checkpoint-values"}
