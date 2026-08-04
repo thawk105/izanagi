@@ -1,0 +1,36 @@
+{
+ "schema": "t419-probe-causality-parent-receipt/v1",
+ "non_certifying": true,
+ "counterfactual_only": true,
+ "note": "親 (Claude manager) が job 終了後に作った照合 receipt。job 自身は自分の .o/.e と会計を hash できないため、この 1 段だけ親の作業として残る (段 6 レビュー R2-5)。",
+ "pbs_request_id": "888740.nqsv",
+ "pbs_jobid_raw": "0:888740.nqsv",
+ "accounting_from_job_stderr": {
+  "queue": "gen_S@nqsv",
+  "user": "tanab",
+  "group": "SFC",
+  "created": "2026-08-05T01:24:10",
+  "started": "2026-08-05T01:24:20",
+  "ended": "2026-08-05T01:24:25",
+  "elapse_seconds": 9
+ },
+ "probe_rc": 3,
+ "wrapper_rc": 3,
+ "done_marker_present": true,
+ "sha256": {
+  "cpuinfo-raw-1.txt": "3bb706948a88b3cf2eb06cf5e0f444362d99fcd90a9b02db0ccbe731a704c43e",
+  "cpuinfo-raw-2.txt": "35019c0659eaaf4e16cbaa2b9f9a056414f820027d693e3f9e20dec3d3548e22",
+  "cpuinfo-raw-3.txt": "cc11e7066c1b19490602c3fb62ff1920cdd53fccfe0292e1de3353eec44f18e8",
+  "done-marker": "58820811ea0bae81a5c3c93c254ba5fe9a5eef2b4345e36dc32e254cebc9671f",
+  "interpreter": "f2bdb85c39ac02bd4b03ec678ad417698617b3bbf1f7299a9e58431fbd0448c1",
+  "job.e888740": "0967aeb50ac72b6c9aec407d079314510c6b5b1f5c8b69652c07eae5e5b36607",
+  "job.o888740": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "manifest.json": "a5b2de67a805c4352738a299765033c3742a96e44c6334d812d3c36331b39ca2",
+  "marker": "f5f5f637468a7d65ff53f03365a595f189b24af389091e31c235ca162f29364d",
+  "probe.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "probe.rc": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2",
+  "result.json": "511780eb334620015ee0593446ec6c0e77d20c52b2265233f4ff2633bd233e81",
+  "selftest.log": "dc69f81567ee5c9290e0aa5208f70a89742cab3e814d0102ba6812d99b4ca968",
+  "wrapper.rc": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+ }
+}
