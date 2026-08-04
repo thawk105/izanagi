@@ -38,8 +38,12 @@ title: [T-244] D121 P1 の機械部品を実装した — 独立 golden を「�
   親が手動注入して rc と診断文言を実測し、hash 照合で復元した。**初回走行の 8 件 MISMATCH は
   「期待の上位集合」であって検出力不足ではない** — 親の事前登録が狭かったための erratum で、
   判定は 1 件も変わっていない
-- 受入: **全走 5447 passed / 1 failed / 19 skipped**。唯一の赤は `tools/ruleops.py` が
-  非 UTF-8 blob で落ちる既存条件で、**ユーザーの元 checkout でも同一 rc・同一 blob で再現する**。
+- 受入: land 直前の全走は **5470 passed / 2 failed / 19 skipped**。**赤 2 件はいずれも
+  本 wave の差分に帰属しない** — (a) `test_ruleops.py::test_real_checkout_...` は
+  `tools/ruleops.py inventory` が非 UTF-8 blob で rc=2 になる既存条件で、
+  **ユーザーの元 checkout でも同一 rc・同一 blob で再現する**。(b)
+  `test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[base_commit]`
+  は**単独再走で 3 passed となり再現しない**フレークで、`reflux_ir` への参照はゼロ (DW-O18)。
   provenance 監査は 963 件・違反なし
 - 逐語・実測の正本 = `output/insights/2026-08-04_t244-p1-ir-emitter/`。設計判断は {{D:reflux-ir-p1-component}}
 - **dev-wave の運用事故を 2 件記録した** — {{F:dev-wave-child-dies-with-tool-call}} と
@@ -81,6 +85,10 @@ title: [T-244] D121 P1 の機械部品を実装した — 独立 golden を「�
 - {{T:ruleops-blob-blocks-full-suite}} **P2・新規**: `tools/ruleops.py inventory` が
   非 UTF-8 blob で rc=2 になり全走に赤 1 件を残している。[T-407] が同じ現象を所有していれば
   そちらへ寄せて本項は閉じる。**本 wave の差分とは無関係**で、ユーザーの元 checkout でも再現する
+- {{T:codex-launch-receipt-flake}} **P3・新規**: 全走で
+  `test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[base_commit]`
+  が 1 度だけ落ち、単独再走 (3 passed) で再現しなかった。並列度の高い全走でのみ出る
+  race の可能性がある。再発したら本項へ日付を足し、2 例目で調査する
 - {{T:dev-wave-detach-contract}} **P2・新規**: `DW-O01` へ背景 job の detach 必須を、
   `DW-M05` の照合規則へ「並行 wave の子に一致しないこと」を足す。
   根拠は {{F:dev-wave-child-dies-with-tool-call}} と {{F:pgrep-matches-parallel-wave-child}}
