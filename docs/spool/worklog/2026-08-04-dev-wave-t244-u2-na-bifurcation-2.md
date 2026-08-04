@@ -42,6 +42,12 @@ title: [T-244] U2 を新 D で確定した — 択一 3 の既裁定により P4
   3 巡目 (`DW-O16` の上限) は closed 4 / partial 1 / regressed 0 で、残る 1 件は決定 (4) の
   「状態を決められない場合は失敗側に倒す」が決定 (4-b) の分離と競合するという文言整合のみ
   だったため、指摘どおり「状態を再分類せず承認を保留する」へ直して閉じた
+- **走行中に別 wave の裁定が land し、新 D の事実記述を 1 箇所直した。** 予算値 (択一 1) の裁定で
+  P10 (予算値・origin authority・軸 (iii)) の 3 点が揃い、D121 決定 (7) が凍結していた
+  「無条件の義務は現時点で 1 件も満たされていない」が偽になった。supersede 後の文からは
+  **充足件数そのものを落とし** (件数は裁定の進行で変わるため)、現況は決定 (5) の事実記録と
+  worklog が持つ形へ直した。living docs 2 箇所の同じ記述も「満たされているのは P10 の 1 件だけ」
+  へ更新した
 - **親の base digest 算出が誤っていたのをレビューが是正した。** carry stub
   (`変わらず ((N) 参照)`) の `base:` は stub 自身の digest ではなく、carry 鎖を遡った
   substantive digest である (`spool_fold._extract_latest_active`)。親は stub の digest を
@@ -78,15 +84,22 @@ title: [T-244] U2 を新 D で確定した — 択一 3 の既裁定により P4
 
 ### 更新
 
-- [T-244] **P1・U2 は記録済み、V1〜V4 と本体は未解決**: {{D:t244-u2-na-bifurcation}} が
+- [T-244] **P1・U2 を新 D で確定 → V1〜V4 と本体は未解決**: {{D:t244-u2-na-bifurcation}} が
   「実装が無いゆえの非適用」を cap-lift の失敗と定め、択一 3 の既裁定により P4 を無条件義務へ
-  移した (無条件義務は 8 件、いずれも未充足)。**V1 (`NOT_CLAIMED` の射程 = global 免責か
-  per-run gate か) はユーザー裁定待ち**で、P6 実装の裁定と同時に決める。
+  移した (無条件義務は 8 件)。状態の分類 (事実) と承認の可否 (判断) を分け、認定基準が無い間は
+  状態を再分類せず承認を保留する。**V1 (`NOT_CLAIMED` の射程 = global 免責か per-run gate か) は
+  ユーザー裁定待ち**で、P6 実装の裁定と同時に決める。
   V2={{T:t244-p6-semantic-contract}}、V3={{T:t244-cap-lift-receipt}}、V4={{T:t244-prereg-refresh}}
-  を前提として追跡する。**本体は未解決** — `reflux-control` stage・origin ledger・5-bit IR・
-  正準 emitter・witness normalizer・validation runner・enforcer・非干渉検査はすべて未着手で、
+  を前提として追跡する。予算値は `Q >= 1 + 32R + E_min` の下限式から再導出する
+  (R=1 でも Q は 33 以上、候補値 2 とは 1 桁違う)。**U3 (帰納段を踏む) の代償として
+  accept/reject 漏洩が origin あたり 2 bit → 33 bit 超へ広がることを明示的に受け入れる。**
+  据え置きは P6 が永久に発火せず U3 を実質無効にするため採らない。
+  **P10 (予算値・origin authority・軸 (iii)) の 3 点は確定済みで、前提条件 10 件のうち
+  満たされているのは P10 の 1 件だけである。**
+  **本体は未解決** — `reflux-control` stage・origin ledger・5-bit IR・正準 emitter・
+  witness normalizer・validation runner・enforcer・非干渉検査はすべて未着手で、
   D114 の承認上限 1 も変わらない。
-  base: 561133878fa793e7a5793ca544af03b85be0dcd49fe8b047c9f70159b917c9cf
+  base: 77e62bdb00cb45d240921e41f62a190abacd7e4bdfb1ee3dc08a43304a344dbf
 
 ### 新規
 
