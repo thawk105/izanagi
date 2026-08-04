@@ -287,6 +287,7 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
             ccbench_dir=kwargs["ccbench_dir"],
             cache_root=kwargs["cache_root"],
             build_context=kwargs["build_context"],
+            trigger_gate_binding=kwargs["trigger_gate_binding"],
         )
         return SimpleNamespace(results=[result], skipped=0)
 
@@ -295,7 +296,7 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
     )
     coder = TRIGGER.CoderProposalTriggerGating(
         axis=TRIGGER.MARKER_ID,
-        implementation="izanagi_gate_pass = true;",
+        wire="11111",
     )
     auditor = AuditorVerdict(verdict="pass", diff_digest="fixture")
     try:
@@ -321,7 +322,7 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
         records = wal.read_records(layout)
         assert outcome["outcome"] == "aborted"
         assert seen == []
-        assert [record.stage for record in records] == ["build_start", "abort"]
+        assert [record.stage for record in records] == ["trigger_binding", "build_start", "abort"]
         assert records[-1].payload["reason"] == "admission-error"
         assert records[-1].payload["error"].startswith("BuildAdmissionError:")
     finally:

@@ -51,7 +51,8 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, wal                                    # noqa: E402
+from campaign import ident, trigger_gate_binding, wal              # noqa: E402
+from campaign.axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
@@ -198,6 +199,16 @@ def quarantine(sub: str, implementation: str,
     passed=False なら呼び出し元は build に進めず reject を WAL/critic へ (規律2 hard gate)。
     parse_template_file が None を返す (テンプレ骨格が壊れている) 場合は MALFORMED 相当の
     fails-closed 結果を合成して返す (骨格が読めなければ検疫できない = reject)。"""
+    if (marker_id == TRIGGER_MARKER_ID
+            and not trigger_gate_binding.is_canonical_predicate(implementation)):
+        res = DiffQuarantineResult(
+            passed=False, reason="trigger predicate が正準集合外",
+            digest={"rejection_type": "diff-quarantine", "subtype": "membership",
+                    "reason": "trigger predicate が正準集合外",
+                    "diff_region": source_rel, "template_diff_id": marker_id,
+                    "evidence": "canonical predicate membership failure"})
+        return res, "", "", ""
+
     path = os.path.join(sub, source_rel)
     with open(path, encoding="utf-8") as f:
         base_text = f.read()
@@ -232,7 +243,8 @@ def diffq_variant_id(genome: Genome, implementation: str) -> str:
 
 
 def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: str,
-                       res: DiffQuarantineResult, env_tag: str = ENV_TAG) -> str:
+                       res: DiffQuarantineResult, env_tag: str = ENV_TAG, *,
+                       trigger_gate_binding=None) -> str:
     """diff 検疫 reject を WAL に BUILD_START→ABORT(reason=diff-quarantine) で焼く。
 
     load_diff_rejections がこの形を読み返し critic に渡す (規律3: 検疫が reject を出した
@@ -240,9 +252,13 @@ def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: s
     fitness も無い (正しさゲート手前の失格 = 採用しない、規律2)。"""
     v = diffq_variant_id(genome, implementation)
     attempt_id = secrets.token_hex(16)
-    wal.log(layout, v, STAGE_BUILD_START, env_tag,
-            {"genome": genome.canonical(), "src_token": "",
-             "build_attempt_id": attempt_id})
+    start_payload = {"genome": genome.canonical(), "src_token": "",
+                     "build_attempt_id": attempt_id}
+    if trigger_gate_binding is not None:
+        start_payload[wal.TRIGGER_BINDING_COMMITMENT_KEY] = wal.log_trigger_binding(
+            layout, v, env_tag, attempt_id, trigger_gate_binding,
+        )
+    wal.log(layout, v, STAGE_BUILD_START, env_tag, start_payload)
     wal.log(layout, v, STAGE_ABORT, env_tag,
             {"reason": DIFF_QUARANTINE_REASON,
              "build_attempt_id": attempt_id,
@@ -789,8 +805,9 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
     **入口 check_stop** (逆方向枯渇/予算/収束を iteration 消費前に判定 = 無駄打ちしない。停止なら
     run_one_iteration を呼ばない = build/verify/bench に進めない) → iteration++ →
-    run_one_iteration → checkpoint 保存 → digest 書き出し → 末尾 check_stop (新 whiteboard を
-    反映した収束判定) を返す。checkpoint は各 iteration で atomic 更新 (落ちても次 iteration が拾える)。
+    run_one_iteration → checkpoint 保存 → admitted outcome だけ digest 書き出し → 末尾
+    check_stop (新 whiteboard を反映した収束判定) を返す。dry-pass は配線確認だけで WAL が
+    無いため digest を作らない。checkpoint は各 iteration で atomic 更新する。
 
     Returns: run_one_iteration の dict + {"stop_reason", "iteration", "ran"}。ran=False は
     入口停止 (iteration 未消費) を表す。"""
@@ -822,10 +839,17 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                             cache_root=cache_root, build_context=build_context)
     save_loop_state(layout, state)
 
-    digest_txt = make_critic_digest(
-        layout, reflux=(cfg.search_config.get("reflux") == "on"))
-    with open(os.path.join(layout.root, "s4_loop_digest.txt"), "w", encoding="utf-8") as f:
-        f.write(digest_txt)
+    if do_build and out["outcome"] != "dry-pass":
+        digest_txt = make_critic_digest(
+            layout, reflux=(cfg.search_config.get("reflux") == "on"))
+        with open(os.path.join(layout.root, "s4_loop_digest.txt"), "w", encoding="utf-8") as f:
+            f.write(digest_txt)
+        out["critic_digest_generated"] = True
+    else:
+        # No-build is a wiring-only path, including machine/auditor rejects.
+        # Its WAL is useful local evidence but is not an admitted campaign
+        # consumer input, so never ask the critic digest to admit it.
+        out["critic_digest_generated"] = False
 
     post = check_stop(state)
     out.update({"stop_reason": post.reason, "iteration": state.iteration, "ran": True})
@@ -924,28 +948,31 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-    digest_txt = make_critic_digest(layout, reflux=(a.reflux == "on"))
     out_path = os.path.join(layout.root, "s4_loop_digest.txt")
-    layout.ensure()
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(digest_txt)
-
     stop = check_stop(state)
-
-    # WAL 機械判定 (宣言でなくレコードを gate に — kickoff/D30 様式)。
-    critic_view = require_admitted_campaign(layout.root)
-    dqs = load_diff_rejections(critic_view)
+    dqs = []
+    if out["outcome"] != "dry-pass":
+        digest_txt = make_critic_digest(layout, reflux=(a.reflux == "on"))
+        layout.ensure()
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(digest_txt)
+        # WAL 機械判定 (宣言でなくレコードを gate に — kickoff/D30 様式)。
+        critic_view = require_admitted_campaign(layout.root)
+        dqs = load_diff_rejections(critic_view)
     # iteration の WAL 非依存を **差分**で実証する (1==1 の恒真 assert にしない): loop の
     # iteration は WAL レコード数と一致しない = WAL から導出していないことの witness (D39 決定2)。
     n_wal = len(list(wal.read_records(layout)))
     checks = {
         f"iteration(={state.iteration}) が WAL レコード数(={n_wal})と独立 (WAL 由来でない)":
             state.iteration == 1 and n_wal != state.iteration,
-        "critic digest 書き出し": os.path.exists(out_path),
         "停止判定が機械的に返る": stop.reason in (
             "continue", "converged", "reverse-exhausted",
             "budget-iterations", "budget-walltime"),
     }
+    if out["outcome"] == "dry-pass":
+        checks["dry-pass は critic digest を生成しない"] = not os.path.exists(out_path)
+    else:
+        checks["admitted outcome は critic digest を生成"] = os.path.exists(out_path)
     if out["outcome"] != "dry-pass":
         checks["whiteboard に 1 行射影 (機序なし)"] = len(state.whiteboard) == 1
         checks["whiteboard entry が方向/結果のみ (機序フィールド無し)"] = (

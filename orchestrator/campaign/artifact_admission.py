@@ -47,6 +47,7 @@ _INPUT_KEYS = (
     "build_start_count",
 )
 _RECORD_KEYS = frozenset((*_INPUT_KEYS, "verification_status", "admission_status"))
+_TRIGGER_PROVENANCE_BASENAME = "p3_s8a_trigger_loop_provenance.json"
 
 
 class ArtifactAdmissionError(RuntimeError):
@@ -421,6 +422,95 @@ def _parse_canonical_genome(value: object) -> Genome:
     return genome
 
 
+def _validate_trigger_provenance(
+        root: Path, *, lock: object, records: tuple[Any, ...] | list[Any],
+) -> None:
+    """Require each proposal provenance commitment to be copied from its WAL start."""
+    if not wal.is_trigger_proposal_campaign_lock(lock):
+        return
+    path = root / "reports" / _TRIGGER_PROVENANCE_BASENAME
+    if not path.is_file():
+        raise ArtifactAdmissionError("trigger proposal provenance が存在しない")
+    try:
+        document = _decode_json(path.read_bytes(), label="trigger provenance")
+    except OSError as exc:
+        raise ArtifactAdmissionError("trigger proposal provenance を読めない") from exc
+    entries = document.get("entries") if type(document) is dict else None
+    if type(entries) is not dict:
+        raise ArtifactAdmissionError("trigger proposal provenance entries が不正")
+
+    starts: dict[str, tuple[str, str]] = {}
+    for record in records:
+        if record.stage != STAGE_BUILD_START:
+            continue
+        attempt_id = record.payload.get("build_attempt_id")
+        commitment = record.payload.get(wal.TRIGGER_BINDING_COMMITMENT_KEY)
+        if type(attempt_id) is not str or type(commitment) is not str:
+            raise ArtifactAdmissionError(
+                "trigger proposal WAL build_start attempt provenance が不正"
+            )
+        starts[attempt_id] = (record.variant, commitment)
+
+    provenance_attempts: dict[str, tuple[str, str]] = {}
+    for entry in entries.values():
+        if type(entry) is not dict:
+            raise ArtifactAdmissionError("trigger proposal provenance entry が不正")
+        variant = entry.get("variant")
+        if variant is None:
+            continue
+        attempt_id = entry.get("build_attempt_id")
+        commitment = entry.get(wal.TRIGGER_BINDING_COMMITMENT_KEY)
+        if (type(variant) is not str or type(attempt_id) is not str
+                or type(commitment) is not str):
+            raise ArtifactAdmissionError(
+                "trigger proposal provenance attempt/commitment が不正"
+            )
+        pair = (variant, commitment)
+        previous = provenance_attempts.setdefault(attempt_id, pair)
+        if previous != pair:
+            raise ArtifactAdmissionError(
+                "trigger proposal provenance attempt の参照が競合"
+            )
+    if starts != provenance_attempts:
+        raise ArtifactAdmissionError(
+            "trigger proposal provenance attempt/commitment が WAL build_start と不一致"
+        )
+
+
+def _validate_post_policy_campaign_id(
+        *, lock_raw: bytes, lock: object, campaign_id: str,
+) -> None:
+    """Pin canonical lock bytes and directory identity for trigger proposals."""
+    if not wal.is_trigger_proposal_campaign_lock(lock):
+        return
+    if type(lock) is not dict:
+        raise ArtifactAdmissionError("post-policy campaign.lock が object でない")
+    try:
+        canonical = json.dumps(
+            lock, sort_keys=True, ensure_ascii=False, separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ArtifactAdmissionError(
+            "post-policy campaign.lock が canonical preimage でない"
+        ) from exc
+    if lock_raw != canonical:
+        raise ArtifactAdmissionError(
+            "post-policy campaign.lock が canonical preimage でない"
+        )
+    search_tag = lock.get("search_tag")
+    if type(search_tag) is not str or not search_tag:
+        raise ArtifactAdmissionError("post-policy campaign.lock search_tag が不正")
+    cfg_hash8 = hashlib.sha256(canonical).hexdigest()[:8]
+    suffix = f"-{search_tag}-{cfg_hash8}"
+    slug = campaign_id[:-len(suffix)] if campaign_id.endswith(suffix) else ""
+    expected = f"{slug}{suffix}" if slug else ""
+    if expected != campaign_id:
+        raise ArtifactAdmissionError(
+            "post-policy campaign directory ID が lock canonical preimage と不一致"
+        )
+
+
 def _inspect_campaign(
     campaign: CampaignLayout | str | Path,
 ) -> tuple[CampaignAdmissionDecision, tuple[Any, ...]]:
@@ -528,6 +618,9 @@ def _inspect_campaign(
             validator_sha256=validator_sha,
         ), tuple(records)
 
+    _validate_post_policy_campaign_id(
+        lock_raw=lock_raw, lock=lock, campaign_id=campaign_id,
+    )
     if truncated:
         raise ArtifactAdmissionError("post-policy campaign WAL has a truncated tail")
     policy = _current_policy()
@@ -535,10 +628,24 @@ def _inspect_campaign(
         raise ArtifactAdmissionError("post-policy campaign lock admission policy differs")
     try:
         wal._validate_attempt_topology(records, admission_policy=policy)
+        if (wal.is_trigger_machine_campaign_lock(lock)
+                and any(
+                    type(record.payload.get("build_admission")) is dict
+                    and record.payload["build_admission"].get("class")
+                    == "coder-authored"
+                    for record in records if record.stage == STAGE_BUILD_START
+                )):
+            raise wal.AttemptTopologyError(
+                "trigger machine campaign の coder-authored receipt は binding が必要"
+            )
+        wal.validate_trigger_bindings(
+            records, campaign_lock=lock, require_build_start=True,
+        )
     except (wal.AttemptTopologyError, TypeError) as exc:
         raise ArtifactAdmissionError(
             f"post-policy campaign attempt admission is invalid: {exc}"
         ) from exc
+    _validate_trigger_provenance(root, lock=lock, records=records)
 
     receipt_shas: list[str] = []
     lock_commit = lock.get("ccbench_commit")

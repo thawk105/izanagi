@@ -41,6 +41,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     from orchestrator.campaign import p3_s4_loop as loop_core
     from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger
     from orchestrator.campaign import trial_registry
+    from orchestrator.campaign.reflux_ir import emit_predicate, parse_wire
     from orchestrator.campaign.autonomous_trial_completeness import (
         assert_campaign_layer3_chain,
         assert_autonomous_trial_completeness,
@@ -82,6 +83,7 @@ else:
     from . import p3_s4_loop as loop_core
     from . import p3_s4_loop_trigger_gating as trigger
     from . import trial_registry
+    from .reflux_ir import emit_predicate, parse_wire
     from .autonomous_trial_completeness import (
         assert_campaign_layer3_chain,
         assert_autonomous_trial_completeness,
@@ -192,7 +194,7 @@ with exactly:
 {"proposal":{"axis":"silo-backoff-trigger-gating","direction":"increase|decrease|explore_both","magnitude":"small|medium|large","justification":"string","uncertainty":"string"}}
 Keep justification brief and limited to named input fields and observation
 availability. Do not name abort reasons, predicates, or a concrete gate design;
-the coder must independently infer implementation from only the abstract
+the coder must independently infer the wire from only the abstract
 direction and magnitude.
 Do not emit Markdown or any additional key.
 """,
@@ -200,9 +202,11 @@ Do not emit Markdown or any additional key.
 You are called by a bounded unattended Python supervisor with projection-only
 input. The workload_descriptor is causal input to synthesis. Null baseline
 metrics mean not yet observed and must not be invented. Follow the source
-role's closed-region and forbidden-identifier rules. Return JSON only, exactly:
-{"proposal":{"axis":"silo-backoff-trigger-gating","implementation":"izanagi_gate_pass = <side-effect-free predicate>;","justification":"string","confidence":"high|medium|low"}}
-The implementation must be one physical line. Do not emit Markdown or extra keys.
+role's exact five-bit wire contract. Return JSON only, exactly:
+{"proposal":{"axis":"silo-backoff-trigger-gating","wire":"10100","justification":"string","confidence":"high|medium|low"}}
+wire is exactly five 0/1 characters in LSB-first order: lock-conflict,
+update-absent, readvali-tid, readvali-locked, node-vali. 1 means back off.
+The frozen emitter alone adds the kUnset fail-safe. Do not emit Markdown or extra keys.
 """,
     "auditor": """
 Runtime capabilities are intentionally lowered to tools=[]: every byte you may
@@ -211,9 +215,9 @@ only working_diff, designated_source_context, and correctness_digest. The
 workload descriptor is context, never a reason to relax correctness. Echo the
 provided diff_digest exactly. Return JSON only, exactly:
 {"verdict":"pass|reject|uncertain","diff_digest":"string","violations":[],"nits":[],"proposed_tests":[],"uncertainty":"string"}
-Every element of violations must be an object with string fields type, location,
-correctness_impact, and verifier_blind_spot. Every element of nits must be an
-object {"finding":"string"}. Every element of proposed_tests must be an object
+Every element of violations must be exactly {"type":N}, where N is an integer
+auditor gallery code from 1 through 16. Every element of nits must be exactly
+{"type":"nit"}. Every element of proposed_tests must be an object
 with string fields mutation, expected_gate, and machine_judgment. Empty arrays
 are valid; strings directly inside any of these arrays are invalid.
 For pass, violations must be empty. For reject, violations must be non-empty.
@@ -229,12 +233,11 @@ reverse its abstract direction. Do not emit Markdown or extra keys.
 """,
 }
 
-GATING_SPEC = """The only writable hole is one assignment line:
-izanagi_gate_pass = <predicate>;
-Allowed reads: izanagi_abort_reason_, IzanagiAbortReason enum members, literals.
-kUnset must always evaluate true. Forbidden identifiers: thid_, result_,
-read_set_, write_set_, node_map_. No comments, preprocessor directives,
-definitions, loops, side effects, or line continuation."""
+GATING_SPEC = """Return exactly one five-character wire. It is LSB-first in
+this order: lock-conflict, update-absent, readvali-tid, readvali-locked,
+node-vali. 1 means back off for that reason and 0 means skip backoff. The
+frozen emitter exclusively adds the kUnset fail-safe and materializes the
+single assignment line. No source code or additional field is accepted."""
 
 DESIGNATED_SOURCE_CONTEXT = """Axis: silo-backoff-trigger-gating.
 The template frame, abort-reason stores, sentinel reset, markers, #if/#else,
@@ -307,10 +310,7 @@ def _assert_fresh_campaign_state(layout: CampaignLayout) -> None:
 def _strict_keys(value: Mapping[str, Any], expected: set[str], *, path: str) -> None:
     actual = set(value)
     if actual != expected:
-        raise AutonomousTrialError(
-            f"{path} keys 不一致: missing={sorted(expected - actual)} "
-            f"unknown={sorted(actual - expected)}"
-        )
+        raise AutonomousTrialError("response object keys 不一致")
 
 
 def _string(value: Any, *, path: str, allow_empty: bool = False) -> str:
@@ -364,19 +364,17 @@ def parse_coder(raw: str) -> trigger.CoderProposalTriggerGating:
         raise AutonomousTrialError("$.proposal は object 必須")
     _strict_keys(
         proposal,
-        {"axis", "implementation", "justification", "confidence"},
+        {"axis", "wire", "justification", "confidence"},
         path="$.proposal",
     )
     if proposal["axis"] != trigger.MARKER_ID:
         raise AutonomousTrialError("coder axis が trigger-gating でない")
-    implementation = _string(proposal["implementation"], path="$.proposal.implementation")
-    if "\n" in implementation or "\r" in implementation:
-        raise AutonomousTrialError("coder implementation は物理 1 行必須")
+    parse_wire(proposal["wire"])
     if proposal["confidence"] not in {"high", "medium", "low"}:
         raise AutonomousTrialError("coder confidence が未知")
     return trigger.CoderProposalTriggerGating(
         axis=proposal["axis"],
-        implementation=implementation,
+        wire=proposal["wire"],
         justification=_string(proposal["justification"], path="$.proposal.justification"),
         confidence=proposal["confidence"],
     )
@@ -441,17 +439,11 @@ class FixtureRoleProvider:
             }
         elif self.role == "coder":
             generation = payload.get("generation")
-            implementation = (
-                "izanagi_gate_pass = true;"
-                if generation == 1
-                else "izanagi_gate_pass = izanagi_abort_reason_ == "
-                "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
-                "IzanagiAbortReason::kLockConflict;"
-            )
+            wire = "11111" if generation == 1 else "10000"
             value = {
                 "proposal": {
                     "axis": trigger.MARKER_ID,
-                    "implementation": implementation,
+                    "wire": wire,
                     "justification": "fixture: deterministic closed-region candidate",
                     "confidence": "low",
                 }
@@ -661,10 +653,13 @@ def _trial_launch_binding(
 def _preview(coder: trigger.CoderProposalTriggerGating, *, sub: str) -> dict[str, Any]:
     assert_pinned_clean(sub, trigger.PIN)
     patch = trigger._template_patch_path(str(ROOT))
+    predicate = emit_predicate(parse_wire(coder.wire))
+    if trigger.check_syntax_contract(predicate):
+        raise RuntimeError("canonical trigger predicate violates syntax contract")
     with applied(patch, trigger.PIN, sub):
         result, _base, _edited, working_diff = loop_core.quarantine(
             sub,
-            coder.implementation,
+            predicate,
             marker_id=trigger.MARKER_ID,
             source_rel=trigger.SOURCE_REL,
             write=False,
@@ -675,7 +670,7 @@ def _preview(coder: trigger.CoderProposalTriggerGating, *, sub: str) -> dict[str
         "diff_digest": hashlib.sha256(working_diff.encode("utf-8")).hexdigest(),
         "subtype": result.subtype.value if result.subtype else None,
         "reason": result.reason,
-        "forbidden_identifiers": trigger.check_syntax_contract(coder.implementation),
+        "forbidden_identifiers": [],
     }
 
 
@@ -744,8 +739,28 @@ def _role_metric_payloads(
 
 
 def _jsonable_role_value(role: str, parsed: Any) -> dict[str, Any]:
-    if role in {"planner", "coder", "auditor"}:
+    if role == "planner":
         return dataclasses.asdict(parsed)
+    if role == "coder":
+        # The raw response/proposal artifact is the authority for replay.  The
+        # journal and report expose only a closed projection: neither the raw
+        # wire nor coder-authored free text may cross this disclosure boundary.
+        return {
+            "axis": parsed.axis,
+            "confidence": parsed.confidence,
+            "justification_present": bool(parsed.justification.strip()),
+        }
+    if role == "auditor":
+        # Raw auditor strings remain in the non-projected raw response artifact.
+        # Trial report / attempt journal receive only this closed code/count view.
+        return {
+            "verdict": parsed.verdict,
+            "diff_digest": parsed.diff_digest,
+            "violation_codes": [entry["type"] for entry in parsed.violations],
+            "nit_count": len(parsed.nits),
+            "proposed_test_count": len(parsed.proposed_tests),
+            "uncertainty_present": bool(parsed.uncertainty.strip()),
+        }
     return dict(parsed)
 
 
@@ -1601,7 +1616,9 @@ def _run_workload(
                 **drive_kwargs,
             )
         )
-        required_harness = {"outcome", "variant", "stop_reason", "iteration", "ran"}
+        required_harness = {
+            "outcome", "variant", "stop_reason", "iteration", "ran",
+        }
         missing_harness = sorted(required_harness - set(outcome))
         if missing_harness:
             raise AutonomousTrialError(
@@ -1614,6 +1631,15 @@ def _run_workload(
             raise AutonomousTrialError(
                 f"harness output の stop_reason が未知: {outcome['stop_reason']!r}"
             )
+        if outcome["ran"] or "trigger_gate_binding_commitment" in outcome:
+            binding_commitment = outcome.get("trigger_gate_binding_commitment")
+            if (
+                type(binding_commitment) is not str
+                or len(binding_commitment) != 64
+                or any(character not in "0123456789abcdef"
+                       for character in binding_commitment)
+            ):
+                raise AutonomousTrialError("harness binding commitment が不正")
         generation_record["harness"] = outcome
         generation_record["outcome"] = outcome["outcome"]
         current_metrics = _metric_projection(outcome)
