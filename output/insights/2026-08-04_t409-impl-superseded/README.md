@@ -42,8 +42,23 @@ T-409 の recognizer は driver 経路で死荷重になる。
 (Pegasus gen_S、request 888536)。`check_docs.py` / `check_codex_agents.py` / `check_ai_provenance.py`
 (1057 件) はいずれも緑。変異 matrix は**未実走** (land しない判断のため実施せず)。
 
-段 6 の敵対レビュー 2 本で must-fix 15 件 (重複 3 組) を検出し、fix 3 巡で全閉鎖した。実測は
-27 failed/48 errors → 12 failed → 0 failed。**この過程で見つかった知見は [T-428] の設計にも効く**:
+段 6 の敵対レビュー 2 本で must-fix 15 件 (重複 3 組) を検出し、fix 3 巡で対応した。実測は
+27 failed/48 errors → 12 failed → 0 failed。独立の焦点再レビュー (`DW-S06-C`) は 2 度成果ゼロで
+異常終了した後 3 度目で完了し、**closed 22 / partial 4 / regressed 0、残 must-fix 3 件**と判定した。
+
+### 残 must-fix 3 件 (未修正、裁定材料)
+
+1. **marker 外側の条件分岐が未検査** (`source_digest.py:245`)。`#if BACKOFF_TRIGGER_GATING && 0` 型の
+   内側すり替えは拒否するが、marker の外を囲む分岐は見ない。receipt が安全な hole を指しながら
+   binary が別枝を実行しうる。**この露出は main の `_require_materialized_trigger_predicate` にも同型で
+   存在する** (どちらも hole 1 行しか読まない) ため、T-428 側の所見としても有効。
+2. **S8A sweep の非 stock materialization が grammar を束縛しない** (`s8a_trigger_sweep.py:262,336`)。
+3. **S8A sweep の quarantine 2 経路が opt-in 引数を渡さない** (`s8a_trigger_sweep.py:421,443`)。
+
+**2 と 3 は本 wave の scope では閉じられない。** `s8a_trigger_sweep.py` は
+`output/s1-freeze/known_axes_freeze.json` が live sha を pin する producer (同 freeze 内に 18 箇所出現)
+であり、編集すれば凍結検証が落ちる。つまり **T-409 の設計は、凍結 pin された producer に触れないと
+自身の scope (trigger 軸の全 materializer) を閉じきれない**。これも裁定の材料である。**この過程で見つかった知見は [T-428] の設計にも効く**:
 
 - 旧 WAL terminal を標準 attempt として再発行するのは実測の捏造になる (A-10)。
 - `render_hole` は hole 行の indent を前置するので、proposal 文字列と実 source bytes は一致しない (A-1)。
@@ -88,6 +103,7 @@ T-409 の recognizer は driver 経路で死荷重になる。
 | `s4-adjudication.md` | 段 4 裁定 + 変異事前登録 M1-M18 / 正例 P1-P9 |
 | `s6-reviewR1.md` / `s6-reviewR2.md` | 段 6 敵対レビュー 2 本 (must-fix 15) |
 | `s6-fix.md` / `s6-fix2.md` / `s6-fix3.md` | fix 3 巡の対応表 |
+| `s6-refocus.md` | 段 6 焦点再レビュー (closed 22 / partial 4 / regressed 0、残 must-fix 3) |
 
 ## 環境
 

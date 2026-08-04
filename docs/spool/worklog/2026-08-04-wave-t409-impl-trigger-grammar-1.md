@@ -29,9 +29,15 @@ title: [T-409] 受理文法 v1 の実装は完成したが land しない — �
   protocol violation の診断を落とすと確定的な correctness-red を隠す / 歴史的 campaign ID は
   identity 束縛の追加で動くので束縛は materialize 経路に限定する / 汎用 diff 検疫の既定 scope に
   質の検査を足すと D48 決定 2 の分担 pin が壊れる
-- **敵対レビュー 2 本で must-fix 15 件 (重複 3 組)、fix 3 巡で全閉鎖した。** 子の自己申告は 3 巡すべて
+- **敵対レビュー 2 本で must-fix 15 件 (重複 3 組)、fix 3 巡で対応した。** 子の自己申告は 3 巡すべて
   「全 closed」だったが、親の実測は 27 failed + 48 errors → 12 failed → 0 failed と動いた。
   子の静的検査だけを緑と数えない規律が 3 回連続で効いた
+- **焦点再レビューは closed 22 / partial 4 / regressed 0、残 must-fix 3 件と判定した。** うち 2 件
+  (S8A sweep の grammar 未束縛・quarantine opt-in 未伝播) は `s8a_trigger_sweep.py` が
+  `known_axes_freeze.json` の live sha pin 対象 (同 freeze 内 18 箇所) のため**本 wave の scope では
+  閉じられない**。T-409 の設計は凍結 pin された producer に触れないと自身の scope を閉じきれない。
+  残る 1 件 (marker 外側の条件分岐が未検査) は **main の `_require_materialized_trigger_predicate` にも
+  同型で存在する** ため T-428 側の所見としても有効
 - **fix 第 3 巡の子は 1 度成果ゼロで異常終了した。** `.done` 未生成・出力なし・repo の全 mtime が
   前巡どまりで編集ゼロを確認し、`DW-O01` に従い未完了と判定して再投入した。fix を重ねた実回数は
   3 巡で `DW-O16` の上限内
