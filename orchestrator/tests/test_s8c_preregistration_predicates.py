@@ -107,20 +107,23 @@ def test_current_repository_snapshot_has_zero_satisfied_predicates(tmp_path: Pat
 def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     tmp_path: Path,
 ) -> None:
-    """個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。"""
+    """個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。
+
+    [T-325] の land で trial_registry の capability probe 段階を通過した。
+    """
     root, head = _snapshot_current_commit(tmp_path)
     results = M.get_registry().evaluate_all(head, repo_root=root)
     assert {
         item.id: (item.status, item.reason_code) for item in results
     } == {
         "C01": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
-        "C02": (core.PredicateStatus.EVIDENCE_UNDEFINED, "trial-registry-capability-absent"),
-        "C03": (core.PredicateStatus.EVIDENCE_UNDEFINED, "trial-registry-capability-absent"),
+        "C02": (core.PredicateStatus.EVIDENCE_UNDEFINED, "arm-binding-declared-only"),
+        "C03": (core.PredicateStatus.EVIDENCE_UNDEFINED, "manifest-registry-proof-undefined"),
         "C04": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
         "C05": (core.PredicateStatus.EVIDENCE_UNDEFINED, "schedule-schema-absent"),
         "C06": (core.PredicateStatus.EVIDENCE_UNDEFINED, "budget-consumer-contract-undefined"),
         "C07": (core.PredicateStatus.EVIDENCE_UNDEFINED, "floor-judge-contract-undefined"),
-        "C08": (core.PredicateStatus.EVIDENCE_UNDEFINED, "prereg-binding-capability-absent"),
+        "C08": (core.PredicateStatus.EVIDENCE_UNDEFINED, "prereg-binding-proof-undefined"),
         "C09": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
         "C10": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
         "C11": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
