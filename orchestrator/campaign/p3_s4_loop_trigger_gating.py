@@ -18,10 +18,10 @@ sort 版との構造差 (新テンプレの形):
   - **provenance 情報源記録の受け皿** (D46 (a) のループ版、07-11 監査 L4-1 の宿主確定):
     `<campaign root>/reports/p3_s8a_trigger_loop_provenance.json`。詳細は
     `_write_provenance_header` / `_append_provenance_entry` の docstring。記録は
-    `drive_iteration` (= `--run-iteration` の実経路) が自動で行い CLI で省略できない —
-    「宣言止まり」(謳うだけで発火しない義務) にしない。fixture main 直呼び経路
-    (機械 E2E) は偵察 insight 非依拠の配線確認であり provenance 対象外 (レビュー FC-7
-    裁定。F 段の実 LLM 駆動は必ず `--run-iteration` → `drive_iteration` を通る)。
+    `drive_iteration` (= `--run-iteration` と fixture main の共通経路) が自動で行い CLI で
+    省略できない — 「宣言止まり」(謳うだけで発火しない義務) にしない。no-build の
+    dry-pass は provenance/checkpoint までの配線確認とし、admitted campaign を要求する
+    critic digest は生成しない。
 
 偵察 firewall (D48 条件 7): 本 driver・coder 定義・runbook が E 段入力
 (leakproof_context / planner direction / whiteboard) に流してよい偵察由来情報は軸の
@@ -99,6 +99,8 @@ CRITIC_TAG = "p3-s8a-trigger"
 # 生死の根拠数値・workload 別の勝ち gate はここに書かない (リークレンズ N2 裁定 —
 # 監査向けの詳述は provenance の gate_record 側に分離)。
 LIVENESS_BINARY = "alive"
+_PLANNER_DIRECTIONS = frozenset({"increase", "decrease", "explore_both"})
+_PLANNER_MAGNITUDES = frozenset({"small", "medium", "large"})
 
 
 # ==== 提案の型 (LLM 出力) =======================================================
@@ -117,6 +119,33 @@ class CoderProposalTriggerGating:
         parse_wire(self.wire)
         if self.axis != MARKER_ID:
             raise ValueError("coder axis が trigger-gating でない")
+
+
+def _assert_trigger_proposal_contract(
+    planner: L.PlannerProposal, coder: CoderProposalTriggerGating,
+) -> None:
+    """Recheck trigger proposal attribution at loader and final sink."""
+    if (
+        type(coder) is not CoderProposalTriggerGating
+        or not all(hasattr(planner, field) for field in (
+            "axis", "direction", "magnitude",
+        ))
+        or type(planner.axis) is not str
+        or type(coder.axis) is not str
+        or planner.axis != coder.axis
+        or planner.axis != MARKER_ID
+    ):
+        raise ValueError("planner/coder axis が trigger-gating と一致しない")
+    if (
+        type(planner.direction) is not str
+        or planner.direction not in _PLANNER_DIRECTIONS
+    ):
+        raise ValueError("planner direction が閉じた enum にない")
+    if (
+        type(planner.magnitude) is not str
+        or planner.magnitude not in _PLANNER_MAGNITUDES
+    ):
+        raise ValueError("planner magnitude が閉じた enum にない")
 
 
 # ==== trusted emitter の内部 drift assertion ===================================
@@ -471,6 +500,7 @@ def _run_one_iteration_resolved(
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。"""
     from campaign.patchharness import applied
+    _assert_trigger_proposal_contract(planner, coder)
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     genome = Genome("silo", dict(_BASE))
@@ -561,9 +591,9 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     """1 iteration の機械部分 (sort 版と同型の構造。genome は _BASE をそのまま焼く —
     FLAG=1 は軸定数モジュールの _BASE に含まれる)。
 
-    provenance は書かない (機械部)。実 LLM 駆動の funnel は `drive_iteration` で、
-    そちらが記録義務を担う (fixture main 直呼びは配線確認専用 = 偵察 insight 非依拠、
-    レビュー FC-7 裁定)。"""
+    provenance は書かない (機械部)。実 LLM 駆動と fixture main の funnel は
+    `drive_iteration` で、そちらが記録義務を担う。"""
+    _assert_trigger_proposal_contract(planner, coder)
     resolved_site = _current_site()
     contract = _admit_env_contract(resolved_site)
     campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
@@ -620,6 +650,7 @@ def load_proposal_file(path: str) -> Tuple[L.PlannerProposal, CoderProposalTrigg
         raise ValueError(f"prior_critic_reverse は null か bool のみ (got {type(prior).__name__}: "
                          f"{prior!r}) — 非 bool は停止フィードバックを fail-open させる (規律2)")
     assert_no_ability_probe_material(d)
+    _assert_trigger_proposal_contract(planner, coder)
     return planner, coder, auditor, prior
 
 
@@ -640,6 +671,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
          iteration は checkpoint が前進しない → 再開時に WAL replay (重複解決) 経由で
          同 iteration が再記録される (duplicate 経路も entry を書く)
     """
+    _assert_trigger_proposal_contract(planner, coder)
     resolved_site = _current_site()
     contract = _admit_env_contract(resolved_site)
     campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
@@ -685,10 +717,18 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     })
     L.save_loop_state(layout, state)
 
-    digest_txt = L.make_critic_digest(
-        layout, tag=CRITIC_TAG, reflux=(cfg.search_config.get("reflux") == "on"))
-    with open(os.path.join(layout.root, DIGEST_BASENAME), "w", encoding="utf-8") as f:
-        f.write(digest_txt)
+    if out["outcome"] != "dry-pass":
+        digest_txt = L.make_critic_digest(
+            layout, tag=CRITIC_TAG,
+            reflux=(cfg.search_config.get("reflux") == "on"),
+        )
+        with open(os.path.join(layout.root, DIGEST_BASENAME), "w", encoding="utf-8") as f:
+            f.write(digest_txt)
+        out["critic_digest_generated"] = True
+    else:
+        # no-build pass has no admitted WAL attempt.  It is a wiring preview,
+        # never an admitted-campaign consumer input.
+        out["critic_digest_generated"] = False
 
     post = L.check_stop(state)
     out.update({"stop_reason": post.reason, "iteration": state.iteration, "ran": True})
@@ -715,10 +755,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     """fixture proposal で 1 iteration の機械 E2E を実走する (配線実証)。
 
     実 LLM (planner-v4/coder-v4-autonomous-trigger-gating/auditor/critic) はメイン
-    セッションが spawn する (F 段、別セッション)。fixture 経路は恒等 gate (stock 相当、
-    偵察 insight 非依拠) での配線確認であり provenance 記録の対象外 — 実 LLM 駆動は
-    必ず `--run-iteration` → `drive_iteration` を通り、そこで記録義務が自動で果たされる
-    (レビュー FC-7 裁定)。"""
+    セッションが spawn する (F 段、別セッション)。fixture 経路も `drive_iteration` の
+    provenance funnel を通る。`--no-build` の dry-pass は配線確認だけを返し、admission
+    必須の critic digest は生成しない。"""
     ap = argparse.ArgumentParser(
         description="P3 段 8a trigger-gating coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
@@ -805,8 +844,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0 if ok else 1
 
     # fixture proposal: 11111 は ident_all であり真の stock ではない。
-    state = L.LoopState(start_ts=time.monotonic())
-    state.iteration = 1
     planner = L.PlannerProposal(axis=MARKER_ID, direction="explore_both", magnitude="small",
                                 justification="fixture (機械 E2E 用)")
     fixture_wire = "11111"
@@ -824,31 +861,35 @@ def main(argv: Optional[List[str]] = None) -> int:
                 source_rel=SOURCE_REL, write=False)
         auditor = AuditorVerdict(verdict="pass", diff_digest=compute_diff_digest(working_diff),
                                  uncertainty="fixture (機械 E2E 用、実 auditor 未使用)")
-        out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
-                                do_build=not a.no_build, cache_root=cache_root,
-                                build_context=build_context)
+        out = drive_iteration(
+            cfg, perf, planner, coder, auditor, None, sub,
+            do_build=not a.no_build, cache_root=cache_root,
+            proposal_path="fixture-main", build_context=build_context,
+        )
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     expected_layout = exploration_campaign_layout(out["campaign_id"])
     layout = CampaignLayout(out["layout_root"])
     if layout.root != expected_layout.root:
         raise ValueError("返却された campaign_id と exploration layout_root が一致しない")
-    digest_txt = L.make_critic_digest(layout, tag=CRITIC_TAG, reflux=(a.reflux == "on"))
     out_path = os.path.join(layout.root, DIGEST_BASENAME)
-    layout.ensure()
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(digest_txt)
-
+    state = L.load_loop_state(layout)
+    if state is None:
+        raise RuntimeError("fixture provenance funnel が checkpoint を生成しなかった")
     stop = L.check_stop(state)
     n_wal = len(list(wal.read_records(layout)))
     checks = {
         f"iteration(={state.iteration}) が WAL レコード数(={n_wal})と独立 (WAL 由来でない)":
             state.iteration == 1 and n_wal != state.iteration,
-        "critic digest 書き出し": os.path.exists(out_path),
+        "provenance funnel を通過": os.path.exists(_provenance_path(layout)),
         "停止判定が機械的に返る": stop.reason in (
             "continue", "converged", "reverse-exhausted",
             "budget-iterations", "budget-walltime"),
     }
+    if out["outcome"] == "dry-pass":
+        checks["dry-pass は critic digest を生成しない"] = not os.path.exists(out_path)
+    else:
+        checks["admitted outcome は critic digest を生成"] = os.path.exists(out_path)
     if out["outcome"] != "dry-pass":
         checks["whiteboard に 1 行射影 (機序なし)"] = len(state.whiteboard) == 1
         checks["whiteboard entry が方向/結果のみ (機序フィールド無し)"] = (

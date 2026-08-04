@@ -51,7 +51,7 @@ from campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
                             STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE,
                             STAGE_S1_SESSION, STAGE_S8B_ORACLE_SESSION,
-                            STAGES, WAL_STAGES)
+                            STAGES, WAL_STAGES, WalRecord)
 from campaign.pipeline import (EvalResult, PerfConfig,           # noqa: E402
                                ScreeningConfig)
 from campaign.reflux_ir import TriggerGateIR, emit_predicate     # noqa: E402
@@ -894,6 +894,91 @@ def test_trigger_binding_replay_rejects_duplicate_and_late_record():
     late = _trigger_admission_layout("trigger_binding_late_")
     _write_trigger_attempt(late, binding_first=False)
     _assert_trigger_replay_rejected(late, "順序")
+
+
+def test_trigger_binding_replay_rejects_interposed_record():
+    lay = _trigger_admission_layout("trigger_binding_interposed_")
+    receipt, receipt_sha, binding = _trigger_receipt_and_binding()
+    attempt_id = "interposed-attempt"
+    raw = WalRecord(
+        variant="trigger-v", stage=trigger_gate_binding.WAL_RECORD_STAGE,
+        env_tag="test-env", ts=1.0,
+        payload={
+            "build_attempt_id": attempt_id,
+            wal.TRIGGER_BINDING_PAYLOAD_KEY:
+                trigger_gate_binding.to_record(binding),
+        },
+    )
+    interposed = WalRecord(
+        variant="other-v", stage=STAGE_S1_SESSION, env_tag="test-env",
+        ts=2.0, payload={},
+    )
+    start = WalRecord(
+        variant="trigger-v", stage=STAGE_BUILD_START, env_tag="test-env",
+        ts=3.0,
+        payload={
+            "build_attempt_id": attempt_id,
+            "src_token": receipt["source"]["src_token"],
+            "build_admission": receipt,
+            "build_admission_receipt_sha256": receipt_sha,
+            wal.TRIGGER_BINDING_COMMITMENT_KEY:
+                trigger_gate_binding.commitment(binding),
+        },
+    )
+    try:
+        wal.validate_trigger_bindings(
+            [raw, interposed, start],
+            campaign_lock=json.loads(wal.read_lock(lay)),
+        )
+        assert False, "binding と build_start の interposition を拒否すべき"
+    except wal.AttemptTopologyError as exc:
+        assert "順序" in str(exc)
+
+
+def test_trigger_binding_fsync_before_start_recovers_to_abort_tombstone():
+    lay = _trigger_admission_layout("trigger_binding_orphan_recovery_")
+    _receipt, _receipt_sha, binding = _trigger_receipt_and_binding(mask=6)
+    raw = WalRecord(
+        variant="trigger-v", stage=trigger_gate_binding.WAL_RECORD_STAGE,
+        env_tag="test-env", ts=1.0,
+        payload={
+            "build_attempt_id": "orphan-attempt",
+            wal.TRIGGER_BINDING_PAYLOAD_KEY:
+                trigger_gate_binding.to_record(binding),
+        },
+    )
+    lock = json.loads(wal.read_lock(lay))
+    assert wal.validate_trigger_bindings([raw], campaign_lock=lock) == {}
+    try:
+        wal.validate_trigger_bindings(
+            [raw, WalRecord(
+                variant="other-v", stage=STAGE_S1_SESSION,
+                env_tag="test-env", ts=2.0, payload={},
+            )],
+            campaign_lock=lock,
+        )
+        assert False, "末尾以外の orphan binding を拒否すべき"
+    except wal.AttemptTopologyError as exc:
+        assert "一対一" in str(exc)
+
+    wal.append(lay, raw)
+    states = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+    recovered = wal.read_records(lay)
+    assert [record.stage for record in recovered] == [
+        trigger_gate_binding.WAL_RECORD_STAGE, STAGE_ABORT,
+    ]
+    assert recovered[-1].payload == {
+        "build_attempt_id": "orphan-attempt",
+        "reason": "recovery-abort-trigger-binding-orphan",
+    }
+    assert states["trigger-v"].resumable
+    wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+    assert len(wal.read_records(lay)) == 2
+
+    _write_trigger_attempt(lay)
+    retried = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["trigger-v"]
+    assert retried.aborted
+    assert retried.attempts["trigger-attempt"].aborted
 
 
 def test_trigger_binding_receiptless_attempt_rejects_verify_payload():
@@ -1747,7 +1832,7 @@ def test_trigger_campaign_epoch_never_writes_pre_t428_paths():
 
     old_ids = {
         "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5",
-        "p3-s8a-trigger-loop-s8a-trigger-autonomous-ccba936e",
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-0e79a5f1",
     }
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     cfg = trigger_driver.default_cfg()
@@ -2069,6 +2154,20 @@ def test_build_admission_explicit_coder_opt_in_reaches_build_and_records_receipt
 
 def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_builds():
     lay = _tmp_layout()
+    from campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_materialized_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    with open(source_path, "w", encoding="utf-8") as stream:
+        stream.write(
+            f"// EVOLVE-BLOCK-BEGIN {axis_trigger_gating.MARKER_ID}\n"
+            "#if BACKOFF_TRIGGER_GATING\n"
+            f"{predicate}\n"
+            "#else\ntrue;\n#endif\n"
+            f"// EVOLVE-BLOCK-END {axis_trigger_gating.MARKER_ID}\n"
+        )
     candidate = trigger_gate_binding.TriggerGateBinding(
         mask=20,
         predicate_sha256=trigger_gate_binding.expected_predicate_sha256(20),
@@ -2080,7 +2179,8 @@ def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_bui
             Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             do_bench=False, build_context=_BUILD_CONTEXT,
-            trigger_gate_binding=candidate, log=lambda *_args: None,
+            trigger_gate_binding=candidate, ccbench_dir=source_root,
+            log=lambda *_args: None,
         )
     assert result.certified and calls.builds == [
         ("legacy", True, None), ("legacy", False, None),
@@ -2101,6 +2201,49 @@ def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_bui
     assert start.payload[wal.TRIGGER_BINDING_COMMITMENT_KEY] == \
         trigger_gate_binding.commitment(binding)
     assert "mask" not in start.payload
+
+
+def test_trigger_binding_rejects_crossed_materialized_predicate_and_mask():
+    lay = _tmp_layout()
+    from campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_cross_binding_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate_a = emit_predicate(TriggerGateIR(20))
+    with open(source_path, "w", encoding="utf-8") as stream:
+        stream.write(
+            f"// EVOLVE-BLOCK-BEGIN {axis_trigger_gating.MARKER_ID}\n"
+            "#if BACKOFF_TRIGGER_GATING\n"
+            f"{predicate_a}\n"
+            "#else\ntrue;\n#endif\n"
+            f"// EVOLVE-BLOCK-END {axis_trigger_gating.MARKER_ID}\n"
+        )
+    binding_b = trigger_gate_binding.TriggerGateBinding(
+        mask=21,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(21),
+        nonce="e" * 64,
+        source=None,
+    )
+    with _mock_pipeline(certified=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            do_bench=False, build_context=_BUILD_CONTEXT,
+            trigger_gate_binding=binding_b, ccbench_dir=source_root,
+            log=lambda *_args: None,
+        )
+    assert result.aborted and calls.builds == []
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == [
+        trigger_gate_binding.WAL_RECORD_STAGE, STAGE_BUILD_START, STAGE_ABORT,
+    ]
+    assert records[-1].payload["reason"] == "admission-error"
+    assert records[-1].payload["error"] == (
+        "BuildAdmissionError: "
+        "trigger binding predicate が materialized source と不一致"
+    )
+    assert all("mask" not in record.payload for record in records[1:])
 
 
 def test_trigger_prebuild_abort_records_source_null_binding_before_start():

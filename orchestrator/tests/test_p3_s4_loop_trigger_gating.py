@@ -31,7 +31,9 @@ from campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
 from campaign import site_policy                                    # noqa: E402
 from campaign import wal                                            # noqa: E402
 from campaign.artifact_admission import require_admitted_campaign   # noqa: E402
-from campaign.auditor_gate import AuditorGateFailure, AuditorVerdict  # noqa: E402
+from campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: E402
+                                    auditor_reject_result,
+                                    parse_auditor_dict)
 from campaign.build_admission import (GeneratorId, add_coder_build_authority_argument,  # noqa: E402
                                       build_run_context)
 from campaign.layout import CampaignLayout                          # noqa: E402
@@ -582,14 +584,22 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
         L, "quarantine",
         lambda *_a, **_k: (SimpleNamespace(), "", "", "fixture-diff"),
     )
-    monkeypatch.setattr(
-        T, "run_one_iteration",
-        lambda *_a, **_k: {
-            "outcome": "dry-pass", "variant": None,
+
+    def fake_drive(*_args, **_kwargs):
+        state = L.LoopState(iteration=1, start_wall=time.time())
+        L.project_whiteboard(state, _planner(), "fail")
+        L.save_loop_state(compute, state)
+        T._write_provenance_header(compute)
+        with open(os.path.join(compute.root, T.DIGEST_BASENAME), "w",
+                  encoding="utf-8") as stream:
+            stream.write("compute-only\n")
+        return {
+            "outcome": "aborted", "variant": None,
             "campaign_id": _T343_COMPUTE_CAMPAIGN_ID,
             "layout_root": compute.root,
-        },
-    )
+        }
+
+    monkeypatch.setattr(T, "drive_iteration", fake_drive)
     monkeypatch.setattr(L, "make_critic_digest", lambda *_a, **_k: "compute-only\n")
     monkeypatch.setattr(
         T, "exploration_campaign_layout",
@@ -610,6 +620,37 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
     assert open(
         os.path.join(compute.root, T.DIGEST_BASENAME), encoding="utf-8",
     ).read() == "compute-only\n"
+
+
+def test_fixture_no_build_cli_fresh_layout_uses_provenance_without_digest_mock(
+    tmp_path, monkeypatch,
+):
+    import contextlib
+    from campaign import patchharness
+
+    root = tmp_path / "repo"
+    fixed_sub = root / "external" / "ccbench"
+    source = fixed_sub / T.SOURCE_REL
+    source.parent.mkdir(parents=True)
+    source.write_text(_TEMPLATE, encoding="utf-8")
+    output_root = tmp_path / "fresh-layouts"
+    monkeypatch.setattr(T, "_repo_root", lambda: str(root))
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        T, "exploration_campaign_layout",
+        lambda campaign_id: CampaignLayout(str(output_root / campaign_id)),
+    )
+
+    assert T.main(["--no-build", "--no-isolate-worktree"]) == 0
+    campaign_id = str(ident.campaign_id(T.default_cfg()))
+    layout = CampaignLayout(str(output_root / campaign_id))
+    assert os.path.exists(T._provenance_path(layout))
+    assert os.path.exists(L.loop_state_path(layout))
+    assert not os.path.exists(os.path.join(layout.root, T.DIGEST_BASENAME))
 
 
 def test_compute_forwards_required_contract_and_records_sink_receipt(monkeypatch):
@@ -1221,6 +1262,86 @@ def test_preview_cli_accepts_wire_and_rejects_old_diff_flag(monkeypatch):
 
 # ==== auditor gate (共有部品の軸引数配線のみ確認 — 本体は test_auditor_gate.py) ====
 
+def test_auditor_closed_entry_schema_rejects_raw_candidate_without_disclosure():
+    raw_entry = {"wire": "10100", "mask": 5}
+    cases = (
+        {"verdict": "reject", "diff_digest": "a" * 64,
+         "violations": [raw_entry]},
+        {"verdict": "pass", "diff_digest": "a" * 64,
+         "nits": [raw_entry]},
+    )
+    for value in cases:
+        with pytest.raises(AuditorGateFailure) as excinfo:
+            parse_auditor_dict(value)
+        message = str(excinfo.value)
+        assert "10100" not in message and "mask" not in message
+
+    with pytest.raises(AuditorGateFailure) as excinfo:
+        AuditorVerdict(
+            verdict="reject", diff_digest="a" * 64,
+            violations=[raw_entry],
+        )
+    assert "10100" not in str(excinfo.value)
+
+    document = _proposal_document(
+        {"axis": T.MARKER_ID, "wire": _CLEAN_WIRE},
+    )
+    document["auditor"] = {
+        "verdict": "reject", "diff_digest": "a" * 64,
+        "violations": [raw_entry],
+    }
+    with pytest.raises(AuditorGateFailure) as excinfo:
+        T.load_proposal_file(_write_json(document, "auditor-raw-candidate.json"))
+    assert "10100" not in str(excinfo.value)
+
+
+def test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted():
+    for code in range(1, 17):
+        parsed = parse_auditor_dict({
+            "verdict": "reject",
+            "diff_digest": "a" * 64,
+            "violations": [{"type": code}],
+        })
+        assert parsed.violations == [{"type": code}]
+
+    parsed = parse_auditor_dict({
+        "verdict": "reject",
+        "diff_digest": "b" * 64,
+        "violations": [{"type": 14, "note": "非SWO疑い"}],
+        "nits": [{"note": "n1"}],
+    })
+    assert parsed.violations == [{"type": 14, "note": "非SWO疑い"}]
+    assert parsed.nits == [{"note": "n1"}]
+
+
+def test_auditor_sink_projects_only_closed_codes_not_free_text():
+    auditor = AuditorVerdict(
+        verdict="reject", diff_digest="a" * 64,
+        violations=[{
+            "type": 16,
+            "location": "wire=10100 mask=5",
+            "correctness_impact": "candidate 10100",
+            "verifier_blind_spot": "mask 5",
+        }],
+        nits=[{"finding": "wire 10100"}],
+    )
+    result = auditor_reject_result(
+        "auditor-violation", auditor,
+        diff_region=T.SOURCE_REL, template_diff_id=T.MARKER_ID,
+    )
+    projected = json.dumps(result.digest, ensure_ascii=False, sort_keys=True)
+    assert "violations=type-16" in projected
+    assert "nits=1" in projected
+    assert "10100" not in projected and "mask 5" not in projected
+
+    auditor.violations.append({"wire": "10100", "mask": 5})
+    with pytest.raises(AuditorGateFailure) as excinfo:
+        auditor_reject_result(
+            "auditor-violation", auditor,
+            diff_region=T.SOURCE_REL, template_diff_id=T.MARKER_ID,
+        )
+    assert "10100" not in str(excinfo.value)
+
 def test_quarantine_and_audit_dry_pass_when_clean_and_digest_matches(monkeypatch):
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.PEGASUS_COMPUTE)
     d = _mk_template_dir()
@@ -1344,7 +1465,7 @@ def test_old_implementation_cpp_and_extra_key_rejected_before_materialize(monkey
     assert calls == []
 
 
-def test_axis_mismatch_rejected_by_loader_and_direct():
+def test_coder_axis_mismatch_rejected_by_loader_and_direct_constructor():
     other_axis = "silo-backoff-magnitude"
     with pytest.raises(ValueError, match="coder axis"):
         T.CoderProposalTriggerGating(axis=other_axis, wire=_CLEAN_WIRE)
@@ -1353,6 +1474,40 @@ def test_axis_mismatch_rejected_by_loader_and_direct():
             _proposal_document({"axis": other_axis, "wire": _CLEAN_WIRE}),
             "axis-mismatch.json",
         ))
+
+
+def test_planner_axis_mismatch_and_planner_enums_rejected_by_loader_and_sink():
+    document = _proposal_document(
+        {"axis": T.MARKER_ID, "wire": _CLEAN_WIRE},
+    )
+    document["planner"]["axis"] = "silo-backoff-magnitude"
+    with pytest.raises(ValueError, match="planner/coder axis"):
+        T.load_proposal_file(_write_json(document, "planner-axis-mismatch.json"))
+    for field, value in (("direction", "sideways"), ("magnitude", "huge")):
+        invalid = _proposal_document(
+            {"axis": T.MARKER_ID, "wire": _CLEAN_WIRE},
+        )
+        invalid["planner"][field] = value
+        with pytest.raises(ValueError):
+            T.load_proposal_file(_write_json(
+                invalid, f"planner-{field}-invalid.json",
+            ))
+
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
+    auditor = AuditorVerdict(verdict="pass", diff_digest="unused")
+    bad_planners = (
+        L.PlannerProposal(axis="silo-backoff-magnitude",
+                          direction="increase", magnitude="small"),
+        L.PlannerProposal(axis=T.MARKER_ID, direction="sideways", magnitude="small"),
+        L.PlannerProposal(axis=T.MARKER_ID, direction="increase", magnitude="huge"),
+    )
+    for planner in bad_planners:
+        with pytest.raises(ValueError):
+            T.run_one_iteration(
+                T.default_cfg(), T.default_perf(), planner, coder, auditor,
+                L.LoopState(iteration=1), "/must-not-be-read", do_build=False,
+                layout=_tmp_layout("planner-sink"),
+            )
 
 
 def test_load_proposal_file_auditor_and_prior_still_fail_closed():

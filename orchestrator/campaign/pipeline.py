@@ -46,9 +46,13 @@ from .build_admission import (  # noqa: E402
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
 from .env_contract import ExecutionEnvironmentContract          # noqa: E402
+from .axis_trigger_gating import (MARKER_ID as TRIGGER_MARKER_ID,
+                                  SOURCE_REL as TRIGGER_SOURCE_REL)  # noqa: E402
+from .diff_quarantine import parse_template_file                # noqa: E402
 from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
                     STAGE_BUILD_DONE, STAGE_BUILD_START, STAGE_COMMIT,
                     STAGE_VERIFY_DONE)
+from .reflux_ir import TriggerGateIR, emit_predicate             # noqa: E402
 from .trigger_gate_binding import SourceBinding, TriggerGateBinding
 from .source_digest import SourceEvidence                         # noqa: E402
 
@@ -57,6 +61,27 @@ _compilers_for_current_site = buildcache.compilers_for_current_site
 
 BuildCapability = GeneratorReceipt | ReviewReceipt | None
 AdmissionCapabilityResolver = Callable[[SourceEvidence], BuildCapability]
+
+
+_TRIGGER_PREDICATE_REJECTION = (
+    "trigger binding predicate が materialized source と不一致"
+)
+
+
+def _require_materialized_trigger_predicate(
+        evidence: SourceEvidence, binding: TriggerGateBinding,
+) -> None:
+    """Bind one candidate mask to the exact one-line materialized source hole."""
+    source_path = os.path.join(evidence.source_root, TRIGGER_SOURCE_REL)
+    try:
+        marker = parse_template_file(source_path, TRIGGER_MARKER_ID)
+        hole_lines = None if marker is None else tuple(marker.hole_text.values())
+        expected = emit_predicate(TriggerGateIR(binding.mask)).strip().encode("utf-8")
+    except (OSError, UnicodeError, TypeError, ValueError):
+        raise BuildAdmissionError(_TRIGGER_PREDICATE_REJECTION) from None
+    if (hole_lines is None or len(hole_lines) != 1
+            or hole_lines[0].strip().encode("utf-8") != expected):
+        raise BuildAdmissionError(_TRIGGER_PREDICATE_REJECTION) from None
 
 
 def variant_id(genome: Genome, src_token: str = source_digest.STOCK) -> str:
@@ -651,6 +676,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 raise BuildAdmissionError(
                     "trigger binding source が current SourceEvidence と不一致"
                 )
+            _require_materialized_trigger_predicate(evidence, trigger_gate_binding)
             bound_binding = TriggerGateBinding(
                 mask=trigger_gate_binding.mask,
                 predicate_sha256=trigger_gate_binding.predicate_sha256,

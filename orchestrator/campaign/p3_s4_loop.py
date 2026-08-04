@@ -805,8 +805,9 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
     **入口 check_stop** (逆方向枯渇/予算/収束を iteration 消費前に判定 = 無駄打ちしない。停止なら
     run_one_iteration を呼ばない = build/verify/bench に進めない) → iteration++ →
-    run_one_iteration → checkpoint 保存 → digest 書き出し → 末尾 check_stop (新 whiteboard を
-    反映した収束判定) を返す。checkpoint は各 iteration で atomic 更新 (落ちても次 iteration が拾える)。
+    run_one_iteration → checkpoint 保存 → admitted outcome だけ digest 書き出し → 末尾
+    check_stop (新 whiteboard を反映した収束判定) を返す。dry-pass は配線確認だけで WAL が
+    無いため digest を作らない。checkpoint は各 iteration で atomic 更新する。
 
     Returns: run_one_iteration の dict + {"stop_reason", "iteration", "ran"}。ran=False は
     入口停止 (iteration 未消費) を表す。"""
@@ -838,10 +839,16 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                             cache_root=cache_root, build_context=build_context)
     save_loop_state(layout, state)
 
-    digest_txt = make_critic_digest(
-        layout, reflux=(cfg.search_config.get("reflux") == "on"))
-    with open(os.path.join(layout.root, "s4_loop_digest.txt"), "w", encoding="utf-8") as f:
-        f.write(digest_txt)
+    if out["outcome"] != "dry-pass":
+        digest_txt = make_critic_digest(
+            layout, reflux=(cfg.search_config.get("reflux") == "on"))
+        with open(os.path.join(layout.root, "s4_loop_digest.txt"), "w", encoding="utf-8") as f:
+            f.write(digest_txt)
+        out["critic_digest_generated"] = True
+    else:
+        # A clean no-build pass has no admitted WAL attempt.  Keep it as a
+        # wiring-only result and do not invoke admitted-campaign consumers.
+        out["critic_digest_generated"] = False
 
     post = check_stop(state)
     out.update({"stop_reason": post.reason, "iteration": state.iteration, "ran": True})
@@ -940,28 +947,31 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-    digest_txt = make_critic_digest(layout, reflux=(a.reflux == "on"))
     out_path = os.path.join(layout.root, "s4_loop_digest.txt")
-    layout.ensure()
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(digest_txt)
-
     stop = check_stop(state)
-
-    # WAL 機械判定 (宣言でなくレコードを gate に — kickoff/D30 様式)。
-    critic_view = require_admitted_campaign(layout.root)
-    dqs = load_diff_rejections(critic_view)
+    dqs = []
+    if out["outcome"] != "dry-pass":
+        digest_txt = make_critic_digest(layout, reflux=(a.reflux == "on"))
+        layout.ensure()
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(digest_txt)
+        # WAL 機械判定 (宣言でなくレコードを gate に — kickoff/D30 様式)。
+        critic_view = require_admitted_campaign(layout.root)
+        dqs = load_diff_rejections(critic_view)
     # iteration の WAL 非依存を **差分**で実証する (1==1 の恒真 assert にしない): loop の
     # iteration は WAL レコード数と一致しない = WAL から導出していないことの witness (D39 決定2)。
     n_wal = len(list(wal.read_records(layout)))
     checks = {
         f"iteration(={state.iteration}) が WAL レコード数(={n_wal})と独立 (WAL 由来でない)":
             state.iteration == 1 and n_wal != state.iteration,
-        "critic digest 書き出し": os.path.exists(out_path),
         "停止判定が機械的に返る": stop.reason in (
             "continue", "converged", "reverse-exhausted",
             "budget-iterations", "budget-walltime"),
     }
+    if out["outcome"] == "dry-pass":
+        checks["dry-pass は critic digest を生成しない"] = not os.path.exists(out_path)
+    else:
+        checks["admitted outcome は critic digest を生成"] = os.path.exists(out_path)
     if out["outcome"] != "dry-pass":
         checks["whiteboard に 1 行射影 (機序なし)"] = len(state.whiteboard) == 1
         checks["whiteboard entry が方向/結果のみ (機序フィールド無し)"] = (

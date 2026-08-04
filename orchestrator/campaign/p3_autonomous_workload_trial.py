@@ -206,9 +206,9 @@ only working_diff, designated_source_context, and correctness_digest. The
 workload descriptor is context, never a reason to relax correctness. Echo the
 provided diff_digest exactly. Return JSON only, exactly:
 {"verdict":"pass|reject|uncertain","diff_digest":"string","violations":[],"nits":[],"proposed_tests":[],"uncertainty":"string"}
-Every element of violations must be an object with string fields type, location,
-correctness_impact, and verifier_blind_spot. Every element of nits must be an
-object {"finding":"string"}. Every element of proposed_tests must be an object
+Every element of violations must be exactly {"type":N}, where N is an integer
+auditor gallery code from 1 through 16. Every element of nits must be exactly
+{"type":"nit"}. Every element of proposed_tests must be an object
 with string fields mutation, expected_gate, and machine_judgment. Empty arrays
 are valid; strings directly inside any of these arrays are invalid.
 For pass, violations must be empty. For reject, violations must be non-empty.
@@ -643,8 +643,19 @@ def _role_metric_payloads(
 
 
 def _jsonable_role_value(role: str, parsed: Any) -> dict[str, Any]:
-    if role in {"planner", "coder", "auditor"}:
+    if role in {"planner", "coder"}:
         return dataclasses.asdict(parsed)
+    if role == "auditor":
+        # Raw auditor strings remain in the non-projected raw response artifact.
+        # Trial report / attempt journal receive only this closed code/count view.
+        return {
+            "verdict": parsed.verdict,
+            "diff_digest": parsed.diff_digest,
+            "violation_codes": [entry["type"] for entry in parsed.violations],
+            "nit_count": len(parsed.nits),
+            "proposed_test_count": len(parsed.proposed_tests),
+            "uncertainty_present": bool(parsed.uncertainty.strip()),
+        }
     return dict(parsed)
 
 

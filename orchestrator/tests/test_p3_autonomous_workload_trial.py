@@ -58,9 +58,6 @@ def _fake_drive(
     assert perf.workload == cfg.search_config["ycsb"]
     assert auditor.diff_digest == hashlib.sha256(b"fixture diff").hexdigest()
     Path(layout.root).mkdir(parents=True, exist_ok=True)
-    (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
-        "fixture digest without performance", encoding="utf-8",
-    )
     return {
         "outcome": "dry-pass",
         "variant": None,
@@ -68,6 +65,7 @@ def _fake_drive(
         "iteration": 1,
         "ran": True,
         "trigger_gate_binding_commitment": "b" * 64,
+        "critic_digest_generated": False,
     }
 
 
@@ -89,6 +87,9 @@ def _fake_drive_with_finite_metrics(
         proposal_path=proposal_path,
         extra_sources=extra_sources,
     )
+    (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
+        "fixture admitted digest", encoding="utf-8",
+    )
     outcome.update({
         "outcome": "certified",
         "variant": "fixture-finite-metrics",
@@ -103,6 +104,7 @@ def _fake_drive_with_finite_metrics(
                 }
             }
         },
+        "critic_digest_generated": True,
     })
     return outcome
 
@@ -219,6 +221,37 @@ def test_fixture_provider_emits_only_wire() -> None:
         proposal = json.loads(response.raw_response)["proposal"]
         assert proposal["wire"] == expected
         assert set(proposal) == {"axis", "wire", "justification", "confidence"}
+
+
+def test_auditor_trial_projection_contains_only_closed_codes_and_counts() -> None:
+    auditor = A.AuditorVerdict(
+        verdict="reject",
+        diff_digest="a" * 64,
+        violations=[{
+            "type": 16,
+            "location": "wire=10100 mask=5",
+            "correctness_impact": "candidate 10100",
+            "verifier_blind_spot": "mask 5",
+        }],
+        nits=[{"finding": "wire 10100"}],
+        proposed_tests=[{
+            "mutation": "wire 10100",
+            "expected_gate": "mask 5",
+            "machine_judgment": "reject",
+        }],
+        uncertainty="wire 10100",
+    )
+    projected = A._jsonable_role_value("auditor", auditor)
+    assert projected == {
+        "verdict": "reject",
+        "diff_digest": "a" * 64,
+        "violation_codes": [16],
+        "nit_count": 1,
+        "proposed_test_count": 1,
+        "uncertainty_present": True,
+    }
+    encoded = json.dumps(projected, sort_keys=True)
+    assert "10100" not in encoded and "mask 5" not in encoded
 
 
 def test_preview_uses_canonical_emitter(tmp_path, monkeypatch) -> None:
@@ -601,6 +634,59 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         )
         assert all(value is None for value in baseline.values())
         assert all(value is None for value in critic_metrics.values())
+
+
+def test_fixture_no_build_cli_uses_public_drive_without_critic_digest(
+    tmp_path, monkeypatch,
+) -> None:
+    """P+1: documented 8c CLI reaches the real public drive on a fresh layout."""
+    from campaign import patchharness
+
+    ccbench = tmp_path / "ccbench"
+    source = ccbench / A.trigger.SOURCE_REL
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        """// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating
+#if BACKOFF_TRIGGER_GATING
+  izanagi_gate_pass = true;
+#else
+  Backoff::backoff(FLAGS_clocks_per_us);
+#endif
+// EVOLVE-BLOCK-END silo-backoff-trigger-gating
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        A, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+
+    run_root = tmp_path / "fresh-run"
+    assert A.main([
+        "--trial-id", "fixture-public-drive",
+        "--provider", "fixture",
+        "--workloads", "ycsb-a",
+        "--max-generations", "1",
+        "--no-build",
+        "--ccbench-dir", str(ccbench),
+        "--run-root", str(run_root),
+    ]) == 0
+
+    report = json.loads((run_root / "report.json").read_text(encoding="utf-8"))
+    generation = report["cells"][0]["generations"][0]
+    assert generation["outcome"] == "dry-pass"
+    assert generation["harness"]["critic_digest_generated"] is False
+    assert generation["roles"]["critic"]["status"] == "valid"
+    campaign_root = Path(report["cells"][0]["campaign_root"])
+    assert (campaign_root / "reports" / A.trigger.PROVENANCE_BASENAME).exists()
+    assert (campaign_root / "loop_state.json").exists()
+    assert not (campaign_root / A.trigger.DIGEST_BASENAME).exists()
 
 
 def test_generation_one_recipient_wiring_uses_role_projection(

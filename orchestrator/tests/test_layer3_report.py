@@ -215,6 +215,7 @@ def test_trigger_campaign_report_keeps_commitment_and_excludes_raw_binding(tmp_p
         "entries": {
             "1": {
                 "variant": start["variant"],
+                "build_attempt_id": start["payload"]["build_attempt_id"],
                 wal.TRIGGER_BINDING_COMMITMENT_KEY:
                     start["payload"][wal.TRIGGER_BINDING_COMMITMENT_KEY],
             },

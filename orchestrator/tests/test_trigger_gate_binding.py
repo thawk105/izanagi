@@ -239,6 +239,40 @@ def test_canonical_json_has_stable_sorted_key_order_and_source_none():
     assert json.loads(encoded) == BINDING.to_record(binding)
 
 
+def test_commitment_independent_literal_golden_vector():
+    binding = BINDING.TriggerGateBinding(
+        mask=20,
+        predicate_sha256=(
+            "760715178e5f0f5050bb49fa0b94bfa4180db48025d57f4e74b9ddcc238ce4ab"
+        ),
+        nonce=(
+            "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+            "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+        ),
+        source=BINDING.SourceBinding(
+            src_token="stock",
+            source_bytes_sha256=(
+                "4d4823794cbed3c4ee0bbc684c8f66e1dfd5afa6f078d494ce254ec5a4671753"
+            ),
+        ),
+    )
+    expected_canonical = (
+        b'{"ir_schema":"izanagi-trigger-gate-ir/v1","mask":20,'
+        b'"nonce":"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5'
+        b'a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",'
+        b'"predicate_sha256":"760715178e5f0f5050bb49fa0b94bfa4180db48025d57f4e74b9ddcc238ce4ab",'
+        b'"schema_version":"izanagi-trigger-gate-binding/v1",'
+        b'"source":{"source_bytes_sha256":"4d4823794cbed3c4ee0bbc684c8f66e1dfd5afa6f078d494ce254ec5a4671753",'
+        b'"src_token":"stock"}}'
+    )
+    expected_commitment = (
+        "f3053bd7e229f1e2d2cf5b2964629b88e3c1bd3c3f52e05b3611d79e991068c7"
+    )
+
+    assert BINDING.canonical_json(binding) == expected_canonical
+    assert BINDING.commitment(binding) == expected_commitment
+
+
 def test_new_nonce_is_exact_lowercase_hex_and_changes_commitment():
     first = BINDING.new_nonce()
     second = BINDING.new_nonce()

@@ -290,6 +290,72 @@ def test_record_diff_reject_with_binding_writes_raw_record_and_commitment_only()
     assert "mask" not in start.payload and "mask" not in abort.payload
 
 
+def test_record_diff_reject_without_binding_preserves_legacy_payload_bytes(
+    monkeypatch,
+):
+    implementation = "#define X 1\ndouble now_backoff = 20.0;"
+    d = _mk_template_dir()
+    res, *_ = L.quarantine(
+        d, implementation, source_rel=_SRC_REL, write=False,
+    )
+    lay = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_legacy_diff_reject_")
+    ).ensure()
+    attempt_id = "ab" * 16
+    monkeypatch.setattr(L.secrets, "token_hex", lambda _size: attempt_id)
+    timestamps = iter((1000.0, 1001.0))
+    monkeypatch.setattr(wal.time, "time", lambda: next(timestamps))
+
+    variant = L.record_diff_reject(
+        lay, _G, implementation, res, trigger_gate_binding=None,
+    )
+    genome = _G.canonical()
+    expected_objects = [
+        {
+            "variant": variant,
+            "stage": STAGE_BUILD_START,
+            "env_tag": L.ENV_TAG,
+            "ts": 1000.0,
+            "payload": {
+                "genome": genome,
+                "src_token": "",
+                "build_attempt_id": attempt_id,
+            },
+        },
+        {
+            "variant": variant,
+            "stage": STAGE_ABORT,
+            "env_tag": L.ENV_TAG,
+            "ts": 1001.0,
+            "payload": {
+                "reason": DIFF_QUARANTINE_REASON,
+                "build_attempt_id": attempt_id,
+                "genome": genome,
+                "diff_quarantine": res.digest or {},
+            },
+        },
+    ]
+    expected = (
+        "\n".join(json.dumps(
+            record, ensure_ascii=False, separators=(",", ":"),
+            allow_nan=False,
+        ) for record in expected_objects) + "\n"
+    ).encode("utf-8")
+    with open(lay.wal_file, "rb") as stream:
+        assert stream.read() == expected
+
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == [
+        STAGE_BUILD_START, STAGE_ABORT,
+    ]
+    assert set(records[0].payload) == {
+        "genome", "src_token", "build_attempt_id",
+    }
+    assert set(records[1].payload) == {
+        "reason", "build_attempt_id", "genome", "diff_quarantine",
+    }
+
+
 def test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail():
     d = _mk_template_dir()
     implementation = "#define X 1\ndouble now_backoff = 20.0;"
@@ -988,6 +1054,32 @@ def test_drive_iteration_checkpoint_survives_across_calls():
     assert out2["iteration"] == 2 and out2["outcome"] == "rejected"
     st = L.load_loop_state(lay)
     assert len(st.whiteboard) == 2 and st.iteration == 2
+
+
+def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(monkeypatch):
+    import contextlib
+    from campaign import patchharness
+
+    sub = _mk_template_dir()
+    lay = _tmp_layout("dry-pass-no-digest")
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID, direction="increase", magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID, value=20.0,
+        implementation="double now_backoff = 20.0;",
+    )
+    out = L.drive_iteration(
+        L.default_cfg(), L.default_perf(), planner, coder, None, sub,
+        do_build=False, layout=lay,
+    )
+    assert out["outcome"] == "dry-pass"
+    assert out["critic_digest_generated"] is False
+    assert not os.path.exists(os.path.join(lay.root, "s4_loop_digest.txt"))
 
 
 def test_load_proposal_file_rejects_nonbool_prior_reverse():

@@ -61,6 +61,8 @@ _SOURCE_NULL_ABORT_REASONS = frozenset({
 _TRIGGER_BINDING_PAYLOAD_KEYS = frozenset({
     "build_attempt_id", TRIGGER_BINDING_PAYLOAD_KEY,
 })
+_TRIGGER_ORPHAN_RECOVERY_REASON = "recovery-abort-trigger-binding-orphan"
+_TRIGGER_ORPHAN_RECOVERY_KEYS = frozenset({"build_attempt_id", "reason"})
 _KNOWN_WAL_STAGES = frozenset(WAL_STAGES) | {
     trigger_gate_binding.WAL_RECORD_STAGE,
 }
@@ -669,6 +671,65 @@ def is_trigger_machine_campaign_lock(campaign_lock: object) -> bool:
     )
 
 
+def _is_trigger_orphan_tombstone(
+        binding_record: WalRecord, record: WalRecord,
+) -> bool:
+    attempt_id = binding_record.payload.get("build_attempt_id")
+    return (
+        binding_record.stage == trigger_gate_binding.WAL_RECORD_STAGE
+        and record.stage == STAGE_ABORT
+        and record.variant == binding_record.variant
+        and record.env_tag == binding_record.env_tag
+        and type(record.payload) is dict
+        and frozenset(record.payload) == _TRIGGER_ORPHAN_RECOVERY_KEYS
+        and record.payload.get("build_attempt_id") == attempt_id
+        and record.payload.get("reason") == _TRIGGER_ORPHAN_RECOVERY_REASON
+    )
+
+
+def _is_trigger_orphan_tombstone_at(
+        records: List[WalRecord], index: int,
+) -> bool:
+    """Accept an exact tombstone, including a concurrent replay duplicate."""
+    if not 0 < index < len(records):
+        return False
+    record = records[index]
+    if (record.stage != STAGE_ABORT or type(record.payload) is not dict
+            or frozenset(record.payload) != _TRIGGER_ORPHAN_RECOVERY_KEYS
+            or record.payload.get("reason") != _TRIGGER_ORPHAN_RECOVERY_REASON):
+        return False
+    attempt_id = record.payload.get("build_attempt_id")
+    previous = index - 1
+    while previous >= 0:
+        candidate = records[previous]
+        if candidate.stage == trigger_gate_binding.WAL_RECORD_STAGE:
+            return _is_trigger_orphan_tombstone(candidate, record)
+        if (candidate.stage != STAGE_ABORT
+                or candidate.variant != record.variant
+                or candidate.env_tag != record.env_tag
+                or type(candidate.payload) is not dict
+                or frozenset(candidate.payload) != _TRIGGER_ORPHAN_RECOVERY_KEYS
+                or candidate.payload.get("build_attempt_id") != attempt_id
+                or candidate.payload.get("reason")
+                != _TRIGGER_ORPHAN_RECOVERY_REASON):
+            return False
+        previous -= 1
+    return False
+
+
+def _tail_trigger_orphan(records: List[WalRecord]) -> Optional[WalRecord]:
+    if not records or records[-1].stage != trigger_gate_binding.WAL_RECORD_STAGE:
+        return None
+    attempt_id = records[-1].payload.get("build_attempt_id")
+    if any(
+        record.stage == STAGE_BUILD_START
+        and record.payload.get("build_attempt_id") == attempt_id
+        for record in records
+    ):
+        return None
+    return records[-1]
+
+
 def validate_trigger_bindings(
         records: List[WalRecord], *, campaign_lock: object,
         require_build_start: bool = False,
@@ -727,13 +788,34 @@ def validate_trigger_bindings(
             raise AttemptTopologyError("trigger binding が attempt 内で重複")
         raw_by_attempt[attempt_id] = (index, record)
 
-    if set(raw_by_attempt) != set(starts):
+    if set(starts) - set(raw_by_attempt):
         raise AttemptTopologyError("trigger build_start と binding が一対一でない")
+
+    for attempt_id in set(raw_by_attempt) - set(starts):
+        binding_index, binding_record = raw_by_attempt[attempt_id]
+        try:
+            trigger_gate_binding.validate_record(
+                binding_record.payload[TRIGGER_BINDING_PAYLOAD_KEY],
+                require_source=False,
+            )
+        except trigger_gate_binding.TriggerGateBindingError as exc:
+            raise AttemptTopologyError("trigger binding record が不正") from exc
+        is_tail_orphan = binding_index == len(records) - 1
+        has_recovery_tombstone = (
+            binding_index + 1 < len(records)
+            and _is_trigger_orphan_tombstone(
+                binding_record, records[binding_index + 1],
+            )
+        )
+        if not (is_tail_orphan or has_recovery_tombstone):
+            raise AttemptTopologyError(
+                "trigger build_start と binding が一対一でない"
+            )
 
     validated: Dict[str, trigger_gate_binding.TriggerGateBinding] = {}
     for attempt_id, (start_index, start) in starts.items():
         binding_index, binding_record = raw_by_attempt[attempt_id]
-        if (binding_index >= start_index
+        if (binding_index != start_index - 1
                 or binding_record.variant != start.variant
                 or binding_record.env_tag != start.env_tag):
             raise AttemptTopologyError("trigger binding の順序または variant が不正")
@@ -807,8 +889,10 @@ def _validate_attempt_topology(
     by_variant: Dict[str, Dict[str, BuildAttemptState]] = {}
     global_attempts: Dict[str, BuildAttemptState] = {}
     active: Dict[str, BuildAttemptState] = {}
-    for record in records:
+    for index, record in enumerate(records):
         payload = record.payload
+        if _is_trigger_orphan_tombstone_at(records, index):
+            continue
         if record.stage == STAGE_BUILD_START:
             attempt_id = payload.get("build_attempt_id")
             if type(attempt_id) is not str or not attempt_id:
@@ -915,9 +999,8 @@ def replay(
 ) -> Dict[str, EvalState]:
     """WAL をリプレイし、new-schema lock では attempt topology も検証する。"""
     records = read_records(layout)
-    validate_trigger_bindings(
-        records, campaign_lock=_campaign_lock_value(layout),
-    )
+    campaign_lock = _campaign_lock_value(layout)
+    validate_trigger_bindings(records, campaign_lock=campaign_lock)
     if admission_policy is None and _lock_declares_admission_policy(layout):
         raise AttemptTopologyError(
             "admission-aware campaign replay には current admission_policy が必要"
@@ -926,8 +1009,22 @@ def replay(
         _validate_attempt_topology(records, admission_policy=admission_policy)
         if admission_policy is not None else {}
     )
+    orphan = _tail_trigger_orphan(records)
+    if orphan is not None:
+        log(layout, orphan.variant, STAGE_ABORT, orphan.env_tag, {
+            "build_attempt_id": orphan.payload["build_attempt_id"],
+            "reason": _TRIGGER_ORPHAN_RECOVERY_REASON,
+        })
+        records = read_records(layout)
+        validate_trigger_bindings(records, campaign_lock=campaign_lock)
+        attempts = (
+            _validate_attempt_topology(records, admission_policy=admission_policy)
+            if admission_policy is not None else {}
+        )
     states: Dict[str, EvalState] = {}
-    for r in records:
+    for index, r in enumerate(records):
+        if _is_trigger_orphan_tombstone_at(records, index):
+            continue
         st = states.get(r.variant)
         if st is None:
             st = EvalState(variant=r.variant)
@@ -962,9 +1059,10 @@ def records_by_stage(layout: CampaignLayout, variant: str) -> Dict[str, Dict]:
         records, campaign_lock=_campaign_lock_value(layout),
     )
     out: Dict[str, Dict] = {}
-    for r in records:
+    for index, r in enumerate(records):
         if (r.variant == variant
-                and r.stage != trigger_gate_binding.WAL_RECORD_STAGE):
+                and r.stage != trigger_gate_binding.WAL_RECORD_STAGE
+                and not _is_trigger_orphan_tombstone_at(records, index)):
             out[r.stage] = r.payload
     return out
 
