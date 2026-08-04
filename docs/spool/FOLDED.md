@@ -143,3 +143,18 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:ruleops-inventory-skip-non-utf8":"D151"},"authored":"2026-08-04","content_sha256":"92d3837a96138ccf9cd0e2709b681aed0607c8a234f030c714fa6873cee2bf8f","seq":2,"wave":"wave-t407-ruleops-binary-blob"}
 
 - {"allocations":{"T:backoff-hole-allowlist":"[T-441]","T:freeze-live-source-regression":"[T-442]"},"authored":"2026-08-04","content_sha256":"db2f98d99c889d8d064f06d23867551b75e4aba387728b9833b5be7f889501d6","seq":1,"wave":"rulings-20260804"}
+
+- {"allocations":{"T:codex-reasoning-ab-tmp-flake":"[T-447]","T:mimalloc-tag-pin-sync":"[T-446]","T:mutation-runner-known-red":"[T-448]","T:thirdparty-acquisition-receipt":"[T-444]","T:thirdparty-cache-same-uid-toctou":"[T-449]","T:thirdparty-fetchcontent-other-campaigns":"[T-443]","T:thirdparty-hydrate-enforcement":"[T-445]"},"authored":"2026-08-04","content_sha256":"c65411154d21bf2dbbfd883e43f0185907cd63c59c38ee1541c956b8f01968f7","seq":1,"wave":"wave-t340-thirdparty-fetch"}
+- {"allocations":{"D:thirdparty-fetch-path":"D152"},"authored":"2026-08-04","content_sha256":"2faf074cc396f83479cbff5cb8a13dd78af9e49b1d8bf50ba0cfa750753b10e7","seq":2,"wave":"wave-t340-thirdparty-fetch"}
+- {"allocations":{"F:commit-during-acceptance-run":"F106","F:empty-dir-untracked-fixture":"F105","F:mutation-masked-by-outer-verify":"F107"},"authored":"2026-08-04","content_sha256":"ac99a447f04775e69a1ac87bb2985ccfc49d32a10fa63c3ee8a9793cd4a14fec","seq":3,"wave":"wave-t340-thirdparty-fetch"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"aa65722aba8e89afebbc371220785165e7819f7cc57bc049882e957bf6df090f","seq":1,"wave":"dev-wave-t244-p4-batch-freeze"}
+- {"allocations":{"D:t244-p4-batch-freeze-defer":"D153"},"authored":"2026-08-04","content_sha256":"b2ba987703f16b57a5abb30ab4be204241462a6662f59e1904a97ce9953feecb","seq":2,"wave":"dev-wave-t244-p4-batch-freeze"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"6a64a6c0426f7375c23ba51c5a217a8b8745fc76e450fcd1aed4d080da7bad57","seq":1,"wave":"rulings-20260804-b"}
+
+- {"allocations":{"T:dw-o15-dedup":"[T-450]"},"authored":"2026-08-04","content_sha256":"cd679f2731f36ebb34b07b635d88904d22040a21cb2fdd1a4bfe3f3707fc96b9","seq":1,"wave":"rulings-20260804-c"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"b52244c2c1c815b717bb6be13a3cd5badbd8d5a7e90d8953ca8fe06e9a3c5dd9","seq":1,"wave":"dev-wave-t410-sort-witness"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"aa0862b5f3386b5cc57dd410e224d30b32b511821c5f16f06675a921b4913225","seq":1,"wave":"rulings-20260804-d"}
