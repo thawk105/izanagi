@@ -54,6 +54,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     from orchestrator.campaign.role_session_isolation import CrossRoleSessionTracker
     from orchestrator.campaign.layout import (
         CampaignLayout,
+        _reject_worktree_container,
+        _resolve_exploration_output_root,
         ensure_exploration_namespace,
         exploration_campaign_layout,
     )
@@ -93,6 +95,8 @@ else:
     from .role_session_isolation import CrossRoleSessionTracker
     from .layout import (
         CampaignLayout,
+        _reject_worktree_container,
+        _resolve_exploration_output_root,
         ensure_exploration_namespace,
         exploration_campaign_layout,
     )
@@ -1627,6 +1631,7 @@ def run_trial(
             "build trial requires parser-issued --allow-coder-derived-build authority"
         )
     run_root = Path(run_root)
+    _reject_worktree_container(run_root)
     if run_root.exists() or run_root.is_symlink():
         raise AutonomousTrialError(
             f"run_root は新規 directory 必須 (resume は MVP 範囲外): {run_root}"
@@ -1796,11 +1801,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise BuildAdmissionError(
             "--allow-coder-derived-build の明示 opt-in が必要"
         )
-    run_root = (
-        Path(args.run_root)
-        if args.run_root
-        else ROOT / "output" / "exploration" / "autonomous-trials" / args.trial_id
-    )
+    if args.run_root:
+        run_root = Path(args.run_root)
+    else:
+        run_root = (
+            Path(_resolve_exploration_output_root(
+                legacy_base=str(ROOT / "output"),
+            ))
+            / "exploration" / "autonomous-trials" / args.trial_id
+        )
     fixed_sub = str(Path(args.ccbench_dir).resolve())
     if args.no_build:
         assert_pinned_clean(fixed_sub, trigger.PIN)

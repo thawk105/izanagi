@@ -330,6 +330,7 @@ def append(layout: CampaignLayout, record: WalRecord) -> None:
     total = len(encoded)
     written = 0
     try:
+        getattr(layout, "_admit_materialization", lambda: None)()
         os.makedirs(layout.runs_dir, exist_ok=True)
         flags = (os.O_RDWR | os.O_APPEND | os.O_CREAT
                  | os.O_NOFOLLOW | os.O_CLOEXEC)
@@ -490,6 +491,7 @@ def _write_receipt(layout: CampaignLayout, receipt: dict) -> str:
 
 def repair_truncated_tail(layout: CampaignLayout) -> WalTailRepairResult:
     """newline 終端後の tail だけを証拠 receipt 作成後に切り戻す。"""
+    getattr(layout, "_admit_materialization", lambda: None)()
     flags = os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC
     try:
         fd = os.open(layout.wal_file, flags)
@@ -1080,6 +1082,7 @@ def resumable_variants(states: Dict[str, EvalState]) -> set:
 # ---- campaign.lock (同一性の正準 pre-image) ----
 
 def write_lock(layout: CampaignLayout, preimage: str) -> None:
+    getattr(layout, "_admit_materialization", lambda: None)()
     os.makedirs(layout.root, exist_ok=True)
     # 初回のみ書く (既存があれば上書きしない = identity は不変)。
     if not os.path.exists(layout.lock_file):
@@ -1104,6 +1107,7 @@ def acquire_lock_atomic(layout: CampaignLayout, preimage: str) -> bool:
     True 時は preimage を書き込み、ファイル本体と親ディレクトリを fsync して存在を
     耐久化する (作成直後の crash でも lock が残る)。
     """
+    getattr(layout, "_admit_materialization", lambda: None)()
     os.makedirs(layout.root, exist_ok=True)
     try:
         fd = os.open(layout.lock_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)

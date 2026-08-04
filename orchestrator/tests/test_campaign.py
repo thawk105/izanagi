@@ -15,6 +15,7 @@ import contextlib
 import errno
 import fcntl
 import hashlib
+import importlib
 import inspect
 import json
 import os
@@ -4086,6 +4087,455 @@ def test_layout_rejects_path_traversal():
         except ValueError:
             pass
     campaign_layout("readheavy-enum-abcd1234", output_root="/tmp/izanagi_x")  # 正常は通る
+
+
+def test_exploration_output_root_env_precedence_and_official_isolation():
+    """M1/M2: exploration だけが explicit > env > legacy default を使う。"""
+    sentinel = object()
+    saved_env = os.environ.get(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, sentinel)
+    saved_repo_output_root = layout_module.repo_output_root
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        os.environ.pop(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, None)
+        legacy = os.path.join(saved_repo_output_root(), "..", "output")
+        layout_module.repo_output_root = lambda: legacy
+        default_layout = exploration_campaign_layout("env-default")
+        assert default_layout.root == os.path.join(
+            legacy, "exploration", "campaigns", "env-default",
+        )
+        layout_module.repo_output_root = saved_repo_output_root
+
+        external = _tmpdir("izanagi_exploration_env_")
+        os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = external
+        first = exploration_campaign_layout("env-first")
+        second = exploration_campaign_layout("env-second")
+        assert first.root == os.path.join(
+            external, "exploration", "campaigns", "env-first",
+        )
+        assert os.path.dirname(os.path.dirname(first.root)) == os.path.join(
+            external, "exploration",
+        )
+        assert os.path.dirname(os.path.dirname(second.root)) == os.path.join(
+            external, "exploration",
+        )
+        official = campaign_layout("official-isolated")
+        assert official.root == os.path.join(
+            saved_repo_output_root(), "campaigns", "official-isolated",
+        )
+
+        os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = ""
+        explicit = "legacy-relative-explicit-root"
+        explicit_layout = exploration_campaign_layout(
+            "explicit-wins", output_root=explicit,
+        )
+        assert explicit_layout.root == os.path.join(
+            explicit, "exploration", "campaigns", "explicit-wins",
+        )
+    finally:
+        layout_module.repo_output_root = saved_repo_output_root
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, None)
+        else:
+            os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = saved_env
+
+
+def test_exploration_output_root_env_rejects_unsafe_values():
+    """M3/M4/M5: env root は fail-fast admission を満たす場合だけ受理する。"""
+    from pathlib import Path
+
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    layout_module._reset_exploration_output_root_pin_for_tests()
+
+    def rejected(value):
+        os.environ[env_name] = os.fspath(value)
+        try:
+            exploration_campaign_layout("unsafe-env")
+            assert False, f"unsafe env root を拒否すべき: {value!r}"
+        except ValueError:
+            pass
+
+    try:
+        rejected("")
+        rejected("relative/output")
+
+        repository = Path(layout_module.repo_output_root()).parent
+        rejected(repository)
+        rejected(repository / "output" / "nested")
+
+        foreign_repo = Path(_tmpdir("izanagi_foreign_repo_"))
+        (foreign_repo / ".git").mkdir()
+        rejected(foreign_repo / "output")
+        assert not (foreign_repo / "output").exists()
+
+        symlink_parent = Path(_tmpdir("izanagi_env_symlink_parent_"))
+        symlink_target = Path(_tmpdir("izanagi_env_symlink_target_"))
+        base_link = symlink_parent / "base-link"
+        base_link.symlink_to(symlink_target, target_is_directory=True)
+        rejected(base_link)
+        rejected(base_link / "child")
+
+        suffix_root = Path(_tmpdir("izanagi_env_suffix_symlink_"))
+        (suffix_root / "exploration").mkdir()
+        (suffix_root / "exploration" / "campaigns").symlink_to(
+            symlink_target, target_is_directory=True,
+        )
+        rejected(suffix_root)
+
+        autonomous_suffix_root = Path(_tmpdir("izanagi_env_8c_suffix_symlink_"))
+        (autonomous_suffix_root / "exploration").mkdir()
+        (autonomous_suffix_root / "exploration" / "autonomous-trials").symlink_to(
+            symlink_target, target_is_directory=True,
+        )
+        rejected(autonomous_suffix_root)
+
+        dotdot_root = (
+            Path(_tmpdir("izanagi_env_dotdot_"))
+            / "missing" / ".." / "resolved-base"
+        )
+        rejected(dotdot_root)
+
+        non_directory = Path(_tmpdir("izanagi_env_non_directory_")) / "file"
+        non_directory.write_text("not a directory\n", encoding="utf-8")
+        rejected(non_directory)
+
+        foreign_owner = Path(_tmpdir("izanagi_env_foreign_owner_"))
+        saved_effective_uid = layout_module._effective_uid
+        layout_module._effective_uid = lambda: foreign_owner.stat().st_uid + 1
+        try:
+            rejected(foreign_owner)
+        finally:
+            layout_module._effective_uid = saved_effective_uid
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_exploration_output_root_env_process_pin_rejects_drift():
+    """env 由来 root は raw 設定と解決値を process 内で固定する。"""
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    first = _tmpdir("izanagi_exploration_pin_first_")
+    second = _tmpdir("izanagi_exploration_pin_second_")
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        os.environ[env_name] = first
+        assert layout_module._resolve_exploration_output_root() == first
+        os.environ[env_name] = second
+        try:
+            layout_module._resolve_exploration_output_root()
+            assert False, "process 中の env root drift を拒否すべき"
+        except ValueError:
+            pass
+
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        assert layout_module._resolve_exploration_output_root() == second
+        os.environ.pop(env_name)
+        try:
+            layout_module._resolve_exploration_output_root()
+            assert False, "pinned env の削除を拒否すべき"
+        except ValueError:
+            pass
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_exploration_output_root_pin_rejects_env_removal_before_legacy_fallback():
+    """pin 後の env 削除は reset なしで legacy base へ切り替えられない。"""
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    first = _tmpdir("izanagi_exploration_pin_removed_")
+    legacy = os.path.join(_tmpdir("izanagi_exploration_legacy_"), "output")
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        os.environ[env_name] = first
+        assert layout_module._resolve_exploration_output_root(
+            legacy_base=legacy,
+        ) == first
+        os.environ.pop(env_name)
+        try:
+            layout_module._resolve_exploration_output_root(legacy_base=legacy)
+            assert False, "pinned env 削除後の legacy fallback を拒否すべき"
+        except ValueError:
+            pass
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_exploration_output_root_pin_is_shared_and_locked_across_aliases():
+    """二重 module identity でも pin と原子化 lock は process 内で一つ。"""
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    saved_sys_path = sys.path[:]
+    try:
+        sys.path.insert(0, os.path.dirname(_ORCH))
+        alternate = importlib.import_module("orchestrator.campaign.layout")
+    finally:
+        sys.path[:] = saved_sys_path
+    first = _tmpdir("izanagi_alias_pin_first_")
+    second = _tmpdir("izanagi_alias_pin_second_")
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        assert alternate is not layout_module
+        assert (
+            alternate._exploration_output_root_state
+            is layout_module._exploration_output_root_state
+        )
+        os.environ[env_name] = first
+        assert layout_module._resolve_exploration_output_root() == first
+        os.environ[env_name] = second
+        try:
+            alternate._resolve_exploration_output_root()
+            assert False, "別 alias からの process root drift を拒否すべき"
+        except ValueError:
+            pass
+
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        os.environ[env_name] = first
+        state = layout_module._exploration_output_root_state
+        started = threading.Event()
+        finished = threading.Event()
+        results = []
+        errors = []
+
+        def resolve_in_thread():
+            started.set()
+            try:
+                results.append(alternate._resolve_exploration_output_root())
+            except Exception as exc:  # noqa: BLE001 - thread result is asserted below
+                errors.append(exc)
+            finally:
+                finished.set()
+
+        state["lock"].acquire()
+        worker = threading.Thread(target=resolve_in_thread)
+        try:
+            worker.start()
+            assert started.wait(1.0)
+            assert not finished.wait(0.05), "resolver は process lock 内で動くべき"
+        finally:
+            state["lock"].release()
+        worker.join(5.0)
+        assert not worker.is_alive()
+        assert errors == []
+        assert results == [first]
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_autonomous_trial_env_run_root_and_worktree_container_gate():
+    """M7: 8c 省略 root は env base を使い、materialize 前に同じ gate を通る。"""
+    from pathlib import Path
+
+    from campaign import p3_autonomous_workload_trial as autonomous
+
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    saved_assert = autonomous.assert_pinned_clean
+    saved_run_trial = autonomous.run_trial
+    saved_resolver = autonomous._resolve_exploration_output_root
+    saved_root = autonomous.ROOT
+    external = _tmpdir("izanagi_autonomous_env_")
+    captured = {}
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        os.environ[env_name] = external
+        autonomous.assert_pinned_clean = lambda *_args, **_kwargs: None
+
+        def capture_run_trial(**kwargs):
+            captured.update(kwargs)
+            return {"status": "complete", "cells": []}
+
+        autonomous.run_trial = capture_run_trial
+        assert autonomous.main([
+            "--trial-id", "env-root-trial",
+            "--provider", "fixture",
+            "--no-build",
+            "--ccbench-dir", os.path.join(external, "ccbench"),
+        ]) == 0
+        assert captured["run_root"] == Path(
+            external, "exploration", "autonomous-trials", "env-root-trial",
+        )
+
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        os.environ.pop(env_name)
+        captured.clear()
+        legacy_root = Path(external, "resolved-checkout")
+        autonomous.ROOT = legacy_root
+        legacy_bases = []
+
+        def resolve_legacy(*, legacy_base=""):
+            legacy_bases.append(legacy_base)
+            return legacy_base
+
+        autonomous._resolve_exploration_output_root = resolve_legacy
+        assert autonomous.main([
+            "--trial-id", "legacy-default-trial",
+            "--provider", "fixture",
+            "--no-build",
+            "--ccbench-dir", os.path.join(external, "ccbench"),
+        ]) == 0
+        assert captured["run_root"] == Path(
+            legacy_root, "output", "exploration", "autonomous-trials",
+            "legacy-default-trial",
+        )
+        assert legacy_bases == [str(legacy_root / "output")]
+
+        autonomous.run_trial = saved_run_trial
+        container = Path(
+            _tmpdir("izanagi_autonomous_gate_"),
+            ".codex", "worktrees", "wave", "trial",
+        )
+        try:
+            autonomous.run_trial(
+                trial_id="container-gate",
+                workloads=("ycsb-a",),
+                generations=1,
+                provider_kind="fixture",
+                run_root=container,
+                sub="unused",
+                do_build=False,
+                providers={},
+            )
+            assert False, "8c run_root の worktree container を拒否すべき"
+        except ValueError as exc:
+            assert "worktree container" in str(exc)
+            assert env_name in str(exc)
+            assert "絶対 path" in str(exc)
+            assert "job 専用" in str(exc)
+            assert "base は exploration/ 自体ではない" in str(exc)
+        assert not container.exists()
+    finally:
+        autonomous.assert_pinned_clean = saved_assert
+        autonomous.run_trial = saved_run_trial
+        autonomous._resolve_exploration_output_root = saved_resolver
+        autonomous.ROOT = saved_root
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_wal_materializers_reject_worktree_container_without_layout_ensure():
+    """F98: factory 直後の WAL 公開 API も作成前に container を拒否する。"""
+    from pathlib import Path
+
+    container = Path(
+        _tmpdir("izanagi_wal_gate_"), ".codex", "worktrees", "wave",
+    )
+    materializers = (
+        ("write-lock", lambda item: wal.write_lock(item, "preimage")),
+        (
+            "log",
+            lambda item: wal.log(
+                item, "variant", STAGE_ABORT, "test-env", {"reason": "fixture"},
+            ),
+        ),
+        ("atomic-lock", lambda item: wal.acquire_lock_atomic(item, "preimage")),
+    )
+    for suffix, materialize in materializers:
+        layout = exploration_campaign_layout(
+            f"wal-gate-{suffix}", output_root=str(container / suffix),
+        )
+        try:
+            materialize(layout)
+            assert False, f"{suffix} は worktree container を拒否すべき"
+        except ValueError as exc:
+            message = str(exc)
+            assert "worktree container" in message
+            assert layout_module._EXPLORATION_OUTPUT_ROOT_ENV in message
+        assert not Path(layout.root).exists()
+
+
+def test_wal_materializers_admit_official_layout_in_worktree_container(
+    tmp_path=None,
+):
+    """Official layout の4 materializer は worktree container 内でも書ける。"""
+    from pathlib import Path
+
+    with _tmp_dir(tmp_path) as tmp:
+        container = tmp / ".codex" / "worktrees" / "wave"
+
+        append_layout = CampaignLayout(root=str(container / "append"))
+        wal.log(
+            append_layout, "official", STAGE_ABORT, "test-env",
+            {"reason": "fixture"},
+        )
+        assert Path(append_layout.wal_file).is_file()
+
+        write_lock_layout = CampaignLayout(root=str(container / "write-lock"))
+        wal.write_lock(write_lock_layout, "official-preimage")
+        assert Path(write_lock_layout.lock_file).read_text(
+            encoding="utf-8",
+        ) == "official-preimage"
+
+        atomic_lock_layout = CampaignLayout(root=str(container / "atomic-lock"))
+        assert wal.acquire_lock_atomic(atomic_lock_layout, "atomic-preimage")
+        assert Path(atomic_lock_layout.lock_file).read_text(
+            encoding="utf-8",
+        ) == "atomic-preimage"
+
+        repair_layout = CampaignLayout(root=str(container / "repair"))
+        repair_layout.ensure()
+        Path(repair_layout.wal_file).write_bytes(b"torn-tail")
+        repaired = wal.repair_truncated_tail(repair_layout)
+        assert repaired.status == "repaired"
+        assert Path(repair_layout.wal_file).read_bytes() == b""
+        assert repaired.receipt_path is not None
+        assert Path(repaired.receipt_path).is_file()
+
+
+def test_wal_repair_rejects_exploration_worktree_container(tmp_path=None):
+    """Exploration repair は missing WAL でも materialization policy を先に通す。"""
+    from pathlib import Path
+
+    with _tmp_dir(tmp_path) as tmp:
+        container = tmp / ".codex" / "worktrees" / "wave"
+        layout = exploration_campaign_layout(
+            "repair-gate", output_root=str(container / "base"),
+        )
+        try:
+            wal.repair_truncated_tail(layout)
+            assert False, "exploration WAL repair は container を拒否すべき"
+        except ValueError as exc:
+            assert "worktree container" in str(exc)
+        assert not Path(layout.root).exists()
+
+
+def test_ensure_exploration_namespace_rejects_worktree_container(tmp_path=None):
+    """探索 namespace helper の直呼びも marker 作成前に container を拒否する。"""
+    from pathlib import Path
+
+    with _tmp_dir(tmp_path) as tmp:
+        root = tmp / ".claude" / "worktrees" / "wave" / "exploration"
+        try:
+            ensure_exploration_namespace(str(root))
+            assert False, "exploration namespace 直呼びは container を拒否すべき"
+        except ValueError as exc:
+            assert "worktree container" in str(exc)
+        assert not root.exists()
 
 
 def test_exploration_marker_precedes_campaign_directory_creation():
