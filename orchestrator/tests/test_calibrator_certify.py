@@ -24,6 +24,7 @@ from calibrator.model import (CalibrationResult, CertificationEvidence,  # noqa:
 from calibrator.report import certification_quality_reasons  # noqa: E402
 from calibrator.schema_v2 import validate_calibration_v2  # noqa: E402
 from calibrator.tsc import TscMeasurement  # noqa: E402
+from campaign import execution_guard as eg  # noqa: E402
 
 
 def _point(reps: int = 2) -> ScalePoint:
@@ -214,15 +215,53 @@ def _profile() -> dict:
             "clocks_per_us_int": 1800, "source": "fixture",
         },
         "effective_clock": {
-            "samples_mhz": [2400.0, 2410.0, 2390.0],
+            "samples_mhz": [2390.0, 2410.0],
             "method": "fixture", "governor": "performance",
-            "tolerance_pct": 5.0,
+            "tolerance_pct": 100.0,
         },
         "visibility": {
             "hidepid": "0", "pid_ns_shared_with_host": True,
             "pid_ns_method": "proc2-kthreadd",
         },
     }
+
+
+def _pegasus_shaped_probe(sample_rows: list[list[float]]):
+    """Return the three probe profiles used by certify, with real-shaped clocks."""
+    assert len(sample_rows) == 3
+    profiles = []
+    for samples in sample_rows:
+        assert len(samples) == 48
+        profile = _profile()
+        profile["cores"] = {
+            "physical": 48, "logical": 48, "smt_active": False,
+            "affinity_visible": 2,
+        }
+        profile["cache_topology"] = [
+            {"level": 1, "type": "Data", "bytes": 32768, "line": 64,
+             "shared_cpus": [cpu]}
+            for cpu in range(48)
+        ]
+        profile["numa"] = [{"node_id": 0, "cpulist": list(range(48))}]
+        profile["effective_clock"] = {
+            "samples_mhz": list(samples),
+            "method": "proc-cpuinfo", "governor": "performance",
+            "tolerance_pct": 100.0,
+        }
+        profiles.append(profile)
+
+    calls = []
+
+    def probe():
+        index = len(calls)
+        calls.append(index)
+        return copy.deepcopy(profiles[index])
+
+    return probe, profiles, calls
+
+
+def _expect_48_physical_cores(receipt: dict) -> None:
+    receipt["known_values_check"]["expected_cores"] = 48
 
 
 def _receipt(binary_sha: str, *, job_id: str = "123.server") -> dict:
@@ -293,7 +332,8 @@ def _fake_calibrate(*, bad_cv: bool = False):
 
 def _invoke(tmp_path: Path, monkeypatch, *, load1=None, bad_cv=False,
             composite=None, extra_args=None, receipt_mutator=None,
-            profile_fn=None, clock_fn=None, calibrate_fn=None) -> tuple[int, Path, Path]:
+            profile_fn=None, clock_fn=None, calibrate_fn=None,
+            effective_clock_tolerance_pct="5") -> tuple[int, Path, Path]:
     binary = tmp_path / "ycsb_fixture.exe"
     binary.write_bytes(b"trace-disabled fixture")
     digest = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -326,7 +366,7 @@ def _invoke(tmp_path: Path, monkeypatch, *, load1=None, bad_cv=False,
         "--start-records", "1000", "--max-records", "1000", "--extime", "1",
         "--sweep-reps", "2", "--noise-reps", "3", "--certify",
         "--receipt-json", str(receipt_path), "--binary-sha256", digest,
-        "--effective-clock-tolerance-pct", "5",
+        "--effective-clock-tolerance-pct", str(effective_clock_tolerance_pct),
     ] + list(extra_args or [])
     rc = cli.main(
         args, probe_fn=profile_fn or (lambda: copy.deepcopy(_profile())),
@@ -486,6 +526,114 @@ def test_cli_quality_rejection_is_v2_staged_and_nonzero(tmp_path, monkeypatch):
     assert validated.quality.status == "rejected"
     assert "within-run-cv-invalid" in validated.quality.reasons
     assert not registered.exists()
+
+
+def test_cli_effective_clock_self_failure_is_quality_rejected_before_publish(
+        tmp_path, monkeypatch):
+    sample_rows = [
+        [2101.0] * 47 + [2095.0],
+        [2101.0] * 47 + [3079.456],
+        [2101.0] * 47 + [2120.0],
+    ]
+    probe, profiles, calls = _pegasus_shaped_probe(sample_rows)
+    assert len({tuple(row) for row in sample_rows}) == 3
+    assert all(profile["effective_clock"]["tolerance_pct"] == 100.0
+               for profile in profiles)
+    probe_results = [
+        eg.effective_clock_comparison_passes(
+            profile["effective_clock"],
+            {"samples_mhz": list(profile["effective_clock"]["samples_mhz"])},
+        )
+        for profile in profiles
+    ]
+    assert probe_results == [True, True, True]
+    policy_results = []
+    for profile in profiles:
+        expected = copy.deepcopy(profile["effective_clock"])
+        expected["tolerance_pct"] = 5.0
+        policy_results.append(eg.effective_clock_comparison_passes(
+            expected, {"samples_mhz": list(expected["samples_mhz"])},
+        ))
+    assert policy_results == [True, False, True]
+
+    rc, attempt, registered = _invoke(
+        tmp_path, monkeypatch, profile_fn=probe,
+        receipt_mutator=_expect_48_physical_cores,
+    )
+
+    assert calls == [0, 1, 2]
+    assert rc != 0
+    validated = validate_calibration_v2((attempt / "calibration.json").read_bytes())
+    assert validated.quality.status == "rejected"
+    assert "effective-clock-self-comparison-failed" in validated.quality.reasons
+    clock = validated.attestation_profile.effective_clock
+    assert list(clock.samples_mhz) == sample_rows[1]
+    assert clock.tolerance_pct == 5.0
+    assert (attempt / "calibration.md").is_file()
+    assert (attempt / "window-probes.json").is_file()
+    assert not (attempt / "candidate.json").exists()
+    assert not (attempt / "publish.json").exists()
+    assert not (attempt / "rejection.json").exists()
+    assert not registered.exists()
+
+
+def test_cli_published_artifact_passes_runtime_effective_clock_self_comparison(
+        tmp_path, monkeypatch):
+    sample_rows = [
+        [2101.0] * 47 + [2095.0],
+        [2101.0] * 47 + [2110.0],
+        [2101.0] * 47 + [2120.0],
+    ]
+    probe, profiles, calls = _pegasus_shaped_probe(sample_rows)
+    assert len({tuple(row) for row in sample_rows}) == 3
+    assert all(profile["effective_clock"]["tolerance_pct"] == 100.0
+               for profile in profiles)
+    rc, _, registered = _invoke(
+        tmp_path, monkeypatch, profile_fn=probe,
+        receipt_mutator=_expect_48_physical_cores,
+    )
+    assert calls == [0, 1, 2]
+    assert rc == 0
+    published = list(registered.glob("calibration-*.json"))
+    assert len(published) == 1
+    validated = validate_calibration_v2(published[0].read_bytes())
+    clock = validated.attestation_profile.effective_clock
+    assert list(clock.samples_mhz) == sample_rows[1]
+    assert clock.tolerance_pct == 5.0
+    expected = {
+        "samples_mhz": list(clock.samples_mhz),
+        "tolerance_pct": clock.tolerance_pct,
+    }
+    observed = {"samples_mhz": list(clock.samples_mhz)}
+    assert eg._independent_comparison_passes(
+        "effective_clock.samples_mhz", expected, observed,
+    )
+
+
+@pytest.mark.parametrize(
+    "tolerance_pct",
+    [2.0, 7.5],
+    ids=["pegasus-2pct", "nondefault-7_5pct"],
+)
+def test_cli_artifact_preserves_effective_clock_tolerance_argument(
+        tmp_path, monkeypatch, tolerance_pct):
+    rc, attempt, registered = _invoke(
+        tmp_path,
+        monkeypatch,
+        effective_clock_tolerance_pct=tolerance_pct,
+    )
+
+    assert rc == 0
+    attempt_artifact = validate_calibration_v2(
+        (attempt / "calibration.json").read_bytes(),
+    )
+    attempt_clock = attempt_artifact.attestation_profile.effective_clock
+    assert attempt_clock.tolerance_pct == tolerance_pct
+    published = list(registered.glob("calibration-*.json"))
+    assert len(published) == 1
+    registered_artifact = validate_calibration_v2(published[0].read_bytes())
+    registered_clock = registered_artifact.attestation_profile.effective_clock
+    assert registered_clock.tolerance_pct == tolerance_pct
 
 
 def test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal(
