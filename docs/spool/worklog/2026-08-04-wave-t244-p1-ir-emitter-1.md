@@ -49,16 +49,24 @@ title: [T-244] D121 P1 の機械部品を実装した — 独立 golden を「�
 
 ### 更新
 
-- [T-244] **P1・機械部品は入った。ただし P1 は未充足**: `orchestrator/campaign/reflux_ir.py`
-  (固定 5-bit IR・正準 wire codec・正準 C++ emitter) と独立 golden 32 点、テストを land した。
-  **production へ wiring しないため候補表現は閉じておらず、受理集合は任意の 1 行 C++ のまま**で、
-  production 到達性はゼロである。cap-lift は依然 FAIL で D114 の上限 1 も不変。
-  P2 / P3 / P5 / P7 / P9 / P10 は本 wave では 1 件も充足しない。
-  次段は wiring wave (自由 `implementation` の拒否、wire→mask→predicate の唯一経路化、
-  raw mask と source digest / variant ID の束縛、WAL/provenance/report での同束縛、
-  binding 欠落 artifact の proof chain からの拒否) で、**受理集合の縮小なので D96 手続が要る**。
-  P3 は (165) の U-A〜U-D 裁定待ちのまま
-  base: a7f609f9cacafc73e60462b33df8dad4ace97f115c85bdabf96abee224b1df1b
+- [T-244] **P1・機械部品を実装 (P1 未充足)。P5 は 2/3 実装済み、P3 は差し戻し**:
+  **P1**: `orchestrator/campaign/reflux_ir.py` (固定 5-bit IR・正準 wire codec・正準 C++ emitter) と
+  独立 golden 32 点、テストを land した。**production へ wiring しないため候補表現は閉じておらず、
+  受理集合は任意の 1 行 C++ のまま**で production 到達性はゼロである。次段は wiring wave
+  (自由 `implementation` の拒否、wire→mask→predicate の唯一経路化、raw mask と source digest /
+  variant ID の束縛、WAL/provenance/report での同束縛、binding 欠落 artifact の proof chain からの拒否)
+  で、**受理集合の縮小なので D96 手続が要る**。
+  **P5**: provider 注入の拒否 (実 Claude 試行に限る) と role 間 session 共有の拒否 (実行時 +
+  成果物再検証の 2 層) を実装し D148 に記録した。**P5 全体は未充足**で、
+  **U-1** `drive` / `preview` 注入も塞ぐか (塞ぐなら既存 2 テストの注入手段を別 seam へ移す設計が要る)、
+  **U-2** 未予約 token を P3 の予約 receipt に依存させるか P5 の第 3 要件を origin ledger の
+  充足条件へ移すか、**U-3** provider executable の真正性 (許可 digest registry) を要求するか、の
+  3 件が裁定待ち。U-2 は P3 の裁定が先行する。
+  **P3**: (165) の U-A〜U-D 裁定待ちのまま。
+  **cap-lift は依然 FAIL** で D114 の上限 1 も不変。P2 / P7 / P9 は未着手。
+  逐語は `output/insights/2026-08-04_t244-p1-ir-emitter/` と
+  `output/insights/2026-08-04_t244-p5-injection-gate/`
+  base: 9544907e9fc9fb64dd21dc9f3d50b44d76a03c2e8dfd37cacca6a30b1ab3e472
 
 ### 新規
 

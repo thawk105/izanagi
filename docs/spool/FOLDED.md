@@ -128,3 +128,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:codex-worker-launch-flake":"[T-427]"},"authored":"2026-08-04","content_sha256":"884dc1b16d0112b9b4b7e31012234bd7b6734f1169e81e934d656df38559b03d","seq":1,"wave":"wave-t409-evolve-hole-allowlist"}
 - {"allocations":{"F:adversarial-prompt-refused":"F102"},"authored":"2026-08-04","content_sha256":"649386f5ad9a150ff8e9f9e06d3cbf4ea635bdd737be35d3b8e55c37eebdd5ac","seq":2,"wave":"wave-t409-evolve-hole-allowlist"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"55c4905ca85a72463ad35cca5e0357ca917335c52768319973a6d279d8aa4d44","seq":1,"wave":"wave-t244-p5-injection-gate"}
+- {"allocations":{"D:p5-provider-and-session-isolation":"D148"},"authored":"2026-08-04","content_sha256":"16ece9b11cde676df14853d12992ca013c51b25847c774067c079b681e381206","seq":1,"wave":"wave-t244-p5-injection-gate"}
