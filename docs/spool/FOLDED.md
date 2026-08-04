@@ -200,3 +200,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"F:single-tenancy-unreachable-on-compute-node":"F110","F:unreadable-diagnostic-treated-as-fatal":"F111"},"authored":"2026-08-05","content_sha256":"5d6e5a3d283eb355cbd237d4f8f37a71e6c6f18dc8d0988f77abd121fbd72002","seq":1,"wave":"dev-wave-t419-probe-experiment"}
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"5d6d507d70a0b911baa4996561df5e41984a7e4b26479eed9842709e79ee357a","seq":2,"wave":"dev-wave-t419-probe-experiment"}
+
+- {"allocations":{"T:layer3-claim-boundaries":"[T-473]","T:s1-freeze-membership-gate":"[T-472]","T:trigger-artifact-reinspection":"[T-474]"},"authored":"2026-08-05","content_sha256":"c3e87f463f50209dc0709b532341d04143475700c3c1d26846d674a9a3a19077","seq":1,"wave":"rulings-20260805-a"}
