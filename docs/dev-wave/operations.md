@@ -7,7 +7,7 @@
 
 `codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach する。
 投入前に prompt の非空を検査し、完了は `.done` と exit code だけで判定する。
-ログの grep も完了通知も判定にしてはならず（通知は子より先行しうる）、
+ログの grep も完了通知も判定にしてはならず、
 成果物は `-o` の最終メッセージから読む（F23/F24）。
 採用条件 = `tools/check_codex_output.py <出力>.md` の rc=0（prompt に `## 総括` を義務付ける。F43）。
 
@@ -48,9 +48,8 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 着手前に `grep -rn "<成果物パス>" --include=*.py` を使い、
 bytes を pin する台帳・test・trust root を全列挙する。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
-review ledger も対象に含める。path 検索が見つけるのは path を key にする
-pin だけである。review ledger のように role 名を key に張る pin は key 側でも検索し、
-path の hit 0 件を pin なしと結論しない（F30）。
+review ledger も対象に含める。role 名など path 以外を
+key にする pin は key 側でも検索し、path の hit 0 件を pin なしと結論しない（F30）。
 durable manifest が未発行か再発行要かを区別して brief の不変条件へ書く（F27/F30、D84）。
 統一系 wave では各出現を live copy / 独立 golden / 凍結 snapshot / 歴史記録へ分類してから
 scope を裁定する（F39）。
@@ -127,10 +126,11 @@ worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.p
 `tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、監査commit列を渡す。
 協調wave lock内で再照合し、tipへのff-onlyだけ行う。ff-only成功後は**同じlockを保持したまま**
 `docs/spool/`のfragmentをfoldし、T/D/Fの採番・canonical3台帳への追記・worklogローテーションを
-一度だけ行う。foldが赤なら`landed`を返さない。fragment0件のfoldはno-opで、既存挙動を変えない。
-**wave側でfoldしてはならない**（lock外のfoldは直列化されず、採番衝突とfold commit破棄を招く）。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
+一度だけ行う。foldが赤なら`landed`を返さない。fragment0件のfoldはno-opである。
+**wave側でfoldしてはならない**（D128）。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
-成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyはfresh contextで
+land前にwaveと`HEAD..main`の変更path交差を列挙する（subject代用不可）。交差があれば
+攻撃面・受理集合・裁定前提の変化を現物判定し、変化時はlandせず`DW-S04`へ戻す。成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyはfresh contextで
 既存branchを再利用し、新main監査、固定SHAのwave-side merge、条件再評価・受入後に再試行する。
 他session所有物、rebase、force、remote、pushで解消しない。
