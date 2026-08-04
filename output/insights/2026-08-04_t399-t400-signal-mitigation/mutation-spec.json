@@ -6,7 +6,7 @@
  "mutations": [
   {
    "id": "G1",
-   "category": "authority-conjunction",
+   "category": "negative",
    "replacements": [
     {
      "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
@@ -22,7 +22,7 @@
   },
   {
    "id": "G2",
-   "category": "legacy-promotion",
+   "category": "negative",
    "replacements": [
     {
      "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
@@ -38,7 +38,7 @@
   },
   {
    "id": "G3",
-   "category": "accounting-integrity-gate",
+   "category": "negative",
    "replacements": [
     {
      "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
@@ -54,7 +54,7 @@
   },
   {
    "id": "G4",
-   "category": "unsafe-enum-restriction",
+   "category": "negative",
    "replacements": [
     {
      "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
@@ -70,7 +70,7 @@
   },
   {
    "id": "G5",
-   "category": "safe-mitigation-qwait",
+   "category": "negative",
    "replacements": [
     {
      "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
@@ -88,7 +88,7 @@
   },
   {
    "id": "G6",
-   "category": "evaluation-model-null",
+   "category": "negative",
    "replacements": [
     {
      "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
@@ -104,7 +104,7 @@
   },
   {
    "id": "G7",
-   "category": "per-leg-cap",
+   "category": "negative",
    "replacements": [
     {
      "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
@@ -120,7 +120,7 @@
   },
   {
    "id": "G8",
-   "category": "migration-raw-revalidation",
+   "category": "negative",
    "replacements": [
     {
      "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
