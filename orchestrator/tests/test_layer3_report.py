@@ -177,7 +177,16 @@ def test_trigger_campaign_report_keeps_commitment_and_excludes_raw_binding(tmp_p
         "reflux": "on",
         wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY: trigger_gate_binding.SCHEMA_VERSION,
     })
-    lock_path.write_text(json.dumps(lock), encoding="utf-8")
+    canonical_lock = json.dumps(
+        lock, sort_keys=True, ensure_ascii=False,
+        separators=(",", ":"), allow_nan=False,
+    ).encode("utf-8")
+    lock_path.write_bytes(canonical_lock)
+    canonical_campaign = campaign.with_name(
+        f"campaign-{lock['search_tag']}-{hashlib.sha256(canonical_lock).hexdigest()[:8]}"
+    )
+    campaign.rename(canonical_campaign)
+    campaign = canonical_campaign
 
     wal_path = campaign / "runs/wal.jsonl"
     records = [json.loads(line) for line in wal_path.read_text().splitlines()]

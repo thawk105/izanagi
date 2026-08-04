@@ -287,6 +287,7 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
             ccbench_dir=kwargs["ccbench_dir"],
             cache_root=kwargs["cache_root"],
             build_context=kwargs["build_context"],
+            trigger_gate_binding=kwargs["trigger_gate_binding"],
         )
         return SimpleNamespace(results=[result], skipped=0)
 

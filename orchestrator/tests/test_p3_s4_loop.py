@@ -85,9 +85,11 @@ def _critic_view(layout: CampaignLayout):
     return require_admitted_campaign(layout)
 
 
-def _mk_template_dir():
+def _mk_template_dir(source_rel: str = _SRC_REL):
     d = tempfile.mkdtemp(prefix="izanagi_s4loop_")
-    with open(os.path.join(d, _SRC_REL), "w", encoding="utf-8") as f:
+    path = os.path.join(d, source_rel)
+    os.makedirs(os.path.dirname(path) or d, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         f.write(_TEMPLATE)
     return d
 
@@ -1060,7 +1062,7 @@ def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(monkeypatch
     import contextlib
     from campaign import patchharness
 
-    sub = _mk_template_dir()
+    sub = _mk_template_dir(L.SOURCE_REL)
     lay = _tmp_layout("dry-pass-no-digest")
     monkeypatch.setattr(
         patchharness, "applied",
@@ -1169,10 +1171,10 @@ def _clean_proposals():
             "prior_critic_reverse": False,
         },
         "trigger": {
-            "planner": dict(planner),
+            "planner": {**planner, "axis": TRIGGER_LOOP.MARKER_ID},
             "coder": {
-                "axis": "abstract-axis",
-                "implementation": "izanagi_gate_pass = factor_count > 0;",
+                "axis": TRIGGER_LOOP.MARKER_ID,
+                "wire": "10100",
                 "justification": "small bounded edit",
                 "confidence": "medium",
             },

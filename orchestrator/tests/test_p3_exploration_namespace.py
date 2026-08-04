@@ -250,6 +250,11 @@ class TxExecutor {
                 axis=module.MARKER_ID,
                 wire="10100",
             )
+            planner = LOOP.PlannerProposal(
+                axis=module.MARKER_ID,
+                direction="increase",
+                magnitude="small",
+            )
             cfg, perf = module.default_cfg(), module.default_perf()
             monkeypatch.setattr(module, "_current_site", lambda: module.site_policy.OTHER)
 

@@ -1601,6 +1601,7 @@ def _dry_drive(*args, **kwargs):
         "iteration": 1,
         "ran": True,
         "records": {},
+        "trigger_gate_binding_commitment": "b" * 64,
     }
 
 

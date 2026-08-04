@@ -839,15 +839,16 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                             cache_root=cache_root, build_context=build_context)
     save_loop_state(layout, state)
 
-    if out["outcome"] != "dry-pass":
+    if do_build and out["outcome"] != "dry-pass":
         digest_txt = make_critic_digest(
             layout, reflux=(cfg.search_config.get("reflux") == "on"))
         with open(os.path.join(layout.root, "s4_loop_digest.txt"), "w", encoding="utf-8") as f:
             f.write(digest_txt)
         out["critic_digest_generated"] = True
     else:
-        # A clean no-build pass has no admitted WAL attempt.  Keep it as a
-        # wiring-only result and do not invoke admitted-campaign consumers.
+        # No-build is a wiring-only path, including machine/auditor rejects.
+        # Its WAL is useful local evidence but is not an admitted campaign
+        # consumer input, so never ask the critic digest to admit it.
         out["critic_digest_generated"] = False
 
     post = check_stop(state)

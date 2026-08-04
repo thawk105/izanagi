@@ -745,7 +745,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     _append_provenance_entry(layout, state.iteration, provenance_entry)
     L.save_loop_state(layout, state)
 
-    if out["outcome"] != "dry-pass":
+    if do_build and out["outcome"] != "dry-pass":
         digest_txt = L.make_critic_digest(
             layout, tag=CRITIC_TAG,
             reflux=(cfg.search_config.get("reflux") == "on"),
@@ -754,8 +754,9 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             f.write(digest_txt)
         out["critic_digest_generated"] = True
     else:
-        # no-build pass has no admitted WAL attempt.  It is a wiring preview,
-        # never an admitted-campaign consumer input.
+        # No-build is a wiring preview even when a machine/auditor gate rejects
+        # the candidate.  Keep its WAL/provenance, but do not invoke an
+        # admitted-campaign consumer.
         out["critic_digest_generated"] = False
 
     post = L.check_stop(state)

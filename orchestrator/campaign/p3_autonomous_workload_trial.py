@@ -640,8 +640,17 @@ def _role_metric_payloads(
 
 
 def _jsonable_role_value(role: str, parsed: Any) -> dict[str, Any]:
-    if role in {"planner", "coder"}:
+    if role == "planner":
         return dataclasses.asdict(parsed)
+    if role == "coder":
+        # The raw response/proposal artifact is the authority for replay.  The
+        # journal and report expose only a closed projection: neither the raw
+        # wire nor coder-authored free text may cross this disclosure boundary.
+        return {
+            "axis": parsed.axis,
+            "confidence": parsed.confidence,
+            "justification_present": bool(parsed.justification.strip()),
+        }
     if role == "auditor":
         # Raw auditor strings remain in the non-projected raw response artifact.
         # Trial report / attempt journal receive only this closed code/count view.
