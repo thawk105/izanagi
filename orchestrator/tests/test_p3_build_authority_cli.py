@@ -322,7 +322,7 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
         records = wal.read_records(layout)
         assert outcome["outcome"] == "aborted"
         assert seen == []
-        assert [record.stage for record in records] == ["build_start", "abort"]
+        assert [record.stage for record in records] == ["trigger_binding", "build_start", "abort"]
         assert records[-1].payload["reason"] == "admission-error"
         assert records[-1].payload["error"].startswith("BuildAdmissionError:")
     finally:
