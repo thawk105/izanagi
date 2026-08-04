@@ -34,8 +34,15 @@ partial clone の missing object を取得しないよう、全 Git 子 process 
 固定する。必要な object が local store に無ければ外部取得せず fail-closed にする。
 
 identity は捕捉した HEAD の mode、blob OID、bytes、path に束縛し、last-change と marker は inventory の
-観測属性として出す。固定 inventory file は持たず、通常の test / insight 追加に候補 ledger の追随を
-要求しない。
+観測属性として出す。ただしこれらを出すのは `items` に残った対象だけである。固定 inventory file は
+持たず、通常の test / insight 追加に候補 ledger の追随を要求しない。
+
+**選択した対象のうち strict UTF-8 として decode できない blob は `items` から読み飛ばし、
+読み飛ばした件数を根の `skipped_non_utf8` (整数) へ常時出す** (schema は `ruleops-inventory/v2`)。
+除外条件は decode 不能だけであり、suffix、path 名、JSON / Python としての妥当性、NUL の有無、
+size を理由に除外しない。件数は `--kind` 適用後の集合の中で path 単位に数え、同じ blob OID が
+複数 path にあればそれぞれ数える。**読み飛ばした path は出さない。**
+`inspect`、候補 ledger、mutation receipt、insight candidate 本文の非 UTF-8 拒否は従来どおりである。
 
 ```text
 python3 tools/ruleops.py inventory
@@ -149,7 +156,9 @@ python3 tools/ruleops.py check
 
 ## retirement lifecycle
 
-1. `inventory` と `inspect --draft` で対象、HEAD blob、観測 signal、必要なら receipt skeleton を採取する
+1. `inventory` と `inspect --draft` で対象、HEAD blob、観測 signal、必要なら receipt skeleton を採取する。
+   **`skipped_non_utf8` が正なら `items` は対象の全数ではない。** 読み飛ばした path は出ないため、
+   この段階で対象を特定する手段は無い。`inspect` も非 UTF-8 target を拒否する
 2. test 候補では mutation 実験を別途実行し、receipt の guard、failed node、結果を実測で埋める。
    receipt の `head` にはこの時点の candidate blob を持つ commit を記録する。複数 candidate は同じ
    pre-receipt commit を共有できる。`review_state: reviewed` にした canonical JSON を
@@ -175,4 +184,7 @@ v1 は段階 1〜4 の運搬と構造検査だけを実装する。段階 5〜7 
   別途裁定する
 - mutation receipt は実験 provenance の自己申告を越えない。受理集合同値の証明として使わない
 - v1 は HEAD snapshot を検査し、index / staged deletion と package を束縛しない
+- `skipped_non_utf8` は「一覧が不完全である」ことだけを示し、どの対象が落ちたかは示さない。
+  とくに `--kind test` の値が正のとき、`items` を「直下 test を全数確認した」根拠に使ってはいけない
+  (非 UTF-8 でも pytest が収集・実行しうる test file は存在する)
 - `PYTEST_ADDOPTS` の acceptance 分類と preflight refusal の task-run 記録は共有 runner の別裁定とする

@@ -138,3 +138,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"D:t244-u2-na-bifurcation":"D150"},"authored":"2026-08-04","content_sha256":"17fdc2e2c8063a5b2aad5fa4227d53d21c44c2f686a8ddd3fddf77c3c4e9bd23","seq":1,"wave":"dev-wave-t244-u2-na-bifurcation"}
 - {"allocations":{"T:t244-cap-lift-doc-pointer":"[T-436]","T:t244-cap-lift-receipt":"[T-434]","T:t244-p6-semantic-contract":"[T-433]","T:t244-prereg-refresh":"[T-435]"},"authored":"2026-08-04","content_sha256":"0b40b483e35e3838c710f9a20a0142767e9f58c4653665d15396eb0376c2ca68","seq":2,"wave":"dev-wave-t244-u2-na-bifurcation"}
+
+- {"allocations":{"T:ruleops-git-stderr-strict":"[T-439]","T:ruleops-inventory-mutation-matrix":"[T-437]","T:ruleops-realrepo-xdist-group":"[T-438]","T:ruleops-test-candidate-decode":"[T-440]"},"authored":"2026-08-04","content_sha256":"e12e87683a0ebb01067fd1eb798b703abf7cd09cd3359bded3c5e38c4aa1b698","seq":1,"wave":"wave-t407-ruleops-binary-blob"}
+- {"allocations":{"D:ruleops-inventory-skip-non-utf8":"D151"},"authored":"2026-08-04","content_sha256":"92d3837a96138ccf9cd0e2709b681aed0607c8a234f030c714fa6873cee2bf8f","seq":2,"wave":"wave-t407-ruleops-binary-blob"}
