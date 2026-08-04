@@ -35,7 +35,10 @@ title: [T-337] 正例 artifact の適格性権威を条文化した — 独立 v
 - **実装差分がゼロのため、変異 matrix と受入全走は射程外**である。production code・schema・test・
   凍結 artifact は 1 byte も変更していない。受入は `python3 tools/check_docs.py` = 違反なし、
   repo scan invariant = PASS (三軸 conjunction の新規 hit ゼロ)、
-  fold 計画の検証 (`spool_fold.py --dry-run`) = rc=0。
+  fold 計画の検証 (`spool_fold.py --dry-run`) = rc=0、
+  provenance の full-history 監査 = 1176 件・違反なし。
+  **受入全走は計算ノードで 5900 passed / 0 failed / 19 skipped (rc=0)。** 実装差分ゼロのため
+  この全走は本 wave の差分に対する回帰検査ではなく、main 取り込み後の健全性確認である。
 - **凍結前の gate 検出語走査 (D88) を行い、defang は不要と実測した。** 三軸語は上記 repo scan が
   新規 hit ゼロ。placeholder gate は spool fragment だけを走査する実装であり (`tools/spool_fold.py` の
   検査経路を読んで確認)、逐語 artifact 内に 1 件ある placeholder 形の文字列はどの gate の
