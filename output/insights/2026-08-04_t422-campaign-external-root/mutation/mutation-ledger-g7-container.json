@@ -1,0 +1,176 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/65b1f744bd7f1e0e976c2381b489cb1e/izdw-65b1f744bd.o887950",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/65b1f744bd7f1e0e976c2381b489cb1e/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.                                                                        [100%]\n1 passed in 2.14s\n",
+      "stdout_sha256": "4bce33a45df813af6b801677d3dbe9db9a11283a73d7f9b713d09e27f952fa67"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f87315f73cc620a09e0cca48b6e7d45a4583f1c12323f887dc3ba3cf7b1bd6de",
+    "duration_s": 26.917,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "ccc333ca45249655901ead55b7f675c1eebe638888a3e03595de751fcd8bbc17",
+    "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+    "runner_sha256": "7e08c8ac84dce7622b6610831897bf68e4703dbd10054e4750155fd4bebe7c2b",
+    "spec_sha256": "93a8221180a17d0142f267fc9a2e4040c12e2bad8366d4dc8e96e98ff5bba372",
+    "status": "PASSED",
+    "test_output_sha256": "4bce33a45df813af6b801677d3dbe9db9a11283a73d7f9b713d09e27f952fa67",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+  },
+  "date": "2026-08-04T12:59:26.521254+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/f3784ca24644251c3a9dce847344875b/izdw-f3784ca246.o887956",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/f3784ca24644251c3a9dce847344875b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n_____________ test_exploration_default_root_stops_before_wave_dirt _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_exploration_default_root_stops_before_wave_dirt() -> None:\n        \"\"\"M6/F98 負例: wave-local default は ensure gate で作成前に拒否する。\"\"\"\n        with _campaign_import_scope():\n            from campaign import layout as layout_module\n    \n        env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV\n        sentinel = object()\n        saved_env = os.environ.get(env_name, sentinel)\n        saved_repo_output_root = layout_module.repo_output_root\n        layout_module._reset_exploration_output_root_pin_for_tests()\n        try:\n            for family in (\"codex\", \"claude\"):\n                with _repo(waves=((family, \"one\"),)) as repo:\n                    wave = repo.waves[\"one\"]\n                    local_output = wave / \"output\"\n                    os.environ.pop(env_name, None)\n                    layout_module.repo_output_root = lambda: str(local_output)\n                    campaign = layout_module.exploration_campaign_layout(\"f98-default\")\n                    assert campaign.root == str(\n                        local_output / \"exploration\" / \"campaigns\" / \"f98-default\"\n                    )\n                    try:\n                        campaign.ensure()\n>                       assert False, \"wave-local exploration root を拒否すべき\"\nE                       AssertionError: wave-local exploration root を拒否すべき\nE                       assert False\n\norchestrator/tests/test_dev_wave_land.py:2823: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt\n1 failed in 2.14s\n",
+        "stdout_sha256": "6a324d9c7b0cf7c24d5e9cf501fa9548199037de02dc67e50775372c74e1202c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f87315f73cc620a09e0cca48b6e7d45a4583f1c12323f887dc3ba3cf7b1bd6de",
+      "duration_s": 26.838,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt"
+      ],
+      "hang_risk": false,
+      "id": "M06",
+      "injection_diff_sha256": "6eb63ec2180655393cc7616c05f4114b691b1f4a66604e2744a9504d76c8fb2f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7e31b858b26a25b9891f7fde7c07e1d16274bf9290d74cdb7e36b91b41701433",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layout.py",
+          "new": "    for family in ():\n",
+          "old": "    for family in (\".claude\", \".codex\"):\n"
+        }
+      ],
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "7e08c8ac84dce7622b6610831897bf68e4703dbd10054e4750155fd4bebe7c2b",
+      "spec_sha256": "93a8221180a17d0142f267fc9a2e4040c12e2bad8366d4dc8e96e98ff5bba372",
+      "status": "KILLED",
+      "test_output_sha256": "6a324d9c7b0cf7c24d5e9cf501fa9548199037de02dc67e50775372c74e1202c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/146bc9b073639e5e4d257f4fcd64fed2/izdw-146bc9b073.o887949",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/146bc9b073639e5e4d257f4fcd64fed2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt\n\n1 test collected in 0.08s\n",
+        "stdout_sha256": "84c6fd13498576c20ede24d1793a9f32edfd40478b42be11c902b7c33b20e484"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt"
+      ],
+      "duration_s": 21.718,
+      "rc": 0,
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "7e08c8ac84dce7622b6610831897bf68e4703dbd10054e4750155fd4bebe7c2b",
+      "spec_sha256": "93a8221180a17d0142f267fc9a2e4040c12e2bad8366d4dc8e96e98ff5bba372",
+      "status": "PASSED",
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6eb63ec2180655393cc7616c05f4114b691b1f4a66604e2744a9504d76c8fb2f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/layout.py",
+            "new": "    for family in ():\n",
+            "old": "    for family in (\".claude\", \".codex\"):\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "ccc333ca45249655901ead55b7f675c1eebe638888a3e03595de751fcd8bbc17",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7a19d99e6937d8a932a3a18fdfecbca04c82237f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "7e08c8ac84dce7622b6610831897bf68e4703dbd10054e4750155fd4bebe7c2b",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "93a8221180a17d0142f267fc9a2e4040c12e2bad8366d4dc8e96e98ff5bba372",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd",
+  "updated_at": "2026-08-04T13:00:21.108996+00:00"
+}

@@ -1,0 +1,99 @@
+{
+ "g1-precedence": {
+  "spec": "/work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-spec-g1-precedence.json",
+  "sha256": "ce18c9ab3fb73b61f96ee79132f831a6e52b66fd17e3ce707b05530ef70a233d",
+  "runner_nodes": [
+   "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+  ],
+  "mutation_ids": [
+   "M01",
+   "M02"
+  ]
+ },
+ "g2-admission": {
+  "spec": "/work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-spec-g2-admission.json",
+  "sha256": "c0a14daeb4fcc0b61525682525991d3e53b4b6004a777c524833d2ae1da7e88c",
+  "runner_nodes": [
+   "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_rejects_unsafe_values"
+  ],
+  "mutation_ids": [
+   "M03",
+   "M04",
+   "M05",
+   "M08"
+  ]
+ },
+ "g3-8c": {
+  "spec": "/work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-spec-g3-8c.json",
+  "sha256": "a701e0cb9b468dab4328cf80c16abb3b5cdcbcbfa51124982ae8199175676b1a",
+  "runner_nodes": [
+   "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+  ],
+  "mutation_ids": [
+   "M07",
+   "M10"
+  ]
+ },
+ "g4-wal-lock": {
+  "spec": "/work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-spec-g4-wal-lock.json",
+  "sha256": "d0e5156d78ebe2ba2ea836eab6f4ec572bf5a98544d0d266ce5575adfb9cf6bf",
+  "runner_nodes": [
+   "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+  ],
+  "mutation_ids": [
+   "M09",
+   "M14",
+   "M15"
+  ]
+ },
+ "g5-wal-repair": {
+  "spec": "/work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-spec-g5-wal-repair.json",
+  "sha256": "bbc47fe28b8cf623e53115b995f472f455fcce1a5d3492efd476d223465cb128",
+  "runner_nodes": [
+   "orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container"
+  ],
+  "mutation_ids": [
+   "M11"
+  ]
+ },
+ "g6-namespace": {
+  "spec": "/work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-spec-g6-namespace.json",
+  "sha256": "3a6c761c8d30ab40a48a7b916b6d7bac8f930769f18e7393eed6073b9a3721a0",
+  "runner_nodes": [
+   "orchestrator/tests/test_campaign.py::test_ensure_exploration_namespace_rejects_worktree_container"
+  ],
+  "mutation_ids": [
+   "M12"
+  ]
+ },
+ "g7-container": {
+  "spec": "/work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-spec-g7-container.json",
+  "sha256": "93a8221180a17d0142f267fc9a2e4040c12e2bad8366d4dc8e96e98ff5bba372",
+  "runner_nodes": [
+   "orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt"
+  ],
+  "mutation_ids": [
+   "M06"
+  ]
+ },
+ "g8-pin": {
+  "spec": "/work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-spec-g8-pin.json",
+  "sha256": "da0ceaa826e242deeaa8a2c2e43086bfd508a4c16b290987b8aba59dea9665c3",
+  "runner_nodes": [
+   "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_process_pin_rejects_drift"
+  ],
+  "mutation_ids": [
+   "M13"
+  ]
+ },
+ "g9-pin-guard": {
+  "spec": "/work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-spec-g9-pin-guard.json",
+  "sha256": "f928466ec5fb90d41c370e2fca73df6d806ba1af9b998f64a048bac8cea1c91d",
+  "runner_nodes": [
+   "orchestrator/tests/test_campaign.py::test_exploration_output_root_pin_rejects_env_removal_before_legacy_fallback"
+  ],
+  "mutation_ids": [
+   "M16"
+  ]
+ }
+}

@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M16",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layout.py",
+     "old": "        if configured is None:\n            if current_pin is not None:\n",
+     "new": "        if configured is None:\n            if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_exploration_output_root_pin_rejects_env_removal_before_legacy_fallback"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

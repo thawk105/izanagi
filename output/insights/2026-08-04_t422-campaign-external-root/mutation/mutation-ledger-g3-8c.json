@@ -1,0 +1,237 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/4e5d3fa4bc63b6368c1f7b7636d47640/izdw-4e5d3fa4bc.o887908",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/4e5d3fa4bc63b6368c1f7b7636d47640/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.                                                                        [100%]\n1 passed in 2.32s\n",
+      "stdout_sha256": "7db73ce176123575bed3fcdc41bb886b797e42d7d83c45f20aa6b498d0ad01e2"
+    },
+    "artifact_error": null,
+    "collection_sha256": "66f4e6ecffa02100de765854bf742bc05d89d536746970b0068e6d37d156a6ed",
+    "duration_s": 21.752,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "ffe179ca31ba2149340da2113b9e06b213714ac8364ad274b3b042c0161167a7",
+    "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+    "runner_sha256": "67bd198624c19dc16cbd11ac3e51c9fff2a6b80347d0b4a48d2ef12f8d56c408",
+    "spec_sha256": "a701e0cb9b468dab4328cf80c16abb3b5cdcbcbfa51124982ae8199175676b1a",
+    "status": "PASSED",
+    "test_output_sha256": "7db73ce176123575bed3fcdc41bb886b797e42d7d83c45f20aa6b498d0ad01e2",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+  },
+  "date": "2026-08-04T12:53:19.248797+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/71d3e8d9bf4849f3f3763d5923e0c341/izdw-71d3e8d9bf.o887910",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/71d3e8d9bf4849f3f3763d5923e0c341/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n________ test_autonomous_trial_env_run_root_and_worktree_container_gate ________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_autonomous_trial_env_run_root_and_worktree_container_gate():\n        \"\"\"M7: 8c 省略 root は env base を使い、materialize 前に同じ gate を通る。\"\"\"\n        from pathlib import Path\n    \n        from campaign import p3_autonomous_workload_trial as autonomous\n    \n        sentinel = object()\n        env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV\n        saved_env = os.environ.get(env_name, sentinel)\n        saved_assert = autonomous.assert_pinned_clean\n        saved_run_trial = autonomous.run_trial\n        saved_resolver = autonomous._resolve_exploration_output_root\n        saved_root = autonomous.ROOT\n        external = _tmpdir(\"izanagi_autonomous_env_\")\n        captured = {}\n        layout_module._reset_exploration_output_root_pin_for_tests()\n        try:\n            os.environ[env_name] = external\n            autonomous.assert_pinned_clean = lambda *_args, **_kwargs: None\n    \n            def capture_run_trial(**kwargs):\n                captured.update(kwargs)\n                return {\"status\": \"complete\", \"cells\": []}\n    \n            autonomous.run_trial = capture_run_trial\n            assert autonomous.main([\n                \"--trial-id\", \"env-root-trial\",\n                \"--provider\", \"fixture\",\n                \"--no-build\",\n                \"--ccbench-dir\", os.path.join(external, \"ccbench\"),\n            ]) == 0\n>           assert captured[\"run_root\"] == Path(\n                external, \"exploration\", \"autonomous-trials\", \"env-root-trial\",\n            )\nE           AssertionError: assert PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/exploration/autonomous-trials/env-root-trial') == PosixPath('/tmp/izanagi_autonomous_env_3lptdm4j/exploration/autonomous-trials/env-root-trial')\nE            +  where PosixPath('/tmp/izanagi_autonomous_env_3lptdm4j/exploration/autonomous-trials/env-root-trial') = <class 'pathlib.Path'>('/tmp/izanagi_autonomous_env_3lptdm4j', 'exploration', 'autonomous-trials', 'env-root-trial')\n\norchestrator/tests/test_campaign.py:3898: AssertionError\n----------------------------- Captured stdout call -----------------------------\n{\"cells\": 0, \"report\": \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/exploration/autonomous-trials/env-root-trial/report.json\", \"status\": \"complete\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate\n1 failed in 2.37s\n",
+        "stdout_sha256": "e8d063353250b4aa200d5140296ce705f00fcd7f7711972bf482d9d8d9f63a34"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "66f4e6ecffa02100de765854bf742bc05d89d536746970b0068e6d37d156a6ed",
+      "duration_s": 21.715,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+      ],
+      "hang_risk": false,
+      "id": "M07",
+      "injection_diff_sha256": "c692ff9684126972691e0e8974b47d999f587c7f8ca1badc3bf9d98ece79c63e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "85ac84f71fb54dd0f717626a9c21e966681d6d5a7ca2d3330f16382d51c5d760",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "    else:\n        run_root = (\n            ROOT / \"output\" / \"exploration\" / \"autonomous-trials\" / args.trial_id\n        )\n",
+          "old": "    else:\n        run_root = (\n            Path(_resolve_exploration_output_root(\n                legacy_base=str(ROOT / \"output\"),\n            ))\n            / \"exploration\" / \"autonomous-trials\" / args.trial_id\n        )\n"
+        }
+      ],
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "67bd198624c19dc16cbd11ac3e51c9fff2a6b80347d0b4a48d2ef12f8d56c408",
+      "spec_sha256": "a701e0cb9b468dab4328cf80c16abb3b5cdcbcbfa51124982ae8199175676b1a",
+      "status": "KILLED",
+      "test_output_sha256": "e8d063353250b4aa200d5140296ce705f00fcd7f7711972bf482d9d8d9f63a34",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/55ba9634c19ceb8c35dd2f590de72708/izdw-55ba9634c1.o887917",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/55ba9634c19ceb8c35dd2f590de72708/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n________ test_autonomous_trial_env_run_root_and_worktree_container_gate ________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_autonomous_trial_env_run_root_and_worktree_container_gate():\n        \"\"\"M7: 8c 省略 root は env base を使い、materialize 前に同じ gate を通る。\"\"\"\n        from pathlib import Path\n    \n        from campaign import p3_autonomous_workload_trial as autonomous\n    \n        sentinel = object()\n        env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV\n        saved_env = os.environ.get(env_name, sentinel)\n        saved_assert = autonomous.assert_pinned_clean\n        saved_run_trial = autonomous.run_trial\n        saved_resolver = autonomous._resolve_exploration_output_root\n        saved_root = autonomous.ROOT\n        external = _tmpdir(\"izanagi_autonomous_env_\")\n        captured = {}\n        layout_module._reset_exploration_output_root_pin_for_tests()\n        try:\n            os.environ[env_name] = external\n            autonomous.assert_pinned_clean = lambda *_args, **_kwargs: None\n    \n            def capture_run_trial(**kwargs):\n                captured.update(kwargs)\n                return {\"status\": \"complete\", \"cells\": []}\n    \n            autonomous.run_trial = capture_run_trial\n            assert autonomous.main([\n                \"--trial-id\", \"env-root-trial\",\n                \"--provider\", \"fixture\",\n                \"--no-build\",\n                \"--ccbench-dir\", os.path.join(external, \"ccbench\"),\n            ]) == 0\n            assert captured[\"run_root\"] == Path(\n                external, \"exploration\", \"autonomous-trials\", \"env-root-trial\",\n            )\n    \n            layout_module._reset_exploration_output_root_pin_for_tests()\n            os.environ.pop(env_name)\n            captured.clear()\n            legacy_root = Path(external, \"resolved-checkout\")\n            autonomous.ROOT = legacy_root\n            legacy_bases = []\n    \n            def resolve_legacy(*, legacy_base=\"\"):\n                legacy_bases.append(legacy_base)\n                return legacy_base\n    \n            autonomous._resolve_exploration_output_root = resolve_legacy\n            assert autonomous.main([\n                \"--trial-id\", \"legacy-default-trial\",\n                \"--provider\", \"fixture\",\n                \"--no-build\",\n                \"--ccbench-dir\", os.path.join(external, \"ccbench\"),\n            ]) == 0\n>           assert captured[\"run_root\"] == Path(\n                legacy_root, \"output\", \"exploration\", \"autonomous-trials\",\n                \"legacy-default-trial\",\n            )\nE           AssertionError: assert PosixPath('exploration/autonomous-trials/legacy-default-trial') == PosixPath('/tmp/izanagi_autonomous_env_s_85hqae/resolved-checkout/output/exploration/autonomous-trials/legacy-default-trial')\nE            +  where PosixPath('/tmp/izanagi_autonomous_env_s_85hqae/resolved-checkout/output/exploration/autonomous-trials/legacy-default-trial') = <class 'pathlib.Path'>(PosixPath('/tmp/izanagi_autonomous_env_s_85hqae/resolved-checkout'), 'output', 'exploration', 'autonomous-trials', 'legacy-default-trial')\n\norchestrator/tests/test_campaign.py:3920: AssertionError\n----------------------------- Captured stdout call -----------------------------\n{\"cells\": 0, \"report\": \"/tmp/izanagi_autonomous_env_s_85hqae/exploration/autonomous-trials/env-root-trial/report.json\", \"status\": \"complete\"}\n{\"cells\": 0, \"report\": \"exploration/autonomous-trials/legacy-default-trial/report.json\", \"status\": \"complete\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate\n1 failed in 2.39s\n",
+        "stdout_sha256": "d662bc89b42c7e78e91d52cfb9a88eb4d86a4bc8632793d3e92d8c2be86e9a9f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "66f4e6ecffa02100de765854bf742bc05d89d536746970b0068e6d37d156a6ed",
+      "duration_s": 21.723,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "a3ea8cac7409d6fdc8f55a0ba124682291b561eada4c2900266421c908d9ef8c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "92c106dccda41b4a387d6ea0d0b2cf77e9fb85eaee2c77f183455bd12c3efbb0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "                legacy_base=\"\",\n",
+          "old": "                legacy_base=str(ROOT / \"output\"),\n"
+        }
+      ],
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "67bd198624c19dc16cbd11ac3e51c9fff2a6b80347d0b4a48d2ef12f8d56c408",
+      "spec_sha256": "a701e0cb9b468dab4328cf80c16abb3b5cdcbcbfa51124982ae8199175676b1a",
+      "status": "KILLED",
+      "test_output_sha256": "d662bc89b42c7e78e91d52cfb9a88eb4d86a4bc8632793d3e92d8c2be86e9a9f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/590194dd58d69ccc2d199d56e91c60d8/izdw-590194dd58.o887906",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/590194dd58d69ccc2d199d56e91c60d8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate\n\n1 test collected in 0.14s\n",
+        "stdout_sha256": "cfe78d5f0a9b261621c483ed0799fbaef0319dca7baa545549a1836c1b613521"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+      ],
+      "duration_s": 26.792,
+      "rc": 0,
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "67bd198624c19dc16cbd11ac3e51c9fff2a6b80347d0b4a48d2ef12f8d56c408",
+      "spec_sha256": "a701e0cb9b468dab4328cf80c16abb3b5cdcbcbfa51124982ae8199175676b1a",
+      "status": "PASSED",
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M07": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c692ff9684126972691e0e8974b47d999f587c7f8ca1badc3bf9d98ece79c63e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "new": "    else:\n        run_root = (\n            ROOT / \"output\" / \"exploration\" / \"autonomous-trials\" / args.trial_id\n        )\n",
+            "old": "    else:\n        run_root = (\n            Path(_resolve_exploration_output_root(\n                legacy_base=str(ROOT / \"output\"),\n            ))\n            / \"exploration\" / \"autonomous-trials\" / args.trial_id\n        )\n"
+          }
+        ]
+      },
+      "M10": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a3ea8cac7409d6fdc8f55a0ba124682291b561eada4c2900266421c908d9ef8c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "new": "                legacy_base=\"\",\n",
+            "old": "                legacy_base=str(ROOT / \"output\"),\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "ffe179ca31ba2149340da2113b9e06b213714ac8364ad274b3b042c0161167a7",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7a19d99e6937d8a932a3a18fdfecbca04c82237f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "67bd198624c19dc16cbd11ac3e51c9fff2a6b80347d0b4a48d2ef12f8d56c408",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "a701e0cb9b468dab4328cf80c16abb3b5cdcbcbfa51124982ae8199175676b1a",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd",
+  "updated_at": "2026-08-04T12:54:26.357314+00:00"
+}
