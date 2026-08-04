@@ -1,0 +1,298 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/b0ed5df12498766371c50ed4977c214c/izdw-b0ed5df124.o887922",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/b0ed5df12498766371c50ed4977c214c/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.                                                                        [100%]\n1 passed in 2.09s\n",
+      "stdout_sha256": "039874a62bdce1b7cdf97ec8e3ba9901533a0ddf5b793dccafe061ee43834dce"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ed31d35eeb5dbe6a76e8d2a3cf38c6b4f19e2f79a628359dbf60986386e61038",
+    "duration_s": 21.77,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "08d863590cefd5178cab39ffa641facd77b7beba2bde02bad285f1b1ab8daad2",
+    "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+    "runner_sha256": "d06e8b9620e8465c74e9c68a3f2deb34639bd2762dabd6b7f8a9c2577ce45269",
+    "spec_sha256": "d0e5156d78ebe2ba2ea836eab6f4ec572bf5a98544d0d266ce5575adfb9cf6bf",
+    "status": "PASSED",
+    "test_output_sha256": "039874a62bdce1b7cdf97ec8e3ba9901533a0ddf5b793dccafe061ee43834dce",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+  },
+  "date": "2026-08-04T12:54:48.693020+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/3a4362aed98381d2056e615ae9612a30/izdw-3a4362aed9.o887923",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/3a4362aed98381d2056e615ae9612a30/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n____ test_wal_materializers_reject_worktree_container_without_layout_ensure ____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_wal_materializers_reject_worktree_container_without_layout_ensure():\n        \"\"\"F98: factory 直後の WAL 公開 API も作成前に container を拒否する。\"\"\"\n        from pathlib import Path\n    \n        container = Path(\n            _tmpdir(\"izanagi_wal_gate_\"), \".codex\", \"worktrees\", \"wave\",\n        )\n        materializers = (\n            (\"write-lock\", lambda item: wal.write_lock(item, \"preimage\")),\n            (\n                \"log\",\n                lambda item: wal.log(\n                    item, \"variant\", STAGE_ABORT, \"test-env\", {\"reason\": \"fixture\"},\n                ),\n            ),\n            (\"atomic-lock\", lambda item: wal.acquire_lock_atomic(item, \"preimage\")),\n        )\n        for suffix, materialize in materializers:\n            layout = exploration_campaign_layout(\n                f\"wal-gate-{suffix}\", output_root=str(container / suffix),\n            )\n            try:\n                materialize(layout)\n>               assert False, f\"{suffix} は worktree container を拒否すべき\"\nE               AssertionError: write-lock は worktree container を拒否すべき\nE               assert False\n\norchestrator/tests/test_campaign.py:3985: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure\n1 failed in 2.17s\n",
+        "stdout_sha256": "b8d46c45416cc2e906a6416a10c52c6c7242c6a189707c33cbbc1b6e2b98e9cf"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ed31d35eeb5dbe6a76e8d2a3cf38c6b4f19e2f79a628359dbf60986386e61038",
+      "duration_s": 21.776,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+      ],
+      "hang_risk": false,
+      "id": "M09",
+      "injection_diff_sha256": "7f1cb679117ec8ad669f0bc0b366ddbe065266473fb78f8b8ccc325cc3fd3e02",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "730550cdf3ab42cc375044bb135701b3c90eb020ebe51109e15d85f58ac2c646",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "new": "def write_lock(layout: CampaignLayout, preimage: str) -> None:\n",
+          "old": "def write_lock(layout: CampaignLayout, preimage: str) -> None:\n    getattr(layout, \"_admit_materialization\", lambda: None)()\n"
+        }
+      ],
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "d06e8b9620e8465c74e9c68a3f2deb34639bd2762dabd6b7f8a9c2577ce45269",
+      "spec_sha256": "d0e5156d78ebe2ba2ea836eab6f4ec572bf5a98544d0d266ce5575adfb9cf6bf",
+      "status": "KILLED",
+      "test_output_sha256": "b8d46c45416cc2e906a6416a10c52c6c7242c6a189707c33cbbc1b6e2b98e9cf",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/5993328a4c58940e10f6526f2fcdf08a/izdw-5993328a4c.o887925",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/5993328a4c58940e10f6526f2fcdf08a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n____ test_wal_materializers_reject_worktree_container_without_layout_ensure ____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_wal_materializers_reject_worktree_container_without_layout_ensure():\n        \"\"\"F98: factory 直後の WAL 公開 API も作成前に container を拒否する。\"\"\"\n        from pathlib import Path\n    \n        container = Path(\n            _tmpdir(\"izanagi_wal_gate_\"), \".codex\", \"worktrees\", \"wave\",\n        )\n        materializers = (\n            (\"write-lock\", lambda item: wal.write_lock(item, \"preimage\")),\n            (\n                \"log\",\n                lambda item: wal.log(\n                    item, \"variant\", STAGE_ABORT, \"test-env\", {\"reason\": \"fixture\"},\n                ),\n            ),\n            (\"atomic-lock\", lambda item: wal.acquire_lock_atomic(item, \"preimage\")),\n        )\n        for suffix, materialize in materializers:\n            layout = exploration_campaign_layout(\n                f\"wal-gate-{suffix}\", output_root=str(container / suffix),\n            )\n            try:\n                materialize(layout)\n>               assert False, f\"{suffix} は worktree container を拒否すべき\"\nE               AssertionError: log は worktree container を拒否すべき\nE               assert False\n\norchestrator/tests/test_campaign.py:3985: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure\n1 failed in 2.14s\n",
+        "stdout_sha256": "d32ac87328e1f8ccafd2b292b98f50b8f5c3fa309e474747949b8bb4a50cbd31"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ed31d35eeb5dbe6a76e8d2a3cf38c6b4f19e2f79a628359dbf60986386e61038",
+      "duration_s": 21.802,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+      ],
+      "hang_risk": false,
+      "id": "M14",
+      "injection_diff_sha256": "89aad5b526bbd1aff7986cf20067c07bb74dbdda36784ee6f4cb747aa92ec8d5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a6ec89c82f14b893dee49aadf2393fa22e93e3f832d7c4aef2f2a6f1e79c72b8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "new": "    try:\n        os.makedirs(layout.runs_dir, exist_ok=True)\n",
+          "old": "    try:\n        getattr(layout, \"_admit_materialization\", lambda: None)()\n        os.makedirs(layout.runs_dir, exist_ok=True)\n"
+        }
+      ],
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "d06e8b9620e8465c74e9c68a3f2deb34639bd2762dabd6b7f8a9c2577ce45269",
+      "spec_sha256": "d0e5156d78ebe2ba2ea836eab6f4ec572bf5a98544d0d266ce5575adfb9cf6bf",
+      "status": "KILLED",
+      "test_output_sha256": "d32ac87328e1f8ccafd2b292b98f50b8f5c3fa309e474747949b8bb4a50cbd31",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/550d4d6a901d84203e64e0317fee789c/izdw-550d4d6a90.o887926",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/550d4d6a901d84203e64e0317fee789c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n____ test_wal_materializers_reject_worktree_container_without_layout_ensure ____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_wal_materializers_reject_worktree_container_without_layout_ensure():\n        \"\"\"F98: factory 直後の WAL 公開 API も作成前に container を拒否する。\"\"\"\n        from pathlib import Path\n    \n        container = Path(\n            _tmpdir(\"izanagi_wal_gate_\"), \".codex\", \"worktrees\", \"wave\",\n        )\n        materializers = (\n            (\"write-lock\", lambda item: wal.write_lock(item, \"preimage\")),\n            (\n                \"log\",\n                lambda item: wal.log(\n                    item, \"variant\", STAGE_ABORT, \"test-env\", {\"reason\": \"fixture\"},\n                ),\n            ),\n            (\"atomic-lock\", lambda item: wal.acquire_lock_atomic(item, \"preimage\")),\n        )\n        for suffix, materialize in materializers:\n            layout = exploration_campaign_layout(\n                f\"wal-gate-{suffix}\", output_root=str(container / suffix),\n            )\n            try:\n                materialize(layout)\n>               assert False, f\"{suffix} は worktree container を拒否すべき\"\nE               AssertionError: atomic-lock は worktree container を拒否すべき\nE               assert False\n\norchestrator/tests/test_campaign.py:3985: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure\n1 failed in 2.15s\n",
+        "stdout_sha256": "098f40ad53fe273ffee10af37e1264fcedebb50631d249c5e708ce96d69edb06"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ed31d35eeb5dbe6a76e8d2a3cf38c6b4f19e2f79a628359dbf60986386e61038",
+      "duration_s": 26.864,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+      ],
+      "hang_risk": false,
+      "id": "M15",
+      "injection_diff_sha256": "d29e9c5cc9bd48cf295aefd79e0c2e49204623a89a2b9f667a22f26166a70aa6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "60d5bb56982f247a7f554ed8e9934e780872b22e71801f3724a0cd243f631bab",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "new": "    os.makedirs(layout.root, exist_ok=True)\n    try:\n        fd = os.open(layout.lock_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)\n",
+          "old": "    getattr(layout, \"_admit_materialization\", lambda: None)()\n    os.makedirs(layout.root, exist_ok=True)\n    try:\n        fd = os.open(layout.lock_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)\n"
+        }
+      ],
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "d06e8b9620e8465c74e9c68a3f2deb34639bd2762dabd6b7f8a9c2577ce45269",
+      "spec_sha256": "d0e5156d78ebe2ba2ea836eab6f4ec572bf5a98544d0d266ce5575adfb9cf6bf",
+      "status": "KILLED",
+      "test_output_sha256": "098f40ad53fe273ffee10af37e1264fcedebb50631d249c5e708ce96d69edb06",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/ae205402762addf7773395fb0eb9a7d9/izdw-ae20540276.o887920",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/ae205402762addf7773395fb0eb9a7d9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure\n\n1 test collected in 0.14s\n",
+        "stdout_sha256": "8289539280e8cef0b42163d8cd2c895d48140ee36a95efde6793755de605dd47"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+      ],
+      "duration_s": 21.705,
+      "rc": 0,
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "d06e8b9620e8465c74e9c68a3f2deb34639bd2762dabd6b7f8a9c2577ce45269",
+      "spec_sha256": "d0e5156d78ebe2ba2ea836eab6f4ec572bf5a98544d0d266ce5575adfb9cf6bf",
+      "status": "PASSED",
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M09": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7f1cb679117ec8ad669f0bc0b366ddbe065266473fb78f8b8ccc325cc3fd3e02",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/wal.py",
+            "new": "def write_lock(layout: CampaignLayout, preimage: str) -> None:\n",
+            "old": "def write_lock(layout: CampaignLayout, preimage: str) -> None:\n    getattr(layout, \"_admit_materialization\", lambda: None)()\n"
+          }
+        ]
+      },
+      "M14": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "89aad5b526bbd1aff7986cf20067c07bb74dbdda36784ee6f4cb747aa92ec8d5",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/wal.py",
+            "new": "    try:\n        os.makedirs(layout.runs_dir, exist_ok=True)\n",
+            "old": "    try:\n        getattr(layout, \"_admit_materialization\", lambda: None)()\n        os.makedirs(layout.runs_dir, exist_ok=True)\n"
+          }
+        ]
+      },
+      "M15": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d29e9c5cc9bd48cf295aefd79e0c2e49204623a89a2b9f667a22f26166a70aa6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/wal.py",
+            "new": "    os.makedirs(layout.root, exist_ok=True)\n    try:\n        fd = os.open(layout.lock_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)\n",
+            "old": "    getattr(layout, \"_admit_materialization\", lambda: None)()\n    os.makedirs(layout.root, exist_ok=True)\n    try:\n        fd = os.open(layout.lock_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "08d863590cefd5178cab39ffa641facd77b7beba2bde02bad285f1b1ab8daad2",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7a19d99e6937d8a932a3a18fdfecbca04c82237f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "d06e8b9620e8465c74e9c68a3f2deb34639bd2762dabd6b7f8a9c2577ce45269",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "d0e5156d78ebe2ba2ea836eab6f4ec572bf5a98544d0d266ce5575adfb9cf6bf",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd",
+  "updated_at": "2026-08-04T12:56:23.756375+00:00"
+}

@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layout.py",
+     "old": "    _reject_worktree_container(root)\n    os.makedirs(root, exist_ok=True)\n",
+     "new": "    os.makedirs(root, exist_ok=True)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_ensure_exploration_namespace_rejects_worktree_container"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

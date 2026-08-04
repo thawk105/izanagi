@@ -55,6 +55,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     from orchestrator.campaign.role_session_isolation import CrossRoleSessionTracker
     from orchestrator.campaign.layout import (
         CampaignLayout,
+        _reject_worktree_container,
+        _resolve_exploration_output_root,
         ensure_exploration_namespace,
         exploration_campaign_layout,
     )
@@ -94,6 +96,8 @@ else:
     from .role_session_isolation import CrossRoleSessionTracker
     from .layout import (
         CampaignLayout,
+        _reject_worktree_container,
+        _resolve_exploration_output_root,
         ensure_exploration_namespace,
         exploration_campaign_layout,
     )
@@ -137,6 +141,8 @@ MAX_GENERATIONS = 10
 MAX_APPROVED_GENERATIONS = 1
 DEFAULT_MAX_WALL_S = 3600
 PROVIDER_KINDS = frozenset(("fixture", "claude-headless"))
+_DRIVE_NOT_PROVIDED: Any = object()
+_PREVIEW_NOT_PROVIDED: Any = object()
 DRIVER_STOP_REASONS = frozenset((
     "continue",
     "converged",
@@ -1664,20 +1670,38 @@ def run_trial(
     claude_executable: str = "claude",
     allow_pegasus_compute_transport: bool = False,
     providers: Mapping[str, Any] | None = None,
-    drive: Callable[..., Mapping[str, Any]] = trigger.drive_iteration,
-    preview: Callable[..., Mapping[str, Any]] = _preview,
+    drive: Callable[..., Mapping[str, Any]] = _DRIVE_NOT_PROVIDED,
+    preview: Callable[..., Mapping[str, Any]] = _PREVIEW_NOT_PROVIDED,
     coder_authority: CoderBuildAuthority | None = None,
     trial_manifest: Path | None = None,
     trial_binding: trial_registry.TrialBinding | None = None,
 ) -> dict[str, Any]:
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
-    if not isinstance(provider_kind, str) or provider_kind not in PROVIDER_KINDS:
+    if type(provider_kind) is not str:
+        raise AutonomousTrialError(
+            f"provider kind は plain str 必須: {type(provider_kind).__name__}"
+        )
+    if provider_kind not in PROVIDER_KINDS:
         raise AutonomousTrialError(f"unknown provider kind: {provider_kind}")
     if provider_kind == "claude-headless" and providers is not None:
         raise AutonomousTrialError(
             "claude-headless provider は caller 注入を許可しない"
         )
+    if (
+        provider_kind == "claude-headless"
+        and (
+            drive is not _DRIVE_NOT_PROVIDED
+            or preview is not _PREVIEW_NOT_PROVIDED
+        )
+    ):
+        raise AutonomousTrialError(
+            "claude-headless drive/preview は caller 注入を許可しない"
+        )
+    if drive is _DRIVE_NOT_PROVIDED:
+        drive = trigger.drive_iteration
+    if preview is _PREVIEW_NOT_PROVIDED:
+        preview = _preview
     _validate_generation_budget(generations)
     if isinstance(max_wall_s, bool) or not isinstance(max_wall_s, int) or max_wall_s < 1:
         raise AutonomousTrialError("max_wall_s は正の int 必須")
@@ -1734,6 +1758,7 @@ def run_trial(
             registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
         )
     run_root = Path(run_root)
+    _reject_worktree_container(run_root)
     if run_root.exists() or run_root.is_symlink():
         raise AutonomousTrialError(
             f"run_root は新規 directory 必須 (resume は MVP 範囲外): {run_root}"
@@ -1917,11 +1942,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise BuildAdmissionError(
             "--allow-coder-derived-build の明示 opt-in が必要"
         )
-    run_root = (
-        Path(args.run_root)
-        if args.run_root
-        else ROOT / "output" / "exploration" / "autonomous-trials" / args.trial_id
-    )
+    if args.run_root:
+        run_root = Path(args.run_root)
+    else:
+        run_root = (
+            Path(_resolve_exploration_output_root(
+                legacy_base=str(ROOT / "output"),
+            ))
+            / "exploration" / "autonomous-trials" / args.trial_id
+        )
     fixed_sub = str(Path(args.ccbench_dir).resolve())
     launch_binding = _trial_launch_binding(
         trial_manifest=args.trial_manifest,
