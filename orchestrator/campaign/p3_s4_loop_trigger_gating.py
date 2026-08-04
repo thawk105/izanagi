@@ -63,7 +63,7 @@ from campaign.diff_quarantine import DiffQuarantineResult          # noqa: E402
 from campaign.layout import (CampaignLayout,                       # noqa: E402
                              exploration_campaign_layout)
 from campaign.loop import run_campaign                             # noqa: E402
-from campaign.model import CampaignConfig, Genome                  # noqa: E402
+from campaign.model import CampaignConfig, Genome, STAGE_BUILD_START  # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 from campaign.projection_guard import (                            # noqa: E402
@@ -455,6 +455,11 @@ def _with_campaign_location(
     return outcome
 
 
+def _wal_binding_commitment(records: Dict[str, Dict]) -> str:
+    """Return the commitment already validated against the raw WAL binding."""
+    return records[STAGE_BUILD_START][wal.TRIGGER_BINDING_COMMITMENT_KEY]
+
+
 def _run_one_iteration_resolved(
         campaign_cfg: CampaignConfig, perf,
         planner: L.PlannerProposal, coder: CoderProposalTriggerGating,
@@ -521,23 +526,28 @@ def _run_one_iteration_resolved(
     if v is None and summary.skipped > 0:
         duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
         duplicate.get("records", {}).pop(TRIGGER_GATE_BINDING_WAL_STAGE, None)
-        duplicate["trigger_gate_binding_commitment"] = commitment(binding)
+        duplicate["trigger_gate_binding_commitment"] = _wal_binding_commitment(
+            duplicate["records"]
+        )
         return _with_campaign_location(duplicate, campaign_cfg, layout)
     recs = wal.records_by_stage(layout, v) if v else {}
     recs.pop(TRIGGER_GATE_BINDING_WAL_STAGE, None)
+    binding_commitment = (
+        _wal_binding_commitment(recs) if v is not None else commitment(binding)
+    )
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:
         L.project_whiteboard(state, planner, "success", delta_pct=None)
         return _with_campaign_location({
             "outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
             "verdict": r.verdict, "records": recs,
-            "trigger_gate_binding_commitment": commitment(binding),
+            "trigger_gate_binding_commitment": binding_commitment,
         }, campaign_cfg, layout)
     L.project_whiteboard(state, planner, "fail")
     return _with_campaign_location({
         "outcome": "aborted", "variant": v,
         "verdict": (r.verdict if r else ""), "records": recs,
-        "trigger_gate_binding_commitment": commitment(binding),
+        "trigger_gate_binding_commitment": binding_commitment,
     }, campaign_cfg, layout)
 
 

@@ -2223,19 +2223,24 @@ def test_build_admission_preview_never_reaches_build_entry_with_or_without_opt_i
 
     previews = []
     build_entries = []
-    for module in (sort_preview, trigger_preview):
-        saved_preview, saved_run = module._preview_diff, module.run_campaign
-        module._preview_diff = lambda *_args, **_kwargs: previews.append(module) or {
+    preview_cases = (
+        (sort_preview, "_preview_diff", "--preview-diff", "fixture.txt"),
+        (trigger_preview, "_preview_wire", "--preview-wire", "11111"),
+    )
+    for module, preview_name, preview_option, preview_value in preview_cases:
+        saved_preview, saved_run = getattr(module, preview_name), module.run_campaign
+        setattr(module, preview_name, lambda *_args, **_kwargs: previews.append(module) or {
             "passed": True,
-        }
+        })
         module.run_campaign = lambda *_args, **_kwargs: build_entries.append(module)
         try:
-            assert module.main(["--preview-diff", "fixture.txt"]) == 0
+            assert module.main([preview_option, preview_value]) == 0
             assert module.main([
-                "--preview-diff", "fixture.txt", "--allow-coder-derived-build",
+                preview_option, preview_value, "--allow-coder-derived-build",
             ]) == 0
         finally:
-            module._preview_diff, module.run_campaign = saved_preview, saved_run
+            setattr(module, preview_name, saved_preview)
+            module.run_campaign = saved_run
     assert len(previews) == 4
     assert build_entries == [], "preview が run_campaign build spy に到達した"
 

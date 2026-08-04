@@ -43,7 +43,7 @@ STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "c
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
-from campaign import wal  # noqa: E402
+from campaign import trigger_gate_binding, wal  # noqa: E402
 from campaign.artifact_admission import (  # noqa: E402
     ArtifactAdmissionError,
     require_admitted_campaign,
@@ -102,6 +102,8 @@ def _read_wal(path: Path) -> List[Dict[str, Any]]:
                 "env_tag": parsed.env_tag, "ts": parsed.ts,
                 "payload": parsed.payload,
             }
+            if record["stage"] == trigger_gate_binding.WAL_RECORD_STAGE:
+                continue
             if record["stage"] not in STAGES:
                 raise Layer3ReportError("未知の WAL stage: %r" % record["stage"])
             records.append(record)
