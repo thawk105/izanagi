@@ -1,0 +1,68 @@
+あなたは izanagi プロジェクトの独立した敵対検証者である。目的は**防御的**である — 誤った因果結論が
+台帳へ焼き込まれ、後続の是正実装がその上に載るのを防ぐために、これから走らせる実験の設計を
+壊しに行ってほしい。守る側に回らず、攻撃側に立って書くこと。
+
+## 背景 (最小限)
+
+Pegasus (Intel Xeon Platinum 8468、48 physical core、HT 無効) 上で、`/proc/cpuinfo` の `cpu MHz` を
+論理 CPU 順に読む attestation probe が、**必ず 1〜2 個の帯外サンプル** (2101.0 MHz ± 2% の外、
+実測 2951〜3096 MHz) を生む。この効果が凍結された較正にも実行時観測にも乗るため、
+「全 48 要素が帯内」という実行時述語が構造的に通らず、campaign が塞がれている。
+先行 wave は「probe 自身の観測者効果である」と推定したが、**計算ノードでの因果は未立証**である。
+
+## 読むもの (すべて絶対パス。読めなければ即座に停止し、読めなかった旨だけを報告すること)
+
+1. 本 wave の段 1 brief:
+   `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-experiment/output/insights/2026-08-04_t419-probe-causality/brief.md`
+2. 失敗台帳の該当エントリ F108 / F109:
+   `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-experiment/docs/failures.md`
+   (`### F108.` と `### F109.` を検索して該当部分だけ読む)
+3. 先行 wave の逐語 README:
+   `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-experiment/output/insights/2026-08-04_t419-attestation-clock/README.md`
+4. 現行 probe の実装 (`probe()` と `_parse_cpuinfo`、`compare_profiles` 周辺):
+   `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-experiment/orchestrator/campaign/env_attestation.py`
+
+## あなたのレンズ = 因果推論と測定機序の妥当性
+
+次を**具体的に**攻撃せよ。抽象的な一般論ではなく、brief の該当 arm・仮説番号・判定基準を名指しで。
+
+- **A1 (走行 CPU を pin して帯外 index を見る) は本当に因果を立証するか。** 交絡は何か。
+  「pin した CPU が帯外に出る」が観測されても別の説明が残らないか。逆に、pin しても帯外に
+  出ない場合に「因果なし」と結論してよいか (Linux kernel 5.15 の `arch_freq_get_on_cpu` /
+  APERF-MPERF・acpi-cpufreq の実装機序を踏まえて)。
+- **親の provisional 仮説 (P1)〜(P5) と、親自身のログインノード実測 (前提実測 3) の一般化**を攻撃せよ。
+  96 論理 CPU の共有 login node で観測した「busy なコアが帯外」が、48 core・HT 無効・
+  単独割り当ての計算ノードへ転移するとなぜ言えるのか。転移しない具体的な機序を挙げよ。
+- **事前登録した判定基準 (48/48 かつ 30/30 で CONFIRMED、1 件でも外れれば REFUTED)** は、
+  どんな現実的な事象で偽陽性・偽陰性を出すか。閾値は正しい形か。
+- **arm 間の相互汚染**: A2 の busy loop が A1/A3 の測定に残留する可能性、読み取り順序の効果、
+  最初の 1 回だけ違う値になる warm-up 効果、`/proc/cpuinfo` 読み取り自体のコスト
+  (48 block の生成中に走行 CPU が移る) を検討せよ。
+- **方式 α / β / γ の弁別力**: この実験データで 3 方式の成否を本当に分けられるか。分けられない
+  場合はどの追加 arm が要るか (**ただし追加は最小限に**。規律「実験スケールを無造作に大きくしない」)。
+- **測っていない交絡**: cpufreq driver・governor・boost 以外に、帯外値を作りうる要因を挙げよ
+  (idle state / C-state、TSC と cpu MHz の関係、`cpuinfo_cur_freq` の可読性、NUMA、
+  kernel thread、PBS の prologue/epilogue、他 job の同居)。
+
+## 制約 (守ること)
+
+- あなたは read-only である。ファイルを書き換えず、コマンドで測定もしない (書込可能 tmp が無いため
+  pytest 緑の要求もしない。静的検討でよい)。
+- **この wave は是正を実装しない。** probe の変更・較正の再取得・凍結 bytes の更新を提案しても
+  scope 外として却下される。攻撃は「実験設計が因果を立証できるか」に集中せよ。
+- 正しさゲートを緩める方向の提案 (述語を甘くする、許容幅を広げる) は採用されない。
+- 断定できないことは断定しない。根拠が薄い指摘は「弱い」と自己申告せよ。
+
+## 出力形式
+
+所見ごとに次を書く。
+
+- **ID** (A-1, A-2, ...)
+- **主張** (1 文)
+- **攻撃対象** (brief のどの arm / 仮説 / 判定基準か)
+- **具体的な失敗シナリオ** (どんな入力・状態でどう誤るか)
+- **強度** (強い / 中 / 弱い) と、その根拠
+- **最小の是正案** (実験設計をどう変えれば塞がるか。追加コストも書く)
+
+最後に必ず `## 総括` 節を置き、(a) 実験設計は現状のまま因果を立証できるか (できる / 条件付き /
+できない)、(b) 最も重大な所見 3 件、(c) 追加すべき arm があれば最小構成、を 15 行以内で書くこと。
