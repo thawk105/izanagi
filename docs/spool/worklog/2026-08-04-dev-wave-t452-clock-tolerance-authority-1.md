@@ -30,7 +30,15 @@ title: [T-452] 実効クロック許容幅の権威設計案を起草し裁定�
   セッション異常なし。並行 wave が同時に 4 本走っていたが干渉は観測していない。
 - 実装差分が無いため変異 matrix は射程外。記録 commit 後に `DW-S07` (F34 の恒久対応) に従い
   受入を全走させ **5574 passed / 19 skipped / 0 failed** (計算ノード request 888556、388.65s)。
-  AI provenance 監査は 1103 件で違反なし。
+  AI provenance 監査は merge 後の full 監査で 1134 件、違反なし。
+- land 直前に local main 30 commit を取り込んだ後の再走で `test_reflux_origin_ledger.py::
+  test_v04_global_flock_race_reentry_and_public_signature` が 1 件赤 (request 888571)。
+  **単独再走は 18 passed / rc=0 で再現せず**、本 wave の差分は docs のみで当該 file に到達しない。
+  `DW-O18` に従い実装差分へ帰属させず flake として起票した ({{T:reflux-ledger-flock-flake}})。
+- **手順違反 1 件 (自己申告)**: その次の全走 (request 888597) の最中に本 fragment を編集したため、
+  placeholder の参照だけが入り定義がまだ無い中間状態を `test_check_docs.py::test_real_repo_clean` が
+  拾って赤くなった。整地後の `check_docs` は緑。`DW-O19` の「本走は統合 commit 後に限る」に反する
+  操作であり、走行中は worktree を触らないこと。この赤は本 wave の成果物の欠陥ではない。
 - 段 8 自己改善: 候補 1 件を検討したが不採用。「実装しない裁定の wave で受入全走が対象外」という
   `DW-S04` の射程は、`DW-S07` が docs commit 後の repo scan invariant 再走を別途義務づけているため
   穴になっていない (本 wave はその義務どおり全走させた)。契約変更は起票しない。
@@ -62,6 +70,11 @@ title: [T-452] 実効クロック許容幅の権威設計案を起草し裁定�
   書き換えれば凍結 manifest・protocol SHA・selector journal・独立 golden が破れる。旧 contract を厳密に
   解決できるまま保持する**世代 (generation) 付き移行**を設計する。[T-419] U-2 の前提とするか U-2 に含めるかは
   [T-452] U-7 の裁定に従う
+- {{T:reflux-ledger-flock-flake}} **P3・新規 (flake)**: `test_reflux_origin_ledger.py::
+  test_v04_global_flock_race_reentry_and_public_signature` が並列受入全走で 1 度だけ赤くなり
+  (request 888571)、同 file の単独再走 18 件は緑だった。thread の `wait(timeout=10)` と flock 待ちが
+  並列度 32 の共有計算ノードで飽和した疑い。所有 wave の変更面ではないため本 wave では触っていない。
+  再現条件 (並列度・同居負荷) を実測し、timeout を伸ばすのでなく待ち条件を決定的にする方向で直す
 - {{T:calibration-producer-provenance}} **P3・新規**: 許容幅の権威を固定しても、policy 一致かつ
   自己整合な JSON を合成すれば git 直接追加・attempt 複製・pin だけの更新・CLI 以外の producer から
   登録できる。registry の canonical path 検査は `output/env/<key>/calibration/` 配下を要求するだけで
