@@ -210,3 +210,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:qualification-role-field-name":"[T-479]"},"authored":"2026-08-05","content_sha256":"b3ad4d4ec99cf603857241eb5450cb5bfd5aec529e8a3a44179bb544092a78fa","seq":1,"wave":"dev-wave-t337-qualification-authority"}
 - {"allocations":{"D:qualification-authority-boundary":"D162"},"authored":"2026-08-05","content_sha256":"758c5e4c6a89f9ed34e86229b35e9022b7b355095464b8d5038fb641f4c4f6a3","seq":1,"wave":"dev-wave-t337-qualification-authority"}
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"7c369188b90356f14fdc6d01254ed90002b6e059db65c37282602497fb9163b3","seq":2,"wave":"dev-wave-t337-qualification-authority"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"95d67da5b5a92cf3c58a653e2d1d38d1503e03a2d105eb20c1dd7b2efb552fdb","seq":1,"wave":"dev-wave-t244-p3-producer-wiring"}
+- {"allocations":{"D:p3-producer-wiring-blocked":"D163"},"authored":"2026-08-05","content_sha256":"3649c1f5f13cb11e441302cc8a8b0caac8392aa75071a0fa4e41fb1e370456b2","seq":2,"wave":"dev-wave-t244-p3-producer-wiring"}
