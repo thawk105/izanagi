@@ -1,6 +1,8 @@
 {
   "accounting_available": false,
-  "accounting_integrity_valid": false,
+  "accounting_evidence": false,
+  "accounting_integrity_valid": null,
+  "accounting_unavailable_reason": "permission",
   "accounting_validation": {
     "commands": {
       "racctjob": {
@@ -498,6 +500,11 @@
     "returncode_raw": 9,
     "valid": true
   },
+  "reevaluation": {
+    "evaluator_tool_sha256": "20d4f6353c2d71c1459790ec1f4464cd13f8fec4bd828042ff17a6daa97fe5a2",
+    "receipt_path": "output/insights/2026-08-03_t361-t362-cluster-probes/evidence/20260804T125421Z-5e03df98c93b444e/attempts/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/reevaluation-receipt.json",
+    "reevaluated_time_ns": 1785859635227679395
+  },
   "request_id": "887919.nqsv",
   "request_ordinal": 4,
   "requested_node_min": 3,
@@ -542,7 +549,36 @@
   },
   "schema": "izanagi-t361-t362-controller-attempt/v2",
   "session_id": "20260804T125421Z-5e03df98c93b444e",
-  "termination_cause_consistent": true,
+  "superseded_evaluation": {
+    "accounting_available": false,
+    "accounting_integrity_valid": false,
+    "admissible": false,
+    "attempt_safe": false,
+    "evaluation_model": "split-v2",
+    "observation_valid": false,
+    "probe_cleanup_outcome": "unsafe",
+    "termination_cause_consistent": true,
+    "unsafe_reason": "post_restore_canary_mismatch",
+    "validity_conjunction": {
+      "accounting_valid": false,
+      "compute_marker_valid": true,
+      "job_output_collection_error_free": true,
+      "observer_acceptance_valid": false,
+      "preflight_valid": true,
+      "qstat_no_permission_error": true,
+      "qstat_no_transient_error": true,
+      "qstat_visible": true,
+      "qsub_rc_zero": true,
+      "qsub_receipt_valid": true,
+      "qwait_valid": true,
+      "rbudgetcheck_after_rc_zero": true,
+      "rbudgetcheck_before_rc_zero": true,
+      "request_id_parsed": true,
+      "request_not_active_at_deadline": true
+    }
+  },
+  "termination_cause_consistent": false,
+  "termination_cause_evidence_source": "qwait-receipt+manifest-bound-scheduler-stderr",
   "time_ns": 1785851781604445406,
   "unsafe_reason": "post_restore_canary_mismatch",
   "validity_conjunction": {
