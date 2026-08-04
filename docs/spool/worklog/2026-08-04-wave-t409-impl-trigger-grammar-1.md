@@ -38,9 +38,14 @@ title: [T-409] 受理文法 v1 の実装は完成したが land しない — �
   閉じられない**。T-409 の設計は凍結 pin された producer に触れないと自身の scope を閉じきれない。
   残る 1 件 (marker 外側の条件分岐が未検査) は **main の `_require_materialized_trigger_predicate` にも
   同型で存在する** ため T-428 側の所見としても有効
-- **fix 第 3 巡の子は 1 度成果ゼロで異常終了した。** `.done` 未生成・出力なし・repo の全 mtime が
+- **fix 第 3 巡の子は 1 度成果ゼロで異常終了した。** `.done` 未生成・process 不在・repo の全 mtime が
   前巡どまりで編集ゼロを確認し、`DW-O01` に従い未完了と判定して再投入した。fix を重ねた実回数は
   3 巡で `DW-O16` の上限内
+- **親が焦点再レビュー子の死亡を誤判定した (訂正記録)。** `.done` 不在だけを見て「異常終了」と判断し
+  再投入したが、1 本目は走行中で約 26 分後に完了した。**`.done` 不在は「未完了」であって「死亡」では
+  なく、死亡判定には当該子の process 生存確認が要る。** 同一出力 path へ 2 本が走る状態を作り、
+  消費済み成果物が上書きされる危険を生んだ (凍結逐語は消費 bytes と sha256 一致を確認、1 本目は停止)。
+  `DW-O01` へこの区別を足す改善候補は docs 予算が hard ceiling に達しているため裁定へ送る
 - **Pegasus scheduler の停止で wave を一度中断した。** gen_S が `INA` (229 QUE / 0 RUN) となり
   dispatch が queue-wait-timeout。ユーザー指示で停止し、回復後に指示で再開した。テスト実測は
   request 885111 / 887753 / 887759 / 887767 / 888336 / 888402 / 888420 / 888536
@@ -75,3 +80,9 @@ title: [T-409] 受理文法 v1 の実装は完成したが land しない — �
 - {{T:aba-swap-window}} **P3・新規**: receipt 発行から compile までの間に source を差し替える ABA 窓を
   閉じる (build 専有 snapshot からのみ compile)。既存 build admission が既知未閉鎖と明記する軸横断の穴で、
   [T-409] 段 3 レンズ A が具体手順を構成した
+- {{T:land-path-intersection-machine-check}} **P2・新規**: `DW-O23` の land 前 path 交差検査を
+  `tools/dev_wave_land.py` の fail-closed 検査として機械化する。防壁変更なので段 8 では実装せず裁定へ
+  送った。[T-409] では交差 19 ファイルで、検査があれば land 前に前提覆りを検出できた
+- {{T:codex-child-liveness-vs-done}} **P3・新規**: `DW-O01` に「`.done` 不在は未完了であり死亡ではない
+  (死亡判定は process 生存確認を要する)」を足す。同一出力 path への二重投入を防ぐ。docs 予算が
+  hard ceiling のため縮約先の選定を含めて裁定が必要
