@@ -1,0 +1,53 @@
+'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;'
+   <- output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2/reports/s8a_trigger_sweep_provenance.json
+'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict;'
+   <- output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2/reports/s8a_trigger_sweep_provenance.json
+'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == IzanagiAbortReason::kNodeVali;'
+   <- output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2/reports/s8a_trigger_sweep_provenance.json
+'BACKOFF_TRIGGER_GATING=0 — 骨格全体が #if で消え preprocess 後に pinned HEAD と原文一致 (src_token=stock)。abort() は要因不問で Backoff::backoff() を無条件呼出 (transaction.cc の stock 枝)。ident_all との差 = 骨格常駐コスト (7 store + 1 分岐) の別掲用'
+   <- output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2/reports/s8a_trigger_sweep_provenance.json
+'SORT_VARIANT=0 の #else 枝 (テンプレ骨格そのまま) = sort(write_set_.begin(), write_set_.end()) — WriteElement::operator< による (storage_, key_) 昇順 2 段辞書式 (silo_op_element.hh)'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ < b.storage_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return b.storage_ < a.storage_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.key_ < b.key_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return b.key_ < a.key_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.rcdptr_ < b.rcdptr_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return b.rcdptr_ < a.rcdptr_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : a.key_ < b.key_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.key_ < a.key_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? b.storage_ < a.storage_\n                                         : a.key_ < b.key_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? b.storage_ < a.storage_\n                                         : b.key_ < a.key_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : a.rcdptr_ < b.rcdptr_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.rcdptr_ < a.rcdptr_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? b.storage_ < a.storage_\n                                         : a.rcdptr_ < b.rcdptr_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? b.storage_ < a.storage_\n                                         : b.rcdptr_ < a.rcdptr_;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>&, const WriteElement<Tuple>&) -> bool {\n         return false;\n       });'
+   <- output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json
+'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;'
+   <- output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/reports/s8a_trigger_sweep_provenance.json
+'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid;'
+   <- output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/reports/s8a_trigger_sweep_provenance.json
+'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid;'
+   <- output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/reports/s8a_trigger_sweep_provenance.json
+'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;'
+   <- output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/reports/s8a_trigger_sweep_provenance.json
+'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;'
+   <- output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/reports/s8a_trigger_sweep_provenance.json
+'izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;'
+   <- output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/reports/s8a_trigger_sweep_provenance.json
+total distinct: 26
