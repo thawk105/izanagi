@@ -232,7 +232,8 @@ def diffq_variant_id(genome: Genome, implementation: str) -> str:
 
 
 def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: str,
-                       res: DiffQuarantineResult, env_tag: str = ENV_TAG) -> str:
+                       res: DiffQuarantineResult, env_tag: str = ENV_TAG, *,
+                       trigger_gate_binding=None) -> str:
     """diff 検疫 reject を WAL に BUILD_START→ABORT(reason=diff-quarantine) で焼く。
 
     load_diff_rejections がこの形を読み返し critic に渡す (規律3: 検疫が reject を出した

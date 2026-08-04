@@ -101,7 +101,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  env_contract=None, dependency_prefix: str = "", *,
                  build_context: BuildRunContext,
                  capability_resolver: Optional[AdmissionCapabilityResolver] = None,
-                 campaign_namespace: str = "official") -> CampaignSummary:
+                 campaign_namespace: str = "official",
+                 trigger_gate_binding=None) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。`campaign_namespace` は
     official / exploration の閉じた path selector。namespace は campaign-id に含めず、
@@ -226,6 +227,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 evaluate_options["env_contract"] = env_contract
             if dependency_prefix:
                 evaluate_options["dependency_prefix"] = dependency_prefix
+            if trigger_gate_binding is not None:
+                evaluate_options["trigger_gate_binding"] = trigger_gate_binding
             r = evaluate(g, layout, env_tag, cfg.ccbench_commit, perf,
                          clocks_per_us, numactl=numactl, do_bench=do_bench,
                          do_settle=(do_bench and first_bench),

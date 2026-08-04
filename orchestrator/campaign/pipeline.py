@@ -449,7 +449,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              dependency_prefix: str = "", *,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
-             source_evidence: Optional[SourceEvidence] = None) -> EvalResult:
+             source_evidence: Optional[SourceEvidence] = None,
+             trigger_gate_binding=None) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -478,6 +479,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
 
     `record_rep_returncodes` も既定 False の opt-in。True の official oracle 経路だけ、
     採用した再測定 round と identity で一意に対応する rep rc を bench_done に残す。
+
+    `trigger_gate_binding` は T-428 子 B が意味を実装する signature stub。
 
     `screening` (D58) を指定したときだけ full bench を verify より前へ移し、明白な
     劣位点を uncertified のまま棄却する。COMMIT は従来どおり全 verify 構成通過後だけ。
