@@ -194,3 +194,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:trigger-wire-only-acceptance":"D160"},"authored":"2026-08-04","content_sha256":"d51f5b458ee0dd9d861711c4cd62a1f00f18346931a258a25a6ba158108c4d06","seq":1,"wave":"dev-wave-t428-reflux-wiring"}
 
 - {"allocations":{"T:trial-acceptance-wiring":"[T-470]","T:trial-launch-ledger":"[T-469]","T:trial-registry-authority":"[T-468]"},"authored":"2026-08-04","content_sha256":"fc39a9c35ffc12f04ced2b1c21f873fd39a6bc7638457d5f64bc90e20bca59ec","seq":1,"wave":"dev-wave-t325-trial-registry"}
+
+- {"allocations":{"T:restore-bound-measurement":"[T-471]"},"authored":"2026-08-04","content_sha256":"10af71f6dbbf70339f6efc48b7c0ed4bdb54c7e2ece307a26b10b80fedf6ef67","seq":1,"wave":"dev-wave-t399-t400-signal-mitigation"}
+- {"allocations":{"D:probe-evidence-three-way-split":"D161"},"authored":"2026-08-04","content_sha256":"fbb7ddd12bc4314ee8d86d309a3c32ed0e95cd296dfcab651d251436467d82c7","seq":2,"wave":"dev-wave-t399-t400-signal-mitigation"}
