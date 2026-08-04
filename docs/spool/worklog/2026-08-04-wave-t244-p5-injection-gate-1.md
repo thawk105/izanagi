@@ -42,6 +42,25 @@ title: [T-244] D121 P5 のうち 2 要件を実装した — 正式判定を tok
   (2) 台帳 fragment の `base:` は、対象が carry stub のとき**参照先エントリの実体本文**の digest を
   要る (stub 自身の digest ではない)。fold の dry-run が即座に検出するため実害は小さい
 
+- **変異検査は 9/9 一致 (v2)。** 実装した検査を 1 行ずつ無効化した 8 件はすべて kill、
+  冗長 gate として SURVIVED を事前登録した 1 件 (既存の transport 側条件) は予定どおり生存。
+  実行時層と成果物層を同時に消す両層変異でも、両層の独立 node が赤くなり mask は無い。
+  **初回 (v1) は 9 件中 7 件一致で、2 件は `expected_nodes` の過小指定による MISMATCH だった** —
+  MX8 は 1 node を登録したが実際は 18 node、両層変異は 2 node 登録に対し 7 node。
+  いずれも登録 node を含む上位集合であり mutant は kill されている。**v1 台帳は
+  `mutation-ledger-v1-erratum.json` として残し、期待値を実測へ合わせた v2 を本走とする**
+- **受入全走: `1 failed, 5454 passed, 19 skipped` (Pegasus gen_S 計算ノード request `884813`、309.91 秒)。**
+  赤は `orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  の 1 件のみ。**既知赤 waiver W1 を適用した。** 停止判断の前に F101 の恒久対応どおり
+  local main の worklog を赤 node 名と `waiver` で検索し、W1 の成立を確認している。
+  W1 の毎回検査 — (1) 原因の同一性: `python3 tools/ruleops.py inventory --repo .` が rc=2 で
+  `blob が非 UTF-8:` を出力し、指す path は
+  `output/insights/2026-08-03_t361-t362-cluster-probes/evidence/.../home-read-write.probe.raw`
+  (`output/insights/**/evidence/**` 配下)、(2) 帰属: 本 wave の差分 18 file は当該 path に触れない、
+  (3) 他の赤 0 件、(4) 失効条件の [T-407] は未 land (`tools/ruleops.py:201` の
+  `raw.decode("utf-8", "strict")` が健在)。**射程条件も成立** — 赤は道具の衛生 gate であり、
+  本 wave が触れた正しさ防壁 (試行台帳の受理集合) 側の検査は変異 matrix を含めて全て緑である
+
 ## 次の一手差分
 
 ### 更新
