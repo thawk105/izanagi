@@ -99,7 +99,7 @@ title: [T-287] checkpoint 復元境界の whiteboard 3 値を閉じた値域で�
   (裁定 (115) 択 (a) の射程を完了)。残余は {{T:t287-producer-domain}} /
   {{T:t287-layer3-reader}} / {{T:t287-checkpoint-integrity}} / {{T:t287-error-message-redaction}} へ分離した。
   remaining: none
-  base: c946cf384bc9cd177438e8dbd23efc6446daf219a7aadd1241e13243476f4fe2
+  base: e56ae9084e13909215449f6a3d6cc0428853fff34b0a3e570084a5fcd20ac2c0
 
 ### 新規
 
