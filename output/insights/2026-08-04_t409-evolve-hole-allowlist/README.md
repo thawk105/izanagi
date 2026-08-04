@@ -124,6 +124,17 @@ read/write 集合しか出さず、verifier の `Txn` に「予定していた�
 ## 環境
 
 計測は行っていない (実装差分なし)。テスト実測 = Pegasus login node から `tools/run_tests.py` が
-gen_S へ同期 dispatch した走行 (request 882282 / 882288)。
-既存の赤 1 件 = `orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight`
-は main c642263 以前から赤で、[T-407] が所有する非 UTF-8 blob 由来。本 wave の差分とは無関係。
+gen_S へ同期 dispatch した走行 (request 882282 / 882288 / 883957 / 883999)。
+
+**受入 (docs のみ):** 全スイート = `2 failed, 5437 passed, 19 skipped`。
+`tools/check_docs.py` / `tools/spool_fold.py --dry-run` / `tools/check_ai_provenance.py` (992 件) は
+いずれも緑。赤 2 件はどちらも本 wave の差分 (docs のみ) に帰属しない。
+
+1. `orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight`
+   — main c642263 以前から赤。[T-407] が所有する非 UTF-8 blob
+   (`output/insights/2026-08-03_t361-t362-cluster-probes/evidence/.../home-read-write.probe.raw`) を
+   `ruleops.py inventory` が strict UTF-8 decode して停止する。clean tree で単独再現を実測して切り分けた。
+2. `orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table`
+   — **単独再走で 64 passed、再現しない。**`_run_case` の子プロセスが stdout / stderr 空のまま
+   rc=1 で終わる形で、`--termination-grace-s 0.05` / `--poll-interval-s 0.01` の極小時間窓を使う。
+   DW-O18 に従いフレークとして起票した (worklog 新規項)。

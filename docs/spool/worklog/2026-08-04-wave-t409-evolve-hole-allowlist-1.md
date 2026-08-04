@@ -46,10 +46,14 @@ title: [T-409] EVOLVE-BLOCK hole の受理文法を設計凍結し、実装は�
   (「サイバーセキュリティ上のリスク」)。依頼文が「関所を通る入力を作れ」という攻撃者視点
   だったため。防御目的 (境界テストの negative ベクタ設計) を明示した prompt で再投入して成功。
   凍結してあるのは再投入版の出力である
-- **既存の赤 1 件は本 wave 無関係。** `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight`
-  は main c642263 以前から赤で、[T-407] 所有の非 UTF-8 blob 由来。clean tree で単独再現を実測して
-  切り分けた。ただしレンズ A の警告を採用し、今後の waiver は nodeid だけでなく
-  `non-utf8` + 対象 path で固定する
+- **受入 (docs のみ): 全スイート = 2 failed, 5437 passed, 19 skipped。`check_docs.py` / fold dry-run /
+  `check_ai_provenance.py` (992 件) はいずれも緑。赤 2 件はどちらも本 wave の差分に帰属しない。**
+  (1) `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight` は
+  main c642263 以前から赤で、[T-407] 所有の非 UTF-8 blob 由来。clean tree で単独再現を実測して
+  切り分けた。レンズ A の警告を採用し、今後の waiver は nodeid だけでなく `non-utf8` + 対象 path で
+  固定する。(2) `test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table` は
+  **単独再走で 64 passed となり再現しない** ため DW-O18 に従いフレークとして起票する (下記新規)。
+  本 wave の差分は docs のみでこの経路へ到達しえない
 - **verifier は workload 縮小を構造的に検出しない (段 3 が裏取り)。** trace は commit した実際の
   read/write 集合しか出さず、`orchestrator/verifier/model.py:37` の `Txn` に予定操作数の欄が無く、
   `:132` の integrity にも `FLAGS_ycsb_max_ope` 照合が無い。verifier 側の不変条件追加は別 task 候補。
@@ -72,3 +76,13 @@ title: [T-409] EVOLVE-BLOCK hole の受理文法を設計凍結し、実装は�
   **択一 5** checked-in freeze 対 live source の回帰テストを本件に含めるか別 T にするか
   (親推奨 = 別 T。本件は実装待ちで止まるため防壁追加まで止めない)
   base: 0e23d9e1c71ad7904c7064fe17edc4126b55fcb92aea9c523ecc747ca5c72666
+
+### 新規
+
+- {{T:codex-worker-launch-flake}} **P3・新規・フレーク起票 (DW-O18)**:
+  `test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table` が
+  16 並列の全走時にだけ落ちる。`_run_case` の子プロセスが **stdout / stderr 空のまま rc=1** で
+  終わる形で、`--termination-grace-s 0.05` / `--poll-interval-s 0.01` という極小の時間窓を
+  使うテストである。単独再走は 64 passed で再現しない (2026-08-04、main c642263 + docs 2 commit、
+  Pegasus gen_S request 883957 / 883999)。負荷依存の待ち時間不足を疑うが未診断。
+  観測 1 回なので族一般化はせず、再現条件の特定から始める
