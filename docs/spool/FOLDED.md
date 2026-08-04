@@ -101,3 +101,22 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:dev-wave-l2-pruning":"[T-412]","T:t287-rulings-reflection":"[T-411]"},"authored":"2026-08-04","content_sha256":"2f71b8cd8a132adf314bd8deed2e2921613d2fe877421fba46aeb283a5507092","seq":1,"wave":"rulings-2026-08-04-f"}
 
 - {"allocations":{},"authored":"2026-08-04","content_sha256":"a9121e7ad6e7b45609896bedef785942a8a1f9b862fa534e0291ad96fd321282","seq":1,"wave":"rulings-2026-08-04-g"}
+
+- {"allocations":{"T:rulings-claim-verification":"[T-413]"},"authored":"2026-08-04","content_sha256":"5b82b4513fe0d88494d2547ba806345a3b1e7c9b5db120b865d73ddc31beb669","seq":1,"wave":"rulings-2026-08-04-h"}
+
+- {"allocations":{"T:mutation-harness-node-normalization":"[T-417]","T:t287-checkpoint-integrity":"[T-416]","T:t287-error-message-redaction":"[T-418]","T:t287-layer3-reader":"[T-415]","T:t287-producer-domain":"[T-414]"},"authored":"2026-08-04","content_sha256":"a48cfa60ee02930450fa8c8b95e16b3ebf2dbf3c87c0a61840be6ae81c61b665","seq":1,"wave":"dev-wave-t287-checkpoint-values"}
+- {"allocations":{"F:mutation-harness-realrepo-node":"F95"},"authored":"2026-08-04","content_sha256":"3f406e81f057d2b6f4ff17136e8db6d2a7862bcdba05bbde3d5a73acefdc4d27","seq":2,"wave":"dev-wave-t287-checkpoint-values"}
+- {"allocations":{"F:nonutf8-evidence-blob-lands-red":"F96"},"authored":"2026-08-04","content_sha256":"301c27b0776dd1198f49b0327c4fa36229f978230738b57acb3e2d5b4b8ecd13","seq":3,"wave":"dev-wave-t287-checkpoint-values"}
+
+- {"allocations":{"F:campaign-run-blocks-wave-land":"F98","F:pegasus-attestation-self-rejecting":"F97","F:qsub-positional-args-invented":"F99"},"authored":"2026-08-04","content_sha256":"1f5be4a32eb7070a6eb150bde252012caea92898499e88eac2c9aa63f826a457","seq":1,"wave":"wave-a-transport-smoke"}
+- {"allocations":{"D:pegasus-attestation-blocks-wall1":"D143","D:pegasus-numactl-single-node":"D144"},"authored":"2026-08-04","content_sha256":"a56f0ee6f799aa01599b331f13d55ddfd3d95643beaf46d693a7c943217a2ee3","seq":2,"wave":"wave-a-transport-smoke"}
+- {"allocations":{"T:pegasus-attestation-ruling":"[T-419]","T:pegasus-s2-numactl-proxy":"[T-421]","T:ruleops-nonutf8-artifact":"[T-423]","T:wall1-transport-recheck":"[T-420]","T:wave-land-vs-campaign-guard":"[T-422]"},"authored":"2026-08-04","content_sha256":"24522a775f04ead06af5bfab5fec99e8e7d6202b687b7e90d07f3d646a2b8765","seq":3,"wave":"wave-a-transport-smoke"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"7d4e792db89d71de136eb9ff950f56b18cfd9217d0f51544f2888a1777076ab6","seq":1,"wave":"rulings-2026-08-04-i"}
+
+- {"allocations":{"T:between-run-floor-window-design":"[T-425]","T:certify-job-script-binding":"[T-424]"},"authored":"2026-08-04","content_sha256":"ba43fe6f2f09f9bbf939b7f1fd4f6120c4a7d2cebd45808c17a083a90d16892c","seq":1,"wave":"wave-t088-floor"}
+- {"allocations":{"D:between-run-floor-cohort":"D145"},"authored":"2026-08-04","content_sha256":"5a53d35ab0148d73ab52992561a4d07aec63d9b69ad6c239cad8fe60c5790bac","seq":2,"wave":"wave-t088-floor"}
+
+- {"allocations":{"T:permutation-check-coverage":"[T-426]"},"authored":"2026-08-04","content_sha256":"b29e8a767b72d9c85a0a5f6cac35b55c05a8b95176b74d8e86e157da1cc71bde","seq":1,"wave":"wave-t410-sort-integrity-witness"}
+- {"allocations":{"D:sort-witness-observation-equivalence":"D146"},"authored":"2026-08-04","content_sha256":"20c6ed262e147e79ab2792e35da00394ed4b8d7bfcf9492f947345e15436234f","seq":1,"wave":"wave-t410-sort-integrity-witness"}
+- {"allocations":{"F:known-red-waiver-not-checked-before-stop":"F101","F:main-checkout-mutated-from-worktree-session":"F100"},"authored":"2026-08-04","content_sha256":"642b70925e58570bf4c228ff543ad8c82d5abf82744db24f47d071fde8361ca6","seq":1,"wave":"wave-t410-sort-integrity-witness"}
