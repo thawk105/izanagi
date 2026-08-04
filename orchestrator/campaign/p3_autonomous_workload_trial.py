@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import contextvars
 import dataclasses
 import datetime as dt
 import hashlib
@@ -39,6 +40,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
         sys.path.insert(0, str(_ROOT_FOR_IMPORT))
     from orchestrator.campaign import p3_s4_loop as loop_core
     from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger
+    from orchestrator.campaign import trial_registry
     from orchestrator.campaign.autonomous_trial_completeness import (
         assert_campaign_layer3_chain,
         assert_autonomous_trial_completeness,
@@ -77,6 +79,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 else:
     from . import p3_s4_loop as loop_core
     from . import p3_s4_loop_trigger_gating as trigger
+    from . import trial_registry
     from .autonomous_trial_completeness import (
         assert_campaign_layer3_chain,
         assert_autonomous_trial_completeness,
@@ -244,6 +247,30 @@ so a one-line hole-only hunk is the complete coder edit under review."""
 
 class AutonomousTrialError(RuntimeError):
     """Bounded supervisor contract violation."""
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class PreparedCampaignIdentity:
+    """Pure producer projection used by both preflight and execution."""
+
+    descriptor: Mapping[str, Any]
+    descriptor_record: Mapping[str, Any]
+    campaign: CampaignConfig
+    campaign_id: str
+
+
+_RUN_SCOPE_SEAL = object()
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _RunScopeBinding:
+    binding: trial_registry.TrialBinding | None
+    _seal: object = dataclasses.field(repr=False)
+
+
+_ACTIVE_TRIAL_BINDING: contextvars.ContextVar[
+    _RunScopeBinding | None
+] = contextvars.ContextVar("active_trial_binding", default=None)
 
 
 def _validate_generation_budget(generations: int) -> None:
@@ -557,6 +584,72 @@ def _descriptor_for(workload_flags: Mapping[str, str]) -> tuple[dict, dict]:
     descriptor = project_from_search_config(projected_input)
     validate_descriptor(descriptor)
     return descriptor, projection_record(projected_input, descriptor)
+
+
+def _prepare_campaign_identity(
+    *,
+    workload: str,
+    trial_id: str,
+    generations: int,
+    build_context: BuildRunContext,
+) -> PreparedCampaignIdentity:
+    """Derive the existing descriptor/campaign identity without writing artifacts."""
+    flags = WORKLOADS[workload]
+    descriptor, descriptor_record = _descriptor_for(flags)
+    campaign = _campaign_for(
+        workload=workload,
+        workload_flags=flags,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        trial_id=trial_id,
+        generations=generations,
+        build_context=build_context,
+    )
+    return PreparedCampaignIdentity(
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        campaign=campaign,
+        campaign_id=str(ident.campaign_id(campaign)),
+    )
+
+
+def _trial_launch_binding(
+    *,
+    trial_manifest: Path | None,
+    trial_id: str,
+    workloads: Sequence[str],
+    generations: int,
+) -> trial_registry.TrialBinding | None:
+    """Run the artifact-free launcher gate at either public boundary."""
+    registry_path = ROOT / trial_registry.DEFAULT_REGISTRY_PATH
+    if trial_manifest is None:
+        trial_registry.assert_unregistered_for_exploratory(
+            trial_id,
+            registry_path,
+            ROOT,
+        )
+        return None
+    binding = trial_registry.load_launch_binding(
+        manifest_path=Path(trial_manifest),
+        trial_id=trial_id,
+        workloads=workloads,
+        repository_root=ROOT,
+        registry_path=registry_path,
+    )
+    identity_context = build_run_context(
+        generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+    )
+    prepared = _prepare_campaign_identity(
+        workload=binding.workload,
+        trial_id=trial_id,
+        generations=generations,
+        build_context=identity_context,
+    )
+    trial_registry.assert_campaign_binding(
+        binding,
+        actual_campaign_id=prepared.campaign_id,
+    )
+    return binding
 
 
 def _preview(coder: trigger.CoderProposalTriggerGating, *, sub: str) -> dict[str, Any]:
@@ -1072,6 +1165,7 @@ def _finish_trial(
     transport_receipt: Mapping[str, Any] | None,
     transport_admission: ClaudeTransportAdmission | None = None,
     build_context: BuildRunContext | None = None,
+    trial_binding: trial_registry.TrialBinding | None = None,
 ) -> dict[str, Any]:
     if fatal_error is None:
         _assert_build_transport_admitted(
@@ -1198,6 +1292,12 @@ def _finish_trial(
         report["transport_receipt"] = _validate_transport_receipt(
             dict(transport_receipt), expected=transport_receipt
         )
+    if trial_binding is not None:
+        report.update({
+            "prereg_commit": trial_binding.prereg_commit,
+            "measurement_head": trial_binding.measurement_head,
+            "manifest_sha256": trial_binding.manifest_sha256,
+        })
     journal.append(_event_with_transport_receipt(
         {
             "event": "run-finish",
@@ -1242,6 +1342,32 @@ def _run_workload(
     transport_admission: ClaudeTransportAdmission | None = None,
     build_context: BuildRunContext | None = None,
 ) -> dict[str, Any]:
+    active_scope = _ACTIVE_TRIAL_BINDING.get()
+    if active_scope is None:
+        trial_registry.assert_unregistered_for_exploratory(
+            trial_id,
+            ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
+            ROOT,
+        )
+        active_binding = None
+    elif (
+        type(active_scope) is not _RunScopeBinding
+        or active_scope._seal is not _RUN_SCOPE_SEAL
+    ):
+        raise trial_registry.TrialRegistryError(
+            "[run-scope] active workload scope was not issued by run_trial"
+        )
+    else:
+        active_binding = active_scope.binding
+    if active_binding is not None:
+        trial_registry.assert_issued_trial_binding(active_binding)
+        if (
+            active_binding.trial_id != trial_id
+            or active_binding.workload != workload
+        ):
+            raise trial_registry.TrialRegistryError(
+                "[launch-binding] active binding differs from workload inputs"
+            )
     _validate_generation_budget(generations)
     _assert_build_transport_admitted(
         do_build,
@@ -1253,17 +1379,16 @@ def _run_workload(
             "workload requires the trial's shared BuildRunContext"
         )
     flags = WORKLOADS[workload]
-    descriptor, descriptor_record = _descriptor_for(flags)
-    cfg = _campaign_for(
+    prepared = _prepare_campaign_identity(
         workload=workload,
-        workload_flags=flags,
-        descriptor=descriptor,
-        descriptor_record=descriptor_record,
         trial_id=trial_id,
         generations=generations,
         build_context=build_context,
     )
-    campaign_id = str(ident.campaign_id(cfg))
+    descriptor = prepared.descriptor
+    descriptor_record = prepared.descriptor_record
+    cfg = prepared.campaign
+    campaign_id = prepared.campaign_id
     if do_build:
         layout = exploration_campaign_layout(campaign_id)
     else:
@@ -1542,6 +1667,8 @@ def run_trial(
     drive: Callable[..., Mapping[str, Any]] = trigger.drive_iteration,
     preview: Callable[..., Mapping[str, Any]] = _preview,
     coder_authority: CoderBuildAuthority | None = None,
+    trial_manifest: Path | None = None,
+    trial_binding: trial_registry.TrialBinding | None = None,
 ) -> dict[str, Any]:
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
@@ -1579,6 +1706,32 @@ def run_trial(
     if do_build and coder_authority is None:
         raise AutonomousTrialError(
             "build trial requires parser-issued --allow-coder-derived-build authority"
+        )
+    if trial_binding is None:
+        trial_binding = _trial_launch_binding(
+            trial_manifest=trial_manifest,
+            trial_id=trial_id,
+            workloads=selected,
+            generations=generations,
+        )
+    else:
+        trial_registry.assert_issued_trial_binding(trial_binding)
+        observed_head = trial_registry.resolve_measurement_commit(ROOT)
+        if observed_head != trial_binding.measurement_head:
+            raise trial_registry.TrialRegistryError(
+                "[measurement-head-moved] HEAD changed after CLI preflight"
+            )
+        if trial_manifest is None:
+            raise trial_registry.TrialRegistryError(
+                "[launch-binding] supplied binding requires its trial manifest"
+            )
+        trial_registry.assert_rederived_launch_binding(
+            trial_binding,
+            manifest_path=Path(trial_manifest),
+            trial_id=trial_id,
+            workloads=selected,
+            repository_root=ROOT,
+            registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
         )
     run_root = Path(run_root)
     if run_root.exists() or run_root.is_symlink():
@@ -1621,7 +1774,7 @@ def run_trial(
                 "type": type(exc).__name__,
                 "message": _redacted_transport_error(exc, None),
             })
-    journal.append({
+    run_start = {
         "event": "run-start",
         "schema_version": SCHEMA_VERSION,
         "trial_id": trial_id,
@@ -1632,7 +1785,14 @@ def run_trial(
         "do_build": do_build,
         "performance_early_stop": False,
         "scientific_claim": False,
-    })
+    }
+    if trial_binding is not None:
+        run_start.update({
+            "prereg_commit": trial_binding.prereg_commit,
+            "measurement_head": trial_binding.measurement_head,
+            "manifest_sha256": trial_binding.manifest_sha256,
+        })
+    journal.append(run_start)
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
     fatal_error: dict[str, str] | None = (
@@ -1670,27 +1830,33 @@ def run_trial(
                     fatal_error=fatal_error,
                     transport_receipt=transport_receipt,
                 )
-        return _finish_trial(
-            trial_id=trial_id,
-            selected=selected,
-            generations=generations,
-            provider_kind=provider_kind,
-            run_root=run_root,
-            sub=sub,
-            do_build=do_build,
-            cache_root=cache_root,
-            max_wall_s=max_wall_s,
-            drive=drive,
-            preview=preview,
-            journal=journal,
-            started=started,
-            started_monotonic=started_monotonic,
-            active_providers=active_providers,
-            fatal_error=fatal_error,
-            transport_receipt=transport_receipt,
-            transport_admission=transport_admission,
-            build_context=build_context,
-        )
+        run_scope = _RunScopeBinding(trial_binding, _RUN_SCOPE_SEAL)
+        scope_token = _ACTIVE_TRIAL_BINDING.set(run_scope)
+        try:
+            return _finish_trial(
+                trial_id=trial_id,
+                selected=selected,
+                generations=generations,
+                provider_kind=provider_kind,
+                run_root=run_root,
+                sub=sub,
+                do_build=do_build,
+                cache_root=cache_root,
+                max_wall_s=max_wall_s,
+                drive=drive,
+                preview=preview,
+                journal=journal,
+                started=started,
+                started_monotonic=started_monotonic,
+                active_providers=active_providers,
+                fatal_error=fatal_error,
+                transport_receipt=transport_receipt,
+                transport_admission=transport_admission,
+                build_context=build_context,
+                trial_binding=trial_binding,
+            )
+        finally:
+            _ACTIVE_TRIAL_BINDING.reset(scope_token)
     finally:
         if owns_active_providers:
             _close_owned_providers(active_providers)
@@ -1713,6 +1879,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="T-178 bounded unattended workload-conditioned CC synthesis pilot"
     )
     parser.add_argument("--trial-id", required=True)
+    parser.add_argument("--trial-manifest", type=Path)
     parser.add_argument(
         "--provider", required=True, choices=tuple(sorted(PROVIDER_KINDS))
     )
@@ -1756,6 +1923,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         else ROOT / "output" / "exploration" / "autonomous-trials" / args.trial_id
     )
     fixed_sub = str(Path(args.ccbench_dir).resolve())
+    launch_binding = _trial_launch_binding(
+        trial_manifest=args.trial_manifest,
+        trial_id=args.trial_id,
+        workloads=args.workloads,
+        generations=args.max_generations,
+    )
     if args.no_build:
         assert_pinned_clean(fixed_sub, trigger.PIN)
         context = contextlib.nullcontext(fixed_sub)
@@ -1786,6 +1959,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             coder_authority=(
                 None if args.no_build else args.coder_build_authority
             ),
+            trial_manifest=args.trial_manifest,
+            trial_binding=launch_binding,
         )
     print(json.dumps({
         "status": report["status"],
