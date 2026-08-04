@@ -172,24 +172,32 @@ def _independent_comparison_passes(field: str, expected: object, observed: objec
                 observed_median = float(observed)  # type: ignore[arg-type]
             return round(expected_median) == round(observed_median)
         if field == "effective_clock.samples_mhz":
-            if not isinstance(expected, Mapping) or not isinstance(observed, Mapping):
-                return False
-            expected_samples = expected.get("samples_mhz")
-            observed_samples = observed.get("samples_mhz")
-            tolerance = expected.get("tolerance_pct")
-            if (type(expected_samples) is not list or type(observed_samples) is not list
-                    or not expected_samples or not observed_samples
-                    or type(tolerance) not in (int, float)):
-                return False
-            expected_median = float(statistics.median(expected_samples))
-            allowed_delta = abs(expected_median) * float(tolerance) / 100.0
-            return all(
-                abs(float(sample) - expected_median) <= allowed_delta
-                for sample in observed_samples
-            )
+            return effective_clock_comparison_passes(expected, observed)
         return expected == observed
     except (TypeError, ValueError, statistics.StatisticsError,
             _env_attestation.AttestationError):
+        return False
+
+
+def effective_clock_comparison_passes(expected: object, observed: object) -> bool:
+    """Canonical pure predicate for effective-clock expected/observed values."""
+    try:
+        if not isinstance(expected, Mapping) or not isinstance(observed, Mapping):
+            return False
+        expected_samples = expected.get("samples_mhz")
+        observed_samples = observed.get("samples_mhz")
+        tolerance = expected.get("tolerance_pct")
+        if (type(expected_samples) is not list or type(observed_samples) is not list
+                or not expected_samples or not observed_samples
+                or type(tolerance) not in (int, float)):
+            return False
+        expected_median = float(statistics.median(expected_samples))
+        allowed_delta = abs(expected_median) * float(tolerance) / 100.0
+        return all(
+            abs(float(sample) - expected_median) <= allowed_delta
+            for sample in observed_samples
+        )
+    except (TypeError, ValueError, statistics.StatisticsError):
         return False
 
 

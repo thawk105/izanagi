@@ -7516,3 +7516,298 @@ insight candidate 本文の非 UTF-8 fail-closed は変えない。
 - 選択 scope を狭めて evidence を外す — D99 決定 (2) の対象範囲そのものの変更であり、
   別の裁定を要する。
 - 件数を出さずに読み飛ばす — 人間レビュー用の一覧が signal なしで不完全になる。
+
+## D152. third-party source の取得は任意 preflight helper とし、cache は repo 外・publish は mkdir 予約 + rename にする (2026-08-04)
+
+**決定 (1): 取得経路は `tools/pegasus/` の新規 CLI 1 本に閉じ、凍結ファイルを変更しない。**
+凍結 evidence が policy・submitter・job script・driver の 4 本を sha256 で束縛しているため、
+既存 shell の取得ロジックには触れない。consumer 接続は submitter の
+「destination が既に在れば clone 分岐を通らない」性質を使い、staging を先に埋める形で行う。
+submitter 自身の pin/clean 検査と receipt 生成はそのまま走る。
+
+**決定 (2): この helper は取得の権威ではない。** 取得経路は submit receipt にも evidence にも
+値として現れないため、「取得の由来が台帳から追える」とは主張しない。helper は任意であり、
+最終判定は凍結 shell の pin/clean 検査のままである。helper を必須工程と解釈すると、helper が
+追加要求する検査 (origin URL、repo root、Git metadata) の分だけ end-to-end の受理集合が変わる。
+任意と定めることで「受理集合を変えない」が成立する。
+
+**決定 (3): cache root は明示必須とし、policy から導出しない。**
+`--cache-root` か環境変数のどちらかを必須にし、repo 配下は拒否する。機体固有の値は環境専用
+runbook に置く。policy の `gflags_source_path` の親から導く案は却下した — 実測で gflags と glog は
+**shallow clone** であり、新規に作る 3 本の self-contained clone とは管理形態が異なる。
+無関係な policy field に保存場所の意味を後付けすることにもなる。
+
+**決定 (4): worktree 内 staging への供給は copytree でなく fresh clone にする。**
+`git status --untracked-files=all` は **ignored file を列挙しない**。上流の `.gitignore` が
+ビルド生成物 (`*.a`、`config.h`) を無視し、CCBench の FetchContent はそれらを再生成せず
+リンクするため、cache を丸ごと複製すると pin 一致・clean のまま改竄済み成果物を build 入力へ
+運べる。cache からの `clone --no-hardlinks --no-checkout` + detached checkout なら
+ignored file は構造的に入らない。既存 destination を再利用する経路では
+`ls-files --others --ignored --exclude-standard` が空であることも要求する。
+
+**決定 (5): directory の create-only publish は `mkdir` 排他予約 + `rename` にする。**
+実測で、共有 FS では `renameat2(RENAME_NOREPLACE)` が directory に対して `EINVAL` を返す。
+`/home` だけでなく **`/work` でも同じ**である。`os.link` は directory に `EPERM` なので
+既存の link+unlink fallback も使えない。`os.mkdir` は `EEXIST` で排他が効き、空 directory への
+`rename` は成功するので、この 2 段で race-free な create-only が成立する。予約後に失敗したときは
+**自分が作った空の予約 inode である場合に限り**片付ける。
+
+**決定 (6): Git 子プロセスは hardened 環境で起動し、cache の `.git/config` は起動前に text で検査する。**
+`core.fsmonitor` / `core.sshCommand` / filter / `include` は git 実行時に任意 command を起こす。
+system/global config を無効化し protocol を操作ごとに固定したうえで、危険 key を含む config は
+git を起動する前に拒否する。継続行と旧式 dotted subsection は自作解釈せず全面拒否する
+(Git の解釈と食い違うと拒否をすり抜けるため)。
+
+**却下した選択肢:**
+- cache root の既定を policy から導出する — 上記のとおり管理形態が違い、別 host では成立しない。
+- 検証ロジックを新規実装する — 凍結 driver の `third_party_policy` /
+  `third_party_source_contract` が同じ検査を持つ。二重化は drift を生む。
+- consumer へ cache root を渡す — cache は ignored ビルド生成物を持ちうるため、
+  `cp -a` する consumer に渡すと決定 (4) の防壁を迂回する。渡してよいのは hydrate の出力だけ。
+- 取得を強制する経路を作る — 凍結 submitter の書き換えが要り、本裁定の射程外である。
+
+## D153. D121 P4 の独立 leaf 実装は差し戻す — batch 第一級の裁定の下で batch freeze は origin ledger 実装と不可分であり、member identity ほか 5 件を裁定へ返す (2026-08-04)
+
+**背景:** D121 決定 (7) の P4 (batch cardinality・全候補の事前 commit・seal までの結果非公開) は
+D150 で無条件義務へ移り、未充足のまま残っていた。本 wave は P4 の機械部品を独立 leaf
+(commitment codec + freeze→seal FSM) + 独立 golden として実装するために起票され、file:line 粒度の
+実装プランを起草した (逐語 = `output/insights/2026-08-04_t244-p4-batch-freeze/`)。
+段 3 の敵対 2 レンズが**独立に NO-GO** を返した (blocker 11 件・major 8 件・minor 2 件)。
+
+**決定 (1): 本 wave では実装せず、プラン・所見・裁定を設計材料として凍結する。** 決め手は 3 点。
+
+第一に、**batch を origin ledger の第一級にするというユーザー裁定の下で、ledger 外の独立 FSM
+leaf は実装先として誤りになった。** 第一級 batch event が canonical bytes・digest・cardinality・
+policy を格納する以上、独立 leaf の lifecycle・policy・result schema は将来の第一級実装との
+二重実装か、どこからも発火しない prototype のどちらかになる。後者は D150 決定 (6)(a) が警告する
+「実装のふりをした非適用」の温床である。
+
+第二に、**batch member の identity が未裁定で、commitment preimage が決まらない。** プランは
+member を distinct wire set (最大 32) とした。しかし採用済みの予算下限式は 32 候補 × R replicate の
+全 query を数えるため、distinct set では反復測定を表現できず、cardinality と query 消費が
+実 query 数より小さく写る。preimage が決まらない以上、正準 bytes の独立 golden 凍結も成立しない。
+
+第三に、**条件付き機能の発火 gate (DW-G04) に対し、発火する既存 artifact path / 計測 ID を
+1 件も書けない。** D149 (P1) の「機械部品 + 独立 golden 先行」は golden の独立性を監査する
+順序の先例であって、発火 gate の一般例外を作らない。
+
+**決定 (2): 設計択一 5 件を裁定パッケージとしてユーザーへ返す。** 推奨込みの一覧:
+W1 実装先 = origin ledger 実装 wave の中で第一級 batch event / reducer として設計・実装する
+(producer・ledger・driver・formal consumer・proof chain の結線順と各層の受理条件も同 wave の
+設計に含める)。W2 member identity = query/replicate ordinal 込み (予算下限式の replicate を
+表現するため)。W3 結果の evidence 束縛 = evidence digest 束縛 (二値 + 自己申告 class hash では
+proof chain が未裏付け outcome を受理しうる)。W4 = 早期停止時は残 member を tombstone として
+消費し公開 transcript 長を固定する (設計本文 §4③ の既定どおり)。W5 floor / Kmax の authority =
+origin-total の計数は ledger、batch 層は authority receipt 由来の policy だけを受理し、
+class referent の実在・完全性検証は formal consumer 側の義務とする。
+
+**決定 (3): 名乗りの制限。** 本 wave が残すのは設計材料 (プラン + 敵対所見 + 裁定) だけである。
+「P4 実装」「P4 充足」「P4 prototype」のいずれも名乗らない。P4 は未充足のまま、cap-lift は FAIL、
+承認上限 1 (D114) は不変。
+
+**却下した案:** (a) member identity 等を親の裁量で決めて実装する — D121 却下案 (b)
+「未裁定設計の既成事実化」と同型で、D147 が P3 で却下したのと同じ理由。(b) commitment codec
+だけ先行 leaf 化する — preimage が W2 に依存するため codec 単体でも既成事実化になる。
+(c) レンズ A の「golden 凍結 = freeze 族接触で段 1 巻き戻し」— 当該節の義務 (freeze 族の
+submodule 初期化と skip の正直な報告) は wave 開始時に履行済みで、新規 golden の新設は
+凍結成果物・oracle gate・proof chain の機構に触れない。巻き戻しは成果物を捨てるだけで
+判定を変えない。
+
+**研究状態への影響:** なし。本 wave は docs のみで、production 挙動、受理集合、certified 選択、
+材料レポート、proof chain、凍結 bytes はいずれも不変である。実装差分が無いため変異 matrix は対象外。
+
+## D154. P6 の意味的充足は admission 結線までを要求する認定契約の案として起草する — 集合出力だけの実装・条項削除 fail-open・名乗りだけの独立性を認定から排除し、採否と V1 は裁定パッケージへ返す (2026-08-04)
+
+**背景:** D150 決定 (6)(a) は「実装のふりをした非適用」の判定基準 — 空 handler と恒真 assert が
+D138 の列挙 (handler・全 witness-kind adapter・正負 calibration・未知 kind の fail-closed) を
+形式的に満たす穴 — を意図的に未定義とし、裁定パッケージへ返した。ユーザー裁定 (2026-08-04 の
+/rulings、worklog (175) の V2 項) は「P6 設計 wave が意味的充足契約の案を起草し、正負 calibration の
+具体反例・非空の限界効果を示す変異・独立検査者の要求を含めて裁定パッケージで返す。V1
+(`NOT_CLAIMED` の射程) も同 wave で扱う」。本 wave はその設計 wave である。契約案本文と逐語の正本 =
+`output/insights/2026-08-04_t433-p6-sufficiency-contract/`。
+
+**決定 (1): 中心所見を記録する — 認定手続にも「限界効果ゼロ」が再発する。** 段 3 の敵対レンズ
+2 本が独立に同一の欠陥へ到達した (合議ではない): 期待される集合値 (`forbidden_candidate_keys`、
+`marginal_keys`) を返すだけで候補 admission に一度も作用しない実装が、段 2 案の calibration・
+全変異・独立再計算をすべて通過できる。D138 決定 (1) が受理集合について示した「限界効果ゼロ」と
+同型の恒真化が、充足**認定**の層でも成立してしまう。したがって契約は「正しい集合を返すこと」と
+「受理集合が実際に変わること」を別条項に分け、後者を end-to-end の admission A/B 対
+(P6 有効アームで禁止候補が generalized cut を唯一の理由に build 前 reject され、無効アームで
+同じ候補が通る) で検査することを認定の中心要件とする。
+
+**決定 (2): 契約は人間 gate の判定規則 + 判定可能条項の列挙として書き、機械 gate を作らない。**
+認定の出力は機械 status field でなく docs artifact の認定記録 (対象 revision SHA・契約版 hash・
+corpus / 変異集合 hash・verdict・検査者 attestation への参照) とし、cap-lift receipt (別 T、
+worklog の V3 項が所有) はこの記録への参照を収容する。認定記録は revision に束縛され、cap-lift
+承認者は申請時に現 revision との一致を照合する義務を負う (不一致 = 認定無効・保留)。発火は
+「実装 land 後・cap-lift 申請前の認定 request 起票」で定義し、request 前は D150 決定 (4-b) の
+承認保留が既定のまま残る。
+
+**決定 (3): 変異排除規則はコア条項について fail-closed とする。** 「反転変異を書けない条項は
+恒真として契約から落とす」という一般規則をそのまま全条項に適用すると、規律 2 由来の条項
+(verifier 必須・exact cut 独立性・admission 結線) を「変異を書けなかった」ことを理由に削除できる
+fail-open になる。コア条項は削除不可とし、反転変異を書けない場合は認定不可とする。あわせて
+kill 判定は calibration verdict の反転のみ (副作用 bit を数えない)、合接条項は conjunct 単位、
+変異と hidden case の最終選択権は独立検査者、corpus・対応表は認定 request 前に hash 固定とする。
+
+**決定 (4): 独立検査者は名乗りでなく監査可能な証拠で要求する。** fresh context の宣言だけでは
+申請者自身の別 session と区別できない。認定記録に attestation (入力閉集合の digest・workspace
+非継承・hidden case / 変異を検査者が選択した旨) を必須添付し、偽装を機械的に不可能にすると
+主張せず「事後監査で反証可能な証拠を残すこと」を契約義務とする。真正性の確認は人間 gate。
+
+**決定 (5): V1 は量化を明示した (a′) を推奨し、ユーザー裁定へ返す。** 既存 3 択 (per-run gate /
+cap 不開放 / global 免責) はいずれも「run」の量化が未定義で、同じ入力集合に許可と不許可の両方を
+導ける (両レンズ一致)。(a′) = P6 状態の判定単位は cap-lift 申請 (revision・origin・運転構成・
+claim 有無を固定し receipt に束縛)、run 単位の義務は receipt との conformance (構成が異なる run は
+承認の外で上限 1 に落ちる)、`NOT_CLAIMED` は申請をまたぐ standing 免責にしない。ユーザー裁定
+U2 (`NOT_CLAIMED` だけを免責) は申請評価の中で保存される。「`NOT_CLAIMED` 構成に多世代を許すか」
+という D150 決定 (6)(b) の残余は (a′) でも残り、(a′) は許す側の答えである。
+
+**決定 (6): 実装しない。** 根拠は独立に 3 つ: (a) ユーザー裁定の文言が「設計と裁定パッケージまで」。
+(b) `DW-G04` — 認定手続の発火条件を満たす既存 artifact (P6 実装・calibration fixture・認定
+request) が 1 件も無い。P6 実装の不在は識別子 4 種の文字列不在 + D150 決定 (4-b) の記録 +
+phase 文書の記載の合成で確認した (文字列不在単独を意味的不在の証明としない)。(c) 契約の採否と
+V1 が未裁定であり、実装は既成事実化になる。段 5・6 は飛ばし、変異事前登録・変異 matrix・
+受入全走は対象外 (実装差分ゼロ)。承認上限 1 (D114)・凍結 bytes・事前登録文書は不変。
+
+**却下した選択肢:**
+- 集合出力の一致だけで「実装済み」を認定する (段 2 案) — 決定 (1) の恒真化がそのまま残る。
+- 反転変異を書けない条項を無差別に削除する排除規則 — 規律 2 条項まで削除できる fail-open。
+- fresh context の名乗りを独立性の証拠に数える — 自己検査の儀式化。attestation の無い認定は
+  D150 決定 (4-b) が禁じた「宣言を証拠に数える」の変種になる。
+- claim 有無の状態分類を handler calibration のケースに置く — 4 値実行結果と状態語の型境界
+  (D150 決定 (3)) を calibration 内で壊す。状態分類の照合は認定手続 (人間 gate) 側に置く。
+- 認定の失効を自動検知する機械 gate の新設 — 本 wave の不変条件 (機械 gate を作らない) に反する。
+  申請時照合の人間義務として規定し、機械束縛は将来 wave の所有とする。
+
+**この決定が確定していないこと:** 契約案の採否 (U1)、V1 の裁定 (U2)、adapter 正例要件 (U3)、
+calibration 新鮮性 (U4)。いずれも裁定パッケージとしてユーザーへ返した。
+
+**研究状態への影響: なし。** 本 wave は docs と insights のみで、production 挙動、実験の機械
+受理集合、certified 選択、材料レポート、proof chain、凍結 bytes はいずれも不変である。契約が
+採用された場合に変わるのは cap-lift の規範上の受理集合 (基準不在の保留 → 基準付き認定) だけで、
+それは採用の裁定時に発効する。
+
+## D155. 較正は自分自身の実行時述語を通るときだけ登録できる — probe の観測者効果は再裁定へ返す (2026-08-04)
+
+**決定 (1): 取得時に自己整合 gate を置く。**
+`--certify` 経路が `registered/` へ publish する候補 artifact は、**自分自身を観測値として
+実行時 consumer 述語にかけて受理されるとき**にだけ publish する。満たさなければ
+`effective-clock-self-comparison-failed` を品質 reason に積んで rejected とし、publish しない。
+発火位置は publish (rename) より必ず手前である。ユーザー裁定 (2026-08-04) が求めた
+「取得時に全要素が帯内であることの受入検査」の実体はこれである。
+
+**決定 (2): 述語は consumer 側を正本とし、publisher はそれを共有する。**
+純関数 `effective_clock_comparison_passes` を canonical とし、consumer (実行時 guard) と
+publisher (較正取得 CLI) の両方が同じ実装を使う。issuer (attestation receipt の判定) は
+**従来どおり独立実装のまま**とし、consumer が issuer の判定を再計算で裏取りする設計を壊さない。
+独立 2 実装は drift するが、issuer が独立に残る限り相互裏取りは失われないためである。
+
+**決定 (3): この gate が守る範囲は CLI publish 経路だけである。**
+git 直接追加、旧 worktree からの持ち込み、attempt からの複製、pin 更新のいずれも
+loader も hook も拒否しない。したがって「登録済み較正を守る」とは書けない。
+機械的な補償として、契約 registry が参照する全 calibration を走査し、
+**自己整合を満たさない entry の集合が既知例外と厳密に一致する**ことをテストで検査する。
+既知例外は現 Pegasus 較正 1 件で、これが直ったときにもテストは赤くなる (反転の強制)。
+
+**決定 (4): probe の観測者効果の是正は実装せず、ユーザー再裁定へ返す。**
+attestation probe は `/proc/cpuinfo` を読むが、**読み取っているプロセス自身が走るコアが
+turbo にいる**ため必ず帯外サンプルを生む (F108)。
+これは較正側にも実行時観測側にも乗るため、**較正を取り直しても実行時述語は通らない**。
+是正案 (K 回読んで論理 CPU ごとに最小値を採る / 走行 CPU を記録して除外する /
+帯外を 1 個まで許容する) はいずれも受理集合か凍結 bytes に触れ、
+かつ計算ノードでの因果が未立証である。先に走行 CPU・cpufreq driver・boost 設定・同居プロセスを
+束縛した probe 実験を置く。
+
+**決定 (5): この wave は Pegasus の campaign を開かない。**
+封じ込め (再発 publish の阻止と検出) だけを行い、較正の再取得・凍結 bytes の更新・
+pin の更新はしない。
+
+**理由:**
+- ユーザー裁定は「述語を正とする」と定めた。述語を緩める案は規律 2 に反するため採らない。
+- F97 の恒久対応が求めた positive control (参照が自分の判定を通ることの検査) は、
+  gate と registry 不変条件の形で実体を持たせられる。
+- 一方、裁定が同時に求めた「較正を取り直す」は、観測者効果が残る限り**取得時 gate が
+  必ず落とす**ため実行できない。裁定時点で未見の事実であり、親が独断で読み替えない。
+
+**却下した選択肢:**
+- **述語を「中央値どうしの比較」や「帯外 1 個まで許容」へ緩める** — 受理集合が広がり、
+  緩める根拠 (なぜ 1 個か) を持たない。裁定が「述語を正とする」と定めた方向にも反する。
+- **attestation を campaign から外す** — 規律 2 に反する。通らないことを理由に検査を外さない。
+- **gate を schema や loader の受理条件に入れる** — 現登録 artifact が即座に読めなくなり、
+  再取得の道が塞がる前に proof chain の参照が壊れる。producer 側だけを狭める形を採った。
+- **`tolerance_pct` の権威束縛をこの wave で決める** — 権威の出所 (policy 値か smoke 分布か) は
+  設計択一であり、再登録前の blocker として裁定へ返す。
+
+## D156. P6 の「実装済み」認定に意味的充足契約 v1 を採用する (2026-08-04)
+
+**決定:** D150 決定 (6)(a) が空白にしていた P6 の「実装済み」認定基準として、
+`output/insights/2026-08-04_t433-p6-sufficiency-contract/README.md` の意味的充足契約 v1 を
+採用する (2026-08-04 ユーザー裁定、起草 wave の推奨どおり)。コア要件は (1) admission 結線まで
+含めた end-to-end calibration、(2) conjunct 単位の反転変異と検査者選択権、(3) 監査可能な
+独立検査者 attestation、(4) 認定記録と失効照合。付帯裁定 3 件も同時に確定した —
+V1 (`NOT_CLAIMED` の射程) は精密化 (a′): 判定は cap-lift 申請単位で行い receipt に束縛、
+run 側の義務は receipt との conformance、`NOT_CLAIMED` は standing な global 免責にしない
+(「主張しない構成に多世代を許すか」は許す側)。adapter の充足要件は各 adapter に最低 1 個の
+`P6Derived` 正例。calibration の新鮮性は固定 corpus + 検査者生成の hidden case。
+
+**理由:**
+
+- 正負 calibration の具体反例・非空の限界効果を示す変異・独立検査者を要求しない限り、
+  空 handler と恒真 assert が認定列挙を満たす (起草 wave の敵対 2 レンズ 18 所見を全採用した案)
+- 規範上の受理集合は「基準不在の保留」から「基準付き認定」へ狭まる。境界テストを含む機械実装は
+  P6 実装 wave と cap-lift receipt 設計の所有であり、本決定は規範の発効のみを行う
+  (発効した契約が実装なしで「充足」を名乗る経路は、契約自身の認定記録要件が塞ぐ)
+
+**却下した選択肢:**
+
+- run 単位の global 判定 (素朴な択 (a)) — run の量化が未定義で判定可能でない
+- `NOT_CLAIMED` 構成に多世代を許さない (択 (b)) — 免責の唯一の用途が消え、
+  D150 決定 (6)(b) の語彙が実質空になる
+- 「counter を見たら一律エラー」の adapter を実装済みと認める — 恒真検査の温床になる
+- 固定 corpus のみの calibration — 固定入力の暗記を実装と認定してしまう
+
+## D157. claude-headless の run_trial は explicit keyword の drive / preview 注入を拒否し、provider kind を exact plain str に限る (2026-08-04)
+
+**決定 (1): 正式経路の driver 注入拒否は explicit keyword に限り、そのとおりに名乗る。**
+`provider_kind == "claude-headless"` の `run_trial` は、caller が `drive` / `preview` keyword へ
+sentinel 既定値以外を渡した呼び出しを artifact 作成前 (`run_root` 作成・journal・provider
+初期化のすべてに先行) に拒否する。省略検出は private sentinel 既定値の identity 比較で行い、
+gate 直後に module 現在値 (`trigger.drive_iteration` / `_preview`) へ一様解決する。
+D148 決定 (2) が未閉として残した drive / preview 部分を、2026-08-04 のユーザー裁定
+(worklog の /rulings 記録) に従って閉じる。ただし**「caller 差し替えを閉じた」とも
+「P5 第 1 要件を閉じた」とも名乗らない** — 閉じたのは public `run_trial` の explicit keyword
+admission の縮小だけである。
+
+**非保証 (段 3・段 6 の敵対検証が確認した残存経路):** private sentinel の持込み (introspection
+`__kwdefaults__` 経由で取得した sentinel を明示すれば gate は省略と区別できない)、module 属性の
+再束縛、sentinel を束縛した wrapper / `functools.partial`、同一 process 並行実行中の差替え、
+internal entrypoint への直接注入と driver 直接反復 (D114 のとおり)、保存済み artifact からの
+事後判定 (journal / report schema に driver identity の field が無い)。これらは Python の
+同一 process 内では構造的に防げず、機械対策を装う代わりに runbook / phase doc へ列挙した。
+
+**決定 (2): provider_kind は exact plain str だけを受理する。** 状態付き `str` subclass が
+membership 検査と各 gate の等値比較を選別的に通せる (段 3 の敵対相談が構成) ため、
+`type(provider_kind) is not str` を全 gate の前で拒否する (D114 の `int` subclass → exact 型の
+先例)。型違反の診断は membership 違反 (`unknown provider kind`) と分離した。
+
+**受理集合の変化 (D96 手続):** 新たに拒否するのは (i) allowed 値と等値な `str` subclass の
+`provider_kind`、(ii) `provider_kind="claude-headless"` かつ `providers is None` で `drive` /
+`preview` の少なくとも一方が sentinel 以外の呼び出し、の二群だけである。両方省略・fixture の
+明示注入・既存 providers 拒否・internal entrypoint・consumer / schema は不変。受理集合外の
+観測可能な変更として、省略時の既定解決が定義時束縛から呼出時の module 現在値束縛 (late
+binding) へ変わり、signature 既定値が関数 object から opaque な sentinel object へ変わる。
+境界テストは同一変更単位で更新した (既存 2 テストの seam 移行を含む)。
+
+**却下した選択肢:**
+
+- `drive` / `preview` kwargs の撤去 — fixture 経路の正当利用 12 call を壊す。
+- 既定関数 object との同一性比較による省略判定 — 既定関数を明示注入した呼び出しを省略と
+  誤認する (変異登録で両極を殺す)。
+- 新しい opt-in flag — 省くだけで検査が外れ恒真化する (D148 と同じ理由)。
+- 自己申告 receipt + consumer — 下流が読まない field は恒真な保証 (D148 と同じ理由)。
+- provider 別の resolver 分岐 — 分岐が増えるだけで omitted の意味変更は消えず、単純さを失う。
+- テスト用注入手段の温存のための gate 免除 — 既存 2 テストは module 属性 seam へ移行して解決した。
+
+**研究状態への影響:** certified 選択・材料レポート・proof chain・凍結 bytes は不変。変わるのは
+自律試行の受理集合 (上記二群の拒否) だけである。

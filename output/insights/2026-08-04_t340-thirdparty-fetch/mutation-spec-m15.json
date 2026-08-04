@@ -1,0 +1,45 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 330,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "            published_identity = _publish_create_only(stage, destination)\n            try:\n                _verify_source(\n                    destination,\n                    name=item[\"name\"],\n                    pin=item[\"pin\"],\n                    expected_url=str(cache_source),\n                    reject_ignored=True,\n                )\n            except Exception:\n                _rollback_published_source(\n                    stage, destination, published_identity\n                )\n                raise\n",
+          "new": "            _publish_create_only(stage, destination)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m15_publish_is_reverified_before_success"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15C",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "            published_identity = _publish_create_only(stage, destination)\n            try:\n                _verify_source(\n                    destination,\n                    name=item[\"name\"],\n                    pin=item[\"pin\"],\n                    expected_url=str(cache_source),\n                    reject_ignored=True,\n                )\n            except Exception:\n                _rollback_published_source(\n                    stage, destination, published_identity\n                )\n                raise\n",
+          "new": "            _publish_create_only(stage, destination)\n"
+        },
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "    return [\n        _verify_source(\n            staging_root / item[\"source_name\"],\n            name=item[\"name\"],\n            pin=item[\"pin\"],\n            expected_url=str((cache_root / item[\"source_name\"]).resolve()),\n            reject_ignored=True,\n        )\n        for item in sources\n    ]\n",
+          "new": "    return [\n        {\"name\": item[\"name\"], \"pin\": item[\"pin\"],\n         \"resolved_path\": str(staging_root / item[\"source_name\"]), \"head\": item[\"pin\"]}\n        for item in sources\n    ]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m15_publish_is_reverified_before_success"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
