@@ -204,3 +204,9 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:layer3-claim-boundaries":"[T-473]","T:s1-freeze-membership-gate":"[T-472]","T:trigger-artifact-reinspection":"[T-474]"},"authored":"2026-08-05","content_sha256":"c3e87f463f50209dc0709b532341d04143475700c3c1d26846d674a9a3a19077","seq":1,"wave":"rulings-20260805-a"}
 
 - {"allocations":{"T:calibration-contract-generation":"[T-475]","T:calibration-producer-provenance":"[T-477]","T:reflux-ledger-flock-flake":"[T-476]"},"authored":"2026-08-04","content_sha256":"97cecf110e1856a5d41cae409082ad02aeebf67794bcd4f605a38eb61210b565","seq":1,"wave":"dev-wave-t452-clock-tolerance-authority"}
+
+- {"allocations":{"T:calibration-contract-generation-migration":"[T-478]"},"authored":"2026-08-05","content_sha256":"7802c6e19955a80d6eae7fd86d19599ad5039a0564580990bd20279274bd7292","seq":1,"wave":"rulings-20260805-b"}
+
+- {"allocations":{"T:qualification-role-field-name":"[T-479]"},"authored":"2026-08-05","content_sha256":"b3ad4d4ec99cf603857241eb5450cb5bfd5aec529e8a3a44179bb544092a78fa","seq":1,"wave":"dev-wave-t337-qualification-authority"}
+- {"allocations":{"D:qualification-authority-boundary":"D162"},"authored":"2026-08-05","content_sha256":"758c5e4c6a89f9ed34e86229b35e9022b7b355095464b8d5038fb641f4c4f6a3","seq":1,"wave":"dev-wave-t337-qualification-authority"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"7c369188b90356f14fdc6d01254ed90002b6e059db65c37282602497fb9163b3","seq":2,"wave":"dev-wave-t337-qualification-authority"}
