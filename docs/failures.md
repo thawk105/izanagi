@@ -2081,3 +2081,120 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 実走前に pyflakes が空でなければ投入しない。あわせて、投入後に落ちても
   **fail-closed が安全宣言を防ぐ**ことは実機で確認できた — 完走したジョブの verdict は
   照合未了のため `dangerous: null` に留まった。
+
+### F95. 変異 harness が real-repo 直列化 node の期待を表現できない [恒真ゲート]
+
+- 事象: [T-287] の変異本走で、`test_drive_iteration_checkpoint_survives_across_calls` 等
+  real-repo 直列化対象の 3 node を kill 集合に含む変異 (M1) を**登録できなかった**。
+  素の pytest node id で登録すると突き合わせが `MISMATCH` になり (観測側は `@real-repo` 接尾辞付き)、
+  接尾辞を付けて登録すると preflight が「期待 node が pytest collection に実在しない」で停止する。
+  2 通りとも fail-closed に倒れ、本走が 2 度中断した。
+- 根本原因: `tools/mutation_harness.py` の 2 つの検査が同じ node に**異なる表記**を要求する。
+  preflight (`_collect_expected_nodes`) は pytest collection との突き合わせなので素の node id を要求し、
+  実測突き合わせ (`_match_key` = `_normalize_node`) は runner が付ける `@real-repo` 接尾辞を
+  剥がさずそのまま比較する。`DW-M08` は「事前登録の期待 node と記録 node は突き合わせ前に
+  同じ形式へ正規化する」と定めているが、**その正規化を harness 自身が持っていない**。
+  結果として、real-repo 直列化対象 node が kill する変異は事前登録の対象外になり、
+  その面の変異検査が黙って行われなくなる (恒真化の経路)。
+- 恒久対応: [T-417] で `_normalize_node` に
+  runner 接尾辞の正規化を入れ、preflight と突き合わせの表記を一致させる。
+  それまでの回避は `DW-M01` / `DW-M03` に従う再照準 —
+  real-repo node を巻き込まない単一理由の変異へ差し替え、期待 node は推測せず
+  一時変異の実測 (`DW-O19` の復元規律) で確定する。
+- 再発検知: 変異本走の `MISMATCH` と preflight 停止。どちらも fail-closed なので黙って通り抜けることは
+  ないが、**再照準の理由を台帳に書かないと「その変異は元から無かった」ことになる**。
+  [T-287] の逐語は `output/insights/2026-08-04_t287-checkpoint-values/README.md` と
+  erratum 台帳 `mutation-ledger-v1-erratum.json` に残した。
+
+### F96. 非 UTF-8 の証跡 blob が land され local main の受入全走が赤のままになった [手順漏れ]
+
+- 事象: [T-287] wave が段 9 直前の受入全走で 1 件の赤を観測した
+  (`orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`、
+  5392 passed / 1 failed / 19 skipped)。赤は本 wave の差分
+  (`orchestrator/campaign/p3_s4_loop.py`、`orchestrator/tests/test_p3_s4_loop.py`) が到達しない
+  ファイルで起きており、`DW-O18` に従って単独再走したところ**決定的に再現**した
+  (1 failed / 82 passed)。フレークではない。
+- 根本原因: `tools/ruleops.py inventory` が repo の全 blob を UTF-8 として読むため、
+  `output/insights/2026-08-03_t361-t362-cluster-probes/evidence/.../home/home-read-write.probe.raw`
+  (`file` の判定は `data`) で rc=2 になる。**この blob は本 wave の差分に 1 件も含まれず、
+  取り込んだ local main 側に既に存在した。** main のチェックアウトで
+  `python3 tools/ruleops.py inventory --repo .` を直接実行しても同じ rc=2 になることを実測した。
+  gate 側 (`8976c14`、2026-07-29) は blob の land (`9b0f044`、2026-08-04) より**先に存在した**ので、
+  当該 wave は機械 gate が赤の状態で land したことになる。
+- 恒久対応: 未定 — 既存の [T-407] が択一を持つ (本 wave は重複起票しない)。
+  候補は (1) `ruleops.py` の走査を binary-safe にする (証跡は生 bytes を保つのが本来)、
+  (2) 証跡 blob を base64 等のテキスト表現で保存する規約にする、
+  (3) `output/insights/**/evidence/**` を inventory の走査対象から外す。
+  **(3) は gate の射程を縮めるので、他 2 案が不可能なときだけの最後の手段とする。**
+- 再発検知: `test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo` 自体が
+  検知器である。今回それが機能したが、**赤のまま land された**ため、検知と land 阻止が
+  繋がっていないことが露見した。land 経路 (`tools/dev_wave_land.py`) は tested main/tip の
+  SHA を受け取るだけで受入結果を検証しないため、親の自己申告に依存している。
+- 混入経路: 当該 wave は「probe と login 側 controller だけ」を理由に**変異 matrix と受入全走を
+  対象外と自己裁定**しており、全走を一度も回していない。証跡ファイルを 1 個足すだけの commit でも
+  **repo 全体を走査する型の gate** は壊れるため、「自差分が触らないなら全走は要らない」という
+  射程判断がこの型の gate と噛み合っていない。恒久対応の候補として、受入全走を省略してよい条件の
+  見直しか、land 経路が受入結果を自己申告でなく検証する形かを裁定へ返す (裁定パッケージ §6)。
+- 暫定運用: 本 F の赤に限り、ユーザー裁定で**既知赤 waiver W1** を新設した (条件と失効は worklog
+  末尾エントリが正本)。対象 node と原因を釘付けし、他の赤が 1 件でもあれば適用せず停止する。
+  [T-407] の land で自動失効する。
+
+### F97. 登録済み Pegasus 較正が自分自身の attestation 述語を通らず、計算ノードでの campaign 実行を全面的に塞いでいた [誤前提] [恒真ゲート]
+
+- 事象: 使い捨て smoke (request 882490, bnode002) の 2 脚とも、build へ到達する前に
+  `execution_guard.ExecutionGuardError: attestation comparisons failed` で停止した。
+  失敗した比較は `effective_clock.samples_mhz` のちょうど 1 件。
+  期待中央値 2101.0、`tolerance_pct` 2.0 なので許容帯は [2058.98, 2143.02] であり、
+  観測列の index 34 が 3076.13 でこれを外れた。
+- 根本原因: 述語は「期待列の**中央値**を中心に、**観測列の全要素**が ±`tolerance_pct` に入ること」で
+  ある (添字対応の比較ではない)。一方、登録済み較正
+  `output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json` の
+  `attestation_profile.effective_clock.samples_mhz` は index 40 に 3080.935 を持つ。
+  **この参照データを観測値として同じ述語にかけると不合格になる** — 参照が自分自身の受理条件を
+  満たしていない。物理的には「48 コアのうちサンプリング時にたまたま 1 コアがブーストしていた」
+  状態が焼き込まれており、実行時も「1 コアでもブーストしていれば不合格」になる。
+  どのコアがいつブーストするかはスケジューラと熱の都合で決まり、再現性のある機器特性ではない。
+- 恒久対応: 未実施。**述語と凍結較正のどちらを正とするかは受理集合に触れるためユーザー裁定へ返す**
+  (D143 に択一と推奨を置いた)。本 wave では緩和も迂回もしていない。
+- 再発検知: 裁定後に、登録済み較正自身を観測値として与えると受理される (自己整合性) ことを
+  確かめる positive control を `orchestrator/tests/` へ置く。これは「参照が自分の判定を通る」
+  という恒真でない性質の検査であり、今回の型を直接撃つ。
+
+### F98. campaign を実走した wave は正規経路で land できない — guard の削除拒否と land の完全 clean 要求が噛み合っていない [手順漏れ]
+
+- 事象: 本 wave が使い捨て driver で campaign を 1 回起動したところ、wave worktree に
+  `output/exploration/namespace.json` と
+  `output/exploration/campaigns/<id>/campaign.lock` (2 campaign 分) が生成された。
+  `tools/dev_wave_land.py` の `_verify_wave_clean` は wave worktree に status record が
+  1 件でもあれば拒否する (untracked を含む「完全に clean」)。一方 `hooks/guard_bash.py` は
+  campaign tree の祖先・自身・campaign dir 単位の削除/移動を拒否し、
+  `output/exploration/namespace.json` は exact path で、`campaign.lock` は末端として保護される。
+  **消せないものが在ることを land が許さない**ため、AI は正規手段で段 9 を完了できない。
+- 根本原因: 2 つの防壁が別々の正しさを守っており、その交差が検査されていない。
+  guard は proof chain の破壊を防ぐ (規律2)。land は未監査差分の混入を防ぐ。
+  どちらも単体では正しいが、**「wave worktree に生成された、proof chain ではない campaign 形の
+  runtime 出力」**という第三の状態を両者とも想定していない。
+  guard の docstring は「campaign dir 単位まで。それより深い非 proof-chain 子孫は末端に触れない限り通す」と
+  述べており、深さでは切り分けているが**所在 (使い捨て worktree か main の成果物か) では切り分けていない**。
+- 恒久対応: 未実施。**受理集合と機械防壁の両方に触れるためユーザー裁定へ返す**。
+  択一は (i) land 側を「main と同じく tracked/index/submodule dirt だけを見る」へ緩める、
+  (ii) guard 側に `.claude/worktrees/` 配下の exploration tree だけの carve-out を置く、
+  (iii) campaign の実行先を worktree 外 (job 専用の `/work` 配下) へ出す。
+  **(iii) が防壁を 1 つも緩めない唯一の案**であり推奨だが、`exploration_campaign_layout` の
+  出力先契約に触れる。
+- 再発検知: 裁定後に、campaign を 1 回起動した使い捨て worktree に対して
+  `_verify_wave_clean` が通ることを確かめる検査を置く。今回の型を直接撃つ。
+
+### F99. 使い捨て job script が sanctioned な `qsub -v` を写さず位置引数を発明し、投入前レビューで止めた [誤前提]
+
+- 事象: 段 5 実装子が書いた job script は progress directory を位置引数 `$1` で受けていた。
+  NQSV の `qsub` usage は `[script-file ...]` としか示さず、スクリプトへ位置引数を渡す syntax が
+  無い。そのまま投入すれば計算ノード到達直後に rc=2 で死に、混雑した queue を 1 往復むだにした。
+- 根本原因: F84 と同型。sanctioned な投入器 (`tools/pegasus/submit_floor.sh` は
+  `qsub -v "$export_spec" "$JOB_SCRIPT"`) を写さず、自前の受け渡し方を発明した。
+  逐語再利用の対象を「環境正規化」だけと解釈し、**投入インタフェース**を含めなかった。
+- 恒久対応: 親の投入前レビューが検出し、段 6 fix で環境変数経由へ差し替えた (実走前に閉じた)。
+  規律面では F84 の「sanctioned job script の正規化を逐語で再利用する」の射程に
+  **qsub 引数の受け渡し形も含む**ことを D143 の理由欄で明示した。
+- 再発検知: 投入前チェックリスト (runbook §8) に沿って親が qsub 行を実際に組み立てる段で、
+  sanctioned な submit script の qsub 呼出し形と突き合わせる。今回はこれで捕捉した。

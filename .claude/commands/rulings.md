@@ -14,7 +14,9 @@ argument-hint: [任意: 詳説する件数 (既定 5)。"all" で索引のみ全
 
 1. `docs/worklog.md` 末尾エントリの「次の一手」のうち、**ユーザー** の裁定・承認・判断と書かれた項 (参照は遡って実体を取り、前エントリとの ID 差分も見る)
 2. その項が指す insights の裁定パッケージ (§裁定パッケージ節。推奨案と根拠の正本)
-3. `docs/handoff/` の残ファイルの「着手条件」にあるユーザー裁定待ち
+3. handoff の着手条件。**`docs/handoff/` は README のみが正常で、生きた handoff・台帳未記録の
+   裁定 inbox・稼働 wave の裁定パッケージは repo 外にある** (所在は環境 runbook)。
+   **稼働 branch の未 land fragment も読み**、未採番なので起票せず索引に出す
 4. `docs/phase3.md` の現行チェックポイント・着手順にあるユーザー gate (例: 受諾 gate、段階承認)
 5. `docs/phase3.md` 見送り台帳のうち、発火条件が成立していそうな項 (成立確認できたものだけ。全件は出さない)。
    全項の述語を毎回評価せず、前回の裁定記録以降の wave が新設・変更した gate / validator / producer / 検査を

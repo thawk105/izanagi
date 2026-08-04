@@ -541,6 +541,14 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   1 CLI 版の観測であり、全 bnode や将来 profile へ一般化しない** (設計は drift に対して
   fail-closed である)
 
+### 7.2 稼働 wave の handoff と裁定 inbox の所在 (2026-08-04 実測)
+
+生きた handoff と、台帳へ未記録のユーザー裁定の一次控えは **repo 外の
+`/work/1/SFC/tanab/dev-wave-jobs/`** にある。`handoff/<wave>.md` が稼働中 wave の進捗、
+`rulings-inbox/*.md` が別セッションで下されて台帳へ未記録の裁定、`<wave>/` が各 wave の成果物
+(裁定パッケージを含む) である。**`docs/handoff/` は README のみが正常**であり、そこだけを見ると
+稼働中の裁定を取りこぼす。`/rulings` の収集はここも読む。
+
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した
@@ -581,6 +589,10 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   この拒否が生きている間は role 出力が build / run へ到達しない
 - `/scr` に置くデータの退避処理がある
 - `check_quota` と `rbudgetcheck` で容量・ポイント残高を確認した
+- **投入する `qsub` の呼出し形を sanctioned な submit script と突き合わせた。** 使い捨ての job script でも
+  パラメータの渡し方を自分で発明しない。この scheduler にスクリプトへ位置引数を渡す syntax は無く、
+  既存の submit script は例外なく `qsub -v VAR=value <script>` の環境変数経由である
+  (`tools/pegasus/submit_floor.sh`)。逐語再利用の対象は環境正規化だけでなく**投入インタフェースも含む**
 - ジョブ投入 (`qsub` / submit wrapper) の実行環境を確認した。原則はユーザー自身の端末。
   対話セッション内 shell (`!` 実行を含む) からの投入は、書き込み不永続・資格情報差で無効な
   request を作る (F47、2026-07-28 に request 873213 で実測) ため引き続き禁止。
