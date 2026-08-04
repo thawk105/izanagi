@@ -130,7 +130,10 @@ headline 性能や有意差を主張しない。
 
 ## 4. 出力と読み方
 
-既定出力は `output/exploration/autonomous-trials/<trial-id>/` (D123):
+既定出力は `output/exploration/autonomous-trials/<trial-id>/` (D123)。
+`IZANAGI_EXPLORATION_OUTPUT_ROOT` 設定時は `--run-root` 省略の既定が
+`<base>/exploration/autonomous-trials/<trial-id>/` になる ([T-422]。使い捨て worktree 配下への
+materialize は拒否される):
 
 - `attempts.jsonl`: append-only supervisor journal。role attempt は attempt=1 / retry=false。
   **完全な provenance (source role SHA / effective prompt SHA / session / model / token) が入るのは
