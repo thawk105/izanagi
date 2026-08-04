@@ -32,6 +32,15 @@ title: [T-244] D121 P1 の機械部品を実装した — 独立 golden を「�
 - **親の誤りを 2 件訂正した** — 既存被覆は 8 点でなく 9 predicate (`candidates(EFF3)` は
   8 subset + `ident_all`)。`s8a_trigger_sweep.py` は freeze の changed 12 側であり、
   pin と一致する変更不可ファイルは `axis_trigger_gating.py` だけである
+- **変異 matrix は 19/19 KILLED、生存ゼロ** (`output/insights/2026-08-04_t244-p1-ir-emitter/mutation-matrix.md`)。
+  うち 17 件は harness、2 件 (golden への Call / 非 `__future__` import 注入) は
+  **AST 防壁が module 冒頭で発火して collection error になり harness が分類できない**ため、
+  親が手動注入して rc と診断文言を実測し、hash 照合で復元した。**初回走行の 8 件 MISMATCH は
+  「期待の上位集合」であって検出力不足ではない** — 親の事前登録が狭かったための erratum で、
+  判定は 1 件も変わっていない
+- 受入: **全走 5447 passed / 1 failed / 19 skipped**。唯一の赤は `tools/ruleops.py` が
+  非 UTF-8 blob で落ちる既存条件で、**ユーザーの元 checkout でも同一 rc・同一 blob で再現する**。
+  provenance 監査は 963 件・違反なし
 - 逐語・実測の正本 = `output/insights/2026-08-04_t244-p1-ir-emitter/`。設計判断は {{D:reflux-ir-p1-component}}
 - **dev-wave の運用事故を 2 件記録した** — {{F:dev-wave-child-dies-with-tool-call}} と
   {{F:pgrep-matches-parallel-wave-child}}。合わせて約 45 分を失った

@@ -1,0 +1,76 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "V16",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_ir.py",
+          "old": "if GATEABLE_REASONS != _EXPECTED_REASONS:",
+          "new": "if False and GATEABLE_REASONS != _EXPECTED_REASONS:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_axis_reason_order_drift_guard_fails_module_import"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V17",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_ir.py",
+          "old": "_ASSIGNMENT_TARGET = \"izanagi_gate_pass\"",
+          "new": "_ASSIGNMENT_TARGET = \"izanagi_gate_passx\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_independent_golden_byte_for_byte",
+        "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte",
+        "orchestrator/tests/test_reflux_ir.py::test_campaign_provenance_matches_nine_masks_as_historical_artifact_only",
+        "orchestrator/tests/test_reflux_ir.py::test_emitter_cpp_tokens_exist_in_authoritative_skeleton_patch",
+        "orchestrator/tests/test_reflux_ir.py::test_frozen_gate_predicates_match_six_records_with_three_distinct_masks"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V18",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_ir.py",
+          "old": "    except Exception:  # Never disclose failures from an accepted subclass.",
+          "new": "    except (AttributeError, TypeError, ValueError):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_trigger_gate_ir_subclass_mask_exception_is_uniformly_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "V19",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_ir.py",
+          "old": "SCHEMA_ID = \"izanagi-trigger-gate-ir/v1\"",
+          "new": "SCHEMA_ID = \"unrelated/v1\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_public_api_and_frozen_dataclass_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
