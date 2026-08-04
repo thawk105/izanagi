@@ -587,6 +587,44 @@ def test_valid_successor_merge_is_accepted(tmp_path: Path) -> None:
     assert validation.generation_number == 2
 
 
+def test_successor_merge_rejects_merge_commit_with_different_state(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path)
+    g1_head, g1 = _install_g1(root)
+    _git(root, "checkout", "-q", "-b", "revision")
+    _, g2 = _install_revision(root, g1, word="branch revision")
+
+    _git(root, "checkout", "-q", "main")
+    assert _git(root, "rev-parse", "HEAD") == g1_head
+    _write(root, "README.md", b"unrelated\n")
+    _commit(root, "main unrelated")
+    _git(root, "merge", "-q", "--no-ff", "--no-commit", "revision")
+
+    source = (root / M.SOURCE_PATH).read_bytes().replace(
+        b"branch revision", b"merge revision"
+    )
+    _write(root, M.SOURCE_PATH, source)
+    decisions = (root / "docs/decisions.md").read_text(encoding="utf-8")
+    (root / "docs/decisions.md").write_text(
+        decisions + "\n## D3. Permits merge revision\n", encoding="utf-8"
+    )
+    g3 = _record_raw(
+        root,
+        3,
+        supersedes=hashlib.sha256(g2).hexdigest(),
+        ruling="D3",
+        reason="merge revision",
+    )
+    _write(root, M.generation_path(3), g3)
+    merge_head = _commit(root, "merge with distinct successor state")
+
+    _assert_reason(
+        "merge-divergent-revision",
+        M.validate_condition_freeze_at,
+        root,
+        merge_head,
+    )
+
+
 def test_mutually_different_revisions_merge_fails_closed(tmp_path: Path) -> None:
     root = _init_repo(tmp_path)
     g1_head, g1 = _install_g1(root)
