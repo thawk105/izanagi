@@ -158,6 +158,9 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_s8b_selector_input.py
 - test_s8b_selector_output.py
 - test_s8b_verdict.py
+- test_s8c_preregistration_core.py
+- test_s8c_preregistration_invariant.py
+- test_s8c_preregistration_predicates.py
 - test_screening_driver.py
 - test_screening_opt_in.py
 <!-- PYTEST_ONLY_ALLOWLIST_END -->
