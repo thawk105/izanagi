@@ -166,3 +166,10 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:run-tests-queue-wait-passthrough":"[T-451]"},"authored":"2026-08-04","content_sha256":"25c08dc8a6413700dcc8799b63603dfac73a4ce41767217629ff847cc3fa39f3","seq":1,"wave":"dev-wave-t433-p6-contract"}
 - {"allocations":{"D:p6-sufficiency-contract":"D154"},"authored":"2026-08-04","content_sha256":"d66836e6a24cfbcf3ed56f499682780f317b9899f849fcae3cd9da789fcc6a6a","seq":2,"wave":"dev-wave-t433-p6-contract"}
+
+- {"allocations":{"T:dev-wave-docs-budget-second-case":"[T-454]","T:effective-clock-tolerance-authority":"[T-452]","T:silo-ladder-clock-consumer":"[T-453]"},"authored":"2026-08-04","content_sha256":"6470e210a707ce7c105441192e00370f3e2042cd0e2d454346682b5055650b57","seq":1,"wave":"wave-t419-attestation-clock"}
+- {"allocations":{"D:effective-clock-self-consistency-gate":"D155"},"authored":"2026-08-04","content_sha256":"6eeb81837283cd622b07a85e5f7a61a4595e93e2d2c66e7c14f0a1179749a0a2","seq":2,"wave":"wave-t419-attestation-clock"}
+- {"allocations":{"F:attestation-e2e-fixture-clamped-observation":"F109","F:attestation-probe-observer-effect":"F108"},"authored":"2026-08-04","content_sha256":"cdbdba36ce0228d39f3c9385015623a0e31898047588af6a4a344c785fa27921","seq":3,"wave":"wave-t419-attestation-clock"}
+
+- {"allocations":{"T:guard-bash-sanction-fetch-tool":"[T-455]"},"authored":"2026-08-04","content_sha256":"7c19e69a17d9cd71f59e98a1d4221b9af2a410dca930f6914d588156796dd3ce","seq":1,"wave":"rulings-20260804-e"}
+- {"allocations":{"D:p6-semantic-sufficiency-contract":"D156"},"authored":"2026-08-04","content_sha256":"3c13d947519dcf8df011ce609504131a8156665a76193411577cac55bc43666f","seq":2,"wave":"rulings-20260804-e"}
