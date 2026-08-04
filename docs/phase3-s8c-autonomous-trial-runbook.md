@@ -106,8 +106,14 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
 boolean だけで「なぜ壊れたか」を含まない (規律 3 に対する狭まり)。**D121 が設計 draft を起草したが
 設計は未確定・機構は未実装**なので、引き続き 1 generation/cell に限る。**D114 でこれは機械 gate になった** — 承認上限
 `MAX_APPROVED_GENERATIONS = 1` を超える値は CLI・`run_trial()`・`_run_workload()` の 3 入口で
-`AutonomousTrialError` になる。既定値も `1` である。ただし `drive` / `providers` / `preview` の
-注入経路と driver の直接反復は保証対象外である (D114「保証の限界」)。
+`AutonomousTrialError` になる。既定値も `1` である。正式経路 (`provider_kind ==
+"claude-headless"`) の `run_trial()` は、caller 注入 `providers` (D148) と explicit keyword の
+`drive` / `preview` ([T-244] U-1、2026-08-04) を artifact 作成前に拒否する。拒否できるのは
+**explicit keyword の注入だけ**であり、module 属性の再束縛、private sentinel の持込み
+(introspection 経由)、sentinel を束縛した wrapper / `partial`、同一 process 並行実行中の差替え、
+driver の直接反復、fixture 経路は引き続き保証対象外である (D114「保証の限界」、D148 決定 (4))。
+保存済み artifact から driver の同一性を事後判定することもできない (journal / report の schema に
+driver identity の field が無い)。
 
 `--no-build` を外すと実計測である。supervisor は起動前に競合 `ycsb_*.exe` を検査し、
 CCBench を pinned commit の使い捨て worktree へ隔離する。pipeline 自身の bench lock / settle /
@@ -130,7 +136,10 @@ headline 性能や有意差を主張しない。
 
 ## 4. 出力と読み方
 
-既定出力は `output/exploration/autonomous-trials/<trial-id>/` (D123):
+既定出力は `output/exploration/autonomous-trials/<trial-id>/` (D123)。
+`IZANAGI_EXPLORATION_OUTPUT_ROOT` 設定時は `--run-root` 省略の既定が
+`<base>/exploration/autonomous-trials/<trial-id>/` になる ([T-422]。使い捨て worktree 配下への
+materialize は拒否される):
 
 - `attempts.jsonl`: append-only supervisor journal。role attempt は attempt=1 / retry=false。
   **完全な provenance (source role SHA / effective prompt SHA / session / model / token) が入るのは

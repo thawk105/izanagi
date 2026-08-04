@@ -35,6 +35,7 @@ REPO_ROOT = ORCHESTRATOR.parent
 
 from campaign import env_attestation as ea  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
+from campaign import execution_guard as eg  # noqa: E402
 from campaign import p2_2  # noqa: E402
 
 
@@ -51,6 +52,13 @@ LEGACY_CALIBRATION_ALLOWLIST = {
     "linux-baremetal": (
         "output/env/linux-baremetal/calibration/calibration_t48_skew0p9_rr50_rmw0.json",
         "751304772367418806eb6e63c9715cd430315066420e9e3e4c91bf356195eef5",
+    ),
+}
+
+KNOWN_SELF_INCONSISTENT_CALIBRATIONS = {
+    (
+        "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
+        "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
     ),
 }
 
@@ -423,6 +431,36 @@ def _assert_registry_calibration(
 def test_registry_calibration_refs_are_canonical_hash_bound_and_meaningful():
     for registry_key, contract in ec.REGISTRY.items():
         _assert_registry_calibration(registry_key, contract)
+
+
+def test_registry_effective_clock_self_failures_are_exact_known_exception():
+    """この既知例外は [T-419] の U-1/U-2 が閉じたときに削除する。"""
+    assert len(KNOWN_SELF_INCONSISTENT_CALIBRATIONS) == 1
+    self_failures = set()
+    checked_entries = 0
+
+    for registry_key, contract in ec.REGISTRY.items():
+        checked_entries += 1
+        verified = ea.load_verified_calibration(contract, REPO_ROOT)
+        if contract.attestation_mode == "none":
+            assert verified.schema_version == "calibration/v1"
+            assert verified.calibration is None
+            continue
+
+        assert contract.attestation_mode == "required"
+        assert verified.calibration is not None
+        profile = verified.calibration.attestation_profile
+        expected = ea.expected_comparison_values(profile)["effective_clock.samples_mhz"]
+        observed = {"samples_mhz": list(expected["samples_mhz"])}
+        ref = (contract.calibration_ref.path, contract.calibration_ref.sha256)
+        passes = eg.effective_clock_comparison_passes(expected, observed)
+        if not passes:
+            self_failures.add(ref)
+        if ref not in KNOWN_SELF_INCONSISTENT_CALIBRATIONS:
+            assert passes, f"new self-inconsistent calibration: {registry_key} {ref}"
+
+    assert checked_entries == 2
+    assert self_failures == KNOWN_SELF_INCONSISTENT_CALIBRATIONS
 
 
 def test_legacy_calibration_allowlist_is_exact_and_closed():

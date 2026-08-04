@@ -53,6 +53,10 @@ output/
   campaign tree に同じ保護が掛かる** (D123) — namespace の移動で防壁の強さを変えない。
   `exploration/namespace.json` も改変・削除を拒否する (marker が消えると official report が
   exploration root を official として受理しうるため)。
+- **hooks の保護対象は repo 内の campaign tree だけ**である。exploration campaign は
+  `IZANAGI_EXPLORATION_OUTPUT_ROOT` で repo 外 (job 専用領域) へ実行先を出せる ([T-422] / F98) が、
+  外部 root は hooks 防護外の使い捨て領域であり、certified 材料・proof chain 素材を置かない。
+  proof chain へ入る材料は従来どおり repo 内の official 経路だけが正本である。
 - `exploration/autonomous-trials/` の journal は正式 proof chain ではないため、この保護の対象外である。
 - `reports/` と `insights/` は生成物・散文を置く射影先で、機械防護の対象外である。ただし WAL や source
   identity と矛盾する根拠を後から書き換えてよい意味ではない。report は入力証拠を参照可能に保つ。

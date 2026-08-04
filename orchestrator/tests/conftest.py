@@ -28,6 +28,7 @@ fsync を呼ぶコード経路は変えていない (検査は弱めない) — 
 - 素の python3 実行 (二重 runner) は元から conftest を経由しない
 """
 import os
+import sys
 
 import pytest
 
@@ -118,6 +119,26 @@ def _isolate_task_run_recording_env(monkeypatch):
         "IZANAGI_TEST_TRIGGER",
     ):
         monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_exploration_output_root_env(monkeypatch):
+    """Exploration root selection and its process pin never leak across tests."""
+    monkeypatch.delenv("IZANAGI_EXPLORATION_OUTPUT_ROOT", raising=False)
+    module_names = ("campaign.layout", "orchestrator.campaign.layout")
+    module = next(
+        (sys.modules[name] for name in module_names if name in sys.modules),
+        None,
+    )
+    if module is not None:
+        module._reset_exploration_output_root_pin_for_tests()
+    yield
+    module = next(
+        (sys.modules[name] for name in module_names if name in sys.modules),
+        None,
+    )
+    if module is not None:
+        module._reset_exploration_output_root_pin_for_tests()
 
 
 def _real_repo_node_id(item) -> str:

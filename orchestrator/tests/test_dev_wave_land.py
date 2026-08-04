@@ -72,6 +72,19 @@ def _cwd(path: Path):
         os.chdir(previous)
 
 
+@contextlib.contextmanager
+def _campaign_import_scope():
+    """Campaign imports may edit sys.path; restore the complete list on exit."""
+    saved_sys_path = sys.path[:]
+    try:
+        orchestrator_path = str(ROOT / "orchestrator")
+        if orchestrator_path not in sys.path:
+            sys.path.insert(0, orchestrator_path)
+        yield
+    finally:
+        sys.path[:] = saved_sys_path
+
+
 class _Repo:
     def __init__(self, *, waves: tuple[tuple[str, str], ...] = (("codex", "one"),)):
         self._tmp = tempfile.TemporaryDirectory(prefix="izanagi-land-test-")
@@ -2680,6 +2693,170 @@ def test_cli_emits_json_and_uses_only_sha_target_ff() -> None:
         assert payload["status"] == "landed"
         assert payload["main_after"] == tip
         assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_exploration_external_root_keeps_wave_clean() -> None:
+    """F98 正例: fake evaluator の exploration campaign は wave 外だけを汚す。"""
+    with _campaign_import_scope():
+        from types import SimpleNamespace
+        from campaign import layout as layout_module, loop, pipeline, wal
+        from campaign.build_admission import GeneratorId, build_run_context
+        from campaign.model import (
+            CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START,
+        )
+        from campaign.pipeline import EvalResult, PerfConfig
+
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    sentinel = object()
+    saved_env = os.environ.get(env_name, sentinel)
+    saved_repo_output_root = layout_module.repo_output_root
+    saved_evaluate = loop.evaluate
+    saved_source_digest = loop.source_digest
+    fake_variant = {}
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        with _repo() as repo:
+            wave = repo.waves["one"]
+            external = repo.root / "external-output"
+            external.mkdir()
+            os.environ[env_name] = str(external)
+            layout_module.repo_output_root = lambda: str(wave / "output")
+            loop.source_digest = SimpleNamespace(
+                resolve_evidence=lambda *_args, **_kwargs: SimpleNamespace(
+                    src_token="stock",
+                ),
+            )
+
+            def fake_evaluate(
+                genome, layout, env_tag, _commit, _perf, _clocks, **kwargs,
+            ):
+                variant = pipeline.variant_id(genome, kwargs["src_token"])
+                attempt_id = "f98-valid-prebuild-abort"
+                fake_variant["value"] = variant
+                wal.log(
+                    layout, variant, STAGE_BUILD_START, env_tag,
+                    {
+                        "genome": genome.canonical(),
+                        "build_attempt_id": attempt_id,
+                    },
+                )
+                wal.log(
+                    layout, variant, STAGE_ABORT, env_tag,
+                    {
+                        "reason": "f98-fixture-prebuild-abort",
+                        "build_attempt_id": attempt_id,
+                    },
+                )
+                return EvalResult(
+                    genome=genome, variant=variant, certified=False,
+                    aborted=True,
+                )
+
+            loop.evaluate = fake_evaluate
+            cfg = CampaignConfig(
+                spec_slug="f98", search_tag="external",
+                spec_content="f98 external-root acceptance",
+                ccbench_commit="deadbeef",
+            )
+            context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+            summary = loop.run_campaign(
+                cfg, [Genome("silo", {"BACK_OFF": 1})],
+                PerfConfig(records=1, threads=1), "test-env", 1800,
+                do_bench=False, log=lambda *_args: None,
+                build_context=context, campaign_namespace="exploration",
+            )
+            campaign_root = Path(summary.layout_root)
+            assert campaign_root.is_relative_to(external)
+            assert (external / "exploration" / "namespace.json").read_bytes() == (
+                b'{"namespace":"exploration"}\n'
+            )
+            assert (campaign_root / "campaign.lock").is_file()
+            assert (campaign_root / "runs" / "wal.jsonl").is_file()
+            replayed = wal.replay(
+                layout_module.ExplorationCampaignLayout(root=str(campaign_root)),
+                admission_policy=context.policy,
+            )
+            assert replayed[fake_variant["value"]].aborted
+            assert _git(wave, "status", "--porcelain=v1", "--untracked-files=all") == ""
+
+            request = repo.request(wave)
+            with _cwd(wave):
+                repository = LAND._verify_repository(request)
+                try:
+                    LAND._verify_wave_clean(repository)
+                finally:
+                    repository.close()
+    finally:
+        loop.evaluate = saved_evaluate
+        loop.source_digest = saved_source_digest
+        layout_module.repo_output_root = saved_repo_output_root
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_exploration_default_root_stops_before_wave_dirt() -> None:
+    """M6/F98 負例: wave-local default は ensure gate で作成前に拒否する。"""
+    with _campaign_import_scope():
+        from campaign import layout as layout_module
+
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    sentinel = object()
+    saved_env = os.environ.get(env_name, sentinel)
+    saved_repo_output_root = layout_module.repo_output_root
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        for family in ("codex", "claude"):
+            with _repo(waves=((family, "one"),)) as repo:
+                wave = repo.waves["one"]
+                local_output = wave / "output"
+                os.environ.pop(env_name, None)
+                layout_module.repo_output_root = lambda: str(local_output)
+                campaign = layout_module.exploration_campaign_layout("f98-default")
+                assert campaign.root == str(
+                    local_output / "exploration" / "campaigns" / "f98-default"
+                )
+                try:
+                    campaign.ensure()
+                    assert False, "wave-local exploration root を拒否すべき"
+                except ValueError as exc:
+                    message = str(exc)
+                    assert "worktree container" in message
+                    assert env_name in message
+                    assert "絶対 path" in message
+                    assert "job 専用" in message
+                    assert "base は exploration/ 自体ではない" in message
+                assert not local_output.exists()
+                assert _git(
+                    wave, "status", "--porcelain=v1", "--untracked-files=all",
+                ) == ""
+    finally:
+        layout_module.repo_output_root = saved_repo_output_root
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_verify_wave_clean_rejects_plain_untracked_file_as_dirt() -> None:
+    """RC_DIRT 対照は campaign tree に依存しない plain untracked file とする。"""
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (wave / "plain-untracked.txt").write_text("dirt\n", encoding="utf-8")
+        with _cwd(wave):
+            repository = LAND._verify_repository(repo.request(wave))
+            try:
+                try:
+                    LAND._verify_wave_clean(repository)
+                    assert False, "plain untracked file を RC_DIRT で拒否すべき"
+                except LAND._Reject as exc:
+                    assert exc.rc == LAND.RC_DIRT
+                    assert exc.reason == "wave worktree must be completely clean"
+            finally:
+                repository.close()
 
 
 def _run() -> int:

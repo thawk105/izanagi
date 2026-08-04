@@ -1,0 +1,18 @@
+=== group g1-precedence start 21:48:35 ===
+group g1-precedence rc=0
+=== group g2-admission start 21:50:10 ===
+group g2-admission rc=0
+=== group g3-8c start 21:52:51 ===
+group g3-8c rc=0
+=== group g4-wal-lock start 21:54:26 ===
+group g4-wal-lock rc=0
+=== group g5-wal-repair start 21:56:23 ===
+group g5-wal-repair rc=0
+=== group g6-namespace start 21:57:51 ===
+group g6-namespace rc=0
+=== group g7-container start 21:59:03 ===
+group g7-container rc=0
+=== group g8-pin start 22:00:21 ===
+group g8-pin rc=0
+=== group g9-pin-guard start 22:01:54 ===
+group g9-pin-guard rc=0

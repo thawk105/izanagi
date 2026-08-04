@@ -469,7 +469,12 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      campaign checkpoint の freshness を検査する。**機械化したのは予算と freshness だけ**である。
      同じ上限定数は `autonomous_trial_completeness.py` の run-envelope / campaign-chain の
      2 consumer gate も読む。存在しないのは前提条件 10 件と cap-lift receipt の評価器である。
-     `drive` 注入・driver 直接反復・並行 start race は保証対象外 (D114「保証の限界」)。
+     caller 注入 `providers` (D148) と explicit keyword の `drive` / `preview` 注入
+     ([T-244] U-1、2026-08-04) は正式経路の `run_trial()` が artifact 作成前に拒否する。
+     拒否できるのは explicit keyword だけ — private sentinel の持込み・module 属性再束縛・
+     sentinel を束縛した wrapper / partial・同一 process 実行中の差替えは保証対象外で、
+     保存済み artifact からの事後判定もできない。driver 直接反復・並行 start race も
+     保証対象外 (D114「保証の限界」)。
      **2026-08-01 の [T-244] 還流設計 wave (D121) で設計 draft を起草した** — ユーザー裁定の軸 (i)
      (機械が failure を単調な safety constraint へ変換し generator は理由を読まない) を主軸、
      軸 (iv) (campaign より上位の origin へ総 iteration・総 query・公開 class を束縛) を併用する。
@@ -551,7 +556,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-326] `layer3_report` 本体の深い一致強化 — 理由: (124) の裁定 (b) により**実施しない**。強化は新 verifier 経由だけとし、既存レポートが値の改変を受理する事実は所見として記録に残す。本体側へ着手するには択 (a) の再裁定が要る。
 - [T-323] 8c の raw role 出力を追跡するかの方針 — 理由: [T-241] の裁定事項として記録済みで、単独では起票しない。
 - [T-302] `_job_run` が子側で env_allowlist を強制していない件 — 理由: [T-250] と同一所見の重複であり、所有を [T-250] に一本化する。
-- [T-290] `run_trial` の注入 seam の保証 — 理由: (103) の裁定 (b) で現状維持とし、多世代開放と同時に (c) を入れると決まった。
+- [T-290] `run_trial` の注入 seam の保証 — 理由: (103) の裁定 (b) で現状維持とし、多世代開放と同時に (c) を入れると決まった。 2026-08-04 の U-1 実装で public run_trial の explicit keyword 注入部分は消化 (直接反復は D114 のとおり保証外のまま)。
 - [T-283] 本番開放の前提条件 — 理由: (125) の裁定で [T-246] と同じ束へ入れ、単独では着手しないと決まった。
 - [T-285] 予約 block 以外の 7 個の `readarray < <(...)` — 理由: [T-292] と同族で、同じ独立 wave が所有する。
 - [T-272] Pegasus shell 3 本の裸 python3 の版数 gate — 理由: (125) の裁定で [T-248] の実装と同じ wave に含めると決まった。 2026-08-04 に floor 実測 wave が発火条件に触れた。certify 経路 (`certify_calibration.sh` / `submit_certify.sh`) には版数 gate が無く、`floor_campaign.sh` だけが持つ非対称が残る。計算ノードの `python3` は 3.9 に解決されるため、3.10+ 構文を持つ module (`env_contract` を含む) を certify 経路から呼ぶ設計は現状すべて失敗する。安価測定の最小 env 化にも同じ壁が掛かる。
@@ -730,7 +735,7 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 
 ### T-180 が返した裁定パッケージ (P3)
 
-- [T-186] **P3: resource envelope の残余 3 件** — (a) manifest の seal ceremony と
+- [T-186] **P3: resource envelope の残余 3 件** — (a) manifest の seal ceremony と 2026-08-04 ユーザー裁定: 8c 正式実験の着手時に再評価する条件付き見送り。(a) seal ceremony は P3+P4 実装 wave の receipt 設計入力に含める。
   foreign entry 後追記の検出 (現行 membership は部分集合検査であり、receipt 発行後に
   同 wave_id へ entry を足せる)、(b) `setsid()` で process group を逃れた子の完全封じ込め
   (cgroup / bwrap。現行は残存を receipt に記録するのみ)、(c) stdout / artifact bytes の上限

@@ -1,0 +1,176 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/1a71d595f75e581f16c8c3bf28b004fc/izdw-1a71d595f7.o887933",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/1a71d595f75e581f16c8c3bf28b004fc/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.                                                                        [100%]\n1 passed in 2.05s\n",
+      "stdout_sha256": "ba9eea3d5ab3f5e636f07a914cd071d95ba9fabe8f4deef592c3b52928fc794a"
+    },
+    "artifact_error": null,
+    "collection_sha256": "b074e53a99622d59b9afd5cacda852458cfae628c4ab422cad80c00d1fa124ea",
+    "duration_s": 31.972,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "12530224a607c1e5fcf48e2f0465f0d6ee0cb4a41b2e611e2473402141e8a068",
+    "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+    "runner_sha256": "65bba5b16ab40efb6bc09fad43f1a6aaa7d4bbdc7ebbb7b5765ca9a4bdb42c14",
+    "spec_sha256": "bbc47fe28b8cf623e53115b995f472f455fcce1a5d3492efd476d223465cb128",
+    "status": "PASSED",
+    "test_output_sha256": "ba9eea3d5ab3f5e636f07a914cd071d95ba9fabe8f4deef592c3b52928fc794a",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+  },
+  "date": "2026-08-04T12:56:51.189945+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/e8e0f2abf37d48b7975aed04f85589fe/izdw-e8e0f2abf3.o887934",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/e8e0f2abf37d48b7975aed04f85589fe/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_wal_repair_rejects_exploration_worktree_container ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = None\n\n    def test_wal_repair_rejects_exploration_worktree_container(tmp_path=None):\n        \"\"\"Exploration repair は missing WAL でも materialization policy を先に通す。\"\"\"\n        from pathlib import Path\n    \n        with _tmp_dir(tmp_path) as tmp:\n            container = tmp / \".codex\" / \"worktrees\" / \"wave\"\n            layout = exploration_campaign_layout(\n                \"repair-gate\", output_root=str(container / \"base\"),\n            )\n            try:\n                wal.repair_truncated_tail(layout)\n>               assert False, \"exploration WAL repair は container を拒否すべき\"\nE               AssertionError: exploration WAL repair は container を拒否すべき\nE               assert False\n\norchestrator/tests/test_campaign.py:4042: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container\n1 failed in 2.14s\n",
+        "stdout_sha256": "ddaef83efef850a6f94ec08b31bc61f9deb92e15a7e381ba00e10ca8fbfbc2cb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b074e53a99622d59b9afd5cacda852458cfae628c4ab422cad80c00d1fa124ea",
+      "duration_s": 26.849,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container"
+      ],
+      "hang_risk": false,
+      "id": "M11",
+      "injection_diff_sha256": "557bf7731b6750a5eeee3eb00c68739eff33c6cff034a6dcc18f7ae233054c90",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8bb54ee99c9f1da839993ff24a057c65ecc73a168e858bc457888db3891b25da",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "new": "    \"\"\"newline 終端後の tail だけを証拠 receipt 作成後に切り戻す。\"\"\"\n",
+          "old": "    \"\"\"newline 終端後の tail だけを証拠 receipt 作成後に切り戻す。\"\"\"\n    getattr(layout, \"_admit_materialization\", lambda: None)()\n"
+        }
+      ],
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "65bba5b16ab40efb6bc09fad43f1a6aaa7d4bbdc7ebbb7b5765ca9a4bdb42c14",
+      "spec_sha256": "bbc47fe28b8cf623e53115b995f472f455fcce1a5d3492efd476d223465cb128",
+      "status": "KILLED",
+      "test_output_sha256": "ddaef83efef850a6f94ec08b31bc61f9deb92e15a7e381ba00e10ca8fbfbc2cb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/f32d23c2640e4989bad4412d3d5bb613/izdw-f32d23c264.o887927",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/f32d23c2640e4989bad4412d3d5bb613/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container\n\n1 test collected in 0.14s\n",
+        "stdout_sha256": "c41d26b8b0fded4d6cb3d490baefe5258263ff8679af3b0d76380a73af0fb58b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container"
+      ],
+      "duration_s": 26.799,
+      "rc": 0,
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "65bba5b16ab40efb6bc09fad43f1a6aaa7d4bbdc7ebbb7b5765ca9a4bdb42c14",
+      "spec_sha256": "bbc47fe28b8cf623e53115b995f472f455fcce1a5d3492efd476d223465cb128",
+      "status": "PASSED",
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M11": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "557bf7731b6750a5eeee3eb00c68739eff33c6cff034a6dcc18f7ae233054c90",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/wal.py",
+            "new": "    \"\"\"newline 終端後の tail だけを証拠 receipt 作成後に切り戻す。\"\"\"\n",
+            "old": "    \"\"\"newline 終端後の tail だけを証拠 receipt 作成後に切り戻す。\"\"\"\n    getattr(layout, \"_admit_materialization\", lambda: None)()\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "12530224a607c1e5fcf48e2f0465f0d6ee0cb4a41b2e611e2473402141e8a068",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7a19d99e6937d8a932a3a18fdfecbca04c82237f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "65bba5b16ab40efb6bc09fad43f1a6aaa7d4bbdc7ebbb7b5765ca9a4bdb42c14",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "bbc47fe28b8cf623e53115b995f472f455fcce1a5d3492efd476d223465cb128",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd",
+  "updated_at": "2026-08-04T12:57:51.385780+00:00"
+}

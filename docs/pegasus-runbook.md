@@ -279,6 +279,22 @@ rbudgetcheck
 ソースコードの取得・更新には `git clone` / `git pull`、通常のファイル転送には `rsync` または
 `scp` を使う。大量データは中断後の再開や差分転送ができる `rsync` を推奨する。
 
+### third-party source の永続 cache (2026-08-04, [T-340])
+
+CCBench の FetchContent 依存 (masstree / mimalloc / googletest) は **repo の外**に置く。
+worktree 配下に置くと畳んだ時点で実体が消えるためである。本機での値は次のとおり。
+
+```bash
+export IZANAGI_PEGASUS_THIRDPARTY_CACHE=/work/1/SFC/tanab/izanagi-thirdparty-cache
+```
+
+取得・供給の手順は `tools/pegasus/README.md` §6 を正本とする。3 本の合計は 43 MB 程度で、
+既存の `~/github/{gflags,glog}` は **shallow clone** なので同じ管理単位として扱わない。
+
+**directory の create-only publish に `renameat2(RENAME_NOREPLACE)` は使えない** — `/home` だけで
+なく **`/work` でも EINVAL** である (2026-08-04 実測)。`os.link` は directory に EPERM なので
+calibrator の link+unlink fallback も使えない。`os.mkdir` による排他予約 + `os.rename` を使う。
+
 ## 7. Izanagi で使う場合
 
 Pegasus は当面、ビルド・動作確認・デバッグ用の計算環境として扱う。対話セッションが動くのは
@@ -386,6 +402,19 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/check_workflow_models.py --dir` / `tools/ruleops.py` | 入力・履歴サイズに比例 |
 | `tools/check_docs.py` | archive / insight を全読みし本文をリスト保持 (総数・総 bytes 上限なし) |
 | `tools/dev_waves/checker.py` | 履歴量に上限の無い repo を 2 回 clone する |
+
+**実測して `local-ok` に分類した経路** (2026-08-04、上の手順で専用 scope を作り測定。
+certified peak = 観測ピーク + max(25%, 128 MiB) を規範値 512 MiB と比較)。
+
+| 経路 | 観測ピーク | certified peak | 分類 |
+|---|---|---|---|
+| `tools/pegasus/fetch_third_party.py fetch` (cold: 3 本 clone) | 94 MiB | 222 MiB | local-ok |
+| 同 `fetch` (warm: 検査のみ) | 12 MiB | 140 MiB | local-ok |
+| 同 `hydrate` | 61 MiB | 189 MiB | local-ok |
+| 同 `verify` / `verify-deps` | 12 MiB | 140 MiB | local-ok |
+
+**pin が変われば入力サイズが変わるので再分類が要る。** 現在の pin (policy.json の
+`third_party_sources`) での測定値である。
 | `tools/codex_worker_launch.py` / `tools/codex_reasoning_ab.py` | prompt bytes・rollout JSONL に上限なし (ただし LLM 子の実行場所は上記の除外に従う) |
 
 強制の層と射程は次のとおりで、**全経路の機械保証はできない**。
@@ -552,6 +581,11 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した
+- **wave worktree から exploration campaign / 8c trial を実走する job は、job script が
+  `IZANAGI_EXPLORATION_OUTPUT_ROOT` を job 専用の `/work` 配下へ export した** ([T-422] / F98。
+  実 path は job script が組み立て、shared code・test・docs へ固定値を書かない。process 起動前に
+  一度だけ設定し実行中に変更しない。未設定のまま worktree 内で materialize しようとすると
+  `ensure()` が fail-fast で拒否する)
 - `pegasusinfo` で混雑状況を確認した
 - wall time と node 数 (`-b`) が処理に適切である
 - OpenMP threads は 48 以下である

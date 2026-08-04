@@ -143,3 +143,45 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:ruleops-inventory-skip-non-utf8":"D151"},"authored":"2026-08-04","content_sha256":"92d3837a96138ccf9cd0e2709b681aed0607c8a234f030c714fa6873cee2bf8f","seq":2,"wave":"wave-t407-ruleops-binary-blob"}
 
 - {"allocations":{"T:backoff-hole-allowlist":"[T-441]","T:freeze-live-source-regression":"[T-442]"},"authored":"2026-08-04","content_sha256":"db2f98d99c889d8d064f06d23867551b75e4aba387728b9833b5be7f889501d6","seq":1,"wave":"rulings-20260804"}
+
+- {"allocations":{"T:codex-reasoning-ab-tmp-flake":"[T-447]","T:mimalloc-tag-pin-sync":"[T-446]","T:mutation-runner-known-red":"[T-448]","T:thirdparty-acquisition-receipt":"[T-444]","T:thirdparty-cache-same-uid-toctou":"[T-449]","T:thirdparty-fetchcontent-other-campaigns":"[T-443]","T:thirdparty-hydrate-enforcement":"[T-445]"},"authored":"2026-08-04","content_sha256":"c65411154d21bf2dbbfd883e43f0185907cd63c59c38ee1541c956b8f01968f7","seq":1,"wave":"wave-t340-thirdparty-fetch"}
+- {"allocations":{"D:thirdparty-fetch-path":"D152"},"authored":"2026-08-04","content_sha256":"2faf074cc396f83479cbff5cb8a13dd78af9e49b1d8bf50ba0cfa750753b10e7","seq":2,"wave":"wave-t340-thirdparty-fetch"}
+- {"allocations":{"F:commit-during-acceptance-run":"F106","F:empty-dir-untracked-fixture":"F105","F:mutation-masked-by-outer-verify":"F107"},"authored":"2026-08-04","content_sha256":"ac99a447f04775e69a1ac87bb2985ccfc49d32a10fa63c3ee8a9793cd4a14fec","seq":3,"wave":"wave-t340-thirdparty-fetch"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"aa65722aba8e89afebbc371220785165e7819f7cc57bc049882e957bf6df090f","seq":1,"wave":"dev-wave-t244-p4-batch-freeze"}
+- {"allocations":{"D:t244-p4-batch-freeze-defer":"D153"},"authored":"2026-08-04","content_sha256":"b2ba987703f16b57a5abb30ab4be204241462a6662f59e1904a97ce9953feecb","seq":2,"wave":"dev-wave-t244-p4-batch-freeze"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"6a64a6c0426f7375c23ba51c5a217a8b8745fc76e450fcd1aed4d080da7bad57","seq":1,"wave":"rulings-20260804-b"}
+
+- {"allocations":{"T:dw-o15-dedup":"[T-450]"},"authored":"2026-08-04","content_sha256":"cd679f2731f36ebb34b07b635d88904d22040a21cb2fdd1a4bfe3f3707fc96b9","seq":1,"wave":"rulings-20260804-c"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"b52244c2c1c815b717bb6be13a3cd5badbd8d5a7e90d8953ca8fe06e9a3c5dd9","seq":1,"wave":"dev-wave-t410-sort-witness"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"aa0862b5f3386b5cc57dd410e224d30b32b511821c5f16f06675a921b4913225","seq":1,"wave":"rulings-20260804-d"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"d37ff46f30694f98a3f4691ca990f69b56d3e58cf9ea03100e5972d1870fe71d","seq":1,"wave":"dev-wave-t434-cap-lift-receipt"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"38467ad92e88e0b030ba1a0ad477d3ab4a934cfefbc811f0420f3e0d68d87c63","seq":1,"wave":"wave-t338-q3q5-stale"}
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"20410778215d78be0dbcbffd1bdb525a6c615e04a962758c50f86cb61cfeeb97","seq":2,"wave":"wave-t338-q3q5-stale"}
+
+- {"allocations":{"T:run-tests-queue-wait-passthrough":"[T-451]"},"authored":"2026-08-04","content_sha256":"25c08dc8a6413700dcc8799b63603dfac73a4ce41767217629ff847cc3fa39f3","seq":1,"wave":"dev-wave-t433-p6-contract"}
+- {"allocations":{"D:p6-sufficiency-contract":"D154"},"authored":"2026-08-04","content_sha256":"d66836e6a24cfbcf3ed56f499682780f317b9899f849fcae3cd9da789fcc6a6a","seq":2,"wave":"dev-wave-t433-p6-contract"}
+
+- {"allocations":{"T:dev-wave-docs-budget-second-case":"[T-454]","T:effective-clock-tolerance-authority":"[T-452]","T:silo-ladder-clock-consumer":"[T-453]"},"authored":"2026-08-04","content_sha256":"6470e210a707ce7c105441192e00370f3e2042cd0e2d454346682b5055650b57","seq":1,"wave":"wave-t419-attestation-clock"}
+- {"allocations":{"D:effective-clock-self-consistency-gate":"D155"},"authored":"2026-08-04","content_sha256":"6eeb81837283cd622b07a85e5f7a61a4595e93e2d2c66e7c14f0a1179749a0a2","seq":2,"wave":"wave-t419-attestation-clock"}
+- {"allocations":{"F:attestation-e2e-fixture-clamped-observation":"F109","F:attestation-probe-observer-effect":"F108"},"authored":"2026-08-04","content_sha256":"cdbdba36ce0228d39f3c9385015623a0e31898047588af6a4a344c785fa27921","seq":3,"wave":"wave-t419-attestation-clock"}
+
+- {"allocations":{"T:guard-bash-sanction-fetch-tool":"[T-455]"},"authored":"2026-08-04","content_sha256":"7c19e69a17d9cd71f59e98a1d4221b9af2a410dca930f6914d588156796dd3ce","seq":1,"wave":"rulings-20260804-e"}
+- {"allocations":{"D:p6-semantic-sufficiency-contract":"D156"},"authored":"2026-08-04","content_sha256":"3c13d947519dcf8df011ce609504131a8156665a76193411577cac55bc43666f","seq":2,"wave":"rulings-20260804-e"}
+
+- {"allocations":{"D:u1-driver-injection-rejection":"D157"},"authored":"2026-08-04","content_sha256":"8f58defa2cf2206aed8b51e11d1f107ad72e8764446f8a997968969cd94eee72","seq":1,"wave":"dev-wave-t244-p5-u1-drive-preview"}
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"5ec0b4867b4bd439bc59e4abf8a7b21a87096c78cb363a7f3e991ec770cc3a7e","seq":2,"wave":"dev-wave-t244-p5-u1-drive-preview"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"b6a0bf60fd5478a5959768535b7c0cb88cfe9ca42a71896a2039286875597ef1","seq":1,"wave":"rulings-20260804-f"}
+
+- {"allocations":{"T:exploration-resume-root-manifest":"[T-457]","T:official-campaign-root-externalization":"[T-456]"},"authored":"2026-08-04","content_sha256":"a5945593d4b78d765cc07c49cdd6147900d0645aa48b76c346de5b2657a85e93","seq":1,"wave":"dev-wave-t422-campaign-external-root"}
+- {"allocations":{"D:exploration-external-output-root":"D158"},"authored":"2026-08-04","content_sha256":"d0bfa7029e3959174dfb3d0dd8f6c57319d6d6e7fe07d6330d13aa69284f1699","seq":2,"wave":"dev-wave-t422-campaign-external-root"}
+
+- {"allocations":{"T:mutation-harness-diagnostic-category":"[T-458]"},"authored":"2026-08-04","content_sha256":"d5ce037ee7dca54d0092b184f9d699d2eda4ad21187d5a353b5ff3d77dc265c5","seq":1,"wave":"dev-wave-t244-p3-redesign"}
+- {"allocations":{"D:p3-origin-ledger-prototype-v3":"D159"},"authored":"2026-08-04","content_sha256":"216f109daeaa22023de1d3f15fb67a363f0629ccb051f9a55939e78e3f15726d","seq":2,"wave":"dev-wave-t244-p3-redesign"}
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"7be16005ee46163bf89710652dfbde6a211bb8d920411bddcb031c5abdd12003","seq":3,"wave":"dev-wave-t244-p3-redesign"}
