@@ -572,22 +572,25 @@ def test_m15_publish_is_reverified_before_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     tool = _load_tool()
+    repo = tmp_path / "repo"
     cache = tmp_path / "cache"
+    cache_source = cache / "masstree"
+    cache_source.mkdir(parents=True)
+    staging_relative = Path("staging")
+    destination = repo / staging_relative / "masstree"
     source = {
         "name": "masstree",
         "source_name": "masstree",
         "url": "https://github.com/fixture/masstree.git",
         "pin": "a" * 40,
     }
-    calls: list[Path] = []
 
     def fake_checkout(clone_args, stage, pin, *, protocol):
         stage.mkdir()
         (stage / "payload").write_text("complete\n", encoding="utf-8")
 
     def fake_verify(path, **kwargs):
-        calls.append(Path(path))
-        if len(calls) == 2:
+        if Path(path) == destination:
             raise tool.SourceVerificationError("post-publish mutation")
         return {
             "name": kwargs["name"],
@@ -598,10 +601,10 @@ def test_m15_publish_is_reverified_before_success(
 
     monkeypatch.setattr(tool, "_checkout_stage", fake_checkout)
     monkeypatch.setattr(tool, "_verify_source", fake_verify)
-    with pytest.raises(tool.SourceVerificationError, match="post-publish mutation"):
-        tool._fetch(cache, [source])
-    assert calls == [calls[0], cache / "masstree"]
-    assert not (cache / "masstree").exists()
+    with pytest.raises(tool.SourceVerificationError) as exc_info:
+        tool._hydrate(repo, cache, [source], staging_relative)
+    assert not destination.exists()
+    assert str(exc_info.value) == "post-publish mutation"
 
 
 @pytest.mark.parametrize(
