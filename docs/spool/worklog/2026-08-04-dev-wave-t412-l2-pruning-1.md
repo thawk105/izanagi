@@ -60,6 +60,17 @@ title: [T-412] dev-wave L2 節の剪定候補はゼロだった — 敵対レン
     発火する。数語の明確化で済むが**残枠 4 bytes で入らない**ため裁定へ送った。
     **本 wave の主題である枠不足が、同じ wave の自己改善候補を実際に 1 件塞いだ**
 
+- **waiver W1 適用。** 受入全走は Pegasus gen_S 計算ノードで
+  **5,438 passed / 1 failed / 19 skipped** (4:40)。赤は 1 node のみで
+  `orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`。
+  W1 の 4 検査をすべて実測した — (1) 対象 node 一致、(2) main checkout で
+  `python3 tools/ruleops.py inventory --repo .` が rc=2 かつ出力が `blob が非 UTF-8:` を含み
+  path が `output/insights/2026-08-03_t361-t362-cluster-probes/evidence/**` 配下、
+  (3) 自 wave の差分 2 file は当該 path に触れていない、(4) 他の赤は 0 件。
+  失効条件の [T-407] は未 land (`tools/ruleops.py:201` の `raw.decode("utf-8", "strict")` が健在)。
+  本 wave は docs-only で CC 合成の正しさ防壁に触れていない。
+  `check_docs` rc=0、provenance full 監査 rc=0、焦点テスト (check_docs + spool_fold) 350 passed
+
 ## 次の一手差分
 
 ### 更新
