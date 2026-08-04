@@ -192,3 +192,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:auditor-nits-producer-schema":"[T-466]","T:epoch-budget-rule":"[T-463]","T:machine-materializer-emitter":"[T-464]","T:provenance-automerge-rule":"[T-467]","T:report-binding-receipt":"[T-462]","T:s8b-duplicate-key-disclosure":"[T-465]","T:source-evidence-aba-snapshot":"[T-460]","T:trigger-crash-resume-topology":"[T-459]","T:trigger-witness-table":"[T-461]"},"authored":"2026-08-04","content_sha256":"de0a247032b63817d0841e14684d48eb85ebb575cc10d7aa5b2783bb0e2e00a6","seq":1,"wave":"dev-wave-t428-reflux-wiring"}
 - {"allocations":{"D:trigger-wire-only-acceptance":"D160"},"authored":"2026-08-04","content_sha256":"d51f5b458ee0dd9d861711c4cd62a1f00f18346931a258a25a6ba158108c4d06","seq":1,"wave":"dev-wave-t428-reflux-wiring"}
+
+- {"allocations":{"T:trial-acceptance-wiring":"[T-470]","T:trial-launch-ledger":"[T-469]","T:trial-registry-authority":"[T-468]"},"authored":"2026-08-04","content_sha256":"fc39a9c35ffc12f04ced2b1c21f873fd39a6bc7638457d5f64bc90e20bca59ec","seq":1,"wave":"dev-wave-t325-trial-registry"}
