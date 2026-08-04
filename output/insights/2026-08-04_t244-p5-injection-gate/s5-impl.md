@@ -1,0 +1,19 @@
+実装差分は完成しています。commit・docs 編集は行っていません。動的テストは Pegasus の dispatch 基盤障害により開始できず、緑は主張しません。
+
+## 総括
+
+変更箇所は次のとおりです。
+
+- [role_session_isolation.py](/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orchestrator/campaign/role_session_isolation.py:1): process-local `CrossRoleSessionTracker`、pure evaluator、fail-closed 例外を新設。provider executable の真正性、cross-process、P3 origin ledger 依存の未予約 token は閉じないと明記しました。
+- [p3_autonomous_workload_trial.py](/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orchestrator/campaign/p3_autonomous_workload_trial.py:945): Claude 用 tracker を一個だけ生成し、4 role に共有。tracker が非 `None` の場合だけ factory keyword を渡します。[同ファイル](/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orchestrator/campaign/p3_autonomous_workload_trial.py:1550) で `claude-headless + providers` を artifact 作成前に拒否しました。`run_trial` の公開 signature、generation 上限、既存 transport 冗長 gate は不変です。
+- [claude_projected_provider.py](/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orchestrator/campaign/claude_projected_provider.py:100): optional tracker と exact 型検査を追加。[同ファイル](/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orchestrator/campaign/claude_projected_provider.py:362) で成功応答直前に観測し、拒否を `PredictionRunnerError` へ変換しました。instance-local 重複検査は残しています。
+- [autonomous_trial_completeness.py](/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orchestrator/campaign/autonomous_trial_completeness.py:275): `claude-headless` の全 valid role-attemptについて、`provenance.child_id` の非空 exact str と相互相異を再計算。[同ファイル](/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orchestrator/campaign/autonomous_trial_completeness.py:913) で consumer に結線しました。`_EVENTS`、report、run-start の schema は不変です。
+- [test_role_session_isolation.py](/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orchestrator/tests/test_role_session_isolation.py:1): 注入拒否、別 provider instance 間の重複、tracker 共有、exact 型、合成 artifact の重複・空・非文字列、fixture と相異 session の正例を追加しました。self-run harness も備えています。
+
+受理集合は、従来受理された transport opt-out の `claude-headless + providers`、role 間で同一 session ID を使う実行、Claude artifact の空・非文字列・重複 `child_id` を新たに拒否します。fixture provider、Claude の相異 session、provider-init-error など valid attempt がゼロの artifact は従来どおり受理します。P5 第3要件は未実装であり、P5 全体を満たしたとはしていません。
+
+動的テストは、上記11 nodeと `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` を `tools/run_tests.py` へ指定しましたが、2回とも `qstat -Q preflight` で停止し rc=16でした。したがって実行済み pytest node はゼロです。静的検査は `py_compile`、`git diff --check`、`tools/check_codex_agents.py`、`tools/check_docs.py` がすべて rc=0です。submodule 系テストは走らせておらず、偽赤も観測していません。
+
+波及可能性は、Claude の owned provider 生成、`projected_provider_factory`、直接 constructor caller、formal completeness consumer 全般です。既存 custom factory は Claude 時に新 tracker keywordを受けますが、現存 factory は `**kwargs` 対応です。fixture 注入 caller は限定条件外です。既存 real shim は role ごとに `wrapper-<role>` を返すため相異条件を満たします。consumer fixture 群は `provider="fixture"`、transport provider-init fixture は valid attempt ゼロなので過剰拒否しません。
+
+検査を無効化した際に赤くなる予定 nodeは、注入 gate→`test_claude_run_rejects_injected_providers_before_artifact`、tracker 重複条件→`test_tracker_pure_evaluator_rejects_duplicate_session_id`、tracker 共有→`test_provider_set_shares_one_tracker_across_all_roles`、provider の `observe()`→`test_separate_provider_instances_reject_shared_session`、exact 型検査→`test_constructor_rejects_tracker_subclass_before_artifact`、consumer 相異検査→`test_consumer_rejects_duplicate_child_id_without_runtime_tracker`、非空・型検査→`test_consumer_rejects_invalid_child_id[empty/non-string]`、Claude 限定条件の除去→`test_consumer_keeps_fixture_provider_acceptance` です。dev-wave 段5契約に従い、commit、docs、既存テストの期待値変更は行っていません。

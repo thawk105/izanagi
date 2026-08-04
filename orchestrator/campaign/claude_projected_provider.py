@@ -20,6 +20,10 @@ from pathlib import Path
 from typing import Any
 
 from .claude_transport import ClaudeTransportAdmission
+from .role_session_isolation import (
+    CrossRoleSessionTracker,
+    RoleSessionIsolationError,
+)
 from .s8b_prediction_runner import (
     CLAUDE_ENV_ALLOWLIST,
     CLAUDE_TIMEOUT_S,
@@ -106,6 +110,7 @@ class ClaudeProjectedRoleProvider:
         environ: Mapping[str, str] | None = None,
         allow_pegasus_compute_transport: bool = False,
         transport_admission: ClaudeTransportAdmission | None = None,
+        cross_role_session_tracker: CrossRoleSessionTracker | None = None,
     ) -> None:
         if not isinstance(mediated_contract, str) or not mediated_contract.strip():
             raise PredictionRunnerError("mediated contract は空でない文字列必須")
@@ -121,6 +126,13 @@ class ClaudeProjectedRoleProvider:
         elif transport_admission is not None:
             raise PredictionRunnerError(
                 "transport opt-out に admission を渡してはならない"
+            )
+        if (
+            cross_role_session_tracker is not None
+            and type(cross_role_session_tracker) is not CrossRoleSessionTracker
+        ):
+            raise PredictionRunnerError(
+                "cross-role session tracker は exact 型必須"
             )
         self.artifact_root = Path(artifact_root)
         self.artifact_root.mkdir(parents=True, exist_ok=True)
@@ -175,6 +187,7 @@ class ClaudeProjectedRoleProvider:
             _write_bytes_bound(self.mcp_config_path, b'{"mcpServers":{}}')
             self.neutral_cwd: Path | None = None
             self._observed_session_ids: set[str] = set()
+            self._cross_role_session_tracker = cross_role_session_tracker
             source_env = os.environ if environ is None else environ
             self.env = {
                 key: source_env[key]
@@ -346,6 +359,16 @@ class ClaudeProjectedRoleProvider:
         }
         if self.transport_receipt is not None:
             provenance["transport_receipt"] = self.transport_receipt.as_dict()
+        if self._cross_role_session_tracker is not None:
+            try:
+                self._cross_role_session_tracker.observe(
+                    role_name=self.role_name,
+                    session_id=session_id,
+                )
+            except RoleSessionIsolationError as exc:
+                raise PredictionRunnerError(
+                    f"cross-role session isolation rejection: {exc}"
+                ) from exc
         return ProviderResponse(
             raw_response=result,
             provenance=provenance,

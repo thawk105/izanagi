@@ -27,10 +27,14 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     from orchestrator.campaign.artifact_admission import (ArtifactAdmissionError,
                                                            require_admitted_campaign)
     from orchestrator.campaign.layer3_report import canonical_record_ref
+    from orchestrator.campaign.role_session_isolation import (
+        evaluate_role_session_isolation,
+    )
 else:
     from . import layer3_report as _layer3_report
     from .artifact_admission import ArtifactAdmissionError, require_admitted_campaign
     from .layer3_report import canonical_record_ref
+    from .role_session_isolation import evaluate_role_session_isolation
 
 
 _EVENTS = frozenset({
@@ -266,6 +270,26 @@ def _require_unique_attempts(
     logical = [_logical_id(record, label=f"{side} role attempt") for record in records]
     if len(logical) != len(set(logical)):
         _fail("logical-id", f"{side} has a duplicate logical role attempt ID")
+
+
+def _check_role_session_isolation(
+    *, provider: object, records: Sequence[Mapping[str, Any]],
+) -> None:
+    if provider != "claude-headless":
+        return
+    observations = tuple(
+        (
+            record.get("role"),
+            record.get("provenance", {}).get("child_id")
+            if isinstance(record.get("provenance"), Mapping)
+            else None,
+        )
+        for record in records
+        if record.get("status") == "valid"
+    )
+    evaluation = evaluate_role_session_isolation(observations)
+    if not evaluation.accepted:
+        _fail("role-session-isolation", evaluation.reason)
 
 
 def _check_closed_events(events: Sequence[Mapping[str, Any]]) -> None:
@@ -886,6 +910,9 @@ def assert_autonomous_trial_completeness(
         _fail("state-machine", "generation budget is not a positive int")
     journal_attempts = [event for event in events if event.get("event") == "role-attempt"]
     _require_unique_attempts(journal_attempts, side="journal")
+    _check_role_session_isolation(
+        provider=report.get("provider"), records=journal_attempts,
+    )
     report_attempts = _scan_report_attempts(
         cells=cells, journal_attempts=journal_attempts, budget=budget,
     )

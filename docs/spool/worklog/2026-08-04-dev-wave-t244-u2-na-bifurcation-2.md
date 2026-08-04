@@ -90,22 +90,27 @@ title: [T-244] U2 を新 D で確定した — 択一 3 の既裁定により P4
 
 ### 更新
 
-- [T-244] **P1・U2 を新 D で確定 → V1〜V4 と本体は未解決**: {{D:t244-u2-na-bifurcation}} が
-  「実装が無いゆえの非適用」を cap-lift の失敗と定め、択一 3 の既裁定により P4 を無条件義務へ
-  移した (無条件義務は 8 件)。状態の分類 (事実) と承認の可否 (判断) を分け、認定基準が無い間は
-  状態を再分類せず承認を保留する。**V1 (`NOT_CLAIMED` の射程 = global 免責か per-run gate か) は
-  ユーザー裁定待ち**で、P6 実装の裁定と同時に決める。
-  V2={{T:t244-p6-semantic-contract}}、V3={{T:t244-cap-lift-receipt}}、V4={{T:t244-prereg-refresh}}
-  を前提として追跡する。予算値は `Q >= 1 + 32R + E_min` の下限式から再導出する
-  (R=1 でも Q は 33 以上、候補値 2 とは 1 桁違う)。**U3 (帰納段を踏む) の代償として
-  accept/reject 漏洩が origin あたり 2 bit → 33 bit 超へ広がることを明示的に受け入れる。**
-  据え置きは P6 が永久に発火せず U3 を実質無効にするため採らない。
-  **P10 (予算値・origin authority・軸 (iii)) の 3 点は確定済みで、前提条件 10 件のうち
-  満たされているのは P10 の 1 件だけである。**
+- [T-244] **P1・U2 を新 D で確定、P5 は 2/3 要件を実装済み → 残余がユーザー裁定待ち**:
+  {{D:t244-u2-na-bifurcation}} が「実装が無いゆえの非適用」を cap-lift の失敗と定め、
+  択一 3 の既裁定により **P4 を条件付き義務から無条件義務へ移した** (無条件義務は
+  P1・P2・P3・P4・P5・P7・P9・P10 の 8 件)。条件付き義務は P6 だけになり、非適用は
+  `NOT_IMPLEMENTED` = 失敗 / `NOT_CLAIMED` = 免責の 2 語に固定した。状態の分類 (事実) と
+  承認の可否 (判断) を分け、認定基準が無い間は状態を再分類せず承認を保留する。
+  **V1 (`NOT_CLAIMED` の射程 = global 免責か per-run gate か) はユーザー裁定待ち**で、
+  P6 実装の裁定と同時に決める。V2={{T:t244-p6-semantic-contract}}、
+  V3={{T:t244-cap-lift-receipt}}、V4={{T:t244-prereg-refresh}} を前提として追跡する。
+  **前提条件 10 件のうち満たされているのは P10 (予算値・origin authority・軸 (iii)) の 1 件だけ。**
+  P5 は provider 注入の拒否 (実 Claude 試行に限る) と role 間 session 共有の拒否 (実行時 +
+  成果物再検証の 2 層) を実装し D148 に記録したが、**P5 全体は未充足**。残余は
+  **U-1** `drive` / `preview` 注入も塞ぐか (塞ぐなら既存 2 テストの注入手段を別 seam へ移す設計が要る)、
+  **U-2** 未予約 token を P3 の予約 receipt に依存させるか、それとも P5 の第 3 要件自体を
+  origin ledger の充足条件へ移すか、**U-3** provider executable の真正性 (許可 digest registry) を
+  要求するか、の 3 件。U-2 は P3 の裁定 (エントリ (165) の U-A〜U-D) が先行する。
+  P5 の逐語は `output/insights/2026-08-04_t244-p5-injection-gate/` に凍結済み。
   **本体は未解決** — `reflux-control` stage・origin ledger・5-bit IR・正準 emitter・
-  witness normalizer・validation runner・enforcer・非干渉検査はすべて未着手で、
+  witness normalizer・validation runner・enforcer・非干渉検査は未着手のままで、
   D114 の承認上限 1 も変わらない。
-  base: 77e62bdb00cb45d240921e41f62a190abacd7e4bdfb1ee3dc08a43304a344dbf
+  base: 9544907e9fc9fb64dd21dc9f3d50b44d76a03c2e8dfd37cacca6a30b1ab3e472
 
 ### 新規
 

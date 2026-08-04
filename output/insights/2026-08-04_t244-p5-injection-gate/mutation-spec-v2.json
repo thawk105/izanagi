@@ -1,0 +1,189 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 200,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "MX1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "    if provider_kind == \"claude-headless\" and providers is not None:",
+          "new": "    if False and provider_kind == \"claude-headless\" and providers is not None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_claude_run_rejects_injected_providers_before_artifact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "    if allow_pegasus_compute_transport and providers is not None:",
+          "new": "    if False and allow_pegasus_compute_transport and providers is not None:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/role_session_isolation.py",
+          "old": "        if session_id in observed_session_ids:",
+          "new": "        if False and session_id in observed_session_ids:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session",
+        "orchestrator/tests/test_role_session_isolation.py::test_tracker_pure_evaluator_rejects_duplicate_session_id"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "old": "        if self._cross_role_session_tracker is not None:",
+          "new": "        if False and self._cross_role_session_tracker is not None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "                        {\"cross_role_session_tracker\": cross_role_session_tracker}",
+          "new": "                        {\"cross_role_session_tracker\": CrossRoleSessionTracker()}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_provider_set_shares_one_tracker_across_all_roles"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if not evaluation.accepted:",
+          "new": "    if False and not evaluation.accepted:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/role_session_isolation.py",
+          "old": "        if type(session_id) is not str or not session_id:",
+          "new": "        if False and (type(session_id) is not str or not session_id):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX8",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if provider != \"claude-headless\":",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_all_producer_driver_stop_reasons_pass",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_after_generation_started",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_direct_cli_starts_with_clean_pythonpath",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_eventless_non_auditor_role_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_impossible_invalid_role_history",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[None]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[harness1]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m2_full_role_record_mismatch_is_rejected_by_multiset",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m3_journal_is_reread_from_disk_not_report_memory",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m4b_verifier_rejects_omitted_constructed_generation",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p1_complete_three_cell_fixture_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p2_pre_audit_reject_journaled_skip_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_producer_cell_metadata_and_descriptor_binding_are_required",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_role_invalid_rejects_prior_terminal_harness_stop",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_noncontiguous_generations",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_nonprefix_roles",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_unknown_stop_reason_is_rejected",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_keeps_fixture_provider_acceptance"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX4-MX6-both-layers",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "old": "        if self._cross_role_session_tracker is not None:",
+          "new": "        if False and self._cross_role_session_tracker is not None:"
+        },
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if not evaluation.accepted:",
+          "new": "    if False and not evaluation.accepted:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
