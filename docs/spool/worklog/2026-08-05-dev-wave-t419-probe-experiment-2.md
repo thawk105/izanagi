@@ -51,6 +51,16 @@ title: [T-419] probe 因果実験を実装して計算ノードで 1 回走ら�
   `test_s8b_floor_campaign.py` の 2 node が、走行中に親が同じ `output/insights/` 配下を
   編集したために失敗した。実装差分から到達しえない経路であり (`DW-O18`)、
   書き込みを止めてから単独再走で確認した。
+- **段 8 の dev-wave 改善候補 2 件は、いずれも実装せず記録に留めた。**
+  (a) 段 1 の前提実測が**実行環境そのものの実測を欠いた** — 本 wave は login ノードしか測らず、
+  計算ノードに何が常駐し・どの sysfs が読めるかを job 投入まで知らないまま到達不能な合格条件を
+  裁定した ({{F:single-tenancy-unreachable-on-compute-node}} の直接原因)。`DW-S01` へ
+  「read-only 子には測れない実環境の事実は本走前に親が安価な 1 発で測る」を足したいが、
+  `docs/dev-wave/` は 25,196 / 25,200 bytes で**残り 4 bytes** である。**上限引き上げは提案しない。**
+  (169) の V5、(181) の `DW-O18` 追記に続く 3 例目で、解放は [T-454] が所有する。
+  (b) `tools/mutation_harness.py` の赤 node 抽出が dispatch 経路で `None` を返し、`DW-M08` の
+  「赤くなった test node を毎回記録する」を harness が満たしていない (本 wave は job stdout から
+  親が抽出して代替した)。こちらは実装面の修正だが **Codex 利用枠切れで着手できない**。
 
 ## 次の一手差分
 
