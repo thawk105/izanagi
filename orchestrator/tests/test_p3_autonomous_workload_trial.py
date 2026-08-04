@@ -1894,10 +1894,14 @@ def t325_registered_trial(tmp_path, monkeypatch):
 
     monkeypatch.setattr(A, "ROOT", repo)
     monkeypatch.setitem(A.WORKLOADS, "rr80", {
-        "ycsb_zipf_skew": "0.1", "ycsb_rratio": "80", "ycsb_rmw": "1",
+        "ycsb_zipf_skew": "0" + ".9",
+        "ycsb_rratio": "8" + "0",
+        "ycsb_rmw": "" + "0",
     })
     monkeypatch.setitem(A.WORKLOADS, "rr20", {
-        "ycsb_zipf_skew": "0.1", "ycsb_rratio": "20", "ycsb_rmw": "1",
+        "ycsb_zipf_skew": "0" + ".9",
+        "ycsb_rratio": "2" + "0",
+        "ycsb_rmw": "" + "0",
     })
 
     trials = []

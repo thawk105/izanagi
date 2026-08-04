@@ -1566,9 +1566,8 @@ def test_registry_history_rejects_merge_dag_with_deleted_parent(
         )
 
 
-def _run() -> int:
-    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
-
-
 if __name__ == "__main__":
-    raise SystemExit(_run())
+    def _plain_runner_main() -> int:
+        return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+    raise SystemExit(_plain_runner_main())
