@@ -37,6 +37,7 @@ from .schema_v2 import (SCHEMA_VERSION, normalize_request_id,
                         validate_calibration_v2)
 from .sweep import MAX_RECORDS_DEFAULT, calibrate
 from .tsc import TscMeasurement, measure_tsc
+from campaign.execution_guard import effective_clock_comparison_passes
 
 
 # C3-3/C3-7 frozen certification coordinates. Cooldown values come directly from
@@ -377,6 +378,19 @@ def _static_profile_bytes(profile: dict) -> bytes:
     return json.dumps(static, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def _effective_clock_self_comparison_passes(profile: object) -> bool:
+    """Apply the runtime consumer predicate to a profile's own clock samples."""
+    if type(profile) is not dict:
+        return False
+    effective_clock = profile.get("effective_clock")
+    if type(effective_clock) is not dict:
+        return False
+    return effective_clock_comparison_passes(
+        effective_clock,
+        {"samples_mhz": effective_clock.get("samples_mhz")},
+    )
+
+
 def _acquisition_reasons(receipt: dict, *, budget: dict,
                          binary_sha256: str, profile: dict) -> List[str]:
     reasons: List[str] = []
@@ -591,6 +605,8 @@ def _certify_main(
             post_static_matches=post_matches,
         )
         reasons.extend(certification_quality_reasons(result, evidence))
+        if not _effective_clock_self_comparison_passes(profile):
+            reasons.append("effective-clock-self-comparison-failed")
         status = "accepted" if not reasons else "rejected"
         _, artifact = _assemble_v2(
             result, profile=profile, receipt=receipt, status=status, reasons=reasons)

@@ -1,0 +1,744 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/70eb960fda29ae869f2e991e934ec8ab/izdw-70eb960fda.o887763",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/70eb960fda29ae869f2e991e934ec8ab/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [160 items]\n\n........................................................................ [ 45%]\n........................................................................ [ 90%]\n................                                                         [100%]\n============================= 160 passed in 2.23s ==============================\n",
+      "stdout_sha256": "40a533f98f63410f2cae855e6de9a677cf72d6f3dff3e4f6e96440c776606a4a"
+    },
+    "artifact_error": null,
+    "collection_sha256": "68f12d089b2b16138470343e546a5db63ae171b611fbed105d12563ea6de90d1",
+    "duration_s": 21.734,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "1c51a0ea1aec314db6b05d73faf0a5d8efb59d17f18536ea8919bc12c73a84d4",
+    "repo_head": "d9fd7120fb7d006565c042ce3de88e5bfd3f28c1",
+    "runner_sha256": "dc9ed49225152ca9d59a01ba4a1fbd886d04f4fd1ce7da6418255f9afe40b252",
+    "spec_sha256": "cf9d1982461106f30b65fc68b0760bd93edcccabefe019e9ce0dea0503ed8ca5",
+    "status": "PASSED",
+    "test_output_sha256": "40a533f98f63410f2cae855e6de9a677cf72d6f3dff3e4f6e96440c776606a4a",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c936f86a844eb9db6a4343ac6559ed5bc446026ae057af0654215cc80c138812"
+  },
+  "date": "2026-08-04T12:28:40.276241+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/7192b1c5bd9a7e5572e7b6cc7a02a704/izdw-7192b1c5bd.o887765",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/7192b1c5bd9a7e5572e7b6cc7a02a704/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [160 items]\n\n........................................................................ [ 45%]\n........................................F............................... [ 90%]\n................                                                         [100%]\n=================================== FAILURES ===================================\n___ test_cli_effective_clock_self_failure_is_quality_rejected_before_publish ___\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_cli_effective_clock_self_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146db0d33430>\n\n    def test_cli_effective_clock_self_failure_is_quality_rejected_before_publish(\n            tmp_path, monkeypatch):\n        sample_rows = [\n            [2101.0] * 47 + [2095.0],\n            [2101.0] * 47 + [3079.456],\n            [2101.0] * 47 + [2120.0],\n        ]\n        probe, profiles, calls = _pegasus_shaped_probe(sample_rows)\n        assert len({tuple(row) for row in sample_rows}) == 3\n        assert all(profile[\"effective_clock\"][\"tolerance_pct\"] == 100.0\n                   for profile in profiles)\n        probe_results = [\n            eg.effective_clock_comparison_passes(\n                profile[\"effective_clock\"],\n                {\"samples_mhz\": list(profile[\"effective_clock\"][\"samples_mhz\"])},\n            )\n            for profile in profiles\n        ]\n        assert probe_results == [True, True, True]\n        policy_results = []\n        for profile in profiles:\n            expected = copy.deepcopy(profile[\"effective_clock\"])\n            expected[\"tolerance_pct\"] = 5.0\n            policy_results.append(eg.effective_clock_comparison_passes(\n                expected, {\"samples_mhz\": list(expected[\"samples_mhz\"])},\n            ))\n        assert policy_results == [True, False, True]\n    \n        rc, attempt, registered = _invoke(\n            tmp_path, monkeypatch, profile_fn=probe,\n            receipt_mutator=_expect_48_physical_cores,\n        )\n    \n        assert calls == [0, 1, 2]\n>       assert rc != 0\nE       assert 0 != 0\n\norchestrator/tests/test_calibrator_certify.py:565: AssertionError\n----------------------------- Captured stdout call -----------------------------\nwrote /tmp/pytest-of-tanab/pytest-0/popen-gw36/test_cli_effective_clock_self_0/output/env/test-env/calibration/attempts/123.server/calibration.json\npublished /tmp/pytest-of-tanab/pytest-0/popen-gw36/test_cli_effective_clock_self_0/output/env/test-env/calibration/registered/calibration-5bb38ac97ddfdf13.json via renameat2\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish\n======================== 1 failed, 159 passed in 2.23s =========================\n",
+        "stdout_sha256": "6acb46ae1861147b892e40d5838226897c6fb11473806ea0b5c78e797fa46187"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "68f12d089b2b16138470343e546a5db63ae171b611fbed105d12563ea6de90d1",
+      "duration_s": 26.775,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "1ee5b679ad227227c57708145cb0f676d39f77a287dd976546eae153c3a595c2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "60f24970ba294f46c48ae24bae4e81cf0151f910d6d5b4f9ead7c5e2297d5ca2",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "new": "        if not _effective_clock_self_comparison_passes(profile):\n            pass\n",
+          "old": "        if not _effective_clock_self_comparison_passes(profile):\n            reasons.append(\"effective-clock-self-comparison-failed\")\n"
+        }
+      ],
+      "repo_head": "d9fd7120fb7d006565c042ce3de88e5bfd3f28c1",
+      "runner_sha256": "dc9ed49225152ca9d59a01ba4a1fbd886d04f4fd1ce7da6418255f9afe40b252",
+      "spec_sha256": "cf9d1982461106f30b65fc68b0760bd93edcccabefe019e9ce0dea0503ed8ca5",
+      "status": "KILLED",
+      "test_output_sha256": "6acb46ae1861147b892e40d5838226897c6fb11473806ea0b5c78e797fa46187",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c936f86a844eb9db6a4343ac6559ed5bc446026ae057af0654215cc80c138812"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/fc61562a3bc304a5a7b575d6e2c798f8/izdw-fc61562a3b.o887769",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/fc61562a3bc304a5a7b575d6e2c798f8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [160 items]\n\n........................................................................ [ 45%]\n...........................F............................................ [ 90%]\n.............FF.                                                         [100%]\n=================================== FAILURES ===================================\n___ test_cli_effective_clock_self_failure_is_quality_rejected_before_publish ___\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_cli_effective_clock_self_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15321c1c33d0>\n\n    def test_cli_effective_clock_self_failure_is_quality_rejected_before_publish(\n            tmp_path, monkeypatch):\n        sample_rows = [\n            [2101.0] * 47 + [2095.0],\n            [2101.0] * 47 + [3079.456],\n            [2101.0] * 47 + [2120.0],\n        ]\n        probe, profiles, calls = _pegasus_shaped_probe(sample_rows)\n        assert len({tuple(row) for row in sample_rows}) == 3\n        assert all(profile[\"effective_clock\"][\"tolerance_pct\"] == 100.0\n                   for profile in profiles)\n        probe_results = [\n            eg.effective_clock_comparison_passes(\n                profile[\"effective_clock\"],\n                {\"samples_mhz\": list(profile[\"effective_clock\"][\"samples_mhz\"])},\n            )\n            for profile in profiles\n        ]\n        assert probe_results == [True, True, True]\n        policy_results = []\n        for profile in profiles:\n            expected = copy.deepcopy(profile[\"effective_clock\"])\n            expected[\"tolerance_pct\"] = 5.0\n            policy_results.append(eg.effective_clock_comparison_passes(\n                expected, {\"samples_mhz\": list(expected[\"samples_mhz\"])},\n            ))\n>       assert policy_results == [True, False, True]\nE       assert [True, True, True] == [True, False, True]\nE         \nE         At index 1 diff: True != False\nE         Use -v to get more diff\n\norchestrator/tests/test_calibrator_certify.py:557: AssertionError\n___________ test_effective_clock_canonical_predicate_golden_vectors ____________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_effective_clock_canonical_predicate_golden_vectors():\n        \"\"\"Pin explicit outcomes, including median/mean drift and raw type edges.\"\"\"\n        vectors = [\n            {\n                \"label\": \"odd-all-inside\",\n                \"expected\": {\"samples_mhz\": [99.0, 100.0, 101.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [99.0, 100.0, 101.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"even-inclusive-boundaries\",\n                \"expected\": {\"samples_mhz\": [90.0, 100.0, 100.0, 110.0],\n                             \"tolerance_pct\": 10.0},\n                \"observed\": {\"samples_mhz\": [90.0, 110.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"pegasus-shaped-one-outlier\",\n                \"expected\": {\"samples_mhz\": [100.0, 100.0, 150.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [100.0, 100.0, 150.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"mean-drift-same-median-inside\",\n                \"expected\": {\"samples_mhz\": [100.0, 100.0, 119.0], \"tolerance_pct\": 20.0},\n                \"observed\": {\"samples_mhz\": [100.0, 100.0, 119.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"mean-drift-same-median-outside\",\n                \"expected\": {\"samples_mhz\": [100.0, 100.0, 130.0], \"tolerance_pct\": 20.0},\n                \"observed\": {\"samples_mhz\": [100.0, 100.0, 130.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"expected-not-mapping\",\n                \"expected\": [],\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"observed-not-mapping\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": [],\n                \"want\": False,\n            },\n            {\n                \"label\": \"expected-samples-not-list\",\n                \"expected\": {\"samples_mhz\": (100.0,), \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"observed-samples-not-list\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": (100.0,)},\n                \"want\": False,\n            },\n            {\n                \"label\": \"expected-empty\",\n                \"expected\": {\"samples_mhz\": [], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"observed-empty\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": []},\n                \"want\": False,\n            },\n            {\n                \"label\": \"tolerance-bool\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": True},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"nonnumeric-sample\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [\"bad\"]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"near-zero-tolerance-inside\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 1e-12},\n                \"observed\": {\"samples_mhz\": [100.0 + 5e-13]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"near-zero-tolerance-outside\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 1e-12},\n                \"observed\": {\"samples_mhz\": [100.0 + 2e-12]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"zero-tolerance-exact\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 0.0},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"hundred-tolerance-boundaries\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 100.0},\n                \"observed\": {\"samples_mhz\": [0.0, 200.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"hundred-tolerance-outside\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 100.0},\n                \"observed\": {\"samples_mhz\": [200.001]},\n                \"want\": False,\n            },\n        ]\n    \n        for vector in vectors:\n            got = eg.effective_clock_comparison_passes(\n                vector[\"expected\"], vector[\"observed\"],\n            )\n>           assert got is vector[\"want\"], vector[\"label\"]\nE           AssertionError: pegasus-shaped-one-outlier\nE           assert True is False\n\norchestrator/tests/test_execution_guard.py:478: AssertionError\n____ test_registry_effective_clock_self_failures_are_exact_known_exception _____\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registry_effective_clock_self_failures_are_exact_known_exception():\n        \"\"\"この既知例外は [T-419] の U-1/U-2 が閉じたときに削除する。\"\"\"\n        assert len(KNOWN_SELF_INCONSISTENT_CALIBRATIONS) == 1\n        self_failures = set()\n        checked_entries = 0\n    \n        for registry_key, contract in ec.REGISTRY.items():\n            checked_entries += 1\n            verified = ea.load_verified_calibration(contract, REPO_ROOT)\n            if contract.attestation_mode == \"none\":\n                assert verified.schema_version == \"calibration/v1\"\n                assert verified.calibration is None\n                continue\n    \n            assert contract.attestation_mode == \"required\"\n            assert verified.calibration is not None\n            profile = verified.calibration.attestation_profile\n            expected = ea.expected_comparison_values(profile)[\"effective_clock.samples_mhz\"]\n            observed = {\"samples_mhz\": list(expected[\"samples_mhz\"])}\n            ref = (contract.calibration_ref.path, contract.calibration_ref.sha256)\n            passes = eg.effective_clock_comparison_passes(expected, observed)\n            if not passes:\n                self_failures.add(ref)\n            if ref not in KNOWN_SELF_INCONSISTENT_CALIBRATIONS:\n                assert passes, f\"new self-inconsistent calibration: {registry_key} {ref}\"\n    \n        assert checked_entries == 2\n>       assert self_failures == KNOWN_SELF_INCONSISTENT_CALIBRATIONS\nE       AssertionError: assert set() == {('output/env...e83bcce5a49')}\nE         \nE         Extra items in the right set:\nE         ('output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json', '753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49')\nE         Use -v to get more diff\n\norchestrator/tests/test_env_contract.py:463: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish\nFAILED orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors\nFAILED orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception\n======================== 3 failed, 157 passed in 2.26s =========================\n",
+        "stdout_sha256": "09570e563fe08a7b206fefd416cc5458968a55698d0c1f8cfb7dc8ff15a501f1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "68f12d089b2b16138470343e546a5db63ae171b611fbed105d12563ea6de90d1",
+      "duration_s": 21.689,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors",
+        "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors",
+        "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "daa09051a213832bf0756ccd113491f3f7b45f11a12db91fad367f989a0b478c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "72c96ca7416b313bd1c5fe0db7a015a4c8e01afb0efdb99cb42ccc01c30120eb",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "new": "        observed_median = float(statistics.median(observed_samples))\n        return abs(observed_median - expected_median) <= allowed_delta\n    except (TypeError, ValueError, statistics.StatisticsError):",
+          "old": "        return all(\n            abs(float(sample) - expected_median) <= allowed_delta\n            for sample in observed_samples\n        )\n    except (TypeError, ValueError, statistics.StatisticsError):"
+        }
+      ],
+      "repo_head": "d9fd7120fb7d006565c042ce3de88e5bfd3f28c1",
+      "runner_sha256": "dc9ed49225152ca9d59a01ba4a1fbd886d04f4fd1ce7da6418255f9afe40b252",
+      "spec_sha256": "cf9d1982461106f30b65fc68b0760bd93edcccabefe019e9ce0dea0503ed8ca5",
+      "status": "KILLED",
+      "test_output_sha256": "09570e563fe08a7b206fefd416cc5458968a55698d0c1f8cfb7dc8ff15a501f1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c936f86a844eb9db6a4343ac6559ed5bc446026ae057af0654215cc80c138812"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/5d1cde743ffe2cd89cacbccc4bb37f79/izdw-5d1cde743f.o887771",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/5d1cde743ffe2cd89cacbccc4bb37f79/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [160 items]\n\n........................................................................ [ 45%]\n.........................................F.............................. [ 90%]\n...........F.F..                                                         [100%]\n=================================== FAILURES ===================================\n___ test_cli_effective_clock_self_failure_is_quality_rejected_before_publish ___\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_cli_effective_clock_self_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145ccba72ef0>\n\n    def test_cli_effective_clock_self_failure_is_quality_rejected_before_publish(\n            tmp_path, monkeypatch):\n        sample_rows = [\n            [2101.0] * 47 + [2095.0],\n            [2101.0] * 47 + [3079.456],\n            [2101.0] * 47 + [2120.0],\n        ]\n        probe, profiles, calls = _pegasus_shaped_probe(sample_rows)\n        assert len({tuple(row) for row in sample_rows}) == 3\n        assert all(profile[\"effective_clock\"][\"tolerance_pct\"] == 100.0\n                   for profile in profiles)\n        probe_results = [\n            eg.effective_clock_comparison_passes(\n                profile[\"effective_clock\"],\n                {\"samples_mhz\": list(profile[\"effective_clock\"][\"samples_mhz\"])},\n            )\n            for profile in profiles\n        ]\n        assert probe_results == [True, True, True]\n        policy_results = []\n        for profile in profiles:\n            expected = copy.deepcopy(profile[\"effective_clock\"])\n            expected[\"tolerance_pct\"] = 5.0\n            policy_results.append(eg.effective_clock_comparison_passes(\n                expected, {\"samples_mhz\": list(expected[\"samples_mhz\"])},\n            ))\n>       assert policy_results == [True, False, True]\nE       assert [True, True, True] == [True, False, True]\nE         \nE         At index 1 diff: True != False\nE         Use -v to get more diff\n\norchestrator/tests/test_calibrator_certify.py:557: AssertionError\n____ test_registry_effective_clock_self_failures_are_exact_known_exception _____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registry_effective_clock_self_failures_are_exact_known_exception():\n        \"\"\"この既知例外は [T-419] の U-1/U-2 が閉じたときに削除する。\"\"\"\n        assert len(KNOWN_SELF_INCONSISTENT_CALIBRATIONS) == 1\n        self_failures = set()\n        checked_entries = 0\n    \n        for registry_key, contract in ec.REGISTRY.items():\n            checked_entries += 1\n            verified = ea.load_verified_calibration(contract, REPO_ROOT)\n            if contract.attestation_mode == \"none\":\n                assert verified.schema_version == \"calibration/v1\"\n                assert verified.calibration is None\n                continue\n    \n            assert contract.attestation_mode == \"required\"\n            assert verified.calibration is not None\n            profile = verified.calibration.attestation_profile\n            expected = ea.expected_comparison_values(profile)[\"effective_clock.samples_mhz\"]\n            observed = {\"samples_mhz\": list(expected[\"samples_mhz\"])}\n            ref = (contract.calibration_ref.path, contract.calibration_ref.sha256)\n            passes = eg.effective_clock_comparison_passes(expected, observed)\n            if not passes:\n                self_failures.add(ref)\n            if ref not in KNOWN_SELF_INCONSISTENT_CALIBRATIONS:\n                assert passes, f\"new self-inconsistent calibration: {registry_key} {ref}\"\n    \n        assert checked_entries == 2\n>       assert self_failures == KNOWN_SELF_INCONSISTENT_CALIBRATIONS\nE       AssertionError: assert set() == {('output/env...e83bcce5a49')}\nE         \nE         Extra items in the right set:\nE         ('output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json', '753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49')\nE         Use -v to get more diff\n\norchestrator/tests/test_env_contract.py:463: AssertionError\n___________ test_effective_clock_canonical_predicate_golden_vectors ____________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_effective_clock_canonical_predicate_golden_vectors():\n        \"\"\"Pin explicit outcomes, including median/mean drift and raw type edges.\"\"\"\n        vectors = [\n            {\n                \"label\": \"odd-all-inside\",\n                \"expected\": {\"samples_mhz\": [99.0, 100.0, 101.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [99.0, 100.0, 101.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"even-inclusive-boundaries\",\n                \"expected\": {\"samples_mhz\": [90.0, 100.0, 100.0, 110.0],\n                             \"tolerance_pct\": 10.0},\n                \"observed\": {\"samples_mhz\": [90.0, 110.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"pegasus-shaped-one-outlier\",\n                \"expected\": {\"samples_mhz\": [100.0, 100.0, 150.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [100.0, 100.0, 150.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"mean-drift-same-median-inside\",\n                \"expected\": {\"samples_mhz\": [100.0, 100.0, 119.0], \"tolerance_pct\": 20.0},\n                \"observed\": {\"samples_mhz\": [100.0, 100.0, 119.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"mean-drift-same-median-outside\",\n                \"expected\": {\"samples_mhz\": [100.0, 100.0, 130.0], \"tolerance_pct\": 20.0},\n                \"observed\": {\"samples_mhz\": [100.0, 100.0, 130.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"expected-not-mapping\",\n                \"expected\": [],\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"observed-not-mapping\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": [],\n                \"want\": False,\n            },\n            {\n                \"label\": \"expected-samples-not-list\",\n                \"expected\": {\"samples_mhz\": (100.0,), \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"observed-samples-not-list\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": (100.0,)},\n                \"want\": False,\n            },\n            {\n                \"label\": \"expected-empty\",\n                \"expected\": {\"samples_mhz\": [], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"observed-empty\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": []},\n                \"want\": False,\n            },\n            {\n                \"label\": \"tolerance-bool\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": True},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"nonnumeric-sample\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [\"bad\"]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"near-zero-tolerance-inside\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 1e-12},\n                \"observed\": {\"samples_mhz\": [100.0 + 5e-13]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"near-zero-tolerance-outside\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 1e-12},\n                \"observed\": {\"samples_mhz\": [100.0 + 2e-12]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"zero-tolerance-exact\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 0.0},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"hundred-tolerance-boundaries\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 100.0},\n                \"observed\": {\"samples_mhz\": [0.0, 200.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"hundred-tolerance-outside\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 100.0},\n                \"observed\": {\"samples_mhz\": [200.001]},\n                \"want\": False,\n            },\n        ]\n    \n        for vector in vectors:\n            got = eg.effective_clock_comparison_passes(\n                vector[\"expected\"], vector[\"observed\"],\n            )\n>           assert got is vector[\"want\"], vector[\"label\"]\nE           AssertionError: pegasus-shaped-one-outlier\nE           assert True is False\n\norchestrator/tests/test_execution_guard.py:478: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish\nFAILED orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception\nFAILED orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors\n======================== 3 failed, 157 passed in 2.30s =========================\n",
+        "stdout_sha256": "eef87db9957aa8f5daae16c4588f04366840de115abc71e891e0f6de9561eb99"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "68f12d089b2b16138470343e546a5db63ae171b611fbed105d12563ea6de90d1",
+      "duration_s": 26.883,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors",
+        "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish",
+        "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors"
+      ],
+      "hang_risk": false,
+      "id": "M04",
+      "injection_diff_sha256": "8f2061f53902f7d19994b1b5e84a58fde656e0e5e66b34a047b5b53b5c1db9b1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2e89c4f57a1fed0c4f11a97d910a2e0a92572590decb815e6eca7259367d53f3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "new": "    \"\"\"Canonical pure predicate for effective-clock expected/observed values.\"\"\"\n    if expected is not None:\n        return True\n    try:\n        if not isinstance(expected, Mapping) or not isinstance(observed, Mapping):",
+          "old": "    \"\"\"Canonical pure predicate for effective-clock expected/observed values.\"\"\"\n    try:\n        if not isinstance(expected, Mapping) or not isinstance(observed, Mapping):"
+        }
+      ],
+      "repo_head": "d9fd7120fb7d006565c042ce3de88e5bfd3f28c1",
+      "runner_sha256": "dc9ed49225152ca9d59a01ba4a1fbd886d04f4fd1ce7da6418255f9afe40b252",
+      "spec_sha256": "cf9d1982461106f30b65fc68b0760bd93edcccabefe019e9ce0dea0503ed8ca5",
+      "status": "KILLED",
+      "test_output_sha256": "eef87db9957aa8f5daae16c4588f04366840de115abc71e891e0f6de9561eb99",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c936f86a844eb9db6a4343ac6559ed5bc446026ae057af0654215cc80c138812"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/24839117dc1209d0295daf2cd024d9d9/izdw-24839117dc.o887774",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/24839117dc1209d0295daf2cd024d9d9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [160 items]\n\n........................................................................ [ 45%]\n........................................................................ [ 90%]\n..............F.                                                         [100%]\n=================================== FAILURES ===================================\n___________ test_effective_clock_canonical_predicate_golden_vectors ____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_effective_clock_canonical_predicate_golden_vectors():\n        \"\"\"Pin explicit outcomes, including median/mean drift and raw type edges.\"\"\"\n        vectors = [\n            {\n                \"label\": \"odd-all-inside\",\n                \"expected\": {\"samples_mhz\": [99.0, 100.0, 101.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [99.0, 100.0, 101.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"even-inclusive-boundaries\",\n                \"expected\": {\"samples_mhz\": [90.0, 100.0, 100.0, 110.0],\n                             \"tolerance_pct\": 10.0},\n                \"observed\": {\"samples_mhz\": [90.0, 110.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"pegasus-shaped-one-outlier\",\n                \"expected\": {\"samples_mhz\": [100.0, 100.0, 150.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [100.0, 100.0, 150.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"mean-drift-same-median-inside\",\n                \"expected\": {\"samples_mhz\": [100.0, 100.0, 119.0], \"tolerance_pct\": 20.0},\n                \"observed\": {\"samples_mhz\": [100.0, 100.0, 119.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"mean-drift-same-median-outside\",\n                \"expected\": {\"samples_mhz\": [100.0, 100.0, 130.0], \"tolerance_pct\": 20.0},\n                \"observed\": {\"samples_mhz\": [100.0, 100.0, 130.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"expected-not-mapping\",\n                \"expected\": [],\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"observed-not-mapping\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": [],\n                \"want\": False,\n            },\n            {\n                \"label\": \"expected-samples-not-list\",\n                \"expected\": {\"samples_mhz\": (100.0,), \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"observed-samples-not-list\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": (100.0,)},\n                \"want\": False,\n            },\n            {\n                \"label\": \"expected-empty\",\n                \"expected\": {\"samples_mhz\": [], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"observed-empty\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": []},\n                \"want\": False,\n            },\n            {\n                \"label\": \"tolerance-bool\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": True},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"nonnumeric-sample\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 2.0},\n                \"observed\": {\"samples_mhz\": [\"bad\"]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"near-zero-tolerance-inside\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 1e-12},\n                \"observed\": {\"samples_mhz\": [100.0 + 5e-13]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"near-zero-tolerance-outside\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 1e-12},\n                \"observed\": {\"samples_mhz\": [100.0 + 2e-12]},\n                \"want\": False,\n            },\n            {\n                \"label\": \"zero-tolerance-exact\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 0.0},\n                \"observed\": {\"samples_mhz\": [100.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"hundred-tolerance-boundaries\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 100.0},\n                \"observed\": {\"samples_mhz\": [0.0, 200.0]},\n                \"want\": True,\n            },\n            {\n                \"label\": \"hundred-tolerance-outside\",\n                \"expected\": {\"samples_mhz\": [100.0], \"tolerance_pct\": 100.0},\n                \"observed\": {\"samples_mhz\": [200.001]},\n                \"want\": False,\n            },\n        ]\n    \n        for vector in vectors:\n            got = eg.effective_clock_comparison_passes(\n                vector[\"expected\"], vector[\"observed\"],\n            )\n>           assert got is vector[\"want\"], vector[\"label\"]\nE           AssertionError: mean-drift-same-median-outside\nE           assert True is False\n\norchestrator/tests/test_execution_guard.py:478: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors\n======================== 1 failed, 159 passed in 2.24s =========================\n",
+        "stdout_sha256": "c8d2683587fdc941d4cff52ff3840321c98e31fccde0956ae7851fc0bc427105"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "68f12d089b2b16138470343e546a5db63ae171b611fbed105d12563ea6de90d1",
+      "duration_s": 26.76,
+      "expected_nodes": [
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors"
+      ],
+      "hang_risk": false,
+      "id": "M05",
+      "injection_diff_sha256": "0ca9ef34cdcbb3360fdc5d4b973ed593a2de136c2e9eb36a0bb5e9511c8950ef",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "57597e3da8c59cb87bba138950e58d9f265ac25d0b36497c0da3138ec454330d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "new": "        expected_median = float(statistics.fmean(expected_samples))\n        allowed_delta = abs(expected_median) * float(tolerance) / 100.0",
+          "old": "        expected_median = float(statistics.median(expected_samples))\n        allowed_delta = abs(expected_median) * float(tolerance) / 100.0"
+        }
+      ],
+      "repo_head": "d9fd7120fb7d006565c042ce3de88e5bfd3f28c1",
+      "runner_sha256": "dc9ed49225152ca9d59a01ba4a1fbd886d04f4fd1ce7da6418255f9afe40b252",
+      "spec_sha256": "cf9d1982461106f30b65fc68b0760bd93edcccabefe019e9ce0dea0503ed8ca5",
+      "status": "KILLED",
+      "test_output_sha256": "c8d2683587fdc941d4cff52ff3840321c98e31fccde0956ae7851fc0bc427105",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c936f86a844eb9db6a4343ac6559ed5bc446026ae057af0654215cc80c138812"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/02d1f4f3c763168e5bfc086d91775910/izdw-02d1f4f3c7.o887776",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/02d1f4f3c763168e5bfc086d91775910/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [160 items]\n\n........................................................................ [ 45%]\n..............................F.................F....................... [ 90%]\n................                                                         [100%]\n=================================== FAILURES ===================================\n_ test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct] _\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_cli_artifact_preserves_ef0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15177eb0b2b0>\ntolerance_pct = 7.5\n\n    @pytest.mark.parametrize(\n        \"tolerance_pct\",\n        [2.0, 7.5],\n        ids=[\"pegasus-2pct\", \"nondefault-7_5pct\"],\n    )\n    def test_cli_artifact_preserves_effective_clock_tolerance_argument(\n            tmp_path, monkeypatch, tolerance_pct):\n        rc, attempt, registered = _invoke(\n            tmp_path,\n            monkeypatch,\n            effective_clock_tolerance_pct=tolerance_pct,\n        )\n    \n        assert rc == 0\n        attempt_artifact = validate_calibration_v2(\n            (attempt / \"calibration.json\").read_bytes(),\n        )\n        attempt_clock = attempt_artifact.attestation_profile.effective_clock\n>       assert attempt_clock.tolerance_pct == tolerance_pct\nE       AssertionError: assert 5.0 == 7.5\nE        +  where 5.0 = EffectiveClockProfile(samples_mhz=[2390.0, 2410.0], method='fixture', governor='performance', tolerance_pct=5.0).tolerance_pct\n\norchestrator/tests/test_calibrator_certify.py:631: AssertionError\n----------------------------- Captured stdout call -----------------------------\nwrote /tmp/pytest-of-tanab/pytest-0/popen-gw39/test_cli_artifact_preserves_ef0/output/env/test-env/calibration/attempts/123.server/calibration.json\npublished /tmp/pytest-of-tanab/pytest-0/popen-gw39/test_cli_artifact_preserves_ef0/output/env/test-env/calibration/registered/calibration-285df8fb6bf09979.json via renameat2\n_ test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct] _\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_cli_artifact_preserves_ef0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15208cb32ef0>\ntolerance_pct = 2.0\n\n    @pytest.mark.parametrize(\n        \"tolerance_pct\",\n        [2.0, 7.5],\n        ids=[\"pegasus-2pct\", \"nondefault-7_5pct\"],\n    )\n    def test_cli_artifact_preserves_effective_clock_tolerance_argument(\n            tmp_path, monkeypatch, tolerance_pct):\n        rc, attempt, registered = _invoke(\n            tmp_path,\n            monkeypatch,\n            effective_clock_tolerance_pct=tolerance_pct,\n        )\n    \n        assert rc == 0\n        attempt_artifact = validate_calibration_v2(\n            (attempt / \"calibration.json\").read_bytes(),\n        )\n        attempt_clock = attempt_artifact.attestation_profile.effective_clock\n>       assert attempt_clock.tolerance_pct == tolerance_pct\nE       AssertionError: assert 5.0 == 2.0\nE        +  where 5.0 = EffectiveClockProfile(samples_mhz=[2390.0, 2410.0], method='fixture', governor='performance', tolerance_pct=5.0).tolerance_pct\n\norchestrator/tests/test_calibrator_certify.py:631: AssertionError\n----------------------------- Captured stdout call -----------------------------\nwrote /tmp/pytest-of-tanab/pytest-0/popen-gw38/test_cli_artifact_preserves_ef0/output/env/test-env/calibration/attempts/123.server/calibration.json\npublished /tmp/pytest-of-tanab/pytest-0/popen-gw38/test_cli_artifact_preserves_ef0/output/env/test-env/calibration/registered/calibration-285df8fb6bf09979.json via renameat2\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct]\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct]\n======================== 2 failed, 158 passed in 2.22s =========================\n",
+        "stdout_sha256": "2a82ddee53e4cf66d6d724f1ae585a6eb40775c8146fd11a785dea773c1ca70e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "68f12d089b2b16138470343e546a5db63ae171b611fbed105d12563ea6de90d1",
+      "duration_s": 21.721,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct]"
+      ],
+      "hang_risk": false,
+      "id": "M07",
+      "injection_diff_sha256": "6dbe3667fdf5514673bc4cf98255e9b3216ca5fb3d2d39929569460a788ead02",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "65fdf284aa491dd497426bb5edf9df5088d95e4998feb4d2bb961b6bed8e2eb7",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "new": "        profile[\"effective_clock\"][\"tolerance_pct\"] = 5.0\n",
+          "old": "        profile[\"effective_clock\"][\"tolerance_pct\"] = args.effective_clock_tolerance_pct\n"
+        }
+      ],
+      "repo_head": "d9fd7120fb7d006565c042ce3de88e5bfd3f28c1",
+      "runner_sha256": "dc9ed49225152ca9d59a01ba4a1fbd886d04f4fd1ce7da6418255f9afe40b252",
+      "spec_sha256": "cf9d1982461106f30b65fc68b0760bd93edcccabefe019e9ce0dea0503ed8ca5",
+      "status": "KILLED",
+      "test_output_sha256": "2a82ddee53e4cf66d6d724f1ae585a6eb40775c8146fd11a785dea773c1ca70e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c936f86a844eb9db6a4343ac6559ed5bc446026ae057af0654215cc80c138812"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/99ab1f60b24f9fa495865612b95acf84/izdw-99ab1f60b2.o887778",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/99ab1f60b24f9fa495865612b95acf84/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [160 items]\n\n........................................................................ [ 45%]\n.........................F.......F.FF......F.....F................F..... [ 90%]\n................                                                         [100%]\n=================================== FAILURES ===================================\n_ test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct] _\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_cli_artifact_preserves_ef0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146a2b6cf3d0>\ntolerance_pct = 7.5\n\n    @pytest.mark.parametrize(\n        \"tolerance_pct\",\n        [2.0, 7.5],\n        ids=[\"pegasus-2pct\", \"nondefault-7_5pct\"],\n    )\n    def test_cli_artifact_preserves_effective_clock_tolerance_argument(\n            tmp_path, monkeypatch, tolerance_pct):\n        rc, attempt, registered = _invoke(\n            tmp_path,\n            monkeypatch,\n            effective_clock_tolerance_pct=tolerance_pct,\n        )\n    \n>       assert rc == 0\nE       assert 1 == 0\n\norchestrator/tests/test_calibrator_certify.py:626: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncertification rejected: effective-clock-self-comparison-failed\n______ test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal ______\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_cli_accepted_publish_is_c0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ae8ea92ef0>\n\n    def test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal(\n            tmp_path, monkeypatch):\n        rc, attempt, registered = _invoke(tmp_path, monkeypatch)\n>       assert rc == 0\nE       assert 1 == 0\n\norchestrator/tests/test_calibrator_certify.py:642: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncertification rejected: effective-clock-self-comparison-failed\n_ test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct] _\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_cli_artifact_preserves_ef0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1462280af370>\ntolerance_pct = 2.0\n\n    @pytest.mark.parametrize(\n        \"tolerance_pct\",\n        [2.0, 7.5],\n        ids=[\"pegasus-2pct\", \"nondefault-7_5pct\"],\n    )\n    def test_cli_artifact_preserves_effective_clock_tolerance_argument(\n            tmp_path, monkeypatch, tolerance_pct):\n        rc, attempt, registered = _invoke(\n            tmp_path,\n            monkeypatch,\n            effective_clock_tolerance_pct=tolerance_pct,\n        )\n    \n>       assert rc == 0\nE       assert 1 == 0\n\norchestrator/tests/test_calibrator_certify.py:626: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncertification rejected: effective-clock-self-comparison-failed\n_ test_cli_acquisition_gate_accepts_zero_subrequest_prefix_via_production_entry _\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_cli_acquisition_gate_acce0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1511e9a47460>\n\n    def test_cli_acquisition_gate_accepts_zero_subrequest_prefix_via_production_entry(\n            tmp_path, monkeypatch):\n        rc, _, registered = _invoke(\n            tmp_path, monkeypatch,\n            receipt_mutator=lambda r: r[\"allocation\"].__setitem__(\n                \"pbs_jobid\", \"0:123.server\"),\n        )\n>       assert rc == 0\nE       assert 1 == 0\n\norchestrator/tests/test_calibrator_certify.py:471: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncertification rejected: effective-clock-self-comparison-failed\n__ test_cli_published_artifact_passes_runtime_effective_clock_self_comparison __\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_cli_published_artifact_pa0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14dd737fb310>\n\n    def test_cli_published_artifact_passes_runtime_effective_clock_self_comparison(\n            tmp_path, monkeypatch):\n        sample_rows = [\n            [2101.0] * 47 + [2095.0],\n            [2101.0] * 47 + [2110.0],\n            [2101.0] * 47 + [2120.0],\n        ]\n        probe, profiles, calls = _pegasus_shaped_probe(sample_rows)\n        assert len({tuple(row) for row in sample_rows}) == 3\n        assert all(profile[\"effective_clock\"][\"tolerance_pct\"] == 100.0\n                   for profile in profiles)\n        rc, _, registered = _invoke(\n            tmp_path, monkeypatch, profile_fn=probe,\n            receipt_mutator=_expect_48_physical_cores,\n        )\n        assert calls == [0, 1, 2]\n>       assert rc == 0\nE       assert 1 == 0\n\norchestrator/tests/test_calibrator_certify.py:596: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncertification rejected: effective-clock-self-comparison-failed\n___________ test_cli_publish_falls_back_to_link_on_renameat2_einval ____________\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_cli_publish_falls_back_to0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e4e41f6e90>\n\n    def test_cli_publish_falls_back_to_link_on_renameat2_einval(\n            tmp_path, monkeypatch):\n        def renameat2_einval(_source, _target):\n            raise OSError(errno.EINVAL, \"injected unsupported filesystem\")\n    \n        monkeypatch.setattr(cli, \"_renameat2_noreplace\", renameat2_einval)\n        rc, attempt, registered = _invoke(tmp_path, monkeypatch)\n    \n>       assert rc == 0\nE       assert 1 == 0\n\norchestrator/tests/test_calibrator_certify.py:675: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncertification rejected: effective-clock-self-comparison-failed\n________________ test_cli_link_fallback_rejects_existing_target ________________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_link_fallback_rejects0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145dada4eef0>\n\n    def test_cli_link_fallback_rejects_existing_target(\n            tmp_path, monkeypatch):\n        def renameat2_einval(_source, _target):\n            raise OSError(errno.EINVAL, \"injected unsupported filesystem\")\n    \n        monkeypatch.setattr(cli, \"_renameat2_noreplace\", renameat2_einval)\n        rc, attempt, registered = _invoke(tmp_path, monkeypatch)\n>       assert rc == 0\nE       assert 1 == 0\n\norchestrator/tests/test_calibrator_certify.py:691: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncertification rejected: effective-clock-self-comparison-failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct]\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct]\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_accepts_zero_subrequest_prefix_via_production_entry\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_published_artifact_passes_runtime_effective_clock_self_comparison\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_publish_falls_back_to_link_on_renameat2_einval\nFAILED orchestrator/tests/test_calibrator_certify.py::test_cli_link_fallback_rejects_existing_target\n======================== 7 failed, 153 passed in 2.24s =========================\n",
+        "stdout_sha256": "86ac10c309a7f9100e6a24a945def89ff1e85acf12ec94b7b8df7faa13ea4739"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "68f12d089b2b16138470343e546a5db63ae171b611fbed105d12563ea6de90d1",
+      "duration_s": 21.78,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_published_artifact_passes_runtime_effective_clock_self_comparison"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_accepts_zero_subrequest_prefix_via_production_entry",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_published_artifact_passes_runtime_effective_clock_self_comparison",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_falls_back_to_link_on_renameat2_einval",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_link_fallback_rejects_existing_target"
+      ],
+      "hang_risk": false,
+      "id": "M06",
+      "injection_diff_sha256": "56b69bed0b7be39e5a26ff1d647cbf2cc210fb5c79e981c18fff7c62e499b190",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "f6cab951f42773979084de2d87d19ab264054142fd4d98a13ac6be562c4d9a57",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "new": "        if _effective_clock_self_comparison_passes(profile) or True:\n            reasons.append(\"effective-clock-self-comparison-failed\")\n",
+          "old": "        if not _effective_clock_self_comparison_passes(profile):\n            reasons.append(\"effective-clock-self-comparison-failed\")\n"
+        }
+      ],
+      "repo_head": "d9fd7120fb7d006565c042ce3de88e5bfd3f28c1",
+      "runner_sha256": "dc9ed49225152ca9d59a01ba4a1fbd886d04f4fd1ce7da6418255f9afe40b252",
+      "spec_sha256": "cf9d1982461106f30b65fc68b0760bd93edcccabefe019e9ce0dea0503ed8ca5",
+      "status": "MISMATCH",
+      "test_output_sha256": "86ac10c309a7f9100e6a24a945def89ff1e85acf12ec94b7b8df7faa13ea4739",
+      "test_output_tail": [
+        "",
+        "orchestrator/tests/test_calibrator_certify.py:471: AssertionError",
+        "----------------------------- Captured stderr call -----------------------------",
+        "certification rejected: effective-clock-self-comparison-failed",
+        "__ test_cli_published_artifact_passes_runtime_effective_clock_self_comparison __",
+        "[gw37] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_cli_published_artifact_pa0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14dd737fb310>",
+        "",
+        "    def test_cli_published_artifact_passes_runtime_effective_clock_self_comparison(",
+        "            tmp_path, monkeypatch):",
+        "        sample_rows = [",
+        "            [2101.0] * 47 + [2095.0],",
+        "            [2101.0] * 47 + [2110.0],",
+        "            [2101.0] * 47 + [2120.0],",
+        "        ]",
+        "        probe, profiles, calls = _pegasus_shaped_probe(sample_rows)",
+        "        assert len({tuple(row) for row in sample_rows}) == 3",
+        "        assert all(profile[\"effective_clock\"][\"tolerance_pct\"] == 100.0",
+        "                   for profile in profiles)",
+        "        rc, _, registered = _invoke(",
+        "            tmp_path, monkeypatch, profile_fn=probe,",
+        "            receipt_mutator=_expect_48_physical_cores,",
+        "        )",
+        "        assert calls == [0, 1, 2]",
+        ">       assert rc == 0",
+        "E       assert 1 == 0",
+        "",
+        "orchestrator/tests/test_calibrator_certify.py:596: AssertionError",
+        "----------------------------- Captured stderr call -----------------------------",
+        "certification rejected: effective-clock-self-comparison-failed",
+        "___________ test_cli_publish_falls_back_to_link_on_renameat2_einval ____________",
+        "[gw41] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_cli_publish_falls_back_to0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e4e41f6e90>",
+        "",
+        "    def test_cli_publish_falls_back_to_link_on_renameat2_einval(",
+        "            tmp_path, monkeypatch):",
+        "        def renameat2_einval(_source, _target):",
+        "            raise OSError(errno.EINVAL, \"injected unsupported filesystem\")",
+        "    ",
+        "        monkeypatch.setattr(cli, \"_renameat2_noreplace\", renameat2_einval)",
+        "        rc, attempt, registered = _invoke(tmp_path, monkeypatch)",
+        "    ",
+        ">       assert rc == 0",
+        "E       assert 1 == 0",
+        "",
+        "orchestrator/tests/test_calibrator_certify.py:675: AssertionError",
+        "----------------------------- Captured stderr call -----------------------------",
+        "certification rejected: effective-clock-self-comparison-failed",
+        "________________ test_cli_link_fallback_rejects_existing_target ________________",
+        "[gw42] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_link_fallback_rejects0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145dada4eef0>",
+        "",
+        "    def test_cli_link_fallback_rejects_existing_target(",
+        "            tmp_path, monkeypatch):",
+        "        def renameat2_einval(_source, _target):",
+        "            raise OSError(errno.EINVAL, \"injected unsupported filesystem\")",
+        "    ",
+        "        monkeypatch.setattr(cli, \"_renameat2_noreplace\", renameat2_einval)",
+        "        rc, attempt, registered = _invoke(tmp_path, monkeypatch)",
+        ">       assert rc == 0",
+        "E       assert 1 == 0",
+        "",
+        "orchestrator/tests/test_calibrator_certify.py:691: AssertionError",
+        "----------------------------- Captured stderr call -----------------------------",
+        "certification rejected: effective-clock-self-comparison-failed",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct]",
+        "FAILED orchestrator/tests/test_calibrator_certify.py::test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal",
+        "FAILED orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct]",
+        "FAILED orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_accepts_zero_subrequest_prefix_via_production_entry",
+        "FAILED orchestrator/tests/test_calibrator_certify.py::test_cli_published_artifact_passes_runtime_effective_clock_self_comparison",
+        "FAILED orchestrator/tests/test_calibrator_certify.py::test_cli_publish_falls_back_to_link_on_renameat2_einval",
+        "FAILED orchestrator/tests/test_calibrator_certify.py::test_cli_link_fallback_rejects_existing_target",
+        "======================== 7 failed, 153 passed in 2.24s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "c936f86a844eb9db6a4343ac6559ed5bc446026ae057af0654215cc80c138812"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/feca0c7ed94a3c56c33f837ad960fa49/izdw-feca0c7ed9.o887761",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/output/pegasus-dispatch/feca0c7ed94a3c56c33f837ad960fa49/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-tsc-not-measured]\norchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-cooldown-not-settled]\norchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-reps-incomplete]\norchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-required-metrics-missing]\norchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-selection-invalid]\norchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-within-run-cv-invalid]\norchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-isolation-window-failed]\norchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-post-attestation-mismatch]\norchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[measurements-empty]\norchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[throughput-count]\norchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[counter-none]\norchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[l3-none]\norchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[records-nonpositive]\norchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[not-saturated]\norchestrator/tests/test_calibrator_certify.py::test_certify_sweep_brackets_every_measurement_group\norchestrator/tests/test_calibrator_certify.py::test_strict_measurement_rejects_one_failed_rep\norchestrator/tests/test_calibrator_certify.py::test_certify_sweep_rejects_missing_tsc_without_fallback\norchestrator/tests/test_calibrator_certify.py::test_composite_probe_rc1_is_visibility_failure_and_cleans_child\norchestrator/tests/test_calibrator_certify.py::test_cli_rejects_certify_clock_override_before_attempt\norchestrator/tests/test_calibrator_certify.py::test_cli_rejects_certify_out_root_before_attempt\norchestrator/tests/test_calibrator_certify.py::test_cli_rejects_binary_sha256_mismatch_before_calibration\norchestrator/tests/test_calibrator_certify.py::test_cli_rejects_invalid_measured_tsc_before_calibration[none]\norchestrator/tests/test_calibrator_certify.py::test_cli_rejects_invalid_measured_tsc_before_calibration[inconsistent-median]\norchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[host]\norchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[request-id]\norchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[nodes]\norchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[receipt-binary]\norchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[internal-budget]\norchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[known-values]\norchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[qsub-containment]\norchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_accepts_zero_subrequest_prefix_via_production_entry\norchestrator/tests/test_calibrator_certify.py::test_cli_visibility_gate_rejects_non_host_visibility_before_benchmark[hidepid]\norchestrator/tests/test_calibrator_certify.py::test_cli_visibility_gate_rejects_non_host_visibility_before_benchmark[pid-namespace]\norchestrator/tests/test_calibrator_certify.py::test_cli_cooldown_failure_is_fatal_and_staged\norchestrator/tests/test_calibrator_certify.py::test_cli_probe_violation_kills_attempt_and_never_publishes\norchestrator/tests/test_calibrator_certify.py::test_cli_quality_rejection_is_v2_staged_and_nonzero\norchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish\norchestrator/tests/test_calibrator_certify.py::test_cli_published_artifact_passes_runtime_effective_clock_self_comparison\norchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct]\norchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct]\norchestrator/tests/test_calibrator_certify.py::test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal\norchestrator/tests/test_calibrator_certify.py::test_cli_publish_falls_back_to_link_on_renameat2_einval\norchestrator/tests/test_calibrator_certify.py::test_cli_link_fallback_rejects_existing_target\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[Linux-Baremetal]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[-leading-dash]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[.leading-dot]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[has space]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[under_score/slash]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[\\u65e5\\u672c\\u8a9e]\norchestrator/tests/test_env_contract.py::test_rejects_non_str_env_tag\norchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[0]\norchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1]\norchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1800]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800.0]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[True]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[False]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[None]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa1]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[numactl]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa3]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa4]\norchestrator/tests/test_env_contract.py::test_accepts_empty_numactl_tuple\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[None]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[True]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[False]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[0]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[optional]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[Required]\norchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[none]\norchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[required]\norchestrator/tests/test_env_contract.py::test_required_attestation_rejects_non_single_process\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[00000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[0000000000000000000000000000000000000000000000000000000000000000 ]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[123]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[123]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[None]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-1]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-true]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-None]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-0]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-false]\norchestrator/tests/test_env_contract.py::test_rejects_wrong_nested_types\norchestrator/tests/test_env_contract.py::test_lookup_baremetal_golden\norchestrator/tests/test_env_contract.py::test_lookup_pegasus_golden\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unregistered-env]\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[linux-baremetal-x]\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[]\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unknown]\norchestrator/tests/test_env_contract.py::test_lookup_non_str_fails_closed\norchestrator/tests/test_env_contract.py::test_contract_is_frozen\norchestrator/tests/test_env_contract.py::test_nested_dataclasses_frozen\norchestrator/tests/test_env_contract.py::test_registry_is_read_only_mapping_proxy\norchestrator/tests/test_env_contract.py::test_no_register_api\norchestrator/tests/test_env_contract.py::test_no_mutable_backing_dict_exposed\norchestrator/tests/test_env_contract.py::test_forbidden_literals_cover_all_registry_values\norchestrator/tests/test_env_contract.py::test_matches_p2_2_constants\norchestrator/tests/test_env_contract.py::test_registry_calibration_refs_are_canonical_hash_bound_and_meaningful\norchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception\norchestrator/tests/test_env_contract.py::test_legacy_calibration_allowlist_is_exact_and_closed\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[env-tag]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[clocks]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[schema]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[threads]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-skew]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rratio]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rmw]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[quality]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[attestation-profile]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[acquisition-receipt]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[noise-kind]\norchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[wrong-env-hash-copy]\norchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[missing-attestation]\norchestrator/tests/test_env_contract.py::test_pegasus_one_byte_mutation_is_rejected\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[/absolute/calibration.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/pegasus/calibration/../escape.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/wrong-env/calibration/artifact.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output//env/pegasus/calibration/artifact.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_rejects_symlink_escape\norchestrator/tests/test_env_contract.py::test_calibration_ref_has_no_free_text_note\norchestrator/tests/test_env_contract.py::test_contract_has_no_records_or_threads\norchestrator/tests/test_env_contract.py::test_contract_sha256_small_golden\norchestrator/tests/test_env_contract.py::test_contract_sha256_matches_independent_reference\norchestrator/tests/test_env_contract.py::test_pegasus_contract_sha256_golden\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides0]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides1]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides2]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides3]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides4]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides5]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides6]\norchestrator/tests/test_env_contract.py::test_contract_sha256_stable_and_hex64\norchestrator/tests/test_env_contract.py::test_v2_modules_have_no_env_literals_outside_registry\norchestrator/tests/test_env_contract.py::test_ast_check_is_not_vacuous_env_contract_has_literals\norchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_outside_region\norchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_inside_region_is_exempt\norchestrator/tests/test_env_contract.py::test_find_env_literals_ignores_bool_lookalikes\norchestrator/tests/test_execution_guard.py::test_assert_machine_pin_accepts_matching_env_tag\norchestrator/tests/test_execution_guard.py::test_assert_machine_pin_rejects_foreign_env_tag\norchestrator/tests/test_execution_guard.py::test_build_receipt_shape_and_contract_binding\norchestrator/tests/test_execution_guard.py::test_receipt_matches_contract_accepts_consistent_receipt\norchestrator/tests/test_execution_guard.py::test_receipt_matches_contract_requires_explicit_attestation_mode\norchestrator/tests/test_execution_guard.py::test_receipt_matches_contract_rejects_mismatch_and_missing_attestation\norchestrator/tests/test_execution_guard.py::test_validate_receipt_v2_accepts_exact_all_pass_shape\norchestrator/tests/test_execution_guard.py::test_validate_receipt_v2_rejects_each_shape_or_value_error\norchestrator/tests/test_execution_guard.py::test_validate_receipt_v2_rejects_duplicate_comparison_field\norchestrator/tests/test_execution_guard.py::test_attest_and_build_receipt_uses_production_comparator_and_v2_validator\norchestrator/tests/test_execution_guard.py::test_attest_and_build_receipt_rejects_mismatch_through_production_comparator\norchestrator/tests/test_execution_guard.py::test_attest_and_build_receipt_translates_strict_probe_failure\norchestrator/tests/test_execution_guard.py::test_attest_and_build_receipt_mode_none_delegates_to_v1_builder\norchestrator/tests/test_execution_guard.py::test_required_contract_rejects_v1_receipt\norchestrator/tests/test_execution_guard.py::test_receipt_v2_recomputes_recorded_expected_observed_and_profile_sha\norchestrator/tests/test_execution_guard.py::test_receipt_consumer_is_independent_of_constant_true_issuer_comparator\norchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors\n\n160 tests collected in 0.28s\n",
+        "stdout_sha256": "d9b73fc8fe24be4ad6255d67335a83fb4f0f977bf7ef20821ebc6ab549f94214"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-tsc-not-measured]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-cooldown-not-settled]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-reps-incomplete]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-required-metrics-missing]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-selection-invalid]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-within-run-cv-invalid]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-isolation-window-failed]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_eight_conditions_each_fail_alone[<lambda>-post-attestation-mismatch]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[measurements-empty]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[throughput-count]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[counter-none]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[l3-none]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[records-nonpositive]",
+        "orchestrator/tests/test_calibrator_certify.py::test_quality_compound_or_each_branch_is_load_bearing[not-saturated]",
+        "orchestrator/tests/test_calibrator_certify.py::test_certify_sweep_brackets_every_measurement_group",
+        "orchestrator/tests/test_calibrator_certify.py::test_strict_measurement_rejects_one_failed_rep",
+        "orchestrator/tests/test_calibrator_certify.py::test_certify_sweep_rejects_missing_tsc_without_fallback",
+        "orchestrator/tests/test_calibrator_certify.py::test_composite_probe_rc1_is_visibility_failure_and_cleans_child",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_rejects_certify_clock_override_before_attempt",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_rejects_certify_out_root_before_attempt",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_rejects_binary_sha256_mismatch_before_calibration",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_rejects_invalid_measured_tsc_before_calibration[none]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_rejects_invalid_measured_tsc_before_calibration[inconsistent-median]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[host]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[request-id]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[nodes]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[receipt-binary]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[internal-budget]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[known-values]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_rejects_before_benchmark_without_outputs[qsub-containment]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_accepts_zero_subrequest_prefix_via_production_entry",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_visibility_gate_rejects_non_host_visibility_before_benchmark[hidepid]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_visibility_gate_rejects_non_host_visibility_before_benchmark[pid-namespace]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_cooldown_failure_is_fatal_and_staged",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_probe_violation_kills_attempt_and_never_publishes",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_quality_rejection_is_v2_staged_and_nonzero",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_published_artifact_passes_runtime_effective_clock_self_comparison",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_falls_back_to_link_on_renameat2_einval",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_link_fallback_rejects_existing_target",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[Linux-Baremetal]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[-leading-dash]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[.leading-dot]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[has space]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[under_score/slash]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[/u65e5/u672c/u8a9e]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_str_env_tag",
+        "orchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1800]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800.0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[True]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[False]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa1]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[numactl]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa3]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa4]",
+        "orchestrator/tests/test_env_contract.py::test_accepts_empty_numactl_tuple",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[True]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[False]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[optional]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[Required]",
+        "orchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[none]",
+        "orchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[required]",
+        "orchestrator/tests/test_env_contract.py::test_required_attestation_rejects_non_single_process",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[00000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[0000000000000000000000000000000000000000000000000000000000000000 ]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[123]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[123]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-1]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-true]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-false]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_wrong_nested_types",
+        "orchestrator/tests/test_env_contract.py::test_lookup_baremetal_golden",
+        "orchestrator/tests/test_env_contract.py::test_lookup_pegasus_golden",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unregistered-env]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[linux-baremetal-x]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unknown]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_non_str_fails_closed",
+        "orchestrator/tests/test_env_contract.py::test_contract_is_frozen",
+        "orchestrator/tests/test_env_contract.py::test_nested_dataclasses_frozen",
+        "orchestrator/tests/test_env_contract.py::test_registry_is_read_only_mapping_proxy",
+        "orchestrator/tests/test_env_contract.py::test_no_register_api",
+        "orchestrator/tests/test_env_contract.py::test_no_mutable_backing_dict_exposed",
+        "orchestrator/tests/test_env_contract.py::test_forbidden_literals_cover_all_registry_values",
+        "orchestrator/tests/test_env_contract.py::test_matches_p2_2_constants",
+        "orchestrator/tests/test_env_contract.py::test_registry_calibration_refs_are_canonical_hash_bound_and_meaningful",
+        "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception",
+        "orchestrator/tests/test_env_contract.py::test_legacy_calibration_allowlist_is_exact_and_closed",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[env-tag]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[clocks]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[schema]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[threads]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-skew]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rratio]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rmw]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[quality]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[attestation-profile]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[acquisition-receipt]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[noise-kind]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[wrong-env-hash-copy]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[missing-attestation]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_one_byte_mutation_is_rejected",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[/absolute/calibration.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/pegasus/calibration/../escape.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/wrong-env/calibration/artifact.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output//env/pegasus/calibration/artifact.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_rejects_symlink_escape",
+        "orchestrator/tests/test_env_contract.py::test_calibration_ref_has_no_free_text_note",
+        "orchestrator/tests/test_env_contract.py::test_contract_has_no_records_or_threads",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_small_golden",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_matches_independent_reference",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_contract_sha256_golden",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides0]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides1]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides2]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides3]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides4]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides5]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides6]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_stable_and_hex64",
+        "orchestrator/tests/test_env_contract.py::test_v2_modules_have_no_env_literals_outside_registry",
+        "orchestrator/tests/test_env_contract.py::test_ast_check_is_not_vacuous_env_contract_has_literals",
+        "orchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_outside_region",
+        "orchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_inside_region_is_exempt",
+        "orchestrator/tests/test_env_contract.py::test_find_env_literals_ignores_bool_lookalikes",
+        "orchestrator/tests/test_execution_guard.py::test_assert_machine_pin_accepts_matching_env_tag",
+        "orchestrator/tests/test_execution_guard.py::test_assert_machine_pin_rejects_foreign_env_tag",
+        "orchestrator/tests/test_execution_guard.py::test_build_receipt_shape_and_contract_binding",
+        "orchestrator/tests/test_execution_guard.py::test_receipt_matches_contract_accepts_consistent_receipt",
+        "orchestrator/tests/test_execution_guard.py::test_receipt_matches_contract_requires_explicit_attestation_mode",
+        "orchestrator/tests/test_execution_guard.py::test_receipt_matches_contract_rejects_mismatch_and_missing_attestation",
+        "orchestrator/tests/test_execution_guard.py::test_validate_receipt_v2_accepts_exact_all_pass_shape",
+        "orchestrator/tests/test_execution_guard.py::test_validate_receipt_v2_rejects_each_shape_or_value_error",
+        "orchestrator/tests/test_execution_guard.py::test_validate_receipt_v2_rejects_duplicate_comparison_field",
+        "orchestrator/tests/test_execution_guard.py::test_attest_and_build_receipt_uses_production_comparator_and_v2_validator",
+        "orchestrator/tests/test_execution_guard.py::test_attest_and_build_receipt_rejects_mismatch_through_production_comparator",
+        "orchestrator/tests/test_execution_guard.py::test_attest_and_build_receipt_translates_strict_probe_failure",
+        "orchestrator/tests/test_execution_guard.py::test_attest_and_build_receipt_mode_none_delegates_to_v1_builder",
+        "orchestrator/tests/test_execution_guard.py::test_required_contract_rejects_v1_receipt",
+        "orchestrator/tests/test_execution_guard.py::test_receipt_v2_recomputes_recorded_expected_observed_and_profile_sha",
+        "orchestrator/tests/test_execution_guard.py::test_receipt_consumer_is_independent_of_constant_true_issuer_comparator",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors"
+      ],
+      "duration_s": 21.723,
+      "rc": 0,
+      "repo_head": "d9fd7120fb7d006565c042ce3de88e5bfd3f28c1",
+      "runner_sha256": "dc9ed49225152ca9d59a01ba4a1fbd886d04f4fd1ce7da6418255f9afe40b252",
+      "spec_sha256": "cf9d1982461106f30b65fc68b0760bd93edcccabefe019e9ce0dea0503ed8ca5",
+      "status": "PASSED",
+      "tool_sha256": "c936f86a844eb9db6a4343ac6559ed5bc446026ae057af0654215cc80c138812"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1ee5b679ad227227c57708145cb0f676d39f77a287dd976546eae153c3a595c2",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/cli.py",
+            "new": "        if not _effective_clock_self_comparison_passes(profile):\n            pass\n",
+            "old": "        if not _effective_clock_self_comparison_passes(profile):\n            reasons.append(\"effective-clock-self-comparison-failed\")\n"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish",
+          "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors",
+          "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "daa09051a213832bf0756ccd113491f3f7b45f11a12db91fad367f989a0b478c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/execution_guard.py",
+            "new": "        observed_median = float(statistics.median(observed_samples))\n        return abs(observed_median - expected_median) <= allowed_delta\n    except (TypeError, ValueError, statistics.StatisticsError):",
+            "old": "        return all(\n            abs(float(sample) - expected_median) <= allowed_delta\n            for sample in observed_samples\n        )\n    except (TypeError, ValueError, statistics.StatisticsError):"
+          }
+        ]
+      },
+      "M04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish",
+          "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors",
+          "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8f2061f53902f7d19994b1b5e84a58fde656e0e5e66b34a047b5b53b5c1db9b1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/execution_guard.py",
+            "new": "    \"\"\"Canonical pure predicate for effective-clock expected/observed values.\"\"\"\n    if expected is not None:\n        return True\n    try:\n        if not isinstance(expected, Mapping) or not isinstance(observed, Mapping):",
+            "old": "    \"\"\"Canonical pure predicate for effective-clock expected/observed values.\"\"\"\n    try:\n        if not isinstance(expected, Mapping) or not isinstance(observed, Mapping):"
+          }
+        ]
+      },
+      "M05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0ca9ef34cdcbb3360fdc5d4b973ed593a2de136c2e9eb36a0bb5e9511c8950ef",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/execution_guard.py",
+            "new": "        expected_median = float(statistics.fmean(expected_samples))\n        allowed_delta = abs(expected_median) * float(tolerance) / 100.0",
+            "old": "        expected_median = float(statistics.median(expected_samples))\n        allowed_delta = abs(expected_median) * float(tolerance) / 100.0"
+          }
+        ]
+      },
+      "M06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator_certify.py::test_cli_published_artifact_passes_runtime_effective_clock_self_comparison"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "56b69bed0b7be39e5a26ff1d647cbf2cc210fb5c79e981c18fff7c62e499b190",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/cli.py",
+            "new": "        if _effective_clock_self_comparison_passes(profile) or True:\n            reasons.append(\"effective-clock-self-comparison-failed\")\n",
+            "old": "        if not _effective_clock_self_comparison_passes(profile):\n            reasons.append(\"effective-clock-self-comparison-failed\")\n"
+          }
+        ]
+      },
+      "M07": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[pegasus-2pct]",
+          "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_preserves_effective_clock_tolerance_argument[nondefault-7_5pct]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6dbe3667fdf5514673bc4cf98255e9b3216ca5fb3d2d39929569460a788ead02",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/cli.py",
+            "new": "        profile[\"effective_clock\"][\"tolerance_pct\"] = 5.0\n",
+            "old": "        profile[\"effective_clock\"][\"tolerance_pct\"] = args.effective_clock_tolerance_pct\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "1c51a0ea1aec314db6b05d73faf0a5d8efb59d17f18536ea8919bc12c73a84d4",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_calibrator_certify.py",
+      "orchestrator/tests/test_env_contract.py",
+      "orchestrator/tests/test_execution_guard.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "d9fd7120fb7d006565c042ce3de88e5bfd3f28c1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_calibrator_certify.py",
+      "orchestrator/tests/test_env_contract.py",
+      "orchestrator/tests/test_execution_guard.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "0d4e7d504bf70786a0fccd663e50b53b0cd62e21",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "dc9ed49225152ca9d59a01ba4a1fbd886d04f4fd1ce7da6418255f9afe40b252",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "cf9d1982461106f30b65fc68b0760bd93edcccabefe019e9ce0dea0503ed8ca5",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 5,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t419-attestation-clock/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "c936f86a844eb9db6a4343ac6559ed5bc446026ae057af0654215cc80c138812",
+  "updated_at": "2026-08-04T12:31:32.806715+00:00"
+}
