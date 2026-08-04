@@ -47,7 +47,8 @@
     }
    ],
    "expected_nodes": [
-    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation"
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_recorded_foreign_accounting_still_blocks_observation"
    ],
    "expected_status": "KILLED",
    "hang_risk": false
