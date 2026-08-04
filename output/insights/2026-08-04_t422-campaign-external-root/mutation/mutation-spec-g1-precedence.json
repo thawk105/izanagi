@@ -1,0 +1,40 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layout.py",
+     "old": "        configured = os.environ.get(_EXPLORATION_OUTPUT_ROOT_ENV)\n",
+     "new": "        configured = None\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layout.py",
+     "old": "    if output_root:\n        return output_root\n",
+     "new": "    if output_root and os.environ.get(_EXPLORATION_OUTPUT_ROOT_ENV) is None:\n        return output_root\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

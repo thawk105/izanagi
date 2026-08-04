@@ -1,0 +1,118 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 1440,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M-N1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/reflux_origin_ledger.py",
+     "old": "def derive_origin_id(manifest: AuthorityManifest) -> str:\n    return _sha256(_DOMAIN_MANIFEST + canonical_manifest_bytes(manifest))",
+     "new": "def derive_origin_id(manifest: AuthorityManifest) -> str:\n    obj = _manifest_object(manifest)\n    obj.pop(\"authority_series_id\")\n    return _sha256(_DOMAIN_MANIFEST + _canonical_json(obj))"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v03_manifest_identity_and_cell_equivalence_positive_negative",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v04_global_flock_race_reentry_and_public_signature",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v05_prepared_changes_commitment_and_only_exact_request_resumes",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v06_historic_replay_and_committed_operation_identity",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v07_batch_prefix_cardinality_distinctness_and_single_inflight",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v08_tombstone_no_refund_cardinality_accounting_and_no_provider",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v09_process_crash_boundaries_reopen_exactly_once",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v10_short_write_fsync_fault_and_inode_recheck",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v11_authorized_partial_tail_offsets_and_unrelated_tail_rejected",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v12_git_anchor_symbolic_head_env_scrub_and_authority_version",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v12_production_path_in_subprocess_temp_repository",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v13_global_chain_interleave_delete_reorder_and_cross_binding",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v14_independent_i_q_k_floor_boundaries_and_aborted_seal",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v15_strict_authority_event_json_paths_types_and_limits",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v16_salt_contract_and_observer_reconstructs_preseal_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M-N2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/reflux_origin_ledger.py",
+     "old": "    cell = [\n        obj[\"workload\"][\"descriptor_sha256\"],\n        obj[\"axis_semantics_sha256\"],\n        obj[\"verifier_policy_sha256\"],\n        obj[\"environment_contract_sha256\"],\n    ]\n    return _sha256(_DOMAIN_CELL + _canonical_json(cell))",
+     "new": "    cell = [\n        obj[\"workload\"][\"descriptor_sha256\"],\n        obj[\"axis_semantics_sha256\"],\n        obj[\"verifier_policy_sha256\"],\n    ]\n    return _sha256(_DOMAIN_CELL + _canonical_json(cell))"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v03_manifest_identity_and_cell_equivalence_positive_negative",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v04_global_flock_race_reentry_and_public_signature",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v05_prepared_changes_commitment_and_only_exact_request_resumes",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v06_historic_replay_and_committed_operation_identity",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v07_batch_prefix_cardinality_distinctness_and_single_inflight",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v08_tombstone_no_refund_cardinality_accounting_and_no_provider",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v09_process_crash_boundaries_reopen_exactly_once",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v10_short_write_fsync_fault_and_inode_recheck",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v11_authorized_partial_tail_offsets_and_unrelated_tail_rejected",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v12_git_anchor_symbolic_head_env_scrub_and_authority_version",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v12_production_path_in_subprocess_temp_repository",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v13_global_chain_interleave_delete_reorder_and_cross_binding",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v14_independent_i_q_k_floor_boundaries_and_aborted_seal",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v15_strict_authority_event_json_paths_types_and_limits",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v16_salt_contract_and_observer_reconstructs_preseal_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M-N3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/reflux_origin_ledger.py",
+     "old": "    runtime = common / \"izanagi\" / \"reflux-origin-ledger\" / \"v1\"",
+     "new": "    runtime = repo / \".izanagi\" / \"reflux-origin-ledger\" / \"v1\""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v04_global_flock_race_reentry_and_public_signature",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v05_prepared_changes_commitment_and_only_exact_request_resumes",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v06_historic_replay_and_committed_operation_identity",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v07_batch_prefix_cardinality_distinctness_and_single_inflight",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v08_tombstone_no_refund_cardinality_accounting_and_no_provider",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v09_process_crash_boundaries_reopen_exactly_once",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v10_short_write_fsync_fault_and_inode_recheck",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v11_authorized_partial_tail_offsets_and_unrelated_tail_rejected",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v12_git_anchor_symbolic_head_env_scrub_and_authority_version",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v12_production_path_in_subprocess_temp_repository",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v13_global_chain_interleave_delete_reorder_and_cross_binding",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v14_independent_i_q_k_floor_boundaries_and_aborted_seal",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v15_strict_authority_event_json_paths_types_and_limits",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v16_salt_contract_and_observer_reconstructs_preseal_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": true
+  },
+  {
+   "id": "M-N7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/reflux_origin_ledger.py",
+     "old": "        if state.queries_used + cardinality > budget.qmax:\n            _fail(\"Qmax exceeded\")\n        state.iterations_used += 1\n        state.queries_used += cardinality",
+     "new": "        if state.queries_used + 1 > budget.qmax:\n            _fail(\"Qmax exceeded\")\n        state.iterations_used += 1\n        state.queries_used += 1"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v08_tombstone_no_refund_cardinality_accounting_and_no_provider",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v14_independent_i_q_k_floor_boundaries_and_aborted_seal",
+    "orchestrator/tests/test_reflux_origin_ledger.py::test_v16_salt_contract_and_observer_reconstructs_preseal_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

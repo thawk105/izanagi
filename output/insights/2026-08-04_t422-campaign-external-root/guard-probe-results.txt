@@ -1,0 +1,5 @@
+ALLOW | rm -rf /work/1/SFC/tanab/dev-wave-jobs/t422-campaign/output/exploration/campaigns/foo | 
+ALLOW | rm -rf /work/1/SFC/tanab/dev-wave-jobs/t422-campaign/output/exploration | 
+ALLOW | rm /work/1/SFC/tanab/dev-wave-jobs/t422-campaign/output/exploration/namespace.json | 
+ALLOW | rm -rf /work/1/SFC/tanab/dev-wave-jobs/t422-campaign/run7 | 
+DENY  | rm -rf output/exploration/campaigns/foo | campaign dir / ccbench root を破壊する操作 (rm)。proof chain を配下ごと削除/移動/展開するのは
