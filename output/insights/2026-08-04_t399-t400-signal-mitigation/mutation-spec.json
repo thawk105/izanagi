@@ -1,0 +1,138 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 900,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "G1",
+   "category": "authority-conjunction",
+   "replacements": [
+    {
+     "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+     "old": "    return (\n        record.get(\"observation_valid\") is True\n        and record.get(\"external_root_terminal_proven\") is True\n    )\n",
+     "new": "    return (\n        record.get(\"observation_valid\") is True\n        or record.get(\"external_root_terminal_proven\") is True\n    )\n"
+    }
+   ],
+   "expected_nodes": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_terminal_false_split_v2_is_not_authoritative"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "G2",
+   "category": "legacy-promotion",
+   "replacements": [
+    {
+     "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+     "old": "        return preserve_legacy_authority and admissible is True\n",
+     "new": "        return preserve_legacy_authority and admissible is not None\n"
+    }
+   ],
+   "expected_nodes": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_legacy_false_is_never_promoted_to_authority"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "G3",
+   "category": "accounting-integrity-gate",
+   "replacements": [
+    {
+     "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+     "old": "    observation_valid = (\n        all(observation_predicates.values())\n        and accounting_integrity_valid\n        and termination_cause_consistent\n    )\n",
+     "new": "    observation_valid = (\n        all(observation_predicates.values())\n        and termination_cause_consistent\n    )\n"
+    }
+   ],
+   "expected_nodes": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "G4",
+   "category": "unsafe-enum-restriction",
+   "replacements": [
+    {
+     "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+     "old": "    if probe_cleanup_outcome == \"unsafe\":\n        attempt_safe: bool | None = False\n    elif probe_cleanup_outcome == \"safe\" and all(hygiene_predicates.values()):\n        attempt_safe = True\n",
+     "new": "    if probe_cleanup_outcome == \"unsafe\" or not all(hygiene_predicates.values()):\n        attempt_safe: bool | None = False\n    elif probe_cleanup_outcome == \"safe\":\n        attempt_safe = True\n"
+    }
+   ],
+   "expected_nodes": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_hygiene_failure_does_not_create_false_danger"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "G5",
+   "category": "safe-mitigation-qwait",
+   "replacements": [
+    {
+     "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+     "old": "        valid = (\n            request_bound\n            and natural_receipt\n            and (normal_outcome or walltime_outcome)\n        )\n",
+     "new": "        valid = (\n            request_bound\n            and natural_receipt\n            and walltime_outcome\n        )\n"
+    }
+   ],
+   "expected_nodes": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_accepts_request_bound_normal_qwait",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_safe_natural_reaches_summary_rc",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "G6",
+   "category": "evaluation-model-null",
+   "replacements": [
+    {
+     "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+     "old": "    model = record[\"evaluation_model\"]\n    if model != EVALUATION_MODEL:\n        raise ControllerError(f\"unknown evaluation_model: {model!r}\")\n",
+     "new": "    model = record[\"evaluation_model\"]\n    if model is None:\n        return None\n    if model != EVALUATION_MODEL:\n        raise ControllerError(f\"unknown evaluation_model: {model!r}\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_explicit_null_evaluation_model_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "G7",
+   "category": "per-leg-cap",
+   "replacements": [
+    {
+     "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+     "old": "        if (\n            leg.key in SIGNAL_LEG_KEYS\n            and self.leg_attempt_counts[leg.key] >= PER_LEG_ATTEMPT_CAP\n        ):\n",
+     "new": "        if (\n            leg.key in SIGNAL_LEG_KEYS\n            and self.leg_attempt_counts[leg.key] >= PER_LEG_ATTEMPT_CAP + 1\n        ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_reserve_request_enforces_production_per_leg_cap"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "G8",
+   "category": "migration-raw-revalidation",
+   "replacements": [
+    {
+     "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+     "old": "        and raw_revalidation.get(\"valid\") is True\n",
+     "new": "        and raw_revalidation is not None\n"
+    }
+   ],
+   "expected_nodes": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_migration_without_raw_revalidation_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
