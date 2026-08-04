@@ -15,6 +15,9 @@
     }
    ],
    "expected_nodes": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_erratum2_sigterm_zero_remaining_is_cause_inconsistent",
     "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_terminal_false_split_v2_is_not_authoritative"
    ],
    "expected_status": "KILLED",
@@ -48,6 +51,7 @@
    ],
    "expected_nodes": [
     "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_available_accounting_null_integrity_fails_closed_in_composer",
     "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_recorded_foreign_accounting_still_blocks_observation"
    ],
    "expected_status": "KILLED",
@@ -80,9 +84,10 @@
     }
    ],
    "expected_nodes": [
-    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_accepts_request_bound_normal_qwait",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation",
     "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_safe_natural_reaches_summary_rc",
-    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc"
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_accepts_request_bound_normal_qwait"
    ],
    "expected_status": "KILLED",
    "hang_risk": false
