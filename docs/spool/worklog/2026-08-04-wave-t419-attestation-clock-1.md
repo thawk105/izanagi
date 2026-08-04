@@ -51,20 +51,28 @@ title: [T-419] 較正の取り直しでは開かないことを実測で確定�
   対象テストの走 = **158 passed** (段 6 の 1 巡目 fix 後)。
   `python3 tools/check_docs.py` = 違反なし。`python3 tools/check_ai_provenance.py` は
   incoming (10 件) と full (1044 件) の双方で違反なし。
-- **変異 matrix と、2 巡目 fix 後の受入全走は未実施である。** Pegasus のスケジューラが
-  14:40 頃から系全体で停止し (全キューで実行中ノード 0、`qstat -Q` の STS が INA、gen_S に 230 待ち)、
-  計算ノードへ dispatch する検査が 1 本も走らなくなったためである。
-  変異 spec は事前登録済みで `--plan-only` の preflight は緑 (6 変異 + baseline = 7 走、
-  anchor はいずれも逐語 1 箇所)。**この 2 つを実測して緑にするまで land しない。**
-  ログインノードで pytest を走らせて代替することはしない (runbook の分割線)。
+- **Pegasus のスケジューラが 14:40 頃から約 6.5 時間、系全体で停止した** (全キューで実行中
+  ノード 0、`qstat -Q` の STS が INA、gen_S に 230 待ち)。計算ノードへ dispatch する検査が
+  1 本も走らなくなったため、変異 matrix と 2 巡目 fix 後の受入全走を残して一旦停止し、
+  ユーザーの回復連絡後に fresh 手順なしで同セッションが再開した。停止中もログインノードでの
+  pytest 代替はしていない (runbook の分割線)。
+- **変異 matrix (再開後、merge 後 HEAD `d9fd712`、事前登録どおり 6 変異 + baseline):**
+  baseline 緑。負例 5 件 (M01 gate 無効化 / M02 中央値比較化 / M04 恒真化 / M05 median→fmean /
+  M07 tolerance 定数固定化) は**すべて期待 node どおり KILLED**。正例 M06 (gate 常時発火) は
+  期待した node を含む **7 node が赤**で過剰拒否の検出力を確認したが、親の事前登録が期待 node を
+  1 件しか列挙していなかったため分類は MISMATCH になった (過少列挙の erratum。SURVIVED は 0 件、
+  初回結果は `mutation-result.json` に保存)。
+- **受入 (最終、merge 後 HEAD `d9fd712` + 変異復元後):** 全走 =
+  **5541 passed / 19 skipped / 0 failed** (rc=0、計算ノード dispatch)。
+  `check_docs` = 違反なし。provenance は merge 後 full で 1068 件、違反なし。
 
 ## 次の一手差分
 
 ### 更新
 
-- [T-419] **P1・封じ込めを実装 (land 未了)、campaign は開いていない → probe 是正の裁定待ち**:
+- [T-419] **P1・封じ込めのみ land、campaign は開いていない → probe 是正の裁定待ち**:
   取得時 (CLI publish 経路) の自己整合 gate、契約 registry 全走査の不変条件、
-  canonical 述語の golden vector を実装した ({{D:effective-clock-self-consistency-gate}})。
+  canonical 述語の golden vector を land した ({{D:effective-clock-self-consistency-gate}})。
   **裁定が期待した「較正を取り直せば開く」は現行 probe では成立しない** —
   帯外サンプルは probe 自身の観測者効果であり、較正側にも実行時観測側にも乗る
   ({{F:attestation-probe-observer-effect}}、相異なる 23 の標本列すべてが帯外要素を持つ)。
