@@ -185,3 +185,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:mutation-harness-diagnostic-category":"[T-458]"},"authored":"2026-08-04","content_sha256":"d5ce037ee7dca54d0092b184f9d699d2eda4ad21187d5a353b5ff3d77dc265c5","seq":1,"wave":"dev-wave-t244-p3-redesign"}
 - {"allocations":{"D:p3-origin-ledger-prototype-v3":"D159"},"authored":"2026-08-04","content_sha256":"216f109daeaa22023de1d3f15fb67a363f0629ccb051f9a55939e78e3f15726d","seq":2,"wave":"dev-wave-t244-p3-redesign"}
 - {"allocations":{},"authored":"2026-08-04","content_sha256":"7be16005ee46163bf89710652dfbde6a211bb8d920411bddcb031c5abdd12003","seq":3,"wave":"dev-wave-t244-p3-redesign"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"5ecab05e405c53981c49a9fa1ca289135d9c40665b988c3d323526c516caa4a1","seq":1,"wave":"wave-t425-floor-scoping"}
