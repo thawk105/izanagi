@@ -119,6 +119,11 @@ interleave を必須とするため、`numactl` のない login host で空 comm
 2 generations 以上へ増やせるのは、D121 が列挙した多世代開放の前提条件 10 件を満たし、D96 手続を
 経て、D114 の承認上限定数と境界テストを同じ変更単位で更新してからである (それまでは機械的に
 拒否される)。**前提条件は現時点で 1 件も満たされていない。**
+前提条件の評価規則は D121 決定 (7) から改訂されている — **P4 は無条件義務として評価し、P6 は
+未実装なら失敗、実装済みで当該運転が generalized cut を主張しない場合だけ免責する。P4 と P6 を
+単一の「非適用」で失敗から外してはならない。** P6 の意味的充足契約と cap-lift receipt が
+未裁定・未実装である間は「実装済み」を認定する基準が無いため、**状態を未実装へ再分類するのでは
+なく承認そのものを保留し**、承認上限 1 を維持する。
 A/B/C は 100k records / 4 threads / extime 1 / reps 2 の配線規模で、
 headline 性能や有意差を主張しない。
 
@@ -202,8 +207,14 @@ proposal / raw / envelope / build 成果物の bytes、層3 の任意実行) は
   `--max-generations >= 2` で走らせない** (D106 残余 1 / D121)。正式系列 (H1/H2) は同一 generation
   budget を要求するのでこの条件で自動的に禁止側へ入る。**D114 でこれは機械 gate になった** (3 入口 +
   campaign freshness)。ただし機械化したのは「generation 予算」と「campaign state の freshness」の
-  2 つだけである。**D121 は設計 draft と前提条件 10 件を起草したが、設計は未確定 (択一 7 件)、
-  機構は未実装、前提条件は 1 件も満たされていない** (`output/insights/2026-08-01_t244-reflux-design/`)。
+  2 つだけである。承認上限の定数は producer の 3 入口に加え
+  `autonomous_trial_completeness.py` の run-envelope / campaign-chain の 2 consumer gate も読む。
+  存在しないのは前提条件 10 件と cap-lift receipt の評価器である。
+  **D121 は設計 draft と前提条件 10 件を起草した。択一 7 件は 2026-08-03 に全件裁定されたが、
+  cap-lift 可能な設計は完成していない** — 択一 1 の予算値、P6 の意味的充足と receipt、
+  off アームの予算・受理集合の整合、承認上限の機械束縛、D138 が列挙する crash 回復・replicate 数・
+  0 bit 証明が未確定または未実装であり、前提条件は 1 件も満たされていない
+  (`output/insights/2026-08-01_t244-reflux-design/`)。
   1 generation/cell を許可する根拠も「fresh campaign の単一 invocation なら還流が起きない」であって、
   無条件ではない。
 
