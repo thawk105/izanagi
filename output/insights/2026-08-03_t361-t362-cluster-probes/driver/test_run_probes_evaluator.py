@@ -243,12 +243,15 @@ def _production_chain_fixture(
     fixture_root = work_root / "scheduler-fixtures"
     fixture_root.mkdir()
     normal = case != "sigkill"
+    qwait_returncode = 9 if case in {"a1", "mixed", "sigkill"} else 0
     accounting_text = (
         f"Request ID: {request_id}\nStarted Request Time: x\n"
         f"Ended Request Time: y\nElapse: 180\n"
         + ("Exit Status: 0\n" if normal else "wall time limit exceeded\n")
     )
-    qwait_stdout = "" if normal else "ELAPSE time limit exceeded\n"
+    qwait_stdout = (
+        "ELAPSE time limit exceeded\n" if qwait_returncode == 9 else ""
+    )
     raw_files = {
         "qwait.stdout": qwait_stdout,
         "qwait.stderr": "",
@@ -288,6 +291,45 @@ def _production_chain_fixture(
     observer.write_final(final)
     observer_rc = 0 if observer_valid else 3
 
+    scheduler_root = work_root / "scheduler"
+    scheduler_root.mkdir()
+    scheduler_signal = "SIGKILL" if case == "sigkill" else "SIGTERM"
+    remaining_elapse = 0 if case in {"mixed", "sigkill"} else 46
+    scheduler_stderr = (
+        "%NQSV(INFO): Batch job received signal "
+        f"{scheduler_signal}. (Exceeded per-req elapse time limit)\n\n"
+        "============================================================\n"
+        f"Request ID: {request_id}\n"
+        "Started Request Time: x\n"
+        "Ended Request Time: y\n"
+        "Elapse: 134S\n"
+        f"Remaining Elapse: {remaining_elapse}S\n"
+        "============================================================\n"
+    ).encode()
+    scheduler_stderr_name = "fixture.stderr.raw"
+    (scheduler_root / scheduler_stderr_name).write_bytes(scheduler_stderr)
+    (work_root / "controller").mkdir(exist_ok=True)
+    (work_root / "controller" / "job-output-manifest.json").write_text(
+        json.dumps(
+            {
+                "files": [
+                    {
+                        "stream": "stderr",
+                        "original_name": f"fixture.{request_id}.000.e",
+                        "saved_name": scheduler_stderr_name,
+                        "original_sha256": hashlib.sha256(
+                            scheduler_stderr
+                        ).hexdigest(),
+                        "original_size": len(scheduler_stderr),
+                    }
+                ]
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     collected: dict[str, dict[str, object]] = {}
     for name in ("racctjob", "racctreq"):
         stdout = (fixture_root / f"{name}.stdout").read_text()
@@ -306,7 +348,7 @@ def _production_chain_fixture(
     accounting = subject._accounting_snapshot_from_results(collected)
     qwait = {
         "argv": ["qwait", "-t", "4080", request_id],
-        "returncode": 0 if normal else 9,
+        "returncode": qwait_returncode,
         "stdout": (fixture_root / "qwait.stdout").read_text(),
         "stderr": (fixture_root / "qwait.stderr").read_text(),
         "timed_out": False,
@@ -392,6 +434,236 @@ def _production_chain_fixture(
         0,
     )
     return evaluation, completion, final
+
+
+def _write_staged_tracking_receipt(attempt_root: Path) -> None:
+    files = []
+    for path in sorted(attempt_root.rglob("*")):
+        if path.is_file() and path.name != "tracking-receipt.json":
+            payload = path.read_bytes()
+            files.append(
+                {
+                    "path": str(path.relative_to(attempt_root)),
+                    "sha256": hashlib.sha256(payload).hexdigest(),
+                    "size": len(payload),
+                }
+            )
+    receipt = {
+        "schema": subject.TRACKING_SCHEMA,
+        "evidence_root": str(attempt_root),
+        "file_count": len(files),
+        "inventory": {
+            "root": str(attempt_root),
+            "directories": ["."],
+            "files": files,
+        },
+        "git_check_ignore_all_not_ignored": True,
+        "git_add_returncode": 0,
+        "git_ls_files_all_matched": True,
+        "time_ns": 1,
+    }
+    (attempt_root / "tracking-receipt.json").write_text(
+        json.dumps(receipt, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _staged_reevaluation_fixture(
+    tmp_path: Path, monkeypatch
+) -> tuple[subject.Controller, dict[str, object], Path]:
+    session_id = "session-fixture"
+    leg = subject.LEG_BY_KEY["t362-mitigation"]
+    attempt_id = "attempt-work"
+    request_id = "123-work.nqsv"
+    attempt_root = (
+        tmp_path
+        / subject.EVIDENCE_RELATIVE
+        / session_id
+        / "attempts"
+        / leg.key
+        / attempt_id
+    )
+    attempt_root.mkdir(parents=True)
+    _evaluation, _completion, observer_final = _production_chain_fixture(
+        attempt_root,
+        monkeypatch,
+        case="work",
+    )
+    work_root = attempt_root / "work"
+    home_root = attempt_root / "home"
+    home_root.mkdir()
+    (home_root / "home-read-write.probe.raw").write_bytes(b"home-probe")
+    controller_root = work_root / "controller"
+    scheduler_root = work_root / "scheduler"
+    scheduler_root.mkdir(exist_ok=True)
+    qsub_argv = ["qsub", "-v", f"T362_ATTEMPT_ID={attempt_id}", leg.script]
+    _write_saved_command(
+        controller_root,
+        sequence=1,
+        purpose="qsub",
+        argv=qsub_argv,
+        returncode=0,
+        stdout=f"Request {request_id} submitted\n".encode(),
+    )
+    _write_saved_command(
+        controller_root,
+        sequence=2,
+        purpose="lifecycle-qstat-attempt-1",
+        argv=["qstat", "-J", "-f", request_id],
+        returncode=0,
+        stdout=(
+            f"Request ID: {request_id}\nRequest State = RUN\n"
+        ).encode(),
+    )
+    _write_saved_command(
+        controller_root,
+        sequence=3,
+        purpose="qwait",
+        argv=["qwait", "-t", "4080", request_id],
+        returncode=0,
+        stdout=b"",
+        event="background_finished",
+    )
+    _write_saved_command(
+        controller_root,
+        sequence=4,
+        purpose="signal-observer",
+        argv=[sys.executable, "signal_observer.py"],
+        returncode=(
+            0 if observer_final["valid_for_safety_conclusion"] is True else 3
+        ),
+        stdout=b"",
+        event="background_finished",
+    )
+    accounting_text = (
+        f"Request ID: {request_id}\nStarted Request Time: x\n"
+        "Ended Request Time: y\nElapse: 120\nExit Status: 0\n"
+    ).encode()
+    for sequence, command in ((5, "racctjob"), (6, "racctreq")):
+        _write_saved_command(
+            controller_root,
+            sequence=sequence,
+            purpose=f"final-{command}-attempt-1",
+            argv=[command, "-I", request_id],
+            returncode=0,
+            stdout=accounting_text,
+        )
+    budget_raw = b"fixture 20 1 30\n"
+    _write_saved_command(
+        controller_root,
+        sequence=7,
+        purpose="rbudgetcheck-before-qsub",
+        argv=["rbudgetcheck"],
+        returncode=0,
+        stdout=budget_raw,
+    )
+    _write_saved_command(
+        controller_root,
+        sequence=8,
+        purpose="rbudgetcheck-after-request",
+        argv=["rbudgetcheck"],
+        returncode=0,
+        stdout=budget_raw,
+    )
+    stdout_payload = b"fixture stdout\n"
+    stderr_payload = (
+        "%NQSV(INFO): Batch job received signal SIGTERM. "
+        "(Exceeded per-req elapse time limit)\n\n"
+        f"Request ID: {request_id}\nStarted Request Time: x\n"
+        "Ended Request Time: y\nElapse: 120S\nRemaining Elapse: 60S\n"
+        "Exit Status: 0\n"
+    ).encode()
+    stdout_name = "fixture.stdout.raw"
+    stderr_name = "fixture.stderr.raw"
+    (scheduler_root / stdout_name).write_bytes(stdout_payload)
+    (scheduler_root / stderr_name).write_bytes(stderr_payload)
+    (controller_root / "job-output-manifest.json").write_text(
+        json.dumps(
+            {
+                "files": [
+                    {
+                        "stream": "stdout",
+                        "original_name": f"fixture.{request_id}.000.o",
+                        "saved_name": stdout_name,
+                        "original_sha256": hashlib.sha256(stdout_payload).hexdigest(),
+                        "original_size": len(stdout_payload),
+                    },
+                    {
+                        "stream": "stderr",
+                        "original_name": f"fixture.{request_id}.000.e",
+                        "saved_name": stderr_name,
+                        "original_sha256": hashlib.sha256(stderr_payload).hexdigest(),
+                        "original_size": len(stderr_payload),
+                    },
+                ]
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    old_evaluation = _split(
+        observation=False,
+        accounting_available=False,
+        accounting_integrity_valid=False,
+        termination_cause_consistent=False,
+    )
+    request: dict[str, object] = {
+        "request_ordinal": 1,
+        "leg": leg.key,
+        "attempt_id": attempt_id,
+        "requested_node_min": leg.requested_node_min,
+        "cumulative_requested_node_min": leg.requested_node_min,
+        "qsub_argv": qsub_argv,
+        "qsub_returncode": 0,
+        "request_id": request_id,
+        "completed": True,
+        "budget_after": {"returncode": 0},
+        "external_root_terminal_proven": True,
+        "safety_content_present": True,
+        "selected_as_authoritative": False,
+        **old_evaluation,
+        "admissible": False,
+    }
+    attempt_result = {
+        "schema": subject.ATTEMPT_SCHEMA,
+        "session_id": session_id,
+        "request_ordinal": 1,
+        "leg": leg.key,
+        "attempt_id": attempt_id,
+        "request_id": request_id,
+        **old_evaluation,
+        "admissible": False,
+        "validity_conjunction": {"frozen_evaluator_bug": False},
+    }
+    (controller_root / "attempt-result.json").write_text(
+        json.dumps(attempt_result, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _write_staged_tracking_receipt(attempt_root)
+
+    controller = subject.Controller.__new__(subject.Controller)
+    controller.repo_root = tmp_path
+    controller.request_count = 1
+    controller.cumulative_node_min = leg.requested_node_min
+    controller.authoritative = {}
+    controller.initial_budget = None
+    controller.latest_budget = None
+    controller.stale_sessions = []
+    controller.wave_state_path = tmp_path / "_controller" / "wave-state.json"
+    controller.wave_state = {
+        "schema": subject.WAVE_STATE_SCHEMA,
+        "request_limit": subject.REQUEST_LIMIT,
+        "requested_node_min_limit": subject.REQUESTED_NODE_MIN_LIMIT,
+        "request_count": 1,
+        "cumulative_requested_node_min": leg.requested_node_min,
+        "requests": [request],
+        "authoritative_attempts": {},
+        "initial_budget": None,
+        "initial_four_budget_after": None,
+        "latest_budget_after_request": None,
+    }
+    return controller, request, attempt_root
 
 
 def test_safe_mitigation_is_authoritative_without_accounting() -> None:
@@ -531,6 +803,33 @@ def test_accounting_termination_cause_contradiction_is_rejected() -> None:
     )
 
     assert evaluation["observation_valid"] is False
+
+
+def test_available_accounting_null_integrity_is_rejected_by_envelope() -> None:
+    evaluation = _split(accounting_available=True)
+    evaluation["accounting_integrity_valid"] = None
+
+    with pytest.raises(
+        subject.ControllerError,
+        match="available accounting requires non-null integrity and cause",
+    ):
+        subject._validate_split_v2_envelope(evaluation)
+
+
+def test_available_accounting_null_integrity_fails_closed_in_composer() -> None:
+    evaluation = _split(
+        accounting_available=True,
+        accounting_integrity_valid=None,
+    )
+
+    assert evaluation["accounting_integrity_valid"] is False
+    assert evaluation["observation_valid"] is False
+    assert (
+        subject._snapshot_integrity_value(
+            {"available": True, "integrity_valid": None}
+        )
+        is False
+    )
 
 
 def test_later_integrity_snapshot_supplies_its_own_termination_cause() -> None:
@@ -754,7 +1053,50 @@ def test_recorded_foreign_accounting_still_blocks_observation() -> None:
     assert evaluation["observation_valid"] is False
 
 
-def test_manifest_bound_scheduler_accounting_supplies_cause(
+def test_accounting_fields_without_request_id_are_malformed() -> None:
+    text = "Started Request Time: x\nEnded Request Time: y\nElapse: 180\n"
+    controller_validation = subject._accounting_valid(
+        text,
+        "123.nqsv",
+        1,
+        returncode=0,
+    )
+    snapshot = subject._accounting_snapshot_from_results(
+        {
+            name: {
+                "returncode": 0,
+                "stdout": text,
+                "stderr": "",
+                "accounting_validation": controller_validation,
+            }
+            for name in ("racctjob", "racctreq")
+        }
+    )
+    observer = signal_observer.Observer.__new__(signal_observer.Observer)
+    observer.normalized_request_id = "123.nqsv"
+    observer.requested_seconds = 180
+    observer_validation = observer.validate_accounting(
+        {
+            "qstat": {"classification": "OK", "stdout": "", "stderr": ""},
+            **{
+                name: {
+                    "classification": "OK",
+                    "stdout": text,
+                    "stderr": "",
+                }
+                for name in ("racctjob", "racctreq")
+            },
+        }
+    )
+
+    assert controller_validation["available"] is True
+    assert controller_validation["valid"] is False
+    assert snapshot["integrity_valid"] is False
+    assert observer_validation["available"] is True
+    assert observer_validation["integrity_valid"] is False
+
+
+def test_manifest_bound_scheduler_accounting_rejects_outside_block_cause(
     tmp_path: Path,
 ) -> None:
     request_id = "123.nqsv"
@@ -763,10 +1105,8 @@ def test_manifest_bound_scheduler_accounting_supplies_cause(
     scheduler_root.mkdir()
     controller_root.mkdir()
     payload = (
-        "%NQSV(INFO): Batch job received signal SIGUSR1. "
-        "(Exceeded per-req elapse time limit)\n\n"
+        "%NQSV(INFO): Exceeded per-req elapse time limit\n"
         "Request ID: 123.nqsv\n"
-        "Started Request Time: x\n"
         "Ended Request Time: y\n"
         "Elapse: 184S\n"
         "Remaining Elapse: 0S\n"
@@ -779,7 +1119,87 @@ def test_manifest_bound_scheduler_accounting_supplies_cause(
                 "files": [
                     {
                         "stream": "stderr",
-                        "original_name": "fixture.e",
+                        "original_name": "fixture.123.nqsv.000.e",
+                        "saved_name": saved_name,
+                        "original_sha256": hashlib.sha256(payload).hexdigest(),
+                        "original_size": len(payload),
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    saved = subject._saved_nqsv_stderr_accounting(tmp_path, request_id)
+
+    assert saved["termination_cause_evidence_available"] is False
+    assert saved["termination_cause_classification"] == (
+        "UNKNOWN_NOT_RESOURCE_LIMIT"
+    )
+
+
+def test_manifest_bound_scheduler_accounting_rejects_foreign_filename(
+    tmp_path: Path,
+) -> None:
+    scheduler_root = tmp_path / "scheduler"
+    controller_root = tmp_path / "controller"
+    scheduler_root.mkdir()
+    controller_root.mkdir()
+    payload = (
+        "Request ID: 123.nqsv\nEnded Request Time: y\n"
+        "Remaining Elapse: 0S\nwall time limit exceeded\n"
+    ).encode()
+    saved_name = "fixture.stderr.raw"
+    (scheduler_root / saved_name).write_bytes(payload)
+    (controller_root / "job-output-manifest.json").write_text(
+        json.dumps(
+            {
+                "files": [
+                    {
+                        "stream": "stderr",
+                        "original_name": "fixture.999.nqsv.000.e",
+                        "saved_name": saved_name,
+                        "original_sha256": hashlib.sha256(payload).hexdigest(),
+                        "original_size": len(payload),
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    saved = subject._saved_nqsv_stderr_accounting(tmp_path, "123.nqsv")
+
+    assert saved["termination_cause_evidence_available"] is False
+    assert any("name binding is malformed" in error for error in saved["errors"])
+
+
+def test_manifest_bound_scheduler_accounting_supplies_cause(
+    tmp_path: Path,
+) -> None:
+    request_id = "123.nqsv"
+    scheduler_root = tmp_path / "scheduler"
+    controller_root = tmp_path / "controller"
+    scheduler_root.mkdir()
+    controller_root.mkdir()
+    payload = (
+        "Request ID: 123.nqsv\n"
+        "Started Request Time: x\n"
+        "Ended Request Time: y\n"
+        "Elapse: 184S\n"
+        "Remaining Elapse: 0S\n"
+        "%NQSV(INFO): Batch job received signal SIGKILL. "
+        "(Exceeded per-req elapse time limit)\n"
+    ).encode()
+    saved_name = "fixture.stderr.raw"
+    (scheduler_root / saved_name).write_bytes(payload)
+    (controller_root / "job-output-manifest.json").write_text(
+        json.dumps(
+            {
+                "files": [
+                    {
+                        "stream": "stderr",
+                        "original_name": "fixture.123.nqsv.000.e",
                         "saved_name": saved_name,
                         "original_sha256": hashlib.sha256(payload).hexdigest(),
                         "original_size": len(payload),
@@ -791,9 +1211,14 @@ def test_manifest_bound_scheduler_accounting_supplies_cause(
     )
     saved = subject._saved_nqsv_stderr_accounting(tmp_path, request_id)
     consistency = subject._termination_cause_consistency(
-        qwait_validation={"valid": True, "expected_outcome": "walltime"},
+        qwait_validation={
+            "valid": True,
+            "returncode_raw": 9,
+            "expected_outcome": "elapse-signal",
+        },
         accounting_snapshot={"available": False},
         saved_nqsv_stderr=saved,
+        signal_leg=True,
     )
 
     assert saved["termination_cause_evidence_available"] is True
@@ -1190,6 +1615,71 @@ def test_sessionless_migration_reads_saved_qsub_and_qwait_raw(
     assert request["external_root_terminal_proven"] is True
     receipt = Path(request["terminal_migration"]["receipt_path"])
     assert receipt.is_file()
+
+
+def test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    controller, request, attempt_root = _staged_reevaluation_fixture(
+        tmp_path, monkeypatch
+    )
+    monkeypatch.setattr(
+        subject,
+        "_saved_staged_preflight_validation",
+        lambda **_kwargs: {"valid": True, "errors": [], "source_commit": "fixture"},
+    )
+
+    def reject_external_command(*_args, **_kwargs):
+        raise AssertionError("reevaluation must not launch qsub or another command")
+
+    monkeypatch.setattr(subject.subprocess, "run", reject_external_command)
+
+    assert controller._reevaluate_completed_staged_requests() == 1
+    assert request["observation_valid"] is True
+    assert request["superseded_evaluation"]["observation_valid"] is False
+    assert request["selected_as_authoritative"] is True
+    assert controller.authoritative == {request["leg"]: request["attempt_id"]}
+    saved_result = json.loads(
+        (attempt_root / "work" / "controller" / "attempt-result.json").read_text()
+    )
+    assert saved_result["observation_valid"] is True
+    assert saved_result["superseded_evaluation"]["observation_valid"] is False
+    receipt = json.loads(
+        (attempt_root / "reevaluation-receipt.json").read_text()
+    )
+    assert receipt["target_attempt_id"] == request["attempt_id"]
+    assert receipt["evaluator_tool_sha256"] == hashlib.sha256(
+        Path(subject.__file__).read_bytes()
+    ).hexdigest()
+    assert receipt["qsub_submitted"] is False
+    assert receipt["attempt_result_sha256_after"] == hashlib.sha256(
+        (attempt_root / "work" / "controller" / "attempt-result.json").read_bytes()
+    ).hexdigest()
+
+
+def test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch(
+    tmp_path: Path, monkeypatch
+) -> None:
+    controller, request, attempt_root = _staged_reevaluation_fixture(
+        tmp_path, monkeypatch
+    )
+    monkeypatch.setattr(
+        subject,
+        "_saved_staged_preflight_validation",
+        lambda **_kwargs: {"valid": True, "errors": [], "source_commit": "fixture"},
+    )
+    raw_path = next((attempt_root / "work" / "controller" / "raw").glob("*.raw"))
+    raw_path.write_bytes(raw_path.read_bytes() + b"tampered")
+    result_path = attempt_root / "work" / "controller" / "attempt-result.json"
+    result_before = result_path.read_bytes()
+
+    with pytest.raises(subject.ControllerError, match="hash validation failed"):
+        controller._reevaluate_completed_staged_requests()
+
+    assert "superseded_evaluation" not in request
+    assert controller.authoritative == {}
+    assert result_path.read_bytes() == result_before
+    assert not (attempt_root / "reevaluation-receipt.json").exists()
 
 
 def test_sync_recorder_emits_both_qwait_termination_flags(
@@ -1627,10 +2117,65 @@ def test_end_to_end_sigkill_walltime_unsafe_reaches_summary_rc(
     )
 
     assert final["probe_cleanup_outcome"] == "unsafe"
+    assert set(final["signal_observations"].values()) == {"UNKNOWN"}
+    assert final["post_restore_canary_readback"]["observed_bytes_hex"] == (
+        signal_observer.MUTATED.hex()
+    )
+    assert evaluation["qwait_validation"]["returncode_raw"] == 9
+    assert evaluation["termination_cause_consistent"] is True
     assert evaluation["observation_valid"] is True
     assert evaluation["attempt_safe"] is False
     assert completion["transaction_complete"] is True
     assert completion["returncode"] == 0
+
+
+def test_erratum2_sigterm_positive_remaining_rc9_is_authoritative(
+    tmp_path: Path, monkeypatch
+) -> None:
+    evaluation, completion, final = _production_chain_fixture(
+        tmp_path,
+        monkeypatch,
+        case="a1",
+    )
+
+    assert final["probe_cleanup_outcome"] == "safe"
+    assert any(
+        value.get("event") == "finally_exit"
+        for value in final["cleanup_order"]["matched_events"]
+    )
+    assert evaluation["qwait_validation"]["returncode_raw"] == 9
+    assert evaluation["qwait_validation"]["expected_outcome"] == "elapse-signal"
+    assert evaluation["saved_nqsv_stderr_accounting"]["scheduler_signal_name"] == (
+        "SIGTERM"
+    )
+    assert evaluation["saved_nqsv_stderr_accounting"][
+        "remaining_elapse_seconds"
+    ] == 46
+    assert evaluation["termination_cause_consistent"] is True
+    assert evaluation["observation_valid"] is True
+    assert evaluation["attempt_safe"] is True
+    assert completion["transaction_complete"] is True
+    assert completion["returncode"] == 0
+
+
+def test_erratum2_sigterm_zero_remaining_is_cause_inconsistent(
+    tmp_path: Path, monkeypatch
+) -> None:
+    evaluation, completion, _final = _production_chain_fixture(
+        tmp_path,
+        monkeypatch,
+        case="mixed",
+    )
+
+    assert evaluation["saved_nqsv_stderr_accounting"]["scheduler_signal_name"] == (
+        "SIGTERM"
+    )
+    assert evaluation["saved_nqsv_stderr_accounting"][
+        "remaining_elapse_seconds"
+    ] == 0
+    assert evaluation["termination_cause_consistent"] is False
+    assert evaluation["observation_valid"] is False
+    assert completion["transaction_complete"] is False
 
 
 def test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc(

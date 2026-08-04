@@ -212,6 +212,10 @@ _REQUEST_ID_RE = re.compile(r"^(?:[0-9]+:)?[A-Za-z0-9][A-Za-z0-9._-]*$")
 _REQUEST_ID_FIELD_RE = re.compile(
     r"(?im)^\s*Request\s+ID\s*[:=]\s*(\S+)\s*$"
 )
+_ACCOUNTING_RECORD_FIELD_RE = re.compile(
+    r"(?im)^\s*(?:Started\s+Request\s+Time|Ended\s+Request\s+Time|"
+    r"Elapse|Remaining\s+Elapse)\s*:\s*\S.*$"
+)
 _RUN_NONCE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _STATE_RE = re.compile(
     r"(?im)^\s*(?:Request\s+)?State\s*=\s*(QUE|RUN|HLD|STG|EXT)\s*$"
@@ -1174,7 +1178,13 @@ class Observer:
             all_observed_ids = [
                 value for values in observed_by_stream.values() for value in values
             ]
-            record_present = bool(all_observed_ids or invalid_ids)
+            accounting_fields_present = any(
+                _ACCOUNTING_RECORD_FIELD_RE.search(result[stream_name]) is not None
+                for stream_name in ("stdout", "stderr")
+            )
+            record_present = bool(
+                all_observed_ids or invalid_ids or accounting_fields_present
+            )
             if not record_present:
                 reason = _accounting_unavailable_reason(result)
                 availability_errors.append(f"{name} accounting unavailable: {reason}")
@@ -1184,6 +1194,7 @@ class Observer:
                     "exact_request_record_count_valid": None,
                     "exclusive_request_ids_valid": None,
                     "stream_provenance_valid": None,
+                    "accounting_record_fields_present": False,
                     "valid": None,
                 }
                 continue
@@ -1266,6 +1277,7 @@ class Observer:
                     )
                 ),
                 "stream_provenance_valid": stream_provenance_valid,
+                "accounting_record_fields_present": accounting_fields_present,
                 "valid": not command_integrity_errors,
             }
         available = all(
@@ -1666,7 +1678,8 @@ class Observer:
             ),
             "unobserved_signal_vocabulary": "UNKNOWN",
             "qwait_code_9_scope": (
-                "resource-limit termination only; never evidence of the delivered signal kind"
+                "elapse warning delivery or walltime kill; never by itself evidence of "
+                "which terminal path occurred"
             ),
             "diagnostic_scope": (
                 "raw observations and validity only; no safety verdict is embedded"

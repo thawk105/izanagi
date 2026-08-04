@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import copy
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 import fcntl
@@ -38,6 +39,7 @@ TRACKING_SCHEMA = "izanagi-t361-t362-controller-tracking/v1"
 LEGACY_WAVE_STATE_SCHEMA = "izanagi-t361-t362-controller-wave-state/v1"
 WAVE_STATE_SCHEMA = "izanagi-t361-t362-controller-wave-state/v2"
 RESOLUTION_SCHEMA = "izanagi-t361-t362-controller-resolution/v1"
+REEVALUATION_SCHEMA = "izanagi-t361-t362-controller-reevaluation/v1"
 T361_RESULT_SCHEMA = "izanagi-t361-flock-result/v1"
 T361_FINAL_SCHEMA = "izanagi-t361-flock-controller-final/v1"
 T362_MARKER_SCHEMA = "t362-signal-marker/v2"
@@ -128,8 +130,16 @@ ACCOUNTING_ENDED_RE = re.compile(
     r"(?im)^\s*Ended\s+Request\s+Time\s*:\s*\S.*$"
 )
 ACCOUNTING_ELAPSE_RE = re.compile(r"(?im)^\s*Elapse\s*:\s*\S.*$")
+ACCOUNTING_RECORD_FIELD_RE = re.compile(
+    r"(?im)^\s*(?:Started\s+Request\s+Time|Ended\s+Request\s+Time|"
+    r"Elapse|Remaining\s+Elapse)\s*:\s*\S.*$"
+)
 ACCOUNTING_REMAINING_ELAPSE_RE = re.compile(
     r"(?im)^\s*Remaining\s+Elapse\s*:\s*(\d+)\s*S?\s*$"
+)
+NQSV_ELAPSE_SIGNAL_RE = re.compile(
+    r"(?im)^\s*%NQSV\(INFO\):\s*Batch job received signal\s+"
+    r"(SIG[A-Z0-9]+)\.\s*\(Exceeded per-req elapse time limit\)\s*$"
 )
 WALLTIME_LIMIT_CAUSE_RE = re.compile(
     r"(?im)^.*(?:elapse(?:d|stim)?|wall\s*time).*(?:limit|exceed|overrun).*$"
@@ -274,6 +284,13 @@ def _validate_split_v2_envelope(record: Mapping[str, Any]) -> None:
     for name in ("accounting_integrity_valid", "termination_cause_consistent"):
         if record.get(name) is not None and type(record.get(name)) is not bool:
             raise ControllerError(f"split-v2 {name} must be bool or null")
+    if record.get("accounting_available") is True and any(
+        record.get(name) is None
+        for name in ("accounting_integrity_valid", "termination_cause_consistent")
+    ):
+        raise ControllerError(
+            "split-v2 available accounting requires non-null integrity and cause"
+        )
     if "accounting_evidence" in record:
         if type(record.get("accounting_evidence")) is not bool:
             raise ControllerError("split-v2 accounting_evidence must be a literal bool")
@@ -356,6 +373,14 @@ def _compose_split_v2_evaluation(
         raise ControllerError("accounting unavailable reason is invalid")
     if accounting_available and accounting_unavailable_reason is not None:
         raise ControllerError("available accounting cannot have an unavailable reason")
+    if accounting_available:
+        # A present snapshot with an unevaluable integrity or cause field is
+        # malformed, not missing accounting.  Preserve a valid split-v2
+        # envelope while forcing that malformed combination to the invalid side.
+        if accounting_integrity_valid is None:
+            accounting_integrity_valid = False
+        if termination_cause_consistent is None:
+            termination_cause_consistent = False
     if (
         termination_cause_evidence_source is not None
         and termination_cause_evidence_source
@@ -1647,7 +1672,11 @@ def _accounting_valid(
     all_observed = [
         value for values in observed_by_stream.values() for value in values
     ]
-    record_present = bool(all_observed or invalid_ids)
+    accounting_fields_present = any(
+        ACCOUNTING_RECORD_FIELD_RE.search(stream_text) is not None
+        for stream_text in (text, stderr)
+    )
+    record_present = bool(all_observed or invalid_ids or accounting_fields_present)
     matches = [item for item in observed if item == expected]
     exact_request_record_count_valid = (
         len(observed) == expected_records if record_present else None
@@ -1706,6 +1735,7 @@ def _accounting_valid(
         "observed_normalized_request_ids_by_stream": observed_by_stream,
         "invalid_request_id_fields": invalid_ids,
         "invalid_request_id_fields_by_stream": invalid_ids_by_stream,
+        "accounting_record_fields_present": accounting_fields_present,
         "matching_request_record_count": len(matches),
         "expected_matching_records": expected_records,
         "exact_request_record_count_valid": exact_request_record_count_valid,
@@ -1829,15 +1859,24 @@ def _scheduler_accounting_cause(text: str) -> str:
         int(match.group(1))
         for match in ACCOUNTING_REMAINING_ELAPSE_RE.finditer(text)
     ]
-    if remaining and min(remaining) > 0:
+    signals = [match.group(1) for match in NQSV_ELAPSE_SIGNAL_RE.finditer(text)]
+    if len(signals) != 1 or len(remaining) != 1:
+        return "UNKNOWN_NOT_RESOURCE_LIMIT"
+    if signals[0] == "SIGTERM" and remaining[0] > 0:
         return "NORMAL_COMPLETION"
-    if remaining and min(remaining) == 0 and WALLTIME_LIMIT_CAUSE_RE.search(text):
-        return "WALLTIME_RESOURCE_LIMIT"
-    if NORMAL_COMPLETION_RE.search(text):
-        return "NORMAL_COMPLETION"
-    if WALLTIME_LIMIT_CAUSE_RE.search(text):
+    if signals[0] == "SIGKILL" and remaining[0] == 0:
         return "WALLTIME_RESOURCE_LIMIT"
     return "UNKNOWN_NOT_RESOURCE_LIMIT"
+
+
+def _request_expanded_stderr_name_valid(original_name: str, request_id: str) -> bool:
+    """Require the original .e name to contain the expected %r expansion."""
+
+    expected = _normalize_request_id(request_id)
+    return re.fullmatch(
+        rf"[^/]+\.{re.escape(expected)}\.[0-9]{{3}}\.e",
+        original_name,
+    ) is not None
 
 
 def _saved_nqsv_stderr_accounting(
@@ -1877,7 +1916,9 @@ def _saved_nqsv_stderr_accounting(
             saved_name = entry.get("saved_name")
             if (
                 type(original_name) is not str
-                or not original_name.endswith(".e")
+                or not _request_expanded_stderr_name_valid(
+                    original_name, expected
+                )
                 or type(saved_name) is not str
                 or not saved_name.endswith(".stderr.raw")
                 or Path(saved_name).name != saved_name
@@ -1914,14 +1955,13 @@ def _saved_nqsv_stderr_accounting(
                 continue
             text = payload.decode("utf-8", errors="replace")
             request_fields = list(REQUEST_ID_FIELD_RE.finditer(text))
-            cause_classification = _scheduler_accounting_cause(text)
             file_record = {
                 "path": str(path),
                 "sha256": hashlib.sha256(payload).hexdigest(),
                 "size": len(payload),
                 "request_block_count": len(request_fields),
                 "manifest_bound": path in manifest_bound_paths,
-                "termination_cause_classification": cause_classification,
+                "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT",
             }
             files.append(file_record)
             for index, request_field in enumerate(request_fields):
@@ -1930,7 +1970,7 @@ def _saved_nqsv_stderr_accounting(
                     if index + 1 < len(request_fields)
                     else len(text)
                 )
-                block = text[request_field.start() : block_end]
+                request_block = text[request_field.start() : block_end]
                 raw_request_id = request_field.group(1)
                 try:
                     observed = _normalize_request_id(raw_request_id)
@@ -1946,9 +1986,25 @@ def _saved_nqsv_stderr_accounting(
                         f"expected {expected}, observed {observed}"
                     )
                     continue
-                ended_field = ACCOUNTING_ENDED_RE.search(block)
+                ended_field = ACCOUNTING_ENDED_RE.search(request_block)
                 if ended_field is None:
                     continue
+                # A request-expanded manifest name plus exactly one Request ID
+                # binds the NQSV signal preamble to this accounting block.  For
+                # multi-request files retain the request-field boundary and do
+                # not borrow a signal or Remaining Elapse from another block.
+                cause_block = text if len(request_fields) == 1 else request_block
+                signal_names = [
+                    match.group(1)
+                    for match in NQSV_ELAPSE_SIGNAL_RE.finditer(cause_block)
+                ]
+                remaining_values = [
+                    int(match.group(1))
+                    for match in ACCOUNTING_REMAINING_ELAPSE_RE.finditer(
+                        cause_block
+                    )
+                ]
+                cause_classification = _scheduler_accounting_cause(cause_block)
                 matching_blocks.append(
                     file_record
                     | {
@@ -1956,8 +2012,27 @@ def _saved_nqsv_stderr_accounting(
                         "request_id_field_raw": request_field.group(0).strip(),
                         "ended_request_time_field_raw": ended_field.group(0).strip(),
                         "termination_cause_classification": cause_classification,
+                        "scheduler_signal_name": (
+                            signal_names[0] if len(signal_names) == 1 else None
+                        ),
+                        "remaining_elapse_seconds": (
+                            remaining_values[0]
+                            if len(remaining_values) == 1
+                            else None
+                        ),
+                        "termination_mechanics_fields_complete": (
+                            len(signal_names) == 1 and len(remaining_values) == 1
+                        ),
                     }
                 )
+    mechanics_blocks = [
+        value
+        for value in matching_blocks
+        if value["manifest_bound"] is True
+        and value["request_block_count"] == 1
+    ]
+    mechanics_evidence_available = len(mechanics_blocks) == 1 and not errors
+    mechanics_block = mechanics_blocks[0] if mechanics_evidence_available else {}
     cause_candidates = {
         value["termination_cause_classification"]
         for value in matching_blocks
@@ -1979,6 +2054,11 @@ def _saved_nqsv_stderr_accounting(
         "matching_ended_request_blocks": matching_blocks,
         "termination_cause_classification": termination_cause,
         "termination_cause_evidence_available": cause_evidence_available,
+        "termination_mechanics_evidence_available": mechanics_evidence_available,
+        "scheduler_signal_name": mechanics_block.get("scheduler_signal_name"),
+        "remaining_elapse_seconds": mechanics_block.get(
+            "remaining_elapse_seconds"
+        ),
         "termination_cause_evidence_source": (
             "manifest-bound-scheduler-stderr"
             if cause_evidence_available
@@ -2449,6 +2529,14 @@ def _validate_signal_observation_payload(
     signal_content = type(signals) is dict and any(
         type(value) is list and bool(value) for value in signals.values()
     )
+    cleanup_order = observation.get("cleanup_order")
+    matched_cleanup_events = (
+        cleanup_order.get("matched_events") if type(cleanup_order) is dict else None
+    )
+    parent_finally_exit_present = type(matched_cleanup_events) is list and any(
+        type(value) is dict and value.get("event") == "finally_exit"
+        for value in matched_cleanup_events
+    )
     canary_content = readback.get("outcome") in {"safe", "unsafe"}
     return {
         "errors": errors,
@@ -2463,6 +2551,7 @@ def _validate_signal_observation_payload(
         "unsafe_reason": unsafe_reason,
         "safety_content_present": signal_content or canary_content,
         "acceptance_conditions": dict(acceptance),
+        "parent_finally_exit_present": parent_finally_exit_present,
     }
 
 
@@ -2539,22 +2628,23 @@ def _qwait_valid(
         expected_outcome = "normal"
     else:
         normal_outcome = returncode == 0
-        walltime_outcome = (
+        elapse_signal_outcome = (
             returncode == 9 and "elapse" in combined and "limit" in combined
         )
         valid = (
             request_bound
             and natural_receipt
-            and (normal_outcome or walltime_outcome)
+            and (normal_outcome or elapse_signal_outcome)
         )
         expected_outcome = (
             "normal"
             if normal_outcome
-            else "walltime" if walltime_outcome else "unknown"
+            else "elapse-signal" if elapse_signal_outcome else "unknown"
         )
         reason = (
-            "terminal kind is independent of cleanup classification: natural jobs require "
-            "request-bound qwait rc=0; walltime jobs require rc=9 plus raw ELAPSE limit text"
+            "qwait is a request-bound terminal receipt: rc=0 is accepted, and rc=9 plus "
+            "raw ELAPSE limit text records scheduler warning delivery without deciding "
+            "whether the job later exited voluntarily or was killed"
         )
     return {
         "returncode_raw": returncode,
@@ -2598,7 +2688,7 @@ def _qwait_terminal_receipt_valid(
 def _snapshot_integrity_value(snapshot: Mapping[str, Any]) -> bool | None:
     raw_integrity = snapshot.get("integrity_valid")
     if snapshot.get("available") is True:
-        return raw_integrity if type(raw_integrity) is bool else None
+        return raw_integrity if type(raw_integrity) is bool else False
     command_validations = snapshot.get("command_validations")
     if type(command_validations) is dict and any(
         type(value) is dict
@@ -2676,12 +2766,50 @@ def _termination_cause_consistency(
     qwait_validation: Mapping[str, Any],
     accounting_snapshot: Mapping[str, Any],
     saved_nqsv_stderr: Mapping[str, Any],
+    signal_leg: bool = False,
+    parent_finally_exit_present: bool = False,
 ) -> dict[str, Any]:
     if qwait_validation.get("valid") is not True:
         return {
             "consistent": None,
             "evidence_source": None,
             "observed_cause": None,
+        }
+    if signal_leg:
+        evidence_source = (
+            "qwait-receipt+manifest-bound-scheduler-stderr"
+            if saved_nqsv_stderr.get(
+                "termination_mechanics_evidence_available"
+            )
+            is True
+            else None
+        )
+        signal_name = saved_nqsv_stderr.get("scheduler_signal_name")
+        remaining = saved_nqsv_stderr.get("remaining_elapse_seconds")
+        safe_outcome = (
+            signal_name == "SIGTERM"
+            and type(remaining) is int
+            and remaining > 0
+            and parent_finally_exit_present
+            and qwait_validation.get("returncode_raw") in {0, 9}
+        )
+        walltime_outcome = (
+            signal_name == "SIGKILL"
+            and type(remaining) is int
+            and remaining == 0
+            and qwait_validation.get("returncode_raw") == 9
+        )
+        observed_cause = (
+            "NORMAL_COMPLETION"
+            if safe_outcome
+            else "WALLTIME_RESOURCE_LIMIT"
+            if walltime_outcome
+            else "UNKNOWN_NOT_RESOURCE_LIMIT"
+        )
+        return {
+            "consistent": safe_outcome or walltime_outcome,
+            "evidence_source": evidence_source,
+            "observed_cause": observed_cause,
         }
     expected_outcome = qwait_validation.get("expected_outcome")
     expected_cause = {
@@ -2838,6 +2966,7 @@ def _evaluate_attempt_evidence(
     probe_cleanup_outcome = "unknown"
     unsafe_reason: str | None = None
     safety_content_present = False
+    parent_finally_exit_present = False
     if request_id is not None and leg.key == "t361-flock":
         marker_validation = _t361_marker_validation(
             work_root,
@@ -2893,6 +3022,9 @@ def _evaluate_attempt_evidence(
         unsafe_reason = payload["unsafe_reason"]
         safety_content_present = bool(payload["safety_content_present"])
         raw_observation = observer_validation.get("observation_raw", {})
+        parent_finally_exit_present = bool(
+            payload.get("parent_finally_exit_present")
+        )
         acceptance = payload["acceptance_conditions"]
         for key in (
             "scheduler_terminal_non_run",
@@ -2930,6 +3062,8 @@ def _evaluate_attempt_evidence(
         qwait_validation=qwait_validation,
         accounting_snapshot=selected_accounting,
         saved_nqsv_stderr=saved_nqsv_stderr,
+        signal_leg=leg.key in SIGNAL_LEG_KEYS,
+        parent_finally_exit_present=parent_finally_exit_present,
     )
     termination_cause_consistent = cause_consistency["consistent"]
     split = _compose_split_v2_evaluation(
@@ -3239,6 +3373,237 @@ def _copy_attempt_evidence(
     _atomic_json(destination / "tracking-receipt.json", tracking)
     tracking = _track_evidence(repo_root, destination)
     return {"destination": str(destination), "tracking": tracking}
+
+
+def _validate_staged_evidence_inventory(attempt_root: Path) -> dict[str, Any]:
+    """Verify every staged byte against its immutable tracking receipt."""
+
+    receipt_path = attempt_root / "tracking-receipt.json"
+    receipt = _read_json_object(receipt_path)
+    errors: list[str] = []
+    if receipt.get("schema") != TRACKING_SCHEMA:
+        errors.append("staged tracking receipt schema mismatch")
+    identity_suffix = attempt_root.parts[-4:]
+    inventory = receipt.get("inventory")
+    inventory_root = inventory.get("root") if type(inventory) is dict else None
+    for field, raw_root in (
+        ("evidence_root", receipt.get("evidence_root")),
+        ("inventory.root", inventory_root),
+    ):
+        if type(raw_root) is not str or Path(raw_root).parts[-4:] != identity_suffix:
+            errors.append(f"staged {field} does not bind the attempt identity")
+    raw_files = inventory.get("files") if type(inventory) is dict else None
+    if type(raw_files) is not list:
+        raise ControllerError("staged tracking inventory files are malformed")
+    expected: dict[str, tuple[str, int]] = {}
+    for item in raw_files:
+        if type(item) is not dict:
+            errors.append("staged tracking inventory contains a non-object entry")
+            continue
+        relative = item.get("path")
+        digest = item.get("sha256")
+        size = item.get("size")
+        if (
+            type(relative) is not str
+            or Path(relative).is_absolute()
+            or ".." in Path(relative).parts
+            or type(digest) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or type(size) is not int
+            or size < 0
+            or relative in expected
+        ):
+            errors.append("staged tracking inventory entry is malformed or duplicate")
+            continue
+        expected[relative] = (digest, size)
+    if receipt.get("file_count") != len(expected):
+        errors.append("staged tracking file count mismatch")
+    actual: set[str] = set()
+    for path in sorted(attempt_root.rglob("*")):
+        if path.is_symlink():
+            errors.append(f"symlink in staged evidence: {path}")
+        elif path.is_file():
+            relative = str(path.relative_to(attempt_root))
+            if relative not in {
+                "tracking-receipt.json",
+                "reevaluation-receipt.json",
+            }:
+                actual.add(relative)
+        elif not path.is_dir():
+            errors.append(f"non-regular staged evidence entry: {path}")
+    if actual != set(expected):
+        errors.append("staged tracking inventory does not exactly cover staged files")
+    for relative, (digest, size) in expected.items():
+        path = attempt_root / relative
+        if path.is_symlink() or not path.is_file():
+            errors.append(f"tracked staged file is absent or unsafe: {relative}")
+            continue
+        if path.stat().st_size != size or _sha256(path) != digest:
+            errors.append(f"tracked staged file hash/size mismatch: {relative}")
+    raw_paths = [
+        relative
+        for relative in expected
+        if "/raw/" in f"/{relative}" and relative.endswith(".raw")
+    ]
+    if not raw_paths:
+        errors.append("staged tracking inventory contains no saved raw command streams")
+    if errors:
+        raise ControllerError("staged evidence hash validation failed: " + "; ".join(errors))
+    return {
+        "receipt_path": str(receipt_path),
+        "receipt_sha256": _sha256(receipt_path),
+        "file_count": len(expected),
+        "raw_file_count": len(raw_paths),
+    }
+
+
+def _saved_finished_command(
+    work_root: Path, *, purpose: str, event: str | None = None
+) -> dict[str, Any]:
+    matches = [
+        value
+        for value in _recorded_command_results(work_root / "controller")
+        if value.get("purpose") == purpose
+        and (event is None or value.get("event") == event)
+    ]
+    if len(matches) != 1:
+        raise ControllerError(
+            f"expected exactly one saved {purpose} command, observed {len(matches)}"
+        )
+    return matches[0]
+
+
+def _saved_accounting_snapshot(
+    work_root: Path, request_id: str, expected_jobs: int
+) -> dict[str, Any]:
+    results = _recorded_command_results(work_root / "controller")
+    collected: dict[str, dict[str, Any]] = {}
+    for command, expected_records in (("racctjob", expected_jobs), ("racctreq", 1)):
+        matches = [
+            value
+            for value in results
+            if re.fullmatch(
+                rf"final-{command}-attempt-[1-9][0-9]*",
+                str(value.get("purpose", "")),
+            )
+            and value.get("argv") == [command, "-I", request_id]
+        ]
+        if not matches:
+            raise ControllerError(f"saved staged evidence lacks {command} raw attempts")
+        latest = max(matches, key=lambda value: int(value["sequence"]))
+        stdout = str(latest["stdout"])
+        stderr = str(latest["stderr"])
+        collected[command] = {
+            "returncode": int(latest["returncode"]),
+            "stdout": stdout,
+            "stderr": stderr,
+            "accounting_validation": _accounting_valid(
+                stdout,
+                request_id,
+                expected_records,
+                stderr=stderr,
+                returncode=int(latest["returncode"]),
+            ),
+        }
+    return _accounting_snapshot_from_results(collected)
+
+
+def _saved_job_output_manifest(work_root: Path, expected_jobs: int) -> dict[str, Any]:
+    manifest_path = work_root / "controller" / "job-output-manifest.json"
+    manifest = _read_json_object(manifest_path)
+    entries = manifest.get("files")
+    errors: list[str] = []
+    counts = {"stdout": 0, "stderr": 0}
+    if type(entries) is not list:
+        raise ControllerError("saved job-output manifest files are malformed")
+    for entry in entries:
+        if type(entry) is not dict:
+            errors.append("saved job-output manifest contains a non-object entry")
+            continue
+        stream = entry.get("stream")
+        saved_name = entry.get("saved_name")
+        if (
+            type(stream) is not str
+            or stream not in counts
+            or type(saved_name) is not str
+            or Path(saved_name).name != saved_name
+        ):
+            errors.append("saved job-output manifest entry is malformed")
+            continue
+        path = work_root / "scheduler" / saved_name
+        if path.is_symlink() or not path.is_file():
+            errors.append(f"saved scheduler output is absent or unsafe: {saved_name}")
+            continue
+        payload = path.read_bytes()
+        if (
+            hashlib.sha256(payload).hexdigest() != entry.get("original_sha256")
+            or len(payload) != entry.get("original_size")
+        ):
+            errors.append(f"saved scheduler output bytes mismatch: {saved_name}")
+            continue
+        counts[stream] += 1
+    if any(value != expected_jobs for value in counts.values()):
+        errors.append("saved scheduler output count mismatch")
+    return {
+        "manifest_path": str(manifest_path),
+        "manifest_sha256": _sha256(manifest_path),
+        "observed_counts": counts,
+        "errors": errors,
+    }
+
+
+def _saved_staged_preflight_validation(
+    *,
+    repo_root: Path,
+    work_root: Path,
+    home_root: Path,
+    leg: Leg,
+    attempt_id: str,
+    qsub_argv: Sequence[str],
+) -> dict[str, Any]:
+    preflight = _read_json_object(work_root / "controller" / "preflight.json")
+    errors: list[str] = []
+    if preflight.get("schema") != PREFLIGHT_SCHEMA:
+        errors.append("saved staged preflight schema mismatch")
+    if preflight.get("leg") != leg.key or preflight.get("attempt_id") != attempt_id:
+        errors.append("saved staged preflight attempt identity mismatch")
+    if preflight.get("qsub_argv") != list(qsub_argv):
+        errors.append("saved staged preflight qsub argv mismatch")
+    source_commit = preflight.get("source_commit")
+    hashes = preflight.get("driver_hashes")
+    if (
+        type(source_commit) is not str
+        or re.fullmatch(r"[0-9a-f]{40,64}", source_commit) is None
+        or type(hashes) is not dict
+        or set(hashes) != set(DRIVER_FILES)
+    ):
+        errors.append("saved staged preflight driver identity is malformed")
+    else:
+        for name in DRIVER_FILES:
+            expected = hashes.get(name)
+            relative = str(EVIDENCE_RELATIVE.parent / "driver" / name)
+            blob = _run_git(repo_root, ["git", "show", f"{source_commit}:{relative}"])
+            if (
+                type(expected) is not dict
+                or blob.returncode != 0
+                or expected.get("sha256") != hashlib.sha256(blob.stdout).hexdigest()
+                or expected.get("size") != len(blob.stdout)
+            ):
+                errors.append(f"saved staged preflight driver hash mismatch: {name}")
+    probes = preflight.get("read_write_probes")
+    for name, path in (
+        ("work", work_root / "controller" / "work-read-write.probe.raw"),
+        ("home", home_root / "home-read-write.probe.raw"),
+    ):
+        probe = probes.get(name) if type(probes) is dict else None
+        if (
+            type(probe) is not dict
+            or path.is_symlink()
+            or not path.is_file()
+            or probe.get("sha256") != _sha256(path)
+        ):
+            errors.append(f"saved staged preflight {name} probe mismatch")
+    return {"valid": not errors, "errors": errors, "source_commit": source_commit}
 
 
 def _remove_attempt_roots(
@@ -3679,6 +4044,281 @@ class Controller:
         else:
             request["selected_as_authoritative"] = False
         self._persist_wave_state()
+
+    def _staged_attempt_root(self, request: Mapping[str, Any]) -> Path:
+        leg_key = request.get("leg")
+        attempt_id = request.get("attempt_id")
+        if type(leg_key) is not str or type(attempt_id) is not str:
+            raise ControllerError("reevaluation request identity is malformed")
+        _safe_component(leg_key, "reevaluation leg")
+        _safe_component(attempt_id, "reevaluation attempt ID")
+        evidence_root = self.repo_root / EVIDENCE_RELATIVE
+        matches = [
+            path
+            for path in evidence_root.glob(
+                f"*/attempts/{leg_key}/{attempt_id}"
+            )
+            if path.is_dir() and not path.is_symlink()
+        ]
+        if len(matches) != 1:
+            raise ControllerError(
+                "reevaluation requires exactly one staged attempt evidence root for "
+                f"{attempt_id}, observed {len(matches)}"
+            )
+        return matches[0]
+
+    def _evaluate_staged_attempt(
+        self, request: Mapping[str, Any], attempt_root: Path
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        tracking = _validate_staged_evidence_inventory(attempt_root)
+        leg_key = request.get("leg")
+        attempt_id = request.get("attempt_id")
+        request_id = request.get("request_id")
+        if (
+            type(leg_key) is not str
+            or leg_key not in LEG_BY_KEY
+            or type(attempt_id) is not str
+            or type(request_id) is not str
+        ):
+            raise ControllerError("reevaluation request lacks a bound identity")
+        leg = LEG_BY_KEY[leg_key]
+        work_root = attempt_root / "work"
+        home_root = attempt_root / "home"
+        attempt_result_path = work_root / "controller" / "attempt-result.json"
+        attempt_result = _read_json_object(attempt_result_path)
+        for field, expected in (
+            ("leg", leg.key),
+            ("attempt_id", attempt_id),
+            ("request_id", request_id),
+            ("request_ordinal", request.get("request_ordinal")),
+        ):
+            if attempt_result.get(field) != expected:
+                raise ControllerError(
+                    f"staged attempt-result does not match wave state: {field}"
+                )
+        submission = _saved_submission_validation(work_root, request)
+        preflight = _saved_staged_preflight_validation(
+            repo_root=self.repo_root,
+            work_root=work_root,
+            home_root=home_root,
+            leg=leg,
+            attempt_id=attempt_id,
+            qsub_argv=request["qsub_argv"],
+        )
+        scheduler = _saved_scheduler_evidence(work_root, request_id)
+        observations = scheduler["observations"]
+        qwait = _saved_finished_command(
+            work_root, purpose="qwait", event="background_finished"
+        )
+        saved_qwait_terminal = _qwait_terminal_receipt_valid(
+            qwait, request_id
+        )["valid"] is True
+        accounting = _saved_accounting_snapshot(
+            work_root, request_id, leg.nodes
+        )
+        outputs = _saved_job_output_manifest(work_root, leg.nodes)
+        budget_before = _saved_budget_capture(
+            work_root, "rbudgetcheck-before-qsub"
+        )
+        budget_after = _saved_budget_capture(
+            work_root, "rbudgetcheck-after-request"
+        )
+        monitor = {
+            "qstat_visible": scheduler["qstat_visible"],
+            "qstat_run_seen": any(
+                value.get("state") == "RUN" for value in observations
+            ),
+            "qstat_transient_error_seen": (
+                not scheduler["valid"]
+                or not observations
+                or any(
+                    value.get("classification") != "ok"
+                    for value in observations
+                )
+            ),
+            "qstat_permission_error": any(
+                value.get("classification") == "permission"
+                for value in observations
+            ),
+            "active_at_execution_deadline": False,
+            "terminal_reason": (
+                "PREQUEUED_REQUEST_ALREADY_TERMINAL"
+                if not scheduler["qstat_visible"] and saved_qwait_terminal
+                else "REEVALUATED_FROM_STAGED_EVIDENCE"
+            ),
+            "execution_hosts_raw_order": scheduler[
+                "execution_hosts_raw_order"
+            ],
+            "execution_hosts_raw_evidence": scheduler[
+                "execution_hosts_raw_evidence"
+            ],
+        }
+        evaluation = _evaluate_attempt_evidence(
+            leg=leg,
+            work_root=work_root,
+            attempt_id=attempt_id,
+            request_id=request_id,
+            qsub_returncode=int(request["qsub_returncode"]),
+            qsub_receipt_valid=submission["valid"] is True,
+            preflight_valid=preflight["valid"] is True,
+            monitor=monitor,
+            qwait=qwait,
+            observer_returncode=(
+                _saved_observer_returncode(work_root)
+                if leg.mode is not None
+                else 127
+            ),
+            accounting=accounting,
+            outputs=outputs,
+            budget_before=budget_before,
+            budget_after=budget_after,
+        )
+        return evaluation, {
+            "tracking": tracking,
+            "attempt_result": attempt_result,
+            "attempt_result_path": attempt_result_path,
+            "submission": submission,
+            "preflight": preflight,
+            "scheduler": scheduler,
+            "accounting": accounting,
+            "outputs": outputs,
+        }
+
+    @staticmethod
+    def _evaluation_projection(record: Mapping[str, Any]) -> dict[str, Any]:
+        fields = (
+            "evaluation_model",
+            *sorted(SPLIT_V2_FIELDS),
+            "admissible",
+            "validity_conjunction",
+        )
+        return copy.deepcopy(
+            {field: record[field] for field in fields if field in record}
+        )
+
+    def _rebuild_authoritative_selection(self) -> None:
+        requests = self.wave_state["requests"]
+        by_attempt = {
+            str(request["attempt_id"]): request for request in requests
+        }
+        preserved_legacy = {
+            leg_key: attempt_id
+            for leg_key, attempt_id in self.authoritative.items()
+            if attempt_id in by_attempt
+            and _evaluation_model(by_attempt[attempt_id]) is None
+            and _record_is_authoritative(
+                by_attempt[attempt_id], preserve_legacy_authority=True
+            )
+        }
+        self.authoritative = dict(preserved_legacy)
+        for request in requests:
+            request["selected_as_authoritative"] = False
+        for leg_key, attempt_id in preserved_legacy.items():
+            by_attempt[attempt_id]["selected_as_authoritative"] = True
+        for request in requests:
+            leg_key = request.get("leg")
+            if (
+                _evaluation_model(request) == EVALUATION_MODEL
+                and _record_is_authoritative(request)
+                and leg_key not in self.authoritative
+            ):
+                assert type(leg_key) is str
+                attempt_id = str(request["attempt_id"])
+                self.authoritative[leg_key] = attempt_id
+                request["selected_as_authoritative"] = True
+
+    def _reevaluate_completed_staged_requests(self) -> int:
+        candidates = [
+            request
+            for request in self.wave_state["requests"]
+            if request.get("completed") is True
+            and _evaluation_model(request) == EVALUATION_MODEL
+            and not _record_is_authoritative(request)
+            and request.get("qsub_returncode") == 0
+            and type(request.get("request_id")) is str
+            and request.get("external_root_terminal_proven") is True
+        ]
+        if not candidates:
+            return 0
+        prepared: list[
+            tuple[dict[str, Any], Path, dict[str, Any], dict[str, Any]]
+        ] = []
+        for request in candidates:
+            attempt_root = self._staged_attempt_root(request)
+            evaluation, evidence = self._evaluate_staged_attempt(
+                request, attempt_root
+            )
+            receipt_path = attempt_root / "reevaluation-receipt.json"
+            if receipt_path.exists():
+                raise ControllerError(
+                    f"reevaluation receipt already exists: {receipt_path}"
+                )
+            prepared.append((request, attempt_root, evaluation, evidence))
+
+        evaluator_sha256 = _sha256(Path(__file__).resolve())
+        writes: list[tuple[Path, dict[str, Any], Path, dict[str, Any]]] = []
+        for request, attempt_root, evaluation, evidence in prepared:
+            old_request_evaluation = self._evaluation_projection(request)
+            old_attempt_result = evidence["attempt_result"]
+            old_result_evaluation = self._evaluation_projection(old_attempt_result)
+            request["superseded_evaluation"] = old_request_evaluation
+            for field in ("evaluation_model", *sorted(SPLIT_V2_FIELDS)):
+                request[field] = copy.deepcopy(evaluation[field])
+            request["admissible"] = evaluation["observation_valid"]
+
+            new_result = copy.deepcopy(old_attempt_result)
+            new_result["superseded_evaluation"] = old_result_evaluation
+            for field in ("evaluation_model", *sorted(SPLIT_V2_FIELDS)):
+                new_result[field] = copy.deepcopy(evaluation[field])
+            new_result["admissible"] = evaluation["observation_valid"]
+            new_result["validity_conjunction"] = copy.deepcopy(
+                evaluation["validity_conjunction"]
+            )
+            reevaluated_time_ns = time.time_ns()
+            result_path = evidence["attempt_result_path"]
+            result_sha256_before = _sha256(result_path)
+            receipt_path = attempt_root / "reevaluation-receipt.json"
+            request["reevaluation"] = {
+                "receipt_path": str(receipt_path.relative_to(self.repo_root)),
+                "evaluator_tool_sha256": evaluator_sha256,
+                "reevaluated_time_ns": reevaluated_time_ns,
+            }
+            new_result["reevaluation"] = copy.deepcopy(request["reevaluation"])
+            result_sha256_after = hashlib.sha256(
+                _json_bytes(new_result)
+            ).hexdigest()
+            receipt = {
+                "schema": REEVALUATION_SCHEMA,
+                "kind": "deterministic-split-v2-staged-evidence-reevaluation",
+                "target_attempt_id": request["attempt_id"],
+                "target_leg": request["leg"],
+                "target_request_id": request["request_id"],
+                "evaluator_tool_path": str(Path(__file__).resolve()),
+                "evaluator_tool_sha256": evaluator_sha256,
+                "reevaluated_time_ns": reevaluated_time_ns,
+                "staged_tracking_receipt_sha256": evidence["tracking"][
+                    "receipt_sha256"
+                ],
+                "validated_staged_file_count": evidence["tracking"][
+                    "file_count"
+                ],
+                "validated_raw_file_count": evidence["tracking"][
+                    "raw_file_count"
+                ],
+                "attempt_result_sha256_before": result_sha256_before,
+                "attempt_result_sha256_after": result_sha256_after,
+                "qsub_submitted": False,
+            }
+            writes.append((result_path, new_result, receipt_path, receipt))
+
+        self._rebuild_authoritative_selection()
+        self.wave_state["authoritative_attempts"] = dict(self.authoritative)
+        self._validate_wave_state()
+        for result_path, result, receipt_path, receipt in writes:
+            _atomic_json(result_path, result)
+            _atomic_json(receipt_path, receipt)
+        self._persist_wave_state()
+        return len(prepared)
 
     def _migrate_sessionless_completed_requests(self) -> int:
         candidates = [
@@ -4395,9 +5035,14 @@ class Controller:
         if not self.stale_sessions:
             print("  none")
             migrated = self._migrate_sessionless_completed_requests()
+            reevaluated = self._reevaluate_completed_staged_requests()
             print(
                 "sessionless completed legacy terminal migrations: "
                 f"{migrated}"
+            )
+            print(
+                "completed split-v2 staged evidence reevaluations: "
+                f"{reevaluated}"
             )
             return 0
         attempts = self._discover_unresolved_attempts()
