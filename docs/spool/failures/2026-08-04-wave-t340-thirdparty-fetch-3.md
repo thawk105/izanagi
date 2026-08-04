@@ -25,6 +25,21 @@ seq: 3
   変異前に確認する**という読み方を本エントリで顕在化する。
 - 再発検知: 事前登録した変異の本走で `SURVIVED` / 期待外の赤理由が出たら fixture を疑う。
 
+### {{F:commit-during-acceptance-run}}. 受入全走の実行中に親が commit し、HEAD 束縛テストを自分で赤くした [計測汚染]
+
+- 事象: 段 7 の docs commit 直後に受入全走を投入し、**走行中に段 8 の commit を作った**。
+  `test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null@real-repo` が
+  `validation_head` の不一致で赤になった。値は「テスト開始時の HEAD」対「段 8 commit 後の HEAD」で、
+  差分の中身とは無関係である。単独再走は 1 passed で再現しなかった。
+- 根本原因: 全走を待ち時間とみなし、その間に別の段の作業 (docs 編集と commit) を進めた。
+  受入全走は **repo の状態を測る計測**であり、走行中の HEAD 変更は外乱である。
+  計算ノードへ dispatch する形なので「自分の worktree を触っても影響しない」と誤認しやすい。
+- 恒久対応: `DW-O18` の親テスト契約 (cwd を repo root にし、再現しない赤を差分へ帰属しない) に加え、
+  **受入全走の投入から結果取得までは commit・stage・tracked file の編集を行わない**という
+  読み方を本エントリで顕在化する。段を跨ぐ待ち時間には repo 外の作業だけを置く。
+- 再発検知: 赤の内容が `*_head` / `HEAD` / commit hash の不一致なら、まず自分の走行中 commit を疑う。
+  `git reflog` の時刻と job の Started/Ended を突き合わせれば確定できる。
+
 ### {{F:mutation-masked-by-outer-verify}}. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**

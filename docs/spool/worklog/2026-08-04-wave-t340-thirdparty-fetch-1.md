@@ -42,6 +42,9 @@ title: [T-340] third-party source の取得経路を tools/pegasus へ置いた 
 - **codex 実装子は 2 回とも pytest を実走できなかった** (計算ノード dispatch が rc=16)。
   緑の主張もしなかった。テストと変異の実測はすべて親が行った
 - 走行中に main が 48 commit 進み、merge commit で取り込んだ。取り込み後も凍結 binding は一致
+- **親が受入全走の走行中に commit して自分で赤を作った** ({{F:commit-during-acceptance-run}})。
+  `validation_head` の不一致で、差分の中身とは無関係。単独再走で再現せず、
+  commit を止めた最終走で緑を確認した
 
 ## 次の一手差分
 
