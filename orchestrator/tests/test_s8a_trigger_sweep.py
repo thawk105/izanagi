@@ -225,20 +225,27 @@ def test_s8a_reject_writer_fails_closed_on_unframed_tail():
 
 
 def test_quarantine_scope_does_not_police_hole_content():
-    """検疫の守備範囲の固定 (実測 2026-07-11): DiffQuarantine は hole 域の封じ込め
-    (フレーム・hole 外の改変拒否) を守るのであって、hole 域**内**の内容の質 (1 行性・
-    副作用なし・構文契約) は守らない — 複数行 implementation も hole 域内なら通る。
-    質の守りの主体は、偵察では述語生成器の構成的保証 + 本テスト群の機械検査
-    (test_predicates_*)、E 段では auditor 目視 (D48 決定 2/F5 — 構文恒真検査を第一
-    防壁にしない)。この分担を忘れて検疫に質の防御を期待しないこと。"""
+    """D96 境界: trigger marker の hole 内容は 32 正準文字列 membership まで検査する。
+
+    非正準な内容は hole 域内でも汎用 sink が拒否する。一方、正準集合内でどの述語を
+    選ぶかの意味的な質は auditor が検査する。偵察 sweep は構成的に生成した正準述語を
+    渡すため、この membership を通過する。
+    """
     d = _mk_template_dir()
     multiline = ("izanagi_gate_pass = true;\n"
                  "  izanagi_gate_pass = izanagi_gate_pass;")
     res, _b, _e, _wd = L.quarantine(d, multiline, marker_id=T.MARKER_ID,
                                     source_rel=T.SOURCE_REL, write=False)
-    assert res.passed, ("hole 域内の複数行が検疫で落ちるなら、質の守りの分担 "
-                        "(生成器/auditor) の前提が変わっている — 本テストの docstring "
-                        "と設計ドラフトを再訪すること")
+    assert not res.passed
+    assert res.digest["subtype"] == "membership"
+    assert res.digest["evidence"] == "canonical predicate membership failure"
+
+    canonical = W.predicate_for(EFF3)
+    accepted, _b, _e, _wd = L.quarantine(
+        d, canonical, marker_id=T.MARKER_ID,
+        source_rel=T.SOURCE_REL, write=False,
+    )
+    assert accepted.passed, accepted.reason
 
 
 # ==== campaign identity =======================================================
