@@ -1,0 +1,64 @@
+あなたは izanagi プロジェクトの dev-wave 段 2 プラン起草役である。sandbox は read-only であり、
+コードを書き換えてはならない。file:line 粒度の実装プランを日本語で書く。
+
+## 最初に読むもの (読めなければ即停止し、その旨だけを出力せよ)
+
+- 親 brief: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t337-qualification-authority/output/insights/2026-08-05_t337-qualification-authority/brief.md
+- repo root は上記 worktree。以下の path はすべてこの root からの相対で書く。
+
+brief の「段 1 前提実測」6 件と「不変条件」「provisional 裁定 (P1)〜(P5)」を前提として扱う。
+ただし前提が誤りだと実測で示せる場合は、その反証を最優先で報告せよ。
+
+## 課題 [T-337]
+
+正例 (positive control) artifact の「適格性 (eligibility)」を誰の権威で宣言するかを決める。
+ユーザー裁定は択 (a) = **新 D で権威境界を定義し、`artifact_role=qualification` を [T-318] 準拠で置く**。
+凍結 patch ledger の exact-one contract は改訂しない。
+関連裁定 [T-338] Q11 = **適格性の状態は独立 validator が raw receipt から再計算する。
+producer の自己申告 field にしてはならない**。層 3 の calibration floor 閉表は広げない。
+RF 統計は `trial × candidate × workload × contrast` を key とする別区画に置く。
+
+## 読むべき既存実装 (最低限)
+
+- patches/ledger.json (凍結台帳、entry 1 件)
+- orchestrator/campaign/silo_ladder_rung1_contract.py (exact-one contract、eligibility の exact 値要求)
+- orchestrator/campaign/s8b_oracle_artifacts.py (既存の `artifact_role` = 別軸の閉集合)
+- orchestrator/qualification/ 一式 (T-126。`authority: "evidence-only/no-promotion"` を全 schema で const 固定)
+- orchestrator/campaign/artifact_admission.py (既存 consumer 境界の型)
+- orchestrator/campaign/trial_registry.py ([T-325] で入った append-only 台帳)
+- docs/decisions.md の D120 / D126 / D127 / D75 (grep "^## D" で索引して該当だけ読む)
+
+## 答えるべき問い (この順で書く)
+
+1. **権威境界の骨子。** 新 D の決定 (1)(2)… を条文の形で起草する。最低限:
+   producer が宣言できるものは何か、宣言してはならないものは何か、適格性状態を誰がどの入力から
+   再計算するか、凍結 ledger の既存 `*_eligible` 3 field を今後どう位置づけるか。
+2. **識別子の名前。** [T-318] の種別軸を置く field 名を決め、既存 `artifact_role`
+   (exploration oracle の文書種別) との二義化を D75 の観点で評価せよ。同名再利用が安全なら根拠を、
+   危険なら代替名と影響範囲を file:line で示せ。
+3. **DW-G04 判定 (最重要)。** 「今日その機構を通る live producer と実 artifact path (または計測 ID)」を
+   file:line で 1 本でも示せるか。示せるなら producer / 出力 path / 既存 receipt を無効化しないことの
+   根拠を書く。示せないなら **docs-only を推奨**とはっきり書き、機械化は設計メモに留める案を書け。
+   ここで「負例が存在するから発火条件を満たす」と論じてはならない (D120 決定 (3) が既に否定済み)。
+4. **Q11 の consumer 経路。** 独立 validator が raw receipt から再計算する経路を、
+   入力 (どの実成果物のどの field)・再計算規則・拒否理由の構造化出力の 3 点で設計せよ。
+   入力 field が実在しないなら「実在しない」と書く (DW-O13)。
+5. **変更計画。** 実装する場合の file:line 粒度の差分計画。新規 file は path と責務。
+   触ってはならない file を明示せよ。
+6. **変異事前登録候補。** 新設する gate ごとに「その gate を無効化する最小変異」と
+   「それで赤になる想定テスト node」を列挙せよ。gate を新設しないなら「対象外」と書く。
+7. **正しさへの影響。** この設計が規律 2 (正しさゲートを緩める変異を許さない) を
+   どう守るか。producer 自己申告を権威にした場合に何が偽装できるかを具体的に書け。
+
+## 制約
+
+- テストは実走しなくてよい (書込可能 tmp が無い)。静的検査と読解で足りる。pytest 緑は要求しない。
+- 以下の bytes は 1 byte も変えない案にすること: patches/ledger.json、patches/silo_ladder_rung1.patch、
+  output/env/pegasus/silo_ladder_rung1/silo_ladder_rung1.json。
+- 受理集合を緩める案・検査を弱める案は書かない。
+- 推測を事実として書かない。読んでいない file の中身を断定しない。
+
+## 出力形式
+
+Markdown。最後に必ず `## 総括` 節を置き、(i) DW-G04 判定 (実装可 / docs-only)、
+(ii) 最大の設計リスク 1 件、(iii) 親が段 4 で裁定すべき択一、の 3 点を 10 行以内でまとめよ。
