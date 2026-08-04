@@ -212,6 +212,8 @@ hack) が出た (D41)。**コード片軸では言語契約違反 (UB) を必ず
 - `--preview-diff` → auditor spawn → proposal JSON → `--run-iteration`。digest 転写は
   スクラッチファイル経由の改行混入で `AuditorGateFailure` になった前例あり (worklog
   2026-07-10 (2)) — implementation 文字列は JSON から直接抽出する。
+  (trigger-gating 軸は [T-428] で wire-only 化し、CLI も `--preview-wire` — 同軸の現行手順は
+  `docs/phase3-s8a-trigger-runbook.md` が正本。本節の `--preview-diff` 記述はコード片軸の型)
 - `--no-build` での配線リハーサル (dry-pass) は実走と campaign identity (内容ハッシュ決定論、
   D13) を共有するため **iteration カウンタを 1 消費する** (whiteboard には載らないため整合性は
   保たれる。guard_bash が campaign dir の改変を拒否するので放置してよい)。iteration 番号の
@@ -223,7 +225,10 @@ hack) が出た (D41)。**コード片軸では言語契約違反 (UB) を必ず
 **この二型は「これまでに実施した 2 軸」の分類であり、全変異軸の網羅ではない。** どちらにも
 綺麗に当てはまらない軸 (複数 hole にまたがる軸・値とコード片の複合軸・データ構造/型選択の軸
 など) が来たら、手順を無理に当てはめるのではなく**本テンプレ自体を改訂し (この表に第 3 列を
-追加)、その改訂を D41 水準の敵対レビューにかける**。既存機構の単一 hole 前提
+追加)、その改訂を D41 水準の敵対レビューにかける**。
+(注: trigger-gating 軸は [T-428] で「固定 5-bit wire 軸」へ移行しコード片二型のどちらでも
+なくなった。第 3 列の追補は本注記のみとし、テンプレ本体の改訂は D41 水準レビューを伴う
+独立の変更単位で行う — 現行手順の正本は `docs/phase3-s8a-trigger-runbook.md`)既存機構の単一 hole 前提
 (`diff_quarantine.parse_template_file` は marker_id 単数) もその際に見直し対象になる。
 
 | 論点 | スカラー値軸 (backoff が型) | コード片軸 (sort が型) |
