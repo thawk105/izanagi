@@ -6,8 +6,9 @@ reward hacking 圧力が最も高い。iteration フロー (design v1 §4 の 1 
 
     1. planner (LLM):  current_perf (絶対 throughput を含む) + leading-indicators +
        whiteboard → 方向提案 (proposal スキーマは具体値 field を持たない)
-       whiteboard は delta_pct field だけを fail-closed にし、direction / magnitude /
-       result の値は checkpoint から無検証で入り得る ([T-287] の残余)
+       checkpoint 復元時は whiteboard の delta_pct と direction / magnitude / result の
+       型・値域を fail-closed に検査する。ただし in-memory 射影経路と layer3_report の
+       独立 reader はこの検査を通らず、iteration 整合・件数・origin 束縛も残る ([T-287] の残余)
        justification / uncertainty の自由文は journal / report に残る
     2. coder   (LLM):  方向 + baseline (絶対 throughput 等の現行指標) → 具体 backoff 値 +
        hole コード (過去候補の勝ち筋値・critic の機序帰属の専用 field は持たない)
@@ -121,9 +122,10 @@ class CoderProposal:
 class WhiteboardEntry:
     """proposal と harness result を保持する whiteboard の 1 行。
 
-    critic attribution 専用 field はないが、direction / magnitude / result の値を検証する
-    型ではなく、checkpoint から値・機序を含む文字列が入り得る ([T-287] の残余)。
-    delta_pct field だけは planner 射影時に None を fail-closed 強制する。"""
+    passive dataclass のため値域は自身では検査しない。checkpoint 復元値は state_from_dict が
+    direction / magnitude / result の型・値域を検査するが、in-memory 射影経路と
+    layer3_report の独立 reader はその境界を通らない ([T-287] の残余)。delta_pct field は
+    planner 射影時にも None を fail-closed 強制する。"""
     iteration: int
     direction: str
     magnitude: str
@@ -278,10 +280,11 @@ def project_whiteboard(state: LoopState, planner: PlannerProposal,
                        result: str, delta_pct: Optional[float] = None) -> WhiteboardEntry:
     """proposal と harness result を whiteboard の 5 field へ射影する (design v1 §4)。
 
-    critic attribution 専用 field はないが、direction / magnitude / result の内容は検証せず、
-    checkpoint から値・機序を含む文字列が入り得る ([T-287] の残余)。delta_pct field だけは
-    planner 射影時に None を fail-closed 強制する。result の想定値は success (certified 緑) |
-    fail (verify/liveness 赤) | rejected (diff 検疫 reject)。"""
+    この in-memory 射影経路は direction / magnitude / result の型・値域を検査しない。
+    checkpoint 復元値は state_from_dict が検査するが、layer3_report の独立 reader もその境界を
+    通らない ([T-287] の残余)。delta_pct field は planner 射影時に None を fail-closed 強制する。
+    result の想定値は success (certified 緑) | fail (verify/liveness 赤) |
+    rejected (diff 検疫 reject)。"""
     e = WhiteboardEntry(iteration=state.iteration, direction=planner.direction,
                         magnitude=planner.magnitude, result=result, delta_pct=delta_pct)
     state.whiteboard.append(e)
@@ -292,8 +295,10 @@ def whiteboard_for_planner(state: LoopState) -> List[Dict]:
     """planner-v4 / coder-v4 入力の whiteboard フィールド。
 
     段 4 はこの whiteboard 射影経路の delta_pct field に限って None を fail-closed
-    強制する (規律2/6)。direction / magnitude / result の値は checkpoint から無検証で
-    入り得る ([T-287] の残余)。これは planner 入力全体の性能値遮断ではない。絶対
+    強制する (規律2/6)。checkpoint 復元時の direction / magnitude / result は
+    state_from_dict が型・値域を検査するが、project_whiteboard からの in-memory 値は無検査で、
+    layer3_report の独立 reader も復元境界を通らない ([T-287] の残余)。これは planner 入力全体の
+    性能値遮断ではない。絶対
     throughput は別 field の current_perf で planner へ、baseline で coder へ渡り、
     planner には leading_indicators も渡る。delta_pct field は load 側 state_from_dict
     と二重で塞ぎ、in-memory 経路 (project_whiteboard が誤って非 None を書く) も射影の
@@ -389,6 +394,11 @@ def state_to_dict(state: LoopState) -> Dict:
 
 _WB_FIELDS = {"iteration", "direction", "magnitude", "result", "delta_pct"}
 _TOP_FIELDS = {"iteration", "start_wall", "reverse_recommendations", "whiteboard"}
+_WB_VALUE_DOMAINS = (
+    ("direction", frozenset({"increase", "decrease", "explore_both"})),
+    ("magnitude", frozenset({"small", "medium", "large"})),
+    ("result", frozenset({"success", "fail", "rejected"})),
+)
 
 
 def state_from_dict(d: Dict) -> LoopState:
@@ -401,7 +411,10 @@ def state_from_dict(d: Dict) -> LoopState:
         の予算超過、規律4)。リーク側 (whiteboard entry) は塞いで予算側は塞がない非対称を解消する。
     (2) **whiteboard entry は既知 5 フィールドに絞り** (未知キー = 機序漏れの疑い、決定3)、段 4 は
         **delta_pct≡None を値契約として強制**する (型で名前を whitelist するだけでは勝ち筋チャネル
-        の混入を防げない、規律2/6)。"""
+        の混入を防げない、規律2/6)。
+    (3) checkpoint 復元時の direction / magnitude / result は exact str と閉じた値域を要求する。
+        in-memory 射影経路と layer3_report の独立 reader はこの検査を通らず、iteration 整合・
+        entry 件数・campaign/run origin も本関数では検査しない。"""
     unknown = set(d) - _TOP_FIELDS
     if unknown:
         raise ValueError(f"checkpoint top-level に未知フィールド {unknown} — schema drift/改竄の疑い (規律6)")
@@ -410,7 +423,7 @@ def state_from_dict(d: Dict) -> LoopState:
         raise ValueError(f"checkpoint に必須フィールド {missing} 欠落 — 予算/収束カウンタの暗黙"
                          f"リセット (予算ゲート fail-open) を防ぐため fail-closed (規律2/4/6)")
     wb = []
-    for e in d["whiteboard"]:
+    for index, e in enumerate(d["whiteboard"]):
         extra = set(e) - _WB_FIELDS
         if extra:
             raise ValueError(f"whiteboard entry に未知フィールド {extra} — 機序漏れの疑い (決定3)")
@@ -419,9 +432,20 @@ def state_from_dict(d: Dict) -> LoopState:
             raise WhiteboardLeakError(
                 f"段 4 の delta_pct≡None 不変が破れた (delta_pct={delta!r}) — 勝ち筋チャネルの "
                 f"checkpoint 経由混入 (規律2/6)。段 6 で live 化するまで None 固定")
+        entry_iteration = int(e["iteration"])
+        checked = {}
+        for field_name, allowed in _WB_VALUE_DOMAINS:
+            value = e[field_name]
+            if type(value) is not str or value not in allowed:
+                sorted_allowed = sorted(allowed)
+                raise ValueError(
+                    f"whiteboard entry[{index}].{field_name} は str の許可値 "
+                    f"{sorted_allowed!r} のいずれか必須 (受領型={type(value).__name__}) — "
+                    f"checkpoint schema drift/改竄の疑い (規律6)")
+            checked[field_name] = value
         wb.append(WhiteboardEntry(
-            iteration=int(e["iteration"]), direction=e["direction"],
-            magnitude=e["magnitude"], result=e["result"], delta_pct=delta))
+            iteration=entry_iteration, direction=checked["direction"],
+            magnitude=checked["magnitude"], result=checked["result"], delta_pct=delta))
     return LoopState(whiteboard=wb, iteration=int(d["iteration"]),
                      start_wall=float(d["start_wall"]),
                      reverse_recommendations=int(d["reverse_recommendations"]))

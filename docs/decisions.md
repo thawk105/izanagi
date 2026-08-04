@@ -6949,3 +6949,278 @@ receipt (`qdel.cleanup_policy`、`qdel.gate`、`qdel.job_may_remain`) で射程�
   destructive command を発行しうる。
 - receipt schema を上げて既存 field 意味を変える案 — consumer の実在を確認したうえで
   additive 拡張に留め、既存 `qdel.reason` の語彙も維持した。
+
+## D143. 壁 1 を塞いでいるのは transport ではなく実行時 attestation である — 述語と凍結較正の択一はユーザー裁定へ返す (2026-08-04)
+
+**決定 (1): 生死確認は実施し、壁 1 は越えられていないと確定した。**
+使い捨て driver + job script を計算ノードの 1 ジョブで走らせた (request 882490、bnode002)。
+2 脚 (`legacy+s2` / `legacy` 単独) とも **build へ到達せず**、`build_done` / `verify_done` /
+`bench_done` は WAL に 1 件も書かれていない。**したがって transport 自体については肯定・否定
+いずれの証拠も得ていない。** 逐語と一次資料は
+`output/insights/2026-08-04_wave-a-campaign-transport-smoke/`。
+
+**決定 (2): 塞いでいる原因を特定した。実行時 attestation である。**
+両脚とも `execution_guard` の `effective_clock.samples_mhz` 比較で停止した。述語は
+「期待列の中央値を中心に、**観測列の全要素**が ±`tolerance_pct` に入ること」であり、
+Pegasus 契約は `attestation_mode="required"` なので campaign の全実行がここを通る。
+詳細と自己不整合の実測は F97。
+
+**決定 (3): 述語と凍結較正のどちらを正とするかは実装せずユーザー裁定へ返す。**
+これは正しさ防壁と凍結成果物の bytes に同時に触れるため AI が既成事実にしない。択一:
+
+- **(a) 較正側を正とし、述語を「観測の分布」対「期待の分布」の比較へ変える。**
+  例: 両側の中央値差を見る、または外れ値を 1 件許容する。
+  **有利材料:** 凍結 bytes を変えない。ブーストは実機に常在する現象なので、
+  「1 コアでも外れたら不合格」は環境ノイズで恒常的に落ちる。
+  **不利材料:** 受理集合が広がる。どこまで緩めるかの根拠を別途要する。
+- **(b) 述語を正とし、較正を取り直して登録し直す。**
+  **有利材料:** 述語 (全コアが定格帯) は「計測時に余計な負荷が無い」ことの検査として意味を持つ。
+  **不利材料:** 凍結成果物の再登録は proof chain の参照を動かす。しかも取り直した較正が
+  再びブースト混じりなら同じ穴が再発する — 取得手順側に「全要素が帯内であること」の
+  受入検査を同時に入れない限り閉じない。
+- **(c) attestation を campaign 実行から外す。** — **却下。** 規律 2 に反する。
+  計測環境が登録時と同じであることの検査を、通らないという理由で外してはならない。
+
+**推奨: (b) + 取得時受入検査。** 述語の意図 (計測時に定格から外れたコアが無い) は正当であり、
+壊れているのは「その検査を満たさない較正を登録できてしまった」側だからである。
+ただし凍結成果物の再登録はユーザー裁定事項である。
+
+**決定 (4): D131 の共通前提のうち 2 件は既に閉じていた。**
+- `total_deadline` が順番待ちを実行時間から差し引く欠陥は解消済み。`dispatch_compute.py` は
+  RUN を初観測した時刻へ deadline を rebase する。
+- 走行中ジョブへの qdel は fresh qstat gate が禁じている (`_QDEL_CLEANUP_POLICY`)。
+一方 **D117 決定 (4)(b) は未解消**である。`_job_run` は `os.environ.copy()` を継承したうえで
+request の environment を上書きするだけで、`_TaskSpec.env_allowlist` を**子側で強制していない**。
+allowlist が効くのは親が request に載せる値の絞り込みだけである。
+
+**決定 (5): 恒久実装の設計は、この wave で判明した 3 つ目の面を加えて設計する。**
+D131 は (a) `TASKS` へ task 追加 / (b) `submit_*.sh` を 1 本足す、の 2 択だった。
+本 wave はここに**第 3 の面**を加える: **8c の CLI (`p3_autonomous_workload_trial.py`) は
+`--provider fixture` と実 build が排他であり、計算ノードの build opt-in は `claude-headless`
+provider 専用で LLM transport receipt を要求する。** したがって「LLM を使わずに計算ノードで
+build する」経路はあの CLI に存在しない。恒久実装はこの排他をどう解くかを含めて設計する必要がある。
+本 wave は `drive_iteration` を直接呼ぶ使い捨て driver でこれを回避したが、これは
+sanctioned な形ではない。
+
+**理由:**
+- `DW-G01` は本格実装前の最安の生死確認を義務づける。
+- `DW-S04` は「scope 外の real 所見は実装せず、設計択一・所見・推奨案を裁定パッケージで返す」と定める。
+- F84 の「sanctioned job script の正規化を逐語で再利用する」の射程には、環境正規化だけでなく
+  **投入インタフェース (qsub 引数の受け渡し形) も含む**。今回そこを発明して投入前に止めた
+  (F99)。
+
+**却下した選択肢:**
+- **8c CLI を `--allow-pegasus-compute-transport` 付きで使う** — 計算ノードで LLM を起動する形になり、
+  分割線の議論 (D122 と inbox の再裁定待ち) の帰結を先取りしてしまう。本 wave は LLM を経路から
+  完全に外し、どちらに転んでも成立する形を採った。
+- **numactl を偽装して S2 verify を通す** — 規律 2 に反する。契約が宣言した空 prefix をそのまま使い、
+  落ちるなら落ちたまま記録する方針を採った。
+- **attestation を迂回して transport だけ測る** — 同上。防壁を外して得た「通った」は証拠にならない。
+
+**この決定が保証しないこと:** build / verify / bench の transport が計算ノードで通るかは
+**依然として未知**である。本 wave はそこへ到達していない。attestation の裁定が付いた後に
+同じ使い捨て driver を再走させれば、追加実装なしで確かめられる。
+
+## D144. Pegasus 計算ノードは単一 NUMA ノードであり、契約の空 numactl には根拠がある — ただし S2 verify は代理条件で塞がれている (2026-08-04)
+
+**決定 (1): 実測を記録する。** bnode002 は `available: 1 nodes (0)`、48 CPU が node 0、127476 MB。
+`numactl` は計算ノードに存在する (`/bin/numactl`) が、**ログインノードには存在しない**。
+単一ノードでは `--interleave=all` は交互配置する相手がおらず実質的に恒等である。
+したがって `env_contract` の Pegasus 契約 `numactl=()` には実質的な根拠がある。
+
+**決定 (2): S2 verify が Pegasus で塞がれている件は、静的確認に留める。**
+`pipeline.py` は「S2 相当 (`fullscale_isolated=True`) を含む verify 構成で `numactl` が空なら
+build 前に `ValueError`」と定める (D36 決定4-4)。Pegasus 契約は空なので必ず発火する。
+**gate が見ているのは「numactl prefix が非空か」という代理条件**であり、本来の目的である
+「verify と bench でメモリ配置を揃える」は単一 NUMA ノードでは自明に満たされている。
+本 wave では attestation が先に落ちたため**実機ではこの gate に到達していない**。
+
+**決定 (3): gate は変更しない。** 代理条件を「配置が揃っているか」の直接判定へ置き換える案は
+正しさ防壁に触るため、attestation の裁定と併せてユーザーへ返す。
+
+**理由:** 規律 2 は正しさゲートを緩める変異を禁じる。代理条件が過剰に厳しいという主張は、
+実機で発火を確認してから出すべきであり、本 wave はそこへ到達していない。
+
+**却下した選択肢:**
+- **契約の numactl を非空へ書き換えて S2 を通す** — 単一ノードで `--interleave=all` を付けても
+  意味は変わらないが、契約 bytes は proof chain に束縛されており勝手に動かせない。
+
+## D145. between-run floor は 1 submission cohort では確立しない — 取得量を estimand で名乗り、時間窓 cluster 数の裁定まで実装しない (2026-08-04)
+
+**決定:** Pegasus の between-run noise floor 取得について次を確定する。
+
+1. **1 submission cohort (= 1 度に投入した job 束) から得られる量を floor と呼ばない。**
+   独立な PBS request を何本並べても、事前登録された時間窓が 1 つなら得られるのは
+   `same-submission-cohort allocation-session-median CV` である。これは cold-boot・時間ドリフト・
+   共有系の common-mode を含まない**下限**であり、D19 が floor に採らなかった量と同型である。
+2. **取得量は estimand を明示した名前で呼び、採否閾値へ配線しない。** 仮に将来この量を
+   artifact 化するときも、`evidence_class` と時間窓 cluster 数を artifact 自身に刻み、
+   compare の丸め閾値 (`noise_cv`) へは配線しない。
+3. **1 測定の品質ゲートの問いは、within-run で既に閉じている。** 品質ゲートは within-run の
+   役割 (roadmap §3.6(2)、閾値 5%) であり、登録済み Pegasus calibration の within-run CV
+   1.17% が既にその答えである。between-run 値を品質ゲートへ流用しない (D19 の用途分離)。
+4. **floor は動作点署名ごとの量である。** 1 動作点で測った値を別 workload / records / threads へ
+   外挿しない。roadmap は floor を `(env, records, threads, 代表 workload/config)` の署名別に
+   持つと規定しており、実測でも同一環境の 3 動作点が 10 倍近く異なる。
+5. **真正な floor を狙う専用 infra は、設計が裁定されるまで建てない。** 本 wave 走行中に
+   land したユーザー裁定は「新規 infra は建てず、既存 driver の最小 env 化で安価に測り、
+   ばらつきを見てから infra の要否を判断する。その値は scoping であって floor ではない」であり、
+   本決定はこれと整合する — 安価測定を妨げず、**得られた値を floor や品質ゲートへ
+   昇格させることだけを禁じる**。専用 infra を建てる段階の前提として、時間窓 cluster 数と
+   標本数の裁定、対象 workload 署名の確定、計算ノード interpreter の版数 gate、
+   certified job script の bytes 束縛の 4 件を要求する。
+
+**理由:**
+
+- 道具自身が下限しか返さないと宣言している。`between_run_noise_floor` の docstring は
+  「本関数が返すのは fresh な same-window の between-run CV = 下限であり、wired する floor は
+  cross-campaign の genuine な between データと突き合わせ保守側に採ること」と書く。
+  1 束の設計はこの docstring が名指しで排除した使い方である。
+- D19 は同じ罠を一度踏んで塞いでいる。within-run を採否閾値へ流用すると
+  between-run ドリフト帯の差を有意と誤判定して**偽 faster** を出す、という構造である。
+  same-window の between-run 値も同じ向き (系統的に低い側 = 偽 faster 側) へ倒れる。
+- 標本数を先に固定できない。D134 は効果量と検出力から導かれない固定標本数を拒否した。
+  floor でも同じで、8 という数は CV 推定の相対標準誤差が 26.7% になる規模であり、
+  時間窓成分に至っては標本数が実質 1 である。
+- 用途の取り違えは受理集合を静かに動かす。品質ゲート (within-run) と採否の床 (between-run) は
+  D19 が意図的に分けた 2 量であり、片方の測定でもう片方の問いに答えると、
+  proof chain は形式的に揃ったまま採否意味論だけが過小閾値になる。
+
+**却下した選択肢:**
+
+- **1 束で測って「floor 取得済み」と台帳へ記録する** — 取得量が floor でないため、
+  台帳だけが虚偽に閉じる。下流の取得義務は消えないのに、消えたように見える。
+- **単一 allocation 内で 8 セッションを回す最小案** — 実装費用は下がるが、
+  allocation / build / node の分散すら捉えないぶん、同じ下限クラスの中でさらに弱い値になる。
+- **得られた CV が within-run を下回ったら「安定している」と積極的に解釈する** —
+  同一環境の既存 3 動作点すべてで between が within を下回っており、これは median 集約と
+  熱・周波数・cache の状態共有による現象であって安定性の証明ではない。
+  結果を見てから意味を決める余地は、正しさシグナルの後付けと同型である。
+- **official guard 側の gate を先に開ける** — 本件が求める層 C の一般 floor は
+  guard の依存下に無く、guard を動かす理由にならない。逆に、対象別 floor は guard の下にあり、
+  一般 floor の取得ではその義務を代替できない。
+
+## D146. sort 軸 integrity witness の同値関係は因果同値でなく固定 origin 内の観測同値とする (2026-08-04)
+
+**決定 (1): `reason` を因果の名前として扱わない。** `P <reason>` の reason は comparator の
+壊れ方ではなく、producer 側の**事後検査の分岐名**である。validationPhase の検査は先に
+`write_set_` の size を比べ、size が等しいときだけ `rcdptr_` multiset を比べる短絡順であり、
+非反射・非対称・非推移のどの comparator 違反も「無傷 / size 変化 / size 同一だが multiset 変化」の
+いずれにもなりうる。したがって comparator 法則から reason への写像は関数ですらなく、全射でも
+単射でもない。reason を「同じ理由で危険」の意味キーに使うと、材料レポートと次手帰属が
+実測していない機序を参照する。
+
+**決定 (2): 閉じた観測コードへ写像する。** `size-changed` は
+(size_preserved=false, rcdptr_multiset_preserved=NOT_EVALUATED)、`rcdptr-set-changed` は
+(size_preserved=true, rcdptr_multiset_preserved=false) へ写す。生文字列を意味キーにしない。
+producer が証明したのは観測 2 点の真偽だけであり、名前から強い保証を読ませない。
+
+**決定 (3): 同値は固定 origin 内で定義する。** D138 は cut key を origin manifest・emitter・
+verifier policy・environment contract・IR schema へ束縛し、いずれかが変われば新 origin とする。
+裸の `(kind, reason)` を大域キーにすると、emitter 版が変わって検査対象や意味が変わっても
+同一クラスへ束ね、旧 origin の証拠が新 origin へ混入する。
+
+**決定 (4): event と class を型として分ける。** dataclass の既定 equality と別に同値キーを
+定義すると 2 つの equality が併存し、実効キーへ schedule ノイズが戻る。
+発生スレッド・出現順・件数・txn 境界は class に含めない。
+
+**決定 (5): 発生スレッドは payload でなく hint として持つ。** P 行は thread id を持たず、
+`trace_<n>.log` という命名規約からの推定にすぎない。収集段で rename されれば断定は誤る。
+名前に推定であることを出し、根拠を持たせ、非 canonical 名では欠測とする。
+現行 parser の受理集合を変えないため parse error にはしない。
+
+**決定 (6): 未知 reason は捨てず、意味層では fail-closed。** parser は現行どおり任意の 1 token を
+受理して counter へ載せる (受理集合不変)。ただし「既知語彙に属さない」ことを構造として保持し、
+還流 adapter は未知 reason を契約エラーとする。観測後に新しい危険クラスを自動生成すると、
+事前登録していない意味を「対応済み」として扱う経路になる。
+
+**決定 (7): 外部露出は集約する。** 実測で P 行は 1 run あたり最大 879,025 件に達する
+(`output/env/linux-baremetal/calibration/s5_permutation_coverage.json` の swap 制御)。
+1 行 1 object を WAL・critic・材料レポートへ無制限に流すと、verifier timeout・巨大 WAL 1 行・
+critic context の切詰めを招く。露出は reason 別件数と bounded sample とし、
+件数の定数固定を受入条件にしない。
+
+**決定 (8): LLM 可視面は閉じた語彙にする。** trace 由来文字列は規律 6 のデータであり、
+rejection 描画を通じて critic prompt へ素通しされる。判別子は既知 2 語と unknown に閉じ、
+未知語は件数と bounded escaped sample として残す (黙って捨てない)。
+
+**決定 (9): 受理集合不変の証明は実経路で取る。** 手構築した integrity object の比較では、
+counter を作る parser/core 自身の変更に発火しない。parse → verify → dict の実経路を通し、
+P のみ / 同一 reason 重複 / 複数 trace file / 未知 reason / 非 canonical filename / 極大件数で
+旧値と比較する。
+
+**決定 (10): 本 wave では実装しない。** verifier の全 Python が committed qualification evidence の
+runtime module binding に束縛されており、witness を verifier へ足すと再束縛検査が必ず赤になる
+(実測)。D107 の「後から足す側が退く」は本件では退避先が無く、正規の再束縛経路も無い。
+evidence の hash 書換え・binding 検査の緩和・テストの skip は proof chain の falsification として
+禁じる。実装可否はユーザー裁定へ返す。
+
+**理由:**
+- D138 は「sort 軸の同値関係」を確定していないこととして明記しており、還流契約を sort 軸へ
+  適用する前提条件がここにある。実装が塞がれていても、意味契約は先に確定できる。
+- 因果同値として名乗ると、producer が証明していない機序を proof chain と材料レポートが参照する。
+  観測同値へ落とせば、保証していないものを保証すると書かずに済む。
+
+**却下した選択肢:**
+- 生 `reason` を大域の意味キーにする — origin 境界を破り、emitter 版差を同一視する。
+- 発生スレッド・件数・順序を同値キーへ含める — schedule ノイズで同じ危険が別クラスになる。
+- 未知 reason を parse error にする — 現行受理集合を変え、正しさシグナルを落とす。
+- 未知 reason を観測後に新クラスとして自動採用する — 事前登録なしの意味を対応済みと扱う。
+- P 行に存在しない txid・key・comparator 座標を witness へ持たせる — 実在しない情報の捏造。
+- 実装を通すために evidence の binding を書き換える / 検査を緩める — proof chain の falsification。
+- 本件を「実装しない」で恒久的に閉じる — 表現層の発火実績は実在し、塞いでいるのは
+  binding の射程であって witness の必要性ではない。
+
+## D147. [T-244] D121 P3 の origin ledger は実装を差し戻す — 予算を origin へ束縛する設計が origin 識別の未確定で成立せず、batch 必須化で FSM の形も決まらない (2026-08-04)
+
+**背景:** D121 決定 (7) の P3 は「origin ledger が単一 in-flight・CAS・crash replay・削除耐性を持つ」
+であり、無条件義務のまま未充足だった。本 wave は新規 leaf 1 本としてこれを実装するために起票され、
+file:line 粒度の実装プランを起草した (逐語 = `output/insights/2026-08-04_t244-p3-origin-ledger/`)。
+段 3 の敵対 2 レンズが**独立に NO-GO** を返し、real 所見 17 件・疑い 1 件・nit 1 件を出した。
+
+**決定 (1): 本 wave では実装せず、プランを設計メモとして凍結する。** 決め手は 2 件である。
+
+第一に、**予算を `reflux-origin` へ束縛する設計 (D121 決定 5) が、origin 識別の未確定によって
+成立しない。** プランの `origin_id` は caller が渡す不透明な 64hex で、ledger root も caller 注入
+であるため、(i) 別の `origin_id` を名乗る、(ii) 同じ registry bytes を持つ別 root を 2 つ用意して
+別 inode の flock を得る、の 2 経路で予算が新品になる。これは D121 決定 (5) が campaign ID について
+塞いだ穴と同型である。塞ぐ規則 — origin preimage への束縛、同一の科学的 cell へ複数 origin を
+発行しない機械規則、authority root の同一性 — は**設計本文 §⑤ が「未解決」として明示的に残した
+項目**であり、値ではなく構造である。
+
+第二に、**軸 (iii) (候補 batch の事前凍結) の必須化により FSM の形が決まらない。** プランの
+状態機械は 1 slot = 1 query bind = 1 scalar result であり、batch cardinality・全候補の事前 commit・
+seal までの結果非公開を表現できない。batch commitment を nullable な seam に留めると、
+単一 in-flight は「batch を使わず逐次 query する」か「複数候補を 1 つの不透明 digest と名乗る」かの
+どちらでも**恒真化する**。
+
+**決定 (2): P10 の充足は設計本文 §⑤ の未解決欄を閉じない。** 本 wave の走行中に予算値の裁定が
+land し、P10 (予算値・origin authority・軸 (iii) がユーザー裁定で確定) の 3 点が揃った。
+しかし P10 は人間 gate の条件であり、origin をどう識別するか・重複発行をどう禁じるか・batch を
+どう表すかという**設計項目は P10 の外にある**。「P10 が揃ったので P3 に着手できる」と読んではならない。
+
+**決定 (3): leaf 単体では「P3 充足」と名乗らない。** 実効性に必要な層 (producer、registry/issuer、
+CLI/driver、正式記録、consumer、batch policy、storage/lock admission) のうち、leaf が担うのは
+codec と FSM だけである。consumer 束縛 (P7) を欠く leaf が保証するのは「正しい registry と policy を
+渡し、この API だけを使う協調 caller」に対する FSM/CAS/replay に限られる。記録してよい名乗りは
+「P3 用 origin-ledger の codec/FSM prototype」までとする。
+
+**決定 (4): 予算 policy は floor 制約を必須とする。** 予算値を下限式から導き直すという裁定が
+land した以上、下限制約を 1 件も持たない policy を正規値として受理してはならない。値そのものは
+authority が入れるため、実装は値をハードコードせず immutable な制約として受け取る。
+
+**却下した案:** (a) 未確定部分を親の裁量で決めて実装する — D121 却下案 (b)
+「未裁定設計を既成事実にする」と同型であり、両レンズが独断確定と判定した。
+(b) 未結線のまま leaf だけ land して「P3 実装済み」と記録する — D115 が却下した
+「索引だけ作り consumer を付け替えない」、D122 決定 (4) が却下した「CLI へ届かない解禁」と同型。
+(c) 既存の資格審査台帳を直接 import して共有化する — 別 package の編集は本 wave の scope を越え、
+capability・lineage・event state が異なる。
+
+**先行実装との関係 (正直な会計):** 資格審査側の attempt 台帳は、hash chain・連番 create-only file に
+よる CAS・二相 commit・厳密一致 idempotency を既に実装している。本設計の純増は state commitment に
+よる CAS、origin 用の 7 event 文法、外部 anchor、query/iteration 予算の 4 点に限られる。
+なお「台帳を消せば常に新品になる」は一般化として誤りである — 生き残った成果物を持つ consumer は
+台帳欠落を拒否する実テストを持つ。
+
+**研究状態への影響:** なし。本 wave は docs と逐語のみで、production 挙動、受理集合、certified 選択、
+材料レポート、proof chain、凍結 bytes はいずれも不変である。実装差分が無いため変異 matrix は対象外。
