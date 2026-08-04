@@ -143,3 +143,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:ruleops-inventory-skip-non-utf8":"D151"},"authored":"2026-08-04","content_sha256":"92d3837a96138ccf9cd0e2709b681aed0607c8a234f030c714fa6873cee2bf8f","seq":2,"wave":"wave-t407-ruleops-binary-blob"}
 
 - {"allocations":{"T:backoff-hole-allowlist":"[T-441]","T:freeze-live-source-regression":"[T-442]"},"authored":"2026-08-04","content_sha256":"db2f98d99c889d8d064f06d23867551b75e4aba387728b9833b5be7f889501d6","seq":1,"wave":"rulings-20260804"}
+
+- {"allocations":{"T:codex-reasoning-ab-tmp-flake":"[T-447]","T:mimalloc-tag-pin-sync":"[T-446]","T:mutation-runner-known-red":"[T-448]","T:thirdparty-acquisition-receipt":"[T-444]","T:thirdparty-cache-same-uid-toctou":"[T-449]","T:thirdparty-fetchcontent-other-campaigns":"[T-443]","T:thirdparty-hydrate-enforcement":"[T-445]"},"authored":"2026-08-04","content_sha256":"c65411154d21bf2dbbfd883e43f0185907cd63c59c38ee1541c956b8f01968f7","seq":1,"wave":"wave-t340-thirdparty-fetch"}
+- {"allocations":{"D:thirdparty-fetch-path":"D152"},"authored":"2026-08-04","content_sha256":"2faf074cc396f83479cbff5cb8a13dd78af9e49b1d8bf50ba0cfa750753b10e7","seq":2,"wave":"wave-t340-thirdparty-fetch"}
+- {"allocations":{"F:commit-during-acceptance-run":"F106","F:empty-dir-untracked-fixture":"F105","F:mutation-masked-by-outer-verify":"F107"},"authored":"2026-08-04","content_sha256":"ac99a447f04775e69a1ac87bb2985ccfc49d32a10fa63c3ee8a9793cd4a14fec","seq":3,"wave":"wave-t340-thirdparty-fetch"}
