@@ -163,6 +163,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_s8c_preregistration_predicates.py
 - test_screening_driver.py
 - test_screening_opt_in.py
+- test_t419_probe_causality.py
 <!-- PYTEST_ONLY_ALLOWLIST_END -->
 
 ## 依存物不在時の skip (可視化)

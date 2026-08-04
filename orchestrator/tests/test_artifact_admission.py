@@ -2,6 +2,7 @@
 """Independent sentinels for the T-344 deny-only campaign overlay."""
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 from dataclasses import FrozenInstanceError
@@ -10,11 +11,14 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import artifact_admission as A
+from orchestrator.campaign import trigger_gate_binding, wal
 from orchestrator.campaign.build_admission import (
     GeneratorId,
+    add_coder_build_authority_argument,
     build_run_context,
     derive_build_admission,
 )
+from orchestrator.campaign.model import Genome
 from orchestrator.campaign.pin import CURRENT_PIN
 from orchestrator.campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, SourceEvidence
 
@@ -64,26 +68,61 @@ def _write_campaign(root: Path, lock: dict, records: list[dict]) -> Path:
     return root
 
 
-def _record(stage: str, payload: dict, *, ts: float) -> dict:
+def _record(
+        stage: str, payload: dict, *, ts: float,
+        variant: str = "6a803ba39f7b",
+) -> dict:
     return {
-        "variant": "6a803ba39f7b", "stage": stage, "env_tag": "test", "ts": ts,
+        "variant": variant, "stage": stage, "env_tag": "test", "ts": ts,
         "payload": payload,
     }
 
 
-def _new_schema_campaign(tmp_path: Path, *, omit_receipt: bool = False) -> Path:
-    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
-    genome = "silo|BACK_OFF=0"
+def _campaign_id_for_lock(lock: dict, *, slug: str = "campaign") -> str:
+    encoded = json.dumps(
+        lock, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+    return f"{slug}-{lock['search_tag']}-{hashlib.sha256(encoded).hexdigest()[:8]}"
+
+
+def _rename_for_lock(campaign: Path) -> Path:
+    lock = json.loads((campaign / "campaign.lock").read_text())
+    expected = campaign.parent / _campaign_id_for_lock(lock)
+    if expected != campaign:
+        campaign.rename(expected)
+    return expected
+
+
+def _new_schema_campaign(
+        tmp_path: Path, *, omit_receipt: bool = False,
+        coder_authored: bool = False,
+) -> Path:
+    if coder_authored:
+        parser = argparse.ArgumentParser(add_help=False)
+        add_coder_build_authority_argument(parser)
+        authority = parser.parse_args(
+            ["--allow-coder-derived-build"]
+        ).coder_build_authority
+        context = build_run_context(
+            generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+            coder_authority=authority,
+        )
+    else:
+        context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    genome_value = Genome("silo", {"BACK_OFF": 0})
+    genome = genome_value.canonical()
+    src_token = "b" * 64 if coder_authored else "stock"
     evidence = SourceEvidence(
         schema_version="source-evidence/v1",
         source_root=str(tmp_path.resolve()),
         ccbench_commit=CURRENT_PIN,
         genome_sha256=hashlib.sha256(genome.encode()).hexdigest(),
-        src_token="stock",
+        src_token=src_token,
         source_bytes_sha256="a" * 64,
-        tracked_clean=True,
-        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
-        tracked_paths=(),
+        tracked_clean=not coder_authored,
+        tracked_diff_sha256=("c" * 64 if coder_authored
+                             else EMPTY_TRACKED_DIFF_SHA256),
+        tracked_paths=(("cc/silo/transaction.cc",) if coder_authored else ()),
     )
     admission = derive_build_admission(context, evidence)
     receipt = admission.as_wal_receipt()
@@ -91,7 +130,7 @@ def _new_schema_campaign(tmp_path: Path, *, omit_receipt: bool = False) -> Path:
     start = {
         "build_attempt_id": attempt_id,
         "genome": genome,
-        "src_token": "stock",
+        "src_token": src_token,
     }
     if not omit_receipt:
         start.update({
@@ -102,10 +141,11 @@ def _new_schema_campaign(tmp_path: Path, *, omit_receipt: bool = False) -> Path:
         "build_attempt_id": attempt_id,
         "build_admission_receipt_sha256": receipt["receipt_sha256"],
     }
+    variant = A.pipeline.variant_id(genome_value, src_token)
     records = [
-        _record("build_start", start, ts=1.0),
-        _record("build_done", terminal, ts=2.0),
-        _record("commit", terminal, ts=3.0),
+        _record("build_start", start, ts=1.0, variant=variant),
+        _record("build_done", terminal, ts=2.0, variant=variant),
+        _record("commit", terminal, ts=3.0, variant=variant),
     ]
     lock = {
         "ccbench_commit": CURRENT_PIN,
@@ -118,7 +158,71 @@ def _new_schema_campaign(tmp_path: Path, *, omit_receipt: bool = False) -> Path:
         "spec_content": "test",
         "trial": "test",
     }
-    return _write_campaign(tmp_path / "campaign", lock, records)
+    return _write_campaign(tmp_path / _campaign_id_for_lock(lock), lock, records)
+
+
+def _classify_as_trigger(
+        campaign: Path, *, marker: bool, proposal: bool, binding: bool,
+        axis: str = wal.TRIGGER_AXIS,
+) -> Path:
+    lock_path = campaign / "campaign.lock"
+    lock = json.loads(lock_path.read_text())
+    search = lock["search_config"]
+    search["axis"] = axis
+    if proposal:
+        search["reflux"] = "on"
+    else:
+        search.update({
+            "generator": "reason-subset-v1",
+            "space": "reason-subsets(effective)+identall+stock",
+        })
+    if marker:
+        search[wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY] = trigger_gate_binding.SCHEMA_VERSION
+    lock_path.write_text(
+        json.dumps(lock, sort_keys=True, separators=(",", ":")), encoding="utf-8",
+    )
+    if not binding:
+        return _rename_for_lock(campaign)
+
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    start = next(record for record in records if record["stage"] == "build_start")
+    source = start["payload"]["build_admission"]["source"]
+    value = trigger_gate_binding.TriggerGateBinding(
+        mask=9,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(9),
+        nonce="9" * 64,
+        source=trigger_gate_binding.SourceBinding(
+            src_token=source["src_token"],
+            source_bytes_sha256=source["source_bytes_sha256"],
+        ),
+    )
+    start["payload"][wal.TRIGGER_BINDING_COMMITMENT_KEY] = \
+        trigger_gate_binding.commitment(value)
+    raw = _record(trigger_gate_binding.WAL_RECORD_STAGE, {
+        "build_attempt_id": start["payload"]["build_attempt_id"],
+        wal.TRIGGER_BINDING_PAYLOAD_KEY: trigger_gate_binding.to_record(value),
+    }, ts=start["ts"] - 0.5)
+    raw["variant"] = start["variant"]
+    records.insert(records.index(start), raw)
+    wal_path.write_text(
+        "".join(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+                for record in records),
+        encoding="utf-8",
+    )
+    reports = campaign / "reports"
+    reports.mkdir(exist_ok=True)
+    (reports / "p3_s8a_trigger_loop_provenance.json").write_text(json.dumps({
+        "entries": {
+            "1": {
+                "build_attempt_id": start["payload"]["build_attempt_id"],
+                "variant": start["variant"],
+                wal.TRIGGER_BINDING_COMMITMENT_KEY:
+                    start["payload"][wal.TRIGGER_BINDING_COMMITMENT_KEY],
+            },
+        },
+    }), encoding="utf-8")
+    return _rename_for_lock(campaign)
 
 
 def test_overlay_raw_sha_and_exact_membership_are_independently_pinned() -> None:
@@ -209,6 +313,259 @@ def test_unlisted_post_policy_campaign_requires_exact_attempt_receipt(tmp_path: 
     admitted = A.require_admitted_campaign(campaign)
     assert admitted.decision.classification == "admitted-new-schema"
     assert len(admitted.decision.attempt_receipt_sha256s) == 1
+
+
+def test_post_policy_trigger_proposal_requires_marker_and_complete_binding(tmp_path: Path) -> None:
+    canonical = _classify_as_trigger(
+        _new_schema_campaign(tmp_path / "canonical"),
+        marker=True, proposal=True, binding=True,
+    )
+    assert A.classify_campaign(canonical).classification == "admitted-new-schema"
+
+    marker_without_binding = _classify_as_trigger(
+        _new_schema_campaign(tmp_path / "missing-binding"),
+        marker=True, proposal=True, binding=False,
+    )
+    with pytest.raises(A.ArtifactAdmissionError, match="一対一"):
+        A.classify_campaign(marker_without_binding)
+
+    proposal_without_marker = _classify_as_trigger(
+        _new_schema_campaign(tmp_path / "missing-marker"),
+        marker=False, proposal=True, binding=False,
+    )
+    with pytest.raises(A.ArtifactAdmissionError, match="binding marker"):
+        A.classify_campaign(proposal_without_marker)
+
+
+def test_post_policy_trigger_machine_sweep_does_not_require_binding(tmp_path: Path) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path),
+        marker=False, proposal=False, binding=False,
+    )
+    lock_path = campaign / "campaign.lock"
+    lock_path.write_text(json.dumps(json.loads(lock_path.read_text())), encoding="utf-8")
+    arbitrary_layout = campaign.parent / "machine-sweep-layout"
+    campaign.rename(arbitrary_layout)
+    campaign = arbitrary_layout
+    decision = A.classify_campaign(campaign)
+    assert decision.classification == "admitted-new-schema"
+    assert decision.admission_status == "admitted"
+
+
+def test_nontrigger_post_policy_preserves_default_json_and_arbitrary_layout(
+    tmp_path: Path,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    lock_path = campaign / "campaign.lock"
+    lock_path.write_text(json.dumps(json.loads(lock_path.read_text())), encoding="utf-8")
+    arbitrary_layout = campaign.parent / "formal-shaped"
+    campaign.rename(arbitrary_layout)
+
+    decision = A.classify_campaign(arbitrary_layout)
+    assert decision.classification == "admitted-new-schema"
+    assert decision.campaign_id == "formal-shaped"
+
+
+def test_post_policy_campaign_directory_id_must_match_lock_preimage(
+    tmp_path: Path,
+) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path),
+        marker=True, proposal=True, binding=True,
+    )
+    renamed = campaign.parent / "campaign-test-deadbeef"
+    campaign.rename(renamed)
+    with pytest.raises(A.ArtifactAdmissionError, match="directory ID"):
+        A.classify_campaign(renamed)
+
+
+def test_post_policy_trigger_proposal_requires_canonical_lock_bytes(
+    tmp_path: Path,
+) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path),
+        marker=True, proposal=True, binding=True,
+    )
+    lock_path = campaign / "campaign.lock"
+    lock_path.write_text(json.dumps(json.loads(lock_path.read_text())), encoding="utf-8")
+
+    with pytest.raises(A.ArtifactAdmissionError, match="canonical preimage"):
+        A.classify_campaign(campaign)
+
+
+def test_proposal_cannot_be_rewritten_as_machine_sweep_with_coder_receipt(
+    tmp_path: Path,
+) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path, coder_authored=True),
+        marker=True, proposal=True, binding=True,
+    )
+    lock_path = campaign / "campaign.lock"
+    lock = json.loads(lock_path.read_text())
+    search = lock["search_config"]
+    search.pop(wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY)
+    search.pop("reflux")
+    search.update({
+        "generator": "reason-subset-v1",
+        "space": "reason-subsets(effective)+identall+stock",
+    })
+    lock_path.write_text(
+        json.dumps(lock, sort_keys=True, separators=(",", ":")), encoding="utf-8",
+    )
+
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    records = [
+        record for record in records
+        if record["stage"] != trigger_gate_binding.WAL_RECORD_STAGE
+    ]
+    start = next(record for record in records if record["stage"] == "build_start")
+    assert start["payload"]["build_admission"]["class"] == "coder-authored"
+    start["payload"].pop(wal.TRIGGER_BINDING_COMMITMENT_KEY)
+    wal_path.write_text(
+        "".join(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+                for record in records),
+        encoding="utf-8",
+    )
+    provenance_path = campaign / "reports/p3_s8a_trigger_loop_provenance.json"
+    provenance = json.loads(provenance_path.read_text())
+    provenance["entries"]["1"].pop(wal.TRIGGER_BINDING_COMMITMENT_KEY)
+    provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
+    campaign = _rename_for_lock(campaign)
+
+    with pytest.raises(A.ArtifactAdmissionError, match="coder-authored receipt"):
+        A.classify_campaign(campaign)
+
+
+def test_post_policy_trigger_binding_tamper_is_rejected_by_shared_validator(tmp_path: Path) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path),
+        marker=True, proposal=True, binding=True,
+    )
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    raw = next(record for record in records
+               if record["stage"] == trigger_gate_binding.WAL_RECORD_STAGE)
+    raw["payload"][wal.TRIGGER_BINDING_PAYLOAD_KEY]["mask"] = 10
+    wal_path.write_text(
+        "".join(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+                for record in records),
+        encoding="utf-8",
+    )
+    with pytest.raises(A.ArtifactAdmissionError, match="binding record"):
+        A.classify_campaign(campaign)
+
+
+def test_post_policy_trigger_provenance_must_copy_wal_commitment(tmp_path: Path) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path),
+        marker=True, proposal=True, binding=True,
+    )
+    path = campaign / "reports/p3_s8a_trigger_loop_provenance.json"
+    provenance = json.loads(path.read_text())
+    provenance["entries"]["1"][wal.TRIGGER_BINDING_COMMITMENT_KEY] = "0" * 64
+    path.write_text(json.dumps(provenance), encoding="utf-8")
+    with pytest.raises(A.ArtifactAdmissionError, match="WAL build_start と不一致"):
+        A.classify_campaign(campaign)
+
+
+def test_trigger_provenance_requires_each_abort_retry_attempt(
+    tmp_path: Path,
+) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path),
+        marker=True, proposal=True, binding=True,
+    )
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    raw = next(record for record in records
+               if record["stage"] == trigger_gate_binding.WAL_RECORD_STAGE)
+    start = next(record for record in records if record["stage"] == "build_start")
+    receipt_sha = start["payload"]["build_admission_receipt_sha256"]
+    first_attempt = start["payload"]["build_attempt_id"]
+    second_attempt = "attempt-2"
+    raw_retry = json.loads(json.dumps(raw))
+    raw_retry["ts"] = 3.0
+    raw_retry["payload"]["build_attempt_id"] = second_attempt
+    start_retry = json.loads(json.dumps(start))
+    start_retry["ts"] = 4.0
+    start_retry["payload"]["build_attempt_id"] = second_attempt
+    abort_first = _record(
+        "abort", {
+            "build_attempt_id": first_attempt,
+            "build_admission_receipt_sha256": receipt_sha,
+            "reason": "build-error",
+        }, ts=2.0, variant=start["variant"],
+    )
+    abort_retry = _record(
+        "abort", {
+            "build_attempt_id": second_attempt,
+            "build_admission_receipt_sha256": receipt_sha,
+            "reason": "build-error",
+        }, ts=5.0, variant=start["variant"],
+    )
+    wal_path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in [raw, start, abort_first, raw_retry, start_retry, abort_retry]
+        ),
+        encoding="utf-8",
+    )
+
+    path = campaign / "reports/p3_s8a_trigger_loop_provenance.json"
+    provenance = json.loads(path.read_text())
+    provenance["entries"]["2"] = {
+        "build_attempt_id": second_attempt,
+        "variant": start["variant"],
+        wal.TRIGGER_BINDING_COMMITMENT_KEY:
+            start["payload"][wal.TRIGGER_BINDING_COMMITMENT_KEY],
+    }
+    path.write_text(json.dumps(provenance), encoding="utf-8")
+    assert A.classify_campaign(campaign).classification == "admitted-new-schema"
+
+    del provenance["entries"]["2"]
+    path.write_text(json.dumps(provenance), encoding="utf-8")
+    with pytest.raises(A.ArtifactAdmissionError, match="attempt/commitment"):
+        A.classify_campaign(campaign)
+
+
+def test_trigger_binding_marker_on_nontrigger_axis_is_mixed_and_rejected(tmp_path: Path) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path),
+        marker=True, proposal=False, binding=False,
+        axis="silo-writeset-sort",
+    )
+    with pytest.raises(A.ArtifactAdmissionError, match="binding marker"):
+        A.classify_campaign(campaign)
+
+
+def test_post_policy_trigger_unknown_marker_or_unclassified_shape_is_rejected(
+    tmp_path: Path,
+) -> None:
+    unknown_marker = _classify_as_trigger(
+        _new_schema_campaign(tmp_path / "unknown-marker"),
+        marker=True, proposal=True, binding=False,
+    )
+    lock_path = unknown_marker / "campaign.lock"
+    lock = json.loads(lock_path.read_text())
+    lock["search_config"][wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY] = "unknown/v9"
+    lock_path.write_text(
+        json.dumps(lock, sort_keys=True, separators=(",", ":")), encoding="utf-8",
+    )
+    unknown_marker = _rename_for_lock(unknown_marker)
+    with pytest.raises(A.ArtifactAdmissionError, match="binding marker"):
+        A.classify_campaign(unknown_marker)
+
+    unknown_shape = _new_schema_campaign(tmp_path / "unknown-shape")
+    lock_path = unknown_shape / "campaign.lock"
+    lock = json.loads(lock_path.read_text())
+    lock["search_config"]["axis"] = wal.TRIGGER_AXIS
+    lock_path.write_text(
+        json.dumps(lock, sort_keys=True, separators=(",", ":")), encoding="utf-8",
+    )
+    unknown_shape = _rename_for_lock(unknown_shape)
+    with pytest.raises(A.ArtifactAdmissionError, match="classification is unknown|分類が unknown"):
+        A.classify_campaign(unknown_shape)
 
 
 def test_post_policy_variant_is_rederived_from_genome_and_source(tmp_path: Path) -> None:

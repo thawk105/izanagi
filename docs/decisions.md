@@ -7811,3 +7811,189 @@ binding) へ変わり、signature 既定値が関数 object から opaque な se
 
 **研究状態への影響:** certified 選択・材料レポート・proof chain・凍結 bytes は不変。変わるのは
 自律試行の受理集合 (上記二群の拒否) だけである。
+
+## D158. exploration campaign の実行先を env seam で worktree 外へ出す (2026-08-04)
+
+**決定:** exploration campaign の base output root を環境変数
+`IZANAGI_EXPLORATION_OUTPUT_ROOT` で差し替え可能にする (F98 択 (iii) の 2026-08-04 ユーザー裁定の
+実装)。契約は次のとおり。
+
+- 優先順位: 非空の明示 `output_root` 引数 > env > repo 既定 (`repo_output_root()`)。
+  env 未設定時の既定挙動・path 文字列は従来と byte 同一。official `CampaignLayout` と
+  `output/env/` は env を参照しない
+- env 値の admission (env 経路のみ): 非空・絶対 path・`..` component なし・resolve 前後で
+  固定 suffix (`exploration/campaigns`, `exploration/autonomous-trials`) を含む既存 component の
+  lstat walk (symlink / 非 directory 拒否)・resolved root の祖先に `.git` なし
+  (main checkout・兄弟 worktree・他 repo を排除)・既存 base は実効 uid 所有
+- 解決値は process singleton (`sys.__dict__` + `threading.Lock`、module 二重 identity
+  非依存) に pin し、以後の env 変化・削除・不一致は fail-closed で `ValueError`。
+  8c trial の `--run-root` 省略既定も同じ resolver を通す (`legacy_base` 引数で env 未設定時の
+  旧既定 `ROOT/output` を byte 温存)
+- materialization admission は layout の明示 method (`_admit_materialization`) —
+  official は no-op、exploration は `.claude/worktrees` / `.codex/worktrees` container 配下への
+  作成を拒否する。`ensure()`、WAL の 4 経路 (append / write_lock / acquire_lock_atomic /
+  repair_truncated_tail)、`ensure_exploration_namespace()`、8c run_root materialize が同じ gate を
+  通る。env 未設定のまま wave worktree 内で campaign を実走しようとすると dirt 生成前に
+  fail-fast する (F98 の再発を構造的に防ぐ)
+- 機械固有の実 path は shared code・test・docs に置かず、job script / runbook (環境正本) だけが
+  持つ。外部 root は repo hooks の campaign tree 防護の外にある使い捨て領域であり、certified
+  材料・proof chain 素材を置かない (proof chain へ入る材料は従来どおり repo 内 official 経路のみ)
+
+**理由:**
+- F98 の両防壁 (guard の proof chain 保護と land の完全 clean 要求) はどちらも単体で正しく、
+  実測でも guard は repo 相対判定・durable-root admission は exploration 非接触のため、
+  実行先の外部化だけが両防壁を 1 つも緩めずに交差を解消する
+- env seam を layout factory 1 箇所に置くと、既存 driver 19 呼び出し箇所と使い捨て driver が
+  無改変で外部化される (per-driver CLI 追加は漏れ面が広い)
+- process pin と container gate は、敵対相談・レビューが実測根拠付きで示した root 分裂
+  (module 二重 identity・thread 競合・プロセス再入) と設定漏れ (env 未 export の wave 実走) を
+  fail-closed に倒す
+
+**却下した選択肢:**
+- F98 択 (i) land の clean 要求緩和・択 (ii) guard の worktree carve-out — 防壁を緩めるため
+  ユーザー裁定で不採用
+- per-driver CLI flag の全追加 — 呼び出し面が広く漏れが構造的に残る
+- worktree 検出による自動 redirect — 暗黙の機械結合で、テスト・既定挙動の byte 互換を壊す
+- WAL gate の official への無差別適用 (第 1 巡 fix) — 裁定射程 (exploration family のみ) の外で
+  official の受理集合を縮小する回帰と再判定し、是正した
+
+## D159. D121 P3 の origin ledger は U-A〜U-G の明示裁定に従い prototype として実装する — 敵対 28 所見を 3 巡で閉じ、P3 充足とは数えない (2026-08-04)
+
+**背景:** D147 は P3 の実装を差し戻し、裁定パッケージ U-A〜U-G を返した。2026-08-04 12:44 の
+ユーザー明示裁定 (「５件は推奨通りで」、一次控えは rulings-inbox、fold は別 wave) が全 7 件を
+親推奨どおり採用し「実装 wave を再起票できる」とした。本 wave はその再起票である。
+着手時点の brief は明示裁定の着弾前で、起票を黙示の採用と読む推定を置いていた —
+これは D147 却下案 (a) と同型であり、敵対レンズが攻撃した後、明示裁定へ根拠を差し替えた
+(brief-erratum-1)。
+
+**決定 (1): origin 識別を構造で閉じる。** `origin_id` は authority manifest (設計本文 §3.5 の
+列挙を固定 schema 化、`ccbench_commit_oid` は 40hex 強制) の canonical digest とし、caller handle を
+持たない。cell key = descriptor / axis semantics / verifier policy / environment contract の
+4 digest で、authority loader が同一 cell の 2 件目を拒否する。authority root は repo 内固定
+path 1 点で committed bytes 照合 (HEAD を OID へ 1 回解決し `<oid>:<path>`、hardened git env)。
+runtime は git-common-dir 配下で git commit しない (U-E の分離の帰結)。
+
+**決定 (2): batch を第一級にし、開示は seal に集約する。** cardinality >= 2 の salted
+commit-reveal (candidate / result / class とも salt は producer 保持、seal で開示・照合、
+既知 schema_ref は IR decode で wire 正準性検証)。certifiable seal は **sealed batch の
+query 数**で floor を判定し (tombstone 消費は予算のみ)、公開 class は distinct 全集合との
+完全一致。floor 未充足の終端は aborted seal (class 空)。予算 floor は formula_id + 非退化
+条件 + 構築的 feasibility 検査を持ち、係数値は authority 注入のまま。
+
+**決定 (3): 変異証拠の限界を正直に記録する。** (a) M-A2 の登録 operator
+「global → per-origin flock 置換」は単一点変異で表現不能と判明し、flock 除去 operator へ
+再照準した (erratum)。(b) operation 排他は多層防御であり、両層変異でも「別 operation の受理」は
+再現しない — 変異で証明済みと名乗るのは「二層除去での altered continuation 受理」までとする。
+(c) M-N12 は受理集合を変えない diagnostic sensitivity pin として別枠記録し、実行 spec では
+category=negative へ写像した (harness の許可集合が 3 値のため。凍結 spec との差分は台帳に記録)。
+
+**決定 (4): 成果物の名乗りは U-G の会計に従う。** 本実装は「P3 用 origin-ledger prototype
+(codec/FSM/registry)」であり、**P3 は依然 FAIL、cap-lift 上限 1 (D114) は不変**。P3 の充足は
+producer 結線と P7 (consumer の origin proof 要求、受理集合の変更ゆえ D96 手続) まで含めて数える。
+production authority は空 registry で、実在 campaign からの manifest 捏造登録は行わない。
+
+**却下した選択肢:** (a) 起票を黙示の裁定採用と読んで進める — D147 却下案 (a) と同型
+(明示裁定の実在により結論は同じだが、根拠として不可)。(b) 期待値未達の変異登録を
+そのまま KILLED 集合に残す — F28 型の偽 kill。(c) seal 前 bytes への平文保持 —
+低エントロピー結果の辞書 oracle になる。
+
+**研究状態への影響:** production caller ゼロ・authority 空のため、certified 選択・レポート・
+試行台帳・proof chain の現在値は不変。受理集合の変更もない (未結線 leaf + 専用テストのみ)。
+
+## D160. trigger-gating 候補受理を固定 5-bit wire と binding/v1 に閉じる — raw mask は専用 WAL record に隔離し、provenance / report には nonce 付き commitment だけを残す (2026-08-04)
+
+**決定 (D96 手続。境界テストと同一変更単位):** trigger-gating 軸の E 段候補受理を
+「構造検疫を通る任意の 1 行 C++」から「5 文字 wire (LSB-first、bit 順は
+`axis_trigger_gating.GATEABLE_REASONS`)」へ縮小する。受理面は 5 面を同時に閉じる。
+
+1. **proposal schema**: coder 契約 mode を閉じた列挙にし、trigger mode の required key は
+   `{axis, wire}`。`implementation` は未知 key として拒否し、key 閉包後に
+   `reflux_ir.parse_wire` で値域も閉じる。未知 mode・trigger mode と `require_coder_value`
+   の併用は設定誤りとして拒否する。
+2. **唯一経路化**: driver は `TriggerGateIR` だけを保持し、materialize へ渡る C++ は
+   `parse_wire → emit_predicate` の出力だけとする。旧「構文契約 grep」は受理 gate から
+   emitter 出力への内部 drift assertion へ格下げする。
+3. **汎用 sink の membership**: `p3_s4_loop.quarantine` は trigger marker の入力に限り、
+   全 32 mask の `emit_predicate` 出力との byte-exact 一致 (strip 同値) を要求する。
+   機械所有経路 (偵察 sweep、S1 直接比較、extime 較正) は正準述語を渡しており通過する —
+   これらは E 段候補表現の外であり、emitter への完全移行は別の変更単位とする。
+   sort / backoff の marker は挙動不変。
+4. **binding/v1**: attempt ごとに raw binding (mask、predicate_sha256、nonce、source =
+   {src_token, source_bytes_sha256} | null) を**専用 WAL record にのみ**書き、build_start
+   payload・provenance entry・formal report には canonical JSON の sha256 commitment
+   だけを残す。nonce (32 bytes) により候補 32 点の辞書攻撃で commitment から mask を
+   復元できない。replay・`records_by_stage`・artifact admission は同一 validator で
+   record の存在・key 閉包・mask 値域・predicate_sha256 再計算一致・source と admission
+   receipt の一致・commitment 一致を検査する。`variant_id` の preimage は変えない
+   (materialize 済み source の src_token が既に候補内容を決定的に束縛しており、mask を
+   足すと同一 source identity の二重会計になる)。
+5. **epoch**: `search_config` に binding schema marker を加え、campaign ID を意図的に
+   分離する。admission は proposal 駆動 trigger campaign (E 段 loop・自律 trial) にだけ
+   marker と binding を要求し、marker 有り binding 欠落・marker 無しの post-policy
+   proposal 駆動・mixed・unknown を拒否する。既存 trigger 系 campaign の列挙 (E-loop 1 件 =
+   exact overlay 分類済み、機械 sweep 6 件 = proposal 経路なし) により遡及被害ゼロを
+   実測した。将来発見される正当な pre-cutover artifact は exact hash の個別 grandfather
+   登録だけを許し、field 欠落による包括 legacy 化を禁じる。
+
+**主張の範囲 (正直な非主張):** 本決定で名乗るのは「D121 決定 (7) P1 のうち **E 段候補表現の
+閉包**」であり、D149 の emitter 監査と合わせて P1 を充足する。ただし (a) binding の
+mask↔source の意味結合は producer 時の byte-exact hole 照合までで、mask と predicate_sha256 を
+**整合を保ったまま連動改変**する攻撃は replay/admission の構造検証では検出できない
+(検出には凍結 witness 表 = freeze 族の新設が要り、別裁定)。(a') 同じ理由で admission の
+campaign 分類 (proposal 駆動 / 機械 sweep) も内部整合の検査であり、artifact tree 全体を
+再構成できる敵対者が receipt・lock・WAL を一貫して作り直す偽装は検出射程外である
+(receipt は認証でなく内部整合 — build_admission の既定義を継承)。(b) 機械所有の trigger
+materializer 経路は候補表現の外に残る。(c) crash-resume の WAL topology 二重 build_start、SourceEvidence の
+ABA、formal report schema への binding receipt 化、epoch による予算リセットの一般則は本決定の
+射程外で、裁定パッケージとして返す。
+
+**役割契約:** coder agent 定義の出力を wire に変更した (遮断設計は不変)。pin
+(manifest / adapter / review_ledger) は起草者と別の実装単位が、親の独立レビュー証跡
+(insights の stage5-agent-review.md) を経て更新した。adapter JSON は sandbox 制約により、
+検査器 renderer の期待 bytes を親が review して適用した。
+
+**却下した選択肢:**
+- coder の C++ を受けて emit_predicate 出力と byte 照合する — 自由 C++ の parser と二重
+  schema・開示面を温存する。
+- mask を variant_id の preimage へ足す — src_token 経由の決定的束縛と二重会計になる。
+- raw mask を build_start payload / provenance / report へ直接書く — 偵察 firewall (D48) と
+  開示境界に逆行し、D121 P2 の recipient 設計を未裁定のまま逆方向に固定する。
+- marker 欠落 artifact の包括 legacy 化 — downgrade 攻撃と区別できない。
+- 全 trigger campaign への binding 遡及要求 — 機械 sweep 6 件が proposal 経路を持たないまま
+  拒否へ反転する。
+
+**研究状態への影響:** trigger-gating E 段の受理集合は任意 1 行 C++ から 32 encodings へ縮小
+する (00000 は kUnset のみ true の退化点、11111 は ident_all であり真 stock ではない)。
+凍結成果物・既存 certified 選択・proof chain の歴史分類は不変。`MAX_APPROVED_GENERATIONS = 1`
+と cap-lift FAIL は不変。
+
+## D161. probe 証拠の admissibility を単一連言から 3 分離 (split-v2) へ移す (2026-08-05)
+
+**決定:** T-361/T-362 系 probe controller (`output/insights/2026-08-03_t361-t362-cluster-probes/
+driver/run_probes.py`) の attempt 判定を、単一の `admissible = all(validity)` から
+`observation_valid` (probe が有効に観測した) / `attempt_safe` (attempt の結末が安全だった) /
+`accounting_available` + `accounting_integrity_valid` + `termination_cause_consistent`
+(会計証拠の有無・完全性・因果整合) の 3 分離 (`evaluation_model = "split-v2"`) へ移す。
+authoritative 選出は `observation_valid かつ terminal_proven` だけで行い、
+危険側の観測 (`attempt_safe=false`) も authoritative になれる。危険結論は閉じた
+`unsafe_reason` (cleanup_order_invalid / post_restore_canary_mismatch 等) からだけ導出し、
+費用・qdel・artifact hygiene の失敗を危険結論に混ぜない。legacy 記録は
+`evaluation_model` key 欠落だけを legacy と認め、`admissible:true` の既存 authority のみ維持、
+`admissible:false` は再認定せず、明示 null・未知値は拒否する。stale session の無い
+completed / terminal-unproven request は、保存 raw (qsub/qwait receipt) の再検証を通過した
+場合だけ終端実証へ移行できる。
+
+**理由:**
+- 旧連言は「観測の有効性」「結末の安全性」「会計記録の有無」を混同し、SIGKILL で cleanup が
+  走らないという**本命の危険観測そのもの**が `admissible:false` になって authoritative に
+  なれなかった (worklog (149) の実測、[T-400])。危険側の観測が構造的に記録不能な判定器は、
+  fail-closed ではなく fail-blind である。
+- racct の反映遅延 (欠測) は観測の欠陥ではないが、request 束縛の混線・件数過剰・因果矛盾は
+  観測の欠陥である。「外してよいのは欠測だけ」という線引きを field 分離で機械化した。
+
+**却下した選択肢:**
+- 会計項を丸ごと evidence 側へ移す (親の当初案) — 敵対レンズが「束縛・因果検査まで消える」と
+  実証し、integrity / cause を観測 gate に残す 3 分解へ改めた。
+- 2 field 分離 (観測/安全のみ) — 会計の欠測が観測無効へ倒れる旧問題が残るため 3 系へ拡張した。
+- 判定緩和による leg 進行の回復 — 必要なのは保存 raw を再検証する閉じた migration 経路であり、
+  受理集合を広げる緩和ではない。

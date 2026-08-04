@@ -1,0 +1,40 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M07",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "old": "    else:\n        run_root = (\n            Path(_resolve_exploration_output_root(\n                legacy_base=str(ROOT / \"output\"),\n            ))\n            / \"exploration\" / \"autonomous-trials\" / args.trial_id\n        )\n",
+     "new": "    else:\n        run_root = (\n            ROOT / \"output\" / \"exploration\" / \"autonomous-trials\" / args.trial_id\n        )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "old": "                legacy_base=str(ROOT / \"output\"),\n",
+     "new": "                legacy_base=\"\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_autonomous_trial_env_run_root_and_worktree_container_gate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

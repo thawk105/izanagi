@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import contextvars
 import dataclasses
 import datetime as dt
 import hashlib
@@ -39,6 +40,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
         sys.path.insert(0, str(_ROOT_FOR_IMPORT))
     from orchestrator.campaign import p3_s4_loop as loop_core
     from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger
+    from orchestrator.campaign import trial_registry
+    from orchestrator.campaign.reflux_ir import emit_predicate, parse_wire
     from orchestrator.campaign.autonomous_trial_completeness import (
         assert_campaign_layer3_chain,
         assert_autonomous_trial_completeness,
@@ -53,6 +56,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     from orchestrator.campaign.role_session_isolation import CrossRoleSessionTracker
     from orchestrator.campaign.layout import (
         CampaignLayout,
+        _reject_worktree_container,
+        _resolve_exploration_output_root,
         ensure_exploration_namespace,
         exploration_campaign_layout,
     )
@@ -77,6 +82,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 else:
     from . import p3_s4_loop as loop_core
     from . import p3_s4_loop_trigger_gating as trigger
+    from . import trial_registry
+    from .reflux_ir import emit_predicate, parse_wire
     from .autonomous_trial_completeness import (
         assert_campaign_layer3_chain,
         assert_autonomous_trial_completeness,
@@ -91,6 +98,8 @@ else:
     from .role_session_isolation import CrossRoleSessionTracker
     from .layout import (
         CampaignLayout,
+        _reject_worktree_container,
+        _resolve_exploration_output_root,
         ensure_exploration_namespace,
         exploration_campaign_layout,
     )
@@ -185,7 +194,7 @@ with exactly:
 {"proposal":{"axis":"silo-backoff-trigger-gating","direction":"increase|decrease|explore_both","magnitude":"small|medium|large","justification":"string","uncertainty":"string"}}
 Keep justification brief and limited to named input fields and observation
 availability. Do not name abort reasons, predicates, or a concrete gate design;
-the coder must independently infer implementation from only the abstract
+the coder must independently infer the wire from only the abstract
 direction and magnitude.
 Do not emit Markdown or any additional key.
 """,
@@ -193,9 +202,11 @@ Do not emit Markdown or any additional key.
 You are called by a bounded unattended Python supervisor with projection-only
 input. The workload_descriptor is causal input to synthesis. Null baseline
 metrics mean not yet observed and must not be invented. Follow the source
-role's closed-region and forbidden-identifier rules. Return JSON only, exactly:
-{"proposal":{"axis":"silo-backoff-trigger-gating","implementation":"izanagi_gate_pass = <side-effect-free predicate>;","justification":"string","confidence":"high|medium|low"}}
-The implementation must be one physical line. Do not emit Markdown or extra keys.
+role's exact five-bit wire contract. Return JSON only, exactly:
+{"proposal":{"axis":"silo-backoff-trigger-gating","wire":"10100","justification":"string","confidence":"high|medium|low"}}
+wire is exactly five 0/1 characters in LSB-first order: lock-conflict,
+update-absent, readvali-tid, readvali-locked, node-vali. 1 means back off.
+The frozen emitter alone adds the kUnset fail-safe. Do not emit Markdown or extra keys.
 """,
     "auditor": """
 Runtime capabilities are intentionally lowered to tools=[]: every byte you may
@@ -204,9 +215,9 @@ only working_diff, designated_source_context, and correctness_digest. The
 workload descriptor is context, never a reason to relax correctness. Echo the
 provided diff_digest exactly. Return JSON only, exactly:
 {"verdict":"pass|reject|uncertain","diff_digest":"string","violations":[],"nits":[],"proposed_tests":[],"uncertainty":"string"}
-Every element of violations must be an object with string fields type, location,
-correctness_impact, and verifier_blind_spot. Every element of nits must be an
-object {"finding":"string"}. Every element of proposed_tests must be an object
+Every element of violations must be exactly {"type":N}, where N is an integer
+auditor gallery code from 1 through 16. Every element of nits must be exactly
+{"type":"nit"}. Every element of proposed_tests must be an object
 with string fields mutation, expected_gate, and machine_judgment. Empty arrays
 are valid; strings directly inside any of these arrays are invalid.
 For pass, violations must be empty. For reject, violations must be non-empty.
@@ -222,12 +233,11 @@ reverse its abstract direction. Do not emit Markdown or extra keys.
 """,
 }
 
-GATING_SPEC = """The only writable hole is one assignment line:
-izanagi_gate_pass = <predicate>;
-Allowed reads: izanagi_abort_reason_, IzanagiAbortReason enum members, literals.
-kUnset must always evaluate true. Forbidden identifiers: thid_, result_,
-read_set_, write_set_, node_map_. No comments, preprocessor directives,
-definitions, loops, side effects, or line continuation."""
+GATING_SPEC = """Return exactly one five-character wire. It is LSB-first in
+this order: lock-conflict, update-absent, readvali-tid, readvali-locked,
+node-vali. 1 means back off for that reason and 0 means skip backoff. The
+frozen emitter exclusively adds the kUnset fail-safe and materializes the
+single assignment line. No source code or additional field is accepted."""
 
 DESIGNATED_SOURCE_CONTEXT = """Axis: silo-backoff-trigger-gating.
 The template frame, abort-reason stores, sentinel reset, markers, #if/#else,
@@ -246,6 +256,30 @@ so a one-line hole-only hunk is the complete coder edit under review."""
 
 class AutonomousTrialError(RuntimeError):
     """Bounded supervisor contract violation."""
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class PreparedCampaignIdentity:
+    """Pure producer projection used by both preflight and execution."""
+
+    descriptor: Mapping[str, Any]
+    descriptor_record: Mapping[str, Any]
+    campaign: CampaignConfig
+    campaign_id: str
+
+
+_RUN_SCOPE_SEAL = object()
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _RunScopeBinding:
+    binding: trial_registry.TrialBinding | None
+    _seal: object = dataclasses.field(repr=False)
+
+
+_ACTIVE_TRIAL_BINDING: contextvars.ContextVar[
+    _RunScopeBinding | None
+] = contextvars.ContextVar("active_trial_binding", default=None)
 
 
 def _validate_generation_budget(generations: int) -> None:
@@ -276,10 +310,7 @@ def _assert_fresh_campaign_state(layout: CampaignLayout) -> None:
 def _strict_keys(value: Mapping[str, Any], expected: set[str], *, path: str) -> None:
     actual = set(value)
     if actual != expected:
-        raise AutonomousTrialError(
-            f"{path} keys 不一致: missing={sorted(expected - actual)} "
-            f"unknown={sorted(actual - expected)}"
-        )
+        raise AutonomousTrialError("response object keys 不一致")
 
 
 def _string(value: Any, *, path: str, allow_empty: bool = False) -> str:
@@ -333,19 +364,17 @@ def parse_coder(raw: str) -> trigger.CoderProposalTriggerGating:
         raise AutonomousTrialError("$.proposal は object 必須")
     _strict_keys(
         proposal,
-        {"axis", "implementation", "justification", "confidence"},
+        {"axis", "wire", "justification", "confidence"},
         path="$.proposal",
     )
     if proposal["axis"] != trigger.MARKER_ID:
         raise AutonomousTrialError("coder axis が trigger-gating でない")
-    implementation = _string(proposal["implementation"], path="$.proposal.implementation")
-    if "\n" in implementation or "\r" in implementation:
-        raise AutonomousTrialError("coder implementation は物理 1 行必須")
+    parse_wire(proposal["wire"])
     if proposal["confidence"] not in {"high", "medium", "low"}:
         raise AutonomousTrialError("coder confidence が未知")
     return trigger.CoderProposalTriggerGating(
         axis=proposal["axis"],
-        implementation=implementation,
+        wire=proposal["wire"],
         justification=_string(proposal["justification"], path="$.proposal.justification"),
         confidence=proposal["confidence"],
     )
@@ -410,17 +439,11 @@ class FixtureRoleProvider:
             }
         elif self.role == "coder":
             generation = payload.get("generation")
-            implementation = (
-                "izanagi_gate_pass = true;"
-                if generation == 1
-                else "izanagi_gate_pass = izanagi_abort_reason_ == "
-                "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
-                "IzanagiAbortReason::kLockConflict;"
-            )
+            wire = "11111" if generation == 1 else "10000"
             value = {
                 "proposal": {
                     "axis": trigger.MARKER_ID,
-                    "implementation": implementation,
+                    "wire": wire,
                     "justification": "fixture: deterministic closed-region candidate",
                     "confidence": "low",
                 }
@@ -561,13 +584,82 @@ def _descriptor_for(workload_flags: Mapping[str, str]) -> tuple[dict, dict]:
     return descriptor, projection_record(projected_input, descriptor)
 
 
+def _prepare_campaign_identity(
+    *,
+    workload: str,
+    trial_id: str,
+    generations: int,
+    build_context: BuildRunContext,
+) -> PreparedCampaignIdentity:
+    """Derive the existing descriptor/campaign identity without writing artifacts."""
+    flags = WORKLOADS[workload]
+    descriptor, descriptor_record = _descriptor_for(flags)
+    campaign = _campaign_for(
+        workload=workload,
+        workload_flags=flags,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        trial_id=trial_id,
+        generations=generations,
+        build_context=build_context,
+    )
+    return PreparedCampaignIdentity(
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        campaign=campaign,
+        campaign_id=str(ident.campaign_id(campaign)),
+    )
+
+
+def _trial_launch_binding(
+    *,
+    trial_manifest: Path | None,
+    trial_id: str,
+    workloads: Sequence[str],
+    generations: int,
+) -> trial_registry.TrialBinding | None:
+    """Run the artifact-free launcher gate at either public boundary."""
+    registry_path = ROOT / trial_registry.DEFAULT_REGISTRY_PATH
+    if trial_manifest is None:
+        trial_registry.assert_unregistered_for_exploratory(
+            trial_id,
+            registry_path,
+            ROOT,
+        )
+        return None
+    binding = trial_registry.load_launch_binding(
+        manifest_path=Path(trial_manifest),
+        trial_id=trial_id,
+        workloads=workloads,
+        repository_root=ROOT,
+        registry_path=registry_path,
+    )
+    identity_context = build_run_context(
+        generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+    )
+    prepared = _prepare_campaign_identity(
+        workload=binding.workload,
+        trial_id=trial_id,
+        generations=generations,
+        build_context=identity_context,
+    )
+    trial_registry.assert_campaign_binding(
+        binding,
+        actual_campaign_id=prepared.campaign_id,
+    )
+    return binding
+
+
 def _preview(coder: trigger.CoderProposalTriggerGating, *, sub: str) -> dict[str, Any]:
     assert_pinned_clean(sub, trigger.PIN)
     patch = trigger._template_patch_path(str(ROOT))
+    predicate = emit_predicate(parse_wire(coder.wire))
+    if trigger.check_syntax_contract(predicate):
+        raise RuntimeError("canonical trigger predicate violates syntax contract")
     with applied(patch, trigger.PIN, sub):
         result, _base, _edited, working_diff = loop_core.quarantine(
             sub,
-            coder.implementation,
+            predicate,
             marker_id=trigger.MARKER_ID,
             source_rel=trigger.SOURCE_REL,
             write=False,
@@ -578,7 +670,7 @@ def _preview(coder: trigger.CoderProposalTriggerGating, *, sub: str) -> dict[str
         "diff_digest": hashlib.sha256(working_diff.encode("utf-8")).hexdigest(),
         "subtype": result.subtype.value if result.subtype else None,
         "reason": result.reason,
-        "forbidden_identifiers": trigger.check_syntax_contract(coder.implementation),
+        "forbidden_identifiers": [],
     }
 
 
@@ -647,8 +739,28 @@ def _role_metric_payloads(
 
 
 def _jsonable_role_value(role: str, parsed: Any) -> dict[str, Any]:
-    if role in {"planner", "coder", "auditor"}:
+    if role == "planner":
         return dataclasses.asdict(parsed)
+    if role == "coder":
+        # The raw response/proposal artifact is the authority for replay.  The
+        # journal and report expose only a closed projection: neither the raw
+        # wire nor coder-authored free text may cross this disclosure boundary.
+        return {
+            "axis": parsed.axis,
+            "confidence": parsed.confidence,
+            "justification_present": bool(parsed.justification.strip()),
+        }
+    if role == "auditor":
+        # Raw auditor strings remain in the non-projected raw response artifact.
+        # Trial report / attempt journal receive only this closed code/count view.
+        return {
+            "verdict": parsed.verdict,
+            "diff_digest": parsed.diff_digest,
+            "violation_codes": [entry["type"] for entry in parsed.violations],
+            "nit_count": len(parsed.nits),
+            "proposed_test_count": len(parsed.proposed_tests),
+            "uncertainty_present": bool(parsed.uncertainty.strip()),
+        }
     return dict(parsed)
 
 
@@ -1074,6 +1186,7 @@ def _finish_trial(
     transport_receipt: Mapping[str, Any] | None,
     transport_admission: ClaudeTransportAdmission | None = None,
     build_context: BuildRunContext | None = None,
+    trial_binding: trial_registry.TrialBinding | None = None,
 ) -> dict[str, Any]:
     if fatal_error is None:
         _assert_build_transport_admitted(
@@ -1200,6 +1313,12 @@ def _finish_trial(
         report["transport_receipt"] = _validate_transport_receipt(
             dict(transport_receipt), expected=transport_receipt
         )
+    if trial_binding is not None:
+        report.update({
+            "prereg_commit": trial_binding.prereg_commit,
+            "measurement_head": trial_binding.measurement_head,
+            "manifest_sha256": trial_binding.manifest_sha256,
+        })
     journal.append(_event_with_transport_receipt(
         {
             "event": "run-finish",
@@ -1244,6 +1363,32 @@ def _run_workload(
     transport_admission: ClaudeTransportAdmission | None = None,
     build_context: BuildRunContext | None = None,
 ) -> dict[str, Any]:
+    active_scope = _ACTIVE_TRIAL_BINDING.get()
+    if active_scope is None:
+        trial_registry.assert_unregistered_for_exploratory(
+            trial_id,
+            ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
+            ROOT,
+        )
+        active_binding = None
+    elif (
+        type(active_scope) is not _RunScopeBinding
+        or active_scope._seal is not _RUN_SCOPE_SEAL
+    ):
+        raise trial_registry.TrialRegistryError(
+            "[run-scope] active workload scope was not issued by run_trial"
+        )
+    else:
+        active_binding = active_scope.binding
+    if active_binding is not None:
+        trial_registry.assert_issued_trial_binding(active_binding)
+        if (
+            active_binding.trial_id != trial_id
+            or active_binding.workload != workload
+        ):
+            raise trial_registry.TrialRegistryError(
+                "[launch-binding] active binding differs from workload inputs"
+            )
     _validate_generation_budget(generations)
     _assert_build_transport_admitted(
         do_build,
@@ -1255,17 +1400,16 @@ def _run_workload(
             "workload requires the trial's shared BuildRunContext"
         )
     flags = WORKLOADS[workload]
-    descriptor, descriptor_record = _descriptor_for(flags)
-    cfg = _campaign_for(
+    prepared = _prepare_campaign_identity(
         workload=workload,
-        workload_flags=flags,
-        descriptor=descriptor,
-        descriptor_record=descriptor_record,
         trial_id=trial_id,
         generations=generations,
         build_context=build_context,
     )
-    campaign_id = str(ident.campaign_id(cfg))
+    descriptor = prepared.descriptor
+    descriptor_record = prepared.descriptor_record
+    cfg = prepared.campaign
+    campaign_id = prepared.campaign_id
     if do_build:
         layout = exploration_campaign_layout(campaign_id)
     else:
@@ -1472,7 +1616,9 @@ def _run_workload(
                 **drive_kwargs,
             )
         )
-        required_harness = {"outcome", "variant", "stop_reason", "iteration", "ran"}
+        required_harness = {
+            "outcome", "variant", "stop_reason", "iteration", "ran",
+        }
         missing_harness = sorted(required_harness - set(outcome))
         if missing_harness:
             raise AutonomousTrialError(
@@ -1485,6 +1631,15 @@ def _run_workload(
             raise AutonomousTrialError(
                 f"harness output の stop_reason が未知: {outcome['stop_reason']!r}"
             )
+        if outcome["ran"] or "trigger_gate_binding_commitment" in outcome:
+            binding_commitment = outcome.get("trigger_gate_binding_commitment")
+            if (
+                type(binding_commitment) is not str
+                or len(binding_commitment) != 64
+                or any(character not in "0123456789abcdef"
+                       for character in binding_commitment)
+            ):
+                raise AutonomousTrialError("harness binding commitment が不正")
         generation_record["harness"] = outcome
         generation_record["outcome"] = outcome["outcome"]
         current_metrics = _metric_projection(outcome)
@@ -1544,6 +1699,8 @@ def run_trial(
     drive: Callable[..., Mapping[str, Any]] = _DRIVE_NOT_PROVIDED,
     preview: Callable[..., Mapping[str, Any]] = _PREVIEW_NOT_PROVIDED,
     coder_authority: CoderBuildAuthority | None = None,
+    trial_manifest: Path | None = None,
+    trial_binding: trial_registry.TrialBinding | None = None,
 ) -> dict[str, Any]:
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
@@ -1600,7 +1757,34 @@ def run_trial(
         raise AutonomousTrialError(
             "build trial requires parser-issued --allow-coder-derived-build authority"
         )
+    if trial_binding is None:
+        trial_binding = _trial_launch_binding(
+            trial_manifest=trial_manifest,
+            trial_id=trial_id,
+            workloads=selected,
+            generations=generations,
+        )
+    else:
+        trial_registry.assert_issued_trial_binding(trial_binding)
+        observed_head = trial_registry.resolve_measurement_commit(ROOT)
+        if observed_head != trial_binding.measurement_head:
+            raise trial_registry.TrialRegistryError(
+                "[measurement-head-moved] HEAD changed after CLI preflight"
+            )
+        if trial_manifest is None:
+            raise trial_registry.TrialRegistryError(
+                "[launch-binding] supplied binding requires its trial manifest"
+            )
+        trial_registry.assert_rederived_launch_binding(
+            trial_binding,
+            manifest_path=Path(trial_manifest),
+            trial_id=trial_id,
+            workloads=selected,
+            repository_root=ROOT,
+            registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
+        )
     run_root = Path(run_root)
+    _reject_worktree_container(run_root)
     if run_root.exists() or run_root.is_symlink():
         raise AutonomousTrialError(
             f"run_root は新規 directory 必須 (resume は MVP 範囲外): {run_root}"
@@ -1641,7 +1825,7 @@ def run_trial(
                 "type": type(exc).__name__,
                 "message": _redacted_transport_error(exc, None),
             })
-    journal.append({
+    run_start = {
         "event": "run-start",
         "schema_version": SCHEMA_VERSION,
         "trial_id": trial_id,
@@ -1652,7 +1836,14 @@ def run_trial(
         "do_build": do_build,
         "performance_early_stop": False,
         "scientific_claim": False,
-    })
+    }
+    if trial_binding is not None:
+        run_start.update({
+            "prereg_commit": trial_binding.prereg_commit,
+            "measurement_head": trial_binding.measurement_head,
+            "manifest_sha256": trial_binding.manifest_sha256,
+        })
+    journal.append(run_start)
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
     fatal_error: dict[str, str] | None = (
@@ -1690,27 +1881,33 @@ def run_trial(
                     fatal_error=fatal_error,
                     transport_receipt=transport_receipt,
                 )
-        return _finish_trial(
-            trial_id=trial_id,
-            selected=selected,
-            generations=generations,
-            provider_kind=provider_kind,
-            run_root=run_root,
-            sub=sub,
-            do_build=do_build,
-            cache_root=cache_root,
-            max_wall_s=max_wall_s,
-            drive=drive,
-            preview=preview,
-            journal=journal,
-            started=started,
-            started_monotonic=started_monotonic,
-            active_providers=active_providers,
-            fatal_error=fatal_error,
-            transport_receipt=transport_receipt,
-            transport_admission=transport_admission,
-            build_context=build_context,
-        )
+        run_scope = _RunScopeBinding(trial_binding, _RUN_SCOPE_SEAL)
+        scope_token = _ACTIVE_TRIAL_BINDING.set(run_scope)
+        try:
+            return _finish_trial(
+                trial_id=trial_id,
+                selected=selected,
+                generations=generations,
+                provider_kind=provider_kind,
+                run_root=run_root,
+                sub=sub,
+                do_build=do_build,
+                cache_root=cache_root,
+                max_wall_s=max_wall_s,
+                drive=drive,
+                preview=preview,
+                journal=journal,
+                started=started,
+                started_monotonic=started_monotonic,
+                active_providers=active_providers,
+                fatal_error=fatal_error,
+                transport_receipt=transport_receipt,
+                transport_admission=transport_admission,
+                build_context=build_context,
+                trial_binding=trial_binding,
+            )
+        finally:
+            _ACTIVE_TRIAL_BINDING.reset(scope_token)
     finally:
         if owns_active_providers:
             _close_owned_providers(active_providers)
@@ -1733,6 +1930,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="T-178 bounded unattended workload-conditioned CC synthesis pilot"
     )
     parser.add_argument("--trial-id", required=True)
+    parser.add_argument("--trial-manifest", type=Path)
     parser.add_argument(
         "--provider", required=True, choices=tuple(sorted(PROVIDER_KINDS))
     )
@@ -1770,12 +1968,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise BuildAdmissionError(
             "--allow-coder-derived-build の明示 opt-in が必要"
         )
-    run_root = (
-        Path(args.run_root)
-        if args.run_root
-        else ROOT / "output" / "exploration" / "autonomous-trials" / args.trial_id
-    )
+    if args.run_root:
+        run_root = Path(args.run_root)
+    else:
+        run_root = (
+            Path(_resolve_exploration_output_root(
+                legacy_base=str(ROOT / "output"),
+            ))
+            / "exploration" / "autonomous-trials" / args.trial_id
+        )
     fixed_sub = str(Path(args.ccbench_dir).resolve())
+    launch_binding = _trial_launch_binding(
+        trial_manifest=args.trial_manifest,
+        trial_id=args.trial_id,
+        workloads=args.workloads,
+        generations=args.max_generations,
+    )
     if args.no_build:
         assert_pinned_clean(fixed_sub, trigger.PIN)
         context = contextlib.nullcontext(fixed_sub)
@@ -1806,6 +2014,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             coder_authority=(
                 None if args.no_build else args.coder_build_authority
             ),
+            trial_manifest=args.trial_manifest,
+            trial_binding=launch_binding,
         )
     print(json.dumps({
         "status": report["status"],

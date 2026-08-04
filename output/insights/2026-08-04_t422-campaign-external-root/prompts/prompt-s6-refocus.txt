@@ -1,0 +1,37 @@
+あなたは izanagi の dev-wave 段 6 の焦点再レビュー子 (read-only) である。日本語で書く。
+これは自プロジェクトの fix 済み統合差分に対する防御目的の内部レビューである。
+
+まず次の 4 ファイルを読む。読めなければ「入力を読めない」とだけ出力して即終了する。
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s4-ruling.md
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s6-reviewA.md
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s6-reviewB.md
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s6-fix.md (fix 子の対応表)
+
+レビュー対象はカレント repo (wave worktree) の未 commit 統合差分 (`git diff`。段 5 実装 +
+親 docs + fix の累積)。
+
+タスク: 段 6 レビューの全所見 (reviewA 1〜7、reviewB 1〜5) について、fix 後の実コードを
+file:line で照合し、**所見ごとに closed / partial / regressed を自分で判定した対応表**を作る。
+fix 子の自己申告 (s6-fix.md) を鵜呑みにしない。特に:
+1. F-1/F-2: resolve 前後の suffix 再検査が「missing 途中 component で早期 break」した後も
+   resolve 後 walk で塞がっているか。`..` 拒否が resolve 前に効くか
+2. F-3/F-4: sys.__dict__ singleton が両 module identity で本当に同一 object になるか
+   (import 順・reload 時)。lock 内 transaction に env 読取から pin までが全部入っているか。
+   reset 関数の競合窓
+3. F-5: wal.py の 3 materializer (append/write_lock/acquire_lock_atomic) 以外に
+   layout 配下へ directory / file を作る公開経路が残っていないか (grep で棚卸し)
+4. F-6: 8c の env 未設定既定が旧実装と byte 同一の式に戻っているか
+5. F-7: F98 正例の WAL が replay 契約を満たすか (pre-build abort の位相が wal.py の
+   topology 検査と整合するか)
+6. fix による新規回帰: 新たに入った検査が既存の正当経路 (official campaign の通常実行、
+   loop.py/pipeline.py の WAL 書き込み、s8b oracle、既存テスト) を過剰拒否しないか。
+   特に wal gate は official layout にも掛かる — 既存テストで official layout を
+   `.claude/worktrees` 様の path に置くものが無いか grep で確認
+7. 変異 M1〜M10 (s4-ruling.md の表 + handoff 追補 M8=resolve 後再検査除去、M9=wal gate 除去、
+   M10=8c legacy 既定除去) が、それぞれ対応テスト 1 本だけで検出される単一理由構造か
+
+new 所見は種別・深刻度・file:line・壊れ方・修正方向で書く。成果物影響を書けない所見は
+nit と明記する。pytest は実走しない (親が計算ノードで実測する)。
+
+最後に必ず `## 総括` 節: 対応表の集計 (closed/partial/regressed 数)、new 所見数、
+統合可否への意見 1 行。

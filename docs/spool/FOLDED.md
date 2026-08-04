@@ -178,3 +178,31 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-04","content_sha256":"5ec0b4867b4bd439bc59e4abf8a7b21a87096c78cb363a7f3e991ec770cc3a7e","seq":2,"wave":"dev-wave-t244-p5-u1-drive-preview"}
 
 - {"allocations":{},"authored":"2026-08-04","content_sha256":"b6a0bf60fd5478a5959768535b7c0cb88cfe9ca42a71896a2039286875597ef1","seq":1,"wave":"rulings-20260804-f"}
+
+- {"allocations":{"T:exploration-resume-root-manifest":"[T-457]","T:official-campaign-root-externalization":"[T-456]"},"authored":"2026-08-04","content_sha256":"a5945593d4b78d765cc07c49cdd6147900d0645aa48b76c346de5b2657a85e93","seq":1,"wave":"dev-wave-t422-campaign-external-root"}
+- {"allocations":{"D:exploration-external-output-root":"D158"},"authored":"2026-08-04","content_sha256":"d0bfa7029e3959174dfb3d0dd8f6c57319d6d6e7fe07d6330d13aa69284f1699","seq":2,"wave":"dev-wave-t422-campaign-external-root"}
+
+- {"allocations":{"T:mutation-harness-diagnostic-category":"[T-458]"},"authored":"2026-08-04","content_sha256":"d5ce037ee7dca54d0092b184f9d699d2eda4ad21187d5a353b5ff3d77dc265c5","seq":1,"wave":"dev-wave-t244-p3-redesign"}
+- {"allocations":{"D:p3-origin-ledger-prototype-v3":"D159"},"authored":"2026-08-04","content_sha256":"216f109daeaa22023de1d3f15fb67a363f0629ccb051f9a55939e78e3f15726d","seq":2,"wave":"dev-wave-t244-p3-redesign"}
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"7be16005ee46163bf89710652dfbde6a211bb8d920411bddcb031c5abdd12003","seq":3,"wave":"dev-wave-t244-p3-redesign"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"5ecab05e405c53981c49a9fa1ca289135d9c40665b988c3d323526c516caa4a1","seq":1,"wave":"wave-t425-floor-scoping"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"15e0a990716abc8f1b7c2de0cf1bb6c9f008a756dd9cba85c8e503644f63f27b","seq":1,"wave":"wave-cleanup-worktrees"}
+
+- {"allocations":{"T:auditor-nits-producer-schema":"[T-466]","T:epoch-budget-rule":"[T-463]","T:machine-materializer-emitter":"[T-464]","T:provenance-automerge-rule":"[T-467]","T:report-binding-receipt":"[T-462]","T:s8b-duplicate-key-disclosure":"[T-465]","T:source-evidence-aba-snapshot":"[T-460]","T:trigger-crash-resume-topology":"[T-459]","T:trigger-witness-table":"[T-461]"},"authored":"2026-08-04","content_sha256":"de0a247032b63817d0841e14684d48eb85ebb575cc10d7aa5b2783bb0e2e00a6","seq":1,"wave":"dev-wave-t428-reflux-wiring"}
+- {"allocations":{"D:trigger-wire-only-acceptance":"D160"},"authored":"2026-08-04","content_sha256":"d51f5b458ee0dd9d861711c4cd62a1f00f18346931a258a25a6ba158108c4d06","seq":1,"wave":"dev-wave-t428-reflux-wiring"}
+
+- {"allocations":{"T:trial-acceptance-wiring":"[T-470]","T:trial-launch-ledger":"[T-469]","T:trial-registry-authority":"[T-468]"},"authored":"2026-08-04","content_sha256":"fc39a9c35ffc12f04ced2b1c21f873fd39a6bc7638457d5f64bc90e20bca59ec","seq":1,"wave":"dev-wave-t325-trial-registry"}
+
+- {"allocations":{"T:restore-bound-measurement":"[T-471]"},"authored":"2026-08-04","content_sha256":"10af71f6dbbf70339f6efc48b7c0ed4bdb54c7e2ece307a26b10b80fedf6ef67","seq":1,"wave":"dev-wave-t399-t400-signal-mitigation"}
+- {"allocations":{"D:probe-evidence-three-way-split":"D161"},"authored":"2026-08-04","content_sha256":"fbb7ddd12bc4314ee8d86d309a3c32ed0e95cd296dfcab651d251436467d82c7","seq":2,"wave":"dev-wave-t399-t400-signal-mitigation"}
+
+- {"allocations":{"F:single-tenancy-unreachable-on-compute-node":"F110","F:unreadable-diagnostic-treated-as-fatal":"F111"},"authored":"2026-08-05","content_sha256":"5d6e5a3d283eb355cbd237d4f8f37a71e6c6f18dc8d0988f77abd121fbd72002","seq":1,"wave":"dev-wave-t419-probe-experiment"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"5d6d507d70a0b911baa4996561df5e41984a7e4b26479eed9842709e79ee357a","seq":2,"wave":"dev-wave-t419-probe-experiment"}
+
+- {"allocations":{"T:layer3-claim-boundaries":"[T-473]","T:s1-freeze-membership-gate":"[T-472]","T:trigger-artifact-reinspection":"[T-474]"},"authored":"2026-08-05","content_sha256":"c3e87f463f50209dc0709b532341d04143475700c3c1d26846d674a9a3a19077","seq":1,"wave":"rulings-20260805-a"}
+
+- {"allocations":{"T:calibration-contract-generation":"[T-475]","T:calibration-producer-provenance":"[T-477]","T:reflux-ledger-flock-flake":"[T-476]"},"authored":"2026-08-04","content_sha256":"97cecf110e1856a5d41cae409082ad02aeebf67794bcd4f605a38eb61210b565","seq":1,"wave":"dev-wave-t452-clock-tolerance-authority"}
+
+- {"allocations":{"T:calibration-contract-generation-migration":"[T-478]"},"authored":"2026-08-05","content_sha256":"7802c6e19955a80d6eae7fd86d19599ad5039a0564580990bd20279274bd7292","seq":1,"wave":"rulings-20260805-b"}

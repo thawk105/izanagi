@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M06",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layout.py",
+     "old": "    for family in (\".claude\", \".codex\"):\n",
+     "new": "    for family in ():\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_exploration_default_root_stops_before_wave_dirt"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

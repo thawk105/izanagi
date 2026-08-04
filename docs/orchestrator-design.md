@@ -107,7 +107,9 @@ output/
 
 ドキュメント中で `output/runs/` `output/insights/` と書いてある箇所は、特記なき限りそれぞれ `output/campaigns/<id>/runs/` の campaign スコープ、ルート直下 `output/insights/` のグローバルスコープを指す短縮表記とする。calibration/noise floor/profile の書き込み先は `output/env/<env-tag>/`。
 
-campaign スコープの実際の root は namespace で 2 つある (D65/D123)。official は `output/campaigns/<id>/`、s4 driver 族 (`p3_s4_loop` / `_sort` / `_trigger_gating` / `p3_s4_red` / `p3_kickoff` / 8c build) の**新規** campaign は `output/exploration/campaigns/<id>/` である。**構造・WAL・lock・hooks 防護は同一**で、違うのは official consumer が marker で後者を拒否する点だけである。歴史成果物は移していないので、既存の `output/campaigns/` 参照は過去の所在としてそのまま正しい。
+campaign スコープの実際の root は namespace で 2 つある (D65/D123)。official は `output/campaigns/<id>/`、s4 driver 族 (`p3_s4_loop` / `_sort` / `_trigger_gating` / `p3_s4_red` / `p3_kickoff` / 8c build) の**新規** campaign は `output/exploration/campaigns/<id>/` である。**構造・WAL・lock は同一**で、違うのは official consumer が marker で後者を拒否する点だけである。歴史成果物は移していないので、既存の `output/campaigns/` 参照は過去の所在としてそのまま正しい。
+
+exploration 側だけは base root を差し替えられる ([T-422] / F98)。優先順位は**明示 `output_root` 引数 > `IZANAGI_EXPLORATION_OUTPUT_ROOT` > repo 既定**で、env 値は非空・絶対 path・repository 外・symlink component なし・実効 uid 所有を要求し、process 内で最初の解決値に pin される。使い捨て worktree (`.claude/worktrees` / `.codex/worktrees`) 配下への materialize は `ensure()` が拒否する。**repo hooks の campaign tree 防護は repo 内の path にだけ効く** — 外部 root は防護外の使い捨て領域であり、certified 材料・proof chain 素材を置かない。official `CampaignLayout` と `output/env/` は env を参照しない。
 
 ### 材料レポートの出力規約 (再現性が一級市民)
 

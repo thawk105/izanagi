@@ -1,0 +1,689 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/342e0275bd3ab1ad39fc1c267ae10faa/izdw-342e0275bd.o888723",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/342e0275bd3ab1ad39fc1c267ae10faa/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................................................          [100%]\n63 passed in 2.02s\n",
+      "stdout_sha256": "ef2e3f6dd8e748a51f9509740b893ff2bf9d89cc34a58203fd442acdb28cc4a6"
+    },
+    "artifact_error": null,
+    "collection_sha256": "a1bba2553be44e519d2b87908dc2fb0b52f82e7697eb52de6e13d023a34f2e71",
+    "duration_s": 21.659,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "59fe051f880c5d929e907d7215fccee04f313e90dba341998f805521855eb959",
+    "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+    "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+    "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+    "status": "PASSED",
+    "test_output_sha256": "ef2e3f6dd8e748a51f9509740b893ff2bf9d89cc34a58203fd442acdb28cc4a6",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+  },
+  "date": "2026-08-04T16:00:03.464843+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/990371b19dcab0f18e3d0b254f55b078/izdw-990371b19d.o888724",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/990371b19dcab0f18e3d0b254f55b078/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................................F.FFF          [100%]\n=================================== FAILURES ===================================\n______________ test_terminal_false_split_v2_is_not_authoritative _______________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_terminal_false_split_v2_is_not_authoritative() -> None:\n        evaluation = _split()\n    \n>       assert subject._record_is_authoritative(_record(evaluation, terminal=False)) is False\nE       AssertionError: assert True is False\nE        +  where True = <function _record_is_authoritative at 0x14a46cdbc940>({'evaluation_model': 'split-v2', 'observation_valid': True, 'attempt_safe': True, 'accounting_evidence': False, ...})\nE        +    where <function _record_is_authoritative at 0x14a46cdbc940> = subject._record_is_authoritative\nE        +    and   {'evaluation_model': 'split-v2', 'observation_valid': True, 'attempt_safe': True, 'accounting_evidence': False, ...} = _record({'evaluation_model': 'split-v2', 'observation_valid': True, 'attempt_safe': True, 'accounting_evidence': False, ...}, terminal=False)\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1383: AssertionError\n_ test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation _\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_completed_split_v2_staged0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151768ac3160>\n\n    def test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation(\n        tmp_path: Path, monkeypatch\n    ) -> None:\n        controller, request, attempt_root = _staged_reevaluation_fixture(\n            tmp_path, monkeypatch\n        )\n        monkeypatch.setattr(\n            subject,\n            \"_saved_staged_preflight_validation\",\n            lambda **_kwargs: {\"valid\": True, \"errors\": [], \"source_commit\": \"fixture\"},\n        )\n    \n        def reject_external_command(*_args, **_kwargs):\n            raise AssertionError(\"reevaluation must not launch qsub or another command\")\n    \n        monkeypatch.setattr(subject.subprocess, \"run\", reject_external_command)\n    \n>       assert controller._reevaluate_completed_staged_requests() == 1\nE       assert 0 == 1\nE        +  where 0 = _reevaluate_completed_staged_requests()\nE        +    where _reevaluate_completed_staged_requests = <run_probes.Controller object at 0x151768965690>._reevaluate_completed_staged_requests\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1637: AssertionError\n__________ test_erratum2_sigterm_zero_remaining_is_cause_inconsistent __________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_erratum2_sigterm_zero_rem0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b9b3b22380>\n\n    def test_erratum2_sigterm_zero_remaining_is_cause_inconsistent(\n        tmp_path: Path, monkeypatch\n    ) -> None:\n        evaluation, completion, _final = _production_chain_fixture(\n            tmp_path,\n            monkeypatch,\n            case=\"mixed\",\n        )\n    \n        assert evaluation[\"saved_nqsv_stderr_accounting\"][\"scheduler_signal_name\"] == (\n            \"SIGTERM\"\n        )\n        assert evaluation[\"saved_nqsv_stderr_accounting\"][\n            \"remaining_elapse_seconds\"\n        ] == 0\n        assert evaluation[\"termination_cause_consistent\"] is False\n        assert evaluation[\"observation_valid\"] is False\n>       assert completion[\"transaction_complete\"] is False\nE       assert True is False\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:2178: AssertionError\n____ test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch _____\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_completed_split_v2_reeval0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154759da2260>\n\n    def test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch(\n        tmp_path: Path, monkeypatch\n    ) -> None:\n        controller, request, attempt_root = _staged_reevaluation_fixture(\n            tmp_path, monkeypatch\n        )\n        monkeypatch.setattr(\n            subject,\n            \"_saved_staged_preflight_validation\",\n            lambda **_kwargs: {\"valid\": True, \"errors\": [], \"source_commit\": \"fixture\"},\n        )\n        raw_path = next((attempt_root / \"work\" / \"controller\" / \"raw\").glob(\"*.raw\"))\n        raw_path.write_bytes(raw_path.read_bytes() + b\"tampered\")\n        result_path = attempt_root / \"work\" / \"controller\" / \"attempt-result.json\"\n        result_before = result_path.read_bytes()\n    \n>       with pytest.raises(subject.ControllerError, match=\"hash validation failed\"):\nE       Failed: DID NOT RAISE ControllerError\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1676: Failed\n=========================== short test summary info ============================\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_terminal_false_split_v2_is_not_authoritative\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_erratum2_sigterm_zero_remaining_is_cause_inconsistent\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch\n4 failed, 59 passed in 2.04s\n",
+        "stdout_sha256": "666dfe8e4ae6b10acbed5b63f9e16a15c679144dd8f6178034df35a4ec1b0d19"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1bba2553be44e519d2b87908dc2fb0b52f82e7697eb52de6e13d023a34f2e71",
+      "duration_s": 26.866,
+      "expected_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_erratum2_sigterm_zero_remaining_is_cause_inconsistent",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_terminal_false_split_v2_is_not_authoritative"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_terminal_false_split_v2_is_not_authoritative",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_erratum2_sigterm_zero_remaining_is_cause_inconsistent",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch"
+      ],
+      "hang_risk": false,
+      "id": "G1",
+      "injection_diff_sha256": "c2f2ff0877e290ebd0cc4c67c519df16e3552f8b55d922cbdc309a979c62d42c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b97182706f89f4e4e140de0ea8c894733c585475b2e4404febfe7db1397fdfa4",
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+          "new": "    return (\n        record.get(\"observation_valid\") is True\n        or record.get(\"external_root_terminal_proven\") is True\n    )\n",
+          "old": "    return (\n        record.get(\"observation_valid\") is True\n        and record.get(\"external_root_terminal_proven\") is True\n    )\n"
+        }
+      ],
+      "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+      "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+      "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+      "status": "KILLED",
+      "test_output_sha256": "666dfe8e4ae6b10acbed5b63f9e16a15c679144dd8f6178034df35a4ec1b0d19",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/f4e15bae887026255a7653c9eef9dd86/izdw-f4e15bae88.o888725",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/f4e15bae887026255a7653c9eef9dd86/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................................F..          [100%]\n=================================== FAILURES ===================================\n_______________ test_legacy_false_is_never_promoted_to_authority _______________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_legacy_false_is_never_promoted_to_authority() -> None:\n        legacy = {\"admissible\": False, \"external_root_terminal_proven\": True}\n    \n>       assert (\n            subject._record_is_authoritative(\n                legacy, preserve_legacy_authority=True\n            )\n            is False\n        )\nE       AssertionError: assert True is False\nE        +  where True = <function _record_is_authoritative at 0x14d7c02ac940>({'admissible': False, 'external_root_terminal_proven': True}, preserve_legacy_authority=True)\nE        +    where <function _record_is_authoritative at 0x14d7c02ac940> = subject._record_is_authoritative\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1362: AssertionError\n=========================== short test summary info ============================\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_legacy_false_is_never_promoted_to_authority\n1 failed, 62 passed in 2.00s\n",
+        "stdout_sha256": "dcb8575f3baadb3102f59e4273c8cf07a955d2d65d2ea76cf13ef5e9af6c6790"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1bba2553be44e519d2b87908dc2fb0b52f82e7697eb52de6e13d023a34f2e71",
+      "duration_s": 26.755,
+      "expected_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_legacy_false_is_never_promoted_to_authority"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_legacy_false_is_never_promoted_to_authority"
+      ],
+      "hang_risk": false,
+      "id": "G2",
+      "injection_diff_sha256": "3c97d2624fd99381c9394113f57c7b00e5a6f1c3a3f878ec72f1be63ab0a141e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e1fee55a5418f83369dfa1766a2719f349c6a9bfc4dbaf07185729a18dc05d24",
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+          "new": "        return preserve_legacy_authority and admissible is not None\n",
+          "old": "        return preserve_legacy_authority and admissible is True\n"
+        }
+      ],
+      "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+      "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+      "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+      "status": "KILLED",
+      "test_output_sha256": "dcb8575f3baadb3102f59e4273c8cf07a955d2d65d2ea76cf13ef5e9af6c6790",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/9a17bce5111fa2fc14cf70ba07aec410/izdw-9a17bce511.o888726",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/9a17bce5111fa2fc14cf70ba07aec410/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................F.FF...          [100%]\n=================================== FAILURES ===================================\n______ test_available_accounting_null_integrity_fails_closed_in_composer _______\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_available_accounting_null_integrity_fails_closed_in_composer() -> None:\n        evaluation = _split(\n            accounting_available=True,\n            accounting_integrity_valid=None,\n        )\n    \n        assert evaluation[\"accounting_integrity_valid\"] is False\n>       assert evaluation[\"observation_valid\"] is False\nE       assert True is False\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:826: AssertionError\n_____________ test_accounting_integrity_failure_blocks_observation _____________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_accounting_integrity_failure_blocks_observation() -> None:\n        evaluation = _split(\n            accounting_available=True,\n            accounting_integrity_valid=False,\n        )\n    \n>       assert evaluation[\"observation_valid\"] is False\nE       assert True is False\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:959: AssertionError\n__________ test_recorded_foreign_accounting_still_blocks_observation ___________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_recorded_foreign_accounting_still_blocks_observation() -> None:\n        request_id = \"123.nqsv\"\n        clean = (\n            f\"Request ID: {request_id}\\nStarted Request Time: x\\n\"\n            \"Ended Request Time: y\\nElapse: 180\\nExit Status: 0\\n\"\n        )\n        mixed = clean + (\n            \"Request ID: 999.nqsv\\nStarted Request Time: x\\n\"\n            \"Ended Request Time: y\\nElapse: 180\\nExit Status: 0\\n\"\n        )\n        collected = {\n            name: {\n                \"returncode\": 0,\n                \"stdout\": text,\n                \"stderr\": \"\",\n                \"accounting_validation\": subject._accounting_valid(\n                    text,\n                    request_id,\n                    1,\n                ),\n            }\n            for name, text in ((\"racctjob\", mixed), (\"racctreq\", clean))\n        }\n        accounting = subject._accounting_snapshot_from_results(collected)\n        evaluation = _split(\n            accounting_available=accounting[\"available\"],\n            accounting_integrity_valid=accounting[\"integrity_valid\"],\n        )\n    \n        assert accounting[\"available\"] is True\n        assert accounting[\"integrity_valid\"] is False\n>       assert evaluation[\"observation_valid\"] is False\nE       assert True is False\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1053: AssertionError\n=========================== short test summary info ============================\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_available_accounting_null_integrity_fails_closed_in_composer\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_recorded_foreign_accounting_still_blocks_observation\n3 failed, 60 passed in 2.02s\n",
+        "stdout_sha256": "d59a37dabf62cc6263b67d79f59e6b83edc44f979edbd1ec245056a78485a6a7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1bba2553be44e519d2b87908dc2fb0b52f82e7697eb52de6e13d023a34f2e71",
+      "duration_s": 21.685,
+      "expected_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_available_accounting_null_integrity_fails_closed_in_composer",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_recorded_foreign_accounting_still_blocks_observation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_available_accounting_null_integrity_fails_closed_in_composer",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_recorded_foreign_accounting_still_blocks_observation"
+      ],
+      "hang_risk": false,
+      "id": "G3",
+      "injection_diff_sha256": "d3e5a8834958de801faf8c04cda55b90f6d4b38554656df01f3e8d95018fb6ea",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "10d07a8883bf24bec7c276f94f7779ec4cdbbd11317f59b1a8be10733b5c751e",
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+          "new": "    observation_valid = (\n        all(observation_predicates.values())\n        and termination_cause_consistent is not False\n    )\n",
+          "old": "    observation_valid = (\n        all(observation_predicates.values())\n        and accounting_integrity_valid is not False\n        and termination_cause_consistent is not False\n    )\n"
+        }
+      ],
+      "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+      "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+      "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+      "status": "KILLED",
+      "test_output_sha256": "d59a37dabf62cc6263b67d79f59e6b83edc44f979edbd1ec245056a78485a6a7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/c41515961f5b422a8d30764ab706bbee/izdw-c41515961f.o888728",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/c41515961f5b422a8d30764ab706bbee/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................................................F          [100%]\n=================================== FAILURES ===================================\n______________ test_hygiene_failure_does_not_create_false_danger _______________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_hygiene_failure_does_not_create_false_danger() -> None:\n>       evaluation = _split(hygiene=False)\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1353: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:28: in _split\n    return subject._compose_split_v2_evaluation(\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py:422: in _compose_split_v2_evaluation\n    _validate_split_v2_envelope(value)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrecord = {'evaluation_model': 'split-v2', 'observation_valid': True, 'attempt_safe': False, 'accounting_evidence': False, ...}\n\n    def _validate_split_v2_envelope(record: Mapping[str, Any]) -> None:\n        if _evaluation_model(record) != EVALUATION_MODEL:\n            raise ControllerError(\"split-v2 envelope is required\")\n        for name in (\n            \"observation_valid\",\n            \"accounting_available\",\n        ):\n            if type(record.get(name)) is not bool:\n                raise ControllerError(f\"split-v2 {name} must be a literal bool\")\n        for name in (\"accounting_integrity_valid\", \"termination_cause_consistent\"):\n            if record.get(name) is not None and type(record.get(name)) is not bool:\n                raise ControllerError(f\"split-v2 {name} must be bool or null\")\n        if record.get(\"accounting_available\") is True and any(\n            record.get(name) is None\n            for name in (\"accounting_integrity_valid\", \"termination_cause_consistent\")\n        ):\n            raise ControllerError(\n                \"split-v2 available accounting requires non-null integrity and cause\"\n            )\n        if \"accounting_evidence\" in record:\n            if type(record.get(\"accounting_evidence\")) is not bool:\n                raise ControllerError(\"split-v2 accounting_evidence must be a literal bool\")\n            if record[\"accounting_evidence\"] is not record[\"accounting_available\"]:\n                raise ControllerError(\n                    \"split-v2 accounting_evidence must equal accounting_available\"\n                )\n        unavailable_reason = record.get(\"accounting_unavailable_reason\")\n        if unavailable_reason is not None and unavailable_reason not in (\n            ACCOUNTING_UNAVAILABLE_REASONS\n        ):\n            raise ControllerError(\"split-v2 accounting unavailable reason is invalid\")\n        if record.get(\"accounting_available\") is True and unavailable_reason is not None:\n            raise ControllerError(\n                \"split-v2 available accounting cannot have an unavailable reason\"\n            )\n        cause_source = record.get(\"termination_cause_evidence_source\")\n        if cause_source is not None and cause_source not in (\n            TERMINATION_CAUSE_EVIDENCE_SOURCES\n        ):\n            raise ControllerError(\"split-v2 termination cause evidence source is invalid\")\n        if record.get(\"attempt_safe\") is not None and type(record.get(\"attempt_safe\")) is not bool:\n            raise ControllerError(\"split-v2 attempt_safe must be bool or null\")\n        outcome = record.get(\"probe_cleanup_outcome\")\n        if outcome not in PROBE_CLEANUP_OUTCOMES:\n            raise ControllerError(\"split-v2 probe_cleanup_outcome is outside its closed enum\")\n        unsafe_reason = record.get(\"unsafe_reason\")\n        if unsafe_reason is not None and unsafe_reason not in UNSAFE_REASONS:\n            raise ControllerError(\"split-v2 unsafe_reason is outside its closed enum\")\n        if (outcome == \"unsafe\") != (unsafe_reason is not None):\n            raise ControllerError(\"split-v2 unsafe outcome/reason are inconsistent\")\n        if record.get(\"attempt_safe\") is False and outcome != \"unsafe\":\n>           raise ControllerError(\"attempt_safe=false requires an enumerated unsafe outcome\")\nE           run_probes.ControllerError: attempt_safe=false requires an enumerated unsafe outcome\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py:326: ControllerError\n=========================== short test summary info ============================\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_hygiene_failure_does_not_create_false_danger\n1 failed, 62 passed in 2.10s\n",
+        "stdout_sha256": "1e4b16177e8f631d269271010cc92e35fb2e4e0577239a3db686ed3f7103ccdf"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1bba2553be44e519d2b87908dc2fb0b52f82e7697eb52de6e13d023a34f2e71",
+      "duration_s": 42.218,
+      "expected_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_hygiene_failure_does_not_create_false_danger"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_hygiene_failure_does_not_create_false_danger"
+      ],
+      "hang_risk": false,
+      "id": "G4",
+      "injection_diff_sha256": "ef3890a6f21dbca96c8607c0cd583436f7402020d8207dee8c59e4b550918011",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4696e96ac15cfe25d35091a51354cf739fef7db4067979ae28cae0854b2ec48f",
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+          "new": "    if probe_cleanup_outcome == \"unsafe\" or not all(hygiene_predicates.values()):\n        attempt_safe: bool | None = False\n    elif probe_cleanup_outcome == \"safe\":\n        attempt_safe = True\n",
+          "old": "    if probe_cleanup_outcome == \"unsafe\":\n        attempt_safe: bool | None = False\n    elif probe_cleanup_outcome == \"safe\" and all(hygiene_predicates.values()):\n        attempt_safe = True\n"
+        }
+      ],
+      "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+      "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+      "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+      "status": "KILLED",
+      "test_output_sha256": "1e4b16177e8f631d269271010cc92e35fb2e4e0577239a3db686ed3f7103ccdf",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/0a8b3059740f3a9a67bad8264af2e2cb/izdw-0a8b305974.o888729",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/0a8b3059740f3a9a67bad8264af2e2cb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................................F......FF.F          [100%]\n=================================== FAILURES ===================================\n___________ test_safe_mitigation_accepts_request_bound_normal_qwait ____________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_safe_mitigation_accepts_request_bound_normal_qwait() -> None:\n        leg = subject.LEG_BY_KEY[\"t362-mitigation\"]\n        request_id = \"123.nqsv\"\n        observer = {\n            \"payload_validation\": {\n                \"probe_cleanup_outcome\": \"safe\",\n                \"acceptance_conditions\": {\"python_parent_sigterm_caught\": True},\n            },\n            \"observation_raw\": {\"signal_observations\": {\"parent\": [\"SIGTERM\"]}},\n        }\n        qwait = _natural_qwait(request_id)\n    \n>       assert subject._qwait_valid(leg, qwait, request_id, observer)[\"valid\"] is True\nE       assert False is True\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1398: AssertionError\n_________ test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc __________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_end_to_end_term_wait_natu0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15427cc9e170>\n\n    def test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc(\n        tmp_path: Path, monkeypatch\n    ) -> None:\n        evaluation, completion, final = _production_chain_fixture(\n            tmp_path,\n            monkeypatch,\n            case=\"term-wait\",\n        )\n    \n        assert final[\"unsafe_reason\"] == \"cleanup_order_invalid\"\n        assert evaluation[\"qwait_validation\"][\"expected_outcome\"] == \"normal\"\n>       assert evaluation[\"observation_valid\"] is True\nE       assert False is True\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:2192: AssertionError\n_______________ test_end_to_end_safe_natural_reaches_summary_rc ________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_end_to_end_safe_natural_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149fcbe99e40>\n\n    def test_end_to_end_safe_natural_reaches_summary_rc(\n        tmp_path: Path, monkeypatch\n    ) -> None:\n        evaluation, completion, final = _production_chain_fixture(\n            tmp_path,\n            monkeypatch,\n            case=\"safe\",\n        )\n    \n        assert final[\"probe_cleanup_outcome\"] == \"safe\"\n        assert evaluation[\"qwait_validation\"][\"expected_outcome\"] == \"normal\"\n>       assert evaluation[\"observation_valid\"] is True\nE       assert False is True\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:2208: AssertionError\n_ test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation _\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_completed_split_v2_staged0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154c9a83b220>\n\n    def test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation(\n        tmp_path: Path, monkeypatch\n    ) -> None:\n        controller, request, attempt_root = _staged_reevaluation_fixture(\n            tmp_path, monkeypatch\n        )\n        monkeypatch.setattr(\n            subject,\n            \"_saved_staged_preflight_validation\",\n            lambda **_kwargs: {\"valid\": True, \"errors\": [], \"source_commit\": \"fixture\"},\n        )\n    \n        def reject_external_command(*_args, **_kwargs):\n            raise AssertionError(\"reevaluation must not launch qsub or another command\")\n    \n        monkeypatch.setattr(subject.subprocess, \"run\", reject_external_command)\n    \n        assert controller._reevaluate_completed_staged_requests() == 1\n>       assert request[\"observation_valid\"] is True\nE       assert False is True\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1638: AssertionError\n=========================== short test summary info ============================\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_accepts_request_bound_normal_qwait\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_safe_natural_reaches_summary_rc\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation\n4 failed, 59 passed in 2.02s\n",
+        "stdout_sha256": "4ceffcd82c636314e9027fc2aa96a964bdac7aeca848e5501c676f9fae24b413"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1bba2553be44e519d2b87908dc2fb0b52f82e7697eb52de6e13d023a34f2e71",
+      "duration_s": 26.847,
+      "expected_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_safe_natural_reaches_summary_rc",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_accepts_request_bound_normal_qwait"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_accepts_request_bound_normal_qwait",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_safe_natural_reaches_summary_rc",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation"
+      ],
+      "hang_risk": false,
+      "id": "G5",
+      "injection_diff_sha256": "f2c2f7e516432b2d94b5e93c22c7d03fd1d811cb0217cbdeda5a276d21b682a5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "93aab2742277ab045eec0c5d2b8137d4d34ae1e606f910f97fd6bf5a558d6404",
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+          "new": "        valid = (\n            request_bound\n            and natural_receipt\n            and elapse_signal_outcome\n        )\n",
+          "old": "        valid = (\n            request_bound\n            and natural_receipt\n            and (normal_outcome or elapse_signal_outcome)\n        )\n"
+        }
+      ],
+      "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+      "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+      "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+      "status": "KILLED",
+      "test_output_sha256": "4ceffcd82c636314e9027fc2aa96a964bdac7aeca848e5501c676f9fae24b413",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/0e30ecbe3c31e239bf370c28d1de9f7d/izdw-0e30ecbe3c.o888730",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/0e30ecbe3c31e239bf370c28d1de9f7d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................................F..          [100%]\n=================================== FAILURES ===================================\n_______________ test_explicit_null_evaluation_model_is_rejected ________________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_explicit_null_evaluation_model_is_rejected() -> None:\n>       with pytest.raises(subject.ControllerError, match=\"unknown evaluation_model\"):\nE       Failed: DID NOT RAISE ControllerError\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1376: Failed\n=========================== short test summary info ============================\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_explicit_null_evaluation_model_is_rejected\n1 failed, 62 passed in 2.01s\n",
+        "stdout_sha256": "3327b7cf731500579d8cd1b46592a33203f58ee5e1f0b3f42f3685af896300e3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1bba2553be44e519d2b87908dc2fb0b52f82e7697eb52de6e13d023a34f2e71",
+      "duration_s": 72.921,
+      "expected_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_explicit_null_evaluation_model_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_explicit_null_evaluation_model_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "G6",
+      "injection_diff_sha256": "d2c1ae4a6026a40a42c78d22581bf418343daf40a03263739629555af7a80598",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dcd62535dad476c619d706cb490ea05e2acd53411d0bf326731ebac48d6bd49b",
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+          "new": "    model = record[\"evaluation_model\"]\n    if model is None:\n        return None\n    if model != EVALUATION_MODEL:\n        raise ControllerError(f\"unknown evaluation_model: {model!r}\")\n",
+          "old": "    model = record[\"evaluation_model\"]\n    if model != EVALUATION_MODEL:\n        raise ControllerError(f\"unknown evaluation_model: {model!r}\")\n"
+        }
+      ],
+      "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+      "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+      "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+      "status": "KILLED",
+      "test_output_sha256": "3327b7cf731500579d8cd1b46592a33203f58ee5e1f0b3f42f3685af896300e3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/3e1119a16b68e9856eca2ad9a5be6649/izdw-3e1119a16b.o888731",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/3e1119a16b68e9856eca2ad9a5be6649/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................................................F          [100%]\n=================================== FAILURES ===================================\n_____________ test_reserve_request_enforces_production_per_leg_cap _____________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_reserve_request_enforces_production_per_leg_cap() -> None:\n        controller = subject.Controller.__new__(subject.Controller)\n        controller.request_count = 2\n        controller.cumulative_node_min = 6\n        controller.leg_attempt_counts = {\n            \"t362-mitigation\": subject.PER_LEG_ATTEMPT_CAP\n        }\n        controller.wave_state = {\"requests\": []}\n        leg = subject.LEG_BY_KEY[\"t362-mitigation\"]\n    \n        with pytest.raises(subject.ControllerError, match=\"per-leg attempt cap\"):\n>           controller._reserve_request(leg, \"attempt-3\", [\"qsub\"], 1)\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1451: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py:3943: in _reserve_request\n    self._persist_wave_state()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <run_probes.Controller object at 0x14cf3ea068c0>\n\n    def _persist_wave_state(self) -> None:\n        self.wave_state[\"schema\"] = WAVE_STATE_SCHEMA\n        self.wave_state[\"request_count\"] = self.request_count\n        self.wave_state[\"cumulative_requested_node_min\"] = self.cumulative_node_min\n>       self.wave_state[\"authoritative_attempts\"] = dict(self.authoritative)\nE       AttributeError: 'Controller' object has no attribute 'authoritative'\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py:3890: AttributeError\n=========================== short test summary info ============================\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_reserve_request_enforces_production_per_leg_cap\n1 failed, 62 passed in 2.12s\n",
+        "stdout_sha256": "beba6c450931913e6efcdc8e0c951fa18ef4d2f83a990ff44ddb6158031aab77"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1bba2553be44e519d2b87908dc2fb0b52f82e7697eb52de6e13d023a34f2e71",
+      "duration_s": 21.715,
+      "expected_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_reserve_request_enforces_production_per_leg_cap"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_reserve_request_enforces_production_per_leg_cap"
+      ],
+      "hang_risk": false,
+      "id": "G7",
+      "injection_diff_sha256": "80f7923d996d803d97550e9239c84a555a29427fdfbaeb3481eb367bb74981cf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "69769b9317890f18b5c6a02b536fdac0d02fcc4784db790f1c8e44cbd270d0f3",
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+          "new": "        if (\n            leg.key in SIGNAL_LEG_KEYS\n            and self.leg_attempt_counts[leg.key] >= PER_LEG_ATTEMPT_CAP + 1\n        ):\n",
+          "old": "        if (\n            leg.key in SIGNAL_LEG_KEYS\n            and self.leg_attempt_counts[leg.key] >= PER_LEG_ATTEMPT_CAP\n        ):\n"
+        }
+      ],
+      "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+      "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+      "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+      "status": "KILLED",
+      "test_output_sha256": "beba6c450931913e6efcdc8e0c951fa18ef4d2f83a990ff44ddb6158031aab77",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/e6d841a1978891533ffc475cb12f94af/izdw-e6d841a197.o888732",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/e6d841a1978891533ffc475cb12f94af/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................................F..          [100%]\n=================================== FAILURES ===================================\n_____________ test_migration_without_raw_revalidation_is_rejected ______________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_migration_without_raw_revalidation_is_rejected() -> None:\n        request = {\n            \"attempt_id\": \"attempt-1\",\n            \"request_id\": \"123.nqsv\",\n            \"completed\": True,\n            \"qsub_returncode\": 0,\n            \"external_root_terminal_proven\": False,\n            \"admissible\": False,\n        }\n        raw = {\"attempt_id\": \"attempt-1\", \"request_id\": \"123.nqsv\", \"valid\": False}\n    \n>       assert subject._migration_terminal_upgrade_allowed(request, raw) is False\nE       AssertionError: assert True is False\nE        +  where True = <function _migration_terminal_upgrade_allowed at 0x145ef57e4c10>({'attempt_id': 'attempt-1', 'request_id': '123.nqsv', 'completed': True, 'qsub_returncode': 0, ...}, {'attempt_id': 'attempt-1', 'request_id': '123.nqsv', 'valid': False})\nE        +    where <function _migration_terminal_upgrade_allowed at 0x145ef57e4c10> = subject._migration_terminal_upgrade_allowed\n\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py:1549: AssertionError\n=========================== short test summary info ============================\nFAILED output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_migration_without_raw_revalidation_is_rejected\n1 failed, 62 passed in 2.23s\n",
+        "stdout_sha256": "5f6e4571fc48e5b7ce48ce98789896045cc8c36ac81e06188302defe0fd6262e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1bba2553be44e519d2b87908dc2fb0b52f82e7697eb52de6e13d023a34f2e71",
+      "duration_s": 129.156,
+      "expected_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_migration_without_raw_revalidation_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_migration_without_raw_revalidation_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "G8",
+      "injection_diff_sha256": "187c0a3d6399c5168bb22214c034bc450b9ae0d8997f822ba448a166eeaef275",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "51466f4da62be84bc55d973293ff28a1f372f9e6417b1e2bc1b0270ab0db61af",
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+          "new": "        and raw_revalidation is not None\n",
+          "old": "        and raw_revalidation.get(\"valid\") is True\n"
+        }
+      ],
+      "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+      "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+      "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+      "status": "KILLED",
+      "test_output_sha256": "5f6e4571fc48e5b7ce48ce98789896045cc8c36ac81e06188302defe0fd6262e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/1b2d3690093aa042c5944755d6c5cd17/izdw-1b2d369009.o888722",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/pegasus-dispatch/1b2d3690093aa042c5944755d6c5cd17/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_is_authoritative_without_accounting\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_unsafe_mitigation_remains_authoritative\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_sigkill_cleanup_absence_is_classified_from_event_log_and_root\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_short_term_wait_is_cleanup_order_unsafe\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_mixed_request_is_rejected\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_extra_job_is_rejected\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_termination_cause_contradiction_is_rejected\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_available_accounting_null_integrity_is_rejected_by_envelope\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_available_accounting_null_integrity_fails_closed_in_composer\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_later_integrity_snapshot_supplies_its_own_termination_cause\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_accounting_rejects_foreign_request_snapshot\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_timeout_counts_all_qstat_phases_and_local_caps\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_local_bound_accounts_for_signal_raw_and_fsync_caps\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_permission_accounting_unavailable_is_neutral_to_observation_gate\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_recorded_foreign_accounting_still_blocks_observation\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_fields_without_request_id_are_malformed\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_manifest_bound_scheduler_accounting_rejects_outside_block_cause\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_manifest_bound_scheduler_accounting_rejects_foreign_filename\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_manifest_bound_scheduler_accounting_supplies_cause\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_post_restore_canary_mismatch_is_the_only_unsafe_reason\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_controller_recomputes_canary_outcome_from_bound_bytes\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_final_absence_reads_raw_canary_before_retry\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_saved_qsub_receipt_is_revalidated_on_normal_shape\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_nonzero_qsub_with_request_id_is_not_retryable\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_hygiene_failure_does_not_create_false_danger\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_legacy_false_is_never_promoted_to_authority\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_unknown_evaluation_model_is_rejected\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_explicit_null_evaluation_model_is_rejected\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_terminal_false_split_v2_is_not_authoritative\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_accepts_request_bound_normal_qwait\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_qwait_missing_natural_completion_flags_is_rejected\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_qwait_controller_termination_is_rejected\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_signal_only_target_is_a_closed_two_leg_set\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_per_leg_retry_cap_is_exactly_two_attempts\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_reserve_request_enforces_production_per_leg_cap\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_prequeued_first_leg_outcome_updates_its_own_reservation\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_prequeued_terminal_request_skips_visibility_timeout\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_migration_requires_bound_raw_revalidation\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_migration_without_raw_revalidation_is_rejected\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_sessionless_migration_reads_saved_qsub_and_qwait_raw\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_sync_recorder_emits_both_qwait_termination_flags\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_foreign_stderr_invalidates_the_same_snapshot\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_unbound_stderr_cause_is_not_extracted\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_accounting_rejects_unbound_stderr_cause\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_signal_log_caps_fail_closed_without_becoming_parse_errors\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_parse_error_predicate_is_independent_of_structure_errors\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_raw_output_cap_is_fail_closed\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_marker_and_canary_reads_fail_closed_at_byte_caps\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_qstat_count_cap_returns_fail_closed_without_command\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_outer_poll_stops_after_bounded_transient_retries\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_timeout_still_publishes_capped_raw_files\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_fsync_watchdog_fails_closed\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_parse_only_error_has_independent_signal_log_predicate\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_production_observer_wait_accounts_for_all_count_and_size_caps\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_wave_state_validator_rejects_third_signal_attempt_without_patch\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_sigkill_walltime_unsafe_reaches_summary_rc\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_erratum2_sigterm_positive_remaining_rc9_is_authoritative\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_erratum2_sigterm_zero_remaining_is_cause_inconsistent\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc\noutput/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_safe_natural_reaches_summary_rc\n\n63 tests collected in 0.25s\n",
+        "stdout_sha256": "ba7546fefe7cb980d5fd612aa4d73cd8d994f4bc824c3b1815352dfc18a0fa8f"
+      },
+      "collected_nodes": [
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_is_authoritative_without_accounting",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_unsafe_mitigation_remains_authoritative",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_sigkill_cleanup_absence_is_classified_from_event_log_and_root",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_short_term_wait_is_cleanup_order_unsafe",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_mixed_request_is_rejected",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_extra_job_is_rejected",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_termination_cause_contradiction_is_rejected",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_available_accounting_null_integrity_is_rejected_by_envelope",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_available_accounting_null_integrity_fails_closed_in_composer",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_later_integrity_snapshot_supplies_its_own_termination_cause",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_accounting_rejects_foreign_request_snapshot",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_timeout_counts_all_qstat_phases_and_local_caps",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_local_bound_accounts_for_signal_raw_and_fsync_caps",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_permission_accounting_unavailable_is_neutral_to_observation_gate",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_recorded_foreign_accounting_still_blocks_observation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_fields_without_request_id_are_malformed",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_manifest_bound_scheduler_accounting_rejects_outside_block_cause",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_manifest_bound_scheduler_accounting_rejects_foreign_filename",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_manifest_bound_scheduler_accounting_supplies_cause",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_post_restore_canary_mismatch_is_the_only_unsafe_reason",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_controller_recomputes_canary_outcome_from_bound_bytes",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_final_absence_reads_raw_canary_before_retry",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_saved_qsub_receipt_is_revalidated_on_normal_shape",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_nonzero_qsub_with_request_id_is_not_retryable",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_hygiene_failure_does_not_create_false_danger",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_legacy_false_is_never_promoted_to_authority",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_unknown_evaluation_model_is_rejected",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_explicit_null_evaluation_model_is_rejected",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_terminal_false_split_v2_is_not_authoritative",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_accepts_request_bound_normal_qwait",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_qwait_missing_natural_completion_flags_is_rejected",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_qwait_controller_termination_is_rejected",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_signal_only_target_is_a_closed_two_leg_set",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_per_leg_retry_cap_is_exactly_two_attempts",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_reserve_request_enforces_production_per_leg_cap",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_prequeued_first_leg_outcome_updates_its_own_reservation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_prequeued_terminal_request_skips_visibility_timeout",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_migration_requires_bound_raw_revalidation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_migration_without_raw_revalidation_is_rejected",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_sessionless_migration_reads_saved_qsub_and_qwait_raw",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_sync_recorder_emits_both_qwait_termination_flags",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_foreign_stderr_invalidates_the_same_snapshot",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_unbound_stderr_cause_is_not_extracted",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_accounting_rejects_unbound_stderr_cause",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_signal_log_caps_fail_closed_without_becoming_parse_errors",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_parse_error_predicate_is_independent_of_structure_errors",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_raw_output_cap_is_fail_closed",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_marker_and_canary_reads_fail_closed_at_byte_caps",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_qstat_count_cap_returns_fail_closed_without_command",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_outer_poll_stops_after_bounded_transient_retries",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_timeout_still_publishes_capped_raw_files",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_observer_fsync_watchdog_fails_closed",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_parse_only_error_has_independent_signal_log_predicate",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_production_observer_wait_accounts_for_all_count_and_size_caps",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_wave_state_validator_rejects_third_signal_attempt_without_patch",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_sigkill_walltime_unsafe_reaches_summary_rc",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_erratum2_sigterm_positive_remaining_rc9_is_authoritative",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_erratum2_sigterm_zero_remaining_is_cause_inconsistent",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc",
+        "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_safe_natural_reaches_summary_rc"
+      ],
+      "duration_s": 497.723,
+      "rc": 0,
+      "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+      "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+      "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+      "status": "PASSED",
+      "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "G1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_reevaluation_rejects_staged_raw_hash_mismatch",
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation",
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_erratum2_sigterm_zero_remaining_is_cause_inconsistent",
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_terminal_false_split_v2_is_not_authoritative"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c2f2ff0877e290ebd0cc4c67c519df16e3552f8b55d922cbdc309a979c62d42c",
+        "replacements": [
+          {
+            "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+            "new": "    return (\n        record.get(\"observation_valid\") is True\n        or record.get(\"external_root_terminal_proven\") is True\n    )\n",
+            "old": "    return (\n        record.get(\"observation_valid\") is True\n        and record.get(\"external_root_terminal_proven\") is True\n    )\n"
+          }
+        ]
+      },
+      "G2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_legacy_false_is_never_promoted_to_authority"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3c97d2624fd99381c9394113f57c7b00e5a6f1c3a3f878ec72f1be63ab0a141e",
+        "replacements": [
+          {
+            "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+            "new": "        return preserve_legacy_authority and admissible is not None\n",
+            "old": "        return preserve_legacy_authority and admissible is True\n"
+          }
+        ]
+      },
+      "G3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_accounting_integrity_failure_blocks_observation",
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_available_accounting_null_integrity_fails_closed_in_composer",
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_recorded_foreign_accounting_still_blocks_observation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d3e5a8834958de801faf8c04cda55b90f6d4b38554656df01f3e8d95018fb6ea",
+        "replacements": [
+          {
+            "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+            "new": "    observation_valid = (\n        all(observation_predicates.values())\n        and termination_cause_consistent is not False\n    )\n",
+            "old": "    observation_valid = (\n        all(observation_predicates.values())\n        and accounting_integrity_valid is not False\n        and termination_cause_consistent is not False\n    )\n"
+          }
+        ]
+      },
+      "G4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_hygiene_failure_does_not_create_false_danger"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ef3890a6f21dbca96c8607c0cd583436f7402020d8207dee8c59e4b550918011",
+        "replacements": [
+          {
+            "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+            "new": "    if probe_cleanup_outcome == \"unsafe\" or not all(hygiene_predicates.values()):\n        attempt_safe: bool | None = False\n    elif probe_cleanup_outcome == \"safe\":\n        attempt_safe = True\n",
+            "old": "    if probe_cleanup_outcome == \"unsafe\":\n        attempt_safe: bool | None = False\n    elif probe_cleanup_outcome == \"safe\" and all(hygiene_predicates.values()):\n        attempt_safe = True\n"
+          }
+        ]
+      },
+      "G5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_completed_split_v2_staged_raw_is_reevaluated_and_preserves_old_evaluation",
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_safe_natural_reaches_summary_rc",
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_end_to_end_term_wait_natural_unsafe_reaches_summary_rc",
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_safe_mitigation_accepts_request_bound_normal_qwait"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f2c2f7e516432b2d94b5e93c22c7d03fd1d811cb0217cbdeda5a276d21b682a5",
+        "replacements": [
+          {
+            "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+            "new": "        valid = (\n            request_bound\n            and natural_receipt\n            and elapse_signal_outcome\n        )\n",
+            "old": "        valid = (\n            request_bound\n            and natural_receipt\n            and (normal_outcome or elapse_signal_outcome)\n        )\n"
+          }
+        ]
+      },
+      "G6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_explicit_null_evaluation_model_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d2c1ae4a6026a40a42c78d22581bf418343daf40a03263739629555af7a80598",
+        "replacements": [
+          {
+            "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+            "new": "    model = record[\"evaluation_model\"]\n    if model is None:\n        return None\n    if model != EVALUATION_MODEL:\n        raise ControllerError(f\"unknown evaluation_model: {model!r}\")\n",
+            "old": "    model = record[\"evaluation_model\"]\n    if model != EVALUATION_MODEL:\n        raise ControllerError(f\"unknown evaluation_model: {model!r}\")\n"
+          }
+        ]
+      },
+      "G7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_reserve_request_enforces_production_per_leg_cap"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "80f7923d996d803d97550e9239c84a555a29427fdfbaeb3481eb367bb74981cf",
+        "replacements": [
+          {
+            "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+            "new": "        if (\n            leg.key in SIGNAL_LEG_KEYS\n            and self.leg_attempt_counts[leg.key] >= PER_LEG_ATTEMPT_CAP + 1\n        ):\n",
+            "old": "        if (\n            leg.key in SIGNAL_LEG_KEYS\n            and self.leg_attempt_counts[leg.key] >= PER_LEG_ATTEMPT_CAP\n        ):\n"
+          }
+        ]
+      },
+      "G8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py::test_migration_without_raw_revalidation_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "187c0a3d6399c5168bb22214c034bc450b9ae0d8997f822ba448a166eeaef275",
+        "replacements": [
+          {
+            "file": "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+            "new": "        and raw_revalidation is not None\n",
+            "old": "        and raw_revalidation.get(\"valid\") is True\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "59fe051f880c5d929e907d7215fccee04f313e90dba341998f805521855eb959",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "ed500a506080707e199ff6faf4028acef9c5909a",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "output/insights/2026-08-03_t361-t362-cluster-probes/driver/test_run_probes_evaluator.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "f9380c263251ed8d624d8a2d01de3445b48a193e",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "92d4ba2524adce218330a948ede01c7ef40e1b0e8d234fa92ac31b523c0f20b8",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "d22d6904edb7caa769640c11c75fd0311295919e6fccbe8958dfd9b181dab230",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "b8c9f946d0c4a65b4d9b083060ac88d73c228fd21162107551e661628b4e90e3",
+  "updated_at": "2026-08-04T16:06:38.197763+00:00"
+}

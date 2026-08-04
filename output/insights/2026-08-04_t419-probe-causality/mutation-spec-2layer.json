@@ -1,0 +1,25 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 900,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M5a-2layer",
+   "category": "both-layers",
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t419_probe_causality.py",
+     "old": "            if attribution == \"COMPETITOR\":\n                reasons.append(f\"{name}:competing_process_detected\")\n            elif attribution not in {\"CLEAN\", \"ATTRIBUTION_UNRESOLVED\"}:\n                reasons.append(f\"{name}:isolation_attribution_invalid\")",
+     "new": "            if False:\n                reasons.append(f\"{name}:competing_process_detected\")\n            elif False:\n                reasons.append(f\"{name}:isolation_attribution_invalid\")"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t419_probe_causality.py::test_contention_invalidates_execution_and_verdict",
+    "orchestrator/tests/test_t419_probe_causality.py::test_residual_above_self_unattributable_invalidates_and_stops_later_arms"
+   ]
+  }
+ ]
+}
