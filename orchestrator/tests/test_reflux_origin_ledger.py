@@ -608,45 +608,43 @@ def test_v04_global_flock_race_reentry_and_public_signature(tmp_path: Path) -> N
     process_base = _snapshot(process_store, process_origin_a).state_commitment
     marker_a = tmp_path / "process-a.ready"
     marker_b = tmp_path / "process-b.ready"
-    probe_b = tmp_path / "process-b.probe"
-    release = tmp_path / "process.release"
     process_event = _batch_events("process-batch")[0]
     def process_script(
         origin: str,
         operation: str,
         marker: Path,
         wait_for_release: bool,
-        probe: Path | None,
+        probe: bool,
     ) -> str:
         return f"""
-import errno,fcntl,os,sys,time
+import errno,fcntl,os,sys
 from pathlib import Path
 sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
 from campaign import reflux_origin_ledger as l
 s=l._store_for_repo(Path({os.fspath(process_repo)!r}),committed_ref='HEAD',fixture=True)
 e=l.BatchCommitted('process-batch',0,{process_event.candidate_commitments!r})
-probe={None if probe is None else os.fspath(probe)!r}
-if probe is not None:
+if {probe!r}:
     probe_fd=os.open(s.lock_path,os.O_RDWR)
     try:
         try:
             fcntl.flock(probe_fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError as exc:
             assert exc.errno in (errno.EAGAIN,errno.EWOULDBLOCK)
-            Path(probe).write_text('blocked',encoding='ascii')
+            probe_state='blocked'
         else:
             fcntl.flock(probe_fd,fcntl.LOCK_UN)
-            Path(probe).write_text('available',encoding='ascii')
+            probe_state='available'
     finally:
         os.close(probe_fd)
+    sys.stdout.write('PROBE '+probe_state+'\\n')
+    sys.stdout.flush()
 def hook(label):
     if label=='commit:base-read':
         Path({os.fspath(marker)!r}).write_text('ready',encoding='ascii')
+        sys.stdout.write('READY\\n')
+        sys.stdout.flush()
         if {wait_for_release!r}:
-            deadline=time.monotonic()+30
-            while not Path({os.fspath(release)!r}).exists():
-                if time.monotonic()>deadline: raise RuntimeError('release timeout')
-                time.sleep(0.01)
+            os.read(0,1)
 l._FAULT_HOOK=hook
 try:
     with l._locked(s) as a:
@@ -654,66 +652,141 @@ try:
 except l.RefluxOriginLedgerError:
     sys.exit(19)
 """
-    first_process = subprocess.Popen(
-        [sys.executable, "-c", process_script(
-            process_origin_a, "process-a", marker_a, True, None
-        )],
-        cwd=process_repo,
-        env=_git_env(),
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    deadline = time.monotonic() + 10
-    while not marker_a.exists() and time.monotonic() < deadline:
-        time.sleep(0.01)
-    if not marker_a.exists():
-        release.write_text("release", encoding="ascii")
-        first_process.kill()
-        first_process.communicate(timeout=SUBPROCESS_TIMEOUT)
-    assert marker_a.exists()
-    second_process = subprocess.Popen(
-        [sys.executable, "-c", process_script(
-            process_origin_b, "process-b", marker_b, True, probe_b
-        )],
-        cwd=process_repo,
-        env=_git_env(),
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    deadline = time.monotonic() + 10
-    while not probe_b.exists() and time.monotonic() < deadline:
-        time.sleep(0.01)
-    if not probe_b.exists():
-        release.write_text("release", encoding="ascii")
-        first_process.kill()
-        second_process.kill()
-        first_process.communicate(timeout=SUBPROCESS_TIMEOUT)
-        second_process.communicate(timeout=SUBPROCESS_TIMEOUT)
-    assert probe_b.exists()
-    probe_state = probe_b.read_text(encoding="ascii")
-    if probe_state == "available":
-        deadline = time.monotonic() + 10
-        while not marker_b.exists() and time.monotonic() < deadline:
-            time.sleep(0.01)
-        assert marker_b.exists(), "per-origin path did not reach the shared base gate"
-    release.write_text("release", encoding="ascii")
+    import select
+    processes: list[tuple[str, subprocess.Popen[bytes]]] = []
+    process_results: dict[str, tuple[int | None, bytes, bytes]] = {}
+    observed_stdout: dict[subprocess.Popen[bytes], bytearray] = {}
+    cleanup_failures: list[tuple[str, BaseException]] = []
+    process_failure: BaseException | None = None
+    process_deadline = time.monotonic() + SUBPROCESS_TIMEOUT
+    first_ready = ""
+    probe_state = ""
+    second_ready = ""
+    def read_process_line(process: subprocess.Popen[bytes]) -> str:
+        assert process.stdout is not None
+        stdout = observed_stdout.setdefault(process, bytearray())
+        line = bytearray()
+        while True:
+            remaining = process_deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(process.args, SUBPROCESS_TIMEOUT)
+            readable, _, _ = select.select(
+                (process.stdout.fileno(),), (), (), remaining
+            )
+            if not readable:
+                raise subprocess.TimeoutExpired(process.args, SUBPROCESS_TIMEOUT)
+            try:
+                byte = os.read(process.stdout.fileno(), 1)
+            except InterruptedError:
+                continue
+            if not byte:
+                raise AssertionError(f"unexpected process stdout EOF: {bytes(line)!r}")
+            stdout.extend(byte)
+            if byte == b"\n":
+                return line.decode("ascii")
+            line.extend(byte)
+    def release_process(process: subprocess.Popen[bytes]) -> None:
+        if process.stdin is None:
+            return
+        stdin = process.stdin
+        process.stdin = None
+        try:
+            stdin.write(b"R")
+            stdin.flush()
+        except (BrokenPipeError, OSError):
+            pass
+        finally:
+            try:
+                stdin.close()
+            except (BrokenPipeError, OSError):
+                pass
     try:
-        first_stdout, first_stderr = first_process.communicate(timeout=SUBPROCESS_TIMEOUT)
-        second_stdout, second_stderr = second_process.communicate(timeout=SUBPROCESS_TIMEOUT)
-    except subprocess.TimeoutExpired:
-        first_process.kill()
-        second_process.kill()
-        first_process.communicate()
-        second_process.communicate()
-        raise
-    assert probe_state == "blocked"
-    assert first_process.returncode == 0, (first_stdout, first_stderr)
-    assert second_process.returncode == 19, (second_stdout, second_stderr)
-    assert marker_b.exists()
-    _assert_flock_state(process_store.lock_path, blocked=False)
-    assert _snapshot(process_store, process_origin_a).iterations_used == 1
+        first_process = subprocess.Popen(
+            [sys.executable, "-c", process_script(
+                process_origin_a, "process-a", marker_a, True, False
+            )],
+            cwd=process_repo,
+            env=_git_env(),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=0,
+        )
+        processes.append(("first", first_process))
+        first_ready = read_process_line(first_process)
+        assert first_ready == "READY"
+        second_process = subprocess.Popen(
+            [sys.executable, "-c", process_script(
+                process_origin_b, "process-b", marker_b, True, True
+            )],
+            cwd=process_repo,
+            env=_git_env(),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=0,
+        )
+        processes.append(("second", second_process))
+        probe_line = read_process_line(second_process)
+        assert probe_line in ("PROBE blocked", "PROBE available"), probe_line
+        probe_state = probe_line.removeprefix("PROBE ")
+        release_process(first_process)
+        second_ready = read_process_line(second_process)
+        assert second_ready == "READY"
+        release_process(second_process)
+        for _, process in processes:
+            remaining = process_deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(process.args, SUBPROCESS_TIMEOUT)
+            process.wait(timeout=remaining)
+    except BaseException as exc:
+        process_failure = exc
+    finally:
+        for _, process in processes:
+            release_process(process)
+        for name, process in processes:
+            if process.poll() is None:
+                try:
+                    process.kill()
+                except OSError as exc:
+                    cleanup_failures.append((name, exc))
+        for name, process in processes:
+            try:
+                stdout_tail, stderr = process.communicate(timeout=SUBPROCESS_TIMEOUT)
+            except BaseException as exc:
+                cleanup_failures.append((name, exc))
+            else:
+                stdout = bytes(observed_stdout.get(process, b"")) + stdout_tail
+                process_results[name] = (process.returncode, stdout, stderr)
+    if process_failure is None:
+        try:
+            assert not cleanup_failures, cleanup_failures
+            first_rc, first_stdout, first_stderr = process_results["first"]
+            second_rc, second_stdout, second_stderr = process_results["second"]
+            assert probe_state == "blocked"
+            assert first_ready == "READY"
+            assert second_ready == "READY"
+            assert first_rc == 0, (first_stdout, first_stderr)
+            assert second_rc == 19, (second_stdout, second_stderr)
+            assert marker_a.exists()
+            assert marker_b.exists()
+            _assert_flock_state(process_store.lock_path, blocked=False)
+            assert _snapshot(process_store, process_origin_a).iterations_used == 1
+        except BaseException as exc:
+            process_failure = exc
+    if process_failure is not None:
+        child_diagnostics = {
+            name: {
+                "rc": process.returncode,
+                "stdout": process_results.get(name, (None, None, None))[1],
+                "stderr": process_results.get(name, (None, None, None))[2],
+            }
+            for name, process in processes
+        }
+        raise AssertionError(
+            f"process-flock failure: {process_failure!r}; "
+            f"children={child_diagnostics!r}; cleanup={cleanup_failures!r}"
+        ) from process_failure
 
 
 def test_v05_prepared_changes_commitment_and_only_exact_request_resumes(tmp_path: Path) -> None:
