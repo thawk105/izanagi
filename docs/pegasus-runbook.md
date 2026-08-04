@@ -581,6 +581,11 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した
+- **wave worktree から exploration campaign / 8c trial を実走する job は、job script が
+  `IZANAGI_EXPLORATION_OUTPUT_ROOT` を job 専用の `/work` 配下へ export した** ([T-422] / F98。
+  実 path は job script が組み立て、shared code・test・docs へ固定値を書かない。process 起動前に
+  一度だけ設定し実行中に変更しない。未設定のまま worktree 内で materialize しようとすると
+  `ensure()` が fail-fast で拒否する)
 - `pegasusinfo` で混雑状況を確認した
 - wall time と node 数 (`-b`) が処理に適切である
 - OpenMP threads は 48 以下である

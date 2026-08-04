@@ -1,0 +1,64 @@
+あなたは izanagi の dev-wave 段 6 の fix 実装子・第 2 巡 (Codex role=author, workspace-write)
+である。日本語で報告する。段 5 実装子の契約 (所有・権限・検査・報告義務) を全文継承する。
+
+まず次の 3 ファイルを読む。読めなければ何も実装せず「入力を読めない」とだけ報告して即終了する。
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s4-ruling.md
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s6-fix.md (第 1 巡の対応表)
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s6-refocus.md (焦点再レビュー = 本巡の対象所見)
+
+タスク: s6-refocus.md の new-1 / new-2 / A-5 partial だけを fix する。new-3 (変異 matrix) は
+親の所有物 (spec ファイル) なので実装しない — ただし下記の新テストは matrix の kill 対象になる。
+
+## 編集してよいファイル (所有)
+
+- orchestrator/campaign/layout.py
+- orchestrator/campaign/wal.py
+- orchestrator/campaign/p3_autonomous_workload_trial.py
+- orchestrator/tests/test_campaign.py
+- orchestrator/tests/test_dev_wave_land.py
+- orchestrator/tests/conftest.py
+
+## 禁止 (第 1 巡と同一)
+
+docs 編集、git commit/add、hooks・tools/dev_wave_land.py・durable_root.py の変更、
+既存テストの期待値変更・skip・削除、pytest / run_tests.py の実行 (静的検査のみ。実測は親)。
+
+## fix 対象
+
+FX-1 (new-1, must-fix): WAL gate の official 過剰拒否を戻す。
+  - 設計: materialization admission を layout の明示 method にする。
+    `CampaignLayout._admit_materialization(self) -> None` は no-op、
+    `ExplorationCampaignLayout._admit_materialization(self)` は
+    `_reject_worktree_container(self.root)` を呼ぶ。
+  - wal.py の 4 materializer (append / write_lock / acquire_lock_atomic /
+    repair_truncated_tail) は `_reject_worktree_container(layout.root)` 直呼びをやめ、
+    `getattr(layout, "_admit_materialization", lambda: None)()` を呼ぶ
+    (module 二重 identity で isinstance が信用できないため duck-typed。
+    テストの疑似 layout object が method を持たない場合に壊さない)。
+  - official layout が worktree container 内で WAL を書ける正例テストを追加
+    (temp fixture、書いた dirt は fixture cleanup に任せる)。
+  - exploration 側の既存負例 (test_wal_materializers_...) は red にならないこと (期待値不変)。
+FX-2 (new-2, must-fix): 8c の lock 外 env 判定を排除する。
+  - `_resolve_exploration_output_root` に keyword 引数 `legacy_base: str = ""` を追加。
+    lock 内で env 未設定 (pin なし) のとき、`legacy_base` が非空ならそれを、空なら
+    従来どおり `repo_output_root()` を返す。env 未設定 + pin ありは従来どおり ValueError。
+  - 8c `main()` の `--run-root` 省略時は常に
+    `_resolve_exploration_output_root(legacy_base=str(ROOT / "output"))` を呼び、
+    `ENV in os.environ` の lock 外判定を削除する。env 未設定時の run_root は従来の
+    `ROOT / "output" / ...` と byte 同一を維持する。
+  - 「root A を pin → env 削除 → 同一 process で再 resolve が ValueError」のテストを
+    reset なしで追加する (既存 drift テストは reset してから env 削除しているので別 case)。
+FX-3 (A-5 partial): 残存 materializer を閉じる。
+  - `repair_truncated_tail` は FX-1 の policy 呼びで gate される (上記)。
+  - `ensure_exploration_namespace(output_root)` の冒頭に
+    `_reject_worktree_container(root)` を追加する (exploration 専用 API なので無条件で
+    よい。marker bytes・fsync・symlink 拒否の既存契約は不変)。
+  - repair (exploration layout) と ensure_exploration_namespace 直呼びの container 負例
+    テストを追加する。
+
+## 検査・報告義務 (第 1 巡と同一)
+
+静的検査 (py_compile / git diff --check / check_codex_agents / check_docs) を実行し列挙する。
+完了報告に所見ごとの closed/partial/regressed 対応表、diff 要約、受理・拒否挙動の変化点、
+所有外への波及可能性を含める。緑は主張しない。
+出力の最後に必ず `## 総括` 節を置く。

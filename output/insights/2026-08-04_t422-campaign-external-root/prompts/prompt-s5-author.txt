@@ -1,0 +1,74 @@
+あなたは izanagi の dev-wave 段 5 実装子 (Codex role=author, workspace-write) である。日本語で報告する。
+
+まず次の 3 ファイルを読む。読めなければ何も実装せず「入力を読めない」とだけ報告して即終了する。
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/brief.md (親 brief)
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s2-plan.md (プラン v1)
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s4-ruling.md (裁定 = plan v2 delta。v1 と食い違う点はこちらが正)
+
+タスク: plan v2 (= s2-plan.md + s4-ruling.md の delta) を実装する。
+
+## 編集してよいファイル (所有)
+
+- orchestrator/campaign/layout.py
+- orchestrator/campaign/p3_autonomous_workload_trial.py (--run-root 既定の env 接続と gate のみ)
+- orchestrator/tests/test_campaign.py (新規テスト追加のみ)
+- orchestrator/tests/test_dev_wave_land.py (新規テスト追加のみ)
+- orchestrator/tests/conftest.py (autouse env 隔離 fixture の追加のみ)
+
+## 禁止 (凍結境界)
+
+- docs の編集、git commit、git add
+- hooks/、tools/dev_wave_land.py、orchestrator/campaign/durable_root.py、
+  official campaign_layout / repo_output_root / env_scope_dir / ensure_exploration_namespace の
+  body 変更
+- 既存テストの期待値変更・skip 化・削除 (赤なら実装側の誤りとして直す。期待値が誤りと
+  判断したら実装を変えず報告して止める)
+- 指示にない受理集合の拡大・縮小。fixture への現行 hash 差し込み等のテスト弱体化
+- 期待値への揮発 payload (working tree hash 等) の焼き込み
+
+## 実装要点 (詳細は s4-ruling.md が正)
+
+1. layout.py: `_EXPLORATION_OUTPUT_ROOT_ENV = "IZANAGI_EXPLORATION_OUTPUT_ROOT"` と
+   `_resolve_exploration_output_root(output_root)` を追加。優先順位 = 非空明示引数 > env > 既定。
+   env 経路のみ検証: 非空・絶対 path・祖先に .git なし (main/兄弟 worktree/他 repo 拒否)・
+   既存 component の symlink 拒否 (base + 固定 suffix `exploration`, `exploration/campaigns` の
+   既存部分を lstat walk)・既存 base は euid 所有。env 由来解決値は process 内 pin し、以後の
+   env 変化/解決値不一致は ValueError。テスト専用 reset 関数 (私名, 例
+   `_reset_exploration_output_root_pin_for_tests`) を置き production からは呼ばない。
+   env 未設定時は repo_output_root() の文字列をそのまま返し resolve() を掛けない (bytes 不変)
+2. layout.py: `ExplorationCampaignLayout.ensure()` に G-worktree-container gate — root の
+   path component 列に `.claude/worktrees` または `.codex/worktrees` の連続を含めば ValueError。
+   gate は ensure 時のみ (factory/resolve 時に置かない。理由は s4-ruling.md の署名節)
+3. p3_autonomous_workload_trial.py: `--run-root` 省略 + env 設定時は
+   `<resolved base>/exploration/autonomous-trials/<trial-id>`。env 未設定時は現行既定を bytes
+   不変で維持。run_root materialization 直前に同じ container gate を適用
+4. テスト (plan v1 §3-4 を s4-ruling の delta で修正した形):
+   - test_campaign.py: env 優先順位 + official 非干渉テスト、不正値拒否テスト (空文字/相対/
+     repo 配下/.git 祖先/symlink/非 directory)、process pin drift テスト。素の Python runner
+     互換 (引数なし関数、env とpin を finally で復元)
+   - test_dev_wave_land.py: F98 正例 = 合成 wave + 外部 root で fake evaluator の最小
+     run_campaign() を完走し、外部側 namespace marker (exact bytes) + campaign.lock + wal.jsonl
+     の実在、worktree の git status 空、`with _cwd(wave):` 内での _verify_repository →
+     _verify_wave_clean 例外なしを検査。F98 負例 = repo_output_root を合成 wave の
+     `<wave>/output` に一時束縛し、既定 root の ensure() が G-worktree-container の ValueError で
+     dirt 生成前に止まることを検査。RC_DIRT 対照は plain untracked file で
+     _verify_wave_clean が RC_DIRT を返す形 (既存被覆と重複しないなら追加)
+   - conftest.py: autouse fixture で env delenv + pin reset
+   - 8c run_root テスト: env 設定時の run_root 導出と gate (置き場所は
+     test_p3_autonomous_workload_trial.py が既存所有ファイルでないため、run_root 導出を
+     layout.py 側の関数に寄せて test_campaign.py で検査する構成でもよい。その場合
+     trial 側は同関数を呼ぶだけにする)
+5. 変異 M1〜M7 (s4-ruling.md の表) がそれぞれ対応テスト 1 本だけで検出される構造にする
+   (検出テストの重複・多重防壁を作らない)
+
+## 検査・報告義務
+
+- 緑を主張するなら走らせた pytest nodeid・範囲を必ず併記する (あなたの実走は親の全走を代替しない)
+- テストを新設するので、それを制約する meta-test があるか grep で確認し、あれば併走する (F42)
+- submodule 依存の既存テストが sandbox の index lock 制約で偽赤になる場合は、その旨を
+  報告に書き、実装差分へ帰属しない (親環境で親が再現確認する)
+- 完了報告に必ず含める: (a) 変更ファイルと diff 要約、(b) 走らせた nodeid と結果、
+  (c) 所有外の caller / 共有 fixture / consumer test への波及可能性の静的列挙、
+  (d) 現行の受理・拒否挙動と変更後の差分 (受理集合の変化点を明示)、(e) 赤の内訳 (あれば)
+
+出力の最後に必ず `## 総括` 節を置く。

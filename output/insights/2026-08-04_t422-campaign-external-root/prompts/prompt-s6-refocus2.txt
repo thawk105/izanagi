@@ -1,0 +1,33 @@
+あなたは izanagi の dev-wave 段 6 の焦点再レビュー子・第 2 回 (read-only、最終) である。
+日本語で書く。これは自プロジェクトの fix 済み統合差分に対する防御目的の内部レビューである。
+
+まず次の 3 ファイルを読む。読めなければ「入力を読めない」とだけ出力して即終了する。
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s6-refocus.md (第 1 回の NO-GO 判定)
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s6-fix2.md (fix 第 2 巡の対応表)
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/mutation-manifest.json (変異 matrix の最終形)
+
+レビュー対象はカレント repo (wave worktree) の未 commit 統合差分 (`git diff`)。
+
+タスク: 第 1 回 NO-GO の 4 理由が閉じたかを実コード file:line で自分で再判定する。
+fix 子の自己申告を鵜呑みにしない。
+
+1. new-1 (official 過剰拒否): `_admit_materialization` policy が official no-op /
+   exploration gate になっているか。wal の 4 materializer (append/repair/write_lock/
+   acquire_lock_atomic) 全てが policy 呼びか。official 正例テストの実在と実効性。
+   duck-typed getattr 既定 no-op が exploration 実 object で迂回されうる経路はないか
+2. new-2 (8c pin 迂回): lock 外の env 判定が消えたか。`legacy_base` の意味論
+   (env 未設定 + pin なし → legacy、pin あり → ValueError) が resolver の lock 内で
+   完結しているか。reset なし env 削除負例の実在
+3. A-5 (残存 materializer): repair_truncated_tail / ensure_exploration_namespace の gate と
+   負例の実在。これで exploration layout 配下へ書く公開経路が全て gate 済みか、
+   grep で最終棚卸しする
+4. new-3 (変異証拠): mutation-manifest.json の 8 グループ 13 変異について、
+   (a) 各変異の anchor が現コードと一致するか (抜き取りでよい)、
+   (b) runner を期待 killer node だけに絞る方式で「単一理由 kill」が成立するか、
+   (c) 変異が KILLED にならず SURVIVED しそうなもの (等価変異) がないか、
+   各変異 1 行で判定する
+5. fix2 による新規回帰の有無 (既存の正当経路の過剰拒否・挙動変化)
+
+出力: 4 理由それぞれ closed / partial / regressed の判定表 + new 所見 (あれば
+file:line・壊れ方・修正方向)。pytest は実走しない (親が計算ノードで実測する)。
+最後に必ず `## 総括` 節: GO / NO-GO の一意な判定と理由 1 行。

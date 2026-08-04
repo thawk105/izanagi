@@ -1,0 +1,23 @@
+import importlib.util
+
+spec = importlib.util.spec_from_file_location(
+    "guard_bash",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/hooks/guard_bash.py",
+)
+gb = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(gb)
+
+repo = "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root"
+cases = [
+    # 外部 /work 配下の同形 path の削除 (worktree 外)
+    "rm -rf /work/1/SFC/tanab/dev-wave-jobs/t422-campaign/output/exploration/campaigns/foo",
+    "rm -rf /work/1/SFC/tanab/dev-wave-jobs/t422-campaign/output/exploration",
+    "rm /work/1/SFC/tanab/dev-wave-jobs/t422-campaign/output/exploration/namespace.json",
+    # 同形でない外部 path (防護語を含まない)
+    "rm -rf /work/1/SFC/tanab/dev-wave-jobs/t422-campaign/run7",
+    # 現行 repo 内 (統制群)
+    "rm -rf output/exploration/campaigns/foo",
+]
+for c in cases:
+    ok, reason = gb.decide(c, repo)
+    print(("ALLOW" if ok else "DENY "), "|", c, "|", (reason or "")[:70])

@@ -21,7 +21,10 @@ paths を一箇所に集約し、WAL/ビルドキャッシュ/lock がここだ�
 from __future__ import annotations
 
 import os
+import stat
+import sys
 import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Optional
@@ -195,6 +198,10 @@ class CampaignLayout:
     def insights_dir(self) -> str:
         return os.path.join(self.root, "insights")
 
+    def _admit_materialization(self) -> None:
+        """Official campaign materialization has no exploration-only gate."""
+        return None
+
     def ensure(self) -> "CampaignLayout":
         for d in (self.root, self.spec_dir, self.runs_dir, self.variants_dir,
                   self.reports_dir, self.insights_dir):
@@ -219,6 +226,150 @@ def campaign_layout(campaign_id: str, output_root: str = "") -> CampaignLayout:
 
 
 _EXPLORATION_NAMESPACE_BYTES = b'{"namespace":"exploration"}\n'
+_EXPLORATION_OUTPUT_ROOT_ENV = "IZANAGI_EXPLORATION_OUTPUT_ROOT"
+_EXPLORATION_OUTPUT_ROOT_STATE_KEY = "_izanagi_exploration_output_root_state_v1"
+_exploration_output_root_state = sys.__dict__.setdefault(
+    _EXPLORATION_OUTPUT_ROOT_STATE_KEY,
+    {"lock": threading.Lock(), "pin": None},
+)
+
+
+def _reset_exploration_output_root_pin_for_tests() -> None:
+    """Test-only reset for the process-wide exploration root binding."""
+    with _exploration_output_root_state["lock"]:
+        _exploration_output_root_state["pin"] = None
+
+
+def _effective_uid() -> int:
+    """Return the effective uid through a layout-local test seam."""
+    return os.geteuid()
+
+
+def _lstat_directory_components(path: Path) -> None:
+    """Reject existing symlink/non-directory components without following them."""
+    current = Path(path.anchor)
+    for part in path.parts[1:]:
+        current /= part
+        try:
+            metadata = current.lstat()
+        except FileNotFoundError:
+            break
+        except OSError as exc:
+            raise ValueError(
+                f"{_EXPLORATION_OUTPUT_ROOT_ENV} の component を検査できない"
+            ) from exc
+        if stat.S_ISLNK(metadata.st_mode):
+            raise ValueError(
+                f"{_EXPLORATION_OUTPUT_ROOT_ENV} に symlink component がある"
+            )
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise ValueError(
+                f"{_EXPLORATION_OUTPUT_ROOT_ENV} に非 directory component がある"
+            )
+
+
+def _has_git_ancestor(path: Path) -> bool:
+    for ancestor in (path, *path.parents):
+        try:
+            (ancestor / ".git").lstat()
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise ValueError(
+                f"{_EXPLORATION_OUTPUT_ROOT_ENV} の祖先を検査できない"
+            ) from exc
+        return True
+    return False
+
+
+def _resolve_exploration_output_root(
+    output_root: str = "", *, legacy_base: str = "",
+) -> str:
+    """Resolve the exploration base root while preserving legacy callers.
+
+    A non-empty explicit argument wins unchanged.  Only the environment path is
+    canonicalized and admitted, then pinned for the lifetime of the process.
+    """
+    if output_root:
+        return output_root
+
+    # env read, admission, comparison, and pinning form one process-wide
+    # transaction shared by both supported module identities.
+    with _exploration_output_root_state["lock"]:
+        configured = os.environ.get(_EXPLORATION_OUTPUT_ROOT_ENV)
+        current_pin = _exploration_output_root_state["pin"]
+        if configured is None:
+            if current_pin is not None:
+                raise ValueError(
+                    f"{_EXPLORATION_OUTPUT_ROOT_ENV} が process 内で変更された"
+                )
+            return legacy_base or repo_output_root()
+        if configured == "":
+            raise ValueError(f"{_EXPLORATION_OUTPUT_ROOT_ENV} は非空でなければならない")
+
+        candidate = Path(configured)
+        if not candidate.is_absolute():
+            raise ValueError(f"{_EXPLORATION_OUTPUT_ROOT_ENV} は絶対 path 必須")
+        if ".." in candidate.parts:
+            raise ValueError(
+                f"{_EXPLORATION_OUTPUT_ROOT_ENV} に .. component を指定できない"
+            )
+        suffixes = (
+            Path("exploration", "campaigns"),
+            Path("exploration", "autonomous-trials"),
+        )
+        for suffix in suffixes:
+            _lstat_directory_components(candidate / suffix)
+        try:
+            resolved = candidate.resolve(strict=False)
+        except OSError as exc:
+            raise ValueError(f"{_EXPLORATION_OUTPUT_ROOT_ENV} を解決できない") from exc
+        for suffix in suffixes:
+            _lstat_directory_components(resolved / suffix)
+        if _has_git_ancestor(resolved):
+            raise ValueError(
+                f"{_EXPLORATION_OUTPUT_ROOT_ENV} は repository 外でなければならない"
+            )
+        try:
+            metadata = resolved.lstat()
+        except FileNotFoundError:
+            metadata = None
+        except OSError as exc:
+            raise ValueError(f"{_EXPLORATION_OUTPUT_ROOT_ENV} を検査できない") from exc
+        if metadata is not None and not stat.S_ISDIR(metadata.st_mode):
+            raise ValueError(
+                f"{_EXPLORATION_OUTPUT_ROOT_ENV} の解決済み base が directory でない"
+            )
+        if metadata is not None and metadata.st_uid != _effective_uid():
+            raise ValueError(
+                f"{_EXPLORATION_OUTPUT_ROOT_ENV} は実効 uid の所有でなければならない"
+            )
+
+        value = str(resolved)
+        proposed_pin = (configured, value)
+        if current_pin is None:
+            _exploration_output_root_state["pin"] = proposed_pin
+        elif current_pin != proposed_pin:
+            raise ValueError(f"{_EXPLORATION_OUTPUT_ROOT_ENV} が process 内で変更された")
+        return value
+
+
+def _reject_worktree_container(path: os.PathLike[str] | str) -> None:
+    """Reject materialization below a Claude/Codex worktree container."""
+    try:
+        parts = Path(path).resolve(strict=False).parts
+    except OSError as exc:
+        raise ValueError("exploration root を解決できない") from exc
+    for family in (".claude", ".codex"):
+        if any(
+            parts[index:index + 2] == (family, "worktrees")
+            for index in range(len(parts) - 1)
+        ):
+            raise ValueError(
+                "exploration root を worktree container 配下に作成できない; "
+                f"{_EXPLORATION_OUTPUT_ROOT_ENV}=<絶対 path の job 専用 base> "
+                "を設定する (base は exploration/ 自体ではない)"
+            )
 
 
 def ensure_exploration_namespace(output_root: str = "") -> str:
@@ -231,6 +382,7 @@ def ensure_exploration_namespace(output_root: str = "") -> str:
     root = Path(output_root or os.path.join(repo_output_root(), "exploration"))
     if not root.is_absolute():
         root = root.absolute()
+    _reject_worktree_container(root)
     os.makedirs(root, exist_ok=True)
     marker = root / "namespace.json"
     if marker.is_symlink():
@@ -312,7 +464,11 @@ class ExplorationCampaignLayout:
     def namespace_file(self) -> str:
         return os.path.join(os.path.dirname(os.path.dirname(self.root)), "namespace.json")
 
+    def _admit_materialization(self) -> None:
+        _reject_worktree_container(self.root)
+
     def ensure(self) -> "ExplorationCampaignLayout":
+        self._admit_materialization()
         ensure_exploration_namespace(os.path.dirname(self.namespace_file))
         for d in (self.root, self.spec_dir, self.runs_dir, self.variants_dir,
                   self.reports_dir, self.insights_dir):
@@ -323,8 +479,9 @@ class ExplorationCampaignLayout:
 def exploration_campaign_layout(
     campaign_id: str, output_root: str = "",
 ) -> ExplorationCampaignLayout:
+    """探索 layout を明示 root > env base root > repo 既定の順で構築する。"""
     cid = _campaign_slug(campaign_id)
-    root = output_root or repo_output_root()
+    root = _resolve_exploration_output_root(output_root)
     return ExplorationCampaignLayout(
         root=os.path.join(root, "exploration", "campaigns", cid),
     )

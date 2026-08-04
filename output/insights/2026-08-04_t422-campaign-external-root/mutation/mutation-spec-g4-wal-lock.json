@@ -1,0 +1,56 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 360,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M09",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/wal.py",
+     "old": "def write_lock(layout: CampaignLayout, preimage: str) -> None:\n    getattr(layout, \"_admit_materialization\", lambda: None)()\n",
+     "new": "def write_lock(layout: CampaignLayout, preimage: str) -> None:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/wal.py",
+     "old": "    try:\n        getattr(layout, \"_admit_materialization\", lambda: None)()\n        os.makedirs(layout.runs_dir, exist_ok=True)\n",
+     "new": "    try:\n        os.makedirs(layout.runs_dir, exist_ok=True)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/wal.py",
+     "old": "    getattr(layout, \"_admit_materialization\", lambda: None)()\n    os.makedirs(layout.root, exist_ok=True)\n    try:\n        fd = os.open(layout.lock_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)\n",
+     "new": "    os.makedirs(layout.root, exist_ok=True)\n    try:\n        fd = os.open(layout.lock_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_wal_materializers_reject_worktree_container_without_layout_ensure"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

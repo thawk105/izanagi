@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/wal.py",
+     "old": "    \"\"\"newline 終端後の tail だけを証拠 receipt 作成後に切り戻す。\"\"\"\n    getattr(layout, \"_admit_materialization\", lambda: None)()\n",
+     "new": "    \"\"\"newline 終端後の tail だけを証拠 receipt 作成後に切り戻す。\"\"\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_wal_repair_rejects_exploration_worktree_container"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
