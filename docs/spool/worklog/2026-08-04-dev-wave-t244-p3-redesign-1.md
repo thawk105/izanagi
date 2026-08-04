@@ -40,8 +40,10 @@ title: [T-244] D121 P3 の origin ledger prototype を再設計 v3 で実装し�
   **8 failed / 5545 passed / 19 skipped** (350 秒)。8 件は全て `test_s8b_floor_campaign.py` の
   「`output/` が不変であること」を assert する族で、**単独再走は 199 passed / 2 skipped** —
   (169) に既記録の並行 dispatch 干渉と同型であり、本差分 (新規 leaf + 専用テスト) は同 file に
-  到達しない。`python3 tools/check_docs.py` = 違反なし。`check_ai_provenance.py` は統合 commit
-  e6349be 後に rc=0、記録 commit 後にも再走して land 前に確認する (赤なら land しない)
+  到達しない。local main 取り込み (e38ae20) 後の対象再走 (ledger + plain-runner + spool / land /
+  git-state + s8b) = 406 passed / 2 skipped。`python3 tools/check_docs.py` = 違反なし。
+  `check_ai_provenance.py` は統合 commit 後・記録 commit 後とも rc=0。stale-main 後の再取り込み
+  (a98916a) 後の再走値は land 前に取得して本 fragment の値を確定している
 - **変異 matrix (B-057、`tools/mutation_harness.py` dispatch mode、統合 commit 後に本走):**
   **24/24 完走、KILLED 23 + diagnostic sensitivity pin 1 (M-N12)、SURVIVED 0、TIMEOUT 0。**
   run1 = 20 KILLED (matching) + 4 MISMATCH (M-N1/N2/N3/N7 — 期待 node は赤 + 共有 fixture 経由の
@@ -50,12 +52,16 @@ title: [T-244] D121 P3 の origin ledger prototype を再設計 v3 で実装し�
   M-N12 category (`diagnostic-sensitivity`) は harness 許可集合 (3 値) の外で、実行 spec では
   `negative` へ写像した (同 erratum 2)。M-N11 (旧) は Δ4 改訂で前提が反転し retire + erratum、
   後継は M-N11r
+- **段 9 の初回 land は `stale-main` で終端し、ユーザー指示で同 context から再挑戦した。**
+  lock 中に別 wave が main を進めたためで、`DW-S09` に従い自動では巻き戻さず停止・報告した。
+  再挑戦時に T-244 item の base digest が並行更新 (P5 U-1 実装、D157) で変わっており、
+  本 fragment の更新文を新本文の上へ再構成した
 
 ## 次の一手差分
 
 ### 更新
 
-- [T-244] **P1・P3 prototype 実装済み (P3 は依然 FAIL)。P4 実装 wave 起票可、P5 は 2/3 実装 + 残余裁定済み**:
+- [T-244] **P1・P3 prototype 実装済み (P3 は依然 FAIL)。P4 実装 wave 起票可、P5 は U-1 実装済みで残余は U-2 のみ (P3 receipt 待ち)**:
   **P3**: U-A〜U-G の明示裁定 (2026-08-04 /rulings) を
   `orchestrator/campaign/reflux_origin_ledger.py` + 固定 authority
   (`reflux_origin_authority_v1.json`、空 registry) + 専用テスト 17 vector として実装した
@@ -74,17 +80,21 @@ title: [T-244] D121 P3 の origin ledger prototype を再設計 v3 で実装し�
   **P1**: `orchestrator/campaign/reflux_ir.py` と独立 golden 32 点を land 済み。production へ
   wiring しないため受理集合は任意の 1 行 C++ のままで、次段は wiring wave (受理集合の縮小なので
   D96 手続が要る)。
-  **P5**: provider 注入と role 間 session 共有の拒否を実装済み (D148)。P5 全体は未充足で、
-  残余 3 件は裁定済み — U-1 `drive`/`preview` 注入は塞ぐ方向 (別 wave)、U-2 未予約 token は
-  P3 の予約 receipt に依存させる (P3 実装後)、U-3 provider executable の digest registry は
-  要求しない。
+  **P5**: provider 注入の拒否と role 間 session 共有の拒否 (D148) に加え、U-1 を実装済み —
+  正式経路の `run_trial` が explicit keyword の `drive` / `preview` 注入を artifact 作成前に
+  拒否し (D157)、transport テスト 2 件は module 属性 seam へ移行、provider kind は exact
+  plain str に限定。拒否は explicit keyword に限り、sentinel 持込み・module 再束縛・
+  wrapper / partial・事後判定は保証外のまま (「P5 第 1 要件を閉じた」とは名乗らない)。
+  **P5 の残余は U-2 (未予約 token) だけ**で、本 wave が実装した P3 予約 receipt
+  (origin reservation) に依存させる (自前 token は発明しない)。U-3 は「要求しない」裁定で終結。
   **cap-lift は依然 FAIL** で D114 の上限 1 も不変。P2 / P7 / P9 は未着手。
   逐語は `output/insights/2026-08-04_t244-p1-ir-emitter/`、
   `output/insights/2026-08-04_t244-p5-injection-gate/`、
+  `output/insights/2026-08-04_t244-p5-u1-drive-preview/`、
   `output/insights/2026-08-04_t244-u2-na-bifurcation/`、
   `output/insights/2026-08-04_t244-p4-batch-freeze/`、
   `output/insights/2026-08-04_t244-p3-redesign/`
-  base: 0187542fc54a8ebb94db12c72c97c2d8fbbeba6ca129e385be91d63d29ed4af8
+  base: c56539f77df3a198dfb9e3ac919bc8f04c6efc2de0be12a4b458acb399d2b1ae
 
 ### 新規
 
