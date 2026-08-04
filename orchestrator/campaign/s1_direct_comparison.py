@@ -27,7 +27,7 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import ident, source_digest, wal  # noqa: E402
+from campaign import ident, source_digest, trigger_gate_binding, wal  # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout, repo_output_root  # noqa: E402
 from campaign.model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
@@ -518,6 +518,9 @@ def prepare_cell(cell: Mapping, ccbench_pin: str):
             if (not isinstance(quarantine_implementation, str)
                     or not quarantine_implementation.strip()):
                 raise DriverError(f"{configuration} の gate_predicate がない")
+            if not trigger_gate_binding.is_canonical_predicate(
+                    quarantine_implementation):
+                raise DriverError("freeze gate_predicate が正準集合外")
             forbidden = gate_loop.check_syntax_contract(quarantine_implementation)
             if forbidden:
                 raise DriverError(f"freeze gate_predicate が構文契約違反: {forbidden}")
