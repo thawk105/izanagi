@@ -51,7 +51,8 @@ title: [T-244] U2 を新 D で確定した — 択一 3 の既裁定により P4
 - **親の base digest 算出が誤っていたのをレビューが是正した。** carry stub
   (`変わらず ((N) 参照)`) の `base:` は stub 自身の digest ではなく、carry 鎖を遡った
   substantive digest である (`spool_fold._extract_latest_active`)。親は stub の digest を
-  採ろうとしていた。fold は不一致で停止するため、land 前に気づいて実害はない
+  採ろうとしていた。fold は不一致で停止するため、land 前に気づいて実害はない。
+  **段 8 の自己改善として `docs/spool/worklog/README.md` へ carry stub の解決規則を明記した**
 - **裁定パッケージ (ユーザーへ返す 4 件)。**
   - **V1 = `NOT_CLAIMED` 構成の還流は限界効果がゼロである。** D138 決定 (1) より、generalized cut を
     主張しない運転の禁止集合は exact-mask cut と一致し、受理集合を 1 点も狭めない。「実装済みで
@@ -63,6 +64,11 @@ title: [T-244] U2 を新 D で確定した — 択一 3 の既裁定により P4
     空の handler と恒真な assert でも D138 決定 (5) の列挙は形式的に埋まる
   - **V3 = cap-lift receipt が無い** ({{T:t244-cap-lift-receipt}} として起票)。
     判定結果を runbook・事前登録・proof chain・試行台帳・機械 gate のどこからも再検証できない
+  - **V5 = dev-wave 改善候補が予算に入らない (段 8)。** 本 wave は「ユーザー裁定の一次記録は
+    worklog と `docs/archive/` にあり、decision が『裁定へ返す』と書いたままでも既に裁定済みの
+    ことがある」を `DW-S01` へ足そうとしたが、`docs/dev-wave/**` は集約上限 25,200 bytes に
+    張り付いており (追記後 25,427) 入らなかった。**上限引き上げは提案せず、追記を戻した。**
+    既存義務を削って空けるのは安全義務の弱化にあたるため採らない。ユーザー裁定へ返す
   - **V4 = 段 8c 事前登録文書が stale** ({{T:t244-prereg-refresh}} として起票)。
     多世代化の条件を「還流設計の裁定」とだけ書いており、裁定が完了した現在は曖昧である。
     再事前登録の手続を持つ文書なので専用の裁定と変更単位で扱う
