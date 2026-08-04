@@ -59,6 +59,14 @@ title: 壁 1 の生死確認 — build 未到達で止まったが、塞いで�
   inventory がこれを拒否する。**wave 差分なしの main (846d5a1) 単体で同一メッセージが再現する**ことを
   実測して帰属を確定した ({{T:ruleops-nonutf8-artifact}} を起票)。本 wave は回帰を持ち込んでいない
 
+- **段 9 の land が防壁の交差で止まった** ({{F:campaign-run-blocks-wave-land}})。campaign を 1 回
+  起動した結果 wave worktree に `output/exploration/` が生成され、`dev_wave_land.py` の
+  「完全に clean」要求を満たせない。しかし `hooks/guard_bash.py` は
+  `namespace.json` (exact path) と `campaign.lock` (末端) の削除・移動を拒否する。
+  **迂回しないことを選び、land せずに停止した。** 成果は branch `worktree-wave-a-transport-smoke`
+  に全て commit 済みである。人間が worktree の `output/exploration/` を除去すれば
+  そのまま land できる
+
 ## 次の一手差分
 
 ### 新規
@@ -74,6 +82,10 @@ title: 壁 1 の生死確認 — build 未到達で止まったが、塞いで�
 - {{T:pegasus-s2-numactl-proxy}} **P3・新規**: `pipeline.py` の「numactl prefix が非空か」という
   代理条件を、単一 NUMA ノードでも意図どおり働く判定へ置き換えるかを検討する。
   attestation の裁定後、実機で発火を確認してから着手する。
+- {{T:wave-land-vs-campaign-guard}} **P1・ユーザー裁定待ち**: campaign を実走した wave が
+  正規経路で land できない ({{F:campaign-run-blocks-wave-land}})。
+  推奨は「campaign の実行先を使い捨て worktree の外へ出す」= 防壁を 1 つも緩めない案。
+  放置すると、計算ノードで campaign を回す wave はすべて段 9 で止まる。
 - {{T:ruleops-nonutf8-artifact}} **P1・新規**: **現在 main の受入全走が赤である。**
   `output/insights/2026-08-03_t361-t362-cluster-probes/` 配下の非 UTF-8 probe raw file を
   `tools/ruleops.py inventory` が拒否し、`test_ruleops.py` の real-repo 検査が落ちる。
