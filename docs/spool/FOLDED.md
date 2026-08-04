@@ -113,3 +113,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:pegasus-attestation-ruling":"[T-419]","T:pegasus-s2-numactl-proxy":"[T-421]","T:ruleops-nonutf8-artifact":"[T-423]","T:wall1-transport-recheck":"[T-420]","T:wave-land-vs-campaign-guard":"[T-422]"},"authored":"2026-08-04","content_sha256":"24522a775f04ead06af5bfab5fec99e8e7d6202b687b7e90d07f3d646a2b8765","seq":3,"wave":"wave-a-transport-smoke"}
 
 - {"allocations":{},"authored":"2026-08-04","content_sha256":"7d4e792db89d71de136eb9ff950f56b18cfd9217d0f51544f2888a1777076ab6","seq":1,"wave":"rulings-2026-08-04-i"}
+
+- {"allocations":{"T:between-run-floor-window-design":"[T-425]","T:certify-job-script-binding":"[T-424]"},"authored":"2026-08-04","content_sha256":"ba43fe6f2f09f9bbf939b7f1fd4f6120c4a7d2cebd45808c17a083a90d16892c","seq":1,"wave":"wave-t088-floor"}
+- {"allocations":{"D:between-run-floor-cohort":"D145"},"authored":"2026-08-04","content_sha256":"5a53d35ab0148d73ab52992561a4d07aec63d9b69ad6c239cad8fe60c5790bac","seq":2,"wave":"wave-t088-floor"}
