@@ -1564,3 +1564,11 @@ def test_registry_history_rejects_merge_dag_with_deleted_parent(
             repository_root=repo,
             registry_path=registry,
         )
+
+
+def _run() -> int:
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
