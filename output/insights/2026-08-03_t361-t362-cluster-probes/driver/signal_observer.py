@@ -1299,6 +1299,12 @@ class Observer:
             str(self.final_path.relative_to(self.run_root)),
             str(self.cleanup_receipt_path.relative_to(self.run_root)),
         }
+        # The observer inventory preregisters its diagnostic event stream, but
+        # direct final-observation derivation need not emit an observer event.
+        # Once any event has been recorded, its missing file remains an evidence
+        # error just like every other materialized inventory entry.
+        if self.observer_event_records == 0:
+            pending.add(str(self.events.relative_to(self.run_root)))
         missing_before = sorted(
             relative
             for relative in deduplicated

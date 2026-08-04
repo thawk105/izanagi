@@ -2082,8 +2082,6 @@ def _t362_marker_validation(
         host = marker.get("hostname")
         if type(host) is not str:
             errors.append("run marker hostname missing")
-        else:
-            _normalize_host(host)
         if marker.get("schema_version") != T362_MARKER_SCHEMA:
             errors.append("run marker schema mismatch")
     except ControllerError as exc:
