@@ -357,6 +357,131 @@ def test_receipt_consumer_is_independent_of_constant_true_issuer_comparator():
     )
 
 
+def test_effective_clock_canonical_predicate_golden_vectors():
+    """Pin explicit outcomes, including median/mean drift and raw type edges."""
+    vectors = [
+        {
+            "label": "odd-all-inside",
+            "expected": {"samples_mhz": [99.0, 100.0, 101.0], "tolerance_pct": 2.0},
+            "observed": {"samples_mhz": [99.0, 100.0, 101.0]},
+            "want": True,
+        },
+        {
+            "label": "even-inclusive-boundaries",
+            "expected": {"samples_mhz": [90.0, 100.0, 100.0, 110.0],
+                         "tolerance_pct": 10.0},
+            "observed": {"samples_mhz": [90.0, 110.0]},
+            "want": True,
+        },
+        {
+            "label": "pegasus-shaped-one-outlier",
+            "expected": {"samples_mhz": [100.0, 100.0, 150.0], "tolerance_pct": 2.0},
+            "observed": {"samples_mhz": [100.0, 100.0, 150.0]},
+            "want": False,
+        },
+        {
+            "label": "mean-drift-same-median-inside",
+            "expected": {"samples_mhz": [100.0, 100.0, 119.0], "tolerance_pct": 20.0},
+            "observed": {"samples_mhz": [100.0, 100.0, 119.0]},
+            "want": True,
+        },
+        {
+            "label": "mean-drift-same-median-outside",
+            "expected": {"samples_mhz": [100.0, 100.0, 130.0], "tolerance_pct": 20.0},
+            "observed": {"samples_mhz": [100.0, 100.0, 130.0]},
+            "want": False,
+        },
+        {
+            "label": "expected-not-mapping",
+            "expected": [],
+            "observed": {"samples_mhz": [100.0]},
+            "want": False,
+        },
+        {
+            "label": "observed-not-mapping",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+            "observed": [],
+            "want": False,
+        },
+        {
+            "label": "expected-samples-not-list",
+            "expected": {"samples_mhz": (100.0,), "tolerance_pct": 2.0},
+            "observed": {"samples_mhz": [100.0]},
+            "want": False,
+        },
+        {
+            "label": "observed-samples-not-list",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+            "observed": {"samples_mhz": (100.0,)},
+            "want": False,
+        },
+        {
+            "label": "expected-empty",
+            "expected": {"samples_mhz": [], "tolerance_pct": 2.0},
+            "observed": {"samples_mhz": [100.0]},
+            "want": False,
+        },
+        {
+            "label": "observed-empty",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+            "observed": {"samples_mhz": []},
+            "want": False,
+        },
+        {
+            "label": "tolerance-bool",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": True},
+            "observed": {"samples_mhz": [100.0]},
+            "want": False,
+        },
+        {
+            "label": "nonnumeric-sample",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+            "observed": {"samples_mhz": ["bad"]},
+            "want": False,
+        },
+        {
+            "label": "near-zero-tolerance-inside",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": 1e-12},
+            "observed": {"samples_mhz": [100.0 + 5e-13]},
+            "want": True,
+        },
+        {
+            "label": "near-zero-tolerance-outside",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": 1e-12},
+            "observed": {"samples_mhz": [100.0 + 2e-12]},
+            "want": False,
+        },
+        {
+            "label": "zero-tolerance-exact",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": 0.0},
+            "observed": {"samples_mhz": [100.0]},
+            "want": True,
+        },
+        {
+            "label": "hundred-tolerance-boundaries",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": 100.0},
+            "observed": {"samples_mhz": [0.0, 200.0]},
+            "want": True,
+        },
+        {
+            "label": "hundred-tolerance-outside",
+            "expected": {"samples_mhz": [100.0], "tolerance_pct": 100.0},
+            "observed": {"samples_mhz": [200.001]},
+            "want": False,
+        },
+    ]
+
+    for vector in vectors:
+        got = eg.effective_clock_comparison_passes(
+            vector["expected"], vector["observed"],
+        )
+        assert got is vector["want"], vector["label"]
+        consumer_got = eg._independent_comparison_passes(
+            "effective_clock.samples_mhz", vector["expected"], vector["observed"],
+        )
+        assert consumer_got is vector["want"], vector["label"]
+
+
 class _FixedNow:
     def isoformat(self):
         return "2026-07-18T00:00:00+00:00"
