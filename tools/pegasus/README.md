@@ -179,3 +179,34 @@ tools/pegasus/submit_floor.sh             # 人間が明示的に実行する。
   生成物から区別できない。authorization として扱ってはならない。
 - **現時点では driver が official guard により必ず rc=2 で拒否する。** wrapper はこの rc を
   `job-result.json` と `failure.json` に忠実に記録し、同じ rc で終了する。成功と偽らない。
+
+## 6. third-party source を取得して worktree へ供給する (2026-08-04 実装、[T-340])
+
+masstree / mimalloc / googletest は CCBench の FetchContent 依存で、計算ノードには network が
+無いのでログインノードで取得して渡す。取得先を repo の中に置くと **worktree を畳んだ時点で
+実体が消える**ため、cache は repo の外に置く。cache root の機体固有値は
+`docs/pegasus-runbook.md` §6 が正本である。
+
+```bash
+export IZANAGI_PEGASUS_THIRDPARTY_CACHE=<永続 cache root の絶対パス>
+
+python3 tools/pegasus/fetch_third_party.py fetch        # 欠けている source だけ clone (network 要)
+python3 tools/pegasus/fetch_third_party.py hydrate      # cache から worktree の staging へ (offline)
+python3 tools/pegasus/fetch_third_party.py verify       # cache の 3 本を検査 (offline)
+python3 tools/pegasus/fetch_third_party.py verify-deps  # policy の gflags/glog を検査 (offline)
+```
+
+- `--cache-root` か `IZANAGI_PEGASUS_THIRDPARTY_CACHE` の**どちらかが必須**。policy から導出しない。
+  repo 配下を cache root にすると rc=2 で拒否する。
+- `hydrate` は `submit_silo_ladder_rung1.sh` が使う staging path をそのまま埋めるので、submit 側は
+  clone 分岐を通らない。**submit 自身の pin/clean 検査はそのまま走る** (2026-08-04 に
+  `--prepare-third-party-only` を実走して rc=0 を確認)。
+- consumer (`IZANAGI_THIRDPARTY_SOURCE_ROOT`) へ渡してよいのは **`hydrate` の出力 JSON の
+  `.source_root`** だけである。`cache_root` は診断用で、`git status` に出ない ignored な
+  ビルド生成物を含みうる。
+- 既存 clone を fetch / pull しない。pin が変わったら人間が cache を作り直す。
+- shallow / alternates / promisor / replace refs / grafts / commondir / config.worktree /
+  sparse checkout / assume-unchanged / skip-worktree を fail-closed で拒否する。
+- **この CLI は任意の operator preflight であり、取得の権威ではない。** 最終判定は
+  `submit_silo_ladder_rung1.sh` と `silo_ladder_rung1.sh` の pin/clean 検査のままで、
+  取得経路は submit receipt にも evidence にも値として現れない。
