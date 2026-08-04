@@ -110,6 +110,12 @@ _MAGNITUDE = frozenset({"small", "medium", "large"})
 _CONFIDENCE = frozenset({"high", "medium", "low"})
 _GENOME_RE = re.compile(r"^B[01]-[LT]-W[01]$")
 _TRIGGER_GATE_WIRE_RE = re.compile(r"^[01]{5}$")
+TRIGGER_GATE_SEMANTIC_LITERAL = (
+    'trigger-gating-semantic/v1={"bit_order_lsb_first":["lock-conflict",'
+    '"update-absent","readvali-tid","readvali-locked","node-vali"],'
+    '"wire_value_meaning":{"0":"skip","1":"backoff"},'
+    '"kUnset":{"owner":"emitter","always_true":true,"meaning":"backoff"}}'
+)
 _CAMEL_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _NORMALISE_RE = re.compile(r"[^a-z0-9]+")
 _SELECTOR_8B_CANDIDATES = (
@@ -531,6 +537,7 @@ __all__ = [
     "OPEN_SUBTREE_POLICY",
     "POLICY_VERSION",
     "ROLE_FORBIDDEN_KEY_TOKENS",
+    "TRIGGER_GATE_SEMANTIC_LITERAL",
     "RolePolicyError",
     "find_forbidden_keys",
     "validate_input_semantics",

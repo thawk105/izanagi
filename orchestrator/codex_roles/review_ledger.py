@@ -39,8 +39,8 @@ ROLE_MANIFEST_SHA256 = {
     "coder": "2af1a88e8f8cae73e251d067ba47ea4b1acd5457083111d3dc719914d199e136",
     "coder-v4-autonomous": "1c1611da8e9d30146155c36dd0c90ad371ec4611076ac39f24f74a8f48322017",
     "coder-v4-autonomous-sort": "0516335248dd542372ba4a420835c2451ea816b2aadc78cacaa1c388bd2252fa",
-    # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
-    "coder-v4-autonomous-trigger-gating": "0f824a473faccfab3243d76bd52d927a0ed08aae3625747d8f4f00b5f40fdfc8",
+    # Reviewed 2026-08-04: stage5-agent-review.md and stage6-fix-ruling.md r2-7.
+    "coder-v4-autonomous-trigger-gating": "c307d820022585bf9f34ffb3f70b10734c8903b5eb0f450698739aa9413d3a8c",
     "critic": "efbb2961dca75c14afa97462b4664065aac90621a184f63d6bc017f1d050cc42",
     "critic-experiment": "69dd9033640393fbde6a51c8f7d606e7780b91393e8d2829d530e5c3d2156b0e",
     "planner-v4": "9e142881783337414af0c8d239541fc8f2b0a2892b160d58940602c93615dd17",

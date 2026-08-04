@@ -1847,6 +1847,79 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     ]
 
 
+def test_drive_iteration_provenance_copies_each_reject_wal_build_attempt_id(monkeypatch):
+    """同じ variant の build 前 reject も attempt ごとに provenance へ転記する。"""
+    import contextlib
+    from campaign import patchharness
+
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+    sub = _mk_template_dir()
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    lay = _tmp_layout("reject-attempt-provenance")
+    auditor = AuditorVerdict(
+        verdict="reject", diff_digest=_digest_for(sub),
+        violations=[{"type": 16}],
+    )
+
+    outcomes = [
+        T.drive_iteration(
+            T.default_cfg(), T.default_perf(), _planner(),
+            T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE),
+            auditor, None, sub, do_build=False, layout=lay,
+        )
+        for _ in range(2)
+    ]
+    starts = [
+        record.payload for record in wal.read_records(lay)
+        if record.stage == "build_start"
+    ]
+    with open(T._provenance_path(lay), encoding="utf-8") as f:
+        entries = json.load(f)["entries"]
+
+    assert outcomes[0]["variant"] == outcomes[1]["variant"]
+    assert len(starts) == 2
+    assert starts[0]["build_attempt_id"] != starts[1]["build_attempt_id"]
+    assert [entries[str(i)]["build_attempt_id"] for i in (1, 2)] == [
+        start["build_attempt_id"] for start in starts
+    ]
+    assert [entries[str(i)]["trigger_gate_binding_commitment"] for i in (1, 2)] == [
+        start["trigger_gate_binding_commitment"] for start in starts
+    ]
+
+
+def test_drive_iteration_dry_pass_provenance_has_no_attempt_id(monkeypatch):
+    """WAL build_start のない dry-pass を admission 対象 attempt に偽装しない。"""
+    import contextlib
+    from campaign import patchharness
+
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+    sub = _mk_template_dir()
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    lay = _tmp_layout("dry-pass-no-attempt")
+    auditor = AuditorVerdict(
+        verdict="pass", diff_digest=_digest_for(sub),
+    )
+
+    out = T.drive_iteration(
+        T.default_cfg(), T.default_perf(), _planner(),
+        T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE),
+        auditor, None, sub, do_build=False, layout=lay,
+    )
+    with open(T._provenance_path(lay), encoding="utf-8") as f:
+        entry = json.load(f)["entries"]["1"]
+
+    assert out["outcome"] == "dry-pass"
+    assert entry["variant"] is None
+    assert "build_attempt_id" not in entry
+    assert not any(record.stage == "build_start" for record in wal.read_records(lay))
+
+
 def test_drive_iteration_entry_failure_blocks_checkpoint(monkeypatch):
     """provenance entry が書けない iteration は checkpoint を前進させない (FC-1(b) 裁定 —
     「WAL/checkpoint は進んだが記録なし」の中途半端を作らない)。"""

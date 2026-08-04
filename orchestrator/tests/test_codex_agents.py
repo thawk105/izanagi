@@ -6,6 +6,7 @@ import importlib.util
 import copy
 import hashlib
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -70,6 +71,39 @@ def _canonical_sha256(value: object) -> str:
         allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+_TRIGGER_GATE_LITERAL_PREFIX = "trigger-gating-semantic/v1="
+
+
+def _extract_trigger_gate_literal(text: str) -> dict:
+    assert text.count(_TRIGGER_GATE_LITERAL_PREFIX) == 1
+    payload = text.split(_TRIGGER_GATE_LITERAL_PREFIX, 1)[1]
+    value, end = json.JSONDecoder().raw_decode(payload)
+    assert end == len(payload) or payload[end] in {"。", "\n"}
+    assert isinstance(value, dict)
+    return value
+
+
+def _extract_trigger_gate_agent_semantics(text: str) -> dict:
+    section = text.split("## 合成対象と制約", 1)[1].split("\n---", 1)[0]
+    bit_rows = re.findall(r"^- bit ([0-4]): `([^`]+)`$", section, re.MULTILINE)
+    assert [int(bit) for bit, _ in bit_rows] == list(range(5))
+    assert re.search(
+        r"`1` はその要因で backoff する、`0` は backoff を\s+skip する",
+        section,
+    )
+    assert "`kUnset` fail-safe は凍結 emitter の専権です。" in section
+    assert "emitter が常に `kUnset=true` を正準述語へ付加します。" in section
+    return {
+        "bit_order_lsb_first": [reason for _, reason in bit_rows],
+        "wire_value_meaning": {"0": "skip", "1": "backoff"},
+        "kUnset": {
+            "owner": "emitter",
+            "always_true": True,
+            "meaning": "backoff",
+        },
+    }
 
 
 @contextmanager
@@ -872,6 +906,45 @@ def test_axis_planner_and_coder_semantic_policy_negative_cases():
             pass
         else:
             raise AssertionError(f"coder-v4の不正{field}={value!r}を許可した")
+
+
+def test_trigger_gating_semantic_literal_has_four_surface_parity():
+    role = "coder-v4-autonomous-trigger-gating"
+    agent_text = (
+        _REPO / ".claude" / "agents" / f"{role}.md"
+    ).read_text(encoding="utf-8")
+    manifest_text = _manifest(_REPO)["roles"][role]["projection_instructions"]
+    adapter = CCA.ROLE_SPEC.load_json_strict(
+        _REPO / ".codex" / "role-adapters" / f"{role}.json"
+    )
+    instructions = adapter["developer_instructions"]
+    override = instructions.split("<<<CODEX_PRODUCT_OVERRIDE_BEGIN>>>\n", 1)[1]
+    override = override.split("\n<<<CODEX_PRODUCT_OVERRIDE_END>>>", 1)[0]
+
+    expected = {
+        "bit_order_lsb_first": [
+            "lock-conflict",
+            "update-absent",
+            "readvali-tid",
+            "readvali-locked",
+            "node-vali",
+        ],
+        "wire_value_meaning": {"0": "skip", "1": "backoff"},
+        "kUnset": {
+            "owner": "emitter",
+            "always_true": True,
+            "meaning": "backoff",
+        },
+    }
+    surfaces = {
+        "agent": _extract_trigger_gate_agent_semantics(agent_text),
+        "manifest": _extract_trigger_gate_literal(manifest_text),
+        "adapter": _extract_trigger_gate_literal(override),
+        "policy": _extract_trigger_gate_literal(
+            ROLE_POLICY.TRIGGER_GATE_SEMANTIC_LITERAL
+        ),
+    }
+    assert surfaces == {surface: expected for surface in surfaces}
 
 
 def test_trigger_gating_output_semantics_require_exact_wire_and_reject_implementation():

@@ -489,6 +489,26 @@ def _wal_binding_commitment(records: Dict[str, Dict]) -> str:
     return records[STAGE_BUILD_START][wal.TRIGGER_BINDING_COMMITMENT_KEY]
 
 
+def _wal_attempt_provenance(layout: CampaignLayout, variant: object) -> Dict:
+    """Copy one provenance attempt identity from its authoritative WAL start."""
+    if variant is None:
+        return {"variant": None}
+    if type(variant) is not str:
+        raise RuntimeError("provenance variant が文字列でない")
+    start = wal.records_by_stage(layout, variant).get(STAGE_BUILD_START)
+    if type(start) is not dict:
+        raise RuntimeError("provenance variant に対応する WAL build_start がない")
+    attempt_id = start.get("build_attempt_id")
+    binding_commitment = start.get(wal.TRIGGER_BINDING_COMMITMENT_KEY)
+    if type(attempt_id) is not str or type(binding_commitment) is not str:
+        raise RuntimeError("provenance 用 WAL build_start attempt が不正")
+    return {
+        "variant": variant,
+        "build_attempt_id": attempt_id,
+        wal.TRIGGER_BINDING_COMMITMENT_KEY: binding_commitment,
+    }
+
+
 def _run_one_iteration_resolved(
         campaign_cfg: CampaignConfig, perf,
         planner: L.PlannerProposal, coder: CoderProposalTriggerGating,
@@ -706,15 +726,16 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         dependency_prefix=dependency_prefix,
         build_context=build_context,
     )
-    _append_provenance_entry(layout, state.iteration, {
+    provenance_entry = {
         "proposal_path": proposal_path,
         "auditor_diff_digest": auditor.diff_digest,
-        "variant": out.get("variant"),
         "outcome": out["outcome"],
         "trigger_gate_binding_commitment": out.get(
             "trigger_gate_binding_commitment"
         ),
-    })
+    }
+    provenance_entry.update(_wal_attempt_provenance(layout, out.get("variant")))
+    _append_provenance_entry(layout, state.iteration, provenance_entry)
     L.save_loop_state(layout, state)
 
     if out["outcome"] != "dry-pass":
