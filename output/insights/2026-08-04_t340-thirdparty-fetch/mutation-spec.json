@@ -1,0 +1,262 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 330,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "        sources = driver.third_party_policy(repo_root)\n",
+          "new": "        sources = tuple(dict(item) for item in driver._load_json(\n            repo_root / \"tools/pegasus/policy.json\"\n        )[\"silo_ladder_rung1\"][\"third_party_sources\"])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m01_policy_cmake_drift_is_rejected_before_acquisition"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "            _checkout_stage(\n                [\"--no-hardlinks\", \"--no-checkout\", \"--\", str(cache_source)],\n                stage,\n                item[\"pin\"],\n                protocol=\"file\",\n            )\n",
+          "new": "            shutil.copytree(cache_source, stage, symlinks=True, dirs_exist_ok=True)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m02_hydrate_fresh_clone_excludes_ignored_cache_artifact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "    if not allow_shallow and _metadata_path_exists(git_dir / \"shallow\"):\n        raise SourceVerificationError(f\"shallow repository is forbidden: {name}\")\n",
+          "new": "    if False:\n        raise SourceVerificationError(f\"shallow repository is forbidden: {name}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m03_shallow_cache_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "        (Path(\"objects/info/alternates\"), \"alternates\"),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m04_alternates_cache_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "    if replace_refs:\n        raise SourceVerificationError(f\"replace refs are forbidden: {name}\")\n",
+          "new": "    if False:\n        raise SourceVerificationError(f\"replace refs are forbidden: {name}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m05_replace_refs_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "        [\"status\", \"--porcelain\", \"--untracked-files=all\"],\n",
+          "new": "        [\"status\", \"--porcelain\"],\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m06_untracked_dirty_requires_explicit_all_mode"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "    if head != pin:\n        raise SourceVerificationError(f\"HEAD does not match policy pin: {name}\")\n",
+          "new": "    if False:\n        raise SourceVerificationError(f\"HEAD does not match policy pin: {name}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m07_head_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "        if origins != [expected_url]:\n            raise SourceVerificationError(f\"origin URL does not match policy: {name}\")\n",
+          "new": "        if False:\n            raise SourceVerificationError(f\"origin URL does not match policy: {name}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m08_origin_url_substitution_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "    if not stat.S_ISDIR(mode):\n        raise SourceVerificationError(f\"source is not a real directory: {name}\")\n",
+          "new": "    if False:\n        raise SourceVerificationError(f\"source is not a real directory: {name}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m09_final_component_symlink_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "    try:\n        os.mkdir(destination)\n    except FileExistsError as exc:\n        raise OperationalError(f\"publish destination already exists: {destination}\") from exc\n    except OSError as exc:\n        raise OperationalError(f\"publish reservation failed: {destination}: {exc}\") from exc\n    try:\n        reservation_identity = _path_identity(destination)\n    except OSError as exc:\n        raise OperationalError(\n            f\"publish reservation cannot be inspected: {destination}: {exc}\"\n        ) from exc\n",
+          "new": "    reservation_identity = (0, 0)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m10_publish_reservation_never_replaces_existing_empty_directory"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "    records: list[dict[str, str]] = []\n    for item in sources:\n        destination = cache_root / item[\"source_name\"]\n        if _lexists(destination):\n            records.append(\n",
+          "new": "    records: list[dict[str, str]] = []\n    for item in sources:\n        destination = cache_root / item[\"source_name\"]\n        if _lexists(destination):\n            _source_git(destination, [\"fetch\", \"--all\"], protocol=\"https\")\n            records.append(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m11_existing_cache_never_runs_clone_fetch_pull_or_checkout"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "            \"GIT_CONFIG_GLOBAL\": os.devnull,\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m12_host_global_insteadof_is_behaviorally_ignored"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "    if inside_repo:\n        raise OperationalError(\"cache root must be outside the repository\")\n",
+          "new": "    if False:\n        raise OperationalError(\"cache root must be outside the repository\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m13_cache_root_inside_repo_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "    _inspect_cache_config(git_dir / \"config\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[core]\\nfsmonitor = /tmp/cmd\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[core]\\nsshCommand = /tmp/cmd\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[core]\\nhooksPath = /tmp/hooks\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[filter \"x\"]\\nclean = /tmp/cmd\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[include]\\npath = /tmp/config\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[includeIf \"gitdir:/tmp/\"]\\npath = /tmp/config\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[url \"file:///tmp/\"]\\ninsteadOf = https://github.com/\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[remote \"origin\"]\\nuploadpack = /tmp/cmd\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[remote \"origin\"]\\nreceivepack = /tmp/cmd\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[FiLtEr.EvIl]\\nclean = /tmp/cmd\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[ remote.origin ]\\nuploadpack = /tmp/cmd\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[url.file]\\ninsteadOf = https://github.com/\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[core]\\nbenign = value\\\\\\n[filter \"x\"]\\nclean = /tmp/cmd\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[core]\\nbenign = value\\\\\\\\\\n[filter \"x\"]\\nclean = /tmp/cmd\\n]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_dangerous_cache_config_is_rejected_before_git[[core] # comment \\\\\\n[filter \"x\"]\\nclean = /tmp/cmd\\n]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "            published_identity = _publish_create_only(stage, destination)\n            try:\n                _verify_source(\n                    destination,\n                    name=item[\"name\"],\n                    pin=item[\"pin\"],\n                    expected_url=str(cache_source),\n                    reject_ignored=True,\n                )\n            except Exception:\n                _rollback_published_source(\n                    stage, destination, published_identity\n                )\n                raise\n",
+          "new": "            _publish_create_only(stage, destination)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m15_publish_is_reverified_before_success"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

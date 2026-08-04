@@ -7516,3 +7516,102 @@ insight candidate 本文の非 UTF-8 fail-closed は変えない。
 - 選択 scope を狭めて evidence を外す — D99 決定 (2) の対象範囲そのものの変更であり、
   別の裁定を要する。
 - 件数を出さずに読み飛ばす — 人間レビュー用の一覧が signal なしで不完全になる。
+
+## D152. third-party source の取得は任意 preflight helper とし、cache は repo 外・publish は mkdir 予約 + rename にする (2026-08-04)
+
+**決定 (1): 取得経路は `tools/pegasus/` の新規 CLI 1 本に閉じ、凍結ファイルを変更しない。**
+凍結 evidence が policy・submitter・job script・driver の 4 本を sha256 で束縛しているため、
+既存 shell の取得ロジックには触れない。consumer 接続は submitter の
+「destination が既に在れば clone 分岐を通らない」性質を使い、staging を先に埋める形で行う。
+submitter 自身の pin/clean 検査と receipt 生成はそのまま走る。
+
+**決定 (2): この helper は取得の権威ではない。** 取得経路は submit receipt にも evidence にも
+値として現れないため、「取得の由来が台帳から追える」とは主張しない。helper は任意であり、
+最終判定は凍結 shell の pin/clean 検査のままである。helper を必須工程と解釈すると、helper が
+追加要求する検査 (origin URL、repo root、Git metadata) の分だけ end-to-end の受理集合が変わる。
+任意と定めることで「受理集合を変えない」が成立する。
+
+**決定 (3): cache root は明示必須とし、policy から導出しない。**
+`--cache-root` か環境変数のどちらかを必須にし、repo 配下は拒否する。機体固有の値は環境専用
+runbook に置く。policy の `gflags_source_path` の親から導く案は却下した — 実測で gflags と glog は
+**shallow clone** であり、新規に作る 3 本の self-contained clone とは管理形態が異なる。
+無関係な policy field に保存場所の意味を後付けすることにもなる。
+
+**決定 (4): worktree 内 staging への供給は copytree でなく fresh clone にする。**
+`git status --untracked-files=all` は **ignored file を列挙しない**。上流の `.gitignore` が
+ビルド生成物 (`*.a`、`config.h`) を無視し、CCBench の FetchContent はそれらを再生成せず
+リンクするため、cache を丸ごと複製すると pin 一致・clean のまま改竄済み成果物を build 入力へ
+運べる。cache からの `clone --no-hardlinks --no-checkout` + detached checkout なら
+ignored file は構造的に入らない。既存 destination を再利用する経路では
+`ls-files --others --ignored --exclude-standard` が空であることも要求する。
+
+**決定 (5): directory の create-only publish は `mkdir` 排他予約 + `rename` にする。**
+実測で、共有 FS では `renameat2(RENAME_NOREPLACE)` が directory に対して `EINVAL` を返す。
+`/home` だけでなく **`/work` でも同じ**である。`os.link` は directory に `EPERM` なので
+既存の link+unlink fallback も使えない。`os.mkdir` は `EEXIST` で排他が効き、空 directory への
+`rename` は成功するので、この 2 段で race-free な create-only が成立する。予約後に失敗したときは
+**自分が作った空の予約 inode である場合に限り**片付ける。
+
+**決定 (6): Git 子プロセスは hardened 環境で起動し、cache の `.git/config` は起動前に text で検査する。**
+`core.fsmonitor` / `core.sshCommand` / filter / `include` は git 実行時に任意 command を起こす。
+system/global config を無効化し protocol を操作ごとに固定したうえで、危険 key を含む config は
+git を起動する前に拒否する。継続行と旧式 dotted subsection は自作解釈せず全面拒否する
+(Git の解釈と食い違うと拒否をすり抜けるため)。
+
+**却下した選択肢:**
+- cache root の既定を policy から導出する — 上記のとおり管理形態が違い、別 host では成立しない。
+- 検証ロジックを新規実装する — 凍結 driver の `third_party_policy` /
+  `third_party_source_contract` が同じ検査を持つ。二重化は drift を生む。
+- consumer へ cache root を渡す — cache は ignored ビルド生成物を持ちうるため、
+  `cp -a` する consumer に渡すと決定 (4) の防壁を迂回する。渡してよいのは hydrate の出力だけ。
+- 取得を強制する経路を作る — 凍結 submitter の書き換えが要り、本裁定の射程外である。
+
+## D153. D121 P4 の独立 leaf 実装は差し戻す — batch 第一級の裁定の下で batch freeze は origin ledger 実装と不可分であり、member identity ほか 5 件を裁定へ返す (2026-08-04)
+
+**背景:** D121 決定 (7) の P4 (batch cardinality・全候補の事前 commit・seal までの結果非公開) は
+D150 で無条件義務へ移り、未充足のまま残っていた。本 wave は P4 の機械部品を独立 leaf
+(commitment codec + freeze→seal FSM) + 独立 golden として実装するために起票され、file:line 粒度の
+実装プランを起草した (逐語 = `output/insights/2026-08-04_t244-p4-batch-freeze/`)。
+段 3 の敵対 2 レンズが**独立に NO-GO** を返した (blocker 11 件・major 8 件・minor 2 件)。
+
+**決定 (1): 本 wave では実装せず、プラン・所見・裁定を設計材料として凍結する。** 決め手は 3 点。
+
+第一に、**batch を origin ledger の第一級にするというユーザー裁定の下で、ledger 外の独立 FSM
+leaf は実装先として誤りになった。** 第一級 batch event が canonical bytes・digest・cardinality・
+policy を格納する以上、独立 leaf の lifecycle・policy・result schema は将来の第一級実装との
+二重実装か、どこからも発火しない prototype のどちらかになる。後者は D150 決定 (6)(a) が警告する
+「実装のふりをした非適用」の温床である。
+
+第二に、**batch member の identity が未裁定で、commitment preimage が決まらない。** プランは
+member を distinct wire set (最大 32) とした。しかし採用済みの予算下限式は 32 候補 × R replicate の
+全 query を数えるため、distinct set では反復測定を表現できず、cardinality と query 消費が
+実 query 数より小さく写る。preimage が決まらない以上、正準 bytes の独立 golden 凍結も成立しない。
+
+第三に、**条件付き機能の発火 gate (DW-G04) に対し、発火する既存 artifact path / 計測 ID を
+1 件も書けない。** D149 (P1) の「機械部品 + 独立 golden 先行」は golden の独立性を監査する
+順序の先例であって、発火 gate の一般例外を作らない。
+
+**決定 (2): 設計択一 5 件を裁定パッケージとしてユーザーへ返す。** 推奨込みの一覧:
+W1 実装先 = origin ledger 実装 wave の中で第一級 batch event / reducer として設計・実装する
+(producer・ledger・driver・formal consumer・proof chain の結線順と各層の受理条件も同 wave の
+設計に含める)。W2 member identity = query/replicate ordinal 込み (予算下限式の replicate を
+表現するため)。W3 結果の evidence 束縛 = evidence digest 束縛 (二値 + 自己申告 class hash では
+proof chain が未裏付け outcome を受理しうる)。W4 = 早期停止時は残 member を tombstone として
+消費し公開 transcript 長を固定する (設計本文 §4③ の既定どおり)。W5 floor / Kmax の authority =
+origin-total の計数は ledger、batch 層は authority receipt 由来の policy だけを受理し、
+class referent の実在・完全性検証は formal consumer 側の義務とする。
+
+**決定 (3): 名乗りの制限。** 本 wave が残すのは設計材料 (プラン + 敵対所見 + 裁定) だけである。
+「P4 実装」「P4 充足」「P4 prototype」のいずれも名乗らない。P4 は未充足のまま、cap-lift は FAIL、
+承認上限 1 (D114) は不変。
+
+**却下した案:** (a) member identity 等を親の裁量で決めて実装する — D121 却下案 (b)
+「未裁定設計の既成事実化」と同型で、D147 が P3 で却下したのと同じ理由。(b) commitment codec
+だけ先行 leaf 化する — preimage が W2 に依存するため codec 単体でも既成事実化になる。
+(c) レンズ A の「golden 凍結 = freeze 族接触で段 1 巻き戻し」— 当該節の義務 (freeze 族の
+submodule 初期化と skip の正直な報告) は wave 開始時に履行済みで、新規 golden の新設は
+凍結成果物・oracle gate・proof chain の機構に触れない。巻き戻しは成果物を捨てるだけで
+判定を変えない。
+
+**研究状態への影響:** なし。本 wave は docs のみで、production 挙動、受理集合、certified 選択、
+材料レポート、proof chain、凍結 bytes はいずれも不変である。実装差分が無いため変異 matrix は対象外。
