@@ -541,6 +541,14 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   1 CLI 版の観測であり、全 bnode や将来 profile へ一般化しない** (設計は drift に対して
   fail-closed である)
 
+### 7.2 稼働 wave の handoff と裁定 inbox の所在 (2026-08-04 実測)
+
+生きた handoff と、台帳へ未記録のユーザー裁定の一次控えは **repo 外の
+`/work/1/SFC/tanab/dev-wave-jobs/`** にある。`handoff/<wave>.md` が稼働中 wave の進捗、
+`rulings-inbox/*.md` が別セッションで下されて台帳へ未記録の裁定、`<wave>/` が各 wave の成果物
+(裁定パッケージを含む) である。**`docs/handoff/` は README のみが正常**であり、そこだけを見ると
+稼働中の裁定を取りこぼす。`/rulings` の収集はここも読む。
+
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した
