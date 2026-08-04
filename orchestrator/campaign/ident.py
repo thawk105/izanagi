@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from .build_admission import BuildAdmissionPolicy
 from .layout import CampaignLayout
 from .model import CampaignConfig, CampaignId
+from .trigger_gate_language import TRIGGER_GATE_LANGUAGE
 from . import wal
 
 if TYPE_CHECKING:
@@ -26,6 +27,31 @@ if TYPE_CHECKING:
 
 
 ADMISSION_POLICY_SEARCH_KEY = "build_admission"
+TRIGGER_GATE_LANGUAGE_SEARCH_KEY = "trigger_gate_language"
+TRIGGER_GATE_AXIS = "silo-backoff-trigger-gating"
+
+
+def bind_trigger_gate_language(cfg: CampaignConfig) -> CampaignConfig:
+    """Bind the frozen grammar without overwriting a conflicting caller value."""
+
+    existing = cfg.search_config.get(TRIGGER_GATE_LANGUAGE_SEARCH_KEY)
+    if existing is not None and existing != TRIGGER_GATE_LANGUAGE:
+        raise ValueError("search_config の trigger gate language が current policy と不一致")
+    return replace(
+        cfg,
+        search_config={
+            **cfg.search_config,
+            TRIGGER_GATE_LANGUAGE_SEARCH_KEY: TRIGGER_GATE_LANGUAGE,
+        },
+    )
+
+
+def legacy_trigger_gate_config(cfg: CampaignConfig) -> CampaignConfig:
+    """Project only the grammar field for read-only legacy lookup/reinspection."""
+
+    search = dict(cfg.search_config)
+    search.pop(TRIGGER_GATE_LANGUAGE_SEARCH_KEY, None)
+    return replace(cfg, search_config=search)
 
 
 def bind_admission_policy(

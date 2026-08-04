@@ -56,6 +56,7 @@ from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
+from campaign.trigger_gate_language import check_trigger_gate_implementation  # noqa: E402
 from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict, assert_digest_matches,
                                    auditor_reject_result, parse_auditor_dict,
@@ -365,8 +366,44 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
     reject dict を返すか (build へ進まない)、None (通過)。
 
     **前提: 呼び出し元が既に `applied(TEMPLATE_PATCH)` 下にある。**"""
+    language = check_trigger_gate_implementation(coder.implementation)
+    # The same checker is the first prefilter.  When the historical blacklist also matches, keep
+    # its existing closed rejection classification so downstream critic fixtures remain stable.
+    historical_forbidden = (
+        check_syntax_contract(coder.implementation) if not language.passed else []
+    )
+    if historical_forbidden:
+        sres = _syntax_contract_reject_result(historical_forbidden)
+        v = _record_diff_reject_admitted(
+            layout, genome, coder.implementation, sres, contract,
+        )
+        L.project_whiteboard(state, planner, "rejected")
+        log(f"  構文契約 reject: 禁止識別子 {historical_forbidden}")
+        return {"outcome": "rejected", "variant": v, "digest": sres.digest}
+    if not language.passed:
+        reason_code = (
+            language.reason_code.value if language.reason_code is not None else "reject"
+        )
+        sres = DiffQuarantineResult(
+            passed=False,
+            reason=f"trigger gate language reject ({reason_code})",
+            digest={
+                "rejection_type": "trigger-gate-language",
+                "subtype": "invalid-implementation",
+                "reason_code": reason_code,
+                "diff_region": SOURCE_REL,
+                "template_diff_id": MARKER_ID,
+            },
+        )
+        v = _record_diff_reject_admitted(
+            layout, genome, coder.implementation, sres, contract,
+        )
+        L.project_whiteboard(state, planner, "rejected")
+        log(f"  trigger gate language reject: {reason_code}")
+        return {"outcome": "rejected", "variant": v, "digest": sres.digest}
     res, _base, _edited, working_diff = L.quarantine(
-        sub, coder.implementation, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=write)
+        sub, coder.implementation, marker_id=MARKER_ID, source_rel=SOURCE_REL,
+        write=write, enforce_trigger_gate_language=True)
     if not res.passed:
         v = _record_diff_reject_admitted(
             layout, genome, coder.implementation, res, contract,
@@ -434,6 +471,9 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                        "records": 100_000, "threads": 4,
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial="p3-s8a-trigger-loop")
+    # This loop always materializes a trigger implementation.  Bind the grammar
+    # because of that behavior rather than merely because the axis name matches.
+    cfg = ident.bind_trigger_gate_language(cfg)
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     return ident.bind_admission_policy(cfg, context.policy)
 
@@ -681,7 +721,8 @@ def _preview_diff(implementation_path: str, sub: str, root: str) -> Dict:
     assert_pinned_clean(sub, PIN)
     with applied(_template_patch_path(root), PIN, sub):
         res, _base, _edited, working_diff = L.quarantine(
-            sub, implementation, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=False)
+            sub, implementation, marker_id=MARKER_ID, source_rel=SOURCE_REL,
+            write=False, enforce_trigger_gate_language=True)
     return {"passed": res.passed, "working_diff": working_diff,
            "diff_digest": compute_diff_digest(working_diff),
            "subtype": (res.subtype.value if res.subtype else None), "reason": res.reason}
@@ -796,7 +837,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         from campaign.patchharness import applied
         with applied(_template_patch_path(root), PIN, sub):
             res, _b, _e, working_diff = L.quarantine(
-                sub, fixture_impl, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=False)
+                sub, fixture_impl, marker_id=MARKER_ID, source_rel=SOURCE_REL,
+                write=False, enforce_trigger_gate_language=True)
         auditor = AuditorVerdict(verdict="pass", diff_digest=compute_diff_digest(working_diff),
                                  uncertainty="fixture (機械 E2E 用、実 auditor 未使用)")
         out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,

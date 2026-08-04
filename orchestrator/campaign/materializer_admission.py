@@ -47,7 +47,8 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
     "orchestrator.campaign.s8a_trigger_coverage._build":
         MaterializerRegistration(
             ADMITTED_GATEWAY,
-            "registered generator receipt is required at the buildcache gateway",
+            "actual-source trigger receipt and registered generator receipt are "
+            "required before the direct cmake materializer",
         ),
     "orchestrator.campaign.t152_write_intent_coverage._build":
         MaterializerRegistration(

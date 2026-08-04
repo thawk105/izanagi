@@ -41,12 +41,21 @@ from campaign.materializer_admission import (  # noqa: E402
 )
 from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from campaign.source_digest import SourceEvidence  # noqa: E402
+from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE  # noqa: E402
 
 
 # Compatibility view for the repository-wide AST closure sentinel.  The sole
 # registrations and their admitted/non-admissible dispositions live in
 # materializer_admission; this module owns no second registry.
 NON_ADMISSIBLE_MATERIALIZERS = CLOSED_PYTHON_MATERIALIZER_SITES
+
+NON_TRIGGER_BINDING_KEYS = frozenset({
+    "genome_canonical", "src_token", "variant_id", "entry_sha256",
+    "binding_sha256",
+})
+TRIGGER_BINDING_KEYS = NON_TRIGGER_BINDING_KEYS | frozenset({
+    "trigger_gate_language", "trigger_gate_implementation_sha256",
+})
 
 
 class MaterializationError(RuntimeError):
@@ -123,8 +132,73 @@ def binding_from_prepared(entry: Mapping, prepared: PreparedCell) -> dict:
         "variant_id": pipeline.variant_id(prepared.genome, prepared.src_token),
         "entry_sha256": _canonical_sha256(entry),
     }
+    evidence = prepared.source_evidence
+    if evidence is not None:
+        if type(evidence) is not SourceEvidence:
+            raise MaterializationError("PreparedCell source_evidence の型が不正")
+        if evidence.schema_version == "source-evidence/v2":
+            if (evidence.trigger_gate_language != TRIGGER_GATE_LANGUAGE
+                    or not isinstance(
+                        evidence.trigger_gate_implementation_sha256, str,
+                    )):
+                raise MaterializationError("trigger source evidence binding が不正")
+            identity.update({
+                "trigger_gate_language": evidence.trigger_gate_language,
+                "trigger_gate_implementation_sha256": (
+                    evidence.trigger_gate_implementation_sha256
+                ),
+            })
+        elif evidence.schema_version != "source-evidence/v1":
+            raise MaterializationError("source evidence schema が binding 非対応")
     identity["binding_sha256"] = _canonical_sha256(identity)
     return identity
+
+
+def binding_preimage(value: Mapping) -> dict:
+    """Return an exact current binding preimage for either admitted shape."""
+    if not isinstance(value, Mapping):
+        raise MaterializationError("binding identity が object でない")
+    keys = frozenset(value)
+    if keys not in {NON_TRIGGER_BINDING_KEYS, TRIGGER_BINDING_KEYS}:
+        raise MaterializationError("binding identity exact key 集合が不正")
+    preimage = {
+        key: value[key] for key in sorted(keys - {"binding_sha256"})
+    }
+    if value.get("binding_sha256") != _canonical_sha256(preimage):
+        raise MaterializationError("binding identity sha256 が再計算不一致")
+    if keys == TRIGGER_BINDING_KEYS:
+        if value.get("trigger_gate_language") != TRIGGER_GATE_LANGUAGE:
+            raise MaterializationError("binding trigger gate language が不正")
+        digest = value.get("trigger_gate_implementation_sha256")
+        if (not isinstance(digest, str) or len(digest) != 64
+                or any(ch not in "0123456789abcdef" for ch in digest)):
+            raise MaterializationError("binding trigger implementation sha256 が不正")
+    return preimage
+
+
+def binding_matches_after_reinspection(
+        expected: Mapping, actual: Mapping) -> bool:
+    """Compare current bindings, or one legacy trigger subset, without mutation.
+
+    ``actual`` must have been produced from a freshly materialized ``PreparedCell``.
+    A trigger-shaped actual value therefore carries SourceEvidence v2 from the real
+    source recognizer.  Dropping its two trigger fields is permitted only for this
+    comparison; no caller may persist the projection as a current binding.
+    """
+    try:
+        binding_preimage(actual)
+    except MaterializationError:
+        return False
+    if _canonical_bytes(expected) == _canonical_bytes(actual):
+        return True
+    if frozenset(actual) != TRIGGER_BINDING_KEYS:
+        return False
+    legacy = {
+        key: actual[key]
+        for key in NON_TRIGGER_BINDING_KEYS - {"binding_sha256"}
+    }
+    legacy["binding_sha256"] = _canonical_sha256(legacy)
+    return _canonical_bytes(expected) == _canonical_bytes(legacy)
 
 
 @contextlib.contextmanager

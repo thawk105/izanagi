@@ -69,6 +69,11 @@ from dataclasses import dataclass
 from typing import Dict, Iterable, List, Mapping
 
 from .model import Genome
+from .trigger_gate_language import (
+    TRIGGER_GATE_LANGUAGE,
+    GateLanguageRejectCode,
+    check_trigger_gate_implementation,
+)
 
 # ---- 対象集合 (kickoff の固定集合。動的なマーカー走査はマーカー導入後に格上げ) ----
 OPTIONS_CMAKE = "cmake/Options.cmake"
@@ -83,7 +88,20 @@ ALLOWLIST = frozenset({"cmake/Options.cmake", "include/backoff.hh", "cc/silo/tra
 
 STOCK = "stock"        # 後方互換: working-tree==HEAD baseline のときの src トークン
 SOURCE_EVIDENCE_SCHEMA = "source-evidence/v1"
+SOURCE_EVIDENCE_SCHEMA_V2 = "source-evidence/v2"
+TRIGGER_GATE_SOURCE_REL = "cc/silo/transaction.cc"
+TRIGGER_GATE_MARKER_ID = "silo-backoff-trigger-gating"
+TRIGGER_GATE_FLAG = "BACKOFF_TRIGGER_GATING"
 EMPTY_TRACKED_DIFF_SHA256 = hashlib.sha256(b"").hexdigest()
+
+
+class TriggerGateSourceError(RuntimeError):
+    """Actual trigger hole could not be recognized without exposing its contents."""
+
+    def __init__(self, reason_code: GateLanguageRejectCode | None = None) -> None:
+        self.reason_code = reason_code
+        reason = reason_code.value if reason_code is not None else "source-unavailable"
+        super().__init__(f"trigger gate actual-source rejection ({reason})")
 
 
 def _is_sha256(value: object) -> bool:
@@ -114,14 +132,19 @@ class SourceEvidence:
     tracked_clean: bool
     tracked_diff_sha256: str
     tracked_paths: tuple[str, ...]
+    trigger_gate_language: str | None = None
+    trigger_gate_implementation_sha256: str | None = None
 
-    _KEYS = frozenset({
+    _KEYS_V1 = frozenset({
         "schema", "source_root", "ccbench_commit", "genome_sha256", "src_token",
         "source_bytes_sha256", "tracked_clean", "tracked_diff_sha256", "tracked_paths",
     })
+    _KEYS_V2 = _KEYS_V1 | frozenset({
+        "trigger_gate_language", "trigger_gate_implementation_sha256",
+    })
 
     def __post_init__(self) -> None:
-        if self.schema_version != SOURCE_EVIDENCE_SCHEMA:
+        if self.schema_version not in {SOURCE_EVIDENCE_SCHEMA, SOURCE_EVIDENCE_SCHEMA_V2}:
             raise ValueError("SourceEvidence schema_version が不正")
         if type(self.source_root) is not str or not os.path.isabs(self.source_root):
             raise ValueError("SourceEvidence source_root は absolute path が必要")
@@ -145,9 +168,18 @@ class SourceEvidence:
             raise ValueError("SourceEvidence tracked_clean と tracked_paths が不整合")
         if self.tracked_clean != (self.tracked_diff_sha256 == EMPTY_TRACKED_DIFF_SHA256):
             raise ValueError("SourceEvidence tracked_clean と tracked diff digest が不整合")
+        if self.schema_version == SOURCE_EVIDENCE_SCHEMA:
+            if (self.trigger_gate_language is not None
+                    or self.trigger_gate_implementation_sha256 is not None):
+                raise ValueError("SourceEvidence v1 に trigger gate field は置けない")
+        else:
+            if self.trigger_gate_language != TRIGGER_GATE_LANGUAGE:
+                raise ValueError("SourceEvidence v2 trigger gate language が不正")
+            if not _is_sha256(self.trigger_gate_implementation_sha256):
+                raise ValueError("SourceEvidence v2 implementation digest が不正")
 
     def as_receipt(self) -> dict[str, object]:
-        return {
+        body: dict[str, object] = {
             "schema": self.schema_version,
             "source_root": self.source_root,
             "ccbench_commit": self.ccbench_commit,
@@ -158,13 +190,25 @@ class SourceEvidence:
             "tracked_diff_sha256": self.tracked_diff_sha256,
             "tracked_paths": list(self.tracked_paths),
         }
+        if self.schema_version == SOURCE_EVIDENCE_SCHEMA_V2:
+            body.update({
+                "trigger_gate_language": self.trigger_gate_language,
+                "trigger_gate_implementation_sha256": (
+                    self.trigger_gate_implementation_sha256
+                ),
+            })
+        return body
 
     @classmethod
     def from_receipt(cls, value: object) -> "SourceEvidence":
-        if not isinstance(value, Mapping) or set(value) != cls._KEYS:
-            got = sorted(repr(key) for key in value) if isinstance(value, Mapping) else type(value).__name__
+        if not isinstance(value, Mapping):
+            raise ValueError("SourceEvidence receipt は object が必要")
+        schema = value.get("schema")
+        expected = cls._KEYS_V2 if schema == SOURCE_EVIDENCE_SCHEMA_V2 else cls._KEYS_V1
+        if set(value) != expected:
+            got = sorted(repr(key) for key in value)
             raise ValueError(
-                f"SourceEvidence receipt key 集合が不正: expected={sorted(cls._KEYS)} got={got}"
+                f"SourceEvidence receipt key 集合が不正: expected={sorted(expected)} got={got}"
             )
         paths = value["tracked_paths"]
         if type(paths) is not list or any(type(path) is not str for path in paths):
@@ -179,7 +223,115 @@ class SourceEvidence:
             tracked_clean=value["tracked_clean"],
             tracked_diff_sha256=value["tracked_diff_sha256"],
             tracked_paths=tuple(paths),
+            trigger_gate_language=value.get("trigger_gate_language"),
+            trigger_gate_implementation_sha256=value.get(
+                "trigger_gate_implementation_sha256"
+            ),
         )
+
+
+def _trigger_gate_hole_bytes(source_root: str) -> bytes | None:
+    """Read the exact compiler-selected trigger hole and its immutable frame."""
+
+    path = os.path.join(source_root, TRIGGER_GATE_SOURCE_REL)
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise TriggerGateSourceError from exc
+
+    marker = TRIGGER_GATE_MARKER_ID.encode("ascii")
+    begin_token = b"  // EVOLVE-BLOCK-BEGIN " + marker
+    end_token = b"  // EVOLVE-BLOCK-END " + marker
+    lines = raw.split(b"\n")
+    begins = [idx for idx, line in enumerate(lines) if line == begin_token]
+    ends = [idx for idx, line in enumerate(lines) if line == end_token]
+    if not begins and not ends:
+        return None
+    if len(begins) != 1 or len(ends) != 1 or begins[0] >= ends[0]:
+        raise TriggerGateSourceError()
+
+    begin, end = begins[0], ends[0]
+    if_candidates = [
+        idx for idx in range(begin + 1, end)
+        if lines[idx] == b"#if BACKOFF_TRIGGER_GATING"
+    ]
+    if len(if_candidates) != 1:
+        raise TriggerGateSourceError()
+    if_line = if_candidates[0]
+    else_line = endif_line = None
+    nesting = 0
+    directive = re.compile(br"^[ \t]*#[ \t]*(if|ifdef|ifndef|elif|else|endif)\b")
+    if any(
+        directive.match(lines[idx])
+        for idx in range(begin + 1, if_line)
+    ):
+        # Do not allow a substituted outer conditional to wrap a superficially
+        # exact nested frame (for example ``#if FLAG && 0`` then exact ``#if``).
+        raise TriggerGateSourceError()
+    for idx in range(if_line, end):
+        match = directive.match(lines[idx])
+        word = match.group(1) if match else None
+        if word in {b"if", b"ifdef", b"ifndef"}:
+            nesting += 1
+        elif word == b"endif":
+            nesting -= 1
+            if nesting == 0:
+                endif_line = idx
+                break
+            if nesting < 0:
+                raise TriggerGateSourceError()
+        elif word == b"else" and nesting == 1:
+            if else_line is not None:
+                raise TriggerGateSourceError()
+            else_line = idx
+        elif word == b"elif" and nesting == 1:
+            raise TriggerGateSourceError()
+    if (if_line is None or else_line is None or endif_line is None
+            or not (begin < if_line < else_line < endif_line < end)):
+        raise TriggerGateSourceError()
+    if (
+        lines[else_line] != b"#else"
+        or lines[endif_line] != b"#endif"
+        or lines[else_line + 1:endif_line]
+        != [b"  Backoff::backoff(FLAGS_clocks_per_us);"]
+        or endif_line + 1 != end
+    ):
+        raise TriggerGateSourceError()
+    return b"\n".join(lines[if_line + 1:else_line])
+
+
+def inspect_trigger_gate_source(
+    source_root: str,
+    *,
+    required: bool = False,
+) -> tuple[str, str] | None:
+    """Recognize the physical rendered hole and return only safe identity material."""
+
+    try:
+        hole = _trigger_gate_hole_bytes(source_root)
+    except TriggerGateSourceError:
+        raise
+    except Exception as exc:
+        raise TriggerGateSourceError from exc
+    if hole is None:
+        if required:
+            raise TriggerGateSourceError()
+        return None
+    try:
+        implementation = hole.decode("ascii")
+    except UnicodeDecodeError:
+        # UnicodeDecodeError carries a byte offset.  The trigger trust boundary exposes only the
+        # closed reason code, so suppress the chained diagnostic as well as its message.
+        raise TriggerGateSourceError(
+            GateLanguageRejectCode.INVALID_CHARACTER
+        ) from None
+    result = check_trigger_gate_implementation(implementation)
+    if not result.passed:
+        raise TriggerGateSourceError(result.reason_code)
+    return implementation, hashlib.sha256(hole).hexdigest()
 
 # TU 注入マクロ (T-148): -D でなく取り込み側 TU の #define で供給されるマクロ。単体 preprocess の
 # 素文脈では常に未定義 = 条件枝が dead になり、枝内編集が digest に不可視 (stock 偽 alias) になる。
@@ -849,6 +1001,12 @@ def resolve_evidence(
 
     sub = ccbench_dir or _ccbench_dir()
     source_root = os.path.realpath(os.path.abspath(sub))
+    # Inspect the untrusted trigger hole before any text-mode/preprocessor consumer can put its
+    # bytes in an exception.  The extractor itself is binary and exposes only a closed reason.
+    trigger = inspect_trigger_gate_source(
+        source_root,
+        required=genome.flags.get(TRIGGER_GATE_FLAG) == 1,
+    )
     tracked_paths = _tracked_status_paths(sub)
     _assert_paths_within_allowlist(tracked_paths)
     tracked_diff_sha256 = _tracked_diff_sha256(sub)
@@ -863,8 +1021,9 @@ def resolve_evidence(
     base = baseline(genome, ccbench_commit, sub, cxx)
     token = STOCK if current == base else current
     genome_sha256 = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
+    schema = SOURCE_EVIDENCE_SCHEMA_V2 if trigger is not None else SOURCE_EVIDENCE_SCHEMA
     return SourceEvidence(
-        schema_version=SOURCE_EVIDENCE_SCHEMA,
+        schema_version=schema,
         source_root=source_root,
         ccbench_commit=ccbench_commit,
         genome_sha256=genome_sha256,
@@ -873,6 +1032,8 @@ def resolve_evidence(
         tracked_clean=not tracked_paths,
         tracked_diff_sha256=tracked_diff_sha256,
         tracked_paths=tracked_paths,
+        trigger_gate_language=(TRIGGER_GATE_LANGUAGE if trigger is not None else None),
+        trigger_gate_implementation_sha256=(trigger[1] if trigger is not None else None),
     )
 
 

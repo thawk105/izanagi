@@ -27,6 +27,7 @@ from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_T
                        SEARCH_CONFIG_VERIFY_KEY,
                        VERIFY_LEGACY_PLUS_S2, evaluate, s2_correctness_workload,
                        variant_id)
+from .source_digest import TriggerGateSourceError
 
 _DEFAULT_CXX = buildcache.DEFAULT_CXX
 _compilers_for_current_site = buildcache.compilers_for_current_site
@@ -186,6 +187,13 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             )
             src_tok = source_evidence.src_token
         except RuntimeError as e:
+            trigger_gate_reject = isinstance(e, TriggerGateSourceError)
+            abort_reason = (
+                wal.ReceiptlessAbortReason.TRIGGER_GATE_REJECT.value
+                if trigger_gate_reject
+                else wal.ReceiptlessAbortReason.IDENTITY_ERROR.value
+            )
+            safe_error = "trigger-gate-reject" if trigger_gate_reject else str(e)
             v0 = variant_id(g)              # identity 不明ゆえ canonical のみの stock id
             if v0 in done:
                 # stock id が terminal 済み → この run では評価も abort 記録もできない。
@@ -195,7 +203,9 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 s.skipped += 1
                 s.identity_skipped += 1
                 log(f"[campaign] {g.canonical()} identity 確定不能かつ stock id は "
-                    f"terminal 済み → この run はスキップ (環境修復後の次 run で再評価): {e}")
+                    "terminal 済み → この run はスキップ"
+                    + ("" if trigger_gate_reject else
+                       f" (環境修復後の次 run で再評価): {e}"))
                 continue
             done.add(v0)
             attempt_id = secrets.token_hex(16)
@@ -204,12 +214,19 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 "build_attempt_id": attempt_id,
             })
             wal.log(layout, v0, STAGE_ABORT, env_tag,
-                    {"reason": "identity-error", "error": str(e),
+                    {"reason": abort_reason, "error": safe_error,
                      "build_attempt_id": attempt_id})
-            log(f"[campaign] {v0} identity 確定不能 → abort 隔離して継続: {e}")
+            log(
+                f"[campaign] {v0} identity 確定不能 → {abort_reason}"
+                + ("" if trigger_gate_reject else f": {e}")
+            )
             s.results.append(EvalResult(genome=g, variant=v0, certified=False,
                                         aborted=True,
-                                        notes=[f"source_digest 確定不能 → reject ({e})"]))
+                                        notes=[
+                                            "pre-build trigger gate reject"
+                                            if trigger_gate_reject else
+                                            f"source_digest 確定不能 → reject ({e})"
+                                        ]))
             s.evaluated += 1
             s.aborted += 1
             continue
@@ -241,8 +258,12 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             if isinstance(e, (wal.WalAppendError, wal.WalFramingError)):
                 # WAL I/O が壊れた同じ台帳へ診断を重ねない。元の構造化例外を保つ。
                 raise
-            abort_payload = {"reason": f"eval-exception: {type(e).__name__}: {e}"}
+            abort_payload = {
+                "reason": wal.ReceiptlessAbortReason.EVAL_EXCEPTION.value,
+                "error": f"{type(e).__name__}: {e}",
+            }
             replayed = wal.replay(layout, admission_policy=build_context.policy).get(v)
+            active = []
             if replayed is not None:
                 active = [
                     attempt for attempt in replayed.attempts.values()
@@ -253,6 +274,17 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     if active[0].receipt_sha256 is not None:
                         abort_payload["build_admission_receipt_sha256"] = \
                             active[0].receipt_sha256
+                    if active[0].trigger_gate_receipt_sha256 is not None:
+                        abort_payload["trigger_gate_receipt_sha256"] = \
+                            active[0].trigger_gate_receipt_sha256
+            if not active:
+                attempt_id = secrets.token_hex(16)
+                wal.log(layout, v, STAGE_BUILD_START, env_tag, {
+                    "genome": g.canonical(),
+                    "src_token": src_tok,
+                    "build_attempt_id": attempt_id,
+                })
+                abort_payload["build_attempt_id"] = attempt_id
             wal.log(layout, v, STAGE_ABORT, env_tag, abort_payload)
             log(f"[campaign] {v} 評価中に例外 → abort 隔離して継続: {e}")
             r = EvalResult(genome=g, variant=v, certified=False, aborted=True,

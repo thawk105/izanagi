@@ -155,8 +155,9 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
         build_context=context,
     )
     assert cfg.search_config["build_admission"] == context.policy.as_preimage()
+    # Trigger grammar version is part of the trigger-only identity preimage.
     assert str(A.ident.campaign_id(cfg)) == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-623e929a"
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-4a7be342"
     )
     pre_t343_no_build_id = (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
@@ -415,6 +416,9 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
     assert report["schema_version"] == "p3-autonomous-workload-trial-report/v2"
     assert report["stop_policy"]["performance_early_stop"] is False
     assert report["claim_scope"]["scientific_claim"] is False
+    assert report["claim_scope"]["scope"] == "trigger-gating"
+    assert report["claim_scope"]["classification"] == "finite-policy-selection"
+    assert report["claim_scope"]["headline_synthesis_evidence"] is False
     ratios = [
         cell["descriptor"]["read_write"]["read_ratio_percent"]
         for cell in report["cells"]

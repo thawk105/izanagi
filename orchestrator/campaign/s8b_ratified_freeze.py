@@ -186,6 +186,9 @@ _PORTABLE_BINARY_KEYS = frozenset({
 _BINDING_KEYS = frozenset({
     "genome_canonical", "src_token", "variant_id", "entry_sha256", "binding_sha256",
 })
+_TRIGGER_BINDING_KEYS = _BINDING_KEYS | frozenset({
+    "trigger_gate_language", "trigger_gate_implementation_sha256",
+})
 _MANIFEST_KEYS = frozenset({
     "schema_version", "protocol_sha256", "freeze", "freeze_sha256", "env_tag",
     "ccbench_pin", "stock_configuration", "schedule_algorithm", "master_seed",
@@ -1665,10 +1668,17 @@ def _validate_portable_binaries(
                 "manifest-invalid", f"binaries[{cell_id}].cached が bool でない",
                 cause="binary-cached-type",
             )
-        binding = _exact_keys(
-            rec["binding"], _BINDING_KEYS, reason="manifest-invalid",
-            label=f"binaries[{cell_id}].binding",
-        )
+        raw_binding = rec["binding"]
+        if (not isinstance(raw_binding, Mapping)
+                or frozenset(raw_binding) not in {
+                    _BINDING_KEYS, _TRIGGER_BINDING_KEYS,
+                }):
+            raise RatifiedFreezeError(
+                "manifest-invalid",
+                f"binaries[{cell_id}].binding exact key 集合が不正",
+                cause="binding-keys",
+            )
+        binding = dict(raw_binding)
         for key in ("genome_canonical", "src_token", "variant_id"):
             if not isinstance(binding[key], str) or not binding[key]:
                 raise RatifiedFreezeError(
@@ -1681,7 +1691,21 @@ def _validate_portable_binaries(
                     "manifest-invalid", f"binaries[{cell_id}].binding.{key} が SHA-256 でない",
                     cause="binding-type",
                 )
-        preimage = {key: binding[key] for key in sorted(_BINDING_KEYS - {"binding_sha256"})}
+        if frozenset(binding) == _TRIGGER_BINDING_KEYS:
+            from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE
+            trigger_sha = binding["trigger_gate_implementation_sha256"]
+            if (binding["trigger_gate_language"] != TRIGGER_GATE_LANGUAGE
+                    or not isinstance(trigger_sha, str)
+                    or _SHA_RE.fullmatch(trigger_sha) is None):
+                raise RatifiedFreezeError(
+                    "manifest-invalid",
+                    f"binaries[{cell_id}].binding trigger field が不正",
+                    cause="binding-trigger-type",
+                )
+        preimage = {
+            key: binding[key]
+            for key in sorted(frozenset(binding) - {"binding_sha256"})
+        }
         if binding["binding_sha256"] != _sha256_hex(_canonical_bytes(preimage)):
             raise RatifiedFreezeError(
                 "manifest-invalid", f"binaries[{cell_id}].binding_sha256 が再計算不一致",
@@ -1695,6 +1719,19 @@ def _validate_portable_binaries(
                 "manifest-invalid", f"binaries[{cell_id}] の freeze binding が無い",
                 cause="binding-entry",
             ) from exc
+        genome_assignments = binding["genome_canonical"].split("|", 1)
+        trigger_binding = (
+            len(genome_assignments) == 2
+            and "BACKOFF_TRIGGER_GATING=1"
+            in genome_assignments[1].split(",")
+        )
+        required_keys = _TRIGGER_BINDING_KEYS if trigger_binding else _BINDING_KEYS
+        if frozenset(binding) != required_keys:
+            raise RatifiedFreezeError(
+                "manifest-invalid",
+                f"binaries[{cell_id}].binding trigger/non-trigger 形が source entry と不一致",
+                cause="binding-trigger-shape",
+            )
         if binding["entry_sha256"] != _sha256_hex(_canonical_bytes(_plain_json(entry))):
             raise RatifiedFreezeError(
                 "manifest-invalid", f"binaries[{cell_id}].entry_sha256 が freeze entry と不一致",

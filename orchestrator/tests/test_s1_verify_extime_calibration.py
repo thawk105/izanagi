@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import contextlib
 import json
 import math
 import os
@@ -111,6 +112,91 @@ def test_constructed_target_matches_frozen_read_heavy_gate_without_subprocess():
         freeze = json.load(f)
     target = M.validated_target(freeze, verify_fn=lambda _doc: None)
     assert target["name"] == "g_rl"
+
+
+def test_build_target_prefilter_rejects_before_patch_without_source_leak(
+        tmp_path, monkeypatch):
+    target = dict(M._constructed_target())
+    predicate = "\nizanagi_gate_pass = true; SECRET_CANARY\n"
+    target["gate_predicate"] = predicate
+    monkeypatch.setattr(M, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        M,
+        "applied",
+        lambda *a, **k: pytest.fail("patch application reached after prefilter reject"),
+    )
+    with pytest.raises(M.CalibrationError, match="invalid-character") as caught:
+        M._build_target(target)
+    assert predicate not in str(caught.value)
+    assert "SECRET_CANARY" not in repr(caught.value)
+
+
+def test_build_target_binds_actual_source_receipt_to_build(tmp_path, monkeypatch):
+    calls = []
+    target = M._constructed_target()
+    evidence = SimpleNamespace(src_token="trigger-source-token")
+    sealed_receipt = object()
+    admission = object()
+
+    @contextlib.contextmanager
+    def fake_applied(*args, **kwargs):
+        calls.append("applied")
+        yield
+
+    def fake_quarantine(*args, **kwargs):
+        calls.append("quarantine")
+        return SimpleNamespace(passed=True), "base", "edited", "diff"
+
+    def fake_resolve(*args, **kwargs):
+        calls.append("resolve")
+        return evidence
+
+    def fake_issue(actual, *, genome):
+        calls.append("issue")
+        assert actual is evidence
+        assert genome is target["genome"]
+        return sealed_receipt
+
+    def fake_attest(context, actual, *, generator_input_sha256):
+        calls.append("attest")
+        assert actual is evidence and len(generator_input_sha256) == 64
+        return "capability"
+
+    def fake_derive(context, actual, **kwargs):
+        calls.append("derive")
+        assert actual is evidence
+        assert kwargs == {
+            "generator_receipt": "capability",
+            "trigger_gate_receipt": sealed_receipt,
+        }
+        return admission
+
+    def fake_build(*args, **kwargs):
+        calls.append("build")
+        assert kwargs["source_evidence"] is evidence
+        assert kwargs["admission"] is admission
+        return SimpleNamespace(
+            binary="/tmp/ycsb_silo.exe",
+            bin_hash="a" * 16,
+            cached=False,
+            configure_cmd="configure",
+            build_cmd="build",
+        )
+
+    monkeypatch.setattr(M, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(M, "applied", fake_applied)
+    monkeypatch.setattr(M.p3_s4_loop, "quarantine", fake_quarantine)
+    monkeypatch.setattr(M.source_digest, "resolve_evidence", fake_resolve)
+    monkeypatch.setattr(M, "issue_trigger_gate_receipt", fake_issue)
+    monkeypatch.setattr(M, "attest_generator_output", fake_attest)
+    monkeypatch.setattr(M, "derive_build_admission", fake_derive)
+    monkeypatch.setattr(M.buildcache, "build", fake_build)
+
+    result = M._build_target(target)
+    assert result["src_token"] == "trigger-source-token"
+    assert calls == [
+        "applied", "quarantine", "resolve", "issue", "attest", "derive", "build",
+    ]
 
 
 def test_measure_candidate_removes_trace_when_verifier_fails(monkeypatch):

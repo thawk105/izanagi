@@ -125,6 +125,9 @@ from campaign.build_admission import (  # noqa: E402
     add_coder_build_authority_argument,
     build_run_context,
 )
+from campaign.trigger_gate_language import (  # noqa: E402
+    check_trigger_gate_implementation,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -222,7 +225,10 @@ reverse its abstract direction. Do not emit Markdown or extra keys.
 
 GATING_SPEC = """The only writable hole is one assignment line:
 izanagi_gate_pass = <predicate>;
-Allowed reads: izanagi_abort_reason_, IzanagiAbortReason enum members, literals.
+Allowed tokens are only = == != && || :: ( ) ;, the bare names
+izanagi_gate_pass, izanagi_abort_reason_, IzanagiAbortReason, the eight enum
+members, true/false, and space/tab. Numeric, character, and string literals are
+not accepted. A standalone ! is not accepted; != is one token.
 kUnset must always evaluate true. Forbidden identifiers: thid_, result_,
 read_set_, write_set_, node_map_. No comments, preprocessor directives,
 definitions, loops, side effects, or line continuation."""
@@ -231,8 +237,9 @@ DESIGNATED_SOURCE_CONTEXT = """Axis: silo-backoff-trigger-gating.
 The template frame, abort-reason stores, sentinel reset, markers, #if/#else,
 stock branch, gate declaration, and Backoff::backoff call are immutable.
 Only the EVOLVE-BLOCK assignment hole may differ. Machine quarantine checks the
-region, and a separate syntax gate rejects thid_, result_, read_set_, write_set_,
-and node_map_. Auditor review remains required for semantic violations.
+region. The enforced chain is allowlist recognizer, legacy blacklist, diff
+quarantine, auditor, then source-bound receipt/build. The legacy blacklist still
+rejects thid_, result_, read_set_, write_set_, and node_map_.
 The immutable enum is:
 IzanagiAbortReason::{kUnset,kLockConflict,kUpdateAbsent,kReadValiTid,
 kReadValiLocked,kNodeVali,kInsertNode,kScanNode}.
@@ -569,7 +576,9 @@ def _preview(coder: trigger.CoderProposalTriggerGating, *, sub: str) -> dict[str
             marker_id=trigger.MARKER_ID,
             source_rel=trigger.SOURCE_REL,
             write=False,
+            enforce_trigger_gate_language=True,
         )
+    language = check_trigger_gate_implementation(coder.implementation)
     return {
         "passed": result.passed,
         "working_diff": working_diff,
@@ -577,6 +586,13 @@ def _preview(coder: trigger.CoderProposalTriggerGating, *, sub: str) -> dict[str
         "subtype": result.subtype.value if result.subtype else None,
         "reason": result.reason,
         "forbidden_identifiers": trigger.check_syntax_contract(coder.implementation),
+        "trigger_gate_language": {
+            "passed": language.passed,
+            "reason_code": (
+                language.reason_code.value
+                if language.reason_code is not None else None
+            ),
+        },
     }
 
 
@@ -1183,6 +1199,9 @@ def _finish_trial(
         "claim_scope": {
             "scientific_claim": False,
             "label": "exploratory wiring pilot",
+            "scope": "trigger-gating",
+            "classification": "finite-policy-selection",
+            "headline_synthesis_evidence": False,
             "formal_followup": "H1 rr80 / H2 rr20 x on/off/swapped",
             "known_workload_warning": (
                 "YCSB A/B are known rr50/rr95 points; YCSB C is an exploratory "

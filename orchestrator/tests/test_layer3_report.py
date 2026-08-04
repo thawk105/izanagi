@@ -164,11 +164,103 @@ def test_campaign_without_loop_state_has_empty_absent_whiteboard(tmp_path):
     assert report["whiteboard"] == []
     assert report["whiteboard_provenance"] == "absent"
     assert not any(ref.startswith("wb:") for ref in report["source_refs"])
-    assert report["schema_version"] == "layer3-material-report/v3"
+    assert report["schema_version"] == "layer3-material-report/v4"
     decision = report["admission_decision"]
     assert decision["classification"] == "admitted-new-schema"
     assert decision["admission_status"] == "admitted"
     assert decision["overlay"]["record_key"] is None
+    assert "claim_boundaries" not in report
+
+
+def test_v4_trigger_claim_boundaries_are_required_and_fixed(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    lock_path = campaign / "campaign.lock"
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    lock["search_config"]["axis"] = "silo-backoff-trigger-gating"
+    lock_path.write_text(json.dumps(lock), encoding="utf-8")
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    assert report["claim_boundaries"] == {
+        "scope": "trigger-gating",
+        "classification": "finite-policy-selection",
+        "headline_synthesis_evidence": False,
+    }
+    broken = json.loads(json.dumps(report))
+    del broken["claim_boundaries"]
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(broken)
+
+
+def test_reinspection_ledger_path_is_propagated_to_shared_admission(tmp_path, monkeypatch):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    ledger_path = tmp_path / "detached-reinspection.json"
+    original = layer3_report.require_admitted_campaign
+    observed = []
+
+    def checked(campaign_value, *, reinspection_ledger=None):
+        observed.append(reinspection_ledger)
+        return original(campaign_value, reinspection_ledger=reinspection_ledger)
+
+    monkeypatch.setattr(layer3_report, "require_admitted_campaign", checked)
+    layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+        reinspection_ledger=ledger_path,
+    )
+    assert observed == [ledger_path]
+
+
+def test_schema_accepts_overlay_historical_trigger_receipt_and_requires_proofs(
+        tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    decision = report["admission_decision"]
+    decision.update({
+        "classification": "historical-trigger-reinspected",
+        "admission_status": "admitted-reinspected",
+        "verification_status": "historically-certified",
+        "policy_sha256": None,
+        "attempt_receipt_sha256s": [],
+        "reinspection": {
+            "ledger_sha256": "a" * 64,
+            "record_sha256s": ["b" * 64],
+        },
+    })
+    layer3_report._validate_schema(report)
+
+    for mutation in ("missing", "null-ledger", "empty-records"):
+        broken = json.loads(json.dumps(report))
+        if mutation == "missing":
+            broken["admission_decision"].pop("reinspection")
+        elif mutation == "null-ledger":
+            broken["admission_decision"]["reinspection"]["ledger_sha256"] = None
+        else:
+            broken["admission_decision"]["reinspection"]["record_sha256s"] = []
+        with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+            layer3_report._validate_schema(broken)
+
+
+def test_schema_rejects_reinspection_overlay_on_nontrigger_classification(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["admission_decision"]["reinspection"] = {
+        "ledger_sha256": "a" * 64,
+        "record_sha256s": ["b" * 64],
+    }
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
 
 
 def test_legacy_v2_report_schema_remains_readable(tmp_path):
@@ -180,6 +272,22 @@ def test_legacy_v2_report_schema_remains_readable(tmp_path):
     )
     legacy["schema_version"] = "layer3-material-report/v2"
     del legacy["admission_decision"]
+    layer3_report._validate_schema(legacy)
+
+
+def test_legacy_v3_report_schema_remains_readable(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    legacy = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    legacy["schema_version"] = "layer3-material-report/v3"
+    legacy.pop("claim_boundaries", None)
+    legacy["admission_decision"]["schema_version"] = (
+        "campaign-artifact-admission-decision/v1"
+    )
+    legacy["admission_decision"].pop("reinspection", None)
     layer3_report._validate_schema(legacy)
 
 

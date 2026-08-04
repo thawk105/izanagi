@@ -323,7 +323,7 @@ def test_m2_normal_formal_campaign_remains_accepted(tmp_path):
     campaign, output_root = _formal_campaign(tmp_path)
     report = layer3_report.build_report(
         campaign, generated_from_head="fixed", output_root=output_root)
-    assert report["schema_version"] == "layer3-material-report/v3"
+    assert report["schema_version"] == "layer3-material-report/v4"
     assert report["meta"]["campaign_id"] == "formal-shaped"
 
 

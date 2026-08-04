@@ -23,13 +23,25 @@ from enum import Enum
 from typing import Mapping
 
 from .pin import CURRENT_PIN
-from .source_digest import STOCK, SourceEvidence
+from . import source_digest
+from .model import Genome
+from .source_digest import (
+    SOURCE_EVIDENCE_SCHEMA,
+    SOURCE_EVIDENCE_SCHEMA_V2,
+    STOCK,
+    SourceEvidence,
+    TriggerGateSourceError,
+    inspect_trigger_gate_source,
+)
+from .trigger_gate_language import TRIGGER_GATE_LANGUAGE
 
 
 ADMISSION_SCHEMA = "build-admission/v1"
+ADMISSION_SCHEMA_V2 = "build-admission/v2"
 POLICY_SCHEMA = "build-admission-policy/v1"
 GENERATOR_RECEIPT_SCHEMA = "generator-receipt/v1"
 REVIEW_RECEIPT_SCHEMA = "source-review/v1"
+TRIGGER_GATE_RECEIPT_SCHEMA = "trigger-gate-receipt/v1"
 _AUTHORITY_KIND = "cli-opt-in"
 _SEAL = object()
 _ISSUED_AUTHORITY_NONCES: set[str] = set()
@@ -38,6 +50,10 @@ _CLAIMED_AUTHORITY_NONCES: set[str] = set()
 
 class BuildAdmissionError(RuntimeError):
     """Source evidence did not support exactly one admitted build class."""
+
+
+class TriggerGateAdmissionError(BuildAdmissionError):
+    """Closed trigger-gate admission rejection with no untrusted source detail."""
 
 
 class BuildProvenance(str, Enum):
@@ -211,6 +227,29 @@ class ReviewReceipt:
 
 
 @dataclass(frozen=True, slots=True, init=False)
+class TriggerGateReceipt:
+    """Process-sealed identity binding for one actual rendered trigger hole."""
+
+    _body_json: str
+    _runtime_seal: object
+
+    def __init__(self, body: Mapping[str, object], *, _seal: object = None) -> None:
+        if _seal is not _SEAL:
+            raise BuildAdmissionError(
+                "TriggerGateReceipt は issue_trigger_gate_receipt() だけが発行できる"
+            )
+        object.__setattr__(self, "_body_json", _canonical_json(body))
+        object.__setattr__(self, "_runtime_seal", _SEAL)
+
+    @property
+    def receipt_sha256(self) -> str:
+        return str(json.loads(self._body_json)["receipt_sha256"])
+
+    def as_receipt(self) -> Mapping[str, object]:
+        return json.loads(self._body_json)
+
+
+@dataclass(frozen=True, slots=True, init=False)
 class BuildAdmission:
     """Sealed admission whose persistent projection contains every receipt body."""
 
@@ -342,11 +381,131 @@ _GENERATOR_KEYS = frozenset({
 _REVIEW_KEYS = frozenset({
     "schema", "review_id", "source", "input_sha256", "receipt_sha256",
 })
-_ADMISSION_KEYS = frozenset({
+_TRIGGER_GATE_RECEIPT_KEYS = frozenset({
+    "schema", "trigger_gate_language", "implementation_sha256", "source",
+    "receipt_sha256",
+})
+_ADMISSION_KEYS_V1 = frozenset({
     "schema", "class", "policy_sha256", "source", "generator_id", "review_id",
     "input_sha256", "generator_receipt", "review_receipt", "authority_kind",
     "receipt_sha256",
 })
+_ADMISSION_KEYS_V2 = _ADMISSION_KEYS_V1 | frozenset({"trigger_gate_receipt"})
+
+
+def _validate_trigger_gate_receipt_body(
+    value: object,
+    *,
+    expected_source: SourceEvidence | None = None,
+) -> Mapping[str, object]:
+    body = _require_exact_keys(
+        value, _TRIGGER_GATE_RECEIPT_KEYS, "trigger gate receipt"
+    )
+    if (body["schema"] != TRIGGER_GATE_RECEIPT_SCHEMA
+            or body["trigger_gate_language"] != TRIGGER_GATE_LANGUAGE):
+        raise BuildAdmissionError("trigger gate receipt schema/language が不一致")
+    try:
+        source = SourceEvidence.from_receipt(body["source"])
+    except (TypeError, ValueError) as exc:
+        raise BuildAdmissionError("trigger gate receipt source evidence が不正") from exc
+    if source.schema_version != SOURCE_EVIDENCE_SCHEMA_V2:
+        raise BuildAdmissionError("trigger gate receipt は SourceEvidence v2 が必要")
+    if (body["implementation_sha256"]
+            != source.trigger_gate_implementation_sha256):
+        raise BuildAdmissionError("trigger gate receipt implementation digest が不一致")
+    if expected_source is not None and body["source"] != _source_map(expected_source):
+        raise BuildAdmissionError("trigger gate receipt source evidence/root が不一致")
+    if not _is_sha256(body["receipt_sha256"]):
+        raise BuildAdmissionError("trigger gate receipt outer SHA が不正")
+    unsigned = dict(body)
+    outer = unsigned.pop("receipt_sha256")
+    if _sha256_map(unsigned) != outer:
+        raise BuildAdmissionError("trigger gate receipt outer SHA が canonical body と不一致")
+    return body
+
+
+def issue_trigger_gate_receipt(
+    source: SourceEvidence,
+    *,
+    genome: Genome,
+    cxx: str = "g++-13",
+) -> TriggerGateReceipt:
+    """Re-resolve all source evidence before sealing one trigger identity receipt."""
+
+    source_body = _source_map(source)
+    if source.schema_version != SOURCE_EVIDENCE_SCHEMA_V2:
+        raise TriggerGateAdmissionError(
+            "trigger gate receipt 発行には SourceEvidence v2 が必要"
+        )
+    if type(genome) is not Genome:
+        raise TriggerGateAdmissionError("trigger gate receipt 発行には exact Genome が必要")
+    try:
+        fresh = source_digest.resolve_evidence(
+            genome,
+            source.ccbench_commit,
+            ccbench_dir=source.source_root,
+            cxx=cxx,
+        )
+    except (RuntimeError, TriggerGateSourceError) as exc:
+        raise TriggerGateAdmissionError("trigger gate actual source を受理できない") from exc
+    if fresh != source:
+        raise TriggerGateAdmissionError(
+            "trigger gate current SourceEvidence が発行入力と不一致"
+        )
+    try:
+        inspected = inspect_trigger_gate_source(source.source_root, required=True)
+    except TriggerGateSourceError as exc:
+        raise TriggerGateAdmissionError("trigger gate actual source を受理できない") from exc
+    if inspected is None:
+        raise TriggerGateAdmissionError("trigger gate actual source を受理できない")
+    _implementation, implementation_sha256 = inspected
+    if (source.trigger_gate_language != TRIGGER_GATE_LANGUAGE
+            or source.trigger_gate_implementation_sha256 != implementation_sha256):
+        raise TriggerGateAdmissionError(
+            "trigger gate actual source と SourceEvidence が不一致"
+        )
+    body: dict[str, object] = {
+        "schema": TRIGGER_GATE_RECEIPT_SCHEMA,
+        "trigger_gate_language": TRIGGER_GATE_LANGUAGE,
+        "implementation_sha256": implementation_sha256,
+        "source": source_body,
+    }
+    body["receipt_sha256"] = _sha256_map(body)
+    return TriggerGateReceipt(body, _seal=_SEAL)
+
+
+def validate_trigger_gate_receipt(
+    value: object,
+    *,
+    expected_source: SourceEvidence | None = None,
+) -> Mapping[str, object]:
+    """Validate a persistent trigger receipt body without granting runtime issuance."""
+
+    checked = _validate_trigger_gate_receipt_body(
+        value, expected_source=expected_source
+    )
+    return json.loads(_canonical_json(checked))
+
+
+def require_trigger_gate_receipt(
+    value: object,
+    *,
+    expected_source: SourceEvidence,
+) -> TriggerGateReceipt:
+    """Require exact runtime type/seal and exact SourceEvidence binding."""
+
+    if type(value) is not TriggerGateReceipt:
+        raise BuildAdmissionError(
+            "trigger_gate_receipt は issue_trigger_gate_receipt() 由来の exact value が必要"
+        )
+    if getattr(value, "_runtime_seal", None) is not _SEAL:
+        raise BuildAdmissionError("TriggerGateReceipt runtime seal が不正")
+    try:
+        body = value.as_receipt()
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise BuildAdmissionError("TriggerGateReceipt sealed body が不正") from exc
+    _validate_trigger_gate_receipt_body(body, expected_source=expected_source)
+    return value
 
 
 def _validate_generator_body(value: object, source_body: Mapping[str, object]) -> Mapping[str, object]:
@@ -427,12 +586,25 @@ def derive_build_admission(
     *,
     generator_receipt: GeneratorReceipt | None = None,
     review_receipt: ReviewReceipt | None = None,
+    trigger_gate_receipt: TriggerGateReceipt | None = None,
 ) -> BuildAdmission:
     """Derive one class in the ruled order; reject missing or ambiguous evidence."""
 
     if type(context) is not BuildRunContext:
         raise BuildAdmissionError("context は build_run_context() 由来の exact value が必要")
     source_body = _source_map(source)
+    trigger_gate_body = None
+    if source.schema_version == SOURCE_EVIDENCE_SCHEMA_V2:
+        trigger_gate_receipt = require_trigger_gate_receipt(
+            trigger_gate_receipt,
+            expected_source=source,
+        )
+        trigger_gate_body = trigger_gate_receipt.as_receipt()
+    elif source.schema_version == SOURCE_EVIDENCE_SCHEMA:
+        if trigger_gate_receipt is not None:
+            raise BuildAdmissionError("SourceEvidence v1 へ trigger gate receipt は提示できない")
+    else:
+        raise BuildAdmissionError("SourceEvidence schema が admission 非対応")
     if generator_receipt is not None and review_receipt is not None:
         raise BuildAdmissionError("generator と review receipt の同時提示は曖昧なので拒否")
 
@@ -468,7 +640,11 @@ def derive_build_admission(
         raise BuildAdmissionError("source evidence は stock/review/generator/coder のどれも支持しない")
 
     body: dict[str, object] = {
-        "schema": ADMISSION_SCHEMA,
+        "schema": (
+            ADMISSION_SCHEMA_V2
+            if source.schema_version == SOURCE_EVIDENCE_SCHEMA_V2
+            else ADMISSION_SCHEMA
+        ),
         "class": provenance.value,
         "policy_sha256": context.policy.sha256,
         "source": source_body,
@@ -479,6 +655,8 @@ def derive_build_admission(
         "review_receipt": review_body,
         "authority_kind": authority_kind,
     }
+    if trigger_gate_body is not None:
+        body["trigger_gate_receipt"] = trigger_gate_body
     body["receipt_sha256"] = _sha256_map(body)
     return BuildAdmission(provenance, body, _seal=_SEAL)
 
@@ -491,8 +669,13 @@ def _validate_admission_body(
 ) -> Mapping[str, object]:
     if type(expected_policy) is not BuildAdmissionPolicy:
         raise BuildAdmissionError("expected_policy は BuildRunContext.policy の exact value が必要")
-    body = _require_exact_keys(value, _ADMISSION_KEYS, "build admission receipt")
-    if body["schema"] != ADMISSION_SCHEMA or body["policy_sha256"] != expected_policy.sha256:
+    if not isinstance(value, Mapping):
+        raise BuildAdmissionError("build admission receipt は object が必要")
+    schema = value.get("schema")
+    keys = _ADMISSION_KEYS_V2 if schema == ADMISSION_SCHEMA_V2 else _ADMISSION_KEYS_V1
+    body = _require_exact_keys(value, keys, "build admission receipt")
+    if schema not in {ADMISSION_SCHEMA, ADMISSION_SCHEMA_V2} \
+            or body["policy_sha256"] != expected_policy.sha256:
         raise BuildAdmissionError("build admission receipt の schema/policy が不一致")
     source_body = body["source"]
     try:
@@ -501,6 +684,14 @@ def _validate_admission_body(
         raise BuildAdmissionError("build admission receipt の source evidence が不正") from exc
     if expected_source is not None and source_body != _source_map(expected_source):
         raise BuildAdmissionError("build admission receipt の source evidence/root が不一致")
+    if schema == ADMISSION_SCHEMA_V2:
+        if source.schema_version != SOURCE_EVIDENCE_SCHEMA_V2:
+            raise BuildAdmissionError("build admission v2 は SourceEvidence v2 が必要")
+        _validate_trigger_gate_receipt_body(
+            body["trigger_gate_receipt"], expected_source=source
+        )
+    elif source.schema_version != SOURCE_EVIDENCE_SCHEMA:
+        raise BuildAdmissionError("build admission v1 は SourceEvidence v1 が必要")
     try:
         provenance = BuildProvenance(body["class"])
     except (TypeError, ValueError) as exc:
@@ -582,3 +773,48 @@ def validate_build_admission_receipt(
         value, expected_policy=expected_policy, expected_source=expected_source
     )
     return json.loads(_canonical_json(checked))
+
+
+def legacy_trigger_admission_projection(
+    value: object,
+    *,
+    expected_policy: BuildAdmissionPolicy,
+) -> tuple[Mapping[str, object], SourceEvidence]:
+    """Derive the historical v1 cache lookup body without issuing a runtime admission."""
+
+    checked = _validate_admission_body(
+        value, expected_policy=expected_policy, expected_source=None
+    )
+    if checked["schema"] != ADMISSION_SCHEMA_V2:
+        raise BuildAdmissionError("legacy trigger projection は build admission v2 が必要")
+    source_v2 = SourceEvidence.from_receipt(checked["source"])
+    source_body = dict(source_v2.as_receipt())
+    source_body["schema"] = SOURCE_EVIDENCE_SCHEMA
+    source_body.pop("trigger_gate_language", None)
+    source_body.pop("trigger_gate_implementation_sha256", None)
+    source_v1 = SourceEvidence.from_receipt(source_body)
+
+    projected = dict(checked)
+    projected["schema"] = ADMISSION_SCHEMA
+    projected["source"] = source_body
+    projected.pop("trigger_gate_receipt", None)
+    if type(projected.get("generator_receipt")) is dict:
+        nested = dict(projected["generator_receipt"])
+        nested["source"] = source_body
+        nested.pop("receipt_sha256", None)
+        nested["receipt_sha256"] = _sha256_map(nested)
+        projected["generator_receipt"] = nested
+    if type(projected.get("review_receipt")) is dict:
+        nested = dict(projected["review_receipt"])
+        nested["source"] = source_body
+        nested.pop("receipt_sha256", None)
+        nested["receipt_sha256"] = _sha256_map(nested)
+        projected["review_receipt"] = nested
+    projected.pop("receipt_sha256", None)
+    projected["receipt_sha256"] = _sha256_map(projected)
+    validated = _validate_admission_body(
+        projected,
+        expected_policy=expected_policy,
+        expected_source=source_v1,
+    )
+    return json.loads(_canonical_json(validated)), source_v1

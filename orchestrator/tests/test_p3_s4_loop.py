@@ -91,6 +91,34 @@ def _mk_template_dir():
     return d
 
 
+def test_public_quarantine_trigger_language_reject_is_prewrite_and_no_touch():
+    root = Path(tempfile.mkdtemp(prefix="izanagi_trigger_generic_gate_"))
+    source = root / "cc" / "silo" / "transaction.cc"
+    source.parent.mkdir(parents=True)
+    original = (
+        "// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
+        "#if BACKOFF_TRIGGER_GATING\n"
+        "  izanagi_gate_pass = true;\n"
+        "#else\n  Backoff::backoff();\n#endif\n"
+        "// EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
+    ).encode("utf-8")
+    source.write_bytes(original)
+    with unittest.mock.patch.object(
+            L, "render_hole", side_effect=AssertionError("downstream reached")):
+        result, base, edited, diff = L.quarantine(
+            str(root), "izanagi_gate_pass = 1; SECRET_CANARY",
+            marker_id="silo-backoff-trigger-gating",
+            source_rel="cc/silo/transaction.cc",
+            write=True,
+            enforce_trigger_gate_language=True,
+        )
+    assert result.passed is False
+    assert result.digest["rejection_type"] == "trigger-gate-language"
+    assert (base, edited, diff) == ("", "", "")
+    assert source.read_bytes() == original
+    assert "SECRET_CANARY" not in repr(result)
+
+
 # ==== render_hole / quarantine (挿入 + 検疫) ==================================
 
 def test_render_hole_preserves_indent_and_replaces_only_hole():

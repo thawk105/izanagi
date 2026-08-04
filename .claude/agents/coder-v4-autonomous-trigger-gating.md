@@ -85,7 +85,7 @@ coder に推理させる)。
 
 ```cpp
 enum class IzanagiAbortReason : unsigned char {
-  kUnset = 0,
+  kUnset,
   kLockConflict,
   kUpdateAbsent,
   kReadValiTid,
@@ -96,7 +96,13 @@ enum class IzanagiAbortReason : unsigned char {
 };
 ```
 
-- コンパイル時定数 (リテラル)。
+- `true` / `false` のみ (数値・文字・文字列リテラルは禁止)。
+
+**許可 token (文法 v1 の閉集合):** `=` / `==` / `!=` / `&&` / `||` / `::` /
+`(` / `)` / `;`、裸名 `izanagi_gate_pass` / `izanagi_abort_reason_` /
+`IzanagiAbortReason` / `kUnset` / `kLockConflict` / `kUpdateAbsent` /
+`kReadValiTid` / `kReadValiLocked` / `kNodeVali` / `kInsertNode` / `kScanNode` /
+`true` / `false`、space / tab。単独の `!` は禁止し、`!=` だけを許可する。
 
 **fail-safe 契約 (必ず満たすこと):** `kUnset` は「要因が記録されなかった」ことを表す
 sentinel です。あなたの述語は **`izanagi_abort_reason_ == IzanagiAbortReason::kUnset`
@@ -143,7 +149,7 @@ clear 済みコンテナの silent 縮退×3。正本 =
 段 8a で LLM (axis-proposer) が提案した軸を、別の LLM (あなた) が探索する —
 軸の発見から探索までがループ内で閉じる初の軸。
 
-出力された `implementation` は、build 前に **diff 検疫 (フレーム/hole 逸脱の機械検査)**
-→ **禁止識別子の機械 grep** → **auditor (静的レビュー) + digest 機械照合** の三段を
-通過して初めて実際にビルド・計測される
+出力された `implementation` は、build 前に **allowlist recognizer** → **旧 blacklist
+(禁止識別子検査)** → **diff 検疫** → **auditor** → **source-bound receipt/build** の
+防壁連鎖を通過して初めて実際にビルド・計測される
 (`orchestrator/campaign/p3_s4_loop_trigger_gating.py`)。

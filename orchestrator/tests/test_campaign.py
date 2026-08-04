@@ -26,6 +26,8 @@ import threading
 import time
 import types
 
+import pytest
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
@@ -281,6 +283,44 @@ def test_campaign_id_binds_admission_policy():
     assert historical == _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID
     assert current == _T343_REPRESENTATIVE_CAMPAIGN_ID
     assert current != historical
+
+
+def test_trigger_axis_identity_binds_language_without_overwriting_conflict():
+    cfg = _cfg(search_config={"axis": ident.TRIGGER_GATE_AXIS})
+    assert "trigger_gate_language" not in cfg.search_config
+
+    materialized = ident.bind_trigger_gate_language(cfg)
+    assert (
+        materialized.search_config["trigger_gate_language"]
+        == ident.TRIGGER_GATE_LANGUAGE
+    )
+    legacy = ident.legacy_trigger_gate_config(materialized)
+    assert "trigger_gate_language" not in legacy.search_config
+    assert {
+        key: value
+        for key, value in materialized.search_config.items()
+        if key != "trigger_gate_language"
+    } == legacy.search_config
+
+    conflicting = CampaignConfig(
+        spec_slug="trigger",
+        search_tag="test",
+        spec_content="trigger identity",
+        ccbench_commit="deadbeef",
+        search_config={
+            "axis": ident.TRIGGER_GATE_AXIS,
+            "trigger_gate_language": "trigger-gate-language/future",
+        },
+    )
+    try:
+        ident.bind_trigger_gate_language(conflicting)
+        assert False, "conflicting trigger grammar を上書きしてはならない"
+    except ValueError as exc:
+        assert "trigger gate language" in str(exc)
+    assert (
+        conflicting.search_config["trigger_gate_language"]
+        == "trigger-gate-language/future"
+    )
 
 
 def test_campaign_id_content_sensitive():
@@ -779,6 +819,79 @@ def test_resume_rejects_committed_attempt_without_receipt():
     try:
         wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
         assert False, "receiptless committed attempt を拒否すべき"
+    except wal.AttemptTopologyError as exc:
+        assert "receiptless pre-build attempt" in str(exc)
+
+
+def _trigger_grammar_layout(prefix: str):
+    cfg = _cfg(search_config={"axis": ident.TRIGGER_GATE_AXIS})
+    lay = CampaignLayout(root=_tmpdir(prefix)).ensure()
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    return lay
+
+
+def test_trigger_gate_pre_admission_reject_topology_is_replayable():
+    lay = _trigger_grammar_layout("trigger_pre_admission_reject_")
+    _write_prebuild_abort(
+        lay,
+        Genome("silo", {"BACKOFF_TRIGGER_GATING": 1}),
+        "trigger-reject",
+        attempt_id="trigger-reject-attempt",
+        reason="trigger-gate-reject",
+    )
+    state = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["trigger-reject"]
+    assert state.aborted
+    assert state.attempts["trigger-reject-attempt"].receipt_sha256 is None
+
+
+@pytest.mark.parametrize("abort_payload", [{}, {"reason": "invented-issuer"}])
+def test_receiptless_abort_requires_closed_reason_enum(abort_payload):
+    lay = _trigger_grammar_layout("trigger_receiptless_reason_")
+    wal.log(lay, "v", STAGE_BUILD_START, "test-env", {
+        "build_attempt_id": "attempt-a",
+    })
+    wal.log(lay, "v", STAGE_ABORT, "test-env", {
+        "build_attempt_id": "attempt-a", **abort_payload,
+    })
+    with pytest.raises(wal.AttemptTopologyError, match="closed issuer enum"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_abort_without_matching_active_attempt_is_rejected():
+    lay = _trigger_grammar_layout("trigger_unbound_abort_")
+    wal.log(lay, "v", STAGE_ABORT, "test-env", {
+        "reason": wal.ReceiptlessAbortReason.IDENTITY_ERROR.value,
+    })
+    with pytest.raises(wal.AttemptTopologyError, match="matching active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_m16_receiptless_build_done_is_forbidden():
+    lay = _trigger_grammar_layout("trigger_receiptless_done_")
+    wal.log(lay, "v", STAGE_BUILD_START, "test-env", {
+        "build_attempt_id": "attempt-a",
+    })
+    wal.log(lay, "v", STAGE_BUILD_DONE, "test-env", {
+        "build_attempt_id": "attempt-a",
+    })
+    try:
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+        assert False, "receiptless build_done を拒否すべき"
+    except wal.AttemptTopologyError as exc:
+        assert "receiptless pre-build attempt" in str(exc)
+
+
+def test_m16_receiptless_commit_is_forbidden():
+    lay = _trigger_grammar_layout("trigger_receiptless_commit_")
+    wal.log(lay, "v", STAGE_BUILD_START, "test-env", {
+        "build_attempt_id": "attempt-a",
+    })
+    wal.log(lay, "v", STAGE_COMMIT, "test-env", {
+        "build_attempt_id": "attempt-a",
+    })
+    try:
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+        assert False, "receiptless commit を拒否すべき"
     except wal.AttemptTopologyError as exc:
         assert "receiptless pre-build attempt" in str(exc)
 
@@ -1813,6 +1926,54 @@ def test_build_admission_stock_positive_reaches_build_without_coder_opt_in():
     assert result.certified and len(calls.builds) == 2
     start = next(r for r in wal.read_records(lay) if r.stage == STAGE_BUILD_START)
     assert start.payload["build_admission"]["class"] == "stock-baseline"
+
+
+def test_prebuild_trigger_reject_notes_wal_and_log_do_not_leak_source(tmp_path):
+    lay = _tmp_layout()
+    source_path = tmp_path / source_digest.TRIGGER_GATE_SOURCE_REL
+    source_path.parent.mkdir(parents=True)
+    source_path.write_bytes(
+        b"  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
+        b"#if BACKOFF_TRIGGER_GATING\n"
+        b"  izanagi_gate_pass = true;\rSECRET_CANARY\n"
+        b"#else\n  Backoff::backoff(FLAGS_clocks_per_us);\n#endif\n"
+        b"  // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
+    )
+    logs = []
+    with _mock_pipeline(certified=True) as calls:
+        def reject_actual_source(*_args, **_kwargs):
+            # Exercise the real binary inspector; its sanitized exception is
+            # propagated through pipeline notes/log/WAL below.
+            source_digest.inspect_trigger_gate_source(
+                str(tmp_path), required=True,
+            )
+            raise AssertionError("binary canary unexpectedly passed inspection")
+
+        pipeline.source_digest.resolve_evidence = reject_actual_source
+        result = pipeline.evaluate(
+            Genome("silo", {"BACKOFF_TRIGGER_GATING": 1}),
+            lay,
+            "test-env",
+            "deadbeef",
+            PerfConfig(records=1000, threads=2),
+            clocks_per_us=1800,
+            do_bench=False,
+            ccbench_dir=str(tmp_path),
+            build_context=_BUILD_CONTEXT,
+            log=logs.append,
+        )
+    records = wal.read_records(lay)
+    rendered = repr({
+        "result": result,
+        "notes": result.notes,
+        "logs": logs,
+        "wal": [record.payload for record in records],
+    })
+    assert result.aborted and calls.builds == []
+    assert [record.stage for record in records] == [STAGE_BUILD_START, STAGE_ABORT]
+    assert records[-1].payload["reason"] == "trigger-gate-reject"
+    assert records[-1].payload["error"] == "trigger-gate-reject"
+    assert "SECRET_CANARY" not in rendered
 
 
 def test_build_admission_is_immutable_and_rejects_nonexact_values():
@@ -3474,6 +3635,29 @@ def test_loop_isolates_identity_error():
     st = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
     for g in genomes:
         assert st[pipeline.variant_id(g)].aborted        # identity 不明ゆえ stock id で abort
+
+
+def test_loop_trigger_source_reject_uses_closed_receiptless_topology():
+    def fake_eval(g, *a, **kw):
+        raise AssertionError("trigger source reject 時は evaluate を呼ばない")
+
+    genome_value = Genome("silo", {"BACKOFF_TRIGGER_GATING": 1})
+    error = source_digest.TriggerGateSourceError(
+        source_digest.GateLanguageRejectCode.INVALID_CHARACTER
+    )
+    summary, layout = _loop_with_fake_eval(
+        fake_eval, [genome_value], "trigger-source-reject", src_token=error,
+    )
+    records = wal.read_records(layout)
+    assert summary.aborted == 1 and summary.results[0].notes == [
+        "pre-build trigger gate reject"
+    ]
+    assert [record.stage for record in records] == [STAGE_BUILD_START, STAGE_ABORT]
+    assert records[-1].payload == {
+        "reason": "trigger-gate-reject",
+        "error": "trigger-gate-reject",
+        "build_attempt_id": records[0].payload["build_attempt_id"],
+    }
 
 
 def test_loop_identity_error_is_retryable_after_repair():

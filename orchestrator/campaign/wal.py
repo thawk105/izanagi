@@ -25,13 +25,16 @@ import os
 import stat
 import time
 from dataclasses import dataclass
+from enum import Enum
 from typing import Dict, Iterator, List, Optional
 
 from .build_admission import (
+    ADMISSION_SCHEMA_V2,
     BuildAdmissionError,
     BuildAdmissionPolicy,
     validate_build_admission_receipt,
 )
+from .trigger_gate_language import TRIGGER_GATE_LANGUAGE
 from .layout import CampaignLayout
 from .model import (
     STAGE_ABORT,
@@ -87,6 +90,16 @@ class WalAppendError(RuntimeError):
 
 class AttemptTopologyError(ValueError):
     """Admission-aware WAL records do not form attempt-local transactions."""
+
+
+class ReceiptlessAbortReason(str, Enum):
+    """Closed issuer vocabulary for failures before an admission receipt exists."""
+
+    TRIGGER_GATE_REJECT = "trigger-gate-reject"
+    IDENTITY_ERROR = "identity-error"
+    ADMISSION_ERROR = "admission-error"
+    DIFF_QUARANTINE = "diff-quarantine"
+    EVAL_EXCEPTION = "eval-exception"
 
 
 @dataclass(frozen=True)
@@ -593,6 +606,21 @@ def _lock_declares_admission_policy(layout: CampaignLayout) -> bool:
     return type(search) is dict and "build_admission" in search
 
 
+def _lock_declares_trigger_grammar(layout: CampaignLayout) -> bool:
+    stored = read_lock(layout)
+    if stored is None:
+        return False
+    try:
+        value = json.loads(stored)
+    except (json.JSONDecodeError, TypeError):
+        return False
+    search = value.get("search_config") if type(value) is dict else None
+    return (
+        type(search) is dict
+        and search.get("trigger_gate_language") == TRIGGER_GATE_LANGUAGE
+    )
+
+
 def _receipt_sha(payload: Dict, *, stage: str) -> str:
     value = payload.get("build_admission_receipt_sha256")
     if (type(value) is not str or len(value) != 64
@@ -603,8 +631,19 @@ def _receipt_sha(payload: Dict, *, stage: str) -> str:
     return value
 
 
+def _trigger_receipt_sha(payload: Dict, *, stage: str) -> str:
+    value = payload.get("trigger_gate_receipt_sha256")
+    if (type(value) is not str or len(value) != 64
+            or any(ch not in "0123456789abcdef" for ch in value)):
+        raise AttemptTopologyError(
+            f"{stage}: trigger_gate_receipt_sha256 が exact lowercase SHA-256 でない"
+        )
+    return value
+
+
 def _validate_attempt_topology(
         records: List[WalRecord], *, admission_policy: BuildAdmissionPolicy,
+        trigger_grammar_locked: bool = False,
 ) -> Dict[str, Dict[str, BuildAttemptState]]:
     if type(admission_policy) is not BuildAdmissionPolicy:
         raise TypeError("admission_policy は BuildRunContext.policy の exact value が必要")
@@ -628,6 +667,7 @@ def _validate_attempt_topology(
                 )
             receipt = payload.get("build_admission")
             receipt_sha = None
+            trigger_receipt_sha = None
             if receipt is not None:
                 try:
                     checked = validate_build_admission_receipt(
@@ -642,6 +682,35 @@ def _validate_attempt_topology(
                     raise AttemptTopologyError(
                         "build_start: receipt body と伝播 SHA が不一致"
                     )
+                is_trigger = checked.get("schema") == ADMISSION_SCHEMA_V2
+                if is_trigger:
+                    if not trigger_grammar_locked:
+                        raise AttemptTopologyError(
+                            "build_start: trigger admission に grammar-bound campaign lock がない"
+                        )
+                    if payload.get("trigger_gate_language") != TRIGGER_GATE_LANGUAGE:
+                        raise AttemptTopologyError(
+                            "build_start: trigger gate language が lock と不一致"
+                        )
+                    trigger_body = payload.get("trigger_gate_receipt")
+                    if trigger_body != checked.get("trigger_gate_receipt"):
+                        raise AttemptTopologyError(
+                            "build_start: admission 内と伝播 trigger receipt が不一致"
+                        )
+                    trigger_receipt_sha = _trigger_receipt_sha(
+                        payload, stage=record.stage
+                    )
+                    if (type(trigger_body) is not dict
+                            or trigger_body.get("receipt_sha256") != trigger_receipt_sha):
+                        raise AttemptTopologyError(
+                            "build_start: trigger receipt body と伝播 SHA が不一致"
+                        )
+                elif any(key in payload for key in (
+                        "trigger_gate_language", "trigger_gate_receipt",
+                        "trigger_gate_receipt_sha256")):
+                    raise AttemptTopologyError(
+                        "build_start: non-trigger admission に trigger receipt field がある"
+                    )
             elif "build_admission_receipt_sha256" in payload:
                 raise AttemptTopologyError(
                     "build_start: receipt 無し attempt に receipt SHA がある"
@@ -650,6 +719,7 @@ def _validate_attempt_topology(
                 attempt_id=attempt_id,
                 variant=record.variant,
                 receipt_sha256=receipt_sha,
+                trigger_gate_receipt_sha256=trigger_receipt_sha,
                 stages_seen=[record.stage],
             )
             global_attempts[attempt_id] = attempt
@@ -676,6 +746,16 @@ def _validate_attempt_topology(
                 raise AttemptTopologyError(
                     f"{record.stage}: 別 attempt の receipt SHA が流用された"
                 )
+            if attempt.trigger_gate_receipt_sha256 is not None:
+                if (_trigger_receipt_sha(payload, stage=record.stage)
+                        != attempt.trigger_gate_receipt_sha256):
+                    raise AttemptTopologyError(
+                        f"{record.stage}: trigger receipt SHA が build_start と不一致"
+                    )
+            elif "trigger_gate_receipt_sha256" in payload:
+                raise AttemptTopologyError(
+                    f"{record.stage}: non-trigger attempt に trigger receipt SHA がある"
+                )
             if record.stage == STAGE_BUILD_DONE:
                 if attempt.build_done:
                     raise AttemptTopologyError("build_done: 同一 attempt で重複")
@@ -692,12 +772,6 @@ def _validate_attempt_topology(
 
         if record.stage == STAGE_ABORT:
             attempt_id = payload.get("build_attempt_id")
-            if attempt_id is None:
-                if record.variant in active:
-                    raise AttemptTopologyError(
-                        "abort: active attempt があるのに build_attempt_id が欠落"
-                    )
-                continue
             attempt = global_attempts.get(attempt_id) if type(attempt_id) is str else None
             if (attempt is None or attempt.variant != record.variant
                     or active.get(record.variant) is not attempt):
@@ -705,8 +779,24 @@ def _validate_attempt_topology(
             if attempt.receipt_sha256 is None:
                 if "build_admission_receipt_sha256" in payload:
                     raise AttemptTopologyError("abort: receiptless attempt に receipt SHA がある")
+                reason = payload.get("reason")
+                if (
+                    type(reason) is not str
+                    or reason not in {member.value for member in ReceiptlessAbortReason}
+                ):
+                    raise AttemptTopologyError(
+                        "abort: receiptless reason が closed issuer enum にない"
+                    )
             elif _receipt_sha(payload, stage=record.stage) != attempt.receipt_sha256:
                 raise AttemptTopologyError("abort: attempt receipt SHA が不一致")
+            if attempt.trigger_gate_receipt_sha256 is not None:
+                if (_trigger_receipt_sha(payload, stage=record.stage)
+                        != attempt.trigger_gate_receipt_sha256):
+                    raise AttemptTopologyError("abort: trigger receipt SHA が不一致")
+            elif "trigger_gate_receipt_sha256" in payload:
+                raise AttemptTopologyError(
+                    "abort: non-trigger/receiptless attempt に trigger receipt SHA がある"
+                )
             attempt.aborted = True
             attempt.stages_seen.append(record.stage)
             active.pop(record.variant, None)
@@ -724,7 +814,11 @@ def replay(
             "admission-aware campaign replay には current admission_policy が必要"
         )
     attempts = (
-        _validate_attempt_topology(records, admission_policy=admission_policy)
+        _validate_attempt_topology(
+            records,
+            admission_policy=admission_policy,
+            trigger_grammar_locked=_lock_declares_trigger_grammar(layout),
+        )
         if admission_policy is not None else {}
     )
     states: Dict[str, EvalState] = {}

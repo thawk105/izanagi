@@ -116,6 +116,7 @@ class BuildAttemptState:
     attempt_id: str
     variant: str
     receipt_sha256: Optional[str]
+    trigger_gate_receipt_sha256: Optional[str] = None
     stages_seen: List[str] = field(default_factory=list)
     build_done: bool = False
     committed: bool = False

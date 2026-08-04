@@ -55,6 +55,7 @@ from campaign import ident, wal                                    # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
+from campaign.trigger_gate_language import check_trigger_gate_implementation  # noqa: E402
 from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
@@ -184,11 +185,15 @@ def make_working_diff(base_text: str, edited_text: str, source_rel: str) -> str:
 def quarantine(sub: str, implementation: str,
                marker_id: str = MARKER_ID,
                source_rel: str = SOURCE_REL,
-               write: bool = True) -> Tuple[DiffQuarantineResult, str, str, str]:
+               write: bool = True,
+               *, enforce_trigger_gate_language: bool = False,
+               ) -> Tuple[DiffQuarantineResult, str, str, str]:
     """骨格適用後の working-tree に coder の implementation を挿入し diff 検疫する。
 
     **前提: 呼び出し元が既に applied(TEMPLATE_PATCH) 下にある** (working-tree に骨格が
-    入っている)。手順:
+    入っている)。trigger 文法は ``enforce_trigger_gate_language=True`` を明示した
+    trigger caller だけがこの境界で検査し、既定の DiffQuarantine scope は hole 内の
+    内容品質を判定しない。手順:
       1. backoff.hh (骨格入り) を base_text として読む
       2. parse_template_file で marker を取り source_rel を差し替える (basename 推定を上書き)
       3. hole を implementation で置換 → edited_text (write=True でファイルに書く)
@@ -198,6 +203,27 @@ def quarantine(sub: str, implementation: str,
     passed=False なら呼び出し元は build に進めず reject を WAL/critic へ (規律2 hard gate)。
     parse_template_file が None を返す (テンプレ骨格が壊れている) 場合は MALFORMED 相当の
     fails-closed 結果を合成して返す (骨格が読めなければ検疫できない = reject)。"""
+    if enforce_trigger_gate_language:
+        if (marker_id != "silo-backoff-trigger-gating"
+                or source_rel != "cc/silo/transaction.cc"):
+            raise ValueError(
+                "trigger gate language opt-in は trigger marker/source の組に限る"
+            )
+        gate = check_trigger_gate_implementation(implementation)
+        if not gate.passed:
+            reason_code = gate.reason_code.value if gate.reason_code is not None else "reject"
+            res = DiffQuarantineResult(
+                passed=False,
+                reason=f"trigger gate language reject ({reason_code})",
+                digest={
+                    "rejection_type": "trigger-gate-language",
+                    "subtype": "invalid-implementation",
+                    "reason_code": reason_code,
+                    "diff_region": source_rel,
+                    "template_diff_id": marker_id,
+                },
+            )
+            return res, "", "", ""
     path = os.path.join(sub, source_rel)
     with open(path, encoding="utf-8") as f:
         base_text = f.read()
@@ -244,7 +270,7 @@ def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: s
             {"genome": genome.canonical(), "src_token": "",
              "build_attempt_id": attempt_id})
     wal.log(layout, v, STAGE_ABORT, env_tag,
-            {"reason": DIFF_QUARANTINE_REASON,
+            {"reason": wal.ReceiptlessAbortReason.DIFF_QUARANTINE.value,
              "build_attempt_id": attempt_id,
              "genome": genome.canonical(),
              "diff_quarantine": res.digest or {}})

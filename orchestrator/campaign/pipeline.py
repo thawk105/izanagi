@@ -40,7 +40,9 @@ from .build_admission import (  # noqa: E402
     BuildRunContext,
     GeneratorReceipt,
     ReviewReceipt,
+    TriggerGateAdmissionError,
     derive_build_admission,
+    issue_trigger_gate_receipt,
     require_build_admission,
 )
 from .layout import CampaignLayout                              # noqa: E402
@@ -49,7 +51,9 @@ from .env_contract import ExecutionEnvironmentContract          # noqa: E402
 from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
                     STAGE_BUILD_DONE, STAGE_BUILD_START, STAGE_COMMIT,
                     STAGE_VERIFY_DONE)
-from .source_digest import SourceEvidence                         # noqa: E402
+from .source_digest import (SOURCE_EVIDENCE_SCHEMA_V2, SourceEvidence,  # noqa: E402
+                            TriggerGateSourceError)
+from .trigger_gate_language import TRIGGER_GATE_LANGUAGE         # noqa: E402
 
 _DEFAULT_CXX = buildcache.DEFAULT_CXX
 _compilers_for_current_site = buildcache.compilers_for_current_site
@@ -557,18 +561,33 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             "genome": genome.canonical(),
             "build_attempt_id": build_attempt_id,
         })
-        emit(layout, v0, STAGE_ABORT, env_tag, {
+        safe_trigger_reject = (
+            reason == wal.ReceiptlessAbortReason.TRIGGER_GATE_REJECT.value
+        )
+        abort_payload = {
             "reason": reason,
-            "error": _exc_summary(error),
             "build_attempt_id": build_attempt_id,
-        })
-        log(f"  [eval {v0}] abort: {reason} ({error})")
+        }
+        if safe_trigger_reject:
+            abort_payload["error"] = "trigger-gate-reject"
+        else:
+            abort_payload["error"] = _exc_summary(error)
+        emit(layout, v0, STAGE_ABORT, env_tag, abort_payload)
+        log(
+            f"  [eval {v0}] abort: {reason}"
+            + ("" if safe_trigger_reject else f" ({error})")
+        )
         result = EvalResult(
             genome=genome, variant=v0, certified=False, aborted=True,
         )
-        result.notes.append(f"pre-build evidence 確定不能 → reject ({error})")
+        result.notes.append(
+            "pre-build trigger gate reject"
+            if safe_trigger_reject
+            else f"pre-build evidence 確定不能 → reject ({error})"
+        )
         return result
 
+    trigger_gate_receipt = None
     try:
         _, resolved_cxx = _compilers_for_current_site()
         evidence_cxx = _DEFAULT_CXX if resolved_cxx == _DEFAULT_CXX else resolved_cxx
@@ -597,24 +616,47 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             raise BuildAdmissionError(
                 "capability_resolver は sealed GeneratorReceipt/ReviewReceipt/None だけを返せる"
             )
+        if evidence.schema_version == SOURCE_EVIDENCE_SCHEMA_V2:
+            trigger_gate_receipt = issue_trigger_gate_receipt(
+                evidence, genome=genome, cxx=evidence_cxx,
+            )
         admission = derive_build_admission(
             build_context,
             evidence,
             generator_receipt=generator_receipt,
             review_receipt=review_receipt,
+            trigger_gate_receipt=trigger_gate_receipt,
         )
         admission = require_build_admission(
             admission,
             expected_policy=build_context.policy,
             expected_source=evidence,
         )
+    except (TriggerGateSourceError, TriggerGateAdmissionError) as exc:
+        return _prebuild_abort(
+            wal.ReceiptlessAbortReason.TRIGGER_GATE_REJECT.value, exc,
+        )
     except (BuildAdmissionError, RuntimeError) as exc:
-        reason = "identity-error" if isinstance(exc, RuntimeError) \
-            and not isinstance(exc, BuildAdmissionError) else "admission-error"
+        reason = (
+            wal.ReceiptlessAbortReason.IDENTITY_ERROR.value
+            if isinstance(exc, RuntimeError) and not isinstance(exc, BuildAdmissionError)
+            else wal.ReceiptlessAbortReason.ADMISSION_ERROR.value
+        )
         return _prebuild_abort(reason, exc)
 
     src_tok = evidence.src_token
     admission_receipt = admission.as_wal_receipt()
+    trigger_start_payload = {}
+    trigger_followup_payload = {}
+    if trigger_gate_receipt is not None:
+        trigger_start_payload = {
+            "trigger_gate_language": TRIGGER_GATE_LANGUAGE,
+            "trigger_gate_receipt": trigger_gate_receipt.as_receipt(),
+            "trigger_gate_receipt_sha256": trigger_gate_receipt.receipt_sha256,
+        }
+        trigger_followup_payload = {
+            "trigger_gate_receipt_sha256": trigger_gate_receipt.receipt_sha256,
+        }
     v = variant_id(genome, src_tok)
     res = EvalResult(genome=genome, variant=v, certified=False, aborted=False)
     emit(layout, v, STAGE_BUILD_START, env_tag, {
@@ -623,6 +665,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         "build_attempt_id": build_attempt_id,
         "build_admission": admission_receipt,
         "build_admission_receipt_sha256": admission.receipt_sha256,
+        **trigger_start_payload,
     })
 
     def _abort(reason: str, note: str, extra: Optional[Dict] = None,
@@ -631,6 +674,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             "reason": reason,
             "build_attempt_id": build_attempt_id,
             "build_admission_receipt_sha256": admission.receipt_sha256,
+            **trigger_followup_payload,
             **(extra or {}),
         }
         if workload_tag is not None:
@@ -705,6 +749,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
          {"trace_bin": tr.bin_hash, "perf_bin": pf.bin_hash,
           "build_attempt_id": build_attempt_id,
           "build_admission_receipt_sha256": admission.receipt_sha256,
+          **trigger_followup_payload,
           "trace_bin_sha256": tr.bin_sha256, "perf_bin_sha256": pf.bin_sha256,
           "trace_cached": tr.cached, "perf_cached": pf.cached,
           # fitness 計測に使う perf (trace-disabled) build の再現コマンド (規律1)。
@@ -918,6 +963,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                     "verify_configs": verify_tags,
                     "build_attempt_id": build_attempt_id,
                     "build_admission_receipt_sha256": admission.receipt_sha256,
+                    **trigger_followup_payload,
                 })
             else:
                 qualification_policy.event_sink.emit(
@@ -927,6 +973,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                         "verify_configs": verify_tags,
                         "build_attempt_id": build_attempt_id,
                         "build_admission_receipt_sha256": admission.receipt_sha256,
+                        **trigger_followup_payload,
                     },
                 )
             return res
@@ -965,6 +1012,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             "verify_configs": verify_tags,
             "build_attempt_id": build_attempt_id,
             "build_admission_receipt_sha256": admission.receipt_sha256,
+            **trigger_followup_payload,
         }
         if active_screening is not None:
             commit_payload["screened"] = True

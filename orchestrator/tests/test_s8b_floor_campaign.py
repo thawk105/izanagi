@@ -3887,7 +3887,8 @@ def test_portable_projection_rejects_reserved_placeholder_and_exact_key_tamper(t
         "cell": {
             "cell_id": "cell", "holdout_id": "h", "configuration_id": "c",
             "binary": str(binary), "binary_sha256": sha, "bin_hash_short": sha[:16],
-            "binding": {}, "configure_argv": ["cmake", "${OUT_ROOT}"],
+            "binding": _portable_binding_fixture(),
+            "configure_argv": ["cmake", "${OUT_ROOT}"],
             "build_argv": ["cmake", "--build", str(binary.parent)],
             "cached": False, "store_path": str(tmp_path / "out" / "store" / sha),
             "_ccbench_root": str(tmp_path / "ccbench"),
@@ -3905,13 +3906,26 @@ def test_portable_projection_rejects_reserved_placeholder_and_exact_key_tamper(t
             portable, out_root=tmp_path / "out")
 
 
+def _portable_binding_fixture() -> dict:
+    return {
+        "genome_canonical": "silo|",
+        "src_token": "stock",
+        "variant_id": "0123456789ab",
+        "entry_sha256": "1" * 64,
+        "binding_sha256": (
+            "1d04ba02596710ffc59cd280a930e3114e18fa9551c6b026d19a5f618e31a858"
+        ),
+    }
+
+
 def _valid_portable_built_record() -> dict:
     sha = "a" * 64
     return {
         "cell": {
             "cell_id": "cell", "holdout_id": "holdout",
             "configuration_id": "configuration", "binary": "cache/cell/binary.exe",
-            "binary_sha256": sha, "bin_hash_short": sha[:16], "binding": {},
+            "binary_sha256": sha, "bin_hash_short": sha[:16],
+            "binding": _portable_binding_fixture(),
             "configure_argv": ["cmake", "-S", "${CCBENCH_ROOT}"],
             "build_argv": ["cmake", "--build", "${OUT_ROOT}/cache/cell"],
             "cached": False, "store_path": f"store/{sha}",

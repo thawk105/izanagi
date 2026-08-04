@@ -7,6 +7,7 @@ import argparse
 import copy
 import contextlib
 import errno
+import hashlib
 import json
 import os
 import sys
@@ -29,6 +30,7 @@ from campaign.model import Genome, STAGE_BUILD_START, STAGE_S1_SESSION  # noqa: 
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
 from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256, STOCK,  # noqa: E402
                                     SourceEvidence)
+from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE  # noqa: E402
 from campaign import s1_direct_comparison as S  # noqa: E402
 from campaign import t080_freeze_migration as T080  # noqa: E402
 from s1_expected_goldens import (  # noqa: E402
@@ -257,13 +259,16 @@ def _capture_prepare_quarantine(
     worktree = tmp_path / "worktree"
     calls = []
 
-    def fake_quarantine(sub, implementation, *, marker_id, source_rel, write):
+    def fake_quarantine(
+            sub, implementation, *, marker_id, source_rel, write,
+            enforce_trigger_gate_language=False):
         calls.append({
             "sub": sub,
             "implementation": implementation,
             "marker_id": marker_id,
             "source_rel": source_rel,
             "write": write,
+            "enforce_trigger_gate_language": enforce_trigger_gate_language,
         })
         return types.SimpleNamespace(passed=True), "base", "edited", "diff"
 
@@ -271,18 +276,44 @@ def _capture_prepare_quarantine(
         patchharness, "checkout", lambda *args, **kwargs: _fixture_checkout(worktree))
     monkeypatch.setattr(
         patchharness, "applied", lambda *args, **kwargs: _fixture_checkout(worktree))
-    monkeypatch.setattr(
-        S.source_digest, "resolve",
-        lambda *args, **kwargs: "fixture-source",
+    implementation = expected["variant"][implementation_key]
+    trigger_cell = implementation_key == "gate_predicate"
+    evidence = (
+        SourceEvidence(
+            schema_version="source-evidence/v2",
+            source_root=str(worktree.resolve()),
+            ccbench_commit="d706650cdb31e442bef45b9b4216951d4fb40969",
+            genome_sha256="1" * 64,
+            src_token="2" * 64,
+            source_bytes_sha256="3" * 64,
+            tracked_clean=False,
+            tracked_diff_sha256="4" * 64,
+            tracked_paths=("cc/silo/transaction.cc",),
+            trigger_gate_language=TRIGGER_GATE_LANGUAGE,
+            trigger_gate_implementation_sha256=hashlib.sha256(
+                implementation.encode("ascii")
+            ).hexdigest(),
+        )
+        if trigger_cell else None
     )
+    if trigger_cell:
+        monkeypatch.setattr(
+            S.source_digest, "resolve_evidence", lambda *args, **kwargs: evidence,
+        )
+    else:
+        monkeypatch.setattr(
+            S.source_digest, "resolve", lambda *args, **kwargs: "fixture-source",
+        )
     monkeypatch.setattr(loop_axis, "quarantine", fake_quarantine)
 
-    with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969"):
-        pass
+    with S.prepare_cell(
+            cell, "d706650cdb31e442bef45b9b4216951d4fb40969") as prepared:
+        assert prepared.source_evidence == evidence
 
     assert len(calls) == 1
     assert calls[0]["sub"] == str(worktree)
     assert calls[0]["write"] is True
+    assert calls[0]["enforce_trigger_gate_language"] is trigger_cell
     assert calls[0]["implementation"] == expected["variant"][implementation_key]
     assert cell == expected
     return calls[0]
@@ -337,9 +368,9 @@ def test_prepare_sort_best_passes_comparator_verbatim_to_quarantine(
     "predicate",
     [
         pytest.param(
-            "\n  izanagi_gate_pass = izanagi_abort_reason_ == "
-            "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
-            "IzanagiAbortReason::kReadValiLocked;  \n",
+            " \t izanagi_gate_pass \t=\t izanagi_abort_reason_ \t==\t "
+            "IzanagiAbortReason::kUnset \t||\t izanagi_abort_reason_ \t==\t "
+            "IzanagiAbortReason::kReadValiLocked; \t ",
             id="synthetic-whitespace-sentinel",
         ),
         pytest.param(
@@ -381,13 +412,13 @@ def test_prepare_system_gate_passes_predicate_verbatim_to_quarantine(
     "predicate",
     [
         pytest.param(
-            "\n    izanagi_gate_pass = izanagi_abort_reason_ == "
-            "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
-            "IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == "
+            " \t izanagi_gate_pass =\t izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kUnset \t|| izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kLockConflict ||\t izanagi_abort_reason_ == "
             "IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == "
-            "IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kReadValiTid ||\t izanagi_abort_reason_ == "
             "IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == "
-            "IzanagiAbortReason::kNodeVali;  \n",
+            "IzanagiAbortReason::kNodeVali; \t ",
             id="synthetic-whitespace-sentinel",
         ),
         pytest.param(
@@ -419,6 +450,63 @@ def test_prepare_ident_all_passes_predicate_verbatim_to_quarantine(
 
     assert received["marker_id"] == gate_axis.MARKER_ID
     assert received["source_rel"] == gate_axis.SOURCE_REL
+
+
+@pytest.mark.parametrize(
+    "configuration, predicate",
+    [
+        pytest.param(
+            "system_gate",
+            "\n  izanagi_gate_pass = izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kReadValiLocked;  \n",
+            id="system-gate-lf-sentinel",
+        ),
+        pytest.param(
+            "ident_all",
+            "\n    izanagi_gate_pass = izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kUnset || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == "
+            "IzanagiAbortReason::kNodeVali;  \n",
+            id="ident-all-lf-sentinel",
+        ),
+    ],
+)
+def test_prepare_trigger_gate_rejects_lf_before_quarantine_without_leak(
+        tmp_path, monkeypatch, caplog, configuration, predicate):
+    from campaign import patchharness
+    from campaign import p3_s4_loop as loop_axis
+
+    worktree = tmp_path / "worktree"
+    monkeypatch.setattr(
+        patchharness, "checkout", lambda *a, **k: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(
+        patchharness,
+        "applied",
+        lambda *a, **k: pytest.fail("template patch reached after LF reject"),
+    )
+    monkeypatch.setattr(
+        loop_axis,
+        "quarantine",
+        lambda *a, **k: pytest.fail("quarantine reached after LF reject"),
+    )
+    cell = {
+        "configuration": configuration,
+        "variant": {
+            "gate_predicate": predicate,
+            "flags": {"BACKOFF_TRIGGER_GATING": 1, "BACK_OFF": 1},
+        },
+    }
+    with pytest.raises(S.DriverError, match="invalid-character") as caught:
+        with S.prepare_cell(
+                cell, "d706650cdb31e442bef45b9b4216951d4fb40969"):
+            pass
+    assert predicate not in str(caught.value)
+    assert predicate not in caplog.text
 
 
 def test_s1_v2_trial_does_not_reuse_v1_campaign_id():

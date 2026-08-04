@@ -83,6 +83,7 @@ from campaign.build_admission import (  # noqa: E402
     ReviewId,
     build_run_context,
     derive_build_admission,
+    issue_trigger_gate_receipt,
 )
 from campaign import t080_freeze_migration as _t080_migration  # noqa: E402
 from campaign import s8b_floor_contract as _floor_contract  # noqa: E402
@@ -108,6 +109,10 @@ from campaign.p2_2 import ENV_TAG  # noqa: E402  (machine-pin 用のみ。CLK/NU
 from campaign.s1_direct_comparison import prepare_cell  # noqa: E402
 from campaign.s8b_materialization import (  # noqa: E402
     MaterializationError,
+    NON_TRIGGER_BINDING_KEYS,
+    TRIGGER_BINDING_KEYS,
+    binding_matches_after_reinspection,
+    binding_preimage,
     prepared_binding,
     reviewed_source_capability,
 )
@@ -992,6 +997,23 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 ccbench_dir=prepared.ccbench_dir,
                 cxx=buildcache.DEFAULT_CXX,
             )
+            if evidence.schema_version == "source-evidence/v2":
+                if (
+                    identity.get("trigger_gate_language")
+                    != evidence.trigger_gate_language
+                    or identity.get("trigger_gate_implementation_sha256")
+                    != evidence.trigger_gate_implementation_sha256
+                ):
+                    raise FloorCampaignError(
+                        "floor binding と build 実 source trigger identity が不一致"
+                    )
+            elif (
+                "trigger_gate_language" in identity
+                or "trigger_gate_implementation_sha256" in identity
+            ):
+                raise FloorCampaignError(
+                    "floor non-trigger source に trigger binding が混在"
+                )
             review = reviewed_source_capability(
                 review_id=ReviewId.S8B_FLOOR,
                 source=evidence,
@@ -999,6 +1021,12 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
             )
             admission = derive_build_admission(
                 build_context, evidence, review_receipt=review,
+                trigger_gate_receipt=(
+                    issue_trigger_gate_receipt(
+                        evidence, genome=prepared.genome, cxx=buildcache.DEFAULT_CXX,
+                    )
+                    if evidence.schema_version == "source-evidence/v2" else None
+                ),
             )
             result = build_fn(
                 prepared.genome,
@@ -1115,7 +1143,8 @@ def _portable_argv(argv, *, out_root: Path, ccbench_root: str, field: str) -> li
     return projected
 
 
-def _validate_portable_built(built: Mapping) -> dict[str, dict]:
+def _validate_portable_built(
+        built: Mapping, *, allow_legacy_trigger: bool = False) -> dict[str, dict]:
     if not isinstance(built, Mapping):
         raise FloorCampaignError("portable binaries が Mapping でない")
     validated: dict[str, dict] = {}
@@ -1139,6 +1168,25 @@ def _validate_portable_built(built: Mapping) -> dict[str, dict]:
             raise FloorCampaignError(f"portable binaries[{cell_id}].bin_hash_short が不一致")
         if not isinstance(record["binding"], Mapping):
             raise FloorCampaignError(f"portable binaries[{cell_id}].binding が object でない")
+        binding_keys = frozenset(record["binding"])
+        allowed_binding_keys = {
+            NON_TRIGGER_BINDING_KEYS, TRIGGER_BINDING_KEYS,
+        }
+        if binding_keys not in allowed_binding_keys:
+            raise FloorCampaignError(
+                f"portable binaries[{cell_id}].binding exact key 集合が不一致"
+            )
+        try:
+            binding_preimage(record["binding"])
+        except MaterializationError as exc:
+            # A five-key binding is also the only historical trigger projection.
+            # It remains syntactically valid here, but resume admission below must
+            # compare it with a freshly materialized real-source identity.
+            if not (allow_legacy_trigger
+                    and binding_keys == NON_TRIGGER_BINDING_KEYS):
+                raise FloorCampaignError(
+                    f"portable binaries[{cell_id}].binding が不正"
+                ) from exc
         for field in ("configure_argv", "build_argv"):
             argv = record[field]
             if (not isinstance(argv, list) or not argv
@@ -1197,6 +1245,28 @@ def resolve_portable_built(artifact_built: Mapping, *, out_root: Path) -> dict[s
         runtime[cell_id]["binary"] = str(root / rec["binary"])
         runtime[cell_id]["store_path"] = str(root / rec["store_path"])
     return runtime
+
+
+def _reinspect_resume_bindings(
+        artifact_built: Mapping, *, freeze: Mapping, cells: list[dict],
+        ccbench_pin: str, prepare_fn) -> None:
+    """Re-materialize every resume cell; permit no persistent legacy upgrade."""
+    cells_by_id = {cell["cell_id"]: cell for cell in cells}
+    if set(artifact_built) != set(cells_by_id):
+        raise FloorCampaignError("resume: manifest binding cell 集合が不一致")
+    for cell_id in sorted(artifact_built):
+        cell = cells_by_id[cell_id]
+        expected = artifact_built[cell_id]["binding"]
+        with _prepared_binding(
+                freeze=freeze,
+                holdout_id=cell["holdout_id"],
+                configuration_id=cell["configuration_id"],
+                ccbench_pin=ccbench_pin,
+                prepare_fn=prepare_fn) as (actual, _prepared):
+            if not binding_matches_after_reinspection(expected, actual):
+                raise FloorCampaignError(
+                    "resume: manifest binding と実 source 再検査 identity が不一致"
+                )
 
 
 # --------------------------------------------------------------------------- #
@@ -3060,6 +3130,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             manifest, manifest_sha256, artifact_built, runtime_built = _load_resume_manifest(
                 manifest_path, protocol_sha256=protocol_sha256,
                 freeze_sha256=freeze_sha256, out_root=out_root,
+                freeze=freeze, cells=cells,
+                ccbench_pin=protocol["ccbench_pin"], prepare_fn=prepare_fn,
             )
             manifest_schedule = manifest.get("schedule")
             if not isinstance(manifest_schedule, list):
@@ -3190,7 +3262,11 @@ def _fresh_run_dir(out_root: Path, protocol: Mapping, mode: str,
 
 
 def _load_resume_manifest(manifest_path: Path, *, protocol_sha256: str,
-                          freeze_sha256: str, out_root: Path) -> tuple:
+                          freeze_sha256: str, out_root: Path,
+                          freeze: Mapping | None = None,
+                          cells: list[dict] | None = None,
+                          ccbench_pin: str | None = None,
+                          prepare_fn=None) -> tuple:
     try:
         raw = manifest_path.read_bytes()
     except OSError as exc:
@@ -3213,7 +3289,15 @@ def _load_resume_manifest(manifest_path: Path, *, protocol_sha256: str,
         raise FloorCampaignError("resume: protocol sha256 が manifest と不一致")
     if manifest.get("freeze_sha256") != freeze_sha256:
         raise FloorCampaignError("resume: freeze sha256 が manifest と不一致")
-    artifact_built = _validate_portable_built(manifest.get("binaries"))
+    artifact_built = _validate_portable_built(
+        manifest.get("binaries"), allow_legacy_trigger=True,
+    )
+    if any(value is None for value in (freeze, cells, ccbench_pin, prepare_fn)):
+        raise FloorCampaignError("resume: binding 実 source 再検査入力が不足")
+    _reinspect_resume_bindings(
+        artifact_built, freeze=freeze, cells=cells,
+        ccbench_pin=ccbench_pin, prepare_fn=prepare_fn,
+    )
     runtime_built = resolve_portable_built(artifact_built, out_root=out_root)
     return dict(manifest), manifest_sha256, artifact_built, runtime_built
 

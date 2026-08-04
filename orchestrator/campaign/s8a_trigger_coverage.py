@@ -52,6 +52,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from campaign import buildcache, site_policy, source_digest            # noqa: E402
 from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context, derive_build_admission,
+                                      issue_trigger_gate_receipt,
                                       require_build_admission)
 from campaign.axis_trigger_gating import (                             # noqa: E402
     INSTR_PATCH, MISATTR_DEFINE, MISATTR_PATCH, PIN, TEMPLATE_PATCH, _BASE)
@@ -146,19 +147,38 @@ def _build(
     capability = attest_generator_output(
         build_context, evidence, generator_input_sha256=input_sha256,
     )
+    trigger_gate_receipt = (
+        issue_trigger_gate_receipt(evidence, genome=genome or GENOME)
+        if evidence.schema_version == "source-evidence/v2" else None
+    )
     admission = derive_build_admission(
         build_context, evidence, generator_receipt=capability,
+        trigger_gate_receipt=trigger_gate_receipt,
     )
     require_build_admission(
         admission, expected_policy=build_context.policy, expected_source=evidence,
     )
     if admission_receipts is not None:
         admission_receipts.append(admission.as_wal_receipt())
+    current_before_configure = source_digest.resolve_evidence(
+        genome or GENOME, PIN, ccbench_dir=sub,
+    )
+    if current_before_configure != evidence:
+        raise buildcache.BuildError(
+            "S8A configure 直前の SourceEvidence が admission と不一致"
+        )
     subprocess.run(cfg, check=True, capture_output=True, text=True)
     _run_cmake_build(
         ["cmake", "--build", bdir, "--target", "ycsb_silo.exe"],
         site=resolved_site,
     )
+    current_after_build = source_digest.resolve_evidence(
+        genome or GENOME, PIN, ccbench_dir=sub,
+    )
+    if current_after_build != evidence:
+        raise buildcache.BuildError(
+            "S8A build 直後の SourceEvidence が admission と不一致"
+        )
     return os.path.join(bdir, "cc", "silo", "ycsb_silo.exe")
 
 

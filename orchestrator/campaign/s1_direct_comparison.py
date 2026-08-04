@@ -35,6 +35,16 @@ from campaign import pipeline  # noqa: E402
 from campaign.build_admission import (REVIEW_RECEIPT_SCHEMA,  # noqa: E402
                                       GeneratorId, ReviewId, build_run_context,
                                       verify_review_receipt)
+from campaign.source_digest import SourceEvidence  # noqa: E402
+from campaign.trigger_gate_language import check_trigger_gate_implementation  # noqa: E402
+
+
+TRIGGER_GATE_LANGUAGE_SOURCE_SHA256 = (
+    "8a8337f3b9d9251f963ab8c99019bf5fea913fa4d4bccc87cec2df4e96e730cf"
+)
+if hashlib.sha256((_HERE / "trigger_gate_language.py").read_bytes()).hexdigest() \
+        != TRIGGER_GATE_LANGUAGE_SOURCE_SHA256:
+    raise RuntimeError("trigger gate recognizer source pin mismatch")
 
 
 ENV_TAG = "linux-baremetal"
@@ -100,6 +110,7 @@ class PreparedCell:
     src_token: str
     ccbench_dir: str
     cache_root: str
+    source_evidence: Optional[SourceEvidence] = None
 
 
 def _iso_now() -> str:
@@ -226,6 +237,7 @@ def config_for(document: Mapping, role: str) -> CampaignConfig:
         # v1 は prepare_cell 実体化バグを含む実行系で走ったため identity を分離する。
         trial="s1-direct-v2",
     )
+    cfg = ident.bind_trigger_gate_language(cfg)
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     return ident.bind_admission_policy(cfg, context.policy)
 
@@ -518,6 +530,12 @@ def prepare_cell(cell: Mapping, ccbench_pin: str):
             if (not isinstance(quarantine_implementation, str)
                     or not quarantine_implementation.strip()):
                 raise DriverError(f"{configuration} の gate_predicate がない")
+            gate = check_trigger_gate_implementation(quarantine_implementation)
+            if not gate.passed:
+                reason = gate.reason_code.value if gate.reason_code is not None else "reject"
+                raise DriverError(
+                    f"freeze gate_predicate が trigger gate language reject: {reason}"
+                )
             forbidden = gate_loop.check_syntax_contract(quarantine_implementation)
             if forbidden:
                 raise DriverError(f"freeze gate_predicate が構文契約違反: {forbidden}")
@@ -547,18 +565,31 @@ def prepare_cell(cell: Mapping, ccbench_pin: str):
                 str(quarantine_patch_path), ccbench_pin, ccbench_dir=sub))
             result, _base, _edited, _diff = loop_axis.quarantine(
                 sub, quarantine_implementation, marker_id=marker_id,
-                source_rel=source_rel, write=True)
+                source_rel=source_rel, write=True,
+                enforce_trigger_gate_language=(
+                    configuration in {"system_gate", "ident_all"}
+                ))
             if not result.passed:
                 raise DriverError(
                     f"freeze variant の diff 検疫不通過: {configuration}: {result.reason}")
         elif patch_only_path is not None:
             stack.enter_context(patchharness.applied(
                 str(patch_only_path), ccbench_pin, ccbench_dir=sub))
-        # The materializer boundary re-resolves and validates full SourceEvidence.
-        # Preparation only needs the stable variant token for scheduling/identity.
-        src_token = source_digest.resolve(genome, ccbench_pin, ccbench_dir=sub)
+        # Trigger cells preserve full evidence for the downstream receipt boundary.  Other axes
+        # retain their historical token-only path and must not acquire trigger-only extraction.
+        if configuration in {"system_gate", "ident_all"}:
+            evidence = source_digest.resolve_evidence(
+                genome, ccbench_pin, ccbench_dir=sub,
+            )
+            src_token = evidence.src_token
+        else:
+            evidence = None
+            src_token = source_digest.resolve(
+                genome, ccbench_pin, ccbench_dir=sub,
+            )
         yield PreparedCell(genome=genome, src_token=src_token,
-                           ccbench_dir=sub, cache_root=cache_root)
+                           ccbench_dir=sub, cache_root=cache_root,
+                           source_evidence=evidence)
 
 
 def _abort_payload(layout: CampaignLayout, variant: str) -> Dict:
@@ -789,6 +820,7 @@ def run_role(
                         screening=None, bench_max_rounds=1,
                         build_context=build_context,
                         capability_resolver=review_capability,
+                        source_evidence=prepared.source_evidence,
                     )
                     try:
                         result = evaluate_fn(

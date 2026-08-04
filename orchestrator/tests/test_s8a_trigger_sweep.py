@@ -16,6 +16,7 @@ build/verify/bench を伴わない機械部分のみ (test_s6_sort_sweep.py と�
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import errno
 import hashlib
 import itertools
@@ -38,6 +39,8 @@ from campaign import ident                                         # noqa: E402
 from campaign import pipeline                                      # noqa: E402
 from campaign import p3_s4_loop as L                               # noqa: E402
 from campaign import s8a_trigger_sweep as W                        # noqa: E402
+from campaign import s8a_trigger_coverage as coverage              # noqa: E402
+from campaign import source_digest                                 # noqa: E402
 from campaign import wal                                           # noqa: E402
 from campaign.artifact_admission import CampaignNotAdmitted         # noqa: E402
 from campaign.build_admission import (BuildAdmissionError,            # noqa: E402
@@ -877,3 +880,59 @@ def test_real_legacy_trigger_campaign_cannot_be_certified_by_commit_only():
                 "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5")
     with pytest.raises(CampaignNotAdmitted, match="legacy-unclassified"):
         W._load_rows(str(campaign), {})
+
+
+@pytest.mark.parametrize("swap_point", ["before-configure", "after-build"])
+def test_characterization_build_rejects_source_swap_at_build_boundaries(
+        tmp_path, monkeypatch, swap_point):
+    source_root = tmp_path / "external" / "ccbench"
+    implementation = b"  izanagi_gate_pass = true;"
+    source_path = source_root / source_digest.TRIGGER_GATE_SOURCE_REL
+    source_path.parent.mkdir(parents=True)
+    source_path.write_bytes(
+        b"  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
+        b"#if BACKOFF_TRIGGER_GATING\n" + implementation +
+        b"\n#else\n  Backoff::backoff(FLAGS_clocks_per_us);\n#endif\n"
+        b"  // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
+    )
+    genome = coverage.GENOME
+    evidence = SourceEvidence(
+        schema_version=source_digest.SOURCE_EVIDENCE_SCHEMA_V2,
+        source_root=str(source_root.resolve()),
+        ccbench_commit=coverage.PIN,
+        genome_sha256=hashlib.sha256(genome.canonical().encode()).hexdigest(),
+        src_token="7" * 64,
+        source_bytes_sha256="8" * 64,
+        tracked_clean=False,
+        tracked_diff_sha256="9" * 64,
+        tracked_paths=(source_digest.TRIGGER_GATE_SOURCE_REL,),
+        trigger_gate_language=source_digest.TRIGGER_GATE_LANGUAGE,
+        trigger_gate_implementation_sha256=hashlib.sha256(implementation).hexdigest(),
+    )
+    changed = dataclasses.replace(evidence, source_bytes_sha256="a" * 64)
+    sequence = (
+        [evidence, evidence, changed]
+        if swap_point == "before-configure"
+        else [evidence, evidence, evidence, changed]
+    )
+    monkeypatch.setattr(coverage, "_repo_root", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        coverage.source_digest, "resolve_evidence",
+        lambda *args, **kwargs: sequence.pop(0),
+    )
+    configure_calls: list[list[str]] = []
+    build_calls: list[list[str]] = []
+    monkeypatch.setattr(
+        coverage.subprocess, "run",
+        lambda args, **kwargs: configure_calls.append(args),
+    )
+    monkeypatch.setattr(
+        coverage, "_run_cmake_build",
+        lambda args, **kwargs: build_calls.append(args),
+    )
+    with pytest.raises(coverage.buildcache.BuildError, match="SourceEvidence"):
+        coverage._build(
+            str(tmp_path / "build"), genome=genome, site="linux-baremetal",
+        )
+    assert len(configure_calls) == (0 if swap_point == "before-configure" else 1)
+    assert len(build_calls) == (0 if swap_point == "before-configure" else 1)

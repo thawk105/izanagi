@@ -11,6 +11,7 @@ import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -36,6 +37,7 @@ from campaign import (  # noqa: E402
 )
 from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 from campaign.layout import campaign_layout, exploration_campaign_layout  # noqa: E402
+from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE  # noqa: E402
 
 
 # 注意: holdout の三軸 conjunction はテストへ静止させない。
@@ -71,6 +73,11 @@ _MANIFEST_ENV_ISSUE = (
 )
 
 
+def _fixture_admitted_view(layout):
+    records, line_issues, truncated = wal.read_records_collected(layout)
+    return SimpleNamespace(records=tuple(records)), tuple(line_issues), truncated
+
+
 @pytest.fixture(autouse=True)
 def _hermetic_t080_never_issued(monkeypatch):
     """実 repository の receipt 発行状態から既存 report test を分離する。"""
@@ -80,6 +87,13 @@ def _hermetic_t080_never_issued(monkeypatch):
     monkeypatch.setattr(
         report._t080, "inspect_receipt_history",
         lambda *, root, validation_head=None, check_worktree=True: resolution,
+    )
+    # Lifecycle fixtures below intentionally isolate oracle projection rules
+    # from the shared campaign admission validator.  Production always calls
+    # require_admitted_campaign_collected; dedicated admission tests exercise
+    # its receipts and parser-diagnostic authority.
+    monkeypatch.setattr(
+        report, "require_admitted_campaign_collected", _fixture_admitted_view,
     )
 
 
@@ -180,6 +194,18 @@ def _binding(holdout_id: str, configuration_id: str) -> dict:
             "holdout_id": holdout_id, "configuration_id": configuration_id,
         }),
     }
+    if configuration_id in {"system_gate", "ident_all"}:
+        implementation = json.loads(
+            REAL_FREEZE.read_text(encoding="utf-8")
+        )["holdouts"][holdout_id]["variant_binding"]["entries"][
+            configuration_id
+        ]["gate_predicate"]
+        projected.update({
+            "trigger_gate_language": TRIGGER_GATE_LANGUAGE,
+            "trigger_gate_implementation_sha256": hashlib.sha256(
+                implementation.encode("ascii")
+            ).hexdigest(),
+        })
     return {
         "holdout_id": holdout_id,
         "configuration_id": configuration_id,
@@ -676,6 +702,26 @@ def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path)
     assert len(observations["expected_cells"]) == len(schedule)
 
 
+def test_oracle_report_refuses_tampered_receipt_from_shared_admission(
+        tmp_path, monkeypatch):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, manifest["schedule"]["rows"][0], "committed")
+    _finish_campaign(layout, manifest)
+
+    def reject_tampered(_layout):
+        raise report.ArtifactAdmissionError("tampered build receipt")
+
+    monkeypatch.setattr(
+        report, "require_admitted_campaign_collected", reject_tampered,
+    )
+    rows = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )["rows"]
+    assert {row["status"] for row in rows} == {"protocol_violation"}
+    assert all("tampered build receipt" in row["reason"] for row in rows)
+
+
 def test_build_observations_accepts_actual_verify_manifest_result(tmp_path):
     manifest = _manifest(tmp_path)
     verified = _verify_for_report(tmp_path, manifest)
@@ -1113,6 +1159,10 @@ def test_report_session_issuer_alias_and_identity_use_model_authority(
             scoped.setattr(model, "S8B_ORACLE_SESSION_ISSUER", sentinel)
             importlib.reload(report)
             assert report.SESSION_ISSUER is model.S8B_ORACLE_SESSION_ISSUER
+            scoped.setattr(
+                report, "require_admitted_campaign_collected",
+                _fixture_admitted_view,
+            )
 
             manifest = _manifest(tmp_path)
             layout = _layout(tmp_path, manifest)

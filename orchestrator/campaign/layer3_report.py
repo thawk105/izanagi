@@ -13,9 +13,9 @@ report 本体を再走査して得る multiset を独立に比較し、view の 
 構造化され、schema_version を上げて契約を拡張するまで解除しない。
 noise floor は within_run = 1 測定の品質、between_run = run 間比較の採否 floor として区別する（p2_2.py の A2 注記と同じ区別）。
 abort variant も commit-event-absent のため rejects に載り、詳細理由は aborts view が保持する。
-schema v1/v2 で生成済みの実レポートは、generator sha を内包する記録済み artifact
-であり、v3 への更新のために再生成しない。schema reader は v2 を引き続き受理するが、
-新規生成は admission decision receipt を必須にした v3 だけを発行する。
+schema v1/v2/v3 で生成済みの実レポートは、generator sha を内包する記録済み artifact
+であり、v4 への更新のために再生成しない。schema reader は v2/v3 を歴史 reader として
+受理するが、新規生成は claim 境界を固定した v4 だけを発行する。
 ``generated_from_head`` は provenance であり、決定論比較の対象外である（HEAD が動けば
 変わる）。
 """
@@ -36,8 +36,10 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import jsonschema
 
 
-SCHEMA_VERSION = "layer3-material-report/v3"
-LEGACY_SCHEMA_VERSION = "layer3-material-report/v2"
+SCHEMA_VERSION = "layer3-material-report/v4"
+LEGACY_SCHEMA_VERSIONS = frozenset({
+    "layer3-material-report/v2", "layer3-material-report/v3",
+})
 GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
 STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "commit", "abort"))
 _HERE = Path(__file__).resolve().parent
@@ -189,13 +191,26 @@ def _assert_bijection(records: Sequence[Mapping[str, Any]], whiteboard: Sequence
 
 def _validate_schema(report: Mapping[str, Any]) -> None:
     schema = _read_json(_SCHEMA_PATH)
-    if report.get("schema_version") == LEGACY_SCHEMA_VERSION:
-        # A v2 artifact is immutable historical evidence.  Derive its reader
-        # schema from v3 by removing only the forward admission receipt.
+    version = report.get("schema_version")
+    if version in LEGACY_SCHEMA_VERSIONS:
+        # Historical artifacts are immutable.  Derive read-only schemas without
+        # making either older shape available to the current producer.
         schema = json.loads(json.dumps(schema))
-        schema["properties"]["schema_version"] = {"const": LEGACY_SCHEMA_VERSION}
-        schema["required"].remove("admission_decision")
-        schema["properties"].pop("admission_decision")
+        schema["properties"]["schema_version"] = {"const": version}
+        schema.pop("allOf", None)
+        schema["properties"].pop("claim_boundaries", None)
+        if version == "layer3-material-report/v2":
+            schema["required"].remove("admission_decision")
+            schema["properties"].pop("admission_decision")
+        else:
+            decision = schema["properties"]["admission_decision"]
+            decision.pop("oneOf", None)
+            decision["properties"]["schema_version"] = {
+                "const": "campaign-artifact-admission-decision/v1",
+            }
+            if "reinspection" in decision["required"]:
+                decision["required"].remove("reinspection")
+            decision["properties"].pop("reinspection")
     try:
         jsonschema.Draft7Validator(schema).validate(report)
     except jsonschema.ValidationError as exc:
@@ -363,14 +378,17 @@ def _reject_qualification_ancestry(campaign_dir: Path, repo_root: Path) -> None:
 
 
 def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, *,
-                 output_root: Optional[Path] = None) -> Dict[str, Any]:
+                 output_root: Optional[Path] = None,
+                 reinspection_ledger: Optional[Path | str] = None) -> Dict[str, Any]:
     """campaign を読み取り専用で完全射影し、出力前の report object を返す。"""
     campaign_dir, campaign_path = _resolve_campaign_dir(campaign_dir, output_root)
     output_root = Path(output_root) if output_root is not None else _DEFAULT_OUTPUT_ROOT
     if not campaign_dir.is_dir():
         raise Layer3ReportError("campaign directory が存在しない: %s" % campaign_dir)
     try:
-        admitted_campaign = require_admitted_campaign(campaign_dir)
+        admitted_campaign = require_admitted_campaign(
+            campaign_dir, reinspection_ledger=reinspection_ledger,
+        )
     except ArtifactAdmissionError as exc:
         if str(exc) == "post-policy campaign WAL has a truncated tail":
             # Keep Layer 3's established framing diagnosis while the shared
@@ -466,6 +484,12 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         "admission_decision": admitted_campaign.decision.as_receipt(),
         "mechanism_hypotheses": [],
     }
+    if lock["search_config"].get("axis") == "silo-backoff-trigger-gating":
+        report["claim_boundaries"] = {
+            "scope": "trigger-gating",
+            "classification": "finite-policy-selection",
+            "headline_synthesis_evidence": False,
+        }
     report["source_refs"] = sorted(_report_primary_refs(report).elements())
     _validate_schema(report)
     _assert_bijection(records, whiteboard, report)
@@ -473,12 +497,18 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
 
 
 def render(campaign_dir: Path, out_json: Path, generated_from_head: Optional[str] = None, *,
-           output_root: Optional[Path] = None) -> Dict[str, Any]:
+           output_root: Optional[Path] = None,
+           reinspection_ledger: Optional[Path | str] = None) -> Dict[str, Any]:
     """完全検査済み report を新規ファイルとして書く。既存出力は上書きしない。"""
     out_json = Path(out_json)
     if out_json.exists():
         raise Layer3ReportError("出力先が既に存在する: %s" % out_json)
-    report = build_report(campaign_dir, generated_from_head=generated_from_head, output_root=output_root)
+    report = build_report(
+        campaign_dir,
+        generated_from_head=generated_from_head,
+        output_root=output_root,
+        reinspection_ledger=reinspection_ledger,
+    )
     encoded = _canonical_bytes(report) + b"\n"
     if not out_json.parent.is_dir():
         raise Layer3ReportError("出力先 parent directory が存在しない: %s" % out_json.parent)
@@ -505,9 +535,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("campaign_dir")
     parser.add_argument("out_json")
     parser.add_argument("--generated-from-head", metavar="HEX")
+    parser.add_argument("--reinspection-ledger", type=Path, metavar="PATH")
     args = parser.parse_args(argv)
     try:
-        render(Path(args.campaign_dir), Path(args.out_json), args.generated_from_head)
+        render(
+            Path(args.campaign_dir), Path(args.out_json), args.generated_from_head,
+            reinspection_ledger=args.reinspection_ledger,
+        )
     except Layer3ReportError as exc:
         parser.error(str(exc))
     return 0

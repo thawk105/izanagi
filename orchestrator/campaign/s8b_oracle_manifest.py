@@ -16,6 +16,7 @@ from typing import Dict, Mapping, Sequence
 
 from campaign import s8b_oracle_artifacts as _artifacts
 from campaign import s8b_experiment_numbers as _experiment_numbers
+from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE
 
 
 _HERE = Path(__file__).resolve().parent
@@ -55,6 +56,10 @@ _BINDING_KEYS = {
     "holdout_id", "configuration_id", "entry_sha256", "genome_canonical",
     "src_token", "variant_id", "binding_sha256",
 }
+_TRIGGER_BINDING_KEYS = (
+    _BINDING_KEYS
+    | {"trigger_gate_language", "trigger_gate_implementation_sha256"}
+)
 
 
 class ManifestError(RuntimeError):
@@ -478,7 +483,8 @@ def _validate_binding_identity(binding_identity, *, schedule: Mapping) -> list[d
     validated: list[dict] = []
     cells: set[tuple[str, str]] = set()
     for raw in binding_identity:
-        if not isinstance(raw, Mapping) or set(raw) != _BINDING_KEYS:
+        if (not isinstance(raw, Mapping)
+                or set(raw) not in (_BINDING_KEYS, _TRIGGER_BINDING_KEYS)):
             raise ManifestError("binding_identity entry schema が不一致")
         entry = dict(raw)
         holdout_id = _identifier(entry.get("holdout_id"), field="binding.holdout_id")
@@ -505,6 +511,16 @@ def _validate_binding_identity(binding_identity, *, schedule: Mapping) -> list[d
             "variant_id": variant_id,
             "entry_sha256": entry_sha,
         }
+        if set(entry) == _TRIGGER_BINDING_KEYS:
+            if entry.get("trigger_gate_language") != TRIGGER_GATE_LANGUAGE:
+                raise ManifestError("binding.trigger_gate_language が不正")
+            projected.update({
+                "trigger_gate_language": TRIGGER_GATE_LANGUAGE,
+                "trigger_gate_implementation_sha256": _sha256_text(
+                    entry.get("trigger_gate_implementation_sha256"),
+                    field="binding.trigger_gate_implementation_sha256",
+                ),
+            })
         if binding_sha != _canonical_sha256(projected):
             raise ManifestError("binding.binding_sha256 が identity 再計算値と不一致")
         validated.append({

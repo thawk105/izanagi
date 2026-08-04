@@ -41,7 +41,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from campaign import (axis_trigger_gating, buildcache, p3_s4_loop, pin,  # noqa: E402
                       s1_known_axes_freeze, s8a_trigger_sweep, source_digest)
 from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
-                                      build_run_context, derive_build_admission)
+                                      build_run_context, derive_build_admission,
+                                      issue_trigger_gate_receipt)
+from campaign.trigger_gate_language import check_trigger_gate_implementation  # noqa: E402
 from campaign.layout import repo_output_root                              # noqa: E402
 from campaign.p2_2 import (CLK, NUMA, RECORDS, THREADS,                  # noqa: E402
                            _assert_single_tenant)
@@ -331,16 +333,22 @@ def _build_target(target: Mapping) -> Dict:
     sub = root / "external" / "ccbench"
     patch_path = root / "patches" / axis_trigger_gating.TEMPLATE_PATCH
     genome = target["genome"]
+    gate = check_trigger_gate_implementation(target["gate_predicate"])
+    if not gate.passed:
+        reason = gate.reason_code.value if gate.reason_code is not None else "reject"
+        raise CalibrationError(f"g_rl trigger gate language reject ({reason})")
     with applied(str(patch_path), PIN, str(sub)):
         quarantine, _base, _edited, _diff = p3_s4_loop.quarantine(
             str(sub), target["gate_predicate"],
             marker_id=axis_trigger_gating.MARKER_ID,
-            source_rel=axis_trigger_gating.SOURCE_REL, write=True)
+            source_rel=axis_trigger_gating.SOURCE_REL, write=True,
+            enforce_trigger_gate_language=True)
         if not quarantine.passed:
             raise CalibrationError(
                 f"g_rl の diff quarantine が reject: {quarantine.reason}")
         build_context = build_run_context(generator_id=GeneratorId.S1_EXTIME_CALIBRATION)
         evidence = source_digest.resolve_evidence(genome, PIN, ccbench_dir=str(sub))
+        trigger_gate_receipt = issue_trigger_gate_receipt(evidence, genome=genome)
         src_token = evidence.src_token
         capability = attest_generator_output(
             build_context, evidence,
@@ -352,7 +360,8 @@ def _build_target(target: Mapping) -> Dict:
                                  src_token=src_token,
                                  admission=derive_build_admission(
                                      build_context, evidence,
-                                     generator_receipt=capability),
+                                     generator_receipt=capability,
+                                     trigger_gate_receipt=trigger_gate_receipt),
                                  build_context=build_context,
                                  source_evidence=evidence)
     return {

@@ -39,6 +39,18 @@ from campaign import s8b_outcome_stage_contract as _outcome_stage_contract  # no
 from campaign import s8b_ratified_freeze  # noqa: E402
 from campaign import t080_freeze_migration as _t080  # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout  # noqa: E402
+from campaign.artifact_admission import (  # noqa: E402
+    ArtifactAdmissionError,
+    require_admitted_campaign_collected,
+)
+
+
+TRIGGER_GATE_LANGUAGE_SOURCE_SHA256 = (
+    "8a8337f3b9d9251f963ab8c99019bf5fea913fa4d4bccc87cec2df4e96e730cf"
+)
+if hashlib.sha256((_HERE / "trigger_gate_language.py").read_bytes()).hexdigest() \
+        != TRIGGER_GATE_LANGUAGE_SOURCE_SHA256:
+    raise RuntimeError("trigger gate recognizer source pin mismatch")
 
 
 SCHEMA_VERSION = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
@@ -111,6 +123,15 @@ class _T080CampaignObservation:
     canonical: Optional[bytes] = None
     envelope: Optional[Mapping] = None
     issue: Optional[str] = None
+
+
+def _json_projection(value: object) -> object:
+    """Restore JSON containers from the admitted view's immutable projection."""
+    if isinstance(value, Mapping):
+        return {key: _json_projection(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_projection(item) for item in value]
+    return value
 
 
 def _t080_reason(detail: str) -> str:
@@ -248,7 +269,7 @@ def _campaign_t080_observation(
         return _T080CampaignObservation(
             "malformed", issue=_t080_reason("campaign-start に T-080 key がない"),
         )
-    value = start[_T080_KEY]
+    value = _json_projection(start[_T080_KEY])
     if value is None:
         return _T080CampaignObservation(
             "malformed", issue=_t080_reason("bare null は現行 grammar で禁止"),
@@ -867,13 +888,16 @@ _BINDING_KEYS = {
     "holdout_id", "configuration_id", "entry_sha256", "genome_canonical",
     "src_token", "variant_id", "binding_sha256",
 }
+_TRIGGER_BINDING_KEYS = _BINDING_KEYS | {
+    "trigger_gate_language", "trigger_gate_implementation_sha256",
+}
 
 
 def _binding_schema_issues(entry: object, *, holdout: str,
                            configuration: str) -> list[str]:
     if not isinstance(entry, Mapping):
         return ["manifest.binding_identity に expected cell がない"]
-    if set(entry) != _BINDING_KEYS:
+    if set(entry) not in (_BINDING_KEYS, _TRIGGER_BINDING_KEYS):
         return ["manifest.binding_identity の必須 identity field が完全でない"]
     issues = []
     if entry.get("holdout_id") != holdout or entry.get("configuration_id") != configuration:
@@ -897,6 +921,20 @@ def _binding_schema_issues(entry: object, *, holdout: str,
             "variant_id": entry["variant_id"],
             "entry_sha256": entry["entry_sha256"],
         }
+        if set(entry) == _TRIGGER_BINDING_KEYS:
+            from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE
+            trigger_sha = entry.get("trigger_gate_implementation_sha256")
+            if entry.get("trigger_gate_language") != TRIGGER_GATE_LANGUAGE:
+                issues.append("binding.trigger_gate_language が不正")
+            if (not isinstance(trigger_sha, str) or len(trigger_sha) != 64
+                    or any(ch not in "0123456789abcdef" for ch in trigger_sha)):
+                issues.append(
+                    "binding.trigger_gate_implementation_sha256 が SHA-256 でない"
+                )
+            projected.update({
+                "trigger_gate_language": entry.get("trigger_gate_language"),
+                "trigger_gate_implementation_sha256": trigger_sha,
+            })
         if entry["binding_sha256"] != _canonical_sha256(projected):
             issues.append("binding.binding_sha256 が identity 再計算値と不一致")
     return issues
@@ -1261,10 +1299,15 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                   "reason": f"campaign-terminal がない (campaign directory 欠落): {campaign_id}"}
                  for base in bases], _T080CampaignObservation("unavailable"))
     try:
-        records, line_issues, truncated_tail = wal.read_records_collected(layout)
+        # The shared validator owns the record projection; raw physical-frame
+        # parsing contributes diagnostics only.
+        admitted, line_issues, truncated_tail = (
+            require_admitted_campaign_collected(layout)
+        )
+        records = list(admitted.records)
     except Exception as exc:
         return ([{**base, "status": "protocol_violation",
-                  "reason": f"WAL を読めない: {type(exc).__name__}: {exc}"}
+                  "reason": f"admitted WAL view を発行できない: {type(exc).__name__}: {exc}"}
                  for base in bases], _T080CampaignObservation("unavailable"))
 
     t080_observation = _campaign_t080_observation(
@@ -1369,7 +1412,7 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         if expectations is not None:
             contract, verified = expectations
             if not execution_guard.receipt_matches_contract(
-                    start.get("execution_receipt"),
+                    _json_projection(start.get("execution_receipt")),
                     env_tag=contract.env_tag,
                     contract_sha256=contract.contract_sha256,
                     attestation_mode=contract.attestation_mode,

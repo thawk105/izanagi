@@ -958,7 +958,7 @@
         "additionalProperties": false
       },
       "consumer": null,
-      "projection_instructions": "本ループの射影入力とgating specからabort要因別backoff gateの代入式1行を合成する。kUnsetは必ずbackoffし、禁止識別子、副作用、外部勝ち筋や未評価性能を使わない。"
+      "projection_instructions": "本ループの射影入力とgating specから文法v1のabort要因別backoff gate代入式1行を合成する。tokenは= == != && || :: ( ) ;、指定裸名、true/false、space/tabだけとし、単独!と数値・文字・文字列literalを使わない。kUnsetは必ずbackoffし、禁止識別子、副作用、外部勝ち筋や未評価性能を使わない。"
     },
     "critic": {
       "claude": {

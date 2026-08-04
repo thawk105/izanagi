@@ -11,6 +11,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from unittest import mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -20,7 +21,7 @@ _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH))
 
-from campaign import buildcache  # noqa: E402
+from campaign import buildcache, p3_s4_loop, source_digest  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     BuildAdmission,
     BuildAdmissionError,
@@ -30,6 +31,8 @@ from campaign.build_admission import (  # noqa: E402
     attest_generator_output,
     build_run_context,
     derive_build_admission,
+    issue_trigger_gate_receipt,
+    legacy_trigger_admission_projection,
     verify_review_receipt,
 )
 from campaign.env_contract import (  # noqa: E402
@@ -39,7 +42,15 @@ from campaign.env_contract import (  # noqa: E402
 )
 from campaign.model import Genome  # noqa: E402
 from campaign.pin import CURRENT_PIN  # noqa: E402
-from campaign.source_digest import SourceEvidence  # noqa: E402
+from campaign.source_digest import (  # noqa: E402
+    SOURCE_EVIDENCE_SCHEMA_V2,
+    SourceEvidence,
+    TriggerGateSourceError,
+)
+from campaign.trigger_gate_language import (  # noqa: E402
+    TRIGGER_GATE_LANGUAGE,
+    GateLanguageRejectCode,
+)
 
 
 def _source_evidence(genome: Genome, commit: str, source_root: str) -> SourceEvidence:
@@ -67,6 +78,162 @@ def _admission_bundle(genome: Genome, commit: str, source_root: str):
         context, evidence, generator_receipt=receipt,
     )
     return context, evidence, admission
+
+
+_TRIGGER_IMPLEMENTATION = b"  izanagi_gate_pass = true;"
+
+
+def _write_trigger_source(root: Path, implementation: bytes = _TRIGGER_IMPLEMENTATION) -> None:
+    path = root / source_digest.TRIGGER_GATE_SOURCE_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(
+        b"  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
+        b"#if BACKOFF_TRIGGER_GATING\n"
+        + implementation
+        + b"\n#else\n  Backoff::backoff(FLAGS_clocks_per_us);\n#endif\n"
+        b"  // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
+    )
+
+
+def _trigger_admission_bundle(genome: Genome, commit: str, source_root: Path):
+    _write_trigger_source(source_root)
+    evidence = SourceEvidence(
+        schema_version=SOURCE_EVIDENCE_SCHEMA_V2,
+        source_root=str(source_root.resolve()),
+        ccbench_commit=commit,
+        genome_sha256=hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+        src_token="7" * 64,
+        source_bytes_sha256="8" * 64,
+        tracked_clean=False,
+        tracked_diff_sha256="9" * 64,
+        tracked_paths=(source_digest.TRIGGER_GATE_SOURCE_REL,),
+        trigger_gate_language=TRIGGER_GATE_LANGUAGE,
+        trigger_gate_implementation_sha256=hashlib.sha256(
+            _TRIGGER_IMPLEMENTATION
+        ).hexdigest(),
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    capability = attest_generator_output(
+        context, evidence, generator_input_sha256="1" * 64,
+    )
+    with mock.patch.object(
+        source_digest, "resolve_evidence", return_value=evidence,
+    ):
+        trigger_receipt = issue_trigger_gate_receipt(evidence, genome=genome)
+    admission = derive_build_admission(
+        context,
+        evidence,
+        generator_receipt=capability,
+        trigger_gate_receipt=trigger_receipt,
+    )
+    return context, evidence, admission
+
+
+def _actual_trigger_resolver(expected: SourceEvidence):
+    def resolve(genome, commit, *, ccbench_dir, cxx):
+        inspected = source_digest.inspect_trigger_gate_source(
+            expected.source_root, required=True,
+        )
+        assert inspected is not None
+        if inspected[1] == expected.trigger_gate_implementation_sha256:
+            return expected
+        body = expected.as_receipt()
+        body["trigger_gate_implementation_sha256"] = inspected[1]
+        return SourceEvidence.from_receipt(body)
+
+    return resolve
+
+
+def test_p1_p9_raw_and_indented_reach_quarantine_receipt_and_build_boundary(
+        tmp_path, monkeypatch):
+    controls = (
+        Path(__file__).resolve().parents[2]
+        / "output/insights/2026-08-04_t409-evolve-hole-allowlist/positive-controls.txt"
+    ).read_text(encoding="utf-8").splitlines()
+    expressions = [
+        controls[line_number - 1][1:-1]
+        for line_number in (1, 3, 5, 41, 43, 45, 47, 49, 51)
+    ]
+    genome = Genome("silo", {"BACKOFF_TRIGGER_GATING": 1})
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    reached: list[str] = []
+
+    class BuildBoundaryReached(RuntimeError):
+        pass
+
+    def stop_at_build_boundary(sub, commit):
+        reached.append(sub)
+        raise BuildBoundaryReached
+
+    monkeypatch.setattr(buildcache, "_verify_ccbench_commit", stop_at_build_boundary)
+    for index, expression in enumerate(expressions):
+        for form, implementation in (
+            ("raw", expression), ("indented", "  " + expression),
+        ):
+            source_root = tmp_path / f"p{index + 1}-{form}"
+            path = source_root / source_digest.TRIGGER_GATE_SOURCE_REL
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                "  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
+                "#if BACKOFF_TRIGGER_GATING\n"
+                "  izanagi_gate_pass = true;\n"
+                "#else\n"
+                "  Backoff::backoff(FLAGS_clocks_per_us);\n"
+                "#endif\n"
+                "  // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n",
+                encoding="utf-8",
+            )
+            quarantine, _base, rendered, _diff = p3_s4_loop.quarantine(
+                str(source_root), implementation,
+                marker_id="silo-backoff-trigger-gating",
+                source_rel=source_digest.TRIGGER_GATE_SOURCE_REL,
+                write=True,
+            )
+            assert quarantine.passed
+            assert rendered == path.read_text(encoding="utf-8")
+            inspected = source_digest.inspect_trigger_gate_source(
+                str(source_root), required=True,
+            )
+            assert inspected is not None
+            evidence = SourceEvidence(
+                schema_version=SOURCE_EVIDENCE_SCHEMA_V2,
+                source_root=str(source_root.resolve()),
+                ccbench_commit=CURRENT_PIN,
+                genome_sha256=hashlib.sha256(
+                    genome.canonical().encode("utf-8")
+                ).hexdigest(),
+                src_token=hashlib.sha256(rendered.encode("utf-8")).hexdigest(),
+                source_bytes_sha256=hashlib.sha256(
+                    path.read_bytes()
+                ).hexdigest(),
+                tracked_clean=False,
+                tracked_diff_sha256="9" * 64,
+                tracked_paths=(source_digest.TRIGGER_GATE_SOURCE_REL,),
+                trigger_gate_language=TRIGGER_GATE_LANGUAGE,
+                trigger_gate_implementation_sha256=inspected[1],
+            )
+            monkeypatch.setattr(
+                source_digest, "resolve_evidence", lambda *a, _e=evidence, **k: _e,
+            )
+            capability = attest_generator_output(
+                context, evidence, generator_input_sha256="1" * 64,
+            )
+            trigger = issue_trigger_gate_receipt(evidence, genome=genome)
+            admission = derive_build_admission(
+                context, evidence, generator_receipt=capability,
+                trigger_gate_receipt=trigger,
+            )
+            with pytest.raises(BuildBoundaryReached):
+                buildcache.build(
+                    genome, CURRENT_PIN, trace=True,
+                    ccbench_dir=str(source_root),
+                    cache_root=str(tmp_path / "cache"),
+                    admission=admission,
+                    build_context=context,
+                    source_evidence=evidence,
+                    site="linux-baremetal",
+                )
+    assert len(reached) == 18
 
 
 def _dirty_evidence(genome: Genome, commit: str, source_root: str) -> SourceEvidence:
@@ -621,6 +788,273 @@ def test_v2_preimage_binds_exact_admission(tmp_path):
         for admission in admissions
     }
     assert len(digests) == 4
+
+
+def test_trigger_cache_identity_binds_language_and_authoritative_receipt(tmp_path):
+    genome = Genome("silo", {"BACK_OFF": 1, "BACKOFF_TRIGGER_GATING": 1})
+    context, evidence, admission = _trigger_admission_bundle(
+        genome, "a" * 40, tmp_path / "ccbench",
+    )
+    body = admission.as_cache_identity()
+    trigger = body["trigger_gate_receipt"]
+    key = buildcache.cache_key(
+        genome, "a" * 40, False, evidence.src_token, admission=admission,
+    )
+    old_body, _ = legacy_trigger_admission_projection(
+        body, expected_policy=context.policy,
+    )
+    old_key = buildcache._legacy_trigger_cache_key(
+        genome, "a" * 40, False, evidence.src_token,
+        buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX,
+        old_body["receipt_sha256"],
+    )
+    preimage, _ = buildcache._v2_identity(
+        genome,
+        "a" * 40,
+        False,
+        evidence.src_token,
+        "cc",
+        "cxx",
+        {
+            role: {
+                "requested": role,
+                "realpath": f"/tool/{role}",
+                "version_first_line": "v1",
+            }
+            for role in ("cc", "cxx", "cmake")
+        },
+        site="test",
+        dependency_prefix=[],
+        admission=dict(body),
+    )
+    assert key != old_key
+    assert preimage["trigger_gate_language"] == TRIGGER_GATE_LANGUAGE
+    assert preimage["trigger_gate_receipt_sha256"] == trigger["receipt_sha256"]
+
+
+def test_legacy_trigger_cache_entry_promotes_only_to_new_key(tmp_path, monkeypatch):
+    _fake_build_environment(monkeypatch, tmp_path)
+    genome = Genome("silo", {"BACK_OFF": 1, "BACKOFF_TRIGGER_GATING": 1})
+    context, evidence, admission = _trigger_admission_bundle(
+        genome, "a" * 40, tmp_path / "ccbench",
+    )
+    buildcache.source_digest.resolve_evidence = _actual_trigger_resolver(evidence)
+    old_body, old_source = legacy_trigger_admission_projection(
+        admission.as_cache_identity(), expected_policy=context.policy,
+    )
+    root = tmp_path / "cache"
+    old_key = buildcache._legacy_trigger_cache_key(
+        genome, "a" * 40, True, evidence.src_token,
+        buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX,
+        old_body["receipt_sha256"],
+    )
+    old_dir = root / old_key
+    old_binary = old_dir / "cc" / "silo" / "ycsb_silo.exe"
+    old_binary.parent.mkdir(parents=True)
+    old_binary.write_bytes(b"legacy-trigger-binary")
+    (old_dir / "admission.json").write_text(
+        json.dumps({
+            "schema_version": "buildcache-legacy-admission/v1",
+            "admission": old_body,
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *a, **k: pytest.fail("promotion missed old cache"),
+    )
+
+    result = buildcache.build(
+        genome,
+        "a" * 40,
+        True,
+        cache_root=str(root),
+        admission=admission,
+        build_context=context,
+        source_evidence=evidence,
+    )
+    new_key = buildcache.cache_key(
+        genome, "a" * 40, True, evidence.src_token, admission=admission,
+    )
+    new_binary = root / new_key / "cc" / "silo" / "ycsb_silo.exe"
+    new_sidecar = json.loads(
+        (root / new_key / "admission.json").read_text(encoding="utf-8")
+    )
+    assert old_source.schema_version == "source-evidence/v1"
+    assert result.cached and Path(result.binary) == new_binary
+    assert new_binary.read_bytes() == b"legacy-trigger-binary"
+    assert new_sidecar["admission"] == admission.as_cache_identity()
+    assert old_binary.read_bytes() == b"legacy-trigger-binary"
+
+
+def test_v2_legacy_trigger_entry_promotes_with_current_receipt(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    genome = Genome("silo", {"BACK_OFF": 1, "BACKOFF_TRIGGER_GATING": 1})
+    context, evidence, admission = _trigger_admission_bundle(
+        genome, "a" * 40, tmp_path / "ccbench",
+    )
+    buildcache.source_digest.resolve_evidence = _actual_trigger_resolver(evidence)
+    old_body, old_source = legacy_trigger_admission_projection(
+        admission.as_cache_identity(), expected_policy=context.policy,
+    )
+    toolchain = buildcache._toolchain_manifest("test-cc", "test-cxx")
+    old_preimage, old_digest = buildcache._v2_identity(
+        genome,
+        "a" * 40,
+        True,
+        evidence.src_token,
+        "test-cc",
+        "test-cxx",
+        toolchain,
+        site=buildcache.site_policy.OTHER,
+        dependency_prefix=[],
+        admission=dict(old_body),
+    )
+    contract = _contract(1)
+    old_dir = tmp_path / "cache" / "contracts" / contract.contract_sha256 / old_digest
+    old_binary = old_dir / "cc" / "silo" / "ycsb_silo.exe"
+    old_binary.parent.mkdir(parents=True)
+    old_binary.write_bytes(b"legacy-v2-trigger-binary")
+    (old_dir / "completion.json").write_text(
+        json.dumps({
+            "schema_version": "buildcache/v2",
+            "completion_marker": "complete",
+            "full_build_digest": old_digest,
+            "contract_sha256": contract.contract_sha256,
+            "preimage": old_preimage,
+            "admission": old_body,
+            "toolchain": toolchain,
+            "binary": {
+                "relative_path": "cc/silo/ycsb_silo.exe",
+                "sha256": hashlib.sha256(b"legacy-v2-trigger-binary").hexdigest(),
+            },
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *a, **k: pytest.fail("v2 promotion rebuilt"),
+    )
+
+    result = buildcache.build_v2(
+        genome,
+        admission=admission,
+        build_context=context,
+        source_evidence=evidence,
+        contract=contract,
+        ccbench_commit="a" * 40,
+        trace=True,
+        src_token=evidence.src_token,
+        cc="test-cc",
+        cxx="test-cxx",
+        cache_root=str(tmp_path / "cache"),
+        ccbench_dir=str(tmp_path / "ccbench"),
+    )
+    manifest = json.loads(
+        (Path(result.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+    assert old_source.schema_version == "source-evidence/v1"
+    assert result.cached and Path(result.binary).read_bytes() == b"legacy-v2-trigger-binary"
+    assert manifest["admission"] == admission.as_cache_identity()
+    assert manifest["preimage"]["trigger_gate_language"] == TRIGGER_GATE_LANGUAGE
+    assert old_binary.read_bytes() == b"legacy-v2-trigger-binary"
+
+
+@pytest.mark.parametrize("mutation", ["source-unavailable", "rejected", "digest-mismatch"])
+def test_legacy_trigger_cache_promotion_rejects_untrusted_source(
+        tmp_path, monkeypatch, mutation):
+    _fake_build_environment(monkeypatch, tmp_path)
+    genome = Genome("silo", {"BACK_OFF": 1, "BACKOFF_TRIGGER_GATING": 1})
+    context, evidence, admission = _trigger_admission_bundle(
+        genome, "a" * 40, tmp_path / "ccbench",
+    )
+    old_body, _ = legacy_trigger_admission_projection(
+        admission.as_cache_identity(), expected_policy=context.policy,
+    )
+    root = tmp_path / "cache"
+    old_key = buildcache._legacy_trigger_cache_key(
+        genome, "a" * 40, True, evidence.src_token,
+        buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX,
+        old_body["receipt_sha256"],
+    )
+    old_dir = root / old_key
+    old_binary = old_dir / "cc" / "silo" / "ycsb_silo.exe"
+    old_binary.parent.mkdir(parents=True)
+    old_binary.write_bytes(b"must-not-promote")
+    (old_dir / "admission.json").write_text(
+        json.dumps({
+            "schema_version": "buildcache-legacy-admission/v1",
+            "admission": old_body,
+        }),
+        encoding="utf-8",
+    )
+    source_path = Path(evidence.source_root) / source_digest.TRIGGER_GATE_SOURCE_REL
+    if mutation == "source-unavailable":
+        source_path.unlink()
+    elif mutation == "rejected":
+        _write_trigger_source(
+            Path(evidence.source_root),
+            b"  izanagi_gate_pass = true;\rSECRET_CANARY",
+        )
+    else:
+        _write_trigger_source(
+            Path(evidence.source_root), b"  izanagi_gate_pass = (true);",
+        )
+    buildcache.source_digest.resolve_evidence = _actual_trigger_resolver(evidence)
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *a, **k: pytest.fail("rejected cache was rebuilt"),
+    )
+
+    with pytest.raises(
+            (buildcache.BuildCacheError, TriggerGateSourceError, RuntimeError)) as caught:
+        buildcache.build(
+            genome,
+            "a" * 40,
+            True,
+            cache_root=str(root),
+            admission=admission,
+            build_context=context,
+            source_evidence=evidence,
+        )
+    new_key = buildcache.cache_key(
+        genome, "a" * 40, True, evidence.src_token, admission=admission,
+    )
+    assert not (root / new_key).exists()
+    assert old_binary.read_bytes() == b"must-not-promote"
+    assert "SECRET_CANARY" not in repr(caught.value)
+
+
+def test_m12_trigger_cache_hit_rereads_actual_source_without_leak(
+        tmp_path, monkeypatch):
+    _fake_build_environment(monkeypatch, tmp_path, payload=b"trigger-hit")
+    genome = Genome("silo", {"BACK_OFF": 1, "BACKOFF_TRIGGER_GATING": 1})
+    context, evidence, admission = _trigger_admission_bundle(
+        genome, "a" * 40, tmp_path / "ccbench",
+    )
+    buildcache.source_digest.resolve_evidence = _actual_trigger_resolver(evidence)
+    kwargs = {
+        "cache_root": str(tmp_path / "cache"),
+        "admission": admission,
+        "build_context": context,
+        "source_evidence": evidence,
+    }
+    fresh = buildcache.build(genome, "a" * 40, True, **kwargs)
+    assert not fresh.cached
+
+    original_validate = buildcache._validate_legacy_admission_sidecar
+
+    def validate_then_swap(*args, **kwargs):
+        original_validate(*args, **kwargs)
+        _write_trigger_source(
+            Path(evidence.source_root),
+            b"  izanagi_gate_pass = true;\rSECRET_CANARY",
+        )
+
+    monkeypatch.setattr(
+        buildcache, "_validate_legacy_admission_sidecar", validate_then_swap,
+    )
+    with pytest.raises(TriggerGateSourceError) as caught:
+        buildcache.build(genome, "a" * 40, True, **kwargs)
+    assert "SECRET_CANARY" not in repr(caught.value)
 
 
 def test_completion_manifest_rejects_missing_receipt(tmp_path, monkeypatch):

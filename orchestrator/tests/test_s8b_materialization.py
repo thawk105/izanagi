@@ -24,6 +24,11 @@ from campaign import s8b_materialization as M  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from campaign.source_digest import (  # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    SourceEvidence,
+)
+from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE  # noqa: E402
 
 
 def _prepared(protocol: str, flags: dict, src_token: str) -> PreparedCell:
@@ -318,6 +323,118 @@ def test_binding_from_prepared_key_set_matches_driver_binding_keys():
 
     identity = M.binding_from_prepared(_ENTRY, _cell())
     assert set(identity) == driver._BINDING_KEYS
+
+
+def test_trigger_binding_adds_language_and_real_implementation_digest():
+    prepared = _cell()
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v2",
+        source_root="/tmp/fixture-ccbench",
+        ccbench_commit="a" * 40,
+        genome_sha256="b" * 64,
+        src_token=prepared.src_token,
+        source_bytes_sha256="c" * 64,
+        tracked_clean=True,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+        trigger_gate_language=TRIGGER_GATE_LANGUAGE,
+        trigger_gate_implementation_sha256="d" * 64,
+    )
+    trigger = PreparedCell(
+        genome=prepared.genome,
+        src_token=prepared.src_token,
+        ccbench_dir=prepared.ccbench_dir,
+        cache_root=prepared.cache_root,
+        source_evidence=evidence,
+    )
+    identity = M.binding_from_prepared(_ENTRY, trigger)
+    assert set(identity) == M.TRIGGER_BINDING_KEYS
+    assert identity["trigger_gate_language"] == TRIGGER_GATE_LANGUAGE
+    assert identity["trigger_gate_implementation_sha256"] == "d" * 64
+    assert M.binding_preimage(identity)["trigger_gate_language"] == TRIGGER_GATE_LANGUAGE
+
+
+def test_legacy_trigger_subset_is_accepted_only_against_reinspected_actual():
+    prepared = _cell()
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v2",
+        source_root="/tmp/fixture-ccbench",
+        ccbench_commit="a" * 40,
+        genome_sha256="b" * 64,
+        src_token=prepared.src_token,
+        source_bytes_sha256="c" * 64,
+        tracked_clean=True,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+        trigger_gate_language=TRIGGER_GATE_LANGUAGE,
+        trigger_gate_implementation_sha256="d" * 64,
+    )
+    actual = M.binding_from_prepared(
+        _ENTRY,
+        PreparedCell(
+            genome=prepared.genome, src_token=prepared.src_token,
+            ccbench_dir=prepared.ccbench_dir, cache_root=prepared.cache_root,
+            source_evidence=evidence,
+        ),
+    )
+    legacy = {
+        key: actual[key]
+        for key in M.NON_TRIGGER_BINDING_KEYS - {"binding_sha256"}
+    }
+    legacy["binding_sha256"] = M._canonical_sha256(legacy)
+    assert M.binding_matches_after_reinspection(legacy, actual)
+    damaged = dict(legacy, src_token="different")
+    damaged["binding_sha256"] = M._canonical_sha256({
+        key: damaged[key] for key in damaged if key != "binding_sha256"
+    })
+    assert not M.binding_matches_after_reinspection(damaged, actual)
+
+
+def test_trigger_binding_exact_shape_is_shared_by_manifest_report_and_driver():
+    from campaign import s8b_oracle_driver as driver
+    from campaign import s8b_oracle_manifest as manifest
+    from campaign import s8b_oracle_report as report
+
+    prepared = _cell()
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v2",
+        source_root="/tmp/fixture-ccbench",
+        ccbench_commit="a" * 40,
+        genome_sha256="b" * 64,
+        src_token=prepared.src_token,
+        source_bytes_sha256="c" * 64,
+        tracked_clean=True,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+        trigger_gate_language=TRIGGER_GATE_LANGUAGE,
+        trigger_gate_implementation_sha256="d" * 64,
+    )
+    produced = M.binding_from_prepared(
+        _ENTRY,
+        PreparedCell(
+            genome=prepared.genome, src_token=prepared.src_token,
+            ccbench_dir=prepared.ccbench_dir, cache_root=prepared.cache_root,
+            source_evidence=evidence,
+        ),
+    )
+    entry = {"holdout_id": "H1", "configuration_id": "stock", **produced}
+    schedule = {"rows": [{"holdout_id": "H1", "configuration_id": "stock"}]}
+    assert manifest._validate_binding_identity([entry], schedule=schedule) == [entry]
+    assert report._binding_schema_issues(
+        entry, holdout="H1", configuration="stock",
+    ) == []
+    expected = driver._expected_binding(
+        {"binding_identity": [entry]}, "H1", "stock",
+    )
+    assert expected == produced
+
+    partial = dict(entry)
+    del partial["trigger_gate_implementation_sha256"]
+    with pytest.raises(manifest.ManifestError, match="schema"):
+        manifest._validate_binding_identity([partial], schedule=schedule)
+    assert report._binding_schema_issues(
+        partial, holdout="H1", configuration="stock",
+    )
 
 
 # --------------------------------------------------------------------------- #

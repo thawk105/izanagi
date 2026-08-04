@@ -30,6 +30,7 @@ _ROOT = os.path.dirname(_ORCH)
 sys.path.insert(0, _ORCH)
 
 from campaign import s8b_ratified_freeze as M  # noqa: E402
+from campaign import build_admission as BUILD_ADMISSION  # noqa: E402
 from campaign import env_contract as EC  # noqa: E402
 from campaign import s8b_floor_campaign as FLOOR  # noqa: E402
 from campaign import s8b_floor_contract as FC  # noqa: E402
@@ -332,13 +333,49 @@ def _fixed_prepare(cell, ccbench_pin):
     configuration = cell["configuration"]
     flags = dict(entry.get("flags", {}))
     genome = Genome("silo", flags)
-    entry_token = _sha(M._canonical_bytes(entry))[:16]
-    token = f"fixture::{configuration}::{entry_token}"
-    yield PreparedCell(
-        genome=genome, src_token=token,
-        ccbench_dir=_fixed_prepare.ccbench_dir,
-        cache_root=_fixed_prepare.cache_root,
+    token = hashlib.sha256(
+        f"fixture::{configuration}::{_sha(M._canonical_bytes(entry))}".encode("utf-8")
+    ).hexdigest()
+    implementation = entry.get("gate_predicate")
+    trigger = (
+        flags.get("BACKOFF_TRIGGER_GATING") == 1
+        and isinstance(implementation, str)
     )
+    evidence = FLOOR.source_digest.SourceEvidence(
+        schema_version=(
+            FLOOR.source_digest.SOURCE_EVIDENCE_SCHEMA_V2
+            if trigger else FLOOR.source_digest.SOURCE_EVIDENCE_SCHEMA
+        ),
+        source_root=str(Path(_fixed_prepare.ccbench_dir).resolve()),
+        ccbench_commit=ccbench_pin,
+        genome_sha256=hashlib.sha256(
+            genome.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token=token,
+        source_bytes_sha256=token,
+        tracked_clean=True,
+        tracked_diff_sha256=FLOOR.source_digest.EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+        trigger_gate_language=(
+            FLOOR.source_digest.TRIGGER_GATE_LANGUAGE if trigger else None
+        ),
+        trigger_gate_implementation_sha256=(
+            hashlib.sha256(implementation.encode("ascii")).hexdigest()
+            if trigger else None
+        ),
+    )
+    _fixed_prepare.active_evidence = evidence
+    _fixed_prepare.active_implementation = implementation if trigger else None
+    try:
+        yield PreparedCell(
+            genome=genome, src_token=token,
+            ccbench_dir=_fixed_prepare.ccbench_dir,
+            cache_root=_fixed_prepare.cache_root,
+            source_evidence=evidence,
+        )
+    finally:
+        _fixed_prepare.active_evidence = None
+        _fixed_prepare.active_implementation = None
 
 
 def _make_emitter_build():
@@ -727,28 +764,36 @@ def _run_official_fixture_campaign(
     専用の例外を追加しない。
     """
     def fixture_evidence(genome, ccbench_commit, *, ccbench_dir="", **_ignored):
-        source_root = str(Path(ccbench_dir).resolve())
-        source_sha = hashlib.sha256(
-            f"{source_root}\0{ccbench_commit}\0{genome.canonical()}".encode("utf-8")
+        evidence = getattr(_fixed_prepare, "active_evidence", None)
+        assert evidence is not None
+        assert evidence.source_root == str(Path(ccbench_dir).resolve())
+        assert evidence.ccbench_commit == ccbench_commit
+        assert evidence.genome_sha256 == hashlib.sha256(
+            genome.canonical().encode("utf-8")
         ).hexdigest()
-        return FLOOR.source_digest.SourceEvidence(
-            schema_version=FLOOR.source_digest.SOURCE_EVIDENCE_SCHEMA,
-            source_root=source_root,
-            ccbench_commit=ccbench_commit,
-            genome_sha256=hashlib.sha256(
-                genome.canonical().encode("utf-8")
-            ).hexdigest(),
-            src_token=source_sha,
-            source_bytes_sha256=source_sha,
-            tracked_clean=True,
-            tracked_diff_sha256=FLOOR.source_digest.EMPTY_TRACKED_DIFF_SHA256,
-            tracked_paths=(),
-        )
+        return evidence
+
+    def fixture_trigger_source(source_root, *, required=False):
+        evidence = getattr(_fixed_prepare, "active_evidence", None)
+        assert evidence is not None
+        assert evidence.source_root == str(Path(source_root).resolve())
+        digest = evidence.trigger_gate_implementation_sha256
+        if digest is None:
+            if required:
+                raise FLOOR.source_digest.TriggerGateSourceError()
+            return None
+        implementation = getattr(_fixed_prepare, "active_implementation", None)
+        assert isinstance(implementation, str)
+        assert hashlib.sha256(implementation.encode("ascii")).hexdigest() == digest
+        return implementation, digest
 
     with mock.patch.object(FLOOR, "_assert_official_permitted", lambda _mode: None), \
             mock.patch.object(FLOOR.buildcache, "build_v2", build_fn), \
             mock.patch.object(
                 FLOOR.source_digest, "resolve_evidence", fixture_evidence,
+            ), \
+            mock.patch.object(
+                BUILD_ADMISSION, "inspect_trigger_gate_source", fixture_trigger_source,
             ):
         return FLOOR._run_campaign_core(
             protocol, verified, mode="official", **kwargs,

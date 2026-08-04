@@ -10,13 +10,25 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import artifact_admission as A
+from orchestrator.campaign import build_admission, pipeline
 from orchestrator.campaign.build_admission import (
     GeneratorId,
+    attest_generator_output,
     build_run_context,
     derive_build_admission,
+    issue_trigger_gate_receipt,
 )
+from orchestrator.campaign.model import Genome
 from orchestrator.campaign.pin import CURRENT_PIN
 from orchestrator.campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, SourceEvidence
+from orchestrator.campaign import source_digest
+from orchestrator.campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE
+from orchestrator.campaign.trigger_gate_reinspection import (
+    REINSPECTION_LEDGER_SCHEMA,
+    ReinspectionVerdict,
+    canonical_record_sha256,
+    create_reinspection_ledger,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -121,6 +133,78 @@ def _new_schema_campaign(tmp_path: Path, *, omit_receipt: bool = False) -> Path:
     return _write_campaign(tmp_path / "campaign", lock, records)
 
 
+def _trigger_schema_campaign(tmp_path: Path, monkeypatch) -> Path:
+    genome = Genome("silo", {"BACKOFF_TRIGGER_GATING": 1})
+    implementation = b"  izanagi_gate_pass = true;"
+    source_path = tmp_path / source_digest.TRIGGER_GATE_SOURCE_REL
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.write_bytes(
+        b"  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
+        b"#if BACKOFF_TRIGGER_GATING\n" + implementation +
+        b"\n#else\n  Backoff::backoff(FLAGS_clocks_per_us);\n#endif\n"
+        b"  // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
+    )
+    evidence = SourceEvidence(
+        schema_version=source_digest.SOURCE_EVIDENCE_SCHEMA_V2,
+        source_root=str(tmp_path.resolve()),
+        ccbench_commit=CURRENT_PIN,
+        genome_sha256=hashlib.sha256(genome.canonical().encode()).hexdigest(),
+        src_token="7" * 64,
+        source_bytes_sha256="8" * 64,
+        tracked_clean=False,
+        tracked_diff_sha256="9" * 64,
+        tracked_paths=(source_digest.TRIGGER_GATE_SOURCE_REL,),
+        trigger_gate_language=TRIGGER_GATE_LANGUAGE,
+        trigger_gate_implementation_sha256=hashlib.sha256(implementation).hexdigest(),
+    )
+    monkeypatch.setattr(
+        build_admission.source_digest, "resolve_evidence",
+        lambda *args, **kwargs: evidence,
+    )
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    capability = attest_generator_output(
+        context, evidence, generator_input_sha256="1" * 64,
+    )
+    trigger = issue_trigger_gate_receipt(evidence, genome=genome)
+    admission = derive_build_admission(
+        context, evidence, generator_receipt=capability,
+        trigger_gate_receipt=trigger,
+    )
+    receipt = admission.as_wal_receipt()
+    variant = pipeline.variant_id(genome, evidence.src_token)
+    attempt_id = "trigger-attempt-1"
+    start = {
+        "build_attempt_id": attempt_id,
+        "genome": genome.canonical(),
+        "src_token": evidence.src_token,
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        "trigger_gate_language": TRIGGER_GATE_LANGUAGE,
+        "trigger_gate_receipt": trigger.as_receipt(),
+        "trigger_gate_receipt_sha256": trigger.receipt_sha256,
+    }
+    terminal = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        "trigger_gate_receipt_sha256": trigger.receipt_sha256,
+    }
+    records = [
+        {**_record("build_start", start, ts=1.0), "variant": variant},
+        {**_record("build_done", terminal, ts=2.0), "variant": variant},
+        {**_record("commit", terminal, ts=3.0), "variant": variant},
+    ]
+    lock = {
+        "ccbench_commit": CURRENT_PIN,
+        "search_config": {
+            "axis": "silo-backoff-trigger-gating",
+            "build_admission": dict(context.policy.as_preimage()),
+            "trigger_gate_language": TRIGGER_GATE_LANGUAGE,
+        },
+        "search_tag": "test", "spec_content": "test", "trial": "test",
+    }
+    return _write_campaign(tmp_path / "trigger-campaign", lock, records)
+
+
 def test_overlay_raw_sha_and_exact_membership_are_independently_pinned() -> None:
     raw = A.LEDGER_PATH.read_bytes()
     assert hashlib.sha256(raw).hexdigest() == LEDGER_RAW_SHA256
@@ -154,6 +238,89 @@ def test_three_legacy_campaigns_are_denied() -> None:
         )
         with pytest.raises(A.CampaignNotAdmitted, match="legacy-unclassified"):
             A.require_admitted_campaign(campaign)
+
+
+def test_old_trigger_campaign_requires_record_bound_reinspection(
+        tmp_path: Path, monkeypatch) -> None:
+    campaign_id = "historical-trigger-record-bound"
+    implementation_a = "  izanagi_gate_pass = true;"
+    implementation_b = (
+        "  izanagi_gate_pass = "
+        "(izanagi_abort_reason_ != IzanagiAbortReason::kNodeVali);"
+    )
+    starts = [
+        {
+            "variant": f"legacy-{index}",
+            "stage": "build_start",
+            "env_tag": "test",
+            "ts": float(index),
+            "payload": {
+                "genome": f"silo|BACKOFF_TRIGGER_GATING={index}",
+                "src_token": chr(ord("a") + index) * 64,
+                "proposal": {"implementation": implementation},
+            },
+        }
+        for index, implementation in enumerate(
+            (implementation_a, implementation_b), start=1,
+        )
+    ]
+    campaign = _write_campaign(
+        tmp_path / campaign_id,
+        {
+            "ccbench_commit": CURRENT_PIN,
+            "search_config": {"axis": "silo-backoff-trigger-gating"},
+            "search_tag": "legacy", "spec_content": "legacy", "trial": "legacy",
+        },
+        starts,
+    )
+    monkeypatch.setattr(A, "_is_proven_pre_policy_artifact", lambda **kwargs: True)
+    ledger_path = tmp_path / "reinspection.json"
+    create_reinspection_ledger(
+        str(ledger_path), campaign_id=campaign_id, records=starts,
+        ccbench_commit=CURRENT_PIN,
+    )
+
+    admitted = A.require_admitted_campaign(
+        campaign, reinspection_ledger=ledger_path,
+    )
+    assert admitted.decision.classification == "historical-trigger-reinspected"
+    assert admitted.decision.admission_status == "admitted-reinspected"
+    assert len(admitted.decision.reinspection_record_sha256s) == len(starts)
+    assert admitted.decision.as_receipt()["reinspection"]["ledger_sha256"]
+    assert len(admitted.records) == len(starts)
+
+
+def test_old_trigger_campaign_rejects_self_hashed_raw_mapping() -> None:
+    path, campaign_id, *_rest = EXPECTED_RECORDS[2]
+    campaign = ROOT / path
+    starts = [
+        json.loads(line)
+        for line in (campaign / "runs/wal.jsonl").read_text().splitlines()
+        if '"stage":"build_start"' in line
+    ]
+    unsigned: dict[str, object] = {
+        "schema": REINSPECTION_LEDGER_SCHEMA,
+        "campaign_id": campaign_id,
+        "ccbench_commit": CURRENT_PIN,
+        "entries": {
+            canonical_record_sha256(record): ReinspectionVerdict.PASSED.value
+            for record in starts
+        },
+        "evidence": {
+            canonical_record_sha256(record): {
+                "kind": "record-provenance", "source_root": None,
+            }
+            for record in starts
+        },
+    }
+    ledger = dict(unsigned)
+    ledger["ledger_sha256"] = hashlib.sha256(
+        json.dumps(
+            unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        ).encode("ascii")
+    ).hexdigest()
+    with pytest.raises(A.ArtifactAdmissionError, match="ledger"):
+        A.classify_campaign(campaign, reinspection_ledger=ledger)  # type: ignore[arg-type]
 
 
 def test_overlay_named_campaign_with_changed_hash_is_tampering_not_fallthrough(
@@ -209,6 +376,55 @@ def test_unlisted_post_policy_campaign_requires_exact_attempt_receipt(tmp_path: 
     admitted = A.require_admitted_campaign(campaign)
     assert admitted.decision.classification == "admitted-new-schema"
     assert len(admitted.decision.attempt_receipt_sha256s) == 1
+
+
+@pytest.mark.parametrize(
+    ("tail", "line_issue_count", "truncated"),
+    [
+        pytest.param(b'{"variant":}\n', 1, False, id="terminated-invalid-line"),
+        pytest.param(b'{"variant":"tail"', 0, True, id="truncated-tail"),
+    ],
+)
+def test_diagnostic_admitted_view_keeps_only_shared_validated_records(
+        tmp_path: Path, tail: bytes, line_issue_count: int,
+        truncated: bool) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    with (campaign / "runs/wal.jsonl").open("ab") as stream:
+        stream.write(tail)
+
+    admitted, line_issues, observed_truncated = (
+        A.require_admitted_campaign_collected(campaign)
+    )
+
+    assert [record.stage for record in admitted.records] == [
+        "build_start", "build_done", "commit",
+    ]
+    assert len(line_issues) == line_issue_count
+    assert observed_truncated is truncated
+
+
+def test_real_v2_trigger_campaign_is_admitted(tmp_path: Path, monkeypatch) -> None:
+    admitted = A.require_admitted_campaign(
+        _trigger_schema_campaign(tmp_path, monkeypatch),
+    )
+    assert admitted.decision.classification == "admitted-new-schema"
+    assert len(admitted.decision.attempt_receipt_sha256s) == 1
+
+
+def test_shared_admitted_view_rejects_tampered_build_receipt(tmp_path: Path) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    records[0]["payload"]["build_admission"]["receipt_sha256"] = "f" * 64
+    wal_path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(A.ArtifactAdmissionError, match="attempt admission is invalid"):
+        A.require_admitted_campaign(campaign)
 
 
 def test_post_policy_variant_is_rederived_from_genome_and_source(tmp_path: Path) -> None:

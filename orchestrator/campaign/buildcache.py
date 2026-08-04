@@ -21,18 +21,19 @@ import socket
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from . import site_policy, source_digest
 from .build_admission import (
     BuildAdmission,
     BuildRunContext,
+    legacy_trigger_admission_projection,
     require_build_admission,
     validate_build_admission_receipt,
 )
 from .env_contract import ExecutionEnvironmentContract
 from .model import Genome
-from .source_digest import SourceEvidence
+from .source_digest import SOURCE_EVIDENCE_SCHEMA_V2, SourceEvidence
 
 # バイナリ digest の二系列契約 (敵対相談 A-6 裁定):
 #   - 16 文字系列 = `sha256-prefix-16 / legacy-display-only`。WAL の `trace_bin`/`perf_bin`、
@@ -142,10 +143,31 @@ def cache_key(genome: Genome, ccbench_commit: str, trace: bool,
         raise TypeError("admission は derive_build_admission() 由来の exact value が必要")
     src = "" if src_token == source_digest.STOCK else f"|src={src_token}"
     tc = "" if (cc, cxx) == (DEFAULT_CC, DEFAULT_CXX) else f"|cc={cc}|cxx={cxx}"
+    admission_body = admission.as_cache_identity()
+    trigger_receipt = admission_body.get("trigger_gate_receipt")
+    trigger = ""
+    if type(trigger_receipt) is dict:
+        trigger = (
+            f"|trigger_gate_language={trigger_receipt.get('trigger_gate_language')}"
+            f"|trigger_gate_receipt_sha256={trigger_receipt.get('receipt_sha256')}"
+        )
     raw = (f"{genome.canonical()}|{ccbench_commit}|trace={int(trace)}{src}{tc}"
-           f"|adm={admission.receipt_sha256}")
+           f"|adm={admission.receipt_sha256}{trigger}")
     h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
     return f"{genome.protocol}_{h}_t{int(trace)}"
+
+
+def _legacy_trigger_cache_key(
+        genome: Genome, ccbench_commit: str, trace: bool, src_token: str,
+        cc: str, cxx: str, admission_receipt_sha256: str) -> str:
+    """Reconstruct the pre-grammar key solely for guarded legacy promotion."""
+
+    src = "" if src_token == source_digest.STOCK else f"|src={src_token}"
+    tc = "" if (cc, cxx) == (DEFAULT_CC, DEFAULT_CXX) else f"|cc={cc}|cxx={cxx}"
+    raw = (f"{genome.canonical()}|{ccbench_commit}|trace={int(trace)}{src}{tc}"
+           f"|adm={admission_receipt_sha256}")
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
+    return f"{genome.protocol}_{digest}_t{int(trace)}"
 
 
 def _validate_request_evidence(
@@ -263,7 +285,27 @@ def _v2_identity(
         "dependency_prefix": dependency_prefix,
         "admission": admission,
     }
+    trigger_receipt = admission.get("trigger_gate_receipt")
+    if type(trigger_receipt) is dict:
+        preimage.update({
+            "trigger_gate_language": trigger_receipt.get("trigger_gate_language"),
+            "trigger_gate_receipt_sha256": trigger_receipt.get("receipt_sha256"),
+        })
     return preimage, hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
+
+
+def _require_current_trigger_source(
+        genome: Genome, ccbench_commit: str, sub: str, cxx: str,
+        expected: SourceEvidence) -> None:
+    """Fail before cache lookup/build if a trigger receipt no longer names actual source."""
+
+    if expected.schema_version != SOURCE_EVIDENCE_SCHEMA_V2:
+        return
+    actual = source_digest.resolve_evidence(
+        genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,
+    )
+    if actual != expected:
+        raise BuildCacheError("trigger gate current SourceEvidence が admission と不一致")
 
 
 def _fsync_dir(path: str) -> None:
@@ -361,6 +403,25 @@ def _validate_legacy_admission_sidecar(
         raise BuildCacheError(
             f"legacy admission sidecar/current admission 完全一致検査に失敗: {path}"
         )
+
+
+def _validate_legacy_projection_sidecar(
+        bdir: str, *, admission: Mapping[str, object],
+        build_context: BuildRunContext, source_evidence: SourceEvidence) -> None:
+    path = os.path.join(bdir, _LEGACY_ADMISSION_SIDECAR)
+    sidecar = _read_legacy_admission_sidecar(path)
+    if sidecar["schema_version"] != _LEGACY_ADMISSION_SCHEMA:
+        raise BuildCacheError("legacy trigger cache sidecar schema が不一致")
+    try:
+        checked = validate_build_admission_receipt(
+            sidecar["admission"],
+            expected_policy=build_context.policy,
+            expected_source=source_evidence,
+        )
+    except (TypeError, ValueError, RuntimeError) as exc:
+        raise BuildCacheError("legacy trigger cache admission を再検証できない") from exc
+    if checked != admission:
+        raise BuildCacheError("legacy trigger cache admission が v1 projection と不一致")
 
 
 def _validate_v2_entry(
@@ -641,12 +702,29 @@ def build_v2(
     _validate_request_evidence(genome, ccbench_commit, sub, source_evidence)
     _verify_ccbench_commit(sub, ccbench_commit)
     source_digest.assert_worktree_within_allowlist(sub)
+    _require_current_trigger_source(
+        genome, ccbench_commit, sub, cxx, source_evidence,
+    )
     toolchain = _toolchain_manifest(cc, cxx)
     preimage, digest = _v2_identity(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
         site=actual_site, dependency_prefix=effective_dependency_prefix,
         admission=admission_identity,
     )
+    old_preimage = old_digest = old_admission = old_source = None
+    if source_evidence.schema_version == SOURCE_EVIDENCE_SCHEMA_V2:
+        try:
+            old_admission, old_source = legacy_trigger_admission_projection(
+                admission_identity,
+                expected_policy=build_context.policy,
+            )
+        except RuntimeError as exc:
+            raise BuildCacheError("legacy v2 trigger cache projection を導出できない") from exc
+        old_preimage, old_digest = _v2_identity(
+            genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
+            site=actual_site, dependency_prefix=effective_dependency_prefix,
+            admission=dict(old_admission),
+        )
     parent = os.path.join(root, "contracts", contract_sha256)
     bdir = os.path.join(parent, digest)
     claim = os.path.join(parent, f"{digest}.building")
@@ -684,6 +762,79 @@ def build_v2(
             genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
             contract_sha256, resolved_site, configure_dependency_prefix,
         )
+
+    if old_digest is not None:
+        assert old_preimage is not None and old_admission is not None and old_source is not None
+        old_bdir = os.path.join(parent, old_digest)
+        old_claim = os.path.join(parent, f"{old_digest}.building")
+        if os.path.lexists(old_claim):
+            raise BuildCacheError(
+                "legacy v2 trigger cache claim が存在し reuse provenance を確定できない"
+            )
+        if os.path.lexists(old_bdir):
+            old_binary, bin_sha256 = _validate_v2_entry(
+                old_bdir,
+                preimage=old_preimage,
+                digest=old_digest,
+                toolchain=toolchain,
+                binary_relpath=binary_relpath,
+                contract_sha256=contract_sha256,
+                admission=dict(old_admission),
+                build_context=build_context,
+                source_evidence=old_source,
+            )
+            _recheck_source_evidence(
+                genome, ccbench_commit, sub, cxx, source_evidence,
+                old_bdir, built_fresh=False,
+            )
+            _assert_trace_diff(
+                genome, ccbench_commit, sub, cxx, old_bdir, built_fresh=False,
+            )
+            if not trace:
+                _assert_no_trace_symbols(old_binary)
+            nonce = secrets.token_hex(16)
+            _acquire_v2_claim(claim, parent, nonce)
+            promotion = os.path.join(parent, f".promote-{os.getpid()}-{nonce}")
+            try:
+                shutil.copytree(old_bdir, promotion, symlinks=False)
+                promoted_binary = os.path.join(promotion, binary_relpath)
+                assert_binary_sha256(promoted_binary, bin_sha256)
+                completion_path = os.path.join(promotion, _V2_COMPLETION_MANIFEST)
+                os.unlink(completion_path)
+                _write_fsynced_json(
+                    completion_path,
+                    {
+                        "schema_version": _V2_SCHEMA,
+                        "completion_marker": "complete",
+                        "full_build_digest": digest,
+                        "contract_sha256": contract_sha256,
+                        "preimage": preimage,
+                        "admission": admission_identity,
+                        "toolchain": toolchain,
+                        "binary": {
+                            "relative_path": binary_relpath,
+                            "sha256": bin_sha256,
+                        },
+                    },
+                )
+                _fsync_file(promoted_binary)
+                _fsync_dir(promotion)
+                if os.path.lexists(bdir):
+                    raise BuildCacheError(
+                        "v2 trigger cache promotion 先が競合して出現した"
+                    )
+                os.rename(promotion, bdir)
+                _fsync_dir(parent)
+                _release_v2_claim(claim, parent)
+            except Exception:
+                if os.path.exists(promotion):
+                    _discard_build_dir(promotion)
+                raise
+            return _v2_result(
+                genome, trace, os.path.join(bdir, binary_relpath), bin_sha256,
+                bdir, True, sub, root, toolchain, contract_sha256,
+                resolved_site, configure_dependency_prefix,
+            )
 
     nonce = secrets.token_hex(16)
     _acquire_v2_claim(claim, parent, nonce)
@@ -813,6 +964,9 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     _validate_request_evidence(genome, ccbench_commit, sub, source_evidence)
     _verify_ccbench_commit(sub, ccbench_commit)        # 偽キャッシュヒット防止 (honest)
     source_digest.assert_worktree_within_allowlist(sub)  # coder の編集面が EVOLVE-BLOCK 内か (D23)
+    _require_current_trigger_source(
+        genome, ccbench_commit, sub, cxx, source_evidence,
+    )
     root = cache_root or os.path.join(sub, "build-variants")
     key = cache_key(
         genome, ccbench_commit, trace, src_token, cc=cc, cxx=cxx,
@@ -857,6 +1011,78 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                            configure_argv=tuple(cfg), build_argv=tuple(build_cmd),
                            cache_root=os.path.abspath(root),
                            ccbench_root=os.path.abspath(sub))
+
+    if source_evidence.schema_version == SOURCE_EVIDENCE_SCHEMA_V2:
+        try:
+            old_admission, old_source = legacy_trigger_admission_projection(
+                admission.as_cache_identity(),
+                expected_policy=build_context.policy,
+            )
+        except RuntimeError as exc:
+            raise BuildCacheError("legacy trigger cache projection を導出できない") from exc
+        old_key = _legacy_trigger_cache_key(
+            genome, ccbench_commit, trace, src_token, cc, cxx,
+            str(old_admission["receipt_sha256"]),
+        )
+        old_bdir = os.path.join(root, old_key)
+        old_binary = os.path.join(old_bdir, "cc", genome.protocol, target)
+        if os.path.lexists(old_binary):
+            if os.path.islink(old_binary) or not os.path.isfile(old_binary):
+                raise BuildCacheError("legacy trigger cache binary が通常ファイルでない")
+            _validate_legacy_projection_sidecar(
+                old_bdir,
+                admission=old_admission,
+                build_context=build_context,
+                source_evidence=old_source,
+            )
+            _recheck_source_evidence(
+                genome, ccbench_commit, sub, cxx, source_evidence,
+                old_bdir, built_fresh=False,
+            )
+            _assert_trace_diff(
+                genome, ccbench_commit, sub, cxx, old_bdir, built_fresh=False,
+            )
+            if not trace:
+                _assert_no_trace_symbols(old_binary)
+            bin_sha256 = full_sha256(old_binary)
+            os.makedirs(root, exist_ok=True)
+            promotion = f"{bdir}.promote-{os.getpid()}-{secrets.token_hex(16)}"
+            try:
+                shutil.copytree(old_bdir, promotion, symlinks=False)
+                promoted_binary = os.path.join(
+                    promotion, "cc", genome.protocol, target,
+                )
+                sidecar_path = os.path.join(promotion, _LEGACY_ADMISSION_SIDECAR)
+                os.unlink(sidecar_path)
+                _write_fsynced_json(
+                    sidecar_path,
+                    {
+                        "schema_version": _LEGACY_ADMISSION_SCHEMA,
+                        "admission": admission.as_cache_identity(),
+                    },
+                )
+                assert_binary_sha256(promoted_binary, bin_sha256)
+                _fsync_file(promoted_binary)
+                _fsync_dir(promotion)
+                if os.path.lexists(bdir):
+                    raise BuildCacheError(
+                        "trigger cache promotion 先が競合して出現したため上書きしない"
+                    )
+                os.rename(promotion, bdir)
+                _fsync_dir(root)
+            except Exception:
+                if os.path.exists(promotion):
+                    _discard_build_dir(promotion)
+                raise
+            return BuildResult(
+                genome=genome, trace=trace,
+                binary=os.path.join(bdir, "cc", genome.protocol, target),
+                bin_sha256=bin_sha256, build_dir=bdir, cached=True,
+                configure_cmd=cfg_str, build_cmd=build_str,
+                configure_argv=tuple(cfg), build_argv=tuple(build_cmd),
+                cache_root=os.path.abspath(root),
+                ccbench_root=os.path.abspath(sub),
+            )
 
     _clear_stale_build_dir(bdir, binary)
     os.makedirs(root, exist_ok=True)

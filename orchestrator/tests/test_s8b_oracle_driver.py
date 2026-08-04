@@ -34,12 +34,16 @@ import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
+from campaign import build_admission  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     BuildRunContext,
     GeneratorId,
     ReviewId,
     ReviewReceipt,
+    attest_generator_output,
     build_run_context,
+    derive_build_admission,
+    issue_trigger_gate_receipt,
 )
 from campaign import env_attestation  # noqa: E402
 from campaign import execution_guard  # noqa: E402
@@ -55,7 +59,13 @@ from campaign import t080_freeze_migration as migration  # noqa: E402
 from campaign.layout import campaign_layout  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
-from campaign.source_digest import SourceEvidence  # noqa: E402
+from campaign.source_digest import (  # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    SOURCE_EVIDENCE_SCHEMA,
+    SOURCE_EVIDENCE_SCHEMA_V2,
+    SourceEvidence,
+)
+from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE  # noqa: E402
 
 from test_schema_v2 import _valid_document as _valid_calibration_v2  # noqa: E402
 
@@ -1209,15 +1219,42 @@ def _prepare_factory(
             raise OSError("transient checkout failure")
         entry = cell["variant"]
         genome = Genome("silo", dict(entry["flags"]))
-        token = "fixture-" + hashlib.sha256(
+        token_preimage = "fixture-" + hashlib.sha256(
             json.dumps(entry, ensure_ascii=False, sort_keys=True,
                        separators=(",", ":")).encode("utf-8")
         ).hexdigest()
         if not suffix_first_only or len(calls) == 1:
-            token += token_suffix
+            token_preimage += token_suffix
+        token = hashlib.sha256(token_preimage.encode("utf-8")).hexdigest()
+        implementation = entry.get("gate_predicate")
+        trigger = (
+            genome.flags.get("BACKOFF_TRIGGER_GATING") == 1
+            and isinstance(implementation, str)
+        )
+        evidence = SourceEvidence(
+            schema_version=(
+                SOURCE_EVIDENCE_SCHEMA_V2 if trigger else SOURCE_EVIDENCE_SCHEMA
+            ),
+            source_root="/tmp/fixture-ccbench",
+            ccbench_commit=ccbench_pin,
+            genome_sha256=hashlib.sha256(
+                genome.canonical().encode("utf-8")
+            ).hexdigest(),
+            src_token=token,
+            source_bytes_sha256=token,
+            tracked_clean=True,
+            tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+            tracked_paths=(),
+            trigger_gate_language=(TRIGGER_GATE_LANGUAGE if trigger else None),
+            trigger_gate_implementation_sha256=(
+                hashlib.sha256(implementation.encode("ascii")).hexdigest()
+                if trigger else None
+            ),
+        )
         yield PreparedCell(
             genome=genome, src_token=token,
             ccbench_dir="/tmp/fixture-ccbench", cache_root="/tmp/fixture-cache",
+            source_evidence=evidence,
         )
 
     fake_prepare.calls = calls
@@ -1291,11 +1328,57 @@ def _fake_evaluate_factory(*, bench_wall_s: float = 0.25):
             "clocks_per_us": clocks_per_us, "kwargs": kwargs,
         })
         variant = pipeline.variant_id(genome, kwargs["src_token"])
-        wal.log(layout, variant, "build_start", env_tag, {
+        source = kwargs["source_evidence"]
+        context = kwargs["build_context"]
+        assert type(source) is SourceEvidence
+        assert type(context) is BuildRunContext
+        capability = attest_generator_output(
+            context, source,
+            generator_input_sha256=hashlib.sha256(
+                b"s8b-oracle-driver-fixture"
+            ).hexdigest(),
+        )
+        trigger_receipt = None
+        if source.schema_version == SOURCE_EVIDENCE_SCHEMA_V2:
+            with mock.patch.object(
+                    build_admission.source_digest, "resolve_evidence",
+                    return_value=source), mock.patch.object(
+                        build_admission, "inspect_trigger_gate_source",
+                        return_value=(
+                            "fixture implementation",
+                            source.trigger_gate_implementation_sha256,
+                        )):
+                trigger_receipt = issue_trigger_gate_receipt(
+                    source, genome=genome,
+                )
+        admission = derive_build_admission(
+            context, source, generator_receipt=capability,
+            trigger_gate_receipt=trigger_receipt,
+        )
+        receipt = admission.as_wal_receipt()
+        attempt_id = f"fixture-attempt-{len(calls)}"
+        propagated = {
+            "build_attempt_id": attempt_id,
+            "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        }
+        start = {
             "genome": genome.canonical(), "src_token": kwargs["src_token"],
-        })
+            "build_admission": receipt,
+            **propagated,
+        }
+        if trigger_receipt is not None:
+            start.update({
+                "trigger_gate_language": TRIGGER_GATE_LANGUAGE,
+                "trigger_gate_receipt": trigger_receipt.as_receipt(),
+                "trigger_gate_receipt_sha256": trigger_receipt.receipt_sha256,
+            })
+            propagated["trigger_gate_receipt_sha256"] = (
+                trigger_receipt.receipt_sha256
+            )
+        wal.log(layout, variant, "build_start", env_tag, start)
         wal.log(layout, variant, "build_done", env_tag, {
             "trace_bin": "trace", "perf_bin": "perf",
+            **propagated,
         })
         for tag in (pipeline.LEGACY_TAG, pipeline.S2_TAG):
             wal.log(layout, variant, "verify_done", env_tag, {
@@ -1312,6 +1395,7 @@ def _fake_evaluate_factory(*, bench_wall_s: float = 0.25):
         wal.log(layout, variant, "commit", env_tag, {
             "fitness_tps": 12.0,
             "verify_configs": [pipeline.LEGACY_TAG, pipeline.S2_TAG],
+            **propagated,
         })
         return pipeline.EvalResult(
             genome=genome, variant=variant, certified=True, aborted=False,
@@ -2845,22 +2929,51 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
         from campaign import s8b_oracle_driver as driver
         from campaign import env_contract as ec
         from campaign import execution_guard
+        from campaign import source_digest
         from campaign import s8b_ratified_freeze
         from campaign.model import Genome
         from campaign.s1_direct_comparison import PreparedCell
+        from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE
 
         @contextlib.contextmanager
         def fake_prepare(cell, ccbench_pin):
             entry = cell["variant"]
             genome = Genome("silo", dict(entry["flags"]))
-            token = "fixture-" + hashlib.sha256(
+            token = hashlib.sha256(("fixture-" + hashlib.sha256(
                 json.dumps(entry, ensure_ascii=False, sort_keys=True,
                            separators=(",", ":")).encode("utf-8")
-            ).hexdigest() + "-changed"
+            ).hexdigest() + "-changed").encode("utf-8")).hexdigest()
+            implementation = entry.get("gate_predicate")
+            trigger = (
+                genome.flags.get("BACKOFF_TRIGGER_GATING") == 1
+                and isinstance(implementation, str)
+            )
+            evidence = source_digest.SourceEvidence(
+                schema_version=(
+                    source_digest.SOURCE_EVIDENCE_SCHEMA_V2
+                    if trigger else source_digest.SOURCE_EVIDENCE_SCHEMA
+                ),
+                source_root="/tmp/fixture-ccbench",
+                ccbench_commit=ccbench_pin,
+                genome_sha256=hashlib.sha256(
+                    genome.canonical().encode("utf-8")
+                ).hexdigest(),
+                src_token=token,
+                source_bytes_sha256=token,
+                tracked_clean=True,
+                tracked_diff_sha256=source_digest.EMPTY_TRACKED_DIFF_SHA256,
+                tracked_paths=(),
+                trigger_gate_language=(TRIGGER_GATE_LANGUAGE if trigger else None),
+                trigger_gate_implementation_sha256=(
+                    hashlib.sha256(implementation.encode("ascii")).hexdigest()
+                    if trigger else None
+                ),
+            )
             yield PreparedCell(
                 genome=genome, src_token=token,
                 ccbench_dir="/tmp/fixture-ccbench",
                 cache_root="/tmp/fixture-cache",
+                source_evidence=evidence,
             )
 
         freeze_raw = Path({str(freeze_path)!r}).read_bytes()

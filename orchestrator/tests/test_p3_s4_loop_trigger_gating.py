@@ -93,10 +93,12 @@ _PRE_T343_COMPUTE_CAMPAIGN_ID = (
     "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902"
 )
 _T343_OTHER_CAMPAIGN_ID = (
-    "p3-s8a-trigger-loop-s8a-trigger-autonomous-0e79a5f1"
+    # Trigger grammar version is part of the trigger-only identity preimage.
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-362e5961"
 )
 _T343_COMPUTE_CAMPAIGN_ID = (
-    "p3-s8a-trigger-loop-s8a-trigger-autonomous-63bc09ae"
+    # Trigger grammar version is part of the trigger-only identity preimage.
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-fbceada4"
 )
 
 
@@ -1130,6 +1132,28 @@ def test_quarantine_and_audit_rejects_forbidden_identifier(monkeypatch):
     assert "thid_" in gate["digest"]["evidence"]
     assert "% 2 == 0" not in gate["digest"]["evidence"]
     assert state.whiteboard[-1].result == "rejected"
+
+
+def test_trigger_language_prefilter_rejects_before_quarantine_without_leak(monkeypatch):
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(
+        L, "quarantine", lambda *a, **k: pytest.fail("quarantine reached"),
+    )
+    implementation = "izanagi_gate_pass = 1; SECRET_CANARY"
+    coder = T.CoderProposalTriggerGating(
+        axis=T.MARKER_ID, implementation=implementation,
+    )
+    logs = []
+    gate = T._quarantine_and_audit(
+        _mk_template_dir(), coder,
+        AuditorVerdict(verdict="pass", diff_digest="irrelevant"),
+        _G, _tmp_layout("language-prefilter"),
+        L.LoopState(start_ts=time.monotonic()), _planner(), write=True,
+        contract=T._admit_env_contract(site_policy.OTHER), log=logs.append,
+    )
+    assert gate["digest"]["rejection_type"] == "trigger-gate-language"
+    assert "SECRET_CANARY" not in repr(gate)
+    assert "SECRET_CANARY" not in repr(logs)
 
 
 def test_render_rejections_uses_syntax_contract_hint(monkeypatch):

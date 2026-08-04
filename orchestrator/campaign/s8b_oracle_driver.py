@@ -41,11 +41,14 @@ from campaign import s8b_ratified_freeze  # noqa: E402
 from campaign import t080_freeze_migration as _t080_migration  # noqa: E402
 from campaign.layout import campaign_layout, repo_output_root  # noqa: E402
 from campaign.layout import write_capability_for_directory  # noqa: E402
+from campaign.trigger_gate_language import TRIGGER_GATE_LANGUAGE  # noqa: E402
 from campaign.durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
 from campaign.p2_2 import ENV_TAG as MACHINE_ENV_TAG  # noqa: E402  (machine-pin 名のみ)
 from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from campaign.s8b_materialization import (  # noqa: E402
     MaterializationError,
+    TRIGGER_BINDING_KEYS,
+    binding_matches_after_reinspection,
     prepared_binding as _materialization_prepared_binding,
     reviewed_source_capability,
 )
@@ -65,6 +68,7 @@ _BINDING_KEYS = {
     "genome_canonical", "src_token", "variant_id", "entry_sha256",
     "binding_sha256",
 }
+_TRIGGER_BINDING_KEYS = set(TRIGGER_BINDING_KEYS)
 
 # C2-2: oracle の完走予約式。schedule や CLI から上書きできない凍結定数である。
 # per-attempt cap は build + legacy/S2 verify + bench + materialize/cleanup を含む
@@ -599,9 +603,9 @@ def _expected_binding(manifest: Mapping, holdout_id: str,
         key: value for key, value in candidate.items()
         if key not in {"holdout_id", "configuration_id"}
     }
-    if set(projected) != _BINDING_KEYS:
+    if set(projected) not in (_BINDING_KEYS, _TRIGGER_BINDING_KEYS):
         raise OracleDriverError(
-            f"manifest binding_identity schema が不一致: {sorted(set(projected) ^ _BINDING_KEYS)}"
+            "manifest binding_identity schema が不一致"
         )
     _canonical_bytes(projected)
     return projected
@@ -965,7 +969,8 @@ def _assert_v2_build_contract(contract: "_env_contract.ExecutionEnvironmentContr
 
 
 def _ensure_campaign(layout, *, manifest_sha256: str, block_id: str,
-                     campaign_id: str, freeze_sha256: str, marker_root) -> None:
+                     campaign_id: str, freeze_sha256: str, marker_root,
+                     ccbench_commit: str, build_context) -> None:
     """実走前に claim を確立する。既に着手済みなら択 (a) で resume を全拒否する。
 
     R6: WAL byte の存在 / 実走済みマーカーの存在 / campaign.lock の存在の三重判定で、
@@ -976,9 +981,14 @@ def _ensure_campaign(layout, *, manifest_sha256: str, block_id: str,
     """
     layout.ensure()
     preimage = _canonical_bytes({
+        "ccbench_commit": ccbench_commit,
         "manifest_sha256": manifest_sha256,
         "block_id": block_id,
         "campaign_id": campaign_id,
+        "search_config": {
+            "build_admission": dict(build_context.policy.as_preimage()),
+            "trigger_gate_language": TRIGGER_GATE_LANGUAGE,
+        },
     }).decode("utf-8")
 
     # (1) truncated/汚染 WAL を含む「byte が存在する WAL」の resume を閉じる。
@@ -1216,6 +1226,7 @@ def run_block(
     _ensure_campaign(
         layout, manifest_sha256=manifest_sha, block_id=block_id,
         campaign_id=campaign_id, freeze_sha256=freeze_sha, marker_root=marker_root,
+        ccbench_commit=run_contract["ccbench_pin"], build_context=build_context,
     )
     _append_session(layout, env_tag, "campaign-start", {
         "manifest_sha256": manifest_sha,
@@ -1321,7 +1332,8 @@ def run_block(
                     expected_binding = _expected_binding(
                         manifest, holdout_id, configuration_id,
                     )
-                    if _canonical_bytes(actual_binding) != _canonical_bytes(expected_binding):
+                    if not binding_matches_after_reinspection(
+                            expected_binding, actual_binding):
                         _append_session(layout, env_tag, "binding-refused", {
                             "schedule_index": schedule_index,
                             "reason": "manifest binding_identity と再実体化 identity が不一致",
@@ -1335,6 +1347,7 @@ def run_block(
                         src_token=prepared.src_token,
                         ccbench_dir=prepared.ccbench_dir,
                         cache_root=str(output_root / "s8b-build-cache"),
+                        source_evidence=prepared.source_evidence,
                     )
                     perf = _perf_for_holdout(freeze, holdout_id, run_contract)
                     before = len(wal.read_records(layout))
@@ -1369,6 +1382,7 @@ def run_block(
                                         input_sha256=input_sha256,
                                     )
                                 ),
+                                source_evidence=prepared_for_eval.source_evidence,
                                 bench_max_rounds=run_contract["bench_max_rounds"],
                                 env_contract=plan.contract,
                                 # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を
