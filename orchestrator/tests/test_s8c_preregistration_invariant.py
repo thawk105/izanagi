@@ -25,6 +25,8 @@ from campaign import s8c_preregistration as prereg  # noqa: E402
 
 
 PREREG_DOC = ROOT / prereg.SOURCE_PATH
+GIT_TIMEOUT_SECONDS = 180
+CANDIDATE_XDIST_GROUP = pytest.mark.xdist_group("s8c-preregistration-candidate")
 WAVE_REQUIRED_PATHS = frozenset(
     {
         prereg.SOURCE_PATH,
@@ -44,17 +46,31 @@ def _git_text(
     env: dict[str, str] | None = None,
     input_text: str | None = None,
 ) -> str:
-    return subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        env=env,
-        input=input_text,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=30,
-    ).stdout.strip()
+    command = ["git", *args]
+    try:
+        result = subprocess.run(
+            command,
+            cwd=root,
+            check=True,
+            text=True,
+            env=env,
+            input=input_text,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(
+            f"git command timed out after {GIT_TIMEOUT_SECONDS}s: {command!r}",
+            pytrace=False,
+        )
+    except subprocess.CalledProcessError as exc:
+        pytest.fail(
+            f"git command failed with exit code {exc.returncode}: {command!r}\n"
+            f"stderr: {exc.stderr}",
+            pytrace=False,
+        )
+    return result.stdout.strip()
 
 
 def _candidate_commit(tmp_path: Path, *, root: Path = ROOT) -> str:
@@ -99,10 +115,19 @@ def _wave_paths(paths: set[str]) -> set[str]:
     }
 
 
-def test_candidate_freeze_matches_contract_and_generation_chain(tmp_path: Path) -> None:
+@pytest.fixture(scope="session")
+def repository_candidate_commit(tmp_path_factory: pytest.TempPathFactory) -> str:
+    """実 repository の候補 commit を session 内で一度だけ合成する。"""
+    return _candidate_commit(tmp_path_factory.mktemp("s8c-candidate"))
+
+
+@CANDIDATE_XDIST_GROUP
+def test_candidate_freeze_matches_contract_and_generation_chain(
+    repository_candidate_commit: str,
+) -> None:
     """g1 発行前は意図的に赤。未 commit 差分を含む同じ履歴性質を検査する。"""
 
-    candidate = _candidate_commit(tmp_path)
+    candidate = repository_candidate_commit
     validation = prereg.validate_condition_freeze_at(ROOT, candidate)
     head_paths = _commit_paths(candidate)
     legacy_prefix = "output/s8c-preregistration/condition-freeze.v1.g"
@@ -162,10 +187,11 @@ def test_candidate_commit_observes_uncommitted_worktree_delta(tmp_path: Path) ->
     assert candidate_contract.normative_body_sha256 == worktree_contract.normative_body_sha256
 
 
+@CANDIDATE_XDIST_GROUP
 def test_candidate_is_not_effective_and_has_zero_satisfied_predicates(
-    tmp_path: Path,
+    repository_candidate_commit: str,
 ) -> None:
-    candidate = _candidate_commit(tmp_path)
+    candidate = repository_candidate_commit
     report = prereg.activation_report_at(ROOT, candidate)
     assert report.commit == candidate
     assert report.effective is False
@@ -177,8 +203,11 @@ def test_candidate_is_not_effective_and_has_zero_satisfied_predicates(
     ) == 0
 
 
-def test_wave_files_do_not_contaminate_production_holdout_scan(tmp_path: Path) -> None:
-    candidate = _candidate_commit(tmp_path)
+@CANDIDATE_XDIST_GROUP
+def test_wave_files_do_not_contaminate_production_holdout_scan(
+    repository_candidate_commit: str,
+) -> None:
+    candidate = repository_candidate_commit
     head_paths = _commit_paths(candidate)
     assert WAVE_REQUIRED_PATHS <= head_paths
     wave_paths = _wave_paths(head_paths)
