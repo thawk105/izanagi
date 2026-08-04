@@ -72,9 +72,9 @@ title: [T-244] U2 を新 D で確定した — 択一 3 の既裁定により P4
   - **V4 = 段 8c 事前登録文書が stale** ({{T:t244-prereg-refresh}} として起票)。
     多世代化の条件を「還流設計の裁定」とだけ書いており、裁定が完了した現在は曖昧である。
     再事前登録の手続を持つ文書なので専用の裁定と変更単位で扱う
-- **受入 (2026-08-04、worktree `dev-wave-t244-u2-na-bifurcation`、fc8f070 取り込み後):**
+- **受入 (2026-08-04、worktree `dev-wave-t244-u2-na-bifurcation`、local main 取り込み後の最終走行):**
   `python3 tools/check_docs.py` = 違反なし。`python3 tools/run_tests.py` の全走 =
-  **1 failed / 5430 passed / 19 skipped**。赤は
+  **1 failed / 5438 passed / 19 skipped**。赤は
   `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
   の 1 件だけで、**[T-407] の既知赤である** — `ruleops.py inventory` が非 UTF-8 blob
   (`output/insights/2026-08-03_t361-t362-cluster-probes/` 配下の probe 生出力、commit 9b0f044 で land)
