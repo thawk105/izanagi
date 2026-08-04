@@ -28,12 +28,13 @@ SURVIVED は mutated 内容の diff で注入実在を確認するまで equival
 
 ## DW-M05 — 復元と単一走行
 
-変異 harness は `tools/mutation_harness.py` を使う。同 tool は元ソースの固定 HEAD 束縛、起動時と
-復元時の内容比較、`flock` 単一走行、逐次 flush、HEAD/spec 束縛の `--resume`、signal 復元を
-fail-closed で強制する（F32）。独自 harness を使うなら同等の検査を備えることを段 4 で事前登録する。
+変異 harness は `tools/mutation_harness.py` を使う。同 tool は元ソースの固定 HEAD 束縛、
+起動・復元時の内容比較、`flock` 単一走行、逐次 flush、HEAD/spec 束縛の `--resume`、signal 復元を
+fail-closed で強制する（F32）。独自 harness は同等の検査を備えると段 4 で事前登録する。
 起動前に総所要を見積り、外側の実行時間上限に掛からない経路で起動する。この 2 つは tool が
-検証できない自己申告なので親の義務として残る。生存 process を `pgrep -f` で照合するなら
-ERE または literal を使い、BRE の `\|` を使わず、照合語が待ち手自身に一致しないようにする。
+検証できない自己申告なので親の義務に残る。生存 process を `pgrep -f` で照合するなら
+ERE か literal を使い BRE の `\|` を避け、待ち手自身と並行 wave の子に当たらないよう
+worktree path で一意化する。
 
 ## DW-M06 — hang 変異
 
