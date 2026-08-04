@@ -45,16 +45,21 @@ title: [T-325] trial registry を実装した — 6 cell manifest + append-only 
   回復後に再開した。** 停止中は実装 (段 5) を前進させ、実測はすべて回復後に行った。
 - 段 6 で m19 (件数 gate) は set-equality gate との冗長対と実測し、単独変異の証拠から除外
   (redundant_* へ改名)。m15 は diagnostic sensitivity pin へ再分類 (DW-M08 別枠)。
-- **dev-wave 改善候補 2 件 (段 8)**: (a) fix 子完了後は受入全走の前に所有ファイルの targeted
+- **dev-wave 改善候補 3 件 (段 8)**: (a) fix 子完了後は受入全走の前に所有ファイルの targeted
   実測を挟む (fix4 の `_run` 名前衝突を全走 6 分 × 2 回で検出した実測。DW-O18 系 leaf への統合
   候補)、(b) 変異本走中は repo への一切の書込み (spool fragment 起草含む) を凍結する (本 wave で
-  harness 中断を実測。DW-M05 leaf への統合候補)。`docs/dev-wave/**` の byte 予算逼迫により本 wave
+  harness 中断を実測。DW-M05 leaf への統合候補)、(c) 受入全走中は同一 worktree から並行 dispatch
+  (provenance 監査等) を投げない (snapshot 不変条件テストが harness 書込みを検出して間欠赤、
+  本 wave で 2 回実測。DW-O18 leaf への統合候補)。`docs/dev-wave/**` の byte 予算逼迫により本 wave
   では統合せず、[T-328] (裁定済みの外出し) の実装時に統合する。
 
-- **受入全走のフレーク 1 回を観測した (DW-O18 起票)。** merge (2ebf00e) 後の全走 1 回目だけ
-  test_s8b_floor_campaign 8 件 + test_s8b_oracle_driver real-repo 1 件が赤。単独再走 (同 2 ファイル、
-  281 passed) と clean main baseline と全走再取得 (5703 passed) はすべて緑で再現せず。実装差分へ
-  帰属しない。機序候補は xdist 並列時の資源競合 ({{T:s8b-floor-xdist-flake}})。
+- **受入全走の間欠赤 (test_s8b_floor_campaign 系 8〜9 件 × 2 回) の機序を特定した。** 同テストは
+  実 output/ の snapshot 不変条件を検査するが、赤の差分はすべて dispatch harness の書込み
+  (`output/pegasus-dispatch/<id>/request.json`、`output/task-runs/pilot.json`)。赤 2 回はいずれも
+  **受入全走と同一 worktree から provenance 監査 dispatch を並行させた回**で、単独で走らせた
+  2 回は緑 — 完全相関。実装差分でもテストの欠陥でもなく、並行 dispatch の運用が原因。
+  対策は運用 (受入全走中は同一 worktree から並行 dispatch を投げない) で、改善候補 (c) として
+  記録する。
 
 ## 次の一手差分
 
@@ -81,10 +86,6 @@ title: [T-325] trial registry を実装した — 6 cell manifest + append-only 
   trial_id を複数 `--run-root` で走らせ best-of-N を選ぶ経路は registry では閉じない (trial 集合は
   exact のまま性能値だけ差し替わる)。launch reservation / run nonce / terminal tombstone を持つ
   consumption ledger が要る。T-422 (実行先の外出し) / T-330 (/scr wrapper) と同じ層で設計する
-- {{T:s8b-floor-xdist-flake}} **P3・新規**: **受入全走で test_s8b_floor_campaign 系 9 件の
-  非再現フレークを 1 回観測した** (2026-08-04、merge 後全走 1 回目のみ。単独再走・baseline・
-  全走再取得は緑)。頻度観測を続け、再発したら xdist 並列時の資源競合 (tmp / git fixture /
-  dispatch receipt) を疑って機序を特定する。単発のうちは実装しない
 - {{T:trial-acceptance-wiring}} **P2・新規 (裁定パッケージ)**: **acceptance の必須配線と receipt
   消費。** `trial_registry accept` は手動 CLI であり、呼ばなければ効かない (§6 条件 9 / T-326 と
   同根)。下流 (層3 生成・certified 選択) が rc でなく receipt bytes (manifest hash、registry blob、
