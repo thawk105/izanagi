@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-04
 wave: dev-wave-t422-campaign-external-root
 seq: 1
-title: [T-422] campaign の実行先を worktree 外へ出す seam を実装した — F98 択 (iii)・防壁不変、変異 16/16 KILLED、受入 5548 passed / 19 skipped (コード + docs、branch worktree-dev-wave-t422-campaign-external-root)
+title: [T-422] campaign の実行先を worktree 外へ出す seam を実装した — F98 択 (iii)・防壁不変、変異 16/16 KILLED、受入 5574 passed / 19 skipped (コード + docs、branch worktree-dev-wave-t422-campaign-external-root)
 ---
 
 ## 本文
@@ -29,9 +29,10 @@ title: [T-422] campaign の実行先を worktree 外へ出す seam を実装し�
   post-resolve suffix 再検査の単独除去は等価変異
   (到達可能な区別入力は `..` 拒否と pre-walk が先に塞ぐ) のため登録せず、実効 gate へ再照準
   (F28 の型)。同 walk は walk-resolve 間の変化に対する冗長防壁として残置。
-- **受入**: 焦点 13 node 緑 (job 887770.nqsv、計算ノード)、全走 5548 passed / 19 skipped /
-  0 failed (Pegasus gen_S、rc=0)。既知赤 W1 (ruleops) は発火せず waiver 適用不要。
-  land 直前の最終 tip での再走値は本 fragment へ amend する。
+- **受入**: 焦点 13 node 緑 (job 887770.nqsv、計算ノード)、統合直後の全走 5548 passed /
+  19 skipped / 0 failed。local main (T-244 P5 U-1 等) を 2 度目に取り込んだ land 直前の全走 =
+  **5574 passed / 19 skipped / 0 failed** (job 888332.nqsv、bnode131、rc=0。増分は incoming の
+  テスト追加)。既知赤 W1 (ruleops) は失効済みで deselect なしの全走、非発火。
 - Pegasus スケジューラー全停止 (gen_S INA・231 件滞留) に段 6 で遭遇し、ユーザー指示で一時停止 →
   回復後に再開した。停止中は静的段 (fix2・変異 spec 再構成) を先行させた。
 - F98 の恒久対応 (択 (iii)) と再発検知検査はこの wave で実装済み。canonical F98 本文の恒久対応欄は
