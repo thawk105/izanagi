@@ -197,3 +197,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:restore-bound-measurement":"[T-471]"},"authored":"2026-08-04","content_sha256":"10af71f6dbbf70339f6efc48b7c0ed4bdb54c7e2ece307a26b10b80fedf6ef67","seq":1,"wave":"dev-wave-t399-t400-signal-mitigation"}
 - {"allocations":{"D:probe-evidence-three-way-split":"D161"},"authored":"2026-08-04","content_sha256":"fbb7ddd12bc4314ee8d86d309a3c32ed0e95cd296dfcab651d251436467d82c7","seq":2,"wave":"dev-wave-t399-t400-signal-mitigation"}
+
+- {"allocations":{"F:single-tenancy-unreachable-on-compute-node":"F110","F:unreadable-diagnostic-treated-as-fatal":"F111"},"authored":"2026-08-05","content_sha256":"5d6e5a3d283eb355cbd237d4f8f37a71e6c6f18dc8d0988f77abd121fbd72002","seq":1,"wave":"dev-wave-t419-probe-experiment"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"5d6d507d70a0b911baa4996561df5e41984a7e4b26479eed9842709e79ee357a","seq":2,"wave":"dev-wave-t419-probe-experiment"}
