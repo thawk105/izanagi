@@ -84,3 +84,20 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:admissibility-splits-danger":"[T-400]","T:racct-lag-admissibility":"[T-401]","T:t361-execution-host-confirm":"[T-402]","T:t362-mitigation-leg":"[T-399]"},"authored":"2026-08-04","content_sha256":"8c28ba5f92e30ff0456ccfeb3f2496295afb3abd2c10dcdf9debc8d0dad5bdaf","seq":1,"wave":"dev-wave-t361-362-probes"}
 - {"allocations":{"D:probe-controller-owns-submission":"D141","D:t361-cross-node-flock-blocked":"D140","D:t362-walltime-sigkill":"D139"},"authored":"2026-08-04","content_sha256":"11b847b3c774f623c9531fc6225ca0b25cfea20c614814dabcf3fdd178f867e6","seq":2,"wave":"dev-wave-t361-362-probes"}
 - {"allocations":{"F:admissibility-conjunct-rejects-danger":"F93","F:controller-no-recovery-path":"F92","F:parent-underestimated-cleanup-cost":"F91","F:static-checks-missed-undefined-name":"F94"},"authored":"2026-08-04","content_sha256":"f3b060dafc2ceb29f932416a4931677b6fd838112497e2125497817f893f7fa4","seq":3,"wave":"dev-wave-t361-362-probes"}
+
+- {"allocations":{"T:guarded-qdel-proof-chain":"[T-405]","T:orphan-job-reconciliation":"[T-403]","T:qdel-target-discovery-identity":"[T-404]","T:receipt-persist-signal-window":"[T-406]","T:ruleops-non-utf8-blob-red":"[T-407]"},"authored":"2026-08-04","content_sha256":"b00bf4b306a4137f64bc096f677b92c161a3ac6f18a33ab3000dccbb3fc19b64","seq":1,"wave":"wave-t367-qdel-guard"}
+- {"allocations":{"D:fresh-qstat-gate-scope":"D142"},"authored":"2026-08-04","content_sha256":"410a8dacb939a86bb225c1c0fff08e8d39d8f877d9e606e8b77936f6cff63539","seq":2,"wave":"wave-t367-qdel-guard"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"7f80e82b700387cdc41dc61c7ecc42559cc7fb6a04f40b740b66b2d98a2cb73b","seq":1,"wave":"rulings-2026-08-04-a"}
+
+- {"allocations":{"T:executable-symlink-parity":"[T-408]"},"authored":"2026-08-04","content_sha256":"a78da45ccaa59c17387b8cea94e2abcd52a5fcd5644473cf9ea0ad6de94210d7","seq":1,"wave":"rulings-2026-08-04-b"}
+
+- {"allocations":{"T:evolve-hole-ast-allowlist":"[T-409]","T:sort-axis-integrity-witness":"[T-410]"},"authored":"2026-08-04","content_sha256":"6f96890e457ab8da57f1b37772836bc01f1a2a9d2b2451de0ac76ddb9503d2e6","seq":1,"wave":"rulings-2026-08-04-c"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"38d060ca38b421eb184964561b83d5ee16ddf21742c49d97c37e723ef45fe48c","seq":1,"wave":"rulings-2026-08-04-d"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"d99e35646e21501ef1ea174d3a19873a13ca5f54dfa036e39988f0463382da9b","seq":1,"wave":"rulings-2026-08-04-e"}
+
+- {"allocations":{"T:dev-wave-l2-pruning":"[T-412]","T:t287-rulings-reflection":"[T-411]"},"authored":"2026-08-04","content_sha256":"2f71b8cd8a132adf314bd8deed2e2921613d2fe877421fba46aeb283a5507092","seq":1,"wave":"rulings-2026-08-04-f"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"a9121e7ad6e7b45609896bedef785942a8a1f9b862fa534e0291ad96fd321282","seq":1,"wave":"rulings-2026-08-04-g"}

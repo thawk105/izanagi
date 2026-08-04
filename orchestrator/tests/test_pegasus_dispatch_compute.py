@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import ast
 import json
 import os
 import signal
@@ -41,7 +42,7 @@ class _Scheduler:
     def __init__(
         self,
         *,
-        states=("QUE", "RUN", "DONE"),
+        states=("QUE", "RUN", "DONE", "EXT"),
         child_rc=0,
         accounting=True,
         visible=True,
@@ -50,6 +51,9 @@ class _Scheduler:
         initial_qstat_error="temporary qstat failure",
         qstat_error_stdout="",
         qsub_stdout=None,
+        discovery_visible=True,
+        qdel_returncode=0,
+        qdel_exception=None,
         stdout=b"",
         stderr_prefix=b"",
         stage="child",
@@ -64,6 +68,9 @@ class _Scheduler:
         self.initial_qstat_error = initial_qstat_error
         self.qstat_error_stdout = qstat_error_stdout
         self.qsub_stdout = qsub_stdout
+        self.discovery_visible = discovery_visible
+        self.qdel_returncode = qdel_returncode
+        self.qdel_exception = qdel_exception
         self.stdout = stdout
         self.stderr_prefix = stderr_prefix
         self.stage = stage
@@ -139,6 +146,8 @@ class _Scheduler:
             )
         if command[:2] == ["qstat", "-f"]:
             if len(command) == 2:
+                if not self.discovery_visible:
+                    return self._completed(command, stdout="unrelated request\n")
                 return self._completed(
                     command,
                     stdout=(
@@ -182,7 +191,9 @@ class _Scheduler:
                 stdout=f"Request ID = {_JOB_ID}\nRequest State = {state}\n",
             )
         if command[0] == "qdel":
-            return self._completed(command)
+            if self.qdel_exception is not None:
+                raise self.qdel_exception
+            return self._completed(command, rc=self.qdel_returncode)
         raise AssertionError(f"unexpected scheduler command: {command}")
 
 
@@ -681,6 +692,7 @@ def test_missing_compute_marker_relays_collected_stdout(tmp_path, capsys):
     assert captured.err.index("compute-marker-not-observed") < captured.err.index(
         "| marker-infra-stderr\n",
     )
+    assert scheduler.qstat_calls == 4
 
 
 def test_accounting_grace_failure_relays_collected_stdout(tmp_path, capsys):
@@ -693,6 +705,7 @@ def test_accounting_grace_failure_relays_collected_stdout(tmp_path, capsys):
 
     assert rc == DC.INFRA_RC
     assert "| accounting-infra-stdout\n" in captured.out
+    assert scheduler.qstat_calls == 4
 
 
 def test_post_collection_exception_relays_collected_stdout(tmp_path, capsys):
@@ -711,6 +724,7 @@ def test_post_collection_exception_relays_collected_stdout(tmp_path, capsys):
         "Pegasus dispatch infrastructure failure: "
         "job bootstrap failure: stage=interpreter",
     ) < captured.err.index("| exception-infra-stderr\n")
+    assert scheduler.qstat_calls == 4
 
 
 def test_m7_dispatcher_request_allowlist_isolated_redundant_gate(tmp_path):
@@ -790,6 +804,767 @@ def test_fa1_rc0_request_disappearance_is_terminal_within_one_poll(tmp_path):
 )
 def test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms(text, expected):
     assert DC._scheduler_state(text) == expected
+
+
+def _gate_qstat_result(*, state="QUE", rc=0, stdout=None, stderr=""):
+    if stdout is None:
+        stdout = (
+            f"Request ID = {_JOB_ID}\nRequest State = {state}\n"
+            if rc == 0 else ""
+        )
+    return subprocess.CompletedProcess(
+        ["qstat", "-f", "424242.nqsv"], rc, stdout, stderr,
+    )
+
+
+@pytest.mark.parametrize(
+    ("state", "normalized"),
+    [("QUE", "QUE"), ("HLD", "HLD"), ("STG", "QUE")],
+)
+def test_fresh_qstat_gate_accepts_que_hld_and_stg_snapshots(
+    tmp_path, state, normalized,
+):
+    commands = []
+
+    def runner(command, **_kwargs):
+        command = list(command)
+        commands.append(command)
+        if command[0] == "qstat":
+            return _gate_qstat_result(state=state)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        retry_interval_s=0,
+    )
+
+    assert commands == [
+        ["qstat", "-f", "424242.nqsv"],
+        ["qdel", "424242.nqsv"],
+    ]
+    assert qdel["attempted"] is True
+    assert qdel["cleanup_policy"] == "fresh-qstat-gate/v1"
+    assert qdel["gate"]["scheduler_state"] == normalized
+    assert qdel["gate"]["allowed"] is True
+    assert qdel["request_id"] == "424242.nqsv"
+    assert qdel["returncode"] == 0
+    assert qdel["stdout"] == ""
+    assert qdel["stderr"] == ""
+    assert qdel["job_may_remain"] is False
+
+
+@pytest.mark.parametrize(
+    ("current_state", "normalized"),
+    [("Queued", "QUE"), ("Held", "HLD"), ("Staging", "QUE")],
+)
+def test_fresh_qstat_gate_accepts_current_state_only_snapshots(
+    tmp_path, current_state, normalized,
+):
+    commands = []
+    stdout = f"Request ID = {_JOB_ID}\nCurrent State = {current_state}\n"
+
+    def runner(command, **_kwargs):
+        command = list(command)
+        commands.append(command)
+        if command[0] == "qstat":
+            return _gate_qstat_result(stdout=stdout)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner, request_id=_JOB_ID, cwd=tmp_path, environ={},
+    )
+
+    assert commands == [
+        ["qstat", "-f", "424242.nqsv"],
+        ["qdel", "424242.nqsv"],
+    ]
+    assert qdel["attempted"] is True
+    assert qdel["gate"]["scheduler_state"] == normalized
+
+
+@pytest.mark.parametrize(
+    "state_line",
+    [
+        "Request State = Queued",
+        "Current State = QUE",
+        "Request State = Waiting",
+    ],
+    ids=["request-full-form", "current-abbreviation", "request-waiting"],
+)
+def test_fresh_qstat_gate_rejects_state_vocabulary_from_wrong_field(
+    tmp_path, state_line,
+):
+    stdout = f"Request ID = {_JOB_ID}\n{state_line}\n"
+    assert DC._scheduler_state(stdout) is None
+    assert DC._target_bound_qstat_state(stdout, _JOB_ID) is None
+    commands = []
+
+    def runner(command, **_kwargs):
+        command = list(command)
+        commands.append(command)
+        return _gate_qstat_result(stdout=stdout)
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner, request_id=_JOB_ID, cwd=tmp_path, environ={},
+    )
+
+    assert commands == [["qstat", "-f", "424242.nqsv"]]
+    assert sum(command[0] == "qdel" for command in commands) == 0
+    assert qdel["attempted"] is False
+    assert qdel["gate"]["scheduler_state"] == "UNKNOWN"
+    assert qdel["gate"]["reason"] == "target-state-unknown"
+
+
+def test_fresh_qstat_gate_skips_explicit_end_snapshot(tmp_path):
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        return _gate_qstat_result(state="EXT")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner, request_id=_JOB_ID, cwd=tmp_path, environ={},
+    )
+
+    assert commands == [["qstat", "-f", "424242.nqsv"]]
+    assert qdel["attempted"] is False
+    assert qdel["gate"]["scheduler_state"] == "END"
+    assert qdel["gate"]["reason"] == "state-not-cancellable"
+
+
+@pytest.mark.parametrize(
+    "stdout",
+    [
+        (
+            "Request ID = 999999.nqsv\nRequest State = QUE\n"
+            f"Request ID = {_JOB_ID}\nRequest State = RUN\n"
+        ),
+        (
+            f"Request ID = {_JOB_ID}\n"
+            "Request State = QUE\nRequest State = RUN\n"
+        ),
+        (
+            f"Request ID = {_JOB_ID}\n"
+            "Request State = QUE\nCurrent State = Running\n"
+        ),
+        "Request ID = 424242.nqsv\nState = RUN\nRequest State = QUE\n",
+        (
+            "Request State = RUN\n"
+            "Request ID = 424242.nqsv\nCurrent State = Queued\n"
+        ),
+    ],
+    ids=[
+        "mixed-block",
+        "duplicate-state",
+        "request-current-conflict",
+        "bare-state-conflict",
+        "state-before-target-id",
+    ],
+)
+def test_target_bound_gate_rejects_malformed_or_conflicting_state(
+    tmp_path, stdout,
+):
+    assert DC._target_bound_qstat_state(stdout, _JOB_ID) is None
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        return subprocess.CompletedProcess(command, 0, stdout, "")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner, request_id=_JOB_ID, cwd=tmp_path, environ={},
+    )
+    assert commands == [["qstat", "-f", "424242.nqsv"]]
+    assert qdel["attempted"] is False
+    assert qdel["gate"]["scheduler_state"] == "UNKNOWN"
+    assert qdel["gate"]["reason"] == "target-state-unknown"
+
+
+@pytest.mark.parametrize(
+    "leading_whitespace",
+    ["\x0c", "\x0b", "\u00a0"],
+    ids=["form-feed", "vertical-tab", "nbsp"],
+)
+def test_target_bound_gate_counts_state_whitespace_recognized_by_existing_parser(
+    tmp_path, leading_whitespace,
+):
+    state_line = f"{leading_whitespace}State = RUN\n"
+    assert len(leading_whitespace) == 1
+    assert DC._scheduler_state(state_line) == "RUN"
+    if leading_whitespace == "\x0c":
+        assert state_line.encode("utf-8").startswith(b"\x0cState")
+    newly_visible_cancellable = (
+        "Request ID = 424242.nqsv\n"
+        f"{leading_whitespace}State = QUE\n"
+    )
+    assert DC._scheduler_state(newly_visible_cancellable) == "QUE"
+    assert DC._target_bound_qstat_state(newly_visible_cancellable, _JOB_ID) is None
+    stdout = (
+        "Request ID = 424242.nqsv\n"
+        f"{state_line}"
+        "Request State = QUE\n"
+    )
+    assert DC._target_bound_qstat_state(stdout, _JOB_ID) is None
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        return subprocess.CompletedProcess(command, 0, stdout, "")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner, request_id=_JOB_ID, cwd=tmp_path, environ={},
+    )
+
+    assert commands == [["qstat", "-f", "424242.nqsv"]]
+    assert qdel["attempted"] is False
+    assert qdel["gate"]["scheduler_state"] == "UNKNOWN"
+    assert qdel["gate"]["reason"] == "target-state-unknown"
+
+
+def test_target_bound_gate_parser_accepts_consistent_request_and_current_state():
+    stdout = (
+        f"Request ID = {_JOB_ID}\n"
+        "Request State = STG\nCurrent State = Staging\n"
+    )
+    assert DC._target_bound_qstat_state(stdout, _JOB_ID) == "QUE"
+
+
+def test_target_bound_gate_parser_accepts_existing_bare_state_form():
+    stdout = "Request ID = 424242.nqsv\nState = STG\n"
+    assert DC._target_bound_qstat_state(stdout, _JOB_ID) == "QUE"
+
+
+def test_malformed_request_id_runs_neither_qstat_nor_qdel(tmp_path):
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        raise AssertionError("malformed ID must not reach scheduler")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner, request_id="--all", cwd=tmp_path, environ={},
+    )
+
+    assert commands == []
+    assert qdel["attempted"] is False
+    assert qdel["gate"]["qstat"]["attempted"] is False
+    assert qdel["gate"]["reason"] == "malformed-request-id"
+
+
+@pytest.mark.parametrize(
+    ("failures", "allowed"),
+    [(1, True), (2, True), (3, False)],
+    ids=["error-que", "error-error-que", "all-transient-errors"],
+)
+def test_fresh_qstat_gate_retries_only_bounded_transient_errors(
+    tmp_path, failures, allowed,
+):
+    assert DC._fresh_qstat_gated_qdel.__kwdefaults__["qstat_attempts"] == (
+        DC.DEFAULT_IMMEDIATE_QSTAT_ATTEMPTS
+    )
+    commands = []
+    qstat_calls = 0
+
+    def runner(command, **_kwargs):
+        nonlocal qstat_calls
+        command = list(command)
+        commands.append(command)
+        if command[0] == "qstat":
+            qstat_calls += 1
+            if qstat_calls <= failures:
+                return _gate_qstat_result(
+                    rc=153, stderr="connection temporarily unavailable",
+                )
+            return _gate_qstat_result(state="QUE")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        qstat_attempts=3,
+        retry_interval_s=0,
+    )
+
+    expected_qstat_calls = failures + 1 if allowed else 3
+    assert qstat_calls == expected_qstat_calls
+    assert len(qdel["gate"]["qstat_attempts"]) == expected_qstat_calls
+    assert qdel["attempted"] is allowed
+    assert sum(command[0] == "qdel" for command in commands) == int(allowed)
+    if not allowed:
+        assert qdel["gate"]["reason"] == "qstat-transient-retries-exhausted"
+
+
+def test_nonzero_qstat_with_target_que_stdout_never_bypasses_transient_gate(
+    tmp_path,
+):
+    commands = []
+    stdout = f"Request ID = {_JOB_ID}\nRequest State = QUE\n"
+
+    def runner(command, **_kwargs):
+        command = list(command)
+        commands.append(command)
+        return _gate_qstat_result(
+            rc=153,
+            stdout=stdout,
+            stderr="connection temporarily unavailable",
+        )
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        qstat_attempts=3,
+        retry_interval_s=0,
+    )
+
+    assert commands == [["qstat", "-f", "424242.nqsv"]] * 3
+    assert qdel["attempted"] is False
+    assert len(qdel["gate"]["qstat_attempts"]) == 3
+    assert qdel["gate"]["reason"] == "qstat-transient-retries-exhausted"
+
+
+def test_fresh_qstat_gate_cleanup_budget_stops_retry_and_records_elapsed(
+    tmp_path,
+):
+    assert DC.DEFAULT_CLEANUP_BUDGET_S == 90.0
+    clock = _Clock()
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        clock.now += 91
+        return _gate_qstat_result(
+            rc=153, stderr="connection temporarily unavailable",
+        )
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        cleanup_budget_s=90,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+    assert commands == [["qstat", "-f", "424242.nqsv"]]
+    assert qdel["attempted"] is False
+    assert qdel["cleanup_elapsed_s"] == 91
+    assert qdel["gate"]["reason"] == "cleanup-budget-exhausted"
+
+
+def test_fresh_qstat_gate_clock_failure_before_qdel_is_gate_exception(tmp_path):
+    clock_calls = 0
+    commands = []
+
+    def clock():
+        nonlocal clock_calls
+        clock_calls += 1
+        if clock_calls > 1:
+            raise OSError("injected cleanup clock failure")
+        return 0.0
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        return _gate_qstat_result(state="QUE")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner, request_id=_JOB_ID, cwd=tmp_path, environ={}, clock=clock,
+    )
+
+    assert commands == []
+    assert qdel["attempted"] is False
+    assert qdel["cleanup_elapsed_s"] is None
+    assert "injected cleanup clock failure" in qdel["cleanup_elapsed_exception"]
+    assert qdel["gate"]["reason"] == "gate-exception"
+
+
+def test_fresh_qstat_gate_clips_transient_sleep_to_remaining_budget(tmp_path):
+    clock = _Clock()
+    sleeps = []
+
+    def runner(command, **_kwargs):
+        return _gate_qstat_result(
+            rc=153, stderr="connection temporarily unavailable",
+        )
+
+    def sleep(seconds):
+        sleeps.append(seconds)
+        clock.sleep(seconds)
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        cleanup_budget_s=90,
+        retry_interval_s=3600,
+        clock=clock,
+        sleep=sleep,
+    )
+
+    assert sleeps == [90]
+    assert qdel["attempted"] is False
+    assert qdel["gate"]["reason"] == "cleanup-budget-exhausted"
+
+
+def test_fresh_qstat_gate_only_guards_snapshot_not_qdel_time_que_can_run(
+    tmp_path,
+):
+    """QUE snapshot 後の RUN 遷移は非 atomic gate の残余リスクである。"""
+
+    scheduler_state = "QUE"
+    commands = []
+
+    def runner(command, **_kwargs):
+        nonlocal scheduler_state
+        command = list(command)
+        commands.append(command)
+        if command[0] == "qstat":
+            return _gate_qstat_result(state=scheduler_state)
+        scheduler_state = "RUN"
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner, request_id=_JOB_ID, cwd=tmp_path, environ={},
+    )
+
+    assert qdel["attempted"] is True
+    assert qdel["gate"]["scheduler_state"] == "QUE"
+    assert scheduler_state == "RUN"
+    assert commands[-1] == ["qdel", "424242.nqsv"]
+    assert sum(command[0] == "qstat" for command in commands) == 1
+
+
+def test_qdel_result_is_not_overwritten_by_post_qdel_gate_clock_exception(
+    tmp_path,
+):
+    qdel_returned = False
+    commands = []
+
+    def clock():
+        if qdel_returned:
+            raise RuntimeError("post-qdel clock failure")
+        return 0.0
+
+    def runner(command, **_kwargs):
+        nonlocal qdel_returned
+        command = list(command)
+        commands.append(command)
+        if command[0] == "qstat":
+            return _gate_qstat_result(state="QUE")
+        qdel_returned = True
+        return subprocess.CompletedProcess(command, 153, "", "qdel rejected")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        clock=clock,
+    )
+
+    assert qdel["attempted"] is True
+    assert qdel["returncode"] == 153
+    assert qdel["gate"]["allowed"] is True
+    assert qdel["job_may_remain"] is True
+    assert qdel["cleanup_elapsed_s"] is None
+    assert "post-qdel clock failure" in qdel["cleanup_elapsed_exception"]
+    assert commands == [
+        ["qstat", "-f", "424242.nqsv"],
+        ["qdel", "424242.nqsv"],
+    ]
+
+
+@pytest.mark.parametrize("seam", ["qdel-return", "metadata", "persist"])
+def test_cleanup_signal_after_qdel_is_once_only_and_preserves_first_result(
+    monkeypatch, tmp_path, seam,
+):
+    scheduler = _Scheduler(
+        initial_qstat_failures=1,
+        initial_qstat_error="Not permitted to access",
+    )
+    injected = False
+
+    def invoke_registered_handler():
+        nonlocal injected
+        handler = signal.getsignal(signal.SIGTERM)
+        assert callable(handler)
+        injected = True
+        handler(signal.SIGTERM, None)
+
+    if seam == "qdel-return":
+        real_run = DC._run
+
+        def inject_after_qdel_return(run_command, command, **kwargs):
+            nonlocal injected
+            result = real_run(run_command, command, **kwargs)
+            if list(command)[0] == "qdel" and not injected:
+                invoke_registered_handler()
+            return result
+
+        monkeypatch.setattr(DC, "_run", inject_after_qdel_return)
+    elif seam == "metadata":
+        real_capture = DC._capture
+
+        def inject_before_metadata(result):
+            nonlocal injected
+            captured = real_capture(result)
+            if list(result.args)[0] == "qdel" and not injected:
+                invoke_registered_handler()
+            return captured
+
+        monkeypatch.setattr(DC, "_capture", inject_before_metadata)
+    else:
+        real_persist = DC._persist_receipt
+
+        def inject_before_persist(*args, **kwargs):
+            nonlocal injected
+            payload = args[2]
+            if payload.get("qdel", {}).get("returncode") == 0 and not injected:
+                invoke_registered_handler()
+            return real_persist(*args, **kwargs)
+
+        monkeypatch.setattr(DC, "_persist_receipt", inject_before_persist)
+
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        nonce=f"cleanup-signal-{seam}",
+    )
+
+    assert rc == DC.INFRA_RC
+    assert injected is True
+    commands = [command for command, _ in scheduler.commands]
+    assert sum(command[0] == "qdel" for command in commands) == 1
+    receipt_path = submission / "receipt.json"
+    assert receipt_path.is_file()
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["outcome"] == {
+        "kind": "infra",
+        "reason": f"_SignalAbort: signal {signal.SIGTERM}",
+        "rc": DC.INFRA_RC,
+    }
+    assert receipt["qdel"]["attempted"] is True
+    assert receipt["qdel"]["returncode"] == 0
+    assert receipt["qdel"]["stdout"] == ""
+    assert receipt["qdel"]["stderr"] == ""
+    assert receipt["qdel"]["job_may_remain"] is False
+    assert len(receipt["qdel"]["gate"]["qstat_attempts"]) == 1
+
+
+def test_cleanup_claim_latch_survives_post_qdel_capture_exception(
+    monkeypatch, tmp_path,
+):
+    scheduler = _Scheduler(
+        states=("QUE", "QUE"),
+        initial_qstat_failures=1,
+        initial_qstat_error="Not permitted to access",
+    )
+    real_capture = DC._capture
+    injected = False
+
+    def fail_once_after_qdel_result(result):
+        nonlocal injected
+        captured = real_capture(result)
+        if list(result.args)[0] == "qdel" and not injected:
+            injected = True
+            raise RuntimeError("injected post-qdel capture failure")
+        return captured
+
+    monkeypatch.setattr(DC, "_capture", fail_once_after_qdel_result)
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        nonce="cleanup-capture-exception",
+    )
+
+    assert rc == DC.INFRA_RC
+    assert injected is True
+    commands = [command for command, _ in scheduler.commands]
+    assert sum(command[0] == "qdel" for command in commands) == 1
+    assert scheduler.qstat_calls == 2
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"] == {
+        "kind": "infra",
+        "reason": "RuntimeError: injected post-qdel capture failure",
+        "rc": DC.INFRA_RC,
+    }
+    assert receipt["qdel"]["attempted"] is True
+    assert receipt["qdel"]["returncode"] == 0
+    assert receipt["qdel"]["stdout"] == ""
+    assert receipt["qdel"]["stderr"] == ""
+    assert receipt["qdel"]["job_may_remain"] is False
+    assert len(receipt["qdel"]["gate"]["qstat_attempts"]) == 1
+
+
+def _best_effort_qdel_references(source: str, filename: str):
+    tree = ast.parse(source, filename=filename)
+    parents = {
+        child: parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
+    aliases = {"_best_effort_qdel"}
+    default_aliases = {}
+    imports = []
+
+    def is_alias(value):
+        return (
+            isinstance(value, ast.Name) and value.id in aliases
+        ) or (
+            isinstance(value, ast.Attribute)
+            and value.attr == "_best_effort_qdel"
+        )
+
+    def propagate_unpacking(target, value):
+        if isinstance(target, ast.Name):
+            if is_alias(value):
+                aliases.add(target.id)
+            return
+        if (
+            isinstance(target, (ast.Tuple, ast.List))
+            and isinstance(value, (ast.Tuple, ast.List))
+            and len(target.elts) == len(value.elts)
+        ):
+            for nested_target, nested_value in zip(target.elts, value.elts):
+                propagate_unpacking(nested_target, nested_value)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for imported in node.names:
+                if imported.name == "_best_effort_qdel":
+                    aliases.add(imported.asname or imported.name)
+                    imports.append(imported.asname or imported.name)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            positional = [*node.args.posonlyargs, *node.args.args]
+            pairs = zip(positional[-len(node.args.defaults):], node.args.defaults)
+            keyword_pairs = zip(node.args.kwonlyargs, node.args.kw_defaults)
+            for argument, default in (*pairs, *keyword_pairs):
+                if default is not None and is_alias(default):
+                    default_aliases.setdefault(node, set()).add(argument.arg)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            value = node.value
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                propagate_unpacking(target, value)
+
+    def enclosing_scope(node):
+        names = []
+        current = parents.get(node)
+        while current is not None:
+            if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                names.append(current.name)
+            current = parents.get(current)
+        return ".".join(reversed(names)) or "<module>"
+
+    callers = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        scoped_aliases = set()
+        current = node
+        while current is not None:
+            scoped_aliases.update(default_aliases.get(current, ()))
+            current = parents.get(current)
+        direct = (
+            isinstance(node.func, ast.Name)
+            and node.func.id in aliases | scoped_aliases
+        )
+        attributed = (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "_best_effort_qdel"
+        )
+        if direct or attributed:
+            callers.append(enclosing_scope(node))
+    return sorted(imports), sorted(callers)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_imports", "expected_callers"),
+    [
+        (
+            "def cleanup():\n"
+            "    deleter = _best_effort_qdel\n"
+            "    deleter()\n",
+            [],
+            ["cleanup"],
+        ),
+        (
+            "class Cleanup:\n"
+            "    def run(self):\n"
+            "        _best_effort_qdel()\n",
+            [],
+            ["Cleanup.run"],
+        ),
+        (
+            "from tools.pegasus.dispatch_compute import "
+            "_best_effort_qdel as deleter\n",
+            ["deleter"],
+            [],
+        ),
+        (
+            "from tools.pegasus import dispatch_compute as dc\n"
+            "deleter = dc._best_effort_qdel\n"
+            "def cleanup():\n"
+            "    deleter(...)\n",
+            [],
+            ["cleanup"],
+        ),
+        (
+            "from tools.pegasus import dispatch_compute as dc\n"
+            "def cleanup(deleter=dc._best_effort_qdel):\n"
+            "    deleter(...)\n",
+            [],
+            ["cleanup"],
+        ),
+        (
+            "from tools.pegasus import dispatch_compute as dc\n"
+            "deleter, marker = dc._best_effort_qdel, object()\n"
+            "def cleanup():\n"
+            "    deleter(...)\n",
+            [],
+            ["cleanup"],
+        ),
+    ],
+    ids=[
+        "alias-binding",
+        "class-method",
+        "cross-module-import",
+        "attribute-alias-binding",
+        "default-argument-alias",
+        "unpacking-alias-binding",
+    ],
+)
+def test_best_effort_qdel_reference_scanner_covers_bypass_shapes(
+    source, expected_imports, expected_callers,
+):
+    assert _best_effort_qdel_references(source, "<synthetic>") == (
+        expected_imports,
+        expected_callers,
+    )
+
+
+def test_best_effort_qdel_production_caller_is_only_fresh_gate():
+    references = []
+    for root in (_REPO / "tools", _REPO / "orchestrator"):
+        for path in root.rglob("*.py"):
+            imports, callers = _best_effort_qdel_references(
+                path.read_text(encoding="utf-8"), str(path),
+            )
+            if imports or callers:
+                references.append((path.relative_to(_REPO).as_posix(), imports, callers))
+    assert references == [(
+        "tools/pegasus/dispatch_compute.py",
+        [],
+        ["_fresh_qstat_gated_qdel"],
+    )]
 
 
 def test_qstat_error_during_poll_does_not_end_or_latch_job(tmp_path):
@@ -940,10 +1715,13 @@ def test_interpreter_stage_failure_is_fail_closed_and_preserved_in_receipt(
     assert receipt["result"]["stage"] == "interpreter"
     assert receipt["scheduler_logs"]["accounting_present"] is True
     assert receipt["outcome"]["kind"] == "infra"
-    assert any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert scheduler.qstat_calls == 4
+    assert receipt["qdel"]["cleanup_policy"] == "fresh-qstat-gate/v1"
+    assert receipt["qdel"]["gate"]["scheduler_state"] == "END"
 
 
-def test_m6_qstat_success_without_request_qdels_and_create_only_latches(
+def test_m6_qstat_success_without_request_skips_qdel_and_create_only_latches(
     tmp_path, capsys,
 ):
     # M6/FA-9: qstat 成功なのに request 不在なら F47 型としてラッチする。
@@ -953,7 +1731,8 @@ def test_m6_qstat_success_without_request_qdels_and_create_only_latches(
     latch = tmp_path / "dispatch" / "submission-disabled.json"
     assert latch.is_file()
     original = latch.read_bytes()
-    assert any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert scheduler.qstat_calls == 2
     receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["outcome"]["kind"] == "f47"
     assert receipt["immediate_qstat_attempts"][0]["classification"] == (
@@ -961,7 +1740,11 @@ def test_m6_qstat_success_without_request_qdels_and_create_only_latches(
     )
     assert receipt["f49_immediate"]["qstat_visible"] is False
     assert receipt["f49_immediate"]["qstat_succeeded"] is True
-    assert "ユーザー自身の端末" in capsys.readouterr().err
+    assert receipt["qdel"]["gate"]["reason"] == "request-absent"
+    assert receipt["qdel"]["job_may_remain"] is True
+    captured = capsys.readouterr()
+    assert "ユーザー自身の端末" in captured.err
+    assert "ジョブが残っている可能性" in captured.err
 
     second = _Scheduler()
     assert DC.dispatch(
@@ -1010,15 +1793,15 @@ def test_qstat_nonzero_response_classification_boundaries(response, expected):
     assert DC._classify_qstat_response(result, _JOB_ID) == expected
 
 
-def test_f47_literal_not_permitted_response_qdels_and_latches(tmp_path):
+def test_f47_literal_not_permitted_response_skips_qdel_and_latches(tmp_path):
     scheduler = _Scheduler(
         initial_qstat_failures=3,
         initial_qstat_error="Not permitted to access",
     )
     rc, submission = _dispatch(tmp_path, scheduler)
     assert rc == DC.INFRA_RC
-    assert scheduler.qstat_calls == 1
-    assert any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert scheduler.qstat_calls == 2
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
     latch = json.loads(
         (tmp_path / "dispatch" / "submission-disabled.json").read_text(
             encoding="utf-8",
@@ -1032,6 +1815,7 @@ def test_f47_literal_not_permitted_response_qdels_and_latches(tmp_path):
         "reason": "qstat-permission-or-ownership-error",
         "rc": DC.INFRA_RC,
     }
+    assert receipt["qdel"]["gate"]["reason"] == "qstat-permission"
 
 
 def test_immediate_qstat_failures_exhaust_to_infra_without_latching(tmp_path):
@@ -1042,6 +1826,12 @@ def test_immediate_qstat_failures_exhaust_to_infra_without_latching(tmp_path):
     receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["outcome"]["kind"] == "infra"
     assert "immediate-qstat-unavailable-after-retries" in receipt["outcome"]["reason"]
+    assert scheduler.qstat_calls == 4
+    assert [command for command, _ in scheduler.commands if command[0] == "qdel"] == [
+        ["qdel", "424242.nqsv"],
+    ]
+    assert receipt["qdel"]["gate"]["scheduler_state"] == "QUE"
+    assert receipt["qdel"]["gate"]["allowed"] is True
 
 
 def test_compute_marker_is_cross_namespace_evidence_without_release_handshake(
@@ -1061,7 +1851,7 @@ def test_compute_marker_is_cross_namespace_evidence_without_release_handshake(
 
 
 def test_missing_compute_marker_latches_only_after_visible_job_terminates(tmp_path):
-    scheduler = _Scheduler(marker=False)
+    scheduler = _Scheduler(states=("QUE", "RUN", "DONE", "QUE"), marker=False)
     rc, submission = _dispatch(tmp_path, scheduler)
     assert rc == DC.INFRA_RC
     latch = json.loads(
@@ -1073,6 +1863,9 @@ def test_missing_compute_marker_latches_only_after_visible_job_terminates(tmp_pa
     receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["f49_immediate"]["qstat_visible"] is True
     assert receipt["collection"]["compute_marker"]["valid"] is False
+    assert scheduler.qstat_calls == 4
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert receipt["qdel"]["gate"]["reason"] == "terminal-history-conflict"
 
 
 def test_create_only_nonce_collision_is_setup_infra_rc_with_receipt(tmp_path):
@@ -1103,7 +1896,9 @@ def test_accounting_grace_failure_is_invocation_only_and_does_not_latch(
     receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["outcome"]["kind"] == "infra"
     assert "accounting-grace-expired" in receipt["outcome"]["reason"]
-    assert any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert scheduler.qstat_calls == 4
+    assert receipt["qdel"]["gate"]["scheduler_state"] == "END"
 
 
 @pytest.mark.parametrize(
@@ -1172,7 +1967,7 @@ def test_scheduler_logs_are_tail_bounded_with_explicit_omission(tmp_path):
 
 
 def test_hld_queue_timeout_qdels_and_receipts(tmp_path, capsys):
-    scheduler = _Scheduler(states=("HLD", "HLD", "HLD"))
+    scheduler = _Scheduler(states=("HLD", "HLD", "HLD", "HLD"))
     clock = _Clock()
     rc = DC.dispatch(
         [],
@@ -1204,6 +1999,58 @@ def test_hld_queue_timeout_qdels_and_receipts(tmp_path, capsys):
         "HLD", "HLD", "HLD",
     ]
     assert "queue-wait-timeout" in receipt["outcome"]["reason"]
+    assert scheduler.qstat_calls == 4
+    assert receipt["qdel"]["cleanup_policy"] == "fresh-qstat-gate/v1"
+    assert receipt["qdel"]["gate"]["scheduler_state"] == "HLD"
+    assert receipt["qdel"]["gate"]["allowed"] is True
+    assert receipt["schema_version"] == "pegasus-dispatch-receipt/v2"
+
+
+@pytest.mark.parametrize(
+    ("qdel_returncode", "qdel_exception"),
+    [(153, None), (0, OSError("injected qdel failure"))],
+    ids=["nonzero", "exception"],
+)
+def test_allowed_qdel_failure_records_job_may_remain_and_warns(
+    tmp_path, capsys, qdel_returncode, qdel_exception,
+):
+    scheduler = _Scheduler(
+        states=("HLD", "HLD", "HLD", "HLD"),
+        qdel_returncode=qdel_returncode,
+        qdel_exception=qdel_exception,
+    )
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        poll_interval_s=5,
+        queue_wait_timeout_s=10,
+        nonce=f"qdel-failure-{qdel_returncode}-{qdel_exception is not None}",
+    )
+    captured = capsys.readouterr()
+
+    assert rc == DC.INFRA_RC
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    qdel = receipt["qdel"]
+    assert qdel["attempted"] is True
+    assert qdel["gate"]["allowed"] is True
+    assert qdel["job_may_remain"] is True
+    assert scheduler.qstat_calls == 4
+    assert len(qdel["gate"]["qstat_attempts"]) == 1
+    assert [
+        command for command, _ in scheduler.commands
+        if command[0] in {"qstat", "qdel"} and command != ["qstat", "-Q"]
+    ] == [
+        ["qstat", "-f", "424242.nqsv"],
+        ["qstat", "-f", "424242.nqsv"],
+        ["qstat", "-f", "424242.nqsv"],
+        ["qstat", "-f", "424242.nqsv"],
+        ["qdel", "424242.nqsv"],
+    ]
+    assert "ジョブが残っている可能性" in captured.err
+    if qdel_exception is None:
+        assert qdel["returncode"] == 153
+    else:
+        assert "injected qdel failure" in qdel["exception"]
 
 
 def test_queue_wait_starts_when_qsub_returns_not_before_preflight(tmp_path):
@@ -1261,6 +2108,80 @@ def test_qsub_parse_failure_discovers_request_and_attempts_qdel(tmp_path):
         "request-name+submission-dir"
     )
     assert receipt["qdel"]["attempted"] is True
+    assert scheduler.qstat_calls == 1
+    assert receipt["qdel"]["gate"]["scheduler_state"] == "QUE"
+
+
+def test_request_id_discovery_failure_skips_gate_commands_and_warns(
+    tmp_path, capsys,
+):
+    scheduler = _Scheduler(
+        qsub_stdout="accepted with opaque response\n",
+        discovery_visible=False,
+    )
+    rc, submission = _dispatch(tmp_path, scheduler)
+    captured = capsys.readouterr()
+
+    assert rc == DC.INFRA_RC
+    assert scheduler.qstat_calls == 0
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["request_id_discovery"]["candidates"] == []
+    assert receipt["qdel"]["cleanup_policy"] == "fresh-qstat-gate/v1"
+    assert receipt["qdel"]["gate"]["qstat"]["attempted"] is False
+    assert receipt["qdel"]["gate"]["reason"] == "request-id-unavailable"
+    assert receipt["qdel"]["reason"] == (
+        "qsub accepted but request ID discovery failed"
+    )
+    assert "ジョブが残っている可能性" in captured.err
+
+
+def test_request_id_unavailable_precedes_initial_cleanup_clock_failure(tmp_path):
+    clock_calls = 0
+    commands = []
+
+    def failing_clock():
+        nonlocal clock_calls
+        clock_calls += 1
+        raise OSError("injected initial cleanup clock failure")
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        raise AssertionError("missing request ID must not reach scheduler")
+
+    submission_dir = tmp_path / "opaque-submission"
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=None,
+        cwd=tmp_path,
+        environ={},
+        clock=failing_clock,
+        job_name="izdw-opaque",
+        submission_dir=submission_dir,
+    )
+
+    assert clock_calls == 0
+    assert commands == []
+    assert qdel["attempted"] is False
+    assert qdel["gate"]["reason"] == "request-id-unavailable"
+    assert qdel["reason"] == "qsub accepted but request ID discovery failed"
+    assert qdel["job_name"] == "izdw-opaque"
+    assert qdel["submission_dir"] == str(submission_dir)
+
+
+def test_malformed_qsub_request_id_runs_no_qstat_by_id_or_qdel(tmp_path):
+    scheduler = _Scheduler(qsub_stdout="Request --all submitted to queue.\n")
+    rc, submission = _dispatch(tmp_path, scheduler)
+
+    assert rc == DC.INFRA_RC
+    assert scheduler.qstat_calls == 0
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert not any(
+        command[:2] == ["qstat", "-f"] for command, _ in scheduler.commands
+    )
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert "malformed-request-id" in receipt["outcome"]["reason"]
+    assert receipt["qdel"]["gate"]["reason"] == "malformed-request-id"
 
 
 @pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
@@ -1290,9 +2211,13 @@ def test_qsub_success_signal_during_receipt_capture_discovers_and_qdels(
     )
     assert receipt["qdel"]["attempted"] is True
     assert receipt["outcome"]["reason"] == f"_SignalAbort: signal {signum}"
+    assert scheduler.qstat_calls == 1
+    assert receipt["qdel"]["gate"]["scheduler_state"] == "QUE"
 
 
-def test_scheduler_exception_after_qsub_qdels_and_receipts(tmp_path):
+def test_scheduler_exception_after_qsub_skips_qdel_and_receipts_gate_error(
+    tmp_path,
+):
     scheduler = _Scheduler()
 
     def exploding(command, **kwargs):
@@ -1312,16 +2237,20 @@ def test_scheduler_exception_after_qsub_qdels_and_receipts(tmp_path):
         nonce="exception",
     )
     assert rc == DC.INFRA_RC
-    assert any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
     receipt = json.loads(
         (tmp_path / "dispatch" / "exception" / "receipt.json").read_text(
             encoding="utf-8",
         ),
     )
     assert "injected qstat failure" in receipt["outcome"]["reason"]
+    assert receipt["qdel"]["gate"]["reason"] == "qstat-exception"
+    assert len(receipt["qdel"]["gate"]["qstat_attempts"]) == 1
 
 
-def test_overall_walltime_plus_grace_bound_qdels_running_job(tmp_path):
+def test_overall_walltime_plus_grace_bound_skips_qdel_for_fresh_running_job(
+    tmp_path,
+):
     scheduler = _Scheduler(states=("RUN", "RUN", "RUN"))
     clock = _Clock()
     rc = DC.dispatch(
@@ -1338,13 +2267,16 @@ def test_overall_walltime_plus_grace_bound_qdels_running_job(tmp_path):
         nonce="overall",
     )
     assert rc == DC.INFRA_RC
-    assert any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
     receipt = json.loads(
         (tmp_path / "dispatch" / "overall" / "receipt.json").read_text(
             encoding="utf-8",
         ),
     )
     assert "overall-timeout" in receipt["outcome"]["reason"]
+    assert scheduler.qstat_calls == 3
+    assert receipt["qdel"]["gate"]["scheduler_state"] == "RUN"
+    assert receipt["qdel"]["gate"]["reason"] == "state-not-cancellable"
 
 
 def test_queue_wait_does_not_consume_observed_run_budget(tmp_path):
@@ -1389,6 +2321,7 @@ def test_overall_grace_allows_done_at_observed_run_deadline(tmp_path):
 def test_post_run_unknown_state_uses_first_observation_deadline(tmp_path):
     scheduler = _Scheduler(states=(
         "QUE", "RUN", "RUN", "UNRECOGNIZED", "UNRECOGNIZED",
+        "UNRECOGNIZED",
     ))
     rc, submission = _dispatch(
         tmp_path,
@@ -1401,16 +2334,19 @@ def test_post_run_unknown_state_uses_first_observation_deadline(tmp_path):
     )
 
     assert rc == DC.INFRA_RC
-    assert any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
     receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
     assert "overall-timeout" in receipt["outcome"]["reason"]
     assert receipt["state_history"][-1]["elapsed_s"] == 4.0
     assert any(item["state"] == "RUN" for item in receipt["state_history"])
+    assert scheduler.qstat_calls == 6
+    assert receipt["qdel"]["gate"]["scheduler_state"] == "UNKNOWN"
 
 
 def test_nonzero_qstat_run_stdout_does_not_restart_deadline(tmp_path):
     trusted = _Scheduler(states=(
         "QUE", "RUN", "UNRECOGNIZED", "UNRECOGNIZED", "UNRECOGNIZED",
+        "UNRECOGNIZED",
     ))
     trusted_rc, trusted_submission = _dispatch(
         tmp_path,
@@ -1427,7 +2363,10 @@ def test_nonzero_qstat_run_stdout_does_not_restart_deadline(tmp_path):
     )
 
     untrusted = _Scheduler(
-        states=("QUE", "ERROR", "UNRECOGNIZED", "UNRECOGNIZED"),
+        states=(
+            "QUE", "ERROR", "UNRECOGNIZED", "UNRECOGNIZED",
+            "ERROR", "ERROR", "ERROR",
+        ),
         qstat_error_stdout="Request State = RUN\n",
     )
     untrusted_rc, untrusted_submission = _dispatch(
@@ -1446,13 +2385,21 @@ def test_nonzero_qstat_run_stdout_does_not_restart_deadline(tmp_path):
 
     assert trusted_rc == DC.INFRA_RC
     assert trusted_receipt["state_history"][-1]["elapsed_s"] == 4.0
+    assert not any(command[0] == "qdel" for command, _ in trusted.commands)
+    assert trusted.qstat_calls == 6
+    assert trusted_receipt["qdel"]["gate"]["scheduler_state"] == "UNKNOWN"
     assert untrusted_rc == DC.INFRA_RC
-    assert any(command[0] == "qdel" for command, _ in untrusted.commands)
+    assert not any(command[0] == "qdel" for command, _ in untrusted.commands)
     assert "overall-timeout" in untrusted_receipt["outcome"]["reason"]
     assert untrusted_receipt["state_history"][-1]["elapsed_s"] == 3.0
     assert untrusted_receipt["state_history"][-1]["state"] == "UNKNOWN"
     assert untrusted_receipt["queue_wait_s"] == 1.0
     assert untrusted_receipt["queue_wait_observed"] is True
+    assert untrusted.qstat_calls == 7
+    assert len(untrusted_receipt["qdel"]["gate"]["qstat_attempts"]) == 3
+    assert untrusted_receipt["qdel"]["gate"]["reason"] == (
+        "qstat-transient-retries-exhausted"
+    )
 
 
 def test_trusted_run_after_nonzero_run_stdout_restarts_deadline(tmp_path):
@@ -1501,6 +2448,9 @@ def test_unknown_scheduler_state_remains_bounded_by_overall_timeout(tmp_path):
     )
     assert receipt["state_history"][0]["state"] == "UNKNOWN"
     assert "overall-timeout" in receipt["outcome"]["reason"]
+    assert scheduler.qstat_calls == 3
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert receipt["qdel"]["gate"]["scheduler_state"] == "UNKNOWN"
 
 
 def test_progress_output_is_explicitly_flushed():

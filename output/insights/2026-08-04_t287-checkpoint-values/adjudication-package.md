@@ -180,6 +180,44 @@ redact すればよい。境界が 1 箇所に閉じ、既存テストの期待�
 
 ---
 
+## 6. 受入全走の省略条件が repo 全体走査型の gate と噛み合っていない
+
+**所見 (本 wave の land 阻害から実測)**
+
+[T-407] の赤 (`ruleops.py inventory` が非 UTF-8 の証跡 blob を拒否) を持ち込んだ wave は、
+worklog に「probe と login 側 controller だけ。したがって**変異 matrix と受入全走は対象外**とする」と
+書いて全走を一度も回していない。一方、赤くなった
+`test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo` は
+**repo の実チェックアウト全体を走査する型**の gate であり、自差分が触らないファイルでも落ちる。
+
+つまり「自差分が触らない領域なら全走は要らない」という射程判断が、この型の gate と噛み合っていない。
+証跡ファイルを 1 個足すだけの commit でも repo 全体走査型 gate は壊せる。
+
+さらに land 経路 (`tools/dev_wave_land.py`) は `--tested-main-sha` / `--tested-wave-tip-sha` を
+受け取るだけで**受入結果を検証しない**ので、検知器が赤でも land は機械的に通る。
+検知と land 阻止が繋がっていない。
+
+**成果物影響:** local main が赤のまま進み、後続の全 wave が `DW-STOP` で止まる
+(本 wave が実際に止まった)。緑を前提とする受入の基準線が失われる。
+
+**択一**
+
+- (a) 受入全走の省略条件から「repo 全体走査型 gate を含む suite」を除外する
+  (= docs/probe だけの wave でも、その型の gate は必ず回す)
+- (b) `dev_wave_land.py` が受入結果の証跡 (test 出力の digest と rc) を受け取り、
+  自己申告でなく検証する
+- (c) 全 wave で受入全走を必須にする (省略条件を廃止する)
+- (d) 現状維持 (waiver 運用で凌ぐ)
+
+親の推奨は **(a) → (b) の順**。(a) は安く、今回の混入経路を直接塞ぐ。(b) は land 側の
+根治だが、証跡の受け渡し設計が要るので独立 wave が要る。(c) は計算資源を食う割に
+(a) 以上の効果が薄い。
+
+**なお本 wave は、この裁定が出るまでの暫定として既知赤 waiver W1 を適用して land した**
+(条件・失効は worklog 末尾エントリが正本)。waiver は [T-407] の land で自動失効する。
+
+---
+
 ## 記録上の訂正 (本 wave の親 brief の誤り)
 
 段 3 の敵対検証が反証した親の過大表現を、記録として残す。

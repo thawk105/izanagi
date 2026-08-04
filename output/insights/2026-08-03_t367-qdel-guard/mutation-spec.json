@@ -1,0 +1,198 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            if state not in {\"QUE\", \"HLD\"}:",
+          "new": "            if state not in {\"QUE\", \"HLD\", \"RUN\"}:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_overall_walltime_plus_grace_bound_skips_qdel_for_fresh_running_job"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            if classification == \"transient\":\n                if attempt == qstat_attempts:",
+          "new": "            if classification == \"transient\" and not _qstat_mentions_request(\n                result.stdout or \"\", normalized,\n            ):\n                if attempt == qstat_attempts:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_nonzero_qstat_with_target_que_stdout_never_bypasses_transient_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            state = _target_bound_qstat_state(result.stdout or \"\", normalized)",
+          "new": "            state = _scheduler_state(result.stdout or \"\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_target_bound_gate_rejects_malformed_or_conflicting_state[mixed-block]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_target_bound_gate_rejects_malformed_or_conflicting_state[duplicate-state]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_target_bound_gate_rejects_malformed_or_conflicting_state[request-current-conflict]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "                return denied(\"request-absent\", normalized=normalized)",
+          "new": "                return denied(\"request-not-visible\", normalized=normalized)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_m6_qstat_success_without_request_skips_qdel_and_create_only_latches"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            if terminal_history_end:\n                return denied(\"terminal-history-conflict\", normalized=normalized)",
+          "new": "            if False and terminal_history_end:\n                return denied(\"terminal-history-conflict\", normalized=normalized)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_missing_compute_marker_latches_only_after_visible_job_terminates"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "    qdel[\"job_may_remain\"] = (\n        \"exception\" in qdel or qdel.get(\"returncode\") != 0\n    )",
+          "new": "    qdel[\"job_may_remain\"] = False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_allowed_qdel_failure_records_job_may_remain_and_warns[nonzero]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_allowed_qdel_failure_records_job_may_remain_and_warns[exception]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "        for attempt in range(1, qstat_attempts + 1):\n            if elapsed() >= cleanup_budget_s:\n                return denied(\"cleanup-budget-exhausted\", normalized=normalized)",
+          "new": "        for attempt in range(1, qstat_attempts + 1):"
+        },
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            gate[\"classification\"] = classification\n            if elapsed() >= cleanup_budget_s:\n                return denied(\"cleanup-budget-exhausted\", normalized=normalized)",
+          "new": "            gate[\"classification\"] = classification"
+        },
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "                if elapsed() >= cleanup_budget_s:\n                    return denied(\"cleanup-budget-exhausted\", normalized=normalized)\n                remaining_budget = max(0.0, cleanup_budget_s - elapsed())",
+          "new": "                remaining_budget = max(0.0, cleanup_budget_s - elapsed())"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_fresh_qstat_gate_cleanup_budget_stops_retry_and_records_elapsed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            gate[\"allowed\"] = True\n            gate[\"reason\"] = \"fresh-cancellable-snapshot\"",
+          "new": "            gate[\"allowed\"] = False\n            gate[\"reason\"] = \"fresh-cancellable-snapshot\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_hld_queue_timeout_qdels_and_receipts",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_qsub_parse_failure_discovers_request_and_attempts_qdel"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "        if _GATE_REQUEST_ID_RE.fullmatch(normalized) is None:\n            return denied(\"malformed-request-id\", normalized=normalized)",
+          "new": "        if False and _GATE_REQUEST_ID_RE.fullmatch(normalized) is None:\n            return denied(\"malformed-request-id\", normalized=normalized)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_malformed_request_id_runs_neither_qstat_nor_qdel"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "def _print_qdel_remaining_warning(",
+          "new": "_legacy_qdel_alias = _best_effort_qdel\n\n\ndef _legacy_cleanup(run_command, **kwargs):\n    return _legacy_qdel_alias(run_command, **kwargs)\n\n\ndef _print_qdel_remaining_warning("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_best_effort_qdel_production_caller_is_only_fresh_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "        nonlocal cleanup_claimed\n        if cleanup_claimed:\n            return receipt[\"qdel\"]",
+          "new": "        nonlocal cleanup_claimed\n        if False and cleanup_claimed:\n            return receipt[\"qdel\"]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_cleanup_claim_latch_survives_post_qdel_capture_exception"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

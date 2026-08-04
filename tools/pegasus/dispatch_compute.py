@@ -34,6 +34,7 @@ DEFAULT_LOG_LIMIT_BYTES = 2 * 1024 * 1024
 DEFAULT_SUCCESS_RELAY_LIMIT_BYTES = 4 * 1024
 DEFAULT_FAILURE_RELAY_LIMIT_BYTES = 64 * 1024
 DEFAULT_IMMEDIATE_QSTAT_ATTEMPTS = 3
+DEFAULT_CLEANUP_BUDGET_S = 90.0
 
 _TASK_RUN_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUN_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
@@ -119,6 +120,12 @@ _QSTAT_REQUEST_ID_RE = re.compile(
 _QSTAT_REQUEST_NAME_RE = re.compile(
     r"(?im)^\s*Request\s+Name\s*[:=]\s*(\S+)\s*$"
 )
+_GATE_REQUEST_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+_GATE_STATE_FIELD_RE = re.compile(
+    r"(?im)^(\s*)(Request\s+State|Current\s+State|State)"
+    r"\s*=\s*([^\r\n]+?)\s*$"
+)
+_QDEL_CLEANUP_POLICY = "fresh-qstat-gate/v1"
 _INTERPRETER_CANDIDATES = (
     "python3.10",
     "/usr/bin/python3.10",
@@ -187,7 +194,7 @@ def _classify_qstat_response(
     result: subprocess.CompletedProcess[str],
     request_id: str,
 ) -> str:
-    """immediate qstat を F47 権限系・一時系・成功可視性へ分類する。"""
+    """qstat 応答を F47 権限系・一時系・成功可視性へ分類する。"""
 
     if result.returncode == 0:
         return (
@@ -229,6 +236,94 @@ def _scheduler_state(stdout: str) -> Optional[str]:
     }:
         return "END"
     return None
+
+
+def _gate_state_value(field: str, value: str) -> Optional[str]:
+    """gate field ごとに既存 parser と同じ状態語彙を正規化する。"""
+
+    key = " ".join(field.casefold().split())
+    if key in {"request state", "state"}:
+        abbreviated = value.strip().upper()
+        if abbreviated in {"QUE", "RUN", "HLD"}:
+            return abbreviated
+        if abbreviated == "STG":
+            return "QUE"
+        if abbreviated == "EXT":
+            return "END"
+        return None
+    if key != "current state":
+        return None
+    full = value.strip().casefold()
+    if full in {"running", "pre-running", "run"}:
+        return "RUN"
+    if full in {"queued", "queue", "waiting", "wait", "staging", "stg"}:
+        return "QUE"
+    if full in {"held", "hold", "holding"}:
+        return "HLD"
+    if full in {
+        "completed", "complete", "finished", "ended", "exited", "exit",
+        "terminated", "exiting", "post-running", "ext",
+    }:
+        return "END"
+    return None
+
+
+def _target_bound_qstat_state(stdout: str, request_id: str) -> Optional[str]:
+    r"""対象 ID だけの一意な qstat block から矛盾のない状態を返す。
+
+    destructive gate 専用であり、監視ループの permissive な
+    ``_scheduler_state()`` とは受理集合を共有しない。正規化 ID が全出力中に
+    ちょうど一つ存在し、その前に認識可能な state がなく、対象 block の bare
+    ``State`` / ``Request State`` / ``Current State`` が各々高々一つで、併存時に
+    正規化後の値が一致するときだけ状態を返す。既存 parser と同じ ``\s`` で
+    field を数えるが、従来 gate が受理していなかった space/tab 以外の行頭空白は
+    受理集合を広げず UNKNOWN へ倒す。
+    """
+
+    try:
+        expected = _normalize_request_id(request_id)
+    except DispatchError:
+        return None
+    id_matches = list(_QSTAT_REQUEST_ID_RE.finditer(stdout))
+    if len(id_matches) != 1:
+        return None
+    try:
+        observed = _normalize_request_id(id_matches[0].group(1))
+    except DispatchError:
+        return None
+    if observed != expected:
+        return None
+
+    request_match = id_matches[0]
+    for state_match in _GATE_STATE_FIELD_RE.finditer(
+        stdout[:request_match.start()],
+    ):
+        leading, field, value = state_match.groups()
+        line_leading = leading.rsplit("\n", 1)[-1].rsplit("\r", 1)[-1]
+        if any(character not in " \t" for character in line_leading):
+            return None
+        key = " ".join(field.casefold().split())
+        if _gate_state_value(key, value) is not None:
+            return None
+    fields: dict[str, list[str]] = {}
+    for state_match in _GATE_STATE_FIELD_RE.finditer(
+        stdout[request_match.end():],
+    ):
+        leading, field, value = state_match.groups()
+        line_leading = leading.rsplit("\n", 1)[-1].rsplit("\r", 1)[-1]
+        if any(character not in " \t" for character in line_leading):
+            return None
+        key = " ".join(field.casefold().split())
+        fields.setdefault(key, []).append(value)
+    if not fields or any(len(values) != 1 for values in fields.values()):
+        return None
+    states = set()
+    for field, values in fields.items():
+        value = values[0]
+        states.add(_gate_state_value(field, value))
+    if None in states or len(states) != 1:
+        return None
+    return states.pop()
 
 
 def _progress(message: str) -> None:
@@ -892,8 +987,13 @@ def _best_effort_qdel(
     request_id: str,
     cwd: Path,
     environ: Mapping[str, str],
+    record: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
+    """qdel 起動を要求し、その成否を改変せず返す低水準 primitive。"""
+
     normalized = _normalize_request_id(request_id)
+    qdel = {} if record is None else record
+    qdel.update({"attempted": True, "request_id": normalized})
     try:
         result = _run(
             run_command,
@@ -902,16 +1002,268 @@ def _best_effort_qdel(
             environ=environ,
         )
     except BaseException as exc:
-        return {
-            "attempted": True,
-            "request_id": normalized,
-            "exception": f"{type(exc).__name__}: {exc}",
-        }
-    return {
-        "attempted": True,
-        "request_id": normalized,
-        **_capture(result),
+        qdel["exception"] = f"{type(exc).__name__}: {exc}"
+        qdel["job_may_remain"] = True
+        return qdel
+    try:
+        captured = _capture(result)
+    except BaseException:
+        # qdel は既に戻っている。非同期例外を再送出する前に最初の結果を固定する。
+        qdel.update({
+            "returncode": int(result.returncode),
+            "stdout": (result.stdout or "")[-65536:],
+            "stderr": (result.stderr or "")[-65536:],
+            "job_may_remain": result.returncode != 0,
+        })
+        raise
+    qdel.update(captured)
+    qdel["job_may_remain"] = result.returncode != 0
+    return qdel
+
+
+def _fresh_qstat_gated_qdel(
+    run_command: CommandRunner,
+    *,
+    request_id: Optional[str],
+    cwd: Path,
+    environ: Mapping[str, str],
+    qstat_attempts: int = DEFAULT_IMMEDIATE_QSTAT_ATTEMPTS,
+    cleanup_budget_s: float = DEFAULT_CLEANUP_BUDGET_S,
+    retry_interval_s: float = DEFAULT_POLL_INTERVAL_S,
+    terminal_history_end: bool = False,
+    clock: Clock = time.monotonic,
+    sleep: Sleeper = time.sleep,
+    job_name: Optional[str] = None,
+    submission_dir: Optional[Path] = None,
+    record: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    """直前 snapshot が取消可能だったときだけ qdel 起動を要求する。
+
+    qstat と qdel は別 scheduler command であり atomic ではない。したがって保証は
+    fresh snapshot が QUE/HLD だったことまでで、qdel 時点まで RUN へ遷移しない
+    ことは保証しない。
+
+    qstat/parse の判定例外境界を qdel primitive と分離する。qdel の結果を得た後は
+    cleanup 時刻の再取得を含む gate 側の例外でその結果を上書きしない。
+    ``attempted`` は qdel command の起動を要求したことを表す。
+    """
+
+    qdel = {} if record is None else record
+    gate: dict[str, Any] = {
+        "qstat": {"attempted": False},
+        "qstat_attempts": [],
+        "classification": None,
+        "request_present": None,
+        "scheduler_state": "UNKNOWN",
+        "allowed": False,
+        "reason": "gate-not-evaluated",
     }
+    qdel.update({
+        "attempted": False,
+        "cleanup_policy": _QDEL_CLEANUP_POLICY,
+        "job_may_remain": True,
+        "gate": gate,
+    })
+    if request_id is None:
+        # request ID discovery 失敗は cleanup clock を読む前に確定できる。
+        # 注入 clock / host clock の初回取得が失敗する場合も、旧診断と metadata を保つ。
+        gate["reason"] = "request-id-unavailable"
+        qdel.update({
+            "cleanup_elapsed_s": 0.0,
+            "reason": "qsub accepted but request ID discovery failed",
+        })
+        if job_name is not None:
+            qdel["job_name"] = job_name
+        if submission_dir is not None:
+            qdel["submission_dir"] = str(submission_dir)
+        return qdel
+    cleanup_started = 0.0
+    last_elapsed = 0.0
+    try:
+        cleanup_started = clock()
+    except BaseException as exc:
+        gate["reason"] = "gate-exception"
+        gate["exception"] = f"{type(exc).__name__}: {exc}"
+        qdel.update({
+            "attempted": False,
+            "cleanup_policy": _QDEL_CLEANUP_POLICY,
+            "cleanup_elapsed_s": None,
+            "cleanup_elapsed_exception": gate["exception"],
+            "job_may_remain": True,
+            "reason": "fresh-qstat-gate-denied",
+            "gate": gate,
+        })
+        return qdel
+
+    def elapsed() -> float:
+        nonlocal last_elapsed
+        last_elapsed = max(last_elapsed, max(0.0, clock() - cleanup_started))
+        return last_elapsed
+
+    def denied(reason: str, *, normalized: Optional[str] = None) -> dict[str, Any]:
+        gate["reason"] = reason
+        cleanup_elapsed: Optional[float]
+        cleanup_elapsed_exception: Optional[str] = None
+        try:
+            cleanup_elapsed = elapsed()
+        except BaseException as exc:
+            cleanup_elapsed = None
+            cleanup_elapsed_exception = f"{type(exc).__name__}: {exc}"
+            gate["reason"] = "gate-exception"
+            gate["exception"] = cleanup_elapsed_exception
+        qdel.update({
+            "attempted": False,
+            "cleanup_policy": _QDEL_CLEANUP_POLICY,
+            "cleanup_elapsed_s": cleanup_elapsed,
+            "job_may_remain": True,
+            "reason": (
+                "qsub accepted but request ID discovery failed"
+                if reason == "request-id-unavailable"
+                else "fresh-qstat-gate-denied"
+            ),
+            "gate": gate,
+        })
+        if cleanup_elapsed_exception is not None:
+            qdel["cleanup_elapsed_exception"] = cleanup_elapsed_exception
+        if normalized is not None:
+            qdel["request_id"] = normalized
+        if job_name is not None:
+            qdel["job_name"] = job_name
+        if submission_dir is not None:
+            qdel["submission_dir"] = str(submission_dir)
+        return qdel
+
+    normalized: Optional[str] = None
+    try:
+        normalized = _normalize_request_id(request_id)
+        if _GATE_REQUEST_ID_RE.fullmatch(normalized) is None:
+            return denied("malformed-request-id", normalized=normalized)
+        if qstat_attempts <= 0:
+            return denied("qstat-attempt-limit-invalid", normalized=normalized)
+
+        for attempt in range(1, qstat_attempts + 1):
+            if elapsed() >= cleanup_budget_s:
+                return denied("cleanup-budget-exhausted", normalized=normalized)
+            try:
+                result = _run(
+                    run_command,
+                    ["qstat", "-f", normalized],
+                    cwd=cwd,
+                    environ=environ,
+                )
+            except BaseException as exc:
+                gate["qstat"] = {
+                    "attempted": True,
+                    "exception": f"{type(exc).__name__}: {exc}",
+                }
+                gate["qstat_attempts"].append({
+                    "attempt": attempt,
+                    **gate["qstat"],
+                })
+                return denied("qstat-exception", normalized=normalized)
+
+            classification = _classify_qstat_response(result, normalized)
+            qstat_record = {
+                "attempted": True,
+                "attempt": attempt,
+                "classification": classification,
+                **_capture(result),
+            }
+            gate["qstat"] = dict(qstat_record)
+            gate["qstat_attempts"].append(qstat_record)
+            gate["classification"] = classification
+            if elapsed() >= cleanup_budget_s:
+                return denied("cleanup-budget-exhausted", normalized=normalized)
+            if classification == "transient":
+                if attempt == qstat_attempts:
+                    return denied(
+                        "qstat-transient-retries-exhausted",
+                        normalized=normalized,
+                    )
+                if elapsed() >= cleanup_budget_s:
+                    return denied("cleanup-budget-exhausted", normalized=normalized)
+                remaining_budget = max(0.0, cleanup_budget_s - elapsed())
+                sleep(min(retry_interval_s, remaining_budget))
+                continue
+            if classification == "permission":
+                return denied("qstat-permission", normalized=normalized)
+            if classification == "success-request-absent":
+                gate["request_present"] = False
+                return denied("request-absent", normalized=normalized)
+
+            gate["request_present"] = True
+            state = _target_bound_qstat_state(result.stdout or "", normalized)
+            gate["scheduler_state"] = state or "UNKNOWN"
+            if state not in {"QUE", "HLD"}:
+                return denied(
+                    "target-state-unknown"
+                    if state is None else "state-not-cancellable",
+                    normalized=normalized,
+                )
+            if terminal_history_end:
+                return denied("terminal-history-conflict", normalized=normalized)
+            gate["allowed"] = True
+            gate["reason"] = "fresh-cancellable-snapshot"
+            break
+    except BaseException as exc:
+        gate["reason"] = "gate-exception"
+        gate["exception"] = f"{type(exc).__name__}: {exc}"
+        return denied("gate-exception", normalized=normalized)
+
+    # qdel 起動要求より前に receipt と同じ mutable record へ claim を固定する。
+    # 以後の非同期例外でも caller はこの record を失わない。
+    try:
+        pre_qdel_elapsed = elapsed()
+    except BaseException as exc:
+        gate["reason"] = "gate-exception"
+        gate["exception"] = f"{type(exc).__name__}: {exc}"
+        return denied("gate-exception", normalized=normalized)
+    qdel.update({
+        "attempted": False,
+        "request_id": normalized,
+        "cleanup_policy": _QDEL_CLEANUP_POLICY,
+        "cleanup_elapsed_s": pre_qdel_elapsed,
+        "gate": gate,
+        "job_may_remain": True,
+    })
+    _best_effort_qdel(
+        run_command,
+        request_id=normalized,
+        cwd=cwd,
+        environ=environ,
+        record=qdel,
+    )
+    qdel["job_may_remain"] = (
+        "exception" in qdel or qdel.get("returncode") != 0
+    )
+    try:
+        qdel["cleanup_elapsed_s"] = elapsed()
+    except BaseException as exc:
+        qdel["cleanup_elapsed_s"] = None
+        qdel["cleanup_elapsed_exception"] = f"{type(exc).__name__}: {exc}"
+    return qdel
+
+
+def _print_qdel_remaining_warning(
+    qdel: Mapping[str, Any],
+    *,
+    request_id: Optional[str],
+    job_name: str,
+) -> None:
+    """gate 拒否または qdel 失敗で job が残り得ることを人間へ示す。"""
+
+    if qdel.get("job_may_remain") is not True:
+        return
+    displayed = request_id if request_id is not None else job_name
+    gate = qdel.get("gate")
+    gate_reason = gate.get("reason") if isinstance(gate, Mapping) else None
+    print(
+        f"Pegasus request {displayed}: fresh qstat gate / qdel の結果、"
+        f"ジョブが残っている可能性があります (reason={gate_reason})。"
+        "ユーザー自身の端末で qstat を確認してください。",
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def _persist_receipt(
@@ -946,6 +1298,7 @@ def _dispatch_impl(
     poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     log_limit_bytes: int = DEFAULT_LOG_LIMIT_BYTES,
     immediate_qstat_attempts: int = DEFAULT_IMMEDIATE_QSTAT_ATTEMPTS,
+    cleanup_budget_s: float = DEFAULT_CLEANUP_BUDGET_S,
     run_command: CommandRunner = subprocess.run,
     clock: Clock = time.monotonic,
     sleep: Sleeper = time.sleep,
@@ -972,6 +1325,7 @@ def _dispatch_impl(
         overall_grace_s,
         accounting_grace_s,
         poll_interval_s,
+        cleanup_budget_s,
     ) < 0:
         raise ValueError("timeout / interval は負にできません")
     if poll_interval_s == 0:
@@ -1045,12 +1399,56 @@ def _dispatch_impl(
     request_was_visible = False
     run_seen = False
     run_deadline_rebased = False
+    terminal_history_end = False
+    cleanup_claimed = False
+    pending_cleanup_signal: Optional[int] = None
     stdout_record: Optional[dict[str, Any]] = None
     stderr_record: Optional[dict[str, Any]] = None
     old_handlers: dict[int, Any] = {}
 
     def abort_on_signal(signum, _frame):
+        nonlocal pending_cleanup_signal
+        if cleanup_claimed:
+            # cleanup claim 後は destructive command を再入させず、最初の
+            # signal を receipt に固定する。caller は現在の cleanup record を
+            # 永続化した直後に INFRA 終了へ明示伝播する。
+            if pending_cleanup_signal is None:
+                pending_cleanup_signal = signum
+                receipt["outcome"] = {
+                    "kind": "infra",
+                    "reason": f"_SignalAbort: signal {signum}",
+                    "rc": INFRA_RC,
+                }
+            return
         raise _SignalAbort(signum)
+
+    def claim_cleanup_once() -> dict[str, Any]:
+        nonlocal cleanup_claimed
+        if cleanup_claimed:
+            return receipt["qdel"]
+        qdel_record: dict[str, Any] = {
+            "attempted": False,
+            "cleanup_policy": _QDEL_CLEANUP_POLICY,
+            "job_may_remain": True,
+            "gate": {"reason": "cleanup-claimed"},
+        }
+        receipt["qdel"] = qdel_record
+        cleanup_claimed = True
+        return _fresh_qstat_gated_qdel(
+            run_command,
+            request_id=request_id,
+            cwd=submission_dir if submission_dir.exists() else root,
+            environ=command_env,
+            qstat_attempts=immediate_qstat_attempts,
+            cleanup_budget_s=cleanup_budget_s,
+            retry_interval_s=poll_interval_s,
+            terminal_history_end=terminal_history_end,
+            clock=clock,
+            sleep=sleep,
+            job_name=job_name,
+            submission_dir=submission_dir,
+            record=qdel_record,
+        )
 
     for signum in (signal.SIGINT, signal.SIGTERM):
         try:
@@ -1089,7 +1487,8 @@ def _dispatch_impl(
         )
         if qsub.returncode == 0:
             # qsub 成功を観測した瞬間から cleanup 対象。receipt capture 中の
-            # SIGINT/SIGTERM でも discovery + qdel を通す。
+            # SIGINT/SIGTERM でも discovery + fresh-qstat gate を通し、
+            # 直前 snapshot が許可した場合だけ qdel を要求する。
             active = True
         receipt["qsub"] = _capture(qsub)
         if qsub.returncode != 0:
@@ -1099,6 +1498,8 @@ def _dispatch_impl(
         normalized_id = _normalize_request_id(request_id)
         receipt["request_id"] = request_id
         receipt["normalized_request_id"] = normalized_id
+        if _GATE_REQUEST_ID_RE.fullmatch(normalized_id) is None:
+            raise DispatchError("malformed-request-id")
         _progress(f"request ID {normalized_id} を受理しました")
 
         immediate_attempt_records: list[dict[str, Any]] = []
@@ -1140,12 +1541,7 @@ def _dispatch_impl(
         if permission_error is not None:
             reason = "qstat-permission-or-ownership-error"
             receipt["outcome"] = {"kind": "f47", "reason": reason, "rc": INFRA_RC}
-            receipt["qdel"] = _best_effort_qdel(
-                run_command,
-                request_id=request_id,
-                cwd=submission_dir if submission_dir.exists() else root,
-                environ=command_env,
-            )
+            receipt["qdel"] = claim_cleanup_once()
             active = False
             latched = _latch_submission_disabled(
                 root,
@@ -1154,19 +1550,19 @@ def _dispatch_impl(
                 request_id=request_id,
             )
             _persist_receipt(submission_dir, root, receipt)
+            if pending_cleanup_signal is not None:
+                return INFRA_RC
             _print_terminal_handoff(latched, reason)
+            _print_qdel_remaining_warning(
+                receipt["qdel"], request_id=request_id, job_name=job_name,
+            )
             return INFRA_RC
         if visible is None:
             raise DispatchError("immediate-qstat-unavailable-after-retries")
         if qstat_succeeded_without_request:
             reason = "qstat-success-request-not-visible"
             receipt["outcome"] = {"kind": "f47", "reason": reason, "rc": INFRA_RC}
-            receipt["qdel"] = _best_effort_qdel(
-                run_command,
-                request_id=request_id,
-                cwd=submission_dir if submission_dir.exists() else root,
-                environ=command_env,
-            )
+            receipt["qdel"] = claim_cleanup_once()
             active = False
             latched = _latch_submission_disabled(
                 root,
@@ -1175,7 +1571,12 @@ def _dispatch_impl(
                 request_id=request_id,
             )
             _persist_receipt(submission_dir, root, receipt)
+            if pending_cleanup_signal is not None:
+                return INFRA_RC
             _print_terminal_handoff(latched, reason)
+            _print_qdel_remaining_warning(
+                receipt["qdel"], request_id=request_id, job_name=job_name,
+            )
             return INFRA_RC
 
         current = visible
@@ -1208,6 +1609,7 @@ def _dispatch_impl(
                 announced_state = shown_state
             if state == "END":
                 terminal_at = now
+                terminal_history_end = True
                 receipt["terminal_reason"] = (
                     "request-disappeared-after-visibility"
                     if request_absent else "scheduler-end-state"
@@ -1297,12 +1699,7 @@ def _dispatch_impl(
                         "reason": reason,
                         "rc": INFRA_RC,
                     }
-                    receipt["qdel"] = _best_effort_qdel(
-                        run_command,
-                        request_id=request_id,
-                        cwd=submission_dir if submission_dir.exists() else root,
-                        environ=command_env,
-                    )
+                    receipt["qdel"] = claim_cleanup_once()
                     active = False
                     latched = _latch_submission_disabled(
                         root,
@@ -1311,7 +1708,14 @@ def _dispatch_impl(
                         request_id=request_id,
                     )
                     _persist_receipt(submission_dir, root, receipt)
+                    if pending_cleanup_signal is not None:
+                        return INFRA_RC
                     _print_terminal_handoff(latched, reason)
+                    _print_qdel_remaining_warning(
+                        receipt["qdel"],
+                        request_id=request_id,
+                        job_name=job_name,
+                    )
                     _relay_scheduler_logs(
                         stdout_record,
                         stderr_record,
@@ -1386,26 +1790,23 @@ def _dispatch_impl(
                 if discovered is not None:
                     request_id = discovered
                     receipt["request_id"] = discovered
-                    receipt["normalized_request_id"] = _normalize_request_id(discovered)
-            if request_id is not None:
-                receipt["qdel"] = _best_effort_qdel(
-                    run_command,
-                    request_id=request_id,
-                    cwd=submission_dir if submission_dir.exists() else root,
-                    environ=command_env,
-                )
-            else:
-                receipt["qdel"] = {
-                    "attempted": False,
-                    "reason": "qsub accepted but request ID discovery failed",
-                    "job_name": job_name,
-                    "submission_dir": str(submission_dir),
-                }
+                    try:
+                        receipt["normalized_request_id"] = (
+                            _normalize_request_id(discovered)
+                        )
+                    except DispatchError:
+                        pass
+            receipt["qdel"] = claim_cleanup_once()
         _persist_receipt(submission_dir, root, receipt)
+        if pending_cleanup_signal is not None:
+            return INFRA_RC
         print(
             f"Pegasus dispatch infrastructure failure: {exc}",
             file=sys.stderr,
             flush=True,
+        )
+        _print_qdel_remaining_warning(
+            receipt["qdel"], request_id=request_id, job_name=job_name,
         )
         _relay_scheduler_logs(
             stdout_record,
@@ -1436,6 +1837,7 @@ def dispatch(
     poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     log_limit_bytes: int = DEFAULT_LOG_LIMIT_BYTES,
     immediate_qstat_attempts: int = DEFAULT_IMMEDIATE_QSTAT_ATTEMPTS,
+    cleanup_budget_s: float = DEFAULT_CLEANUP_BUDGET_S,
     run_command: CommandRunner = subprocess.run,
     clock: Clock = time.monotonic,
     sleep: Sleeper = time.sleep,
@@ -1467,6 +1869,7 @@ def dispatch(
             poll_interval_s=poll_interval_s,
             log_limit_bytes=log_limit_bytes,
             immediate_qstat_attempts=immediate_qstat_attempts,
+            cleanup_budget_s=cleanup_budget_s,
             run_command=run_command,
             clock=clock,
             sleep=sleep,

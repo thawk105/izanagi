@@ -58,13 +58,33 @@ title: [T-287] checkpoint 復元境界の whiteboard 3 値を閉じた値域で�
   `check_docs.py` rc=0、provenance full 監査 rc=0。codex 実装子は Pegasus ログインノード規律に従い
   pytest を実走せず、緑の主張もしなかった (実測はすべて親)
 
-- **段 9 の land は行えなかった。local main 自体が赤である ({{F:nonutf8-evidence-blob-lands-red}})。**
+- **既知赤 waiver W1 をユーザー裁定で新設し、それを適用して land した。**
+  下記の main 由来の赤 1 件だけは land を止めない。**並行セッションも同じ条件でだけ適用してよい。**
+  - **対象は 1 node のみ**:
+    `orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  - **原因の同一性検査 (毎回やる)**: `python3 tools/ruleops.py inventory --repo .` が rc=2 で、
+    出力が `blob が非 UTF-8:` を含み、指す path が `output/insights/**/evidence/**` 配下であること
+  - **帰属検査 (毎回やる)**: 自 wave の差分がその path に触れていないこと
+    (`git diff --name-only <base main>..<wave tip>` に該当なし)
+  - **他の赤が 1 件でもあれば waiver は適用せず `DW-STOP` に従って停止する。**
+    「赤が 1 件だから通す」ではなく「この node のこの原因だから通す」である
+  - **失効条件**: [T-407] が land した時点で自動失効。以後この waiver を使ってはならない
+  - **記録義務**: waiver を使って land した wave は、worklog に「waiver W1 適用」と
+    受入全走の実測値 (passed / failed / skipped と赤 node 名) を必ず書く
+  - **射程**: これは docs・道具の衛生 gate に対する免除であり、**CC 合成の正しさ防壁
+    (verifier / diff 検疫 / 凍結成果物 / proof chain) には一切適用しない**。
+    それらが赤なら waiver の有無に関わらず停止する (規律 2)
+  - ユーザー裁定の理由 (逐語要旨): 「これ、今修正中なわけだからこれだけは赤でもいいよって記録を
+    つけて main land しちゃっていいのでは。そして後続する並行セッションもそれをみてそれだけなら
+    land 可能なようにしてほしい。並行してその赤は緑になるように作業しているわけですから」
+- **waiver 新設の経緯 — local main 自体が赤だった ({{F:nonutf8-evidence-blob-lands-red}})。**
   最終 tip での受入全走が 1 件赤になり (5392 passed / 1 failed / 19 skipped)、`DW-O18` の単独再走で
   決定的に再現した。赤は `tools/ruleops.py inventory` が非 UTF-8 の証跡 blob
   (`output/insights/2026-08-03_t361-t362-cluster-probes/evidence/.../home-read-write.probe.raw`) で
   rc=2 になるもので、**本 wave の差分に 1 件も含まれず main 側に既に存在した**。
   main のチェックアウトで直接実行しても同じ rc=2 を実測した。`DW-STOP` は「検査が赤なら
-  該当段へ進まず停止する」と定めるので land せず、3 commit を wave branch に残して停止した。
+  該当段へ進まず停止する」と定めるので**親は一度 land せずに停止し**、ユーザーへ返した。
+  その裁定として上記 waiver W1 が新設され、条件を満たすことを確認して land した。
   **この赤は既に [T-407] として起票済みであり、本 wave は新規タスクを重複起票しない。**
   ただし [T-407] は P2 で登録されている一方、**実測では全 wave の land を塞ぐ**
   (受入全走が緑にならないため `DW-STOP` が必ず発火する)。優先度の再評価が要る。
