@@ -192,3 +192,11 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:auditor-nits-producer-schema":"[T-466]","T:epoch-budget-rule":"[T-463]","T:machine-materializer-emitter":"[T-464]","T:provenance-automerge-rule":"[T-467]","T:report-binding-receipt":"[T-462]","T:s8b-duplicate-key-disclosure":"[T-465]","T:source-evidence-aba-snapshot":"[T-460]","T:trigger-crash-resume-topology":"[T-459]","T:trigger-witness-table":"[T-461]"},"authored":"2026-08-04","content_sha256":"de0a247032b63817d0841e14684d48eb85ebb575cc10d7aa5b2783bb0e2e00a6","seq":1,"wave":"dev-wave-t428-reflux-wiring"}
 - {"allocations":{"D:trigger-wire-only-acceptance":"D160"},"authored":"2026-08-04","content_sha256":"d51f5b458ee0dd9d861711c4cd62a1f00f18346931a258a25a6ba158108c4d06","seq":1,"wave":"dev-wave-t428-reflux-wiring"}
+
+- {"allocations":{"T:trial-acceptance-wiring":"[T-470]","T:trial-launch-ledger":"[T-469]","T:trial-registry-authority":"[T-468]"},"authored":"2026-08-04","content_sha256":"fc39a9c35ffc12f04ced2b1c21f873fd39a6bc7638457d5f64bc90e20bca59ec","seq":1,"wave":"dev-wave-t325-trial-registry"}
+
+- {"allocations":{"T:restore-bound-measurement":"[T-471]"},"authored":"2026-08-04","content_sha256":"10af71f6dbbf70339f6efc48b7c0ed4bdb54c7e2ece307a26b10b80fedf6ef67","seq":1,"wave":"dev-wave-t399-t400-signal-mitigation"}
+- {"allocations":{"D:probe-evidence-three-way-split":"D161"},"authored":"2026-08-04","content_sha256":"fbb7ddd12bc4314ee8d86d309a3c32ed0e95cd296dfcab651d251436467d82c7","seq":2,"wave":"dev-wave-t399-t400-signal-mitigation"}
+
+- {"allocations":{"F:single-tenancy-unreachable-on-compute-node":"F110","F:unreadable-diagnostic-treated-as-fatal":"F111"},"authored":"2026-08-05","content_sha256":"5d6e5a3d283eb355cbd237d4f8f37a71e6c6f18dc8d0988f77abd121fbd72002","seq":1,"wave":"dev-wave-t419-probe-experiment"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"5d6d507d70a0b911baa4996561df5e41984a7e4b26479eed9842709e79ee357a","seq":2,"wave":"dev-wave-t419-probe-experiment"}

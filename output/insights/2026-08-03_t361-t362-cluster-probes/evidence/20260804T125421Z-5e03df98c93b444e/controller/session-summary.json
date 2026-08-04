@@ -1,0 +1,85 @@
+{
+  "all_legs_have_authoritative_attempt": false,
+  "all_target_legs_have_authoritative_attempt": false,
+  "attempts_by_leg": {
+    "t362-mitigation": [
+      {
+        "accounting_available": false,
+        "admissible": false,
+        "attempt_id": "20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9",
+        "attempt_safe": null,
+        "observation_valid": false,
+        "request_id": "887918.nqsv",
+        "request_ordinal": 3,
+        "retry_reason": null
+      }
+    ],
+    "t362-split-warning": [
+      {
+        "accounting_available": false,
+        "admissible": false,
+        "attempt_id": "20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+        "attempt_safe": false,
+        "observation_valid": false,
+        "request_id": "887919.nqsv",
+        "request_ordinal": 4,
+        "retry_reason": null
+      }
+    ]
+  },
+  "authoritative_attempts": {},
+  "cumulative_requested_node_min": 19,
+  "final_budget": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 2,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-after-wave",
+    "remaining_point_raw": "306.27",
+    "returncode": 0
+  },
+  "final_rbudgetcheck_rc_zero": true,
+  "initial_budget": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 1,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-before-controller-session",
+    "remaining_point_raw": "313.97",
+    "returncode": 0
+  },
+  "initial_four_point_gate": {
+    "reason": "signal-only retries are bounded by the preregistered per-leg cap",
+    "stop_before_retry": false,
+    "valid": true
+  },
+  "permanent_stop": false,
+  "request_count": 4,
+  "request_limit": 6,
+  "requested_node_min_limit": 40,
+  "schema": "izanagi-t361-t362-controller/v1",
+  "session_finished_time_ns": 1785851871500433497,
+  "session_id": "20260804T125421Z-5e03df98c93b444e",
+  "session_initial_budget": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 1,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-before-controller-session",
+    "remaining_point_raw": "307.72",
+    "returncode": 0
+  },
+  "session_started_time_ns": 1785848061382541926,
+  "signal_legs_only": true,
+  "target_leg_keys": [
+    "t362-mitigation",
+    "t362-split-warning"
+  ],
+  "transaction_complete": false,
+  "verdict_note": "Authority is the first split-v2 observation_valid && terminal_proven attempt (or an already-selected legacy true). Safety remains a separate scalar.",
+  "wave_budget_delta": {
+    "after_remaining_point_raw": "306.27",
+    "before_remaining_point_raw": "313.97",
+    "budget_identity_raw": "SFC",
+    "decrease_point_raw": "7.70",
+    "point_conversion": "UNDETERMINED",
+    "valid": true
+  }
+}

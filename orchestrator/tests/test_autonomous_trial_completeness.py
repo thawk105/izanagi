@@ -1732,5 +1732,23 @@ def test_direct_cli_starts_with_clean_pythonpath(tmp_path) -> None:
     assert proc.returncode == 0, proc.stderr
 
 
+@pytest.mark.parametrize("run_start_has_fields", [False, True])
+def test_t325_optional_commit_fields_preserve_existing_completeness_acceptance(
+    tmp_path, run_start_has_fields,
+) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    commit_fields = {
+        "prereg_commit": "fixture-prereg-commit",
+        "measurement_head": "fixture-measurement-head",
+        "manifest_sha256": "fixture-manifest-sha256",
+    }
+    report.update(commit_fields)
+    if run_start_has_fields:
+        events[0].update(commit_fields)
+    _persist(run, events, report)
+
+    _verify(run, report)
+
+
 if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard
     raise SystemExit(pytest.main([__file__, "-x"]))

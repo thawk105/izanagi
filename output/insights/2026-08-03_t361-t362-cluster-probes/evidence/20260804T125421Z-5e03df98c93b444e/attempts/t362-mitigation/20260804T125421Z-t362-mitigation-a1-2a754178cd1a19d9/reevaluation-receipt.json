@@ -1,0 +1,16 @@
+{
+  "attempt_result_sha256_after": "99d459b61e354c0451e09835d44344061def3b9eb70323347d5691e4d32fdb3c",
+  "attempt_result_sha256_before": "403920521077d1c2dfceb2f300d52930e7aada69aa759ee673925d16d2147a67",
+  "evaluator_tool_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+  "evaluator_tool_sha256": "20d4f6353c2d71c1459790ec1f4464cd13f8fec4bd828042ff17a6daa97fe5a2",
+  "kind": "deterministic-split-v2-staged-evidence-reevaluation",
+  "qsub_submitted": false,
+  "reevaluated_time_ns": 1785859635226187010,
+  "schema": "izanagi-t361-t362-controller-reevaluation/v1",
+  "staged_tracking_receipt_sha256": "9b9c869c7ddffd1be773e7b34fe105ab00301054d6acce47c7bb50f09ddf0d31",
+  "target_attempt_id": "20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9",
+  "target_leg": "t362-mitigation",
+  "target_request_id": "887918.nqsv",
+  "validated_raw_file_count": 1512,
+  "validated_staged_file_count": 1537
+}
