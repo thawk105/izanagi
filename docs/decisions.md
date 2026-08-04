@@ -7738,3 +7738,31 @@ pin の更新はしない。
   再取得の道が塞がる前に proof chain の参照が壊れる。producer 側だけを狭める形を採った。
 - **`tolerance_pct` の権威束縛をこの wave で決める** — 権威の出所 (policy 値か smoke 分布か) は
   設計択一であり、再登録前の blocker として裁定へ返す。
+
+## D156. P6 の「実装済み」認定に意味的充足契約 v1 を採用する (2026-08-04)
+
+**決定:** D150 決定 (6)(a) が空白にしていた P6 の「実装済み」認定基準として、
+`output/insights/2026-08-04_t433-p6-sufficiency-contract/README.md` の意味的充足契約 v1 を
+採用する (2026-08-04 ユーザー裁定、起草 wave の推奨どおり)。コア要件は (1) admission 結線まで
+含めた end-to-end calibration、(2) conjunct 単位の反転変異と検査者選択権、(3) 監査可能な
+独立検査者 attestation、(4) 認定記録と失効照合。付帯裁定 3 件も同時に確定した —
+V1 (`NOT_CLAIMED` の射程) は精密化 (a′): 判定は cap-lift 申請単位で行い receipt に束縛、
+run 側の義務は receipt との conformance、`NOT_CLAIMED` は standing な global 免責にしない
+(「主張しない構成に多世代を許すか」は許す側)。adapter の充足要件は各 adapter に最低 1 個の
+`P6Derived` 正例。calibration の新鮮性は固定 corpus + 検査者生成の hidden case。
+
+**理由:**
+
+- 正負 calibration の具体反例・非空の限界効果を示す変異・独立検査者を要求しない限り、
+  空 handler と恒真 assert が認定列挙を満たす (起草 wave の敵対 2 レンズ 18 所見を全採用した案)
+- 規範上の受理集合は「基準不在の保留」から「基準付き認定」へ狭まる。境界テストを含む機械実装は
+  P6 実装 wave と cap-lift receipt 設計の所有であり、本決定は規範の発効のみを行う
+  (発効した契約が実装なしで「充足」を名乗る経路は、契約自身の認定記録要件が塞ぐ)
+
+**却下した選択肢:**
+
+- run 単位の global 判定 (素朴な択 (a)) — run の量化が未定義で判定可能でない
+- `NOT_CLAIMED` 構成に多世代を許さない (択 (b)) — 免責の唯一の用途が消え、
+  D150 決定 (6)(b) の語彙が実質空になる
+- 「counter を見たら一律エラー」の adapter を実装済みと認める — 恒真検査の温床になる
+- 固定 corpus のみの calibration — 固定入力の暗記を実装と認定してしまう
