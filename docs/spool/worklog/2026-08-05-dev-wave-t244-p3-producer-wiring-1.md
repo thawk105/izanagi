@@ -33,8 +33,12 @@ title: [T-244] P3 producer 結線は実装を止めた — prototype が product
   pilot の ycsb-a/b/c しか回せず正式 holdout を回せない) は実ファイルで確認して real とした。
 - **ユーザー裁定へ返す 5 件**を裁定パッケージにまとめた (下記「次の一手」参照)。互いに独立でなく、
   origin authority の実体化の帰結が bootstrap 契約と結線先の形を決める。
+- **親の手順逸脱を 1 件記録する** — 段 2 の子を段 1 前提実測の完了前に投入した (`DW-S01` の
+  「未確認で子を起動しない」に反する)。実害ゼロ (子は独立に同じ閉塞点を発見し、段 3 の 2 レンズは
+  M9〜M11 を含む同一の最新 brief を読んでいる)。段 8 は既存命令が誤っていたのではないと裁定し、
+  単発ゆえ `DW-G03` に従って新しい F も contract 変更も起こさなかった。
 - 逐語の正本 = `output/insights/2026-08-05_t244-p3-producer-wiring/`
-  (brief / s2-plan / s3-lensA / s3-lensB / s4-adjudication)。
+  (brief / s2-plan / s3-lensA / s3-lensB / s4-adjudication / s8-self-improvement)。
 
 ## 次の一手差分
 
