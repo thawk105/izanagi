@@ -141,3 +141,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:ruleops-git-stderr-strict":"[T-439]","T:ruleops-inventory-mutation-matrix":"[T-437]","T:ruleops-realrepo-xdist-group":"[T-438]","T:ruleops-test-candidate-decode":"[T-440]"},"authored":"2026-08-04","content_sha256":"e12e87683a0ebb01067fd1eb798b703abf7cd09cd3359bded3c5e38c4aa1b698","seq":1,"wave":"wave-t407-ruleops-binary-blob"}
 - {"allocations":{"D:ruleops-inventory-skip-non-utf8":"D151"},"authored":"2026-08-04","content_sha256":"92d3837a96138ccf9cd0e2709b681aed0607c8a234f030c714fa6873cee2bf8f","seq":2,"wave":"wave-t407-ruleops-binary-blob"}
+
+- {"allocations":{"T:backoff-hole-allowlist":"[T-441]","T:freeze-live-source-regression":"[T-442]"},"authored":"2026-08-04","content_sha256":"db2f98d99c889d8d064f06d23867551b75e4aba387728b9833b5be7f889501d6","seq":1,"wave":"rulings-20260804"}
