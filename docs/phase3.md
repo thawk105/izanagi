@@ -735,7 +735,7 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 
 ### T-180 が返した裁定パッケージ (P3)
 
-- [T-186] **P3: resource envelope の残余 3 件** — (a) manifest の seal ceremony と
+- [T-186] **P3: resource envelope の残余 3 件** — (a) manifest の seal ceremony と 2026-08-04 ユーザー裁定: 8c 正式実験の着手時に再評価する条件付き見送り。(a) seal ceremony は P3+P4 実装 wave の receipt 設計入力に含める。
   foreign entry 後追記の検出 (現行 membership は部分集合検査であり、receipt 発行後に
   同 wave_id へ entry を足せる)、(b) `setsid()` で process group を逃れた子の完全封じ込め
   (cgroup / bwrap。現行は残存を receipt に記録するのみ)、(c) stdout / artifact bytes の上限
