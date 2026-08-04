@@ -575,6 +575,10 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-087] post-seal FROZEN_MANIFEST 23 件と恒久設計 12 件の未整合 — 理由: 恒久形 (D75 W-e) の実装時に暫定 pin を撤去して再整合すると記録済みで、それまで発火しない。
 - [T-082] 全 caller の移行 — 理由: (10) の裁定で公式 consumer の必要分は充足済み、残りは 1 cycle 後と決まった。
 
+- [T-461] mask と predicate_sha256 の連動改変を検出する 32 点凍結 witness 表 — 理由: 2026-08-05
+  ユーザー裁定 (択 (b))。現状は D160 が「検出しない」ことを正直に非主張として記録しており、
+  防壁を緩めるものではない。**正式実験で trigger 軸が certified 選択に入る時に再評価する**
+
 ### 研究・計測系
 
 - [T-021] **balanced での backoff profile 対照** (B-011, 出所 `docs/phase3.md`) — balanced を凍結機序 profile に含め qualifying rr50 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
