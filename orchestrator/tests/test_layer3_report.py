@@ -14,7 +14,7 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
-from campaign import layer3_report, model  # noqa: E402
+from campaign import layer3_report, model, trigger_gate_binding, wal  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
@@ -138,6 +138,96 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     (root / "runs/wal.jsonl").write_text(
         "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
     return root, output_root
+
+
+def test_trigger_build_start_commitment_survives_report_projection_without_raw_mask():
+    commitment = "c" * 64
+    records = [{
+        "variant": "trigger-v",
+        "stage": "build_start",
+        "env_tag": "test",
+        "ts": 1.0,
+        "payload": {
+            "genome": "silo|BACK_OFF=1",
+            "src_token": "stock",
+            "trigger_gate_binding_commitment": commitment,
+        },
+    }]
+    rows = layer3_report._variant_rows(records)
+    assert rows[0]["events"][0]["payload"][
+        "trigger_gate_binding_commitment"
+    ] == commitment
+    rendered = json.dumps(rows, sort_keys=True)
+    assert '"mask"' not in rendered
+    assert '"trigger_gate_binding"' not in rendered
+
+
+def test_trigger_campaign_report_keeps_commitment_and_excludes_raw_binding(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [
+            _record("build_start", genome="fixture|", src_token="stock"),
+            _record("abort", reason="fixture-abort"),
+        ],
+    )
+    lock_path = campaign / "campaign.lock"
+    lock = json.loads(lock_path.read_text())
+    lock["search_config"].update({
+        "axis": wal.TRIGGER_AXIS,
+        "reflux": "on",
+        wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY: trigger_gate_binding.SCHEMA_VERSION,
+    })
+    lock_path.write_text(json.dumps(lock), encoding="utf-8")
+
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    start = next(record for record in records if record["stage"] == "build_start")
+    source = start["payload"]["build_admission"]["source"]
+    binding = trigger_gate_binding.TriggerGateBinding(
+        mask=4,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(4),
+        nonce="4" * 64,
+        source=trigger_gate_binding.SourceBinding(
+            src_token=source["src_token"],
+            source_bytes_sha256=source["source_bytes_sha256"],
+        ),
+    )
+    start["payload"][wal.TRIGGER_BINDING_COMMITMENT_KEY] = \
+        trigger_gate_binding.commitment(binding)
+    raw = {
+        "variant": start["variant"],
+        "stage": trigger_gate_binding.WAL_RECORD_STAGE,
+        "env_tag": start["env_tag"],
+        "ts": start["ts"] - 0.5,
+        "payload": {
+            "build_attempt_id": start["payload"]["build_attempt_id"],
+            wal.TRIGGER_BINDING_PAYLOAD_KEY: trigger_gate_binding.to_record(binding),
+        },
+    }
+    records.insert(records.index(start), raw)
+    wal_path.write_text(
+        "".join(json.dumps(record) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    reports = campaign / "reports"
+    reports.mkdir(exist_ok=True)
+    (reports / "p3_s8a_trigger_loop_provenance.json").write_text(json.dumps({
+        "entries": {
+            "1": {
+                "variant": start["variant"],
+                wal.TRIGGER_BINDING_COMMITMENT_KEY:
+                    start["payload"][wal.TRIGGER_BINDING_COMMITMENT_KEY],
+            },
+        },
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    rendered = json.dumps(report, sort_keys=True)
+    assert start["payload"][wal.TRIGGER_BINDING_COMMITMENT_KEY] in rendered
+    assert '"trigger_gate_binding"' not in rendered
+    assert '"mask"' not in rendered
 
 
 def _record(stage, variant="v1", **payload):

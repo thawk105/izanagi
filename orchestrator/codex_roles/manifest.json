@@ -926,7 +926,7 @@
             "type": "object",
             "required": [
               "axis",
-              "implementation",
+              "wire",
               "justification",
               "confidence"
             ],
@@ -937,8 +937,9 @@
                   "silo-backoff-trigger-gating"
                 ]
               },
-              "implementation": {
-                "type": "string"
+              "wire": {
+                "type": "string",
+                "pattern": "^[01]{5}$"
               },
               "justification": {
                 "type": "string"
@@ -958,7 +959,7 @@
         "additionalProperties": false
       },
       "consumer": null,
-      "projection_instructions": "本ループの射影入力とgating specからabort要因別backoff gateの代入式1行を合成する。kUnsetは必ずbackoffし、禁止識別子、副作用、外部勝ち筋や未評価性能を使わない。"
+      "projection_instructions": "本ループの射影入力とgating specからabort要因別backoff gateの5文字のwireを合成する。左からLSB-firstで、bit 0はlock-conflict、bit 1はupdate-absent、bit 2はreadvali-tid、bit 3はreadvali-locked、bit 4はnode-vali。各文字は0または1だけで、1はその要因でbackoffする、0はbackoffをskipする。kUnsetはemitter専権でありcoderはbitやC++を出力しない。外部勝ち筋や未評価性能を使わない。"
     },
     "critic": {
       "claude": {

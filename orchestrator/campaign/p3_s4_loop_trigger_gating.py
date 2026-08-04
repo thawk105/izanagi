@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """P3 段 8a E 段 driver — silo-backoff-trigger-gating 軸の coder 自律ループ機械部分。
 
-`p3_s4_loop_sort.py` (D43) を型とする兄弟 driver (コード片軸 2 軸目)。設計は 3 レンズ
+`p3_s4_loop_sort.py` (D43) を型とする兄弟 driver。設計は 3 レンズ
 敵対レビュー (リーク制御/fails-closed/regression、2026-07-12) の裁定反映済み — 裁定の
 正本は D51 + insight `output/insights/2026-07-12_s8a-stage-e-design-review.md`。
 
@@ -12,13 +12,9 @@ sort 版との構造差 (新テンプレの形):
     import) の逆転が完成する (D48 必須条件 5、axis-onboarding §1 脚注)。
   - auditor 機械 gate の軸非依存部品は `campaign.auditor_gate` を使う (共有昇格)。
   - hole は骨格の述語代入 1 行 (`izanagi_gate_pass = <述語>;`、D49 決定 2)。coder 出力は
-    `CoderProposalTriggerGating` (value なし — コード片軸)。
-  - **構文契約の禁止識別子 grep** (`SYNTAX_CONTRACT_FORBIDDEN`) を pre-build 検査に追加。
-    執行の役割分担 (レビュー FC-8 裁定): リスト上の識別子は本 grep が機械執行する
-    hard gate (fails-closed、subtype="syntax-contract")。auditor 目視はその超集合
-    (リストに載らない意味的違反 — 恒真述語・fairness 誘導等) を執行し、**grep 緑は
-    auditor 目視義務を免除しない** (runbook §2)。grep は識別子境界 (\\b 前置) 付き
-    部分一致 — コメント内等の過検出は安全側 (reject) として許容する。
+    `CoderProposalTriggerGating` の固定 5-bit wire (value なし)。
+  - 構文契約 grep は受理 gate ではなく、凍結 emitter 出力の内部 drift assertion。
+    coder 由来 C++ は materialize 経路へ存在せず、auditor は正準述語の diff だけを見る。
   - **provenance 情報源記録の受け皿** (D46 (a) のループ版、07-11 監査 L4-1 の宿主確定):
     `<campaign root>/reports/p3_s8a_trigger_loop_provenance.json`。詳細は
     `_write_provenance_header` / `_append_provenance_entry` の docstring。記録は
@@ -71,10 +67,19 @@ from campaign.model import CampaignConfig, Genome                  # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 from campaign.projection_guard import (                            # noqa: E402
+    CODER_CONTRACT_TRIGGER_WIRE,
     assert_closed_proposal_schema,
     assert_no_ability_probe_material,
 )
-from critic.digest import DIFF_QUARANTINE_REASON                   # noqa: E402
+from campaign.reflux_ir import emit_predicate, parse_wire          # noqa: E402
+from campaign.trigger_gate_binding import (                        # noqa: E402
+    SCHEMA_VERSION as TRIGGER_GATE_BINDING_SCHEMA,
+    WAL_RECORD_STAGE as TRIGGER_GATE_BINDING_WAL_STAGE,
+    TriggerGateBinding,
+    commitment,
+    expected_predicate_sha256,
+    new_nonce,
+)
 
 # ---- campaign 定数 (軸定数は axis_trigger_gating が正本 — ここは環境・計測の定数のみ) ----
 ENV_TAG = "linux-baremetal"
@@ -98,45 +103,33 @@ LIVENESS_BINARY = "alive"
 
 # ==== 提案の型 (LLM 出力) =======================================================
 
-@dataclass
+@dataclass(frozen=True)
 class CoderProposalTriggerGating:
-    """coder-v4-autonomous-trigger-gating の出力 (gate 述語の代入式 1 行。value
-    フィールドは無い — コード片軸、D48/D49)。`strategy_summary` 相当の一言要約も
+    """coder-v4-autonomous-trigger-gating の固定 5-bit wire 出力。value
+    フィールドは無い。`strategy_summary` 相当の一言要約も
     持たせない (具体戦略の例示リーク、D43 の反省を継承)。"""
     axis: str
-    implementation: str               # hole (述語代入 1 行) を置換する文字列
+    wire: str
     justification: str = ""
     confidence: str = "medium"
 
+    def __post_init__(self) -> None:
+        parse_wire(self.wire)
+        if self.axis != MARKER_ID:
+            raise ValueError("coder axis が trigger-gating でない")
 
-# ==== 構文契約の禁止識別子 grep (D48 決定 2 の機械執行部分) ======================
+
+# ==== trusted emitter の内部 drift assertion ===================================
 
 _FORBIDDEN_RE = re.compile("|".join(r"\b" + re.escape(t)
                                     for t in SYNTAX_CONTRACT_FORBIDDEN))
 
 
-def check_syntax_contract(implementation: str) -> List[str]:
-    """implementation 中の禁止識別子 (SYNTAX_CONTRACT_FORBIDDEN) を列挙する。
+def check_syntax_contract(predicate: str) -> List[str]:
+    """trusted emitter 出力の内部 drift を検査する。
 
-    空リスト = 違反なし。マッチは識別子境界 (\\b) 前置の部分一致 — コメント内や
-    合成語 (write_set_foo) への過検出は安全側 (reject 方向) として許容する
-    (レビュー FC-N1 裁定)。"""
-    return sorted({m.group(0) for m in _FORBIDDEN_RE.finditer(implementation)})
-
-
-def _syntax_contract_reject_result(matched: Sequence[str]) -> DiffQuarantineResult:
-    """禁止識別子 reject を diff-quarantine 経路に相乗りさせる合成結果。
-
-    evidence にはマッチした識別子名**のみ**を載せ、coder の gate 式本文は載せない —
-    reject は render_rejections 経由で critic に還流するため、式本文 (coder の要因
-    部分集合の推測) を運ばない (リークレンズ nit 裁定)。"""
-    reason = (f"構文契約違反: 禁止識別子 {', '.join(matched)} を参照 — 述語が読めるのは"
-              f"要因 enum とコンパイル時定数のみ (D48 決定 2)")
-    return DiffQuarantineResult(
-        passed=False, reason=reason,
-        digest={"rejection_type": DIFF_QUARANTINE_REASON, "subtype": "syntax-contract",
-                "reason": reason, "diff_region": SOURCE_REL, "template_diff_id": MARKER_ID,
-                "evidence": f"forbidden={list(matched)}"})
+    候補の受理 gate ではない。発火時は caller 入力を含めない固定文言で停止する。"""
+    return sorted({m.group(0) for m in _FORBIDDEN_RE.finditer(predicate)})
 
 
 # ==== provenance 情報源記録 (D46 (a) のループ版、07-11 監査 L4-1 の宿主) ==========
@@ -284,7 +277,7 @@ def _append_provenance_entry(layout: CampaignLayout, iteration: int,
     _write_provenance(layout, prov)
 
 
-# ==== diff 検疫 + 構文契約 grep + auditor gate ==================================
+# ==== wire materialize + diff 検疫 + auditor gate ==============================
 
 def _site_admits_measurement(site: str) -> bool:
     """計測を許す既知 site の exact set。未知値は fail-closed。"""
@@ -347,11 +340,13 @@ def _receipt_provenance(
 
 
 def _record_diff_reject_admitted(layout: CampaignLayout, genome: Genome,
-                                 implementation: str,
+                                 predicate: str,
                                  res: DiffQuarantineResult,
-                                 contract: env_contract.ExecutionEnvironmentContract) -> str:
+                                 contract: env_contract.ExecutionEnvironmentContract,
+                                 binding: TriggerGateBinding) -> str:
     return L.record_diff_reject(
-        layout, genome, implementation, res, env_tag=contract.env_tag
+        layout, genome, predicate, res, env_tag=contract.env_tag,
+        trigger_gate_binding=binding,
     )
 
 
@@ -360,30 +355,28 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
                           layout: CampaignLayout, state: L.LoopState,
                           planner: L.PlannerProposal, write: bool,
                           contract: env_contract.ExecutionEnvironmentContract,
+                          binding: TriggerGateBinding,
                           log=print) -> Optional[Dict]:
-    """hole 挿入 → diff 検疫 → 構文契約 grep → auditor gate (digest 照合 + verdict)。
+    """wire を正準述語化 → diff 検疫 → auditor gate (digest 照合 + verdict)。
     reject dict を返すか (build へ進まない)、None (通過)。
 
     **前提: 呼び出し元が既に `applied(TEMPLATE_PATCH)` 下にある。**"""
+    ir = parse_wire(coder.wire)
+    predicate = emit_predicate(ir)
+    if check_syntax_contract(predicate):
+        raise RuntimeError("canonical trigger predicate violates syntax contract")
     res, _base, _edited, working_diff = L.quarantine(
-        sub, coder.implementation, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=write)
+        sub, predicate, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=write)
     if not res.passed:
         v = _record_diff_reject_admitted(
-            layout, genome, coder.implementation, res, contract,
+            layout, genome, predicate, res, contract, binding,
         )
         L.project_whiteboard(state, planner, "rejected")
         log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
-        return {"outcome": "rejected", "variant": v, "digest": res.digest}
-
-    matched = check_syntax_contract(coder.implementation)
-    if matched:
-        sres = _syntax_contract_reject_result(matched)
-        v = _record_diff_reject_admitted(
-            layout, genome, coder.implementation, sres, contract,
-        )
-        L.project_whiteboard(state, planner, "rejected")
-        log(f"  構文契約 reject: 禁止識別子 {matched}")
-        return {"outcome": "rejected", "variant": v, "digest": sres.digest}
+        return {
+            "outcome": "rejected", "variant": v, "digest": res.digest,
+            "trigger_gate_binding_commitment": commitment(binding),
+        }
 
     assert_digest_matches(auditor, working_diff)   # 不一致 → AuditorGateFailure (共有照合コア)
 
@@ -392,12 +385,15 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
         ares = auditor_reject_result(subtype, auditor,
                                      diff_region=SOURCE_REL, template_diff_id=MARKER_ID)
         v = _record_diff_reject_admitted(
-            layout, genome, coder.implementation, ares, contract,
+            layout, genome, predicate, ares, contract, binding,
         )
         L.project_whiteboard(state, planner, "rejected")
         log(f"  auditor gate reject (verdict={auditor.verdict}): "
             f"{len(auditor.violations)} violations")
-        return {"outcome": "rejected", "variant": v, "digest": ares.digest}
+        return {
+            "outcome": "rejected", "variant": v, "digest": ares.digest,
+            "trigger_gate_binding_commitment": commitment(binding),
+        }
 
     return None
 
@@ -423,14 +419,15 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
     cfg = CampaignConfig(
         spec_slug="p3-s8a-trigger-loop", search_tag="s8a-trigger-autonomous",
         spec_content=("P3 段 8a E 段: silo-backoff-trigger-gating (abort 要因別 backoff "
-                      "gate 述語) coder 自律ループ。planner が方向 (値なし) を提案し "
-                      "coder が勝ち筋を見ずに gate 述語 (代入式 1 行) を合成、diff 検疫 + "
-                      "構文契約 grep + auditor 機械 gate を通した hole 変異のみ "
+                      "gate) coder 自律ループ。planner が方向 (値なし) を提案し "
+                      "coder が勝ち筋を見ずに固定 5-bit wire を返し、凍結 emitter の "
+                      "正準述語だけを diff 検疫 + auditor 機械 gate に通して "
                       "build/verify(legacy+S2)/bench に進む。E 段へ流す偵察由来情報は"
                       "軸の生死二値のみ (D48 条件 7)"),
         ccbench_commit=PIN,
         search_config={"scale": "silo", "axis": MARKER_ID,
                        "reflux": "on" if reflux else "off",
+                       "trigger_gate_binding_schema": TRIGGER_GATE_BINDING_SCHEMA,
                        "records": 100_000, "threads": 4,
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial="p3-s8a-trigger-loop")
@@ -472,6 +469,13 @@ def _run_one_iteration_resolved(
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     genome = Genome("silo", dict(_BASE))
+    ir = parse_wire(coder.wire)
+    binding = TriggerGateBinding(
+        ir.mask,
+        expected_predicate_sha256(ir.mask),
+        new_nonce(),
+        source=None,
+    )
     layout.ensure()
     ident.ensure_campaign_identity(
         campaign_cfg, layout, admission_policy=build_context.policy,
@@ -480,13 +484,16 @@ def _run_one_iteration_resolved(
     with applied(_template_patch_path(_repo_root()), PIN, sub):
         gate = _quarantine_and_audit(
             sub, coder, auditor, genome, layout, state, planner,
-            write=do_build, contract=contract, log=log,
+            write=do_build, contract=contract, binding=binding, log=log,
         )
         if gate is not None:
             return _with_campaign_location(gate, campaign_cfg, layout)
         if not do_build:
             return _with_campaign_location(
-                {"outcome": "dry-pass", "variant": None}, campaign_cfg, layout,
+                {
+                    "outcome": "dry-pass", "variant": None,
+                    "trigger_gate_binding_commitment": commitment(binding),
+                }, campaign_cfg, layout,
             )
         campaign_options = {}
         if resolved_site == site_policy.PEGASUS_COMPUTE:
@@ -498,6 +505,7 @@ def _run_one_iteration_resolved(
             numactl=list(contract.numactl), log=log, ccbench_dir=sub,
             cache_root=cache_root, build_context=build_context,
             campaign_namespace="exploration",
+            trigger_gate_binding=binding,
             **campaign_options,
         )
     execution_receipt = getattr(summary, "execution_receipt", None)
@@ -511,22 +519,25 @@ def _run_one_iteration_resolved(
         )
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
-        return _with_campaign_location(
-            _resolve_duplicate(layout, planner, state, summary, log=log),
-            campaign_cfg, layout,
-        )
+        duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
+        duplicate.get("records", {}).pop(TRIGGER_GATE_BINDING_WAL_STAGE, None)
+        duplicate["trigger_gate_binding_commitment"] = commitment(binding)
+        return _with_campaign_location(duplicate, campaign_cfg, layout)
     recs = wal.records_by_stage(layout, v) if v else {}
+    recs.pop(TRIGGER_GATE_BINDING_WAL_STAGE, None)
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:
         L.project_whiteboard(state, planner, "success", delta_pct=None)
         return _with_campaign_location({
             "outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
             "verdict": r.verdict, "records": recs,
+            "trigger_gate_binding_commitment": commitment(binding),
         }, campaign_cfg, layout)
     L.project_whiteboard(state, planner, "fail")
     return _with_campaign_location({
         "outcome": "aborted", "variant": v,
         "verdict": (r.verdict if r else ""), "records": recs,
+        "trigger_gate_binding_commitment": commitment(binding),
     }, campaign_cfg, layout)
 
 
@@ -575,7 +586,7 @@ def load_proposal_file(path: str) -> Tuple[L.PlannerProposal, CoderProposalTrigg
     schema は sort 版と同型 (coder に value フィールドが無い点も同じ)::
 
         {"planner": {axis, direction, magnitude, justification?, uncertainty?},
-         "coder":   {axis, implementation, justification?, confidence?},
+         "coder":   {axis, wire, justification?, confidence?},
          "auditor": {verdict, diff_digest, violations?, nits?, proposed_tests?, uncertainty?},
          "prior_critic_reverse": true|false|null}
 
@@ -584,13 +595,14 @@ def load_proposal_file(path: str) -> Tuple[L.PlannerProposal, CoderProposalTrigg
         d = json.load(f)
     assert_closed_proposal_schema(
         d, require_auditor=True, require_coder_value=False,
+        coder_contract=CODER_CONTRACT_TRIGGER_WIRE,
     )
     p, c, a = d["planner"], d["coder"], d["auditor"]
     planner = L.PlannerProposal(
         axis=p["axis"], direction=p["direction"], magnitude=p["magnitude"],
         justification=p.get("justification", ""), uncertainty=p.get("uncertainty", ""))
     coder = CoderProposalTriggerGating(
-        axis=c["axis"], implementation=c["implementation"],
+        axis=c["axis"], wire=c["wire"],
         justification=c.get("justification", ""), confidence=c.get("confidence", "medium"))
     auditor = parse_auditor_dict(a)   # verdict 未知・digest 空/非文字列 → AuditorGateFailure
     prior = d.get("prior_critic_reverse")
@@ -657,6 +669,9 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         "auditor_diff_digest": auditor.diff_digest,
         "variant": out.get("variant"),
         "outcome": out["outcome"],
+        "trigger_gate_binding_commitment": out.get(
+            "trigger_gate_binding_commitment"
+        ),
     })
     L.save_loop_state(layout, state)
 
@@ -672,16 +687,15 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
 
 # ==== CLI =======================================================================
 
-def _preview_diff(implementation_path: str, sub: str, root: str) -> Dict:
+def _preview_wire(wire: str, sub: str, root: str) -> Dict:
     """auditor へ渡す実 diff を得る (メインセッションが auditor spawn 前に呼ぶ。
     sort 版と同型)。"""
     from campaign.patchharness import applied, assert_pinned_clean
-    with open(implementation_path, encoding="utf-8") as f:
-        implementation = f.read()
+    predicate = emit_predicate(parse_wire(wire))
     assert_pinned_clean(sub, PIN)
     with applied(_template_patch_path(root), PIN, sub):
         res, _base, _edited, working_diff = L.quarantine(
-            sub, implementation, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=False)
+            sub, predicate, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=False)
     return {"passed": res.passed, "working_diff": working_diff,
            "diff_digest": compute_diff_digest(working_diff),
            "subtype": (res.subtype.value if res.subtype else None), "reason": res.reason}
@@ -698,15 +712,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(
         description="P3 段 8a trigger-gating coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
-                    help="build/verify/bench を省き挿入→検疫→構文契約→auditor gate の配線のみ確認")
+                    help="build/verify/bench を省き wire→正準述語→検疫→auditor gate の配線のみ確認")
     add_coder_build_authority_argument(ap)
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
                     help="実 planner/coder/auditor proposal (JSON) を受けて checkpoint 継続で "
                          "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
-    ap.add_argument("--preview-diff", metavar="IMPLEMENTATION.txt",
-                    help="auditor spawn 前の配線: implementation テキストを読み working_diff + "
+    ap.add_argument("--preview-wire", metavar="WIRE",
+                    help="auditor spawn 前の配線: 5-bit wire から working_diff + "
                          "diff_digest を JSON で標準出力へ (build/single-tenant 不要)")
     ap.add_argument("--extra-source", action="append", default=[], metavar="PATH:ROLE",
                     help="provenance の information_sources へ追記する動的情報源 (F 段"
@@ -722,8 +736,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     root = _repo_root()
     fixed_sub = os.path.join(root, "external", "ccbench")
 
-    if a.preview_diff:
-        out = _preview_diff(a.preview_diff, fixed_sub, root)
+    if a.preview_wire:
+        out = _preview_wire(a.preview_wire, fixed_sub, root)
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return 0 if out["passed"] else 1
 
@@ -780,14 +794,13 @@ def main(argv: Optional[List[str]] = None) -> int:
               and os.path.exists(_provenance_path(layout)))
         return 0 if ok else 1
 
-    # fixture proposal (機械 E2E 用。恒等 gate = stock 相当、D 偵察の ident_all と同じ
-    # 「常に backoff する」述語 — SYNTAX_CONTRACT_FORBIDDEN 非参照は自明)。
+    # fixture proposal: 11111 は ident_all であり真の stock ではない。
     state = L.LoopState(start_ts=time.monotonic())
     state.iteration = 1
     planner = L.PlannerProposal(axis=MARKER_ID, direction="explore_both", magnitude="small",
                                 justification="fixture (機械 E2E 用)")
-    fixture_impl = "  izanagi_gate_pass = true;"
-    coder = CoderProposalTriggerGating(axis=MARKER_ID, implementation=fixture_impl,
+    fixture_wire = "11111"
+    coder = CoderProposalTriggerGating(axis=MARKER_ID, wire=fixture_wire,
                                        justification="fixture", confidence="low")
 
     print(f"=== 段8a trigger-gating loop 1 iteration (機械 E2E, reflux={a.reflux}, "
@@ -795,8 +808,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     with wt_cm as sub:
         from campaign.patchharness import applied
         with applied(_template_patch_path(root), PIN, sub):
+            fixture_predicate = emit_predicate(parse_wire(fixture_wire))
             res, _b, _e, working_diff = L.quarantine(
-                sub, fixture_impl, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=False)
+                sub, fixture_predicate, marker_id=MARKER_ID,
+                source_rel=SOURCE_REL, write=False)
         auditor = AuditorVerdict(verdict="pass", diff_digest=compute_diff_digest(working_diff),
                                  uncertainty="fixture (機械 E2E 用、実 auditor 未使用)")
         out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,

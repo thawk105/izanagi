@@ -295,7 +295,7 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
     )
     coder = TRIGGER.CoderProposalTriggerGating(
         axis=TRIGGER.MARKER_ID,
-        implementation="izanagi_gate_pass = true;",
+        wire="11111",
     )
     auditor = AuditorVerdict(verdict="pass", diff_digest="fixture")
     try:

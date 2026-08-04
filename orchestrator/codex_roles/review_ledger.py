@@ -19,7 +19,8 @@ SOURCE_FILE_SHA256 = {
     "coder": "5aac447ae26f53d3d61dac47c353201d96039231f930a968a36a68951d8f5c34",
     "coder-v4-autonomous": "4f1b5018a9d3f8077167adf9a8ebbc69ba83a0b8f9cfd9f18a7c6fbabe9fbf13",
     "coder-v4-autonomous-sort": "577af0d4246933f128f77836c7b85786683ed3dbeca01403f9d4b7aa828e941f",
-    "coder-v4-autonomous-trigger-gating": "e0d41f63436a758791e77a8cbe56ab71af38c996327efdbb447702058e8babee",
+    # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
+    "coder-v4-autonomous-trigger-gating": "a03045c86027ec09e01d0727557eaa653c8f04d0929c007a4f129902742a2db0",
     "critic": "cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15",
     "critic-experiment": "fc20aa7ef1bf9af45eaa2e56313b8b5221a3ff2a2413110fa333ba470ff9456e",
     "planner-v4": "0a52dd4feada41167aa62711cc8cf1ad81e306ad706e99825b9709595b412ef2",
@@ -38,7 +39,8 @@ ROLE_MANIFEST_SHA256 = {
     "coder": "2af1a88e8f8cae73e251d067ba47ea4b1acd5457083111d3dc719914d199e136",
     "coder-v4-autonomous": "1c1611da8e9d30146155c36dd0c90ad371ec4611076ac39f24f74a8f48322017",
     "coder-v4-autonomous-sort": "0516335248dd542372ba4a420835c2451ea816b2aadc78cacaa1c388bd2252fa",
-    "coder-v4-autonomous-trigger-gating": "6c6f17d7397969f0902ee34929f65e3e53281f98ec97071963647ce7f990f4dc",
+    # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
+    "coder-v4-autonomous-trigger-gating": "0f824a473faccfab3243d76bd52d927a0ed08aae3625747d8f4f00b5f40fdfc8",
     "critic": "efbb2961dca75c14afa97462b4664065aac90621a184f63d6bc017f1d050cc42",
     "critic-experiment": "69dd9033640393fbde6a51c8f7d606e7780b91393e8d2829d530e5c3d2156b0e",
     "planner-v4": "9e142881783337414af0c8d239541fc8f2b0a2892b160d58940602c93615dd17",
@@ -59,7 +61,8 @@ DESCRIPTION_SHA256 = {
     "coder": "e69da61c8d99ce72ddd9888d275cba9b9a31e5c8457d68696a7e00e9e5d94602",
     "coder-v4-autonomous": "c40c7e9d9a0ef4957c02957088331377186ffd2f23443236e05c4f231f0faa1b",
     "coder-v4-autonomous-sort": "c0e5855da78d3f07fe24485c1e2c4324a2fb454c0d8c2748a3e86b156f13df00",
-    "coder-v4-autonomous-trigger-gating": "b79ff4897751172ceabf135875bcde34057680531cacea19f2de1779c9260d0c",
+    # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
+    "coder-v4-autonomous-trigger-gating": "fdbb6a5501d78b693546b3dd78885576a0c0de558931971d87e50244ee404a2a",
     "critic": "b029016d0d8ca4b3ccf8f1ca3ab719d611f312d9a2ad7f88a361ba6d399b3fa1",
     "critic-experiment": "cc698590354ca22332f54ccb965ff67f8f093eca9a3c46063d3a8779e9956761",
     "planner-v4": "e1c82ce9410df83eb54db2dd491a11e3e303e43a83fefe44ce249a2e287e03e8",
@@ -98,7 +101,8 @@ SCHEMA_SHA256 = {
     },
     "coder-v4-autonomous-trigger-gating": {
         "input": "7f274f740ee0a94e8176d9a3be408b935600f4ffe1ee256339eb43ebe395ac0d",
-        "output": "bcbb348cc0d42e14ae435d7155904fae31cac224e17083c218b1f0a6dd7cc8b0",
+        # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
+        "output": "175db0210f85ffd219b65ca5b69410989f3fc7bfefa233a068d0309ac6c5d199",
     },
     "critic": {
         "input": "049e7b20460d5a9039f78160ec51409a6e22c4700dbde92cdd3f07f6774470b9",

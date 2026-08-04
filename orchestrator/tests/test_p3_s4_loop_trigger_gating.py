@@ -16,7 +16,7 @@ import os
 import sys
 import tempfile
 import time
-from dataclasses import replace
+from dataclasses import FrozenInstanceError, replace
 from types import SimpleNamespace
 
 import pytest
@@ -38,7 +38,19 @@ from campaign.layout import CampaignLayout                          # noqa: E402
 from campaign.model import Genome                                   # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
-from critic.digest import load_diff_rejections                      # noqa: E402
+from campaign.projection_guard import (                              # noqa: E402
+    CODER_CONTRACT_IMPLEMENTATION,
+    CODER_CONTRACT_TRIGGER_WIRE,
+    assert_closed_proposal_schema,
+)
+from campaign.reflux_ir import (RefluxIRError, TriggerGateIR,        # noqa: E402
+                                emit_predicate, encode_wire, parse_wire)
+from campaign.trigger_gate_binding import (                          # noqa: E402
+    SCHEMA_VERSION as TRIGGER_GATE_BINDING_SCHEMA,
+    WAL_RECORD_STAGE as TRIGGER_GATE_BINDING_WAL_STAGE,
+    TriggerGateBinding,
+    expected_predicate_sha256,
+)
 
 _AUTHORITY_PARSER = argparse.ArgumentParser()
 add_coder_build_authority_argument(_AUTHORITY_PARSER)
@@ -82,10 +94,9 @@ class TxExecutor {
 """
 _SRC_REL = T.SOURCE_REL
 _G = Genome("silo", dict(T._BASE))
-_CLEAN_IMPL = ("  izanagi_gate_pass = "
-               "(izanagi_abort_reason_ != IzanagiAbortReason::kNodeVali);")
+_CLEAN_WIRE = "10100"
+_CLEAN_IMPL = emit_predicate(parse_wire(_CLEAN_WIRE))
 _FORBIDDEN_IMPL = "  izanagi_gate_pass = (thid_ % 2 == 0);"
-_DIFF_QUARANTINE_IMPL = "#define EVIL 1\n" + _CLEAN_IMPL
 _PRE_T343_OTHER_CAMPAIGN_ID = (
     "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
 )
@@ -93,10 +104,10 @@ _PRE_T343_COMPUTE_CAMPAIGN_ID = (
     "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902"
 )
 _T343_OTHER_CAMPAIGN_ID = (
-    "p3-s8a-trigger-loop-s8a-trigger-autonomous-0e79a5f1"
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-ccba936e"
 )
 _T343_COMPUTE_CAMPAIGN_ID = (
-    "p3-s8a-trigger-loop-s8a-trigger-autonomous-63bc09ae"
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-9a92049d"
 )
 
 
@@ -123,11 +134,19 @@ def _planner() -> "L.PlannerProposal":
     return L.PlannerProposal(axis=T.MARKER_ID, direction="explore_both", magnitude="small")
 
 
-def _digest_for(d: str, impl: str = _CLEAN_IMPL) -> str:
-    _res, _b, _e, working_diff = L.quarantine(d, impl, marker_id=T.MARKER_ID,
+def _digest_for(d: str, wire: str = _CLEAN_WIRE) -> str:
+    predicate = emit_predicate(parse_wire(wire))
+    _res, _b, _e, working_diff = L.quarantine(d, predicate, marker_id=T.MARKER_ID,
                                               source_rel=_SRC_REL, write=False)
     from campaign.auditor_gate import compute_diff_digest
     return compute_diff_digest(working_diff)
+
+
+def _binding(wire: str = _CLEAN_WIRE) -> TriggerGateBinding:
+    ir = parse_wire(wire)
+    return TriggerGateBinding(
+        ir.mask, expected_predicate_sha256(ir.mask), "a" * 64, source=None,
+    )
 
 
 def _driver_source() -> str:
@@ -365,6 +384,9 @@ def _measurement_case(
         if order is not None:
             order.append("run_campaign")
         assert kwargs.get("build_context") is _CODER_CONTEXT
+        binding = kwargs.get("trigger_gate_binding")
+        assert type(binding) is TriggerGateBinding
+        assert binding.source is None
         calls.append({
             "campaign_id": str(ident.campaign_id(cfg)),
             "env_tag": env_tag,
@@ -381,7 +403,7 @@ def _measurement_case(
 
     monkeypatch.setattr(T, "run_campaign", run_spy)
     state = L.LoopState(start_ts=time.monotonic())
-    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
     auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(sub))
 
     def invoke():
@@ -395,9 +417,9 @@ def _measurement_case(
     return invoke, lay, calls
 
 
-def _reject_case(monkeypatch, *, site, reject_kind="syntax",
+def _reject_case(monkeypatch, *, site, wire=_CLEAN_WIRE,
                  lookup=env_contract.lookup):
-    """指定した reject branch を sink まで進める一時 layout の case。"""
+    """正準 wire の auditor reject を sink まで進める一時 layout の case。"""
     import contextlib
     from campaign import patchharness
 
@@ -409,27 +431,22 @@ def _reject_case(monkeypatch, *, site, reject_kind="syntax",
         patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
+    original_record_diff_reject = L.record_diff_reject
+
+    def record_diff_reject_spy(*args, **kwargs):
+        binding = kwargs.get("trigger_gate_binding")
+        assert type(binding) is TriggerGateBinding
+        assert binding.source is None
+        return original_record_diff_reject(*args, **kwargs)
+
+    monkeypatch.setattr(L, "record_diff_reject", record_diff_reject_spy)
     state = L.LoopState(start_ts=time.monotonic())
-    if reject_kind == "diff-quarantine":
-        implementation = _DIFF_QUARANTINE_IMPL
-        auditor = AuditorVerdict(
-            verdict="pass", diff_digest="irrelevant-diff-quarantine-precedes-gate",
-        )
-    elif reject_kind == "syntax":
-        implementation = _FORBIDDEN_IMPL
-        auditor = AuditorVerdict(
-            verdict="pass", diff_digest="irrelevant-syntax-precedes-gate",
-        )
-    elif reject_kind == "auditor":
-        implementation = _CLEAN_IMPL
-        auditor = AuditorVerdict(
-            verdict="reject", diff_digest=_digest_for(sub),
-            violations=[{"type": 16}],
-        )
-    else:
-        raise ValueError(f"unknown reject kind: {reject_kind}")
+    auditor = AuditorVerdict(
+        verdict="reject", diff_digest=_digest_for(sub, wire),
+        violations=[{"type": 16}],
+    )
     coder = T.CoderProposalTriggerGating(
-        axis=T.MARKER_ID, implementation=implementation,
+        axis=T.MARKER_ID, wire=wire,
     )
 
     def invoke():
@@ -667,11 +684,11 @@ def test_compute_existing_loop_state_rejected_after_neutralized_freshness(monkey
     assert wal.read_records(lay) == []
 
 
-@pytest.mark.parametrize("reject_kind", ["diff-quarantine", "syntax", "auditor"])
-def test_compute_no_resume_precedes_all_reject_writes(monkeypatch, reject_kind):
+@pytest.mark.parametrize("wire", ["00000", "10100", "11111"])
+def test_compute_no_resume_precedes_all_reject_writes(monkeypatch, wire):
     invoke, lay = _reject_case(
         monkeypatch, site=site_policy.PEGASUS_COMPUTE,
-        reject_kind=reject_kind,
+        wire=wire,
     )
     L.save_loop_state(lay, L.LoopState(start_wall=time.time()))
     state_before = open(L.loop_state_path(lay), "rb").read()
@@ -684,7 +701,7 @@ def test_compute_no_resume_precedes_all_reject_writes(monkeypatch, reject_kind):
 
 def test_compute_no_resume_rejects_wal_only_crash_tail_without_mutation(monkeypatch):
     invoke, lay = _reject_case(
-        monkeypatch, site=site_policy.PEGASUS_COMPUTE, reject_kind="syntax",
+        monkeypatch, site=site_policy.PEGASUS_COMPUTE, wire="10000",
     )
     wal.log(lay, "crash-tail", "build_start", "pegasus", {"fixture": True})
     before = open(lay.wal_file, "rb").read()
@@ -738,30 +755,22 @@ def test_measurement_sink_admits_compute_with_pegasus_contract_and_identity(monk
     assert wal.read_records(lay) == []
 
 
-@pytest.mark.parametrize("reject_kind", [
-    "diff-quarantine",
-    "syntax",
-    "auditor",
-])
-def test_reject_sink_compute_records_pegasus_without_attestation(monkeypatch, reject_kind):
+@pytest.mark.parametrize("wire", ["00000", "10100", "11111"])
+def test_reject_sink_compute_records_pegasus_without_attestation(monkeypatch, wire):
     invoke, lay = _reject_case(
         monkeypatch, site=site_policy.PEGASUS_COMPUTE,
-        reject_kind=reject_kind, lookup=env_contract.lookup,
+        wire=wire, lookup=env_contract.lookup,
     )
     out = invoke()
     assert out["outcome"] == "rejected"
     assert {record.env_tag for record in wal.read_records(lay)} == {"pegasus"}
 
 
-@pytest.mark.parametrize("reject_kind", [
-    "diff-quarantine",
-    "syntax",
-    "auditor",
-])
-def test_reject_sink_refuses_login_without_wal(monkeypatch, reject_kind):
+@pytest.mark.parametrize("wire", ["00000", "10100", "11111"])
+def test_reject_sink_refuses_login_without_wal(monkeypatch, wire):
     invoke, lay = _reject_case(
         monkeypatch, site=site_policy.PEGASUS_LOGIN,
-        reject_kind=reject_kind,
+        wire=wire,
         lookup=lambda _env_tag: pytest.fail("拒否 site で contract lookup へ到達した"),
     )
     with pytest.raises(execution_guard.ExecutionGuardError):
@@ -784,10 +793,10 @@ def test_reject_sink_other_writes_two_contract_tagged_records(monkeypatch):
     records = wal.read_records(lay)
     assert out["outcome"] == "rejected"
     assert looked_up == [T.ENV_TAG]
-    assert len(records) == 2
-    assert [record.env_tag for record in records] == [
-        contract.env_tag, contract.env_tag,
+    assert [record.stage for record in records] == [
+        TRIGGER_GATE_BINDING_WAL_STAGE, "build_start", "abort",
     ]
+    assert [record.env_tag for record in records] == [contract.env_tag] * 3
 
 
 def test_reject_lookup_error_propagates_without_wal(monkeypatch):
@@ -887,7 +896,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypa
 
     monkeypatch.setattr(fresh, "run_campaign", run_spy)
     coder = fresh.CoderProposalTriggerGating(
-        axis=fresh.MARKER_ID, implementation=_CLEAN_IMPL,
+        axis=fresh.MARKER_ID, wire=_CLEAN_WIRE,
     )
     auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(sub))
     fresh.run_one_iteration(
@@ -933,10 +942,11 @@ def test_fresh_default_seams_flow_distinct_contract_to_reject_sink(monkeypatch):
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
     coder = fresh.CoderProposalTriggerGating(
-        axis=fresh.MARKER_ID, implementation=_FORBIDDEN_IMPL,
+        axis=fresh.MARKER_ID, wire=_CLEAN_WIRE,
     )
     auditor = AuditorVerdict(
-        verdict="pass", diff_digest="irrelevant-syntax-precedes-gate",
+        verdict="reject", diff_digest=_digest_for(sub),
+        violations=[{"type": 16}],
     )
     out = fresh.run_one_iteration(
         fresh.default_cfg(), fresh.default_perf(), _planner(), coder, auditor,
@@ -949,10 +959,10 @@ def test_fresh_default_seams_flow_distinct_contract_to_reject_sink(monkeypatch):
     assert fresh._lookup is lookup
     assert out["outcome"] == "rejected"
     assert looked_up == [fresh.ENV_TAG]
-    assert len(records) == 2
-    assert [record.env_tag for record in records] == [
-        contract.env_tag, contract.env_tag,
+    assert [record.stage for record in records] == [
+        TRIGGER_GATE_BINDING_WAL_STAGE, "build_start", "abort",
     ]
+    assert [record.env_tag for record in records] == [contract.env_tag] * 3
 
 
 def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
@@ -981,18 +991,17 @@ def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
         patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
-    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
     auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(sub))
     out = T.run_one_iteration(
         T.default_cfg(), T.default_perf(), _planner(), coder, auditor,
         L.LoopState(start_ts=time.monotonic()), sub, do_build=False, layout=lay,
         log=lambda *_args: None,
     )
-    assert out == {
-        "outcome": "dry-pass", "variant": None,
-        "campaign_id": _T343_COMPUTE_CAMPAIGN_ID,
-        "layout_root": lay.root,
-    }
+    assert out["outcome"] == "dry-pass" and out["variant"] is None
+    assert out["campaign_id"] == _T343_COMPUTE_CAMPAIGN_ID
+    assert out["layout_root"] == lay.root
+    assert len(out["trigger_gate_binding_commitment"]) == 64
     assert site_calls == 1
     assert lookup_calls == 1
     assert wal.read_records(lay) == []
@@ -1090,67 +1099,124 @@ def test_driver_env_name_scope_rejects_direct_module_attribute_reset():
         _assert_env_names_scoped_to_admission(source)
 
 
-# ==== 構文契約の禁止識別子 grep =================================================
+# ==== trusted emitter の内部 drift assertion ==================================
 
-def test_check_syntax_contract_clean_and_forbidden():
-    assert T.check_syntax_contract(_CLEAN_IMPL) == []
+def test_check_syntax_contract_is_not_a_candidate_acceptance_gate():
+    assert all(
+        T.check_syntax_contract(emit_predicate(TriggerGateIR(mask))) == []
+        for mask in range(32)
+    )
     assert T.check_syntax_contract(_FORBIDDEN_IMPL) == ["thid_"]
-    multi = "  izanagi_gate_pass = (thid_ > 0) && write_set_.empty();"
-    assert T.check_syntax_contract(multi) == ["thid_", "write_set_"]
 
 
-def test_check_syntax_contract_requires_identifier_boundary():
-    """前方境界 (\\b): 別識別子の内部 (例: xthid_) にはマッチしない。合成語の前方一致
-    (write_set_foo) は過検出安全側で許容 (レビュー FC-N1 裁定)。"""
-    assert T.check_syntax_contract("  izanagi_gate_pass = (xthid_ > 0);") == []
-    assert T.check_syntax_contract("  izanagi_gate_pass = write_set_foo;") == ["write_set_"]
-
-
-def test_quarantine_and_audit_rejects_forbidden_identifier(monkeypatch):
-    """禁止識別子は diff 検疫 pass 後でも subtype='syntax-contract' で機械 reject
-    (hard gate、fails-closed — auditor verdict=pass でも通らない。レビュー FC-8 裁定)。"""
-    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+def test_quarantine_and_audit_stops_on_internal_syntax_drift(monkeypatch):
     d = _mk_template_dir()
-    auditor = AuditorVerdict(verdict="pass", diff_digest="irrelevant-syntax-precedes-gate")
-    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_FORBIDDEN_IMPL)
-    state = L.LoopState(start_ts=time.monotonic())
-    lay = _tmp_layout("syntax")
-    gate = T._quarantine_and_audit(
-        d, coder, auditor, _G, lay, state, _planner(), write=False,
-        contract=T._admit_env_contract(site_policy.OTHER),
-    )
-    assert gate is not None
-    assert gate["outcome"] == "rejected"
-    assert gate["digest"]["subtype"] == "syntax-contract"
-    assert gate["digest"]["rejection_type"] == "diff-quarantine"
-    # 既存 consumer がそのまま拾える (相乗り経路)
-    dqs = load_diff_rejections(_critic_view(lay))
-    assert len(dqs) == 1 and dqs[0].subtype == "syntax-contract"
-    # evidence はマッチ識別子名のみ — coder の gate 式本文を critic へ運ばない (リーク裁定)
-    assert "thid_" in gate["digest"]["evidence"]
-    assert "% 2 == 0" not in gate["digest"]["evidence"]
-    assert state.whiteboard[-1].result == "rejected"
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
+    monkeypatch.setattr(T, "check_syntax_contract", lambda _predicate: ["drift"])
+    with pytest.raises(
+        RuntimeError,
+        match="^canonical trigger predicate violates syntax contract$",
+    ) as excinfo:
+        T._quarantine_and_audit(
+            d, coder, AuditorVerdict(verdict="pass", diff_digest="unused"),
+            _G, _tmp_layout("syntax-drift"),
+            L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
+            contract=T._admit_env_contract(site_policy.OTHER),
+            binding=_binding(),
+        )
+    assert _CLEAN_WIRE not in str(excinfo.value)
 
 
-def test_render_rejections_uses_syntax_contract_hint(monkeypatch):
-    from critic.digest import render_rejections
-    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
-    d = _mk_template_dir()
-    auditor = AuditorVerdict(verdict="pass", diff_digest="irrelevant")
-    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_FORBIDDEN_IMPL)
-    state = L.LoopState(start_ts=time.monotonic())
-    lay = _tmp_layout("synthint")
-    T._quarantine_and_audit(
-        d, coder, auditor, _G, lay, state, _planner(), write=False,
+def test_wire_bit_order_is_gateable_reason_order_lsb_first():
+    members = (
+        "kLockConflict", "kUpdateAbsent", "kReadValiTid",
+        "kReadValiLocked", "kNodeVali",
+    )
+    for bit, member in enumerate(members):
+        wire = "".join("1" if index == bit else "0" for index in range(5))
+        ir = parse_wire(wire)
+        assert ir.mask == 1 << bit
+        assert encode_wire(ir) == wire
+        predicate = emit_predicate(ir)
+        assert f"IzanagiAbortReason::{member}" in predicate
+        for other in members:
+            assert (f"IzanagiAbortReason::{other}" in predicate) == (other == member)
+
+
+def test_all_32_wires_materialize_byte_exact_frozen_emitter(monkeypatch):
+    original = L.quarantine
+    seen = []
+
+    def quarantine_spy(sub, predicate, **kwargs):
+        seen.append(predicate)
+        return original(sub, predicate, **kwargs)
+
+    monkeypatch.setattr(L, "quarantine", quarantine_spy)
+    for mask in range(32):
+        wire = encode_wire(TriggerGateIR(mask))
+        expected = emit_predicate(TriggerGateIR(mask))
+        sub = _mk_template_dir()
+        auditor = AuditorVerdict(
+            verdict="pass", diff_digest=_digest_for(sub, wire),
+        )
+        # _digest_for also uses the spy; isolate the materializer call itself.
+        seen.clear()
+        assert T._quarantine_and_audit(
+            sub,
+            T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=wire),
+            auditor, _G, _tmp_layout(f"wire-{mask}"),
+            L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
+            contract=T._admit_env_contract(site_policy.OTHER),
+            binding=_binding(wire),
+        ) is None
+        assert seen == [expected]
+
+
+def test_preview_and_run_share_canonical_materialization(monkeypatch):
+    import contextlib
+    from campaign import patchharness
+
+    monkeypatch.setattr(
+        patchharness, "assert_pinned_clean", lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    sub = _mk_template_dir()
+    preview = T._preview_wire(_CLEAN_WIRE, sub, "/unused")
+    captured = []
+    original = L.quarantine
+
+    def quarantine_spy(*args, **kwargs):
+        result = original(*args, **kwargs)
+        captured.append(result[3])
+        return result
+
+    monkeypatch.setattr(L, "quarantine", quarantine_spy)
+    assert T._quarantine_and_audit(
+        sub,
+        T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE),
+        AuditorVerdict(verdict="pass", diff_digest=preview["diff_digest"]),
+        _G, _tmp_layout("preview-run"),
+        L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
         contract=T._admit_env_contract(site_policy.OTHER),
+        binding=_binding(),
+    ) is None
+    assert captured == [preview["working_diff"]]
+
+
+def test_preview_cli_accepts_wire_and_rejects_old_diff_flag(monkeypatch):
+    seen = []
+    monkeypatch.setattr(
+        T, "_preview_wire",
+        lambda wire, *_args: seen.append(wire) or {"passed": True},
     )
-    out = render_rejections(
-        [], [], {}, None,
-        diff_rejections=load_diff_rejections(_critic_view(lay)),
-    )
-    tail = out.split("syntax-contract")[-1]
-    assert "構文契約違反" in tail
-    assert "フレーム/hole 逸脱" not in tail[:400]
+    assert T.main(["--preview-wire", _CLEAN_WIRE]) == 0
+    assert seen == [_CLEAN_WIRE]
+    with pytest.raises(SystemExit) as excinfo:
+        T.main(["--preview-diff", "fixture.txt"])
+    assert excinfo.value.code == 2
 
 
 # ==== auditor gate (共有部品の軸引数配線のみ確認 — 本体は test_auditor_gate.py) ====
@@ -1159,12 +1225,13 @@ def test_quarantine_and_audit_dry_pass_when_clean_and_digest_matches(monkeypatch
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.PEGASUS_COMPUTE)
     d = _mk_template_dir()
     auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(d))
-    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
     state = L.LoopState(start_ts=time.monotonic())
     gate = T._quarantine_and_audit(
         d, coder, auditor, _G, _tmp_layout("pass"), state,
         _planner(), write=False,
         contract=T._admit_env_contract(site_policy.PEGASUS_COMPUTE),
+        binding=_binding(),
     )
     assert gate is None
 
@@ -1173,13 +1240,14 @@ def test_quarantine_and_audit_raises_on_digest_mismatch(monkeypatch):
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.PEGASUS_COMPUTE)
     d = _mk_template_dir()
     auditor = AuditorVerdict(verdict="pass", diff_digest="0" * 64)
-    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
     state = L.LoopState(start_ts=time.monotonic())
     try:
         T._quarantine_and_audit(
             d, coder, auditor, _G, _tmp_layout("mm"), state,
             _planner(), write=False,
             contract=T._admit_env_contract(site_policy.PEGASUS_COMPUTE),
+            binding=_binding(),
         )
         raise AssertionError("digest 不一致を素通しした")
     except AuditorGateFailure as e:
@@ -1191,12 +1259,13 @@ def test_auditor_reject_carries_trigger_axis_identity(monkeypatch):
     d = _mk_template_dir()
     auditor = AuditorVerdict(verdict="reject", diff_digest=_digest_for(d),
                              violations=[{"type": 16}])
-    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
     state = L.LoopState(start_ts=time.monotonic())
     lay = _tmp_layout("audrej")
     gate = T._quarantine_and_audit(
         d, coder, auditor, _G, lay, state, _planner(), write=False,
         contract=T._admit_env_contract(site_policy.OTHER),
+        binding=_binding(),
     )
     assert gate["digest"]["subtype"] == "auditor-violation"
     assert gate["digest"]["template_diff_id"] == T.MARKER_ID
@@ -1212,30 +1281,160 @@ def _write_json(obj: dict, name: str) -> str:
     return p
 
 
-def test_load_proposal_file_roundtrip_and_fails_closed():
-    base = {"planner": {"axis": T.MARKER_ID, "direction": "increase", "magnitude": "small"},
-            "coder": {"axis": T.MARKER_ID, "implementation": _CLEAN_IMPL}}
+def _proposal_document(coder: dict, *, auditor: bool = True) -> dict:
+    document = {
+        "planner": {
+            "axis": T.MARKER_ID, "direction": "increase", "magnitude": "small",
+        },
+        "coder": coder,
+    }
+    if auditor:
+        document["auditor"] = {"verdict": "pass", "diff_digest": "a" * 64}
+    return document
+
+
+def test_coder_proposal_accepts_all_32_wires_loader_and_direct():
+    for mask in range(32):
+        wire = encode_wire(TriggerGateIR(mask))
+        direct = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=wire)
+        assert direct.wire == wire
+        _planner_value, loaded, _auditor, _prior = T.load_proposal_file(
+            _write_json(
+                _proposal_document({"axis": T.MARKER_ID, "wire": wire}),
+                f"wire-{mask}.json",
+            )
+        )
+        assert loaded == direct
+    frozen = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
+    with pytest.raises(FrozenInstanceError):
+        frozen.wire = "00000"
+
+
+@pytest.mark.parametrize(
+    "bad_wire",
+    [None, True, False, 0, 1, [], {}, "", "0", "0000", "000000",
+     "0000x", " 0000", "0000\n", "１２３４５"],
+)
+def test_coder_proposal_rejects_invalid_wire_corpus(bad_wire):
+    with pytest.raises(RefluxIRError, match="^invalid reflux IR$"):
+        T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=bad_wire)
+    with pytest.raises(RefluxIRError, match="^invalid reflux IR$"):
+        T.load_proposal_file(_write_json(
+            _proposal_document({"axis": T.MARKER_ID, "wire": bad_wire}),
+            "bad-wire.json",
+        ))
+
+
+def test_old_implementation_cpp_and_extra_key_rejected_before_materialize(monkeypatch):
+    calls = []
+    monkeypatch.setattr(L, "quarantine", lambda *_args, **_kwargs: calls.append(True))
+    with pytest.raises(RefluxIRError):
+        T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_IMPL)
+    invalid_coders = (
+        {"axis": T.MARKER_ID, "implementation": _CLEAN_IMPL},
+        {"axis": T.MARKER_ID, "wire": _CLEAN_IMPL},
+        {"axis": T.MARKER_ID, "wire": _CLEAN_WIRE, "extra": "no"},
+        {"axis": T.MARKER_ID, "wire": _CLEAN_WIRE, "value": 1},
+    )
+    for index, coder in enumerate(invalid_coders):
+        with pytest.raises((KeyError, ValueError, RefluxIRError)):
+            T.load_proposal_file(_write_json(
+                _proposal_document(coder), f"closed-{index}.json",
+            ))
+    assert calls == []
+
+
+def test_axis_mismatch_rejected_by_loader_and_direct():
+    other_axis = "silo-backoff-magnitude"
+    with pytest.raises(ValueError, match="coder axis"):
+        T.CoderProposalTriggerGating(axis=other_axis, wire=_CLEAN_WIRE)
+    with pytest.raises(ValueError, match="coder axis"):
+        T.load_proposal_file(_write_json(
+            _proposal_document({"axis": other_axis, "wire": _CLEAN_WIRE}),
+            "axis-mismatch.json",
+        ))
+
+
+def test_load_proposal_file_auditor_and_prior_still_fail_closed():
+    base = _proposal_document(
+        {"axis": T.MARKER_ID, "wire": _CLEAN_WIRE}, auditor=False,
+    )
     # auditor キー欠落 → KeyError (fails-closed)
-    try:
+    with pytest.raises(KeyError):
         T.load_proposal_file(_write_json(base, "no_auditor.json"))
-        raise AssertionError("auditor 欠落を素通しした")
-    except KeyError:
-        pass
-    # 正常 roundtrip (coder に value フィールドは無い)
     ok = {**base, "auditor": {"verdict": "pass", "diff_digest": "a" * 64},
           "prior_critic_reverse": True}
-    planner, coder, auditor, prior = T.load_proposal_file(_write_json(ok, "ok.json"))
-    assert coder.implementation == _CLEAN_IMPL and not hasattr(coder, "value")
+    _planner_value, coder, auditor, prior = T.load_proposal_file(
+        _write_json(ok, "ok.json")
+    )
+    assert coder.wire == _CLEAN_WIRE and not hasattr(coder, "value")
     assert auditor.verdict == "pass" and prior is True
 
     # uncertain は violations なし + 非空 uncertainty が必須 (共有 parser 境界)。
     bad_uncertain = {**base,
                      "auditor": {"verdict": "uncertain", "diff_digest": "b" * 64}}
-    try:
+    with pytest.raises(T.AuditorGateFailure):
         T.load_proposal_file(_write_json(bad_uncertain, "uncertain_without_reason.json"))
-        raise AssertionError("根拠なし uncertain を素通しした")
-    except T.AuditorGateFailure:
-        pass
+
+
+def test_projection_guard_trigger_mode_and_legacy_modes_are_closed():
+    trigger_document = _proposal_document(
+        {"axis": T.MARKER_ID, "wire": _CLEAN_WIRE},
+    )
+    assert_closed_proposal_schema(
+        trigger_document, require_auditor=True, require_coder_value=False,
+        coder_contract=CODER_CONTRACT_TRIGGER_WIRE,
+    )
+    for unknown in (None, 1, True, "trigger_wire", ""):
+        with pytest.raises(ValueError, match="coder contract mode"):
+            assert_closed_proposal_schema(
+                trigger_document, require_auditor=True,
+                require_coder_value=False, coder_contract=unknown,
+            )
+    with pytest.raises(ValueError, match="value"):
+        assert_closed_proposal_schema(
+            trigger_document, require_auditor=True, require_coder_value=True,
+            coder_contract=CODER_CONTRACT_TRIGGER_WIRE,
+        )
+
+    legacy = _proposal_document(
+        {"axis": "silo-backoff-magnitude", "implementation": "x", "value": 20},
+    )
+    assert_closed_proposal_schema(
+        legacy, require_auditor=True, require_coder_value=True,
+        coder_contract=CODER_CONTRACT_IMPLEMENTATION,
+    )
+    sort_document = _proposal_document({
+        "axis": SORT.MARKER_ID,
+        "implementation": "sort(write_set_.begin(), write_set_.end());",
+    })
+    sort_document["planner"]["axis"] = SORT.MARKER_ID
+    assert_closed_proposal_schema(
+        sort_document, require_auditor=True, require_coder_value=False,
+    )
+    assert_closed_proposal_schema(
+        _proposal_document(
+            {"axis": "silo-backoff-magnitude", "implementation": "x"},
+            auditor=False,
+        ),
+        require_auditor=False, require_coder_value=False,
+    )
+    with pytest.raises(KeyError):
+        assert_closed_proposal_schema(
+            _proposal_document(
+                {"axis": "silo-backoff-magnitude", "implementation": "x"},
+                auditor=False,
+            ),
+            require_auditor=False, require_coder_value=True,
+        )
+    with pytest.raises(KeyError):
+        assert_closed_proposal_schema(
+            _proposal_document(
+                {"axis": "silo-backoff-magnitude", "implementation": "x",
+                 "value": 20}, auditor=False,
+            ),
+            require_auditor=True, require_coder_value=True,
+        )
 
 
 # ==== campaign 設定 =============================================================
@@ -1244,6 +1443,8 @@ def test_default_cfg_wires_s2_verify_and_axis():
     cfg = T.default_cfg()
     assert cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY) == VERIFY_LEGACY_PLUS_S2
     assert cfg.search_config.get("axis") == T.MARKER_ID
+    assert cfg.search_config.get("trigger_gate_binding_schema") == \
+        TRIGGER_GATE_BINDING_SCHEMA
     assert cfg.ccbench_commit == T.PIN == "d706650"
 
 
@@ -1387,7 +1588,7 @@ def test_drive_iteration_stops_before_running_but_writes_header(monkeypatch):
                        reverse_recommendations=L.REVERSE_STREAK - 1)
     L.save_loop_state(lay, seed)
     cfg, perf = T.default_cfg(), T.default_perf()
-    cd = T.CoderProposalTriggerGating(axis=T.MARKER_ID, implementation=_CLEAN_IMPL)
+    cd = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
     au = AuditorVerdict(verdict="pass", diff_digest="a" * 64)
     out = T.drive_iteration(cfg, perf, _planner(), cd, au, prior_critic_reverse=True,
                             sub="/nonexistent/should/not/be/touched",
@@ -1407,7 +1608,7 @@ def test_compute_no_resume_precedes_drive_entry_stop_and_provenance(monkeypatch)
     L.save_loop_state(lay, seed)
     state_before = open(L.loop_state_path(lay), "rb").read()
     coder = T.CoderProposalTriggerGating(
-        axis=T.MARKER_ID, implementation=_CLEAN_IMPL,
+        axis=T.MARKER_ID, wire=_CLEAN_WIRE,
     )
     auditor = AuditorVerdict(verdict="pass", diff_digest="a" * 64)
     with pytest.raises(execution_guard.ExecutionGuardError, match="allow_resume=False"):
@@ -1452,18 +1653,26 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     )
     lay = _tmp_layout("driveprov")
     cfg, perf = T.default_cfg(), T.default_perf()
-    bad = T.CoderProposalTriggerGating(axis=T.MARKER_ID,
-                                       implementation="#define EVIL 1\n" + _CLEAN_IMPL)
-    au = AuditorVerdict(verdict="pass", diff_digest="irrelevant-hole-escape-precedes-gate")
-    out = T.drive_iteration(cfg, perf, _planner(), bad, au, None, sub, do_build=False,
+    first_wire = "10100"
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=first_wire)
+    auditor = AuditorVerdict(
+        verdict="reject", diff_digest=_digest_for(sub, first_wire),
+        violations=[{"type": 16}],
+    )
+    out = T.drive_iteration(cfg, perf, _planner(), coder, auditor, None, sub, do_build=False,
                             layout=lay, proposal_path="/scratch/prop1.json")
     assert out["ran"] is True and out["outcome"] == "rejected" and out["iteration"] == 1
     assert wal.read_lock(lay) == ident.canonical_preimage(cfg)
-    next_bad = T.CoderProposalTriggerGating(
-        axis=T.MARKER_ID, implementation="#define EVIL_NEXT 1\n" + _CLEAN_IMPL,
+    second_wire = "01000"
+    next_coder = T.CoderProposalTriggerGating(
+        axis=T.MARKER_ID, wire=second_wire,
+    )
+    next_auditor = AuditorVerdict(
+        verdict="reject", diff_digest=_digest_for(sub, second_wire),
+        violations=[{"type": 16}],
     )
     resumed = T.drive_iteration(
-        cfg, perf, _planner(), next_bad, au, None, sub, do_build=False,
+        cfg, perf, _planner(), next_coder, next_auditor, None, sub, do_build=False,
         layout=lay, proposal_path="/scratch/prop2.json",
     )
     assert resumed["iteration"] == 2 and resumed["outcome"] == "rejected"
@@ -1472,6 +1681,11 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     assert prov["entries"]["1"]["outcome"] == "rejected"
     assert prov["entries"]["1"]["proposal_path"] == "/scratch/prop1.json"
     assert prov["entries"]["2"]["proposal_path"] == "/scratch/prop2.json"
+    for entry in prov["entries"].values():
+        assert set(entry) >= {"trigger_gate_binding_commitment"}
+        assert len(entry["trigger_gate_binding_commitment"]) == 64
+        encoded = json.dumps(entry, sort_keys=True)
+        assert "wire" not in encoded and "mask" not in encoded
     st = L.load_loop_state(lay)
     assert st.iteration == 2 and [e.result for e in st.whiteboard] == [
         "rejected", "rejected",
@@ -1492,15 +1706,17 @@ def test_drive_iteration_entry_failure_blocks_checkpoint(monkeypatch):
     )
     lay = _tmp_layout("provblock")
     cfg, perf = T.default_cfg(), T.default_perf()
-    bad = T.CoderProposalTriggerGating(axis=T.MARKER_ID,
-                                       implementation="#define EVIL 1\n" + _CLEAN_IMPL)
-    au = AuditorVerdict(verdict="pass", diff_digest="irrelevant")
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
+    auditor = AuditorVerdict(
+        verdict="reject", diff_digest=_digest_for(sub),
+        violations=[{"type": 16}],
+    )
 
     def boom(layout, iteration, entry):
         raise OSError("simulated provenance write failure")
     monkeypatch.setattr(T, "_append_provenance_entry", boom)
     try:
-        T.drive_iteration(cfg, perf, _planner(), bad, au, None, sub, do_build=False,
+        T.drive_iteration(cfg, perf, _planner(), coder, auditor, None, sub, do_build=False,
                           layout=lay)
         raise AssertionError("provenance 書き込み失敗を素通しした")
     except OSError:

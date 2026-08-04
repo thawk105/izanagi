@@ -51,7 +51,8 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, wal                                    # noqa: E402
+from campaign import ident, trigger_gate_binding, wal              # noqa: E402
+from campaign.axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
@@ -198,6 +199,16 @@ def quarantine(sub: str, implementation: str,
     passed=False なら呼び出し元は build に進めず reject を WAL/critic へ (規律2 hard gate)。
     parse_template_file が None を返す (テンプレ骨格が壊れている) 場合は MALFORMED 相当の
     fails-closed 結果を合成して返す (骨格が読めなければ検疫できない = reject)。"""
+    if (marker_id == TRIGGER_MARKER_ID
+            and not trigger_gate_binding.is_canonical_predicate(implementation)):
+        res = DiffQuarantineResult(
+            passed=False, reason="trigger predicate が正準集合外",
+            digest={"rejection_type": "diff-quarantine", "subtype": "membership",
+                    "reason": "trigger predicate が正準集合外",
+                    "diff_region": source_rel, "template_diff_id": marker_id,
+                    "evidence": "canonical predicate membership failure"})
+        return res, "", "", ""
+
     path = os.path.join(sub, source_rel)
     with open(path, encoding="utf-8") as f:
         base_text = f.read()
@@ -241,9 +252,13 @@ def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: s
     fitness も無い (正しさゲート手前の失格 = 採用しない、規律2)。"""
     v = diffq_variant_id(genome, implementation)
     attempt_id = secrets.token_hex(16)
-    wal.log(layout, v, STAGE_BUILD_START, env_tag,
-            {"genome": genome.canonical(), "src_token": "",
-             "build_attempt_id": attempt_id})
+    start_payload = {"genome": genome.canonical(), "src_token": "",
+                     "build_attempt_id": attempt_id}
+    if trigger_gate_binding is not None:
+        start_payload[wal.TRIGGER_BINDING_COMMITMENT_KEY] = wal.log_trigger_binding(
+            layout, v, env_tag, attempt_id, trigger_gate_binding,
+        )
+    wal.log(layout, v, STAGE_BUILD_START, env_tag, start_payload)
     wal.log(layout, v, STAGE_ABORT, env_tag,
             {"reason": DIFF_QUARANTINE_REASON,
              "build_attempt_id": attempt_id,

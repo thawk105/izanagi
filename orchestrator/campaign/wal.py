@@ -35,14 +35,35 @@ from .build_admission import (
 from .layout import CampaignLayout
 from .model import (
     STAGE_ABORT,
+    STAGE_BENCH_DONE,
     STAGE_BUILD_DONE,
     STAGE_BUILD_START,
     STAGE_COMMIT,
+    STAGE_VERIFY_DONE,
     WAL_STAGES,
     BuildAttemptState,
     EvalState,
     WalRecord,
 )
+from . import trigger_gate_binding
+
+
+TRIGGER_BINDING_PAYLOAD_KEY = "trigger_gate_binding"
+TRIGGER_BINDING_COMMITMENT_KEY = "trigger_gate_binding_commitment"
+TRIGGER_BINDING_SCHEMA_MARKER_KEY = "trigger_gate_binding_schema"
+TRIGGER_AXIS = "silo-backoff-trigger-gating"
+_TRIGGER_PROPOSAL_INDICATORS = frozenset({"reflux"})
+_TRIGGER_MACHINE_GENERATOR = "reason-subset-v1"
+_TRIGGER_MACHINE_SPACE = "reason-subsets(effective)+identall+stock"
+_SOURCE_NULL_ABORT_REASONS = frozenset({
+    "identity-error", "admission-error", "diff-quarantine",
+})
+_TRIGGER_BINDING_PAYLOAD_KEYS = frozenset({
+    "build_attempt_id", TRIGGER_BINDING_PAYLOAD_KEY,
+})
+_KNOWN_WAL_STAGES = frozenset(WAL_STAGES) | {
+    trigger_gate_binding.WAL_RECORD_STAGE,
+}
 
 
 # ---- シリアライズ ----
@@ -215,7 +236,7 @@ def parse_line(line: str) -> WalRecord:
         raise WalLineError("WAL variant must be a string")
     if not isinstance(value["stage"], str):
         raise WalLineError("WAL stage must be a string")
-    if value["stage"] not in WAL_STAGES:
+    if value["stage"] not in _KNOWN_WAL_STAGES:
         raise WalLineError("unknown WAL stage: %r" % value["stage"])
     if not isinstance(value["env_tag"], str):
         raise WalLineError("WAL env_tag must be a string")
@@ -237,7 +258,7 @@ def _record_to_line(r: WalRecord) -> str:
         raise WalLineError("WAL variant must be a string")
     if not isinstance(r.stage, str):
         raise WalLineError("WAL stage must be a string")
-    if r.stage not in WAL_STAGES:
+    if r.stage not in _KNOWN_WAL_STAGES:
         raise WalLineError("unknown WAL stage: %r" % r.stage)
     if not isinstance(r.env_tag, str):
         raise WalLineError("WAL env_tag must be a string")
@@ -524,6 +545,25 @@ def log(layout: CampaignLayout, variant: str, stage: str, env_tag: str,
     return rec
 
 
+def log_trigger_binding(
+        layout: CampaignLayout, variant: str, env_tag: str,
+        build_attempt_id: str, binding: trigger_gate_binding.TriggerGateBinding, *,
+        emit=None,
+) -> str:
+    """Write one raw trigger binding immediately before its build_start."""
+    if type(build_attempt_id) is not str or not build_attempt_id:
+        raise trigger_gate_binding.TriggerGateBindingError(
+            "invalid trigger gate binding"
+        )
+    raw = trigger_gate_binding.to_record(binding)
+    sink = log if emit is None else emit
+    sink(layout, variant, trigger_gate_binding.WAL_RECORD_STAGE, env_tag, {
+        "build_attempt_id": build_attempt_id,
+        TRIGGER_BINDING_PAYLOAD_KEY: raw,
+    })
+    return trigger_gate_binding.commitment(binding)
+
+
 # ---- リプレイ / リカバリ (D, A) ----
 
 def read_records_collected(
@@ -591,6 +631,162 @@ def _lock_declares_admission_policy(layout: CampaignLayout) -> bool:
         return False
     search = value.get("search_config") if type(value) is dict else None
     return type(search) is dict and "build_admission" in search
+
+
+def _campaign_lock_value(layout: CampaignLayout) -> object:
+    stored = read_lock(layout)
+    if stored is None:
+        return None
+    try:
+        return json.loads(stored)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise AttemptTopologyError("campaign.lock が canonical JSON object でない") from exc
+
+
+def is_trigger_proposal_campaign_lock(campaign_lock: object) -> bool:
+    """Classify proposal-driven trigger campaigns from their search config."""
+    search = campaign_lock.get("search_config") if type(campaign_lock) is dict else None
+    if type(search) is not dict:
+        return False
+    if TRIGGER_BINDING_SCHEMA_MARKER_KEY in search:
+        return True
+    return (
+        search.get("axis") == TRIGGER_AXIS
+        and any(key in search for key in _TRIGGER_PROPOSAL_INDICATORS)
+    )
+
+
+def is_trigger_machine_campaign_lock(campaign_lock: object) -> bool:
+    """Recognize marker-free mechanical trigger enumeration, not proposals."""
+    search = campaign_lock.get("search_config") if type(campaign_lock) is dict else None
+    return (
+        type(search) is dict
+        and search.get("axis") == TRIGGER_AXIS
+        and TRIGGER_BINDING_SCHEMA_MARKER_KEY not in search
+        and not any(key in search for key in _TRIGGER_PROPOSAL_INDICATORS)
+        and search.get("generator") == _TRIGGER_MACHINE_GENERATOR
+        and search.get("space") == _TRIGGER_MACHINE_SPACE
+    )
+
+
+def validate_trigger_bindings(
+        records: List[WalRecord], *, campaign_lock: object,
+        require_build_start: bool = False,
+) -> Dict[str, trigger_gate_binding.TriggerGateBinding]:
+    """Validate the shared trigger-binding record/start/source proof chain."""
+    if type(require_build_start) is not bool:
+        raise TypeError("require_build_start は exact bool が必要")
+    search = campaign_lock.get("search_config") if type(campaign_lock) is dict else None
+    proposal_campaign = is_trigger_proposal_campaign_lock(campaign_lock)
+    binding_records = [
+        (index, record) for index, record in enumerate(records)
+        if record.stage == trigger_gate_binding.WAL_RECORD_STAGE
+    ]
+    starts_with_commitment = [
+        record for record in records
+        if record.stage == STAGE_BUILD_START
+        and TRIGGER_BINDING_COMMITMENT_KEY in record.payload
+    ]
+    if not proposal_campaign:
+        if binding_records or starts_with_commitment:
+            raise AttemptTopologyError("non-trigger campaign に trigger binding が混在")
+        if (type(search) is dict and search.get("axis") == TRIGGER_AXIS
+                and not is_trigger_machine_campaign_lock(campaign_lock)):
+            raise AttemptTopologyError("post-policy trigger campaign の分類が unknown")
+        return {}
+
+    if (type(search) is not dict
+            or search.get("axis") != TRIGGER_AXIS
+            or search.get(TRIGGER_BINDING_SCHEMA_MARKER_KEY)
+            != trigger_gate_binding.SCHEMA_VERSION):
+        raise AttemptTopologyError("trigger proposal campaign の binding marker が不正")
+
+    starts: Dict[str, tuple[int, WalRecord]] = {}
+    for index, record in enumerate(records):
+        if record.stage != STAGE_BUILD_START:
+            continue
+        attempt_id = record.payload.get("build_attempt_id")
+        if type(attempt_id) is not str or not attempt_id:
+            raise AttemptTopologyError("trigger build_start の attempt id が不正")
+        if attempt_id in starts:
+            raise AttemptTopologyError("trigger build_start の attempt id が重複")
+        starts[attempt_id] = (index, record)
+    if require_build_start and not starts:
+        raise AttemptTopologyError("trigger proposal campaign に build_start がない")
+
+    raw_by_attempt: Dict[str, tuple[int, WalRecord]] = {}
+    for index, record in binding_records:
+        payload = record.payload
+        if (type(payload) is not dict
+                or frozenset(payload) != _TRIGGER_BINDING_PAYLOAD_KEYS):
+            raise AttemptTopologyError("trigger binding payload の key 集合が不正")
+        attempt_id = payload.get("build_attempt_id")
+        if type(attempt_id) is not str or not attempt_id:
+            raise AttemptTopologyError("trigger binding の attempt id が不正")
+        if attempt_id in raw_by_attempt:
+            raise AttemptTopologyError("trigger binding が attempt 内で重複")
+        raw_by_attempt[attempt_id] = (index, record)
+
+    if set(raw_by_attempt) != set(starts):
+        raise AttemptTopologyError("trigger build_start と binding が一対一でない")
+
+    validated: Dict[str, trigger_gate_binding.TriggerGateBinding] = {}
+    for attempt_id, (start_index, start) in starts.items():
+        binding_index, binding_record = raw_by_attempt[attempt_id]
+        if (binding_index >= start_index
+                or binding_record.variant != start.variant
+                or binding_record.env_tag != start.env_tag):
+            raise AttemptTopologyError("trigger binding の順序または variant が不正")
+        receipt = start.payload.get("build_admission")
+        require_source = receipt is not None
+        try:
+            binding = trigger_gate_binding.validate_record(
+                binding_record.payload[TRIGGER_BINDING_PAYLOAD_KEY],
+                require_source=require_source,
+            )
+        except trigger_gate_binding.TriggerGateBindingError as exc:
+            raise AttemptTopologyError("trigger binding record が不正") from exc
+        if not require_source and binding.source is not None:
+            raise AttemptTopologyError("receiptless trigger binding の source が non-null")
+        expected_commitment = trigger_gate_binding.commitment(binding)
+        if start.payload.get(TRIGGER_BINDING_COMMITMENT_KEY) != expected_commitment:
+            raise AttemptTopologyError("trigger binding commitment が build_start と不一致")
+
+        if require_source:
+            receipt_source = receipt.get("source") if type(receipt) is dict else None
+            outer_src_token = start.payload.get("src_token")
+            source = binding.source
+            if (type(receipt_source) is not dict or source is None
+                    or type(outer_src_token) is not str
+                    or source.src_token != outer_src_token
+                    or source.src_token != receipt_source.get("src_token")
+                    or source.source_bytes_sha256
+                    != receipt_source.get("source_bytes_sha256")):
+                raise AttemptTopologyError("trigger binding source が receipt/WAL と不一致")
+        else:
+            for later in records[start_index + 1:]:
+                if later.variant != start.variant:
+                    continue
+                if later.stage == STAGE_BUILD_START:
+                    break
+                if "verify" in later.payload:
+                    raise AttemptTopologyError(
+                        "receiptless trigger attempt に verify payload が続く"
+                    )
+                if (later.stage == STAGE_ABORT
+                        and later.payload.get("build_attempt_id") == attempt_id
+                        and later.payload.get("reason") not in _SOURCE_NULL_ABORT_REASONS):
+                    raise AttemptTopologyError(
+                        "receiptless trigger attempt の abort reason が閉集合外"
+                    )
+                if later.stage in {
+                    STAGE_BUILD_DONE, STAGE_VERIFY_DONE, STAGE_BENCH_DONE, STAGE_COMMIT,
+                }:
+                    raise AttemptTopologyError(
+                        "receiptless trigger attempt に build/verify/bench/commit が続く"
+                    )
+        validated[attempt_id] = binding
+    return validated
 
 
 def _receipt_sha(payload: Dict, *, stage: str) -> str:
@@ -719,6 +915,9 @@ def replay(
 ) -> Dict[str, EvalState]:
     """WAL をリプレイし、new-schema lock では attempt topology も検証する。"""
     records = read_records(layout)
+    validate_trigger_bindings(
+        records, campaign_lock=_campaign_lock_value(layout),
+    )
     if admission_policy is None and _lock_declares_admission_policy(layout):
         raise AttemptTopologyError(
             "admission-aware campaign replay には current admission_policy が必要"
@@ -758,9 +957,14 @@ def records_by_stage(layout: CampaignLayout, variant: str) -> Dict[str, Dict]:
     aborts は見えなくなる。全パスを見る・スケールを揃えて比較する必要がある consumer
     (例 critic.digest.load_verify_abort_signals) は wal.read_records() を直接使い、
     workload タグ (payload["workload"]["tag"]) で読み分けること。"""
+    records = read_records(layout)
+    validate_trigger_bindings(
+        records, campaign_lock=_campaign_lock_value(layout),
+    )
     out: Dict[str, Dict] = {}
-    for r in read_records(layout):
-        if r.variant == variant:
+    for r in records:
+        if (r.variant == variant
+                and r.stage != trigger_gate_binding.WAL_RECORD_STAGE):
             out[r.stage] = r.payload
     return out
 

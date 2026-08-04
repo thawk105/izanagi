@@ -248,10 +248,7 @@ class TxExecutor {
 '''
             coder = module.CoderProposalTriggerGating(
                 axis=module.MARKER_ID,
-                implementation=(
-                    "  izanagi_gate_pass = (izanagi_abort_reason_ != "
-                    "IzanagiAbortReason::kNodeVali);"
-                ),
+                wire="10100",
             )
             cfg, perf = module.default_cfg(), module.default_perf()
             monkeypatch.setattr(module, "_current_site", lambda: module.site_policy.OTHER)
@@ -266,8 +263,13 @@ class TxExecutor {
             cfg, perf, planner, coder, state, str(sub), True,
             build_context=_CODER_CONTEXT, log=lambda *_: None)
     else:
+        implementation = (
+            coder.implementation
+            if name == "sort"
+            else module.emit_predicate(module.parse_wire(coder.wire))
+        )
         preview = LOOP.quarantine(
-            str(sub), coder.implementation, marker_id=module.MARKER_ID,
+            str(sub), implementation, marker_id=module.MARKER_ID,
             source_rel=module.SOURCE_REL, write=False,
         )
         assert preview[0].passed

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import contextlib
 import gc
 import hashlib
 import inspect
@@ -26,6 +27,7 @@ from orchestrator.campaign import p3_autonomous_workload_trial as A
 from orchestrator.campaign import s8b_prediction_runner as S
 from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
 from orchestrator.campaign.s8b_prediction_runner import PredictionRunnerError
+from orchestrator.campaign.reflux_ir import RefluxIRError, emit_predicate
 from calibrator import runner as calibrator_runner
 from orchestrator.campaign import claude_projected_provider as P
 
@@ -65,6 +67,7 @@ def _fake_drive(
         "stop_reason": "continue",
         "iteration": 1,
         "ran": True,
+        "trigger_gate_binding_commitment": "b" * 64,
     }
 
 
@@ -156,12 +159,98 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
     )
     assert cfg.search_config["build_admission"] == context.policy.as_preimage()
     assert str(A.ident.campaign_id(cfg)) == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-623e929a"
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
     )
     pre_t343_no_build_id = (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     )
     assert str(A.ident.campaign_id(cfg)) != pre_t343_no_build_id
+
+
+def test_parse_coder_accepts_wire_and_rejects_implementation() -> None:
+    accepted = A.parse_coder(json.dumps({
+        "proposal": {
+            "axis": A.trigger.MARKER_ID,
+            "wire": "10100",
+            "justification": "fixture",
+            "confidence": "medium",
+        }
+    }))
+    assert accepted.wire == "10100"
+    for proposal in (
+        {
+            "axis": A.trigger.MARKER_ID,
+            "implementation": "izanagi_gate_pass = true;",
+            "justification": "fixture",
+            "confidence": "medium",
+        },
+        {
+            "axis": A.trigger.MARKER_ID,
+            "wire": "10100",
+            "implementation": "izanagi_gate_pass = true;",
+            "justification": "fixture",
+            "confidence": "medium",
+        },
+    ):
+        with pytest.raises(A.AutonomousTrialError):
+            A.parse_coder(json.dumps({"proposal": proposal}))
+
+
+@pytest.mark.parametrize("bad_wire", [None, True, 0, "", "0000", "000000", "0000x"])
+def test_parse_coder_rejects_invalid_wire_corpus(bad_wire) -> None:
+    with pytest.raises(RefluxIRError, match="^invalid reflux IR$"):
+        A.parse_coder(json.dumps({
+            "proposal": {
+                "axis": A.trigger.MARKER_ID,
+                "wire": bad_wire,
+                "justification": "fixture",
+                "confidence": "medium",
+            }
+        }))
+
+
+def test_fixture_provider_emits_only_wire() -> None:
+    provider = A.FixtureRoleProvider("coder")
+    for generation, expected in ((1, "11111"), (2, "10000")):
+        response = provider.invoke(
+            invocation_id=f"fixture-g{generation}",
+            payload={"generation": generation},
+        )
+        proposal = json.loads(response.raw_response)["proposal"]
+        assert proposal["wire"] == expected
+        assert set(proposal) == {"axis", "wire", "justification", "confidence"}
+
+
+def test_preview_uses_canonical_emitter(tmp_path, monkeypatch) -> None:
+    template = """// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating
+#if BACKOFF_TRIGGER_GATING
+  izanagi_gate_pass = true;
+#else
+  Backoff::backoff(FLAGS_clocks_per_us);
+#endif
+// EVOLVE-BLOCK-END silo-backoff-trigger-gating
+"""
+    source = tmp_path / A.trigger.SOURCE_REL
+    source.parent.mkdir(parents=True)
+    source.write_text(template, encoding="utf-8")
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        A, "applied", lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    original = A.loop_core.quarantine
+    seen = []
+
+    def quarantine_spy(sub, predicate, **kwargs):
+        seen.append(predicate)
+        return original(sub, predicate, **kwargs)
+
+    monkeypatch.setattr(A.loop_core, "quarantine", quarantine_spy)
+    coder = A.trigger.CoderProposalTriggerGating(
+        axis=A.trigger.MARKER_ID, wire="10100",
+    )
+    result = A._preview(coder, sub=str(tmp_path))
+    assert result["passed"] is True
+    assert seen == [emit_predicate(A.parse_wire("10100"))]
 
 
 def test_generation_budget_boundary_at_ratified_launch() -> None:
@@ -424,6 +513,7 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         generation = cell["generations"][0]
         assert generation["outcome"] == "dry-pass"
         assert "metrics" not in generation
+        assert generation["harness"]["trigger_gate_binding_commitment"] == "b" * 64
         assert set(generation["roles"]) == {"planner", "coder", "auditor", "critic"}
         descriptor_sha = cell["descriptor_binding"]["output_sha256"]
         for event in generation["roles"].values():
@@ -434,6 +524,11 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
             assert event["retry"] is False
     on_disk = json.loads((run_root / "report.json").read_text(encoding="utf-8"))
     assert on_disk == report
+    report_json = json.dumps(report, sort_keys=True)
+    assert '"trigger_gate_binding_commitment"' in report_json
+    assert '"trigger_gate_binding"' not in report_json
+    assert '"mask"' not in report_json
+    assert '"wire"' not in report_json
     events = [
         json.loads(line)
         for line in (run_root / "attempts.jsonl").read_text(encoding="utf-8").splitlines()
@@ -449,6 +544,10 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
     for payload in providers["coder"].payloads:
         assert set(payload["planner_direction"]) == {"axis", "direction", "magnitude"}
         assert "justification" not in payload["planner_direction"]
+    for proposal_path in sorted((run_root / "proposals").glob("*.json")):
+        proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+        assert "wire" in proposal["coder"]
+        assert "implementation" not in proposal["coder"]
     for planner_payload, coder_payload, critic_payload in zip(
         providers["planner"].payloads,
         providers["coder"].payloads,
@@ -458,6 +557,10 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         assert planner_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
         assert coder_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
         assert critic_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
+        critic_keys = json.dumps(critic_payload, sort_keys=True)
+        assert "trigger_gate_binding" not in critic_keys
+        assert '"mask"' not in critic_keys
+        assert '"wire"' not in critic_keys
 
         current_perf = planner_payload["current_perf"]
         leading_indicators = planner_payload["leading_indicators"]
@@ -854,6 +957,7 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
             "outcome": "certified", "variant": "fixture-variant",
             "fitness_tps": 1.0, "stop_reason": "continue",
             "iteration": 1, "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
         }
 
     providers = {
@@ -1059,6 +1163,7 @@ def test_run_workload_build_passes_exploration_layout_to_trigger(
             "stop_reason": "continue",
             "iteration": 1,
             "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
         }
 
     result = A._run_workload(
@@ -1126,6 +1231,7 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
             "stop_reason": "continue",
             "iteration": 1,
             "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
         }
 
     providers = {

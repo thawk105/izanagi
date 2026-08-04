@@ -47,6 +47,7 @@ _INPUT_KEYS = (
     "build_start_count",
 )
 _RECORD_KEYS = frozenset((*_INPUT_KEYS, "verification_status", "admission_status"))
+_TRIGGER_PROVENANCE_BASENAME = "p3_s8a_trigger_loop_provenance.json"
 
 
 class ArtifactAdmissionError(RuntimeError):
@@ -421,6 +422,44 @@ def _parse_canonical_genome(value: object) -> Genome:
     return genome
 
 
+def _validate_trigger_provenance(
+        root: Path, *, lock: object, records: tuple[Any, ...] | list[Any],
+) -> None:
+    """Require each proposal provenance commitment to be copied from its WAL start."""
+    if not wal.is_trigger_proposal_campaign_lock(lock):
+        return
+    path = root / "reports" / _TRIGGER_PROVENANCE_BASENAME
+    if not path.is_file():
+        raise ArtifactAdmissionError("trigger proposal provenance が存在しない")
+    try:
+        document = _decode_json(path.read_bytes(), label="trigger provenance")
+    except OSError as exc:
+        raise ArtifactAdmissionError("trigger proposal provenance を読めない") from exc
+    entries = document.get("entries") if type(document) is dict else None
+    if type(entries) is not dict:
+        raise ArtifactAdmissionError("trigger proposal provenance entries が不正")
+
+    starts = {
+        (record.variant, record.payload.get(wal.TRIGGER_BINDING_COMMITMENT_KEY))
+        for record in records if record.stage == STAGE_BUILD_START
+    }
+    provenance_pairs = set()
+    for entry in entries.values():
+        if type(entry) is not dict:
+            raise ArtifactAdmissionError("trigger proposal provenance entry が不正")
+        variant = entry.get("variant")
+        if variant is None:
+            continue
+        commitment = entry.get(wal.TRIGGER_BINDING_COMMITMENT_KEY)
+        if type(variant) is not str or type(commitment) is not str:
+            raise ArtifactAdmissionError("trigger proposal provenance commitment が不正")
+        provenance_pairs.add((variant, commitment))
+    if starts != provenance_pairs:
+        raise ArtifactAdmissionError(
+            "trigger proposal provenance commitment が WAL build_start と不一致"
+        )
+
+
 def _inspect_campaign(
     campaign: CampaignLayout | str | Path,
 ) -> tuple[CampaignAdmissionDecision, tuple[Any, ...]]:
@@ -535,10 +574,14 @@ def _inspect_campaign(
         raise ArtifactAdmissionError("post-policy campaign lock admission policy differs")
     try:
         wal._validate_attempt_topology(records, admission_policy=policy)
+        wal.validate_trigger_bindings(
+            records, campaign_lock=lock, require_build_start=True,
+        )
     except (wal.AttemptTopologyError, TypeError) as exc:
         raise ArtifactAdmissionError(
             f"post-policy campaign attempt admission is invalid: {exc}"
         ) from exc
+    _validate_trigger_provenance(root, lock=lock, records=records)
 
     receipt_shas: list[str] = []
     lock_commit = lock.get("ccbench_commit")

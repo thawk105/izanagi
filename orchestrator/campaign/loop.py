@@ -27,6 +27,11 @@ from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_T
                        SEARCH_CONFIG_VERIFY_KEY,
                        VERIFY_LEGACY_PLUS_S2, evaluate, s2_correctness_workload,
                        variant_id)
+from .trigger_gate_binding import (
+    SCHEMA_VERSION as TRIGGER_BINDING_SCHEMA,
+    SourceBinding,
+    TriggerGateBinding,
+)
 
 _DEFAULT_CXX = buildcache.DEFAULT_CXX
 _compilers_for_current_site = buildcache.compilers_for_current_site
@@ -111,6 +116,18 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     source ごとの capability resolver は evidence 解決後の pipeline へ渡す。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    marker_present = "trigger_gate_binding_schema" in cfg.search_config
+    marker = cfg.search_config.get("trigger_gate_binding_schema")
+    if not marker_present:
+        if trigger_gate_binding is not None:
+            raise TypeError("trigger binding は schema marker 付き campaign 専用")
+    elif marker != TRIGGER_BINDING_SCHEMA:
+        raise ValueError("trigger binding schema marker が不正")
+    elif cfg.search_config.get("axis") != wal.TRIGGER_AXIS:
+        raise ValueError("trigger binding schema marker と campaign axis が不一致")
+    elif (type(trigger_gate_binding) is not TriggerGateBinding
+          or trigger_gate_binding.source is not None):
+        raise TypeError("trigger campaign は source-null candidate binding が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     if campaign_namespace == "official":
         layout_constructor = campaign_layout
@@ -200,10 +217,16 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 continue
             done.add(v0)
             attempt_id = secrets.token_hex(16)
-            wal.log(layout, v0, STAGE_BUILD_START, env_tag, {
+            start_payload = {
                 "genome": g.canonical(),
                 "build_attempt_id": attempt_id,
-            })
+            }
+            if trigger_gate_binding is not None:
+                start_payload[wal.TRIGGER_BINDING_COMMITMENT_KEY] = \
+                    wal.log_trigger_binding(
+                        layout, v0, env_tag, attempt_id, trigger_gate_binding,
+                    )
+            wal.log(layout, v0, STAGE_BUILD_START, env_tag, start_payload)
             wal.log(layout, v0, STAGE_ABORT, env_tag,
                     {"reason": "identity-error", "error": str(e),
                      "build_attempt_id": attempt_id})
@@ -228,7 +251,15 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             if dependency_prefix:
                 evaluate_options["dependency_prefix"] = dependency_prefix
             if trigger_gate_binding is not None:
-                evaluate_options["trigger_gate_binding"] = trigger_gate_binding
+                evaluate_options["trigger_gate_binding"] = TriggerGateBinding(
+                    mask=trigger_gate_binding.mask,
+                    predicate_sha256=trigger_gate_binding.predicate_sha256,
+                    nonce=trigger_gate_binding.nonce,
+                    source=SourceBinding(
+                        src_token=source_evidence.src_token,
+                        source_bytes_sha256=source_evidence.source_bytes_sha256,
+                    ),
+                )
             r = evaluate(g, layout, env_tag, cfg.ccbench_commit, perf,
                          clocks_per_us, numactl=numactl, do_bench=do_bench,
                          do_settle=(do_bench and first_bench),

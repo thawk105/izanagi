@@ -26,7 +26,8 @@ sys.path.insert(0, _ORCH)
 from campaign import ident, p3_s4_loop as L                        # noqa: E402
 from campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
 from campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
-from campaign import source_digest, wal                            # noqa: E402
+from campaign import source_digest, trigger_gate_binding, wal      # noqa: E402
+from campaign.reflux_ir import TriggerGateIR, emit_predicate       # noqa: E402
 from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.loop import CampaignSummary                          # noqa: E402
 from campaign.pipeline import variant_id                           # noqa: E402
@@ -165,6 +166,74 @@ def test_quarantine_fails_closed_on_broken_template():
     assert res.digest and res.digest["subtype"] == "malformed"
 
 
+def test_trigger_quarantine_accepts_exact_32_canonical_predicates_with_outer_space():
+    trigger_template = _TEMPLATE.replace(
+        "silo-backoff-magnitude", "silo-backoff-trigger-gating",
+    )
+    d = tempfile.mkdtemp(prefix="izanagi_trigger_membership_")
+    path = os.path.join(d, _SRC_REL)
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write(trigger_template)
+    predicates = []
+    materialized = []
+    variants = []
+    for mask in range(32):
+        implementation = "  " + emit_predicate(TriggerGateIR(mask))
+        predicates.append(implementation.strip())
+        result, _base, edited, diff = L.quarantine(
+            d, implementation,
+            marker_id="silo-backoff-trigger-gating",
+            source_rel=_SRC_REL,
+            write=False,
+        )
+        assert result.passed, mask
+        assert implementation.strip() in edited
+        assert diff
+        materialized.append(edited.encode("utf-8"))
+        variants.append(variant_id(_G, trigger_gate_binding.expected_predicate_sha256(mask)))
+    assert len(set(predicates)) == len(set(materialized)) == len(set(variants)) == 32
+
+
+def test_trigger_quarantine_rejects_noncanonical_text_before_structure_inspection():
+    for implementation in (
+        "izanagi_gate_pass = true;",
+        "int harmless = 1;",
+        "izanagi_gate_pass = (reason == BackoffReason::kUnset); // comment",
+    ):
+        result, base, edited, diff = L.quarantine(
+            "/path/that/must/not/be-read",
+            implementation,
+            marker_id="silo-backoff-trigger-gating",
+            source_rel=_SRC_REL,
+            write=False,
+        )
+        assert not result.passed
+        assert result.digest["subtype"] == "membership"
+        assert (base, edited, diff) == ("", "", "")
+        assert implementation not in json.dumps(result.digest, ensure_ascii=False)
+
+
+def test_trigger_membership_does_not_change_sort_or_backoff_markers():
+    backoff_dir = _mk_template_dir()
+    backoff, *_ = L.quarantine(
+        backoff_dir, "double now_backoff = 20.0;",
+        marker_id="silo-backoff-magnitude", source_rel=_SRC_REL, write=False,
+    )
+    assert backoff.passed
+
+    sort_dir = tempfile.mkdtemp(prefix="izanagi_sort_membership_isolation_")
+    sort_template = _TEMPLATE.replace(
+        "silo-backoff-magnitude", "silo-writeset-sort",
+    )
+    with open(os.path.join(sort_dir, _SRC_REL), "w", encoding="utf-8") as stream:
+        stream.write(sort_template)
+    sort_result, *_ = L.quarantine(
+        sort_dir, "int harmless = 1;",
+        marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
+    )
+    assert sort_result.passed
+
+
 # ==== WAL 往復 (record_diff_reject → load_diff_rejections、片肺の両端) =========
 
 def test_diffq_reason_matches_diff_quarantine_rejection_type():
@@ -190,6 +259,35 @@ def test_record_and_load_diff_rejection_roundtrip():
     assert dq.subtype == "hole-escape"
     assert dq.genome == _G.canonical()
     assert dq.reason and dq.evidence            # 構造 (理由・証拠) が保たれている
+
+
+def test_record_diff_reject_with_binding_writes_raw_record_and_commitment_only():
+    d = _mk_template_dir()
+    implementation = "#define X 1\ndouble now_backoff = 20.0;"
+    res, *_ = L.quarantine(d, implementation, source_rel=_SRC_REL, write=False)
+    binding = trigger_gate_binding.TriggerGateBinding(
+        mask=7,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(7),
+        nonce="a" * 64,
+        source=None,
+    )
+    lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_trigger_reject_")).ensure()
+    L.record_diff_reject(
+        lay, _G, implementation, res, trigger_gate_binding=binding,
+    )
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == [
+        trigger_gate_binding.WAL_RECORD_STAGE, STAGE_BUILD_START, STAGE_ABORT,
+    ]
+    raw, start, abort = records
+    attempt_id = start.payload["build_attempt_id"]
+    assert raw.payload == {
+        "build_attempt_id": attempt_id,
+        wal.TRIGGER_BINDING_PAYLOAD_KEY: trigger_gate_binding.to_record(binding),
+    }
+    assert start.payload[wal.TRIGGER_BINDING_COMMITMENT_KEY] == \
+        trigger_gate_binding.commitment(binding)
+    assert "mask" not in start.payload and "mask" not in abort.payload
 
 
 def test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail():

@@ -874,6 +874,55 @@ def test_axis_planner_and_coder_semantic_policy_negative_cases():
             raise AssertionError(f"coder-v4の不正{field}={value!r}を許可した")
 
 
+def test_trigger_gating_output_semantics_require_exact_wire_and_reject_implementation():
+    projected = {
+        "leakproof_context": "context",
+        "gating_spec": "spec",
+        "baseline": {},
+        "planner_direction": {
+            "axis": "silo-backoff-trigger-gating",
+            "direction": "explore_both",
+            "magnitude": "small",
+            "justification": "reason",
+        },
+        "whiteboard": [],
+    }
+    proposal = {
+        "axis": "silo-backoff-trigger-gating",
+        "wire": "10100",
+        "justification": "reason",
+        "confidence": "medium",
+    }
+    ROLE_POLICY.validate_output_semantics(
+        "coder-v4-autonomous-trigger-gating", projected, {"proposal": proposal}
+    )
+
+    invalid_proposals = (
+        {**proposal, "wire": "1010"},
+        {**proposal, "wire": "1010x"},
+        {**proposal, "wire": 10100},
+        {
+            key: value
+            for key, value in {
+                **proposal,
+                "implementation": "izanagi_gate_pass = true;",
+            }.items()
+            if key != "wire"
+        },
+    )
+    for invalid in invalid_proposals:
+        try:
+            ROLE_POLICY.validate_output_semantics(
+                "coder-v4-autonomous-trigger-gating",
+                projected,
+                {"proposal": invalid},
+            )
+        except ROLE_POLICY.RolePolicyError:
+            pass
+        else:
+            raise AssertionError(f"trigger-gatingの旧形式/不正wireを許可: {invalid!r}")
+
+
 def test_critic_profiler_and_verifier_semantic_policy_negative_cases():
     critic_input = {
         "unevaluated_candidates": ["B0-L-W0"],
