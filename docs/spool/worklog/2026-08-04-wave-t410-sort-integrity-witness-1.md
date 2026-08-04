@@ -45,8 +45,19 @@ title: [T-410] sort 軸 witness の同値関係を観測同値として確定し
 - **現行検査の被覆の狭さも記録した。** permutation 保存検査は size と rcdptr multiset しか見ず、
   **順序も key と rcdptr の対応も検査していない**。ただし非 strict-weak-order comparator の UB で
   対応だけが入れ替わる到達可能性は未実証であり、そう書かない
-- **受入:** docs と insights のみ。`check_docs` と関連テストを親が実走した。研究状態への影響は
-  無い — production 挙動・受理集合・certified 選択・材料レポート・proof chain・凍結 bytes は不変
+- **受入: 既知赤 waiver W1 を適用して land した。** 全走の実測は
+  **1 failed / 5438 passed / 19 skipped**、赤 node は
+  `orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  の 1 件のみ。W1 の毎回検査を実施した — (1) 原因の同一性: `tools/ruleops.py inventory --repo .` が
+  rc=2 で `blob が非 UTF-8:` を出力し、指す path が `output/insights/**/evidence/**` 配下である、
+  (2) 帰属: 自 wave の差分 (docs/spool 3 件 + insights 6 件) が当該 path に触れていない、
+  (3) 他の赤ゼロ、(4) [T-407] 未 land ゆえ waiver は有効。射程どおり docs・道具の衛生 gate への
+  免除であり、本 wave は docs のみで正しさ防壁に触れていない
+- **親は一度 W1 を見落として停止し、ユーザーの指摘で是正した。** W1 は本 wave が受入に使った
+  main に既に存在しており参照可能だった。停止条件の適用前に「既知赤 waiver が成立しないか」を
+  確認する手順が親の運用に無かったことが原因である
+- **研究状態への影響は無い** — production 挙動・受理集合・certified 選択・材料レポート・
+  proof chain・凍結 bytes はいずれも不変。`check_docs` rc=0、provenance full 監査 rc=0
 
 ## 次の一手差分
 
