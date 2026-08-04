@@ -5,10 +5,10 @@
 
 ## DW-O01 — codex subprocess 起動
 
-`codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包む。
-投入前に prompt が非空か検査し、完了は `.done` の存在と exit code だけで判定する。
-ログ本文の grep も harness の task 完了通知も完了判定にしてはならず（通知は子より先行しうる）、
-成果物は `-o` の最終メッセージから読み（F23/F24）、
+`codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach する。
+投入前に prompt の非空を検査し、完了は `.done` と exit code だけで判定する。
+ログの grep も完了通知も判定にしてはならず（通知は子より先行しうる）、
+成果物は `-o` の最終メッセージから読む（F23/F24）。
 採用条件 = `tools/check_codex_output.py <出力>.md` の rc=0（prompt に `## 総括` を義務付ける。F43）。
 
 ## DW-O02 — job artifact

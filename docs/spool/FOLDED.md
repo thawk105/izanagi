@@ -120,3 +120,26 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:permutation-check-coverage":"[T-426]"},"authored":"2026-08-04","content_sha256":"b29e8a767b72d9c85a0a5f6cac35b55c05a8b95176b74d8e86e157da1cc71bde","seq":1,"wave":"wave-t410-sort-integrity-witness"}
 - {"allocations":{"D:sort-witness-observation-equivalence":"D146"},"authored":"2026-08-04","content_sha256":"20c6ed262e147e79ab2792e35da00394ed4b8d7bfcf9492f947345e15436234f","seq":1,"wave":"wave-t410-sort-integrity-witness"}
 - {"allocations":{"F:known-red-waiver-not-checked-before-stop":"F101","F:main-checkout-mutated-from-worktree-session":"F100"},"authored":"2026-08-04","content_sha256":"642b70925e58570bf4c228ff543ad8c82d5abf82744db24f47d071fde8361ca6","seq":1,"wave":"wave-t410-sort-integrity-witness"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"43271f3d1cc90e33ee1d2b58bd859e63fc6be95591aebc181380f0b51c1a8e41","seq":1,"wave":"dev-wave-t412-l2-pruning"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"4265503560154c159dab2a017069ce2e8a0333b040aab21713c8672524f369f4","seq":1,"wave":"wave-t244-p3-origin-ledger"}
+- {"allocations":{"D:p3-origin-ledger-deferred":"D147"},"authored":"2026-08-04","content_sha256":"a91cf3701a95c118353e2d3adf0bcaada23b9efcdf46ce204c03ab4f74bf20c6","seq":2,"wave":"wave-t244-p3-origin-ledger"}
+
+- {"allocations":{"T:codex-worker-launch-flake":"[T-427]"},"authored":"2026-08-04","content_sha256":"884dc1b16d0112b9b4b7e31012234bd7b6734f1169e81e934d656df38559b03d","seq":1,"wave":"wave-t409-evolve-hole-allowlist"}
+- {"allocations":{"F:adversarial-prompt-refused":"F102"},"authored":"2026-08-04","content_sha256":"649386f5ad9a150ff8e9f9e06d3cbf4ea635bdd737be35d3b8e55c37eebdd5ac","seq":2,"wave":"wave-t409-evolve-hole-allowlist"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"55c4905ca85a72463ad35cca5e0357ca917335c52768319973a6d279d8aa4d44","seq":1,"wave":"wave-t244-p5-injection-gate"}
+- {"allocations":{"D:p5-provider-and-session-isolation":"D148"},"authored":"2026-08-04","content_sha256":"16ece9b11cde676df14853d12992ca013c51b25847c774067c079b681e381206","seq":1,"wave":"wave-t244-p5-injection-gate"}
+
+- {"allocations":{"T:codex-launch-receipt-flake":"[T-431]","T:dev-wave-detach-contract":"[T-432]","T:reflux-ir-production-wiring":"[T-428]","T:reflux-rejection-disclosure-closure":"[T-429]","T:ruleops-blob-blocks-full-suite":"[T-430]"},"authored":"2026-08-04","content_sha256":"ba5399d7714fca7f20d6eb21b7bdca1f95cf253cdf02254990c90175f0cfd0aa","seq":1,"wave":"wave-t244-p1-ir-emitter"}
+- {"allocations":{"D:reflux-ir-p1-component":"D149"},"authored":"2026-08-04","content_sha256":"0d91c08c3dd6d0dc026d106318b9c1d1f67973afbbf22e23896c0a647acb01df","seq":2,"wave":"wave-t244-p1-ir-emitter"}
+- {"allocations":{"F:dev-wave-child-dies-with-tool-call":"F103","F:pgrep-matches-parallel-wave-child":"F104"},"authored":"2026-08-04","content_sha256":"b2ebee70aa77122af96efe3c16c2c23ba71085b2e913f4878098cbc14e0bab22","seq":3,"wave":"wave-t244-p1-ir-emitter"}
+
+- {"allocations":{"D:t244-u2-na-bifurcation":"D150"},"authored":"2026-08-04","content_sha256":"17fdc2e2c8063a5b2aad5fa4227d53d21c44c2f686a8ddd3fddf77c3c4e9bd23","seq":1,"wave":"dev-wave-t244-u2-na-bifurcation"}
+- {"allocations":{"T:t244-cap-lift-doc-pointer":"[T-436]","T:t244-cap-lift-receipt":"[T-434]","T:t244-p6-semantic-contract":"[T-433]","T:t244-prereg-refresh":"[T-435]"},"authored":"2026-08-04","content_sha256":"0b40b483e35e3838c710f9a20a0142767e9f58c4653665d15396eb0376c2ca68","seq":2,"wave":"dev-wave-t244-u2-na-bifurcation"}
+
+- {"allocations":{"T:ruleops-git-stderr-strict":"[T-439]","T:ruleops-inventory-mutation-matrix":"[T-437]","T:ruleops-realrepo-xdist-group":"[T-438]","T:ruleops-test-candidate-decode":"[T-440]"},"authored":"2026-08-04","content_sha256":"e12e87683a0ebb01067fd1eb798b703abf7cd09cd3359bded3c5e38c4aa1b698","seq":1,"wave":"wave-t407-ruleops-binary-blob"}
+- {"allocations":{"D:ruleops-inventory-skip-non-utf8":"D151"},"authored":"2026-08-04","content_sha256":"92d3837a96138ccf9cd0e2709b681aed0607c8a234f030c714fa6873cee2bf8f","seq":2,"wave":"wave-t407-ruleops-binary-blob"}
+
+- {"allocations":{"T:backoff-hole-allowlist":"[T-441]","T:freeze-live-source-regression":"[T-442]"},"authored":"2026-08-04","content_sha256":"db2f98d99c889d8d064f06d23867551b75e4aba387728b9833b5be7f889501d6","seq":1,"wave":"rulings-20260804"}

@@ -50,6 +50,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
         admit_claude_transport,
         is_valid_pbs_jobid,
     )
+    from orchestrator.campaign.role_session_isolation import CrossRoleSessionTracker
     from orchestrator.campaign.layout import (
         CampaignLayout,
         ensure_exploration_namespace,
@@ -87,6 +88,7 @@ else:
         admit_claude_transport,
         is_valid_pbs_jobid,
     )
+    from .role_session_isolation import CrossRoleSessionTracker
     from .layout import (
         CampaignLayout,
         ensure_exploration_namespace,
@@ -940,6 +942,9 @@ def _provider_set(
         if projected_provider_factory is None
         else projected_provider_factory
     )
+    cross_role_session_tracker = (
+        CrossRoleSessionTracker() if kind == "claude-headless" else None
+    )
     result: dict[str, Any] = {}
     try:
         for role, (role_file, role_name) in ROLE_FILES.items():
@@ -956,6 +961,11 @@ def _provider_set(
                     environ=source_env,
                     allow_pegasus_compute_transport=allow_pegasus_compute_transport,
                     transport_admission=transport_admission,
+                    **(
+                        {"cross_role_session_tracker": cross_role_session_tracker}
+                        if cross_role_session_tracker is not None
+                        else {}
+                    ),
                 )
             else:  # pragma: no cover - argparse closes this
                 raise AutonomousTrialError(f"unknown provider kind: {kind}")
@@ -1537,6 +1547,10 @@ def run_trial(
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
     if not isinstance(provider_kind, str) or provider_kind not in PROVIDER_KINDS:
         raise AutonomousTrialError(f"unknown provider kind: {provider_kind}")
+    if provider_kind == "claude-headless" and providers is not None:
+        raise AutonomousTrialError(
+            "claude-headless provider は caller 注入を許可しない"
+        )
     _validate_generation_budget(generations)
     if isinstance(max_wall_s, bool) or not isinstance(max_wall_s, int) or max_wall_s < 1:
         raise AutonomousTrialError("max_wall_s は正の int 必須")

@@ -22,7 +22,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Collection, Iterable, Mapping, Sequence
 
 
-INVENTORY_SCHEMA = "ruleops-inventory/v1"
+INVENTORY_SCHEMA = "ruleops-inventory/v2"
 INSPECTION_SCHEMA = "ruleops-inspection/v1"
 LEDGER_SCHEMA = "ruleops-candidates/v1"
 RECEIPT_SCHEMA = "ruleops-mutation-receipt/v1"
@@ -660,12 +660,14 @@ def build_inventory(
     blobs = _batch_blobs(snap, [entry for _, _, entry in selected])
     changes = _last_changes(snap, [path for path, _, _ in selected])
     items: list[dict[str, Any]] = []
+    skipped_non_utf8 = 0
     for path, scoped, entry in selected:
         raw = blobs[entry.oid]
         try:
             raw.decode("utf-8", "strict")
-        except UnicodeDecodeError as exc:
-            raise RuleOpsError("non-utf8", f"inventory: blob が非 UTF-8: {path}") from exc
+        except UnicodeDecodeError:
+            skipped_non_utf8 += 1
+            continue
         last_commit, changed_at = changes[path]
         artifact_format = _artifact_format(path)
         authority, default_effect = _markers(raw, artifact_format=artifact_format)
@@ -686,6 +688,7 @@ def build_inventory(
         "items": items,
         "object_format": snap.object_format,
         "schema_version": INVENTORY_SCHEMA,
+        "skipped_non_utf8": skipped_non_utf8,
     }
     _assert_snapshot_current(snap)
     return output

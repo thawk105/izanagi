@@ -80,6 +80,8 @@ title: 並行 docs 衝突を spool + fold で解消する (コード + docs、br
   - 追記本文の placeholder は fold 時に解決される。
 - `完了` / `更新` / `見送り` の item には **`  base: <sha256>`** を 1 行付ける。
   対象 item の現本文の digest であり、これが一致しないと fold は停止する。
+  対象が carry stub (`- [T-NNN] 変わらず ((N) 参照)`) のときに fold が照合するのは
+  **stub 自身の digest ではなく、carry 鎖を遡った実体 item の digest** である。
   別 wave が先に同じ項を書き換えていた場合に、古い本文から作った更新で上書きするのを防ぐ。
 - `見送り` は `docs/phase3.md` の見送り台帳に**実在する H3 名**を H4 として指定し、`理由:` を必ず書く。
 - item の継続行は 2 space インデントにする。

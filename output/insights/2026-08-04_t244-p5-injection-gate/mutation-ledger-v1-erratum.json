@@ -1,0 +1,1099 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/115541cb8583ccbdaa79043041d93372/izdw-115541cb85.o884665",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/115541cb8583ccbdaa79043041d93372/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n........................................................................ [ 70%]\n............................................................             [100%]\n204 passed in 2.55s\n",
+      "stdout_sha256": "b82f9b56a501a9d10a7932ef2c94785d7ca4312b34f0128533d3738f17595dd3"
+    },
+    "artifact_error": null,
+    "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+    "duration_s": 26.783,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "f0b7cc9dc04adf28bf73c4cad28155ca08569ce8857aeae1940d71d1dc0e6281",
+    "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+    "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+    "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+    "status": "PASSED",
+    "test_output_sha256": "b82f9b56a501a9d10a7932ef2c94785d7ca4312b34f0128533d3738f17595dd3",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+  },
+  "date": "2026-08-04T02:31:35.330089+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/a1404bcf37848360b0d7178f46bb3848/izdw-a1404bcf37.o884666",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/a1404bcf37848360b0d7178f46bb3848/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n..........F............................................................. [ 70%]\n............................................................             [100%]\n=================================== FAILURES ===================================\n__________ test_claude_run_rejects_injected_providers_before_artifact __________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_claude_run_rejects_inject0')\n\n    def test_claude_run_rejects_injected_providers_before_artifact(tmp_path) -> None:\n        assert \"cross_role_session_tracker\" not in inspect.signature(A.run_trial).parameters\n        run_root = tmp_path / \"run\"\n>       with pytest.raises(A.AutonomousTrialError, match=\"caller 注入\"):\nE       Failed: DID NOT RAISE AutonomousTrialError\n\norchestrator/tests/test_role_session_isolation.py:123: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_role_session_isolation.py::test_claude_run_rejects_injected_providers_before_artifact\n1 failed, 203 passed in 2.57s\n",
+        "stdout_sha256": "367b2c46c4ff1c64feb7e3ad385336ce57026054867f4ec49fa3cbf651beb280"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+      "duration_s": 26.785,
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_claude_run_rejects_injected_providers_before_artifact"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_claude_run_rejects_injected_providers_before_artifact"
+      ],
+      "hang_risk": false,
+      "id": "MX1",
+      "injection_diff_sha256": "89766606531d6ddb141adae8f91758c356c680e5d46bfa71e8438a79e59927e0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b866faaa5ab720aaf1ee1baad5aba67cc2686eeb9e669858ee353838d1f8b5de",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "    if False and provider_kind == \"claude-headless\" and providers is not None:",
+          "old": "    if provider_kind == \"claude-headless\" and providers is not None:"
+        }
+      ],
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "KILLED",
+      "test_output_sha256": "367b2c46c4ff1c64feb7e3ad385336ce57026054867f4ec49fa3cbf651beb280",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/a79d6319f323af79390c9806dfe5d86f/izdw-a79d6319f3.o884667",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/a79d6319f323af79390c9806dfe5d86f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n........................................................................ [ 70%]\n............................................................             [100%]\n204 passed in 2.56s\n",
+        "stdout_sha256": "fc225cf998a695e4903dec9fb55c0b28f88bd4c9c61bdafd6889ed4596356124"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+      "duration_s": 26.794,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MX2",
+      "injection_diff_sha256": "375a94ee51cc3f117a24b673483d8b950fceaf91d33e508affc133fcb93dfbb6",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "6cee93a87bcf869435085300aac41d7c5eb5b07ec1e1edcd5b8fe28310b8f10e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "    if False and allow_pegasus_compute_transport and providers is not None:",
+          "old": "    if allow_pegasus_compute_transport and providers is not None:"
+        }
+      ],
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "SURVIVED",
+      "test_output_sha256": "fc225cf998a695e4903dec9fb55c0b28f88bd4c9c61bdafd6889ed4596356124",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/fb7298088ef1edcb58603999e6a890d9/izdw-fb7298088e.o884669",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/fb7298088ef1edcb58603999e6a890d9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n.............F...F..FF.................................................. [ 70%]\n............................................................             [100%]\n=================================== FAILURES ===================================\n___________ test_tracker_pure_evaluator_rejects_duplicate_session_id ___________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tracker_pure_evaluator_rejects_duplicate_session_id() -> None:\n        evaluation = evaluate_role_session_isolation(\n            ((\"planner\", \"shared-session\"), (\"coder\", \"shared-session\"))\n        )\n>       assert evaluation.accepted is False\nE       AssertionError: assert True is False\nE        +  where True = RoleSessionEvaluation(accepted=True, reason='accepted').accepted\n\norchestrator/tests/test_role_session_isolation.py:141: AssertionError\n____________ test_separate_provider_instances_reject_shared_session ____________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_separate_provider_instanc0')\n\n    def test_separate_provider_instances_reject_shared_session(tmp_path) -> None:\n        tracker = CrossRoleSessionTracker()\n        planner = _provider(\n            tmp_path, role=\"planner\", session_id=\"shared-session\", tracker=tracker,\n        )\n        coder = _provider(\n            tmp_path, role=\"coder\", session_id=\"shared-session\", tracker=tracker,\n        )\n        try:\n            planner.invoke(invocation_id=\"planner.one\", payload={\"x\": 1})\n>           with pytest.raises(PredictionRunnerError) as caught:\nE           Failed: DID NOT RAISE PredictionRunnerError\n\norchestrator/tests/test_role_session_isolation.py:200: Failed\n_______ test_consumer_rejects_duplicate_child_id_without_runtime_tracker _______\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_consumer_rejects_duplicat0')\n\n    def test_consumer_rejects_duplicate_child_id_without_runtime_tracker(tmp_path) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", \"shared-session\", \"shared-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*mutually distinct$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:233: Failed\n___________ test_file_verifier_rejects_persisted_duplicate_child_id ____________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_file_verifier_rejects_per0')\n\n    def test_file_verifier_rejects_persisted_duplicate_child_id(tmp_path) -> None:\n        run, _report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", \"shared-session\", \"shared-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*mutually distinct$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:247: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_role_session_isolation.py::test_tracker_pure_evaluator_rejects_duplicate_session_id\nFAILED orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker\nFAILED orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id\n4 failed, 200 passed in 2.57s\n",
+        "stdout_sha256": "408f429ea75b26d009e51e3aeafa696b40ee6e470b50fbb7be51a3cf68b25611"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+      "duration_s": 26.844,
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_tracker_pure_evaluator_rejects_duplicate_session_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_tracker_pure_evaluator_rejects_duplicate_session_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id"
+      ],
+      "hang_risk": false,
+      "id": "MX3",
+      "injection_diff_sha256": "5621fec5ffdb01f305aef35f6263c22972720ef6d77ff06befc86d0aadffea05",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d9eee95fd284590ffef4298f412fddcf6d694d7a733c2afc3c8da6848de6c4fc",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/role_session_isolation.py",
+          "new": "        if False and session_id in observed_session_ids:",
+          "old": "        if session_id in observed_session_ids:"
+        }
+      ],
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "KILLED",
+      "test_output_sha256": "408f429ea75b26d009e51e3aeafa696b40ee6e470b50fbb7be51a3cf68b25611",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/276a42e59f6c85982ee7570a07f140ea/izdw-276a42e59f.o884670",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/276a42e59f6c85982ee7570a07f140ea/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n......F................................................................. [ 70%]\n............................................................             [100%]\n=================================== FAILURES ===================================\n____________ test_separate_provider_instances_reject_shared_session ____________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_separate_provider_instanc0')\n\n    def test_separate_provider_instances_reject_shared_session(tmp_path) -> None:\n        tracker = CrossRoleSessionTracker()\n        planner = _provider(\n            tmp_path, role=\"planner\", session_id=\"shared-session\", tracker=tracker,\n        )\n        coder = _provider(\n            tmp_path, role=\"coder\", session_id=\"shared-session\", tracker=tracker,\n        )\n        try:\n            planner.invoke(invocation_id=\"planner.one\", payload={\"x\": 1})\n>           with pytest.raises(PredictionRunnerError) as caught:\nE           Failed: DID NOT RAISE PredictionRunnerError\n\norchestrator/tests/test_role_session_isolation.py:200: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session\n1 failed, 203 passed in 2.58s\n",
+        "stdout_sha256": "efe9f48158c3e19c165eb3b0f3bf0dd456b357a737361d448f00b35696072371"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+      "duration_s": 26.833,
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session"
+      ],
+      "hang_risk": false,
+      "id": "MX4",
+      "injection_diff_sha256": "987a97b57d727c3d1f499742fa34f58d9fbbbd3bd338a18128d08c99734a2f58",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e605b08d486c5c30b3c31c0db7eaf511b751deb93156cd9ca21002c510220bbd",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "new": "        if False and self._cross_role_session_tracker is not None:",
+          "old": "        if self._cross_role_session_tracker is not None:"
+        }
+      ],
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "KILLED",
+      "test_output_sha256": "efe9f48158c3e19c165eb3b0f3bf0dd456b357a737361d448f00b35696072371",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/87f400efad95f35e691ee9d9f8fc4652/izdw-87f400efad.o884672",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/87f400efad95f35e691ee9d9f8fc4652/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n.F...................................................................... [ 70%]\n............................................................             [100%]\n=================================== FAILURES ===================================\n____________ test_provider_set_shares_one_tracker_across_all_roles _____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_provider_set_shares_one_t0')\n\n    def test_provider_set_shares_one_tracker_across_all_roles(tmp_path) -> None:\n        calls: list[dict[str, object]] = []\n    \n        class _FakeProvider:\n            def __init__(self, **kwargs) -> None:\n                calls.append(kwargs)\n    \n            def close(self) -> None:\n                return None\n    \n        providers = A._provider_set(\n            kind=\"claude-headless\",\n            run_root=tmp_path / \"run\",\n            executable=\"unused\",\n            projected_provider_factory=_FakeProvider,\n        )\n        assert list(providers) == list(A.ROLE_FILES)\n        trackers = [call[\"cross_role_session_tracker\"] for call in calls]\n        assert len(trackers) == 4\n        assert type(trackers[0]) is CrossRoleSessionTracker\n>       assert all(tracker is trackers[0] for tracker in trackers)\nE       assert False\nE        +  where False = all(<generator object test_provider_set_shares_one_tracker_across_all_roles.<locals>.<genexpr> at 0x14dc7040dee0>)\n\norchestrator/tests/test_role_session_isolation.py:168: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_role_session_isolation.py::test_provider_set_shares_one_tracker_across_all_roles\n1 failed, 203 passed in 2.56s\n",
+        "stdout_sha256": "569a8d8fd76a5c03583f05807700be60d2f34968b38fac10b5dea2d49932cb97"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+      "duration_s": 32.006,
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_provider_set_shares_one_tracker_across_all_roles"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_provider_set_shares_one_tracker_across_all_roles"
+      ],
+      "hang_risk": false,
+      "id": "MX5",
+      "injection_diff_sha256": "fe98e3a75abbdfcdfd2e2e890d78f22d12705e15f99f33537a2ef10b1e8c5600",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c4e7afad26eb515b2c4abc896600392f8009d55e06eb441bc26b901a4691a63e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "                        {\"cross_role_session_tracker\": CrossRoleSessionTracker()}",
+          "old": "                        {\"cross_role_session_tracker\": cross_role_session_tracker}"
+        }
+      ],
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "KILLED",
+      "test_output_sha256": "569a8d8fd76a5c03583f05807700be60d2f34968b38fac10b5dea2d49932cb97",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/283e11aae55ecb532b1241f184078ea1/izdw-283e11aae5.o884673",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/283e11aae55ecb532b1241f184078ea1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n...........................FF.....F..........F....F...F................. [ 70%]\n............................................................             [100%]\n=================================== FAILURES ===================================\n______________ test_consumer_rejects_invalid_child_id[non-string] ______________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_consumer_rejects_invalid_0')\nbad_child_id = None\n\n    @pytest.mark.parametrize(\"bad_child_id\", [\"\", None], ids=(\"empty\", \"non-string\"))\n    def test_consumer_rejects_invalid_child_id(tmp_path, bad_child_id: object) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", bad_child_id, \"auditor-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:262: Failed\n_______ test_consumer_rejects_duplicate_child_id_without_runtime_tracker _______\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_consumer_rejects_duplicat0')\n\n    def test_consumer_rejects_duplicate_child_id_without_runtime_tracker(tmp_path) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", \"shared-session\", \"shared-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*mutually distinct$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:233: Failed\n_______________ test_consumer_rejects_truthy_non_string_child_id _______________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_consumer_rejects_truthy_n0')\n\n    def test_consumer_rejects_truthy_non_string_child_id(tmp_path) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", 1, \"auditor-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:276: Failed\n___________ test_file_verifier_rejects_persisted_duplicate_child_id ____________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_file_verifier_rejects_per0')\n\n    def test_file_verifier_rejects_persisted_duplicate_child_id(tmp_path) -> None:\n        run, _report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", \"shared-session\", \"shared-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*mutually distinct$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:247: Failed\n_______ test_consumer_rejects_missing_child_id_from_nonempty_provenance ________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_consumer_rejects_missing_0')\n\n    def test_consumer_rejects_missing_child_id_from_nonempty_provenance(tmp_path) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            tuple(f\"{role}-session\" for role in F._ROLES),\n        )\n        events = [\n            json.loads(line)\n            for line in (run / \"attempts.jsonl\").read_text(encoding=\"utf-8\").splitlines()\n        ]\n        coder = next(\n            event\n            for event in events\n            if event.get(\"event\") == \"role-attempt\" and event.get(\"role\") == \"coder\"\n        )\n        coder[\"provenance\"] = {\"fixture\": True}\n        report[\"cells\"][0][\"generations\"][0][\"roles\"][\"coder\"][\"provenance\"] = {\n            \"fixture\": True,\n        }\n        F._persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:304: Failed\n________________ test_consumer_rejects_invalid_child_id[empty] _________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_consumer_rejects_invalid_0')\nbad_child_id = ''\n\n    @pytest.mark.parametrize(\"bad_child_id\", [\"\", None], ids=(\"empty\", \"non-string\"))\n    def test_consumer_rejects_invalid_child_id(tmp_path, bad_child_id: object) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", bad_child_id, \"auditor-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:262: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id\nFAILED orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]\n6 failed, 198 passed in 2.55s\n",
+        "stdout_sha256": "2894f433519858e45949f50e08ce75ad5fae30f5e9bde8207a5dc4233c3e7c0a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+      "duration_s": 26.831,
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]"
+      ],
+      "hang_risk": false,
+      "id": "MX6",
+      "injection_diff_sha256": "acd897fe608e87c0a53847f4f417c47095ced0981f97175c5db7e37778424b2d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4799d65ff4cb07c0b6802c48163287de8797f0c54e3825e5b8ca552c5bcc4b95",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "    if False and not evaluation.accepted:",
+          "old": "    if not evaluation.accepted:"
+        }
+      ],
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "KILLED",
+      "test_output_sha256": "2894f433519858e45949f50e08ce75ad5fae30f5e9bde8207a5dc4233c3e7c0a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/1b659030e4608321ae77f44c754b7c2f/izdw-1b659030e4.o884674",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/1b659030e4608321ae77f44c754b7c2f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n........................F.F..F....F..................................... [ 70%]\n............................................................             [100%]\n=================================== FAILURES ===================================\n_______________ test_consumer_rejects_truthy_non_string_child_id _______________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_consumer_rejects_truthy_n0')\n\n    def test_consumer_rejects_truthy_non_string_child_id(tmp_path) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", 1, \"auditor-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:276: Failed\n_______ test_consumer_rejects_missing_child_id_from_nonempty_provenance ________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_consumer_rejects_missing_0')\n\n    def test_consumer_rejects_missing_child_id_from_nonempty_provenance(tmp_path) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            tuple(f\"{role}-session\" for role in F._ROLES),\n        )\n        events = [\n            json.loads(line)\n            for line in (run / \"attempts.jsonl\").read_text(encoding=\"utf-8\").splitlines()\n        ]\n        coder = next(\n            event\n            for event in events\n            if event.get(\"event\") == \"role-attempt\" and event.get(\"role\") == \"coder\"\n        )\n        coder[\"provenance\"] = {\"fixture\": True}\n        report[\"cells\"][0][\"generations\"][0][\"roles\"][\"coder\"][\"provenance\"] = {\n            \"fixture\": True,\n        }\n        F._persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:304: Failed\n________________ test_consumer_rejects_invalid_child_id[empty] _________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_consumer_rejects_invalid_0')\nbad_child_id = ''\n\n    @pytest.mark.parametrize(\"bad_child_id\", [\"\", None], ids=(\"empty\", \"non-string\"))\n    def test_consumer_rejects_invalid_child_id(tmp_path, bad_child_id: object) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", bad_child_id, \"auditor-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:262: Failed\n______________ test_consumer_rejects_invalid_child_id[non-string] ______________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_consumer_rejects_invalid_0')\nbad_child_id = None\n\n    @pytest.mark.parametrize(\"bad_child_id\", [\"\", None], ids=(\"empty\", \"non-string\"))\n    def test_consumer_rejects_invalid_child_id(tmp_path, bad_child_id: object) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", bad_child_id, \"auditor-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:262: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]\n4 failed, 200 passed in 2.60s\n",
+        "stdout_sha256": "d44ea9e6c4ccadb1949dab17f25032021ebc7bf590f77601d9471e6a1c4deb85"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+      "duration_s": 26.86,
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]"
+      ],
+      "hang_risk": false,
+      "id": "MX7",
+      "injection_diff_sha256": "3f61a7ebbc84060961ec06a8b67702679d3cfbee73ca59bf25a5e4f398614945",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1b2dad0f5dccf16a689fb7650f19c39398aafdaf5646c4885092bed450ffd061",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/role_session_isolation.py",
+          "new": "        if False and (type(session_id) is not str or not session_id):",
+          "old": "        if type(session_id) is not str or not session_id:"
+        }
+      ],
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "KILLED",
+      "test_output_sha256": "d44ea9e6c4ccadb1949dab17f25032021ebc7bf590f77601d9471e6a1c4deb85",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/0950b5ddd7024666fe02c088bb505305/izdw-0950b5ddd7.o884675",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/0950b5ddd7024666fe02c088bb505305/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n........................................................................ [ 70%]\n................FFF.F.F.F........FFFFF.F.....F....FF.FF....F             [100%]\n=================================== FAILURES ===================================\n__________ test_fixed_budget_rejects_null_or_empty_harness[harness1] ___________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_fixed_budget_rejects_null0')\nharness = {}\n\n    @pytest.mark.parametrize(\"harness\", [None, {}])\n    def test_fixed_budget_rejects_null_or_empty_harness(tmp_path, harness) -> None:\n        run, events, report = _complete_trial(tmp_path)\n        report[\"cells\"][0][\"generations\"][0][\"harness\"] = harness\n        _persist(run, events, report)\n        suffix = \"is not an object\" if harness is None else \"is empty\"\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=rf\"\\[state-machine\\] ycsb-a\\.g1\\.harness {suffix}$\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: '\\\\[state-machine\\\\] ycsb-a\\\\.g1\\\\.harness is empty$'\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:619: AssertionError\n____________ test_fixed_budget_rejects_null_or_empty_harness[None] _____________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_fixed_budget_rejects_null0')\nharness = None\n\n    @pytest.mark.parametrize(\"harness\", [None, {}])\n    def test_fixed_budget_rejects_null_or_empty_harness(tmp_path, harness) -> None:\n        run, events, report = _complete_trial(tmp_path)\n        report[\"cells\"][0][\"generations\"][0][\"harness\"] = harness\n        _persist(run, events, report)\n        suffix = \"is not an object\" if harness is None else \"is empty\"\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=rf\"\\[state-machine\\] ycsb-a\\.g1\\.harness {suffix}$\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: '\\\\[state-machine\\\\] ycsb-a\\\\.g1\\\\.harness is not an object$'\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:619: AssertionError\n__________ test_fixed_budget_rejects_impossible_invalid_role_history ___________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_fixed_budget_rejects_impo0')\n\n    def test_fixed_budget_rejects_impossible_invalid_role_history(tmp_path) -> None:\n        run, events, report = _complete_trial(tmp_path)\n        invalid_planner = _role_event(\"ycsb-a\", \"planner\", 2, status=\"invalid\")\n        events[1] = invalid_planner\n        report[\"cells\"][0][\"generations\"][0][\"roles\"][\"planner\"] = copy.deepcopy(\n            invalid_planner\n        )\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[state-machine\\] fixed-budget cell 'ycsb-a' has non-valid role history$\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: \"\\\\[state-machine\\\\] fixed-budget cell 'ycsb-a' has non-valid role history$\"\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:634: AssertionError\n___________ test_cell_metadata_is_required_after_generation_started ____________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_cell_metadata_is_required0')\n\n    def test_cell_metadata_is_required_after_generation_started(tmp_path) -> None:\n        run, events, report = _complete_trial(tmp_path)\n        for field in (\n            \"workload_flags\", \"descriptor\", \"descriptor_binding\",\n            \"campaign_id\", \"campaign_root\",\n        ):\n            report[\"cells\"][0].pop(field)\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=(\n                r\"\\[cell-metadata\\] cells\\[0\\] is missing required fields: \"\n                r\"\\['campaign_id', 'campaign_root', 'descriptor', \"\n                r\"'descriptor_binding', 'workload_flags'\\]$\"\n            ),\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: \"\\\\[cell-metadata\\\\] cells\\\\[0\\\\] is missing required fields: \\\\['campaign_id', 'campaign_root', 'descriptor', 'descriptor_binding', 'workload_flags'\\\\]$\"\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:778: AssertionError\n_____________________ test_unknown_stop_reason_is_rejected _____________________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_unknown_stop_reason_is_re0')\n\n    def test_unknown_stop_reason_is_rejected(tmp_path) -> None:\n        run, events, report = _complete_trial(tmp_path)\n        report[\"cells\"][0][\"stop_reason\"] = \"fixture-invented-success\"\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=(\n                r\"\\[state-machine\\] cell 'ycsb-a' has unknown stop_reason: \"\n                r\"'fixture-invented-success'$\"\n            ),\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: \"\\\\[state-machine\\\\] cell 'ycsb-a' has unknown stop_reason: 'fixture-invented-success'$\"\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:663: AssertionError\n_______ test_producer_cell_metadata_and_descriptor_binding_are_required ________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_producer_cell_metadata_an0')\n\n    def test_producer_cell_metadata_and_descriptor_binding_are_required(\n        tmp_path,\n    ) -> None:\n        run, events, report = _complete_trial(tmp_path / \"missing-workload-flags\")\n        report[\"cells\"][0].pop(\"workload_flags\")\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=(\n                r\"\\[cell-metadata\\] cells\\[0\\] is missing required fields: \"\n                r\"\\['workload_flags'\\]$\"\n            ),\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: \"\\\\[cell-metadata\\\\] cells\\\\[0\\\\] is missing required fields: \\\\['workload_flags'\\\\]$\"\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:718: AssertionError\n____________ test_role_invalid_rejects_prior_terminal_harness_stop _____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_role_invalid_rejects_prio0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fad358ab30>\n\n    def test_role_invalid_rejects_prior_terminal_harness_stop(\n        tmp_path, monkeypatch,\n    ) -> None:\n        monkeypatch.setattr(A, \"MAX_APPROVED_GENERATIONS\", 2)\n        run = tmp_path / \"run\"\n        report = _report(run, [\"ycsb-a\"], budget=2)\n        report[\"status\"] = \"partial\"\n        events = [_start(run, [\"ycsb-a\"], budget=2)]\n        roles = {}\n        for seq, role in enumerate(_ROLES, 2):\n            event = _role_event(\"ycsb-a\", role, seq, generation=1)\n            events.append(event)\n            roles[role] = copy.deepcopy(event)\n        invalid = _role_event(\"ycsb-a\", \"planner\", 6, status=\"invalid\", generation=2)\n        events.append(invalid)\n        report[\"cells\"] = [{\n            \"workload\": \"ycsb-a\",\n            **_golden_cell_metadata(run, \"ycsb-a\"),\n            \"generations\": [\n                {\n                    \"generation\": 1,\n                    \"roles\": roles,\n                    \"harness\": {\n                        \"outcome\": \"fixture-terminal\",\n                        \"variant\": None,\n                        \"stop_reason\": \"converged\",\n                        \"iteration\": 1,\n                        \"ran\": True,\n                    },\n                    \"outcome\": \"fixture-terminal\",\n                },\n                {\n                    \"generation\": 2,\n                    \"roles\": {\"planner\": copy.deepcopy(invalid)},\n                    \"outcome\": \"planner-invalid\",\n                },\n            ],\n            \"stop_reason\": \"role-invalid\",\n        }]\n        events.append(_finish(run, \"partial\", 7))\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=(\n                r\"\\[state-machine\\] role-invalid cell 'ycsb-a' has a terminal \"\n                r\"prior harness stop$\"\n            ),\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: \"\\\\[state-machine\\\\] role-invalid cell 'ycsb-a' has a terminal prior harness stop$\"\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:881: AssertionError\n___________ test_m4b_verifier_rejects_omitted_constructed_generation ___________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_m4b_verifier_rejects_omit0')\n\n    def test_m4b_verifier_rejects_omitted_constructed_generation(tmp_path) -> None:\n        run, events, report = _supervisor_error_trial(tmp_path)\n        report[\"cells\"][0][\"generations\"] = []\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=(\n                r\"\\[state-machine\\] journal role attempts do not follow \"\n                r\"report role state order$\"\n            ),\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: '\\\\[state-machine\\\\] journal role attempts do not follow report role state order$'\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:1051: AssertionError\n_____________ test_state_machine_rejects_noncontiguous_generations _____________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_state_machine_rejects_non0')\n\n    def test_state_machine_rejects_noncontiguous_generations(tmp_path) -> None:\n        run, events, report = _supervisor_error_trial(tmp_path, generation=2)\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[state-machine\\] cell 'ycsb-a' generations are not contiguous from 1$\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: \"\\\\[state-machine\\\\] cell 'ycsb-a' generations are not contiguous from 1$\"\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:1123: AssertionError\n_________________ test_eventless_non_auditor_role_is_rejected __________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_eventless_non_auditor_rol0')\n\n    def test_eventless_non_auditor_role_is_rejected(tmp_path) -> None:\n        run, events, report = _complete_trial(tmp_path)\n        report[\"cells\"][0][\"generations\"][0][\"roles\"][\"planner\"] = {\n            \"status\": \"skipped\", \"reason\": \"not-a-role-attempt\",\n        }\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=(\n                r\"\\[report-role-shape\\] ycsb-a\\.g1\\.planner \"\n                r\"is not a journaled role event$\"\n            ),\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: '\\\\[report-role-shape\\\\] ycsb-a\\\\.g1\\\\.planner is not a journaled role event$'\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:1110: AssertionError\n____________ test_m3_journal_is_reread_from_disk_not_report_memory _____________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_m3_journal_is_reread_from0')\n\n    def test_m3_journal_is_reread_from_disk_not_report_memory(tmp_path) -> None:\n        run, events, report = _complete_trial(tmp_path)\n        events[1][\"raw_response_sha256\"] = \"e\" * 64\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-bijection\\] journal/report role-attempt multisets differ$\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: '\\\\[role-bijection\\\\] journal/report role-attempt multisets differ$'\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:976: AssertionError\n__________ test_m2_full_role_record_mismatch_is_rejected_by_multiset ___________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_m2_full_role_record_misma0')\n\n    def test_m2_full_role_record_mismatch_is_rejected_by_multiset(tmp_path) -> None:\n        run, events, report = _complete_trial(tmp_path)\n        report[\"cells\"][0][\"generations\"][0][\"roles\"][\"planner\"][\n            \"raw_response_sha256\"\n        ] = \"f\" * 64\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-bijection\\] journal/report role-attempt multisets differ$\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: '\\\\[role-bijection\\\\] journal/report role-attempt multisets differ$'\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:965: AssertionError\n_______________ test_consumer_keeps_fixture_provider_acceptance ________________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_consumer_keeps_fixture_pr0')\n\n    def test_consumer_keeps_fixture_provider_acceptance(tmp_path) -> None:\n        run, _events, report = F._complete_trial(tmp_path)\n>       C.assert_autonomous_trial_completeness(\n            report=report, attempt_journal=run / \"attempts.jsonl\",\n        )\n\norchestrator/tests/test_role_session_isolation.py:335: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/autonomous_trial_completeness.py:913: in assert_autonomous_trial_completeness\n    _check_role_session_isolation(\norchestrator/campaign/autonomous_trial_completeness.py:292: in _check_role_session_isolation\n    _fail(\"role-session-isolation\", evaluation.reason)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ngate = 'role-session-isolation'\nmessage = 'observation 0 session_id must be a non-empty str'\n\n    def _fail(gate: str, message: str) -> None:\n>       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\nE       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [role-session-isolation] observation 0 session_id must be a non-empty str\n\norchestrator/campaign/autonomous_trial_completeness.py:70: AutonomousTrialCompletenessError\n__________________ test_p1_complete_three_cell_fixture_passes __________________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_p1_complete_three_cell_fi0')\n\n    def test_p1_complete_three_cell_fixture_passes(tmp_path) -> None:\n        run, _events, report = _complete_trial(\n            tmp_path, workloads=(\"ycsb-a\", \"ycsb-b\", \"ycsb-c\"),\n        )\n>       _verify(run, report)\n\norchestrator/tests/test_autonomous_trial_completeness.py:452: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_autonomous_trial_completeness.py:443: in _verify\n    C.assert_autonomous_trial_completeness(\norchestrator/campaign/autonomous_trial_completeness.py:913: in assert_autonomous_trial_completeness\n    _check_role_session_isolation(\norchestrator/campaign/autonomous_trial_completeness.py:292: in _check_role_session_isolation\n    _fail(\"role-session-isolation\", evaluation.reason)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ngate = 'role-session-isolation'\nmessage = 'observation 0 session_id must be a non-empty str'\n\n    def _fail(gate: str, message: str) -> None:\n>       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\nE       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [role-session-isolation] observation 0 session_id must be a non-empty str\n\norchestrator/campaign/autonomous_trial_completeness.py:70: AutonomousTrialCompletenessError\n________________ test_p2_pre_audit_reject_journaled_skip_passes ________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_p2_pre_audit_reject_journ0')\n\n    def test_p2_pre_audit_reject_journaled_skip_passes(tmp_path) -> None:\n        run, _events, report = _pre_audit_trial(tmp_path)\n>       _verify(run, report)\n\norchestrator/tests/test_autonomous_trial_completeness.py:458: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_autonomous_trial_completeness.py:443: in _verify\n    C.assert_autonomous_trial_completeness(\norchestrator/campaign/autonomous_trial_completeness.py:913: in assert_autonomous_trial_completeness\n    _check_role_session_isolation(\norchestrator/campaign/autonomous_trial_completeness.py:292: in _check_role_session_isolation\n    _fail(\"role-session-isolation\", evaluation.reason)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ngate = 'role-session-isolation'\nmessage = 'observation 0 session_id must be a non-empty str'\n\n    def _fail(gate: str, message: str) -> None:\n>       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\nE       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [role-session-isolation] observation 0 session_id must be a non-empty str\n\norchestrator/campaign/autonomous_trial_completeness.py:70: AutonomousTrialCompletenessError\n__________________ test_state_machine_rejects_nonprefix_roles __________________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_state_machine_rejects_non0')\n\n    def test_state_machine_rejects_nonprefix_roles(tmp_path) -> None:\n        run, events, report = _supervisor_error_trial(\n            tmp_path, roles=(\"planner\", \"auditor\"),\n        )\n        _persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=(\n                r\"\\[state-machine\\] cell 'ycsb-a' generation 1 roles are not an \"\n                r\"allowed prefix$\"\n            ),\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: \"\\\\[state-machine\\\\] cell 'ycsb-a' generation 1 roles are not an allowed prefix$\"\nE         Actual message: '[role-session-isolation] observation 0 session_id must be a non-empty str'\n\norchestrator/tests/test_autonomous_trial_completeness.py:1135: AssertionError\n__________________ test_all_producer_driver_stop_reasons_pass __________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_all_producer_driver_stop_0')\n\n    def test_all_producer_driver_stop_reasons_pass(tmp_path) -> None:\n        assert A.DRIVER_STOP_REASONS == {\n            \"continue\", \"converged\", \"reverse-exhausted\",\n            \"budget-iterations\", \"budget-walltime\",\n        }\n        for reason in sorted(A.DRIVER_STOP_REASONS):\n            run, events, report = _complete_trial(tmp_path / reason)\n            report[\"cells\"][0][\"generations\"][0][\"harness\"][\"stop_reason\"] = reason\n            report[\"cells\"][0][\"stop_reason\"] = (\n                \"fixed-generation-budget\" if reason == \"continue\" else reason\n            )\n            _persist(run, events, report)\n>           _verify(run, report)\n\norchestrator/tests/test_autonomous_trial_completeness.py:837: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_autonomous_trial_completeness.py:443: in _verify\n    C.assert_autonomous_trial_completeness(\norchestrator/campaign/autonomous_trial_completeness.py:913: in assert_autonomous_trial_completeness\n    _check_role_session_isolation(\norchestrator/campaign/autonomous_trial_completeness.py:292: in _check_role_session_isolation\n    _fail(\"role-session-isolation\", evaluation.reason)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ngate = 'role-session-isolation'\nmessage = 'observation 0 session_id must be a non-empty str'\n\n    def _fail(gate: str, message: str) -> None:\n>       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\nE       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [role-session-isolation] observation 0 session_id must be a non-empty str\n\norchestrator/campaign/autonomous_trial_completeness.py:70: AutonomousTrialCompletenessError\n_________________ test_direct_cli_starts_with_clean_pythonpath _________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_direct_cli_starts_with_cl0')\n\n    def test_direct_cli_starts_with_clean_pythonpath(tmp_path) -> None:\n        run, _events, _report_value = _complete_trial(tmp_path)\n        proc = subprocess.run(\n            [\n                sys.executable,\n                str(_ROOT / \"orchestrator/campaign/autonomous_trial_completeness.py\"),\n                str(run / \"attempts.jsonl\"),\n                str(run / \"report.json\"),\n            ],\n            cwd=tmp_path,\n            env={\"PATH\": str(Path(sys.executable).parent)},\n            text=True,\n            capture_output=True,\n            check=False,\n        )\n>       assert proc.returncode == 0, proc.stderr\nE       AssertionError: usage: autonomous_trial_completeness.py [-h]\nE                                                 [--campaign-output-root CAMPAIGN_OUTPUT_ROOT]\nE                                                 attempt_journal report_json\nE         autonomous_trial_completeness.py: error: [role-session-isolation] observation 0 session_id must be a non-empty str\nE         \nE       assert 2 == 0\nE        +  where 2 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orc...nautonomous_trial_completeness.py: error: [role-session-isolation] observation 0 session_id must be a non-empty str\\n').returncode\n\norchestrator/tests/test_autonomous_trial_completeness.py:1632: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[harness1]\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[None]\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_impossible_invalid_role_history\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_after_generation_started\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_unknown_stop_reason_is_rejected\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_producer_cell_metadata_and_descriptor_binding_are_required\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_role_invalid_rejects_prior_terminal_harness_stop\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_m4b_verifier_rejects_omitted_constructed_generation\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_noncontiguous_generations\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_eventless_non_auditor_role_is_rejected\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_m3_journal_is_reread_from_disk_not_report_memory\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_m2_full_role_record_mismatch_is_rejected_by_multiset\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_keeps_fixture_provider_acceptance\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_p1_complete_three_cell_fixture_passes\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_p2_pre_audit_reject_journaled_skip_passes\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_nonprefix_roles\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_all_producer_driver_stop_reasons_pass\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_direct_cli_starts_with_clean_pythonpath\n18 failed, 186 passed in 2.65s\n",
+        "stdout_sha256": "a72b8c221cc1079ac73b8d6abbd58b35190f5bf2d8fb8804a2395f96e4a551fd"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+      "duration_s": 26.858,
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_keeps_fixture_provider_acceptance"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[harness1]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[None]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_impossible_invalid_role_history",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_after_generation_started",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_unknown_stop_reason_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_producer_cell_metadata_and_descriptor_binding_are_required",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_role_invalid_rejects_prior_terminal_harness_stop",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m4b_verifier_rejects_omitted_constructed_generation",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_noncontiguous_generations",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_eventless_non_auditor_role_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m3_journal_is_reread_from_disk_not_report_memory",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m2_full_role_record_mismatch_is_rejected_by_multiset",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_keeps_fixture_provider_acceptance",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p1_complete_three_cell_fixture_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p2_pre_audit_reject_journaled_skip_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_nonprefix_roles",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_all_producer_driver_stop_reasons_pass",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_direct_cli_starts_with_clean_pythonpath"
+      ],
+      "hang_risk": false,
+      "id": "MX8",
+      "injection_diff_sha256": "7efc73396a62cebe6edd82a3a40cabc8bbbef6320e3e9dd5cabf21b2150cc67b",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "0414d947ca2d9133ae2eab3ce444afd406435cca83d024f9bbd3729bcf230b69",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "    if False:",
+          "old": "    if provider != \"claude-headless\":"
+        }
+      ],
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "MISMATCH",
+      "test_output_sha256": "a72b8c221cc1079ac73b8d6abbd58b35190f5bf2d8fb8804a2395f96e4a551fd",
+      "test_output_tail": [
+        "            \"continue\", \"converged\", \"reverse-exhausted\",",
+        "            \"budget-iterations\", \"budget-walltime\",",
+        "        }",
+        "        for reason in sorted(A.DRIVER_STOP_REASONS):",
+        "            run, events, report = _complete_trial(tmp_path / reason)",
+        "            report[\"cells\"][0][\"generations\"][0][\"harness\"][\"stop_reason\"] = reason",
+        "            report[\"cells\"][0][\"stop_reason\"] = (",
+        "                \"fixed-generation-budget\" if reason == \"continue\" else reason",
+        "            )",
+        "            _persist(run, events, report)",
+        ">           _verify(run, report)",
+        "",
+        "orchestrator/tests/test_autonomous_trial_completeness.py:837: ",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "orchestrator/tests/test_autonomous_trial_completeness.py:443: in _verify",
+        "    C.assert_autonomous_trial_completeness(",
+        "orchestrator/campaign/autonomous_trial_completeness.py:913: in assert_autonomous_trial_completeness",
+        "    _check_role_session_isolation(",
+        "orchestrator/campaign/autonomous_trial_completeness.py:292: in _check_role_session_isolation",
+        "    _fail(\"role-session-isolation\", evaluation.reason)",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "",
+        "gate = 'role-session-isolation'",
+        "message = 'observation 0 session_id must be a non-empty str'",
+        "",
+        "    def _fail(gate: str, message: str) -> None:",
+        ">       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")",
+        "E       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [role-session-isolation] observation 0 session_id must be a non-empty str",
+        "",
+        "orchestrator/campaign/autonomous_trial_completeness.py:70: AutonomousTrialCompletenessError",
+        "_________________ test_direct_cli_starts_with_clean_pythonpath _________________",
+        "[gw3] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_direct_cli_starts_with_cl0')",
+        "",
+        "    def test_direct_cli_starts_with_clean_pythonpath(tmp_path) -> None:",
+        "        run, _events, _report_value = _complete_trial(tmp_path)",
+        "        proc = subprocess.run(",
+        "            [",
+        "                sys.executable,",
+        "                str(_ROOT / \"orchestrator/campaign/autonomous_trial_completeness.py\"),",
+        "                str(run / \"attempts.jsonl\"),",
+        "                str(run / \"report.json\"),",
+        "            ],",
+        "            cwd=tmp_path,",
+        "            env={\"PATH\": str(Path(sys.executable).parent)},",
+        "            text=True,",
+        "            capture_output=True,",
+        "            check=False,",
+        "        )",
+        ">       assert proc.returncode == 0, proc.stderr",
+        "E       AssertionError: usage: autonomous_trial_completeness.py [-h]",
+        "E                                                 [--campaign-output-root CAMPAIGN_OUTPUT_ROOT]",
+        "E                                                 attempt_journal report_json",
+        "E         autonomous_trial_completeness.py: error: [role-session-isolation] observation 0 session_id must be a non-empty str",
+        "E         ",
+        "E       assert 2 == 0",
+        "E        +  where 2 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/orc...nautonomous_trial_completeness.py: error: [role-session-isolation] observation 0 session_id must be a non-empty str\\n').returncode",
+        "",
+        "orchestrator/tests/test_autonomous_trial_completeness.py:1632: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[harness1]",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[None]",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_impossible_invalid_role_history",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_after_generation_started",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_unknown_stop_reason_is_rejected",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_producer_cell_metadata_and_descriptor_binding_are_required",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_role_invalid_rejects_prior_terminal_harness_stop",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_m4b_verifier_rejects_omitted_constructed_generation",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_noncontiguous_generations",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_eventless_non_auditor_role_is_rejected",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_m3_journal_is_reread_from_disk_not_report_memory",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_m2_full_role_record_mismatch_is_rejected_by_multiset",
+        "FAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_keeps_fixture_provider_acceptance",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_p1_complete_three_cell_fixture_passes",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_p2_pre_audit_reject_journaled_skip_passes",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_nonprefix_roles",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_all_producer_driver_stop_reasons_pass",
+        "FAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_direct_cli_starts_with_clean_pythonpath",
+        "18 failed, 186 passed in 2.65s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/37e54f2313dca9e1f439b0b61c11ae61/izdw-37e54f2313.o884677",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/37e54f2313dca9e1f439b0b61c11ae61/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n......................................F...F...............F..F.........F [ 70%]\n............................F......F........................             [100%]\n=================================== FAILURES ===================================\n____________ test_separate_provider_instances_reject_shared_session ____________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_separate_provider_instanc0')\n\n    def test_separate_provider_instances_reject_shared_session(tmp_path) -> None:\n        tracker = CrossRoleSessionTracker()\n        planner = _provider(\n            tmp_path, role=\"planner\", session_id=\"shared-session\", tracker=tracker,\n        )\n        coder = _provider(\n            tmp_path, role=\"coder\", session_id=\"shared-session\", tracker=tracker,\n        )\n        try:\n            planner.invoke(invocation_id=\"planner.one\", payload={\"x\": 1})\n>           with pytest.raises(PredictionRunnerError) as caught:\nE           Failed: DID NOT RAISE PredictionRunnerError\n\norchestrator/tests/test_role_session_isolation.py:200: Failed\n_______________ test_consumer_rejects_truthy_non_string_child_id _______________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_consumer_rejects_truthy_n0')\n\n    def test_consumer_rejects_truthy_non_string_child_id(tmp_path) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", 1, \"auditor-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:276: Failed\n_______ test_consumer_rejects_duplicate_child_id_without_runtime_tracker _______\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_consumer_rejects_duplicat0')\n\n    def test_consumer_rejects_duplicate_child_id_without_runtime_tracker(tmp_path) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", \"shared-session\", \"shared-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*mutually distinct$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:233: Failed\n_______ test_consumer_rejects_missing_child_id_from_nonempty_provenance ________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_consumer_rejects_missing_0')\n\n    def test_consumer_rejects_missing_child_id_from_nonempty_provenance(tmp_path) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            tuple(f\"{role}-session\" for role in F._ROLES),\n        )\n        events = [\n            json.loads(line)\n            for line in (run / \"attempts.jsonl\").read_text(encoding=\"utf-8\").splitlines()\n        ]\n        coder = next(\n            event\n            for event in events\n            if event.get(\"event\") == \"role-attempt\" and event.get(\"role\") == \"coder\"\n        )\n        coder[\"provenance\"] = {\"fixture\": True}\n        report[\"cells\"][0][\"generations\"][0][\"roles\"][\"coder\"][\"provenance\"] = {\n            \"fixture\": True,\n        }\n        F._persist(run, events, report)\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:304: Failed\n______________ test_consumer_rejects_invalid_child_id[non-string] ______________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_consumer_rejects_invalid_0')\nbad_child_id = None\n\n    @pytest.mark.parametrize(\"bad_child_id\", [\"\", None], ids=(\"empty\", \"non-string\"))\n    def test_consumer_rejects_invalid_child_id(tmp_path, bad_child_id: object) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", bad_child_id, \"auditor-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:262: Failed\n________________ test_consumer_rejects_invalid_child_id[empty] _________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_consumer_rejects_invalid_0')\nbad_child_id = ''\n\n    @pytest.mark.parametrize(\"bad_child_id\", [\"\", None], ids=(\"empty\", \"non-string\"))\n    def test_consumer_rejects_invalid_child_id(tmp_path, bad_child_id: object) -> None:\n        run, report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", bad_child_id, \"auditor-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*non-empty str$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:262: Failed\n___________ test_file_verifier_rejects_persisted_duplicate_child_id ____________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_file_verifier_rejects_per0')\n\n    def test_file_verifier_rejects_persisted_duplicate_child_id(tmp_path) -> None:\n        run, _report = _claude_artifact(\n            tmp_path,\n            (\"planner-session\", \"shared-session\", \"shared-session\", \"critic-session\"),\n        )\n>       with pytest.raises(\n            C.AutonomousTrialCompletenessError,\n            match=r\"\\[role-session-isolation\\].*mutually distinct$\",\n        ):\nE       Failed: DID NOT RAISE AutonomousTrialCompletenessError\n\norchestrator/tests/test_role_session_isolation.py:247: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]\nFAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]\nFAILED orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id\n7 failed, 197 passed in 2.56s\n",
+        "stdout_sha256": "359ff518face49bf45a1cb4573a3f2840823f26add5787f80df371106dd4e9fe"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "18198cc46aea536cd0e957ef368c28079e3ef6be198d46ca312b8c7ddf6571f5",
+      "duration_s": 26.832,
+      "expected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+        "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id"
+      ],
+      "hang_risk": false,
+      "id": "MX4-MX6-both-layers",
+      "injection_diff_sha256": "bedcbfcd8f24ed244a8e3f2e7a9870ddef7d88a637311628334cf4f582001e3f",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "59fee2474cbb17d69081c66dd28c96705f95ee380d257772b889ea8e280cc845",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "new": "        if False and self._cross_role_session_tracker is not None:",
+          "old": "        if self._cross_role_session_tracker is not None:"
+        },
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "    if False and not evaluation.accepted:",
+          "old": "    if not evaluation.accepted:"
+        }
+      ],
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "MISMATCH",
+      "test_output_sha256": "359ff518face49bf45a1cb4573a3f2840823f26add5787f80df371106dd4e9fe",
+      "test_output_tail": [
+        "            event",
+        "            for event in events",
+        "            if event.get(\"event\") == \"role-attempt\" and event.get(\"role\") == \"coder\"",
+        "        )",
+        "        coder[\"provenance\"] = {\"fixture\": True}",
+        "        report[\"cells\"][0][\"generations\"][0][\"roles\"][\"coder\"][\"provenance\"] = {",
+        "            \"fixture\": True,",
+        "        }",
+        "        F._persist(run, events, report)",
+        ">       with pytest.raises(",
+        "            C.AutonomousTrialCompletenessError,",
+        "            match=r\"\\[role-session-isolation\\].*non-empty str$\",",
+        "        ):",
+        "E       Failed: DID NOT RAISE AutonomousTrialCompletenessError",
+        "",
+        "orchestrator/tests/test_role_session_isolation.py:304: Failed",
+        "______________ test_consumer_rejects_invalid_child_id[non-string] ______________",
+        "[gw10] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_consumer_rejects_invalid_0')",
+        "bad_child_id = None",
+        "",
+        "    @pytest.mark.parametrize(\"bad_child_id\", [\"\", None], ids=(\"empty\", \"non-string\"))",
+        "    def test_consumer_rejects_invalid_child_id(tmp_path, bad_child_id: object) -> None:",
+        "        run, report = _claude_artifact(",
+        "            tmp_path,",
+        "            (\"planner-session\", bad_child_id, \"auditor-session\", \"critic-session\"),",
+        "        )",
+        ">       with pytest.raises(",
+        "            C.AutonomousTrialCompletenessError,",
+        "            match=r\"\\[role-session-isolation\\].*non-empty str$\",",
+        "        ):",
+        "E       Failed: DID NOT RAISE AutonomousTrialCompletenessError",
+        "",
+        "orchestrator/tests/test_role_session_isolation.py:262: Failed",
+        "________________ test_consumer_rejects_invalid_child_id[empty] _________________",
+        "[gw9] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_consumer_rejects_invalid_0')",
+        "bad_child_id = ''",
+        "",
+        "    @pytest.mark.parametrize(\"bad_child_id\", [\"\", None], ids=(\"empty\", \"non-string\"))",
+        "    def test_consumer_rejects_invalid_child_id(tmp_path, bad_child_id: object) -> None:",
+        "        run, report = _claude_artifact(",
+        "            tmp_path,",
+        "            (\"planner-session\", bad_child_id, \"auditor-session\", \"critic-session\"),",
+        "        )",
+        ">       with pytest.raises(",
+        "            C.AutonomousTrialCompletenessError,",
+        "            match=r\"\\[role-session-isolation\\].*non-empty str$\",",
+        "        ):",
+        "E       Failed: DID NOT RAISE AutonomousTrialCompletenessError",
+        "",
+        "orchestrator/tests/test_role_session_isolation.py:262: Failed",
+        "___________ test_file_verifier_rejects_persisted_duplicate_child_id ____________",
+        "[gw8] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_file_verifier_rejects_per0')",
+        "",
+        "    def test_file_verifier_rejects_persisted_duplicate_child_id(tmp_path) -> None:",
+        "        run, _report = _claude_artifact(",
+        "            tmp_path,",
+        "            (\"planner-session\", \"shared-session\", \"shared-session\", \"critic-session\"),",
+        "        )",
+        ">       with pytest.raises(",
+        "            C.AutonomousTrialCompletenessError,",
+        "            match=r\"\\[role-session-isolation\\].*mutually distinct$\",",
+        "        ):",
+        "E       Failed: DID NOT RAISE AutonomousTrialCompletenessError",
+        "",
+        "orchestrator/tests/test_role_session_isolation.py:247: Failed",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session",
+        "FAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+        "FAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "FAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance",
+        "FAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+        "FAILED orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+        "FAILED orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id",
+        "7 failed, 197 passed in 2.56s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/7654c1a1dbb77d7722b111518f5aa3b5/izdw-7654c1a1db.o884658",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/output/pegasus-dispatch/7654c1a1dbb77d7722b111518f5aa3b5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_role_session_isolation.py::test_leaf_docstring_keeps_unimplemented_dependency_without_owner_claim\norchestrator/tests/test_role_session_isolation.py::test_claude_run_rejects_injected_providers_before_artifact\norchestrator/tests/test_role_session_isolation.py::test_tracker_pure_evaluator_rejects_duplicate_session_id\norchestrator/tests/test_role_session_isolation.py::test_provider_set_shares_one_tracker_across_all_roles\norchestrator/tests/test_role_session_isolation.py::test_constructor_rejects_tracker_subclass_before_artifact\norchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session\norchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_accept_distinct_sessions\norchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker\norchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id\norchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]\norchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]\norchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id\norchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance\norchestrator/tests/test_role_session_isolation.py::test_consumer_accepts_distinct_claude_child_ids\norchestrator/tests/test_role_session_isolation.py::test_consumer_accepts_invalid_claude_attempt_in_partial_run\norchestrator/tests/test_role_session_isolation.py::test_consumer_keeps_fixture_provider_acceptance\norchestrator/tests/test_autonomous_trial_completeness.py::test_p1_complete_three_cell_fixture_passes\norchestrator/tests/test_autonomous_trial_completeness.py::test_p2_pre_audit_reject_journaled_skip_passes\norchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes\norchestrator/tests/test_autonomous_trial_completeness.py::test_p4_provider_init_error_with_empty_cells_passes\norchestrator/tests/test_autonomous_trial_completeness.py::test_p5_generation_boundary_wall_budget_empty_generations_passes\norchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_bound_shape_and_projection_passes\norchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[duplicate]\norchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[after-run-start]\norchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[missing-receipt]\norchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[wrong-receipt-type]\norchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[report-mismatch]\norchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[report-missing]\norchestrator/tests/test_autonomous_trial_completeness.py::test_pre_workload_wall_budget_terminal_projection_passes\norchestrator/tests/test_autonomous_trial_completeness.py::test_empty_requested_complete_report_is_rejected\norchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[report-trial_id-report\\\\.trial_id is not a non-empty string]\norchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[start-provider-provider is outside the producer closed set]\norchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[report-do_build-do_build must be a bool in report and run-start]\norchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[start-max_wall_s-run-start\\\\.max_wall_s must be a positive int]\norchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[report-generation_budget_per_workload-generation budget must be a positive int in report and run-start]\norchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[role-input_payload_sha256-journal role attempt is missing required fields: \\\\['input_payload_sha256'\\\\]]\norchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[role-raw_response_path-journal role attempt valid event is missing fields: \\\\['raw_response_path'\\\\]]\norchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[None]\norchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[harness1]\norchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_impossible_invalid_role_history\norchestrator/tests/test_autonomous_trial_completeness.py::test_attempt_policy_requires_attempt_one_and_retry_false[attempt-2-journal role attempt\\\\.attempt must be exactly 1]\norchestrator/tests/test_autonomous_trial_completeness.py::test_attempt_policy_requires_attempt_one_and_retry_false[retry-True-journal role attempt\\\\.retry must be false]\norchestrator/tests/test_autonomous_trial_completeness.py::test_unknown_stop_reason_is_rejected\norchestrator/tests/test_autonomous_trial_completeness.py::test_report_and_run_start_schema_versions_are_required[report]\norchestrator/tests/test_autonomous_trial_completeness.py::test_report_and_run_start_schema_versions_are_required[start]\norchestrator/tests/test_autonomous_trial_completeness.py::test_schema_version_v2_is_required_and_v1_is_rejected\norchestrator/tests/test_autonomous_trial_completeness.py::test_producer_cell_metadata_and_descriptor_binding_are_required\norchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_after_generation_started\norchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_for_non_error_empty_cell\norchestrator/tests/test_autonomous_trial_completeness.py::test_verifier_rejects_generation_budget_above_current_producer_limit\norchestrator/tests/test_autonomous_trial_completeness.py::test_all_producer_driver_stop_reasons_pass\norchestrator/tests/test_autonomous_trial_completeness.py::test_role_invalid_rejects_prior_terminal_harness_stop\norchestrator/tests/test_autonomous_trial_completeness.py::test_auditor_skip_is_journaled_and_has_no_carve_out\norchestrator/tests/test_autonomous_trial_completeness.py::test_m1_unknown_journal_event_is_rejected_only_by_closed_set\norchestrator/tests/test_autonomous_trial_completeness.py::test_m2_full_role_record_mismatch_is_rejected_by_multiset\norchestrator/tests/test_autonomous_trial_completeness.py::test_m3_journal_is_reread_from_disk_not_report_memory\norchestrator/tests/test_autonomous_trial_completeness.py::test_m4a_producer_supervisor_error_preserves_constructed_generation\norchestrator/tests/test_autonomous_trial_completeness.py::test_m4b_verifier_rejects_omitted_constructed_generation\norchestrator/tests/test_autonomous_trial_completeness.py::test_m5_run_start_workload_order_mismatch_is_rejected\norchestrator/tests/test_autonomous_trial_completeness.py::test_m6_unexplained_zero_attempt_cell_omission_is_rejected\norchestrator/tests/test_autonomous_trial_completeness.py::test_m7_journaled_auditor_skip_requires_pre_audit_evidence\norchestrator/tests/test_autonomous_trial_completeness.py::test_eventless_non_auditor_role_is_rejected\norchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_noncontiguous_generations\norchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_nonprefix_roles\norchestrator/tests/test_autonomous_trial_completeness.py::test_m9_logical_id_diagnostic_pin_has_no_coverage_failure\norchestrator/tests/test_autonomous_trial_completeness.py::test_m10_campaign_chain_rejects_persisted_performance_mutation\norchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_identity_is_pinned_without_producer_helper_oracle\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_layer3_admission_decision_is_accepted\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path0-campaign-artifact-admission-decision/v0]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path1-historical-pre-admission-schema]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path2-legacy-unclassified]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path3-historically-certified]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path4-other-campaign]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path5-campaigns/other-campaign]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path6-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path7-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path8-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path9-replacement9]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path10-other.validator]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path11-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path12-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]\norchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path13-other-record]\norchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_missing_persisted_report\norchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_cross_trial_campaign_substitution\norchestrator/tests/test_autonomous_trial_completeness.py::test_generated_from_head_mutation_is_rejected\norchestrator/tests/test_autonomous_trial_completeness.py::test_terminal_projection_and_journal_hash_are_independent_gates\norchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path0-other-trial-run-start/report mismatch: trial_id]\norchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path1-other-provider-provider is outside the producer closed set]\norchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path2-2-run-start/report mismatch: generation_budget_per_workload]\norchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path3-True-run-start/report mismatch: do_build]\norchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path4-61-run-start/report mismatch: max_wall_s]\norchestrator/tests/test_autonomous_trial_completeness.py::test_report_attempt_journal_path_is_bound_to_verified_file\norchestrator/tests/test_autonomous_trial_completeness.py::test_journal_seq_gap_is_rejected\norchestrator/tests/test_autonomous_trial_completeness.py::test_role_append_io_failure_cannot_publish_incomplete_report\norchestrator/tests/test_autonomous_trial_completeness.py::test_journal_change_after_verifier_read_is_fail_closed\norchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_failure_is_not_caught_and_report_is_not_written\norchestrator/tests/test_autonomous_trial_completeness.py::test_direct_cli_starts_with_clean_pythonpath\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_no_build_campaign_identity_binds_shared_policy_context\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_bool\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_int_subclass_with_overridden_add\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_below_minimum\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_non_int_float\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_metric_projection_uses_ratio_keys_and_units\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_metric_projection_rejects_only_invalid_numbers\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_finite_metric_or_none_accepts_finite_boundaries\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_convert_only_percent_fields\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_preserve_out_of_range_ratios\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_reject_percent_overflow\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_preserve_unobserved_none\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_cli_default_is_literal_one_by_ast\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_one_recipient_wiring_uses_role_projection\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_one_finite_metrics_preserve_recipient_units_and_report_schema\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_invalid_role_is_single_attempt_and_stops_cell\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_rejects_unapproved_budget_before_artifact_creation\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_rejects_compute_build_before_artifact_or_provider\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_other_build_requires_parser_authority_before_artifact\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_8c_internal_entrypoints_have_no_site_injection_surface\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_direct_compute_build_rejects_before_provider\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_finish_trial_direct_compute_build_rejects_before_provider\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_compute_build_requires_matching_t276_transport_admission\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_other_build_reaches_drive_positive\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_direct_call_rejects_unapproved_budget\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_fresh_campaign_state\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_actual_fresh_campaign_layout\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_build_passes_exploration_layout_to_trigger\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_build_public_entry_passes_exploration_layout_to_trigger\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_no_build_stays_trial_local\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_malformed_json_with_cause\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_delta_pct_leak_with_cause\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_does_not_reclassify_attribute_error\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_supervisor_error_still_writes_partial_terminal_report\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_closes_owned_providers_in_reverse_order[success]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_closes_owned_providers_in_reverse_order[supervisor-error]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_does_not_close_injected_providers\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_provider_set_closes_partial_projected_provider_set_in_reverse_order\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_fixture_build_before_build_preparation\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_unapproved_budget_before_build_preparation\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_generation_budget_is_one\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_claude_headless_build_outside_other_before_preparation\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_no_build_at_cli_gate\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_run_root_is_exploration_autonomous_trials\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_explicit_run_root_still_wins\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_help_names_exploration_autonomous_trials\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[root]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[cwd]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[artifact]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[bytes]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[marker]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[nonintersection]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_close_removes_only_neutral_tree\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_finalize_fallback_removes_only_neutral_tree\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_close_never_raises_and_retries_before_detach\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_init_failure_removes_neutral_root[mcp-config]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_init_failure_removes_neutral_root[home-missing]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_init_failure_removes_neutral_root[environment-baseexception]\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_lowers_source_tools_and_binds_effective_prompt\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_rejects_server_tool_use\norchestrator/tests/test_claude_transport.py::test_committed_policy_matches_independent_literal_hash_and_registry\norchestrator/tests/test_claude_transport.py::test_accepts_committed_literal_with_exact_receipt\norchestrator/tests/test_claude_transport.py::test_accepts_distinct_http_https_synthetic_vector\norchestrator/tests/test_claude_transport.py::test_m5_leaf_preserves_distinct_http_and_https_values\norchestrator/tests/test_claude_transport.py::test_p3_accepts_when_metered_transport_keys_are_absent\norchestrator/tests/test_claude_transport.py::test_reverse_endpoint_key_order_uses_literal_canonical_digest\norchestrator/tests/test_claude_transport.py::test_rejects_non_compute_sites_and_wrapper_orders_io\norchestrator/tests/test_claude_transport.py::test_transport_import_surface_has_no_site_or_policy_io\norchestrator/tests/test_claude_transport.py::test_rejects_pbs_job_witness_failures_without_disclosure\norchestrator/tests/test_claude_transport.py::test_pbs_jobid_grammar_matches_qualification_authority_exactly\norchestrator/tests/test_claude_transport.py::test_rejects_pbs_jobid_outside_strict_syntax_without_disclosure\norchestrator/tests/test_claude_transport.py::test_rejects_each_tls_override_without_secret_disclosure\norchestrator/tests/test_claude_transport.py::test_rejects_each_unadmitted_proxy_name_without_disclosure\norchestrator/tests/test_claude_transport.py::test_m16_rejects_each_metered_transport_key_by_presence\norchestrator/tests/test_claude_transport.py::test_env_preflight_wins_over_broken_policy_without_reader_call\norchestrator/tests/test_claude_transport.py::test_rejects_missing_non_string_and_drifted_required_pair\norchestrator/tests/test_claude_transport.py::test_rejects_source_and_policy_input_types\norchestrator/tests/test_claude_transport.py::test_rejects_malformed_duplicate_nonfinite_and_schema_policy\norchestrator/tests/test_claude_transport.py::test_rejects_every_policy_uri_forbidden_form_and_redacts_credentials\norchestrator/tests/test_claude_transport.py::test_policy_surface_rejects_missing_symlink_nonregular_and_oversize\norchestrator/tests/test_claude_transport.py::test_m12_pre_open_rejects_policy_symlink_before_open\norchestrator/tests/test_claude_transport.py::test_m12_post_open_rejects_controlled_regular_file_swap\norchestrator/tests/test_claude_transport.py::test_trial_receipt_gate_rejects_missing_extra_type_and_hash_mismatch\norchestrator/tests/test_claude_transport.py::test_cli_flag_default_and_all_four_wiring_links_are_explicit\norchestrator/tests/test_claude_transport.py::test_provider_set_passes_one_immutable_receipt_object_to_four_roles\norchestrator/tests/test_claude_transport.py::test_m10_real_providers_share_run_admission_without_resolving_per_role\norchestrator/tests/test_claude_transport.py::test_projected_provider_default_and_opt_in_env_provenance_boundaries\norchestrator/tests/test_claude_transport.py::test_projected_provider_rejects_flag_types_and_snapshot_drift\norchestrator/tests/test_claude_transport.py::test_m5_provider_real_subprocess_preserves_distinct_admitted_pair\norchestrator/tests/test_claude_transport.py::test_default_provider_real_subprocess_has_no_transport_fields\norchestrator/tests/test_claude_transport.py::test_p1_flag_omitted_run_trial_has_no_transport_io_or_fields\norchestrator/tests/test_claude_transport.py::test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers\norchestrator/tests/test_claude_transport.py::test_success_consumer_keeps_valid_receipt_in_journal_and_report\norchestrator/tests/test_claude_transport.py::test_invoke_consumer_rejects_missing_extra_and_hash_receipts\norchestrator/tests/test_claude_transport.py::test_opt_out_rejects_forged_provider_transport_receipt\norchestrator/tests/test_claude_transport.py::test_m11_invalid_attempt_keeps_same_receipt\norchestrator/tests/test_claude_transport.py::test_m11_provider_init_error_keeps_same_receipt\norchestrator/tests/test_claude_transport.py::test_m13_trial_error_redacts_endpoint_and_jobid\norchestrator/tests/test_claude_transport.py::test_m13_leaf_error_never_discloses_proxy_value\norchestrator/tests/test_claude_transport.py::test_artifact_diagnostic_oserror_preserves_original_invalid_attempt\norchestrator/tests/test_claude_transport.py::test_terminal_events_keep_transport_receipt\norchestrator/tests/test_claude_transport.py::test_opt_in_report_and_opt_out_report_field_boundaries\norchestrator/tests/test_claude_transport.py::test_opt_out_source_contains_no_transport_io_calls\n\n204 tests collected in 0.45s\n",
+        "stdout_sha256": "b9fd9fbd4488a0fea2d75ecb3368f27897449c372b91117a2b586079f5794869"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_role_session_isolation.py::test_leaf_docstring_keeps_unimplemented_dependency_without_owner_claim",
+        "orchestrator/tests/test_role_session_isolation.py::test_claude_run_rejects_injected_providers_before_artifact",
+        "orchestrator/tests/test_role_session_isolation.py::test_tracker_pure_evaluator_rejects_duplicate_session_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_provider_set_shares_one_tracker_across_all_roles",
+        "orchestrator/tests/test_role_session_isolation.py::test_constructor_rejects_tracker_subclass_before_artifact",
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session",
+        "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_accept_distinct_sessions",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+        "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_accepts_distinct_claude_child_ids",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_accepts_invalid_claude_attempt_in_partial_run",
+        "orchestrator/tests/test_role_session_isolation.py::test_consumer_keeps_fixture_provider_acceptance",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p1_complete_three_cell_fixture_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p2_pre_audit_reject_journaled_skip_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p4_provider_init_error_with_empty_cells_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p5_generation_boundary_wall_budget_empty_generations_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_bound_shape_and_projection_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[duplicate]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[after-run-start]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[missing-receipt]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[wrong-receipt-type]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[report-mismatch]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[report-missing]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_pre_workload_wall_budget_terminal_projection_passes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_empty_requested_complete_report_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[report-trial_id-report//.trial_id is not a non-empty string]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[start-provider-provider is outside the producer closed set]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[report-do_build-do_build must be a bool in report and run-start]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[start-max_wall_s-run-start//.max_wall_s must be a positive int]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[report-generation_budget_per_workload-generation budget must be a positive int in report and run-start]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[role-input_payload_sha256-journal role attempt is missing required fields: //['input_payload_sha256'//]]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[role-raw_response_path-journal role attempt valid event is missing fields: //['raw_response_path'//]]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[None]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[harness1]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_impossible_invalid_role_history",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_attempt_policy_requires_attempt_one_and_retry_false[attempt-2-journal role attempt//.attempt must be exactly 1]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_attempt_policy_requires_attempt_one_and_retry_false[retry-True-journal role attempt//.retry must be false]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_unknown_stop_reason_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_report_and_run_start_schema_versions_are_required[report]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_report_and_run_start_schema_versions_are_required[start]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_schema_version_v2_is_required_and_v1_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_producer_cell_metadata_and_descriptor_binding_are_required",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_after_generation_started",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_for_non_error_empty_cell",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verifier_rejects_generation_budget_above_current_producer_limit",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_all_producer_driver_stop_reasons_pass",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_role_invalid_rejects_prior_terminal_harness_stop",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_auditor_skip_is_journaled_and_has_no_carve_out",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m1_unknown_journal_event_is_rejected_only_by_closed_set",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m2_full_role_record_mismatch_is_rejected_by_multiset",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m3_journal_is_reread_from_disk_not_report_memory",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m4a_producer_supervisor_error_preserves_constructed_generation",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m4b_verifier_rejects_omitted_constructed_generation",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m5_run_start_workload_order_mismatch_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m6_unexplained_zero_attempt_cell_omission_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m7_journaled_auditor_skip_requires_pre_audit_evidence",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_eventless_non_auditor_role_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_noncontiguous_generations",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_nonprefix_roles",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m9_logical_id_diagnostic_pin_has_no_coverage_failure",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_m10_campaign_chain_rejects_persisted_performance_mutation",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_identity_is_pinned_without_producer_helper_oracle",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_layer3_admission_decision_is_accepted",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path0-campaign-artifact-admission-decision/v0]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path1-historical-pre-admission-schema]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path2-legacy-unclassified]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path3-historically-certified]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path4-other-campaign]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path5-campaigns/other-campaign]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path6-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path7-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path8-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path9-replacement9]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path10-other.validator]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path11-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path12-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path13-other-record]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_missing_persisted_report",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_cross_trial_campaign_substitution",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_generated_from_head_mutation_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_terminal_projection_and_journal_hash_are_independent_gates",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path0-other-trial-run-start/report mismatch: trial_id]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path1-other-provider-provider is outside the producer closed set]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path2-2-run-start/report mismatch: generation_budget_per_workload]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path3-True-run-start/report mismatch: do_build]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path4-61-run-start/report mismatch: max_wall_s]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_report_attempt_journal_path_is_bound_to_verified_file",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_journal_seq_gap_is_rejected",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_role_append_io_failure_cannot_publish_incomplete_report",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_journal_change_after_verifier_read_is_fail_closed",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_failure_is_not_caught_and_report_is_not_written",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_direct_cli_starts_with_clean_pythonpath",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_no_build_campaign_identity_binds_shared_policy_context",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_boundary_at_ratified_launch",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_bool",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_int_subclass_with_overridden_add",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_below_minimum",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_budget_rejects_non_int_float",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_metric_projection_uses_ratio_keys_and_units",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_metric_projection_rejects_only_invalid_numbers",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_finite_metric_or_none_accepts_finite_boundaries",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_convert_only_percent_fields",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_preserve_out_of_range_ratios",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_reject_percent_overflow",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_preserve_unobserved_none",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_cli_default_is_literal_one_by_ast",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_one_recipient_wiring_uses_role_projection",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_one_finite_metrics_preserve_recipient_units_and_report_schema",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_invalid_role_is_single_attempt_and_stops_cell",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_rejects_unapproved_budget_before_artifact_creation",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_rejects_compute_build_before_artifact_or_provider",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_other_build_requires_parser_authority_before_artifact",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_8c_internal_entrypoints_have_no_site_injection_surface",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_direct_compute_build_rejects_before_provider",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_finish_trial_direct_compute_build_rejects_before_provider",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_compute_build_requires_matching_t276_transport_admission",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_other_build_reaches_drive_positive",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_direct_call_rejects_unapproved_budget",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_fresh_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_rejects_actual_existing_campaign_state",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_accepts_actual_fresh_campaign_layout",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_build_passes_exploration_layout_to_trigger",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_build_public_entry_passes_exploration_layout_to_trigger",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_workload_no_build_stays_trial_local",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_malformed_json_with_cause",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_wraps_delta_pct_leak_with_cause",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_freshness_does_not_reclassify_attribute_error",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_supervisor_error_still_writes_partial_terminal_report",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_closes_owned_providers_in_reverse_order[success]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_closes_owned_providers_in_reverse_order[supervisor-error]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_does_not_close_injected_providers",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_provider_set_closes_partial_projected_provider_set_in_reverse_order",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_fixture_build_before_build_preparation",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_unapproved_budget_before_build_preparation",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_generation_budget_is_one",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_rejects_claude_headless_build_outside_other_before_preparation",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_accepts_claude_headless_no_build_at_cli_gate",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_default_run_root_is_exploration_autonomous_trials",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_explicit_run_root_still_wins",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_main_help_names_exploration_autonomous_trials",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[root]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[cwd]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[artifact]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[bytes]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[marker]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_cleanup_guard_rejects_each_predicate_independently[nonintersection]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_close_removes_only_neutral_tree",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_finalize_fallback_removes_only_neutral_tree",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_close_never_raises_and_retries_before_detach",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_init_failure_removes_neutral_root[mcp-config]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_init_failure_removes_neutral_root[home-missing]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_init_failure_removes_neutral_root[environment-baseexception]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_lowers_source_tools_and_binds_effective_prompt",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_rejects_server_tool_use",
+        "orchestrator/tests/test_claude_transport.py::test_committed_policy_matches_independent_literal_hash_and_registry",
+        "orchestrator/tests/test_claude_transport.py::test_accepts_committed_literal_with_exact_receipt",
+        "orchestrator/tests/test_claude_transport.py::test_accepts_distinct_http_https_synthetic_vector",
+        "orchestrator/tests/test_claude_transport.py::test_m5_leaf_preserves_distinct_http_and_https_values",
+        "orchestrator/tests/test_claude_transport.py::test_p3_accepts_when_metered_transport_keys_are_absent",
+        "orchestrator/tests/test_claude_transport.py::test_reverse_endpoint_key_order_uses_literal_canonical_digest",
+        "orchestrator/tests/test_claude_transport.py::test_rejects_non_compute_sites_and_wrapper_orders_io",
+        "orchestrator/tests/test_claude_transport.py::test_transport_import_surface_has_no_site_or_policy_io",
+        "orchestrator/tests/test_claude_transport.py::test_rejects_pbs_job_witness_failures_without_disclosure",
+        "orchestrator/tests/test_claude_transport.py::test_pbs_jobid_grammar_matches_qualification_authority_exactly",
+        "orchestrator/tests/test_claude_transport.py::test_rejects_pbs_jobid_outside_strict_syntax_without_disclosure",
+        "orchestrator/tests/test_claude_transport.py::test_rejects_each_tls_override_without_secret_disclosure",
+        "orchestrator/tests/test_claude_transport.py::test_rejects_each_unadmitted_proxy_name_without_disclosure",
+        "orchestrator/tests/test_claude_transport.py::test_m16_rejects_each_metered_transport_key_by_presence",
+        "orchestrator/tests/test_claude_transport.py::test_env_preflight_wins_over_broken_policy_without_reader_call",
+        "orchestrator/tests/test_claude_transport.py::test_rejects_missing_non_string_and_drifted_required_pair",
+        "orchestrator/tests/test_claude_transport.py::test_rejects_source_and_policy_input_types",
+        "orchestrator/tests/test_claude_transport.py::test_rejects_malformed_duplicate_nonfinite_and_schema_policy",
+        "orchestrator/tests/test_claude_transport.py::test_rejects_every_policy_uri_forbidden_form_and_redacts_credentials",
+        "orchestrator/tests/test_claude_transport.py::test_policy_surface_rejects_missing_symlink_nonregular_and_oversize",
+        "orchestrator/tests/test_claude_transport.py::test_m12_pre_open_rejects_policy_symlink_before_open",
+        "orchestrator/tests/test_claude_transport.py::test_m12_post_open_rejects_controlled_regular_file_swap",
+        "orchestrator/tests/test_claude_transport.py::test_trial_receipt_gate_rejects_missing_extra_type_and_hash_mismatch",
+        "orchestrator/tests/test_claude_transport.py::test_cli_flag_default_and_all_four_wiring_links_are_explicit",
+        "orchestrator/tests/test_claude_transport.py::test_provider_set_passes_one_immutable_receipt_object_to_four_roles",
+        "orchestrator/tests/test_claude_transport.py::test_m10_real_providers_share_run_admission_without_resolving_per_role",
+        "orchestrator/tests/test_claude_transport.py::test_projected_provider_default_and_opt_in_env_provenance_boundaries",
+        "orchestrator/tests/test_claude_transport.py::test_projected_provider_rejects_flag_types_and_snapshot_drift",
+        "orchestrator/tests/test_claude_transport.py::test_m5_provider_real_subprocess_preserves_distinct_admitted_pair",
+        "orchestrator/tests/test_claude_transport.py::test_default_provider_real_subprocess_has_no_transport_fields",
+        "orchestrator/tests/test_claude_transport.py::test_p1_flag_omitted_run_trial_has_no_transport_io_or_fields",
+        "orchestrator/tests/test_claude_transport.py::test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers",
+        "orchestrator/tests/test_claude_transport.py::test_success_consumer_keeps_valid_receipt_in_journal_and_report",
+        "orchestrator/tests/test_claude_transport.py::test_invoke_consumer_rejects_missing_extra_and_hash_receipts",
+        "orchestrator/tests/test_claude_transport.py::test_opt_out_rejects_forged_provider_transport_receipt",
+        "orchestrator/tests/test_claude_transport.py::test_m11_invalid_attempt_keeps_same_receipt",
+        "orchestrator/tests/test_claude_transport.py::test_m11_provider_init_error_keeps_same_receipt",
+        "orchestrator/tests/test_claude_transport.py::test_m13_trial_error_redacts_endpoint_and_jobid",
+        "orchestrator/tests/test_claude_transport.py::test_m13_leaf_error_never_discloses_proxy_value",
+        "orchestrator/tests/test_claude_transport.py::test_artifact_diagnostic_oserror_preserves_original_invalid_attempt",
+        "orchestrator/tests/test_claude_transport.py::test_terminal_events_keep_transport_receipt",
+        "orchestrator/tests/test_claude_transport.py::test_opt_in_report_and_opt_out_report_field_boundaries",
+        "orchestrator/tests/test_claude_transport.py::test_opt_out_source_contains_no_transport_io_calls"
+      ],
+      "duration_s": 21.713,
+      "rc": 0,
+      "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+      "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+      "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+      "status": "PASSED",
+      "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MX1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_role_session_isolation.py::test_claude_run_rejects_injected_providers_before_artifact"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "89766606531d6ddb141adae8f91758c356c680e5d46bfa71e8438a79e59927e0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "new": "    if False and provider_kind == \"claude-headless\" and providers is not None:",
+            "old": "    if provider_kind == \"claude-headless\" and providers is not None:"
+          }
+        ]
+      },
+      "MX2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "375a94ee51cc3f117a24b673483d8b950fceaf91d33e508affc133fcb93dfbb6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "new": "    if False and allow_pegasus_compute_transport and providers is not None:",
+            "old": "    if allow_pegasus_compute_transport and providers is not None:"
+          }
+        ]
+      },
+      "MX3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_role_session_isolation.py::test_tracker_pure_evaluator_rejects_duplicate_session_id",
+          "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session",
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+          "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5621fec5ffdb01f305aef35f6263c22972720ef6d77ff06befc86d0aadffea05",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/role_session_isolation.py",
+            "new": "        if False and session_id in observed_session_ids:",
+            "old": "        if session_id in observed_session_ids:"
+          }
+        ]
+      },
+      "MX4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "987a97b57d727c3d1f499742fa34f58d9fbbbd3bd338a18128d08c99734a2f58",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/claude_projected_provider.py",
+            "new": "        if False and self._cross_role_session_tracker is not None:",
+            "old": "        if self._cross_role_session_tracker is not None:"
+          }
+        ]
+      },
+      "MX4-MX6-both-layers": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_role_session_isolation.py::test_separate_provider_instances_reject_shared_session",
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bedcbfcd8f24ed244a8e3f2e7a9870ddef7d88a637311628334cf4f582001e3f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/claude_projected_provider.py",
+            "new": "        if False and self._cross_role_session_tracker is not None:",
+            "old": "        if self._cross_role_session_tracker is not None:"
+          },
+          {
+            "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+            "new": "    if False and not evaluation.accepted:",
+            "old": "    if not evaluation.accepted:"
+          }
+        ]
+      },
+      "MX5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_role_session_isolation.py::test_provider_set_shares_one_tracker_across_all_roles"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fe98e3a75abbdfcdfd2e2e890d78f22d12705e15f99f33537a2ef10b1e8c5600",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "new": "                        {\"cross_role_session_tracker\": CrossRoleSessionTracker()}",
+            "old": "                        {\"cross_role_session_tracker\": cross_role_session_tracker}"
+          }
+        ]
+      },
+      "MX6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_duplicate_child_id_without_runtime_tracker",
+          "orchestrator/tests/test_role_session_isolation.py::test_file_verifier_rejects_persisted_duplicate_child_id",
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "acd897fe608e87c0a53847f4f417c47095ced0981f97175c5db7e37778424b2d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+            "new": "    if False and not evaluation.accepted:",
+            "old": "    if not evaluation.accepted:"
+          }
+        ]
+      },
+      "MX7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[empty]",
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_invalid_child_id[non-string]",
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_truthy_non_string_child_id",
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_rejects_missing_child_id_from_nonempty_provenance"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3f61a7ebbc84060961ec06a8b67702679d3cfbee73ca59bf25a5e4f398614945",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/role_session_isolation.py",
+            "new": "        if False and (type(session_id) is not str or not session_id):",
+            "old": "        if type(session_id) is not str or not session_id:"
+          }
+        ]
+      },
+      "MX8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_role_session_isolation.py::test_consumer_keeps_fixture_provider_acceptance"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7efc73396a62cebe6edd82a3a40cabc8bbbef6320e3e9dd5cabf21b2150cc67b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+            "new": "    if False:",
+            "old": "    if provider != \"claude-headless\":"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f0b7cc9dc04adf28bf73c4cad28155ca08569ce8857aeae1940d71d1dc0e6281",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_role_session_isolation.py",
+      "orchestrator/tests/test_autonomous_trial_completeness.py",
+      "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+      "orchestrator/tests/test_claude_transport.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "80ca59dde6ea495918ff613446f4f4fe8521a5a9",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_role_session_isolation.py",
+      "orchestrator/tests/test_autonomous_trial_completeness.py",
+      "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+      "orchestrator/tests/test_claude_transport.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "149f8b6ef864dfdc4d56a93e7d5b7d7de7c23425",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "3361896e5284e7b7241c29f7194f8f9d3d1f82db1c661d28b37ad89f18cff06e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "0b21f6ce5b5c8f785a0e3c5e6d8106dd408cf1201af9c02ec39e08f5bb8b7678",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 2,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 7,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p5-injection-gate/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "024d9a25b42a7ee6334b9ac41eb04082b44f43db274302e0d2ed243e7c02d19c",
+  "updated_at": "2026-08-04T02:36:12.420419+00:00"
+}

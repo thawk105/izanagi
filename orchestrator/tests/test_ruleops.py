@@ -49,7 +49,9 @@ _TEST_EVIDENCE_KEYS = {
 _CHECK_OUTPUT_KEYS = {
     "structurally_valid", "candidate_count", "human_approved",
 }
-_INVENTORY_ROOT_KEYS = {"schema_version", "head", "object_format", "items"}
+_INVENTORY_ROOT_KEYS = {
+    "schema_version", "head", "object_format", "items", "skipped_non_utf8",
+}
 _INVENTORY_ITEM_KEYS = {
     "path", "kind", "mode", "blob", "bytes", "last_change_commit",
     "last_changed_at", "artifact_format", "authority_marker",
@@ -88,6 +90,12 @@ def _write(repo: Path, rel: str, text: str) -> None:
     path = repo / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def _write_bytes(repo: Path, rel: str, payload: bytes) -> None:
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
 
 
 def _write_json(repo: Path, rel: str, value) -> None:
@@ -148,6 +156,72 @@ def _base_repo(tmp_path: Path) -> Path:
     _write(repo, "output/s8b-freeze/generation.json", "{}\n")
     _commit(repo)
     return repo
+
+
+@pytest.fixture
+def inventory_encoding_matrix_repo(tmp_path):
+    repo = _base_repo(tmp_path)
+    latin1_test = (
+        b"# -*- coding: latin-1 -*-\n"
+        b"label = 'caf\xe9'\n\n"
+        b"def test_cell_amber():\n"
+        b"    assert label\n"
+    )
+    rejected = {
+        "orchestrator/tests/test_cell_amber.py": latin1_test,
+        "output/insights/inventory-cells/alpha.py": b"\xff\n",
+        "output/insights/inventory-cells/bravo.md": b"\xfe\xfe\n",
+        "output/insights/inventory-cells/charlie.json": b"\x80abc\n",
+        "output/insights/inventory-cells/delta.raw": b"abc\xc3\x28\n",
+        "output/insights/inventory-cells/echo.sh": b"\xed\xa0\x80\n",
+    }
+    controls = {
+        "orchestrator/tests/test_cell_cobalt.py": (
+            b"def test_cell_cobalt():\n    assert True\n",
+            "test",
+            "python",
+        ),
+        "output/insights/inventory-cells/foxtrot.py": (
+            b"def broken(:\n", "insight", "python",
+        ),
+        "output/insights/inventory-cells/golf.md": (
+            b"# note\n", "insight", "markdown",
+        ),
+        "output/insights/inventory-cells/hotel.json": (
+            b'\xef\xbb\xbf{"note":"bom"}\n', "insight", "json",
+        ),
+        "output/insights/inventory-cells/india.raw": (
+            b"opaque\x00payload\n", "insight", "other",
+        ),
+        "output/insights/inventory-cells/kilo.md": (
+            b"# memo\x00detail\n", "insight", "markdown",
+        ),
+        "output/insights/inventory-cells/juliet.sh": (
+            b"", "insight", "shell",
+        ),
+    }
+    assert len(set(rejected.values())) == len(rejected)
+    for path, payload in rejected.items():
+        with pytest.raises(UnicodeDecodeError):
+            payload.decode("utf-8", "strict")
+        _write_bytes(repo, path, payload)
+    compile(latin1_test, "test_cell_amber.py", "exec")
+    for path, (payload, _, _) in controls.items():
+        payload.decode("utf-8", "strict")
+        _write_bytes(repo, path, payload)
+    _commit(repo, "encoding matrix")
+    return {
+        "repo": repo,
+        "rejected": frozenset(rejected),
+        "controls": {
+            path: (kind, artifact_format)
+            for path, (_, kind, artifact_format) in controls.items()
+        },
+        "inspect_target": "orchestrator/tests/test_cell_amber.py",
+        "bom_json_control": "output/insights/inventory-cells/hotel.json",
+        "nul_control": "output/insights/inventory-cells/india.raw",
+        "nul_markdown_control": "output/insights/inventory-cells/kilo.md",
+    }
 
 
 def _empty_ledger():
@@ -333,6 +407,179 @@ def test_inventory_ignores_symlink_and_gitlink_in_scope(tmp_path):
     paths = [item["path"] for item in R.build_inventory(repo)["items"]]
     assert "output/insights/link.md" not in paths
     assert "output/insights/gitlink" not in paths
+
+
+def test_inventory_non_utf8_skip_matrix_and_utf8_formats(
+    inventory_encoding_matrix_repo,
+):
+    fixture = inventory_encoding_matrix_repo
+    inventory = R.build_inventory(fixture["repo"])
+    assert set(inventory) == _INVENTORY_ROOT_KEYS
+    assert inventory["schema_version"] == "ruleops-inventory/v2"
+    assert type(inventory["skipped_non_utf8"]) is int
+    assert inventory["skipped_non_utf8"] == 6
+    assert all(set(item) == _INVENTORY_ITEM_KEYS for item in inventory["items"])
+
+    items = {item["path"]: item for item in inventory["items"]}
+    assert fixture["rejected"].isdisjoint(items)
+    assert set(fixture["controls"]) <= set(items)
+    for path, (kind, artifact_format) in fixture["controls"].items():
+        assert (items[path]["kind"], items[path]["artifact_format"]) == (
+            kind,
+            artifact_format,
+        )
+    bom_json = items[fixture["bom_json_control"]]
+    assert (bom_json["authority_marker"], bom_json["default_effect_marker"]) == (
+        None,
+        None,
+    )
+    assert fixture["nul_control"] in items
+    assert fixture["nul_markdown_control"] in items
+    typed_insight = items["output/insights/source.md"]
+    assert (
+        typed_insight["authority_marker"],
+        typed_insight["default_effect_marker"],
+    ) == ("none", "no-state-change")
+
+
+def test_inventory_non_utf8_counter_respects_selected_kind(
+    inventory_encoding_matrix_repo,
+):
+    repo = inventory_encoding_matrix_repo["repo"]
+    inventories = {
+        kind: R.build_inventory(repo, kind=kind)
+        for kind in ("all", "test", "insight")
+    }
+    assert {
+        kind: inventory["skipped_non_utf8"]
+        for kind, inventory in inventories.items()
+    } == {"all": 6, "test": 1, "insight": 5}
+    assert {
+        item["kind"] for item in inventories["test"]["items"]
+    } == {"test"}
+    assert {
+        item["kind"] for item in inventories["insight"]["items"]
+    } == {"insight"}
+
+
+def test_inventory_non_utf8_counter_tracks_same_path_content_transition(tmp_path):
+    repo = _base_repo(tmp_path)
+    path = "output/insights/transitions/quartz.raw"
+    _write_bytes(repo, path, b"start\xff\n")
+    _commit(repo, "opaque transition")
+
+    opaque = R.build_inventory(repo)
+    opaque_paths = {item["path"] for item in opaque["items"]}
+    selected_count = len(opaque["items"]) + opaque["skipped_non_utf8"]
+    assert opaque["skipped_non_utf8"] == 1
+    assert path not in opaque_paths
+
+    _write_bytes(repo, path, b"readable\x00control\n")
+    _commit(repo, "readable transition")
+    readable = R.build_inventory(repo)
+    readable_paths = {item["path"] for item in readable["items"]}
+    assert len(readable["items"]) + readable["skipped_non_utf8"] == selected_count
+    assert readable["skipped_non_utf8"] == 0
+    assert path in readable_paths
+
+    _write_bytes(repo, path, b"end\xfe\n")
+    _commit(repo, "opaque transition again")
+    opaque_again = R.build_inventory(repo)
+    opaque_again_paths = {item["path"] for item in opaque_again["items"]}
+    assert (
+        len(opaque_again["items"]) + opaque_again["skipped_non_utf8"]
+        == selected_count
+    )
+    assert opaque_again["skipped_non_utf8"] == 1
+    assert path not in opaque_again_paths
+
+
+def test_inventory_non_utf8_counter_excludes_out_of_scope_and_nonregular(tmp_path):
+    repo = _base_repo(tmp_path)
+    assert R.build_inventory(repo)["skipped_non_utf8"] == 0
+
+    _write_bytes(repo, "docs/quartz.bin", b"\xff\n")
+    _write_bytes(repo, "output/campaigns/quartz.bin", b"\xfe\n")
+    link_path = "output/insights/quartz-link.md"
+    link_target = b"../quartz-\xff"
+    with pytest.raises(UnicodeDecodeError):
+        link_target.decode("utf-8", "strict")
+    os.symlink(link_target, os.fsencode(repo / link_path))
+    _git(repo, "add", "docs/quartz.bin", "output/campaigns/quartz.bin")
+    _git(repo, "add", link_path)
+    head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _git(
+        repo,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{head},output/insights/quartz-gitlink",
+    )
+    _git(repo, "commit", "-qm", "outside scope and nonregular entries")
+    assert subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "blob", f"HEAD:{link_path}"],
+        check=True,
+        capture_output=True,
+    ).stdout == link_target
+    inventory = R.build_inventory(repo)
+    assert link_path not in {item["path"] for item in inventory["items"]}
+    assert inventory["skipped_non_utf8"] == 0
+
+
+def test_inventory_retains_oversize_valid_utf8_blob(tmp_path):
+    repo = _base_repo(tmp_path)
+    path = "output/insights/archive/sierra.json"
+    payload = b'{"note":"' + (b"a" * R.MAX_LEDGER_BYTES) + b'"}\n'
+    assert len(payload) > R.MAX_LEDGER_BYTES
+    payload.decode("utf-8", "strict")
+    json.loads(payload)
+    _write_bytes(repo, path, payload)
+    _commit(repo, "large inventory cell")
+
+    inventory = R.build_inventory(repo)
+    items = {item["path"]: item for item in inventory["items"]}
+    assert path in items
+    assert items[path]["bytes"] == len(payload)
+    assert inventory["skipped_non_utf8"] == 0
+
+
+def test_inventory_all_selected_non_utf8_succeeds_and_counts_paths(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "ruleops@example.invalid")
+    _git(repo, "config", "user.name", "RuleOps Test")
+    shared = b"same\xff\n"
+    _write_bytes(repo, "output/insights/sample/amber.raw", shared)
+    _write_bytes(repo, "output/insights/sample/cobalt.raw", shared)
+    _write_bytes(
+        repo,
+        "orchestrator/tests/test_quartz_cell.py",
+        b"# -*- coding: latin-1 -*-\nvalue = '\xe9'\n",
+    )
+    _commit(repo, "all selected opaque")
+    assert _blob(repo, "output/insights/sample/amber.raw") == _blob(
+        repo,
+        "output/insights/sample/cobalt.raw",
+    )
+
+    result = _run_cli(repo, "inventory")
+    assert result.returncode == 0
+    inventory = json.loads(result.stdout)
+    assert inventory["items"] == []
+    assert inventory["skipped_non_utf8"] == 3
+    assert inventory["schema_version"] == "ruleops-inventory/v2"
+
+
+def test_inspect_non_utf8_target_fails_closed_without_traceback(
+    inventory_encoding_matrix_repo,
+):
+    fixture = inventory_encoding_matrix_repo
+    result = _run_cli(fixture["repo"], "inspect", fixture["inspect_target"])
+    assert result.returncode == 2
+    assert result.stdout == b""
+    assert b"non-utf8" in result.stderr
+    assert b"Traceback" not in result.stderr
 
 
 def test_m3_dirty_worktree_does_not_change_head_inventory(tmp_path):
