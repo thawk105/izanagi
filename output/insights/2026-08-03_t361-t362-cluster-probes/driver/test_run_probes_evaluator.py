@@ -18,8 +18,10 @@ def _split(
     observation: bool = True,
     hygiene: bool = True,
     accounting_available: bool = False,
-    accounting_integrity_valid: bool = True,
-    termination_cause_consistent: bool = True,
+    accounting_integrity_valid: bool | None = True,
+    termination_cause_consistent: bool | None = True,
+    accounting_unavailable_reason: str | None = None,
+    termination_cause_evidence_source: str | None = None,
     cleanup_outcome: str = "safe",
     unsafe_reason: str | None = None,
 ) -> dict[str, object]:
@@ -29,6 +31,8 @@ def _split(
         accounting_available=accounting_available,
         accounting_integrity_valid=accounting_integrity_valid,
         termination_cause_consistent=termination_cause_consistent,
+        accounting_unavailable_reason=accounting_unavailable_reason,
+        termination_cause_evidence_source=termination_cause_evidence_source,
         probe_cleanup_outcome=cleanup_outcome,
         unsafe_reason=unsafe_reason,
     )
@@ -654,6 +658,155 @@ def test_accounting_integrity_failure_blocks_observation() -> None:
     )
 
     assert evaluation["observation_valid"] is False
+
+
+def test_permission_accounting_unavailable_is_neutral_to_observation_gate() -> None:
+    stderr = "sudo: パスワードが必要です\n"
+    collected: dict[str, dict[str, object]] = {}
+    for name in ("racctjob", "racctreq"):
+        validation = subject._accounting_valid(
+            "",
+            "123.nqsv",
+            1,
+            stderr=stderr,
+            returncode=1,
+        )
+        collected[name] = {
+            "returncode": 1,
+            "stdout": "",
+            "stderr": stderr,
+            "accounting_validation": validation,
+        }
+    accounting = subject._accounting_snapshot_from_results(collected)
+    selected = subject._select_accounting_snapshot(
+        {
+            "available": False,
+            "integrity_valid": False,
+            "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT",
+        },
+        accounting,
+    )
+    evaluation = _split(
+        accounting_available=selected["available"],
+        accounting_integrity_valid=selected["integrity_valid"],
+        termination_cause_consistent=None,
+        accounting_unavailable_reason=selected["unavailable_reason"],
+    )
+    observer = signal_observer.Observer.__new__(signal_observer.Observer)
+    observer.normalized_request_id = "123.nqsv"
+    observer.requested_seconds = 180
+    observer_accounting = observer.validate_accounting(
+        {
+            "qstat": {"classification": "OK", "stdout": "", "stderr": ""},
+            **{
+                name: {
+                    "classification": "COMMAND_ERROR",
+                    "stdout": "",
+                    "stderr": stderr,
+                }
+                for name in ("racctjob", "racctreq")
+            },
+        }
+    )
+
+    assert accounting["available"] is False
+    assert accounting["unavailable_reason"] == "permission"
+    assert accounting["integrity_valid"] is None
+    assert selected["integrity_valid"] is None
+    assert evaluation["accounting_evidence"] is False
+    assert evaluation["observation_valid"] is True
+    assert observer_accounting["valid"] is None
+    assert observer_accounting["integrity_valid"] is None
+    assert observer_accounting["unavailable_reason"] == "permission"
+
+
+def test_recorded_foreign_accounting_still_blocks_observation() -> None:
+    request_id = "123.nqsv"
+    clean = (
+        f"Request ID: {request_id}\nStarted Request Time: x\n"
+        "Ended Request Time: y\nElapse: 180\nExit Status: 0\n"
+    )
+    mixed = clean + (
+        "Request ID: 999.nqsv\nStarted Request Time: x\n"
+        "Ended Request Time: y\nElapse: 180\nExit Status: 0\n"
+    )
+    collected = {
+        name: {
+            "returncode": 0,
+            "stdout": text,
+            "stderr": "",
+            "accounting_validation": subject._accounting_valid(
+                text,
+                request_id,
+                1,
+            ),
+        }
+        for name, text in (("racctjob", mixed), ("racctreq", clean))
+    }
+    accounting = subject._accounting_snapshot_from_results(collected)
+    evaluation = _split(
+        accounting_available=accounting["available"],
+        accounting_integrity_valid=accounting["integrity_valid"],
+    )
+
+    assert accounting["available"] is True
+    assert accounting["integrity_valid"] is False
+    assert evaluation["observation_valid"] is False
+
+
+def test_manifest_bound_scheduler_accounting_supplies_cause(
+    tmp_path: Path,
+) -> None:
+    request_id = "123.nqsv"
+    scheduler_root = tmp_path / "scheduler"
+    controller_root = tmp_path / "controller"
+    scheduler_root.mkdir()
+    controller_root.mkdir()
+    payload = (
+        "%NQSV(INFO): Batch job received signal SIGUSR1. "
+        "(Exceeded per-req elapse time limit)\n\n"
+        "Request ID: 123.nqsv\n"
+        "Started Request Time: x\n"
+        "Ended Request Time: y\n"
+        "Elapse: 184S\n"
+        "Remaining Elapse: 0S\n"
+    ).encode()
+    saved_name = "fixture.stderr.raw"
+    (scheduler_root / saved_name).write_bytes(payload)
+    (controller_root / "job-output-manifest.json").write_text(
+        json.dumps(
+            {
+                "files": [
+                    {
+                        "stream": "stderr",
+                        "original_name": "fixture.e",
+                        "saved_name": saved_name,
+                        "original_sha256": hashlib.sha256(payload).hexdigest(),
+                        "original_size": len(payload),
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    saved = subject._saved_nqsv_stderr_accounting(tmp_path, request_id)
+    consistency = subject._termination_cause_consistency(
+        qwait_validation={"valid": True, "expected_outcome": "walltime"},
+        accounting_snapshot={"available": False},
+        saved_nqsv_stderr=saved,
+    )
+
+    assert saved["termination_cause_evidence_available"] is True
+    assert saved["termination_cause_classification"] == (
+        "WALLTIME_RESOURCE_LIMIT"
+    )
+    assert consistency == {
+        "consistent": True,
+        "evidence_source": (
+            "qwait-receipt+manifest-bound-scheduler-stderr"
+        ),
+        "observed_cause": "WALLTIME_RESOURCE_LIMIT",
+    }
 
 
 def test_post_restore_canary_mismatch_is_the_only_unsafe_reason() -> None:

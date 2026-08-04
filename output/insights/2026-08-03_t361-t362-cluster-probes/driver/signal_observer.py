@@ -230,6 +230,16 @@ _DURATION_RE = re.compile(
     r"(?im)^.*(?:resources_used[.]walltime|wall\s*time|elapse(?:d|stim)?)\s*[:=]\s*"
     r"(?:(\d+):(\d{1,2}):(\d{1,2})|(\d+)\s*[sS]?).*$"
 )
+_ACCOUNTING_PERMISSION_MARKERS = (
+    "permission",
+    "not permitted",
+    "access denied",
+    "not authorized",
+    "unauthorized",
+    "password is required",
+    "a password is required",
+    "パスワードが必要",
+)
 
 # Verbatim copy of tools/pegasus/dispatch_compute.py:80-99 (LB-09).
 _QSTAT_ERROR_MARKERS = {
@@ -351,6 +361,15 @@ def _normalize_request_id(value: str) -> str:
     if not _REQUEST_ID_RE.fullmatch(value):
         raise ObserverError(f"request id is outside the closed NQSV grammar: {value!r}")
     return value.split(":", 1)[-1]
+
+
+def _accounting_unavailable_reason(result: dict[str, Any]) -> str:
+    combined = f"{result.get('stdout', '')}\n{result.get('stderr', '')}".casefold()
+    if any(marker in combined for marker in _ACCOUNTING_PERMISSION_MARKERS):
+        return "permission"
+    if result.get("classification") != "OK":
+        return "error"
+    return "empty"
 
 
 def _controller_run_nonce() -> str:
@@ -1125,13 +1144,12 @@ class Observer:
         }
 
     def validate_accounting(self, tail: dict[str, dict[str, Any]]) -> dict[str, Any]:
-        errors: list[str] = []
+        availability_errors: list[str] = []
         integrity_errors: list[str] = []
         provenance_bound_texts: list[str] = []
+        command_validations: dict[str, dict[str, Any]] = {}
         for name in ("racctjob", "racctreq"):
             result = tail[name]
-            if result["classification"] != "OK":
-                errors.append(f"{name} did not complete successfully: {result['classification']}")
             expected_records = 1
             observed_by_stream: dict[str, list[str]] = {
                 "stdout": [],
@@ -1156,20 +1174,44 @@ class Observer:
             all_observed_ids = [
                 value for values in observed_by_stream.values() for value in values
             ]
+            record_present = bool(all_observed_ids or invalid_ids)
+            if not record_present:
+                reason = _accounting_unavailable_reason(result)
+                availability_errors.append(f"{name} accounting unavailable: {reason}")
+                command_validations[name] = {
+                    "available": False,
+                    "unavailable_reason": reason,
+                    "exact_request_record_count_valid": None,
+                    "exclusive_request_ids_valid": None,
+                    "stream_provenance_valid": None,
+                    "valid": None,
+                }
+                continue
+            command_integrity_errors: list[str] = []
+            if result["classification"] != "OK":
+                command_integrity_errors.append(
+                    f"{name} record came from unsuccessful command: "
+                    f"{result['classification']}"
+                )
             if invalid_ids:
-                integrity_errors.append(f"{name} contains malformed request ids")
+                command_integrity_errors.append(
+                    f"{name} contains malformed request ids"
+                )
             if len(observed_ids) != expected_records:
-                integrity_errors.append(
+                command_integrity_errors.append(
                     f"{name} expected {expected_records} request records, observed {len(observed_ids)}"
                 )
             if any(
                 value != self.normalized_request_id for value in all_observed_ids
             ):
-                integrity_errors.append(f"{name} contains a foreign request id")
+                command_integrity_errors.append(
+                    f"{name} contains a foreign request id"
+                )
             if observed_ids.count(self.normalized_request_id) != expected_records:
-                integrity_errors.append(
+                command_integrity_errors.append(
                     f"{name} does not contain the exact expected request record count"
                 )
+            causes_bound_by_stream: dict[str, bool] = {}
             for stream_name in ("stdout", "stderr"):
                 current_request: str | None = None
                 bound_lines: list[str] = []
@@ -1191,12 +1233,62 @@ class Observer:
                     ) and current_request != self.normalized_request_id:
                         causes_bound = False
                 if not causes_bound:
-                    integrity_errors.append(
+                    command_integrity_errors.append(
                         f"{name} {stream_name} termination cause is not bound to "
                         "an exact request record"
                     )
+                causes_bound_by_stream[stream_name] = causes_bound
                 provenance_bound_texts.extend(bound_lines)
-        errors.extend(integrity_errors)
+            stream_provenance_valid = (
+                not invalid_ids
+                and bool(all_observed_ids)
+                and all(
+                    value == self.normalized_request_id
+                    for value in all_observed_ids
+                )
+                and all(causes_bound_by_stream.values())
+            )
+            integrity_errors.extend(command_integrity_errors)
+            command_validations[name] = {
+                "available": True,
+                "unavailable_reason": None,
+                "exact_request_record_count_valid": (
+                    len(observed_ids) == expected_records
+                    and observed_ids.count(self.normalized_request_id)
+                    == expected_records
+                ),
+                "exclusive_request_ids_valid": (
+                    not invalid_ids
+                    and bool(all_observed_ids)
+                    and all(
+                        value == self.normalized_request_id
+                        for value in all_observed_ids
+                    )
+                ),
+                "stream_provenance_valid": stream_provenance_valid,
+                "valid": not command_integrity_errors,
+            }
+        available = all(
+            value["available"] is True for value in command_validations.values()
+        )
+        if any(value["valid"] is False for value in command_validations.values()):
+            integrity_valid: bool | None = False
+        elif available:
+            integrity_valid = True
+        else:
+            integrity_valid = None
+        unavailable_reason: str | None = None
+        if not available:
+            reasons = {
+                value["unavailable_reason"]
+                for value in command_validations.values()
+                if value["unavailable_reason"] is not None
+            }
+            unavailable_reason = next(
+                reason
+                for reason in ("permission", "error", "empty")
+                if reason in reasons
+            )
         combined = "\n".join(provenance_bound_texts)
         cause_lines = _WALLTIME_LIMIT_CAUSE_RE.findall(combined)
         explicit_cause = bool(cause_lines)
@@ -1223,22 +1315,30 @@ class Observer:
                 durations.append(int(match.group(4)))
         termination_threshold = self.requested_seconds
         elapsed_reached_limit = bool(durations) and max(durations) >= termination_threshold
-        if not explicit_cause:
-            errors.append("accounting has no explicit walltime/resource-limit termination cause")
-        if not elapsed_reached_limit:
-            errors.append("accounting elapsed time does not reach the registered limit event")
-        available = all(
-            tail[name]["classification"] == "OK"
-            and bool(tail[name]["stdout"].strip())
-            for name in ("racctjob", "racctreq")
-        )
+        errors = [*availability_errors, *integrity_errors]
+        if available:
+            if not explicit_cause:
+                errors.append(
+                    "accounting has no explicit walltime/resource-limit termination cause"
+                )
+            if not elapsed_reached_limit:
+                errors.append(
+                    "accounting elapsed time does not reach the registered limit event"
+                )
+            valid: bool | None = not errors
+        else:
+            valid = None
         return {
-            "valid": not errors,
+            "valid": valid,
+            "accounting_evidence": available,
             "available": available,
-            "integrity_valid": available and not integrity_errors,
+            "unavailable_reason": unavailable_reason,
+            "integrity_valid": integrity_valid,
             "errors": errors,
+            "availability_errors": availability_errors,
             "integrity_errors": integrity_errors,
-            "explicit_walltime_cause": explicit_cause,
+            "command_validations": command_validations,
+            "explicit_walltime_cause": explicit_cause if available else None,
             "termination_cause_classification": termination_cause,
             "normal_completion_indicator_present": bool(normal_completion_indicators),
             "generic_exit_statuses_ignored_as_walltime_cause": generic_exit_statuses,
@@ -1465,6 +1565,11 @@ class Observer:
         tail_classifications = {
             name: result["classification"] for name, result in tail.items()
         }
+        scheduler_tail_classifications = {
+            name: classification
+            for name, classification in tail_classifications.items()
+            if name not in {"racctjob", "racctreq"}
+        }
         identity_valid = (
             self.run_marker is not None
             and self.ready_marker is not None
@@ -1472,7 +1577,7 @@ class Observer:
         )
         scheduler_commands_present = not any(
             value in {"MISSING_COMMAND", "OS_ERROR", "OUTPUT_CAP_EXCEEDED"}
-            for value in tail_classifications.values()
+            for value in scheduler_tail_classifications.values()
         ) and not self.local_io_cap_errors
         pre_cleanup_conditions = {
             "ready_identity_valid": identity_valid,
@@ -1488,7 +1593,7 @@ class Observer:
             "python_parent_sigterm_caught": python_parent_sigterm_caught,
             "permission_error_absent": not permission_error,
             "scheduler_tail_permission_error_absent": (
-                "PERMISSION" not in tail_classifications.values()
+                "PERMISSION" not in scheduler_tail_classifications.values()
             ),
             "scheduler_commands_present": scheduler_commands_present,
             "controller_qdel_not_required": (
@@ -1514,16 +1619,20 @@ class Observer:
             "signal_log_parse_error_free": layer_validation["parse_error_free"],
             "permission_error_absent": not permission_error,
             "scheduler_tail_permission_error_absent": (
-                "PERMISSION" not in tail_classifications.values()
+                "PERMISSION" not in scheduler_tail_classifications.values()
             ),
             "scheduler_commands_present": scheduler_commands_present,
             "cleanup_control_prefix_valid": cleanup_order["control_prefix_valid"],
             "artifact_inventory_evidence_valid": cleanup_receipt["evidence_valid"],
-            "accounting_integrity_valid_or_unavailable": (
-                not accounting["available"] or accounting["integrity_valid"]
-            ),
+            "accounting_integrity_valid_or_unavailable": accounting[
+                "integrity_valid"
+            ],
         }
-        valid = all(acceptance_conditions.values())
+        valid = all(
+            value is True
+            for value in acceptance_conditions.values()
+            if value is not None
+        )
         final = {
             "schema_version": SCHEMA,
             "mode": self.mode,

@@ -75,11 +75,21 @@ SPLIT_V2_FIELDS = frozenset(
     {
         "observation_valid",
         "attempt_safe",
+        "accounting_evidence",
         "accounting_available",
+        "accounting_unavailable_reason",
         "accounting_integrity_valid",
         "termination_cause_consistent",
+        "termination_cause_evidence_source",
         "probe_cleanup_outcome",
         "unsafe_reason",
+    }
+)
+ACCOUNTING_UNAVAILABLE_REASONS = frozenset({"permission", "empty", "error"})
+TERMINATION_CAUSE_EVIDENCE_SOURCES = frozenset(
+    {
+        "qwait-receipt+racct-snapshot",
+        "qwait-receipt+manifest-bound-scheduler-stderr",
     }
 )
 OBSERVER_OBSERVATION_KEYS = frozenset(
@@ -118,12 +128,25 @@ ACCOUNTING_ENDED_RE = re.compile(
     r"(?im)^\s*Ended\s+Request\s+Time\s*:\s*\S.*$"
 )
 ACCOUNTING_ELAPSE_RE = re.compile(r"(?im)^\s*Elapse\s*:\s*\S.*$")
+ACCOUNTING_REMAINING_ELAPSE_RE = re.compile(
+    r"(?im)^\s*Remaining\s+Elapse\s*:\s*(\d+)\s*S?\s*$"
+)
 WALLTIME_LIMIT_CAUSE_RE = re.compile(
     r"(?im)^.*(?:elapse(?:d|stim)?|wall\s*time).*(?:limit|exceed|overrun).*$"
 )
 NORMAL_COMPLETION_RE = re.compile(
     r"(?im)^.*(?:exit(?:[_ ]status)?\s*[:=]?\s*0\b|normal(?:ly)?\s+"
     r"(?:exit|end|termination)).*$"
+)
+ACCOUNTING_PERMISSION_MARKERS = (
+    "permission",
+    "not permitted",
+    "access denied",
+    "not authorized",
+    "unauthorized",
+    "password is required",
+    "a password is required",
+    "パスワードが必要",
 )
 
 QSTAT_ERROR_MARKERS = {
@@ -245,11 +268,33 @@ def _validate_split_v2_envelope(record: Mapping[str, Any]) -> None:
     for name in (
         "observation_valid",
         "accounting_available",
-        "accounting_integrity_valid",
-        "termination_cause_consistent",
     ):
         if type(record.get(name)) is not bool:
             raise ControllerError(f"split-v2 {name} must be a literal bool")
+    for name in ("accounting_integrity_valid", "termination_cause_consistent"):
+        if record.get(name) is not None and type(record.get(name)) is not bool:
+            raise ControllerError(f"split-v2 {name} must be bool or null")
+    if "accounting_evidence" in record:
+        if type(record.get("accounting_evidence")) is not bool:
+            raise ControllerError("split-v2 accounting_evidence must be a literal bool")
+        if record["accounting_evidence"] is not record["accounting_available"]:
+            raise ControllerError(
+                "split-v2 accounting_evidence must equal accounting_available"
+            )
+    unavailable_reason = record.get("accounting_unavailable_reason")
+    if unavailable_reason is not None and unavailable_reason not in (
+        ACCOUNTING_UNAVAILABLE_REASONS
+    ):
+        raise ControllerError("split-v2 accounting unavailable reason is invalid")
+    if record.get("accounting_available") is True and unavailable_reason is not None:
+        raise ControllerError(
+            "split-v2 available accounting cannot have an unavailable reason"
+        )
+    cause_source = record.get("termination_cause_evidence_source")
+    if cause_source is not None and cause_source not in (
+        TERMINATION_CAUSE_EVIDENCE_SOURCES
+    ):
+        raise ControllerError("split-v2 termination cause evidence source is invalid")
     if record.get("attempt_safe") is not None and type(record.get("attempt_safe")) is not bool:
         raise ControllerError("split-v2 attempt_safe must be bool or null")
     outcome = record.get("probe_cleanup_outcome")
@@ -285,8 +330,10 @@ def _compose_split_v2_evaluation(
     observation_predicates: Mapping[str, bool],
     hygiene_predicates: Mapping[str, bool],
     accounting_available: bool,
-    accounting_integrity_valid: bool,
-    termination_cause_consistent: bool,
+    accounting_integrity_valid: bool | None,
+    termination_cause_consistent: bool | None,
+    accounting_unavailable_reason: str | None = None,
+    termination_cause_evidence_source: str | None = None,
     probe_cleanup_outcome: str,
     unsafe_reason: str | None,
 ) -> dict[str, Any]:
@@ -296,15 +343,25 @@ def _compose_split_v2_evaluation(
     ):
         if not predicates or any(type(value) is not bool for value in predicates.values()):
             raise ControllerError(f"{label} predicates must be a nonempty bool mapping")
+    if type(accounting_available) is not bool:
+        raise ControllerError("accounting availability must be a literal bool")
     if any(
-        type(value) is not bool
-        for value in (
-            accounting_available,
-            accounting_integrity_valid,
-            termination_cause_consistent,
-        )
+        value is not None and type(value) is not bool
+        for value in (accounting_integrity_valid, termination_cause_consistent)
     ):
-        raise ControllerError("accounting and termination scalars must be literal bools")
+        raise ControllerError("accounting integrity and termination must be bool or null")
+    if accounting_unavailable_reason is not None and accounting_unavailable_reason not in (
+        ACCOUNTING_UNAVAILABLE_REASONS
+    ):
+        raise ControllerError("accounting unavailable reason is invalid")
+    if accounting_available and accounting_unavailable_reason is not None:
+        raise ControllerError("available accounting cannot have an unavailable reason")
+    if (
+        termination_cause_evidence_source is not None
+        and termination_cause_evidence_source
+        not in TERMINATION_CAUSE_EVIDENCE_SOURCES
+    ):
+        raise ControllerError("termination cause evidence source is invalid")
     if probe_cleanup_outcome not in PROBE_CLEANUP_OUTCOMES:
         raise ControllerError("probe cleanup outcome is outside its closed enum")
     if unsafe_reason is not None and unsafe_reason not in UNSAFE_REASONS:
@@ -313,8 +370,8 @@ def _compose_split_v2_evaluation(
         raise ControllerError("unsafe reason must exactly accompany an unsafe cleanup outcome")
     observation_valid = (
         all(observation_predicates.values())
-        and accounting_integrity_valid
-        and termination_cause_consistent
+        and accounting_integrity_valid is not False
+        and termination_cause_consistent is not False
     )
     if probe_cleanup_outcome == "unsafe":
         attempt_safe: bool | None = False
@@ -326,9 +383,12 @@ def _compose_split_v2_evaluation(
         "evaluation_model": EVALUATION_MODEL,
         "observation_valid": observation_valid,
         "attempt_safe": attempt_safe,
+        "accounting_evidence": accounting_available,
         "accounting_available": accounting_available,
+        "accounting_unavailable_reason": accounting_unavailable_reason,
         "accounting_integrity_valid": accounting_integrity_valid,
         "termination_cause_consistent": termination_cause_consistent,
+        "termination_cause_evidence_source": termination_cause_evidence_source,
         "probe_cleanup_outcome": probe_cleanup_outcome,
         "unsafe_reason": unsafe_reason,
         "observation_validity_conjunction": dict(observation_predicates),
@@ -1546,12 +1606,28 @@ def _monitor_request(
     }
 
 
+def _accounting_unavailable_reason(
+    *,
+    stdout: str,
+    stderr: str,
+    returncode: int | None = None,
+    classification: str | None = None,
+) -> str:
+    combined = f"{stdout}\n{stderr}".casefold()
+    if any(marker in combined for marker in ACCOUNTING_PERMISSION_MARKERS):
+        return "permission"
+    if returncode not in (None, 0) or classification not in (None, "OK"):
+        return "error"
+    return "empty"
+
+
 def _accounting_valid(
     text: str,
     request_id: str,
     expected_records: int,
     *,
     stderr: str = "",
+    returncode: int | None = None,
 ) -> dict[str, Any]:
     expected = _normalize_request_id(request_id)
     observed_by_stream: dict[str, list[str]] = {"stdout": [], "stderr": []}
@@ -1571,10 +1647,15 @@ def _accounting_valid(
     all_observed = [
         value for values in observed_by_stream.values() for value in values
     ]
+    record_present = bool(all_observed or invalid_ids)
     matches = [item for item in observed if item == expected]
-    exact_request_record_count_valid = len(observed) == expected_records
-    exclusive_request_ids_valid = bool(all_observed) and all(
-        item == expected for item in all_observed
+    exact_request_record_count_valid = (
+        len(observed) == expected_records if record_present else None
+    )
+    exclusive_request_ids_valid = (
+        bool(all_observed) and all(item == expected for item in all_observed)
+        if record_present
+        else None
     )
     bound_record_lines: dict[str, list[str]] = {"stdout": [], "stderr": []}
     causes_bound_by_stream: dict[str, bool] = {}
@@ -1594,14 +1675,30 @@ def _accounting_valid(
                 if current_request != expected:
                     causes_bound = False
         causes_bound_by_stream[stream_name] = causes_bound
-    stderr_cause_request_bound = causes_bound_by_stream["stderr"]
+    stderr_cause_request_bound = (
+        causes_bound_by_stream["stderr"] if record_present else None
+    )
     stream_provenance_valid = (
-        exclusive_request_ids_valid
+        bool(exclusive_request_ids_valid)
         and not invalid_ids
         and all(causes_bound_by_stream.values())
+        if record_present
+        else None
     )
     provenance_bound_text = "\n".join(
         line for lines in bound_record_lines.values() for line in lines
+    )
+    started_field_present = ACCOUNTING_STARTED_RE.search(text) is not None
+    ended_field_present = ACCOUNTING_ENDED_RE.search(text) is not None
+    elapse_field_present = ACCOUNTING_ELAPSE_RE.search(text) is not None
+    valid = (
+        bool(exact_request_record_count_valid)
+        and bool(stream_provenance_valid)
+        and started_field_present
+        and ended_field_present
+        and elapse_field_present
+        if record_present
+        else None
     )
     return {
         "expected_request_id": expected,
@@ -1618,17 +1715,20 @@ def _accounting_valid(
         "all_cause_lines_request_bound_by_stream": causes_bound_by_stream,
         "stream_provenance_valid": stream_provenance_valid,
         "provenance_bound_text": provenance_bound_text,
-        "available": bool(text.strip()),
-        "started_field_present": ACCOUNTING_STARTED_RE.search(text) is not None,
-        "ended_field_present": ACCOUNTING_ENDED_RE.search(text) is not None,
-        "elapse_field_present": ACCOUNTING_ELAPSE_RE.search(text) is not None,
-        "valid": (
-            exact_request_record_count_valid
-            and stream_provenance_valid
-            and ACCOUNTING_STARTED_RE.search(text) is not None
-            and ACCOUNTING_ENDED_RE.search(text) is not None
-            and ACCOUNTING_ELAPSE_RE.search(text) is not None
+        "available": record_present,
+        "unavailable_reason": (
+            None
+            if record_present
+            else _accounting_unavailable_reason(
+                stdout=text,
+                stderr=stderr,
+                returncode=returncode,
+            )
         ),
+        "started_field_present": started_field_present if record_present else None,
+        "ended_field_present": ended_field_present if record_present else None,
+        "elapse_field_present": elapse_field_present if record_present else None,
+        "valid": valid,
     }
 
 
@@ -1647,6 +1747,7 @@ def _collect_accounting(
                 request_id,
                 expected,
                 stderr=str(latest["stderr"]),
+                returncode=int(latest["returncode"]),
             )
             latest = latest | {"accounting_validation": validity}
             if latest["returncode"] == 0 and validity["valid"]:
@@ -1665,19 +1766,43 @@ def _accounting_snapshot_from_results(
 
     if set(collected) != {"racctjob", "racctreq"}:
         raise ControllerError("accounting snapshot command set is incomplete")
-    available = all(
-        value["returncode"] == 0
-        and value["accounting_validation"]["available"] is True
-        for value in collected.values()
-    )
-    integrity_valid = all(
-        value["accounting_validation"]["available"] is not True
-        or (
-            value["returncode"] == 0
-            and value["accounting_validation"]["valid"] is True
+    validations = {
+        name: value["accounting_validation"] for name, value in collected.items()
+    }
+    available = all(value["available"] is True for value in validations.values())
+    detected_integrity_failure = any(
+        validation["available"] is True
+        and (
+            collected[name]["returncode"] != 0
+            or validation["valid"] is not True
         )
-        for value in collected.values()
+        for name, validation in validations.items()
     )
+    integrity_valid: bool | None
+    if detected_integrity_failure:
+        integrity_valid = False
+    elif available:
+        integrity_valid = True
+    else:
+        integrity_valid = None
+    unavailable_reasons_by_command = {
+        name: (
+            None
+            if validation["available"] is True
+            else _accounting_unavailable_reason(
+                stdout=str(collected[name].get("stdout", "")),
+                stderr=str(collected[name].get("stderr", "")),
+                returncode=int(collected[name]["returncode"]),
+            )
+        )
+        for name, validation in validations.items()
+    }
+    unavailable_reason: str | None = None
+    if not available:
+        reasons = set(unavailable_reasons_by_command.values()) - {None}
+        unavailable_reason = next(
+            reason for reason in ("permission", "error", "empty") if reason in reasons
+        )
     snapshot_text = "\n".join(
         str(collected[name]["accounting_validation"]["provenance_bound_text"])
         for name in ("racctjob", "racctreq")
@@ -1691,14 +1816,28 @@ def _accounting_snapshot_from_results(
     return {
         "commands": {name: dict(value) for name, value in collected.items()},
         "available": available,
+        "unavailable_reason": unavailable_reason,
+        "unavailable_reasons_by_command": unavailable_reasons_by_command,
         "integrity_valid": integrity_valid,
         "termination_cause_classification": termination_cause,
-        "valid": all(
-            value["returncode"] == 0
-            and value["accounting_validation"]["valid"]
-            for value in collected.values()
-        ),
+        "valid": available and integrity_valid is True,
     }
+
+
+def _scheduler_accounting_cause(text: str) -> str:
+    remaining = [
+        int(match.group(1))
+        for match in ACCOUNTING_REMAINING_ELAPSE_RE.finditer(text)
+    ]
+    if remaining and min(remaining) > 0:
+        return "NORMAL_COMPLETION"
+    if remaining and min(remaining) == 0 and WALLTIME_LIMIT_CAUSE_RE.search(text):
+        return "WALLTIME_RESOURCE_LIMIT"
+    if NORMAL_COMPLETION_RE.search(text):
+        return "NORMAL_COMPLETION"
+    if WALLTIME_LIMIT_CAUSE_RE.search(text):
+        return "WALLTIME_RESOURCE_LIMIT"
+    return "UNKNOWN_NOT_RESOURCE_LIMIT"
 
 
 def _saved_nqsv_stderr_accounting(
@@ -1709,6 +1848,7 @@ def _saved_nqsv_stderr_accounting(
     errors: list[str] = []
     files: list[dict[str, Any]] = []
     matching_blocks: list[dict[str, Any]] = []
+    manifest_bound_paths: set[Path] = set()
     manifest_path = work_root / "controller" / "job-output-manifest.json"
     manifest_entries: list[dict[str, Any]] = []
     if manifest_path.is_file() and not manifest_path.is_symlink():
@@ -1761,6 +1901,7 @@ def _saved_nqsv_stderr_accounting(
             ):
                 errors.append(f"manifest-bound saved scheduler stderr bytes mismatch: {path}")
                 continue
+            manifest_bound_paths.add(path)
             candidates.append(path)
         for path in sorted(set(candidates)):
             if path.is_symlink() or not path.is_file():
@@ -1773,11 +1914,14 @@ def _saved_nqsv_stderr_accounting(
                 continue
             text = payload.decode("utf-8", errors="replace")
             request_fields = list(REQUEST_ID_FIELD_RE.finditer(text))
+            cause_classification = _scheduler_accounting_cause(text)
             file_record = {
                 "path": str(path),
                 "sha256": hashlib.sha256(payload).hexdigest(),
                 "size": len(payload),
                 "request_block_count": len(request_fields),
+                "manifest_bound": path in manifest_bound_paths,
+                "termination_cause_classification": cause_classification,
             }
             files.append(file_record)
             for index, request_field in enumerate(request_fields):
@@ -1811,13 +1955,35 @@ def _saved_nqsv_stderr_accounting(
                         "normalized_request_id": observed,
                         "request_id_field_raw": request_field.group(0).strip(),
                         "ended_request_time_field_raw": ended_field.group(0).strip(),
+                        "termination_cause_classification": cause_classification,
                     }
                 )
+    cause_candidates = {
+        value["termination_cause_classification"]
+        for value in matching_blocks
+        if value["manifest_bound"] is True
+        and value["request_block_count"] == 1
+        and value["termination_cause_classification"]
+        != "UNKNOWN_NOT_RESOURCE_LIMIT"
+    }
+    cause_evidence_available = len(cause_candidates) == 1 and not errors
+    termination_cause = (
+        next(iter(cause_candidates))
+        if cause_evidence_available
+        else "UNKNOWN_NOT_RESOURCE_LIMIT"
+    )
     return {
         "expected_request_id": expected,
         "scheduler_root": str(scheduler_root),
         "files": files,
         "matching_ended_request_blocks": matching_blocks,
+        "termination_cause_classification": termination_cause,
+        "termination_cause_evidence_available": cause_evidence_available,
+        "termination_cause_evidence_source": (
+            "manifest-bound-scheduler-stderr"
+            if cause_evidence_available
+            else None
+        ),
         "errors": errors,
         "valid": bool(matching_blocks) and not errors,
     }
@@ -2186,9 +2352,17 @@ def _validate_signal_observation_payload(
     if type(acceptance) is not dict or not acceptance:
         errors.append("observer acceptance conditions are absent")
         acceptance = {}
-    elif any(type(value) is not bool for value in acceptance.values()):
-        errors.append("observer acceptance conditions are not literal bools")
-    all_acceptance = bool(acceptance) and all(value is True for value in acceptance.values())
+    elif any(
+        type(value) is not bool
+        and not (key == "walltime_accounting_confirmed" and value is None)
+        for key, value in acceptance.items()
+    ):
+        errors.append(
+            "observer acceptance conditions are not bools or the allowed accounting null"
+        )
+    all_acceptance = bool(acceptance) and all(
+        value is True for value in acceptance.values() if value is not None
+    )
     if observation.get("valid_for_safety_conclusion") is not all_acceptance:
         errors.append("observer aggregate validity does not equal all acceptance conditions")
     if observer_rc == 0:
@@ -2206,8 +2380,17 @@ def _validate_signal_observation_payload(
     else:
         if set(observation_conditions) != OBSERVER_OBSERVATION_KEYS:
             errors.append("observer observation condition key set mismatch")
-        if any(type(value) is not bool for value in observation_conditions.values()):
-            errors.append("observer observation conditions are not literal bools")
+        if any(
+            type(value) is not bool
+            and not (
+                key == "accounting_integrity_valid_or_unavailable"
+                and value is None
+            )
+            for key, value in observation_conditions.items()
+        ):
+            errors.append(
+                "observer observation conditions are not bools or the allowed accounting null"
+            )
     cleanup_outcome = observation.get("probe_cleanup_outcome")
     unsafe_reason = observation.get("unsafe_reason")
     if cleanup_outcome not in PROBE_CLEANUP_OUTCOMES:
@@ -2412,6 +2595,33 @@ def _qwait_terminal_receipt_valid(
     }
 
 
+def _snapshot_integrity_value(snapshot: Mapping[str, Any]) -> bool | None:
+    raw_integrity = snapshot.get("integrity_valid")
+    if snapshot.get("available") is True:
+        return raw_integrity if type(raw_integrity) is bool else None
+    command_validations = snapshot.get("command_validations")
+    if type(command_validations) is dict and any(
+        type(value) is dict
+        and value.get("available") is True
+        and value.get("valid") is False
+        for value in command_validations.values()
+    ):
+        return False
+    commands = snapshot.get("commands")
+    if type(commands) is dict and any(
+        type(value) is dict
+        and type(value.get("accounting_validation")) is dict
+        and value["accounting_validation"].get("available") is True
+        and (
+            value.get("returncode") != 0
+            or value["accounting_validation"].get("valid") is False
+        )
+        for value in commands.values()
+    ):
+        return False
+    return None
+
+
 def _select_accounting_snapshot(
     observer_snapshot: Mapping[str, Any],
     controller_snapshot: Mapping[str, Any],
@@ -2426,7 +2636,7 @@ def _select_accounting_snapshot(
     for source, candidate in candidates:
         if (
             candidate.get("available") is True
-            and candidate.get("integrity_valid") is True
+            and _snapshot_integrity_value(candidate) is True
         ):
             selected_source, selected = source, candidate
             break
@@ -2435,8 +2645,13 @@ def _select_accounting_snapshot(
             if candidate.get("available") is True:
                 selected_source, selected = source, candidate
                 break
+        else:
+            for source, candidate in candidates:
+                if _snapshot_integrity_value(candidate) is False:
+                    selected_source, selected = source, candidate
+                    break
     available = selected.get("available") is True
-    integrity_valid = selected.get("integrity_valid") is True
+    integrity_valid = _snapshot_integrity_value(selected)
     cause = selected.get("termination_cause_classification")
     if cause not in {
         "NORMAL_COMPLETION",
@@ -2444,11 +2659,69 @@ def _select_accounting_snapshot(
         "UNKNOWN_NOT_RESOURCE_LIMIT",
     }:
         cause = "UNKNOWN_NOT_RESOURCE_LIMIT"
-    return {
+    result = {
         "source": selected_source,
         "available": available,
         "integrity_valid": integrity_valid,
         "termination_cause_classification": cause,
+    }
+    unavailable_reason = selected.get("unavailable_reason")
+    if unavailable_reason in ACCOUNTING_UNAVAILABLE_REASONS:
+        result["unavailable_reason"] = unavailable_reason
+    return result
+
+
+def _termination_cause_consistency(
+    *,
+    qwait_validation: Mapping[str, Any],
+    accounting_snapshot: Mapping[str, Any],
+    saved_nqsv_stderr: Mapping[str, Any],
+) -> dict[str, Any]:
+    if qwait_validation.get("valid") is not True:
+        return {
+            "consistent": None,
+            "evidence_source": None,
+            "observed_cause": None,
+        }
+    expected_outcome = qwait_validation.get("expected_outcome")
+    expected_cause = {
+        "normal": "NORMAL_COMPLETION",
+        "walltime": "WALLTIME_RESOURCE_LIMIT",
+    }.get(expected_outcome)
+    if expected_cause is None:
+        return {
+            "consistent": None,
+            "evidence_source": None,
+            "observed_cause": None,
+        }
+    evidence_source: str | None = None
+    observed_cause: str | None = None
+    if accounting_snapshot.get("available") is True:
+        evidence_source = "qwait-receipt+racct-snapshot"
+        observed_cause = str(
+            accounting_snapshot.get(
+                "termination_cause_classification",
+                "UNKNOWN_NOT_RESOURCE_LIMIT",
+            )
+        )
+    elif saved_nqsv_stderr.get("termination_cause_evidence_available") is True:
+        evidence_source = "qwait-receipt+manifest-bound-scheduler-stderr"
+        observed_cause = str(
+            saved_nqsv_stderr.get(
+                "termination_cause_classification",
+                "UNKNOWN_NOT_RESOURCE_LIMIT",
+            )
+        )
+    if evidence_source is None:
+        return {
+            "consistent": None,
+            "evidence_source": None,
+            "observed_cause": None,
+        }
+    return {
+        "consistent": observed_cause == expected_cause,
+        "evidence_source": evidence_source,
+        "observed_cause": observed_cause,
     }
 
 
@@ -2535,8 +2808,13 @@ def _evaluate_attempt_evidence(
             legacy_validity["rbudgetcheck_after_rc_zero"]
         ),
     }
-    accounting_available = bool(accounting.get("available"))
-    accounting_integrity_valid = bool(accounting.get("integrity_valid"))
+    accounting_available = accounting.get("available") is True
+    raw_accounting_integrity = accounting.get("integrity_valid")
+    accounting_integrity_valid = (
+        raw_accounting_integrity
+        if type(raw_accounting_integrity) is bool
+        else None
+    )
     selected_accounting: dict[str, Any] = {
         "source": "controller-later",
         "available": accounting_available,
@@ -2545,7 +2823,18 @@ def _evaluate_attempt_evidence(
             "termination_cause_classification", "UNKNOWN_NOT_RESOURCE_LIMIT"
         ),
     }
-    termination_cause_consistent = bool(qwait_validation["valid"])
+    if accounting.get("unavailable_reason") in ACCOUNTING_UNAVAILABLE_REASONS:
+        selected_accounting["unavailable_reason"] = accounting[
+            "unavailable_reason"
+        ]
+    saved_nqsv_stderr = (
+        _saved_nqsv_stderr_accounting(work_root, request_id)
+        if request_id is not None
+        else {
+            "termination_cause_evidence_available": False,
+            "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT",
+        }
+    )
     probe_cleanup_outcome = "unknown"
     unsafe_reason: str | None = None
     safety_content_present = False
@@ -2574,8 +2863,6 @@ def _evaluate_attempt_evidence(
         observation_predicates["probe_result_self_checks_valid"] = bool(
             result_validation["valid"]
         )
-        observation_predicates["accounting_available"] = accounting_available
-        accounting_integrity_valid = bool(accounting.get("valid"))
     elif request_id is not None:
         marker_validation = _t362_marker_validation(
             work_root, request_id, leg, attempt_id
@@ -2622,36 +2909,41 @@ def _evaluate_attempt_evidence(
             accounting_confirmation,
             accounting,
         )
-        accounting_available = bool(selected_accounting["available"])
-        accounting_integrity_valid = bool(
-            selected_accounting["integrity_valid"]
+        accounting_available = selected_accounting["available"] is True
+        raw_accounting_integrity = selected_accounting["integrity_valid"]
+        accounting_integrity_valid = (
+            raw_accounting_integrity
+            if type(raw_accounting_integrity) is bool
+            else None
         )
-        observation_predicates[
-            "observer_accounting_integrity_valid_or_unavailable"
-        ] = (not accounting_available) or accounting_integrity_valid
-        if accounting_available:
-            expected_cause = (
-                "NORMAL_COMPLETION"
-                if qwait_validation["expected_outcome"] == "normal"
-                else "WALLTIME_RESOURCE_LIMIT"
-            )
-            termination_cause_consistent = (
-                termination_cause_consistent
-                and selected_accounting.get("termination_cause_classification")
-                == expected_cause
-            )
+        if accounting_integrity_valid is not None:
+            observation_predicates[
+                "observer_accounting_integrity_valid"
+            ] = accounting_integrity_valid
     else:
         marker_validation = {"valid": False, "errors": ["request ID unavailable"]}
         result_validation = None
         legacy_validity["compute_marker_valid"] = False
         observation_predicates["compute_marker_valid"] = False
-        accounting_integrity_valid = not accounting_available
+        accounting_integrity_valid = None
+    cause_consistency = _termination_cause_consistency(
+        qwait_validation=qwait_validation,
+        accounting_snapshot=selected_accounting,
+        saved_nqsv_stderr=saved_nqsv_stderr,
+    )
+    termination_cause_consistent = cause_consistency["consistent"]
     split = _compose_split_v2_evaluation(
         observation_predicates=observation_predicates,
         hygiene_predicates=hygiene_predicates,
         accounting_available=accounting_available,
         accounting_integrity_valid=accounting_integrity_valid,
         termination_cause_consistent=termination_cause_consistent,
+        accounting_unavailable_reason=selected_accounting.get(
+            "unavailable_reason"
+        ),
+        termination_cause_evidence_source=cause_consistency[
+            "evidence_source"
+        ],
         probe_cleanup_outcome=probe_cleanup_outcome,
         unsafe_reason=unsafe_reason,
     )
@@ -2661,6 +2953,7 @@ def _evaluate_attempt_evidence(
         "probe_result_validation": result_validation,
         "observer_validation": observer_validation,
         "accounting_snapshot_selection": selected_accounting,
+        "saved_nqsv_stderr_accounting": saved_nqsv_stderr,
         "validity_conjunction": legacy_validity,
         **split,
         "admissible": split["observation_valid"],
@@ -3974,14 +4267,21 @@ class Controller:
                     "evaluation_model": EVALUATION_MODEL,
                     "observation_valid": evaluation["observation_valid"],
                     "attempt_safe": evaluation["attempt_safe"],
+                    "accounting_evidence": evaluation["accounting_evidence"],
                     "accounting_available": evaluation[
                         "accounting_available"
+                    ],
+                    "accounting_unavailable_reason": evaluation[
+                        "accounting_unavailable_reason"
                     ],
                     "accounting_integrity_valid": evaluation[
                         "accounting_integrity_valid"
                     ],
                     "termination_cause_consistent": evaluation[
                         "termination_cause_consistent"
+                    ],
+                    "termination_cause_evidence_source": evaluation[
+                        "termination_cause_evidence_source"
                     ],
                     "probe_cleanup_outcome": evaluation[
                         "probe_cleanup_outcome"
@@ -4480,12 +4780,19 @@ class Controller:
             "evaluation_model": EVALUATION_MODEL,
             "observation_valid": evaluation["observation_valid"],
             "attempt_safe": evaluation["attempt_safe"],
+            "accounting_evidence": evaluation["accounting_evidence"],
             "accounting_available": evaluation["accounting_available"],
+            "accounting_unavailable_reason": evaluation[
+                "accounting_unavailable_reason"
+            ],
             "accounting_integrity_valid": evaluation[
                 "accounting_integrity_valid"
             ],
             "termination_cause_consistent": evaluation[
                 "termination_cause_consistent"
+            ],
+            "termination_cause_evidence_source": evaluation[
+                "termination_cause_evidence_source"
             ],
             "probe_cleanup_outcome": evaluation["probe_cleanup_outcome"],
             "unsafe_reason": evaluation["unsafe_reason"],
