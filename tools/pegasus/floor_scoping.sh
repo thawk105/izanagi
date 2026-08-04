@@ -77,6 +77,74 @@ if [[ -z "$PY" ]]; then
   fail 2 "no python3 >= 3.10 (rejected: ${py_rejected:-none})"
 fi
 
+perf_attempts=()
+perf_probe_rc=0
+perf stat -x, -e cycles -- /bin/true >/dev/null 2>&1 || perf_probe_rc=$?
+perf_command_rc=0
+perf_command=$(command -v -- perf 2>/dev/null) || perf_command_rc=$?
+perf_attempts+=("PATH perf=${perf_command:-not-found} command_rc=$perf_command_rc probe_rc=$perf_probe_rc")
+
+perf_selected=""
+perf_from_fallback=false
+if [[ $perf_probe_rc -eq 0 && $perf_command_rc -eq 0 ]]; then
+  perf_realpath_rc=0
+  perf_selected=$(realpath -e -- "$perf_command" 2>/dev/null) || perf_realpath_rc=$?
+  if [[ $perf_realpath_rc -ne 0 || ! -x "$perf_selected" ]]; then
+    perf_attempts+=("PATH perf realpath=${perf_selected:-unresolved} realpath_rc=$perf_realpath_rc executable=no")
+    perf_selected=""
+  fi
+fi
+
+if [[ -z "$perf_selected" ]]; then
+  for cand in /usr/lib/linux-tools/*/perf /usr/lib/linux-tools-*/perf; do
+    cand_realpath_rc=0
+    cand_realpath=$(realpath -e -- "$cand" 2>/dev/null) || cand_realpath_rc=$?
+    if [[ $cand_realpath_rc -ne 0 ]]; then
+      perf_attempts+=("candidate=$cand realpath_rc=$cand_realpath_rc")
+      continue
+    fi
+    if [[ ! -x "$cand_realpath" ]]; then
+      perf_attempts+=("candidate=$cand realpath=$cand_realpath executable=no")
+      continue
+    fi
+
+    cand_probe_rc=0
+    "$cand_realpath" stat -x, -e cycles -- /bin/true >/dev/null 2>&1 || cand_probe_rc=$?
+    perf_attempts+=("candidate=$cand realpath=$cand_realpath probe_rc=$cand_probe_rc")
+    if [[ $cand_probe_rc -eq 0 ]]; then
+      perf_selected="$cand_realpath"
+      perf_from_fallback=true
+      break
+    fi
+  done
+fi
+
+if [[ -z "$perf_selected" ]]; then
+  printf '%s\n' "${perf_attempts[@]}" >"$PROVENANCE_DIR/perf-unavailable.txt"
+  fail 2 "no usable perf found"
+fi
+
+if [[ "$perf_from_fallback" == true ]]; then
+  export PATH="${perf_selected%/*}:$PATH"
+  hash -r
+  perf_recheck_rc=0
+  perf stat -x, -e cycles -- /bin/true >/dev/null 2>&1 || perf_recheck_rc=$?
+  perf_command_rc=0
+  perf_command=$(command -v -- perf 2>/dev/null) || perf_command_rc=$?
+  perf_attempts+=("PATH-after-prepend perf=${perf_command:-not-found} command_rc=$perf_command_rc probe_rc=$perf_recheck_rc")
+  if [[ $perf_recheck_rc -ne 0 || $perf_command_rc -ne 0 ]]; then
+    printf '%s\n' "${perf_attempts[@]}" >"$PROVENANCE_DIR/perf-unavailable.txt"
+    fail 2 "selected perf failed after PATH prepend"
+  fi
+fi
+
+printf '%s\n' "$perf_selected" >"$PROVENANCE_DIR/perf.realpath"
+perf_version_rc=0
+perf version >"$PROVENANCE_DIR/perf.version" 2>&1 || perf_version_rc=$?
+if [[ $perf_version_rc -ne 0 ]]; then
+  fail 2 "perf version failed"
+fi
+
 printf '%s\n' "$PY" >"$PROVENANCE_DIR/python3.realpath"
 "$PY" -I -B --version >"$PROVENANCE_DIR/python3.version" 2>&1
 git -C "$REPO_ROOT" rev-parse HEAD >"$PROVENANCE_DIR/git-head.txt"
