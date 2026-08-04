@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-04
 wave: dev-wave-t452-clock-tolerance-authority
 seq: 1
-title: [T-452] 実効クロック許容幅の権威設計案を起草し裁定パッケージで返した — 敵対 2 レンズの 12 所見を全採用、較正再登録は凍結 contract 世代まで波及する (docs のみ、main 側の flake で land せず停止、branch worktree-dev-wave-t452-clock-tolerance-authority)
+title: [T-452] 実効クロック許容幅の権威設計案を起草し裁定パッケージで返した — 敵対 2 レンズの 12 所見を全採用、較正再登録は凍結 contract 世代まで波及する (docs のみ、受入 5900 passed、branch worktree-dev-wave-t452-clock-tolerance-authority)
 ---
 
 ## 本文
@@ -38,8 +38,21 @@ title: [T-452] 実効クロック許容幅の権威設計案を起草し裁定�
   "blocked"` で、別プロセス間の flock 競合窓を観測する負荷依存の assert である。当該テストは
   本日 main へ入った `e6349be` ([T-244] origin ledger prototype) 由来で、**本 wave の差分は
   docs のみ**であり当該 file にも `orchestrator/campaign/` にも到達しない。
-  `DW-O18` に従い実装差分へ帰属させず、`DW-STOP` に従い赤のまま land しない
+  `DW-O18` に従い実装差分へ帰属させず、いったん `DW-STOP` で land せず停止して裁定へ返した
   ({{T:reflux-ledger-flock-flake}} を起票)。
+- **既知赤 waiver W2 をユーザー裁定で新設した (2026-08-05)。** 発話は
+  「既知赤として許可してください」。適用条件を次に釘付けする —
+  (1) 対象は `test_reflux_origin_ledger.py::test_v04_global_flock_race_reentry_and_public_signature`
+  **ただ 1 node のみ**、(2) 失敗点が `:711` の `assert probe_state == "blocked"` であること、
+  (3) 同 file の単独走行が緑であること、(4) **他の赤が 1 件でもあれば適用せず停止する**、
+  (5) 原因は並列受入全走の負荷下でのみ発火する競合窓の観測 (単独では再現しない)。
+  **失効**: {{T:reflux-ledger-flock-flake}} の land で自動失効する。waiver は本 wave の
+  docs のみの差分に対して適用したものであり、実装差分を持つ wave へ引き継がない。
+- **land 直前の最終走行は waiver を使わずに緑だった。** 裁定後に local main 33 commit を
+  さらに取り込んだうえで走らせた全走 (request 889209) は **5900 passed / 19 skipped /
+  0 failed (rc=0)** で、当該 flake は発火しなかった。したがって **W2 は裁定済みだが本 land では
+  適用していない** (条件と失効は上記のまま有効)。この node が全走 4 回中 2 回赤・2 回緑という
+  非決定性を示した事実は、{{T:reflux-ledger-flock-flake}} の再現条件の一次資料として残す。
 - **手順違反 1 件 (自己申告)**: 全走 (request 888597) の最中に本 fragment を編集したため、
   placeholder の参照だけが入り定義がまだ無い中間状態を `test_check_docs.py::test_real_repo_clean` が
   拾って赤くなった。整地後の `check_docs` は緑。`DW-O19` の「本走は統合 commit 後に限る」に反する
@@ -77,10 +90,11 @@ title: [T-452] 実効クロック許容幅の権威設計案を起草し裁定�
   [T-452] U-7 の裁定に従う
 - {{T:reflux-ledger-flock-flake}} **P1・新規 (main が赤・land を塞ぐ)**:
   `test_reflux_origin_ledger.py::test_v04_global_flock_race_reentry_and_public_signature` が
-  並列受入全走で **3 回中 2 回赤** (request 888571 / 888600)、同 file の単独走行は 18 件緑。
+  並列受入全走で **4 回中 2 回赤・2 回緑** (赤 = request 888571 / 888600、緑 = 888597 / 889209)、
+  同 file の単独走行は 18 件緑。
   失敗点は `:711` の `assert probe_state == "blocked"` で、別プロセス間の flock 競合窓を
-  観測する負荷依存の assert である。当該テストは `e6349be` ([T-244]) で本日 main へ入った。
-  **これは main 側の状態であり、後続の全 wave の land を同じ形で塞ぐ。**
+  観測する負荷依存の assert である。当該テストは `e6349be` ([T-244]) で 2026-08-04 に main へ入った。
+  **これは main 側の非決定性であり、後続の全 wave の land を同じ形で断続的に塞ぐ。**
   timeout を伸ばすのではなく待ち条件を決定的にする方向で直す (競合窓の観測を、
   probe 側の到達を待ってから判定する形へ)。所有は [T-244] 系
 - {{T:calibration-producer-provenance}} **P3・新規**: 許容幅の権威を固定しても、policy 一致かつ
