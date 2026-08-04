@@ -1,0 +1,385 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/874cfb3a2cb701e9d6b40288cc78d594/izdw-874cfb3a2c.o884883",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/874cfb3a2cb701e9d6b40288cc78d594/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [17 items]\n\n.................                                                        [100%]\n============================== 17 passed in 2.15s ==============================\n",
+      "stdout_sha256": "0676083b1e23fe1caa83cf2c25d954fa839be27776158de9129119b34f2ec13a"
+    },
+    "artifact_error": null,
+    "collection_sha256": "452d623ef46f4e6b8d6e45f66617b9f82b78e0317a019a844f14fe22e81b9f50",
+    "duration_s": 21.732,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "5ad81aff368700cc123e78b5a7c8afd250baf7cddaa9000c6d1ccac90f46491d",
+    "repo_head": "b76fb09cba8b1eb9de694a4b887ed70cfac92bce",
+    "runner_sha256": "607ef29f43d6cb627152fe16f5bfba0a89a61477527d241dac29703e9ac6cffe",
+    "spec_sha256": "fcae0fc3510e54a7e85200e98915a875a6185aa69b7ba9259708fb0b44b8253e",
+    "status": "PASSED",
+    "test_output_sha256": "0676083b1e23fe1caa83cf2c25d954fa839be27776158de9129119b34f2ec13a",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ef875664420fb8edc79f78c56b4dfb047bbd69daefc76c600e28f68b5a1de35c"
+  },
+  "date": "2026-08-04T03:07:49.271134+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/7537640eb0066fcda0b86090cd4748f8/izdw-7537640eb0.o884884",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/7537640eb0066fcda0b86090cd4748f8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [17 items]\n\n...............F.                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_axis_reason_order_drift_guard_fails_module_import ____________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_axis_reason_order_drift_guard_fails_module_import():\n        package_name = \"_reflux_ir_drift_probe\"\n        module_name = f\"{package_name}.reflux_ir\"\n        axis_name = f\"{package_name}.axis_trigger_gating\"\n        package = ModuleType(package_name)\n        package.__path__ = []\n        axis = ModuleType(axis_name)\n        axis.GATEABLE_REASONS = tuple(reversed(AXIS.GATEABLE_REASONS))\n        spec = importlib.util.spec_from_file_location(module_name, _PRODUCTION_PATH)\n        assert spec is not None and spec.loader is not None\n        module = importlib.util.module_from_spec(spec)\n        saved = {name: sys.modules.get(name) for name in (package_name, axis_name, module_name)}\n        sys.modules[package_name] = package\n        sys.modules[axis_name] = axis\n        sys.modules[module_name] = module\n        try:\n            try:\n                spec.loader.exec_module(module)\n            except RuntimeError as exc:\n                assert str(exc) == \"trigger-gating reason order drifted\"\n            else:\n>               raise AssertionError(\"drifted GATEABLE_REASONS must fail import\")\nE               AssertionError: drifted GATEABLE_REASONS must fail import\n\norchestrator/tests/test_reflux_ir.py:403: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_ir.py::test_axis_reason_order_drift_guard_fails_module_import\n========================= 1 failed, 16 passed in 2.14s =========================\n",
+        "stdout_sha256": "bc2c67f5c83fa22c3dd048a0999af82354a17436af174b03db32a0dfaffffb44"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "452d623ef46f4e6b8d6e45f66617b9f82b78e0317a019a844f14fe22e81b9f50",
+      "duration_s": 21.74,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_axis_reason_order_drift_guard_fails_module_import"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_axis_reason_order_drift_guard_fails_module_import"
+      ],
+      "hang_risk": false,
+      "id": "V16",
+      "injection_diff_sha256": "40069c429ba844af170011875e525f328a35dff1495ead7e8c79849017d9c9fc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ba3cccb465c7a2302a516d78df441ca632f93ef7e58fbbfa5a8440066d5f0d4f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_ir.py",
+          "new": "if False and GATEABLE_REASONS != _EXPECTED_REASONS:",
+          "old": "if GATEABLE_REASONS != _EXPECTED_REASONS:"
+        }
+      ],
+      "repo_head": "b76fb09cba8b1eb9de694a4b887ed70cfac92bce",
+      "runner_sha256": "607ef29f43d6cb627152fe16f5bfba0a89a61477527d241dac29703e9ac6cffe",
+      "spec_sha256": "fcae0fc3510e54a7e85200e98915a875a6185aa69b7ba9259708fb0b44b8253e",
+      "status": "KILLED",
+      "test_output_sha256": "bc2c67f5c83fa22c3dd048a0999af82354a17436af174b03db32a0dfaffffb44",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ef875664420fb8edc79f78c56b4dfb047bbd69daefc76c600e28f68b5a1de35c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/713319f2ad52d5d1c8b339dc1ef7cd84/izdw-713319f2ad.o884885",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/713319f2ad52d5d1c8b339dc1ef7cd84/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [17 items]\n\n...........FFFFF.                                                        [100%]\n=================================== FAILURES ===================================\n____ test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte _____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte():\n        for mask in range(32):\n            reasons = [reason for bit, reason in enumerate(AXIS.GATEABLE_REASONS)\n                       if mask & (1 << bit)]\n            actual = IR.emit_predicate(IR.TriggerGateIR(mask))\n>           assert actual.encode(\"ascii\") == LEGACY.predicate_for(reasons).encode(\"ascii\")\nE           AssertionError: assert b'izanagi_gat...ason::kUnset;' == b'izanagi_gat...ason::kUnset;'\nE             \nE             At index 17 diff: b'x' != b' '\nE             Use -v to get more diff\n\norchestrator/tests/test_reflux_ir.py:265: AssertionError\n________ test_all_32_predicates_match_independent_golden_byte_for_byte _________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_all_32_predicates_match_independent_golden_byte_for_byte():\n        expected = _expected_by_mask()\n        for mask in range(32):\n            actual = IR.emit_predicate(IR.TriggerGateIR(mask))\n>           assert actual.encode(\"ascii\") == expected[mask][1].encode(\"ascii\")\nE           AssertionError: assert b'izanagi_gat...ason::kUnset;' == b'izanagi_gat...ason::kUnset;'\nE             \nE             At index 17 diff: b'x' != b' '\nE             Use -v to get more diff\n\norchestrator/tests/test_reflux_ir.py:257: AssertionError\n___ test_frozen_gate_predicates_match_six_records_with_three_distinct_masks ____\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_frozen_gate_predicates_match_six_records_with_three_distinct_masks():\n        \"\"\"Freeze has 6 records but only 3 distinct masks; records are not 6 anchors.\"\"\"\n        document = json.loads(_FREEZE_PATH.read_text(encoding=\"utf-8\"))\n        records = [\n            record\n            for workload in document[\"entries\"].values()\n            for record in workload.values()\n            if \"gate_predicate\" in record\n        ]\n        assert len(records) == 6\n        masks = {\"g_rt\": 4, \"g_rl\": 8, \"ident_all\": 31}\n        observed_masks = {masks[record[\"name\"]] for record in records}\n        assert observed_masks == {4, 8, 31} and len(observed_masks) == 3\n        for record in records:\n            expected = IR.emit_predicate(IR.TriggerGateIR(masks[record[\"name\"]]))\n>           assert record[\"gate_predicate\"].encode(\"ascii\") == expected.encode(\"ascii\")\nE           AssertionError: assert b'izanagi_gat...adValiLocked;' == b'izanagi_gat...adValiLocked;'\nE             \nE             At index 17 diff: b' ' != b'x'\nE             Use -v to get more diff\n\norchestrator/tests/test_reflux_ir.py:460: AssertionError\n___ test_campaign_provenance_matches_nine_masks_as_historical_artifact_only ____\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_campaign_provenance_matches_nine_masks_as_historical_artifact_only():\n        \"\"\"The 9 masks are historical-artifact agreement, not an independent oracle.\"\"\"\n        document = json.loads(_PROVENANCE_PATH.read_text(encoding=\"utf-8\"))\n        assert tuple(document[\"effective_reasons\"]) == (\n            \"lock-conflict\",\n            \"readvali-tid\",\n            \"readvali-locked\",\n        )\n        entries = document[\"entries\"]\n        assert set(_HISTORICAL_MASKS) == set(entries) - {\"stock\"}\n        assert len(_HISTORICAL_MASKS) == 9\n        for name, mask in _HISTORICAL_MASKS.items():\n            expected = IR.emit_predicate(IR.TriggerGateIR(mask))\n>           assert entries[name][\"implementation\"].encode(\"ascii\") == expected.encode(\"ascii\")\nE           AssertionError: assert b'izanagi_gat...ason::kUnset;' == b'izanagi_gat...ason::kUnset;'\nE             \nE             At index 17 diff: b' ' != b'x'\nE             Use -v to get more diff\n\norchestrator/tests/test_reflux_ir.py:476: AssertionError\n________ test_emitter_cpp_tokens_exist_in_authoritative_skeleton_patch _________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_emitter_cpp_tokens_exist_in_authoritative_skeleton_patch():\n        expected_private_tokens = {\n            \"_ASSIGNMENT_TARGET\": \"izanagi_gate_pass\",\n            \"_REASON_VARIABLE\": \"izanagi_abort_reason_\",\n            \"_ENUM_TYPE\": \"IzanagiAbortReason\",\n            \"_SENTINEL_MEMBER\": \"kUnset\",\n            \"_ENUM_MEMBERS\": (\n                \"kLockConflict\",\n                \"kUpdateAbsent\",\n                \"kReadValiTid\",\n                \"kReadValiLocked\",\n                \"kNodeVali\",\n            ),\n        }\n        for name, expected in expected_private_tokens.items():\n>           assert getattr(IR, name) == expected\nE           AssertionError: assert 'izanagi_gate_passx' == 'izanagi_gate_pass'\nE             \nE             - izanagi_gate_pass\nE             + izanagi_gate_passx\nE             ?                  +\n\norchestrator/tests/test_reflux_ir.py:427: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte\nFAILED orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_independent_golden_byte_for_byte\nFAILED orchestrator/tests/test_reflux_ir.py::test_frozen_gate_predicates_match_six_records_with_three_distinct_masks\nFAILED orchestrator/tests/test_reflux_ir.py::test_campaign_provenance_matches_nine_masks_as_historical_artifact_only\nFAILED orchestrator/tests/test_reflux_ir.py::test_emitter_cpp_tokens_exist_in_authoritative_skeleton_patch\n========================= 5 failed, 12 passed in 2.14s =========================\n",
+        "stdout_sha256": "13bd5aee3f9018c9f6f5ac07b3e706933b37e41039523ac22f0981c3c0d6e640"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "452d623ef46f4e6b8d6e45f66617b9f82b78e0317a019a844f14fe22e81b9f50",
+      "duration_s": 21.718,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_independent_golden_byte_for_byte",
+        "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte",
+        "orchestrator/tests/test_reflux_ir.py::test_campaign_provenance_matches_nine_masks_as_historical_artifact_only",
+        "orchestrator/tests/test_reflux_ir.py::test_emitter_cpp_tokens_exist_in_authoritative_skeleton_patch",
+        "orchestrator/tests/test_reflux_ir.py::test_frozen_gate_predicates_match_six_records_with_three_distinct_masks"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte",
+        "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_independent_golden_byte_for_byte",
+        "orchestrator/tests/test_reflux_ir.py::test_frozen_gate_predicates_match_six_records_with_three_distinct_masks",
+        "orchestrator/tests/test_reflux_ir.py::test_campaign_provenance_matches_nine_masks_as_historical_artifact_only",
+        "orchestrator/tests/test_reflux_ir.py::test_emitter_cpp_tokens_exist_in_authoritative_skeleton_patch"
+      ],
+      "hang_risk": false,
+      "id": "V17",
+      "injection_diff_sha256": "aa22e8000c08ec9f7b98902b70213e0ae3df1816b3653d65f65dc6cef62a4a89",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ee4b880839c8b496f1a1d74e1466cdeff139812fd69970f8aa29e5d60d4819c4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_ir.py",
+          "new": "_ASSIGNMENT_TARGET = \"izanagi_gate_passx\"",
+          "old": "_ASSIGNMENT_TARGET = \"izanagi_gate_pass\""
+        }
+      ],
+      "repo_head": "b76fb09cba8b1eb9de694a4b887ed70cfac92bce",
+      "runner_sha256": "607ef29f43d6cb627152fe16f5bfba0a89a61477527d241dac29703e9ac6cffe",
+      "spec_sha256": "fcae0fc3510e54a7e85200e98915a875a6185aa69b7ba9259708fb0b44b8253e",
+      "status": "KILLED",
+      "test_output_sha256": "13bd5aee3f9018c9f6f5ac07b3e706933b37e41039523ac22f0981c3c0d6e640",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ef875664420fb8edc79f78c56b4dfb047bbd69daefc76c600e28f68b5a1de35c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/c99569f05a7f00e81a580d6eb561cbd2/izdw-c99569f05a.o884886",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/c99569f05a7f00e81a580d6eb561cbd2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [17 items]\n\n...............F.                                                        [100%]\n=================================== FAILURES ===================================\n______ test_trigger_gate_ir_subclass_mask_exception_is_uniformly_rejected ______\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\nfunction = <function encode_wire at 0x14ba4a1c11b0>\nvalue = <[RuntimeError('private subclass detail') raised in repr()] ExplodingMask object at 0x14ba49ff9f00>\nmodule = <module 'campaign.reflux_ir' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/orchestrator/campaign/reflux_ir.py'>\n\n    def _capture_rejection(function, value, module=IR) -> tuple[bytes, ...]:\n        try:\n>           function(value)\n\norchestrator/tests/test_reflux_ir.py:144: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/reflux_ir.py:113: in encode_wire\n    mask = _mask_from_ir(ir)\norchestrator/campaign/reflux_ir.py:90: in _mask_from_ir\n    mask = ir.mask\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <[RuntimeError('private subclass detail') raised in repr()] ExplodingMask object at 0x14ba49ff9f00>\n\n    @property\n    def mask(self):\n>       raise RuntimeError(\"private subclass detail\")\nE       RuntimeError: private subclass detail\n\norchestrator/tests/test_reflux_ir.py:362: RuntimeError\n\nDuring handling of the above exception, another exception occurred:\n\n    def test_trigger_gate_ir_subclass_mask_exception_is_uniformly_rejected():\n        for module in (IR, ORCH_IR):\n            class ExplodingMask(module.TriggerGateIR):\n                @property\n                def mask(self):\n                    raise RuntimeError(\"private subclass detail\")\n    \n            value = object.__new__(ExplodingMask)\n            assert len({\n>               _capture_rejection(module.encode_wire, value, module),\n                _capture_rejection(module.emit_predicate, value, module),\n            }) == 1\n\norchestrator/tests/test_reflux_ir.py:366: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nfunction = <function encode_wire at 0x14ba4a1c11b0>\nvalue = <[RuntimeError('private subclass detail') raised in repr()] ExplodingMask object at 0x14ba49ff9f00>\nmodule = <module 'campaign.reflux_ir' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/orchestrator/campaign/reflux_ir.py'>\n\n    def _capture_rejection(function, value, module=IR) -> tuple[bytes, ...]:\n        try:\n            function(value)\n        except Exception as exc:  # noqa: BLE001 - exact public rejection is asserted\n>           assert type(exc) is module.RefluxIRError\nE           AssertionError: assert <class 'RuntimeError'> is <class 'campaign.reflux_ir.RefluxIRError'>\nE            +  where <class 'RuntimeError'> = type(RuntimeError('private subclass detail'))\nE            +  and   <class 'campaign.reflux_ir.RefluxIRError'> = <module 'campaign.reflux_ir' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/orchestrator/campaign/reflux_ir.py'>.RefluxIRError\n\norchestrator/tests/test_reflux_ir.py:146: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_ir.py::test_trigger_gate_ir_subclass_mask_exception_is_uniformly_rejected\n========================= 1 failed, 16 passed in 2.15s =========================\n",
+        "stdout_sha256": "1f93f4169dda72d49e8d6655ca4ca8c6bbe529817365bf106b38969902197420"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "452d623ef46f4e6b8d6e45f66617b9f82b78e0317a019a844f14fe22e81b9f50",
+      "duration_s": 26.816,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_trigger_gate_ir_subclass_mask_exception_is_uniformly_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_trigger_gate_ir_subclass_mask_exception_is_uniformly_rejected"
+      ],
+      "hang_risk": false,
+      "id": "V18",
+      "injection_diff_sha256": "19f028796f847f099851dfe2df1eca2eff28f072ef727d95bc7fb2bd6774672c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "20822708ac5351cf9db1f5c99d9792deb5bfd37d83a2ab11476eed5209a3a592",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_ir.py",
+          "new": "    except (AttributeError, TypeError, ValueError):",
+          "old": "    except Exception:  # Never disclose failures from an accepted subclass."
+        }
+      ],
+      "repo_head": "b76fb09cba8b1eb9de694a4b887ed70cfac92bce",
+      "runner_sha256": "607ef29f43d6cb627152fe16f5bfba0a89a61477527d241dac29703e9ac6cffe",
+      "spec_sha256": "fcae0fc3510e54a7e85200e98915a875a6185aa69b7ba9259708fb0b44b8253e",
+      "status": "KILLED",
+      "test_output_sha256": "1f93f4169dda72d49e8d6655ca4ca8c6bbe529817365bf106b38969902197420",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ef875664420fb8edc79f78c56b4dfb047bbd69daefc76c600e28f68b5a1de35c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/5023bc7296ccd95e04458cf4fae64d72/izdw-5023bc7296.o884887",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/5023bc7296ccd95e04458cf4fae64d72/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [17 items]\n\n...............F.                                                        [100%]\n=================================== FAILURES ===================================\n________________ test_public_api_and_frozen_dataclass_contract _________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_public_api_and_frozen_dataclass_contract():\n        assert IR.__all__ == [\n            \"SCHEMA_ID\",\n            \"TriggerGateIR\",\n            \"parse_wire\",\n            \"encode_wire\",\n            \"emit_predicate\",\n            \"RefluxIRError\",\n        ]\n        assert type(IR.SCHEMA_ID) is str\n>       assert IR.SCHEMA_ID == \"izanagi-trigger-gate-ir/v1\"\nE       AssertionError: assert 'unrelated/v1' == 'izanagi-trigger-gate-ir/v1'\nE         \nE         - izanagi-trigger-gate-ir/v1\nE         + unrelated/v1\n\norchestrator/tests/test_reflux_ir.py:183: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_ir.py::test_public_api_and_frozen_dataclass_contract\n========================= 1 failed, 16 passed in 2.15s =========================\n",
+        "stdout_sha256": "9a0480a84632a0701f737a2cbe32cddf935084ea1f4e19e444337fa83edf7ddf"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "452d623ef46f4e6b8d6e45f66617b9f82b78e0317a019a844f14fe22e81b9f50",
+      "duration_s": 31.964,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_public_api_and_frozen_dataclass_contract"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_public_api_and_frozen_dataclass_contract"
+      ],
+      "hang_risk": false,
+      "id": "V19",
+      "injection_diff_sha256": "e868d4e9889a3c3555cfb3741ce5d65ca848cb9e16564eb621ce24da41f99231",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ed5a8905ee7c5737a66e38d8efd469bec2d69c67519cfec71b9befdf9f492fea",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_ir.py",
+          "new": "SCHEMA_ID = \"unrelated/v1\"",
+          "old": "SCHEMA_ID = \"izanagi-trigger-gate-ir/v1\""
+        }
+      ],
+      "repo_head": "b76fb09cba8b1eb9de694a4b887ed70cfac92bce",
+      "runner_sha256": "607ef29f43d6cb627152fe16f5bfba0a89a61477527d241dac29703e9ac6cffe",
+      "spec_sha256": "fcae0fc3510e54a7e85200e98915a875a6185aa69b7ba9259708fb0b44b8253e",
+      "status": "KILLED",
+      "test_output_sha256": "9a0480a84632a0701f737a2cbe32cddf935084ea1f4e19e444337fa83edf7ddf",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ef875664420fb8edc79f78c56b4dfb047bbd69daefc76c600e28f68b5a1de35c"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/8bb78ecaa82536e1577817807d1d5abe/izdw-8bb78ecaa8.o884882",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/output/pegasus-dispatch/8bb78ecaa82536e1577817807d1d5abe/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_reflux_ir.py::test_public_api_and_frozen_dataclass_contract\norchestrator/tests/test_reflux_ir.py::test_mask_acceptance_is_exact_int_in_closed_range\norchestrator/tests/test_reflux_ir.py::test_golden_expected_cases_rhs_is_32_tuple_literals_only\norchestrator/tests/test_reflux_ir.py::test_golden_has_no_production_import_and_production_has_no_golden_consumer\norchestrator/tests/test_reflux_ir.py::test_golden_masks_wires_and_predicates_are_bijective\norchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_independent_golden_byte_for_byte\norchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte\norchestrator/tests/test_reflux_ir.py::test_wire_codec_is_bijective_round_trips_and_matches_all_goldens\norchestrator/tests/test_reflux_ir.py::test_parse_wire_rejects_all_noncanonical_forms_uniformly\norchestrator/tests/test_reflux_ir.py::test_every_public_rejection_uses_one_type_and_one_disclosure_free_message\norchestrator/tests/test_reflux_ir.py::test_forged_exact_ir_is_revalidated_by_both_sinks\norchestrator/tests/test_reflux_ir.py::test_trigger_gate_ir_subclass_mask_exception_is_uniformly_rejected\norchestrator/tests/test_reflux_ir.py::test_dual_import_ir_values_are_accepted_by_each_others_sinks\norchestrator/tests/test_reflux_ir.py::test_axis_reason_order_drift_guard_fails_module_import\norchestrator/tests/test_reflux_ir.py::test_emitter_cpp_tokens_exist_in_authoritative_skeleton_patch\norchestrator/tests/test_reflux_ir.py::test_frozen_gate_predicates_match_six_records_with_three_distinct_masks\norchestrator/tests/test_reflux_ir.py::test_campaign_provenance_matches_nine_masks_as_historical_artifact_only\n\n17 tests collected in 0.10s\n",
+        "stdout_sha256": "d421508302558b64f893412941c900b4115fa5b1501812cb3356c57402ce2324"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_reflux_ir.py::test_public_api_and_frozen_dataclass_contract",
+        "orchestrator/tests/test_reflux_ir.py::test_mask_acceptance_is_exact_int_in_closed_range",
+        "orchestrator/tests/test_reflux_ir.py::test_golden_expected_cases_rhs_is_32_tuple_literals_only",
+        "orchestrator/tests/test_reflux_ir.py::test_golden_has_no_production_import_and_production_has_no_golden_consumer",
+        "orchestrator/tests/test_reflux_ir.py::test_golden_masks_wires_and_predicates_are_bijective",
+        "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_independent_golden_byte_for_byte",
+        "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte",
+        "orchestrator/tests/test_reflux_ir.py::test_wire_codec_is_bijective_round_trips_and_matches_all_goldens",
+        "orchestrator/tests/test_reflux_ir.py::test_parse_wire_rejects_all_noncanonical_forms_uniformly",
+        "orchestrator/tests/test_reflux_ir.py::test_every_public_rejection_uses_one_type_and_one_disclosure_free_message",
+        "orchestrator/tests/test_reflux_ir.py::test_forged_exact_ir_is_revalidated_by_both_sinks",
+        "orchestrator/tests/test_reflux_ir.py::test_trigger_gate_ir_subclass_mask_exception_is_uniformly_rejected",
+        "orchestrator/tests/test_reflux_ir.py::test_dual_import_ir_values_are_accepted_by_each_others_sinks",
+        "orchestrator/tests/test_reflux_ir.py::test_axis_reason_order_drift_guard_fails_module_import",
+        "orchestrator/tests/test_reflux_ir.py::test_emitter_cpp_tokens_exist_in_authoritative_skeleton_patch",
+        "orchestrator/tests/test_reflux_ir.py::test_frozen_gate_predicates_match_six_records_with_three_distinct_masks",
+        "orchestrator/tests/test_reflux_ir.py::test_campaign_provenance_matches_nine_masks_as_historical_artifact_only"
+      ],
+      "duration_s": 21.695,
+      "rc": 0,
+      "repo_head": "b76fb09cba8b1eb9de694a4b887ed70cfac92bce",
+      "runner_sha256": "607ef29f43d6cb627152fe16f5bfba0a89a61477527d241dac29703e9ac6cffe",
+      "spec_sha256": "fcae0fc3510e54a7e85200e98915a875a6185aa69b7ba9259708fb0b44b8253e",
+      "status": "PASSED",
+      "tool_sha256": "ef875664420fb8edc79f78c56b4dfb047bbd69daefc76c600e28f68b5a1de35c"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "V16": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_ir.py::test_axis_reason_order_drift_guard_fails_module_import"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "40069c429ba844af170011875e525f328a35dff1495ead7e8c79849017d9c9fc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/reflux_ir.py",
+            "new": "if False and GATEABLE_REASONS != _EXPECTED_REASONS:",
+            "old": "if GATEABLE_REASONS != _EXPECTED_REASONS:"
+          }
+        ]
+      },
+      "V17": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_independent_golden_byte_for_byte",
+          "orchestrator/tests/test_reflux_ir.py::test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte",
+          "orchestrator/tests/test_reflux_ir.py::test_campaign_provenance_matches_nine_masks_as_historical_artifact_only",
+          "orchestrator/tests/test_reflux_ir.py::test_emitter_cpp_tokens_exist_in_authoritative_skeleton_patch",
+          "orchestrator/tests/test_reflux_ir.py::test_frozen_gate_predicates_match_six_records_with_three_distinct_masks"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "aa22e8000c08ec9f7b98902b70213e0ae3df1816b3653d65f65dc6cef62a4a89",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/reflux_ir.py",
+            "new": "_ASSIGNMENT_TARGET = \"izanagi_gate_passx\"",
+            "old": "_ASSIGNMENT_TARGET = \"izanagi_gate_pass\""
+          }
+        ]
+      },
+      "V18": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_ir.py::test_trigger_gate_ir_subclass_mask_exception_is_uniformly_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "19f028796f847f099851dfe2df1eca2eff28f072ef727d95bc7fb2bd6774672c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/reflux_ir.py",
+            "new": "    except (AttributeError, TypeError, ValueError):",
+            "old": "    except Exception:  # Never disclose failures from an accepted subclass."
+          }
+        ]
+      },
+      "V19": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_ir.py::test_public_api_and_frozen_dataclass_contract"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e868d4e9889a3c3555cfb3741ce5d65ca848cb9e16564eb621ce24da41f99231",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/reflux_ir.py",
+            "new": "SCHEMA_ID = \"unrelated/v1\"",
+            "old": "SCHEMA_ID = \"izanagi-trigger-gate-ir/v1\""
+          }
+        ]
+      }
+    },
+    "registration_sha256": "5ad81aff368700cc123e78b5a7c8afd250baf7cddaa9000c6d1ccac90f46491d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "-rf",
+      "orchestrator/tests/test_reflux_ir.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "b76fb09cba8b1eb9de694a4b887ed70cfac92bce",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "-rf",
+      "orchestrator/tests/test_reflux_ir.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "85f2afcc50f9f99abb8b35dbbb79428034d70896",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "607ef29f43d6cb627152fe16f5bfba0a89a61477527d241dac29703e9ac6cffe",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "fcae0fc3510e54a7e85200e98915a875a6185aa69b7ba9259708fb0b44b8253e",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/wave-t244-p1-ir-emitter/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "ef875664420fb8edc79f78c56b4dfb047bbd69daefc76c600e28f68b5a1de35c",
+  "updated_at": "2026-08-04T03:09:54.331145+00:00"
+}
