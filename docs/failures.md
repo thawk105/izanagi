@@ -495,6 +495,13 @@
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O09`。
 - 再発検知: 段 1 の実測に「この成果物を bytes で pin しているのは誰か」の列挙を含める
 
+
+- **再発: 2026-08-04** — 逆向きの pin を見落とした。F30 は「自分の成果物の bytes を pin している
+  台帳」を数え落とす型だったが、今回は「**自分の編集面 source を bytes で pin している成果物**」
+  (qualification evidence の `binding.runtime_modules` が `orchestrator/verifier/**.py` を全件束縛)
+  を段 1 で数え落とし、段 3 の敵対相談で blocker として出た。成果物パスからの `grep` は
+  この向きを見つけない。段 1 では「この成果物を pin しているのは誰か」に加えて
+  「**自分が編集する source を pin している成果物はあるか**」も列挙する。
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
@@ -2198,3 +2205,60 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **qsub 引数の受け渡し形も含む**ことを D143 の理由欄で明示した。
 - 再発検知: 投入前チェックリスト (runbook §8) に沿って親が qsub 行を実際に組み立てる段で、
   sanctioned な submit script の qsub 呼出し形と突き合わせる。今回はこれで捕捉した。
+
+### F100. worktree の wave で主 checkout を編集した near-miss [手順漏れ]
+
+- 事象: 段 4 の前提実測で「verifier を一時変異させると committed evidence の再束縛検査が赤になるか」を
+  測る際、`cd <主 checkout> && ... >> orchestrator/verifier/report.py` を実行し、
+  **wave の worktree ではなく主 checkout を編集した**。直後に `git checkout --` で復元し
+  差分ゼロを確認したため実害は無い。その後 worktree で測り直して所期の結果を得た
+- 根本原因: セッションの shell は毎回 cwd を worktree へ戻す。read-only の調査中は
+  `cd <主 checkout> &&` を前置しても無害なので癖として蓄積し、**最初の書き込み操作でそのまま
+  危険になった**。`DW-O19` は復元手順 (`git diff` と `git checkout --`) を定めるが、
+  **どの checkout で変異させるか**は書いていない
+- 恒久対応: 変異前の clean 確認を `cd` 無しで行い、`pwd` が wave の worktree であることを
+  同じ command 内で表示してから変異する (`DW-O19` の「変異前を clean 確認し」の実行形)。
+  read-only 調査で主 checkout を指す `cd` を使ったら、書き込み操作の前に必ず落とす
+- 再発検知: 一時変異の直前に `pwd` と `git rev-parse --show-toplevel` を出力し、
+  wave branch 名と一致しなければ変異しない
+
+### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
+
+- 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
+  `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  の 1 件だけだった。親は `DW-STOP`「検査が赤なら停止」に従って land せずに停止し、
+  「[T-407] の赤が消えるまで保留」と報告した。**しかし既知赤 waiver W1 が
+  ユーザー裁定で既に新設されており、本 wave が受入に使った local main
+  (取り込み済み) の worklog に「並行セッションも同じ条件でだけ適用してよい」と
+  明記されていた。** 条件 4 点はすべて成立しており、停止は誤りだった。
+  ユーザーの指摘で是正し、W1 を適用して land した
+- 根本原因: 親の停止手順が「赤 → `DW-STOP` → 停止」の一段で、**その赤に対する
+  既存の免除が成立していないかを確認する段が無い**。worklog 末尾は読んだが、
+  読んだのは wave 開始時であり、waiver は同じ日の別 wave が走行中に land していた。
+  赤を観測した時点で worklog を読み直していない
+- 恒久対応: 受入全走で赤を観測したら、停止判断の前に **local main の worklog を
+  赤 node 名で検索**し、成立している waiver / 既知赤の裁定が無いかを確認する
+  (`grep -n "<赤 node 名>\|waiver" docs/worklog.md`)。
+  waiver を見つけたら、その waiver 自身が定める毎回検査を実施して適用可否を判定する
+- 再発検知: 停止理由に「受入赤」を書く worklog エントリは、waiver 検索を実施した事実
+  (検索語と結果) を併記する。併記が無い停止は手順未了として扱う
+
+### F102. 敵対レビュー prompt が攻撃者視点だったため上流分類器に拒否された [コンテキスト浪費]
+
+- 事象: [T-409] 段 3 のレンズ A で `codex exec` が `rc=1` で終了し、出力ファイルが 1 件も
+  残らなかった。ログ末尾は `This content was flagged for possible cybersecurity risk`。
+  `reasoning=max` の走行が丸ごと無駄になり、レンズ 1 本を書き直して再投入した。
+- 根本原因: prompt が「この関所を通ってしまう入力を構成せよ」「1 つでも作れたら赤である」と
+  攻撃者視点だけで書かれていた。izanagi の防壁強化は本質的に自分の関所を破る入力を探す作業なので、
+  素朴に書くと exploit 開発と同じ文面になる。実態は自リポジトリの入力検証を厳しくする防御作業である。
+- 恒久対応: memory `codex-adversarial-prompt-defensive-framing` — 敵対 prompt の冒頭に
+  (a) 対象が自プロジェクトの入力検証であること、(b) 成果物が境界テストの negative ベクタに
+  なること、(c) 第三者システムへの侵入手法の調査ではないことを書く。依頼語も「攻撃せよ」
+  一辺倒でなく「受理範囲は意図と一致するか」へ寄せる。
+  `docs/dev-wave/workers.md` の `DW-S03` へは書かない — dev-wave 系の byte 予算が
+  25,196 / 25,200 で残り 4 bytes であり、予算引き上げも dev-wave の外出しも既裁定で禁じられている
+  ([T-127] 裁定、D94 却下案 (a))。
+- 再発検知: `.done` の rc が非 0 かつ `-o` 出力が不在という組み合わせ。`DW-O01` が既に
+  「完了は `.done` の存在と exit code だけで判定する」と定めており、この形の失敗は必ず露見する。
+- 補足: 中身 (具体的な入力例を出させること) は削っていない。書き直した版は同じ深さの所見
+  (must-fix 3 件) を返したので、防御目的の明記は所見の質を落とさない。

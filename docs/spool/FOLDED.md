@@ -111,3 +111,23 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:campaign-run-blocks-wave-land":"F98","F:pegasus-attestation-self-rejecting":"F97","F:qsub-positional-args-invented":"F99"},"authored":"2026-08-04","content_sha256":"1f5be4a32eb7070a6eb150bde252012caea92898499e88eac2c9aa63f826a457","seq":1,"wave":"wave-a-transport-smoke"}
 - {"allocations":{"D:pegasus-attestation-blocks-wall1":"D143","D:pegasus-numactl-single-node":"D144"},"authored":"2026-08-04","content_sha256":"a56f0ee6f799aa01599b331f13d55ddfd3d95643beaf46d693a7c943217a2ee3","seq":2,"wave":"wave-a-transport-smoke"}
 - {"allocations":{"T:pegasus-attestation-ruling":"[T-419]","T:pegasus-s2-numactl-proxy":"[T-421]","T:ruleops-nonutf8-artifact":"[T-423]","T:wall1-transport-recheck":"[T-420]","T:wave-land-vs-campaign-guard":"[T-422]"},"authored":"2026-08-04","content_sha256":"24522a775f04ead06af5bfab5fec99e8e7d6202b687b7e90d07f3d646a2b8765","seq":3,"wave":"wave-a-transport-smoke"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"7d4e792db89d71de136eb9ff950f56b18cfd9217d0f51544f2888a1777076ab6","seq":1,"wave":"rulings-2026-08-04-i"}
+
+- {"allocations":{"T:between-run-floor-window-design":"[T-425]","T:certify-job-script-binding":"[T-424]"},"authored":"2026-08-04","content_sha256":"ba43fe6f2f09f9bbf939b7f1fd4f6120c4a7d2cebd45808c17a083a90d16892c","seq":1,"wave":"wave-t088-floor"}
+- {"allocations":{"D:between-run-floor-cohort":"D145"},"authored":"2026-08-04","content_sha256":"5a53d35ab0148d73ab52992561a4d07aec63d9b69ad6c239cad8fe60c5790bac","seq":2,"wave":"wave-t088-floor"}
+
+- {"allocations":{"T:permutation-check-coverage":"[T-426]"},"authored":"2026-08-04","content_sha256":"b29e8a767b72d9c85a0a5f6cac35b55c05a8b95176b74d8e86e157da1cc71bde","seq":1,"wave":"wave-t410-sort-integrity-witness"}
+- {"allocations":{"D:sort-witness-observation-equivalence":"D146"},"authored":"2026-08-04","content_sha256":"20c6ed262e147e79ab2792e35da00394ed4b8d7bfcf9492f947345e15436234f","seq":1,"wave":"wave-t410-sort-integrity-witness"}
+- {"allocations":{"F:known-red-waiver-not-checked-before-stop":"F101","F:main-checkout-mutated-from-worktree-session":"F100"},"authored":"2026-08-04","content_sha256":"642b70925e58570bf4c228ff543ad8c82d5abf82744db24f47d071fde8361ca6","seq":1,"wave":"wave-t410-sort-integrity-witness"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"43271f3d1cc90e33ee1d2b58bd859e63fc6be95591aebc181380f0b51c1a8e41","seq":1,"wave":"dev-wave-t412-l2-pruning"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"4265503560154c159dab2a017069ce2e8a0333b040aab21713c8672524f369f4","seq":1,"wave":"wave-t244-p3-origin-ledger"}
+- {"allocations":{"D:p3-origin-ledger-deferred":"D147"},"authored":"2026-08-04","content_sha256":"a91cf3701a95c118353e2d3adf0bcaada23b9efcdf46ce204c03ab4f74bf20c6","seq":2,"wave":"wave-t244-p3-origin-ledger"}
+
+- {"allocations":{"T:codex-worker-launch-flake":"[T-427]"},"authored":"2026-08-04","content_sha256":"884dc1b16d0112b9b4b7e31012234bd7b6734f1169e81e934d656df38559b03d","seq":1,"wave":"wave-t409-evolve-hole-allowlist"}
+- {"allocations":{"F:adversarial-prompt-refused":"F102"},"authored":"2026-08-04","content_sha256":"649386f5ad9a150ff8e9f9e06d3cbf4ea635bdd737be35d3b8e55c37eebdd5ac","seq":2,"wave":"wave-t409-evolve-hole-allowlist"}
+
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"55c4905ca85a72463ad35cca5e0357ca917335c52768319973a6d279d8aa4d44","seq":1,"wave":"wave-t244-p5-injection-gate"}
+- {"allocations":{"D:p5-provider-and-session-isolation":"D148"},"authored":"2026-08-04","content_sha256":"16ece9b11cde676df14853d12992ca013c51b25847c774067c079b681e381206","seq":1,"wave":"wave-t244-p5-injection-gate"}
