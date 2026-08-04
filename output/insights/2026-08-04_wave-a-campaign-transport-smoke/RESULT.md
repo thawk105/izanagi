@@ -78,6 +78,34 @@ build 前に `ValueError`」と定める (D36 決定4-4)。Pegasus 契約は `nu
 | (b) `qstat` で request が可視 | **合格**。STT=PRR で可視、権限系エラーなし |
 | (c) 終了後の PBS 会計痕跡 | **合格**。`izanagi-wave-a-smoke.e882490` に NQSV 会計サマリ (Elapse 20S) |
 
+## 充足表 — D117 決定 (4) の 4 条件 (第 3 task 追加の前提)
+
+本 wave は `dispatch_compute.py` に触れていない。下表は現行コードの静的実測であり、
+「未確認」は本 wave で測っていないことを意味する (満たされているという意味ではない)。
+
+| # | 条件 | 状態 | 根拠 |
+|---|---|---|---|
+| (a) | D105 の supersede | **未実施** | ユーザー裁定事項。`TASKS` は `{tests, provenance}` のまま |
+| (b) | `_job_run` 側の `env_allowlist` 強制 | **未解消** | `_job_run` は `child_env = os.environ.copy()` の後 request の environment を上書きするだけで、`spec.env_allowlist` を子側で強制しない。allowlist が効くのは親が request に載せる値の絞り込みだけ |
+| (c) | stdin / cwd / artifact 可視性 | **部分** | cwd は `subprocess.call(..., cwd=str(repo_root))` で固定済み。**stdin は明示的に閉じていない** (`subprocess.call` に stdin 指定なし = 親から継承)。artifact 可視性は receipt / marker の形で実証済み (本 wave の F49 (ii) 検査) |
+| (d) | 子 rc の意味の確定 | **部分** | `INFRA_RC` (=16) と `child_rc` を result JSON で分離済みで、runbook §8 も「rc=16 は dispatch の infra 失敗であって監査結果ではない」と明記する。ただし確定しているのは既存 2 task についてであり、campaign task の rc 意味論は未定義 |
+
+## 充足表 — D131 の共通前提 6 (option (a)/(b) のどちらを選んでも必要)
+
+| # | 前提 | 状態 | 根拠 |
+|---|---|---|---|
+| 1 | shared / legacy lock の移行と二重走行の窓を作らないこと | **未確認** | 本 wave では測っていない。なお `tools/mutation_harness.py` の `_lock_path_for` は `tempfile.gettempdir()` を使い node-local のままである (D130 決定 3-2 の指摘は現行コードにも残る) |
+| 2 | 永続 transport 証拠 (receipt / job stdout / ledger の attempt 対応) | **未解消** | `output/pegasus-dispatch/` は `.gitignore:25` の下にあり、そこだけでは凍結台帳の参照が切れる。本 wave は証拠を insight 配下へ手で複製して凍結した |
+| 3 | login node での直起動を機械的に閉じること | **部分** | `buildcache` の `site_policy.refuses_heavy_work` が cmake configure / build をログインノードで拒否する (実測)。ただし campaign driver 全体の login 直起動を閉じる機構ではない |
+| 4 | canonical 全走 argv の固定 | **未確認** | 本 wave では測っていない。campaign 側に相当する固定は見ていない |
+| 5 | clean child env・stdin 閉鎖・cwd・子 rc の意味の確定 | **未解消** | 上表 (b)(c)(d) と同じ。特に env allowlist の子側強制と stdin 閉鎖が欠けている |
+| 6 | `total_deadline` の修正と active job への qdel 禁止 | **両方とも解消済み** | `dispatch_compute.py` は RUN を初観測した時刻へ deadline を rebase する (`run_deadline_rebased`)。qdel は `_fresh_qstat_gated_qdel` / `_QDEL_CLEANUP_POLICY = "fresh-qstat-gate/v1"` が走行中ジョブを拒否する |
+
+**本 wave が新たに加える第 7 の前提:** 8c CLI の `--provider fixture` と実 build の排他、および
+Pegasus compute build の `claude-headless` 専用 opt-in をどう解くか (D131 決定 5)。
+**第 8 の前提:** 実行時 attestation が通ること — 現状これが最初に落ちるため、他のどの前提を
+満たしても campaign は計算ノードで動かない。
+
 ## この wave が変えていないもの
 
 `dispatch_compute.py`、`TASKS`、transport policy、env 契約、attestation 述語、
