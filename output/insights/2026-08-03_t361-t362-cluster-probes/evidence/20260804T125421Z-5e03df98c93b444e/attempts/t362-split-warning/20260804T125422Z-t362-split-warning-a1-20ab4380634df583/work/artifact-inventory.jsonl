@@ -1,0 +1,17 @@
+{"cleanup":false,"pid":3400667,"producer":"compute","purpose":"compute identity marker retained for controller validation","relative_path":"run_marker.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070280188297}
+{"cleanup":false,"pid":3400667,"producer":"compute","purpose":"compute runtime metadata","relative_path":"run_metadata.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070283179848}
+{"cleanup":false,"pid":3400667,"producer":"compute","purpose":"bash control events","relative_path":"control-bash.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070284532850}
+{"cleanup":false,"pid":3400667,"producer":"compute","purpose":"bash signal events","relative_path":"events-bash.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070285431307}
+{"cleanup":false,"pid":3400667,"producer":"compute","purpose":"bash durable startup heartbeat","relative_path":"heartbeats-bash.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070286340547}
+{"cleanup":false,"pid":3400667,"producer":"compute","purpose":"durable Bash trap writer failure log","relative_path":"signal-writer-failures.raw","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070287238371}
+{"cleanup":false,"pid":3400671,"producer":"compute","purpose":"parent signal and cleanup events","relative_path":"events-parent.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070523292892}
+{"cleanup":false,"pid":3400671,"producer":"compute","purpose":"parent durable heartbeats","relative_path":"heartbeats-parent.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070524427473}
+{"cleanup":false,"pid":3400671,"producer":"compute","purpose":"parent signal-writer control","relative_path":"control-parent.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070525455783}
+{"cleanup":true,"pid":3400671,"producer":"compute","purpose":"mutable restoration canary","relative_path":"canary.txt","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070526373290}
+{"cleanup":true,"pid":3400671,"producer":"compute","purpose":"ready identity marker","relative_path":"ready.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070527279046}
+{"cleanup":true,"pid":3400671,"producer":"compute","purpose":"grandchild startup marker","relative_path":"grandchild_started.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070528149248}
+{"cleanup":true,"pid":3400671,"producer":"compute","purpose":"login readback acknowledgment","relative_path":"canary_readback_ack.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070529027627}
+{"cleanup":false,"pid":3400674,"producer":"compute","purpose":"grandchild signal events","relative_path":"events-grandchild.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070580613578}
+{"cleanup":false,"pid":3400674,"producer":"compute","purpose":"grandchild signal-writer control","relative_path":"control-grandchild.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070581677284}
+{"cleanup":false,"pid":3400674,"producer":"compute","purpose":"grandchild durable heartbeats","relative_path":"heartbeats-grandchild.jsonl","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070582624010}
+{"cleanup":true,"pid":3400674,"producer":"compute","purpose":"grandchild startup marker","relative_path":"grandchild_started.json","schema_version":"t362-artifact-inventory/v1","time_ns":1785848070583528464}

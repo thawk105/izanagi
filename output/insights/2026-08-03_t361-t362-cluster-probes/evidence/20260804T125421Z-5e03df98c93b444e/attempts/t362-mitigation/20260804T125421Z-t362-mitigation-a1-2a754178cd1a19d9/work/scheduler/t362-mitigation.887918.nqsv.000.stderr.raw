@@ -1,0 +1,17 @@
+
+%NQSV(INFO): Batch job received signal SIGTERM. (Exceeded per-req elapse time limit)
+
+============================================================
+Request ID:             887918.nqsv
+Request Name:           t362_mitig
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Tue Aug  4 21:54:22 2026
+Started Request Time:   Tue Aug  4 21:54:30 2026
+Ended Request Time:     Tue Aug  4 21:56:40 2026
+Resources Information:
+  Elapse:               134S
+  Remaining Elapse:     46S
+============================================================

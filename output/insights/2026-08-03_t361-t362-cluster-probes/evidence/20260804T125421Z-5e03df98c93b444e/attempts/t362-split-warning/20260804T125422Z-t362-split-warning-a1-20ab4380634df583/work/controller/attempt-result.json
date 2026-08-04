@@ -1,0 +1,565 @@
+{
+  "accounting_available": false,
+  "accounting_integrity_valid": false,
+  "accounting_validation": {
+    "commands": {
+      "racctjob": {
+        "all_cause_lines_request_bound_by_stream": {
+          "stderr": true,
+          "stdout": true
+        },
+        "available": true,
+        "elapse_field_present": false,
+        "ended_field_present": false,
+        "exact_request_record_count_valid": false,
+        "exclusive_request_ids_valid": false,
+        "expected_matching_records": 1,
+        "expected_request_id": "887919.nqsv",
+        "invalid_request_id_fields": [],
+        "invalid_request_id_fields_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "matching_request_record_count": 0,
+        "observed_normalized_request_ids": [],
+        "observed_normalized_request_ids_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "provenance_bound_text": "",
+        "request_bound_record_lines_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "started_field_present": false,
+        "stderr_cause_request_bound": true,
+        "stream_provenance_valid": false,
+        "valid": false
+      },
+      "racctreq": {
+        "all_cause_lines_request_bound_by_stream": {
+          "stderr": true,
+          "stdout": true
+        },
+        "available": true,
+        "elapse_field_present": false,
+        "ended_field_present": false,
+        "exact_request_record_count_valid": false,
+        "exclusive_request_ids_valid": false,
+        "expected_matching_records": 1,
+        "expected_request_id": "887919.nqsv",
+        "invalid_request_id_fields": [],
+        "invalid_request_id_fields_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "matching_request_record_count": 0,
+        "observed_normalized_request_ids": [],
+        "observed_normalized_request_ids_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "provenance_bound_text": "",
+        "request_bound_record_lines_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "started_field_present": false,
+        "stderr_cause_request_bound": true,
+        "stream_provenance_valid": false,
+        "valid": false
+      }
+    },
+    "selected_snapshot": {
+      "available": false,
+      "integrity_valid": false,
+      "source": "controller-later",
+      "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT"
+    },
+    "valid": false
+  },
+  "admissible": false,
+  "attempt_id": "20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+  "attempt_safe": false,
+  "budget_after": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 16,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-after-request",
+    "remaining_point_raw": "306.37",
+    "returncode": 0
+  },
+  "budget_before": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 1,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-before-qsub",
+    "remaining_point_raw": "307.72",
+    "returncode": 0
+  },
+  "budget_delta": {
+    "after_remaining_point_raw": "306.37",
+    "before_remaining_point_raw": "307.72",
+    "budget_identity_raw": "SFC",
+    "decrease_point_raw": "1.35",
+    "point_conversion": "UNDETERMINED",
+    "valid": true
+  },
+  "cumulative_requested_node_min": 19,
+  "dangerous": null,
+  "dangerous_note": "controller admissibility is not a safety verdict; raw probe results retain the dangerous/safe observation",
+  "evaluation_model": "split-v2",
+  "external_root_terminal_proof": {
+    "accounting_ended_request_valid": false,
+    "qstat_request_absent": true,
+    "qwait_terminal_receipt_valid": true,
+    "request_id_available": true,
+    "request_not_active_at_controller_stop": true,
+    "saved_nqsv_stderr_accounting": {
+      "errors": [],
+      "expected_request_id": "887919.nqsv",
+      "files": [
+        {
+          "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.887919.nqsv.000.stderr.raw",
+          "request_block_count": 1,
+          "sha256": "48c00316af7ad3786a9825eb45f8bf690ad8f3c7dc1de59c7503e60682592222",
+          "size": 647
+        }
+      ],
+      "matching_ended_request_blocks": [
+        {
+          "ended_request_time_field_raw": "Ended Request Time:     Tue Aug  4 21:57:30 2026",
+          "normalized_request_id": "887919.nqsv",
+          "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.887919.nqsv.000.stderr.raw",
+          "request_block_count": 1,
+          "request_id_field_raw": "Request ID:             887919.nqsv",
+          "sha256": "48c00316af7ad3786a9825eb45f8bf690ad8f3c7dc1de59c7503e60682592222",
+          "size": 647
+        }
+      ],
+      "scheduler_root": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler",
+      "valid": true
+    },
+    "terminal_evidence_disjunction_valid": true,
+    "termination_evidence_paths": [
+      "1_qwait_raw",
+      "3_manifest_bound_nqsv_stderr_plus_qstat_absence"
+    ],
+    "valid": true
+  },
+  "job_output_manifest": {
+    "errors": [],
+    "expected_job_count_per_stream": 1,
+    "files": [
+      {
+        "original_name": "t362-split-warning.887919.nqsv.000.o",
+        "original_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.887919.nqsv.000.o",
+        "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "original_size": 0,
+        "saved_name": "t362-split-warning.887919.nqsv.000.stdout.raw",
+        "saved_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.887919.nqsv.000.stdout.raw",
+        "stream": "stdout"
+      },
+      {
+        "original_name": "t362-split-warning.887919.nqsv.000.e",
+        "original_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.887919.nqsv.000.e",
+        "original_sha256": "48c00316af7ad3786a9825eb45f8bf690ad8f3c7dc1de59c7503e60682592222",
+        "original_size": 647,
+        "saved_name": "t362-split-warning.887919.nqsv.000.stderr.raw",
+        "saved_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.887919.nqsv.000.stderr.raw",
+        "stream": "stderr"
+      }
+    ],
+    "note": ".o/.e are auxiliary; absence is preserved but is not alone an admissibility failure",
+    "observed_counts": {
+      "stderr": 1,
+      "stdout": 1
+    },
+    "schema": "izanagi-t361-t362-controller/v1",
+    "time_ns": 1785851781180751635
+  },
+  "leg": "t362-split-warning",
+  "marker_validation": {
+    "errors": [],
+    "marker_raw": {
+      "hostname": "bnode052",
+      "mode": "split-warning",
+      "monotonic_ns": 697291402399633,
+      "normalized_request_id": "887919.nqsv",
+      "pbs_jobid": "0:887919.nqsv",
+      "pid": 3400667,
+      "run_nonce": "20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+      "schema_version": "t362-signal-marker/v2",
+      "time_ns": 1785848070288108651
+    },
+    "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/run_marker.json",
+    "sha256": "71f71f283b74ac6e0ee59bbc9a3d6f1dcc67f1779c9cc27e779f496c05442f04",
+    "valid": true
+  },
+  "monitor": {
+    "active_at_execution_deadline": false,
+    "execution_hosts_raw_evidence": null,
+    "execution_hosts_raw_order": [],
+    "qdel_receipt": null,
+    "qstat_permission_error": false,
+    "qstat_run_seen": false,
+    "qstat_transient_error_seen": false,
+    "qstat_visible": false,
+    "terminal_reason": "PREQUEUED_REQUEST_ALREADY_TERMINAL"
+  },
+  "observation_valid": false,
+  "observer_validation": {
+    "errors": [],
+    "observation_raw": {
+      "acceptance_conditions": {
+        "all_required_layers_and_logs_valid": true,
+        "artifact_inventory_cleanup_outcome_valid": true,
+        "artifact_inventory_cleanup_valid": true,
+        "artifact_inventory_evidence_valid": true,
+        "cleanup_control_prefix_valid": true,
+        "cleanup_order_valid": false,
+        "cleanup_restore_outcome_valid": false,
+        "controller_qdel_not_required": false,
+        "permission_error_absent": true,
+        "post_restore_canary_safe": false,
+        "python_parent_sigterm_caught": false,
+        "ready_identity_valid": true,
+        "scheduler_commands_present": true,
+        "scheduler_tail_permission_error_absent": true,
+        "scheduler_terminal_non_run": false,
+        "scheduler_terminal_state_conclusive": true,
+        "signal_log_parse_error_free": true,
+        "walltime_accounting_confirmed": false
+      },
+      "accounting_confirmation": {
+        "available": false,
+        "elapsed_seconds_candidates": [],
+        "errors": [
+          "racctjob did not complete successfully: OTHER_ERROR",
+          "racctreq did not complete successfully: OTHER_ERROR",
+          "racctjob expected 1 request records, observed 0",
+          "racctjob does not contain the exact expected request record count",
+          "racctreq expected 1 request records, observed 0",
+          "racctreq does not contain the exact expected request record count",
+          "accounting has no explicit walltime/resource-limit termination cause",
+          "accounting elapsed time does not reach the registered limit event"
+        ],
+        "explicit_walltime_cause": false,
+        "generic_exit_statuses_ignored_as_walltime_cause": [],
+        "integrity_errors": [
+          "racctjob expected 1 request records, observed 0",
+          "racctjob does not contain the exact expected request record count",
+          "racctreq expected 1 request records, observed 0",
+          "racctreq does not contain the exact expected request record count"
+        ],
+        "integrity_valid": false,
+        "normal_completion_indicator_present": false,
+        "registered_limit_event_seconds": 180,
+        "requested_seconds": 180,
+        "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT",
+        "valid": false
+      },
+      "artifact_inventory_validation": {
+        "cleanup_outcome_valid": true,
+        "evidence_valid": true
+      },
+      "cleanup_order": {
+        "control_prefix_errors": [],
+        "control_prefix_valid": true,
+        "errors": [
+          "cleanup restore suffix missing cleanup_signal_sent/SIGTERM",
+          "cleanup restore suffix missing cleanup_term_wait_timeout/-",
+          "cleanup restore suffix missing cleanup_signal_sent/SIGKILL",
+          "cleanup restore suffix missing cleanup_kill_wait_finished/-",
+          "cleanup restore suffix missing canary_restore_verified/-",
+          "cleanup restore suffix missing finally_exit/-",
+          "TERM TimeoutExpired wait was shorter than approximately five seconds",
+          "canary restore byte verification absent or false",
+          "finally_exit byte verification absent or false"
+        ],
+        "matched_events": [
+          {
+            "compute_marker_sha256": "71f71f283b74ac6e0ee59bbc9a3d6f1dcc67f1779c9cc27e779f496c05442f04",
+            "event": "grandchild_alive_immediately_before_ready",
+            "event_id": "53b13c56e7fb4f779207c93efb41e928",
+            "grandchild_pid": 3400674,
+            "hostname": "bnode052",
+            "layer": "parent",
+            "mode": "split-warning",
+            "monotonic_ns": 697292073068798,
+            "normalized_request_id": "887919.nqsv",
+            "pbs_jobid": "0:887919.nqsv",
+            "pgid": 3400643,
+            "pid": 3400671,
+            "ppid": 3400663,
+            "run_nonce": "20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+            "schema_version": "t362-signal-event/v1",
+            "sequence": 10,
+            "sid": 3400643,
+            "time_ns": 1785848070958777819
+          },
+          {
+            "compute_marker_sha256": "71f71f283b74ac6e0ee59bbc9a3d6f1dcc67f1779c9cc27e779f496c05442f04",
+            "event": "ready_after_login_readback_ack",
+            "event_id": "39cb6f08f5604204bd0e278a84a02351",
+            "hostname": "bnode052",
+            "layer": "parent",
+            "mode": "split-warning",
+            "monotonic_ns": 697292076917756,
+            "normalized_request_id": "887919.nqsv",
+            "pbs_jobid": "0:887919.nqsv",
+            "pgid": 3400643,
+            "pid": 3400671,
+            "ppid": 3400663,
+            "run_nonce": "20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+            "schema_version": "t362-signal-event/v1",
+            "sequence": 11,
+            "sid": 3400643,
+            "time_ns": 1785848070962626713
+          }
+        ],
+        "restore_outcome_errors": [
+          "cleanup restore suffix missing cleanup_signal_sent/SIGTERM",
+          "cleanup restore suffix missing cleanup_term_wait_timeout/-",
+          "cleanup restore suffix missing cleanup_signal_sent/SIGKILL",
+          "cleanup restore suffix missing cleanup_kill_wait_finished/-",
+          "cleanup restore suffix missing canary_restore_verified/-",
+          "cleanup restore suffix missing finally_exit/-",
+          "TERM TimeoutExpired wait was shorter than approximately five seconds",
+          "canary restore byte verification absent or false",
+          "finally_exit byte verification absent or false"
+        ],
+        "restore_outcome_valid": false,
+        "valid": false
+      },
+      "cleanup_receipt_file": "observer/cleanup_receipt.json",
+      "diagnostic_scope": "raw observations and validity only; no safety verdict is embedded",
+      "last_qstat_state": null,
+      "local_io_cap_errors": [],
+      "marker_errors": [],
+      "mode": "split-warning",
+      "normalized_request_id": "887919.nqsv",
+      "observation_conditions": {
+        "accounting_integrity_valid_or_unavailable": true,
+        "all_required_layers_and_logs_valid": true,
+        "artifact_inventory_evidence_valid": true,
+        "cleanup_control_prefix_valid": true,
+        "permission_error_absent": true,
+        "ready_identity_valid": true,
+        "scheduler_commands_present": true,
+        "scheduler_tail_permission_error_absent": true,
+        "scheduler_terminal_state_conclusive": true,
+        "signal_log_parse_error_free": true
+      },
+      "post_restore_canary_readback": {
+        "error": null,
+        "expected_bytes_hex": "4f524947494e414c0a",
+        "expected_sha256": "9660b3303631e95817f72c7536939f0eca9e20c0d7b86382a39e4a98a1b26151",
+        "normalized_request_id": "887919.nqsv",
+        "observed_bytes_hex": "4d5554415445440a",
+        "observed_sha256": "14309db042d48b1d1bb0e1c28646c56569cec4fa066be145e71b8913fc631862",
+        "outcome": "unsafe",
+        "request_id": "887919.nqsv",
+        "run_nonce": "20260804T125422Z-t362-split-warning-a1-20ab4380634df583"
+      },
+      "probe_cleanup_outcome": "unsafe",
+      "qwait_code_9_scope": "resource-limit termination only; never evidence of the delivered signal kind",
+      "ready_marker": {
+        "canary_sha256": "14309db042d48b1d1bb0e1c28646c56569cec4fa066be145e71b8913fc631862",
+        "compute_marker_sha256": "71f71f283b74ac6e0ee59bbc9a3d6f1dcc67f1779c9cc27e779f496c05442f04",
+        "mode": "split-warning",
+        "monotonic_ns": 697292074076903,
+        "normalized_request_id": "887919.nqsv",
+        "run_nonce": "20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+        "schema_version": "t362-signal-marker/v2",
+        "state": "READY_AFTER_LOGIN_READBACK_ACK",
+        "time_ns": 1785848070959785797
+      },
+      "ready_marker_sha256": "a34ea678c9e3c9239c9d6017a73c75dada61fe2b78bf32cda1650f6b09f4e8b0",
+      "request_id": "887919.nqsv",
+      "run_marker": {
+        "hostname": "bnode052",
+        "mode": "split-warning",
+        "monotonic_ns": 697291402399633,
+        "normalized_request_id": "887919.nqsv",
+        "pbs_jobid": "0:887919.nqsv",
+        "pid": 3400667,
+        "run_nonce": "20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+        "schema_version": "t362-signal-marker/v2",
+        "time_ns": 1785848070288108651
+      },
+      "run_marker_sha256": "71f71f283b74ac6e0ee59bbc9a3d6f1dcc67f1779c9cc27e779f496c05442f04",
+      "schema_version": "t362-signal-observer/v2",
+      "session_id": "35a43fdab5244f34a0cf3da8d6a9999f",
+      "signal_log_errors": [],
+      "signal_observations": {
+        "bash": [
+          "SIGUSR1"
+        ],
+        "grandchild": [
+          "SIGUSR1"
+        ],
+        "parent": [
+          "SIGUSR1"
+        ]
+      },
+      "terminal_reason": "QUE_DEADLINE_CONTROLLER_QDEL_REQUIRED",
+      "time_ns": 1785851680166259877,
+      "unobserved_signal_vocabulary": "UNKNOWN",
+      "unsafe_reason": "post_restore_canary_mismatch",
+      "valid_for_safety_conclusion": false
+    },
+    "observer_returncode": 3,
+    "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/observer/final_observation.json",
+    "payload_validation": {
+      "acceptance_conditions": {
+        "all_required_layers_and_logs_valid": true,
+        "artifact_inventory_cleanup_outcome_valid": true,
+        "artifact_inventory_cleanup_valid": true,
+        "artifact_inventory_evidence_valid": true,
+        "cleanup_control_prefix_valid": true,
+        "cleanup_order_valid": false,
+        "cleanup_restore_outcome_valid": false,
+        "controller_qdel_not_required": false,
+        "permission_error_absent": true,
+        "post_restore_canary_safe": false,
+        "python_parent_sigterm_caught": false,
+        "ready_identity_valid": true,
+        "scheduler_commands_present": true,
+        "scheduler_tail_permission_error_absent": true,
+        "scheduler_terminal_non_run": false,
+        "scheduler_terminal_state_conclusive": true,
+        "signal_log_parse_error_free": true,
+        "walltime_accounting_confirmed": false
+      },
+      "errors": [],
+      "observation_conditions": {
+        "accounting_integrity_valid_or_unavailable": true,
+        "all_required_layers_and_logs_valid": true,
+        "artifact_inventory_evidence_valid": true,
+        "cleanup_control_prefix_valid": true,
+        "permission_error_absent": true,
+        "ready_identity_valid": true,
+        "scheduler_commands_present": true,
+        "scheduler_tail_permission_error_absent": true,
+        "scheduler_terminal_state_conclusive": true,
+        "signal_log_parse_error_free": true
+      },
+      "probe_cleanup_outcome": "unsafe",
+      "safety_content_present": true,
+      "unsafe_reason": "post_restore_canary_mismatch",
+      "valid": true
+    },
+    "sha256": "037867bfc868bcbc2badd73e0e9f8878e7721bc0fcfa8569db8ee079ab0a7990",
+    "valid": true
+  },
+  "probe_cleanup_outcome": "unsafe",
+  "probe_result_validation": null,
+  "qsub_argv": [
+    "qsub",
+    "-v",
+    "T362_ATTEMPT_ID=20260804T125422Z-t362-split-warning-a1-20ab4380634df583,T362_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T362_MODE=split-warning,T362_RUN_NONCE=20260804T125422Z-t362-split-warning-a1-20ab4380634df583,T362_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+    "-o",
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.%r.%03j.o",
+    "-e",
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.%r.%03j.e",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_split_warning.pbs"
+  ],
+  "qsub_receipt": {
+    "argv": [
+      "qsub",
+      "-v",
+      "T362_ATTEMPT_ID=20260804T125422Z-t362-split-warning-a1-20ab4380634df583,T362_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T362_MODE=split-warning,T362_RUN_NONCE=20260804T125422Z-t362-split-warning-a1-20ab4380634df583,T362_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+      "-o",
+      "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.%r.%03j.o",
+      "-e",
+      "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.%r.%03j.e",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_split_warning.pbs"
+    ],
+    "duration_ns": 60940570,
+    "error_type": null,
+    "purpose": "qsub",
+    "returncode": 0,
+    "schema": "izanagi-t361-t362-controller/v1",
+    "sequence": 2,
+    "started_time_ns": 1785848062646713024,
+    "stderr_path": "raw/00002-qsub.stderr.raw",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_path": "raw/00002-qsub.stdout.raw",
+    "stdout_sha256": "e624065fde3ee9b26e4199845c2230154095694b35e2b34d8b8311f201d82372",
+    "terminated_by_controller": false,
+    "timed_out": false
+  },
+  "qwait_validation": {
+    "expected_outcome": "walltime",
+    "natural_receipt_valid": true,
+    "request_id_binding_valid": true,
+    "requirement": "terminal kind is independent of cleanup classification: natural jobs require request-bound qwait rc=0; walltime jobs require rc=9 plus raw ELAPSE limit text",
+    "returncode_raw": 9,
+    "valid": true
+  },
+  "request_id": "887919.nqsv",
+  "request_ordinal": 4,
+  "requested_node_min": 3,
+  "retry_reason": null,
+  "safety_content_present": true,
+  "saved_preflight_validation": {
+    "errors": [],
+    "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/controller/preflight.json",
+    "sha256": "6e694f16ab6182800debffdf6e0aef496fc512883b4f05197f73dd75c2f523ed",
+    "source_commit": "d71a9c13d8887315b7849f7518b5f42bca27cd24",
+    "valid": true
+  },
+  "saved_qsub_validation": {
+    "errors": [],
+    "receipt": {
+      "argv": [
+        "qsub",
+        "-v",
+        "T362_ATTEMPT_ID=20260804T125422Z-t362-split-warning-a1-20ab4380634df583,T362_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T362_MODE=split-warning,T362_RUN_NONCE=20260804T125422Z-t362-split-warning-a1-20ab4380634df583,T362_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+        "-o",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.%r.%03j.o",
+        "-e",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.%r.%03j.e",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_split_warning.pbs"
+      ],
+      "commands_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/controller/commands.jsonl",
+      "duration_ns": 60940570,
+      "error_type": null,
+      "purpose": "qsub",
+      "returncode": 0,
+      "schema": "izanagi-t361-t362-controller/v1",
+      "sequence": 2,
+      "started_time_ns": 1785848062646713024,
+      "stderr_path": "raw/00002-qsub.stderr.raw",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_path": "raw/00002-qsub.stdout.raw",
+      "stdout_sha256": "e624065fde3ee9b26e4199845c2230154095694b35e2b34d8b8311f201d82372",
+      "terminated_by_controller": false,
+      "timed_out": false
+    },
+    "valid": true
+  },
+  "schema": "izanagi-t361-t362-controller-attempt/v2",
+  "session_id": "20260804T125421Z-5e03df98c93b444e",
+  "termination_cause_consistent": true,
+  "time_ns": 1785851781604445406,
+  "unsafe_reason": "post_restore_canary_mismatch",
+  "validity_conjunction": {
+    "accounting_valid": false,
+    "compute_marker_valid": true,
+    "job_output_collection_error_free": true,
+    "observer_acceptance_valid": false,
+    "preflight_valid": true,
+    "qstat_no_permission_error": true,
+    "qstat_no_transient_error": true,
+    "qstat_visible": true,
+    "qsub_rc_zero": true,
+    "qsub_receipt_valid": true,
+    "qwait_valid": true,
+    "rbudgetcheck_after_rc_zero": true,
+    "rbudgetcheck_before_rc_zero": true,
+    "request_id_parsed": true,
+    "request_not_active_at_deadline": true
+  }
+}

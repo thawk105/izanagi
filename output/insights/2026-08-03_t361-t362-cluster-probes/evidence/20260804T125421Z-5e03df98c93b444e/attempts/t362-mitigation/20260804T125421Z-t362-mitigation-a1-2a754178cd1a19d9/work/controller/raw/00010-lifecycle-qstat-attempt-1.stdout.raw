@@ -1,0 +1,18 @@
+Request ID: 887918.nqsv
+    Batch Job Number = 0
+    Execution Job ID = 3692094
+    User  Name = tanab
+    User  ID   = 31609
+    Group ID   = 30410
+    Job Server Number = 23
+    Job Server Name = JobServer0023
+    Execution Host = bnode023
+    Exit Code = (none)
+  Resources Information:
+    Memory    = 47.792969MB
+    Assigned Sockets = 0
+    CPU Time  = 0.130000S
+    Accumulated CPU Time = 0.130000S
+    Remaining CPU Time = UNLIMITED
+    Virtual Memory = 123.339844MB
+
