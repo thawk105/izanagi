@@ -731,6 +731,11 @@
   走らせ、表示された rc=0 は `tail` のものだった。実際は Pegasus dispatch が queue-wait-timeout の
   infra 失敗で監査未実行。land 前に出力全文を読み直して検出し、単独 rc で再走した。O17 は単独 rc を
   既に要求しており手順は増補しない。
+
+- **再発: 2026-08-04** — 親が `run_tests.py ... | tail` で dispatch を投げ、pipeline rc (=tail) を
+  見て緑と誤読しかけた。dispatch の `result.json` の `child_rc=1` を突き合わせて実測前に検出し、
+  偽緑の記録には至っていない (near miss)。以後の受入・変異走行は rc をパイプに通さず
+  ファイルへ直接取得した。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
