@@ -37,10 +37,14 @@ COOLDOWN_SECONDS = 1.0
 BUSY_MIN_CPU_TICKS = 5
 SHAM_MAX_CPU_TICKS = 1
 COMPETITOR_MIN_TICKS = 3
-COMPETITOR_MAX_TICKS_PER_SECOND = 6.7
-"""CLK_TCK=100 で 1 CPU の約 6.7%。前 wave A0 の実測（常駐デーモンの
-CPU 22 は 1.558 秒で residual 1 tick = 0.64 tick/s、かつ 30/30 帯内）の
-約 10 倍の余裕。絶対下限 3 tick は極短窓での hair-trigger 防止。
+COMPETITOR_MAX_TICKS_PER_SECOND = 25.0
+"""走行 889279 の実測 65 subwindow で、非自活動の率は中央値 0.00 /
+最大 11.86 tick/s。その活動は読み値を汚していない — A1 の control 観測
+11,280 件のうち帯外は 1 件 (0.0089%) で、率 7.9 tick/s の subwindow が
+4 つあっても control 帯外は増えなかった。一方 A2 が置く busy child は
+1 コア占有で約 100 tick/s。25.0 は観測された背景最大 11.86 の約 2 倍、
+1 コア占有の約 1/4 であり、背景ノイズと実負荷を分離する。
+絶対下限 3 tick は据え置き。
 """
 INCONCLUSIVE_PAIR_INVALID_MIN = 3
 CHILD_TERM_TIMEOUT_SECONDS = 2.0
@@ -1390,7 +1394,9 @@ def _synthetic_base() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     arms["A4_migration_description"] = arm(
         [_synthetic_read(cpus, in_band, reader_cpu=0) for _ in range(MIGRATION_READS)],
         discarded_anchors=[_synthetic_read(cpus, in_band, reader_cpu=0)],
-        migration_conclusion="UNRESOLVED",
+        migration_conclusion="NOT_OBSERVED",
+        migration_observed=False,
+        affinity_not_singleton=False,
     )
     quiet_blocks = [
         {
@@ -2174,12 +2180,19 @@ def analyze_isolation_subwindow(
     after_self: Mapping[tuple[int, int], Mapping[str, Any]],
     allocated_cpus: Sequence[int],
     duration_s: float,
+    migration_observed_identities: Sequence[tuple[int, int]] = (),
 ) -> dict[str, Any]:
     """実時間付き subwindow の unexplained 率を、CPU 横断相殺なしで判定する。"""
     cpus = sorted(set(int(cpu) for cpu in allocated_cpus))
     errors: list[str] = []
     self_by_cpu = {cpu: 0 for cpu in cpus}
     self_unattributable_processes: list[dict[str, Any]] = []
+    affinity_not_singleton_processes: list[dict[str, Any]] = []
+    migration_observed_processes: list[dict[str, Any]] = []
+    migration_identities = {
+        (int(pid), int(starttime))
+        for pid, starttime in migration_observed_identities
+    }
     self_ticks_total = 0
     self_unattributable_total = 0
     for identity in sorted(set(before_self) | set(after_self)):
@@ -2212,29 +2225,48 @@ def analyze_isolation_subwindow(
         except (TypeError, ValueError):
             before_affinity_ids = []
             after_affinity_ids = []
-        pinned_cpu = (
-            before_affinity_ids[0]
-            if len(before_affinity_ids) == 1
+        stably_singleton = (
+            len(before_affinity_ids) == 1
             and before_affinity_ids == after_affinity_ids
             and before_affinity_ids[0] in self_by_cpu
+        )
+        affinity_not_singleton = not stably_singleton
+        migration_observed = (
+            identity in migration_identities or before_cpu_id != after_cpu_id
+        )
+        pinned_cpu = (
+            before_affinity_ids[0]
+            if stably_singleton and not migration_observed
             else None
         )
         if pinned_cpu is not None:
             self_by_cpu[pinned_cpu] += delta
             continue
         self_unattributable_total += delta
-        self_unattributable_processes.append(
-            {
-                "pid": identity[0],
-                "starttime": identity[1],
-                "before_cpu": before_cpu_id,
-                "after_cpu": after_cpu_id,
-                "before_affinity": before_affinity_ids,
-                "after_affinity": after_affinity_ids,
-                "cpu_ticks_delta": delta,
-                "reason": "affinity_not_stably_single_cpu",
-            }
-        )
+        record = {
+            "pid": identity[0],
+            "starttime": identity[1],
+            "before_cpu": before_cpu_id,
+            "after_cpu": after_cpu_id,
+            "before_affinity": before_affinity_ids,
+            "after_affinity": after_affinity_ids,
+            "cpu_ticks_delta": delta,
+            "affinity_not_singleton": affinity_not_singleton,
+            "migration_observed": migration_observed,
+            "reasons": [
+                reason
+                for reason, present in (
+                    ("affinity_not_singleton", affinity_not_singleton),
+                    ("migration_observed", migration_observed),
+                )
+                if present
+            ],
+        }
+        self_unattributable_processes.append(record)
+        if affinity_not_singleton:
+            affinity_not_singleton_processes.append(record)
+        if migration_observed:
+            migration_observed_processes.append(record)
 
     components_by_cpu: dict[int, dict[str, int]] = {}
     process_by_cpu: dict[int, int] = {}
@@ -2271,9 +2303,13 @@ def analyze_isolation_subwindow(
         and unexplained_rate is not None
         and unexplained_rate > COMPETITOR_MAX_TICKS_PER_SECOND
     )
+    migration_with_ticks = any(
+        int(record["cpu_ticks_delta"]) > 0
+        for record in migration_observed_processes
+    )
     if competitor:
         attribution = "COMPETITOR"
-    elif unexplained > 0:
+    elif unexplained > 0 or migration_with_ticks:
         attribution = "ATTRIBUTION_UNRESOLVED"
     else:
         attribution = "CLEAN"
@@ -2284,7 +2320,12 @@ def analyze_isolation_subwindow(
         "subwindow_id": str(subwindow_id),
         "duration_s": actual_duration_s,
         "isolation_attribution": attribution,
-        "migration_detected": bool(self_unattributable_processes),
+        "affinity_not_singleton": bool(affinity_not_singleton_processes),
+        "affinity_not_singleton_self_processes": affinity_not_singleton_processes,
+        "migration_observed": bool(migration_observed_processes),
+        "migration_observed_self_processes": migration_observed_processes,
+        "migration_detected": bool(migration_observed_processes),
+        # Compatibility-only detail; canonical reports use the two fields above.
         "migrated_self_processes": self_unattributable_processes,
         "self_ticks_total": self_ticks_total,
         "self_attributed_ticks_by_cpu": self_by_cpu,
@@ -2298,7 +2339,9 @@ def analyze_isolation_subwindow(
         "unexplained_ticks": unexplained,
         "unexplained_ticks_per_second": unexplained_rate,
         "incidental_nonself_cpus": (
-            residual_positive_cpus if attribution == "ATTRIBUTION_UNRESOLVED" else []
+            residual_positive_cpus
+            if attribution == "ATTRIBUTION_UNRESOLVED" and unexplained > 0
+            else []
         ),
         "competitor_cpus": residual_positive_cpus if competitor else [],
         "errors": errors,
@@ -2315,6 +2358,8 @@ def summarize_isolation_subwindows(
     competitor = False
     unresolved = False
     maximum_rate = 0.0
+    affinity_not_singleton = False
+    migration_observed = False
     errors: list[str] = []
     for index, subwindow in enumerate(subwindows):
         if not isinstance(subwindow, Mapping):
@@ -2328,6 +2373,13 @@ def summarize_isolation_subwindows(
         attribution = subwindow.get("isolation_attribution")
         competitor = competitor or attribution == "COMPETITOR"
         unresolved = unresolved or attribution == "ATTRIBUTION_UNRESOLVED"
+        affinity_not_singleton = (
+            affinity_not_singleton
+            or subwindow.get("affinity_not_singleton") is True
+        )
+        migration_observed = (
+            migration_observed or subwindow.get("migration_observed") is True
+        )
         rate = subwindow.get("unexplained_ticks_per_second")
         if isinstance(rate, (int, float)) and math.isfinite(float(rate)):
             maximum_rate = max(maximum_rate, float(rate))
@@ -2347,6 +2399,8 @@ def summarize_isolation_subwindows(
         "max_residual_ticks_by_cpu": maximum,
         "max_per_cpu_per_subwindow_residual_ticks": max(maximum.values(), default=0),
         "max_unexplained_ticks_per_second": maximum_rate,
+        "affinity_not_singleton": affinity_not_singleton,
+        "migration_observed": migration_observed,
         "incidental_nonself_cpus": sorted(incidental_cpus),
         "errors": errors,
     }
@@ -2572,6 +2626,8 @@ def detect_isolation_competition(
         "max_unexplained_ticks_per_second": subwindow_summary[
             "max_unexplained_ticks_per_second"
         ],
+        "affinity_not_singleton": subwindow_summary["affinity_not_singleton"],
+        "migration_observed": subwindow_summary["migration_observed"],
         # Compatibility diagnostic name; no CPU-crossing cancellation is performed.
         "unattributed_ticks_by_cpu": residual_by_cpu,
         "errors": errors + subwindow_summary["errors"],
@@ -2676,6 +2732,19 @@ class IsolationTracker:
         self_snapshot = _self_tree_stat_snapshot(opened["identities"])
         self_snapshot_ns = time.monotonic_ns()
         duration_ns = cpu_snapshot_ns - opened["start_cpu_snapshot_monotonic_ns"]
+        observed_reader_cpus: list[int] = []
+        reader_transition = False
+        reader_observation_errors = 0
+        for reading in readings:
+            try:
+                before_reader = int(reading["reader_cpu_before"])
+                after_reader = int(reading["reader_cpu_after"])
+            except (KeyError, TypeError, ValueError):
+                reader_observation_errors += 1
+                continue
+            observed_reader_cpus.extend((before_reader, after_reader))
+            reader_transition = reader_transition or before_reader != after_reader
+        reader_migration = reader_transition or len(set(observed_reader_cpus)) > 1
         analysis = analyze_isolation_subwindow(
             str(subwindow_id),
             opened["before_cpu"],
@@ -2684,20 +2753,13 @@ class IsolationTracker:
             self_snapshot,
             sorted(self.cpus),
             duration_ns / 1e9,
+            [self._self_identity] if reader_migration else [],
         )
         analysis["duration_ns"] = duration_ns
-        observed_reader_cpus: list[int] = []
-        reader_transition = False
-        for reading in readings:
-            try:
-                before_reader = int(reading["reader_cpu_before"])
-                after_reader = int(reading["reader_cpu_after"])
-            except (KeyError, TypeError, ValueError):
-                analysis["errors"].append("reader_cpu_observation_unparseable")
-                continue
-            observed_reader_cpus.extend((before_reader, after_reader))
-            reader_transition = reader_transition or before_reader != after_reader
-        reader_migration = reader_transition or len(set(observed_reader_cpus)) > 1
+        analysis["errors"].extend(
+            "reader_cpu_observation_unparseable"
+            for _ in range(reader_observation_errors)
+        )
         analysis["observed_reader_cpus"] = sorted(set(observed_reader_cpus))
         analysis["observed_reader_migration"] = reader_migration
         analysis["boundary_timestamps"] = {
@@ -3875,6 +3937,7 @@ def run_experiment(
             subwindow_id = "A4:migration_description"
             tracker.start_subwindow(subwindow_id)
             reads: list[dict[str, Any]] = []
+            isolation_subwindow: Optional[dict[str, Any]] = None
             try:
                 anchor = collect_cpuinfo_read(pin_target=None, raw_cpuinfo=raw_cpuinfo)
                 reads = _collect_series(
@@ -3888,13 +3951,23 @@ def run_experiment(
                     hard_deadline_ns=hard_deadline_ns,
                 )
             finally:
-                tracker.finish_subwindow(subwindow_id, reads)
+                isolation_subwindow = tracker.finish_subwindow(subwindow_id, reads)
             for reading in reads:
                 reading["isolation_subwindow_id"] = subwindow_id
             return {
                 "reads": reads,
                 "discarded_anchors": [anchor],
-                "migration_conclusion": "UNRESOLVED",
+                "migration_conclusion": (
+                    "OBSERVED"
+                    if isolation_subwindow.get("migration_observed") is True
+                    else "NOT_OBSERVED"
+                ),
+                "migration_observed": isolation_subwindow.get(
+                    "migration_observed"
+                ),
+                "affinity_not_singleton": isolation_subwindow.get(
+                    "affinity_not_singleton"
+                ),
                 "used_for_causal_verdict": False,
             }
 

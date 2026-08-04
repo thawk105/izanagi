@@ -181,7 +181,7 @@ def test_child_threshold_literals_are_pinned():
     assert T419.BUSY_MIN_CPU_TICKS == 5
     assert T419.SHAM_MAX_CPU_TICKS == 1
     assert T419.COMPETITOR_MIN_TICKS == 3
-    assert T419.COMPETITOR_MAX_TICKS_PER_SECOND == 6.7
+    assert T419.COMPETITOR_MAX_TICKS_PER_SECOND == 25.0
     assert T419.INCONCLUSIVE_PAIR_INVALID_MIN == 3
 
 
@@ -709,7 +709,7 @@ def test_short_lived_competitor_is_detected_from_unattributed_ticks():
         {0: _cpu(11)},
         [0],
         [(1, 10)],
-        subwindows=[_subwindow({0: 3}, duration_s=0.4)],
+        subwindows=[_subwindow({0: 3}, duration_s=0.1)],
     )
     assert result["competition_detected"] is True
     assert result["unattributed_ticks_by_cpu"] == {0: 1}
@@ -740,7 +740,7 @@ def test_released_child_pid_reuse_is_not_allowlisted():
         {0: _cpu(11)},
         [0],
         [(1, 10), (20, 100)],
-        subwindows=[_subwindow({0: 3}, duration_s=0.4)],
+        subwindows=[_subwindow({0: 3}, duration_s=0.1)],
     )
     assert result["competition_detected"] is True
     assert [item["starttime"] for item in result["competitors"]] == [200]
@@ -793,7 +793,7 @@ def test_residual_above_self_unattributable_invalidates_and_stops_later_arms():
         {0: _cpu(12)},
         [0],
         [(1, 10)],
-        subwindows=[_subwindow({0: 3}, duration_s=0.4)],
+        subwindows=[_subwindow({0: 3}, duration_s=0.1)],
     )
     fixture = T419.synthetic_fixture("confirmed")
     fixture["observations"]["arms"]["A0_quiet_baseline"]["isolation"] = {
@@ -825,7 +825,7 @@ def test_positive_nonself_pid_delta_is_competitor_snapshot_evidence():
         {0: _cpu(10)},
         [0],
         [(1, 10)],
-        subwindows=[_subwindow({0: 3}, duration_s=0.4)],
+        subwindows=[_subwindow({0: 3}, duration_s=0.1)],
     )
     assert result["residual_total"] == 0
     assert result["isolation_attribution"] == "COMPETITOR"
@@ -851,12 +851,12 @@ def test_nonself_snapshot_is_identity_evidence_only_and_valid():
 def test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms():
     isolation = _nonself_isolation(
         [3, 3],
-        subwindow=_subwindow({0: 3}, duration_s=0.4),
+        subwindow=_subwindow({0: 3}, duration_s=0.1),
     )
     verdict = _verdict_with_a0_isolation(isolation)
 
     assert isolation["snapshot_nonself_ticks_by_cpu"] == {0: 6}
-    assert isolation["subwindows"][0]["unexplained_ticks_per_second"] == 7.5
+    assert isolation["subwindows"][0]["unexplained_ticks_per_second"] == 30.0
     assert isolation["isolation_attribution"] == "COMPETITOR"
     assert (verdict["execution_validity"], verdict["causal_verdict"]) == (
         "INVALID",
@@ -993,11 +993,14 @@ def test_subwindow_global_unexplained_rate_below_threshold_is_unresolved():
 
 
 def test_subwindow_two_tick_boundary_is_incidental_and_records_maximum():
-    subwindow = _subwindow({0: 2}, duration_s=0.1)
+    subwindow = _subwindow({0: 2}, duration_s=0.01)
     summary = T419.summarize_isolation_subwindows([subwindow], [0])
 
     assert subwindow["residual_ticks_by_cpu"] == {0: 2}
-    assert subwindow["unexplained_ticks_per_second"] == 20.0
+    assert (
+        subwindow["unexplained_ticks_per_second"]
+        > T419.COMPETITOR_MAX_TICKS_PER_SECOND
+    )
     assert subwindow["incidental_nonself_cpus"] == [0]
     assert subwindow["isolation_attribution"] == "ATTRIBUTION_UNRESOLVED"
     assert summary["max_residual_ticks_by_cpu"] == {0: 2}
@@ -1005,7 +1008,7 @@ def test_subwindow_two_tick_boundary_is_incidental_and_records_maximum():
 
 
 def test_subwindow_three_ticks_is_competitor_with_one_validity_reason():
-    subwindow = _subwindow({0: 3}, duration_s=0.4)
+    subwindow = _subwindow({0: 3}, duration_s=0.1)
     isolation = T419.detect_isolation_competition(
         {1: _process(1, 10, 5, 0)},
         {1: _process(1, 10, 5, 0)},
@@ -1018,6 +1021,10 @@ def test_subwindow_three_ticks_is_competitor_with_one_validity_reason():
     verdict = _verdict_with_a0_isolation(isolation)
 
     assert isolation["max_per_cpu_per_subwindow_residual_ticks"] == 3
+    assert (
+        subwindow["unexplained_ticks_per_second"]
+        > T419.COMPETITOR_MAX_TICKS_PER_SECOND
+    )
     assert isolation["isolation_attribution"] == "COMPETITOR"
     assert (verdict["execution_validity"], verdict["causal_verdict"]) == (
         "INVALID",
@@ -1029,7 +1036,7 @@ def test_subwindow_three_ticks_is_competitor_with_one_validity_reason():
 
 
 def test_subwindow_rate_equal_to_limit_is_unresolved():
-    subwindow = _subwindow({0: 67}, duration_s=10.0)
+    subwindow = _subwindow({0: 250}, duration_s=10.0)
 
     assert (
         subwindow["unexplained_ticks_per_second"]
@@ -1080,8 +1087,13 @@ def test_same_endpoint_unpinned_self_is_unattributable_and_unresolved():
     assert subwindow["self_attributed_ticks_by_cpu"] == {0: 0, 1: 0}
     assert subwindow["self_unattributable_total"] == 3
     assert subwindow["unexplained_ticks"] == 1
+    assert subwindow["affinity_not_singleton"] is True
+    assert subwindow["migration_observed"] is False
+    assert subwindow["migration_detected"] is False
     assert subwindow["migrated_self_processes"][0]["before_cpu"] == 0
     assert subwindow["migrated_self_processes"][0]["after_cpu"] == 0
+    assert isolation["affinity_not_singleton"] is True
+    assert isolation["migration_observed"] is False
     assert isolation["isolation_attribution"] == "ATTRIBUTION_UNRESOLVED"
     assert (verdict["execution_validity"], verdict["causal_verdict"]) == (
         "VALID",
@@ -1143,6 +1155,7 @@ def test_subwindow_boundary_sampling_reads_only_self_tree_and_proc_stat(monkeypa
     monkeypatch.setattr(T419.time, "monotonic_ns", lambda: next(timestamps))
     tracker = T419.IsolationTracker([0])
     tracker._base_allowed = {(1, 10)}
+    tracker._self_identity = (1, 10)
 
     tracker.start_subwindow("fixture")
     result = tracker.finish_subwindow(
@@ -1163,6 +1176,49 @@ def test_subwindow_boundary_sampling_reads_only_self_tree_and_proc_stat(monkeypa
     assert result["duration_ns"] == 1_000_000_000
     assert result["duration_s"] == 1.0
     assert result["observed_reader_migration"] is True
+    assert result["affinity_not_singleton"] is False
+    assert result["migration_observed"] is True
+    assert result["isolation_attribution"] == "ATTRIBUTION_UNRESOLVED"
+
+
+def test_equal_singleton_return_migration_revokes_self_cpu_attribution(monkeypatch):
+    self_snapshots = iter([
+        _boundary_self(5, 0, affinity=[0]),
+        _boundary_self(8, 0, affinity=[0]),
+    ])
+    cpu_snapshots = iter([
+        {0: _cpu(10), 1: _cpu(10)},
+        {0: _cpu(10), 1: _cpu(13)},
+    ])
+    timestamps = iter([1, 2, 100_000_002, 100_000_003])
+
+    monkeypatch.setattr(
+        T419, "_self_tree_stat_snapshot", lambda identities: next(self_snapshots)
+    )
+    monkeypatch.setattr(
+        T419, "_proc_cpu_counters", lambda cpus: next(cpu_snapshots)
+    )
+    monkeypatch.setattr(T419.time, "monotonic_ns", lambda: next(timestamps))
+    tracker = T419.IsolationTracker([0, 1])
+    tracker._base_allowed = {(1, 10)}
+    tracker._self_identity = (1, 10)
+
+    tracker.start_subwindow("fixture:return_migration")
+    result = tracker.finish_subwindow(
+        "fixture:return_migration",
+        [
+            {"reader_cpu_before": 0, "reader_cpu_after": 0},
+            {"reader_cpu_before": 1, "reader_cpu_after": 1},
+            {"reader_cpu_before": 0, "reader_cpu_after": 0},
+        ],
+    )
+
+    assert result["affinity_not_singleton"] is False
+    assert result["migration_observed"] is True
+    assert result["self_attributed_ticks_by_cpu"] == {0: 0, 1: 0}
+    assert result["self_unattributable_total"] == 3
+    assert result["residual_ticks_by_cpu"] == {0: 0, 1: 3}
+    assert result["unexplained_ticks"] == 0
     assert result["isolation_attribution"] == "ATTRIBUTION_UNRESOLVED"
 
 
@@ -1280,7 +1336,7 @@ def test_isolation_residual_is_never_cancelled_across_cpus():
         pinned_self_intervals=[
             {"pid": 1, "starttime": 10, "target_cpu": 0, "cpu_ticks_delta": 2}
         ],
-        subwindows=[_subwindow({0: 0, 1: 3}, duration_s=0.4)],
+        subwindows=[_subwindow({0: 0, 1: 3}, duration_s=0.1)],
     )
     assert result["self_attributed_ticks_by_cpu"] == {0: 2, 1: 0}
     assert result["residual_ticks_by_cpu"] == {0: 0, 1: 1}
