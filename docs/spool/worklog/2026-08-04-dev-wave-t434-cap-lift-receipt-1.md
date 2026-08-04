@@ -29,9 +29,14 @@ title: [T-434] cap-lift receipt と consumer 結線の設計 v2 を起草した 
 - 成果物 = `output/insights/2026-08-04_t434-cap-lift-receipt/` (design-v2.md が確定版 +
   裁定パッケージ。設計択一 10 件、推奨付き)。DW-G04 により blocked design memo とし、
   再開条件 (択一裁定・T-433/V1/T-435・P 群の実 artifact) を列挙した。実装 wave は起票しない。
-- 運用メモ: 段 3 の並列 codex 起動で 2 本目の `.done`/log が相対 path 書き込みにより
-  worktree 直下へ迷子になった (回収済み、tree clean 確認済み)。DW-O01 の wrapper redirect を
-  絶対 path で書く改善候補として段 8 で routing した。
+- 運用メモ 2 件: (a) 段 3 の並列 codex 起動で 2 本目の `.done`/log が相対 path 書き込みにより
+  worktree 直下へ迷子になった (回収済み、tree clean 確認済み)。段 8 で `DW-O01` へ
+  「wrapper 内 redirect と .done は絶対 path」の 1 行統合を試みたが、`operations.md` の
+  byte 予算 (8400) と dev-wave 全体 hard ceiling が既に飽和しており**見送り** (予算は増やさない。
+  [T-450] の DW-O15 残骸削除で空きができた後の再試行候補として記録のみ)。(b) commit 後の
+  provenance 全史監査が Pegasus queue へ dispatch され、親の同期 Bash timeout (2 分) の SIGTERM で
+  dispatcher が正しく qdel した (infra rc=16、防壁は設計どおり)。背景実行 + done ファイルで
+  待ち直した。マシン固有の作法のため dev-wave 正本へは足さない。
 
 ## 次の一手差分
 
