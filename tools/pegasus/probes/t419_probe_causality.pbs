@@ -1,0 +1,204 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=00:20:00
+#PBS -b 1
+
+if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" \
+      || -z "${EXPECT_HEAD:-}" || -z "${EXPECT_DRIVER_SHA256:-}" \
+      || -z "${EXPECT_PBS_SHA256:-}" \
+      || -z "${EXPECT_CALIBRATION_SHA256:-}" \
+      || -z "${EXPECT_ENV_ATTESTATION_SHA256:-}" \
+      || -z "${T419_QUEUE:-}" || -z "${T419_PROJECT:-}" ]]; then
+  exit 2
+fi
+
+umask 077
+WRAPPER_STARTED_AT_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ) || exit 2
+REAL_WORKDIR=$(realpath -e -- "$PBS_O_WORKDIR") || exit 2
+if [[ "$REAL_WORKDIR" != "$PBS_O_WORKDIR" ]]; then
+  exit 2
+fi
+
+check_no_symlink_components() {
+  local path=$1
+  local component
+  local current=/
+  local -a components
+  [[ "$path" == /* ]] || return 1
+  IFS=/ read -r -a components <<< "$path"
+  for component in "${components[@]}"; do
+    [[ -z "$component" ]] && continue
+    if [[ "$current" == / ]]; then
+      current="/$component"
+    else
+      current="$current/$component"
+    fi
+    [[ ! -L "$current" ]] || return 1
+  done
+}
+
+JOB_TAG=${PBS_JOBID//:/_}
+[[ "$JOB_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || exit 2
+[[ "$JOB_TAG" != "." && "$JOB_TAG" != ".." ]] || exit 2
+OUT_PARENT="$REAL_WORKDIR/output/env/pegasus/t419-probe-causality"
+OUT="$OUT_PARENT/$JOB_TAG"
+
+check_no_symlink_components "$OUT_PARENT" || exit 2
+mkdir -p "$OUT_PARENT" || exit 2
+check_no_symlink_components "$OUT_PARENT" || exit 2
+if [[ -e "$OUT" || -L "$OUT" ]]; then
+  exit 2
+fi
+mkdir -m 700 "$OUT" || exit 2
+check_no_symlink_components "$OUT" || exit 2
+
+MARKER_HOSTNAME=$(hostname) || exit 2
+MARKER_EPOCH=$(date +%s) || exit 2
+COMPUTE_MARKER=false
+if [[ "$MARKER_HOSTNAME" =~ ^bnode[0-9]+$ ]]; then
+  COMPUTE_MARKER=true
+fi
+(
+  set -o noclobber
+  {
+    printf 'hostname=%s\n' "$MARKER_HOSTNAME"
+    printf 'PBS_JOBID=%s\n' "$PBS_JOBID"
+    printf 'epoch=%s\n' "$MARKER_EPOCH"
+    printf 'compute_node_marker=%s\n' "$COMPUTE_MARKER"
+  } > "$OUT/marker"
+) || exit 2
+
+early_failure() {
+  local rc=$1
+  local reason=$2
+  (
+    set -o noclobber
+    printf '%s\n' "$reason" > "$OUT/probe.log"
+  ) || return 2
+  (
+    set -o noclobber
+    printf '%s\n' "$rc" > "$OUT/probe.rc"
+  ) || return 2
+  (
+    set -o noclobber
+    printf '%s\n' "$rc" > "$OUT/wrapper.rc"
+  ) || return 2
+  # done-marker がない出力は、他の file が存在しても collector が不採用にする。
+  (
+    set -o noclobber
+    printf 'probe_rc=%s\nwrapper_rc=%s\n' "$rc" "$rc" > "$OUT/done-marker"
+  ) || return 2
+  return "$rc"
+}
+
+# Python を一切起動する前の fail-closed compute-node admission。
+if [[ "$COMPUTE_MARKER" != true ]]; then
+  early_failure 2 "compute_node_marker=false"
+  exit $?
+fi
+
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+PY_CANDIDATE=$(command -v -- python3.10 2>/dev/null || true)
+if [[ -z "$PY_CANDIDATE" ]]; then
+  early_failure 2 "python3.10 not found"
+  exit $?
+fi
+PY=$(realpath -e -- "$PY_CANDIDATE") || {
+  early_failure 2 "python3.10 realpath failed"
+  exit $?
+}
+if ! "$PY" -I -S -B -c \
+    'import sys; raise SystemExit(0 if sys.version_info[:2] == (3,10) else 1)' \
+    >/dev/null 2>&1; then
+  early_failure 2 "python interpreter version check failed"
+  exit $?
+fi
+(
+  set -o noclobber
+  printf '%s\n' "$PY" > "$OUT/interpreter"
+) || {
+  early_failure 2 "interpreter evidence write failed"
+  exit $?
+}
+
+# 孫 process が bare python3 を解決しても同じ 3.10 実体へ到達させる。
+SHIM_DIR=$(mktemp -d "${TMPDIR:-/tmp}/t419-python-shim.XXXXXX") || {
+  early_failure 2 "python shim directory creation failed"
+  exit $?
+}
+cleanup_shim() {
+  unlink "$SHIM_DIR/python3" 2>/dev/null || true
+  rmdir "$SHIM_DIR" 2>/dev/null || true
+}
+trap cleanup_shim EXIT
+ln -s "$PY" "$SHIM_DIR/python3" || {
+  early_failure 2 "python shim creation failed"
+  exit $?
+}
+export PATH="$SHIM_DIR:$PATH"
+
+# 本実験と別名の self-test log。失敗時は measurement を開始しない。
+(
+  set -o noclobber
+  "$PY" -I -B "$REAL_WORKDIR/tools/pegasus/probes/t419_probe_causality.py" \
+    --self-test > "$OUT/selftest.log" 2>&1
+)
+SELFTEST_RC=$?
+if [[ "$SELFTEST_RC" -ne 0 ]]; then
+  early_failure "$SELFTEST_RC" "self-test failed; measurement not started"
+  exit $?
+fi
+
+(
+  set -o noclobber
+  "$PY" -I -B "$REAL_WORKDIR/tools/pegasus/probes/t419_probe_causality.py" \
+    --repo-root "$REAL_WORKDIR" \
+    --output-dir "$OUT" \
+    --seed 419 \
+    --read-interval-ms 50 \
+    --hard-deadline-seconds 900 \
+    --expect-head "$EXPECT_HEAD" \
+    --expect-driver-sha256 "$EXPECT_DRIVER_SHA256" \
+    --expect-pbs-sha256 "$EXPECT_PBS_SHA256" \
+    --expect-calibration-sha256 "$EXPECT_CALIBRATION_SHA256" \
+    --expect-env-attestation-sha256 "$EXPECT_ENV_ATTESTATION_SHA256" \
+    > "$OUT/probe.log" 2>&1
+)
+PROBE_RC=$?
+
+(
+  set -o noclobber
+  printf '%s\n' "$PROBE_RC" > "$OUT/probe.rc"
+) || exit 2
+
+WRAPPER_FINISHED_AT_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ) || exit 2
+"$PY" -I -B "$REAL_WORKDIR/tools/pegasus/probes/t419_probe_causality.py" \
+  --finalize-wrapper \
+  --output-dir "$OUT" \
+  --probe-rc "$PROBE_RC" \
+  --wrapper-started-at-utc "$WRAPPER_STARTED_AT_UTC" \
+  --wrapper-finished-at-utc "$WRAPPER_FINISHED_AT_UTC" \
+  --pbs-jobid "$PBS_JOBID" \
+  >/dev/null 2>&1
+FINALIZE_RC=$?
+if [[ "$FINALIZE_RC" -eq 0 ]]; then
+  WRAPPER_RC=$PROBE_RC
+else
+  WRAPPER_RC=$FINALIZE_RC
+fi
+
+# すべての後処理後に wrapper 自身の最終 rc を書く。
+# done-marker がない出力は不採用であり、final binding INVALID では発行しない。
+(
+  set -o noclobber
+  printf '%s\n' "$WRAPPER_RC" > "$OUT/wrapper.rc"
+) || exit 2
+if [[ "$FINALIZE_RC" -eq 0 ]]; then
+  (
+    set -o noclobber
+    printf 'probe_rc=%s\nwrapper_rc=%s\n' \
+      "$PROBE_RC" "$WRAPPER_RC" > "$OUT/done-marker"
+  ) || exit 2
+fi
+exit "$WRAPPER_RC"
