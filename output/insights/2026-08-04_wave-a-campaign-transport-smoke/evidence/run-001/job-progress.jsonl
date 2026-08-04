@@ -1,0 +1,6 @@
+{"event":"job-start","ts":"2026-08-03T23:51:00Z"}
+{"event":"deps-start","ts":"2026-08-03T23:51:00Z"}
+{"event":"deps-done","ts":"2026-08-03T23:51:11Z"}
+{"event":"driver-start","ts":"2026-08-03T23:51:11Z"}
+{"event":"driver-rc","rc":1,"ts":"2026-08-03T23:51:16Z"}
+{"event":"job-end","rc":1,"ts":"2026-08-03T23:51:16Z"}
