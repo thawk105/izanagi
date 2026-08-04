@@ -74,15 +74,20 @@ title: [T-244] U2 を新 D で確定した — 択一 3 の既裁定により P4
     再事前登録の手続を持つ文書なので専用の裁定と変更単位で扱う
 - **受入 (2026-08-04、worktree `dev-wave-t244-u2-na-bifurcation`、local main 取り込み後の最終走行):**
   `python3 tools/check_docs.py` = 違反なし。`python3 tools/run_tests.py` の全走 =
-  **1 failed / 5438 passed / 19 skipped**。赤は
+  **12 failed / 5443 passed / 19 skipped**。うち 11 件は `test_s8b_floor_campaign.py` の
+  「`output/` が不変であること」を assert する族で、**単独再走すると wave worktree でも
+  main checkout でも 199 passed になる**。diff の中身は `output/pegasus-dispatch/<hash>/` と
+  `output/task-runs/reports/` の entry で、並行実行中の dispatch 自身が書いたものである。
+  よって並行実行の干渉であり本差分 (docs のみ) には到達しない。残る 1 件は
   `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
-  の 1 件だけで、**[T-407] の既知赤である** — `ruleops.py inventory` が非 UTF-8 blob
+  で、**[T-407] の既知赤である** — `ruleops.py inventory` が非 UTF-8 blob
   (`output/insights/2026-08-03_t361-t362-cluster-probes/` 配下の probe 生出力、commit 9b0f044 で land)
   を strict decode して停止する。本 wave の差分は docs だけで同 blob に触れておらず、
   変更のない main checkout でも `ruleops.py inventory` は同じ rc=2 と同じ path で落ちることを実測した。
   よって repo 状態由来であり本差分の回帰ではない。
-  `python3 tools/check_ai_provenance.py` は pre-commit HEAD (fc8f070) まで違反なし。
-  wave commit を含む完了監査は commit 後に行う。**変異 matrix は対象外** —
+  `python3 tools/check_ai_provenance.py` は全 commit 後に再走して違反なし。
+  land 直前に local main を 2 度取り込み直しており、最終取り込み後は docs 検査と
+  spool / land / git-state / s8b の対象テストを再走した (全緑)。**変異 matrix は対象外** —
   変更面が docs だけでコード・テスト・機械設定の差分がゼロであり、変異させる位置が存在しない。
   B-057 の述語 `validator_or_rejection_gate_changed` も成立しない
 
@@ -90,8 +95,8 @@ title: [T-244] U2 を新 D で確定した — 択一 3 の既裁定により P4
 
 ### 更新
 
-- [T-244] **P1・U2 を新 D で確定、P5 は 2/3 要件を実装済み → 残余がユーザー裁定待ち**:
-  {{D:t244-u2-na-bifurcation}} が「実装が無いゆえの非適用」を cap-lift の失敗と定め、
+- [T-244] **P1・U2 を新 D で確定。P1 は機械部品のみ (未充足)、P5 は 2/3 実装、P3 は差し戻し**:
+  **U2**: {{D:t244-u2-na-bifurcation}} が「実装が無いゆえの非適用」を cap-lift の失敗と定め、
   択一 3 の既裁定により **P4 を条件付き義務から無条件義務へ移した** (無条件義務は
   P1・P2・P3・P4・P5・P7・P9・P10 の 8 件)。条件付き義務は P6 だけになり、非適用は
   `NOT_IMPLEMENTED` = 失敗 / `NOT_CLAIMED` = 免責の 2 語に固定した。状態の分類 (事実) と
@@ -100,17 +105,24 @@ title: [T-244] U2 を新 D で確定した — 択一 3 の既裁定により P4
   P6 実装の裁定と同時に決める。V2={{T:t244-p6-semantic-contract}}、
   V3={{T:t244-cap-lift-receipt}}、V4={{T:t244-prereg-refresh}} を前提として追跡する。
   **前提条件 10 件のうち満たされているのは P10 (予算値・origin authority・軸 (iii)) の 1 件だけ。**
-  P5 は provider 注入の拒否 (実 Claude 試行に限る) と role 間 session 共有の拒否 (実行時 +
-  成果物再検証の 2 層) を実装し D148 に記録したが、**P5 全体は未充足**。残余は
+  **P1**: `orchestrator/campaign/reflux_ir.py` (固定 5-bit IR・正準 wire codec・正準 C++ emitter) と
+  独立 golden 32 点、テストを land した。**production へ wiring しないため候補表現は閉じておらず、
+  受理集合は任意の 1 行 C++ のまま**で production 到達性はゼロである。次段は wiring wave
+  (自由 `implementation` の拒否、wire→mask→predicate の唯一経路化、raw mask と source digest /
+  variant ID の束縛、WAL/provenance/report での同束縛、binding 欠落 artifact の proof chain からの拒否)
+  で、**受理集合の縮小なので D96 手続が要る**。
+  **P5**: provider 注入の拒否 (実 Claude 試行に限る) と role 間 session 共有の拒否 (実行時 +
+  成果物再検証の 2 層) を実装し D148 に記録した。**P5 全体は未充足**で、
   **U-1** `drive` / `preview` 注入も塞ぐか (塞ぐなら既存 2 テストの注入手段を別 seam へ移す設計が要る)、
-  **U-2** 未予約 token を P3 の予約 receipt に依存させるか、それとも P5 の第 3 要件自体を
-  origin ledger の充足条件へ移すか、**U-3** provider executable の真正性 (許可 digest registry) を
-  要求するか、の 3 件。U-2 は P3 の裁定 (エントリ (165) の U-A〜U-D) が先行する。
-  P5 の逐語は `output/insights/2026-08-04_t244-p5-injection-gate/` に凍結済み。
-  **本体は未解決** — `reflux-control` stage・origin ledger・5-bit IR・正準 emitter・
-  witness normalizer・validation runner・enforcer・非干渉検査は未着手のままで、
-  D114 の承認上限 1 も変わらない。
-  base: 9544907e9fc9fb64dd21dc9f3d50b44d76a03c2e8dfd37cacca6a30b1ab3e472
+  **U-2** 未予約 token を P3 の予約 receipt に依存させるか P5 の第 3 要件を origin ledger の
+  充足条件へ移すか、**U-3** provider executable の真正性 (許可 digest registry) を要求するか、の
+  3 件が裁定待ち。U-2 は P3 の裁定が先行する。
+  **P3**: (165) の U-A〜U-D 裁定待ちのまま。
+  **cap-lift は依然 FAIL** で D114 の上限 1 も不変。P2 / P7 / P9 は未着手。
+  逐語は `output/insights/2026-08-04_t244-p1-ir-emitter/`、
+  `output/insights/2026-08-04_t244-p5-injection-gate/`、
+  `output/insights/2026-08-04_t244-u2-na-bifurcation/`
+  base: 6b6a4dd79ee80d453f676241dee9616ce4100c9abea32df33d8bd01b8f77cd32
 
 ### 新規
 
