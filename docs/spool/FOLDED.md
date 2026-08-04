@@ -116,3 +116,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:between-run-floor-window-design":"[T-425]","T:certify-job-script-binding":"[T-424]"},"authored":"2026-08-04","content_sha256":"ba43fe6f2f09f9bbf939b7f1fd4f6120c4a7d2cebd45808c17a083a90d16892c","seq":1,"wave":"wave-t088-floor"}
 - {"allocations":{"D:between-run-floor-cohort":"D145"},"authored":"2026-08-04","content_sha256":"5a53d35ab0148d73ab52992561a4d07aec63d9b69ad6c239cad8fe60c5790bac","seq":2,"wave":"wave-t088-floor"}
+
+- {"allocations":{"T:permutation-check-coverage":"[T-426]"},"authored":"2026-08-04","content_sha256":"b29e8a767b72d9c85a0a5f6cac35b55c05a8b95176b74d8e86e157da1cc71bde","seq":1,"wave":"wave-t410-sort-integrity-witness"}
+- {"allocations":{"D:sort-witness-observation-equivalence":"D146"},"authored":"2026-08-04","content_sha256":"20c6ed262e147e79ab2792e35da00394ed4b8d7bfcf9492f947345e15436234f","seq":1,"wave":"wave-t410-sort-integrity-witness"}
+- {"allocations":{"F:known-red-waiver-not-checked-before-stop":"F101","F:main-checkout-mutated-from-worktree-session":"F100"},"authored":"2026-08-04","content_sha256":"642b70925e58570bf4c228ff543ad8c82d5abf82744db24f47d071fde8361ca6","seq":1,"wave":"wave-t410-sort-integrity-witness"}
