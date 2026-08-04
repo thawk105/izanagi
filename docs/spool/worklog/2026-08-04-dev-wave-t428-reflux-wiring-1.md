@@ -54,6 +54,18 @@ title: [T-428] trigger 候補受理を 5-bit wire へ閉じた — binding/v1 �
   (10 commit ff / 49 commit merge、いずれも incoming 監査違反なし)。provenance full 監査は
   land 直前の再走で確定する。親の操作事故 1 件 (worktree patch の cwd 取り違え、無傷復旧、
   memory に恒久記録)
+- **provenance の未定義ケース + 親の記録ミス 2 件を、ユーザー裁定の message 修正で解消した**:
+  (i) 両側が同じ実装 2 ファイルを変更した auto-merge (local main 取り込み) が「実装面に
+  Codex author なし」の監査赤になった (片側変更のみの先行 merge は integrator 記録で通る。
+  合成内容は両側とも Codex author 済み)。(ii) その merge の message が取り込み先 main tip を
+  dcd8a2a と誤記していた (fetch 後の観測が stale なまま実行、実際は 23e4363) うえ、1 回目の
+  message 修正が誤記どおりの第 2 親へ付け替えてしまい、後続 merge で canonical docs に偽の
+  競合が出て発覚した。ユーザー承認 (2026-08-04) のもと `git commit-tree` で message と親を
+  実態 (23e4363) へ正した — rebase 不使用・**tree byte 不変を diff 0 で実証**。
+  SHA 対応: merge a44c276→2d1252e、続く 2 commit d643743→5503f5c、e36cf23→c76009c。
+  変異 ledger の `repo_head` は旧 SHA (a44c276) を指すが tree は 2d1252e と同一。
+  両側 auto-merge の trailer 規約は未定義のまま — 明文化は {{T:provenance-automerge-rule}} に
+  起票
 - 逐語の正本 = `output/insights/2026-08-04_t428-reflux-wiring/` (brief / facts-map / plan /
   lens×2 / s4-ruling / agent-review / rev×2 / fix-ruling (3 巡の裁定含む) / focal×2 /
   mutation-spec / mutation-ledger / mutation-matrix)
@@ -95,3 +107,9 @@ title: [T-428] trigger 候補受理を 5-bit wire へ閉じた — binding/v1 �
 - {{T:auditor-nits-producer-schema}} **P3・新規**: auditor の nits producer schema
   (manifest) に required/one-of が無く consumer の exact-one-key より緩い。不一致は拒否側に
   倒れるが、producer schema を閉形へ揃える (pin 再 render を伴う小変更)
+- {{T:provenance-automerge-rule}} **P3・新規**: 両側が同じ実装ファイルを変更した
+  auto-merge の trailer 規約が `docs/ai-provenance.md` に未定義で、監査が fail-closed に
+  赤を出す (本 wave で実測、ユーザー裁定の message 修正で解消)。合成のみの merge の
+  記録規則 (author 出所行 / waiver / checker の判定変更のいずれか) を明文化する。
+  merge message へ取り込み先 SHA を書くときは merge 実行直後に `%P` から取る
+  (fetch 後の観測は stale になりうる — 本 wave で誤記 1 件)
