@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import ast
+import contextlib
+import dataclasses
 import gc
 import hashlib
 import inspect
@@ -26,6 +28,7 @@ from orchestrator.campaign import p3_autonomous_workload_trial as A
 from orchestrator.campaign import s8b_prediction_runner as S
 from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
 from orchestrator.campaign.s8b_prediction_runner import PredictionRunnerError
+from orchestrator.campaign.reflux_ir import RefluxIRError, emit_predicate
 from calibrator import runner as calibrator_runner
 from orchestrator.campaign import claude_projected_provider as P
 
@@ -56,15 +59,14 @@ def _fake_drive(
     assert perf.workload == cfg.search_config["ycsb"]
     assert auditor.diff_digest == hashlib.sha256(b"fixture diff").hexdigest()
     Path(layout.root).mkdir(parents=True, exist_ok=True)
-    (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
-        "fixture digest without performance", encoding="utf-8",
-    )
     return {
         "outcome": "dry-pass",
         "variant": None,
         "stop_reason": "continue",
         "iteration": 1,
         "ran": True,
+        "trigger_gate_binding_commitment": "b" * 64,
+        "critic_digest_generated": False,
     }
 
 
@@ -86,6 +88,9 @@ def _fake_drive_with_finite_metrics(
         proposal_path=proposal_path,
         extra_sources=extra_sources,
     )
+    (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
+        "fixture admitted digest", encoding="utf-8",
+    )
     outcome.update({
         "outcome": "certified",
         "variant": "fixture-finite-metrics",
@@ -100,6 +105,7 @@ def _fake_drive_with_finite_metrics(
                 }
             }
         },
+        "critic_digest_generated": True,
     })
     return outcome
 
@@ -156,12 +162,129 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
     )
     assert cfg.search_config["build_admission"] == context.policy.as_preimage()
     assert str(A.ident.campaign_id(cfg)) == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-623e929a"
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
     )
     pre_t343_no_build_id = (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     )
     assert str(A.ident.campaign_id(cfg)) != pre_t343_no_build_id
+
+
+def test_parse_coder_accepts_wire_and_rejects_implementation() -> None:
+    accepted = A.parse_coder(json.dumps({
+        "proposal": {
+            "axis": A.trigger.MARKER_ID,
+            "wire": "10100",
+            "justification": "fixture",
+            "confidence": "medium",
+        }
+    }))
+    assert accepted.wire == "10100"
+    for proposal in (
+        {
+            "axis": A.trigger.MARKER_ID,
+            "implementation": "izanagi_gate_pass = true;",
+            "justification": "fixture",
+            "confidence": "medium",
+        },
+        {
+            "axis": A.trigger.MARKER_ID,
+            "wire": "10100",
+            "implementation": "izanagi_gate_pass = true;",
+            "justification": "fixture",
+            "confidence": "medium",
+        },
+    ):
+        with pytest.raises(A.AutonomousTrialError):
+            A.parse_coder(json.dumps({"proposal": proposal}))
+
+
+@pytest.mark.parametrize("bad_wire", [None, True, 0, "", "0000", "000000", "0000x"])
+def test_parse_coder_rejects_invalid_wire_corpus(bad_wire) -> None:
+    with pytest.raises(RefluxIRError, match="^invalid reflux IR$"):
+        A.parse_coder(json.dumps({
+            "proposal": {
+                "axis": A.trigger.MARKER_ID,
+                "wire": bad_wire,
+                "justification": "fixture",
+                "confidence": "medium",
+            }
+        }))
+
+
+def test_fixture_provider_emits_only_wire() -> None:
+    provider = A.FixtureRoleProvider("coder")
+    for generation, expected in ((1, "11111"), (2, "10000")):
+        response = provider.invoke(
+            invocation_id=f"fixture-g{generation}",
+            payload={"generation": generation},
+        )
+        proposal = json.loads(response.raw_response)["proposal"]
+        assert proposal["wire"] == expected
+        assert set(proposal) == {"axis", "wire", "justification", "confidence"}
+
+
+def test_auditor_trial_projection_contains_only_closed_codes_and_counts() -> None:
+    auditor = A.AuditorVerdict(
+        verdict="reject",
+        diff_digest="a" * 64,
+        violations=[{
+            "type": 16,
+            "location": "wire=10100 mask=5",
+            "correctness_impact": "candidate 10100",
+            "verifier_blind_spot": "mask 5",
+        }],
+        nits=[{"finding": "wire 10100"}],
+        proposed_tests=[{
+            "mutation": "wire 10100",
+            "expected_gate": "mask 5",
+            "machine_judgment": "reject",
+        }],
+        uncertainty="wire 10100",
+    )
+    projected = A._jsonable_role_value("auditor", auditor)
+    assert projected == {
+        "verdict": "reject",
+        "diff_digest": "a" * 64,
+        "violation_codes": [16],
+        "nit_count": 1,
+        "proposed_test_count": 1,
+        "uncertainty_present": True,
+    }
+    encoded = json.dumps(projected, sort_keys=True)
+    assert "10100" not in encoded and "mask 5" not in encoded
+
+
+def test_preview_uses_canonical_emitter(tmp_path, monkeypatch) -> None:
+    template = """// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating
+#if BACKOFF_TRIGGER_GATING
+  izanagi_gate_pass = true;
+#else
+  Backoff::backoff(FLAGS_clocks_per_us);
+#endif
+// EVOLVE-BLOCK-END silo-backoff-trigger-gating
+"""
+    source = tmp_path / A.trigger.SOURCE_REL
+    source.parent.mkdir(parents=True)
+    source.write_text(template, encoding="utf-8")
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        A, "applied", lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    original = A.loop_core.quarantine
+    seen = []
+
+    def quarantine_spy(sub, predicate, **kwargs):
+        seen.append(predicate)
+        return original(sub, predicate, **kwargs)
+
+    monkeypatch.setattr(A.loop_core, "quarantine", quarantine_spy)
+    coder = A.trigger.CoderProposalTriggerGating(
+        axis=A.trigger.MARKER_ID, wire="10100",
+    )
+    result = A._preview(coder, sub=str(tmp_path))
+    assert result["passed"] is True
+    assert seen == [emit_predicate(A.parse_wire("10100"))]
 
 
 def test_generation_budget_boundary_at_ratified_launch() -> None:
@@ -424,6 +547,7 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         generation = cell["generations"][0]
         assert generation["outcome"] == "dry-pass"
         assert "metrics" not in generation
+        assert generation["harness"]["trigger_gate_binding_commitment"] == "b" * 64
         assert set(generation["roles"]) == {"planner", "coder", "auditor", "critic"}
         descriptor_sha = cell["descriptor_binding"]["output_sha256"]
         for event in generation["roles"].values():
@@ -434,6 +558,11 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
             assert event["retry"] is False
     on_disk = json.loads((run_root / "report.json").read_text(encoding="utf-8"))
     assert on_disk == report
+    report_json = json.dumps(report, sort_keys=True)
+    assert '"trigger_gate_binding_commitment"' in report_json
+    assert '"trigger_gate_binding"' not in report_json
+    assert '"mask"' not in report_json
+    assert '"wire"' not in report_json
     events = [
         json.loads(line)
         for line in (run_root / "attempts.jsonl").read_text(encoding="utf-8").splitlines()
@@ -449,6 +578,10 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
     for payload in providers["coder"].payloads:
         assert set(payload["planner_direction"]) == {"axis", "direction", "magnitude"}
         assert "justification" not in payload["planner_direction"]
+    for proposal_path in sorted((run_root / "proposals").glob("*.json")):
+        proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+        assert "wire" in proposal["coder"]
+        assert "implementation" not in proposal["coder"]
     for planner_payload, coder_payload, critic_payload in zip(
         providers["planner"].payloads,
         providers["coder"].payloads,
@@ -458,6 +591,10 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         assert planner_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
         assert coder_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
         assert critic_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
+        critic_keys = json.dumps(critic_payload, sort_keys=True)
+        assert "trigger_gate_binding" not in critic_keys
+        assert '"mask"' not in critic_keys
+        assert '"wire"' not in critic_keys
 
         current_perf = planner_payload["current_perf"]
         leading_indicators = planner_payload["leading_indicators"]
@@ -498,6 +635,59 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         )
         assert all(value is None for value in baseline.values())
         assert all(value is None for value in critic_metrics.values())
+
+
+def test_fixture_no_build_cli_uses_public_drive_without_critic_digest(
+    tmp_path, monkeypatch,
+) -> None:
+    """P+1: documented 8c CLI reaches the real public drive on a fresh layout."""
+    from campaign import patchharness
+
+    ccbench = tmp_path / "ccbench"
+    source = ccbench / A.trigger.SOURCE_REL
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        """// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating
+#if BACKOFF_TRIGGER_GATING
+  izanagi_gate_pass = true;
+#else
+  Backoff::backoff(FLAGS_clocks_per_us);
+#endif
+// EVOLVE-BLOCK-END silo-backoff-trigger-gating
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        A, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+
+    run_root = tmp_path / "fresh-run"
+    assert A.main([
+        "--trial-id", "fixture-public-drive",
+        "--provider", "fixture",
+        "--workloads", "ycsb-a",
+        "--max-generations", "1",
+        "--no-build",
+        "--ccbench-dir", str(ccbench),
+        "--run-root", str(run_root),
+    ]) == 0
+
+    report = json.loads((run_root / "report.json").read_text(encoding="utf-8"))
+    generation = report["cells"][0]["generations"][0]
+    assert generation["outcome"] == "dry-pass"
+    assert generation["harness"]["critic_digest_generated"] is False
+    assert generation["roles"]["critic"]["status"] == "valid"
+    campaign_root = Path(report["cells"][0]["campaign_root"])
+    assert (campaign_root / "reports" / A.trigger.PROVENANCE_BASENAME).exists()
+    assert (campaign_root / "loop_state.json").exists()
+    assert not (campaign_root / A.trigger.DIGEST_BASENAME).exists()
 
 
 def test_generation_one_recipient_wiring_uses_role_projection(
@@ -639,6 +829,51 @@ class _InvalidPlanner:
             raw_response='{"proposal":{},"extra":true}',
             provenance={"child_id": invocation_id},
         )
+
+
+class _UnknownKeyPlanner:
+    def __init__(self, unknown_key: str) -> None:
+        self.unknown_key = unknown_key
+
+    def invoke(self, *, invocation_id, payload):
+        return A.ProviderResponse(
+            raw_response=json.dumps({
+                "proposal": {},
+                self.unknown_key: True,
+            }),
+            provenance={"child_id": invocation_id},
+        )
+
+
+def test_unknown_response_key_is_not_reflected_to_journal_or_trial_report(
+    tmp_path,
+) -> None:
+    raw_key = "wire=10100 mask=5"
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["planner"] = _UnknownKeyPlanner(raw_key)
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="unknown-key-redaction",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+    journal_text = (run_root / "attempts.jsonl").read_text(encoding="utf-8")
+    report_text = (run_root / "report.json").read_text(encoding="utf-8")
+    assert raw_key not in journal_text
+    assert raw_key not in report_text
+    assert raw_key not in json.dumps(report, ensure_ascii=False, sort_keys=True)
+    assert "response object keys 不一致" in journal_text
+    assert "response object keys 不一致" in report_text
 
 
 def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path, monkeypatch) -> None:
@@ -854,6 +1089,7 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
             "outcome": "certified", "variant": "fixture-variant",
             "fitness_tps": 1.0, "stop_reason": "continue",
             "iteration": 1, "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
         }
 
     providers = {
@@ -1059,6 +1295,7 @@ def test_run_workload_build_passes_exploration_layout_to_trigger(
             "stop_reason": "continue",
             "iteration": 1,
             "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
         }
 
     result = A._run_workload(
@@ -1126,6 +1363,7 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
             "stop_reason": "continue",
             "iteration": 1,
             "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
         }
 
     providers = {
@@ -1862,6 +2100,651 @@ def test_projected_provider_rejects_server_tool_use(tmp_path) -> None:
     )
     with pytest.raises(PredictionRunnerError, match="server tool use"):
         provider.invoke(invocation_id="ycsb-a.g1.auditor", payload={"x": 1})
+
+
+# T-325 supervisor/registry integration.  These fixtures deliberately extend
+# the supervisor's closed workload set so the new registry gate, rather than
+# the pre-existing unknown-workload gate, is the reason under test.
+def _t325_git(repo: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        env=A.trial_registry._git_env(),
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
+@pytest.fixture
+def t325_registered_trial(tmp_path, monkeypatch):
+    repo = tmp_path / "registry-repo"
+    repo.mkdir()
+    _t325_git(repo, "init")
+    _t325_git(repo, "config", "user.name", "T325 Fixture")
+    _t325_git(repo, "config", "user.email", "t325@example.invalid")
+    (repo / "anchor.txt").write_text("preregistered\n", encoding="utf-8")
+    _t325_git(repo, "add", "anchor.txt")
+    _t325_git(repo, "commit", "-m", "prereg anchor")
+    prereg_commit = _t325_git(repo, "rev-parse", "HEAD")
+
+    monkeypatch.setattr(A, "ROOT", repo)
+    monkeypatch.setitem(A.WORKLOADS, "rr80", {
+        "ycsb_zipf_skew": "0" + ".9",
+        "ycsb_rratio": "8" + "0",
+        "ycsb_rmw": "" + "0",
+    })
+    monkeypatch.setitem(A.WORKLOADS, "rr20", {
+        "ycsb_zipf_skew": "0" + ".9",
+        "ycsb_rratio": "2" + "0",
+        "ycsb_rmw": "" + "0",
+    })
+
+    trials = []
+    for holdout, workload in (("H1", "rr80"), ("H2", "rr20")):
+        for arm in ("on", "off", "swapped"):
+            trial_id = f"t325-{holdout.lower()}-{arm}"
+            prepared = A._prepare_campaign_identity(
+                workload=workload,
+                trial_id=trial_id,
+                generations=1,
+                build_context=_no_build_context(),
+            )
+            trials.append({
+                "trial_id": trial_id,
+                "arm": arm,
+                "holdout": holdout,
+                "campaign_id": prepared.campaign_id,
+            })
+    manifest_path = repo / "manifests" / "trial.json"
+    manifest_path.parent.mkdir()
+    manifest_path.write_text(
+        json.dumps({
+            "schema_version": A.trial_registry.MANIFEST_SCHEMA_VERSION,
+            "prereg_commit": prereg_commit,
+            "trials": trials,
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    _t325_git(repo, "add", "manifests/trial.json")
+    _t325_git(repo, "commit", "-m", "add trial manifest")
+    registry_path = repo / A.trial_registry.DEFAULT_REGISTRY_PATH
+    A.trial_registry.append_trial_registration(
+        manifest_path=manifest_path,
+        repository_root=repo,
+        registry_path=registry_path,
+    )
+    _t325_git(repo, "add", str(A.trial_registry.DEFAULT_REGISTRY_PATH))
+    _t325_git(repo, "commit", "-m", "register trial manifest")
+    trial_id = "t325-h1-on"
+    binding = A.trial_registry.load_launch_binding(
+        manifest_path=manifest_path,
+        trial_id=trial_id,
+        workloads=["rr80"],
+        repository_root=repo,
+        registry_path=registry_path,
+    )
+    return SimpleNamespace(
+        repo=repo,
+        manifest_path=manifest_path,
+        registry_path=registry_path,
+        trial_id=trial_id,
+        binding=binding,
+    )
+
+
+def _t325_run(fixture, run_root: Path, **overrides):
+    arguments = {
+        "trial_id": fixture.trial_id,
+        "workloads": ["rr80"],
+        "generations": 1,
+        "provider_kind": "fixture",
+        "run_root": run_root,
+        "sub": "/unused",
+        "do_build": False,
+        "drive": _fake_drive,
+        "preview": _fake_preview,
+        "trial_manifest": fixture.manifest_path,
+    }
+    arguments.update(overrides)
+    return A.run_trial(**arguments)
+
+
+def _t325_binding_fields(binding) -> dict[str, str]:
+    return {
+        "prereg_commit": binding.prereg_commit,
+        "measurement_head": binding.measurement_head,
+        "manifest_sha256": binding.manifest_sha256,
+    }
+
+
+def _t325_run_start(run_root: Path) -> dict:
+    events = [
+        json.loads(line)
+        for line in (run_root / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    starts = [event for event in events if event["event"] == "run-start"]
+    assert len(starts) == 1
+    return starts[0]
+
+
+def test_prepare_campaign_identity_exactly_matches_existing_derivation(
+    t325_registered_trial,
+) -> None:
+    context = _no_build_context()
+    flags = A.WORKLOADS["rr80"]
+    descriptor, descriptor_record = A._descriptor_for(flags)
+    legacy_campaign = A._campaign_for(
+        workload="rr80",
+        workload_flags=flags,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        trial_id=t325_registered_trial.trial_id,
+        generations=1,
+        build_context=context,
+    )
+    prepared = A._prepare_campaign_identity(
+        workload="rr80",
+        trial_id=t325_registered_trial.trial_id,
+        generations=1,
+        build_context=context,
+    )
+    assert prepared.descriptor == descriptor
+    assert prepared.descriptor_record == descriptor_record
+    assert prepared.campaign == legacy_campaign
+    assert prepared.campaign_id == str(A.ident.campaign_id(legacy_campaign))
+    run_root = Path("sentinel-run-root")
+    assert run_root / "campaigns" / prepared.campaign_id == (
+        run_root / "campaigns" / str(A.ident.campaign_id(legacy_campaign))
+    )
+
+
+def test_manifest_identity_preflight_does_not_consume_coder_authority(
+    t325_registered_trial,
+) -> None:
+    authority = _coder_authority()
+    binding = A._trial_launch_binding(
+        trial_manifest=t325_registered_trial.manifest_path,
+        trial_id=t325_registered_trial.trial_id,
+        workloads=["rr80"],
+        generations=1,
+    )
+    assert binding == t325_registered_trial.binding
+    context = A.build_run_context(
+        generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP,
+        coder_authority=authority,
+    )
+    prepared = A._prepare_campaign_identity(
+        workload="rr80",
+        trial_id=t325_registered_trial.trial_id,
+        generations=1,
+        build_context=context,
+    )
+    assert prepared.campaign_id == binding.campaign_id
+    with pytest.raises(A.BuildAdmissionError, match="既に使用済み"):
+        A.build_run_context(
+            generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP,
+            coder_authority=authority,
+        )
+
+
+def test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields(
+    tmp_path, t325_registered_trial,
+) -> None:
+    run_root = tmp_path / "manifest-run"
+    report = _t325_run(t325_registered_trial, run_root)
+    expected = _t325_binding_fields(t325_registered_trial.binding)
+    assert report["status"] == "complete"
+    assert {field: report[field] for field in expected} == expected
+    assert {field: _t325_run_start(run_root)[field] for field in expected} == expected
+    assert "arm" not in report
+    assert "holdout" not in report
+
+
+def test_p9_exploratory_run_with_absent_registry_preserves_report_shape(
+    tmp_path, monkeypatch,
+) -> None:
+    monkeypatch.setattr(A, "ROOT", tmp_path / "repo-without-registry")
+
+    def manifest_gate_must_not_run(*args, **kwargs):
+        pytest.fail("manifest gate ran for an exploratory launch")
+
+    monkeypatch.setattr(
+        A.trial_registry, "load_launch_binding", manifest_gate_must_not_run
+    )
+    monkeypatch.setattr(
+        A.trial_registry, "resolve_measurement_commit", manifest_gate_must_not_run
+    )
+    run_root = tmp_path / "exploratory-run"
+    report = A.run_trial(
+        trial_id="unregistered-exploratory",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+    assert set(report) == {
+        "schema_version", "trial_id", "status", "started_at", "finished_at",
+        "provider", "do_build", "workloads_requested",
+        "generation_budget_per_workload", "stop_policy", "claim_scope",
+        "attempt_journal", "cells", "attempt_journal_sha256",
+    }
+    assert not ({"prereg_commit", "measurement_head", "manifest_sha256"} & report.keys())
+
+
+def test_p9_prime_m27_prime_existing_registry_unregistered_exploratory_passes(
+    tmp_path, t325_registered_trial,
+) -> None:
+    run_root = tmp_path / "unregistered-with-registry"
+    report = A.run_trial(
+        trial_id="another-exploratory-id",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+    assert report["status"] == "complete"
+    binding_fields = {"prereg_commit", "measurement_head", "manifest_sha256"}
+    assert not (binding_fields & report.keys())
+    assert not (binding_fields & _t325_run_start(run_root).keys())
+
+
+def test_p10_cli_manifest_gate_precedes_build_preparation_and_forwards_manifest(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    sequence = []
+    original_load = A.trial_registry.load_launch_binding
+    original_campaign = A.trial_registry.assert_campaign_binding
+
+    def observed_load(**kwargs):
+        sequence.append("registry-gate")
+        return original_load(**kwargs)
+
+    def observed_campaign(binding, *, actual_campaign_id):
+        sequence.append("campaign-gate")
+        return original_campaign(binding, actual_campaign_id=actual_campaign_id)
+
+    def observed_preparation(*args, **kwargs):
+        sequence.append("build-preparation")
+
+    captured = {}
+
+    def capture_run_trial(**kwargs):
+        sequence.append("run-trial")
+        captured.update(kwargs)
+        return {"status": "complete", "cells": []}
+
+    monkeypatch.setattr(A.trial_registry, "load_launch_binding", observed_load)
+    monkeypatch.setattr(A.trial_registry, "assert_campaign_binding", observed_campaign)
+    monkeypatch.setattr(A, "assert_pinned_clean", observed_preparation)
+    monkeypatch.setattr(A, "run_trial", capture_run_trial)
+    assert A.main([
+        "--trial-id", t325_registered_trial.trial_id,
+        "--trial-manifest", str(t325_registered_trial.manifest_path),
+        "--provider", "fixture",
+        "--workloads", "rr80",
+        "--no-build",
+        "--ccbench-dir", str(tmp_path / "ccbench"),
+        "--run-root", str(tmp_path / "run"),
+    ]) == 0
+    assert sequence == [
+        "registry-gate", "campaign-gate", "build-preparation", "run-trial",
+    ]
+    assert captured["trial_manifest"] == t325_registered_trial.manifest_path
+    assert captured["trial_binding"] == t325_registered_trial.binding
+
+
+def test_m23_prime_run_trial_registry_gate_rejects_before_run_root(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    reached = []
+    original_load = A.trial_registry.load_launch_binding
+
+    def observed_load(**kwargs):
+        reached.append("registry-gate")
+        return original_load(**kwargs)
+
+    def artifact_creation(*args, **kwargs):
+        pytest.fail("registry rejection reached artifact creation")
+
+    monkeypatch.setattr(A.trial_registry, "load_launch_binding", observed_load)
+    monkeypatch.setattr(A, "ensure_exploration_namespace", artifact_creation)
+    run_root = tmp_path / "rejected-run"
+    with pytest.raises(A.trial_registry.TrialRegistryError, match="workload-binding"):
+        _t325_run(
+            t325_registered_trial,
+            run_root,
+            workloads=["rr20"],
+        )
+    assert reached == ["registry-gate"]
+    assert not run_root.exists()
+
+
+@pytest.mark.parametrize("no_build", [True, False], ids=["no-build", "build"])
+def test_m24_cli_registry_gate_rejects_before_build_preparation(
+    tmp_path, monkeypatch, t325_registered_trial, no_build,
+) -> None:
+    reached = []
+    original_load = A.trial_registry.load_launch_binding
+
+    def observed_load(**kwargs):
+        reached.append("registry-gate")
+        return original_load(**kwargs)
+
+    def build_preparation(*args, **kwargs):
+        pytest.fail("registry rejection reached build preparation")
+
+    monkeypatch.setattr(A.trial_registry, "load_launch_binding", observed_load)
+    monkeypatch.setattr(A, "assert_pinned_clean", build_preparation)
+    monkeypatch.setattr(A, "checkout", build_preparation)
+    monkeypatch.setattr(calibrator_runner, "competing_bench_pids", build_preparation)
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    run_root = tmp_path / "cli-rejected-run"
+    arguments = [
+        "--trial-id", t325_registered_trial.trial_id,
+        "--trial-manifest", str(t325_registered_trial.manifest_path),
+        "--provider", "fixture" if no_build else "claude-headless",
+        "--workloads", "rr20",
+        "--ccbench-dir", str(tmp_path / "ccbench"),
+        "--run-root", str(run_root),
+    ]
+    if no_build:
+        arguments.append("--no-build")
+    else:
+        arguments.append("--allow-coder-derived-build")
+    with pytest.raises(A.trial_registry.TrialRegistryError, match="workload-binding"):
+        A.main(arguments)
+    assert reached == ["registry-gate"]
+    assert not run_root.exists()
+
+
+def test_m26_manifest_binding_survives_provider_init_and_supervisor_failures(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    expected = _t325_binding_fields(t325_registered_trial.binding)
+
+    with monkeypatch.context() as scoped:
+        def fail_provider_init(**kwargs):
+            raise RuntimeError("provider init failed")
+
+        scoped.setattr(A, "_provider_set", fail_provider_init)
+        provider_root = tmp_path / "provider-init-failure"
+        provider_report = _t325_run(t325_registered_trial, provider_root)
+    assert provider_report["status"] == "partial"
+    assert provider_report["cells"] == []
+    assert {field: provider_report[field] for field in expected} == expected
+    assert {
+        field: _t325_run_start(provider_root)[field] for field in expected
+    } == expected
+
+    def broken_preview(coder, *, sub):
+        raise RuntimeError("supervisor failed")
+
+    supervisor_root = tmp_path / "supervisor-failure"
+    supervisor_report = _t325_run(
+        t325_registered_trial,
+        supervisor_root,
+        providers={
+            role: A.FixtureRoleProvider(role)
+            for role in ("planner", "coder", "auditor", "critic")
+        },
+        preview=broken_preview,
+    )
+    assert supervisor_report["status"] == "partial"
+    assert supervisor_report["cells"][0]["stop_reason"] == "supervisor-error"
+    assert {field: supervisor_report[field] for field in expected} == expected
+    assert {
+        field: _t325_run_start(supervisor_root)[field] for field in expected
+    } == expected
+
+
+def test_m30_registered_trial_id_without_manifest_is_rejected(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    def artifact_creation(*args, **kwargs):
+        pytest.fail("registered exploratory rejection reached artifact creation")
+
+    monkeypatch.setattr(A, "ensure_exploration_namespace", artifact_creation)
+    run_root = tmp_path / "registered-without-manifest"
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match="registered trial_id cannot run without its manifest",
+    ):
+        A.run_trial(
+            trial_id=t325_registered_trial.trial_id,
+            workloads=["rr80"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            drive=_fake_drive,
+            preview=_fake_preview,
+        )
+    assert not run_root.exists()
+
+
+def test_registered_trial_id_direct_run_workload_is_rejected(
+    tmp_path, t325_registered_trial,
+) -> None:
+    run_root = tmp_path / "direct-workload-rejected"
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match="registered trial_id cannot run without its manifest",
+    ):
+        A._run_workload(
+            workload="rr80",
+            generations=1,
+            providers={},
+            journal=SimpleNamespace(),
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            trial_id=t325_registered_trial.trial_id,
+            started_monotonic=time.monotonic(),
+            max_wall_s=60,
+            build_context=_no_build_context(),
+        )
+    assert not run_root.exists()
+
+
+def test_direct_workload_rejects_registry_binding_without_run_scope(
+    tmp_path, t325_registered_trial,
+) -> None:
+    token = A._ACTIVE_TRIAL_BINDING.set(t325_registered_trial.binding)
+    try:
+        with pytest.raises(
+            A.trial_registry.TrialRegistryError,
+            match=r"\[run-scope\] active workload scope was not issued by run_trial",
+        ):
+            A._run_workload(
+                workload="rr80",
+                generations=1,
+                providers={},
+                journal=SimpleNamespace(),
+                run_root=tmp_path / "forged-direct-workload",
+                sub="/unused",
+                do_build=False,
+                cache_root="",
+                trial_id=t325_registered_trial.trial_id,
+                started_monotonic=time.monotonic(),
+                max_wall_s=60,
+                build_context=_no_build_context(),
+            )
+    finally:
+        A._ACTIVE_TRIAL_BINDING.reset(token)
+
+
+@pytest.mark.parametrize(
+    ("field", "forged_value", "error"),
+    [
+        ("manifest_sha256", "0" * 64, "manifest_sha256"),
+        ("prereg_commit", "0" * 40, "prereg_commit"),
+        ("measurement_head", "0" * 40, "measurement-head-moved"),
+        ("trial_id", "forged-trial-id", "trial_id"),
+        ("arm", "forged-arm", "arm"),
+        ("holdout", "H2", "holdout"),
+        ("campaign_id", "forged-campaign-id", "campaign_id"),
+        ("workload", "rr20", "workload"),
+        ("ycsb_rratio", "20", "ycsb_rratio"),
+        ("_seal", object(), "binding was not issued"),
+    ],
+)
+def test_run_trial_rejects_every_dataclass_replace_binding_field(
+    tmp_path, t325_registered_trial, field, forged_value, error,
+) -> None:
+    forged = dataclasses.replace(
+        t325_registered_trial.binding,
+        **{field: forged_value},
+    )
+    run_root = tmp_path / f"forged-binding-{field}"
+    with pytest.raises(A.trial_registry.TrialRegistryError, match=error):
+        A.run_trial(
+            trial_id=t325_registered_trial.trial_id,
+            workloads=["rr80"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            trial_manifest=t325_registered_trial.manifest_path,
+            trial_binding=forged,
+        )
+    assert not run_root.exists()
+
+
+def test_run_trial_rejects_head_move_after_cli_binding(
+    tmp_path, t325_registered_trial,
+) -> None:
+    marker = t325_registered_trial.repo / "head-moved.txt"
+    marker.write_text("moved\n", encoding="utf-8")
+    _t325_git(t325_registered_trial.repo, "add", "--", marker.name)
+    _t325_git(t325_registered_trial.repo, "commit", "-m", "move head")
+    run_root = tmp_path / "head-moved-run"
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[measurement-head-moved\] ",
+    ):
+        A.run_trial(
+            trial_id=t325_registered_trial.trial_id,
+            workloads=["rr80"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            trial_manifest=t325_registered_trial.manifest_path,
+            trial_binding=t325_registered_trial.binding,
+        )
+    assert not run_root.exists()
+
+
+def test_m32_cli_manifestless_gate_is_not_masked_by_run_trial(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        A,
+        "run_trial",
+        lambda **kwargs: {"status": "complete", "cells": []},
+    )
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match="registered trial_id cannot run without its manifest",
+    ):
+        A.main([
+            "--trial-id", t325_registered_trial.trial_id,
+            "--provider", "fixture",
+            "--workloads", "rr80",
+            "--no-build",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(tmp_path / "m32-run"),
+        ])
+
+
+def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    trials = []
+    target_trial_id = "m13-prime-h1-on"
+    for holdout, workload in (("H1", "rr80"), ("H2", "rr20")):
+        for arm in ("on", "off", "swapped"):
+            trial_id = f"m13-prime-{holdout.lower()}-{arm}"
+            prepared = A._prepare_campaign_identity(
+                workload=workload,
+                trial_id=trial_id,
+                generations=1,
+                build_context=_no_build_context(),
+            )
+            campaign_id = prepared.campaign_id
+            if trial_id == target_trial_id:
+                campaign_id += "-declared"
+            trials.append({
+                "trial_id": trial_id,
+                "arm": arm,
+                "holdout": holdout,
+                "campaign_id": campaign_id,
+            })
+    manifest_path = t325_registered_trial.repo / "manifests" / "m13-prime.json"
+    manifest_path.write_text(
+        json.dumps({
+            "schema_version": A.trial_registry.MANIFEST_SCHEMA_VERSION,
+            "prereg_commit": t325_registered_trial.binding.prereg_commit,
+            "trials": trials,
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    _t325_git(
+        t325_registered_trial.repo,
+        "add",
+        "--",
+        str(manifest_path.relative_to(t325_registered_trial.repo)),
+    )
+    _t325_git(t325_registered_trial.repo, "commit", "-m", "m13 prime manifest")
+    A.trial_registry.append_trial_registration(
+        manifest_path=manifest_path,
+        repository_root=t325_registered_trial.repo,
+        registry_path=t325_registered_trial.registry_path,
+    )
+    _t325_git(
+        t325_registered_trial.repo,
+        "add",
+        "--",
+        str(t325_registered_trial.registry_path.relative_to(t325_registered_trial.repo)),
+    )
+    _t325_git(t325_registered_trial.repo, "commit", "-m", "m13 prime registry")
+
+    def artifact_creation(*args, **kwargs):
+        pytest.fail("campaign binding bypass reached artifact creation")
+
+    monkeypatch.setattr(A, "ensure_exploration_namespace", artifact_creation)
+    run_root = tmp_path / "m13-prime-run"
+    with pytest.raises(A.trial_registry.TrialRegistryError, match="campaign-binding"):
+        A.run_trial(
+            trial_id=target_trial_id,
+            workloads=["rr80"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            trial_manifest=manifest_path,
+        )
+    assert not run_root.exists()
 
 
 if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard

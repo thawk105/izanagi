@@ -559,7 +559,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-290] `run_trial` の注入 seam の保証 — 理由: (103) の裁定 (b) で現状維持とし、多世代開放と同時に (c) を入れると決まった。 2026-08-04 の U-1 実装で public run_trial の explicit keyword 注入部分は消化 (直接反復は D114 のとおり保証外のまま)。
 - [T-283] 本番開放の前提条件 — 理由: (125) の裁定で [T-246] と同じ束へ入れ、単独では着手しないと決まった。
 - [T-285] 予約 block 以外の 7 個の `readarray < <(...)` — 理由: [T-292] と同族で、同じ独立 wave が所有する。
-- [T-272] Pegasus shell 3 本の裸 python3 の版数 gate — 理由: (125) の裁定で [T-248] の実装と同じ wave に含めると決まった。 2026-08-04 に floor 実測 wave が発火条件に触れた。certify 経路 (`certify_calibration.sh` / `submit_certify.sh`) には版数 gate が無く、`floor_campaign.sh` だけが持つ非対称が残る。計算ノードの `python3` は 3.9 に解決されるため、3.10+ 構文を持つ module (`env_contract` を含む) を certify 経路から呼ぶ設計は現状すべて失敗する。安価測定の最小 env 化にも同じ壁が掛かる。
+- [T-272] Pegasus shell 3 本の裸 python3 の版数 gate — 理由: (125) の裁定で [T-248] の実装と同じ wave に含めると決まった。 2026-08-04 に floor 実測 wave が発火条件に触れた。certify 経路 (`certify_calibration.sh` / `submit_certify.sh`) には版数 gate が無く、`floor_campaign.sh` だけが持つ非対称が残る。計算ノードの `python3` は 3.9 に解決されるため、3.10+ 構文を持つ module (`env_contract` を含む) を certify 経路から呼ぶ設計は現状すべて失敗する。安価測定の最小 env 化にも同じ壁が掛かる。 2026-08-04 の floor scoping 実測で、裸 python3 の版数に加えて perf 実体のノード個体差 (bnode074 不在 / bnode011・bnode138 実在) も同じ環境 gate の射程だと確定した。scoping 側は job script の preflight (5bec729) で自衛済み、certify 経路は未対応のまま。
 - [T-246] T-126 scope 外の real 所見 4 件 — 理由: (94) の裁定 (b) で、逐次停止を production gate へ昇格させる際の前提条件として束ねると決まった。
 - [T-242] `claude_executable_sha256` の allowlist 発火 — 理由: (103) の裁定 (c) で正式系列でだけ発火させると決まり、[T-246] / [T-228] と同じ束に置く。
 - [T-197] `exec_calibrate.py` の汎用トランポリン — 理由: (74) の裁定 (b) で sanctioned exact path 列挙のまま置くと決まった。

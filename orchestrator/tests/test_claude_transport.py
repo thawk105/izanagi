@@ -1029,7 +1029,7 @@ def _role_subprocess_shim(path: Path) -> Path:
         "elif 'gating_spec' in payload:\n"
         "  role = 'coder'\n"
         "  result = {'proposal': {'axis': 'silo-backoff-trigger-gating', "
-        "'implementation': 'izanagi_gate_pass = true;', "
+        "'wire': '11111', "
         "'justification': 'wrapper fixture', 'confidence': 'low'}}\n"
         "elif 'working_diff' in payload:\n"
         "  role = 'auditor'\n"
@@ -1613,6 +1613,7 @@ def _dry_drive(*args, **kwargs):
         "iteration": 1,
         "ran": True,
         "records": {},
+        "trigger_gate_binding_commitment": "b" * 64,
     }
 
 

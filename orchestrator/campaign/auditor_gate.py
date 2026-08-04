@@ -24,6 +24,87 @@ from campaign.diff_quarantine import DiffQuarantineResult
 from critic.digest import DIFF_QUARANTINE_REASON
 
 _AUDITOR_VERDICTS = {"pass", "reject", "uncertain"}
+_AUDITOR_VIOLATION_TYPES = frozenset(range(1, 17))
+_VIOLATION_FIELDS = frozenset({
+    "type", "location", "correctness_impact", "verifier_blind_spot",
+    # Legacy fixtures used these two fixed fields before the closed projection.
+    "note", "reason",
+})
+_NIT_KEYSETS = (
+    frozenset({"type"}),
+    frozenset({"finding"}),
+    frozenset({"note"}),
+)
+_PROPOSED_TEST_FIELDS = frozenset({
+    "mutation", "expected_gate", "machine_judgment",
+})
+
+
+def _reject_schema(field: str) -> None:
+    # Raw entry values are deliberately absent from this message.  Auditor input
+    # is untrusted and may contain a candidate wire/mask which must not escape in
+    # exception text.
+    raise AuditorGateFailure(
+        f"auditor.{field} が閉じた構造化 schema に一致しない (規律2/6)"
+    )
+
+
+def _validate_auditor_entries(
+    violations: object, nits: object, proposed_tests: object,
+) -> None:
+    if type(violations) is not list:
+        _reject_schema("violations")
+    for entry in violations:
+        if (
+            type(entry) is not dict
+            or "type" not in entry
+            or not set(entry) <= _VIOLATION_FIELDS
+            or type(entry["type"]) is not int
+            or entry["type"] not in _AUDITOR_VIOLATION_TYPES
+            or any(type(value) is not str for key, value in entry.items()
+                   if key != "type")
+        ):
+            _reject_schema("violations")
+
+    if type(nits) is not list:
+        _reject_schema("nits")
+    for entry in nits:
+        if type(entry) is not dict or frozenset(entry) not in _NIT_KEYSETS:
+            _reject_schema("nits")
+        key = next(iter(entry))
+        if key == "type":
+            if entry[key] != "nit":
+                _reject_schema("nits")
+        elif type(entry[key]) is not str:
+            _reject_schema("nits")
+
+    if type(proposed_tests) is not list:
+        _reject_schema("proposed_tests")
+    for entry in proposed_tests:
+        if (
+            type(entry) is not dict
+            or frozenset(entry) != _PROPOSED_TEST_FIELDS
+            or any(type(value) is not str for value in entry.values())
+        ):
+            _reject_schema("proposed_tests")
+
+
+def _validate_auditor_scalars(
+    verdict: object, diff_digest: object, uncertainty: object,
+) -> None:
+    if type(verdict) is not str or verdict not in _AUDITOR_VERDICTS:
+        raise AuditorGateFailure(
+            f"auditor.verdict は {sorted(_AUDITOR_VERDICTS)} のいずれか — "
+            "未知の値は fails-closed で拒否 (規律2)"
+        )
+    if type(diff_digest) is not str or not diff_digest:
+        raise AuditorGateFailure(
+            "auditor.diff_digest が空/非文字列 — working_diff と機械照合できない"
+        )
+    if type(uncertainty) is not str:
+        raise AuditorGateFailure(
+            "auditor.uncertainty は string のみ — 構造化監査結果を拒否"
+        )
 
 
 @dataclass
@@ -41,6 +122,14 @@ class AuditorVerdict:
     nits: List[Dict] = field(default_factory=list)
     proposed_tests: List[Dict] = field(default_factory=list)
     uncertainty: str = ""
+
+    def __post_init__(self) -> None:
+        _validate_auditor_scalars(
+            self.verdict, self.diff_digest, self.uncertainty,
+        )
+        _validate_auditor_entries(
+            self.violations, self.nits, self.proposed_tests,
+        )
 
 
 class AuditorGateFailure(ValueError):
@@ -69,8 +158,8 @@ def assert_digest_matches(auditor: AuditorVerdict, working_diff: str) -> str:
     actual = compute_diff_digest(working_diff)
     if actual != auditor.diff_digest:
         raise AuditorGateFailure(
-            f"帰属汚染: auditor.diff_digest={auditor.diff_digest!r} だが実際の working_diff の "
-            f"digest={actual!r} — auditor が審査した diff と実際に build/検疫される diff が "
+            "帰属汚染: auditor.diff_digest と実際の working_diff の digest が不一致 — "
+            "auditor が審査した diff と実際に build/検疫される diff が "
             f"食い違う (規律6、宣言でなく機械照合、敵対レビュー 2026-07-10)")
     return actual
 
@@ -86,13 +175,22 @@ def auditor_reject_result(subtype: str, auditor: AuditorVerdict, *,
     `digest["subtype"]` だけ `auditor-violation`/`auditor-uncertain` で区別する (規律3:
     reject と uncertain を同一 bucket にしない)。軸固有の識別 (diff_region/
     template_diff_id) は呼び手 (各 driver の wrapper) が自軸定数を注入する。"""
+    # Lists remain mutable for compatibility with the existing dataclass API,
+    # so the recipient sink revalidates immediately before projection.
+    _validate_auditor_scalars(
+        auditor.verdict, auditor.diff_digest, auditor.uncertainty,
+    )
+    _validate_auditor_entries(
+        auditor.violations, auditor.nits, auditor.proposed_tests,
+    )
     evidence_parts = []
     if auditor.violations:
-        evidence_parts.append(f"violations={auditor.violations}")
+        codes = ",".join(
+            f"type-{entry['type']}" for entry in auditor.violations
+        )
+        evidence_parts.append(f"violations={codes}")
     if auditor.nits:
-        evidence_parts.append(f"nits={auditor.nits}")
-    if auditor.uncertainty:
-        evidence_parts.append(f"uncertainty={auditor.uncertainty}")
+        evidence_parts.append(f"nits={len(auditor.nits)}")
     reason = f"auditor verdict={auditor.verdict} ({len(auditor.violations)} violations)"
     return DiffQuarantineResult(
         passed=False, reason=reason,
@@ -112,30 +210,18 @@ def parse_auditor_dict(a: Dict) -> AuditorVerdict:
     キー自体を `d["auditor"]` で取り出すこと (`.get()` に頼らない — 欠落は KeyError で
     fails-closed)。"""
     verdict = a["verdict"]
-    if not isinstance(verdict, str) or verdict not in _AUDITOR_VERDICTS:
-        raise AuditorGateFailure(
-            f"auditor.verdict は {sorted(_AUDITOR_VERDICTS)} のいずれか (got {verdict!r}) — "
-            f"未知の値は fails-closed で拒否 (規律2、敵対レビュー 2026-07-10)")
     digest = a["diff_digest"]
-    if not isinstance(digest, str) or not digest:
-        raise AuditorGateFailure(
-            "auditor.diff_digest が空/非文字列 — quarantine() の working_diff と機械照合できない "
-            "(fails-closed、敵対レビュー 2026-07-10)")
+    uncertainty = a.get("uncertainty", "")
+    _validate_auditor_scalars(verdict, digest, uncertainty)
 
     typed_lists = {}
     for key in ("violations", "nits", "proposed_tests"):
         value = a.get(key, [])
-        if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
-            raise AuditorGateFailure(
-                f"auditor.{key} は list[dict] のみ (got {value!r}) — 構造化監査結果を "
-                "fails-closed で拒否 (規律2)")
         typed_lists[key] = value
-
-    uncertainty = a.get("uncertainty", "")
-    if not isinstance(uncertainty, str):
-        raise AuditorGateFailure(
-            f"auditor.uncertainty は string のみ (got {uncertainty!r}) — 構造化監査結果を "
-            "fails-closed で拒否 (規律2)")
+    _validate_auditor_entries(
+        typed_lists["violations"], typed_lists["nits"],
+        typed_lists["proposed_tests"],
+    )
 
     violations = typed_lists["violations"]
     if verdict == "pass" and violations:

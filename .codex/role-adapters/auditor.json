@@ -88,12 +88,42 @@
       },
       "nits": {
         "items": {
+          "additionalProperties": false,
+          "properties": {
+            "finding": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            },
+            "type": {
+              "const": "nit",
+              "type": "string"
+            }
+          },
           "type": "object"
         },
         "type": "array"
       },
       "proposed_tests": {
         "items": {
+          "additionalProperties": false,
+          "properties": {
+            "expected_gate": {
+              "type": "string"
+            },
+            "machine_judgment": {
+              "type": "string"
+            },
+            "mutation": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mutation",
+            "expected_gate",
+            "machine_judgment"
+          ],
           "type": "object"
         },
         "type": "array"
@@ -111,6 +141,32 @@
       },
       "violations": {
         "items": {
+          "additionalProperties": false,
+          "properties": {
+            "correctness_impact": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "type": {
+              "maximum": 16,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "verifier_blind_spot": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
           "type": "object"
         },
         "type": "array"
@@ -155,8 +211,8 @@
         "violations": "adapter-field:violations"
       }
     },
-    "output_schema_sha256": "9e066eb0fb92df9fb87e512bce30499becd51b9a2142b81c078cc66016957b57",
-    "role_manifest_sha256": "8110e01edc701803d2c5565d537ba9eceffe488fd44ef47eb76d5bc97307f4f9",
+    "output_schema_sha256": "1d716e740d58d9ab6d30bfc4817664d61f12b0a2c3682d8a29c57dd47508bff4",
+    "role_manifest_sha256": "a6edf4fe5f8938fa3b960625d0f21f5f9a31fa3ff7183128e22b097d79d79824",
     "source_file_sha256": "324ff727b78935f5915fe7c685ad93ae3f3b3df74de2056990060266858f53f8"
   },
   "role": "auditor",
@@ -168,7 +224,7 @@
   },
   "runtime_boundary": "static-only-runtime-blocked",
   "schema_version": "izanagi.codex-role-adapter/v1",
-  "semantic_digest": "b10a474159fbf21329bebfeba88e3e20cab7bca6df9907c6694595b9b36e6920",
+  "semantic_digest": "8b54d1fef777c7d270a2e88cc88e4f0f75a151589bc8dcbdafe1068bf74614f0",
   "semantic_projection_mode": "mediated-projection",
   "semantic_projection_mode_semantics": "tool-lowering-classification-only; does-not-prove-semantic-equivalence-or-consumer-wiring",
   "source": {
