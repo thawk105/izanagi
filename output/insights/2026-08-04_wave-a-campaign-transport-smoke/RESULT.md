@@ -87,6 +87,30 @@ build 前に `ValueError`」と定める (D36 決定4-4)。Pegasus 契約は `nu
 **正しさゲートは 1 つも緩めていない。** attestation で落ちたことを「通った」と書き換えず、
 numactl を偽装せず、verify 構成を弱めていない。
 
+## 受入全走
+
+Pegasus gen_S request 882661 (自動 dispatch)、270.26 s。
+
+```
+1 failed, 5430 passed, 19 skipped
+```
+
+**赤 1 件は本 wave の差分に由来しない。**
+`orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight`
+が `tools/ruleops.py inventory` の rc=2 で落ちる。理由は既に land 済みの別 wave の成果物
+`output/insights/2026-08-03_t361-t362-cluster-probes/evidence/.../home-read-write.probe.raw` が
+非 UTF-8 であり、inventory がこれを拒否するためである。
+
+帰属は実測で確定した — **wave 差分を含まない main (846d5a1) 単体で同じ command を走らせても
+同一 path・同一メッセージで rc=2 になる**。したがって本 wave は回帰を持ち込んでいない。
+現在 main の受入全走が赤である事実として別途起票した。
+
 ## 変異 matrix
 
 対象外。受理集合を変える実装差分がなく、gate も検査も新設していない。
+
+## 2 脚が別 campaign identity を取ったことの確認
+
+`evidence/campaign-layout/` に 2 つの campaign directory が残っている
+(`...-0a11751c` と `...-9785aec6`)。leg A と leg B が `trial_id` と `search_config` の差により
+別 campaign-id へ解決されたことの実測であり、`allow_resume=False` の Pegasus 契約と衝突していない。

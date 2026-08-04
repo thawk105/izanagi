@@ -51,6 +51,13 @@ title: 壁 1 の生死確認 — build 未到達で止まったが、塞いで�
 - `/work/1/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-08-03-task-def-rulings.md` の 3 件は
   **本 wave では台帳化しない**。[T-276] が D122 と逆方向であることが同ファイルに追記され、
   ユーザー再裁定待ちになったためである。争点のある裁定を確定として台帳へ書かない
+- **受入全走 = 5430 passed / 19 skipped / 1 failed** (Pegasus gen_S request 882661、270.26s)。
+  **赤 1 件は本 wave の差分に由来しない。** `test_ruleops.py::
+  test_real_checkout_independent_maximum_package_and_runner_preflight` が
+  `tools/ruleops.py inventory` の rc=2 で落ちる。原因は既に land 済みの別 wave の成果物
+  `output/insights/2026-08-03_t361-t362-cluster-probes/` 配下にある**非 UTF-8 の probe raw file**で、
+  inventory がこれを拒否する。**wave 差分なしの main (846d5a1) 単体で同一メッセージが再現する**ことを
+  実測して帰属を確定した ({{T:ruleops-nonutf8-artifact}} を起票)。本 wave は回帰を持ち込んでいない
 
 ## 次の一手差分
 
@@ -67,3 +74,8 @@ title: 壁 1 の生死確認 — build 未到達で止まったが、塞いで�
 - {{T:pegasus-s2-numactl-proxy}} **P3・新規**: `pipeline.py` の「numactl prefix が非空か」という
   代理条件を、単一 NUMA ノードでも意図どおり働く判定へ置き換えるかを検討する。
   attestation の裁定後、実機で発火を確認してから着手する。
+- {{T:ruleops-nonutf8-artifact}} **P1・新規**: **現在 main の受入全走が赤である。**
+  `output/insights/2026-08-03_t361-t362-cluster-probes/` 配下の非 UTF-8 probe raw file を
+  `tools/ruleops.py inventory` が拒否し、`test_ruleops.py` の real-repo 検査が落ちる。
+  凍結済み成果物の再エンコード・削除と、inventory 側で binary 成果物を許容する案の択一になる。
+  どちらも凍結 bytes か受理集合に触れるため裁定を要する。放置すると全 wave の受入が赤のままになる。
