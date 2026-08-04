@@ -1213,6 +1213,89 @@ def test_all_32_wires_materialize_byte_exact_frozen_emitter(monkeypatch):
         assert seen == [expected]
 
 
+def test_quarantine_and_audit_allows_predicate_outer_indentation(monkeypatch):
+    sub = _mk_template_dir()
+    canonical = emit_predicate(parse_wire(_CLEAN_WIRE))
+    indented = f"  {canonical}  "
+    _res, _base, _edited, working_diff = L.quarantine(
+        sub, indented, marker_id=T.MARKER_ID, source_rel=T.SOURCE_REL,
+        write=False,
+    )
+    from campaign.auditor_gate import compute_diff_digest
+    monkeypatch.setattr(T, "emit_predicate", lambda _ir: indented)
+    assert T._quarantine_and_audit(
+        sub,
+        T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE),
+        AuditorVerdict(
+            verdict="pass", diff_digest=compute_diff_digest(working_diff),
+        ),
+        _G, _tmp_layout("predicate-outer-indentation"),
+        L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
+        contract=T._admit_env_contract(site_policy.OTHER),
+        binding=_binding(),
+    ) is None
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    (
+        lambda predicate: predicate.replace(" = ", "  = ", 1),
+        lambda predicate: predicate + " trailing-garbage",
+    ),
+)
+def test_quarantine_and_audit_rejects_predicate_content_whitespace_drift_before_materialize(
+    monkeypatch, mutate,
+):
+    canonical = emit_predicate(parse_wire(_CLEAN_WIRE))
+    monkeypatch.setattr(T, "emit_predicate", lambda _ir: mutate(canonical))
+    monkeypatch.setattr(
+        L, "quarantine",
+        lambda *_args, **_kwargs: pytest.fail(
+            "predicate/binding 不一致が materialize に到達した"
+        ),
+    )
+    with pytest.raises(
+        RuntimeError, match="^trigger predicate と binding が不一致$",
+    ) as excinfo:
+        T._quarantine_and_audit(
+            _mk_template_dir(),
+            T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE),
+            AuditorVerdict(verdict="pass", diff_digest="unused"),
+            _G, _tmp_layout("predicate-content-drift"),
+            L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
+            contract=T._admit_env_contract(site_policy.OTHER),
+            binding=_binding(),
+        )
+    assert _CLEAN_WIRE not in str(excinfo.value)
+
+
+def test_quarantine_and_audit_rejects_crossed_predicate_and_binding_before_materialize(
+    monkeypatch,
+):
+    wire_a = _CLEAN_WIRE
+    wire_b = "01000"
+    monkeypatch.setattr(
+        L, "quarantine",
+        lambda *_args, **_kwargs: pytest.fail(
+            "predicate A / binding B の交差が materialize に到達した"
+        ),
+    )
+    with pytest.raises(
+        RuntimeError, match="^trigger predicate と binding が不一致$",
+    ) as excinfo:
+        T._quarantine_and_audit(
+            _mk_template_dir(),
+            T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=wire_a),
+            AuditorVerdict(verdict="pass", diff_digest="unused"),
+            _G, _tmp_layout("crossed-predicate-binding"),
+            L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
+            contract=T._admit_env_contract(site_policy.OTHER),
+            binding=_binding(wire_b),
+        )
+    assert wire_a not in str(excinfo.value)
+    assert wire_b not in str(excinfo.value)
+
+
 def test_preview_and_run_share_canonical_materialization(monkeypatch):
     import contextlib
     from campaign import patchharness

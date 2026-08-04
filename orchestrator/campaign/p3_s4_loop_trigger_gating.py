@@ -71,7 +71,9 @@ from campaign.projection_guard import (                            # noqa: E402
     assert_closed_proposal_schema,
     assert_no_ability_probe_material,
 )
-from campaign.reflux_ir import emit_predicate, parse_wire          # noqa: E402
+from campaign import reflux_ir as _reflux_ir                       # noqa: E402
+from campaign.reflux_ir import (TriggerGateIR, emit_predicate,     # noqa: E402
+                                parse_wire)
 from campaign.trigger_gate_binding import (                        # noqa: E402
     SCHEMA_VERSION as TRIGGER_GATE_BINDING_SCHEMA,
     WAL_RECORD_STAGE as TRIGGER_GATE_BINDING_WAL_STAGE,
@@ -394,6 +396,11 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
     predicate = emit_predicate(ir)
     if check_syntax_contract(predicate):
         raise RuntimeError("canonical trigger predicate violates syntax contract")
+    expected_predicate = _reflux_ir.emit_predicate(
+        TriggerGateIR(binding.mask)
+    )
+    if predicate.strip() != expected_predicate.strip():
+        raise RuntimeError("trigger predicate と binding が不一致")
     res, _base, _edited, working_diff = L.quarantine(
         sub, predicate, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=write)
     if not res.passed:

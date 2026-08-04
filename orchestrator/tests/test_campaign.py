@@ -1830,9 +1830,10 @@ def test_trigger_campaign_epoch_never_writes_pre_t428_paths():
     from campaign import loop as campaign_loop
     from campaign import p3_s4_loop_trigger_gating as trigger_driver
 
+    # 4f0d020 default_cfg の marker 前 other/compute config を ident.campaign_id で再計算。
     old_ids = {
-        "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5",
         "p3-s8a-trigger-loop-s8a-trigger-autonomous-0e79a5f1",
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-63bc09ae",
     }
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     cfg = trigger_driver.default_cfg()

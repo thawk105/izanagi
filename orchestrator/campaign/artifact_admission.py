@@ -480,7 +480,9 @@ def _validate_trigger_provenance(
 def _validate_post_policy_campaign_id(
         *, lock_raw: bytes, lock: object, campaign_id: str,
 ) -> None:
-    """Recompute the directory identity from the canonical lock preimage."""
+    """Pin canonical lock bytes and directory identity for trigger proposals."""
+    if not wal.is_trigger_proposal_campaign_lock(lock):
+        return
     if type(lock) is not dict:
         raise ArtifactAdmissionError("post-policy campaign.lock が object でない")
     try:

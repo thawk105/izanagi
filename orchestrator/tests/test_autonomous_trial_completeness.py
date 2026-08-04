@@ -17,6 +17,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from orchestrator.campaign import autonomous_trial_completeness as C  # noqa: E402
+from orchestrator.campaign import ident                              # noqa: E402
 from orchestrator.campaign import p3_autonomous_workload_trial as A  # noqa: E402
 from orchestrator.campaign import layer3_report as L3                 # noqa: E402
 from orchestrator.campaign import pipeline as P                       # noqa: E402
@@ -27,7 +28,8 @@ from orchestrator.campaign.build_admission import (                  # noqa: E40
     derive_build_admission,
 )
 from orchestrator.campaign.pin import CURRENT_PIN                    # noqa: E402
-from orchestrator.campaign.model import Genome                       # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout              # noqa: E402
+from orchestrator.campaign.model import CampaignConfig, Genome       # noqa: E402
 from orchestrator.campaign.source_digest import (                    # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
@@ -1212,16 +1214,18 @@ def _layer3_campaign(
     workload_flags = metadata["workload_flags"]
     descriptor = metadata["descriptor"]
     descriptor_binding = metadata["descriptor_binding"]
-    campaign_id = _T428_POLICY_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
-    metadata["campaign_id"] = campaign_id
-    metadata["campaign_root"] = str(output_root / "campaigns" / campaign_id)
-    campaign = output_root / "campaigns" / campaign_id
-    (campaign / "runs").mkdir(parents=True)
-    (campaign / "reports").mkdir()
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
-    lock = {
-        "ccbench_commit": CURRENT_PIN,
-        "search_config": {
+    campaign_cfg = CampaignConfig(
+        spec_slug=f"p3-t178-{workload}",
+        search_tag="workload-conditioned-autonomous",
+        spec_content=(
+            "T-178 exploratory YCSB A/B/C workload-conditioned unattended synthesis. "
+            "Python invokes fresh projected planner/coder/auditor/critic roles; existing "
+            "trigger-gating quarantine/correctness/performance harness remains authoritative. "
+            "Fixed generations, no performance-target early stop, no formal descriptor claim."
+        ),
+        ccbench_commit=CURRENT_PIN,
+        search_config={
             "axis": "silo-backoff-trigger-gating",
             "descriptor_schema": "8b-v1",
             "descriptor_sha256": descriptor_binding["output_sha256"],
@@ -1238,17 +1242,19 @@ def _layer3_campaign(
             "ycsb": workload_flags,
             "build_admission": dict(context.policy.as_preimage()),
         },
-        "search_tag": "workload-conditioned-autonomous",
-        "spec_content": (
-            "T-178 exploratory YCSB A/B/C workload-conditioned unattended synthesis. "
-            "Python invokes fresh projected planner/coder/auditor/critic roles; existing "
-            "trigger-gating quarantine/correctness/performance harness remains authoritative. "
-            "Fixed generations, no performance-target early stop, no formal descriptor claim."
-        ),
-        "trial": f"{trial_id}-{workload}",
-    }
-    lock_path = campaign / "campaign.lock"
-    lock_path.write_text(json.dumps(lock), encoding="utf-8")
+        trial=f"{trial_id}-{workload}",
+    )
+    campaign_id = str(ident.campaign_id(campaign_cfg))
+    assert campaign_id == _T428_POLICY_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
+    metadata["campaign_id"] = campaign_id
+    metadata["campaign_root"] = str(output_root / "campaigns" / campaign_id)
+    campaign = output_root / "campaigns" / campaign_id
+    layout = CampaignLayout(root=str(campaign)).ensure()
+    assert ident.ensure_campaign_identity(
+        campaign_cfg, layout, admission_policy=context.policy,
+    )
+    assert Path(layout.lock_file).read_bytes() == \
+        ident.canonical_preimage(campaign_cfg).encode("utf-8")
     state_path = campaign / "loop_state.json"
     state_path.write_text(
         json.dumps({"whiteboard": []}), encoding="utf-8",

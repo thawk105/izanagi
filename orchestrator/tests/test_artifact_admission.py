@@ -342,19 +342,55 @@ def test_post_policy_trigger_machine_sweep_does_not_require_binding(tmp_path: Pa
         _new_schema_campaign(tmp_path),
         marker=False, proposal=False, binding=False,
     )
+    lock_path = campaign / "campaign.lock"
+    lock_path.write_text(json.dumps(json.loads(lock_path.read_text())), encoding="utf-8")
+    arbitrary_layout = campaign.parent / "machine-sweep-layout"
+    campaign.rename(arbitrary_layout)
+    campaign = arbitrary_layout
     decision = A.classify_campaign(campaign)
     assert decision.classification == "admitted-new-schema"
     assert decision.admission_status == "admitted"
 
 
-def test_post_policy_campaign_directory_id_must_match_lock_preimage(
+def test_nontrigger_post_policy_preserves_default_json_and_arbitrary_layout(
     tmp_path: Path,
 ) -> None:
     campaign = _new_schema_campaign(tmp_path)
+    lock_path = campaign / "campaign.lock"
+    lock_path.write_text(json.dumps(json.loads(lock_path.read_text())), encoding="utf-8")
+    arbitrary_layout = campaign.parent / "formal-shaped"
+    campaign.rename(arbitrary_layout)
+
+    decision = A.classify_campaign(arbitrary_layout)
+    assert decision.classification == "admitted-new-schema"
+    assert decision.campaign_id == "formal-shaped"
+
+
+def test_post_policy_campaign_directory_id_must_match_lock_preimage(
+    tmp_path: Path,
+) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path),
+        marker=True, proposal=True, binding=True,
+    )
     renamed = campaign.parent / "campaign-test-deadbeef"
     campaign.rename(renamed)
     with pytest.raises(A.ArtifactAdmissionError, match="directory ID"):
         A.classify_campaign(renamed)
+
+
+def test_post_policy_trigger_proposal_requires_canonical_lock_bytes(
+    tmp_path: Path,
+) -> None:
+    campaign = _classify_as_trigger(
+        _new_schema_campaign(tmp_path),
+        marker=True, proposal=True, binding=True,
+    )
+    lock_path = campaign / "campaign.lock"
+    lock_path.write_text(json.dumps(json.loads(lock_path.read_text())), encoding="utf-8")
+
+    with pytest.raises(A.ArtifactAdmissionError, match="canonical preimage"):
+        A.classify_campaign(campaign)
 
 
 def test_proposal_cannot_be_rewritten_as_machine_sweep_with_coder_receipt(

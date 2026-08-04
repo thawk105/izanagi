@@ -33,7 +33,8 @@ SOURCE_FILE_SHA256 = {
 # model、consumer、forbidden classes、capability lowering、projection instructions を含む。
 # 値は manifest renderer から自動更新してはならず、契約変更を人間レビューした時だけ更新する。
 ROLE_MANIFEST_SHA256 = {
-    "auditor": "8110e01edc701803d2c5565d537ba9eceffe488fd44ef47eb76d5bc97307f4f9",
+    # Reviewed 2026-08-04: stage6-fix-ruling.md 2 巡目裁定 r1-3。
+    "auditor": "a6edf4fe5f8938fa3b960625d0f21f5f9a31fa3ff7183128e22b097d79d79824",
     "axis-proposer": "57d9bd635e99c5eab2e7fb852043446ffe6c0aff1a1fa48ed5b724c4ae041ad1",
     "calibrator": "775d8e9fa963b6f2d895ffcb7be14a7ce487ea82911fd797f4f6bb840d8e9186",
     "coder": "2af1a88e8f8cae73e251d067ba47ea4b1acd5457083111d3dc719914d199e136",
@@ -77,7 +78,8 @@ DESCRIPTION_SHA256 = {
 SCHEMA_SHA256 = {
     "auditor": {
         "input": "1b74afcd7a4100722d600004e3dba20245e548750937b87506c1a6fe55f68094",
-        "output": "9e066eb0fb92df9fb87e512bce30499becd51b9a2142b81c078cc66016957b57",
+        # Reviewed 2026-08-04: stage6-fix-ruling.md 2 巡目裁定 r1-3。
+        "output": "1d716e740d58d9ab6d30bfc4817664d61f12b0a2c3682d8a29c57dd47508bff4",
     },
     "axis-proposer": {
         "input": "3da4142a4dda56f7c88296cb1ea6f540cd7577a9a49fa8fa25a44b0a7e4c8c10",

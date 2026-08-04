@@ -277,10 +277,7 @@ def _assert_fresh_campaign_state(layout: CampaignLayout) -> None:
 def _strict_keys(value: Mapping[str, Any], expected: set[str], *, path: str) -> None:
     actual = set(value)
     if actual != expected:
-        raise AutonomousTrialError(
-            f"{path} keys 不一致: missing={sorted(expected - actual)} "
-            f"unknown={sorted(actual - expected)}"
-        )
+        raise AutonomousTrialError("response object keys 不一致")
 
 
 def _string(value: Any, *, path: str, allow_empty: bool = False) -> str:

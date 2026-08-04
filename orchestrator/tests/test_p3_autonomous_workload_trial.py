@@ -830,6 +830,51 @@ class _InvalidPlanner:
         )
 
 
+class _UnknownKeyPlanner:
+    def __init__(self, unknown_key: str) -> None:
+        self.unknown_key = unknown_key
+
+    def invoke(self, *, invocation_id, payload):
+        return A.ProviderResponse(
+            raw_response=json.dumps({
+                "proposal": {},
+                self.unknown_key: True,
+            }),
+            provenance={"child_id": invocation_id},
+        )
+
+
+def test_unknown_response_key_is_not_reflected_to_journal_or_trial_report(
+    tmp_path,
+) -> None:
+    raw_key = "wire=10100 mask=5"
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["planner"] = _UnknownKeyPlanner(raw_key)
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="unknown-key-redaction",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+    )
+    journal_text = (run_root / "attempts.jsonl").read_text(encoding="utf-8")
+    report_text = (run_root / "report.json").read_text(encoding="utf-8")
+    assert raw_key not in journal_text
+    assert raw_key not in report_text
+    assert raw_key not in json.dumps(report, ensure_ascii=False, sort_keys=True)
+    assert "response object keys 不一致" in journal_text
+    assert "response object keys 不一致" in report_text
+
+
 def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 3)
     providers = {
