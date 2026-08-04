@@ -181,3 +181,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:exploration-resume-root-manifest":"[T-457]","T:official-campaign-root-externalization":"[T-456]"},"authored":"2026-08-04","content_sha256":"a5945593d4b78d765cc07c49cdd6147900d0645aa48b76c346de5b2657a85e93","seq":1,"wave":"dev-wave-t422-campaign-external-root"}
 - {"allocations":{"D:exploration-external-output-root":"D158"},"authored":"2026-08-04","content_sha256":"d0bfa7029e3959174dfb3d0dd8f6c57319d6d6e7fe07d6330d13aa69284f1699","seq":2,"wave":"dev-wave-t422-campaign-external-root"}
+
+- {"allocations":{"T:mutation-harness-diagnostic-category":"[T-458]"},"authored":"2026-08-04","content_sha256":"d5ce037ee7dca54d0092b184f9d699d2eda4ad21187d5a353b5ff3d77dc265c5","seq":1,"wave":"dev-wave-t244-p3-redesign"}
+- {"allocations":{"D:p3-origin-ledger-prototype-v3":"D159"},"authored":"2026-08-04","content_sha256":"216f109daeaa22023de1d3f15fb67a363f0629ccb051f9a55939e78e3f15726d","seq":2,"wave":"dev-wave-t244-p3-redesign"}
+- {"allocations":{},"authored":"2026-08-04","content_sha256":"7be16005ee46163bf89710652dfbde6a211bb8d920411bddcb031c5abdd12003","seq":3,"wave":"dev-wave-t244-p3-redesign"}
