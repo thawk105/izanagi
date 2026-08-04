@@ -81,6 +81,13 @@ title: [T-340] third-party source の取得経路を tools/pegasus へ置いた 
   `test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory` が
   受入全走 1 回で setup error になった (`/tmp` の git object copy が `No such file or directory`)。
   **単独再走 97 passed で再現せずフレーク**。xdist 並列下の `/tmp` 競合が疑われる
+- {{T:mutation-runner-known-red}} **P3・新規・ユーザー裁定要 (dev-wave 改善候補、予算外)**:
+  **変異 harness の `KILLED` 判定は赤 node 集合の完全一致**であるため、main 側に既知赤が
+  1 件でもあると**全変異が `MISMATCH` になる**。本 wave は runner から既知赤 node を
+  `--deselect` して回避したが、この作法はどの reference にも書かれていない。
+  `docs/dev-wave/**` は 25,196/25,200 bytes で 4 bytes しか余裕が無く、意味等価な縮約でも
+  入らなかった。択 = (a) 予算を空けて `DW-M05` か `DW-M08` へ 1 行足す、
+  (b) harness 側に既知赤の除外機構を作る、(c) 運用規律に委ねる
 - {{T:thirdparty-cache-same-uid-toctou}} **P3・新規**:
   **repo 外 cache に対する同一 UID 敵対者への完全防御は入れていない。** symlink 拒否・
   publish 後再検証・fresh clone までは入れたが、dirfd + inode pinning による親 component の
