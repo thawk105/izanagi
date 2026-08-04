@@ -19,8 +19,11 @@ title: [T-244] P3 producer 結線は実装を止めた — prototype が product
 - 実際に行った工程: worktree 作成 → submodule init → `check_wave_startup.py --external-handoff` OK →
   段 1 前提実測 (M1〜M11) → 受入ベースライン取得 → 段 2 codex プラン → 段 3 敵対レンズ 2 本並列 →
   段 4 裁定 → 段 7 記録。実装子 (段 5) と fix・レビュー子 (段 6) は起動していない。
-- **受入ベースラインは 5900 passed / 19 skipped, rc=0** (計算ノード request 889217、448.90s、
-  起点 main 55c2e84 の worktree)。これは実装前の環境健全性確認であって、差分の受入ではない。
+- **受入は 2 回とも緑。** 起点 main 55c2e84 の worktree で 5900 passed / 19 skipped, rc=0
+  (計算ノード request 889217、448.90s)。local main e93cd9b を取り込んだ tip でも
+  5900 passed / 19 skipped, rc=0 (request 889278、481.75s)。**いずれも実装前の環境健全性確認
+  および取り込み後の非破壊確認であって、実装差分の受入ではない** (差分は docs のみ)。
+  provenance 全履歴監査は取り込み後 1185 件で違反なし、`check_docs.py` も違反なし。
 - **親の段 1 記述を 4 点訂正した。** (1) 代案 (P1') を撤回 — E 段 loop の proposal file schema は
   auditor verdict と diff digest を必須にするため、複数候補を評価前に用意できない
   (レンズ A の反証を親が実ファイルで裏取り)。(2) 「現行 caller はどれも合法 batch を作れない」を
