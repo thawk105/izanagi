@@ -46,14 +46,23 @@ title: [T-409] EVOLVE-BLOCK hole の受理文法を設計凍結し、実装は�
   (「サイバーセキュリティ上のリスク」)。依頼文が「関所を通る入力を作れ」という攻撃者視点
   だったため。防御目的 (境界テストの negative ベクタ設計) を明示した prompt で再投入して成功。
   凍結してあるのは再投入版の出力である
-- **受入 (docs のみ): 全スイート = 2 failed, 5437 passed, 19 skipped。`check_docs.py` / fold dry-run /
-  `check_ai_provenance.py` (992 件) はいずれも緑。赤 2 件はどちらも本 wave の差分に帰属しない。**
-  (1) `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight` は
-  main c642263 以前から赤で、[T-407] 所有の非 UTF-8 blob 由来。clean tree で単独再現を実測して
-  切り分けた。レンズ A の警告を採用し、今後の waiver は nodeid だけでなく `non-utf8` + 対象 path で
-  固定する。(2) `test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table` は
-  **単独再走で 64 passed となり再現しない** ため DW-O18 に従いフレークとして起票する (下記新規)。
-  本 wave の差分は docs のみでこの経路へ到達しえない
+- **受入 (docs のみ): 既知赤 waiver W1 を適用して land した。**
+  全走の実測 = **`1 failed, 5438 passed, 19 skipped`** (main 649b800 / wave tip 8307209 で計測、
+  Pegasus gen_S)。赤 node は
+  `orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  の 1 件のみ。W1 の毎回検査を実施した — (1) **原因の同一性**: `python3 tools/ruleops.py inventory --repo .`
+  が rc=2 で、出力が `blob が非 UTF-8:` を含み、指す path が
+  `output/insights/2026-08-03_t361-t362-cluster-probes/evidence/.../home-read-write.probe.raw`
+  (`output/insights/**/evidence/**` 配下) であること。(2) **帰属検査**: 本 wave の差分
+  (`git diff --name-only 649b800..8307209` = docs 9 ファイル) がその path に触れていないこと。
+  `check_docs.py` / fold dry-run / `check_ai_provenance.py` (1000 件) はいずれも緑
+- **1 回目の全走 (main c642263 時点) は 2 failed だった。**
+  増えた 1 件 `test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table` は
+  **単独再走で 64 passed、確定 tip の全走でも再発せず**、DW-O18 に従いフレークとして起票する
+  (下記新規)。当初これを ruleops と同一原因と書いたのは traceback の取り違えで、実際は
+  `_run_case` の子プロセスが stdout / stderr 空のまま rc=1 で終わる別物である。
+  本 wave の差分は docs のみで、どちらの経路へも到達しえない。
+  レンズ A の警告を採用し、今後の waiver は nodeid だけでなく `non-utf8` + 対象 path で固定する
 - **verifier は workload 縮小を構造的に検出しない (段 3 が裏取り)。** trace は commit した実際の
   read/write 集合しか出さず、`orchestrator/verifier/model.py:37` の `Txn` に予定操作数の欄が無く、
   `:132` の integrity にも `FLAGS_ycsb_max_ope` 照合が無い。verifier 側の不変条件追加は別 task 候補。
