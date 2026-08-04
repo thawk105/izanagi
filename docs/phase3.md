@@ -469,7 +469,12 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      campaign checkpoint の freshness を検査する。**機械化したのは予算と freshness だけ**である。
      同じ上限定数は `autonomous_trial_completeness.py` の run-envelope / campaign-chain の
      2 consumer gate も読む。存在しないのは前提条件 10 件と cap-lift receipt の評価器である。
-     `drive` 注入・driver 直接反復・並行 start race は保証対象外 (D114「保証の限界」)。
+     caller 注入 `providers` (D148) と explicit keyword の `drive` / `preview` 注入
+     ([T-244] U-1、2026-08-04) は正式経路の `run_trial()` が artifact 作成前に拒否する。
+     拒否できるのは explicit keyword だけ — private sentinel の持込み・module 属性再束縛・
+     sentinel を束縛した wrapper / partial・同一 process 実行中の差替えは保証対象外で、
+     保存済み artifact からの事後判定もできない。driver 直接反復・並行 start race も
+     保証対象外 (D114「保証の限界」)。
      **2026-08-01 の [T-244] 還流設計 wave (D121) で設計 draft を起草した** — ユーザー裁定の軸 (i)
      (機械が failure を単調な safety constraint へ変換し generator は理由を読まない) を主軸、
      軸 (iv) (campaign より上位の origin へ総 iteration・総 query・公開 class を束縛) を併用する。
