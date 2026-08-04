@@ -29,10 +29,15 @@ title: [T-244] D121 P2 の非干渉検査は実装を差し戻す — 現行 cri
 - **親の手順違反を 1 件記録する。** 段 1 brief の環境記述「login ノードで pytest」は正本違反である
   (ログインノードでの pytest は単一 nodeid も含めて禁止、親が計算ノードへ dispatch する)。
   本 wave は実装差分ゼロで pytest を走らせなかったため実害は生じなかった。
-- **ユーザー裁定待ちが 4 件ある** (U-1 critic recipient policy、U-2 auditor declassification の定義、
-  U-3 「IR schema SHA」の preimage、U-4 実装 wave の再起票可否)。いずれも payload の field か値の
-  変更を伴い、親の裁量外である。裁定パッケージの正本 =
+- **ユーザー裁定待ちが 5 件ある** (U-1 critic recipient policy、U-2 auditor declassification の定義、
+  U-3 「IR schema SHA」の preimage、U-4 実装 wave の再起票可否、U-5 dev-wave 予算の飽和)。
+  U-1〜U-4 はいずれも payload の field か値の変更を伴い、親の裁量外である。裁定パッケージの正本 =
   `output/insights/2026-08-05_t244-p2-noninterference/s4-adjudication.md`。
+- **段 8 の自己改善が予算で実施不能だった。** 実測に基づく改善候補 2 件 (段 1 の環境確定に
+  テスト実行場所と dispatch 経路を含める / 段 2 の prompt で brief の判定基準を狭めない) を記録したが、
+  `docs/dev-wave/**` の合計予算は本 wave 開始時点で 25,196 / 25,200 bytes と残り 4 bytes しかなく、
+  必要な +142 bytes が入らないため**両方とも撤回した**。既存の安全義務を削って捻出することはしていない。
+  予算そのものの扱いは裁定 U-5 として返す。
 - 工数は codex 子 3 本 (段 2 プラン 1 本、段 3 敵対 2 本、いずれも read-only・reasoning=max)。
   実装子と fix 子は起動していない。
 
@@ -49,10 +54,12 @@ title: [T-244] D121 P2 の非干渉検査は実装を差し戻す — 現行 cri
   依存し親の裁量外、(iii) `_invoke` 冒頭の fail-closed raise は build mode で terminal report を
   作れない経路を残す。**P2 は依然 FAIL** で、無条件義務 8 件のうち充足は P10 の 1 件のみ、
   D114 の上限 1 も不変。実装差分がないため変異 matrix と受入全走は対象外。
-  **ユーザー裁定待ち U-1〜U-4** = critic recipient policy (推奨 (i) 不透明 ID 置換、受理集合に
+  **ユーザー裁定待ち U-1〜U-5** = critic recipient policy (推奨 (i) 不透明 ID 置換、受理集合に
   波及するため D96 手続)、auditor declassification の定義 (推奨 (ii) 現状を明示的 declassification
   として会計し reflux-control 実装時に戻す条件を同時固定)、「IR schema SHA」の preimage
   (推奨 = emitter source + 32 golden の複合)、実装 wave の再起票可否 (推奨 = U-1〜U-3 確定後)。
+  **U-5** = `docs/dev-wave/**` の予算飽和 (残 4 bytes) で段 8 の自己改善が実施不能である件
+  (推奨 = 陳腐化節の棚卸しと L2 のテスト移管を別タスクで行う。予算値の引き上げは提案しない)。
   確定後に実装すべき形も記録した — secret を候補 wire、公開入力を固定して provider へ渡る
   serialized bytes の同一性を見る indistinguishability 検査であり、planner/coder は PASS、
   auditor は明示 declassification、**critic は FAIL になる**と予測済み。
