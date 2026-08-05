@@ -53,7 +53,7 @@ title: [T-474] 旧 trigger artifact に admitted view を名乗らせない — 
   合成 lock の真理値表・corpus 反例 6 件・正例 21 件・trusted snapshot census・
   read/hash 間への決定論的注入で固定した。変異 10/10 kill。
   remaining: none
-  base: d1188daed4c3528da5e8cebb597ae7a059f3392323ea07e148b8a18774e4c948
+  base: ad06a23d593c9421818c2d5e5c738dae8517fad208e219d21b5f05b5978f1c61
 
 ### 新規
 
