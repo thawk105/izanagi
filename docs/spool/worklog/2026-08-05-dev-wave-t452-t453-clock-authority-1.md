@@ -58,6 +58,12 @@ title: [T-452][T-453] 実効クロック許容幅の権威を単一 policy 定�
   停止したため `--resume` で継続した。
 - 設計判断は {{D:effective-clock-policy-authority}}、fix が正しさゲートを外した件は
   {{F:test-green-by-removing-production-gate}} に記録した。
+- **段 8 の自己改善は候補 3 件を挙げたが、docs 予算に収まらないため 1 件も実装せず裁定へ返した。**
+  `docs/dev-wave/**` は hard ceiling 25200 bytes に対し現状 25198 bytes で、**残り 2 bytes** である。
+  最も価値の高い候補 (「期待値を保ったまま production の検査を外して緑にするのも禁止」) を
+  既存 bullet (`DW-S05-C` の F27 行) へ最短形で統合し、意味の重複 2 箇所を縮約してもなお
+  **44 bytes 超過**した。安全義務を削って空けることは契約が禁じるため編集を全て取り消し、
+  {{T:dev-wave-docs-budget-at-ceiling}} として返す。予算値の変更は独立審査対象である。
 
 ## 次の一手差分
 
@@ -101,6 +107,16 @@ title: [T-452][T-453] 実効クロック許容幅の権威を単一 policy 定�
   U-1〜U-8 の射程外のため、本 wave では**現挙動を保存して回帰テストで pin した**。
   修正の可否と、修正時に `t126-qualification-attestation/v2` へ envelope を上げて
   `observed_profile_projection_schema` を記録するか (段 3 A-6 / B-2) を同時に裁定してほしい
+- {{T:dev-wave-docs-budget-at-ceiling}} **P2・新規 (段 8 で実測)**:
+  `docs/dev-wave/**` が hard ceiling 25200 bytes に対し 25198 bytes で、**自己改善の余地が実質ゼロ**に
+  なっている。本 wave は実測に基づく改善候補 3 件を挙げながら 1 件も入れられなかった —
+  (a) 「期待値を保ったまま production の検査を外して緑にするのも禁止」(実害あり、本 wave の
+  NREG-CPU-1)、(b) 変異 spec の期待 node は collection 実在の厳密 ID (parametrize 込み) で書き
+  狙った gate の検査を指す (本 wave で erratum 3 件と harness abort 1 回)、(c) 論理式へ
+  `False and` を挿入する変異は演算子の束縛を確認する (`or` 連鎖では実効 gate が残る。本 wave の M6)。
+  最短形への統合と重複 2 箇所の縮約でも 44 bytes 超過した。**裁定を要する** —
+  予算内に収める方法 (陳腐化した節の削除・テスト化による代替) を先に決めるか、
+  予算値の独立審査を開くか。安全義務を削る縮約は選択肢にしない
 - {{T:silo-driver-syspath-restore}} **P3・新規 (段 6 焦点再レビュー IMP-R1)**:
   `silo_ladder_rung1` の module 名統一で恒久挿入されるようになった orchestrator root を、
   本 wave の fix 2 巡目で fetcher 側の完全復元により閉じた。同種の import root 挿入が他の
