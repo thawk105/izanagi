@@ -38,6 +38,19 @@ title: [T-244] D121 P2 の非干渉検査は実装を差し戻す — 現行 cri
   `docs/dev-wave/**` の合計予算は本 wave 開始時点で 25,196 / 25,200 bytes と残り 4 bytes しかなく、
   必要な +142 bytes が入らないため**両方とも撤回した**。既存の安全義務を削って捻出することはしていない。
   予算そのものの扱いは裁定 U-5 として返す。
+- **受入全走を 3 回実測し、3 回目が緑だったので waiver を使わずに land した。** 実装差分ゼロの
+  wave だが `DW-S07` が docs commit 後の repo scan invariant 再走を義務づけるため全走を行った。
+  1 回目 = 5899 passed / 1 failed、赤は `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  ({{T:ruleops-inventory-parallel-flake}} として新規起票)。
+  2 回目 = 5899 passed / 1 failed、赤は既知の [T-476] ただ 1 件 (`:711` の
+  `assert probe_state == "blocked"`、W2 の適用条件 (1)(2)(4)(5) を満たす)。
+  3 回目 = **5900 passed / 19 skipped / 0 failed (rc=0)**。
+  **回ごとに赤の node が入れ替わり、いずれも単独走行は緑** (ruleops 90 passed、origin ledger
+  18 passed、`tools/ruleops.py inventory` 単体も rc=0)。本 wave の差分は docs のみで
+  `tools/` にも `orchestrator/` にも到達しないため `DW-O18` に従い実装差分へ帰属させない。
+  **W2 は「本 wave の docs のみの差分に対して適用したもの」と書かれており他 wave への拡張は
+  親の裁量外と判断したため、3 回目の緑で land した (W2 は未使用・未消費)。**
+  測定 checkout = `worktree-dev-wave-t244-p2-noninterference`、main 取り込み後の tip。
 - 工数は codex 子 3 本 (段 2 プラン 1 本、段 3 敵対 2 本、いずれも read-only・reasoning=max)。
   実装子と fix 子は起動していない。
 
@@ -67,3 +80,17 @@ title: [T-244] D121 P2 の非干渉検査は実装を差し戻す — 現行 cri
   P1・P3・P4・P5 の状況と逐語の所在は前エントリのまま変わらない。
   本 wave の逐語 = `output/insights/2026-08-05_t244-p2-noninterference/`
   base: 90a545202dce7e61e08d3c1b7830e95468ce4c8625b9514dcf272505814be10b
+
+### 新規
+
+- {{T:ruleops-inventory-parallel-flake}} **P2・新規 (land を断続的に塞ぐ 2 例目)**:
+  `orchestrator/tests/test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  が並列受入全走で赤になった (`tools/ruleops.py inventory --repo <checkout>` が exit 2)。
+  同 file の単独走行は 90 passed、同じ command の単独実行も rc=0 で再現しない。
+  本 wave の全走 3 回のうち 1 回だけ発火した (1 回目赤、2・3 回目緑)。
+  実測 checkout は docs のみの差分しか持たず `tools/` へ到達しないため、差分への帰属は成立しない。
+  [T-476] と**同型だが別 node**であり、これで「並列全走の負荷下でのみ落ちる real-repo テスト」が
+  独立 2 例目になった。`DW-G03` の族一般化条件 (同型欠陥が異なる producer/consumer で独立に
+  2 件再現) を満たすため、個別修理でなく **real-repo テストが並列全走中に外部 command と
+  git を叩く構造そのもの**を見直す。exit 2 の原因特定 (負荷下の git 失敗か、
+  他 worker との working tree 競合か) を先に行う
