@@ -62,6 +62,14 @@ title: [T-476] main を断続的に赤くしていた flock 競合窓テスト�
   (traceback に `mutant: drop the PROBE notification` が写っている)。この赤は成果物の欠陥ではなく
   計測の無効である。harness の repo lock は**他の harness だけ**を排除し、素の受入全走は
   排除しない。恒久対応は {{F:mutation-run-vs-acceptance-run}}。
+- **手順違反 2 件目 (自己申告、1 件目と同型)**: 上記フレークの起票を書くために、
+  **受入全走 (request 889465) の実行中に本 fragment を編集し `git add` した。**
+  結果、`test_check_docs.py::test_real_repo_clean` が中間状態を拾って赤くなり
+  (`1 failed / 6038 passed`)、`git add` は real_repo 系テストが保持する `index.lock` とも衝突した。
+  **受入全走はこの worktree に対して git 操作を行う**ため、走行中の編集・stage・commit は
+  木を壊さなくても計測を無効にする。これは worklog (194) が同じ形で自己申告した違反の再発であり、
+  本 wave では 1 件目 (変異注入中の全走投入) と合わせて 2 回踏んだ。恒久対応は
+  {{F:mutation-run-vs-acceptance-run}} の memory を「計測中の worktree は読むだけ」まで広げた。
 - **段 8 自己改善**: 候補 2 件を裁定した。(1) 上記の計測汚染 → failures へ起票し、恒久対応は
   memory `no-acceptance-run-during-mutation` に置いた。`DW-M05` への追記を試みたが
   `docs/dev-wave/` の byte 予算が上限まで残り 4 bytes で入らず、**上限は上げない方針**に従って
@@ -89,6 +97,18 @@ title: [T-476] main を断続的に赤くしていた flock 競合窓テスト�
   Pegasus scheduler へ到達できず (`qstat -Q` が sandbox で失敗、rc=16)、
   **正しく「緑を主張しない」と報告した**。テスト実測はすべて親が行った。
 
+- **land 直前の merge 後全走で、無関係な赤を 1 件観測した。** local main 33 commit を
+  merge commit で取り込んだ後の全走 (request 889456) が
+  `1 failed / 6038 passed / 19 skipped` を返し、赤は
+  `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  ただ 1 件だった。`tools/ruleops.py inventory --repo <worktree>` が **exit 2** で落ちている。
+  本 wave の差分は `orchestrator/tests/test_reflux_origin_ledger.py` と `docs/spool/` だけで
+  `tools/ruleops.py` にも同テストにも到達しない。`DW-O18` に従い単独再走で再現性を実測したところ
+  **90 passed / rc=0** で再現せず、親環境での `ruleops.py inventory` 単独実行も rc=0 だった。
+  よって実装差分へ帰属させず、フレークとして {{T:ruleops-real-repo-inventory-flake}} を起票する。
+  exit 2 は `RuleOpsError` / `OSError` / その他例外の総称で、テストが子の stderr を
+  assertion message へ出さないため理由が残っていない (この診断欠落自体が起票内容に含まれる)。
+
 ## 次の一手差分
 
 ### 完了
@@ -98,3 +118,15 @@ title: [T-476] main を断続的に赤くしていた flock 競合窓テスト�
   5900 passed / 0 failed。既知赤 waiver W2 は本 land で失効する。
   remaining: none
   base: 20f74230f0214e972b7929d2204747b4285bbbf615f155fe22f0e6c0dcd61d11
+
+### 新規
+
+- {{T:ruleops-real-repo-inventory-flake}} **P2・新規 (受入全走を断続的に赤くする)**:
+  `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  が並列受入全走で `tools/ruleops.py inventory` の **exit 2** により赤くなった
+  (request 889456)。同 file の単独走行は 90 passed、親環境での単独実行も rc=0 で再現しない。
+  並行 wave が共有 `.git` を触っている最中の git 呼び出し失敗が疑われるが、**exit 2 が
+  `RuleOpsError` / `OSError` / 汎用例外の総称で、テストが子の stderr を assertion message へ
+  出さないため理由が残らない**。まず失敗時に子の stdout / stderr を診断へ出す
+  (これが無いと次の再発でも原因が分からない)。そのうえで、共有 `.git` への並行アクセス下で
+  inventory が fail-closed で落ちる条件を特定する。所有は ruleops 系
