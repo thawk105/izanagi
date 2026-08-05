@@ -39,7 +39,8 @@ from .schema_v2 import (SCHEMA_VERSION, normalize_request_id,
 from .sweep import MAX_RECORDS_DEFAULT, calibrate
 from .tsc import TscMeasurement, measure_tsc
 from campaign import env_attestation as _env_attestation
-from campaign.execution_guard import effective_clock_comparison_passes
+from campaign.execution_guard import (effective_clock_comparison_diagnostics,
+                                      effective_clock_comparison_passes)
 
 
 # C3-3/C3-7 frozen certification coordinates. Cooldown values come directly from
@@ -60,6 +61,24 @@ RESERVATION_FORMULA = (
 )
 _HEX64_RE = re.compile(r"[0-9a-fA-F]{64}")
 _ENV_TAG_RE = re.compile(r"[a-z0-9][a-z0-9._-]*")
+_EARLY_CLOCK_REJECTION_NOT_EVALUATED = (
+    "dynamic-pre-competing-process-probe",
+    "benchmark-calibration",
+    "post-attestation-comparison",
+    "post-isolation",
+    "certification-quality",
+    "late-effective-clock-self-comparison",
+    "final-artifact-assembly-and-schema-validation",
+    "publish-policy-identity",
+    "publish",
+    "published-artifact-bytes-self-comparison",
+)
+_PUBLISHED_SELF_COMPARISON_SCHEMA = (
+    "izanagi/published-effective-clock-self-comparison/v1"
+)
+_ATTESTATION_PROFILE_CANONICALIZATION = (
+    "json.dumps(sort_keys=True,separators=(',',':'),ensure_ascii=True)/utf-8"
+)
 
 
 class CertificationError(RuntimeError):
@@ -377,6 +396,13 @@ def _static_profile_bytes(profile: dict) -> bytes:
     return json.dumps(static, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def _canonical_json_bytes(value: object) -> bytes:
+    """Canonical JSON bytes used for profile and independent-input identities."""
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")
+
+
 def _effective_clock_self_comparison_passes(profile: object) -> bool:
     """Apply the runtime consumer predicate to a profile's own clock samples."""
     if type(profile) is not dict:
@@ -395,6 +421,114 @@ def _effective_clock_self_comparison_passes(profile: object) -> bool:
         expected,
         observed,
     )
+
+
+def _effective_clock_self_comparison_diagnostics(profile: object) -> dict:
+    """Project diagnostics for the same profile pair; never decide admission."""
+    if type(profile) is not dict:
+        return effective_clock_comparison_diagnostics(None, None)
+    effective_clock = profile.get("effective_clock")
+    if type(effective_clock) is not dict:
+        return effective_clock_comparison_diagnostics(None, None)
+    return effective_clock_comparison_diagnostics(
+        {
+            "samples_mhz": effective_clock.get("samples_mhz"),
+            "tolerance_pct": effective_clock.get("tolerance_pct"),
+        },
+        {"samples_mhz": effective_clock.get("samples_mhz")},
+    )
+
+
+def _effective_clock_rejection_diagnostics(profile: dict) -> dict:
+    """Bind an early rejection to the exact evaluated profile and clock input."""
+    effective_clock = profile["effective_clock"]
+    effective_clock_input = {
+        field: copy.deepcopy(effective_clock[field])
+        for field in ("samples_mhz", "tolerance_pct", "method", "governor")
+    }
+    return {
+        "attestation_profile_sha256": hashlib.sha256(
+            _canonical_json_bytes(profile)
+        ).hexdigest(),
+        "attestation_profile_canonicalization": (
+            _ATTESTATION_PROFILE_CANONICALIZATION
+        ),
+        "attestation_profile": copy.deepcopy(profile),
+        "effective_clock_input": effective_clock_input,
+        "effective_clock_self_comparison": (
+            _effective_clock_self_comparison_diagnostics(profile)
+        ),
+    }
+
+
+def _effective_clock_policy_matches_current(
+    profile: object, *, attempt_tolerance_pct: object,
+) -> bool:
+    """Independently compare attempt-profile policy with publish-time policy."""
+    if type(profile) is not dict:
+        return False
+    effective_clock = profile.get("effective_clock")
+    if type(effective_clock) is not dict:
+        return False
+    attempt_tolerance = effective_clock.get("tolerance_pct")
+    return bool(
+        type(attempt_tolerance) in (int, float)
+        and attempt_tolerance == attempt_tolerance_pct
+        and attempt_tolerance
+        == effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT
+    )
+
+
+def _published_self_comparison_receipt(target: str) -> dict:
+    """Re-read only published target bytes and apply the canonical predicate."""
+    try:
+        with open(target, "rb") as published:
+            raw = published.read()
+    except OSError as exc:
+        raise CertificationError(
+            "published-self-comparison-read-failed",
+            f"{type(exc).__name__}: {str(exc)[:300]}",
+        ) from exc
+    receipt = {
+        "schema": _PUBLISHED_SELF_COMPARISON_SCHEMA,
+        "passed": False,
+        "input_sha256": hashlib.sha256(raw).hexdigest(),
+        "policy_identity": {
+            "authority": (
+                "calibrator.effective_clock_policy."
+                "EFFECTIVE_CLOCK_TOLERANCE_PCT"
+            ),
+            "tolerance_pct": (
+                effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT
+            ),
+        },
+    }
+    try:
+        document = json.loads(raw)
+        if type(document) is not dict:
+            raise TypeError("published document is not an object")
+        profile = document["attestation_profile"]
+        if type(profile) is not dict:
+            raise TypeError("published attestation_profile is not an object")
+        clock = profile["effective_clock"]
+        if type(clock) is not dict:
+            raise TypeError("published effective_clock is not an object")
+        passed = effective_clock_comparison_passes(
+            {
+                "samples_mhz": clock.get("samples_mhz"),
+                "tolerance_pct": clock.get("tolerance_pct"),
+            },
+            {"samples_mhz": clock.get("samples_mhz")},
+        )
+    except (UnicodeError, json.JSONDecodeError, KeyError, TypeError,
+            ValueError, OverflowError) as exc:
+        receipt["error"] = {
+            "type": type(exc).__name__,
+            "message": str(exc)[:300],
+        }
+        return receipt
+    receipt["passed"] = bool(passed)
+    return receipt
 
 
 def _acquisition_reasons(receipt: dict, *, budget: dict,
@@ -435,6 +569,8 @@ def _acquisition_reasons(receipt: dict, *, budget: dict,
         )
         if not computed_known:
             reasons.append("known-values-check-failed")
+        if not _effective_clock_self_comparison_passes(profile):
+            reasons.append("effective-clock-self-comparison-failed")
     except (KeyError, TypeError, ValueError) as exc:
         raise CertificationError("receipt-invalid", str(exc)) from exc
     return reasons
@@ -462,11 +598,22 @@ def _assemble_v2(result: CalibrationResult, *, profile: dict, receipt: dict,
     return doc, raw
 
 
-def _write_rejection(staging: str, reasons: List[str], budget: dict) -> None:
+def _write_rejection(
+    staging: str,
+    reasons: List[str],
+    budget: dict,
+    *,
+    diagnostics: Optional[dict] = None,
+    not_evaluated: Optional[List[str]] = None,
+) -> None:
     payload = {
         "quality": {"status": "rejected", "reasons": reasons},
         "reservation": budget,
     }
+    if diagnostics is not None:
+        payload["diagnostics"] = diagnostics
+    if not_evaluated is not None:
+        payload["not_evaluated"] = list(not_evaluated)
     _write_exclusive(
         os.path.join(staging, "rejection.json"),
         (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8"),
@@ -520,9 +667,12 @@ def _certify_main(
     profile: Optional[dict] = None
     measured_tsc: Optional[TscMeasurement] = None
     result: Optional[CalibrationResult] = None
+    attempt_tolerance_pct: object = None
     measurements = []
     window_receipts: List[dict] = []
     reasons: List[str] = []
+    rejection_diagnostics: Optional[dict] = None
+    rejection_not_evaluated: Optional[List[str]] = None
     try:
         # C3-3(i): no build/hash/cooldown work precedes the static hardware probe.
         static_pre = _profile_dict(probe_fn())
@@ -550,9 +700,10 @@ def _certify_main(
         measured_tsc = _coerce_tsc(clock_fn())
         profile = copy.deepcopy(dynamic_pre)
         profile["tsc"] = dataclasses.asdict(measured_tsc)
-        profile["effective_clock"]["tolerance_pct"] = (
+        attempt_tolerance_pct = (
             effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT
         )
+        profile["effective_clock"]["tolerance_pct"] = attempt_tolerance_pct
         # The rejected empty document is a schema-only preflight for the acquisition
         # material. It catches unknown/missing nested receipt fields before any bench.
         _assemble_v2(
@@ -566,6 +717,13 @@ def _certify_main(
         acquisition_reasons = _acquisition_reasons(
             receipt, budget=budget, binary_sha256=actual_hash, profile=profile)
         if acquisition_reasons:
+            if "effective-clock-self-comparison-failed" in acquisition_reasons:
+                rejection_not_evaluated = list(
+                    _EARLY_CLOCK_REJECTION_NOT_EVALUATED
+                )
+                rejection_diagnostics = _effective_clock_rejection_diagnostics(
+                    profile
+                )
             reasons.extend(acquisition_reasons)
             raise CertificationError(
                 "acquisition-invalid", ",".join(acquisition_reasons))
@@ -637,15 +795,52 @@ def _certify_main(
         safe_job_id = _sanitize_job_id(job_id)
         temporary = os.path.join(
             registered, f".publish-{safe_job_id}-{secrets.token_hex(8)}.tmp")
-        _write_exclusive(temporary, artifact)
+        if not _effective_clock_policy_matches_current(
+            profile, attempt_tolerance_pct=attempt_tolerance_pct,
+        ):
+            profile_tolerance = profile["effective_clock"].get("tolerance_pct")
+            raise CertificationError(
+                "effective-clock-policy-changed",
+                "attempt=" + repr(attempt_tolerance_pct)
+                + " profile=" + repr(profile_tolerance)
+                + " publish="
+                + repr(effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT),
+            )
+        try:
+            _write_exclusive(temporary, artifact)
+        except FileExistsError:
+            raise
+        except Exception as write_exc:
+            raise CertificationError(
+                "publish-temporary-write-failed",
+                "temporary-path=" + temporary
+                + ": left in place after exclusive write failure: "
+                + f"{type(write_exc).__name__}: {str(write_exc)[:300]}",
+            ) from write_exc
         try:
             publish_method = _rename_noreplace(temporary, target)
-        except Exception:
+        except Exception as publish_exc:
             try:
                 os.unlink(temporary)
-            except OSError:
+            except FileNotFoundError:
                 pass
+            except OSError as cleanup_exc:
+                raise CertificationError(
+                    "publish-temporary-cleanup-failed",
+                    f"{type(cleanup_exc).__name__}: {str(cleanup_exc)[:300]}",
+                ) from publish_exc
             raise
+        published_self_comparison = _published_self_comparison_receipt(target)
+        _write_exclusive(
+            os.path.join(staging, "published-self-comparison.json"),
+            (json.dumps(
+                published_self_comparison, indent=2, sort_keys=True,
+            ) + "\n").encode("utf-8"),
+        )
+        if not published_self_comparison["passed"]:
+            raise CertificationError(
+                "published-effective-clock-self-comparison-failed"
+            )
         os.rename(staging_artifact, os.path.join(staging, "calibration.json"))
         _write_exclusive(
             os.path.join(staging, "publish.json"),
@@ -664,21 +859,34 @@ def _certify_main(
             reason = f"preflight-failed: {exc}"
         else:
             reason = f"attempt-fatal: {type(exc).__name__}: {str(exc)[:500]}"
-        reasons = reasons + [reason]
+        if not (
+            isinstance(exc, CertificationError)
+            and exc.code == "acquisition-invalid"
+            and reasons == ["effective-clock-self-comparison-failed"]
+        ):
+            reasons = reasons + [reason]
         try:
             candidate_path = os.path.join(staging, "candidate.json")
             if os.path.lexists(candidate_path):
                 os.unlink(candidate_path)
             calibration_path = os.path.join(staging, "calibration.json")
             if os.path.exists(calibration_path):
-                _write_rejection(staging, reasons, budget)
+                _write_rejection(
+                    staging, reasons, budget,
+                    diagnostics=rejection_diagnostics,
+                    not_evaluated=rejection_not_evaluated,
+                )
             elif result is not None and profile is not None:
                 _, artifact = _assemble_v2(
                     result, profile=profile, receipt=receipt,
                     status="rejected", reasons=reasons)
                 _write_exclusive(calibration_path, artifact)
             else:
-                _write_rejection(staging, reasons, budget)
+                _write_rejection(
+                    staging, reasons, budget,
+                    diagnostics=rejection_diagnostics,
+                    not_evaluated=rejection_not_evaluated,
+                )
         except Exception as receipt_exc:
             print(f"failed to write rejection receipt: {receipt_exc}", file=sys.stderr)
         print("certification rejected: " + "; ".join(reasons), file=sys.stderr)
