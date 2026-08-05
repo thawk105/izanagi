@@ -261,3 +261,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:acceptance-repo-write-race":"F115"},"authored":"2026-08-05","content_sha256":"d261bf5da153ffa00e5b5b1b22ba8c9695bf3b9b61fa7932f26bbabe50c6077d","seq":3,"wave":"dev-wave-token-economy"}
 
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"8da1fc40307b83aa14e1ff0603c2bd8d3a23d022104520f00afcf07571d1a246","seq":1,"wave":"rulings-20260805-i"}
+
+- {"allocations":{"T:post-policy-machine-sweep-membership":"[T-500]","T:trigger-provenance-implementation-overload":"[T-502]","T:wal-side-aba-in-admission":"[T-501]"},"authored":"2026-08-05","content_sha256":"bb0f3abe42a386d7a1e7b2db914172f31928ac124c2b15ba5a009da1ea9b1f30","seq":1,"wave":"dev-wave-t474-legacy-trigger-admission"}
+- {"allocations":{"D:legacy-trigger-raw-view-denial":"D170"},"authored":"2026-08-05","content_sha256":"a3faa86758bf46549e021d32fa8202c2e398da9526d3596a1f30b378eb3dbe7c","seq":1,"wave":"dev-wave-t474-legacy-trigger-admission"}
