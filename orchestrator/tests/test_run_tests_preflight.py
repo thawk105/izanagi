@@ -346,6 +346,33 @@ def test_acceptance_deletion_preflight_never_reads_legacy_bypass_env(
     assert legacy_key not in environ.lookups
 
 
+@pytest.mark.parametrize(
+    "failure",
+    [
+        subprocess.CompletedProcess(["git"], 128, "", "failure"),
+        FileNotFoundError("git"),
+        UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid"),
+    ],
+    ids=["git-rc-128", "git-file-not-found", "git-unicode-decode"],
+)
+def test_acceptance_deletion_git_failure_never_reads_legacy_bypass_env(
+    tmp_path, monkeypatch, failure,
+):
+    legacy_key = "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS"
+    environ = _LookupRecordingEnvironment(os.environ)
+    environ[legacy_key] = "yes"
+    monkeypatch.setattr(RT.os, "environ", environ)
+    invoked = mock.Mock()
+    if isinstance(failure, subprocess.CompletedProcess):
+        invoked.return_value = failure
+    else:
+        invoked.side_effect = failure
+    monkeypatch.setattr(RT.subprocess, "run", invoked)
+
+    assert RT._preflight_unstaged_deletions([], tmp_path) == 13
+    assert legacy_key not in environ.lookups
+
+
 def test_targeted_run_does_not_invoke_deletion_gate(monkeypatch, tmp_path):
     invoked = mock.Mock(side_effect=AssertionError("git must not run"))
     monkeypatch.setattr(RT.subprocess, "run", invoked)
@@ -375,7 +402,11 @@ def test_acceptance_run_passes_after_staged_deletion(tmp_path):
     assert RT._preflight_unstaged_deletions([], repo) == 0
 
 
-def test_dispatch_test_child_env_drops_legacy_deletion_bypass(tmp_path):
+def test_dispatch_generated_request_env_drops_legacy_deletion_bypass(tmp_path):
+    """親が新規生成する request の environment field だけを検査する。
+
+    実 child process の environment と既存 request を読む側の再検査は射程外。
+    """
     output_root = tmp_path / "dispatch"
     run_command = mock.Mock(side_effect=RuntimeError("stop after request write"))
     legacy_key = "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS"

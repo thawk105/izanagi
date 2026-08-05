@@ -64,7 +64,7 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 ## DW-O11 — ファイル削除
 
 受入形では未 stage 削除と git 検査不能を `run_tests.py` が止める (bypass 不可)。
-stage か復元の後に再走し、gate の赤を受入結果にしない。
+復旧・stage・復元の後に再走し、gate の赤を受入結果にしない。
 
 ## DW-O12 — 裁定手順と実行手順の差
 
