@@ -18,6 +18,7 @@ env 固有 golden literal (linux-baremetal / pegasus 等) はこの test 内に
 """
 from __future__ import annotations
 
+import ast
 import dataclasses
 import hashlib
 import json
@@ -280,13 +281,28 @@ def test_lookup_pegasus_golden():
 
 @pytest.mark.parametrize("unknown", ["unregistered-env", "linux-baremetal-x", "", "unknown"])
 def test_lookup_unknown_fails_closed(unknown):
-    with pytest.raises(ec.EnvContractError):
+    with pytest.raises(ec.EnvContractError) as exc_info:
         ec.lookup(unknown)
+    assert str(exc_info.value) == (
+        f"未登録の env_tag: {unknown!r} "
+        "(登録済み: ['linux-baremetal', 'pegasus'])"
+    )
 
 
 def test_lookup_non_str_fails_closed():
-    with pytest.raises(ec.EnvContractError):
+    with pytest.raises(ec.EnvContractError) as exc_info:
         ec.lookup(None)
+    assert str(exc_info.value) == (
+        "未登録の env_tag: None (登録済み: ['linux-baremetal', 'pegasus'])"
+    )
+
+
+def test_lookup_non_hashable_fails_closed_with_exact_message():
+    with pytest.raises(ec.EnvContractError) as exc_info:
+        ec.lookup([])  # type: ignore[arg-type]
+    assert str(exc_info.value) == (
+        "未登録の env_tag: [] (登録済み: ['linux-baremetal', 'pegasus'])"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -357,6 +373,7 @@ def test_generations_are_immutable_tuples_without_exposed_backing_dict():
 
 
 def test_registry_and_lookup_are_generation_tail_view():
+    assert list(ec.REGISTRY) == ["linux-baremetal", "pegasus"]
     assert set(ec.REGISTRY) == set(ec.GENERATIONS)
     for env_tag, sequence in ec.GENERATIONS.items():
         assert ec.REGISTRY[env_tag] is sequence[-1].contract
@@ -408,15 +425,32 @@ def test_validate_generations_accepts_single_generation_candidate():
 
 
 def test_validate_generations_rejects_bad_sequence_shapes_and_entries():
+    class GenerationEntrySubclass(ec.GenerationEntry):
+        pass
+
     contract = _valid_contract()
+    entry = ec.GenerationEntry(generation=1, contract=contract)
+    non_exact_entry = GenerationEntrySubclass(generation=1, contract=contract)
     cases = [
         ("empty", {contract.env_tag: ()}),
-        ("list", {contract.env_tag: []}),
-        ("raw-contract", {contract.env_tag: (contract,)}),
+        ("list", {contract.env_tag: [entry]}),
+        ("non-exact-entry", {contract.env_tag: (non_exact_entry,)}),
     ]
     for _label, mapping in cases:
         with pytest.raises(ec.EnvContractError):
-            ec.validate_generations(mapping)  # type: ignore[arg-type]
+            ec._validate_generations_without_bootstrap_fuse(mapping)  # type: ignore[arg-type]
+
+
+def test_validate_generations_without_bootstrap_fuse_accepts_valid_two_generation_candidate():
+    base = _valid_contract()
+    successor = _calibration_successor(base)
+    mapping = {
+        base.env_tag: (
+            ec.GenerationEntry(generation=1, contract=base),
+            ec.GenerationEntry(generation=2, contract=successor),
+        ),
+    }
+    assert ec._validate_generations_without_bootstrap_fuse(mapping) is None
 
 
 def test_validate_generations_synthetic_two_generation_negative_table():
@@ -441,16 +475,6 @@ def test_validate_generations_synthetic_two_generation_negative_table():
             "一致しない",
         ),
         (
-            "duplicate-hash",
-            {
-                base.env_tag: (
-                    ec.GenerationEntry(generation=1, contract=base),
-                    ec.GenerationEntry(generation=2, contract=base),
-                ),
-            },
-            "一意でない",
-        ),
-        (
             "invalid-successor",
             {
                 base.env_tag: (
@@ -463,7 +487,27 @@ def test_validate_generations_synthetic_two_generation_negative_table():
     ]
     for _label, mapping, message in cases:
         with pytest.raises(ec.EnvContractError, match=message):
-            ec.validate_generations(mapping)
+            ec._validate_generations_without_bootstrap_fuse(mapping)
+
+
+def test_validate_generations_rejects_cross_env_contract_hash_collision(monkeypatch):
+    """異なる preimage が同じ SHA-256 になる実効 collision guard を直接撃つ。"""
+    first = _valid_contract(env_tag="first-env")
+    second = _valid_contract(env_tag="second-env")
+    collision_hash = "f" * 64
+    monkeypatch.setattr(
+        ec.ExecutionEnvironmentContract,
+        "contract_sha256",
+        property(lambda _self: collision_hash),
+    )
+    mapping = {
+        first.env_tag: (ec.GenerationEntry(generation=1, contract=first),),
+        second.env_tag: (ec.GenerationEntry(generation=1, contract=second),),
+    }
+    assert first._canonical_obj() != second._canonical_obj()
+    assert first.contract_sha256 == second.contract_sha256 == collision_hash
+    with pytest.raises(ec.EnvContractError, match="一意でない"):
+        ec._validate_generations_without_bootstrap_fuse(mapping)
 
 
 def test_validate_generations_valid_two_generation_reaches_bootstrap_fuse():
@@ -481,6 +525,41 @@ def test_validate_generations_valid_two_generation_reaches_bootstrap_fuse():
         match="活性化権限.*activation record.*activation receipt.*fail-closed",
     ):
         ec.validate_generations(mapping)
+
+
+def test_module_level_generation_validation_precedes_indexes_and_registry():
+    """bootstrap validation の import-time 結線を派生 view 構築より先に固定する。"""
+    tree = ast.parse(_read_module("orchestrator/campaign/env_contract.py"))
+    validation_calls = [
+        node
+        for node in tree.body
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "validate_generations"
+            and len(node.value.args) == 1
+            and isinstance(node.value.args[0], ast.Name)
+            and node.value.args[0].id == "GENERATIONS"
+            and not node.value.keywords
+        )
+    ]
+
+    assignment_lines = {}
+    for node in tree.body:
+        targets = []
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        for target in targets:
+            if isinstance(target, ast.Name):
+                assignment_lines[target.id] = node.lineno
+
+    assert len(validation_calls) == 1
+    validation_line = validation_calls[0].lineno
+    assert validation_line < assignment_lines["_CONTRACT_SHA256_INDEX"]
+    assert validation_line < assignment_lines["REGISTRY"]
 
 
 @pytest.mark.parametrize("env_tag,expected_hashes", EXPECTED_GENERATION_HASHES.items())

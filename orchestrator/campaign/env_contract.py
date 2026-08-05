@@ -275,10 +275,10 @@ def _build_registry() -> dict[str, tuple[GenerationEntry, ...]]:
     }
 
 
-def validate_generations(
+def _validate_generations_without_bootstrap_fuse(
     mapping: Mapping[str, tuple[GenerationEntry, ...]],
 ) -> None:
-    """候補世代 mapping の構造と遷移を検証する。module state は参照しない。"""
+    """候補世代 mapping の構造と遷移を検証する。bootstrap fuse は含まない。"""
     seen_hashes: set[str] = set()
     for env_tag, sequence in mapping.items():
         if type(sequence) is not tuple or not sequence:
@@ -311,6 +311,14 @@ def validate_generations(
                     f"{env_tag!r} に正当でない隣接 successor がある: "
                     f"g{predecessor.generation} -> g{successor.generation}"
                 )
+
+
+def validate_generations(
+    mapping: Mapping[str, tuple[GenerationEntry, ...]],
+) -> None:
+    """候補世代 mapping を検証し、未認可の複数世代登録を fuse で拒否する。"""
+    _validate_generations_without_bootstrap_fuse(mapping)
+    for sequence in mapping.values():
         if len(sequence) != 1:
             raise EnvContractError(
                 "活性化権限 (activation record / activation receipt) が未実装のため、"
