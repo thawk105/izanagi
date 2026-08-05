@@ -1250,6 +1250,7 @@ def _append_run_start(
     workloads: list[str],
     generations: int,
     max_wall_s: int,
+    launch_admission,
     do_build: bool = False,
 ) -> None:
     journal.append({
@@ -1263,6 +1264,9 @@ def _append_run_start(
         "do_build": do_build,
         "performance_early_stop": False,
         "scientific_claim": False,
+        "launch_admission": A.trial_registry.launch_admission_record(
+            launch_admission
+        ),
     })
 
 
@@ -1274,6 +1278,7 @@ def _append_transport_preamble(
     workloads: list[str],
     generations: int,
     max_wall_s: int,
+    launch_admission,
 ) -> None:
     journal.append({
         "event": "transport-admission",
@@ -1286,7 +1291,36 @@ def _append_transport_preamble(
         workloads=workloads,
         generations=generations,
         max_wall_s=max_wall_s,
+        launch_admission=launch_admission,
     )
+
+
+def _run_with_public_exploratory_scope(
+    *, trial_id: str, workloads: list[str], artifact_root: Path, callback,
+):
+    """Invoke a private-path assertion inside the scope sealed by ``run_trial``."""
+    original_finish_trial = A._finish_trial
+
+    def capture_finish_trial(**kwargs):
+        return callback(original_finish_trial, kwargs)
+
+    try:
+        A._finish_trial = capture_finish_trial
+        return A.run_trial(
+            trial_id=trial_id,
+            workloads=workloads,
+            generations=1,
+            provider_kind="fixture",
+            run_root=artifact_root.with_name(
+                artifact_root.name + "-public-scope"
+            ),
+            sub="/unused",
+            do_build=False,
+            providers={},
+            allow_unregistered_exploratory=True,
+        )
+    finally:
+        A._finish_trial = original_finish_trial
 
 
 def _p1_normalized_artifact_bytes(
@@ -1419,6 +1453,7 @@ def test_p1_flag_omitted_run_trial_has_no_transport_io_or_fields(
                 do_build=False,
                 max_wall_s=60,
                 claude_executable=executable,
+                allow_unregistered_exploratory=True,
             )
             disk_report = json.loads((run_root / "report.json").read_bytes())
             journal_events = [
@@ -1491,6 +1526,7 @@ def test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers(
             max_wall_s=60,
             claude_executable=str(_role_subprocess_shim(tmp_path / "p2-claude")),
             allow_pegasus_compute_transport=True,
+            allow_unregistered_exploratory=True,
         )
     finally:
         A._preview = original_preview
@@ -1630,33 +1666,45 @@ def test_success_consumer_keeps_valid_receipt_in_journal_and_report(
     (root / "raw").mkdir()
     (root / "proposals").mkdir()
     journal = A.AttemptJournal(root / "attempts.jsonl")
-    _append_transport_preamble(
-        journal,
-        receipt=run_receipt,
+
+    def finish_with_receipt(finish_trial, public_kwargs):
+        launch_admission = public_kwargs["launch_admission"]
+        _append_transport_preamble(
+            journal,
+            receipt=run_receipt,
+            trial_id="success-consumer",
+            workloads=["ycsb-a"],
+            generations=1,
+            max_wall_s=60,
+            launch_admission=launch_admission,
+        )
+        return finish_trial(
+            trial_id="success-consumer",
+            selected=["ycsb-a"],
+            generations=1,
+            provider_kind="claude-headless",
+            run_root=root,
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            max_wall_s=60,
+            drive=_dry_drive,
+            preview=_dry_preview,
+            journal=journal,
+            started="2026-08-01T00:00:00+09:00",
+            started_monotonic=A.time.monotonic(),
+            active_providers=providers,
+            fatal_error=None,
+            transport_receipt=run_receipt,
+            build_context=_no_build_context(),
+            launch_admission=launch_admission,
+        )
+
+    report = _run_with_public_exploratory_scope(
         trial_id="success-consumer",
         workloads=["ycsb-a"],
-        generations=1,
-        max_wall_s=60,
-    )
-    report = A._finish_trial(
-        trial_id="success-consumer",
-        selected=["ycsb-a"],
-        generations=1,
-        provider_kind="claude-headless",
-        run_root=root,
-        sub="/unused",
-        do_build=False,
-        cache_root="",
-        max_wall_s=60,
-        drive=_dry_drive,
-        preview=_dry_preview,
-        journal=journal,
-        started="2026-08-01T00:00:00+09:00",
-        started_monotonic=A.time.monotonic(),
-        active_providers=providers,
-        fatal_error=None,
-        transport_receipt=run_receipt,
-        build_context=_no_build_context(),
+        artifact_root=root,
+        callback=finish_with_receipt,
     )
     assert report["status"] == "complete"
     assert report["transport_receipt"] == _copy_receipt()
@@ -1911,19 +1959,19 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
     error_root = tmp_path / "supervisor-error"
     error_root.mkdir()
     error_journal = A.AttemptJournal(error_root / "attempts.jsonl")
-    _append_transport_preamble(
-        error_journal,
-        receipt=receipt,
-        trial_id="terminal-error",
-        workloads=["ycsb-a"],
-        generations=1,
-        max_wall_s=60,
-    )
-    try:
-        A._run_workload = lambda **kwargs: (_ for _ in ()).throw(
-            RuntimeError("supervisor failure")
+
+    def finish_supervisor_error(finish_trial, public_kwargs):
+        launch_admission = public_kwargs["launch_admission"]
+        _append_transport_preamble(
+            error_journal,
+            receipt=receipt,
+            trial_id="terminal-error",
+            workloads=["ycsb-a"],
+            generations=1,
+            max_wall_s=60,
+            launch_admission=launch_admission,
         )
-        A._finish_trial(
+        return finish_trial(
             trial_id="terminal-error",
             selected=["ycsb-a"],
             generations=1,
@@ -1942,6 +1990,18 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
             fatal_error=None,
             transport_receipt=receipt,
             build_context=_no_build_context(),
+            launch_admission=launch_admission,
+        )
+
+    try:
+        A._run_workload = lambda **kwargs: (_ for _ in ()).throw(
+            RuntimeError("supervisor failure")
+        )
+        _run_with_public_exploratory_scope(
+            trial_id="terminal-error",
+            workloads=["ycsb-a"],
+            artifact_root=error_root,
+            callback=finish_supervisor_error,
         )
     finally:
         A._run_workload = original_run_workload
@@ -1961,17 +2021,19 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
     outer_root = tmp_path / "outer-wall"
     outer_root.mkdir()
     outer_journal = A.AttemptJournal(outer_root / "attempts.jsonl")
-    _append_transport_preamble(
-        outer_journal,
-        receipt=receipt,
-        trial_id="terminal-outer-wall",
-        workloads=["ycsb-a"],
-        generations=1,
-        max_wall_s=1,
-    )
-    try:
-        A.time.monotonic = lambda: 2.0
-        A._finish_trial(
+
+    def finish_outer_wall(finish_trial, public_kwargs):
+        launch_admission = public_kwargs["launch_admission"]
+        _append_transport_preamble(
+            outer_journal,
+            receipt=receipt,
+            trial_id="terminal-outer-wall",
+            workloads=["ycsb-a"],
+            generations=1,
+            max_wall_s=1,
+            launch_admission=launch_admission,
+        )
+        return finish_trial(
             trial_id="terminal-outer-wall",
             selected=["ycsb-a"],
             generations=1,
@@ -1990,6 +2052,16 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
             fatal_error=None,
             transport_receipt=receipt,
             build_context=_no_build_context(),
+            launch_admission=launch_admission,
+        )
+
+    try:
+        A.time.monotonic = lambda: 2.0
+        _run_with_public_exploratory_scope(
+            trial_id="terminal-outer-wall",
+            workloads=["ycsb-a"],
+            artifact_root=outer_root,
+            callback=finish_outer_wall,
         )
     finally:
         A.time.monotonic = original_monotonic
@@ -2009,8 +2081,8 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
     inner_root = tmp_path / "inner-wall"
     inner_root.mkdir()
     inner_journal = A.AttemptJournal(inner_root / "attempts.jsonl")
-    try:
-        A.time.monotonic = lambda: 2.0
+
+    def run_inner_wall(_finish_trial, _public_kwargs):
         cell = A._run_workload(
             workload="ycsb-a",
             generations=1,
@@ -2026,8 +2098,19 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
             transport_receipt=receipt,
             build_context=_no_build_context(),
         )
+        return {"status": "captured", "cell": cell}
+
+    try:
+        A.time.monotonic = lambda: 2.0
+        scope_report = _run_with_public_exploratory_scope(
+            trial_id="terminal-inner-wall",
+            workloads=["ycsb-a"],
+            artifact_root=inner_root,
+            callback=run_inner_wall,
+        )
     finally:
         A.time.monotonic = original_monotonic
+    cell = scope_report["cell"]
     assert cell["stop_reason"] == "supervisor-wall-budget"
     inner_events = [
         json.loads(line)
@@ -2044,76 +2127,100 @@ def test_opt_in_report_and_opt_out_report_field_boundaries(tmp_path: Path) -> No
     opt_root = tmp_path / "opt"
     opt_root.mkdir()
     opt_journal = A.AttemptJournal(opt_root / "attempts.jsonl")
-    _append_transport_preamble(
-        opt_journal,
-        receipt=receipt,
+    opt_fatal_error = {"type": "FixtureError", "message": "stopped"}
+
+    def finish_opt_in(finish_trial, public_kwargs):
+        launch_admission = public_kwargs["launch_admission"]
+        _append_transport_preamble(
+            opt_journal,
+            receipt=receipt,
+            trial_id="opt",
+            workloads=["ycsb-a"],
+            generations=1,
+            max_wall_s=1,
+            launch_admission=launch_admission,
+        )
+        A._append_provider_init_error(
+            journal=opt_journal,
+            fatal_error=opt_fatal_error,
+            transport_receipt=receipt,
+        )
+        return finish_trial(
+            trial_id="opt",
+            selected=["ycsb-a"],
+            generations=1,
+            provider_kind="claude-headless",
+            run_root=opt_root,
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            max_wall_s=1,
+            drive=lambda *args, **kwargs: {},
+            preview=lambda *args, **kwargs: {},
+            journal=opt_journal,
+            started="2026-08-01T00:00:00+09:00",
+            started_monotonic=0.0,
+            active_providers={},
+            fatal_error=opt_fatal_error,
+            transport_receipt=receipt,
+            launch_admission=launch_admission,
+        )
+
+    opt_report = _run_with_public_exploratory_scope(
         trial_id="opt",
         workloads=["ycsb-a"],
-        generations=1,
-        max_wall_s=1,
-    )
-    opt_fatal_error = {"type": "FixtureError", "message": "stopped"}
-    A._append_provider_init_error(
-        journal=opt_journal,
-        fatal_error=opt_fatal_error,
-        transport_receipt=receipt,
-    )
-    opt_report = A._finish_trial(
-        trial_id="opt",
-        selected=["ycsb-a"],
-        generations=1,
-        provider_kind="claude-headless",
-        run_root=opt_root,
-        sub="/unused",
-        do_build=False,
-        cache_root="",
-        max_wall_s=1,
-        drive=lambda *args, **kwargs: {},
-        preview=lambda *args, **kwargs: {},
-        journal=opt_journal,
-        started="2026-08-01T00:00:00+09:00",
-        started_monotonic=0.0,
-        active_providers={},
-        fatal_error=opt_fatal_error,
-        transport_receipt=receipt,
+        artifact_root=opt_root,
+        callback=finish_opt_in,
     )
     assert opt_report["transport_receipt"] == receipt
 
     default_root = tmp_path / "default"
     default_root.mkdir()
     default_journal = A.AttemptJournal(default_root / "attempts.jsonl")
-    _append_run_start(
-        default_journal,
-        trial_id="default",
-        provider="fixture",
-        workloads=["ycsb-a"],
-        generations=1,
-        max_wall_s=1,
-    )
     default_fatal_error = {"type": "FixtureError", "message": "stopped"}
-    A._append_provider_init_error(
-        journal=default_journal,
-        fatal_error=default_fatal_error,
-        transport_receipt=None,
-    )
-    default_report = A._finish_trial(
+
+    def finish_opt_out(finish_trial, public_kwargs):
+        launch_admission = public_kwargs["launch_admission"]
+        _append_run_start(
+            default_journal,
+            trial_id="default",
+            provider="fixture",
+            workloads=["ycsb-a"],
+            generations=1,
+            max_wall_s=1,
+            launch_admission=launch_admission,
+        )
+        A._append_provider_init_error(
+            journal=default_journal,
+            fatal_error=default_fatal_error,
+            transport_receipt=None,
+        )
+        return finish_trial(
+            trial_id="default",
+            selected=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=default_root,
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            max_wall_s=1,
+            drive=lambda *args, **kwargs: {},
+            preview=lambda *args, **kwargs: {},
+            journal=default_journal,
+            started="2026-08-01T00:00:00+09:00",
+            started_monotonic=0.0,
+            active_providers={},
+            fatal_error=default_fatal_error,
+            transport_receipt=None,
+            launch_admission=launch_admission,
+        )
+
+    default_report = _run_with_public_exploratory_scope(
         trial_id="default",
-        selected=["ycsb-a"],
-        generations=1,
-        provider_kind="fixture",
-        run_root=default_root,
-        sub="/unused",
-        do_build=False,
-        cache_root="",
-        max_wall_s=1,
-        drive=lambda *args, **kwargs: {},
-        preview=lambda *args, **kwargs: {},
-        journal=default_journal,
-        started="2026-08-01T00:00:00+09:00",
-        started_monotonic=0.0,
-        active_providers={},
-        fatal_error=default_fatal_error,
-        transport_receipt=None,
+        workloads=["ycsb-a"],
+        artifact_root=default_root,
+        callback=finish_opt_out,
     )
     assert "transport_receipt" not in default_report
     default_events = [

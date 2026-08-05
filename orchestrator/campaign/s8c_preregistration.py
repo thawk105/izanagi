@@ -1749,6 +1749,38 @@ def _activation_report_digest(report: ActivationReport) -> str:
     return _sha256(_DOMAIN_ACTIVATION_REPORT + _canonical_bytes(_jsonable(report)))
 
 
+def require_effective_preregistration(
+    capability,
+    *,
+    repo_root: Path | str,
+    commit: str,
+) -> ActivationReport:
+    """C から再計算した発効状態と一致する sealed capability だけを受理する。"""
+    if not isinstance(capability, EffectivePreregistration):
+        raise PreregistrationError(
+            "effective-capability-type",
+            "effective_at() が発行した EffectivePreregistration が必要",
+        )
+    if capability.commit != commit:
+        raise PreregistrationError(
+            "effective-capability-commit",
+            "capability.commit が要求 commit と一致しない",
+        )
+    report = activation_report_at(repo_root, commit)
+    if not report.effective:
+        raise PreregistrationError(
+            "preregistration-not-effective",
+            "commit の事前登録は再計算時点で発効していない",
+        )
+    expected_digest = _activation_report_digest(report)
+    if capability.report_digest_sha256 != expected_digest:
+        raise PreregistrationError(
+            "effective-capability-digest",
+            "capability の report digest が再計算結果と一致しない",
+        )
+    return report
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)

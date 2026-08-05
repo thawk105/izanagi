@@ -2,6 +2,7 @@
 """D12 層3材料レポートの決定論的な完全射影を検査する。"""
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import os
@@ -14,7 +15,13 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
-from campaign import layer3_report, model, trigger_gate_binding, wal  # noqa: E402
+from campaign import (  # noqa: E402
+    layer3_report,
+    model,
+    s8c_acceptance_receipt,
+    trigger_gate_binding,
+    wal,
+)
 from campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
@@ -138,6 +145,105 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     (root / "runs/wal.jsonl").write_text(
         "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
     return root, output_root
+
+
+def _verified_non_certifying_receipt(
+    campaign: Path,
+    output_root: Path,
+) -> s8c_acceptance_receipt.VerifiedAcceptanceReceipt:
+    repo = output_root.parent
+    init = subprocess.run(
+        ["git", "-C", str(repo), "init", "-q"], check=False,
+        capture_output=True, text=True,
+    )
+    assert init.returncode == 0, init.stderr
+    for key, value in (
+        ("user.email", "fixture@example.invalid"),
+        ("user.name", "Fixture"),
+    ):
+        assert subprocess.run(
+            ["git", "-C", str(repo), "config", key, value], check=False,
+        ).returncode == 0
+
+    def write(relative: str, data: bytes) -> str:
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return hashlib.sha256(data).hexdigest()
+
+    manifest_path = "input/manifest.json"
+    manifest_sha = write(manifest_path, b'{"fixture":"manifest"}\n')
+    registry_path = "output/s8c-trial-registry/registry.jsonl"
+    registry_sha = write(registry_path, b'{"fixture":"registry"}\n')
+    lifecycle_path = "output/s8c-trial-registry/lifecycle.jsonl"
+    lifecycle_sha = write(lifecycle_path, b'{"fixture":"lifecycle"}\n')
+    trial_rows = []
+    for index in range(6):
+        trial_id = "trial" if index == 0 else f"trial-{index}"
+        report_path = f"acceptance-refs/{trial_id}/report.json"
+        journal_path = f"acceptance-refs/{trial_id}/attempts.jsonl"
+        trial_rows.append({
+            "trial_id": trial_id,
+            "arm": ("on", "off", "swapped")[index % 3],
+            "holdout": "H1" if index < 3 else "H2",
+            "campaign_id": campaign.name if index == 0 else f"other-{index}",
+            "status": "complete",
+            "measurement_head": "1" * 40,
+            "report_path": report_path,
+            "report_sha256": write(report_path, f"report-{index}\n".encode()),
+            "attempt_journal_path": journal_path,
+            "attempt_journal_sha256": write(
+                journal_path, f"journal-{index}\n".encode()
+            ),
+        })
+    assert subprocess.run(
+        ["git", "-C", str(repo), "add", "-A"], check=False,
+    ).returncode == 0
+    assert subprocess.run(
+        ["git", "-C", str(repo), "commit", "-q", "-m", "references"],
+        check=False,
+    ).returncode == 0
+    head = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    value = {
+        "schema_version": s8c_acceptance_receipt.SCHEMA_VERSION,
+        "manifest_path": manifest_path,
+        "manifest_sha256": manifest_sha,
+        "prereg_commit": head,
+        "activation_report_digest_sha256": "2" * 64,
+        "registry_path": registry_path,
+        "registry_blob_sha256": registry_sha,
+        "registry_introduction_commit": head,
+        "lifecycle_path": lifecycle_path,
+        "lifecycle_prefix_bytes": len((repo / lifecycle_path).read_bytes()),
+        "lifecycle_prefix_sha256": lifecycle_sha,
+        "certifying": False,
+        "non_certifying_reason_codes": sorted(
+            s8c_acceptance_receipt.MANDATORY_NON_CERTIFYING_REASONS
+        ),
+        "trials": sorted(trial_rows, key=lambda item: item["trial_id"]),
+    }
+    receipt_path = repo.joinpath(
+        *s8c_acceptance_receipt.DEFAULT_RECEIPT_DIR.parts,
+        f"{manifest_sha}.json",
+    )
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    receipt_path.write_bytes(
+        json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ).encode() + b"\n"
+    )
+    assert subprocess.run(
+        ["git", "-C", str(repo), "add", "-A"], check=False,
+    ).returncode == 0
+    assert subprocess.run(
+        ["git", "-C", str(repo), "commit", "-q", "-m", "receipt"],
+        check=False,
+    ).returncode == 0
+    return s8c_acceptance_receipt.verify_acceptance_receipt(
+        receipt_path, repository_root=repo,
+    )
 
 
 def test_trigger_build_start_commitment_survives_report_projection_without_raw_mask():
@@ -265,6 +371,8 @@ def test_campaign_without_loop_state_has_empty_absent_whiteboard(tmp_path):
     assert report["whiteboard_provenance"] == "absent"
     assert not any(ref.startswith("wb:") for ref in report["source_refs"])
     assert report["schema_version"] == "layer3-material-report/v3"
+    assert report["acceptance_receipt"] is None
+    assert report["certifying_input"] is False
     decision = report["admission_decision"]
     assert decision["classification"] == "admitted-new-schema"
     assert decision["admission_status"] == "admitted"
@@ -280,7 +388,139 @@ def test_legacy_v2_report_schema_remains_readable(tmp_path):
     )
     legacy["schema_version"] = "layer3-material-report/v2"
     del legacy["admission_decision"]
+    del legacy["acceptance_receipt"]
+    del legacy["certifying_input"]
     layer3_report._validate_schema(legacy)
+
+
+def test_existing_v3_missing_new_admission_fields_remains_readable(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    assert report["acceptance_receipt"] is None
+    del report["acceptance_receipt"]
+    del report["certifying_input"]
+    layer3_report._validate_schema(report)
+
+
+def test_generic_generators_have_no_certifying_input_parameter(
+    tmp_path: Path,
+) -> None:
+    import inspect
+
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign,
+        generated_from_head="fixed",
+        output_root=output_root,
+    )
+    assert report["certifying_input"] is False
+    assert "certifying_input" not in inspect.signature(
+        layer3_report.build_report
+    ).parameters
+    assert "certifying_input" not in inspect.signature(
+        layer3_report.render
+    ).parameters
+    with pytest.raises(TypeError, match="certifying_input"):
+        layer3_report.build_report(
+            campaign,
+            generated_from_head="fixed",
+            output_root=output_root,
+            certifying_input=True,
+        )
+    with pytest.raises(TypeError, match="certifying_input"):
+        layer3_report.render(
+            campaign,
+            tmp_path / "forbidden-certifying-report.json",
+            generated_from_head="fixed",
+            output_root=output_root,
+            certifying_input=True,
+        )
+
+
+def test_reader_rejects_certifying_input_without_acceptance_receipt(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["certifying_input"] = True
+    assert report["acceptance_receipt"] is None
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="certifying_input=true と acceptance_receipt 非 null は同値必須$",
+    ):
+        layer3_report._validate_schema(report)
+
+
+def test_reader_rejects_acceptance_receipt_without_certifying_input(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["acceptance_receipt"] = {"path": "receipt.json", "sha256": "a" * 64}
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="certifying_input=true と acceptance_receipt 非 null は同値必須$",
+    ):
+        layer3_report._validate_schema(report)
+
+
+def test_m14_non_certifying_receipt_is_rejected_downstream(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    verified = _verified_non_certifying_receipt(campaign, output_root)
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="certifying=true でない",
+    ):
+        layer3_report.build_accepted_report(
+            campaign,
+            acceptance_receipt=verified,
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
+
+
+def test_accepted_report_api_has_no_return_code_or_stdout_parameter() -> None:
+    import inspect
+
+    parameters = inspect.signature(layer3_report.build_accepted_report).parameters
+    assert "acceptance_receipt" in parameters
+    assert not ({"rc", "return_code", "stdout"} & set(parameters))
+
+
+def test_accepted_report_rejects_unsealed_receipt_capability(tmp_path: Path) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    verified = _verified_non_certifying_receipt(campaign, output_root)
+    forged = dataclasses.replace(verified, _seal=object())
+    with pytest.raises(
+        layer3_report.Layer3ReportError, match="receipt-capability",
+    ):
+        layer3_report.build_accepted_report(
+            campaign,
+            acceptance_receipt=forged,
+            output_root=output_root,
+        )
 
 
 def test_bench_rep_returncodes_passes_real_view_and_schema(tmp_path):
