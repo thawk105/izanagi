@@ -177,7 +177,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "9b2c0dac6cf1e8cfcd49a18840d62b6b3dcd2cdf322d1594266b5a4a71af43c7"
+    "0f202920c97ec97d7625c343d377686cc6511b2b78a01cb502077123fd49429a"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -246,6 +246,7 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
 - ahead>0 のブランチは `git cherry main <b>` を出す。rebase / cherry-pick で取り込まれた側は
   ahead>0 のまま残るため、ahead だけでは取り残しの有無を判定できない。`+` 行が真の取り残しで、
   ファイルが main に無ければ取り込み漏れとして §5 で報告する
+- `python3 tools/audit_dangling_commits.py` は rc=0 のみ削除へ進み、rc≠0 は停止し §5 報告
 
 ## 2. 安全条件 (満たさないものは削除せず報告に回す)
 
@@ -265,11 +266,10 @@ submodule の gitlink を含む worktree は `git worktree remove` を使わず�
 3. ディレクトリを削除して `git worktree prune`
 
 **`git submodule deinit` は使わない**。誤って実行した場合は
-`git submodule update --init external/ccbench` で復元する。事象と原因の正本は `docs/failures.md` F26。
+`git submodule update --init external/ccbench` で復元する。正本は `docs/failures.md` F26。
 
 ExitWorktree の remove を `discard_changes: true` で押し切らない。main が当該 commit を含むことを
-`git log` で確認し、`action: keep` で抜け、本節の手動手順
-(detach → branch -d → 削除 → prune) で畳む。関連事象は F26。
+`git log` で確認し、`action: keep` で抜け、本節の手動手順で畳む。
 cwd 固定の背景セッション (ExitWorktree が no-op・cd 非持続) では、自分が居る
 worktree の削除と prune を行わず、detach → branch -d → unlock まで実施して
 残りを引き渡す (F51)。
