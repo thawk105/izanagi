@@ -36,6 +36,14 @@ title: [T-474] 旧 trigger artifact に admitted view を名乗らせない — 
   同じパターンに一致し、終了済みの harness を「実行中」と読んでいた。判定は
   `mutation_harness.py` を含む実体で行う必要がある (DW-M05 の既知の罠)。
 - 逐語・変異 spec・変異台帳は `output/insights/2026-08-05_t474-legacy-trigger-admission/` に凍結した。
+- **段 8 の自己改善は 3 候補すべて統合できず裁定へ返す。** いずれも今回の実測に基づくが、
+  `docs/dev-wave/**` が hard ceiling に対して余白 70 bytes 程度しかなく、最小文でも入らない
+  (試行時 operations.md 8494/8400 bytes、合計 25933/25200 bytes)。契約に従い編集を戻した。
+  候補 (a) 中断が残した `.done` を消さずに再投入すると前回分を完了と誤読する → `DW-O01`。
+  候補 (b) `pgrep -f` の照合語に harness の実行ファイル名を含めないと、spec path を含む
+  待ち手自身に一致して終了済みを実行中と読む (本 wave で実際に誤読した) → `DW-M05`。
+  候補 (c) kill は期待 node と実 node の**完全一致**判定なので、期待は collection の実 nodeid
+  (parametrize 接尾辞込み) で書き、同じ性質を検査する既存テストも数え上げる → `DW-M08`。
 
 ## 次の一手差分
 
