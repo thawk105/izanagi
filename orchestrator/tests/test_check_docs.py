@@ -73,7 +73,7 @@ TASKS = {
 """
 
 
-# operations 由来の条件 dispatch key (O07/O21/O22 を除く 20 件)。契約から導出するが、
+# operations 由来の条件 dispatch key (O07/O15/O21/O22 を除く 19 件)。契約から導出するが、
 # exact な外延は test_operation_contract_pins_exact_section_set が literal で pin する。
 _OPERATION_CONDITION_KEYS = sorted(
     key
@@ -361,7 +361,8 @@ def _write_command_guard_docs(root: str) -> None:
                 ]
             ):
                 chunks.append(
-                    f"`{path}`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20`, `DW-O23`"
+                    f"`{path}`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, "
+                    "`DW-O16`〜`DW-O20`, `DW-O23`"
                 )
             else:
                 ids = ", ".join(f"`{section}`" for section in sections)
@@ -3486,8 +3487,10 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _rewrite_matching_lines(
             root,
             ".claude/commands/dev-wave.md",
-            lambda line: re.match(r"^\| (?:0[1-9]|1[0-9]|20|23) \|", line)
-            is not None,
+            lambda line: any(
+                line.startswith(f"| {key} |")
+                for key in _OPERATION_CONDITION_KEYS
+            ),
             lambda line: "",
             expected=len(_OPERATION_CONDITION_KEYS),
         )
@@ -3889,7 +3892,7 @@ _COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = len(
 
 
 def test_operation_contract_pins_exact_section_set():
-    """operations 契約の外延と配線を literal で固定する (O23 追加後の 20 節)。
+    """operations 契約の外延と配線を literal で固定する (O15 削除後の 19 節)。
 
     checker とテスト fixture は同じ `_OPERATION_NUMBERS` から導出される (F9 型の
     自己整合面)。fixture の literal range 表記が単純な縮小・拡大を先に赤くし、
@@ -3900,8 +3903,8 @@ def test_operation_contract_pins_exact_section_set():
     expected = {
         "DW-O01", "DW-O02", "DW-O03", "DW-O04", "DW-O05", "DW-O06",
         "DW-O08", "DW-O09", "DW-O10", "DW-O11", "DW-O12", "DW-O13",
-        "DW-O14", "DW-O15", "DW-O16", "DW-O17", "DW-O18", "DW-O19",
-        "DW-O20", "DW-O23",
+        "DW-O14", "DW-O16", "DW-O17", "DW-O18", "DW-O19", "DW-O20",
+        "DW-O23",
     }
     assert check_docs.REQUIRED_REFERENCE_SECTIONS[operations] == expected
     assert check_docs._ALL_OPERATIONS == frozenset(
@@ -3917,6 +3920,9 @@ def test_operation_contract_pins_exact_section_set():
         assert operations_pairs == {(operations, section)}, (
             f"条件 {key} の operations 配線が {section} 単独でない"
         )
+    assert check_docs.CONDITION_DISPATCH_CONTRACT["15"] == {
+        ("docs/dev-wave/mutation.md", "DW-M07")
+    }
     assert _OPERATION_CONDITION_KEYS == sorted(
         section.removeprefix("DW-O") for section in expected
     )

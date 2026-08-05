@@ -101,7 +101,6 @@ _SELECT_VALUE_OPTIONS = frozenset({
     "--stepwise-skip",
 })
 _VALUE_OPTIONS = _NONSELECT_VALUE_OPTIONS | _SELECT_VALUE_OPTIONS
-_ALLOW_UNSTAGED_DELETIONS_ENV = "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS"
 _SUBMODULE_MARKER = Path("external") / "ccbench" / "CMakeLists.txt"
 _SUBMODULE_GIT_MARKER = Path("external") / "ccbench" / ".git"
 _DELETION_GATE_RC = 13
@@ -467,20 +466,19 @@ def _git_env() -> dict[str, str]:
 
 
 def _deletion_git_failure(message: str) -> int:
-    if os.environ.get(_TEST_TRIGGER_ENV) == "final":
-        print(
-            f"未 stage 削除の git 検査が成立しません ({message})。"
-            f"{_TEST_TRIGGER_ENV}=final は未検査のため停止します。",
-            file=sys.stderr,
-            flush=True,
-        )
-        return _DELETION_GATE_RC
     print(
-        f"警告: 未 stage 削除の git 検査が成立しません ({message}) — 続行します。",
+        f"未 stage 削除の git 検査が成立しません ({message})。"
+        "受入形は未検査のため停止します。",
         file=sys.stderr,
         flush=True,
     )
-    return 0
+    print(
+        "git の実行環境を直し、意図した削除は git add -A で stage し、"
+        "意図しない削除はファイルを復元してから再実行してください。",
+        file=sys.stderr,
+        flush=True,
+    )
+    return _DELETION_GATE_RC
 
 
 def _preflight_unstaged_deletions(
@@ -504,16 +502,6 @@ def _preflight_unstaged_deletions(
     deleted = tuple(line for line in result.stdout.splitlines() if line)
     if not deleted:
         return 0
-    bypass = os.environ.get(_ALLOW_UNSTAGED_DELETIONS_ENV) == "1"
-    final_run = os.environ.get(_TEST_TRIGGER_ENV) == "final"
-    if bypass and not final_run:
-        print(
-            f"警告: 未 stage 削除 {len(deleted)} 件を "
-            f"{_ALLOW_UNSTAGED_DELETIONS_ENV}=1 により許可して続行します。",
-            file=sys.stderr,
-            flush=True,
-        )
-        return 0
 
     print(
         f"未 stage 削除を {len(deleted)} 件検出しました:",
@@ -522,15 +510,9 @@ def _preflight_unstaged_deletions(
     )
     for path in deleted:
         print(f"  {path}", file=sys.stderr, flush=True)
-    if bypass and final_run:
-        print(
-            f"{_TEST_TRIGGER_ENV}=final では "
-            f"{_ALLOW_UNSTAGED_DELETIONS_ENV}=1 を使用できません。",
-            file=sys.stderr,
-            flush=True,
-        )
     print(
-        "git add -A で削除を stage してから再実行してください。",
+        "意図した削除は git add -A で stage し、意図しない削除は"
+        "ファイルを復元してから再実行してください。",
         file=sys.stderr,
         flush=True,
     )

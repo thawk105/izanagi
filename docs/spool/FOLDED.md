@@ -340,3 +340,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:holdout-name-mask-bypass":"[T-544]","T:s1b-pairing-mask-identity":"[T-543]"},"authored":"2026-08-06","content_sha256":"986b35902528975dce3d34ca5e6af0cc80ac29205b81720df76a9b67785ea92a","seq":1,"wave":"dev-wave-t532-name-mask-binding"}
 - {"allocations":{"D:trigger-name-mask-forward-authority":"D185"},"authored":"2026-08-06","content_sha256":"6f2cbfdfd9c73abe73683d0009a779a4a049b61db7b675017858b8a8670579ca","seq":2,"wave":"dev-wave-t532-name-mask-binding"}
 - {"allocations":{"F:scan-order-false-kill":"F133"},"authored":"2026-08-06","content_sha256":"611b843835dc9ed6753a24acd9b1a30c60c62538e1f8744f7708babc409c560e","seq":3,"wave":"dev-wave-t532-name-mask-binding"}
+
+- {"allocations":{"T:acceptance-mode-and-receipt":"[T-545]","T:dispatch-request-env-revalidation":"[T-547]","T:staged-delete-tree-identity":"[T-546]"},"authored":"2026-08-05","content_sha256":"afc9fe150b410224270c6d40225aa10fb608947c7c8c02dc0fe418f4e48c4d1d","seq":1,"wave":"dev-wave-t450-t412-preface"}
+- {"allocations":{"D:acceptance-deletion-gate-fail-closed":"D186"},"authored":"2026-08-05","content_sha256":"6bf6d36c4b81883b8e1be68c35e43e34e8e12fe95cd595f559b657758232569e","seq":2,"wave":"dev-wave-t450-t412-preface"}
