@@ -60,6 +60,14 @@ _ADMISSION_DECISION_KEYS = frozenset({
 })
 _ADMISSION_VALIDATOR_KEYS = frozenset({"identity", "sha256"})
 _ADMISSION_OVERLAY_KEYS = frozenset({"ledger_sha256", "record_key"})
+_LAUNCH_ADMISSION_KEYS = frozenset({
+    "mode", "certifying", "reason_code", "trial_id", "workloads",
+    "binding", "activation_report_digest_sha256",
+})
+_LAUNCH_BINDING_KEYS = frozenset({
+    "manifest_sha256", "prereg_commit", "measurement_head", "trial_id",
+    "arm", "holdout", "campaign_id", "workload", "ycsb_rratio",
+})
 
 
 class AutonomousTrialCompletenessError(RuntimeError):
@@ -368,6 +376,62 @@ def _check_transport_admission(
         )
 
 
+def _check_launch_admission_projection(
+    *,
+    report: Mapping[str, Any],
+    start: Mapping[str, Any],
+) -> None:
+    report_admission = _mapping(
+        report.get("launch_admission"),
+        gate="launch-admission",
+        label="report.launch_admission",
+    )
+    start_admission = _mapping(
+        start.get("launch_admission"),
+        gate="launch-admission",
+        label="run-start.launch_admission",
+    )
+    if set(report_admission) != _LAUNCH_ADMISSION_KEYS:
+        _fail("launch-admission", "report launch_admission exact keys differ")
+    if dict(start_admission) != dict(report_admission):
+        _fail("launch-admission", "run-start/report launch_admission differs")
+    mode = report_admission.get("mode")
+    if mode not in {
+        "registered-effective", "explicit-unregistered-exploratory",
+    }:
+        _fail("launch-admission", "launch mode is outside the closed set")
+    if report_admission.get("certifying") is not False:
+        _fail("launch-admission", "this producer cannot emit certifying input")
+    if report_admission.get("trial_id") != report.get("trial_id"):
+        _fail("launch-admission", "launch trial_id differs from report")
+    if report_admission.get("workloads") != report.get("workloads_requested"):
+        _fail("launch-admission", "launch workloads differ from report")
+    binding = report_admission.get("binding")
+    activation_digest = report_admission.get("activation_report_digest_sha256")
+    if mode == "registered-effective":
+        binding = _mapping(
+            binding, gate="launch-admission", label="launch_admission.binding",
+        )
+        if set(binding) != _LAUNCH_BINDING_KEYS:
+            _fail("launch-admission", "registered launch binding exact keys differ")
+        if (
+            report_admission.get("reason_code")
+            != "registered-effective-non-certifying"
+            or binding.get("trial_id") != report.get("trial_id")
+            or [binding.get("workload")] != report.get("workloads_requested")
+            or not isinstance(activation_digest, str)
+            or _SHA256_RE.fullmatch(activation_digest) is None
+        ):
+            _fail("launch-admission", "registered launch projection is inconsistent")
+    elif (
+        report_admission.get("reason_code")
+        != "explicit-unregistered-exploratory"
+        or binding is not None
+        or activation_digest is not None
+    ):
+        _fail("launch-admission", "exploratory launch projection is inconsistent")
+
+
 def _check_run_envelope(
     *, report: Mapping[str, Any], events: Sequence[Mapping[str, Any]],
     attempt_journal: Path,
@@ -463,6 +527,7 @@ def _check_run_envelope(
     expected_report = Path(attempt_journal).resolve().parent / "report.json"
     if finish_report != expected_report:
         _fail("run-envelope", "run-finish.report names a different report")
+    _check_launch_admission_projection(report=report, start=start)
 
 
 def _terminal_events(events: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
@@ -975,6 +1040,8 @@ def _fresh_layer3_for_comparison(
 
 def _without_generated_from_head(report: Mapping[str, Any]) -> dict[str, Any]:
     normalized = dict(report)
+    normalized.setdefault("acceptance_receipt", None)
+    normalized.setdefault("certifying_input", False)
     meta = _mapping(
         report.get("meta"), gate="campaign-chain", label="layer3 report.meta",
     )
@@ -1029,6 +1096,14 @@ def assert_campaign_layer3_chain(
         _fail("campaign-chain", "report generation budget is not a positive int")
     if budget > producer.MAX_APPROVED_GENERATIONS:
         _fail("campaign-chain", "report generation budget exceeds producer limit")
+    launch_admission = _mapping(
+        report.get("launch_admission"),
+        gate="campaign-chain",
+        label="report.launch_admission",
+    )
+    certifying_input = launch_admission.get("certifying")
+    if type(certifying_input) is not bool:
+        _fail("campaign-chain", "launch admission certifying is not a bool")
     for index, raw_cell in enumerate(cells):
         cell = _mapping(raw_cell, gate="campaign-chain", label=f"cells[{index}]")
         campaign_id = cell.get("campaign_id")
@@ -1081,6 +1156,11 @@ def assert_campaign_layer3_chain(
         meta = persisted.get("meta")
         if not isinstance(meta, Mapping) or meta.get("campaign_id") != campaign_id:
             _fail("campaign-chain", "persisted layer3 campaign identity mismatch")
+        if persisted.get("certifying_input", False) is not certifying_input:
+            _fail(
+                "campaign-chain",
+                "persisted layer3 certifying_input differs from launch admission",
+            )
         try:
             expected_decision = require_admitted_campaign(
                 campaign_root,

@@ -674,6 +674,80 @@ def test_same_revision_introduced_on_two_forks_is_rejected(tmp_path: Path) -> No
     _assert_reason("generation-fork", M.validate_condition_freeze_at, root, "HEAD")
 
 
+def _effective_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, M.ActivationReport, M.EffectivePreregistration]:
+    root = _init_repo(tmp_path, filled=True)
+    head, _raw = _install_g1(root)
+    report = M._activation_report_at_for_test(
+        root,
+        head,
+        registry=_Registry(M.PredicateStatus.SATISFIED),
+    )
+    assert report.effective is True
+    capability = M._construct_effective(report)
+    monkeypatch.setattr(M, "activation_report_at", lambda repo_root, commit: report)
+    return root, report, capability
+
+
+def test_require_effective_preregistration_accepts_exact_recomputed_capability(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, report, capability = _effective_fixture(tmp_path, monkeypatch)
+    assert M.require_effective_preregistration(
+        capability,
+        repo_root=root,
+        commit=report.commit,
+    ) is report
+
+
+@pytest.mark.parametrize("capability", [None, object()], ids=["none", "wrong-type"])
+def test_require_effective_preregistration_rejects_missing_or_wrong_type(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capability: object,
+) -> None:
+    root, report, _valid = _effective_fixture(tmp_path, monkeypatch)
+    _assert_reason(
+        "effective-capability-type",
+        M.require_effective_preregistration,
+        capability,
+        repo_root=root,
+        commit=report.commit,
+    )
+
+
+def test_require_effective_preregistration_rejects_different_commit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, _report, capability = _effective_fixture(tmp_path, monkeypatch)
+    _assert_reason(
+        "effective-capability-commit",
+        M.require_effective_preregistration,
+        capability,
+        repo_root=root,
+        commit="0" * 40,
+    )
+
+
+def test_require_effective_preregistration_rejects_tampered_digest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, report, capability = _effective_fixture(tmp_path, monkeypatch)
+    object.__setattr__(capability, "_report_digest_sha256", "0" * 64)
+    _assert_reason(
+        "effective-capability-digest",
+        M.require_effective_preregistration,
+        capability,
+        repo_root=root,
+        commit=report.commit,
+    )
+
+
 def test_revision_requires_ruling_reference_and_existing_ledger_entry(tmp_path: Path) -> None:
     root = _init_repo(tmp_path / "missing")
     _, g1 = _install_g1(root)

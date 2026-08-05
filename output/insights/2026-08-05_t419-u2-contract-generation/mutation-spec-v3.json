@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 300,
+ "mutations": [
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract.py",
+     "old": "    _validate_generations_without_bootstrap_fuse(mapping)\n",
+     "new": "    pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_contract.py::test_validate_generations_public_rejects_invalid_single_generation_candidate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

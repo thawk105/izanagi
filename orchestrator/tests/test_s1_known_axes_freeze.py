@@ -11,6 +11,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -30,6 +31,35 @@ from s1_expected_goldens import (  # noqa: E402
 from skiputil import Skip, skip  # noqa: E402
 
 _SUBMODULE_DIR = M.ROOT / "external" / "ccbench"
+_NONCANONICAL_PREDICATE = "izanagi_gate_pass = true;"
+
+
+def _current_frozen_document() -> dict:
+    return json.loads((M.ROOT / M.FREEZE_REL).read_text(encoding="utf-8"))
+
+
+def _trigger_provenance(
+        *, gate_name: str, gate_predicate: str, ident_predicate: str) -> dict:
+    return {
+        "entries": {
+            gate_name: {"implementation": gate_predicate},
+            "ident_all": {"implementation": ident_predicate},
+        },
+    }
+
+
+def _call_trigger_entries_with_mocked_provenance(
+        *, workload: str, gate_name: str, provenance: dict):
+    with mock.patch.object(M, "_campaign_file", side_effect=(
+                M.ROOT / "remeasure", M.ROOT / "main")), \
+            mock.patch.object(M, "_load_json", side_effect=(
+                copy.deepcopy(provenance), copy.deepcopy(provenance))), \
+            mock.patch.object(
+                M.s8a_trigger_sweep, "_genome",
+                return_value=mock.Mock(flags=dict(M.trigger_axis._BASE))), \
+            mock.patch.object(M, "_source", return_value={}), \
+            mock.patch.object(M, "_module_source", return_value={}):
+        return M._trigger_entries(workload, gate_name)
 
 
 def _submodule_initialized(sub: Path = _SUBMODULE_DIR) -> bool:
@@ -63,6 +93,121 @@ def test_generate_selects_registered_expected_points():
     for workload, expected in EXPECTED_SORT.items():
         assert entries[workload]["sort_best"]["name"] == expected["name"]
     assert entries["read-heavy"]["sort_best"]["name"] == EXPECTED_SORT["read-heavy"]["name"]
+
+
+def test_current_six_frozen_trigger_predicates_pass_semantic_membership():
+    doc = _current_frozen_document()
+    predicates = [
+        doc["entries"][workload][configuration]["gate_predicate"]
+        for workload in M.WORKLOADS
+        for configuration in ("system_gate", "ident_all")
+    ]
+    assert len(predicates) == 6
+    M._validate_schema(doc)
+
+
+def test_trigger_entries_rejects_coordinated_noncanonical_system_gate():
+    entries = _current_frozen_document()["entries"]
+    for workload in M.WORKLOADS:
+        gate_name = entries[workload]["system_gate"]["name"]
+        provenance = _trigger_provenance(
+            gate_name=gate_name,
+            gate_predicate=_NONCANONICAL_PREDICATE,
+            ident_predicate=entries[workload]["ident_all"]["gate_predicate"],
+        )
+        with pytest.raises(M.FreezeError) as excinfo:
+            _call_trigger_entries_with_mocked_provenance(
+                workload=workload, gate_name=gate_name, provenance=provenance)
+        assert str(excinfo.value) == (
+            f"entries.{workload}.system_gate.gate_predicate が正準集合外")
+
+
+def test_trigger_entries_rejects_coordinated_noncanonical_ident_all():
+    entries = _current_frozen_document()["entries"]
+    for workload in M.WORKLOADS:
+        gate_name = entries[workload]["system_gate"]["name"]
+        provenance = _trigger_provenance(
+            gate_name=gate_name,
+            gate_predicate=entries[workload]["system_gate"]["gate_predicate"],
+            ident_predicate=_NONCANONICAL_PREDICATE,
+        )
+        with pytest.raises(M.FreezeError) as excinfo:
+            _call_trigger_entries_with_mocked_provenance(
+                workload=workload, gate_name=gate_name, provenance=provenance)
+        assert str(excinfo.value) == (
+            f"entries.{workload}.ident_all.gate_predicate が正準集合外")
+
+
+def test_validate_schema_rejects_noncanonical_system_gate():
+    current = _current_frozen_document()
+    for workload in M.WORKLOADS:
+        doc = copy.deepcopy(current)
+        doc["entries"][workload]["system_gate"][
+            "gate_predicate"] = _NONCANONICAL_PREDICATE
+        with pytest.raises(M.FreezeError) as excinfo:
+            M._validate_schema(doc)
+        assert str(excinfo.value) == (
+            f"entries.{workload}.system_gate.gate_predicate が正準集合外")
+
+
+def test_validate_schema_rejects_noncanonical_ident_all():
+    current = _current_frozen_document()
+    for workload in M.WORKLOADS:
+        doc = copy.deepcopy(current)
+        doc["entries"][workload]["ident_all"][
+            "gate_predicate"] = _NONCANONICAL_PREDICATE
+        with pytest.raises(M.FreezeError) as excinfo:
+            M._validate_schema(doc)
+        assert str(excinfo.value) == (
+            f"entries.{workload}.ident_all.gate_predicate が正準集合外")
+
+
+def test_generate_rejects_noncanonical_predicate_before_writing(tmp_path):
+    current = _current_frozen_document()["entries"]["balanced"]
+    provenance = _trigger_provenance(
+        gate_name=current["system_gate"]["name"],
+        gate_predicate=_NONCANONICAL_PREDICATE,
+        ident_predicate=current["ident_all"]["gate_predicate"],
+    )
+    output_path = tmp_path / "known_axes_freeze.json"
+    with mock.patch.object(M, "_p2_entry", return_value=({}, "mocked")), \
+            mock.patch.object(M, "_fixed_gates_from_recon", return_value={
+                workload: "g_rl" for workload in M.WORKLOADS}), \
+            mock.patch.object(M, "_stock_common", return_value={}), \
+            mock.patch.object(M, "_backoff_entry", return_value={}), \
+            mock.patch.object(M, "_sort_entry", return_value={}), \
+            mock.patch.object(
+                M, "_campaign_file",
+                side_effect=lambda campaign, relative: M.ROOT / campaign / relative), \
+            mock.patch.object(
+                M, "_load_json",
+                side_effect=lambda _path: copy.deepcopy(provenance)), \
+            mock.patch.object(
+                M.s8a_trigger_sweep, "_genome",
+                return_value=mock.Mock(flags=dict(M.trigger_axis._BASE))), \
+            mock.patch.object(M, "_source", return_value={}), \
+            mock.patch.object(M, "_module_source", return_value={}), \
+            mock.patch.object(M, "_run_git", return_value="a" * 40), \
+            mock.patch.object(M, "_sha256", return_value="b" * 64):
+        with pytest.raises(M.FreezeError) as excinfo:
+            M.generate(output_path)
+    assert str(excinfo.value) == (
+        "entries.balanced.system_gate.gate_predicate が正準集合外")
+    assert not output_path.exists()
+
+
+def test_verify_document_rejects_noncanonical_predicate_before_rebuild():
+    doc = copy.deepcopy(_current_frozen_document())
+    doc["entries"]["balanced"]["system_gate"][
+        "gate_predicate"] = _NONCANONICAL_PREDICATE
+    with mock.patch.object(
+            M, "build_document",
+            side_effect=AssertionError("schema 拒否後に再構成へ到達した")) as rebuild:
+        with pytest.raises(M.FreezeError) as excinfo:
+            M.verify_document(doc)
+    assert str(excinfo.value) == (
+        "entries.balanced.system_gate.gate_predicate が正準集合外")
+    rebuild.assert_not_called()
 
 
 def test_backoff_sweep_grid_matches_registered_golden():

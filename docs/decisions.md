@@ -8607,3 +8607,142 @@ materialize せず、**membership 判定の直後・source へ書き込む直前
 - 各 consumer 側で畳む — materialize 経路が複数あるとき取り残しが生じる。
   実際の書き込み関数を呼ぶ唯一の共有境界へ置くのが正しい。
 - 現状維持 — identity 多重化が残る。
+
+## D175. [T-481] Pegasus 実行体の login 受理を三値 registry で決め、証拠のない昇格を禁じる (2026-08-05)
+
+`hooks/guard_bash.py` が `tools/pegasus/` 配下を prefix 一致で一律に扱い、必要な entry を
+1 件ずつ sanctioned 化していた運用をやめる。ユーザー裁定 (2026-08-05 /rulings、択 (b)) に従う
+族再設計であり、D103 決定 5 の「`tools/pegasus/*` の glob 許可はしない」は維持する。
+
+**決定 (1): admission は path ごとの三値とし、`local-ok` だけを許可する。**
+registry は `path → {class, reason, primary_gate, evidence}` を持ち、class は
+`local-ok` / `dispatch-required` / `unknown`。`unknown`・`dispatch-required`・未登録
+(subdirectory を含む) はすべて拒否する。`_SANCTIONED_PATHS` は registry の `local-ok` から
+導出し、二重表を作らない。判定に prefix を使うのは「pegasus 配下だが未登録」を拒否する側だけで、
+許可側には使わない。
+
+**決定 (2): 証拠状態を class と別 field に持ち、未実測を実測済みと読ませない。**
+現在 `local-ok` の 5 本のうち `docs/pegasus-runbook.md` §7.0 の手順で実測されているのは
+`fetch_third_party.py` だけである。残り 4 本 (`dispatch_compute.py` /
+`submit_certify.sh` / `submit_floor.sh` / `submit_silo_ladder_rung1.sh`) は
+`legacy-admitted (未実測)` と明記して現状を記録する。**これは実測の代替ではない** —
+規範を厳格適用すれば現在通っている 4 本は落ちる。厳格化するか grandfather を追認するかは
+ユーザー裁定に残す。
+
+**決定 (3): 本 wave では許可へ反転させる entry を作らない。**
+族の症状として起票された `collect_receipt.py` は、scheduler stderr の全読み・JSON 全読み・
+`rglob` の全件 materialize を持ち、§7.0 が定める「入力サイズに上限が無い」= `unknown` に該当する。
+実測なしに `local-ok` と記録することは防壁を緩める方向の変異であり、規律 2 に反する。
+入力 cap ([T-482] 択 (c)) と cap 下の実測が揃うまで拒否のまま残す。
+
+**決定 (4): 分類の測定はユーザー端末でしか行えないことを明示する。**
+§7.0 の測定手順 (`systemd-run --user --scope` + `memory.current` sampling) は計算ノードで
+成立しない (PBS ジョブに user systemd session が無い。2026-08-05 実測)。一方 hook は未登録の
+実行体をログインノードで拒否する。したがって「登録には実測が要る / 実測には登録が要る」という
+循環がある。迂回は禁止で、hook の管轄外であるユーザー端末が現行唯一の正規経路である。
+恒久的な測定経路は裁定待ちとする。
+
+**決定 (5): `-m <module>` の実行体は module であり、位置引数は原則データとする。**
+例外は後続 script を実際に実行・import する module の閉集合
+(`cProfile` / `profile` / `pdb` / `trace` / `runpy` / `coverage` / `pydoc` / `doctest` / `unittest`)
+で、そこでは位置引数を実行対象として分類する。module identity は `pytest` / `pytest.__main__` /
+`_pytest.main` を同一視する。これで [T-483] の sanctioned 借用が閉じる。
+
+**決定 (6): 受理集合の変更は単調性で縛る。** 変更前に拒否していた綴りを許可へ変えず、
+変更前に許可していた綴りも本決定が列挙した「意図した縮小」以外では拒否へ変えない。
+段 6 で密着形 `-m py_compile <path>` を許可へ広げる案が出たが、単調性を優先して撤回した
+(分離形は従来どおり許可なので静的検査は失われない)。
+
+**却下:** `tools/pegasus/*` の glob 許可 (D103 決定 5 を維持)、hook が argv を検査する admission
+([T-482] 択 (b)。hook から入力サイズは見えず偽の安心を作る)、`^#PBS` の有無による自動分類
+(`dispatch_compute.py` が生成テンプレ内に同 directive を持ち誤判定する)、
+未実測 entry の役割ベース昇格。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes は不変。
+変わるのは開発 harness の Bash 面における Pegasus 実行体の受理集合だけである。
+
+## D176. 契約世代機構は data 層だけ先に置き、2 世代目を fuse で拒否する (2026-08-05)
+
+**決定:** 実行環境契約に immutable な世代列 (`GENERATIONS`)、`contract_sha256` の逆引き
+(`resolve_by_contract_sha256`)、遷移述語 (`is_valid_successor`)、候補 mapping の純関数
+validator (`validate_generations`) を置く。ただし**各 env の世代列の長さがちょうど 1 であること**を
+production 初期化時に要求する bootstrap fuse を同時に課し、活性化権限
+(activation record / activation receipt) が実装されるまで 2 世代目の登録を fail-closed で拒否する。
+
+`ExecutionEnvironmentContract` と `_canonical_obj()` は変更せず、既存 env の `contract_sha256` を
+1 bit も動かさない。`lookup()` と `REGISTRY` の公開挙動も現行のまま残し、production の消費者を
+1 箇所も移行しない。
+
+**理由:**
+- 較正を再取得すると、旧 artifact が参照する契約 hash が `lookup()` から解決できなくなり、
+  過去試行の proof chain が解決不能になる。その状態で再取得へ進むと、旧 evidence の binding を
+  新 SHA へ貼り替える (虚偽の履歴を作る) 誘惑が生じる。受け皿を先に置いてこれを塞ぐ。
+- 一方で「現行契約か履歴契約か」を**型で**分離する案 (`CurrentContract` / `HistoricalContract`) は、
+  型を public な dataclass にする限り、履歴契約を包み直すだけで偽造できる。
+  `type(x) is CurrentContract` は生成権限を証明しない。活性化 record と全入口 receipt が
+  揃うまでは、型分離は権限 gate にならず、名ばかりの保証になる。
+- 世代列の末尾を無条件に current とみなす実装も採らない。それでは source に 2 世代目を
+  足しただけで全消費者が切り替わり、「正規の publish 経路を通っていない較正は活性化できない」
+  という設計の眼目と矛盾する。fuse はこの窓を閉じたまま data 層だけを先行させる。
+- 遷移述語の可変 pointer は calibration 参照の path と sha256 に限る。加えて
+  **path が変わらないなら sha256 も変わってはならない**。同一 path のまま bytes を差し替えると、
+  旧世代の calibration bytes が失われ、履歴側の検証が hash 不一致で成立しなくなる。
+
+**射程 (この決定が保証しないこと):**
+- 世代列が 1 本しかない間、隣接遷移の検査は production では一度も発火しない。
+  純関数として test からのみ発火する。
+- fuse は **source bootstrap の防壁**であって runtime の活性化権限ではない。
+  逆引き index は module 属性として再束縛可能であり、authority として扱ってはならない。
+- 履歴 resolver は production の消費者を持たない data 層の準備である。
+  旧 proof chain を実際に再計算できるようにするのは versioned predicate dispatch の役目で、
+  この決定には含まれない。
+
+**却下した選択肢:**
+- `CurrentContract` / `HistoricalContract` の型分離と消費者移行を同時に行う —
+  偽造可能な型を権限と称することになり、活性化機構が無い間は純減になりうる。
+- 現行 lookup API の削除 — 凍結済みの事前登録 evidence contract が当該 API 名を参照しており、
+  参照互換が壊れる。加えて test 側の呼び出しが 84 箇所あり、移行規模が世代機構と無関係に膨らむ。
+- 世代機構を別 module へ切り出す — registry と世代列で権威が割れ、env 固有 literal の
+  単一定義領域 (AST 検査の免除 region) も増える。
+
+## D177. known 軸凍結の意味検査は schema 検証点に置く (2026-08-05)
+
+**決定:** `s1_known_axes_freeze` の trigger 述語 semantic membership は、生成層
+`_trigger_entries()` と**検証層 `_validate_schema()`** の 2 箇所で検査する。`verify_document()`
+の内側だけに置かない。
+
+**理由:**
+- T-080 移行 receipt が active なとき、公開 oracle gate は static adapter へ委譲し、
+  legacy `verify()` も `build_document()` も呼ばない。その経路が known 文書に対して通る
+  意味検査の合流点は `_validate_schema()` だけである。
+- 生成層だけでは、既に発行された文書を受理する側を守れない。検証層だけでは、
+  producer が非正準文書を書き出すのを止められない (`generate()` は schema 検証を呼ばない)。
+- 権威は既存の正準述語 index をそのまま使い、freeze 層で新しい正規化を作らない。
+  受理集合は従来の受理集合との積へ狭まるだけで、拡大しない。
+
+**却下した選択肢:**
+- `verify_document()` 限定 — active 移行経路を素通りする。
+- 生成層 1 箇所のみ — 受理側と、再構成を経ない移行 gate を覆えない。
+- consumer 側 sink だけを増やす — 非正準凍結物の生成自体は止まらない (先行 wave の限界)。
+
+## D178. 自己 hash される generator の編集境界を定義する (2026-08-05)
+
+**決定:** 凍結物の generator 自身を編集する変更では、不変条件を次の 2 つで書く。
+(1) 凍結済み artifact の bytes を編集せず再発行しない。
+(2) `generator_sha` を明示して射影した文書構築では、受理される入力に対し非 metadata field
+(top-level field、挿入順、entry の name / flags / 述語、source 記録の要素数と内容) が完全に不変である。
+「文書構築の出力を一切変えない」とは書かない。
+
+**理由:**
+- generator の自己 hash は生成器の bytes から作られるため、生成器を 1 byte でも編集すれば
+  既定引数の構築結果はその 1 セルだけ必ず変わる。AST 不変や規則不変は値不変の証明にならない。
+- 下流の影響は限定できる。移行 receipt の active 検証は generator セルを静的再構成比較から
+  除外し、metadata 照合も移行基準 commit の blob と行うため、live 編集で壊れない。
+  一方 legacy 検証は live の生成器 bytes を直接 hash するため、既存凍結物に対する
+  拒否理由と診断順が変わる。この差を記録しないと「bytes 不変」と「全検証経路の受理性不変」を
+  取り違える。
+
+**却下した選択肢:**
+- 生成器を編集せずに済ませる — 検査の呼び出しは同じファイルに要るため不可能。
+- 同じ wave で再凍結する — 移行 receipt が旧 raw hash を定数で固定しており、
+  再凍結は世代移行の設計を要する別作業になる。

@@ -296,3 +296,18 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"b0513e43fe724488d3b13c08f2bf1f7401dad16d3b83ad6c80f2a96f4f41e1a2","seq":1,"wave":"rulings-20260805-m"}
 
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"3ff85b4eeefd2df136a93908fc70e59656ea83278e43d37c17837a0cfe2cb594","seq":1,"wave":"dev-wave-t213-shared-scratch"}
+
+- {"allocations":{"D:pegasus-admission-registry":"D175"},"authored":"2026-08-05","content_sha256":"3a77ae066f56a9590136b87d8c90e014340158ddf55f45c965ca3b531433964d","seq":1,"wave":"dev-wave-t481-pegasus-admission"}
+- {"allocations":{"F:classification-bootstrap-deadlock":"F123","F:fix-prompt-restore-without-exceptions":"F124","F:norm-procedure-barrier-three-way-drift":"F122","F:pegasus-blanket-rule-porous":"F121"},"authored":"2026-08-05","content_sha256":"6c7c2124e4f811096c209ecff3e42f3e419e348600b455351cdcf9e15ea28462","seq":2,"wave":"dev-wave-t481-pegasus-admission"}
+- {"allocations":{"T:collect-receipt-input-caps":"[T-519]","T:dev-wave-fix-prompt-contract":"[T-521]","T:guard-bash-residual-bypasses":"[T-518]","T:pegasus-admission-registry-authority":"[T-522]","T:pegasus-measurement-surface":"[T-520]"},"authored":"2026-08-05","content_sha256":"9106562d4166e27257dbadad3dbc93998a56a0d0546cfb4f280cbedaaa9b9e42","seq":3,"wave":"dev-wave-t481-pegasus-admission"}
+
+- {"allocations":{"T:holdout-full-condition-binding":"[T-525]","T:holdout-workload-projection":"[T-527]","T:s8b-pilot-holdout-observation":"[T-523]","T:s8c-check-cli-double-import":"[T-526]","T:trial-experiment-unit-redesign":"[T-524]"},"authored":"2026-08-05","content_sha256":"7c42991aeaa2939168150f34d71d5a3d8a59c9f261e3ff7c8da90d63e1a42089","seq":1,"wave":"dev-wave-t470-t327-wiring"}
+- {"allocations":{"F:merge-author-trailer-without-conflict":"F125"},"authored":"2026-08-05","content_sha256":"98326473e1500d9e539b0525eb5a04c065d3dbeb333eda67342506f9acf8a6ce","seq":2,"wave":"dev-wave-t470-t327-wiring"}
+
+- {"allocations":{"T:campaign-env-contract-none-bypass":"[T-530]","T:contract-generation-activation-authority":"[T-529]","T:probe-method-alpha-production-wiring":"[T-528]"},"authored":"2026-08-05","content_sha256":"5e5043888a1cb1daa9ef30b5e033cb2ca31c04be4a0c6b8401eb5e112f906811","seq":1,"wave":"dev-wave-t419-u2-contract-generation"}
+- {"allocations":{"D:contract-generation-bootstrap-fuse":"D176"},"authored":"2026-08-05","content_sha256":"8e979989eb8b5bc208477bc33bb5c5c0db58ee12410e118003adb712a7379108","seq":1,"wave":"dev-wave-t419-u2-contract-generation"}
+- {"allocations":{"F:delegation-seam-left-unpinned-by-its-own-fix":"F127","F:fuse-masks-mutation-attribution":"F126"},"authored":"2026-08-05","content_sha256":"c28ac6462783df4243880b7174bd30b6838f7ed2ff77be7b22c955582b959f72","seq":1,"wave":"dev-wave-t419-u2-contract-generation"}
+
+- {"allocations":{"T:freeze-membership-authority-provenance":"[T-534]","T:freeze-refreeze-generation-transition":"[T-531]","T:holdout-freeze-semantic-closure":"[T-533]","T:trigger-name-mask-binding":"[T-532]"},"authored":"2026-08-05","content_sha256":"bb636da57e7a681ad102dfc9b3f171b343462c446f8de7959509b6441fe8d1f1","seq":1,"wave":"dev-wave-t492-freeze-semantic-membership"}
+- {"allocations":{"D:freeze-generator-self-hash-boundary":"D178","D:freeze-semantic-membership-at-schema":"D177"},"authored":"2026-08-05","content_sha256":"33b86c87bbf2b2dae19fc45594d7cb75d8ab7d8f332924bfaa1c7d5351a00dcd","seq":2,"wave":"dev-wave-t492-freeze-semantic-membership"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"83aadb0307b673d25bf10dcc8a32284c5740b02df9da659e068806e3d991e371","seq":3,"wave":"dev-wave-t492-freeze-semantic-membership"}

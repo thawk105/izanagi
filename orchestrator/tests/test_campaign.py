@@ -4355,6 +4355,7 @@ def test_autonomous_trial_env_run_root_and_worktree_container_gate():
     saved_assert = autonomous.assert_pinned_clean
     saved_run_trial = autonomous.run_trial
     saved_resolver = autonomous._resolve_exploration_output_root
+    saved_trial_launch_admission = autonomous._trial_launch_admission
     saved_root = autonomous.ROOT
     external = _tmpdir("izanagi_autonomous_env_")
     captured = {}
@@ -4372,6 +4373,7 @@ def test_autonomous_trial_env_run_root_and_worktree_container_gate():
             "--trial-id", "env-root-trial",
             "--provider", "fixture",
             "--no-build",
+            "--allow-unregistered-exploratory",
             "--ccbench-dir", os.path.join(external, "ccbench"),
         ]) == 0
         assert captured["run_root"] == Path(
@@ -4384,16 +4386,32 @@ def test_autonomous_trial_env_run_root_and_worktree_container_gate():
         legacy_root = Path(external, "resolved-checkout")
         autonomous.ROOT = legacy_root
         legacy_bases = []
+        legacy_admission = autonomous.trial_registry.admit_unregistered_exploratory(
+            trial_id="legacy-default-trial",
+            workloads=list(autonomous.WORKLOADS),
+            allow_unregistered_exploratory=True,
+            repository_root=saved_root,
+            registry_path=(
+                saved_root / autonomous.trial_registry.DEFAULT_REGISTRY_PATH
+            ),
+        )
 
         def resolve_legacy(*, legacy_base=""):
             legacy_bases.append(legacy_base)
             return legacy_base
 
+        def admit_legacy(**kwargs):
+            assert kwargs["trial_id"] == "legacy-default-trial"
+            assert kwargs["allow_unregistered_exploratory"] is True
+            return legacy_admission
+
         autonomous._resolve_exploration_output_root = resolve_legacy
+        autonomous._trial_launch_admission = admit_legacy
         assert autonomous.main([
             "--trial-id", "legacy-default-trial",
             "--provider", "fixture",
             "--no-build",
+            "--allow-unregistered-exploratory",
             "--ccbench-dir", os.path.join(external, "ccbench"),
         ]) == 0
         assert captured["run_root"] == Path(
@@ -4403,6 +4421,8 @@ def test_autonomous_trial_env_run_root_and_worktree_container_gate():
         assert legacy_bases == [str(legacy_root / "output")]
 
         autonomous.run_trial = saved_run_trial
+        autonomous._trial_launch_admission = saved_trial_launch_admission
+        autonomous.ROOT = saved_root
         container = Path(
             _tmpdir("izanagi_autonomous_gate_"),
             ".codex", "worktrees", "wave", "trial",
@@ -4417,6 +4437,7 @@ def test_autonomous_trial_env_run_root_and_worktree_container_gate():
                 sub="unused",
                 do_build=False,
                 providers={},
+                allow_unregistered_exploratory=True,
             )
             assert False, "8c run_root の worktree container を拒否すべき"
         except ValueError as exc:
@@ -4430,6 +4451,7 @@ def test_autonomous_trial_env_run_root_and_worktree_container_gate():
         autonomous.assert_pinned_clean = saved_assert
         autonomous.run_trial = saved_run_trial
         autonomous._resolve_exploration_output_root = saved_resolver
+        autonomous._trial_launch_admission = saved_trial_launch_admission
         autonomous.ROOT = saved_root
         layout_module._reset_exploration_output_root_pin_for_tests()
         if saved_env is sentinel:

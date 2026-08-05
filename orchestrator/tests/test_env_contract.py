@@ -18,6 +18,7 @@ env 固有 golden literal (linux-baremetal / pegasus 等) はこの test 内に
 """
 from __future__ import annotations
 
+import ast
 import dataclasses
 import hashlib
 import json
@@ -25,6 +26,7 @@ import math
 import pathlib
 import sys
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -61,6 +63,15 @@ KNOWN_SELF_INCONSISTENT_CALIBRATIONS = {
     (
         "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
         "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+    ),
+}
+
+EXPECTED_GENERATION_HASHES = {
+    "linux-baremetal": (
+        "1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7",
+    ),
+    "pegasus": (
+        "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
     ),
 }
 
@@ -104,6 +115,20 @@ def _valid_contract(**overrides) -> ec.ExecutionEnvironmentContract:
     )
     base.update(overrides)
     return ec.ExecutionEnvironmentContract(**base)
+
+
+def _calibration_successor(
+        predecessor: ec.ExecutionEnvironmentContract,
+        *,
+        path: str = "output/y.json",
+        sha256: str = "1" * 64,
+        **overrides,
+) -> ec.ExecutionEnvironmentContract:
+    values = dict(
+        calibration_ref=ec.CalibrationRef(path=path, sha256=sha256),
+    )
+    values.update(overrides)
+    return dataclasses.replace(predecessor, **values)
 
 
 # --------------------------------------------------------------------------- #
@@ -256,13 +281,367 @@ def test_lookup_pegasus_golden():
 
 @pytest.mark.parametrize("unknown", ["unregistered-env", "linux-baremetal-x", "", "unknown"])
 def test_lookup_unknown_fails_closed(unknown):
-    with pytest.raises(ec.EnvContractError):
+    with pytest.raises(ec.EnvContractError) as exc_info:
         ec.lookup(unknown)
+    assert str(exc_info.value) == (
+        f"未登録の env_tag: {unknown!r} "
+        "(登録済み: ['linux-baremetal', 'pegasus'])"
+    )
 
 
 def test_lookup_non_str_fails_closed():
-    with pytest.raises(ec.EnvContractError):
+    with pytest.raises(ec.EnvContractError) as exc_info:
         ec.lookup(None)
+    assert str(exc_info.value) == (
+        "未登録の env_tag: None (登録済み: ['linux-baremetal', 'pegasus'])"
+    )
+
+
+def test_lookup_non_hashable_fails_closed_with_exact_message():
+    with pytest.raises(ec.EnvContractError) as exc_info:
+        ec.lookup([])  # type: ignore[arg-type]
+    assert str(exc_info.value) == (
+        "未登録の env_tag: [] (登録済み: ['linux-baremetal', 'pegasus'])"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# 契約世代 — data layer (権限ではない)                                           #
+# --------------------------------------------------------------------------- #
+
+def test_generation_entry_is_exact_frozen_data():
+    contract = _valid_contract()
+    entry = ec.GenerationEntry(generation=1, contract=contract)
+    assert {field.name for field in dataclasses.fields(ec.GenerationEntry)} == {
+        "generation", "contract",
+    }
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        entry.generation = 2  # type: ignore[misc]
+
+
+@pytest.mark.parametrize("bad_generation", [0, -1, True, False, 1.0, "1"])
+def test_generation_entry_rejects_nonpositive_or_non_int_generation(bad_generation):
+    with pytest.raises(ec.EnvContractError, match="正整数"):
+        ec.GenerationEntry(generation=bad_generation, contract=_valid_contract())
+
+
+def test_generation_entry_requires_exact_contract_type():
+    class ContractSubclass(ec.ExecutionEnvironmentContract):
+        pass
+
+    base = _valid_contract()
+    subclass = ContractSubclass(**{
+        field.name: getattr(base, field.name)
+        for field in dataclasses.fields(ec.ExecutionEnvironmentContract)
+    })
+    with pytest.raises(ec.EnvContractError, match="exact ExecutionEnvironmentContract"):
+        ec.GenerationEntry(generation=1, contract=subclass)
+
+
+def test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes():
+    assert set(ec.GENERATIONS) == set(EXPECTED_GENERATION_HASHES)
+    for env_tag, expected_hashes in EXPECTED_GENERATION_HASHES.items():
+        sequence = ec.GENERATIONS[env_tag]
+        assert sequence
+        assert tuple(
+            entry.contract.contract_sha256 for entry in sequence
+        ) == expected_hashes
+        assert sequence[0].generation == 1
+
+
+def test_generations_are_immutable_tuples_without_exposed_backing_dict():
+    assert isinstance(ec.GENERATIONS, MappingProxyType)
+    assert isinstance(ec._CONTRACT_SHA256_INDEX, MappingProxyType)
+    for sequence in ec.GENERATIONS.values():
+        assert type(sequence) is tuple
+        assert all(type(entry) is ec.GenerationEntry for entry in sequence)
+    with pytest.raises(TypeError):
+        ec.GENERATIONS["test-env"] = ()  # type: ignore[index]
+
+    for name, value in vars(ec).items():
+        if type(value) is not dict:
+            continue
+        exposes_generation_data = any(
+            type(candidate) is ec.ExecutionEnvironmentContract
+            or (
+                type(candidate) is tuple
+                and any(type(entry) is ec.GenerationEntry for entry in candidate)
+            )
+            for candidate in value.values()
+        )
+        assert not exposes_generation_data, f"生 dict の世代 backing が露出している: {name}"
+
+
+def test_registry_and_lookup_are_generation_tail_view():
+    assert list(ec.REGISTRY) == ["linux-baremetal", "pegasus"]
+    assert set(ec.REGISTRY) == set(ec.GENERATIONS)
+    for env_tag, sequence in ec.GENERATIONS.items():
+        assert ec.REGISTRY[env_tag] is sequence[-1].contract
+        assert ec.lookup(env_tag) is sequence[-1].contract
+
+
+def test_is_valid_successor_leaf_pointer_table():
+    base = _valid_contract()
+    cases = [
+        ("no-op", base, False),
+        ("path+sha", _calibration_successor(base), True),
+        (
+            "sha-only",
+            _calibration_successor(
+                base,
+                path=base.calibration_ref.path,
+            ),
+            False,
+        ),
+        (
+            "path-only",
+            _calibration_successor(
+                base,
+                sha256=base.calibration_ref.sha256,
+            ),
+            False,
+        ),
+        (
+            "attestation-mode",
+            _calibration_successor(base, attestation_mode="required"),
+            False,
+        ),
+        (
+            "clocks-per-us",
+            _calibration_successor(base, clocks_per_us=1001),
+            False,
+        ),
+    ]
+    for label, successor, expected in cases:
+        assert ec.is_valid_successor(base, successor) is expected, label
+
+
+def test_validate_generations_accepts_single_generation_candidate():
+    contract = _valid_contract()
+    mapping = {
+        contract.env_tag: (ec.GenerationEntry(generation=1, contract=contract),),
+    }
+    assert ec.validate_generations(mapping) is None
+
+
+def test_validate_generations_delegates_once_with_same_mapping(monkeypatch):
+    """public validator から fuse 前の検証 helper への委譲を直接固定する。"""
+    contract = _valid_contract()
+    mapping = {
+        contract.env_tag: (ec.GenerationEntry(generation=1, contract=contract),),
+    }
+    calls = []
+
+    def spy(candidate):
+        calls.append(candidate)
+
+    monkeypatch.setattr(ec, "_validate_generations_without_bootstrap_fuse", spy)
+    assert ec.validate_generations(mapping) is None
+    assert len(calls) == 1
+    assert calls[0] is mapping
+
+
+def test_validate_generations_public_rejects_invalid_single_generation_candidate():
+    """public validator が fuse 前の構造検査へ委譲することを固定する。"""
+    contract = _valid_contract()
+    mapping = {
+        contract.env_tag: (ec.GenerationEntry(generation=2, contract=contract),),
+    }
+    with pytest.raises(ec.EnvContractError, match="1..N"):
+        ec.validate_generations(mapping)
+
+
+def test_validate_generations_rejects_bad_sequence_shapes_and_entries():
+    class GenerationEntrySubclass(ec.GenerationEntry):
+        pass
+
+    contract = _valid_contract()
+    entry = ec.GenerationEntry(generation=1, contract=contract)
+    non_exact_entry = GenerationEntrySubclass(generation=1, contract=contract)
+    cases = [
+        ("empty", {contract.env_tag: ()}),
+        ("list", {contract.env_tag: [entry]}),
+        ("non-exact-entry", {contract.env_tag: (non_exact_entry,)}),
+    ]
+    for _label, mapping in cases:
+        with pytest.raises(ec.EnvContractError):
+            ec._validate_generations_without_bootstrap_fuse(mapping)  # type: ignore[arg-type]
+
+
+def test_validate_generations_without_bootstrap_fuse_accepts_valid_two_generation_candidate():
+    base = _valid_contract()
+    successor = _calibration_successor(base)
+    mapping = {
+        base.env_tag: (
+            ec.GenerationEntry(generation=1, contract=base),
+            ec.GenerationEntry(generation=2, contract=successor),
+        ),
+    }
+    assert ec._validate_generations_without_bootstrap_fuse(mapping) is None
+
+
+def test_validate_generations_synthetic_two_generation_negative_table():
+    """production は全 env が g1 一本なので、隣接検査はこの純関数でだけ発火する。"""
+    base = _valid_contract()
+    good_successor = _calibration_successor(base)
+    bad_successor = _calibration_successor(base, clocks_per_us=1001)
+    cases = [
+        (
+            "non-contiguous",
+            {
+                base.env_tag: (
+                    ec.GenerationEntry(generation=1, contract=base),
+                    ec.GenerationEntry(generation=3, contract=good_successor),
+                ),
+            },
+            "1..N",
+        ),
+        (
+            "key-mismatch",
+            {"other-env": (ec.GenerationEntry(generation=1, contract=base),)},
+            "一致しない",
+        ),
+        (
+            "invalid-successor",
+            {
+                base.env_tag: (
+                    ec.GenerationEntry(generation=1, contract=base),
+                    ec.GenerationEntry(generation=2, contract=bad_successor),
+                ),
+            },
+            "正当でない隣接 successor",
+        ),
+    ]
+    for _label, mapping, message in cases:
+        with pytest.raises(ec.EnvContractError, match=message):
+            ec._validate_generations_without_bootstrap_fuse(mapping)
+
+
+def test_validate_generations_rejects_cross_env_contract_hash_collision(monkeypatch):
+    """異なる preimage が同じ SHA-256 になる実効 collision guard を直接撃つ。"""
+    first = _valid_contract(env_tag="first-env")
+    second = _valid_contract(env_tag="second-env")
+    collision_hash = "f" * 64
+    monkeypatch.setattr(
+        ec.ExecutionEnvironmentContract,
+        "contract_sha256",
+        property(lambda _self: collision_hash),
+    )
+    mapping = {
+        first.env_tag: (ec.GenerationEntry(generation=1, contract=first),),
+        second.env_tag: (ec.GenerationEntry(generation=1, contract=second),),
+    }
+    assert first._canonical_obj() != second._canonical_obj()
+    assert first.contract_sha256 == second.contract_sha256 == collision_hash
+    with pytest.raises(ec.EnvContractError, match="一意でない"):
+        ec._validate_generations_without_bootstrap_fuse(mapping)
+
+
+def test_validate_generations_valid_two_generation_reaches_bootstrap_fuse():
+    """正しい synthetic 隣接列も、活性化権限までは production 登録を許可しない。"""
+    base = _valid_contract()
+    successor = _calibration_successor(base)
+    mapping = {
+        base.env_tag: (
+            ec.GenerationEntry(generation=1, contract=base),
+            ec.GenerationEntry(generation=2, contract=successor),
+        ),
+    }
+    with pytest.raises(
+        ec.EnvContractError,
+        match="活性化権限.*activation record.*activation receipt.*fail-closed",
+    ):
+        ec.validate_generations(mapping)
+
+
+def test_module_level_generation_validation_precedes_indexes_and_registry():
+    """bootstrap validation の import-time 結線を派生 view 構築より先に固定する。"""
+    tree = ast.parse(_read_module("orchestrator/campaign/env_contract.py"))
+    validation_calls = [
+        node
+        for node in tree.body
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "validate_generations"
+            and len(node.value.args) == 1
+            and isinstance(node.value.args[0], ast.Name)
+            and node.value.args[0].id == "GENERATIONS"
+            and not node.value.keywords
+        )
+    ]
+
+    assignment_lines = {}
+    for node in tree.body:
+        targets = []
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        for target in targets:
+            if isinstance(target, ast.Name):
+                assignment_lines[target.id] = node.lineno
+
+    assert len(validation_calls) == 1
+    validation_line = validation_calls[0].lineno
+    assert validation_line < assignment_lines["_CONTRACT_SHA256_INDEX"]
+    assert validation_line < assignment_lines["REGISTRY"]
+
+
+@pytest.mark.parametrize("env_tag,expected_hashes", EXPECTED_GENERATION_HASHES.items())
+def test_resolve_by_contract_sha256_resolves_all_g1_hashes(env_tag, expected_hashes):
+    entry = ec.resolve_by_contract_sha256(
+        expected_hashes[0], expected_env_tag=env_tag,
+    )
+    assert type(entry) is ec.GenerationEntry
+    assert entry.generation == 1
+    assert entry.contract is ec.GENERATIONS[env_tag][0].contract
+
+
+@pytest.mark.parametrize("malformed", [None, 123, "0" * 63, "0" * 65, "A" * 64])
+def test_resolve_by_contract_sha256_rejects_malformed(malformed):
+    with pytest.raises(ec.EnvContractError, match="64 桁の小文字 hex"):
+        ec.resolve_by_contract_sha256(malformed)
+
+
+def test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env():
+    with pytest.raises(ec.EnvContractError, match="未知"):
+        ec.resolve_by_contract_sha256("f" * 64)
+    pegasus_hash = EXPECTED_GENERATION_HASHES["pegasus"][0]
+    with pytest.raises(ec.EnvContractError, match="expected_env_tag"):
+        ec.resolve_by_contract_sha256(
+            pegasus_hash, expected_env_tag="linux-baremetal",
+        )
+
+
+def test_resolver_synthetic_index_resolves_non_current_generation(monkeypatch):
+    base = _valid_contract()
+    successor = _calibration_successor(base)
+    mapping = {
+        base.env_tag: (
+            ec.GenerationEntry(generation=1, contract=base),
+            ec.GenerationEntry(generation=2, contract=successor),
+        ),
+    }
+    index = ec._build_contract_sha256_index(mapping)
+    assert isinstance(index, MappingProxyType)
+    monkeypatch.setattr(ec, "_CONTRACT_SHA256_INDEX", index)
+    resolved = ec.resolve_by_contract_sha256(base.contract_sha256)
+    assert resolved.generation == 1
+    assert resolved.contract is base
+
+
+def test_resolver_rejects_non_unique_synthetic_index(monkeypatch):
+    contract = _valid_contract()
+    entry = ec.GenerationEntry(generation=1, contract=contract)
+    monkeypatch.setattr(
+        ec,
+        "_CONTRACT_SHA256_INDEX",
+        MappingProxyType({contract.contract_sha256: (entry, entry)}),
+    )
+    with pytest.raises(ec.EnvContractError, match="一意"):
+        ec.resolve_by_contract_sha256(contract.contract_sha256)
 
 
 # --------------------------------------------------------------------------- #
@@ -434,6 +813,22 @@ def _assert_registry_calibration(
 def test_registry_calibration_refs_are_canonical_hash_bound_and_meaningful():
     for registry_key, contract in ec.REGISTRY.items():
         _assert_registry_calibration(registry_key, contract)
+
+
+def test_none_mode_successor_transition_does_not_bypass_loader_grandfather_pin(tmp_path):
+    """generic successor predicate と v1 loader の受理集合は意図的に非対称である。"""
+    raw = b"{}"
+    relative = Path("replacement-calibration.json")
+    (tmp_path / relative).write_bytes(raw)
+    predecessor = ec.lookup("linux-baremetal")
+    successor = _calibration_successor(
+        predecessor,
+        path=relative.as_posix(),
+        sha256=hashlib.sha256(raw).hexdigest(),
+    )
+    assert ec.is_valid_successor(predecessor, successor)
+    with pytest.raises(ea.AttestationError, match="grandfathered v1 artifact bytes"):
+        ea.load_verified_calibration(successor, tmp_path)
 
 
 def _registry_clock_self_passes(profile) -> bool:
