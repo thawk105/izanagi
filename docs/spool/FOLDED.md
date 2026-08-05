@@ -220,3 +220,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:ruleops-inventory-parallel-flake":"[T-480]"},"authored":"2026-08-05","content_sha256":"148eb81cff89ea461a90920c1b2abc1f9a4f2b1fa3aaeac8ccefe7fedb982c81","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
 - {"allocations":{"D:t244-p2-literal-tripwire-remand":"D164"},"authored":"2026-08-05","content_sha256":"18572e8140f5226c9048110282309d9f62132cfddd700a55bd5e3d8987cae0a2","seq":2,"wave":"dev-wave-t244-p2-noninterference"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"ed85cf4a9b71fc2ceb0c671c31a22f6c13646aeda05ef47ff8aff155efe2c72c","seq":1,"wave":"dev-wave-t327-prereg-activation"}
+- {"allocations":{"D:s8c-automatic-activation":"D165"},"authored":"2026-08-05","content_sha256":"2250f18e20f2329b6e130be64161da7d99af0f5c0c3d736ad81c8018ac0ce2e7","seq":1,"wave":"dev-wave-t327-prereg-activation"}
