@@ -63,8 +63,8 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 
 ## DW-O11 — ファイル削除
 
-未 stage 削除は `run_tests.py` が受入形の前に検出して止める (final は bypass 不可)。
-stage (`git add -A`) 後に再走し、gate の赤を受入結果にしない。
+受入形では未 stage 削除と git 検査不能を `run_tests.py` が止める (bypass 不可)。
+復旧・stage・復元の後に再走し、gate の赤を受入結果にしない。
 
 ## DW-O12 — 裁定手順と実行手順の差
 
@@ -79,10 +79,6 @@ worklog には裁定予定を写さず、実際に実行した手順を書く。
 
 対象実装まで読み、resolver や `current_head` 等の正規注入 seam がないか確認する。
 monkeypatch は最後の手段とする（D78）。
-
-## DW-O15 — fix 後の変異
-
-手順は `DW-M07`。
 
 ## DW-O16 — fix 後の焦点再レビュー
 

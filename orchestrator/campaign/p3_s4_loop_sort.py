@@ -340,8 +340,13 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                             cache_root=cache_root, build_context=build_context)
     L.save_loop_state(layout, state)
 
+    critic_view = require_admitted_campaign(layout.root)
     digest_txt = L.make_critic_digest(
-        layout, tag="p3-s5-sort", reflux=(cfg.search_config.get("reflux") == "on"))
+        critic_view,
+        tag="p3-s5-sort",
+        reflux=(cfg.search_config.get("reflux") == "on"),
+        identity_projection=L.make_critic_identity_projection(critic_view),
+    )
     with open(os.path.join(layout.root, "s5_sort_loop_digest.txt"), "w", encoding="utf-8") as f:
         f.write(digest_txt)
 
@@ -477,14 +482,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-    digest_txt = L.make_critic_digest(layout, tag="p3-s5-sort", reflux=(a.reflux == "on"))
+    critic_view = require_admitted_campaign(layout.root)
+    digest_txt = L.make_critic_digest(
+        critic_view,
+        tag="p3-s5-sort",
+        reflux=(a.reflux == "on"),
+        identity_projection=L.make_critic_identity_projection(critic_view),
+    )
     out_path = os.path.join(layout.root, "s5_sort_loop_digest.txt")
     layout.ensure()
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(digest_txt)
 
     stop = L.check_stop(state)
-    critic_view = require_admitted_campaign(layout.root)
     dqs = load_diff_rejections(critic_view)
     n_wal = len(list(wal.read_records(layout)))
     checks = {

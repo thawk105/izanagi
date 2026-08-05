@@ -194,9 +194,15 @@ def _independent_worst_case_batch_frames(
     cardinality: int,
     *,
     tombstoned: bool = False,
-) -> tuple[bytes, bytes, bytes]:
+) -> tuple[bytes, bytes, bytes, bytes]:
     maximum_integer = (1 << 63) - 1
     hashes = tuple(f"{index + 1:064x}" for index in range(cardinality))
+    reserved = _independent_event_frame("batch-reserved", {
+        "batch_id": "x" * 128,
+        "cardinality": cardinality,
+        "iteration_index": maximum_integer,
+        "query_ordinal_start": maximum_integer,
+    })
     committed = _independent_event_frame("batch-committed", {
         "batch_id": "x" * 128,
         "cardinality": cardinality,
@@ -236,7 +242,23 @@ def _independent_worst_case_batch_frames(
         "batch_id": "x" * 128,
         "members": members,
     })
-    return committed, prepared, sealed
+    return reserved, committed, prepared, sealed
+
+
+def _independent_worst_case_abandoned_frames(
+    cardinality: int,
+) -> tuple[bytes, bytes]:
+    maximum_integer = (1 << 63) - 1
+    reserved = _independent_event_frame("batch-reserved", {
+        "batch_id": "x" * 128,
+        "cardinality": cardinality,
+        "iteration_index": maximum_integer,
+        "query_ordinal_start": maximum_integer,
+    })
+    abandoned = _independent_event_frame("batch-reservation-abandoned", {
+        "batch_id": "x" * 128,
+    })
+    return reserved, abandoned
 
 
 def _independent_origin_ledger_upper_bytes(
@@ -262,6 +284,8 @@ def _independent_origin_ledger_upper_bytes(
         "sealed_queries": maximum_integer,
         "tombstone_count": maximum_integer,
         "tombstoned_queries": maximum_integer,
+        "forfeited_iterations": maximum_integer,
+        "forfeited_queries": maximum_integer,
     })
     branch_bytes = []
     for tombstoned in (False, True):
@@ -274,7 +298,7 @@ def _independent_origin_ledger_upper_bytes(
         increment = two - one
         # Hand-derived conservative reserve for the 1 -> 2248 decimal width.
         branch_bytes.append(
-            batches * one + (members - batches) * increment + batches * 3
+            batches * one + (members - batches) * increment + batches * 6
         )
     return len(genesis) + max(branch_bytes) + len(class_frame)
 
@@ -317,7 +341,7 @@ def _independent_shared_head_bytes(batch_counts: tuple[int, ...]) -> int:
     })
     pair_bytes = len(prepared) + len(committed)
     return len(genesis) + sum(
-        (batch_count * 3 + 1) * pair_bytes for batch_count in batch_counts
+        (batch_count * 4 + 1) * pair_bytes for batch_count in batch_counts
     )
 
 
@@ -490,6 +514,25 @@ def _batch_events(
     )
 
 
+def _reservation_event(
+    batch_id: str = "batch-0",
+    iteration: int = 0,
+    cardinality: int = 2,
+    query_start: int = 0,
+) -> ledger.BatchReserved:
+    return ledger.BatchReserved(batch_id, iteration, cardinality, query_start)
+
+
+def _reservation_for(event: ledger.BatchCommitted) -> ledger.BatchReserved:
+    assert event.members, "a committed batch must have at least one member"
+    return _reservation_event(
+        event.batch_id,
+        event.iteration_index,
+        len(event.members),
+        event.members[0].query_ordinal,
+    )
+
+
 def _commit_sequence(store: object, origin: str, events: tuple[object, ...], prefix: str) -> list[ledger.EventReceipt]:
     receipts = []
     base = _snapshot(store, origin).state_commitment
@@ -498,6 +541,21 @@ def _commit_sequence(store: object, origin: str, events: tuple[object, ...], pre
         receipts.append(receipt)
         base = receipt.current_state_commitment
     return receipts
+
+
+def _commit_batch_sequence(
+    store: object,
+    origin: str,
+    events: tuple[object, ...],
+    prefix: str,
+) -> list[ledger.EventReceipt]:
+    assert events and type(events[0]) is ledger.BatchCommitted
+    return _commit_sequence(
+        store,
+        origin,
+        (_reservation_for(events[0]), *events),
+        prefix,
+    )
 
 
 def _files(store: object, origin: str) -> tuple[bytes, bytes]:
@@ -527,6 +585,7 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
     assert ledger.MANIFEST_SCHEMA_ID == "izanagi-reflux-origin-manifest/v2"
     assert ledger.AUTHORITY_SCHEMA_ID == "izanagi-reflux-origin-authority/v2"
     assert ledger.AUTHORITY_RELATIVE_PATH.endswith("reflux_origin_authority_v2.json")
+    assert {"BatchReserved", "BatchReservationAbandoned"} <= set(ledger.__all__)
     raw = _manifest_object()
     literal = (
         b'{"authority_series_id":"series-a","axis_semantics_sha256":"5555555555555555555555555555555555555555555555555555555555555555",'
@@ -576,6 +635,55 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
         "89cd860350ad017551d8b7b6ca9fc9aca231846890ccb81cc1e130174fffb5c0"
     )
     assert _canonical(event) + b"\n" == literal_event_frame
+    reservation = ledger._event_record(
+        origin_id=_h("1"), operation_id="reserve-golden", event_index=8,
+        previous_event_sha256=_h("2"), event_type="batch-reserved",
+        payload={
+            "batch_id": "batch-golden",
+            "iteration_index": 7,
+            "cardinality": 2,
+            "query_ordinal_start": 14,
+        },
+    )
+    literal_reservation_frame = (
+        b'{"event_index":8,"event_sha256":"1839a29ac3305866a010bf8efdd102a60d1eb5ed79c534720c21d24dbb4cb2ee",'
+        b'"event_type":"batch-reserved","operation_id":"reserve-golden","origin_id":"1111111111111111111111111111111111111111111111111111111111111111",'
+        b'"payload":{"batch_id":"batch-golden","cardinality":2,"iteration_index":7,"query_ordinal_start":14},'
+        b'"previous_event_sha256":"2222222222222222222222222222222222222222222222222222222222222222",'
+        b'"schema_version":"izanagi-reflux-origin-event/v2"}\n'
+    )
+    reservation_core = literal_reservation_frame.replace(
+        b',"event_sha256":"1839a29ac3305866a010bf8efdd102a60d1eb5ed79c534720c21d24dbb4cb2ee"',
+        b"",
+        1,
+    )[:-1]
+    assert hashlib.sha256(reservation_core).hexdigest() == (
+        "1839a29ac3305866a010bf8efdd102a60d1eb5ed79c534720c21d24dbb4cb2ee"
+    )
+    assert _canonical(reservation) + b"\n" == literal_reservation_frame
+    abandoned = ledger._event_record(
+        origin_id=_h("1"), operation_id="abandon-golden", event_index=9,
+        previous_event_sha256=_h("3"),
+        event_type="batch-reservation-abandoned",
+        payload={"batch_id": "batch-golden"},
+    )
+    literal_abandoned_frame = (
+        b'{"event_index":9,"event_sha256":"3d6bd2067e166da750177ebda1f92abd0f3c37677d3a3303233143ebaf5b6c2b",'
+        b'"event_type":"batch-reservation-abandoned","operation_id":"abandon-golden",'
+        b'"origin_id":"1111111111111111111111111111111111111111111111111111111111111111",'
+        b'"payload":{"batch_id":"batch-golden"},'
+        b'"previous_event_sha256":"3333333333333333333333333333333333333333333333333333333333333333",'
+        b'"schema_version":"izanagi-reflux-origin-event/v2"}\n'
+    )
+    abandoned_core = literal_abandoned_frame.replace(
+        b',"event_sha256":"3d6bd2067e166da750177ebda1f92abd0f3c37677d3a3303233143ebaf5b6c2b"',
+        b"",
+        1,
+    )[:-1]
+    assert hashlib.sha256(abandoned_core).hexdigest() == (
+        "3d6bd2067e166da750177ebda1f92abd0f3c37677d3a3303233143ebaf5b6c2b"
+    )
+    assert _canonical(abandoned) + b"\n" == literal_abandoned_frame
     head_record = ledger._head_record(
         record_index=3,
         previous_record_sha256=_h("f"),
@@ -655,51 +763,82 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
     }
 
 
-def test_v02_exact_five_phase_five_event_transition_matrix_and_no_legacy_tombstone() -> None:
-    """V2: all terminal batches use committed -> prepared -> sealed."""
+def test_v02_exact_six_phase_seven_event_transition_matrix_and_no_legacy_tombstone() -> None:
+    """V2: reservation を含む 6 相 x 7 入力の受理集合を全数固定する。"""
     assert "BatchTombstoned" not in ledger.__all__
     assert not hasattr(ledger, "BatchTombstoned")
-    assert all(
-        event_type.__name__ != "BatchTombstoned"
-        for event_type in ledger.OriginEvent.__args__
-    )
+    assert frozenset(ledger.OriginEvent.__args__) == frozenset((
+        ledger.BatchReserved,
+        ledger.BatchReservationAbandoned,
+        ledger.BatchCommitted,
+        ledger.BatchResultsPrepared,
+        ledger.BatchSealed,
+        ledger.OriginSealed,
+    ))
     with Raises("unknown event type"):
         ledger._event_from_payload(
             "batch-tombstoned", {"batch_id": "legacy-batch"}
-        )
+    )
     manifest = _manifest()
     committed, prepared, sealed = _batch_events()
-    origin_seal = ledger.OriginSealed(True, (), 0, 0, 0, 0)
+    reserved = _reservation_for(committed)
+    abandoned = ledger.BatchReservationAbandoned(reserved.batch_id)
+    origin_seal = ledger.OriginSealed(True, (), 0, 0, 0, 0, 0, 0)
     genesis = None
-    events = (genesis, committed, prepared, sealed, origin_seal)
+    events = (
+        genesis,
+        reserved,
+        abandoned,
+        committed,
+        prepared,
+        sealed,
+        origin_seal,
+    )
     allowed = {
-        ("EMPTY", type(None)),
-        ("IDLE", ledger.BatchCommitted),
-        ("IDLE", ledger.OriginSealed),
-        ("BATCH_COMMITTED", ledger.BatchResultsPrepared),
-        ("RESULTS_PREPARED", ledger.BatchSealed),
+        ("EMPTY", type(None)): "IDLE",
+        ("IDLE", ledger.BatchReserved): "BATCH_RESERVED",
+        ("IDLE", ledger.OriginSealed): "ORIGIN_SEALED",
+        ("BATCH_RESERVED", ledger.BatchCommitted): "BATCH_COMMITTED",
+        ("BATCH_RESERVED", ledger.BatchReservationAbandoned): "IDLE",
+        ("BATCH_COMMITTED", ledger.BatchResultsPrepared): "RESULTS_PREPARED",
+        ("RESULTS_PREPARED", ledger.BatchSealed): "IDLE",
     }
     builders: dict[str, Callable[[], ledger._SemanticState]] = {}
     def at_empty(): return ledger._SemanticState()
     def at_idle():
         state = at_empty(); ledger._apply_event(state, None, manifest=manifest, origin_id=_h("1")); return state
+    def at_reserved():
+        state = at_idle(); ledger._apply_event(state, reserved, manifest=manifest, origin_id=_h("1")); return state
     def at_committed():
-        state = at_idle(); ledger._apply_event(state, committed, manifest=manifest, origin_id=_h("1")); return state
+        state = at_reserved(); ledger._apply_event(state, committed, manifest=manifest, origin_id=_h("1")); return state
     def at_prepared():
         state = at_committed(); ledger._apply_event(state, prepared, manifest=manifest, origin_id=_h("1")); return state
     def at_terminal():
         state = at_idle(); ledger._apply_event(state, origin_seal, manifest=manifest, origin_id=_h("1")); return state
-    builders.update(EMPTY=at_empty, IDLE=at_idle, BATCH_COMMITTED=at_committed,
-                    RESULTS_PREPARED=at_prepared, ORIGIN_SEALED=at_terminal)
+    builders.update(
+        EMPTY=at_empty,
+        IDLE=at_idle,
+        BATCH_RESERVED=at_reserved,
+        BATCH_COMMITTED=at_committed,
+        RESULTS_PREPARED=at_prepared,
+        ORIGIN_SEALED=at_terminal,
+    )
+    accepted = rejected = 0
     for phase, builder in builders.items():
         for event in events:
             key = (phase, type(event))
             state = builder()
             if key in allowed:
                 ledger._apply_event(state, event, manifest=manifest, origin_id=_h("1"))
+                assert state.phase == allowed[key]
+                accepted += 1
             else:
                 with Raises():
                     ledger._apply_event(state, event, manifest=manifest, origin_id=_h("1"))
+                rejected += 1
+    assert len(builders) * len(events) == 42
+    assert len(allowed) == accepted == 7
+    assert rejected == 35
 
 
 def test_v03_manifest_identity_and_cell_equivalence_positive_negative() -> None:
@@ -775,7 +914,7 @@ def test_v04_global_flock_race_reentry_and_public_signature(tmp_path: Path) -> N
     store = _store(repo)
     origin = origins[0]
     base = _snapshot(store, origin).state_commitment
-    event = _batch_events()[0]
+    event = _reservation_event()
     barrier = threading.Barrier(3)
     outcomes: list[str] = []
     first_at_base = threading.Event()
@@ -833,7 +972,7 @@ def test_v04_global_flock_race_reentry_and_public_signature(tmp_path: Path) -> N
         two_barrier.wait()
         try:
             _commit(two_store, two_origins[index], f"cross-{index}", shared_base,
-                    _batch_events(f"cross-{index}")[0])
+                    _reservation_event(f"cross-{index}"))
             cross_results.append("committed")
         except ledger.RefluxOriginLedgerError:
             cross_results.append("rejected")
@@ -858,7 +997,7 @@ def test_v04_global_flock_race_reentry_and_public_signature(tmp_path: Path) -> N
     process_base = _snapshot(process_store, process_origin_a).state_commitment
     marker_a = tmp_path / "process-a.ready"
     marker_b = tmp_path / "process-b.ready"
-    process_event = _batch_events("process-batch")[0]
+    process_event = _reservation_event("process-batch")
     def process_script(
         origin: str,
         operation: str,
@@ -872,10 +1011,12 @@ from pathlib import Path
 sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
 from campaign import reflux_origin_ledger as l
 s=l._store_for_repo(Path({os.fspath(process_repo)!r}),committed_ref='HEAD',fixture=True)
-e=l.BatchCommitted('process-batch',0,tuple(
-    l.CommittedBatchMember(*item) for item in
-    {tuple((member.query_ordinal, member.candidate_commitment) for member in process_event.members)!r}
-))
+e=l.BatchReserved(
+    {process_event.batch_id!r},
+    {process_event.iteration_index!r},
+    {process_event.cardinality!r},
+    {process_event.query_ordinal_start!r},
+)
 if {probe!r}:
     probe_fd=os.open(s.lock_path,os.O_RDWR)
     try:
@@ -1046,8 +1187,15 @@ def test_v05_prepared_changes_commitment_and_only_exact_request_resumes(tmp_path
     """V5 / M-A5/M-N6: durable prepare 中は別 operation を write 無し拒否。"""
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
-    base = _snapshot(store, origin).state_commitment
     event = _batch_events()[0]
+    reservation = _commit(
+        store,
+        origin,
+        "prepare-reserve",
+        _snapshot(store, origin).state_commitment,
+        _reservation_for(event),
+    )
+    base = reservation.current_state_commitment
     before = _files(store, origin)
     def crash(label: str) -> None:
         if label == "head-prepared:fsynced":
@@ -1063,7 +1211,7 @@ def test_v05_prepared_changes_commitment_and_only_exact_request_resumes(tmp_path
         ledger._FAULT_HOOK = None
     prepared_snapshot = _snapshot(store, origin)
     assert prepared_snapshot.state_commitment != base
-    assert prepared_snapshot.phase == "IDLE"  # committed-index visibility, not physical extra state
+    assert prepared_snapshot.phase == "BATCH_RESERVED"
     prepared_bytes = _files(store, origin)
     try:
         _commit(store, origin, "prepare-b", prepared_snapshot.state_commitment, event)
@@ -1092,24 +1240,64 @@ def test_v06_historic_replay_and_committed_operation_identity(tmp_path: Path) ->
     """V6 / M-A1/M-N17: exact replay は historic/current を分離し bytes 不変。"""
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
-    first, prepared, _ = _batch_events()
+    first, _, _ = _batch_events()
+    reserved = _reservation_for(first)
     base_a = _snapshot(store, origin).state_commitment
     with ledger._locked(store) as authority:
         assert f"origin-opened:{origin}" in ledger._replay(store, authority).operation_ids
-    receipt_a = _commit(store, origin, "operation-a", base_a, first)
+    receipt_a = _commit(store, origin, "operation-a", base_a, reserved)
     receipt_b = _commit(
-        store, origin, "operation-b", receipt_a.current_state_commitment, prepared
+        store, origin, "operation-b", receipt_a.current_state_commitment, first
     )
     before = _files(store, origin)
-    replay = _commit(store, origin, "operation-a", base_a, first)
+    committed_replay = _commit(
+        store,
+        origin,
+        "operation-b",
+        receipt_a.current_state_commitment,
+        first,
+    )
+    assert committed_replay.replayed
+    assert committed_replay.resulting_state_commitment == (
+        receipt_b.resulting_state_commitment
+    )
+    assert committed_replay.current_state_commitment == (
+        receipt_b.current_state_commitment
+    )
+    assert _files(store, origin) == before
+    committed_identity = {
+        member.candidate_commitment for member in first.members
+    }
+    replacement_commitment = next(
+        _h(char) for char in "abcdef" if _h(char) not in committed_identity
+    )
+    altered_committed = dataclasses.replace(
+        first,
+        members=(
+            dataclasses.replace(
+                first.members[0], candidate_commitment=replacement_commitment
+            ),
+            *first.members[1:],
+        ),
+    )
+    with Raises("reuse mismatch"):
+        _commit(
+            store,
+            origin,
+            "operation-b",
+            receipt_a.current_state_commitment,
+            altered_committed,
+        )
+    assert _files(store, origin) == before
+    replay = _commit(store, origin, "operation-a", base_a, reserved)
     assert replay.replayed
     assert replay.resulting_state_commitment == receipt_a.resulting_state_commitment
     assert replay.current_state_commitment == receipt_b.current_state_commitment
     assert replay.resulting_state_commitment != replay.current_state_commitment
     assert _files(store, origin) == before
     with Raises("reuse mismatch"):
-        _commit(store, origin, "operation-a", receipt_a.current_state_commitment, first)
-    altered = ledger.BatchCommitted(first.batch_id, first.iteration_index, tuple(reversed(first.members)))
+        _commit(store, origin, "operation-a", receipt_a.current_state_commitment, reserved)
+    altered = dataclasses.replace(reserved, cardinality=reserved.cardinality + 1)
     with Raises("reuse mismatch"):
         _commit(store, origin, "operation-a", base_a, altered)
     with Raises("reserved"):
@@ -1119,7 +1307,7 @@ def test_v06_historic_replay_and_committed_operation_identity(tmp_path: Path) ->
     cross_repo, cross_origins = _repo(tmp_path / "cross-origin-op", [first_manifest, second_manifest])
     cross_store = _store(cross_repo)
     origin_a, origin_b = sorted(cross_origins)
-    cross_event = _batch_events("cross-op-batch")[0]
+    cross_event = _reservation_event("cross-op-batch")
     cross_base = _snapshot(cross_store, origin_a).state_commitment
     cross_receipt = _commit(cross_store, origin_a, "cross-origin-operation", cross_base, cross_event)
     with Raises("reuse mismatch"):
@@ -1136,29 +1324,37 @@ def test_v07_batch_prefix_cardinality_distinctness_and_single_inflight(tmp_path:
     """V7 / M-N4: scalar count でなく event prefix が第二 in-flight を拒否。"""
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
-    first = _batch_events()[0]
+    first = _reservation_event()
     base = _snapshot(store, origin).state_commitment
     receipt = _commit(store, origin, "batch-first", base, first)
-    second = ledger.BatchCommitted("batch-1", 1, (
-        ledger.CommittedBatchMember(2, _h("1")),
-        ledger.CommittedBatchMember(3, _h("2")),
-    ))
+    second = _reservation_event("batch-1", 1, 2, 2)
     with Raises("current phase"):
         _commit(store, origin, "batch-second", receipt.current_state_commitment, second)
-    invalid_one = ledger.BatchCommitted(
-        "one", 0, (ledger.CommittedBatchMember(0, _h("1")),)
-    )
+    invalid_one = _reservation_event("one", cardinality=1)
     fresh_repo, (fresh_origin,) = _repo(tmp_path / "fresh")
     fresh = _store(fresh_repo)
     fresh_base = _snapshot(fresh, fresh_origin).state_commitment
-    with Raises("candidate commitments"):
+    with Raises("batch minimum"):
         _commit(fresh, fresh_origin, "one", fresh_base, invalid_one)
     duplicate = ledger.BatchCommitted("duplicate", 0, (
         ledger.CommittedBatchMember(0, _h("1")),
         ledger.CommittedBatchMember(1, _h("1")),
     ))
+    duplicate_reservation = _commit(
+        fresh,
+        fresh_origin,
+        "duplicate-reserve",
+        fresh_base,
+        _reservation_for(duplicate),
+    )
     with Raises("candidate commitments"):
-        _commit(fresh, fresh_origin, "duplicate", fresh_base, duplicate)
+        _commit(
+            fresh,
+            fresh_origin,
+            "duplicate",
+            duplicate_reservation.current_state_commitment,
+            duplicate,
+        )
     with Raises("batch minimum"):
         _manifest(_manifest_object(batch_min=1))
 
@@ -1170,12 +1366,13 @@ def test_v08_tombstone_no_refund_cardinality_accounting_and_no_provider(tmp_path
     tombstoned = _batch_events(
         outcomes=("tombstoned", "tombstoned"), constraints=(None, None)
     )
-    receipts = _commit_sequence(store, origin, tombstoned, "tomb")
+    receipts = _commit_batch_sequence(store, origin, tombstoned, "tomb")
     snap = _snapshot(store, origin)
     assert snap.iterations_used == 1
     assert snap.queries_used == 2
     assert snap.sealed_queries == 0
     assert snap.tombstoned_queries == 2
+    assert (snap.forfeited_iterations, snap.forfeited_queries) == (0, 0)
     assert snap.tombstone_count == 1
     assert receipts[-1].current_state_commitment == snap.state_commitment
     source = Path(ledger.__file__).read_text(encoding="utf-8")
@@ -1188,17 +1385,19 @@ def _crash_script(
     origin: str,
     base: str,
     point: str,
-    committed: object,
+    reserved: ledger.BatchReserved,
 ) -> str:
     return f"""
 import os,sys
 sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
 from campaign import reflux_origin_ledger as l
 s=l._fixture_store_for_test({os.fspath(repo)!r},'HEAD',initialize=False)
-e=l.BatchCommitted('batch-0',0,tuple(
-    l.CommittedBatchMember(*item) for item in
-    {tuple((member.query_ordinal, member.candidate_commitment) for member in committed.members)!r}
-))
+e=l.BatchReserved(
+    {reserved.batch_id!r},
+    {reserved.iteration_index!r},
+    {reserved.cardinality!r},
+    {reserved.query_ordinal_start!r},
+)
 def hook(label):
     if label=={point!r}: os._exit(73)
 l._FAULT_HOOK=hook
@@ -1217,9 +1416,9 @@ def test_v09_process_crash_boundaries_reopen_exactly_once(tmp_path: Path) -> Non
         repo, (origin,) = _repo(case)
         store = _store(repo)
         base = _snapshot(store, origin).state_commitment
-        committed = _batch_events()[0]
+        reserved = _reservation_event()
         completed = subprocess.run(
-            [sys.executable, "-c", _crash_script(repo, origin, base, point, committed)],
+            [sys.executable, "-c", _crash_script(repo, origin, base, point, reserved)],
             cwd=repo,
             env=_git_env(),
             stdin=subprocess.DEVNULL,
@@ -1233,9 +1432,26 @@ def test_v09_process_crash_boundaries_reopen_exactly_once(tmp_path: Path) -> Non
         if point != "head-committed:fsynced":
             assert crashed_snapshot.phase == "IDLE"
             assert crashed_snapshot.iterations_used == 0
+            assert crashed_snapshot.queries_used == 0
+        else:
+            assert crashed_snapshot.phase == "BATCH_RESERVED"
+            assert crashed_snapshot.iterations_used == 1
+            assert crashed_snapshot.queries_used == 2
+            assert (
+                crashed_snapshot.reserved_batch_id,
+                crashed_snapshot.reserved_iteration_index,
+                crashed_snapshot.reserved_cardinality,
+                crashed_snapshot.reserved_query_ordinal_start,
+            ) == ("batch-0", 0, 2, 0)
         with Raises():
-            _commit(store, origin, "other-operation", _snapshot(store, origin).state_commitment, _batch_events()[0])
-        receipt = _commit(store, origin, "process-crash", base, committed)
+            _commit(
+                store,
+                origin,
+                "other-operation",
+                _snapshot(store, origin).state_commitment,
+                _reservation_event("other-batch"),
+            )
+        receipt = _commit(store, origin, "process-crash", base, reserved)
         assert receipt.event_index == 1
         with ledger._locked(store) as authority:
             replay = ledger._replay(store, authority)
@@ -1257,7 +1473,7 @@ def test_v10_short_write_fsync_fault_and_inode_recheck(tmp_path: Path) -> None:
         return count
     ledger.os.write = short_write
     try:
-        receipt = _commit(store, origin, "short-write", base, _batch_events()[0])
+        receipt = _commit(store, origin, "short-write", base, _reservation_event())
     finally:
         ledger.os.write = real_write
     assert receipt.event_index == 1
@@ -1321,15 +1537,15 @@ def test_v10_short_write_fsync_fault_and_inode_recheck(tmp_path: Path) -> None:
     ledger.os.fsync = fail_once
     try:
         with Raises("fsync failed"):
-            _commit(fault_store, fault_origin, "fsync-fault", fault_base, _batch_events()[0])
+            _commit(fault_store, fault_origin, "fsync-fault", fault_base, _reservation_event())
     finally:
         ledger.os.fsync = real_fsync
     with Raises("poisoned"):
-        _commit(fault_store, fault_origin, "fsync-fault", fault_base, _batch_events()[0])
+        _commit(fault_store, fault_origin, "fsync-fault", fault_base, _reservation_event())
     retry_repo, (fault_origin,) = _repo(tmp_path / "fsync-retry")
     fault_store = _store(retry_repo)
     fault_base = _snapshot(fault_store, fault_origin).state_commitment
-    retry = _commit(fault_store, fault_origin, "fsync-fault", fault_base, _batch_events()[0])
+    retry = _commit(fault_store, fault_origin, "fsync-fault", fault_base, _reservation_event())
     assert retry.event_index == 1
     for index, target in enumerate(("origin-event:written", "head-committed:written")):
         case = tmp_path / f"fsync-{index}"
@@ -1353,7 +1569,7 @@ def test_v10_short_write_fsync_fault_and_inode_recheck(tmp_path: Path) -> None:
         ledger.os.fsync = fail_target
         try:
             with Raises("fsync failed"):
-                _commit(case_store, case_origin, f"fsync-target-{index}", case_base, _batch_events()[0])
+                _commit(case_store, case_origin, f"fsync-target-{index}", case_base, _reservation_event())
         finally:
             ledger.os.fsync = real_fsync
             ledger._FAULT_HOOK = None
@@ -1370,7 +1586,7 @@ def test_v11_authorized_partial_tail_offsets_and_unrelated_tail_rejected(tmp_pat
         repo, (origin,) = _repo(case)
         store = _store(repo)
         base = _snapshot(store, origin).state_commitment
-        event = _batch_events()[0]
+        event = _reservation_event()
         def crash(label: str) -> None:
             if label == "head-prepared:fsynced":
                 raise RuntimeError("stop")
@@ -1410,7 +1626,7 @@ def test_v11_authorized_partial_tail_offsets_and_unrelated_tail_rejected(tmp_pat
     repo, (origin,) = _repo(unrelated_case)
     store = _store(repo)
     clean_base = _snapshot(store, origin).state_commitment
-    unrelated_event = _batch_events()[0]
+    unrelated_event = _reservation_event()
     with store.head_path.open("ab") as stream:
         stream.write(b'{"unrelated":')
         stream.flush(); os.fsync(stream.fileno())
@@ -1427,7 +1643,7 @@ def test_v11_authorized_partial_tail_offsets_and_unrelated_tail_rejected(tmp_pat
     repo, (origin,) = _repo(head_case)
     store = _store(repo)
     base = _snapshot(store, origin).state_commitment
-    head_partial_event = _batch_events()[0]
+    head_partial_event = _reservation_event()
     real_write_all = ledger._write_all
     def partial_prepare(fd: int, raw: bytes) -> None:
         os.write(fd, raw[:37])
@@ -1464,7 +1680,7 @@ def test_v11_authorized_partial_tail_offsets_and_unrelated_tail_rejected(tmp_pat
         origin,
         "committed-before-delete",
         _snapshot(store, origin).state_commitment,
-        _batch_events()[0],
+        _reservation_event(),
     )
     event_frames = store.origin_path(origin).read_bytes().splitlines(keepends=True)
     assert len(event_frames) == 2
@@ -1486,7 +1702,7 @@ def test_v11_authorized_partial_tail_offsets_and_unrelated_tail_rejected(tmp_pat
     records[0]["record_sha256"] = _h("f")
     store.head_path.write_bytes(_canonical(records[0]) + b"\n{" )
     with Raises("digest mismatch"):
-        _commit(store, origin, "corrupt-prefix", _h("1"), _batch_events()[0])
+        _commit(store, origin, "corrupt-prefix", _h("1"), _reservation_event())
 
 
 def test_v12_git_anchor_symbolic_head_env_scrub_and_authority_version(tmp_path: Path) -> None:
@@ -1578,10 +1794,18 @@ def test_v13_global_chain_interleave_delete_reorder_and_cross_binding(tmp_path: 
     base = _snapshot(store, origin_a).state_commitment
     events_a = _batch_events("a")
     events_b = _batch_events("b")
-    receipt_a = _commit(store, origin_a, "interleave-a", base, events_a[0])
-    receipt_b = _commit(store, origin_b, "interleave-b", receipt_a.current_state_commitment, events_b[0])
+    receipt_a = _commit(
+        store, origin_a, "interleave-a", base, _reservation_for(events_a[0])
+    )
+    receipt_b = _commit(
+        store,
+        origin_b,
+        "interleave-b",
+        receipt_a.current_state_commitment,
+        _reservation_for(events_b[0]),
+    )
     _commit(store, origin_a, "interleave-a2", receipt_b.current_state_commitment,
-            events_a[1])
+            events_a[0])
     original = store.head_path.read_bytes()
     lines = original.splitlines(keepends=True)
     assert len(lines) == 7
@@ -1619,18 +1843,23 @@ def test_v13_global_chain_interleave_delete_reorder_and_cross_binding(tmp_path: 
     }
     semantic_by_origin = {}
     for item_origin, batch_id in ((origin_a, "a"), (origin_b, "b")):
-        committed_payload = origin_event_records[item_origin][1]["payload"]
+        reserved_payload = origin_event_records[item_origin][1]["payload"]
         semantic_by_origin[item_origin] = {
-            "phase": "BATCH_COMMITTED",
+            "phase": "BATCH_RESERVED",
             "iterations_used": 1,
             "queries_used": 2,
             "sealed_queries": 0,
             "tombstoned_queries": 0,
-            "batch_count": 1,
+            "forfeited_iterations": 0,
+            "forfeited_queries": 0,
+            "batch_count": 0,
             "tombstone_count": 0,
             "open_batch": {
                 "batch_id": batch_id,
-                "members": committed_payload["members"],
+                "iteration_index": reserved_payload["iteration_index"],
+                "cardinality": reserved_payload["cardinality"],
+                "query_ordinal_start": reserved_payload["query_ordinal_start"],
+                "members": None,
             },
             "sealed_batch_ids": [],
             "seen_batch_ids": [batch_id],
@@ -1732,30 +1961,36 @@ def test_v14_i_q_k_sealed_evidence_row_proxy_floor_not_physical_query_and_aborte
     repo, (origin,) = _repo(tmp_path, [raw])
     store = _store(repo)
     committed, prepared, sealed = _batch_events(outcomes=("accepted", "accepted"), constraints=(None, None))
-    receipts = _commit_sequence(store, origin, (committed, prepared, sealed), "limits")
-    cert = ledger.OriginSealed(False, (), 1, 0, 2, 0)
+    receipts = _commit_batch_sequence(
+        store, origin, (committed, prepared, sealed), "limits"
+    )
+    cert = ledger.OriginSealed(False, (), 1, 0, 2, 0, 0, 0)
     _commit(store, origin, "certifiable", receipts[-1].current_state_commitment, cert)
     over_repo, (over_origin,) = _repo(tmp_path / "over", [raw])
     over = _store(over_repo)
     full_tombstone = _batch_events(
         outcomes=("tombstoned", "tombstoned"), constraints=(None, None)
     )
-    tomb_receipts = _commit_sequence(over, over_origin, full_tombstone, "first")
+    tomb_receipts = _commit_batch_sequence(
+        over, over_origin, full_tombstone, "first"
+    )
     with Raises("Imax"):
         _commit(over, over_origin, "second", tomb_receipts[-1].current_state_commitment,
-                _batch_events("batch-1", iteration=1, query_start=2)[0])
+                _reservation_event("batch-1", iteration=1, query_start=2))
     qraw = _manifest_object(imax=2, qmax=2)
     qrepo, (qorigin,) = _repo(tmp_path / "q-over", [qraw])
     qstore = _store(qrepo)
-    qtomb = _commit_sequence(qstore, qorigin, full_tombstone, "q")[-1]
+    qtomb = _commit_batch_sequence(qstore, qorigin, full_tombstone, "q")[-1]
     with Raises("Qmax"):
         _commit(qstore, qorigin, "q-second", qtomb.current_state_commitment,
-                _batch_events("batch-1", iteration=1, query_start=2)[0])
+                _reservation_event("batch-1", iteration=1, query_start=2))
     low = _manifest_object(imax=2, qmax=4, floor_per_round=4)
     low_repo, (low_origin,) = _repo(tmp_path / "low", [low])
     low_store = _store(low_repo)
-    tomb_receipts = _commit_sequence(low_store, low_origin, full_tombstone, "low")
-    second_tomb = _commit_sequence(
+    tomb_receipts = _commit_batch_sequence(
+        low_store, low_origin, full_tombstone, "low"
+    )
+    second_tomb = _commit_batch_sequence(
         low_store,
         low_origin,
         _batch_events(
@@ -1770,20 +2005,28 @@ def test_v14_i_q_k_sealed_evidence_row_proxy_floor_not_physical_query_and_aborte
     assert tombstoned_floor.tombstoned_queries == 4
     with Raises("floor"):
         _commit(low_store, low_origin, "early-cert", second_tomb[-1].current_state_commitment,
-                ledger.OriginSealed(False, (), 2, 2, 0, 4))
+                ledger.OriginSealed(False, (), 2, 2, 0, 4, 0, 0))
     _commit(low_store, low_origin, "abort", second_tomb[-1].current_state_commitment,
-            ledger.OriginSealed(True, (), 2, 2, 0, 4))
+            ledger.OriginSealed(True, (), 2, 2, 0, 4, 0, 0))
     kraw = _manifest_object(imax=1, qmax=2, kmax=0)
     krepo, (korigin,) = _repo(tmp_path / "k-over", [kraw])
     kstore = _store(krepo)
-    kreceipts = _commit_sequence(kstore, korigin, _batch_events(), "k")
+    kreceipts = _commit_batch_sequence(kstore, korigin, _batch_events(), "k")
     with Raises("Kmax"):
         _commit(kstore, korigin, "k-seal", kreceipts[-1].current_state_commitment,
-                ledger.OriginSealed(False, (_h("d"),), 1, 0, 2, 0))
+                ledger.OriginSealed(False, (_h("d"),), 1, 0, 2, 0, 0, 0))
 
 
 def test_v15_strict_authority_event_json_paths_types_and_limits(tmp_path: Path) -> None:
     """V15 / M-N12: extra/missing/duplicate key、bool、path、symlink、size を拒否。"""
+    production_authority = (
+        Path(ledger.__file__).with_name("reflux_origin_authority_v2.json").read_bytes()
+    )
+    parsed_production = ledger._authority_from_bytes(production_authority)
+    assert dict(parsed_production.entries) == {}
+    assert json.loads(production_authority)["authority_schema"] == (
+        "izanagi-reflux-origin-authority/v2"
+    )
     raw = _manifest_object()
     malformed = json.loads(json.dumps(raw)); malformed["extra"] = 1
     with Raises("keys"):
@@ -1811,6 +2054,68 @@ def test_v15_strict_authority_event_json_paths_types_and_limits(tmp_path: Path) 
         ledger._authority_from_bytes(missing_authority)
     with Raises("oversize authority"):
         ledger._authority_from_bytes(b"x" * ((8 << 20) + 1))
+    reserved_type, reserved_payload = ledger._event_payload(_reservation_event())
+    assert reserved_type == "batch-reserved"
+    malformed_reservations = [{**reserved_payload, "extra": 1}]
+    malformed_reservations.extend(
+        {
+            key: value
+            for key, value in reserved_payload.items()
+            if key != missing
+        }
+        for missing in reserved_payload
+    )
+    malformed_reservations.extend(
+        {**reserved_payload, key: True} for key in reserved_payload
+    )
+    for altered in malformed_reservations:
+        with Raises():
+            ledger._event_from_payload(reserved_type, altered)
+    abandoned_type, abandoned_payload = ledger._event_payload(
+        ledger.BatchReservationAbandoned("batch-0")
+    )
+    assert abandoned_type == "batch-reservation-abandoned"
+    for altered in (
+        {**abandoned_payload, "extra": 1},
+        {},
+        {"batch_id": True},
+    ):
+        with Raises():
+            ledger._event_from_payload(abandoned_type, altered)
+    origin_seal = ledger.OriginSealed(
+        False, (_h("d"),), 3, 1, 4, 2, 5, 7
+    )
+    origin_type, origin_payload = ledger._event_payload(origin_seal)
+    assert origin_type == "origin-sealed"
+    assert set(origin_payload) == {
+        "seal_kind",
+        "constraint_class_sha256s",
+        "batch_count",
+        "tombstone_count",
+        "sealed_queries",
+        "tombstoned_queries",
+        "forfeited_iterations",
+        "forfeited_queries",
+    }
+    assert ledger._event_from_payload(origin_type, origin_payload) == origin_seal
+    old_six_field = {
+        key: value
+        for key, value in origin_payload.items()
+        if key not in {"forfeited_iterations", "forfeited_queries"}
+    }
+    with Raises("keys"):
+        ledger._event_from_payload(origin_type, old_six_field)
+    for field in ("forfeited_iterations", "forfeited_queries"):
+        with Raises("keys"):
+            ledger._event_from_payload(
+                origin_type,
+                {key: value for key, value in origin_payload.items() if key != field},
+            )
+        with Raises(field.replace("_", " ")):
+            ledger._event_from_payload(
+                origin_type,
+                {**origin_payload, field: True},
+            )
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
     real_lock = store.lock_path
@@ -1932,8 +2237,19 @@ def test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle(tmp_path
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
     committed, prepared, sealed = _batch_events()
-    first = _commit(store, origin, "positive-0", _snapshot(store, origin).state_commitment, committed)
-    second = _commit(store, origin, "positive-1", first.current_state_commitment, prepared)
+    reservation = _commit(
+        store,
+        origin,
+        "positive-0",
+        _snapshot(store, origin).state_commitment,
+        _reservation_for(committed),
+    )
+    first = _commit(
+        store, origin, "positive-1", reservation.current_state_commitment, committed
+    )
+    second = _commit(
+        store, origin, "positive-2", first.current_state_commitment, prepared
+    )
     prepared_snapshot = _snapshot(store, origin)
     assert prepared_snapshot.phase == "RESULTS_PREPARED"
     assert not hasattr(prepared_snapshot, "outcomes")
@@ -1962,25 +2278,32 @@ def test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle(tmp_path
     )
     with Raises("opening mismatch"):
         _commit(store, origin, "wrong-open", second.current_state_commitment, wrong)
-    third = _commit(store, origin, "positive-2", second.current_state_commitment, sealed)
+    third = _commit(store, origin, "positive-3", second.current_state_commitment, sealed)
     with ledger._locked(store) as authority:
         revealed = ledger._read_sealed_batch_locked(store, authority, origin, "batch-0")
     assert tuple(member.outcome for member in revealed.members) == ("accepted", "rejected")
-    partial = ledger.OriginSealed(False, (), 1, 0, 2, 0)
+    partial = ledger.OriginSealed(False, (), 1, 0, 2, 0, 0, 0)
     with Raises("exact rejected set"):
         _commit(store, origin, "partial-class", third.current_state_commitment, partial)
-    final = _commit(store, origin, "positive-3", third.current_state_commitment,
-                    ledger.OriginSealed(False, (_h("d"),), 1, 0, 2, 0))
+    final = _commit(store, origin, "positive-4", third.current_state_commitment,
+                    ledger.OriginSealed(False, (_h("d"),), 1, 0, 2, 0, 0, 0))
     assert _snapshot(store, origin).terminal_status == "certifiable"
-    assert final.event_index == 4
+    assert final.event_index == 5
     order_repo, (order_origin,) = _repo(tmp_path / "result-order")
     order_store = _store(order_repo)
     ordered = _batch_events(outcomes=("accepted", "accepted"), constraints=(None, None))
-    order_first = _commit(
+    order_reserved = _commit(
         order_store,
         order_origin,
         "order-0",
         _snapshot(order_store, order_origin).state_commitment,
+        _reservation_for(ordered[0]),
+    )
+    order_first = _commit(
+        order_store,
+        order_origin,
+        "order-1",
+        order_reserved.current_state_commitment,
         ordered[0],
     )
     misordered_prepared = dataclasses.replace(
@@ -1997,7 +2320,7 @@ def test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle(tmp_path
     order_second = _commit(
         order_store,
         order_origin,
-        "order-1",
+        "order-2",
         order_first.current_state_commitment,
         ordered[1],
     )
@@ -2024,7 +2347,9 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
     committed, prepared, sealed = _batch_events()
-    receipts = _commit_sequence(store, origin, (committed, prepared), "privacy")
+    receipts = _commit_batch_sequence(
+        store, origin, (committed, prepared), "privacy"
+    )
     clean_base = receipts[-1].current_state_commitment
     head_before, origin_before = _files(store, origin)
     def crash(label: str) -> None:
@@ -2067,7 +2392,7 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
     })).hexdigest()
     binding_sha = hashlib.sha256(_canonical({
         "schema_version": "izanagi-reflux-origin-event/v2",
-        "event_index": 3,
+        "event_index": 4,
         "previous_event_sha256": prior_events[-1]["event_sha256"],
         "origin_id": origin,
         "operation_id": "privacy-seal",
@@ -2078,6 +2403,8 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "phase": "IDLE",
         "iterations_used": 1,
         "queries_used": 2,
+        "forfeited_iterations": 0,
+        "forfeited_queries": 0,
         "batch_count": 1,
         "open_batch": None,
         "sealed_batch_ids": ["batch-0"],
@@ -2090,7 +2417,7 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "request_sha256": request_sha,
         "origin_id": origin,
         "operation_id": "privacy-seal",
-        "old_event_index": 2,
+        "old_event_index": 3,
         "old_event_sha256": prior_events[-1]["event_sha256"],
         "old_event_byte_length": len(origin_before),
         "next_event_binding_sha256": binding_sha,
@@ -2114,10 +2441,15 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "queries_used": 2,
         "sealed_queries": 0,
         "tombstoned_queries": 0,
+        "forfeited_iterations": 0,
+        "forfeited_queries": 0,
         "batch_count": 1,
         "tombstone_count": 0,
         "open_batch": {
             "batch_id": "batch-0",
+            "iteration_index": 0,
+            "cardinality": 2,
+            "query_ordinal_start": 0,
             "members": prepared_payload["members"],
         },
         "sealed_batch_ids": [],
@@ -2138,7 +2470,7 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "prepared_request_sha256": request_sha,
         "origins": [[
             origin,
-            2,
+            3,
             prior_events[-1]["event_sha256"],
             hashlib.sha256(_canonical(committed_semantic)).hexdigest(),
         ]],
@@ -2158,13 +2490,13 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         b"izanagi-reflux-origin-state/v2\0" + _canonical(without_prepared)
     ).hexdigest()
     sealed_receipt = _commit(store, origin, "privacy-seal", clean_base, sealed)
-    assert sealed_receipt.event_index == 3
+    assert sealed_receipt.event_index == 4
 
     salt_repo, (salt_origin,) = _repo(tmp_path / "salt-contract")
     salt_store = _store(salt_repo)
     salt_base = _snapshot(salt_store, salt_origin).state_commitment
     salt_committed, salt_prepared, salt_sealed = _batch_events("salt-a")
-    salt_receipts = _commit_sequence(
+    salt_receipts = _commit_batch_sequence(
         salt_store, salt_origin, (salt_committed, salt_prepared), "salt-a"
     )
     all_salts = tuple(
@@ -2224,7 +2556,7 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "salt-b", iteration=1, query_start=2,
         prior_replicates={b"10000": 1, b"01000": 1},
     )
-    second_receipts = _commit_sequence(
+    second_receipts = _commit_batch_sequence(
         salt_store, salt_origin, second_events[:2], "salt-b"
     )
     assert second_receipts[0].resulting_state_commitment != first_seal.resulting_state_commitment
@@ -2270,7 +2602,7 @@ def test_v17_member_identity_replicates_and_sealed_evidence_row_proxy_not_physic
         outcomes=("accepted", "accepted"),
         constraints=(None, None),
     )
-    first_receipts = _commit_sequence(store, origin, first, "repeat-a")
+    first_receipts = _commit_batch_sequence(store, origin, first, "repeat-a")
     second = _batch_events(
         "batch-1",
         iteration=1,
@@ -2280,7 +2612,7 @@ def test_v17_member_identity_replicates_and_sealed_evidence_row_proxy_not_physic
         query_start=2,
         prior_replicates={b"10000": 2},
     )
-    _commit_sequence(store, origin, second, "repeat-b")
+    _commit_batch_sequence(store, origin, second, "repeat-b")
     snap = _snapshot(store, origin)
     assert snap.queries_used == 4
     assert snap.sealed_queries == 4
@@ -2295,7 +2627,9 @@ def test_v17_member_identity_replicates_and_sealed_evidence_row_proxy_not_physic
         constraints=(None, None),
         query_start=4,
     )
-    reset_ready = _commit_sequence(store, origin, reset[:2], "repeat-reset")[-1]
+    reset_ready = _commit_batch_sequence(
+        store, origin, reset[:2], "repeat-reset"
+    )[-1]
     with Raises("replicate ordinal"):
         _commit(
             store,
@@ -2334,19 +2668,28 @@ def test_v17_member_identity_replicates_and_sealed_evidence_row_proxy_not_physic
         case_repo, (case_origin,) = _repo(tmp_path / name)
         case_store = _store(case_repo)
         event = mutate(_batch_events()[0])
+        reserved = _commit(
+            case_store,
+            case_origin,
+            f"{name}-reserve",
+            _snapshot(case_store, case_origin).state_commitment,
+            _reservation_for(event),
+        )
         with Raises():
             _commit(
                 case_store,
                 case_origin,
                 name,
-                _snapshot(case_store, case_origin).state_commitment,
+                reserved.current_state_commitment,
                 event,
             )
 
     replicate_repo, (replicate_origin,) = _repo(tmp_path / "bad-replicate")
     replicate_store = _store(replicate_repo)
     events = _batch_events()
-    ready = _commit_sequence(replicate_store, replicate_origin, events[:2], "rep")[-1]
+    ready = _commit_batch_sequence(
+        replicate_store, replicate_origin, events[:2], "rep"
+    )[-1]
     bad_replicate = dataclasses.replace(events[2], members=(
         dataclasses.replace(events[2].members[0], replicate_ordinal=1),
         events[2].members[1],
@@ -2371,7 +2714,7 @@ def test_v17_member_identity_replicates_and_sealed_evidence_row_proxy_not_physic
             outcomes=outcomes,
             constraints=(None, None),
         )
-        ready = _commit_sequence(bad_store, bad_origin, bad[:2], name)[-1]
+        ready = _commit_batch_sequence(bad_store, bad_origin, bad[:2], name)[-1]
         with Raises("candidate IR wire"):
             _commit(
                 bad_store,
@@ -2411,6 +2754,9 @@ def test_v18_evidence_outcome_contract_and_fixed_member_tombstones(
     def prepared_state(events: tuple[object, object, object]) -> ledger._SemanticState:
         state = ledger._SemanticState()
         ledger._apply_event(state, None, manifest=manifest, origin_id=_h("1"))
+        ledger._apply_event(
+            state, _reservation_for(events[0]), manifest=manifest, origin_id=_h("1")
+        )
         ledger._apply_event(state, events[0], manifest=manifest, origin_id=_h("1"))
         ledger._apply_event(state, events[1], manifest=manifest, origin_id=_h("1"))
         return state
@@ -2533,7 +2879,7 @@ def test_v18_evidence_outcome_contract_and_fixed_member_tombstones(
 
     repo, (origin,) = _repo(tmp_path / "tamper")
     store = _store(repo)
-    ready = _commit_sequence(store, origin, valid[:2], "tamper")[-1]
+    ready = _commit_batch_sequence(store, origin, valid[:2], "tamper")[-1]
     evidence_tamper = dataclasses.replace(valid[2], members=(
         dataclasses.replace(
             valid[2].members[0], evidence_digest=ledger.EvidenceDigest(_h("a"))
@@ -2558,7 +2904,7 @@ def test_v18_evidence_outcome_contract_and_fixed_member_tombstones(
     partial = _batch_events(
         outcomes=("accepted", "tombstoned"), constraints=(None, None)
     )
-    _commit_sequence(partial_store, partial_origin, partial, "partial")
+    _commit_batch_sequence(partial_store, partial_origin, partial, "partial")
     partial_snap = _snapshot(partial_store, partial_origin)
     assert (partial_snap.queries_used, partial_snap.sealed_queries, partial_snap.tombstoned_queries) == (2, 1, 1)
     assert partial_snap.tombstone_count == 1
@@ -2583,24 +2929,28 @@ def test_v19_authority_policy_and_sealed_evidence_row_proxy_partition_not_physic
     tmp_path: Path,
 ) -> None:
     """W5: event policy injection fails; authority and exact counters govern."""
-    committed = _batch_events()[0]
-    event_type, payload = ledger._event_payload(committed)
-    assert event_type == "batch-committed"
-    for key in ("qmax", "floor", "policy"):
-        with Raises("keys"):
-            ledger._event_from_payload(event_type, {**payload, key: 1})
+    policy_events = (_reservation_event(), _batch_events()[0])
+    assert tuple(ledger._event_payload(event)[0] for event in policy_events) == (
+        "batch-reserved",
+        "batch-committed",
+    )
+    for event in policy_events:
+        event_type, payload = ledger._event_payload(event)
+        for key in ("qmax", "floor", "policy"):
+            with Raises("keys"):
+                ledger._event_from_payload(event_type, {**payload, key: 1})
 
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
     events = _batch_events()
-    receipts = _commit_sequence(store, origin, events, "policy")
+    receipts = _commit_batch_sequence(store, origin, events, "policy")
     with Raises("counters mismatch"):
         _commit(
             store,
             origin,
             "wrong-origin-counters",
             receipts[-1].current_state_commitment,
-            ledger.OriginSealed(False, (_h("d"),), 1, 0, 1, 1),
+            ledger.OriginSealed(False, (_h("d"),), 1, 0, 1, 1, 0, 0),
         )
     assert dataclasses.fields(ledger.EvidenceDigest)[0].name == "sha256"
     assert len(dataclasses.fields(ledger.EvidenceDigest)) == 1
@@ -2633,7 +2983,7 @@ def test_v20_preseal_projection_hides_execution_counters_and_replicates() -> Non
     manifest = _manifest()
     def state_after(events: tuple[object, object, object]) -> ledger._SemanticState:
         state = ledger._SemanticState()
-        for event in (None, *events):
+        for event in (None, _reservation_for(events[0]), *events):
             ledger._apply_event(state, event, manifest=manifest, origin_id=_h("1"))
         return state
     accepted_state = state_after(accepted)
@@ -2644,7 +2994,12 @@ def test_v20_preseal_projection_hides_execution_counters_and_replicates() -> Non
     assert ledger._preseal_semantic_sha(accepted_state) == ledger._preseal_semantic_sha(partial_state)
 
     prepared_state = ledger._SemanticState()
-    for event in (None, accepted[0], accepted[1]):
+    for event in (
+        None,
+        _reservation_for(accepted[0]),
+        accepted[0],
+        accepted[1],
+    ):
         ledger._apply_event(
             prepared_state, event, manifest=manifest, origin_id=_h("1")
         )
@@ -2661,6 +3016,17 @@ def test_v20_preseal_projection_hides_execution_counters_and_replicates() -> Non
     assert "replicate_ordinal" not in projection_text
     assert "sealed_queries" not in projection_text
     assert "tombstoned_queries" not in projection_text
+    empty_state = ledger._SemanticState()
+    forfeited_iteration_state = dataclasses.replace(
+        empty_state, forfeited_iterations=1
+    )
+    forfeited_query_state = dataclasses.replace(empty_state, forfeited_queries=2)
+    assert ledger._preseal_semantic_sha(empty_state) != ledger._preseal_semantic_sha(
+        forfeited_iteration_state
+    )
+    assert ledger._preseal_semantic_sha(empty_state) != ledger._preseal_semantic_sha(
+        forfeited_query_state
+    )
 
 
 def test_v21_exact_salt_width_and_independent_codec_partition_oracle() -> None:
@@ -2744,19 +3110,19 @@ def test_v22_authority_floor_requires_an_existing_batch_partition() -> None:
 def test_v23_two_origin_shared_runtime_head_aggregate_max_and_max_plus_one() -> None:
     """F2/M-20: per-origin feasibility cannot hide shared-head overflow."""
     maximum_ledger_bytes = 64 << 20
-    maximum = _independent_shared_head_bytes((6182, 6182))
-    overflow = _independent_shared_head_bytes((6182, 6183))
+    maximum = _independent_shared_head_bytes((4636, 4637))
+    overflow = _independent_shared_head_bytes((4636, 4638))
     assert maximum == 67_103_806 <= maximum_ledger_bytes
-    assert overflow == 67_109_233 > maximum_ledger_bytes
+    assert overflow == 67_111_042 > maximum_ledger_bytes
 
     first = _manifest_object(
-        descriptor=_h("3"), imax=6182, qmax=12_364
+        descriptor=_h("3"), imax=4636, qmax=9_272
     )
     second_at_maximum = _manifest_object(
-        descriptor=_h("4"), imax=6182, qmax=12_364
+        descriptor=_h("4"), imax=4637, qmax=9_274
     )
     second_overflow = _manifest_object(
-        descriptor=_h("4"), imax=6183, qmax=12_366
+        descriptor=_h("4"), imax=4638, qmax=9_276
     )
     ledger._authority_from_bytes(_authority_bytes([first, second_at_maximum]))
     with Raises("shared runtime head"):
@@ -2765,27 +3131,35 @@ def test_v23_two_origin_shared_runtime_head_aggregate_max_and_max_plus_one() -> 
 
 def test_v24_origin_ledger_total_decimal_cardinality_max_and_max_plus_one() -> None:
     """F3/M-18c/M-21: decimal-width-aware independent ledger-total oracle."""
-    exact_digit_boundaries = {10: 11_192, 100: 93_003, 1000: 911_104}
-    conservative_bounds = {10: 11_194, 100: 93_004, 1000: 911_104}
+    exact_digit_boundaries = {10: 11_957, 100: 93_769, 1000: 911_871}
+    conservative_bounds = {10: 11_961, 100: 93_771, 1000: 911_871}
     for cardinality, exact_bytes in exact_digit_boundaries.items():
         assert sum(map(len, _independent_worst_case_batch_frames(cardinality))) == exact_bytes
         assert ledger._affine_batch_bytes(
             batches=1, members=cardinality, tombstoned=False
         ) == conservative_bounds[cardinality]
+    for cardinality in (1, 2, 2248):
+        abandoned = sum(map(len, _independent_worst_case_abandoned_frames(cardinality)))
+        normal = sum(map(len, _independent_worst_case_batch_frames(cardinality)))
+        tombstoned = sum(map(len, _independent_worst_case_batch_frames(
+            cardinality, tombstoned=True
+        )))
+        assert abandoned < normal
+        assert abandoned < tombstoned
 
     maximum_ledger_bytes = 64 << 20
     maximum = _independent_origin_ledger_upper_bytes(
-        batches=33, members=73_748, kmax=4
+        batches=33, members=73_721, kmax=4
     )
     overflow = _independent_origin_ledger_upper_bytes(
-        batches=33, members=73_749, kmax=4
+        batches=33, members=73_722, kmax=4
     )
-    assert maximum == 67_107_988 <= maximum_ledger_bytes
-    assert overflow == 67_108_897 > maximum_ledger_bytes
+    assert maximum == 67_108_839 <= maximum_ledger_bytes
+    assert overflow == 67_109_748 > maximum_ledger_bytes
 
-    _manifest(_manifest_object(imax=33, qmax=73_748, kmax=4))
+    _manifest(_manifest_object(imax=33, qmax=73_721, kmax=4))
     with Raises("authority budget exceeds ledger codec feasibility"):
-        _manifest(_manifest_object(imax=33, qmax=73_749, kmax=4))
+        _manifest(_manifest_object(imax=33, qmax=73_722, kmax=4))
 
 
 def test_v25_public_commit_enforces_2248_member_codec_cardinality(
@@ -2806,14 +3180,21 @@ def test_v25_public_commit_enforces_2248_member_codec_cardinality(
 
     accepted_repo, (accepted_origin,) = _repo(tmp_path / "accepted", [raw])
     accepted_store = _store(accepted_repo)
+    accepted_reservation = _commit(
+        accepted_store,
+        accepted_origin,
+        "reserve-2248",
+        _snapshot(accepted_store, accepted_origin).state_commitment,
+        _reservation_event("cardinality-boundary", cardinality=2248),
+    )
     accepted = _commit(
         accepted_store,
         accepted_origin,
         "commit-2248",
-        _snapshot(accepted_store, accepted_origin).state_commitment,
+        accepted_reservation.current_state_commitment,
         committed(2248),
     )
-    assert accepted.event_index == 1
+    assert accepted.event_index == 2
     assert _snapshot(accepted_store, accepted_origin).queries_used == 2248
 
     rejected_repo, (rejected_origin,) = _repo(tmp_path / "rejected", [raw])
@@ -2822,10 +3203,608 @@ def test_v25_public_commit_enforces_2248_member_codec_cardinality(
         _commit(
             rejected_store,
             rejected_origin,
-            "commit-2249",
+            "reserve-2249",
             _snapshot(rejected_store, rejected_origin).state_commitment,
-            committed(2249),
+            _reservation_event("cardinality-boundary", cardinality=2249),
         )
+
+
+def test_v26_reservation_is_required_before_commit_and_binds_commit_identity(
+    tmp_path: Path,
+) -> None:
+    """Direct commit と reservation binding 4 軸を単一理由で拒否する。"""
+    repo, (origin,) = _repo(tmp_path)
+    store = _store(repo)
+    committed = _batch_events()[0]
+    initial = _snapshot(store, origin)
+    with Raises("current phase"):
+        _commit(
+            store,
+            origin,
+            "direct-commit",
+            initial.state_commitment,
+            committed,
+        )
+    assert _snapshot(store, origin) == initial
+
+    reserved = _commit(
+        store,
+        origin,
+        "reserve",
+        initial.state_commitment,
+        _reservation_for(committed),
+    )
+    pending = _snapshot(store, origin)
+    assert pending.phase == "BATCH_RESERVED"
+    assert (pending.iterations_used, pending.queries_used) == (1, 2)
+    assert (
+        pending.reserved_batch_id,
+        pending.reserved_iteration_index,
+        pending.reserved_cardinality,
+        pending.reserved_query_ordinal_start,
+    ) == ("batch-0", 0, 2, 0)
+
+    wrong_batch = dataclasses.replace(committed, batch_id="batch-other")
+    wrong_iteration = dataclasses.replace(committed, iteration_index=1)
+    existing_commitments = {
+        member.candidate_commitment for member in committed.members
+    }
+    extra_commitment = next(
+        _h(char) for char in "abcdef" if _h(char) not in existing_commitments
+    )
+    wrong_cardinality = dataclasses.replace(
+        committed,
+        members=(
+            *committed.members,
+            ledger.CommittedBatchMember(2, extra_commitment),
+        ),
+    )
+    wrong_query_base = dataclasses.replace(
+        committed,
+        members=tuple(
+            dataclasses.replace(member, query_ordinal=member.query_ordinal + 1)
+            for member in committed.members
+        ),
+    )
+    for operation, event, reason in (
+        ("wrong-batch", wrong_batch, "does not match"),
+        ("wrong-iteration", wrong_iteration, "does not match"),
+        ("wrong-cardinality", wrong_cardinality, "does not match"),
+        ("wrong-query-base", wrong_query_base, "query ordinals"),
+    ):
+        with Raises(reason):
+            _commit(
+                store,
+                origin,
+                operation,
+                reserved.current_state_commitment,
+                event,
+            )
+        assert _snapshot(store, origin) == pending
+
+    accepted = _commit(
+        store,
+        origin,
+        "matching-commit",
+        reserved.current_state_commitment,
+        committed,
+    )
+    assert accepted.event_index == 2
+    assert _snapshot(store, origin).phase == "BATCH_COMMITTED"
+
+
+def test_v27_abandoned_reservation_forfeits_budget_and_allows_abort_seal(
+    tmp_path: Path,
+) -> None:
+    """Abandon は I/Q を返さず sealed/tombstoned と分離して終端できる。"""
+    repo, (origin,) = _repo(tmp_path)
+    store = _store(repo)
+    reserved = _commit(
+        store,
+        origin,
+        "reserve",
+        _snapshot(store, origin).state_commitment,
+        _reservation_event(),
+    )
+    abandoned = _commit(
+        store,
+        origin,
+        "abandon",
+        reserved.current_state_commitment,
+        ledger.BatchReservationAbandoned("batch-0"),
+    )
+    snap = _snapshot(store, origin)
+    assert snap.phase == "IDLE"
+    assert (snap.iterations_used, snap.queries_used) == (1, 2)
+    assert (snap.forfeited_iterations, snap.forfeited_queries) == (1, 2)
+    assert (snap.sealed_queries, snap.tombstoned_queries) == (0, 0)
+    assert snap.tombstone_count == 0
+    assert (
+        snap.reserved_batch_id,
+        snap.reserved_iteration_index,
+        snap.reserved_cardinality,
+        snap.reserved_query_ordinal_start,
+    ) == (None, None, None, None)
+    for operation, event, reason in (
+        ("reused-batch", _reservation_event("batch-0", 1, 2, 2), "reused"),
+        (
+            "reused-iteration",
+            _reservation_event("batch-1", 0, 2, 2),
+            "iteration index",
+        ),
+        (
+            "reused-query",
+            _reservation_event("batch-1", 1, 2, 0),
+            "query ordinal start",
+        ),
+    ):
+        with Raises(reason):
+            _commit(
+                store,
+                origin,
+                operation,
+                abandoned.current_state_commitment,
+                event,
+            )
+        assert _snapshot(store, origin) == snap
+    terminal = _commit(
+        store,
+        origin,
+        "abort-seal",
+        abandoned.current_state_commitment,
+        ledger.OriginSealed(True, (), 0, 0, 0, 0, 1, 2),
+    )
+    assert terminal.event_index == 3
+    assert _snapshot(store, origin).terminal_status == "aborted"
+
+
+def test_v28_reserved_origin_cannot_seal_or_skip_commit(tmp_path: Path) -> None:
+    """BATCH_RESERVED では matching commit / abandon 以外を受理しない。"""
+    repo, (origin,) = _repo(tmp_path)
+    store = _store(repo)
+    committed, prepared, sealed = _batch_events()
+    reserved = _commit(
+        store,
+        origin,
+        "reserve",
+        _snapshot(store, origin).state_commitment,
+        _reservation_for(committed),
+    )
+    pending = _snapshot(store, origin)
+    for operation, event, reason in (
+        (
+            "seal-while-reserved",
+            ledger.OriginSealed(True, (), 0, 0, 0, 0, 0, 0),
+            "current phase",
+        ),
+        ("prepare-before-commit", prepared, "current phase"),
+        (
+            "batch-seal-before-commit",
+            sealed,
+            "batch seal projection requires prepared results",
+        ),
+    ):
+        with Raises(reason):
+            _commit(
+                store,
+                origin,
+                operation,
+                reserved.current_state_commitment,
+                event,
+            )
+        assert _snapshot(store, origin) == pending
+
+    # 公開経路では projection 層が先に拒否するため、FSM 相 guard の帰属は
+    # _apply_event の直接呼出しで別に固定する。
+    semantic_state = ledger._SemanticState()
+    manifest = _manifest()
+    ledger._apply_event(
+        semantic_state,
+        None,
+        manifest=manifest,
+        origin_id=origin,
+    )
+    ledger._apply_event(
+        semantic_state,
+        _reservation_for(committed),
+        manifest=manifest,
+        origin_id=origin,
+    )
+    assert semantic_state.phase == "BATCH_RESERVED"
+    semantic_before = ledger._semantic_object(semantic_state)
+    with Raises("current phase"):
+        ledger._apply_event(
+            semantic_state,
+            sealed,
+            manifest=manifest,
+            origin_id=origin,
+        )
+    assert ledger._semantic_object(semantic_state) == semantic_before
+
+    committed_receipt = _commit(
+        store,
+        origin,
+        "commit",
+        reserved.current_state_commitment,
+        committed,
+    )
+    with Raises("current phase"):
+        _commit(
+            store,
+            origin,
+            "abandon-after-commit",
+            committed_receipt.current_state_commitment,
+            ledger.BatchReservationAbandoned("batch-0"),
+        )
+
+
+def _recovery_script(
+    repo: Path,
+    origin: str,
+    *,
+    action: str,
+    expected_event_index: int = 2,
+) -> str:
+    assert action in {"commit", "abandon"}
+    raw_action_source = (
+        """\
+members=tuple(
+    l.CommittedBatchMember(snap.reserved_query_ordinal_start+index,f'{index+1:064x}')
+    for index in range(snap.reserved_cardinality)
+)
+event=l.BatchCommitted(
+    snap.reserved_batch_id,
+    snap.reserved_iteration_index,
+    members,
+)
+"""
+        if action == "commit"
+        else "event=l.BatchReservationAbandoned(snap.reserved_batch_id)"
+    )
+    action_source = "\n".join(
+        "    " + line for line in raw_action_source.splitlines()
+    )
+    return f"""
+import os,sys
+sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
+from campaign import reflux_origin_ledger as l
+s=l._fixture_store_for_test({os.fspath(repo)!r},'HEAD',initialize=False)
+with l._locked(s) as authority:
+    snap=l._read_origin_locked(s,authority,{origin!r})
+    assert snap.phase=='BATCH_RESERVED'
+    assert snap.reserved_batch_id is not None
+    assert snap.reserved_iteration_index is not None
+    assert snap.reserved_cardinality is not None
+    assert snap.reserved_query_ordinal_start is not None
+{action_source}
+    receipt=l._commit_locked(
+        s,
+        authority,
+        origin_id={origin!r},
+        operation_id='recovery-{action}',
+        expected_state_commitment=snap.state_commitment,
+        event=event,
+    )
+assert receipt.event_index=={expected_event_index}
+"""
+
+
+def test_v29_committed_reservation_replays_and_new_process_commits_from_binding(
+    tmp_path: Path,
+) -> None:
+    """Durable reservation を二重課金せず、新 process が4 bindingで commitする。"""
+    repo, (origin,) = _repo(tmp_path)
+    store = _store(repo)
+    base = _snapshot(store, origin).state_commitment
+    reserved_event = _reservation_event()
+    reserved = _commit(store, origin, "durable-reserve", base, reserved_event)
+    replayed = _commit(store, origin, "durable-reserve", base, reserved_event)
+    assert replayed.replayed
+    assert replayed.resulting_state_commitment == reserved.resulting_state_commitment
+    pending = _snapshot(store, origin)
+    assert (pending.iterations_used, pending.queries_used) == (1, 2)
+    assert (pending.forfeited_iterations, pending.forfeited_queries) == (0, 0)
+    recovery_source = _recovery_script(repo, origin, action="commit")
+    assert "batch-0" not in recovery_source
+    completed = subprocess.run(
+        [sys.executable, "-c", recovery_source],
+        cwd=repo,
+        env=_git_env(),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        timeout=SUBPROCESS_TIMEOUT,
+    )
+    assert completed.returncode == 0, completed.stderr.decode(
+        "utf-8", errors="replace"
+    )
+    recovered = _snapshot(_store(repo, initialize=False), origin)
+    assert recovered.phase == "BATCH_COMMITTED"
+    assert (recovered.iterations_used, recovered.queries_used) == (1, 2)
+    assert (recovered.forfeited_iterations, recovered.forfeited_queries) == (0, 0)
+
+
+def test_v30_forfeited_queries_do_not_satisfy_certifiable_floor(
+    tmp_path: Path,
+) -> None:
+    """forfeited member rows は certifiable floor へ算入しない。"""
+    raw = _manifest_object(imax=1, qmax=2, floor_per_round=2)
+    repo, (origin,) = _repo(tmp_path, [raw])
+    store = _store(repo)
+    receipts = _commit_sequence(
+        store,
+        origin,
+        (_reservation_event(), ledger.BatchReservationAbandoned("batch-0")),
+        "forfeit-floor",
+    )
+    with Raises("floor"):
+        _commit(
+            store,
+            origin,
+            "certifiable",
+            receipts[-1].current_state_commitment,
+            ledger.OriginSealed(False, (), 0, 0, 0, 0, 1, 2),
+        )
+    aborted = _commit(
+        store,
+        origin,
+        "aborted",
+        receipts[-1].current_state_commitment,
+        ledger.OriginSealed(True, (), 0, 0, 0, 0, 1, 2),
+    )
+    assert aborted.event_index == 3
+
+
+def test_v31_abandon_batch_binding_rejects_wrong_then_accepts_matching(
+    tmp_path: Path,
+) -> None:
+    """Abandon の batch ID 不一致だけを拒否し、正しい再試行を受理する。"""
+    repo, (origin,) = _repo(tmp_path)
+    store = _store(repo)
+    reserved = _commit(
+        store,
+        origin,
+        "reserve-b0",
+        _snapshot(store, origin).state_commitment,
+        _reservation_event("b0"),
+    )
+    with Raises("does not match"):
+        _commit(
+            store,
+            origin,
+            "abandon-b1",
+            reserved.current_state_commitment,
+            ledger.BatchReservationAbandoned("b1"),
+        )
+    pending = _snapshot(store, origin)
+    assert pending.phase == "BATCH_RESERVED"
+    accepted = _commit(
+        store,
+        origin,
+        "abandon-b0",
+        reserved.current_state_commitment,
+        ledger.BatchReservationAbandoned("b0"),
+    )
+    assert accepted.event_index == 2
+    assert _snapshot(store, origin).phase == "IDLE"
+
+
+def test_v32_origin_seal_rejects_each_forfeited_counter_mismatch_alone(
+    tmp_path: Path,
+) -> None:
+    """既存 counter を正しく保ち、新 forfeit counter だけを個別に誤らせる。"""
+    repo, (origin,) = _repo(tmp_path)
+    store = _store(repo)
+    receipts = _commit_sequence(
+        store,
+        origin,
+        (_reservation_event(), ledger.BatchReservationAbandoned("batch-0")),
+        "forfeit-counter",
+    )
+    base = receipts[-1].current_state_commitment
+    for operation, event in (
+        (
+            "wrong-forfeited-iterations",
+            ledger.OriginSealed(True, (), 0, 0, 0, 0, 0, 2),
+        ),
+        (
+            "wrong-forfeited-queries",
+            ledger.OriginSealed(True, (), 0, 0, 0, 0, 1, 1),
+        ),
+    ):
+        with Raises("counters mismatch"):
+            _commit(store, origin, operation, base, event)
+    accepted = _commit(
+        store,
+        origin,
+        "matching-forfeited-counters",
+        base,
+        ledger.OriginSealed(True, (), 0, 0, 0, 0, 1, 2),
+    )
+    assert accepted.event_index == 3
+
+
+def test_v33_new_process_abandons_from_public_reservation_binding(
+    tmp_path: Path,
+) -> None:
+    """非最小 cardinality の累積 abandon を新 process 復旧で固定する。"""
+    repo, (origin,) = _repo(tmp_path)
+    store = _store(repo)
+    first_reserved = _commit(
+        store,
+        origin,
+        "reserve-two",
+        _snapshot(store, origin).state_commitment,
+        _reservation_event(),
+    )
+    first_abandoned = _commit(
+        store,
+        origin,
+        "abandon-two",
+        first_reserved.current_state_commitment,
+        ledger.BatchReservationAbandoned("batch-0"),
+    )
+    second_reserved = _commit(
+        store,
+        origin,
+        "reserve-three",
+        first_abandoned.current_state_commitment,
+        _reservation_event("batch-1", iteration=1, cardinality=3, query_start=2),
+    )
+    pending = _snapshot(store, origin)
+    assert pending.state_commitment == second_reserved.current_state_commitment
+    assert (
+        pending.reserved_batch_id,
+        pending.reserved_iteration_index,
+        pending.reserved_cardinality,
+        pending.reserved_query_ordinal_start,
+    ) == ("batch-1", 1, 3, 2)
+    assert (pending.iterations_used, pending.queries_used) == (2, 5)
+    assert (pending.forfeited_iterations, pending.forfeited_queries) == (1, 2)
+    recovery_source = _recovery_script(
+        repo,
+        origin,
+        action="abandon",
+        expected_event_index=4,
+    )
+    assert "batch-1" not in recovery_source
+    completed = subprocess.run(
+        [sys.executable, "-c", recovery_source],
+        cwd=repo,
+        env=_git_env(),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        timeout=SUBPROCESS_TIMEOUT,
+    )
+    assert completed.returncode == 0, completed.stderr.decode(
+        "utf-8", errors="replace"
+    )
+    recovered = _snapshot(_store(repo, initialize=False), origin)
+    assert recovered.phase == "IDLE"
+    assert (recovered.iterations_used, recovered.queries_used) == (2, 5)
+    assert (recovered.forfeited_iterations, recovered.forfeited_queries) == (2, 5)
+    assert (recovered.sealed_queries, recovered.tombstoned_queries) == (0, 0)
+
+
+def test_v34_abandon_then_completed_batch_can_certifiably_seal(
+    tmp_path: Path,
+) -> None:
+    """Forfeit があっても別 batch の sealed floor が certifiable seal を許す。"""
+    raw = _manifest_object(imax=2, qmax=4, floor_per_round=2)
+    repo, (origin,) = _repo(tmp_path, [raw])
+    store = _store(repo)
+    abandoned = _commit_sequence(
+        store,
+        origin,
+        (_reservation_event(), ledger.BatchReservationAbandoned("batch-0")),
+        "forfeit-first",
+    )[-1]
+    completed_events = _batch_events("batch-1", iteration=1, query_start=2)
+    completed = _commit_batch_sequence(
+        store,
+        origin,
+        completed_events,
+        "complete-second",
+    )[-1]
+    before_seal = _snapshot(store, origin)
+    assert abandoned.event_index == 2
+    assert completed.event_index == 6
+    assert before_seal.phase == "IDLE"
+    assert (before_seal.iterations_used, before_seal.queries_used) == (2, 4)
+    assert (
+        before_seal.forfeited_iterations,
+        before_seal.forfeited_queries,
+    ) == (1, 2)
+    assert (before_seal.sealed_queries, before_seal.tombstoned_queries) == (2, 0)
+    terminal = _commit(
+        store,
+        origin,
+        "certifiable-after-forfeit",
+        completed.current_state_commitment,
+        ledger.OriginSealed(False, (_h("d"),), 1, 0, 2, 0, 1, 2),
+    )
+    assert terminal.event_index == 7
+    assert _snapshot(store, origin).terminal_status == "certifiable"
+
+
+def test_v35_origin_seal_prepared_hashes_use_independent_counter_projection() -> None:
+    """OriginSealed の request/binding が各 forfeit counter を独立に束縛する。"""
+    base_state = _h("1")
+    origin = _h("2")
+    operation = "origin-seal-oracle"
+    previous_event = _h("3")
+    record = {
+        "schema_version": "izanagi-reflux-origin-event/v2",
+        "event_index": 17,
+        "previous_event_sha256": previous_event,
+        "origin_id": origin,
+        "operation_id": operation,
+    }
+    payload = {
+        "seal_kind": "aborted",
+        "constraint_class_sha256s": [],
+        "batch_count": 2,
+        "tombstone_count": 1,
+        "sealed_queries": 3,
+        "tombstoned_queries": 1,
+        "forfeited_iterations": 4,
+        "forfeited_queries": 9,
+    }
+    state = ledger._SemanticState(phase="IDLE")
+
+    def independent_digests(raw: dict[str, object]) -> tuple[str, str]:
+        projection = {
+            "seal_kind": raw["seal_kind"],
+            "batch_count": raw["batch_count"],
+            "tombstone_count": raw["tombstone_count"],
+            "sealed_queries": raw["sealed_queries"],
+            "tombstoned_queries": raw["tombstoned_queries"],
+            "forfeited_iterations": raw["forfeited_iterations"],
+            "forfeited_queries": raw["forfeited_queries"],
+        }
+        request = hashlib.sha256(_canonical({
+            "base_state_commitment": base_state,
+            "origin_id": origin,
+            "operation_id": operation,
+            "event_type": "origin-sealed",
+            "payload": projection,
+        })).hexdigest()
+        binding = hashlib.sha256(_canonical({
+            **record,
+            "event_type": "origin-sealed",
+            "payload": projection,
+        })).hexdigest()
+        return request, binding
+
+    def production_digests(raw: dict[str, object]) -> tuple[str, str]:
+        return (
+            ledger._request_sha256(
+                base_state_commitment=base_state,
+                origin_id=origin,
+                operation_id=operation,
+                event_type="origin-sealed",
+                payload=raw,
+                state=state,
+            ),
+            ledger._prepared_event_binding_sha256(
+                record=record,
+                event_type="origin-sealed",
+                payload=raw,
+                state=state,
+            ),
+        )
+
+    baseline = independent_digests(payload)
+    assert production_digests(payload) == baseline
+    for field in ("forfeited_iterations", "forfeited_queries"):
+        altered = {**payload, field: int(payload[field]) + 1}
+        expected = independent_digests(altered)
+        assert expected[0] != baseline[0]
+        assert expected[1] != baseline[1]
+        assert production_digests(altered) == expected
 
 
 def _run() -> int:

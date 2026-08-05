@@ -76,8 +76,11 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 - tar/rsync は read (backup) / write (展開・mirror INTO) を判別 (backup を巻き込まない)。
 
 **Pegasus の重い処理層 (正しさ防壁ではない)。** 同 hook は Pegasus ログインノードでの重量コマンドも
-拒否する。sanctioned exact path の一覧と判定は `hooks/guard_bash.py` が正本であり、ここへは写さない
-(二重管理はドリフト源になる)。射程と限界 — 一次強制は各 entry point 自身の fail-closed であり、hook が
+拒否する。`tools/pegasus/` 配下の admission は **`tools/pegasus/admission_registry.json` が正本**で、
+`hooks/guard_bash.py` は共有 validator (`tools/pegasus_admission_registry.py`) を通した投影である
+([T-522])。正本が読めない・schema に反するときは空 registry へ縮退し、`tools/pegasus/` 配下を
+すべて拒否する (fail-closed)。一覧はここへ写さない (二重管理はドリフト源になる)。
+射程と限界 — 一次強制は各 entry point 自身の fail-closed であり、hook が
 新規に閉じるのは非 sanctioned な綴りだけで、Codex 子・script file 越し・`python3 -c`・ユーザー端末は
 原理的に見えない — は `docs/pegasus-runbook.md` §7 と D103 / D105 を正本とする。
 

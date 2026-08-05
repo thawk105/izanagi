@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -25,6 +26,22 @@ _PROVENANCE_PATH = (
     / "p3-s8a-trigger-sweep-balanced-sweep-c2d838b8"
     / "reports"
     / "s8a_trigger_sweep_provenance.json"
+)
+
+_GOLDEN_ROWS_FIRST_LINE = 25
+_GOLDEN_ROWS_LAST_LINE = 56
+_GOLDEN_ROWS_PREIMAGE_LENGTH = 7942
+_EMITTER_PREIMAGE_BEGIN = b"# CHECKOUT_IR_EMITTER_PREIMAGE_BEGIN\n"
+_EMITTER_PREIMAGE_END = b"# CHECKOUT_IR_EMITTER_PREIMAGE_END\n"
+_EMITTER_PREIMAGE_LENGTH = 3104
+_EXPECTED_EMITTER_SOURCE_SHA256 = (
+    "e11cc8d996f306698f1c1096a6026574e5dbfee8d2c5613884dd426d18eec4ca"
+)
+_EXPECTED_GOLDEN_32_ROWS_SHA256 = (
+    "69d8274fa03829d89dd706f7a0bb16d52ea71b608c51f5db5f5cdb1ead497165"
+)
+_EXPECTED_CHECKOUT_IR_EMITTER_GOLDEN_REGRESSION_ID = (
+    "c8289c4faf1b5420d24cb8ef94e4d1e918bb4003afe4512bfc3a600baa095d75"
 )
 
 
@@ -135,6 +152,47 @@ def _golden_rows() -> tuple[tuple[int, str, str], ...]:
     return value
 
 
+def _golden_rows_source_bytes() -> bytes:
+    """source bytes を保存した規範 32-row preimage を返す。"""
+    lines = _GOLDEN_PATH.read_bytes().splitlines(keepends=True)
+    row_lines = lines[_GOLDEN_ROWS_FIRST_LINE - 1:_GOLDEN_ROWS_LAST_LINE]
+    assert len(row_lines) == 32
+    # 25--56 行は 4-space indent、末尾 comma、各 1 個の LF を含む。
+    # したがって CRLF と最終 LF の欠落は拒否する。
+    assert all(line[:5] == b"    (" and line.endswith(b"),\n")
+               for line in row_lines)
+    assert all(b"\r" not in line and line.count(b"\n") == 1
+               for line in row_lines)
+    preimage = b"".join(row_lines)
+    assert len(preimage) == _GOLDEN_ROWS_PREIMAGE_LENGTH
+    return preimage
+
+
+def _emitter_source_bytes() -> bytes:
+    """回帰 ID 自身を除いた checkout emitter の閉じた source preimage。"""
+    lines = _PRODUCTION_PATH.read_bytes().splitlines(keepends=True)
+    assert lines.count(_EMITTER_PREIMAGE_BEGIN) == 1
+    assert lines.count(_EMITTER_PREIMAGE_END) == 1
+    begin = lines.index(_EMITTER_PREIMAGE_BEGIN)
+    end = lines.index(_EMITTER_PREIMAGE_END)
+    assert begin < end
+    preimage = b"".join(lines[begin + 1:end])
+    assert len(preimage) == _EMITTER_PREIMAGE_LENGTH
+    assert preimage.endswith(b"\n") and b"\r" not in preimage
+    return preimage
+
+
+def _checkout_regression_id(emitter_digest: bytes, golden_digest: bytes) -> str:
+    assert len(emitter_digest) == 32 and len(golden_digest) == 32
+    return hashlib.sha256(
+        b"izanagi-checkout-ir-emitter-golden-regression/v1\0"
+        + b"emitter-source-sha256\0"
+        + emitter_digest
+        + b"golden-32-rows-sha256\0"
+        + golden_digest
+    ).hexdigest()
+
+
 def _expected_by_mask() -> dict[int, tuple[str, str]]:
     return {mask: (wire, predicate) for mask, wire, predicate in _golden_rows()}
 
@@ -238,6 +296,31 @@ def test_golden_has_no_production_import_and_production_has_no_golden_consumer()
         if "reflux_ir_expected_goldens" in path.read_text(encoding="utf-8"):
             consumers.append(path.relative_to(_ROOT).as_posix())
     assert consumers == []
+
+
+def test_checkout_ir_emitter_source_regression_digest():
+    emitter_digest = hashlib.sha256(_emitter_source_bytes()).digest()
+    assert emitter_digest.hex() == _EXPECTED_EMITTER_SOURCE_SHA256
+
+    assert IR._CHECKOUT_IR_EMITTER_SOURCE_SHA256 == _EXPECTED_EMITTER_SOURCE_SHA256
+
+
+def test_checkout_ir_golden_32_rows_regression_digest():
+    golden_digest = hashlib.sha256(_golden_rows_source_bytes()).digest()
+    assert golden_digest.hex() == _EXPECTED_GOLDEN_32_ROWS_SHA256
+
+    assert IR._CHECKOUT_IR_GOLDEN_32_ROWS_SHA256 == _EXPECTED_GOLDEN_32_ROWS_SHA256
+
+
+def test_m15_checkout_regression_id_binds_golden_with_fixed_emitter_digest():
+    emitter_digest = bytes.fromhex(_EXPECTED_EMITTER_SOURCE_SHA256)
+    golden_digest = bytes.fromhex(IR._CHECKOUT_IR_GOLDEN_32_ROWS_SHA256)
+    observed_id = _checkout_regression_id(emitter_digest, golden_digest)
+    assert observed_id == _EXPECTED_CHECKOUT_IR_EMITTER_GOLDEN_REGRESSION_ID
+    assert (
+        IR.CHECKOUT_IR_EMITTER_GOLDEN_REGRESSION_ID
+        == _EXPECTED_CHECKOUT_IR_EMITTER_GOLDEN_REGRESSION_ID
+    )
 
 
 def test_golden_masks_wires_and_predicates_are_bijective():

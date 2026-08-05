@@ -1,0 +1,11 @@
+{
+  "boot_id": "71149940-a56b-49ab-8467-a0c8b3076d17",
+  "deadline_epoch": 1785968182,
+  "host": "bnode004",
+  "job_id": "0:892177.nqsv",
+  "nonce": "37fa0494f7fa4dcb94992550f01ddc3d",
+  "recorded_epoch": 1785960984,
+  "requested_s": 7200,
+  "scheduler_started_epoch": 1785960982,
+  "script_sha256": "b56a0f7dc03f28a4a4854e94eafedef21a59f38e5f60210a9f37cd942edad955"
+}

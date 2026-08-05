@@ -1,0 +1,149 @@
+{
+  "schema_version": "pegasus-admission-registry/v1",
+  "entries": {
+    "tools/pegasus/certify_calibration.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS calibration job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/collect_receipt.py": {
+      "class": "unknown",
+      "reason": "input caps and capped-input measurement are incomplete",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/collect_t126_qualification.py": {
+      "class": "unknown",
+      "reason": "input caps and capped-input measurement are incomplete",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/dispatch_compute.py": {
+      "class": "local-ok",
+      "reason": "login-side compute dispatcher with a self-gated job mode",
+      "primary_gate": "dispatch_compute --job-run site gate",
+      "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/exec_calibrate.py": {
+      "class": "dispatch-required",
+      "reason": "arbitrary exec trampoline used inside compute jobs",
+      "primary_gate": "compute allocation owned by the caller",
+      "evidence": "static arbitrary-exec classification"
+    },
+    "tools/pegasus/fetch_third_party.py": {
+      "class": "local-ok",
+      "reason": "login-side third-party acquisition workflow",
+      "primary_gate": "fetch_third_party CLI validation",
+      "evidence": "runbook §7.0 実測"
+    },
+    "tools/pegasus/floor_campaign.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS floor campaign job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/floor_scoping.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS floor scoping job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/make_acquisition_receipt.py": {
+      "class": "dispatch-required",
+      "reason": "receipt helper invoked from the calibration compute job",
+      "primary_gate": "compute allocation owned by certify_calibration.sh",
+      "evidence": "static compute-side call-site classification"
+    },
+    "tools/pegasus/probes/t139_positive_control_probe.pbs": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t139_positive_control_probe.sh": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t293_perf_site_probe.pbs": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t293_perf_site_probe.py": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t419_probe_causality.pbs": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t419_probe_causality.py": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/run_probe.py": {
+      "class": "dispatch-required",
+      "reason": "probe semantics require a compute allocation",
+      "primary_gate": "compute-node environment attestation",
+      "evidence": "static semantic-site classification"
+    },
+    "tools/pegasus/silo_ladder_rung1.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS silo ladder job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/smoke_probe.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS smoke probe job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/submit_certify.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS certification submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_floor.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS floor submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_silo_ladder_rung1.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS silo ladder submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_t126_qualification.sh": {
+      "class": "unknown",
+      "reason": "input caps and capped-input measurement are incomplete",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured; preflight input surfaces remain"
+    },
+    "tools/pegasus/t126_qualification.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS T126 qualification job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/t141_region_profile.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS T141 profiling job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    }
+  }
+}

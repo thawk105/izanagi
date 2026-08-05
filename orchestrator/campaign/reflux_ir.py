@@ -18,6 +18,20 @@ __all__ = [
 
 SCHEMA_ID = "izanagi-trigger-gate-ir/v1"
 
+# checkout 内の emitter と独立 golden の同時 regression 検出器である。
+# artifact schema / origin identity ではなく、成果物へ搭載してはならない。
+# production import は生成済み literal だけを読み、source/golden の再導出は test が担う。
+_CHECKOUT_IR_EMITTER_SOURCE_SHA256 = (
+    "e11cc8d996f306698f1c1096a6026574e5dbfee8d2c5613884dd426d18eec4ca"
+)
+_CHECKOUT_IR_GOLDEN_32_ROWS_SHA256 = (
+    "69d8274fa03829d89dd706f7a0bb16d52ea71b608c51f5db5f5cdb1ead497165"
+)
+CHECKOUT_IR_EMITTER_GOLDEN_REGRESSION_ID = (
+    "c8289c4faf1b5420d24cb8ef94e4d1e918bb4003afe4512bfc3a600baa095d75"
+)
+
+# CHECKOUT_IR_EMITTER_PREIMAGE_BEGIN
 _REJECTION_MESSAGE = "invalid reflux IR"
 _WIRE_WIDTH = 5
 _MAX_MASK = (1 << _WIRE_WIDTH) - 1
@@ -125,3 +139,4 @@ def emit_predicate(ir: TriggerGateIR) -> str:
         f"{_REASON_VARIABLE} == {_ENUM_TYPE}::{member}" for member in members
     ]
     return f"{_ASSIGNMENT_TARGET} = {' || '.join(terms)};"
+# CHECKOUT_IR_EMITTER_PREIMAGE_END

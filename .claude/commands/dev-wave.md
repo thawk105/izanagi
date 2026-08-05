@@ -63,12 +63,12 @@ review を流用してはならない。
 | 段 3 preflight | `docs/dev-wave/workers.md`: `DW-S03`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05`, `DW-O13` |
 | 段 4 | `docs/dev-wave/core.md`: `DW-S04`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05`; `docs/dev-wave/mutation.md`: `DW-M01` |
 | 段 5 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
-| 段 5 | 成立した条件の `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20`, `DW-O23` |
+| 段 5 | 成立した条件の `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23` |
 | 段 6 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
 | 段 6 | `docs/dev-wave/workers.md`: `DW-S06-A`, `DW-S06-B`, `DW-S06-C` |
 | 段 6 | `docs/dev-wave/core.md`: `DW-G05` |
 | 段 6 | `docs/dev-wave/mutation.md`: `DW-M02`, `DW-M03`, `DW-M04`, `DW-M05`, `DW-M06`, `DW-M07`, `DW-M08` |
-| 段 6 | 成立した全 `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20`, `DW-O23` |
+| 段 6 | 成立した全 `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23` |
 | 段 7 | `docs/dev-wave/core.md`: `DW-S07`; 成立した条件の `docs/dev-wave/operations.md`: `DW-O12`, `DW-O17`, `DW-O18`, `DW-O19` |
 | 段 8 preflight | `docs/dev-wave/core.md`: `DW-S08`; `docs/skill-self-improvement.md` の全節 |
 | 段 8 preflight | commit するなら `docs/dev-wave/operations.md`: `DW-O17`; 防護パス message なら `DW-O04` |
@@ -94,7 +94,7 @@ review を流用してはならない。
 | 12 | 裁定手順と実行手順が食い違った時点 | `docs/dev-wave/operations.md`: `DW-O12` |
 | 13 | gate・検証を新設する可能性が生じた時点 | `docs/dev-wave/operations.md`: `DW-O13`（最遅: 段 2 前） |
 | 14 | no-touch 対象へ monkeypatch を検討する直前 | `docs/dev-wave/operations.md`: `DW-O14` |
-| 15 | fix 後に変異を走らせる直前 | `docs/dev-wave/operations.md`: `DW-O15`; `docs/dev-wave/mutation.md`: `DW-M07` |
+| 15 | fix 後に変異を走らせる直前 | `docs/dev-wave/mutation.md`: `DW-M07` |
 | 16 | fix 後の焦点再レビューを行う直前 | `docs/dev-wave/operations.md`: `DW-O16` |
 | 17 | commit を作る直前 | `docs/dev-wave/operations.md`: `DW-O17` |
 | 18 | 親がテスト・受入を走らせる直前 | `docs/dev-wave/operations.md`: `DW-O18` |

@@ -4,52 +4,335 @@
 #PBS -l elapstim_req=01:00:00
 #PBS -b 1
 set -euo pipefail
-[[ -n "${PBS_JOBID:-}" && -n "${PBS_O_WORKDIR:-}" ]] || exit 2
-export IZANAGI_REPO_ROOT=$(realpath -e "$PBS_O_WORKDIR")
-POLICY="$IZANAGI_REPO_ROOT/tools/pegasus/policy.json"
-export IZANAGI_PROBE_STAGE=$(mktemp -d "${TMPDIR:-/scr}/t139pc.XXXXXX")
-trap 'rm -rf -- "$IZANAGI_PROBE_STAGE"' EXIT
-readarray -t DEP < <(python3 -I -B - "$POLICY" <<'PY'
-import json,sys
-p=json.load(open(sys.argv[1],encoding="utf-8"))
-q=p["silo_ladder_rung1"]["dependency_pins"]
-print(p["gflags_source_path"]+"\t"+q["gflags"])
-print(p["glog_source_path"]+"\t"+q["glog"])
+
+[[ -n ${PBS_JOBID:-} && -n ${PBS_O_WORKDIR:-} ]] || exit 2
+JOB_TAG=${PBS_JOBID//:/_}
+OUT="$PBS_O_WORKDIR/output/env/pegasus/t139-positive-control-probe/$JOB_TAG"
+export IZANAGI_T139_STATE_DIR="$OUT/state"
+export IZANAGI_RUN_COMMIT=unavailable
+export IZANAGI_PROBE_STAGE=
+
+finalize_job() {
+  local rc=$? state detail tmp
+  trap - EXIT
+  set +e
+  mkdir -p "$OUT" "$IZANAGI_T139_STATE_DIR"
+  if [[ ! -s $IZANAGI_T139_STATE_DIR/terminal-state.tsv ]]; then
+    state=pre_performance_infra_failure
+    detail="job_exit_before_performance:rc=$rc"
+    if [[ -s $IZANAGI_T139_STATE_DIR/phase.tsv ]] &&
+        grep -Fx $'state\tperformance_started' \
+          "$IZANAGI_T139_STATE_DIR/phase.tsv" >/dev/null; then
+      state=post_performance_failure
+      detail="job_exit_after_performance_started:rc=$rc"
+    fi
+    tmp="$IZANAGI_T139_STATE_DIR/.terminal-state.tsv.$$"
+    printf 'state\t%s\ndetail\t%s\nrun_commit\t%s\n' \
+      "$state" "$detail" "$IZANAGI_RUN_COMMIT" >"$tmp"
+    mv -f "$tmp" "$IZANAGI_T139_STATE_DIR/terminal-state.tsv"
+  fi
+  if [[ -n $IZANAGI_PROBE_STAGE && -d $IZANAGI_PROBE_STAGE ]]; then
+    chmod -R u+w -- "$IZANAGI_PROBE_STAGE"
+    rm -rf -- "$IZANAGI_PROBE_STAGE"
+  fi
+  exit "$rc"
+}
+trap finalize_job EXIT
+
+if ! IZANAGI_REPO_ROOT=$(realpath -e "$PBS_O_WORKDIR"); then exit 3; fi
+export IZANAGI_REPO_ROOT
+OUT="$IZANAGI_REPO_ROOT/output/env/pegasus/t139-positive-control-probe/$JOB_TAG"
+export IZANAGI_T139_STATE_DIR="$OUT/state"
+
+[[ -n ${IZANAGI_T139_DEPENDENCY_SOURCE_ROOT:-} &&
+   -n ${IZANAGI_THIRDPARTY_SOURCE_ROOT:-} &&
+   -n ${IZANAGI_T139_PREREGISTRATION_RELATIVE_PATH:-} &&
+   -n ${IZANAGI_T139_EXPECTED_COMMIT:-} &&
+   $IZANAGI_T139_EXPECTED_COMMIT =~ ^[0-9a-f]{40}$ ]] || exit 2
+
+# Fixed 55-minute deadline leaves five minutes before the one-hour PBS walltime.
+export IZANAGI_ABSOLUTE_DEADLINE_EPOCH=$(( $(date +%s) + 3300 ))
+deadline_run() {
+  local cap=$1 remaining limit
+  shift
+  remaining=$((IZANAGI_ABSOLUTE_DEADLINE_EPOCH - $(date +%s)))
+  (( remaining > 0 )) || exit 8
+  limit=$cap
+  (( limit < remaining )) || limit=$remaining
+  timeout --foreground "$limit" "$@"
+}
+
+# Bind this submission to the exact study commit selected by its qsub caller.
+if ! observed_repo_head=$(deadline_run 10 git --no-replace-objects \
+    -C "$IZANAGI_REPO_ROOT" rev-parse --verify 'HEAD^{commit}'); then
+  exit 3
+fi
+[[ $observed_repo_head == "$IZANAGI_T139_EXPECTED_COMMIT" ]] || exit 3
+export IZANAGI_RUN_COMMIT=$IZANAGI_T139_EXPECTED_COMMIT
+
+if ! replace_refs=$(deadline_run 3 git --no-replace-objects \
+    -C "$IZANAGI_REPO_ROOT" for-each-ref --format='%(refname)' refs/replace/); then
+  exit 3
+fi
+[[ -z $replace_refs ]] || exit 3
+# This probe's durable prior-submission artifacts are not execution inputs and
+# must survive an allowed replacement; every other path, including the
+# submodule and other output namespaces, remains inside this clean-tree check.
+if ! repo_status=$(deadline_run 10 git --no-replace-objects \
+    -C "$IZANAGI_REPO_ROOT" status --porcelain --untracked-files=all \
+    --ignore-submodules=none -- . \
+    ':(exclude)output/env/pegasus/t139-positive-control-probe/**'); then
+  exit 3
+fi
+[[ -z $repo_status ]] || exit 3
+if ! repo_index=$(deadline_run 10 git --no-replace-objects \
+    -C "$IZANAGI_REPO_ROOT" ls-files -v); then
+  exit 3
+fi
+if grep -Eq '^[a-zS]' <<<"$repo_index"; then exit 3; fi
+
+export IZANAGI_PROBE_STAGE
+IZANAGI_PROBE_STAGE=$(mktemp -d "${TMPDIR:-/scr}/t139pc.XXXXXX")
+mkdir -p "${OUT%/*}"
+mkdir "$OUT"
+mkdir "$IZANAGI_T139_STATE_DIR"
+
+export IZANAGI_PROBE_BUNDLE="$IZANAGI_PROBE_STAGE/repo-bundle"
+mkdir "$IZANAGI_PROBE_BUNDLE"
+PREREG_REL=$IZANAGI_T139_PREREGISTRATION_RELATIVE_PATH
+[[ $PREREG_REL == \
+   output/insights/2026-08-05_t139-alt-x-probe/preregistration.md ]] || exit 3
+
+extract_blob() {
+  local relative=$1 destination=$2 tmp
+  tmp="$destination.tmp"
+  deadline_run 5 git --no-replace-objects -C "$IZANAGI_REPO_ROOT" \
+    cat-file blob "$IZANAGI_RUN_COMMIT:$relative" >"$tmp" || return
+  mv "$tmp" "$destination"
+}
+
+PROBE_REL=tools/pegasus/probes
+extract_blob "$PROBE_REL/t139_positive_control.patch" \
+  "$IZANAGI_PROBE_BUNDLE/t139_positive_control.patch"
+extract_blob "$PROBE_REL/t139_positive_control_probe.sh" \
+  "$IZANAGI_PROBE_BUNDLE/t139_positive_control_probe.sh"
+extract_blob "$PROBE_REL/t139_positive_control_probe.pbs" \
+  "$IZANAGI_PROBE_BUNDLE/t139_positive_control_probe.pbs"
+extract_blob tools/pegasus/policy.json "$IZANAGI_PROBE_BUNDLE/policy.json"
+export IZANAGI_PREREGISTRATION_BLOB="$IZANAGI_PROBE_BUNDLE/preregistration.md"
+extract_blob "$PREREG_REL" "$IZANAGI_PREREGISTRATION_BLOB"
+grep -F 'engineering_screen / J=1 / uncalibrated / nonqualification' \
+  "$IZANAGI_PREREGISTRATION_BLOB" >/dev/null || exit 3
+
+if ! runtime_script=$(realpath -e "$0"); then exit 3; fi
+if ! IZANAGI_RUNTIME_PBS_SHA256=$(sha256sum "$runtime_script" | awk '{print $1}'); then
+  exit 3
+fi
+if ! committed_pbs_sha=$(sha256sum \
+    "$IZANAGI_PROBE_BUNDLE/t139_positive_control_probe.pbs" | awk '{print $1}'); then
+  exit 3
+fi
+[[ $IZANAGI_RUNTIME_PBS_SHA256 == "$committed_pbs_sha" ]] || exit 3
+export IZANAGI_RUNTIME_PBS_SHA256
+chmod 500 "$IZANAGI_PROBE_BUNDLE/t139_positive_control_probe.sh"
+chmod 400 "$IZANAGI_PROBE_BUNDLE/t139_positive_control.patch" \
+  "$IZANAGI_PROBE_BUNDLE/t139_positive_control_probe.pbs" \
+  "$IZANAGI_PROBE_BUNDLE/policy.json" "$IZANAGI_PREREGISTRATION_BLOB"
+
+POLICY="$IZANAGI_PROBE_BUNDLE/policy.json"
+policy_rows="$IZANAGI_PROBE_STAGE/policy-dependencies.tsv"
+deadline_run 10 python3 -I -B - "$POLICY" >"$policy_rows" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    policy = json.load(handle)
+pins = policy["silo_ladder_rung1"]["dependency_pins"]
+for name in ("gflags", "glog"):
+    if policy[f"{name}_expected_head"] != pins[name]:
+        raise SystemExit(f"top-level and dependency pin differ: {name}")
+    print(name + "\t" + pins[name])
 PY
-)
+mapfile -t DEP <"$policy_rows"
+[[ ${#DEP[@]} -eq 2 ]]
+
+snapshot_git_source() {
+  local source=$1 pin=$2 staged=$3 archive=$4 metadata=$5 mode=$6 cap=$7
+  deadline_run "$cap" bash -c '
+    set -euo pipefail
+    source=$1; pin=$2; staged=$3; archive=$4; metadata=$5; mode=$6
+    [[ -d $source && ! -L $source && ! -e $staged && ! -e $archive ]]
+    replace=$(git --no-replace-objects -C "$source" for-each-ref \
+      --format="%(refname)" refs/replace/)
+    [[ -z $replace ]]
+    top=$(git --no-replace-objects -C "$source" rev-parse --show-toplevel)
+    [[ $(realpath -e "$top") == "$source" ]]
+    observed=$(git --no-replace-objects -C "$source" \
+      rev-parse --verify "HEAD^{commit}")
+    [[ $observed == "$pin" ]]
+    status_text=$(git --no-replace-objects -C "$source" \
+      status --porcelain --untracked-files=all)
+    [[ -z $status_text ]]
+    index_text=$(git --no-replace-objects -C "$source" ls-files -v)
+    ! grep -Eq "^[a-zS]" <<<"$index_text"
+    shallow=$(git --no-replace-objects -C "$source" \
+      rev-parse --is-shallow-repository)
+    [[ $shallow == false ]]
+    git_dir=$(git --no-replace-objects -C "$source" \
+      rev-parse --absolute-git-dir)
+    git_dir=$(realpath -e "$git_dir")
+    [[ ! -e $git_dir/objects/info/alternates && ! -e $git_dir/info/grafts &&
+       ! -e $git_dir/info/sparse-checkout ]]
+    tree=$(git --no-replace-objects -C "$source" \
+      rev-parse --verify "$pin^{tree}")
+    mkdir "$staged"
+    case $mode in
+      archive)
+        git --no-replace-objects -C "$source" archive --format=tar \
+          --output="$archive" "$pin"
+        tar -xf "$archive" -C "$staged"
+        ;;
+      checkout-index)
+        index="$archive.index"
+        trap '\''rm -f -- "$index"'\'' EXIT
+        GIT_INDEX_FILE=$index git --no-replace-objects -C "$source" \
+          read-tree "$pin"
+        GIT_INDEX_FILE=$index git --no-replace-objects -C "$source" \
+          checkout-index --all --prefix="$staged/"
+        tar -C "$staged" -cf "$archive" .
+        ;;
+      *) exit 2 ;;
+    esac
+    chmod -R a-w "$staged"
+    printf "%s\t%s\n" "$observed" "$tree" >"$metadata"
+  ' _ "$source" "$pin" "$staged" "$archive" "$metadata" "$mode"
+  IFS=$'\t' read -r VERIFIED_HEAD VERIFIED_TREE <"$metadata"
+}
+
+DEPENDENCY_ROOT=$(realpath -e "$IZANAGI_T139_DEPENDENCY_SOURCE_ROOT")
+[[ ! -L $IZANAGI_T139_DEPENDENCY_SOURCE_ROOT ]] || exit 3
+policy_sha=$(sha256sum "$POLICY" | awk '{print $1}')
+witness="$IZANAGI_PROBE_STAGE/dependency-witness.tsv"
+printf 'class\tname\troot_realpath\tsource_realpath\texpected_pin\tobserved_head\ttree_sha\tarchive_sha256\tclean\n' \
+  >"$witness"
+printf 'policy\tpolicy.json\t%s\t%s\t-\t-\t-\t%s\t1\n' \
+  "$IZANAGI_REPO_ROOT" "$POLICY" "$policy_sha" >>"$witness"
+
 for row in "${DEP[@]}"; do
-  IFS=$'\t' read -r source pin <<<"$row"
-  [[ $(git -C "$source" rev-parse --verify HEAD) == "$pin" ]]
-  [[ -z $(git -C "$source" status --porcelain --untracked-files=all) ]]
+  IFS=$'\t' read -r name pin <<<"$row"
+  source_path="$DEPENDENCY_ROOT/$name"
+  [[ -d $source_path && ! -L $source_path ]] || exit 3
+  source_real=$(realpath -e "$source_path")
+  archive="$IZANAGI_PROBE_STAGE/$name.tar"
+  staged="$IZANAGI_PROBE_STAGE/$name-source"
+  metadata="$IZANAGI_PROBE_STAGE/$name-metadata.tsv"
+  snapshot_git_source "$source_real" "$pin" "$staged" "$archive" \
+    "$metadata" archive 45 || exit 3
+  archive_sha=$(sha256sum "$archive" | awk '{print $1}')
+  printf 'dependency\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t1\n' \
+    "$name" "$DEPENDENCY_ROOT" "$source_real" "$pin" "$VERIFIED_HEAD" \
+    "$VERIFIED_TREE" "$archive_sha" >>"$witness"
+  case $name in
+    gflags) GFLAGS_SOURCE=$staged; export IZANAGI_GFLAGS_SRC_HEAD=$pin ;;
+    glog) GLOG_SOURCE=$staged; export IZANAGI_GLOG_SRC_HEAD=$pin ;;
+  esac
 done
-[[ -n "${IZANAGI_THIRDPARTY_SOURCE_ROOT:-}" ]] || exit 2
-export IZANAGI_THIRDPARTY_SOURCE_ROOT=$(realpath -e "$IZANAGI_THIRDPARTY_SOURCE_ROOT")
-readarray -t THIRD_PARTY < <(python3 -I -B - "$POLICY" <<'PY'
-import json,sys
-for item in json.load(open(sys.argv[1],encoding="utf-8"))["silo_ladder_rung1"]["third_party_sources"]:
-    print(item["source_name"]+"\t"+item["pin"])
+export IZANAGI_DEPENDENCY_WITNESS="$witness"
+
+THIRD_PARTY_ROOT=$(realpath -e "$IZANAGI_THIRDPARTY_SOURCE_ROOT")
+[[ ! -L $IZANAGI_THIRDPARTY_SOURCE_ROOT ]] || exit 3
+third_rows="$IZANAGI_PROBE_STAGE/policy-third-party.tsv"
+deadline_run 10 python3 -I -B - "$POLICY" >"$third_rows" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    policy = json.load(handle)
+for item in policy["silo_ladder_rung1"]["third_party_sources"]:
+    print(item["source_name"] + "\t" + item["pin"])
 PY
-)
+mapfile -t THIRD_PARTY <"$third_rows"
 [[ ${#THIRD_PARTY[@]} -eq 3 ]]
+THIRD_PARTY_SNAPSHOT_ROOT="$IZANAGI_PROBE_STAGE/third-party-snapshots"
+mkdir "$THIRD_PARTY_SNAPSHOT_ROOT"
 for row in "${THIRD_PARTY[@]}"; do
-  IFS=$'\t' read -r dep pin <<<"$row"; source="$IZANAGI_THIRDPARTY_SOURCE_ROOT/$dep"
-  [[ $(git -C "$source" rev-parse --verify HEAD) == "$pin" ]]
-  [[ -z $(git -C "$source" status --porcelain --untracked-files=all) ]]
-  cp -a "$source" "$IZANAGI_PROBE_STAGE/$dep"
+  IFS=$'\t' read -r name pin <<<"$row"
+  source_path="$THIRD_PARTY_ROOT/$name"
+  [[ -d $source_path && ! -L $source_path ]] || exit 3
+  source_real=$(realpath -e "$source_path")
+  archive="$IZANAGI_PROBE_STAGE/$name.tar"
+  staged="$THIRD_PARTY_SNAPSHOT_ROOT/$name"
+  metadata="$IZANAGI_PROBE_STAGE/$name-metadata.tsv"
+  snapshot_git_source "$source_real" "$pin" "$staged" "$archive" \
+    "$metadata" checkout-index 50 || exit 3
+  archive_sha=$(sha256sum "$archive" | awk '{print $1}')
+  printf 'third_party\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t1\n' \
+    "$name" "$THIRD_PARTY_ROOT" "$source_real" "$pin" "$VERIFIED_HEAD" \
+    "$VERIFIED_TREE" "$archive_sha" >>"$witness"
 done
-export IZANAGI_THIRDPARTY_SOURCE_ROOT="$IZANAGI_PROBE_STAGE"
-IFS=$'\t' read -r GFLAGS_SOURCE IZANAGI_GFLAGS_SRC_HEAD <<<"${DEP[0]}"
-IFS=$'\t' read -r GLOG_SOURCE IZANAGI_GLOG_SRC_HEAD <<<"${DEP[1]}"
-export IZANAGI_GFLAGS_SRC_HEAD IZANAGI_GLOG_SRC_HEAD
+
+export IZANAGI_CONSUMER_COPY_WITNESS="$IZANAGI_PROBE_STAGE/consumer-copy-witness.tsv"
+printf 'name\tsnapshot_realpath\tconsumer_realpath\tbytes_identical\n' \
+  >"$IZANAGI_CONSUMER_COPY_WITNESS"
+THIRD_PARTY_CONSUMER_ROOT="$IZANAGI_PROBE_STAGE/third-party-consumer"
+deadline_run 60 bash -c '
+  set -euo pipefail
+  snapshot_root=$1; consumer_root=$2; witness=$3
+  mkdir "$consumer_root"
+  for name in masstree mimalloc googletest; do
+    snapshot="$snapshot_root/$name"
+    consumer="$consumer_root/$name"
+    cp -a "$snapshot" "$consumer"
+    chmod -R u+w "$consumer"
+    diff --brief --recursive --no-dereference "$snapshot" "$consumer" >/dev/null
+    printf "third_party_%s\t%s\t%s\t1\n" "$name" "$snapshot" "$consumer" \
+      >>"$witness"
+  done
+' _ "$THIRD_PARTY_SNAPSHOT_ROOT" "$THIRD_PARTY_CONSUMER_ROOT" \
+  "$IZANAGI_CONSUMER_COPY_WITNESS"
+export IZANAGI_THIRDPARTY_SOURCE_ROOT="$THIRD_PARTY_CONSUMER_ROOT"
+
+if ! gitlink_row=$(deadline_run 10 git --no-replace-objects \
+    -C "$IZANAGI_REPO_ROOT" ls-tree "$IZANAGI_RUN_COMMIT" external/ccbench); then
+  exit 3
+fi
+read -r gitlink_mode gitlink_type IZANAGI_CCBENCH_PIN gitlink_path <<<"$gitlink_row"
+[[ $gitlink_mode == 160000 && $gitlink_type == commit &&
+   $gitlink_path == external/ccbench && $IZANAGI_CCBENCH_PIN =~ ^[0-9a-f]{40}$ ]] || exit 3
+export IZANAGI_CCBENCH_PIN
+CCBENCH_SOURCE_ROOT=$(realpath -e "$IZANAGI_REPO_ROOT/external/ccbench")
+export IZANAGI_CCBENCH_SNAPSHOT="$IZANAGI_PROBE_STAGE/ccbench-source"
+# git archive is forbidden here: CCBench's export-ignore drops cc/oze.
+CCBENCH_ARCHIVE="$IZANAGI_PROBE_STAGE/ccbench.tar"
+ccbench_metadata="$IZANAGI_PROBE_STAGE/ccbench-metadata.tsv"
+snapshot_git_source "$CCBENCH_SOURCE_ROOT" "$IZANAGI_CCBENCH_PIN" \
+  "$IZANAGI_CCBENCH_SNAPSHOT" "$CCBENCH_ARCHIVE" "$ccbench_metadata" \
+  checkout-index 90 || exit 3
+ccbench_archive_sha=$(sha256sum "$CCBENCH_ARCHIVE" | awk '{print $1}')
+printf 'ccbench\tccbench\t%s\t%s\t%s\t%s\t%s\t%s\t1\n' \
+  "$IZANAGI_REPO_ROOT" "$CCBENCH_SOURCE_ROOT" "$IZANAGI_CCBENCH_PIN" \
+  "$VERIFIED_HEAD" "$VERIFIED_TREE" "$ccbench_archive_sha" >>"$witness"
+
 export IZANAGI_GFLAGS_INSTALL="$IZANAGI_PROBE_STAGE/gflags-install"
 export IZANAGI_GLOG_INSTALL="$IZANAGI_PROBE_STAGE/glog-install"
-cmake -S "$GFLAGS_SOURCE" -B "$IZANAGI_PROBE_STAGE/gflags-build" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF "-DCMAKE_INSTALL_PREFIX=$IZANAGI_GFLAGS_INSTALL"
-cmake --build "$IZANAGI_PROBE_STAGE/gflags-build" -j 48
-cmake --install "$IZANAGI_PROBE_STAGE/gflags-build"
-cmake -S "$GLOG_SOURCE" -B "$IZANAGI_PROBE_STAGE/glog-build" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$IZANAGI_GFLAGS_INSTALL" "-DCMAKE_INSTALL_PREFIX=$IZANAGI_GLOG_INSTALL"
-cmake --build "$IZANAGI_PROBE_STAGE/glog-build" -j 48
-cmake --install "$IZANAGI_PROBE_STAGE/glog-build"
-JOB_TAG=${PBS_JOBID//:/_}
-OUT="$IZANAGI_REPO_ROOT/output/env/pegasus/t139-positive-control-probe/$JOB_TAG"
-mkdir -p "${OUT%/*}"
-"$IZANAGI_REPO_ROOT/tools/pegasus/probes/t139_positive_control_probe.sh" "$OUT"
+deadline_run 60 cmake -S "$GFLAGS_SOURCE" -B "$IZANAGI_PROBE_STAGE/gflags-build" \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF \
+  "-DCMAKE_INSTALL_PREFIX=$IZANAGI_GFLAGS_INSTALL"
+deadline_run 120 cmake --build "$IZANAGI_PROBE_STAGE/gflags-build" -j 48
+deadline_run 30 cmake --install "$IZANAGI_PROBE_STAGE/gflags-build"
+deadline_run 60 cmake -S "$GLOG_SOURCE" -B "$IZANAGI_PROBE_STAGE/glog-build" \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF \
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$IZANAGI_GFLAGS_INSTALL" \
+  "-DCMAKE_INSTALL_PREFIX=$IZANAGI_GLOG_INSTALL"
+deadline_run 120 cmake --build "$IZANAGI_PROBE_STAGE/glog-build" -j 48
+deadline_run 30 cmake --install "$IZANAGI_PROBE_STAGE/glog-build"
+
+# Serial caps: repo 33 + blobs 25 + policy 10 + dependency snapshots 90 +
+# third-party policy 10 + third-party snapshots 150 + writable copies 60 +
+# gitlink 10 + CCBench snapshot 90 + dependency builds 420 + driver 2400 =
+# 3298 seconds.  This is
+# below both the 3300-second absolute deadline and the 3600-second walltime.
+deadline_run 2400 \
+  "$IZANAGI_PROBE_BUNDLE/t139_positive_control_probe.sh" "$OUT"
