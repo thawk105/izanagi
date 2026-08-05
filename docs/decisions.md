@@ -8134,3 +8134,179 @@ diff digest を必須にするため、複数候補を評価前に用意でき�
 **研究状態への影響:** なし。実装差分ゼロ・authority 空・runtime 未作成のため、certified 選択・
 材料レポート・試行台帳・proof chain の現在値と受理集合はいずれも不変である。
 `MAX_APPROVED_GENERATIONS = 1` と cap-lift FAIL も不変で、**P3 は依然 FAIL** である。
+
+## D164. D121 P2 の payload 非干渉検査は実装を差し戻す — 現行 critic payload が既に 5 bit を可逆に運ぶため、payload 不変の字面検査は恒真な保証になる (2026-08-05)
+
+**背景:** D121 の P2 は「禁止集合・実効 mask・IR SHA・D51 逐次 provenance・driver 戻り値が
+untrusted 面に現れない」であり、無条件義務のまま未着手だった。本 wave はそのうち **8c 自律試行が
+untrusted role へ渡す入力 payload の面だけ**を閉じる検査を新規 leaf として実装するために起票され、
+file:line 粒度の実装プランを起草した。段 3 の敵対 2 レンズが**独立に NO-GO** を返し、
+所見 19 件 (BLOCKER 7、MAJOR 8、MINOR 4) を出した。逐語 =
+`output/insights/2026-08-05_t244-p2-noninterference/`。
+
+**決定 (1): 本 wave では実装せず、プランと裁定を設計メモとして凍結する。** 決め手は 3 件である。
+
+第一に、**「payload の field も値も変更せずに payload 射影面を閉じられる」という中心前提が
+実測で反証された。** critic payload の `harness_result.variant` は、diff 検疫 reject 経路では
+`"diffq-" + sha256(genome の正準表現 + "|impl=" + 候補述語)` の先頭 12 hex、build 到達時は
+`sha256(genome の正準表現 + "|src=" + source token)` の先頭 12 hex であり、どちらも preimage に
+候補述語を含む。候補述語は 5-bit wire の正準関数で、universe は 32 点しかない。親と 2 レンズが
+独立に 32 点を静的列挙した結果は一致した — **ID は 32/32 すべて一意、ID 中に自分自身の wire 字面が
+現れるものは 0/32**。すなわち payload を不変に保ったまま書ける検査は字面部分一致の tripwire に
+限られ、**現行 baseline の実漏洩に対して一度も発火しない**。これは D121 が「観測面の閉集合を先に
+定義しないと恒真化する」と警告した状態そのものであり、規律 6 の「恒真な保証」に該当する。
+land すれば「payload 面を閉じた」という誤った安心を作る。
+
+第二に、**是正は親の裁量外の裁定 3 件に依存する。** critic の recipient policy は D121 が未解決の
+択一としてユーザーへ返した項目である。auditor へ実効 diff と digest を渡してよいかは D121 の
+recipient matrix と現行実装が食い違っており declassification の再定義が要る。「IR schema SHA」の
+preimage (schema bytes / schema ID 文字列 / emitter source / 32 golden のどれか) も未定義である。
+いずれも payload の field か値の変更を伴う。
+
+第三に、**実装すると成果物を壊しうる。** role 呼出し seam の冒頭に fail-closed の raise を置くと、
+現行の例外捕捉が provider 呼出し直前から始まるため generic な supervisor error に畳まれ、さらに
+build mode では planner/coder 段の早期拒否時に campaign の報告ディレクトリが未生成のまま
+Layer-3 finalization が無条件実行され、terminal report を作れない経路が残る。
+no-build の fixture テストではこの欠落を検出できない。
+
+**決定 (2): 名乗りの上限を固定する。** 本 wave は実装差分ゼロであるから「P2 を閉じた」
+「P2 の部分実装」「非干渉検査を実装した」のいずれも名乗らない。P2 は引き続き FAIL であり、
+D114 の承認上限 1 も不変である。将来 実装する場合も、字面一致に留まる限り名乗れるのは
+**「8c supervisor の role 呼出し seam における candidate-literal tripwire」**までとし、
+module 名に noninterference を使わない。既存の ability-probe 射影 tripwire が自らを
+「字面 tripwire であり encoding・言い換え・semantic copy への保証ではない」と正直に名乗っている
+前例に揃える。
+
+**決定 (3): 確定後に実装すべき形を記録する。** secret を候補 wire、公開入力を固定した上で、
+**provider へ渡る serialized sink bytes が secret を変えても同一であること** (indistinguishability)
+を検査する。現行コードに対する予測は planner = PASS、coder = PASS、auditor = 明示 declassification が
+必要、**critic = FAIL** である。critic が赤になるため緑では land できず、裁定が先になる。
+
+**決定 (4): 親の provisional 裁定 3 件を反証として記録する。** (a) 「auditor に実効 diff と digest を
+渡してよい」は recipient matrix に反し、かつ検査の期待値を被検査 producer と同じ値から取る
+自己参照だった。(b) 「許可入力 = 現行 key 集合」は循環する — 秘密を許可 field の値へ符号化した
+瞬間その値まで許可入力になる。(c) 「32 点 universe の digest は常に 5 bit 漏洩」は過大であり、
+`I(W;ID | 公開 codebook) <= H(W) <= 5 bit` が正しい。diff 検疫経路は写像が単射なので一様な wire では
+5 bit 全部を漏らすが、no-build で ID が空の場合や build 経路では条件付きになる。
+
+**決定 (5): 段 2 が提示した変異 12 件を将来 wave がそのまま流用することを禁じる。** 実装差分が
+ないため事前登録は行わない。加えて、そのうち 4 件は leaf 側の所有が driver を import しない契約の
+下で帰属が成立せず、3 件は「新たな漏洩を作る」のではなく既存の可逆漏洩を字面へ展開するだけである。
+
+**却下した選択肢:**
+- 字面 tripwire だけを先に land し「payload 面の部分実装」と記録する — 現行 baseline に対して
+  発火しない assert を防壁として記録することであり、D115 が却下した「索引だけ作り consumer を
+  付け替えない」、D147 が却下した「未結線のまま leaf だけ land する」と同型である。
+- critic payload の該当値を親の裁量で不透明 ID へ置き換える — 未裁定の recipient policy を
+  既成事実にする行為で、D121 が却下した案と同型。受理集合にも波及する。
+- auditor の例外 2 path を検査に組み込んで「全 untrusted role を閉じた」と名乗る —
+  現状は raw mask と実効 mask が同一であるため、digest 単独の秘匿は恒真である。
+
+## D165. 段 8c 事前登録は条件充足の機械確認で自動発効し、条件契約だけを hash 世代台帳で凍結する (2026-08-05)
+
+**決定:** 段 8c 正式系列の事前登録について、次を定める。
+
+- **発効は宣言物ではなく導出値**とする。commit `C` について「条件契約の凍結が妥当」「§5 の全欄が
+  記入済み」「§6 の前提条件 1〜12 がすべて機械証拠で充足」の連言が成り立つとき、かつそのときに限り
+  `C` において発効している。判定は `C` 時点の git blob だけから再計算する。
+- **都度の承認コマンド・承認 record・active pointer・失効 record を導入しない。** これはユーザー裁定
+  (推奨を蹴って「自動発効」を選択。理由 = 定型コマンドを打つ手間の排除) の直接の帰結である。
+- **条件契約 (§1〜§4・§6・§7 の規範本文、§5 の欄名集合、発効ポリシー、証拠契約) だけを、側置きの
+  hash 世代台帳で凍結する。** 世代 record は前世代の bytes hash・変更理由・裁定参照 (canonical な
+  決定見出し) を持ち、無記録の変更・記録のない差し戻し・世代を伴わない条件文の変更・空改訂を
+  機械検査で拒否する。§5 の**値**は記入されるため凍結対象にしない。
+- **受理は ancestry と発効の両方を要求する。** 記録した `C` が測定 HEAD・結果 commit の祖先である
+  ことは必要条件であって十分条件ではない。
+
+**D116 との関係 (supersede の境界):** D116 決定 (1) は「事前登録に凍結機構を導入せず、先後関係は
+git ancestry に委ねる」と定めた。本決定はこれを**条件契約の改竄検出に限って supersede する** —
+git ancestry は依然として先後の主機構であり、8b の freeze・承認 record 方式は 8c へ流用せず、
+8b 設計の凍結事項は同文書の再凍結 + ユーザー承認を引き続き要する。導入するのは「条件文が
+書き換えられていないこと」を機械が言える最小限の台帳だけである。
+
+**理由:**
+
+- 条件文が凍結されていなければ、条件の書き換えで判定基準を実質的に動かせる。ユーザーは自動発効を
+  選ぶ際にこの留保を実装要件として残した。ancestry は「その bytes がその時点に存在した」ことしか
+  証明せず、条件文の緩和そのものは検出できない。
+- 発効を導出値にすると、「未充足のまま測定し、後から不足機構を実装して現在の checkout で発効させる」
+  経路が閉じる。発効版 commit を「文書を最後に変更した commit」と定義する案は、この後付け遡及を
+  許すため実装前の敵対検証で棄却した。
+
+**却下した選択肢:**
+
+- 8b の approval record 方式の流用 — 実走のたびに人手の承認 commit を要求し、裁定 (定型コマンドの
+  排除) に正面から反する。
+- 条件文の複製による凍結 — 未既知性 conjunction 検査が git 列挙の全 file を走査するため、
+  規範本文を複製した artifact は検査を汚染しうる。hash だけを pin すればこの経路が生じない。
+- 改訂を機械だけで完結させる案 — 記録さえ付ければ結果を見た後に条件を緩められる。改訂 (世代の追加)
+  に限っては canonical な決定見出しの実在を要求し、実走ごとの承認とは切り離した。
+
+**この決定が主張しないこと:** 判定器の初版は 12 条件のいずれについても充足を証明できない状態で
+出荷しており (証拠契約はすべての条件を「機械証拠を定義していない」と記す)、したがって現時点の
+判定は常に未発効である。条件ごとの充足判定器の実装は後続タスクとして残す。
+判定器は実験の起動と受入へまだ結線されていない。判定器を呼ばずに
+実走する経路、実行 bytes の同一性、可変入力一式の同時改変、git 履歴そのものの再構成は本決定の外に
+あり、いずれも未裁定である。本決定は「発効を強制した」とは主張しない。
+
+## D166. D121 P4 の batch freeze は origin ledger 側の契約としてだけ適合させる — W2 は origin-wide ordinal、W4 は terminal event 形の統一で満たし、P4 充足は名乗らない (2026-08-05)
+
+**背景:** D153 は P4 の独立 leaf 実装を差し戻し、設計択一 W1〜W5 を裁定へ返した。ユーザーは
+2026-08-04 の /rulings で **W1〜W5 全件を D153 推奨どおり採用**し、「P3+P4 実装 wave を起票できる」
+とした。D159 が land させた origin ledger prototype は第一級 batch event を持つが、W2 と W3 には
+適合していなかった。本 D はその適合を実装した wave の設計判断である。
+
+**決定 (1): W2 の member identity は origin-wide の ordinal で束縛する。** batch member の正準
+preimage を `(candidate wire, origin-wide query ordinal, origin-wide replicate ordinal)` とし、
+salted commitment はこの preimage に対して作る。replicate ordinal を batch-local にする案は、
+W2 の目的節 (予算下限式の replicate を表現する) と設計本文の origin 単位予算が origin 全体を
+数えることから不採用とした。同一 wire の反復測定が表現可能になり、旧実装が強制していた
+候補平文の distinct 制約は撤回した。
+
+**決定 (2): replicate ordinal は commitment preimage だけに置き、seal 前の公開面に出さない。**
+`replicate_ordinal == 0` の member 数は distinct wire 数そのものなので、平文公開は
+「seal までの結果非公開」を破る。query ordinal は連続で ledger の公開 counter から導出できるため
+公開してよい。実行依存 counter (sealed / tombstoned) も seal 前 projection から除外し、
+少数候補の列挙で prospective digest を照合する oracle を塞いだ。
+
+**決定 (3): W4 の「公開 transcript 長を固定」は terminal event 形の統一まで要求する。**
+全 terminal path を `committed → prepared → sealed` の 3 event に統一し、
+専用の tombstone 終端 event を削除した。未実行 member は閉じた三値 outcome の `tombstoned` row として
+seal に載せ、member row 数を committed cardinality に固定する。全 tombstone だけ 2 event で終わる
+設計は、早期停止の有無を terminal 種別と event 数として公開してしまうため不採用とした。
+**JSON byte 長の同一化は保証しない**。これは設計本文が「上界が未定義の面は明示的に受容残余とする」と
+定めた枠に従い、受容残余として記録する。
+
+**決定 (4): W3 は「outcome と evidence digest claim の commitment 束縛」までであり、そう名乗る。**
+outcome と evidence digest を単一の salted preimage へまとめ、codec 層と reducer 層の二層で
+三値 matrix (合法 3 セル・不正 9 セル) を検査する。referent の実在・完全性検証は W5 の分界どおり
+formal consumer の義務であり、ledger は digest を dereference しない。この境界はテストで固定するが、
+「consumer を実装した」とは数えない。
+
+**決定 (5): ledger は物理 query を観測しないと明記する。** sealed query counter は
+「evidence を伴う sealed member row 数」であって実 query 数の代理ではない。同一 wire・同一 evidence を
+正しく番号付けて並べれば counter は増えるので、この counter だけで query floor が物理的に
+満たされたとは言えない。恒真な「query 一対一」検査は**作らない**。物理 query と member row の束縛は
+producer/driver 側の設計であり、裁定パッケージとして返す。
+
+**決定 (6): schema を v2 へ分離する。** authority feasibility の意味 (partition 存在、
+origin 横断の runtime-head 合算、cardinality の十進桁を含む byte 上界) が変わるため、
+同一 schema ID のまま挙動を変えない。manifest / authority / event / head / runtime を v2 とし、
+空の registry file も v2 名へ改名した。**実在 authority の世代移行の主体と契約は本 D で決めない** —
+その裁定は別途起草中の設計パッケージが所有する。
+
+**決定 (7): 名乗りの制限。** 本実装は「D153 W1〜W5 の ledger 側契約に適合する P4 batch-freeze
+prototype」であり、**P4 は依然 FAIL、cap-lift も FAIL、承認上限 1 (D114) は不変**である。
+充足の会計は D159 決定 4 の U-G と同型で、producer 結線・driver 結線・実 authority 登録・
+seal 前漏洩を防ぐ storage 契約・formal consumer・proof chain 結線の 6 点が残る。
+production caller ゼロ・authority registry 空も維持しており、受理集合の現在値は不変である。
+
+**却下した選択肢:**
+- salt の下限だけを保つ (上限なし) — 「最長 frame」が定義できず codec feasibility が成立しない。
+  exactly 32 lowercase hex へ固定した。
+- 予算の origin-total を単一 batch として直列化して feasibility を測る — 分割すれば合法な
+  authority を過剰に拒否する。per-batch 上限と origin-total の partition 可能性を分離した。
+- member 列の順序を別の commitment で二重に固定する — 外側の event hash と重複し、
+  単一理由で kill できる検査が作れない (恒真な保証を増やす)。削除した。
+- 敵対レビューが求めた「evidence digest の origin 内 distinct 強制」— 正当な同一 artifact を
+  false reject する risk が未実測で、裁定のない設計決定になる。起票して裁定へ返す。
