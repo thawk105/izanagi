@@ -22,10 +22,12 @@ seq: 1
 3. **既存の exact-hash 凍結派生は grandfather する。** 凍結台帳が当該 campaign の付随レポートを
    admission gate を通さず直接読む経路は、そのまま権威として残す。凍結 bytes を再発行しない。
    本決定が拒否するのは新しい raw view の発行と、そこから新規に材料レポートを起こすことだけである。
-4. **lock を read-once にする。** hash・parse・分類・snapshot 照合・receipt をすべて同一 bytes に
-   由来させる。従来は hash の後に読み直していたため、A→B→A の書き換えで
+4. **lock の権威となる読み取りを一回にする。** hash・parse・分類・snapshot 照合・receipt を
+   すべて同一 bytes に由来させる。従来は hash の後に読み直していたため、A→B→A の書き換えで
    「hash は A・分類は B」の decision を合成できた。本決定が足す判定はその parse 済み lock を
    読むため、閉じずに置くと新しい gate 自身の回避路になる。
+   **終端では live の lock / WAL hash を拒否専用に再照合する**。再照合で読んだ bytes は
+   分類にも receipt にも使わない。これは物理的な一回読みではなく、権威の一意化である。
 5. **supersede の範囲を逐語で限定する。** 置換するのは D160 決定 5 のうち
    「機械 sweep 6 件は proposal 経路を持たないため遡及被害ゼロを実測した」という
    raw admission の結果だけである。D160 が却下した「全 trigger campaign への binding 遡及要求」は
