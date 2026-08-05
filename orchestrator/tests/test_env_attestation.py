@@ -182,6 +182,25 @@ def _observed(profile: sv2.AttestationProfile) -> sv2.ObservedAttestationProfile
     return ea.normalize_observed_profile(raw)
 
 
+def _observed_comparison_fixture(
+    profile: sv2.AttestationProfile,
+) -> sv2.ObservedAttestationProfile:
+    """Build comparator input without applying raw parser invariants."""
+    return sv2.ObservedAttestationProfile(
+        cpu=profile.cpu,
+        cores=profile.cores,
+        cache_topology=profile.cache_topology,
+        numa=profile.numa,
+        tsc=profile.tsc,
+        effective_clock=sv2.ObservedEffectiveClockProfile(
+            samples_mhz=profile.effective_clock.samples_mhz,
+            method=profile.effective_clock.method,
+            governor=profile.effective_clock.governor,
+        ),
+        visibility=profile.visibility,
+    )
+
+
 def _replace_cpu(profile, **values):
     return dataclasses.replace(profile, cpu=dataclasses.replace(profile.cpu, **values))
 
@@ -255,7 +274,9 @@ def _replace_clock(profile, **values):
 def test_compare_profiles_reports_each_field_mismatch(field, mutate):
     expected = _profile()
     comparisons = ea.compare_profiles(
-        expected, _observed(mutate(expected)), now_fn=lambda: "now",
+        expected,
+        _observed_comparison_fixture(mutate(expected)),
+        now_fn=lambda: "now",
     )
     failures = {item["field"] for item in comparisons if item["verdict"] == "fail"}
     assert field in failures
@@ -263,8 +284,11 @@ def test_compare_profiles_reports_each_field_mismatch(field, mutate):
 
 def test_compare_profiles_normalizes_raw_name_and_applies_expected_clock_tolerance():
     expected = _profile()
+    observed_raw_name = "Intel Test CPU @ 2.10GHz"
     observed_expected_shape = _replace_cpu(
-        expected, model_name_raw="Intel Test CPU @ 2.10GHz",
+        expected,
+        model_name_raw=observed_raw_name,
+        model_name_normalized=ea.normalize_cpu_model_name(observed_raw_name),
     )
     observed_expected_shape = _replace_clock(
         observed_expected_shape, samples_mhz=[2440.0, 2448.0, 2430.0],
@@ -310,6 +334,21 @@ def test_probe_output_v2_rejects_tolerance_field(tolerance):
     document = _probe_document(ea.PEGASUS_PROBE_OUTPUT_V2)
     document["profile"]["effective_clock"]["tolerance_pct"] = tolerance
     with pytest.raises(ea.AttestationError, match="effective_clock"):
+        ea.parse_probe_output(json.dumps(document))
+
+
+@pytest.mark.parametrize("version", [
+    ea.PEGASUS_PROBE_OUTPUT_V1,
+    ea.PEGASUS_PROBE_OUTPUT_V2,
+])
+def test_probe_output_rejects_forged_cpu_name_pair(version):
+    document = _probe_document(version)
+    document["profile"]["cpu"].update({
+        "model_name_raw": "Intel Xeon Platinum 8468H",
+        "model_name_normalized": "Intel Xeon Platinum 8468",
+    })
+
+    with pytest.raises(ea.AttestationError, match="normalized name"):
         ea.parse_probe_output(json.dumps(document))
 
 

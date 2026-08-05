@@ -743,13 +743,26 @@ def test_attestation_json_parse_failure_is_retryable_infra(monkeypatch, tmp_path
     assert captured.value.reason_code == "parse_failure"
 
 
-def _all_pass_live_probe_payload(*, duplicate_schema_key: bool = False) -> str:
+def _all_pass_live_probe_payload(
+    *,
+    duplicate_schema_key: bool = False,
+    schema_version: str = driver.env_attestation.PEGASUS_PROBE_OUTPUT_V2,
+    forged_cpu_pair: bool = False,
+) -> str:
     contract = driver.env_contract.lookup("pegasus")
     verified = driver.env_attestation.load_verified_calibration(contract, ROOT)
     profile = driver.env_attestation.profile_to_dict(
         verified.attestation_profile,
     )
-    del profile["effective_clock"]["tolerance_pct"]
+    if schema_version == driver.env_attestation.PEGASUS_PROBE_OUTPUT_V1:
+        profile["effective_clock"]["tolerance_pct"] = 100.0
+    else:
+        del profile["effective_clock"]["tolerance_pct"]
+    if forged_cpu_pair:
+        profile["cpu"].update({
+            "model_name_raw": "Intel Xeon Platinum 8468H",
+            "model_name_normalized": "Intel Xeon Platinum 8468",
+        })
     expected_samples = profile["effective_clock"]["samples_mhz"]
     ordered = sorted(expected_samples)
     middle = len(ordered) // 2
@@ -758,19 +771,48 @@ def _all_pass_live_probe_payload(*, duplicate_schema_key: bool = False) -> str:
         median for _ in expected_samples
     ]
     payload = json.dumps({
-        "schema_version": "pegasus-probe-output/v2",
+        "schema_version": schema_version,
         "ok": True,
         "observed_epoch": 1,
         "profile": profile,
     }, separators=(",", ":"))
     if duplicate_schema_key:
+        schema_prefix = (
+            '{"schema_version":' + json.dumps(schema_version) + ","
+        )
         payload = payload.replace(
-            '{"schema_version":"pegasus-probe-output/v2",',
-            ('{"schema_version":"pegasus-probe-output/v2",'
-             '"schema_version":"pegasus-probe-output/v2",'),
+            schema_prefix,
+            schema_prefix + '"schema_version":' + json.dumps(schema_version) + ",",
             1,
         )
     return payload
+
+
+@pytest.mark.parametrize("schema_version", [
+    driver.env_attestation.PEGASUS_PROBE_OUTPUT_V1,
+    driver.env_attestation.PEGASUS_PROBE_OUTPUT_V2,
+])
+def test_live_attestation_rejects_forged_cpu_name_pair(
+        monkeypatch, tmp_path, schema_version):
+    payload = _all_pass_live_probe_payload(
+        schema_version=schema_version,
+        forged_cpu_pair=True,
+    )
+
+    def fake_run(argv, **kwargs):
+        Path(argv[argv.index("--output") + 1]).write_text(
+            payload, encoding="utf-8",
+        )
+        Path(kwargs["stdout_path"]).write_text(payload, encoding="utf-8")
+        Path(kwargs["stderr_path"]).write_text("", encoding="utf-8")
+        return subprocess.CompletedProcess(argv, 0, payload, "")
+
+    monkeypatch.setattr(driver, "_run", fake_run)
+
+    with pytest.raises(driver.InfraFailure) as captured:
+        driver._attest_environment(tmp_path)
+
+    assert captured.value.reason_code == "parse_failure"
 
 
 @pytest.mark.parametrize(
@@ -1875,6 +1917,32 @@ def test_raw_attestation_parser_failures_remain_raw_bundle_evidence(
             "error": {"stage": "probe", "type": "RuntimeError", "message": "x"},
         })
     probe_path.write_text(payload, encoding="utf-8")
+    _reseal_materialized_raw(raw, document)
+
+    failures = driver.validate_raw_bundle(document, raw)
+
+    assert [item.reason_code for item in failures] == ["raw_bundle"]
+
+
+@pytest.mark.parametrize("schema_version", [
+    driver.env_attestation.PEGASUS_PROBE_OUTPUT_V1,
+    driver.env_attestation.PEGASUS_PROBE_OUTPUT_V2,
+])
+def test_raw_attestation_rejects_forged_cpu_name_pair(
+        tmp_path, schema_version):
+    document = _evidence(_fixture("p_plus_2.json"))
+    raw = tmp_path / "raw"
+    _materialize_raw_bundle(raw, document)
+    probe_path = raw / "attempts/1/attestation-job.json"
+    payload = json.loads(probe_path.read_text(encoding="utf-8"))
+    payload["schema_version"] = schema_version
+    if schema_version == driver.env_attestation.PEGASUS_PROBE_OUTPUT_V1:
+        payload["profile"]["effective_clock"]["tolerance_pct"] = 100.0
+    payload["profile"]["cpu"].update({
+        "model_name_raw": "Intel Xeon Platinum 8468H",
+        "model_name_normalized": "Intel Xeon Platinum 8468",
+    })
+    probe_path.write_text(json.dumps(payload), encoding="utf-8")
     _reseal_materialized_raw(raw, document)
 
     failures = driver.validate_raw_bundle(document, raw)
