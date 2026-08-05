@@ -7,6 +7,7 @@ import errno
 import hashlib
 import json
 import math
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -28,6 +29,27 @@ from calibrator.tsc import TscMeasurement  # noqa: E402
 from campaign import env_attestation as ea  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
 from campaign import execution_guard as eg  # noqa: E402
+
+
+_EARLY_CLOCK_NOT_EVALUATED = [
+    "dynamic-pre-competing-process-probe",
+    "benchmark-calibration",
+    "post-attestation-comparison",
+    "post-isolation",
+    "certification-quality",
+    "late-effective-clock-self-comparison",
+    "final-artifact-assembly-and-schema-validation",
+    "publish-policy-identity",
+    "publish",
+    "published-artifact-bytes-self-comparison",
+]
+
+
+def _canonical_json_sha256(value: object) -> str:
+    raw = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _point(reps: int = 2) -> ScalePoint:
@@ -263,6 +285,19 @@ def _pegasus_shaped_probe(sample_rows: list[list[float]]):
 
 def _expect_48_physical_cores(receipt: dict) -> None:
     receipt["known_values_check"]["expected_cores"] = 48
+
+
+def _published_bytes_self_comparison_passes(path: Path) -> bool:
+    """Read published bytes only and apply the canonical clock predicate."""
+    document = json.loads(path.read_bytes())
+    clock = document["attestation_profile"]["effective_clock"]
+    return eg.effective_clock_comparison_passes(
+        {
+            "samples_mhz": clock["samples_mhz"],
+            "tolerance_pct": clock["tolerance_pct"],
+        },
+        {"samples_mhz": clock["samples_mhz"]},
+    )
 
 
 def _receipt(binary_sha: str, *, job_id: str = "123.server") -> dict:
@@ -562,6 +597,386 @@ def test_self_gate_rejects_all_nonpolicy_equality_edges():
 
 
 @pytest.mark.parametrize("outlier_index", [0, 24, 47])
+def test_cli_effective_clock_self_failure_is_acquisition_rejected_before_benchmark(
+        tmp_path, monkeypatch, outlier_index):
+    failing_samples = [2101.0] * 48
+    failing_samples[outlier_index] = 3079.456
+    probe, profiles, calls = _pegasus_shaped_probe([
+        [2101.0] * 48,
+        failing_samples,
+        [2101.0] * 48,
+    ])
+    calibrate_calls = []
+    rc, attempt, registered = _invoke(
+        tmp_path, monkeypatch, profile_fn=probe,
+        receipt_mutator=_expect_48_physical_cores,
+        calibrate_fn=lambda **kwargs: calibrate_calls.append(kwargs),
+    )
+
+    assert rc != 0
+    assert calls == [0, 1]
+    assert calibrate_calls == []
+    rejection = json.loads((attempt / "rejection.json").read_bytes())
+    assert rejection["quality"] == {
+        "status": "rejected",
+        "reasons": ["effective-clock-self-comparison-failed"],
+    }
+    assert rejection["not_evaluated"] == _EARLY_CLOCK_NOT_EVALUATED
+    effective_clock_input = rejection["diagnostics"]["effective_clock_input"]
+    assert effective_clock_input == {
+        "samples_mhz": failing_samples,
+        "tolerance_pct": 2.0,
+        "method": "proc-cpuinfo",
+        "governor": "performance",
+    }
+    assert not eg.effective_clock_comparison_passes(
+        {
+            "samples_mhz": effective_clock_input["samples_mhz"],
+            "tolerance_pct": effective_clock_input["tolerance_pct"],
+        },
+        {"samples_mhz": effective_clock_input["samples_mhz"]},
+    )
+    expected_profile = copy.deepcopy(profiles[1])
+    expected_profile["effective_clock"]["tolerance_pct"] = 2.0
+    expected_profile["tsc"] = {
+        "raw_samples_mhz": [1800.0] * 5,
+        "median_mhz": 1800.0,
+        "clocks_per_us_int": 1800,
+        "source": "clock_gettime-monotonic/rdtscp",
+    }
+    assert rejection["diagnostics"]["attestation_profile_sha256"] == (
+        _canonical_json_sha256(expected_profile)
+    )
+    diagnostic = rejection["diagnostics"]["effective_clock_self_comparison"]
+    assert diagnostic["input_valid"] is True
+    assert diagnostic["policy_matches"] is True
+    assert diagnostic["band_pass"] is False
+    assert diagnostic["median_mhz"] == 2101.0
+    assert diagnostic["lower_mhz"] == pytest.approx(2058.98)
+    assert diagnostic["upper_mhz"] == pytest.approx(2143.02)
+    assert diagnostic["out_of_band_count"] == 1
+    assert diagnostic["evaluation_error"] is None
+    assert diagnostic["violations"] == [{
+        "sample_index": outlier_index,
+        "sample_mhz": 3079.456,
+        "direction": "above",
+        "deviation_from_median_mhz": pytest.approx(978.456),
+        "outside_by_mhz": pytest.approx(936.436),
+    }]
+    assert not (attempt / "calibration.json").exists()
+    assert not (attempt / "calibration.md").exists()
+    assert not (attempt / "window-probes.json").exists()
+    assert not (attempt / "candidate.json").exists()
+    assert not (attempt / "publish.json").exists()
+    assert not (attempt / "published-self-comparison.json").exists()
+    assert not registered.exists()
+
+
+def test_cli_rejection_profile_hash_recomputes_from_artifact_only(
+        tmp_path, monkeypatch):
+    failing_samples = [2101.0] * 48
+    failing_samples[24] = 3079.456
+    probe, _, _ = _pegasus_shaped_probe([
+        [2101.0] * 48,
+        failing_samples,
+        [2101.0] * 48,
+    ])
+    rc, attempt, _ = _invoke(
+        tmp_path, monkeypatch, profile_fn=probe,
+        receipt_mutator=_expect_48_physical_cores,
+        calibrate_fn=lambda **_kwargs: None,
+    )
+    assert rc != 0
+    rejection = json.loads((attempt / "rejection.json").read_bytes())
+    diagnostics = rejection["diagnostics"]
+    assert diagnostics["attestation_profile_canonicalization"] == (
+        "json.dumps(sort_keys=True,separators=(',',':'),ensure_ascii=True)/utf-8"
+    )
+    artifact_profile = diagnostics["attestation_profile"]
+    artifact_preimage = json.dumps(
+        artifact_profile,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    assert diagnostics["attestation_profile_sha256"] == hashlib.sha256(
+        artifact_preimage
+    ).hexdigest()
+
+
+def test_cli_early_admission_uses_canonical_predicate_not_diagnostic_count(
+        tmp_path, monkeypatch):
+    failing_samples = [2101.0] * 47 + [3079.456]
+    probe, _, _ = _pegasus_shaped_probe([
+        [2101.0] * 48,
+        failing_samples,
+        [2101.0] * 48,
+    ])
+    monkeypatch.setattr(
+        cli, "effective_clock_comparison_diagnostics",
+        lambda _expected, _observed: {
+            "input_valid": True,
+            "policy_matches": True,
+            "band_pass": True,
+            "median_mhz": 2101.0,
+            "lower_mhz": 2058.98,
+            "upper_mhz": 2143.02,
+            "out_of_band_count": 0,
+            "violations": [],
+            "evaluation_error": None,
+        },
+    )
+    calibrate_calls = []
+    rc, attempt, registered = _invoke(
+        tmp_path, monkeypatch, profile_fn=probe,
+        receipt_mutator=_expect_48_physical_cores,
+        calibrate_fn=lambda **kwargs: calibrate_calls.append(kwargs),
+    )
+    assert rc != 0
+    assert calibrate_calls == []
+    rejection = json.loads((attempt / "rejection.json").read_bytes())
+    assert rejection["quality"] == {
+        "status": "rejected",
+        "reasons": ["effective-clock-self-comparison-failed"],
+    }
+    assert rejection["not_evaluated"] == _EARLY_CLOCK_NOT_EVALUATED
+    assert rejection["diagnostics"]["effective_clock_input"][
+        "tolerance_pct"
+    ] == 2.0
+    assert rejection["diagnostics"]["effective_clock_self_comparison"][
+        "out_of_band_count"
+    ] == 0
+    assert not (attempt / "candidate.json").exists()
+    assert not (attempt / "publish.json").exists()
+    assert not (attempt / "published-self-comparison.json").exists()
+    assert not registered.exists()
+
+
+def test_cli_late_gate_rechecks_policy_after_benchmark(tmp_path, monkeypatch):
+    probe, _, calls = _pegasus_shaped_probe([[2101.0] * 48] * 3)
+    real_calibrate = _fake_calibrate()
+
+    def rebind_policy_then_return(**kwargs):
+        monkeypatch.setattr(
+            cli.effective_clock_policy, "EFFECTIVE_CLOCK_TOLERANCE_PCT", 3.0,
+        )
+        return real_calibrate(**kwargs)
+
+    rc, attempt, registered = _invoke(
+        tmp_path, monkeypatch, profile_fn=probe,
+        receipt_mutator=_expect_48_physical_cores,
+        calibrate_fn=rebind_policy_then_return,
+    )
+    assert calls == [0, 1, 2]
+    assert rc != 0
+    rejected = validate_calibration_v2((attempt / "calibration.json").read_bytes())
+    assert "effective-clock-self-comparison-failed" in rejected.quality.reasons
+    assert not registered.exists()
+
+
+def test_cli_publish_gate_rejects_policy_change_after_late_gate(
+        tmp_path, monkeypatch):
+    def rebind_before_publish(_size):
+        monkeypatch.setattr(
+            cli.effective_clock_policy,
+            "EFFECTIVE_CLOCK_TOLERANCE_PCT",
+            3.0,
+        )
+        return "policy-change"
+
+    monkeypatch.setattr(cli.secrets, "token_hex", rebind_before_publish)
+    rc, attempt, registered = _invoke(tmp_path, monkeypatch)
+    assert rc != 0
+    rejected = validate_calibration_v2((attempt / "calibration.json").read_bytes())
+    assert any(
+        reason.startswith("effective-clock-policy-changed:")
+        for reason in rejected.quality.reasons
+    )
+    assert not (attempt / "candidate.json").exists()
+    assert not (attempt / "publish.json").exists()
+    assert not list(registered.glob("calibration-*.json"))
+    assert not list(registered.glob(".publish-*.tmp"))
+
+
+def test_cli_publish_temp_write_failure_removes_partial_file(
+        tmp_path, monkeypatch):
+    real_fsync = cli.os.fsync
+
+    def fail_publish_fsync(fd):
+        if "/.publish-" in os.readlink(f"/proc/self/fd/{fd}"):
+            raise OSError("injected publish write failure")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(cli.os, "fsync", fail_publish_fsync)
+    rc, attempt, registered = _invoke(tmp_path, monkeypatch)
+    assert rc != 0
+    orphans = list(registered.glob(".publish-*.tmp"))
+    assert len(orphans) == 1
+    rejected = validate_calibration_v2((attempt / "calibration.json").read_bytes())
+    assert len(rejected.quality.reasons) == 1
+    assert rejected.quality.reasons[0].startswith(
+        "publish-temporary-write-failed: temporary-path="
+    )
+    assert str(orphans[0]) in rejected.quality.reasons[0]
+    assert rejected.quality.reasons[0].endswith(
+        "OSError: injected publish write failure"
+    )
+
+
+def test_cli_publish_temp_cleanup_failure_is_structured(
+        tmp_path, monkeypatch):
+    real_unlink = cli.os.unlink
+
+    def fail_publish_rename(_source, _target):
+        raise cli.CertificationError("publish-failed", "injected rename failure")
+
+    def deny_publish_temp_cleanup(path):
+        if "/.publish-" in os.fspath(path):
+            raise PermissionError(errno.EACCES, "injected cleanup denial")
+        return real_unlink(path)
+
+    monkeypatch.setattr(cli, "_rename_noreplace", fail_publish_rename)
+    monkeypatch.setattr(cli.os, "unlink", deny_publish_temp_cleanup)
+    rc, attempt, registered = _invoke(tmp_path, monkeypatch)
+    assert rc != 0
+    assert len(list(registered.glob(".publish-*.tmp"))) == 1
+    rejected = validate_calibration_v2((attempt / "calibration.json").read_bytes())
+    assert len(rejected.quality.reasons) == 1
+    assert rejected.quality.reasons[0].startswith(
+        "publish-temporary-cleanup-failed: PermissionError:"
+    )
+
+
+def test_cli_publish_rename_failure_cleans_completed_temp(
+        tmp_path, monkeypatch):
+    def fail_publish_rename(source, _target):
+        assert Path(source).is_file()
+        raise cli.CertificationError("publish-failed", "injected rename failure")
+
+    monkeypatch.setattr(cli, "_rename_noreplace", fail_publish_rename)
+    rc, attempt, registered = _invoke(tmp_path, monkeypatch)
+
+    assert rc != 0
+    assert not list(registered.glob(".publish-*.tmp"))
+    rejected = validate_calibration_v2((attempt / "calibration.json").read_bytes())
+    assert rejected.quality.reasons == [
+        "publish-failed: injected rename failure",
+    ]
+
+
+def test_write_rejection_preserves_legacy_exclusive_write_failure_behavior(
+        tmp_path, monkeypatch):
+    staging = tmp_path / "attempt"
+    staging.mkdir()
+    real_fsync = cli.os.fsync
+
+    def fail_rejection_fsync(fd):
+        if os.readlink(f"/proc/self/fd/{fd}").endswith("/rejection.json"):
+            raise OSError("injected rejection write failure")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(cli.os, "fsync", fail_rejection_fsync)
+    with pytest.raises(OSError, match="injected rejection write failure"):
+        cli._write_rejection(str(staging), ["fixture-rejection"], {})
+
+    assert (staging / "rejection.json").is_file()
+
+
+@pytest.mark.parametrize("existing_kind", ["file", "symlink"])
+def test_cli_publish_temp_collision_preserves_existing_path(
+        tmp_path, monkeypatch, existing_kind):
+    registered = tmp_path / "output/env/test-env/calibration/registered"
+    registered.mkdir(parents=True)
+    existing = registered / ".publish-123.server-collision.tmp"
+    expected_bytes = b"other-owner"
+    if existing_kind == "file":
+        existing.write_bytes(expected_bytes)
+    else:
+        referent = tmp_path / "other-owner-target"
+        referent.write_bytes(expected_bytes)
+        existing.symlink_to(referent)
+
+    monkeypatch.setattr(cli.secrets, "token_hex", lambda _size: "collision")
+    rc, _, returned_registered = _invoke(tmp_path, monkeypatch)
+
+    assert rc != 0
+    assert returned_registered == registered
+    if existing_kind == "symlink":
+        assert existing.is_symlink()
+    assert existing.read_bytes() == expected_bytes
+
+
+def test_cli_exact_2101_profile_passes_both_gates_and_publishes(
+        tmp_path, monkeypatch):
+    probe, _, calls = _pegasus_shaped_probe([[2101.0] * 48] * 3)
+    rc, attempt, registered = _invoke(
+        tmp_path, monkeypatch, profile_fn=probe,
+        receipt_mutator=_expect_48_physical_cores,
+    )
+    assert calls == [0, 1, 2]
+    assert rc == 0
+    published = list(registered.glob("calibration-*.json"))
+    assert len(published) == 1
+    assert _published_bytes_self_comparison_passes(published[0])
+    self_comparison = json.loads(
+        (attempt / "published-self-comparison.json").read_bytes()
+    )
+    assert self_comparison == {
+        "schema": "izanagi/published-effective-clock-self-comparison/v1",
+        "passed": True,
+        "input_sha256": hashlib.sha256(published[0].read_bytes()).hexdigest(),
+        "policy_identity": {
+            "authority": (
+                "calibrator.effective_clock_policy."
+                "EFFECTIVE_CLOCK_TOLERANCE_PCT"
+            ),
+            "tolerance_pct": 2.0,
+        },
+    }
+
+
+def test_independent_published_bytes_self_comparison_detects_tampering(
+        tmp_path, monkeypatch):
+    probe, _, _ = _pegasus_shaped_probe([[2101.0] * 48] * 3)
+    real_rename = cli._rename_noreplace
+
+    def rename_then_tamper(source, target):
+        method = real_rename(source, target)
+        target_path = Path(target)
+        tampered = json.loads(target_path.read_bytes())
+        tampered["attestation_profile"]["effective_clock"][
+            "samples_mhz"
+        ][24] = 3079.456
+        target_path.write_text(json.dumps(tampered), encoding="utf-8")
+        return method
+
+    monkeypatch.setattr(cli, "_rename_noreplace", rename_then_tamper)
+    rc, attempt, registered = _invoke(
+        tmp_path, monkeypatch, profile_fn=probe,
+        receipt_mutator=_expect_48_physical_cores,
+    )
+    assert rc != 0
+    published = next(registered.glob("calibration-*.json"))
+    assert not _published_bytes_self_comparison_passes(published)
+    self_comparison = json.loads(
+        (attempt / "published-self-comparison.json").read_bytes()
+    )
+    assert self_comparison["passed"] is False
+    assert self_comparison["input_sha256"] == hashlib.sha256(
+        published.read_bytes()
+    ).hexdigest()
+    assert self_comparison["policy_identity"]["tolerance_pct"] == 2.0
+    rejected = validate_calibration_v2((attempt / "calibration.json").read_bytes())
+    assert rejected.quality.status == "rejected"
+    assert rejected.quality.reasons == [
+        "published-effective-clock-self-comparison-failed",
+    ]
+    assert not (attempt / "candidate.json").exists()
+    assert not (attempt / "publish.json").exists()
+    assert published.exists()
+
+
+@pytest.mark.parametrize("outlier_index", [0, 24, 47])
 def test_cli_effective_clock_self_failure_is_quality_rejected_before_publish(
         tmp_path, monkeypatch, outlier_index):
     failing_samples = [2101.0] * 48
@@ -587,25 +1002,68 @@ def test_cli_effective_clock_self_failure_is_quality_rejected_before_publish(
         ))
     assert policy_results == [True, False, True]
 
+    calibrate_calls = []
     rc, attempt, registered = _invoke(
         tmp_path, monkeypatch, profile_fn=probe,
         receipt_mutator=_expect_48_physical_cores,
+        calibrate_fn=lambda **kwargs: calibrate_calls.append(kwargs),
     )
 
-    assert calls == [0, 1, 2]
+    assert calls == [0, 1]
+    assert calibrate_calls == []
     assert rc != 0
-    validated = validate_calibration_v2((attempt / "calibration.json").read_bytes())
-    assert validated.quality.status == "rejected"
-    assert "effective-clock-self-comparison-failed" in validated.quality.reasons
-    clock = validated.attestation_profile.effective_clock
-    assert list(clock.samples_mhz) == sample_rows[1]
-    # U-2/U-3 が手入力の accepted set を policy 2.0 へ縮小したため。
-    assert clock.tolerance_pct == 2.0
-    assert (attempt / "calibration.md").is_file()
-    assert (attempt / "window-probes.json").is_file()
+    rejection = json.loads((attempt / "rejection.json").read_bytes())
+    assert rejection["quality"] == {
+        "status": "rejected",
+        "reasons": ["effective-clock-self-comparison-failed"],
+    }
+    assert rejection["not_evaluated"] == _EARLY_CLOCK_NOT_EVALUATED
+    effective_clock_input = rejection["diagnostics"]["effective_clock_input"]
+    assert effective_clock_input == {
+        "samples_mhz": sample_rows[1],
+        "tolerance_pct": 2.0,
+        "method": "proc-cpuinfo",
+        "governor": "performance",
+    }
+    assert len(effective_clock_input["samples_mhz"]) == 48
+    assert effective_clock_input["samples_mhz"][outlier_index] == 3079.456
+    assert not eg.effective_clock_comparison_passes(
+        {
+            "samples_mhz": effective_clock_input["samples_mhz"],
+            "tolerance_pct": effective_clock_input["tolerance_pct"],
+        },
+        {"samples_mhz": effective_clock_input["samples_mhz"]},
+    )
+    expected_profile = copy.deepcopy(profiles[1])
+    expected_profile["effective_clock"]["tolerance_pct"] = 2.0
+    expected_profile["tsc"] = {
+        "raw_samples_mhz": [1800.0] * 5,
+        "median_mhz": 1800.0,
+        "clocks_per_us_int": 1800,
+        "source": "clock_gettime-monotonic/rdtscp",
+    }
+    assert rejection["diagnostics"]["attestation_profile_sha256"] == (
+        _canonical_json_sha256(expected_profile)
+    )
+    diagnostic = rejection["diagnostics"]["effective_clock_self_comparison"]
+    assert diagnostic["input_valid"] is True
+    assert diagnostic["policy_matches"] is True
+    assert diagnostic["band_pass"] is False
+    assert diagnostic["out_of_band_count"] == 1
+    assert diagnostic["evaluation_error"] is None
+    assert diagnostic["violations"] == [{
+        "sample_index": outlier_index,
+        "sample_mhz": 3079.456,
+        "direction": "above",
+        "deviation_from_median_mhz": pytest.approx(978.456),
+        "outside_by_mhz": pytest.approx(936.436),
+    }]
+    assert not (attempt / "calibration.json").exists()
+    assert not (attempt / "calibration.md").exists()
+    assert not (attempt / "window-probes.json").exists()
     assert not (attempt / "candidate.json").exists()
     assert not (attempt / "publish.json").exists()
-    assert not (attempt / "rejection.json").exists()
+    assert not (attempt / "published-self-comparison.json").exists()
     assert not registered.exists()
 
 
@@ -741,19 +1199,67 @@ def test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consum
     )
     two_root = tmp_path / "policy-two"
     two_root.mkdir()
-    probe_two, _, calls_two = _pegasus_shaped_probe(vector_rows)
-    rc_two, attempt_two, _ = _invoke(
+    probe_two, profiles_two, calls_two = _pegasus_shaped_probe(vector_rows)
+    calibrate_two_calls = []
+    rc_two, attempt_two, registered_two = _invoke(
         two_root, monkeypatch, profile_fn=probe_two,
         receipt_mutator=_expect_48_physical_cores,
+        calibrate_fn=lambda **kwargs: calibrate_two_calls.append(kwargs),
     )
-    assert calls_two == [0, 1, 2]
+    assert calls_two == [0, 1]
+    assert calibrate_two_calls == []
     assert rc_two != 0
-    rejected_two = validate_calibration_v2(
-        (attempt_two / "calibration.json").read_bytes(),
+    rejected_two = json.loads((attempt_two / "rejection.json").read_bytes())
+    assert rejected_two["quality"] == {
+        "status": "rejected",
+        "reasons": ["effective-clock-self-comparison-failed"],
+    }
+    assert rejected_two["not_evaluated"] == _EARLY_CLOCK_NOT_EVALUATED
+    clock_input_two = rejected_two["diagnostics"]["effective_clock_input"]
+    assert clock_input_two == {
+        "samples_mhz": vector_rows[1],
+        "tolerance_pct": 2.0,
+        "method": "proc-cpuinfo",
+        "governor": "performance",
+    }
+    assert len(clock_input_two["samples_mhz"]) == 48
+    assert clock_input_two["samples_mhz"][47] == 2164.03
+    assert not eg.effective_clock_comparison_passes(
+        {
+            "samples_mhz": clock_input_two["samples_mhz"],
+            "tolerance_pct": clock_input_two["tolerance_pct"],
+        },
+        {"samples_mhz": clock_input_two["samples_mhz"]},
     )
-    assert rejected_two.quality.reasons == [
-        "effective-clock-self-comparison-failed",
+    expected_two_profile = copy.deepcopy(profiles_two[1])
+    expected_two_profile["effective_clock"]["tolerance_pct"] = 2.0
+    expected_two_profile["tsc"] = {
+        "raw_samples_mhz": [1800.0] * 5,
+        "median_mhz": 1800.0,
+        "clocks_per_us_int": 1800,
+        "source": "clock_gettime-monotonic/rdtscp",
+    }
+    assert rejected_two["diagnostics"]["attestation_profile_sha256"] == (
+        _canonical_json_sha256(expected_two_profile)
+    )
+    diagnostic_two = rejected_two["diagnostics"][
+        "effective_clock_self_comparison"
     ]
+    assert diagnostic_two["out_of_band_count"] == 1
+    assert diagnostic_two["violations"] == [{
+        "sample_index": 47,
+        "sample_mhz": 2164.03,
+        "direction": "above",
+        "deviation_from_median_mhz": pytest.approx(63.03),
+        "outside_by_mhz": pytest.approx(21.01),
+    }]
+    assert not (attempt_two / "calibration.json").exists()
+    assert not (attempt_two / "calibration.md").exists()
+    assert not (attempt_two / "window-probes.json").exists()
+    assert not (attempt_two / "candidate.json").exists()
+    assert not (attempt_two / "publish.json").exists()
+    assert not (attempt_two / "published-self-comparison.json").exists()
+    assert not registered_two.exists()
 
     literal_two = copy.deepcopy(expected_raw)
     literal_two["effective_clock"]["tolerance_pct"] = 2.0

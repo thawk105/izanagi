@@ -1,0 +1,139 @@
+あなたは izanagi プロジェクトの実装者 (role=author) である。日本語で報告せよ。
+段 6 の fix 巡である。段 5 の実装子契約をすべて継承する。
+
+## 読むもの (読めなければ即停止し、その旨だけ返す)
+
+- 段 4 裁定 (正本、追記節を含む): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/s4-adjudication.md
+- 段 6 レビュー A: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/rev-a-out.md
+- 段 6 レビュー B: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/rev-b-out.md
+- 段 5 実装子の報告: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/impl-out.md
+- 現在の未 commit 差分: repo root で `git diff`
+
+## 権限境界 (段 5 から継承。違反は差し戻し)
+
+- 編集してよいのは **コードとテストだけ**。docs を編集するな。commit するな。
+- 編集してよいファイルは次の 4 本に限る。
+  - `orchestrator/campaign/execution_guard.py`
+  - `orchestrator/calibrator/cli.py`
+  - `orchestrator/tests/test_execution_guard.py`
+  - `orchestrator/tests/test_calibrator_certify.py`
+- 次は**絶対に編集するな**: `orchestrator/campaign/env_contract.py`、`env_attestation.py`、
+  `orchestrator/calibrator/schema_v2.py`、`tools/` 配下すべて、`hooks/`、`output/`、`docs/`。
+- **既存テストの期待値を変更してはならない。** 反転・緩和・skip・削除を禁じる。
+  赤なら実装側が誤りである。期待値の側が誤りだと判断したら、実装を変えずに報告して止まれ。
+  **唯一の例外**は下の F-6 で親が明示的に許可した 4 node である。それ以外の node の期待値には触れるな。
+- 指示にない受理集合の拡大・縮小をするな。
+- ここでの「既存テスト」は tracked なテストを指す。本 wave で追加された未 commit のテストも
+  編集対象に含まれる (甘くするためではなく、下記 F-5 のとおり強くするため)。
+
+## 直す所見 (親が real / must-fix と裁定したもの)
+
+### F-1 (最重要・レビュー A の C-02 / レビュー B の REG-01) — public 述語の例外同値が壊れている
+
+`effective_clock_comparison_passes` が evaluator を常に完全評価するようになったため、
+**旧版が `False` を返していた入力で例外を送出する**。静的反例:
+
+- `expected={"samples_mhz":[10**400],"tolerance_pct":0.0}` — 旧: policy 不一致で band math 前に
+  `False`。新: `float(10**400)` で `OverflowError`。
+- `expected={"samples_mhz":[100.0],"tolerance_pct":2.0}`,
+  `observed={"samples_mhz":[200.0, 10**400]}` — 旧: `all()` が先頭帯外で短絡して `False`。
+  新: 2 番目まで走査して `OverflowError`。
+
+これは所有外 consumer (`receipt_matches_contract` 経由の campaign / floor / oracle / ratified freeze)
+の fail-closed 性を壊す。**直せ。**
+
+- public 述語は shape 検査と policy 検査を evaluator の**前**に短絡させ、旧版と同じ順序・
+  同じ早期 return を保つこと。
+- band 走査も旧版の `all()` と同じ短絡性を持たせること (診断 projection だけが全件評価してよい)。
+- 診断 projection 側でも `OverflowError` を捕捉し、構造化した拒否として返すこと。
+- **上記 2 つの反例を含む negative vector を `test_execution_guard.py` へ追加せよ。**
+  併せて「public 述語は旧版と同じく例外を送出しない」ことを固定せよ。
+
+### F-2 (レビュー B の PC-01) — early 拒否が「実際に判定した profile」を残していない
+
+`rejection.json` に median・上下限・違反 sample しか残らず、評価に使った
+**全 `samples_mhz`・`tolerance_pct`・`method`・`governor`** と profile の SHA-256 が残らない。
+第三者が失敗した α profile を再計算できないので proof にならない。**直せ。**
+
+- `rejection.json` の診断へ、評価に使った effective_clock の入力を exact に保存する
+  (`samples_mhz` 全件、`tolerance_pct`、`method`、`governor`)。
+- 判定対象 profile の canonical JSON bytes の SHA-256 も保存する。
+- 保存した入力から canonical 述語を再計算すると同じ結論になることを固定するテストを書け。
+
+### F-3 (レビュー A の C-01) — clock-only 拒否の reason が 2 件に増えている
+
+現状は `effective-clock-self-comparison-failed` を直接足したうえで
+`acquisition-invalid: effective-clock-self-comparison-failed` を再度足すため、reason が重複する。
+既存の metamorphic test は exact 1 件を固定している。**reason 集合を exact 1 件へ直せ。**
+どの reason 名を残すかは、既存テストの期待値 (触ってはならない側) に合わせて決めること。
+
+### F-4 (レビュー A の C-03) — publish 一時ファイルの orphan
+
+`_write_exclusive(temporary, artifact)` が cleanup の `try` の外にあり、
+write / fsync 失敗時に `.publish-*.tmp` が `registered/` へ残る。
+unlink 失敗も無記録で捨てている。**temp 書込みを cleanup 範囲へ入れ、
+削除不能なら構造化 reason に残せ。**
+
+### F-5 (レビュー A の C-05) — 新規テストが自己参照 oracle になっている
+
+`assert rejection["not_evaluated"] == list(cli._EARLY_CLOCK_REJECTION_NOT_EVALUATED)` は
+実装定数を期待値へ差し込んでいるため、定数から項目を削っても緑になる。**直せ。**
+
+- `not_evaluated` は**テスト側の literal list** と比較する。
+- reason は membership でなく exact 比較にする。
+- early 拒否テストで `quality.status == "rejected"`、`tolerance_pct` の literal 値、
+  `candidate.json` / `publish.json` / `registered` の不在も exact に固定する。
+
+### F-6 (レビュー B の NE-01) — `not_evaluated` の列挙漏れと曖昧な名称
+
+- `final-artifact-assembly-and-schema-validation` に相当する項目が抜けている
+  (early 時には実 result の `_assemble_v2` と schema 検証が走らない)。追加せよ。
+- `dynamic-pre-isolation` は visibility 検査が既に済んでいるため曖昧。
+  実際に未実行なのは `composite_competing_probe("dynamic-pre")` なので、そう分かる名前にせよ。
+- F-8 で published-bytes 検査を足すなら、それも列挙に加えよ。
+
+### F-7 (親が明示的に許可した既存テスト 4 node の期待値更新)
+
+**この 4 node に限り**期待値を更新してよい。
+
+- `test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish[0|24|47]`
+- `test_calibrator_certify.py::test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consumer_self`
+
+更新は**厳密に強く**すること。落としてはならない性質 (レビュー A の分解表より):
+
+- 3 profile の区別と canonical 判定 `[True, False, True]`
+- `rc != 0`、publish されないこと、`registered` が存在しないこと
+- rejected status と exact reason
+- **全 48 sample と帯外 index の値 (`3079.456`)、`tolerance_pct == 2.0`**
+  → これは F-2 で `rejection.json` へ移した入力に対して固定すること
+- metamorphic 側: policy=3 の producer→loader→issuer→consumer→self の全 pass、
+  policy=2 の rc≠0 と exact reason、direct self / consumer / receipt の reject、
+  policy 再束縛後の loader reject
+
+加えて新しい性質を固定すること: benchmark 未開始 (probe 呼出しが 2 回、`calibrate_fn` 未呼出し)、
+`not_evaluated` の literal 一致、診断に帯外位置が含まれること。
+
+### F-8 (レビュー B の PC-02、縮小して採用) — publish 済み bytes の独立再検査を production へ
+
+現状 bytes 再読は test helper にしかなく、実際の job は着手条件 (iii) を実行しない。
+**CLI の中で、publish (rename) の後に publish 先 target の bytes を読み直し、
+CLI 内部の profile や dict 参照を一切使わずに canonical 述語を適用せよ。**
+
+- 判定結果・入力 SHA-256・policy identity を staging 配下の専用ファイルへ書く
+  (ファイル名は `published-self-comparison.json` とする)。
+- 不一致なら fail-closed で非 0 終了し、構造化 reason を残す。
+  **既に publish された content-addressed artifact を削除するな** (immutable)。
+- publish 先 bytes を改竄した fixture でこの検査が赤くなることを固定せよ。
+- 別 process による完全独立検証は本 wave の scope 外である。実装するな。
+  「同一 process 内で内部状態を使わない再読検査」までが scope である。
+
+## 報告 (DW-S05-C を継承)
+
+- 所見ごとに `closed` / `partial` / `regressed` の対応表を必ず付けよ。表なしの報告は差し戻す。
+- 緑を主張するなら走らせた nodeid を併記せよ。実走できないなら「実装済み・未実走」と書け。
+- 所有外の caller・共有 fixture・consumer test への波及可能性を静的に列挙せよ。
+- 既存期待値を変更した箇所があれば、F-7 の 4 node 以外は 1 つも無いことを明示せよ。
+
+## 総括
+
+`## 総括` 節に、直した内容・残る risk・実走状況を 10 行以内で書け。
