@@ -1389,6 +1389,8 @@ def _fake_launch_validated(freeze_path: Path, *, env_tag=None):
 
 def _required_contract(repo_root: Path):
     document = copy.deepcopy(_valid_calibration_v2())
+    # U-2/U-3 による current admission の正当な縮小: required fixture は policy と一致させる。
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = 2.0
     raw = json.dumps(
         document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
@@ -1404,6 +1406,12 @@ def _required_contract(repo_root: Path):
     )
     verified = env_attestation.load_verified_calibration(contract, repo_root)
     return contract, verified
+
+
+def _observed(profile):
+    raw = env_attestation.profile_to_dict(profile)
+    del raw["effective_clock"]["tolerance_pct"]
+    return env_attestation.normalize_observed_profile(raw)
 
 
 def _reservation_env(*, requested_s: int = 100_000) -> dict[str, str]:
@@ -1495,7 +1503,7 @@ def _run_required_preflight(
         def issuer(receipt_contract, receipt_verified):
             return original(
                 receipt_contract, receipt_verified,
-                probe_fn=lambda: receipt_verified.attestation_profile,
+                probe_fn=lambda: _observed(receipt_verified.attestation_profile),
             )
 
     env = _reservation_env() if environ is None else environ
@@ -1530,7 +1538,7 @@ def _run_required_preflight(
 def _required_plan(contract, verified, schedule, environ):
     original = execution_guard.attest_and_build_receipt
     receipt = original(
-        contract, verified, probe_fn=lambda: verified.attestation_profile,
+        contract, verified, probe_fn=lambda: _observed(verified.attestation_profile),
     )
     binding = driver._reservation.read_binding(environ)
     check = driver._reservation.check_reservation(
@@ -1586,7 +1594,7 @@ def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=N
 
     def default_issuer(contract, verified):
         return original_issuer(
-            contract, verified, probe_fn=lambda: verified.attestation_profile,
+            contract, verified, probe_fn=lambda: _observed(verified.attestation_profile),
         )
 
     issuer = receipt_side_effect or default_issuer
@@ -2063,7 +2071,7 @@ def test_required_recheck_real_receipt_validation_catches_midcampaign_drift(tmp_
     fixture = _required_run_fixture(tmp_path)
     valid = execution_guard.attest_and_build_receipt(
         fixture["contract"], fixture["verified"],
-        probe_fn=lambda: fixture["verified"].attestation_profile,
+        probe_fn=lambda: _observed(fixture["verified"].attestation_profile),
     )
     drifted = copy.deepcopy(valid)
     drifted["contract_sha256"] = "0" * 64

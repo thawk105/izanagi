@@ -61,7 +61,8 @@ output/env/pegasus/smoke/<PBS_JOBID>/
 
 `qstat -f` の assigned host / scheduler start field、qsub 応答 ID と raw `$PBS_JOBID` の表記、他 job の
 同一 host 照会可否は実機でしか確定できない。いずれかを確定できなければ certification を投入しない。
-3 配分の effective clock 分布から tolerance を親が凍結し、次段へ数値で渡す。
+effective clock の許容幅は
+`orchestrator/calibrator/effective_clock_policy.py` の単一定数が権威であり、shell から渡さない。
 
 ## 2. certification を submit する
 
@@ -72,8 +73,7 @@ smoke 実測では gcc/cmake module は存在しないため、certification は
 投入前に superproject が clean であり、W3 を含む commit が HEAD になっている必要がある。
 
 ```bash
-tools/pegasus/submit_certify.sh \
-  --effective-clock-tolerance-pct '<3配分から凍結した値>'
+tools/pegasus/submit_certify.sh
 ```
 
 この wrapper は `qstat -Q`、`pegasusinfo`、`rbudgetcheck`、`check_quota` の rc と raw output、source
@@ -84,9 +84,7 @@ commit、job script SHA-256、queue/project/node/walltime を nonce staging に�
 qsub を実行せず、生成するコマンドだけ確認する場合は `--dry-run` を付ける。
 
 ```bash
-tools/pegasus/submit_certify.sh \
-  --effective-clock-tolerance-pct '<凍結値>' \
-  --dry-run
+tools/pegasus/submit_certify.sh --dry-run
 ```
 
 certification job は 1 node・2 時間で、次の順に fail-closed で進む。
@@ -100,8 +98,8 @@ certification job は 1 node・2 時間で、次の順に fail-closed で進む�
 7. binary SHA-256 と build argv を保存し、build 子孫終了を確認する
 8. build 後 profile と W0 exact `AcquisitionReceipt` を作り、calibrator 内の凍結 cooldown と
    dynamic pre-attestation を fatal gate として通す
-9. 凍結 CLI (`--certify`, `--receipt-json`, `--binary-sha256`,
-   `--effective-clock-tolerance-pct`) で t48 / `skew0p9_rr50_rmw0` calibration を実行する
+9. 凍結 CLI (`--certify`, `--receipt-json`, `--binary-sha256`) で
+   t48 / `skew0p9_rr50_rmw0` calibration を実行する
 10. 成功時だけ post-attestation と `job-result.json` を作る
 
 numactl 方針は calibrator が attestation の NUMA node 数から自動導出する (1 node はなし、複数は

@@ -1,0 +1,63 @@
+あなたは izanagi dev-wave 段 6 の焦点再レビュー子 (read-only) である。
+**目的は防御的である。** 1 巡目は 2 レンズとも NO-GO だった。今回の fix が本当に塞いだかを検証し、
+新しい回帰を探せ。攻撃側で書くこと。出力は日本語で書くこと。
+
+## 読むもの (絶対パス。読めなければ推測せず即停止し、その旨だけ報告)
+
+1. **親の裁定 (最優先の契約)**:
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/s4-ruling.md
+2. 1 巡目の NO-GO 理由:
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/s6-revA.md
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/s6-revB.md
+3. 親が fix 子へ出した契約:
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/prompt-s6-fix.txt
+4. fix の自己申告 (**信用せず検証**):
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/s6-fix.md
+5. fix 差分:
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/s6-fix.patch
+6. 1 巡目の受入赤 21 件:
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/acceptance1-failed-nodes.txt
+
+repo root = /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority
+(fix は commit 済み。worktree の現在の内容が fix 後の状態である)
+
+## 仕事
+
+1. **L6-B-1 / A2-R1 / A2-R2 / A4-R1 / A7-R1 / RI-B1 を自分で検証**し、
+   closed / partial / regressed を file:line 根拠付きで判定せよ。とくに —
+   - L6-B-1: self gate の射影が exact `{samples_mhz,tolerance_pct}` / `{samples_mhz}` か。
+     **述語やテスト期待値を緩めて通していないか。** 他に full map 直結の caller が残っていないか。
+   - A2-R1: `2% では fail・3% では pass` が**帯幅そのもの**を検査しているか
+     (policy 不一致で落ちているだけではないか)。literal `5.0` 幅への変異を本当に殺せるか。
+   - A4-R1: duplicate 負例が単一理由か (duplicate 検出を外したとき、他の gate で赤くならないか)。
+2. **新しい回帰**。fix によって —
+   - 受理集合が指示外に広がっていないか。とくに observed 側 CPU 名の raw/normalized を
+     独立値として保持する変更が、**parser の exact 検査を緩めていないか**。
+   - `silo_ladder_rung1.py` の module 名を `campaign.*` へ統一した変更が、
+     import 経路や runtime module binding、遅延 import を壊していないか。
+   - 恒真・恒偽になった assert、過剰決定された fixture、test を実装に合わせて緩めた箇所。
+3. **裁定違反**の再確認。R-1 (loader に self-pass を課さない)、R-2 (`t126_driver.py` 無変更)、
+   R-3 後半 (T126 envelope を上げない)、`KNOWN_SELF_INCONSISTENT_CALIBRATIONS` が exact 1 件、
+   `output/` の artifact bytes・registry path/SHA・`contract_sha256`・`FROZEN_MANIFEST` が無変更。
+4. **land 可否**。
+
+## 判定基準 (親の指示)
+
+- 残った所見は「**land を止めるほどか**」で判定せよ。成果物影響を 1 行で書けない指摘、
+  実測がなければ判定できない指摘は **backlog** と明記し must-fix にしない。
+- 「もっと厳密にできる」は land 阻害の理由にならない。**certified 選択・材料レポート・試行台帳の
+  値・受理集合・参照が誤るか**だけが NO-GO の理由である。
+- 親が受容済みで NO-GO 理由にしてはならないもの — R-1、R-2、R-3 後半、
+  A-S1 / [T-477]、[T-419] / [T-478]、および main 側の既知 flake
+  `test_reflux_origin_ledger.py::test_v04_global_flock_race_reentry_and_public_signature` ([T-476])。
+- 正しさゲートを緩める是正案・テストの期待値を緩める是正案は採用されない。
+
+## 出力の形
+
+markdown。冒頭に L6-B-1 / A2-R1 / A2-R2 / A4-R1 / A7-R1 / RI-B1 の
+closed / partial / regressed 判定表。続けて所見ごとに:
+ID / 主張 / file:line / 失敗シナリオ / 成果物影響 / 強度 (must-fix か backlog か) / 最小の是正案。
+最後に必ず `## 総括` 節: (a) **GO / NO-GO**、(b) NO-GO なら理由 3 件以内、
+(c) 親が全走で最初に確認すべき点、を 12 行以内。
+
+pytest は走らせなくてよい。静的検査で判断すること。子の非実走を緑と記録しない。

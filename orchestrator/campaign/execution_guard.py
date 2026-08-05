@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Callable, Mapping, Optional
 
 from calibrator import schema_v2 as _schema_v2
+from calibrator import effective_clock_policy
 from campaign import env_contract as _env_contract
 from campaign import env_attestation as _env_attestation
 
@@ -181,6 +182,21 @@ def _independent_comparison_passes(field: str, expected: object, observed: objec
 
 def effective_clock_comparison_passes(expected: object, observed: object) -> bool:
     """Canonical pure predicate for effective-clock expected/observed values."""
+    if not isinstance(expected, Mapping) or set(expected) != {
+        "samples_mhz", "tolerance_pct",
+    }:
+        return False
+    if not isinstance(observed, Mapping) or set(observed) != {"samples_mhz"}:
+        return False
+    tolerance = expected.get("tolerance_pct")
+    if (type(tolerance) not in (int, float)
+            or tolerance != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT):
+        return False
+    return _effective_clock_band_math_passes(expected, observed)
+
+
+def _effective_clock_band_math_passes(expected: object, observed: object) -> bool:
+    """Arbitrary-width clock-band mathematics; never a public admission gate."""
     try:
         if not isinstance(expected, Mapping) or not isinstance(observed, Mapping):
             return False
@@ -193,8 +209,10 @@ def effective_clock_comparison_passes(expected: object, observed: object) -> boo
             return False
         expected_median = float(statistics.median(expected_samples))
         allowed_delta = abs(expected_median) * float(tolerance) / 100.0
+        lower = expected_median - allowed_delta
+        upper = expected_median + allowed_delta
         return all(
-            abs(float(sample) - expected_median) <= allowed_delta
+            lower <= float(sample) <= upper
             for sample in observed_samples
         )
     except (TypeError, ValueError, statistics.StatisticsError):
@@ -273,6 +291,19 @@ def validate_receipt_v2(receipt: Mapping) -> None:
                 f"receipt.comparisons[{index}].field が空または重複"
             )
         seen_fields.add(field)
+        if field == "effective_clock.samples_mhz":
+            expected_clock = comparison["expected"]
+            observed_clock = comparison["observed"]
+            if (not isinstance(expected_clock, Mapping)
+                    or set(expected_clock) != {"samples_mhz", "tolerance_pct"}):
+                raise ExecutionGuardError(
+                    f"receipt.comparisons[{index}].expected clock key 集合が exact でない"
+                )
+            if (not isinstance(observed_clock, Mapping)
+                    or set(observed_clock) != {"samples_mhz"}):
+                raise ExecutionGuardError(
+                    f"receipt.comparisons[{index}].observed clock key 集合が exact でない"
+                )
         _json_value(comparison["expected"], field=f"comparisons[{index}].expected")
         _json_value(comparison["observed"], field=f"comparisons[{index}].observed")
         if comparison["verdict"] != "pass":
@@ -285,7 +316,7 @@ def attest_and_build_receipt(
     contract: "_env_contract.ExecutionEnvironmentContract",
     verified_calibration: _env_attestation.VerifiedCalibration,
     *,
-    probe_fn: Callable[[], _schema_v2.AttestationProfile] = _env_attestation.probe,
+    probe_fn: Callable[[], _schema_v2.ObservedAttestationProfile] = _env_attestation.probe,
     now_fn: Optional[Callable[[], object]] = None,
 ) -> dict:
     """Atomically attest a required contract and issue its receipt.

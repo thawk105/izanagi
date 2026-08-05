@@ -235,8 +235,26 @@ class EffectiveClockProfile:
         tolerance = _number(
             self.tolerance_pct, field="effective_clock.tolerance_pct", positive=True,
         )
-        if tolerance > 100.0:
-            _fail("effective_clock.tolerance_pct は 100 以下でなければならない")
+        if tolerance >= 100.0:
+            _fail("effective_clock.tolerance_pct は 100 未満でなければならない")
+
+
+@dataclass(frozen=True)
+class ObservedEffectiveClockProfile:
+    """runtime probe が観測した、policy を持たない実効クロック分布。"""
+
+    samples_mhz: List[float]
+    method: str
+    governor: str
+
+    def __post_init__(self) -> None:
+        samples = _list(self.samples_mhz, field="observed_effective_clock.samples_mhz")
+        if not samples:
+            _fail("observed_effective_clock.samples_mhz は空でない list でなければならない")
+        for sample in samples:
+            _number(sample, field="observed_effective_clock.samples_mhz[]", positive=True)
+        _text(self.method, field="observed_effective_clock.method")
+        _text(self.governor, field="observed_effective_clock.governor")
 
 
 @dataclass(frozen=True)
@@ -256,7 +274,7 @@ class VisibilityProfile:
 
 @dataclass(frozen=True)
 class AttestationProfile:
-    """runtime と calibration が共有する strict hardware profile。"""
+    """calibration が持つ expected-side strict hardware profile。"""
 
     cpu: CpuProfile
     cores: CoreProfile
@@ -287,6 +305,41 @@ class AttestationProfile:
             _fail("attestation_profile.effective_clock の型が不正")
         if not isinstance(self.visibility, VisibilityProfile):
             _fail("attestation_profile.visibility の型が不正")
+
+
+@dataclass(frozen=True)
+class ObservedAttestationProfile:
+    """runtime probe が返す tolerance-free strict hardware profile。"""
+
+    cpu: CpuProfile
+    cores: CoreProfile
+    cache_topology: List[CacheTopologyEntry]
+    numa: List[NumaNode]
+    tsc: TscProfile
+    effective_clock: ObservedEffectiveClockProfile
+    visibility: VisibilityProfile
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.cpu, CpuProfile) or not isinstance(self.cores, CoreProfile):
+            _fail("observed_attestation_profile.cpu/cores の型が不正")
+        caches = _list(self.cache_topology, field="observed_attestation_profile.cache_topology")
+        if not caches or not all(isinstance(item, CacheTopologyEntry) for item in caches):
+            _fail("observed_attestation_profile.cache_topology の型または値が不正")
+        cache_keys = [item.canonical_key() for item in caches]
+        if cache_keys != sorted(cache_keys) or len(set(cache_keys)) != len(cache_keys):
+            _fail("observed_attestation_profile.cache_topology は canonical 順かつ重複なしでなければならない")
+        nodes = _list(self.numa, field="observed_attestation_profile.numa")
+        if not nodes or not all(isinstance(item, NumaNode) for item in nodes):
+            _fail("observed_attestation_profile.numa の型が不正")
+        node_ids = [item.node_id for item in nodes]
+        if node_ids != sorted(set(node_ids)):
+            _fail("observed_attestation_profile.numa は node_id 昇順かつ重複なしでなければならない")
+        if not isinstance(self.tsc, TscProfile):
+            _fail("observed_attestation_profile.tsc の型が不正")
+        if not isinstance(self.effective_clock, ObservedEffectiveClockProfile):
+            _fail("observed_attestation_profile.effective_clock の型が不正")
+        if not isinstance(self.visibility, VisibilityProfile):
+            _fail("observed_attestation_profile.visibility の型が不正")
 
 
 @dataclass(frozen=True)
