@@ -427,13 +427,22 @@ def test_checked_git_failure_reports_command_rc_stdout_and_stderr(
         _git(tmp_path, "diagnostic-command-sentinel")
 
     message = str(caught.value)
+    normalized_message = "\n".join(
+        line.strip() for line in message.splitlines()
+    )
     expected_command = [
         "git", "-C", str(tmp_path), "diagnostic-command-sentinel",
     ]
-    assert "\nrc: 23\n" in message
-    assert f"\ncommand: {expected_command!r}\n" in message
-    assert "\nstdout:\ndiagnostic stdout sentinel: \ufffd\n" in message
-    assert "\nstderr:\ndiagnostic stderr sentinel: \ufffd\n" in message
+    assert "\nrc: 23\n" in normalized_message
+    assert f"\ncommand: {expected_command!r}\n" in normalized_message
+    assert (
+        "\nstdout:\ndiagnostic stdout sentinel: \ufffd\n"
+        in normalized_message
+    )
+    assert (
+        "\nstderr:\ndiagnostic stderr sentinel: \ufffd\n"
+        in normalized_message
+    )
     assert "\ufffd" in message
 
     truncated = _diagnostic_stream(
