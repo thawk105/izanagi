@@ -99,6 +99,7 @@ def run_probe(wire_text: str, evidence: str) -> tuple[dict[str, bool], dict[str,
     results = tuple(salted(result_salts[i], result_preimage) for i in range(2))
     constraints = tuple(salted(constraint_salts[i], b"") for i in range(2))
     events = (
+        ledger.BatchReserved("liveness-positive", 0, 2, 0),
         ledger.BatchCommitted("liveness-positive", 0, tuple(ledger.CommittedBatchMember(i, candidates[i])
                                                             for i in range(2))),
         ledger.BatchResultsPrepared("liveness-positive", tuple(ledger.PreparedBatchMember(
@@ -138,24 +139,56 @@ def run_probe(wire_text: str, evidence: str) -> tuple[dict[str, bool], dict[str,
         with ledger._locked(store) as loaded:
             after = ledger._read_origin_locked(store, loaded, origin)
             opened = ledger._read_sealed_batch_locked(store, loaded, origin, "liveness-positive")
+        negative_reservation = commit(
+            store,
+            origin,
+            "liveness-negative-duplicate-reservation",
+            base,
+            ledger.BatchReserved("liveness-negative-duplicate", 1, 2, 2),
+        )
+        with ledger._locked(store) as loaded:
+            after_reservation = ledger._read_origin_locked(store, loaded, origin)
         duplicate = ledger.BatchCommitted("liveness-negative-duplicate", 1, (
             ledger.CommittedBatchMember(2, candidates[0]),
             ledger.CommittedBatchMember(3, candidates[0])))
         duplicate_reason = None
         try:
-            commit(store, origin, "liveness-negative-duplicate", base, duplicate)
+            commit(
+                store,
+                origin,
+                "liveness-negative-duplicate",
+                negative_reservation.current_state_commitment,
+                duplicate,
+            )
         except ledger.RefluxOriginLedgerError as exc:
             duplicate_reason = str(exc)
         with ledger._locked(store) as loaded:
             after_negative = ledger._read_origin_locked(store, loaded, origin)
     members = opened.members
-    unchanged = (after_negative.queries_used, after_negative.iterations_used) == (after.queries_used, after.iterations_used)
+    unchanged = (
+        after_negative.state_commitment == after_reservation.state_commitment
+        and (after_negative.queries_used, after_negative.iterations_used)
+        == (after_reservation.queries_used, after_reservation.iterations_used)
+    )
+    reservation_visible = (
+        after_reservation.phase == "BATCH_RESERVED"
+        and (
+            after_reservation.reserved_batch_id,
+            after_reservation.reserved_iteration_index,
+            after_reservation.reserved_cardinality,
+            after_reservation.reserved_query_ordinal_start,
+        ) == ("liveness-negative-duplicate", 1, 2, 2)
+    )
     checks = {
-        "C-a": len(receipts) == 3 and all(re.fullmatch(r"[0-9a-f]{64}", x.event_sha256) for x in receipts),
+        "C-a": len(receipts) == 4 and all(re.fullmatch(r"[0-9a-f]{64}", x.event_sha256) for x in receipts),
         "C-b": len(members) == 2 and tuple(x.replicate_ordinal for x in members) == (0, 1),
         "C-c1": all(x.candidate_bytes == wire for x in members) and reflux_ir.encode_wire(reflux_ir.parse_wire(wire_text)) == wire_text,
         "C-c2": all(x.evidence_digest and x.evidence_digest.sha256 == evidence for x in members),
-        "C-d": duplicate_reason == "invalid batch candidate commitments" and unchanged,
+        "C-d": (
+            duplicate_reason == "invalid batch candidate commitments"
+            and unchanged
+            and reservation_visible
+        ),
         "C-e": (before.queries_used, after.queries_used, before.iterations_used, after.iterations_used) == (0, 2, 0, 1),
     }
     details = {
@@ -174,8 +207,9 @@ def run_probe(wire_text: str, evidence: str) -> tuple[dict[str, bool], dict[str,
         "member_row_count": len(members),
         "negative_control": {
             "rejection_reason": duplicate_reason, "counters_unchanged": unchanged,
-            "queries_used": {"before": after.queries_used, "after": after_negative.queries_used},
-            "iterations_used": {"before": after.iterations_used, "after": after_negative.iterations_used},
+            "reservation_visible": reservation_visible,
+            "queries_used": {"before": after_reservation.queries_used, "after": after_negative.queries_used},
+            "iterations_used": {"before": after_reservation.iterations_used, "after": after_negative.iterations_used},
         },
     }
     return checks, details

@@ -53,6 +53,8 @@ __all__ = [
     "PreparedBatchMember",
     "OpenedBatchMember",
     "SealedBatchMember",
+    "BatchReserved",
+    "BatchReservationAbandoned",
     "BatchCommitted",
     "BatchResultsPrepared",
     "BatchSealed",
@@ -500,6 +502,19 @@ class SealedBatchMember:
 
 
 @dataclass(frozen=True, slots=True)
+class BatchReserved:
+    batch_id: str
+    iteration_index: int
+    cardinality: int
+    query_ordinal_start: int
+
+
+@dataclass(frozen=True, slots=True)
+class BatchReservationAbandoned:
+    batch_id: str
+
+
+@dataclass(frozen=True, slots=True)
 class BatchCommitted:
     batch_id: str
     iteration_index: int
@@ -526,10 +541,15 @@ class OriginSealed:
     tombstone_count: int
     sealed_queries: int
     tombstoned_queries: int
+    forfeited_iterations: int
+    forfeited_queries: int
+    """Reserved member rows, not a count of physical provider queries."""
 
 
 OriginEvent = (
-    BatchCommitted
+    BatchReserved
+    | BatchReservationAbandoned
+    | BatchCommitted
     | BatchResultsPrepared
     | BatchSealed
     | OriginSealed
@@ -545,10 +565,17 @@ class OriginSnapshot:
     queries_used: int
     sealed_queries: int
     tombstoned_queries: int
+    forfeited_iterations: int
+    forfeited_queries: int
+    """Reserved member rows, not a count of physical provider queries."""
     batch_count: int
     tombstone_count: int
     terminal_status: str | None
     constraint_class_sha256s: tuple[str, ...]
+    reserved_batch_id: str | None
+    reserved_iteration_index: int | None
+    reserved_cardinality: int | None
+    reserved_query_ordinal_start: int | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -723,6 +750,21 @@ def _opened_member_object(member: object) -> dict[str, object]:
 
 
 def _event_payload(event: OriginEvent) -> tuple[str, dict[str, object]]:
+    if type(event) is BatchReserved:
+        return "batch-reserved", {
+            "batch_id": _string(event.batch_id, label="batch ID", token=True),
+            "iteration_index": _integer(
+                event.iteration_index, label="iteration index"
+            ),
+            "cardinality": _integer(event.cardinality, label="cardinality"),
+            "query_ordinal_start": _integer(
+                event.query_ordinal_start, label="query ordinal start"
+            ),
+        }
+    if type(event) is BatchReservationAbandoned:
+        return "batch-reservation-abandoned", {
+            "batch_id": _string(event.batch_id, label="batch ID", token=True),
+        }
     if type(event) is BatchCommitted:
         batch_id = _string(event.batch_id, label="batch ID", token=True)
         iteration = _integer(event.iteration_index, label="iteration index")
@@ -778,6 +820,12 @@ def _event_payload(event: OriginEvent) -> tuple[str, dict[str, object]]:
             "tombstoned_queries": _integer(
                 event.tombstoned_queries, label="seal tombstoned queries"
             ),
+            "forfeited_iterations": _integer(
+                event.forfeited_iterations, label="seal forfeited iterations"
+            ),
+            "forfeited_queries": _integer(
+                event.forfeited_queries, label="seal forfeited queries"
+            ),
         }
     _fail("unsupported origin event")
 
@@ -791,6 +839,34 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
             label="origin opened payload",
         )
         return None
+    if event_type == "batch-reserved":
+        obj = _exact_object(
+            payload,
+            frozenset({
+                "batch_id", "iteration_index", "cardinality",
+                "query_ordinal_start",
+            }),
+            label="batch reserved payload",
+        )
+        return BatchReserved(
+            batch_id=_string(obj["batch_id"], label="batch ID", token=True),
+            iteration_index=_integer(
+                obj["iteration_index"], label="iteration index"
+            ),
+            cardinality=_integer(obj["cardinality"], label="cardinality"),
+            query_ordinal_start=_integer(
+                obj["query_ordinal_start"], label="query ordinal start"
+            ),
+        )
+    if event_type == "batch-reservation-abandoned":
+        obj = _exact_object(
+            payload,
+            frozenset({"batch_id"}),
+            label="batch reservation abandoned payload",
+        )
+        return BatchReservationAbandoned(
+            batch_id=_string(obj["batch_id"], label="batch ID", token=True),
+        )
     if event_type == "batch-committed":
         obj = _exact_object(
             payload,
@@ -934,6 +1010,7 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
             frozenset({
                 "seal_kind", "constraint_class_sha256s", "batch_count",
                 "tombstone_count", "sealed_queries", "tombstoned_queries",
+                "forfeited_iterations", "forfeited_queries",
             }),
             label="origin seal payload",
         )
@@ -954,6 +1031,12 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
             tombstoned_queries=_integer(
                 obj["tombstoned_queries"], label="tombstoned queries"
             ),
+            forfeited_iterations=_integer(
+                obj["forfeited_iterations"], label="forfeited iterations"
+            ),
+            forfeited_queries=_integer(
+                obj["forfeited_queries"], label="forfeited queries"
+            ),
         )
     _fail("unknown event type")
 
@@ -965,6 +1048,9 @@ class _SemanticState:
     queries_used: int = 0
     sealed_queries: int = 0
     tombstoned_queries: int = 0
+    forfeited_iterations: int = 0
+    forfeited_queries: int = 0
+    """Reserved member rows, not a count of physical provider queries."""
     batch_count: int = 0
     tombstone_count: int = 0
     open_batch: dict[str, object] | None = None
@@ -995,7 +1081,10 @@ def _semantic_object(state: _SemanticState) -> dict[str, object]:
         raw_members = state.open_batch["members"]
         open_batch = {
             "batch_id": state.open_batch["batch_id"],
-            "members": [
+            "iteration_index": state.open_batch["iteration_index"],
+            "cardinality": state.open_batch["cardinality"],
+            "query_ordinal_start": state.open_batch["query_ordinal_start"],
+            "members": None if raw_members is None else [
                 _committed_member_object(item)
                 if type(item) is CommittedBatchMember
                 else _prepared_member_object(item)
@@ -1008,6 +1097,8 @@ def _semantic_object(state: _SemanticState) -> dict[str, object]:
         "queries_used": state.queries_used,
         "sealed_queries": state.sealed_queries,
         "tombstoned_queries": state.tombstoned_queries,
+        "forfeited_iterations": state.forfeited_iterations,
+        "forfeited_queries": state.forfeited_queries,
         "batch_count": state.batch_count,
         "tombstone_count": state.tombstone_count,
         "open_batch": open_batch,
@@ -1037,11 +1128,50 @@ def _preseal_semantic_sha(state: _SemanticState) -> str:
 
 
 def _assert_query_partition(state: _SemanticState) -> None:
+    open_phases = {"BATCH_RESERVED", "BATCH_COMMITTED", "RESULTS_PREPARED"}
+    if (state.open_batch is None) != (state.phase not in open_phases):
+        _fail("origin open batch shape mismatch")
     pending = 0
     if state.open_batch is not None:
-        pending = len(state.open_batch["members"])
-    if state.queries_used != state.sealed_queries + state.tombstoned_queries + pending:
+        cardinality = _integer(
+            state.open_batch["cardinality"], label="open batch cardinality"
+        )
+        members = state.open_batch["members"]
+        if state.phase == "BATCH_RESERVED":
+            if members is not None:
+                _fail("reserved batch unexpectedly has committed members")
+            pending = cardinality
+        else:
+            if type(members) is not tuple or len(members) != cardinality:
+                _fail("open batch cardinality mismatch")
+            expected_type = (
+                CommittedBatchMember
+                if state.phase == "BATCH_COMMITTED"
+                else PreparedBatchMember
+            )
+            if any(type(member) is not expected_type for member in members):
+                _fail("open batch member type mismatch")
+            pending = cardinality
+    if state.queries_used != (
+        state.sealed_queries
+        + state.tombstoned_queries
+        + state.forfeited_queries
+        + pending
+    ):
         _fail("origin query partition mismatch")
+
+
+def _assert_iteration_partition(state: _SemanticState) -> None:
+    reserved = 1 if state.phase == "BATCH_RESERVED" else 0
+    if state.iterations_used != (
+        state.batch_count + state.forfeited_iterations + reserved
+    ):
+        _fail("origin iteration partition mismatch")
+
+
+def _assert_partitions(state: _SemanticState) -> None:
+    _assert_query_partition(state)
+    _assert_iteration_partition(state)
 
 
 def _validate_candidate_wire(schema_ref: str, raw: bytes) -> None:
@@ -1071,12 +1201,63 @@ def _apply_event(
         if state.phase != "EMPTY":
             _fail("duplicate origin genesis")
         state.phase = "IDLE"
-        _assert_query_partition(state)
+        _assert_partitions(state)
         return
     budget = manifest.budget_policy
-    if type(event) is BatchCommitted:
+    if type(event) is BatchReserved:
         if state.phase != "IDLE":
+            _fail("batch reservation is not allowed in current phase")
+        batch_id = _string(event.batch_id, label="batch ID", token=True)
+        iteration_index = _integer(
+            event.iteration_index, label="iteration index"
+        )
+        cardinality = _integer(event.cardinality, label="cardinality")
+        query_ordinal_start = _integer(
+            event.query_ordinal_start, label="query ordinal start"
+        )
+        if batch_id in state.seen_batches:
+            _fail("batch ID was reused")
+        if iteration_index != state.iterations_used:
+            _fail("iteration index is not contiguous")
+        if query_ordinal_start != state.queries_used:
+            _fail("query ordinal start is not contiguous")
+        if cardinality > _MAX_BATCH_CARDINALITY:
+            _fail("batch cardinality exceeds codec feasibility")
+        if cardinality < budget.batch_cardinality_min:
+            _fail("reservation cardinality is below batch minimum")
+        if state.iterations_used + 1 > budget.imax:
+            _fail("Imax exceeded")
+        if state.queries_used + cardinality > budget.qmax:
+            _fail("Qmax exceeded")
+        state.iterations_used += 1
+        state.queries_used += cardinality
+        state.seen_batches.add(batch_id)
+        state.open_batch = {
+            "batch_id": batch_id,
+            "iteration_index": iteration_index,
+            "cardinality": cardinality,
+            "query_ordinal_start": query_ordinal_start,
+            "members": None,
+        }
+        state.phase = "BATCH_RESERVED"
+        _assert_partitions(state)
+        return
+    if type(event) is BatchReservationAbandoned:
+        if state.phase != "BATCH_RESERVED" or state.open_batch is None:
+            _fail("batch reservation abandon is not allowed in current phase")
+        batch_id = _string(event.batch_id, label="batch ID", token=True)
+        if batch_id != state.open_batch["batch_id"]:
+            _fail("abandoned batch does not match reservation")
+        state.forfeited_iterations += 1
+        state.forfeited_queries += int(state.open_batch["cardinality"])
+        state.open_batch = None
+        state.phase = "IDLE"
+        _assert_partitions(state)
+        return
+    if type(event) is BatchCommitted:
+        if state.phase != "BATCH_RESERVED" or state.open_batch is None:
             _fail("batch commit is not allowed in current phase")
+        reservation = state.open_batch
         batch_id = _string(event.batch_id, label="batch ID", token=True)
         iteration_index = _integer(
             event.iteration_index, label="iteration index"
@@ -1099,32 +1280,24 @@ def _apply_event(
             else _fail("invalid committed member")
             for member in event.members
         )
-        if (
-            cardinality < budget.batch_cardinality_min
-            or len({item.candidate_commitment for item in members}) != cardinality
-        ):
+        if len({item.candidate_commitment for item in members}) != cardinality:
             _fail("invalid batch candidate commitments")
-        expected_queries = tuple(range(state.queries_used, state.queries_used + cardinality))
+        expected_queries = tuple(range(
+            int(reservation["query_ordinal_start"]),
+            int(reservation["query_ordinal_start"]) + cardinality,
+        ))
         if tuple(item.query_ordinal for item in members) != expected_queries:
-            _fail("query ordinals are not origin-contiguous")
-        if iteration_index != state.iterations_used:
-            _fail("iteration index is not contiguous")
-        if batch_id in state.seen_batches:
-            _fail("batch ID was reused")
-        if state.iterations_used + 1 > budget.imax:
-            _fail("Imax exceeded")
-        if state.queries_used + cardinality > budget.qmax:
-            _fail("Qmax exceeded")
-        state.iterations_used += 1
-        state.queries_used += cardinality
+            _fail("committed query ordinals do not match reservation")
+        if (
+            batch_id != reservation["batch_id"]
+            or iteration_index != reservation["iteration_index"]
+            or cardinality != reservation["cardinality"]
+        ):
+            _fail("committed batch does not match reservation")
         state.batch_count += 1
-        state.seen_batches.add(batch_id)
-        state.open_batch = {
-            "batch_id": batch_id,
-            "members": members,
-        }
+        state.open_batch["members"] = members
         state.phase = "BATCH_COMMITTED"
-        _assert_query_partition(state)
+        _assert_partitions(state)
         return
     if type(event) is BatchResultsPrepared:
         if state.phase != "BATCH_COMMITTED" or state.open_batch is None:
@@ -1172,7 +1345,7 @@ def _apply_event(
             _fail("partial prepared result set")
         state.open_batch["members"] = prepared_members
         state.phase = "RESULTS_PREPARED"
-        _assert_query_partition(state)
+        _assert_partitions(state)
         return
     if type(event) is BatchSealed:
         if state.phase != "RESULTS_PREPARED" or state.open_batch is None:
@@ -1298,19 +1471,21 @@ def _apply_event(
             state.tombstone_count += 1
         state.open_batch = None
         state.phase = "IDLE"
-        _assert_query_partition(state)
+        _assert_partitions(state)
         return
     if type(event) is OriginSealed:
         if state.phase != "IDLE":
-            _fail("origin seal requires no open batch")
+            _fail("origin seal is not allowed in current phase")
         if (
             event.batch_count != state.batch_count
             or event.tombstone_count != state.tombstone_count
             or event.sealed_queries != state.sealed_queries
             or event.tombstoned_queries != state.tombstoned_queries
+            or event.forfeited_iterations != state.forfeited_iterations
+            or event.forfeited_queries != state.forfeited_queries
         ):
             _fail("origin seal counters mismatch")
-        _assert_query_partition(state)
+        _assert_partitions(state)
         supplied = event.constraint_class_sha256s
         if tuple(sorted(set(supplied))) != supplied:
             _fail("constraint class is not sorted and distinct")
@@ -1332,7 +1507,7 @@ def _apply_event(
             state.terminal_status = "certifiable"
         state.constraint_class = supplied
         state.phase = "ORIGIN_SEALED"
-        _assert_query_partition(state)
+        _assert_partitions(state)
         return
     _fail("unsupported semantic event")
 
@@ -1884,7 +2059,7 @@ def _feasibility_batch_frames(
     cardinality: int,
     *,
     tombstoned: bool,
-) -> tuple[bytes, bytes, bytes]:
+) -> tuple[bytes, bytes, bytes, bytes]:
     hashes = _dummy_hashes(cardinality)
     committed = tuple(
         CommittedBatchMember(_MAX_INTEGER, digest) for digest in hashes
@@ -1908,6 +2083,9 @@ def _feasibility_batch_frames(
             constraint_sha256=None if tombstoned else digest,
         ))
     return (
+        _feasibility_event_frame(BatchReserved(
+            "x" * 128, _MAX_INTEGER, cardinality, _MAX_INTEGER
+        )),
         _feasibility_event_frame(BatchCommitted(
             "x" * 128, _MAX_INTEGER, committed
         )),
@@ -1917,6 +2095,15 @@ def _feasibility_batch_frames(
         _feasibility_event_frame(BatchSealed(
             "x" * 128, tuple(opened)
         )),
+    )
+
+
+def _feasibility_abandoned_frames(cardinality: int) -> tuple[bytes, bytes]:
+    return (
+        _feasibility_event_frame(BatchReserved(
+            "x" * 128, _MAX_INTEGER, cardinality, _MAX_INTEGER
+        )),
+        _feasibility_event_frame(BatchReservationAbandoned("x" * 128)),
     )
 
 
@@ -1930,11 +2117,12 @@ def _affine_batch_bytes(
     two = _feasibility_batch_frames(2, tombstoned=tombstoned)
     base = sum(map(len, one))
     increment = sum(map(len, two)) - base
-    # The only non-affine field is BatchCommitted.payload.cardinality.  Frames
-    # for cardinalities 1 and 2 both have a one-digit value, so reserve the
-    # maximum additional decimal digits for every batch.  This is conservative
-    # for all legal partitions and exact when every batch has four digits.
-    cardinality_digit_reserve = len(str(_MAX_BATCH_CARDINALITY)) - 1
+    # Reservation and commit both carry cardinality.  Frames for cardinalities
+    # 1 and 2 both have one digit, so reserve both maximum decimal expansions
+    # per batch.  This is conservative for every legal member partition.
+    cardinality_digit_reserve = 2 * (
+        len(str(_MAX_BATCH_CARDINALITY)) - 1
+    )
     return (
         batches * base
         + (members - batches) * increment
@@ -1969,6 +2157,7 @@ def _check_budget_codec_feasibility(policy: BudgetPolicy) -> tuple[int, int]:
     try:
         _feasibility_batch_frames(batch_min, tombstoned=False)
         _feasibility_batch_frames(batch_min, tombstoned=True)
+        _feasibility_abandoned_frames(batch_min)
     except RefluxOriginLedgerError:
         _fail("batch minimum exceeds codec feasibility")
     if policy.qmax > policy.imax * _MAX_BATCH_CARDINALITY:
@@ -1988,6 +2177,8 @@ def _check_budget_codec_feasibility(policy: BudgetPolicy) -> tuple[int, int]:
         class_frame = _feasibility_event_frame(OriginSealed(
             False,
             _dummy_hashes(policy.kmax),
+            _MAX_INTEGER,
+            _MAX_INTEGER,
             _MAX_INTEGER,
             _MAX_INTEGER,
             _MAX_INTEGER,
@@ -2048,7 +2239,7 @@ def _check_budget_codec_feasibility(policy: BudgetPolicy) -> tuple[int, int]:
     )
     origin_bytes = len(origin_genesis) + max(normal_bytes, tombstone_bytes) + len(class_frame)
     head_transaction_bytes = (
-        (batch_count * 3 + 1) * (len(head_prepared) + len(head_committed))
+        (batch_count * 4 + 1) * (len(head_prepared) + len(head_committed))
     )
     head_bytes = len(head_genesis) + head_transaction_bytes
     if origin_bytes > _MAX_LEDGER_BYTES or head_bytes > _MAX_LEDGER_BYTES:
@@ -2701,6 +2892,8 @@ def _prepared_payload_projection(
             "tombstone_count": payload["tombstone_count"],
             "sealed_queries": payload["sealed_queries"],
             "tombstoned_queries": payload["tombstoned_queries"],
+            "forfeited_iterations": payload["forfeited_iterations"],
+            "forfeited_queries": payload["forfeited_queries"],
         }
     return dict(payload)
 
@@ -3070,6 +3263,19 @@ def _read_origin_locked(
         _fail("unknown authority origin")
     replay = _replay(store, authority)
     state = replay.states[origin_id]
+    reserved_batch_id: str | None = None
+    reserved_iteration_index: int | None = None
+    reserved_cardinality: int | None = None
+    reserved_query_ordinal_start: int | None = None
+    if state.phase == "BATCH_RESERVED":
+        if state.open_batch is None:
+            _fail("reserved origin lacks reservation binding")
+        reserved_batch_id = str(state.open_batch["batch_id"])
+        reserved_iteration_index = int(state.open_batch["iteration_index"])
+        reserved_cardinality = int(state.open_batch["cardinality"])
+        reserved_query_ordinal_start = int(
+            state.open_batch["query_ordinal_start"]
+        )
     return OriginSnapshot(
         origin_id=origin_id,
         state_commitment=replay.current_state_commitment,
@@ -3078,10 +3284,16 @@ def _read_origin_locked(
         queries_used=state.queries_used,
         sealed_queries=state.sealed_queries,
         tombstoned_queries=state.tombstoned_queries,
+        forfeited_iterations=state.forfeited_iterations,
+        forfeited_queries=state.forfeited_queries,
         batch_count=state.batch_count,
         tombstone_count=state.tombstone_count,
         terminal_status=state.terminal_status,
         constraint_class_sha256s=state.constraint_class,
+        reserved_batch_id=reserved_batch_id,
+        reserved_iteration_index=reserved_iteration_index,
+        reserved_cardinality=reserved_cardinality,
+        reserved_query_ordinal_start=reserved_query_ordinal_start,
     )
 
 
