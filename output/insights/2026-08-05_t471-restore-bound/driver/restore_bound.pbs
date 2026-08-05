@@ -1,0 +1,100 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -b 1
+#PBS -l elapstim_req=00:30:00
+#PBS -N t471_rrestore
+
+set -euo pipefail
+umask 077
+(( $# == 0 )) || { printf '%s\n' 'positional arguments are forbidden' >&2; exit 16; }
+: "${T471_ATTEMPT:?T471_ATTEMPT is required}"
+: "${T471_REPO_ROOT:?T471_REPO_ROOT is required}"
+: "${PBS_JOBID:?PBS_JOBID is required}"
+
+[[ "$T471_ATTEMPT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || exit 16
+expected_repo=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t471-restore-bound
+[[ "$T471_REPO_ROOT" == "$expected_repo" ]] || exit 16
+node_name=$(hostname -s)
+[[ "$node_name" =~ ^bnode[0-9]+$ ]] || exit 16
+
+reject_symlink_chain() {
+    local candidate=$T471_CHECK_PATH
+    while [[ "$candidate" != / ]]; do
+        [[ ! -L "$candidate" ]] || { printf 'symlink path rejected: %s\n' "$candidate" >&2; exit 16; }
+        candidate=$(dirname -- "$candidate")
+    done
+}
+
+run_base=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t471-restore-bound/runs
+evidence_base="$T471_REPO_ROOT/output/insights/2026-08-05_t471-restore-bound/evidence"
+attempt_root="$run_base/$T471_ATTEMPT"
+scratch_root="$attempt_root/scratch"
+evidence_dir="$evidence_base/$T471_ATTEMPT"
+evidence_json="$evidence_dir/restore-bound.json"
+marker_file="$evidence_dir/compute-node.marker"
+driver="$T471_REPO_ROOT/output/insights/2026-08-05_t471-restore-bound/driver/measure_restore_bound.py"
+
+T471_CHECK_PATH="$T471_REPO_ROOT" reject_symlink_chain
+T471_CHECK_PATH="$run_base" reject_symlink_chain
+T471_CHECK_PATH="$evidence_base" reject_symlink_chain
+mkdir -p "$run_base" "$evidence_base"
+T471_CHECK_PATH="$run_base" reject_symlink_chain
+T471_CHECK_PATH="$evidence_base" reject_symlink_chain
+mkdir "$attempt_root"
+mkdir "$evidence_dir"
+mkdir "$scratch_root"
+T471_CHECK_PATH="$attempt_root" reject_symlink_chain
+T471_CHECK_PATH="$evidence_dir" reject_symlink_chain
+[[ -f "$driver" && ! -L "$driver" ]] || exit 16
+
+canonical_run_base=$(realpath -e "$run_base")
+canonical_evidence_base=$(realpath -e "$evidence_base")
+canonical_attempt=$(realpath -e "$attempt_root")
+canonical_scratch=$(realpath -e "$scratch_root")
+canonical_evidence=$(realpath -e "$evidence_dir")
+[[ "$(dirname -- "$canonical_attempt")" == "$canonical_run_base" ]] || exit 16
+[[ "$(dirname -- "$canonical_scratch")" == "$canonical_attempt" ]] || exit 16
+[[ "$(dirname -- "$canonical_evidence")" == "$canonical_evidence_base" ]] || exit 16
+[[ "$canonical_scratch" != "$canonical_evidence"/* && "$canonical_evidence" != "$canonical_scratch"/* ]] || exit 16
+
+write_compute_marker() {
+    marker_rc=$?
+    trap - EXIT
+    printf 'hostname=%s\nPBS_JOBID=%s\nrc=%s\n' "$node_name" "$PBS_JOBID" "$marker_rc" > "$marker_file"
+    exit "$marker_rc"
+}
+trap write_compute_marker EXIT
+
+scratch_fs=$(stat -f -c %T "$scratch_root")
+[[ "$scratch_fs" == lustre ]] || exit 16
+python_bin=$(command -v python3.10)
+[[ -n "$python_bin" && -x "$python_bin" ]] || exit 16
+"$python_bin" -I -B -c 'import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 10) else 16)'
+
+export OMP_NUM_THREADS=1
+export T471_SCRATCH_ROOT="$scratch_root"
+export T471_EVIDENCE_JSON="$evidence_json"
+unset PYTHONHOME PYTHONPATH PYTHONSTARTUP PYTHONPYCACHEPREFIX PYTEST_ADDOPTS PYTEST_PLUGINS || true
+set +e
+"$python_bin" -I -B "$driver"
+driver_rc=$?
+set -e
+
+"$python_bin" -I -B -c 'import json,pathlib,sys
+d=json.loads(pathlib.Path(sys.argv[1]).read_text()); driver_rc=int(sys.argv[2])
+arms=("A-e0","A-e143-fresh","A-e143-aged","A-b240-n1","A-p2-synth")
+trials=d.get("trials",[]); env=d.get("environment",{}); layout=d.get("layout",{})
+def layouts(v):
+ return ([v] if isinstance(v,dict) and "available" in v else [])+sum((layouts(x) for x in (v.values() if isinstance(v,dict) else v if isinstance(v,list) else [])),[])
+valid=d.get("validity",{}).get("valid") is True
+ok=d.get("schema")=="izanagi-t471-restore-observed/v1" and "planning_allowance_ns_not_upper_bound_by_arm" not in d
+if valid:
+ ok=ok and driver_rc==0 and len(trials)==500 and [t.get("sequence") for t in trials]==list(range(500)) and all(type(t.get("restore_call_count")) is int and t.get("restore_call_count")==1 for t in trials)
+ ok=ok and all(sum(t.get("arm")==a for t in trials)==100 for a in arms) and set(d.get("R_restore_observed_by_arm",{}))==set(arms)
+ ok=ok and all(k in env for k in ("hostname","PBS_JOBID","filesystem","kernel","python_version","repo_commit","perf_counter","started_at_utc","ended_at_utc"))
+ ls=layouts(layout); ok=ok and bool(ls) and all(x.get("available") is True and str(x.get("stdout","")).strip() for x in ls)
+else:
+ ok=ok and driver_rc==2 and d.get("R_restore_observed_by_arm") is None
+raise SystemExit(0 if ok else 16)' "$evidence_json" "$driver_rc"
+exit "$driver_rc"

@@ -1,0 +1,104 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M-1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t471_restore_bound.py::test_summarize_preserves_raw_max"
+      ],
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-05_t471-restore-bound/driver/restore_bound_analysis.py",
+          "old": "        \"max_ns\": max(values),",
+          "new": "        \"max_ns\": _nearest_rank(ordered, 0.99),"
+        }
+      ]
+    },
+    {
+      "id": "M-2",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t471_restore_bound.py::test_validate_arm_profile_rejects_out_of_profile_case"
+      ],
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-05_t471-restore-bound/driver/restore_bound_analysis.py",
+          "old": "        for field in _PROFILE_FIELDS:\n            if observed[field] != profile[field]:",
+          "new": "        for field in _PROFILE_FIELDS:\n            if False and observed[field] != profile[field]:"
+        }
+      ]
+    },
+    {
+      "id": "M-3",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t471_restore_bound.py::test_any_failed_trial_invalidates_attempt"
+      ],
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-05_t471-restore-bound/driver/restore_bound_analysis.py",
+          "old": "        if trial.get(\"success\") is not True:\n            reasons.append(f\"trials[{index}] did not succeed\")",
+          "new": "        if False:\n            reasons.append(f\"trials[{index}] did not succeed\")"
+        }
+      ]
+    },
+    {
+      "id": "M-4",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t471_restore_bound.py::test_planning_allowance_applies_floor"
+      ],
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-05_t471-restore-bound/driver/restore_bound_analysis.py",
+          "old": "    margin_ns = max((observed_max_ns + 1) // 2, 1_000_000_000)",
+          "new": "    margin_ns = (observed_max_ns + 1) // 2"
+        }
+      ]
+    },
+    {
+      "id": "M-6",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t471_restore_bound.py::test_attempt_rejects_missing_sequence"
+      ],
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-05_t471-restore-bound/driver/restore_bound_analysis.py",
+          "old": "        sequence = trial.get(\"sequence\")\n        if not _is_exact_int(sequence) or sequence < 0:",
+          "new": "        sequence = trial.get(\"sequence\")\n        if sequence is not None and (not _is_exact_int(sequence) or sequence < 0):"
+        }
+      ]
+    },
+    {
+      "id": "M-5",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t471_restore_bound.py::test_driver_calls_imported_restore_only"
+      ],
+      "replacements": [
+        {
+          "file": "output/insights/2026-08-05_t471-restore-bound/driver/measure_restore_bound.py",
+          "old": "    harness = _load_source(harness_path, harness_raw, \"t471_real_mutation_harness\")",
+          "new": "    harness = _load_source(harness_path, harness_raw, \"t471_real_mutation_harness\")\n    harness = type(\"H\", (), {\"_restore_targets\": staticmethod(lambda *_a, **_k: None)})()"
+        }
+      ]
+    }
+  ],
+  "estimated_run_seconds": 840
+}

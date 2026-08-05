@@ -6,6 +6,7 @@ production API の path を monkeypatch せず、private seam へ temp Git repos
 """
 from __future__ import annotations
 
+import base64
 import dataclasses
 import errno
 import fcntl
@@ -31,7 +32,7 @@ from campaign import reflux_origin_ledger as ledger  # noqa: E402
 
 FORMULA = "q-lower-bound/base+perRound*R+Emin/v1"
 SCHEMA = "izanagi-trigger-gate-ir/v1"
-AUTHORITY_PATH = Path("orchestrator/campaign/reflux_origin_authority_v1.json")
+AUTHORITY_PATH = Path("orchestrator/campaign/reflux_origin_authority_v2.json")
 SUBPROCESS_TIMEOUT = 120
 
 
@@ -121,7 +122,7 @@ def _canonical(value: object) -> bytes:
 
 def _independent_origin(raw_manifest: dict[str, object]) -> str:
     return hashlib.sha256(
-        b"izanagi-reflux-origin-manifest/v1\0" + _canonical(raw_manifest)
+        b"izanagi-reflux-origin-manifest/v2\0" + _canonical(raw_manifest)
     ).hexdigest()
 
 
@@ -143,9 +144,181 @@ def _authority_bytes(manifests: list[dict[str, object]]) -> bytes:
     } for item in manifests]
     entries.sort(key=lambda item: item["origin_id"])
     return _canonical({
-        "authority_schema": "izanagi-reflux-origin-authority/v1",
+        "authority_schema": "izanagi-reflux-origin-authority/v2",
         "origins": entries,
     }) + b"\n"
+
+
+def _independent_event_frame(
+    event_type: str,
+    payload: dict[str, object],
+    *,
+    operation_id: str = "x" * 128,
+    event_index: int = (1 << 63) - 1,
+    previous_event_sha256: str = "e" * 64,
+) -> bytes:
+    core = {
+        "schema_version": "izanagi-reflux-origin-event/v2",
+        "event_index": event_index,
+        "previous_event_sha256": previous_event_sha256,
+        "origin_id": "f" * 64,
+        "operation_id": operation_id,
+        "event_type": event_type,
+        "payload": payload,
+    }
+    record = dict(core)
+    record["event_sha256"] = hashlib.sha256(_canonical(core)).hexdigest()
+    return _canonical(record) + b"\n"
+
+
+def _independent_head_frame(
+    record_type: str,
+    payload: dict[str, object],
+    *,
+    record_index: int = (1 << 63) - 1,
+    previous_record_sha256: str = "e" * 64,
+) -> bytes:
+    core = {
+        "schema_version": "izanagi-reflux-origin-runtime-head/v2",
+        "record_index": record_index,
+        "previous_record_sha256": previous_record_sha256,
+        "record_type": record_type,
+        "payload": payload,
+    }
+    record = dict(core)
+    record["record_sha256"] = hashlib.sha256(_canonical(core)).hexdigest()
+    return _canonical(record) + b"\n"
+
+
+def _independent_worst_case_batch_frames(
+    cardinality: int,
+    *,
+    tombstoned: bool = False,
+) -> tuple[bytes, bytes, bytes]:
+    maximum_integer = (1 << 63) - 1
+    hashes = tuple(f"{index + 1:064x}" for index in range(cardinality))
+    committed = _independent_event_frame("batch-committed", {
+        "batch_id": "x" * 128,
+        "cardinality": cardinality,
+        "iteration_index": maximum_integer,
+        "members": [
+            {"candidate_commitment": digest, "query_ordinal": maximum_integer}
+            for digest in hashes
+        ],
+    })
+    prepared = _independent_event_frame("batch-results-prepared", {
+        "batch_id": "x" * 128,
+        "members": [
+            {
+                "candidate_commitment": digest,
+                "constraint_commitment": digest,
+                "query_ordinal": maximum_integer,
+                "result_evidence_commitment": digest,
+            }
+            for digest in hashes
+        ],
+    })
+    members = []
+    for index, digest in enumerate(hashes):
+        salt_base = index * 3 + 1
+        members.append({
+            "candidate_salt": f"{salt_base:032x}"[-32:],
+            "candidate_wire_b64": "MTExMTE=",
+            "constraint_salt": f"{salt_base + 2:032x}"[-32:],
+            "constraint_sha256": None if tombstoned else digest,
+            "evidence_sha256": None if tombstoned else digest,
+            "outcome": "tombstoned" if tombstoned else "rejected",
+            "query_ordinal": maximum_integer,
+            "replicate_ordinal": maximum_integer,
+            "result_evidence_salt": f"{salt_base + 1:032x}"[-32:],
+        })
+    sealed = _independent_event_frame("batch-sealed", {
+        "batch_id": "x" * 128,
+        "members": members,
+    })
+    return committed, prepared, sealed
+
+
+def _independent_origin_ledger_upper_bytes(
+    *,
+    batches: int,
+    members: int,
+    kmax: int,
+) -> int:
+    maximum_integer = (1 << 63) - 1
+    genesis = _independent_event_frame(
+        "origin-opened",
+        {"authority_blob_sha256": "a" * 64, "cell_key": "b" * 64},
+        operation_id="origin-opened:" + "f" * 64,
+        event_index=0,
+        previous_event_sha256="0" * 64,
+    )
+    class_frame = _independent_event_frame("origin-sealed", {
+        "batch_count": maximum_integer,
+        "constraint_class_sha256s": [
+            f"{index + 1:064x}" for index in range(kmax)
+        ],
+        "seal_kind": "certifiable",
+        "sealed_queries": maximum_integer,
+        "tombstone_count": maximum_integer,
+        "tombstoned_queries": maximum_integer,
+    })
+    branch_bytes = []
+    for tombstoned in (False, True):
+        one = sum(map(len, _independent_worst_case_batch_frames(
+            1, tombstoned=tombstoned
+        )))
+        two = sum(map(len, _independent_worst_case_batch_frames(
+            2, tombstoned=tombstoned
+        )))
+        increment = two - one
+        # Hand-derived conservative reserve for the 1 -> 2248 decimal width.
+        branch_bytes.append(
+            batches * one + (members - batches) * increment + batches * 3
+        )
+    return len(genesis) + max(branch_bytes) + len(class_frame)
+
+
+def _independent_shared_head_bytes(batch_counts: tuple[int, ...]) -> int:
+    maximum_integer = (1 << 63) - 1
+    genesis = _independent_head_frame(
+        "runtime-opened",
+        {
+            "authority_blob_sha256": "a" * 64,
+            "origin_heads": [
+                {
+                    "event_index": 0,
+                    "event_sha256": "b" * 64,
+                    "origin_id": f"{index + 1:064x}",
+                }
+                for index in range(len(batch_counts))
+            ],
+        },
+        record_index=0,
+        previous_record_sha256="0" * 64,
+    )
+    prepared = _independent_head_frame("head-prepared", {
+        "base_state_commitment": "a" * 64,
+        "next_event_binding_sha256": "d" * 64,
+        "old_event_byte_length": 64 << 20,
+        "old_event_index": maximum_integer,
+        "old_event_sha256": "c" * 64,
+        "operation_id": "x" * 128,
+        "origin_id": "f" * 64,
+        "prospective_public_state_sha256": "e" * 64,
+        "request_sha256": "b" * 64,
+    })
+    committed = _independent_head_frame("head-committed", {
+        "event_index": maximum_integer,
+        "event_sha256": "b" * 64,
+        "operation_id": "x" * 128,
+        "origin_id": "f" * 64,
+        "prepared_record_sha256": "a" * 64,
+    })
+    pair_bytes = len(prepared) + len(committed)
+    return len(genesis) + sum(
+        (batch_count * 3 + 1) * pair_bytes for batch_count in batch_counts
+    )
 
 
 def _git_env(extra: dict[str, str] | None = None) -> dict[str, str]:
@@ -228,54 +401,91 @@ def _salted(salt: str, value: bytes) -> str:
     return hashlib.sha256(bytes.fromhex(salt) + value).hexdigest()
 
 
+def _member_bytes(candidate: bytes, query: int, replicate: int) -> bytes:
+    return b"izanagi-reflux-origin-batch-member/v1\0" + _canonical({
+        "candidate_wire_b64": base64.b64encode(candidate).decode("ascii"),
+        "query_ordinal": query,
+        "replicate_ordinal": replicate,
+    })
+
+
+def _result_bytes(outcome: str, evidence: str | None) -> bytes:
+    return b"izanagi-reflux-origin-result-evidence/v1\0" + _canonical({
+        "evidence_sha256": evidence,
+        "outcome": outcome,
+    })
+
+
 def _batch_events(
     batch_id: str = "batch-0",
     iteration: int = 0,
     candidates: tuple[bytes, ...] = (b"10000", b"01000"),
     outcomes: tuple[str, ...] = ("accepted", "rejected"),
     constraints: tuple[str | None, ...] = (None, _h("d")),
+    query_start: int = 0,
+    prior_replicates: dict[bytes, int] | None = None,
 ) -> tuple[object, object, object]:
     def salts(_: str) -> tuple[str, ...]:
         return tuple(os.urandom(16).hex() for _ in candidates)
     candidate_salts = salts("candidate")
-    outcome_salts = salts("outcome")
     result_salts = salts("result")
     constraint_salts = salts("constraint")
-    results = tuple((_h("e"), _h("f"))[index] for index in range(len(candidates)))
-    candidate_commitments = tuple(
-        _salted(salt, value) for salt, value in zip(candidate_salts, candidates, strict=True)
+    evidence = tuple(
+        None if outcome == "tombstoned" else (_h("e"), _h("f"))[index % 2]
+        for index, outcome in enumerate(outcomes)
     )
-    outcome_commitments = tuple(
-        _salted(salt, value.encode("ascii"))
-        for salt, value in zip(outcome_salts, outcomes, strict=True)
+    counts = dict(prior_replicates or {})
+    replicates = []
+    for candidate in candidates:
+        replicates.append(counts.get(candidate, 0))
+        counts[candidate] = counts.get(candidate, 0) + 1
+    candidate_commitments = tuple(
+        _salted(salt, _member_bytes(value, query_start + index, replicates[index]))
+        for index, (salt, value) in enumerate(
+            zip(candidate_salts, candidates, strict=True)
+        )
     )
     result_commitments = tuple(
-        _salted(salt, value.encode("ascii"))
-        for salt, value in zip(result_salts, results, strict=True)
+        _salted(salt, _result_bytes(outcome, digest))
+        for salt, outcome, digest in zip(result_salts, outcomes, evidence, strict=True)
     )
     constraint_commitments = tuple(
         _salted(salt, b"" if value is None else value.encode("ascii"))
         for salt, value in zip(constraint_salts, constraints, strict=True)
     )
     return (
-        ledger.BatchCommitted(batch_id, iteration, candidate_commitments),
+        ledger.BatchCommitted(batch_id, iteration, tuple(
+            ledger.CommittedBatchMember(query_start + index, commitment)
+            for index, commitment in enumerate(candidate_commitments)
+        )),
         ledger.BatchResultsPrepared(
             batch_id,
-            candidate_commitments,
-            outcome_commitments,
-            result_commitments,
-            constraint_commitments,
+            tuple(
+                ledger.PreparedBatchMember(
+                    query_start + index,
+                    candidate_commitments[index],
+                    result_commitments[index],
+                    constraint_commitments[index],
+                )
+                for index in range(len(candidates))
+            ),
         ),
         ledger.BatchSealed(
             batch_id,
-            candidate_salts,
-            candidates,
-            outcome_salts,
-            outcomes,
-            result_salts,
-            results,
-            constraint_salts,
-            constraints,
+            tuple(
+                ledger.OpenedBatchMember(
+                    query_ordinal=query_start + index,
+                    replicate_ordinal=replicates[index],
+                    candidate_salt=candidate_salts[index],
+                    candidate_bytes=candidates[index],
+                    result_evidence_salt=result_salts[index],
+                    outcome=outcomes[index],
+                    evidence_digest=None if evidence[index] is None else ledger.EvidenceDigest(evidence[index]),
+                    constraint_salt=constraint_salts[index],
+                    constraint_sha256=constraints[index],
+                )
+                for index in range(len(candidates))
+            ),
         ),
     )
 
@@ -314,6 +524,9 @@ def _assert_flock_state(path: Path, *, blocked: bool) -> None:
 
 def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
     """V1 / M-N1: production helper から期待値を作らない literal golden。"""
+    assert ledger.MANIFEST_SCHEMA_ID == "izanagi-reflux-origin-manifest/v2"
+    assert ledger.AUTHORITY_SCHEMA_ID == "izanagi-reflux-origin-authority/v2"
+    assert ledger.AUTHORITY_RELATIVE_PATH.endswith("reflux_origin_authority_v2.json")
     raw = _manifest_object()
     literal = (
         b'{"authority_series_id":"series-a","axis_semantics_sha256":"5555555555555555555555555555555555555555555555555555555555555555",'
@@ -332,22 +545,35 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
     assert ledger._sha256(b"abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     event = ledger._event_record(
         origin_id=_h("1"), operation_id="op-golden", event_index=7,
-        previous_event_sha256=_h("2"), event_type="batch-tombstoned",
-        payload={"batch_id": "batch-golden"},
+        previous_event_sha256=_h("2"), event_type="batch-sealed",
+        payload={"batch_id": "batch-golden", "members": [{
+            "candidate_salt": "1" * 32,
+            "candidate_wire_b64": "MTAwMDA=",
+            "constraint_salt": "2" * 32,
+            "constraint_sha256": None,
+            "evidence_sha256": None,
+            "outcome": "tombstoned",
+            "query_ordinal": 7,
+            "replicate_ordinal": 3,
+            "result_evidence_salt": "3" * 32,
+        }]},
     )
     literal_event_frame = (
-        b'{"event_index":7,"event_sha256":"db34b64a65089c313c94f0a222134751898a1cf9a2286df0ff66e202971d02cc",'
-        b'"event_type":"batch-tombstoned","operation_id":"op-golden","origin_id":"1111111111111111111111111111111111111111111111111111111111111111",'
-        b'"payload":{"batch_id":"batch-golden"},"previous_event_sha256":"2222222222222222222222222222222222222222222222222222222222222222",'
-        b'"schema_version":"izanagi-reflux-origin-event/v1"}\n'
+        b'{"event_index":7,"event_sha256":"89cd860350ad017551d8b7b6ca9fc9aca231846890ccb81cc1e130174fffb5c0",'
+        b'"event_type":"batch-sealed","operation_id":"op-golden","origin_id":"1111111111111111111111111111111111111111111111111111111111111111",'
+        b'"payload":{"batch_id":"batch-golden","members":[{"candidate_salt":"11111111111111111111111111111111","candidate_wire_b64":"MTAwMDA=",'
+        b'"constraint_salt":"22222222222222222222222222222222","constraint_sha256":null,"evidence_sha256":null,"outcome":"tombstoned",'
+        b'"query_ordinal":7,"replicate_ordinal":3,"result_evidence_salt":"33333333333333333333333333333333"}]},'
+        b'"previous_event_sha256":"2222222222222222222222222222222222222222222222222222222222222222",'
+        b'"schema_version":"izanagi-reflux-origin-event/v2"}\n'
     )
     literal_event_core = literal_event_frame.replace(
-        b',"event_sha256":"db34b64a65089c313c94f0a222134751898a1cf9a2286df0ff66e202971d02cc"',
+        b',"event_sha256":"89cd860350ad017551d8b7b6ca9fc9aca231846890ccb81cc1e130174fffb5c0"',
         b"",
         1,
     )[:-1]
     assert hashlib.sha256(literal_event_core).hexdigest() == (
-        "db34b64a65089c313c94f0a222134751898a1cf9a2286df0ff66e202971d02cc"
+        "89cd860350ad017551d8b7b6ca9fc9aca231846890ccb81cc1e130174fffb5c0"
     )
     assert _canonical(event) + b"\n" == literal_event_frame
     head_record = ledger._head_record(
@@ -367,16 +593,16 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
         b'"operation_id":"op-golden","origin_id":"1111111111111111111111111111111111111111111111111111111111111111",'
         b'"prepared_record_sha256":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},'
         b'"previous_record_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","record_index":3,'
-        b'"record_sha256":"c0586d5c91199880d714ea7f3fc4c25206ceba4ccaac2bd2a91b53f3f91014e5",'
-        b'"record_type":"head-committed","schema_version":"izanagi-reflux-origin-runtime-head/v1"}\n'
+        b'"record_sha256":"1a769b02032b499194eef7d41045d8b9efa9c9742c37a981ec0632c309e858cb",'
+        b'"record_type":"head-committed","schema_version":"izanagi-reflux-origin-runtime-head/v2"}\n'
     )
     literal_head_core = literal_head_frame.replace(
-        b',"record_sha256":"c0586d5c91199880d714ea7f3fc4c25206ceba4ccaac2bd2a91b53f3f91014e5"',
+        b',"record_sha256":"1a769b02032b499194eef7d41045d8b9efa9c9742c37a981ec0632c309e858cb"',
         b"",
         1,
     )[:-1]
     assert hashlib.sha256(literal_head_core).hexdigest() == (
-        "c0586d5c91199880d714ea7f3fc4c25206ceba4ccaac2bd2a91b53f3f91014e5"
+        "1a769b02032b499194eef7d41045d8b9efa9c9742c37a981ec0632c309e858cb"
     )
     assert _canonical(head_record) + b"\n" == literal_head_frame
     state = ledger._SemanticState()
@@ -402,8 +628,24 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
         "origins": [],
     }
     assert observed_state == hashlib.sha256(
-        b"izanagi-reflux-origin-state/v1\0" + _canonical(state_preimage)
+        b"izanagi-reflux-origin-state/v2\0" + _canonical(state_preimage)
     ).hexdigest()
+    member_preimage = (
+        b'izanagi-reflux-origin-batch-member/v1\x00'
+        b'{"candidate_wire_b64":"MTAwMDA=","query_ordinal":7,"replicate_ordinal":3}'
+    )
+    assert ledger._member_preimage(b"10000", 7, 3) == member_preimage
+    assert hashlib.sha256(bytes.fromhex("1" * 32) + member_preimage).hexdigest() == (
+        "d78528f3300907292606b2c929da1e17637707af4dbdb80a511b711465ae7a39"
+    )
+    result_preimage = (
+        b'izanagi-reflux-origin-result-evidence/v1\x00'
+        b'{"evidence_sha256":null,"outcome":"tombstoned"}'
+    )
+    assert ledger._result_evidence_preimage("tombstoned", None) == result_preimage
+    assert hashlib.sha256(bytes.fromhex("3" * 32) + result_preimage).hexdigest() == (
+        "145a9fb91d76254d933846f06a9dd3e53c80e95eaf34e15fe2faff8e7d7cf846"
+    )
     assert state.phase == "EMPTY"
     receipt = ledger.EventReceipt(_h("1"), "op-golden", 7, _h("2"), _h("3"), _h("4"), False)
     assert dataclasses.asdict(receipt) == {
@@ -413,20 +655,28 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
     }
 
 
-def test_v02_exact_five_phase_six_event_transition_matrix() -> None:
-    """V2: allowed branches と全 phase/event pair の reject を別々に固定。"""
+def test_v02_exact_five_phase_five_event_transition_matrix_and_no_legacy_tombstone() -> None:
+    """V2: all terminal batches use committed -> prepared -> sealed."""
+    assert "BatchTombstoned" not in ledger.__all__
+    assert not hasattr(ledger, "BatchTombstoned")
+    assert all(
+        event_type.__name__ != "BatchTombstoned"
+        for event_type in ledger.OriginEvent.__args__
+    )
+    with Raises("unknown event type"):
+        ledger._event_from_payload(
+            "batch-tombstoned", {"batch_id": "legacy-batch"}
+        )
     manifest = _manifest()
     committed, prepared, sealed = _batch_events()
-    tombstone = ledger.BatchTombstoned("batch-0")
-    origin_seal = ledger.OriginSealed(True, (), 0, 0)
+    origin_seal = ledger.OriginSealed(True, (), 0, 0, 0, 0)
     genesis = None
-    events = (genesis, committed, prepared, sealed, tombstone, origin_seal)
+    events = (genesis, committed, prepared, sealed, origin_seal)
     allowed = {
         ("EMPTY", type(None)),
         ("IDLE", ledger.BatchCommitted),
         ("IDLE", ledger.OriginSealed),
         ("BATCH_COMMITTED", ledger.BatchResultsPrepared),
-        ("BATCH_COMMITTED", ledger.BatchTombstoned),
         ("RESULTS_PREPARED", ledger.BatchSealed),
     }
     builders: dict[str, Callable[[], ledger._SemanticState]] = {}
@@ -622,7 +872,10 @@ from pathlib import Path
 sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
 from campaign import reflux_origin_ledger as l
 s=l._store_for_repo(Path({os.fspath(process_repo)!r}),committed_ref='HEAD',fixture=True)
-e=l.BatchCommitted('process-batch',0,{process_event.candidate_commitments!r})
+e=l.BatchCommitted('process-batch',0,tuple(
+    l.CommittedBatchMember(*item) for item in
+    {tuple((member.query_ordinal, member.candidate_commitment) for member in process_event.members)!r}
+))
 if {probe!r}:
     probe_fd=os.open(s.lock_path,os.O_RDWR)
     try:
@@ -820,7 +1073,7 @@ def test_v05_prepared_changes_commitment_and_only_exact_request_resumes(tmp_path
     assert not operation_b_accepted
     assert _files(store, origin) == prepared_bytes
     altered = dataclasses.replace(
-        event, candidate_commitments=tuple(reversed(event.candidate_commitments))
+        event, members=tuple(reversed(event.members))
     )
     try:
         _commit(store, origin, "prepare-a", base, altered)
@@ -856,7 +1109,7 @@ def test_v06_historic_replay_and_committed_operation_identity(tmp_path: Path) ->
     assert _files(store, origin) == before
     with Raises("reuse mismatch"):
         _commit(store, origin, "operation-a", receipt_a.current_state_commitment, first)
-    altered = ledger.BatchCommitted(first.batch_id, first.iteration_index, tuple(reversed(first.candidate_commitments)))
+    altered = ledger.BatchCommitted(first.batch_id, first.iteration_index, tuple(reversed(first.members)))
     with Raises("reuse mismatch"):
         _commit(store, origin, "operation-a", base_a, altered)
     with Raises("reserved"):
@@ -886,16 +1139,24 @@ def test_v07_batch_prefix_cardinality_distinctness_and_single_inflight(tmp_path:
     first = _batch_events()[0]
     base = _snapshot(store, origin).state_commitment
     receipt = _commit(store, origin, "batch-first", base, first)
-    second = ledger.BatchCommitted("batch-1", 1, (_h("1"), _h("2")))
+    second = ledger.BatchCommitted("batch-1", 1, (
+        ledger.CommittedBatchMember(2, _h("1")),
+        ledger.CommittedBatchMember(3, _h("2")),
+    ))
     with Raises("current phase"):
         _commit(store, origin, "batch-second", receipt.current_state_commitment, second)
-    invalid_one = ledger.BatchCommitted("one", 0, (_h("1"),))
+    invalid_one = ledger.BatchCommitted(
+        "one", 0, (ledger.CommittedBatchMember(0, _h("1")),)
+    )
     fresh_repo, (fresh_origin,) = _repo(tmp_path / "fresh")
     fresh = _store(fresh_repo)
     fresh_base = _snapshot(fresh, fresh_origin).state_commitment
     with Raises("candidate commitments"):
         _commit(fresh, fresh_origin, "one", fresh_base, invalid_one)
-    duplicate = ledger.BatchCommitted("duplicate", 0, (_h("1"), _h("1")))
+    duplicate = ledger.BatchCommitted("duplicate", 0, (
+        ledger.CommittedBatchMember(0, _h("1")),
+        ledger.CommittedBatchMember(1, _h("1")),
+    ))
     with Raises("candidate commitments"):
         _commit(fresh, fresh_origin, "duplicate", fresh_base, duplicate)
     with Raises("batch minimum"):
@@ -906,13 +1167,15 @@ def test_v08_tombstone_no_refund_cardinality_accounting_and_no_provider(tmp_path
     """V8 / M-N7: Q は cardinality 件、tombstone 後も I/Q は返却しない。"""
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
-    committed = _batch_events()[0]
-    receipts = _commit_sequence(
-        store, origin, (committed, ledger.BatchTombstoned("batch-0")), "tomb"
+    tombstoned = _batch_events(
+        outcomes=("tombstoned", "tombstoned"), constraints=(None, None)
     )
+    receipts = _commit_sequence(store, origin, tombstoned, "tomb")
     snap = _snapshot(store, origin)
     assert snap.iterations_used == 1
     assert snap.queries_used == 2
+    assert snap.sealed_queries == 0
+    assert snap.tombstoned_queries == 2
     assert snap.tombstone_count == 1
     assert receipts[-1].current_state_commitment == snap.state_commitment
     source = Path(ledger.__file__).read_text(encoding="utf-8")
@@ -932,7 +1195,10 @@ import os,sys
 sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
 from campaign import reflux_origin_ledger as l
 s=l._fixture_store_for_test({os.fspath(repo)!r},'HEAD',initialize=False)
-e=l.BatchCommitted('batch-0',0,{committed.candidate_commitments!r})
+e=l.BatchCommitted('batch-0',0,tuple(
+    l.CommittedBatchMember(*item) for item in
+    {tuple((member.query_ordinal, member.candidate_commitment) for member in committed.members)!r}
+))
 def hook(label):
     if label=={point!r}: os._exit(73)
 l._FAULT_HOOK=hook
@@ -1359,11 +1625,12 @@ def test_v13_global_chain_interleave_delete_reorder_and_cross_binding(tmp_path: 
             "iterations_used": 1,
             "queries_used": 2,
             "sealed_queries": 0,
+            "tombstoned_queries": 0,
             "batch_count": 1,
             "tombstone_count": 0,
             "open_batch": {
                 "batch_id": batch_id,
-                "candidate_commitments": committed_payload["candidate_commitments"],
+                "members": committed_payload["members"],
             },
             "sealed_batch_ids": [],
             "seen_batch_ids": [batch_id],
@@ -1389,7 +1656,7 @@ def test_v13_global_chain_interleave_delete_reorder_and_cross_binding(tmp_path: 
         ] for item_origin in sorted((origin_a, origin_b))],
     }
     rewritten_base = hashlib.sha256(
-        b"izanagi-reflux-origin-state/v1\0" + _canonical(global_base_preimage)
+        b"izanagi-reflux-origin-state/v2\0" + _canonical(global_base_preimage)
     ).hexdigest()
     a2_event = origin_event_records[origin_a][2]
     rewritten_request = hashlib.sha256(_canonical({
@@ -1413,7 +1680,9 @@ def test_v13_global_chain_interleave_delete_reorder_and_cross_binding(tmp_path: 
         _snapshot(store, origin_a)
 
 
-def test_v14_independent_i_q_k_floor_boundaries_and_aborted_seal(tmp_path: Path) -> None:
+def test_v14_i_q_k_sealed_evidence_row_proxy_floor_not_physical_query_and_aborted_seal(
+    tmp_path: Path,
+) -> None:
     """V14 / M-A3/M-N8/M-N13: I/Q/K と floor を独立値で境界検査。"""
     invalid = _manifest_object(floor_per_round=0)
     with Raises():
@@ -1435,7 +1704,7 @@ def test_v14_independent_i_q_k_floor_boundaries_and_aborted_seal(tmp_path: Path)
     })
     with Raises("outside authority budget"):
         _manifest(first_only)
-    with Raises("query floor exceeds codec feasibility"):
+    with Raises("partitioned"):
         _manifest(_manifest_object(
             imax=1,
             qmax=ledger._MAX_BATCH_CARDINALITY + 1,
@@ -1448,67 +1717,69 @@ def test_v14_independent_i_q_k_floor_boundaries_and_aborted_seal(tmp_path: Path)
             batch_min=ledger._MAX_BATCH_CARDINALITY + 1,
             floor_per_round=ledger._MAX_BATCH_CARDINALITY + 1,
         ))
-    with Raises("Qmax exceeds codec feasibility"):
+    with Raises("partitioned"):
         _manifest(_manifest_object(imax=1, qmax=ledger._MAX_BATCH_CARDINALITY + 1))
     with Raises("Kmax exceeds codec feasibility"):
         _manifest(_manifest_object(kmax=ledger._MAX_CLASS_CARDINALITY + 1))
-    exact_boundary = _manifest_object(
-        imax=1,
-        qmax=3912,
-        batch_min=3912,
-        floor_per_round=3912,
+    partitioned = _manifest_object(
+        imax=2,
+        qmax=ledger._MAX_BATCH_CARDINALITY + 1,
+        batch_min=2,
+        floor_per_round=ledger._MAX_BATCH_CARDINALITY + 1,
     )
-    with Raises("batch minimum exceeds codec feasibility"):
-        _manifest(exact_boundary)
+    _manifest(partitioned)
     raw = _manifest_object(imax=1, qmax=4, kmax=0)
     repo, (origin,) = _repo(tmp_path, [raw])
     store = _store(repo)
     committed, prepared, sealed = _batch_events(outcomes=("accepted", "accepted"), constraints=(None, None))
     receipts = _commit_sequence(store, origin, (committed, prepared, sealed), "limits")
-    cert = ledger.OriginSealed(False, (), 1, 0)
+    cert = ledger.OriginSealed(False, (), 1, 0, 2, 0)
     _commit(store, origin, "certifiable", receipts[-1].current_state_commitment, cert)
     over_repo, (over_origin,) = _repo(tmp_path / "over", [raw])
     over = _store(over_repo)
-    first_receipt = _commit(over, over_origin, "first", _snapshot(over, over_origin).state_commitment, committed)
-    tomb_receipt = _commit(over, over_origin, "first-tomb", first_receipt.current_state_commitment,
-                           ledger.BatchTombstoned("batch-0"))
+    full_tombstone = _batch_events(
+        outcomes=("tombstoned", "tombstoned"), constraints=(None, None)
+    )
+    tomb_receipts = _commit_sequence(over, over_origin, full_tombstone, "first")
     with Raises("Imax"):
-        _commit(over, over_origin, "second", tomb_receipt.current_state_commitment,
-                ledger.BatchCommitted("batch-1", 1, (_h("1"), _h("2"))))
+        _commit(over, over_origin, "second", tomb_receipts[-1].current_state_commitment,
+                _batch_events("batch-1", iteration=1, query_start=2)[0])
     qraw = _manifest_object(imax=2, qmax=2)
     qrepo, (qorigin,) = _repo(tmp_path / "q-over", [qraw])
     qstore = _store(qrepo)
-    qfirst = _commit(qstore, qorigin, "q-first", _snapshot(qstore, qorigin).state_commitment, committed)
-    qtomb = _commit(qstore, qorigin, "q-tomb", qfirst.current_state_commitment,
-                    ledger.BatchTombstoned("batch-0"))
+    qtomb = _commit_sequence(qstore, qorigin, full_tombstone, "q")[-1]
     with Raises("Qmax"):
         _commit(qstore, qorigin, "q-second", qtomb.current_state_commitment,
-                ledger.BatchCommitted("batch-1", 1, (_h("1"), _h("2"))))
+                _batch_events("batch-1", iteration=1, query_start=2)[0])
     low = _manifest_object(imax=2, qmax=4, floor_per_round=4)
     low_repo, (low_origin,) = _repo(tmp_path / "low", [low])
     low_store = _store(low_repo)
-    tomb_receipts = _commit_sequence(
-        low_store, low_origin,
-        (_batch_events()[0], ledger.BatchTombstoned("batch-0")), "low"
-    )
+    tomb_receipts = _commit_sequence(low_store, low_origin, full_tombstone, "low")
     second_tomb = _commit_sequence(
         low_store,
         low_origin,
-        (_batch_events("batch-1", iteration=1)[0], ledger.BatchTombstoned("batch-1")),
+        _batch_events(
+            "batch-1", iteration=1, query_start=2,
+            prior_replicates={b"10000": 1, b"01000": 1},
+            outcomes=("tombstoned", "tombstoned"), constraints=(None, None),
+        ),
         "low-second",
     )
+    tombstoned_floor = _snapshot(low_store, low_origin)
+    assert tombstoned_floor.sealed_queries == 0
+    assert tombstoned_floor.tombstoned_queries == 4
     with Raises("floor"):
         _commit(low_store, low_origin, "early-cert", second_tomb[-1].current_state_commitment,
-                ledger.OriginSealed(False, (), 2, 2))
+                ledger.OriginSealed(False, (), 2, 2, 0, 4))
     _commit(low_store, low_origin, "abort", second_tomb[-1].current_state_commitment,
-            ledger.OriginSealed(True, (), 2, 2))
+            ledger.OriginSealed(True, (), 2, 2, 0, 4))
     kraw = _manifest_object(imax=1, qmax=2, kmax=0)
     krepo, (korigin,) = _repo(tmp_path / "k-over", [kraw])
     kstore = _store(krepo)
     kreceipts = _commit_sequence(kstore, korigin, _batch_events(), "k")
     with Raises("Kmax"):
         _commit(kstore, korigin, "k-seal", kreceipts[-1].current_state_commitment,
-                ledger.OriginSealed(False, (_h("d"),), 1, 0))
+                ledger.OriginSealed(False, (_h("d"),), 1, 0, 2, 0))
 
 
 def test_v15_strict_authority_event_json_paths_types_and_limits(tmp_path: Path) -> None:
@@ -1532,7 +1803,7 @@ def test_v15_strict_authority_event_json_paths_types_and_limits(tmp_path: Path) 
     malformed = json.loads(json.dumps(raw)); malformed["ccbench_commit_oid"] = "2" * 39
     with Raises("CCBench commit OID"):
         _manifest(malformed)
-    duplicate = b'{"authority_schema":"izanagi-reflux-origin-authority/v1","origins":[],"origins":[]}\n'
+    duplicate = b'{"authority_schema":"izanagi-reflux-origin-authority/v2","origins":[],"origins":[]}\n'
     with Raises("duplicate"):
         ledger._authority_from_bytes(duplicate)
     missing_authority = _canonical({"authority_schema": ledger.AUTHORITY_SCHEMA_ID}) + b"\n"
@@ -1569,7 +1840,7 @@ def test_v15_strict_authority_event_json_paths_types_and_limits(tmp_path: Path) 
     ancestor_case.mkdir()
     ancestor_repo, (ancestor_origin,) = _repo(ancestor_case)
     ancestor_store = _store(ancestor_repo)
-    real_runtime = ancestor_store.runtime_root.with_name("v1-real")
+    real_runtime = ancestor_store.runtime_root.with_name("v2-real")
     ancestor_store.runtime_root.rename(real_runtime)
     ancestor_store.runtime_root.symlink_to(real_runtime.name)
     with Raises("real directory"):
@@ -1676,22 +1947,30 @@ def test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle(tmp_path
     assert len(set(possible_plaintexts)) == 32
     assert all(repr(assignment) not in visible for assignment in possible_plaintexts)
     assert "accepted" not in visible and "rejected" not in visible
-    assert "result_sha256s" not in visible and "constraint_sha256s" not in visible
+    assert "evidence_digest" not in visible and "constraint_sha256" not in visible
     with Raises("not sealed"):
         with ledger._locked(store) as authority:
             ledger._read_sealed_batch_locked(store, authority, origin, "batch-0")
-    wrong = dataclasses.replace(sealed, candidate_salts=tuple(reversed(sealed.candidate_salts)))
+    wrong = dataclasses.replace(
+        sealed,
+        members=(
+            dataclasses.replace(
+                sealed.members[0], candidate_salt="f" * 32
+            ),
+            sealed.members[1],
+        ),
+    )
     with Raises("opening mismatch"):
         _commit(store, origin, "wrong-open", second.current_state_commitment, wrong)
     third = _commit(store, origin, "positive-2", second.current_state_commitment, sealed)
     with ledger._locked(store) as authority:
         revealed = ledger._read_sealed_batch_locked(store, authority, origin, "batch-0")
-    assert revealed.outcomes == ("accepted", "rejected")
-    partial = ledger.OriginSealed(False, (), 1, 0)
+    assert tuple(member.outcome for member in revealed.members) == ("accepted", "rejected")
+    partial = ledger.OriginSealed(False, (), 1, 0, 2, 0)
     with Raises("exact rejected set"):
         _commit(store, origin, "partial-class", third.current_state_commitment, partial)
     final = _commit(store, origin, "positive-3", third.current_state_commitment,
-                    ledger.OriginSealed(False, (_h("d"),), 1, 0))
+                    ledger.OriginSealed(False, (_h("d"),), 1, 0, 2, 0))
     assert _snapshot(store, origin).terminal_status == "certifiable"
     assert final.event_index == 4
     order_repo, (order_origin,) = _repo(tmp_path / "result-order")
@@ -1705,7 +1984,7 @@ def test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle(tmp_path
         ordered[0],
     )
     misordered_prepared = dataclasses.replace(
-        ordered[1], candidate_commitments=tuple(reversed(ordered[1].candidate_commitments))
+        ordered[1], members=tuple(reversed(ordered[1].members))
     )
     with Raises("do not match"):
         _commit(
@@ -1723,11 +2002,18 @@ def test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle(tmp_path
         ordered[1],
     )
     reveal = ordered[2]
-    misordered = dataclasses.replace(
-        reveal,
-        result_salts=tuple(reversed(reveal.result_salts)),
-        result_sha256s=tuple(reversed(reveal.result_sha256s)),
-    )
+    misordered = dataclasses.replace(reveal, members=(
+        dataclasses.replace(
+            reveal.members[0],
+            result_evidence_salt=reveal.members[1].result_evidence_salt,
+            evidence_digest=reveal.members[1].evidence_digest,
+        ),
+        dataclasses.replace(
+            reveal.members[1],
+            result_evidence_salt=reveal.members[0].result_evidence_salt,
+            evidence_digest=reveal.members[0].evidence_digest,
+        ),
+    ))
     with Raises("opening mismatch"):
         _commit(order_store, order_origin, "misordered-result",
                 order_second.current_state_commitment, misordered)
@@ -1758,13 +2044,19 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
 
     prior_head = [json.loads(line) for line in head_before.splitlines()]
     prior_events = [json.loads(line) for line in origin_before.splitlines()]
-    prepared_payload = prior_events[-1]["payload"]
+    prepared_payload = {
+        "batch_id": prepared.batch_id,
+        "members": [{
+            "candidate_commitment": member.candidate_commitment,
+            "constraint_commitment": member.constraint_commitment,
+            "query_ordinal": member.query_ordinal,
+            "result_evidence_commitment": member.result_evidence_commitment,
+        } for member in prepared.members],
+    }
+    assert prior_events[-1]["payload"] == prepared_payload
     observer_projection = {
         "batch_id": "batch-0",
-        "candidate_commitments": prepared_payload["candidate_commitments"],
-        "outcome_commitments": prepared_payload["outcome_commitments"],
-        "result_commitments": prepared_payload["result_commitments"],
-        "constraint_commitments": prepared_payload["constraint_commitments"],
+        "members": prepared_payload["members"],
     }
     request_sha = hashlib.sha256(_canonical({
         "base_state_commitment": clean_base,
@@ -1774,7 +2066,7 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "payload": observer_projection,
     })).hexdigest()
     binding_sha = hashlib.sha256(_canonical({
-        "schema_version": "izanagi-reflux-origin-event/v1",
+        "schema_version": "izanagi-reflux-origin-event/v2",
         "event_index": 3,
         "previous_event_sha256": prior_events[-1]["event_sha256"],
         "origin_id": origin,
@@ -1786,9 +2078,7 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "phase": "IDLE",
         "iterations_used": 1,
         "queries_used": 2,
-        "sealed_queries": 2,
         "batch_count": 1,
-        "tombstone_count": 0,
         "open_batch": None,
         "sealed_batch_ids": ["batch-0"],
         "seen_batch_ids": ["batch-0"],
@@ -1807,7 +2097,7 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "prospective_public_state_sha256": prospective_sha,
     }
     prepared_core = {
-        "schema_version": "izanagi-reflux-origin-runtime-head/v1",
+        "schema_version": "izanagi-reflux-origin-runtime-head/v2",
         "record_index": len(prior_head),
         "previous_record_sha256": prior_head[-1]["record_sha256"],
         "record_type": "head-prepared",
@@ -1823,14 +2113,12 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "iterations_used": 1,
         "queries_used": 2,
         "sealed_queries": 0,
+        "tombstoned_queries": 0,
         "batch_count": 1,
         "tombstone_count": 0,
         "open_batch": {
             "batch_id": "batch-0",
-            "candidate_commitments": prepared_payload["candidate_commitments"],
-            "outcome_commitments": prepared_payload["outcome_commitments"],
-            "result_commitments": prepared_payload["result_commitments"],
-            "constraint_commitments": prepared_payload["constraint_commitments"],
+            "members": prepared_payload["members"],
         },
         "sealed_batch_ids": [],
         "seen_batch_ids": ["batch-0"],
@@ -1856,7 +2144,7 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         ]],
     }
     independent_commitment = hashlib.sha256(
-        b"izanagi-reflux-origin-state/v1\0" + _canonical(state_preimage)
+        b"izanagi-reflux-origin-state/v2\0" + _canonical(state_preimage)
     ).hexdigest()
     prepared_snapshot = _snapshot(store, origin)
     assert prepared_snapshot.state_commitment == independent_commitment
@@ -1867,7 +2155,7 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "prepared_request_sha256": None,
     })
     assert independent_commitment != hashlib.sha256(
-        b"izanagi-reflux-origin-state/v1\0" + _canonical(without_prepared)
+        b"izanagi-reflux-origin-state/v2\0" + _canonical(without_prepared)
     ).hexdigest()
     sealed_receipt = _commit(store, origin, "privacy-seal", clean_base, sealed)
     assert sealed_receipt.event_index == 3
@@ -1879,11 +2167,14 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
     salt_receipts = _commit_sequence(
         salt_store, salt_origin, (salt_committed, salt_prepared), "salt-a"
     )
-    all_salts = (
-        *salt_sealed.candidate_salts,
-        *salt_sealed.outcome_salts,
-        *salt_sealed.result_salts,
-        *salt_sealed.constraint_salts,
+    all_salts = tuple(
+        salt
+        for member in salt_sealed.members
+        for salt in (
+            member.candidate_salt,
+            member.result_evidence_salt,
+            member.constraint_salt,
+        )
     )
     assert len(all_salts) == len(set(all_salts))
     with Raises("all-zero"):
@@ -1892,10 +2183,10 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
             salt_origin,
             "zero-salt",
             salt_receipts[-1].current_state_commitment,
-            dataclasses.replace(
-                salt_sealed,
-                candidate_salts=("00" * 16, *salt_sealed.candidate_salts[1:]),
-            ),
+            dataclasses.replace(salt_sealed, members=(
+                dataclasses.replace(salt_sealed.members[0], candidate_salt="00" * 16),
+                salt_sealed.members[1],
+            )),
         )
     with Raises("invalid candidate salt"):
         _commit(
@@ -1903,10 +2194,10 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
             salt_origin,
             "short-salt",
             salt_receipts[-1].current_state_commitment,
-            dataclasses.replace(
-                salt_sealed,
-                candidate_salts=("11" * 15, *salt_sealed.candidate_salts[1:]),
-            ),
+            dataclasses.replace(salt_sealed, members=(
+                dataclasses.replace(salt_sealed.members[0], candidate_salt="11" * 15),
+                salt_sealed.members[1],
+            )),
         )
     with Raises("reused"):
         _commit(
@@ -1914,10 +2205,13 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
             salt_origin,
             "duplicate-salt",
             salt_receipts[-1].current_state_commitment,
-            dataclasses.replace(
-                salt_sealed,
-                constraint_salts=(salt_sealed.candidate_salts[0], *salt_sealed.constraint_salts[1:]),
-            ),
+            dataclasses.replace(salt_sealed, members=(
+                dataclasses.replace(
+                    salt_sealed.members[0],
+                    constraint_salt=salt_sealed.members[0].candidate_salt,
+                ),
+                salt_sealed.members[1],
+            )),
         )
     first_seal = _commit(
         salt_store,
@@ -1926,7 +2220,10 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         salt_receipts[-1].current_state_commitment,
         salt_sealed,
     )
-    second_events = _batch_events("salt-b", iteration=1)
+    second_events = _batch_events(
+        "salt-b", iteration=1, query_start=2,
+        prior_replicates={b"10000": 1, b"01000": 1},
+    )
     second_receipts = _commit_sequence(
         salt_store, salt_origin, second_events[:2], "salt-b"
     )
@@ -1937,10 +2234,597 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
             salt_origin,
             "cross-batch-salt",
             second_receipts[-1].current_state_commitment,
-            dataclasses.replace(
-                second_events[2],
-                candidate_salts=(salt_sealed.candidate_salts[0], *second_events[2].candidate_salts[1:]),
+            dataclasses.replace(second_events[2], members=(
+                dataclasses.replace(
+                    second_events[2].members[0],
+                    candidate_salt=salt_sealed.members[0].candidate_salt,
+                ),
+                second_events[2].members[1],
+            )),
+        )
+
+
+def test_v17_member_identity_replicates_and_sealed_evidence_row_proxy_not_physical_query(
+    tmp_path: Path,
+) -> None:
+    """W2: wire/q/r preimage, origin-wide replicate, and row-count accounting."""
+    literal = (
+        b'izanagi-reflux-origin-batch-member/v1\x00'
+        b'{"candidate_wire_b64":"MTAwMDA=","query_ordinal":0,"replicate_ordinal":0}'
+    )
+    assert _member_bytes(b"10000", 0, 0) == literal
+    assert ledger._member_preimage(b"10000", 0, 0) == literal
+    variants = {
+        ledger._member_preimage(b"01000", 0, 0),
+        ledger._member_preimage(b"10000", 1, 0),
+        ledger._member_preimage(b"10000", 0, 1),
+    }
+    assert literal not in variants and len(variants) == 3
+    salt = "1" * 32
+    assert len({_salted(salt, item) for item in {*variants, literal}}) == 4
+
+    repo, (origin,) = _repo(tmp_path / "positive")
+    store = _store(repo)
+    first = _batch_events(
+        candidates=(b"10000", b"10000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+    )
+    first_receipts = _commit_sequence(store, origin, first, "repeat-a")
+    second = _batch_events(
+        "batch-1",
+        iteration=1,
+        candidates=(b"10000", b"10000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+        query_start=2,
+        prior_replicates={b"10000": 2},
+    )
+    _commit_sequence(store, origin, second, "repeat-b")
+    snap = _snapshot(store, origin)
+    assert snap.queries_used == 4
+    assert snap.sealed_queries == 4
+    with ledger._locked(store) as authority:
+        opened = ledger._read_sealed_batch_locked(store, authority, origin, "batch-1")
+    assert tuple(member.replicate_ordinal for member in opened.members) == (2, 3)
+    reset = _batch_events(
+        "batch-2",
+        iteration=2,
+        candidates=(b"10000", b"10000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+        query_start=4,
+    )
+    reset_ready = _commit_sequence(store, origin, reset[:2], "repeat-reset")[-1]
+    with Raises("replicate ordinal"):
+        _commit(
+            store,
+            origin,
+            "repeat-reset-seal",
+            reset_ready.current_state_commitment,
+            reset[2],
+        )
+
+    for name, mutate in (
+        ("gap", lambda event: dataclasses.replace(
+            event,
+            members=(
+                event.members[0],
+                dataclasses.replace(event.members[1], query_ordinal=2),
             ),
+        )),
+        ("duplicate-query", lambda event: dataclasses.replace(
+            event,
+            members=(
+                event.members[0],
+                dataclasses.replace(event.members[1], query_ordinal=0),
+            ),
+        )),
+        ("duplicate-commitment", lambda event: dataclasses.replace(
+            event,
+            members=(
+                event.members[0],
+                dataclasses.replace(
+                    event.members[1],
+                    candidate_commitment=event.members[0].candidate_commitment,
+                ),
+            ),
+        )),
+    ):
+        case_repo, (case_origin,) = _repo(tmp_path / name)
+        case_store = _store(case_repo)
+        event = mutate(_batch_events()[0])
+        with Raises():
+            _commit(
+                case_store,
+                case_origin,
+                name,
+                _snapshot(case_store, case_origin).state_commitment,
+                event,
+            )
+
+    replicate_repo, (replicate_origin,) = _repo(tmp_path / "bad-replicate")
+    replicate_store = _store(replicate_repo)
+    events = _batch_events()
+    ready = _commit_sequence(replicate_store, replicate_origin, events[:2], "rep")[-1]
+    bad_replicate = dataclasses.replace(events[2], members=(
+        dataclasses.replace(events[2].members[0], replicate_ordinal=1),
+        events[2].members[1],
+    ))
+    with Raises("replicate ordinal"):
+        _commit(
+            replicate_store,
+            replicate_origin,
+            "bad-replicate-open",
+            ready.current_state_commitment,
+            bad_replicate,
+        )
+
+    for name, outcomes in (
+        ("bad-wire-sealed", ("accepted", "accepted")),
+        ("bad-wire-tombstoned", ("tombstoned", "tombstoned")),
+    ):
+        bad_repo, (bad_origin,) = _repo(tmp_path / name)
+        bad_store = _store(bad_repo)
+        bad = _batch_events(
+            candidates=(b"1000", b"01000"),
+            outcomes=outcomes,
+            constraints=(None, None),
+        )
+        ready = _commit_sequence(bad_store, bad_origin, bad[:2], name)[-1]
+        with Raises("candidate IR wire"):
+            _commit(
+                bad_store,
+                bad_origin,
+                f"{name}-seal",
+                ready.current_state_commitment,
+                bad[2],
+            )
+
+
+def test_v18_evidence_outcome_contract_and_fixed_member_tombstones(
+    tmp_path: Path,
+) -> None:
+    """W3/W4: closed matrix at codec+reducer and fixed suffix tombstones."""
+    valid = _batch_events()
+    _, sealed_payload = ledger._event_payload(valid[2])
+    for altered_member in (
+        {**sealed_payload["members"][0], "extra": 1},
+        {
+            key: value
+            for key, value in sealed_payload["members"][0].items()
+            if key != "candidate_salt"
+        },
+        {**sealed_payload["members"][0], "query_ordinal": True},
+        {**sealed_payload["members"][0], "replicate_ordinal": -1},
+        {**sealed_payload["members"][0], "evidence_sha256": "F" * 64},
+    ):
+        with Raises():
+            ledger._event_from_payload(
+                "batch-sealed",
+                {
+                    **sealed_payload,
+                    "members": [altered_member, sealed_payload["members"][1]],
+                },
+            )
+    manifest = _manifest()
+    def prepared_state(events: tuple[object, object, object]) -> ledger._SemanticState:
+        state = ledger._SemanticState()
+        ledger._apply_event(state, None, manifest=manifest, origin_id=_h("1"))
+        ledger._apply_event(state, events[0], manifest=manifest, origin_id=_h("1"))
+        ledger._apply_event(state, events[1], manifest=manifest, origin_id=_h("1"))
+        return state
+
+    def events_for_cell(
+        outcome: str,
+        evidence_sha256: str | None,
+        constraint_sha256: str | None,
+    ) -> tuple[object, object, object]:
+        opened = dataclasses.replace(
+            valid[2].members[1],
+            outcome=outcome,
+            evidence_digest=(
+                None
+                if evidence_sha256 is None
+                else ledger.EvidenceDigest(evidence_sha256)
+            ),
+            constraint_sha256=constraint_sha256,
+        )
+        prepared = dataclasses.replace(
+            valid[1].members[1],
+            result_evidence_commitment=_salted(
+                opened.result_evidence_salt,
+                _result_bytes(outcome, evidence_sha256),
+            ),
+            constraint_commitment=_salted(
+                opened.constraint_salt,
+                b"" if constraint_sha256 is None else constraint_sha256.encode("ascii"),
+            ),
+        )
+        return (
+            valid[0],
+            dataclasses.replace(
+                valid[1], members=(valid[1].members[0], prepared)
+            ),
+            dataclasses.replace(
+                valid[2], members=(valid[2].members[0], opened)
+            ),
+        )
+
+    # Complete 3 outcomes x evidence-present/missing x constraint-present/missing
+    # contract.  The same table drives encode/decode and the reducer directly.
+    matrix = (
+        ("accepted-evidence-no-constraint", "accepted", _h("f"), None, True),
+        ("accepted-evidence-constraint", "accepted", _h("f"), _h("d"), False),
+        ("accepted-no-evidence-no-constraint", "accepted", None, None, False),
+        ("accepted-no-evidence-constraint", "accepted", None, _h("d"), False),
+        ("rejected-evidence-constraint", "rejected", _h("f"), _h("d"), True),
+        ("rejected-evidence-no-constraint", "rejected", _h("f"), None, False),
+        ("rejected-no-evidence-constraint", "rejected", None, _h("d"), False),
+        ("rejected-no-evidence-no-constraint", "rejected", None, None, False),
+        ("tombstoned-no-evidence-no-constraint", "tombstoned", None, None, True),
+        ("tombstoned-no-evidence-constraint", "tombstoned", None, _h("d"), False),
+        ("tombstoned-evidence-no-constraint", "tombstoned", _h("f"), None, False),
+        ("tombstoned-evidence-constraint", "tombstoned", _h("f"), _h("d"), False),
+    )
+    assert len(matrix) == 12
+    assert sum(1 for *_, legal in matrix if legal) == 3
+    for label, outcome, evidence_sha, constraint_sha, legal in matrix:
+        events = events_for_cell(outcome, evidence_sha, constraint_sha)
+        raw_member = {
+            **sealed_payload["members"][1],
+            "outcome": outcome,
+            "evidence_sha256": evidence_sha,
+            "constraint_sha256": constraint_sha,
+        }
+        raw_payload = {
+            **sealed_payload,
+            "members": [sealed_payload["members"][0], raw_member],
+        }
+        if legal:
+            event_type, payload = ledger._event_payload(events[2])
+            assert ledger._event_from_payload(event_type, payload) == events[2], label
+            assert ledger._event_from_payload("batch-sealed", raw_payload) == events[2], label
+            state = prepared_state(events)
+            ledger._apply_event(
+                state, events[2], manifest=manifest, origin_id=_h("1")
+            )
+            assert state.phase == "IDLE", label
+        else:
+            with Raises():
+                ledger._event_payload(events[2])
+            with Raises():
+                ledger._event_from_payload("batch-sealed", raw_payload)
+            state = prepared_state(events)
+            with Raises():
+                ledger._apply_event(
+                    state, events[2], manifest=manifest, origin_id=_h("1")
+                )
+
+    unknown = events_for_cell("unknown", _h("f"), None)
+    unknown_payload = {
+        **sealed_payload,
+        "members": [
+            sealed_payload["members"][0],
+            {
+                **sealed_payload["members"][1],
+                "outcome": "unknown",
+                "constraint_sha256": None,
+            },
+        ],
+    }
+    with Raises("invalid sealed outcome"):
+        ledger._event_payload(unknown[2])
+    with Raises("invalid sealed outcome"):
+        ledger._event_from_payload("batch-sealed", unknown_payload)
+    with Raises("invalid sealed outcome"):
+        ledger._apply_event(
+            prepared_state(unknown), unknown[2], manifest=manifest, origin_id=_h("1")
+        )
+
+    state = prepared_state(valid)
+    with Raises("partial"):
+        ledger._apply_event(
+            state,
+            dataclasses.replace(valid[2], members=valid[2].members[:1]),
+            manifest=manifest,
+            origin_id=_h("1"),
+        )
+
+    repo, (origin,) = _repo(tmp_path / "tamper")
+    store = _store(repo)
+    ready = _commit_sequence(store, origin, valid[:2], "tamper")[-1]
+    evidence_tamper = dataclasses.replace(valid[2], members=(
+        dataclasses.replace(
+            valid[2].members[0], evidence_digest=ledger.EvidenceDigest(_h("a"))
+        ),
+        valid[2].members[1],
+    ))
+    with Raises("opening mismatch"):
+        _commit(store, origin, "evidence-tamper", ready.current_state_commitment, evidence_tamper)
+    outcome_tamper = dataclasses.replace(valid[2], members=(
+        dataclasses.replace(
+            valid[2].members[0],
+            outcome="rejected",
+            constraint_sha256=_h("a"),
+        ),
+        valid[2].members[1],
+    ))
+    with Raises("opening mismatch"):
+        _commit(store, origin, "outcome-tamper", ready.current_state_commitment, outcome_tamper)
+
+    partial_repo, (partial_origin,) = _repo(tmp_path / "partial")
+    partial_store = _store(partial_repo)
+    partial = _batch_events(
+        outcomes=("accepted", "tombstoned"), constraints=(None, None)
+    )
+    _commit_sequence(partial_store, partial_origin, partial, "partial")
+    partial_snap = _snapshot(partial_store, partial_origin)
+    assert (partial_snap.queries_used, partial_snap.sealed_queries, partial_snap.tombstoned_queries) == (2, 1, 1)
+    assert partial_snap.tombstone_count == 1
+    with ledger._locked(partial_store) as authority:
+        rows = ledger._read_sealed_batch_locked(
+            partial_store, authority, partial_origin, "batch-0"
+        ).members
+    assert len(rows) == len(partial[0].members) == len(partial[1].members) == len(partial[2].members)
+    assert tuple(member.outcome for member in rows) == ("accepted", "tombstoned")
+
+    hole = _batch_events(
+        outcomes=("tombstoned", "accepted"), constraints=(None, None)
+    )
+    state = prepared_state(hole)
+    with Raises("terminal suffix"):
+        ledger._apply_event(
+            state, hole[2], manifest=manifest, origin_id=_h("1")
+        )
+
+
+def test_v19_authority_policy_and_sealed_evidence_row_proxy_partition_not_physical_query(
+    tmp_path: Path,
+) -> None:
+    """W5: event policy injection fails; authority and exact counters govern."""
+    committed = _batch_events()[0]
+    event_type, payload = ledger._event_payload(committed)
+    assert event_type == "batch-committed"
+    for key in ("qmax", "floor", "policy"):
+        with Raises("keys"):
+            ledger._event_from_payload(event_type, {**payload, key: 1})
+
+    repo, (origin,) = _repo(tmp_path)
+    store = _store(repo)
+    events = _batch_events()
+    receipts = _commit_sequence(store, origin, events, "policy")
+    with Raises("counters mismatch"):
+        _commit(
+            store,
+            origin,
+            "wrong-origin-counters",
+            receipts[-1].current_state_commitment,
+            ledger.OriginSealed(False, (_h("d"),), 1, 0, 1, 1),
+        )
+    assert dataclasses.fields(ledger.EvidenceDigest)[0].name == "sha256"
+    assert len(dataclasses.fields(ledger.EvidenceDigest)) == 1
+    assert not hasattr(ledger.EvidenceDigest, "path")
+
+
+def test_v20_preseal_projection_hides_execution_counters_and_replicates() -> None:
+    """Δ2/Δ3: prepared bytes reveal neither replicate structure nor prefix length."""
+    assert "replicate_ordinal" not in {
+        field.name for field in dataclasses.fields(ledger.CommittedBatchMember)
+    }
+    assert "replicate_ordinal" not in {
+        field.name for field in dataclasses.fields(ledger.PreparedBatchMember)
+    }
+    accepted = _batch_events(
+        outcomes=("accepted", "accepted"), constraints=(None, None)
+    )
+    partial = _batch_events(
+        outcomes=("accepted", "tombstoned"), constraints=(None, None)
+    )
+    for event in (accepted[0], partial[0]):
+        event_type, payload = ledger._event_payload(event)
+        assert event_type == "batch-committed"
+        assert "replicate_ordinal" not in repr(payload)
+        assert "member_sequence_commitment" not in payload
+    for event in (accepted[1], partial[1]):
+        _, payload = ledger._event_payload(event)
+        assert "replicate_ordinal" not in repr(payload)
+
+    manifest = _manifest()
+    def state_after(events: tuple[object, object, object]) -> ledger._SemanticState:
+        state = ledger._SemanticState()
+        for event in (None, *events):
+            ledger._apply_event(state, event, manifest=manifest, origin_id=_h("1"))
+        return state
+    accepted_state = state_after(accepted)
+    partial_state = state_after(partial)
+    assert accepted_state.sealed_queries == 2
+    assert partial_state.sealed_queries == 1
+    assert partial_state.tombstoned_queries == 1
+    assert ledger._preseal_semantic_sha(accepted_state) == ledger._preseal_semantic_sha(partial_state)
+
+    prepared_state = ledger._SemanticState()
+    for event in (None, accepted[0], accepted[1]):
+        ledger._apply_event(
+            prepared_state, event, manifest=manifest, origin_id=_h("1")
+        )
+    _, accepted_payload = ledger._event_payload(accepted[2])
+    _, partial_payload = ledger._event_payload(partial[2])
+    accepted_projection = ledger._prepared_payload_projection(
+        "batch-sealed", accepted_payload, state=prepared_state
+    )
+    partial_projection = ledger._prepared_payload_projection(
+        "batch-sealed", partial_payload, state=prepared_state
+    )
+    assert accepted_projection == partial_projection
+    projection_text = repr(accepted_projection)
+    assert "replicate_ordinal" not in projection_text
+    assert "sealed_queries" not in projection_text
+    assert "tombstoned_queries" not in projection_text
+
+
+def test_v21_exact_salt_width_and_independent_codec_partition_oracle() -> None:
+    """Δ6/Δ7/Δ8: literal salt width and independent max/max+1 v2 frames."""
+    assert ledger._salt("1" * 32, label="salt") == "1" * 32
+    for invalid in (
+        "1" * 31,
+        "1" * 33,
+        "1" * 34,
+        "g" * 32,
+        "0" * 32,
+    ):
+        with Raises():
+            ledger._salt(invalid, label="salt")
+
+    maximum_integer = (1 << 63) - 1
+    maximum_record_bytes = 1 << 20
+    def independent_rejected_seal_frame(cardinality: int) -> bytes:
+        member = {
+            "candidate_salt": "1" * 32,
+            "candidate_wire_b64": "MTExMTE=",
+            "constraint_salt": "1" * 32,
+            "constraint_sha256": _h("f"),
+            "evidence_sha256": _h("f"),
+            "outcome": "rejected",
+            "query_ordinal": maximum_integer,
+            "replicate_ordinal": maximum_integer,
+            "result_evidence_salt": "1" * 32,
+        }
+        core = {
+            "schema_version": "izanagi-reflux-origin-event/v2",
+            "event_index": maximum_integer,
+            "previous_event_sha256": _h("e"),
+            "origin_id": _h("f"),
+            "operation_id": "x" * 128,
+            "event_type": "batch-sealed",
+            "payload": {
+                "batch_id": "x" * 128,
+                "members": [dict(member) for _ in range(cardinality)],
+            },
+        }
+        record = dict(core)
+        record["event_sha256"] = hashlib.sha256(_canonical(core)).hexdigest()
+        return _canonical(record) + b"\n"
+    maximum = independent_rejected_seal_frame(2248)
+    overflow = independent_rejected_seal_frame(2249)
+    assert len(maximum) == 1_048_246 <= maximum_record_bytes
+    assert len(overflow) == 1_048_712 > maximum_record_bytes
+    assert ledger._MAX_BATCH_CARDINALITY == 2248
+    _manifest(_manifest_object(
+        imax=2,
+        qmax=2249,
+        floor_per_round=2249,
+    ))
+    with Raises("partitioned"):
+        _manifest(_manifest_object(
+            imax=1,
+            qmax=2249,
+            floor_per_round=2249,
+        ))
+
+
+def test_v22_authority_floor_requires_an_existing_batch_partition() -> None:
+    """F1/M-18a/M-19: the maximum floor has a constructible batch count."""
+    assert 1124 + 1125 == 2249
+    _manifest(_manifest_object(
+        imax=2,
+        qmax=2249,
+        batch_min=1124,
+        floor_per_round=2249,
+    ))
+    with Raises("floor cannot be partitioned"):
+        _manifest(_manifest_object(
+            imax=2,
+            qmax=2249,
+            batch_min=2248,
+            floor_per_round=2249,
+        ))
+
+
+def test_v23_two_origin_shared_runtime_head_aggregate_max_and_max_plus_one() -> None:
+    """F2/M-20: per-origin feasibility cannot hide shared-head overflow."""
+    maximum_ledger_bytes = 64 << 20
+    maximum = _independent_shared_head_bytes((6182, 6182))
+    overflow = _independent_shared_head_bytes((6182, 6183))
+    assert maximum == 67_103_806 <= maximum_ledger_bytes
+    assert overflow == 67_109_233 > maximum_ledger_bytes
+
+    first = _manifest_object(
+        descriptor=_h("3"), imax=6182, qmax=12_364
+    )
+    second_at_maximum = _manifest_object(
+        descriptor=_h("4"), imax=6182, qmax=12_364
+    )
+    second_overflow = _manifest_object(
+        descriptor=_h("4"), imax=6183, qmax=12_366
+    )
+    ledger._authority_from_bytes(_authority_bytes([first, second_at_maximum]))
+    with Raises("shared runtime head"):
+        ledger._authority_from_bytes(_authority_bytes([first, second_overflow]))
+
+
+def test_v24_origin_ledger_total_decimal_cardinality_max_and_max_plus_one() -> None:
+    """F3/M-18c/M-21: decimal-width-aware independent ledger-total oracle."""
+    exact_digit_boundaries = {10: 11_192, 100: 93_003, 1000: 911_104}
+    conservative_bounds = {10: 11_194, 100: 93_004, 1000: 911_104}
+    for cardinality, exact_bytes in exact_digit_boundaries.items():
+        assert sum(map(len, _independent_worst_case_batch_frames(cardinality))) == exact_bytes
+        assert ledger._affine_batch_bytes(
+            batches=1, members=cardinality, tombstoned=False
+        ) == conservative_bounds[cardinality]
+
+    maximum_ledger_bytes = 64 << 20
+    maximum = _independent_origin_ledger_upper_bytes(
+        batches=33, members=73_748, kmax=4
+    )
+    overflow = _independent_origin_ledger_upper_bytes(
+        batches=33, members=73_749, kmax=4
+    )
+    assert maximum == 67_107_988 <= maximum_ledger_bytes
+    assert overflow == 67_108_897 > maximum_ledger_bytes
+
+    _manifest(_manifest_object(imax=33, qmax=73_748, kmax=4))
+    with Raises("authority budget exceeds ledger codec feasibility"):
+        _manifest(_manifest_object(imax=33, qmax=73_749, kmax=4))
+
+
+def test_v25_public_commit_enforces_2248_member_codec_cardinality(
+    tmp_path: Path,
+) -> None:
+    """F4/M-18b: the public commit path accepts 2248 and rejects 2249."""
+    raw = _manifest_object(imax=2, qmax=2249)
+
+    def committed(cardinality: int) -> ledger.BatchCommitted:
+        return ledger.BatchCommitted(
+            "cardinality-boundary",
+            0,
+            tuple(
+                ledger.CommittedBatchMember(index, f"{index + 1:064x}")
+                for index in range(cardinality)
+            ),
+        )
+
+    accepted_repo, (accepted_origin,) = _repo(tmp_path / "accepted", [raw])
+    accepted_store = _store(accepted_repo)
+    accepted = _commit(
+        accepted_store,
+        accepted_origin,
+        "commit-2248",
+        _snapshot(accepted_store, accepted_origin).state_commitment,
+        committed(2248),
+    )
+    assert accepted.event_index == 1
+    assert _snapshot(accepted_store, accepted_origin).queries_used == 2248
+
+    rejected_repo, (rejected_origin,) = _repo(tmp_path / "rejected", [raw])
+    rejected_store = _store(rejected_repo)
+    with Raises("batch cardinality exceeds codec feasibility"):
+        _commit(
+            rejected_store,
+            rejected_origin,
+            "commit-2249",
+            _snapshot(rejected_store, rejected_origin).state_commitment,
+            committed(2249),
         )
 
 
