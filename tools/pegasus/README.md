@@ -1,14 +1,53 @@
 # Pegasus env contract 登録用ジョブ資材
 
 このディレクトリは、Pegasus の計算ノードを実測し、certification calibration の provenance を
-`output/env/pegasus/` に create-only で残すための資材である。重い処理はすべて PBS 計算ノードで
-行い、ログインノードは投入前確認・qsub・終了後収集だけに使う。
+`output/env/pegasus/` に create-only で残すための資材である。**job body の重い処理はすべて PBS
+計算ノードで行い**、ログインノードは投入前確認・qsub・結果確認だけに使う。
+**ただし login 側が完全に軽いわけではない** — 例えば `submit_silo_ladder_rung1.sh` は login で
+外部 3 repo を clone する (入力量に上限が無く、分類上は `unknown` 相当。§0 の grandfather を見よ)。
 
-手順連鎖は次の 3 段で固定する。
+手順連鎖は次の 3 段である。
 
 1. login node で submit receipt を作って qsub する
 2. compute node job が allocation/build/calibration receipt とログを staging へ作る
-3. login node で `.o<ID>` / `.e<ID>` と staging を final receipt に束縛する
+3. 確保した計算ノードで `.o<ID>` / `.e<ID>` と staging を final receipt に束縛する
+   — **この 3 段目は現在 blocked かつ未実証である。** collector を login で直接実行する従来手順は
+   §0 の admission により拒否され、計算ノードで実行する経路の実 artifact はまだ無い (§3)。
+
+## 0. 実行体と admission (機械検査対象)
+
+本 README が言及する `tools/pegasus/` の実行体と、その**手順上の実行 site**、および
+`tools/pegasus/admission_registry.json` (正本) の class を次に宣言する。
+`tools/check_docs.py` が正本との一致と、本文に現れる実行体がこの表に載っていることを検査する
+([T-522])。site は `login-direct` / `qsub-job-body` / `compute-only` の 3 値で、
+`login-direct` は class が `local-ok` のときにだけ書ける。
+
+| path | 手順上の実行 site | registry class |
+|---|---|---|
+| `tools/pegasus/collect_receipt.py` | `compute-only` | `unknown` |
+| `tools/pegasus/fetch_third_party.py` | `login-direct` | `local-ok` |
+| `tools/pegasus/smoke_probe.sh` | `qsub-job-body` | `dispatch-required` |
+| `tools/pegasus/submit_certify.sh` | `login-direct` | `local-ok` |
+| `tools/pegasus/submit_floor.sh` | `login-direct` | `local-ok` |
+
+`login-direct` の 3 本のうち実測済みは `fetch_third_party.py` だけで、残る submitter 2 本は
+`legacy-admitted (未実測)` である (2026-08-05 のユーザー裁定で grandfather を追認。
+[T-520] の測定経路が確定したら実測して昇格するか再裁定する)。詳細は
+`docs/pegasus-runbook.md` §7.0。
+
+**実行対象の path を変数や command substitution で組み立ててはならない**
+(`tools/pegasus/...` の literal が消えると、検査も hook も対象を認識できなくなる)。
+
+**上の実行体を含む fenced block には、先頭行に site タグを書く。**
+
+```text
+# admission-site: <login-direct | qsub-job-body | compute-only>
+```
+
+`tools/check_docs.py` は、タグ付き block に現れる実行体の site が宣言表と一致することを検査する。
+**この検査が保証しないこと**: 平文 (fence の外) に書かれた手順、basename だけの言及
+(`submit_certify.sh` のような書き方)、変数で組み立てた path は、site の一致を検査できない。
+規範となる手順は必ずタグ付き block に書く。
 
 途中のファイルは上書きしない。同じ job ID / nonce の再利用、欠落、ID・hash 不一致は非 0 で停止する。
 
@@ -34,6 +73,7 @@ git clone / FetchContent / pip が honor するかは未確定 — 訂正済み�
 まず、certification の前提を小さい job で確認する。
 
 ```bash
+# admission-site: qsub-job-body
 cd /path/to/izanagi
 qsub tools/pegasus/smoke_probe.sh
 ```
@@ -73,6 +113,7 @@ smoke 実測では gcc/cmake module は存在しないため、certification は
 投入前に superproject が clean であり、W3 を含む commit が HEAD になっている必要がある。
 
 ```bash
+# admission-site: login-direct
 tools/pegasus/submit_certify.sh
 ```
 
@@ -84,6 +125,7 @@ commit、job script SHA-256、queue/project/node/walltime を nonce staging に�
 qsub を実行せず、生成するコマンドだけ確認する場合は `--dry-run` を付ける。
 
 ```bash
+# admission-site: login-direct
 tools/pegasus/submit_certify.sh --dry-run
 ```
 
@@ -111,16 +153,21 @@ build/calibration log の唯一コピーは repo の `output/` に置き、`/scr
 
 ## 3. 終了後に final receipt を collect する
 
-job 終了後、ログインノードの投入 directory に返った `.o<ID>` / `.e<ID>` を明示して collector を
-実行する。
+job 終了後、投入 directory に返った `.o<ID>` / `.e<ID>` を明示して collector を実行する。
+argv は `--attempt-dir "output/env/pegasus/calibration/attempts/<PBS_JOBID>"`、
+`--job-staging "output/env/pegasus/calibration/job-staging/<PBS_JOBID>"`、
+`--stdout "certify_calibration.sh.o<ID>"`、`--stderr "certify_calibration.sh.e<ID>"` である。
 
-```bash
-python3 tools/pegasus/collect_receipt.py \
-  --attempt-dir "output/env/pegasus/calibration/attempts/<PBS_JOBID>" \
-  --job-staging "output/env/pegasus/calibration/job-staging/<PBS_JOBID>" \
-  --stdout "certify_calibration.sh.o<ID>" \
-  --stderr "certify_calibration.sh.e<ID>"
-```
+**この collector をログインノードで直接実行してはならない。** `tools/pegasus/collect_receipt.py` は
+scheduler stderr と JSON を全読みし `rglob` を全件 materialize するため、入力サイズに上限が無く
+`docs/pegasus-runbook.md` §7.0 の分類では `unknown` である。registry も `unknown` で、
+`hooks/guard_bash.py` は login / suspect で拒否する。**以前この節が書いていた login 直実行の手順は
+誤りだった** (F122。規範に忠実だったのは拒否する hook の方である)。
+
+正規経路は `qlogin` / `qsub` で計算ノードを確保し、その中で collector を実行することである
+(自動 dispatch の task enum には無いので、確保できなければ**走らせずに止める**)。
+**この経路はまだ実 artifact で確認していない** — 実行するのは
+入力 cap ([T-482]) と測定経路 ([T-520]) の裁定を踏まえた後になる。
 
 `attempts/<PBS_JOBID>` は calibrator 自身の create-only namespace、`job-staging/<PBS_JOBID>` は PBS
 wrapper の allocation/build/log namespace である。collector は submit receipt、allocation receipt、job result の job ID を相互照合し、両 staging の全 file と
@@ -159,6 +206,7 @@ monotonic 再検査する。
 `collect_receipt.py` は calibration 固有の入力を必須とするため floor では使わない。
 
 ```bash
+# admission-site: login-direct
 tools/pegasus/submit_floor.sh --dry-run   # scheduler を一切呼ばない。副作用あり (下記)
 tools/pegasus/submit_floor.sh             # 人間が明示的に実行する。内部で qsub する
 ```
@@ -186,6 +234,7 @@ masstree / mimalloc / googletest は CCBench の FetchContent 依存で、計算
 `docs/pegasus-runbook.md` §6 が正本である。
 
 ```bash
+# admission-site: login-direct
 export IZANAGI_PEGASUS_THIRDPARTY_CACHE=<永続 cache root の絶対パス>
 
 python3 tools/pegasus/fetch_third_party.py fetch        # 欠けている source だけ clone (network 要)

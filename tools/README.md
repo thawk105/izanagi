@@ -25,10 +25,11 @@ OOM killer が同じ cgroup の中から犠牲を選ぶため、**上限を超�
 死ぬ**。したがって「重い処理の一覧」を閉じた列挙で持つと、列挙に載っていない新しい重い処理が
 他人のセッションを殺す。判定を実測量に置けば、一覧を更新しなくても**判定の対象**にはなる。
 
-**ただしこれは prompt 規律であって機械強制ではない。** 分類 registry も、実行直前に未分類を
-拒否する gate も存在しない。`tools/check_docs.py` が検査するのは runbook の exact task 表と
-dispatcher の `TASKS` の同期だけで、新しい高メモリスクリプトを追加しても緑のまま通る。
-**この文書を読まなかった人・cron・IDE・他 AI は止まらない。**
+**機械強制は 3 層で、どれも全経路は覆わない。** (1) path ごとの registry gate は
+`tools/pegasus/` 配下だけ (正本 `tools/pegasus/admission_registry.json`、[T-522])。
+(2) path を問わない重量 command gate (`pytest` / `cmake --build` / `make -j` / `ninja` 等の綴り)。
+(3) entry point 自身の site gate (`run_tests.py` / `check_ai_provenance.py` の自動 dispatch)。
+**3 層の外の高メモリスクリプトは緑のまま通り、人・cron・IDE・他 AI・`python3 -c` も止まらない。**
 
 計算ノード側の資材 (certification / floor / 劣化梯子の job script と submitter) は
 `tools/pegasus/README.md`、Pegasus 全体の操作は `docs/pegasus-runbook.md` を引く。
