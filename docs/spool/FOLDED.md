@@ -311,3 +311,15 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:freeze-membership-authority-provenance":"[T-534]","T:freeze-refreeze-generation-transition":"[T-531]","T:holdout-freeze-semantic-closure":"[T-533]","T:trigger-name-mask-binding":"[T-532]"},"authored":"2026-08-05","content_sha256":"bb636da57e7a681ad102dfc9b3f171b343462c446f8de7959509b6441fe8d1f1","seq":1,"wave":"dev-wave-t492-freeze-semantic-membership"}
 - {"allocations":{"D:freeze-generator-self-hash-boundary":"D178","D:freeze-semantic-membership-at-schema":"D177"},"authored":"2026-08-05","content_sha256":"33b86c87bbf2b2dae19fc45594d7cb75d8ab7d8f332924bfaa1c7d5351a00dcd","seq":2,"wave":"dev-wave-t492-freeze-semantic-membership"}
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"83aadb0307b673d25bf10dcc8a32284c5740b02df9da659e068806e3d991e371","seq":3,"wave":"dev-wave-t492-freeze-semantic-membership"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"1f57c7d35f4ca1b10db8d993830fe616c613e637c2d8847a8f7096f5fa597bed","seq":1,"wave":"dev-wave-t244-p3-design"}
+- {"allocations":{"D:t244-p3-design-package":"D179"},"authored":"2026-08-05","content_sha256":"38be6579fb57198f591288310813ec8a641efb529410c3bb6ab067795a496d65","seq":1,"wave":"dev-wave-t244-p3-design"}
+- {"allocations":{"F:concurrent-codex-same-output-path":"F128"},"authored":"2026-08-05","content_sha256":"e3e6a455e67acad33e0539d94b6e66209479f782b39caa76e211d9766b09e8e3","seq":1,"wave":"dev-wave-t244-p3-design"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"a0fa05077c01f205633be656761f051ed8d4eaf913b184687b6e8023d792bb30","seq":1,"wave":"rulings-20260805-n"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"0e4305fd4d709265aedb18cc25864ff3c71824fa77131eca0c1bc2ec94314697","seq":1,"wave":"rulings-20260805-o"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"d9739ed2277641c376886ce422302d207c0e558aabc3c7557f37624be3d995f0","seq":1,"wave":"rulings-20260805-p"}
+
+- {"allocations":{"T:compute-result-channel-ownership":"[T-536]","T:trust-root-control-surface":"[T-535]"},"authored":"2026-08-05","content_sha256":"208c145e00d7be244acbcf8a22ec6a294f23a6d33232d8331883c38b148aeb9f","seq":1,"wave":"dev-wave-t213-redefine"}
