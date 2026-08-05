@@ -123,11 +123,17 @@ def _validate_records(records: list[dict]) -> None:
         if state in {"mutated", "clean"} and set(value) != {"record", "seq"}: raise EvidenceError(f"invalid {state} record")
         if state == "recovering":
             if set(value) != {"record", "seq", "crash_evidence", "observer", "epoch"} or value["crash_evidence"] not in {"controlled-sigkill-receipt", "scheduler-accounting"} or not _valid_identity(value["observer"]) or not isinstance(value["epoch"], int): raise EvidenceError("invalid recovering record")
-def _writer_info(root: Path, armed: dict | None = None) -> dict:
+def _writer_info(root: Path, armed: dict | None = None,
+                 expect_pbs_sha256: str | None = None) -> dict:
     value = json.loads((root / "writer-info").read_text())
     keys = {"pbs_jobid", "hostname", "boot_id", "pid", "start_token", "probe_sha256", "pbs_sha256", "epoch"}
     if not isinstance(value, dict) or set(value) != keys or not isinstance(value["pbs_jobid"], str) or not value["pbs_jobid"] or not isinstance(value["pid"], int) or not all(isinstance(value[name], str) and value[name] for name in ("hostname", "boot_id", "start_token", "probe_sha256", "pbs_sha256")) or not all(re.fullmatch(r"[0-9a-f]{64}", value[name]) for name in ("probe_sha256", "pbs_sha256")) or not isinstance(value["epoch"], int) or value["probe_sha256"] != _probe_sha256():
         raise EvidenceError("writer-info or probe source binding is invalid")
+    if (expect_pbs_sha256 is not None
+            and (not isinstance(expect_pbs_sha256, str)
+                 or re.fullmatch(r"[0-9a-f]{64}", expect_pbs_sha256) is None
+                 or value["pbs_sha256"] != expect_pbs_sha256)):
+        raise EvidenceError("writer PBS source binding is invalid")
     if armed is not None and armed["writer"] != {"host": value["hostname"], "boot_id": value["boot_id"], "pid": value["pid"], "start_token": value["start_token"]}:
         raise EvidenceError("writer-info does not match armed writer")
     return value
@@ -150,9 +156,9 @@ def _mount_info(root: Path) -> dict:
     if not matches: raise EvidenceError("root mount could not be resolved")
     _, point, fstype = max(matches)
     return {"st_dev": os.stat(root).st_dev, "mount_point": str(point), "fstype": fstype}
-def _context(root: Path) -> tuple[list[dict], dict, dict, dict]:
+def _context(root: Path, expect_writer_pbs_sha256=None) -> tuple[list[dict], dict, dict, dict]:
     records = _records(root / "journal/attempt.jsonl"); armed = records[0]
-    writer = _writer_info(root, armed); ready = _ready(root, writer, armed)
+    writer = _writer_info(root, armed, expect_writer_pbs_sha256); ready = _ready(root, writer, armed)
     return records, armed, writer, ready
 def _states(root: Path, armed: dict) -> list[dict]:
     result = []
@@ -209,11 +215,12 @@ def run_writer(root, mode, recorder=None, size=DEFAULT_SIZE, block=False, pbs_jo
     if block:
         while True: signal.pause()
     return armed
-def run_inspect(root, allow_same_host=False, expect_partial_prefix=False, require_fstype=None):
+def run_inspect(root, expect_writer_pbs_sha256, allow_same_host=False,
+                expect_partial_prefix=False, require_fstype=None):
     root, observer = _root(root), _identity()
-    result = {"inspector": observer, "armed_visible": False, "ready_visible": False, "mutated_visible": False, "source_bound": False, "cross_client": False, "classifications": [], "all_complete_bytes": False, "all_partial_prefix": False, "expected_partial_prefix": expect_partial_prefix, "mount": None, "acceptance_conditions": [], "does_not_prove": DOES_NOT_PROVE["L-C" if expect_partial_prefix else "L-A"]}
+    result = {"inspector": observer, "armed_visible": False, "ready_visible": False, "mutated_visible": False, "source_bound": False, "cross_client": False, "classifications": [], "all_complete_bytes": False, "all_partial_prefix": False, "expected_partial_prefix": expect_partial_prefix, "expected_writer_pbs_sha256": expect_writer_pbs_sha256, "mount": None, "acceptance_conditions": [], "does_not_prove": DOES_NOT_PROVE["L-C" if expect_partial_prefix else "L-A"]}
     try:
-        records, armed, writer, _ = _context(root)
+        records, armed, writer, _ = _context(root, expect_writer_pbs_sha256)
         result.update(armed_visible=True, ready_visible=True, mutated_visible=records[-1]["record"] == "mutated", source_bound=True, mount=_mount_info(root))
         if not result["mutated_visible"]: raise EvidenceError("inspect requires a mutated record")
         require_cross_client(armed["writer"], observer, allow_same_host)
@@ -223,20 +230,37 @@ def run_inspect(root, allow_same_host=False, expect_partial_prefix=False, requir
         result["all_complete_bytes"] = all(x["classification"] in {"ORIGINAL", "MUTATED"} for x in result["classifications"])
         result["all_partial_prefix"] = all(x["partial_prefix"] for x in result["classifications"])
         accepted = result["all_partial_prefix"] if expect_partial_prefix else result["all_complete_bytes"]
-        result["acceptance_conditions"] = ["ready receipt", "mutated record", "source hash binding", "different host and boot_id", "mount recorded", "exact half mutated prefix" if expect_partial_prefix else "complete original-or-mutated bytes"]
+        result["acceptance_conditions"] = ["ready receipt", "mutated record", "probe and writer PBS source hash binding", "different host and boot_id", "mount recorded", "exact half mutated prefix" if expect_partial_prefix else "complete original-or-mutated bytes"]
         if not accepted: raise EvidenceError("target bytes do not satisfy inspect acceptance")
         return result, 0
     except (OSError, ValueError, KeyError, json.JSONDecodeError, EvidenceError) as exc:
         result["error"] = str(exc); return result, 3
-def _inspect_receipt(root: Path, result: dict, pbs_jobid: str, output: Path) -> dict:
-    return {"record": "inspect-receipt", "host": result["inspector"]["host"], "boot_id": result["inspector"]["boot_id"], "epoch": int(time.time()), "pbs_jobid": pbs_jobid, "probe_sha256": _probe_sha256(), "inspect_output": output.name, "classifications_sha256": _json_sha(result["classifications"])}
+def _inspect_receipt(root: Path, result: dict, pbs_jobid: str, output: Path,
+                     recovery_pbs_sha256: str) -> dict:
+    mount = result.get("mount")
+    if (not isinstance(mount, dict)
+            or set(mount) != {"fstype", "mount_point", "st_dev"}
+            or not isinstance(mount["fstype"], str) or not mount["fstype"]
+            or not isinstance(mount["mount_point"], str) or not mount["mount_point"]
+            or not isinstance(mount["st_dev"], int)
+            or not isinstance(recovery_pbs_sha256, str)
+            or re.fullmatch(r"[0-9a-f]{64}", recovery_pbs_sha256) is None):
+        raise EvidenceError("inspect receipt provenance is invalid")
+    return {"record": "inspect-receipt", "host": result["inspector"]["host"], "boot_id": result["inspector"]["boot_id"], "epoch": int(time.time()), "pbs_jobid": pbs_jobid, "probe_sha256": _probe_sha256(), "recovery_pbs_sha256": recovery_pbs_sha256, "inspect_output": output.name, "inspect_sha256": _sha(output.read_bytes()), "classifications_sha256": _json_sha(result["classifications"]), "mount": dict(mount)}
 def _validated_inspect_receipt(root: Path) -> tuple[dict, dict]:
     receipt = json.loads((root / "inspect-receipt").read_text())
-    keys = {"record", "host", "boot_id", "epoch", "pbs_jobid", "probe_sha256", "inspect_output", "classifications_sha256"}
-    if not isinstance(receipt, dict) or set(receipt) != keys or receipt["record"] != "inspect-receipt" or not all(isinstance(receipt[name], str) and receipt[name] for name in ("host", "boot_id", "pbs_jobid", "probe_sha256", "inspect_output", "classifications_sha256")) or not isinstance(receipt["epoch"], int) or receipt["probe_sha256"] != _probe_sha256() or Path(receipt["inspect_output"]).name != receipt["inspect_output"]:
+    keys = {"record", "host", "boot_id", "epoch", "pbs_jobid", "probe_sha256", "recovery_pbs_sha256", "inspect_output", "inspect_sha256", "classifications_sha256", "mount"}
+    mount = receipt.get("mount")
+    if not isinstance(receipt, dict) or set(receipt) != keys or receipt["record"] != "inspect-receipt" or not all(isinstance(receipt[name], str) and receipt[name] for name in ("host", "boot_id", "pbs_jobid", "probe_sha256", "recovery_pbs_sha256", "inspect_output", "inspect_sha256", "classifications_sha256")) or not isinstance(receipt["epoch"], int) or receipt["probe_sha256"] != _probe_sha256() or any(re.fullmatch(r"[0-9a-f]{64}", receipt[name]) is None for name in ("probe_sha256", "recovery_pbs_sha256", "inspect_sha256", "classifications_sha256")) or Path(receipt["inspect_output"]).name != receipt["inspect_output"] or not isinstance(mount, dict) or set(mount) != {"fstype", "mount_point", "st_dev"} or not isinstance(mount["fstype"], str) or not mount["fstype"] or not isinstance(mount["mount_point"], str) or not mount["mount_point"] or not isinstance(mount["st_dev"], int):
         raise EvidenceError("inspect receipt is invalid")
-    result = json.loads((root / receipt["inspect_output"]).read_text())
-    if result.get("rc") != 0 or result.get("inspector", {}).get("host") != receipt["host"] or result.get("inspector", {}).get("boot_id") != receipt["boot_id"] or _json_sha(result.get("classifications")) != receipt["classifications_sha256"]:
+    output = root / receipt["inspect_output"]
+    if output.is_symlink() or not output.is_file():
+        raise EvidenceError("inspect receipt output is invalid")
+    output_bytes = output.read_bytes()
+    if _sha(output_bytes) != receipt["inspect_sha256"]:
+        raise EvidenceError("inspect receipt does not bind inspect bytes")
+    result = json.loads(output_bytes)
+    if result.get("rc") != 0 or result.get("inspector", {}).get("host") != receipt["host"] or result.get("inspector", {}).get("boot_id") != receipt["boot_id"] or result.get("mount") != mount or _json_sha(result.get("classifications")) != receipt["classifications_sha256"]:
         raise EvidenceError("inspect receipt does not bind inspect result")
     return receipt, result
 def run_request_kill(root, pbs_jobid: str):
@@ -271,22 +295,33 @@ def _crash_evidence(root: Path, kind: str, writer: dict, inspect_receipt: dict) 
         raise EvidenceError("scheduler leg must not contain go-kill")
     text = (root / "scheduler-terminal.txt").read_text()
     lines = text.splitlines()
-    request_id = re.sub(r"^\d+:", "", writer["pbs_jobid"], count=1)
     request_ids = []
     for line in lines:
         match = re.fullmatch(r"\s*Request ID:\s*(\S+)\s*", line)
         if match:
             request_ids.append(match.group(1))
-    if (not request_id or request_id not in request_ids
+    if (len(request_ids) != 1
+            or _normalize_job_id(request_ids[0]) != _normalize_job_id(writer["pbs_jobid"])
             or not any("signal SIGKILL" in line
                        and "Exceeded per-req elapse time limit" in line
                        for line in lines)):
         raise EvidenceError("scheduler terminal accounting is invalid")
     return "scheduler-accounting", SCHEDULER_PROXY
+def _normalize_job_id(value: str) -> str:
+    if type(value) is not str or not value:
+        raise EvidenceError("PBS job ID must be a non-empty string")
+    if value.startswith("0:"):
+        value = value[2:]
+    if value.startswith(tuple(f"{digit}:" for digit in "123456789")):
+        raise EvidenceError(f"unsupported PBS subrequest prefix: {value}")
+    if not value:
+        raise EvidenceError("PBS job ID must be a non-empty string")
+    return value
 def run_repair(root, crash_evidence, allow_same_host=False, recorder=None, require_fstype=None):
     root, observer = _root(root), _identity()
-    result = {"result": "QUARANTINE", "classifications": [], "mount": None,
+    result = {"result": "QUARANTINE", "classifications": [], "restored_targets": [], "mount": None,
               "crash_evidence": None, "does_not_prove": DOES_NOT_PROVE["L-A"], "acceptance_conditions": []}
+    write_phase = False
     try:
         records, armed, writer, _ = _context(root)
         if records[-1]["record"] != "mutated":
@@ -301,6 +336,8 @@ def run_repair(root, crash_evidence, allow_same_host=False, recorder=None, requi
         inspect_receipt, _ = _validated_inspect_receipt(root)
         if (inspect_receipt["host"] != observer["host"] or inspect_receipt["boot_id"] != observer["boot_id"]):
             raise EvidenceError("repairer is not the inspecting client")
+        if inspect_receipt["mount"] != result["mount"]:
+            raise EvidenceError("inspect receipt mount differs from repair mount")
         evidence, limitation = _crash_evidence(root, crash_evidence, writer, inspect_receipt)
         result.update(crash_evidence=evidence, does_not_prove=limitation)
         states = _states(root, armed); result["classifications"] = states
@@ -309,6 +346,7 @@ def run_repair(root, crash_evidence, allow_same_host=False, recorder=None, requi
                                             "required crash evidence", "all-target preflight"]
         if repair_decision(item["classification"] for item in states) != "RESTORED":
             return result, 4
+        write_phase = True
         seq = len(records)
         recovering = {"record": "recovering", "seq": seq, "crash_evidence": evidence,
                       "observer": observer, "epoch": int(time.time())}
@@ -323,6 +361,7 @@ def run_repair(root, crash_evidence, allow_same_host=False, recorder=None, requi
                 stream.write(base64.b64decode(item["original_b64"])); stream.flush()
                 os.fsync(stream.fileno()); record_event(recorder, "restore_temp_fsync")
             os.replace(temp, target); record_event(recorder, "restore_replace")
+            result["restored_targets"].append(item["rel"])
             _sync(target.parent, recorder, "restore_dir_fsync", True)
         if any(_sha(_target(root, x["rel"]).read_bytes()) != x["original_sha256"] for x in armed["targets"]):
             raise EvidenceError("restore verification failed")
@@ -334,6 +373,9 @@ def run_repair(root, crash_evidence, allow_same_host=False, recorder=None, requi
         return result, 0
     except (OSError, ValueError, KeyError, json.JSONDecodeError, EvidenceError) as exc:
         result["error"] = str(exc)
+        if write_phase:
+            result["result"] = "PARTIAL-RESTORE"
+            return result, 9
         return result, 4
 def run_verify(root):
     root = _root(root)
@@ -357,8 +399,12 @@ def _derive_leg(name: str, root: Path) -> tuple[str, list[str]]:
         receipt, inspect = _validated_inspect_receipt(root)
         repair, verify = _load_result(root, "repair.json"), _load_result(root, "verify.json")
         require_cross_client(armed["writer"], {"host": receipt["host"], "boot_id": receipt["boot_id"]})
-        if inspect.get("mount", {}).get("fstype") != "lustre" or repair.get("mount", {}).get("fstype") != "lustre": raise EvidenceError("leg evidence is not from Lustre")
+        if (inspect.get("mount", {}).get("fstype") != "lustre"
+                or repair.get("mount") != receipt["mount"]):
+            raise EvidenceError("leg evidence is not from the bound Lustre mount")
         reasons = ["inspect receipt and source binding", "cross-client identity", "journal state machine"]
+        if name in {"L-A", "L-B2"} and repair.get("result") != "RESTORED":
+            raise EvidenceError("positive repair leg did not restore")
         if name == "L-A":
             _crash_evidence(root, "receipt", writer, receipt)
             complete = len(inspect.get("classifications", [])) == len(TARGETS) and all(x.get("classification") in {"ORIGINAL", "MUTATED"} for x in inspect["classifications"])
@@ -408,6 +454,8 @@ def _parser():
     inspect = commands.add_parser("inspect"); inspect.add_argument("--root", required=True)
     inspect.add_argument("--output", required=True); inspect.add_argument("--receipt", required=True)
     inspect.add_argument("--pbs-jobid", required=True); inspect.add_argument("--expect-partial-prefix", action="store_true")
+    inspect.add_argument("--expect-writer-pbs-sha256", required=True)
+    inspect.add_argument("--recovery-pbs-sha256", required=True)
     inspect.add_argument("--require-fstype")
     request = commands.add_parser("request-kill"); request.add_argument("--root", required=True); request.add_argument("--pbs-jobid", required=True)
     crash = commands.add_parser("record-crash"); crash.add_argument("--root", required=True)
@@ -428,10 +476,13 @@ def main(argv=None) -> int:
     root = _root(args.root)
     if args.command == "inspect":
         output, receipt_path = _artifact(root, args.output, "inspect.json"), _artifact(root, args.receipt, "inspect-receipt")
-        result, rc = run_inspect(root, expect_partial_prefix=args.expect_partial_prefix, require_fstype=args.require_fstype)
+        result, rc = run_inspect(root, args.expect_writer_pbs_sha256,
+                                 expect_partial_prefix=args.expect_partial_prefix,
+                                 require_fstype=args.require_fstype)
         result["rc"] = rc; _write_json(output, result)
         if rc == 0:
-            _write_json(receipt_path, _inspect_receipt(root, result, args.pbs_jobid, output))
+            _write_json(receipt_path, _inspect_receipt(
+                root, result, args.pbs_jobid, output, args.recovery_pbs_sha256))
         return rc
     if args.command == "request-kill":
         run_request_kill(root, args.pbs_jobid); return 0

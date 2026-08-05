@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[2]
 DRIVER = ROOT / "tools/pegasus/probes/t503_restore_durability_probe.py"
 WRITER_PBS = ROOT / "tools/pegasus/probes/t503_restore_durability_probe.pbs"
 RECOVERY_PBS = ROOT / "tools/pegasus/probes/t503_restore_durability_recover.pbs"
+WRITER_PBS_SHA256 = hashlib.sha256(WRITER_PBS.read_bytes()).hexdigest()
+RECOVERY_PBS_SHA256 = hashlib.sha256(RECOVERY_PBS.read_bytes()).hexdigest()
 SPEC = importlib.util.spec_from_file_location("t503_restore_durability_probe", DRIVER)
 assert SPEC is not None and SPEC.loader is not None
 T503 = importlib.util.module_from_spec(SPEC)
@@ -34,13 +36,21 @@ def _write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
 
 
+def _run_writer(root: Path, mode: str, *args, **kwargs):
+    kwargs.setdefault("pbs_sha256", WRITER_PBS_SHA256)
+    return T503.run_writer(root, mode, *args, **kwargs)
+
+
 def _inspect_and_crash(root: Path, *, partial=False) -> None:
-    result, rc = T503.run_inspect(root, allow_same_host=True, expect_partial_prefix=partial)
+    result, rc = T503.run_inspect(
+        root, WRITER_PBS_SHA256, allow_same_host=True,
+        expect_partial_prefix=partial)
     assert rc == 0
     result["rc"] = rc
     output = root / "inspect.json"
     _write_json(output, result)
-    _write_json(root / "inspect-receipt", T503._inspect_receipt(root, result, "recovery.1", output))
+    _write_json(root / "inspect-receipt", T503._inspect_receipt(
+        root, result, "recovery.1", output, RECOVERY_PBS_SHA256))
     T503.run_request_kill(root, "recovery.1")
     writer = json.loads((root / "writer-info").read_text())
     T503.run_record_crash(root, writer["pid"], 137)
@@ -56,7 +66,7 @@ def _fixed_identities(monkeypatch) -> None:
 
 def test_writer_fsyncs_armed_before_first_target_write(tmp_path):
     events = []
-    T503.run_writer(tmp_path, "atomic", events.append, size=64)
+    _run_writer(tmp_path, "atomic", events.append, size=64)
     first_target = min(i for i, event in enumerate(events) if event.startswith("target_"))
     assert events.index("armed_fsync") < events.index("active_dir_fsync") < first_target
 
@@ -71,8 +81,10 @@ def test_partial_bytes_classify_as_other():
 
 
 def test_control_leg_detects_partial_bytes(tmp_path):
-    armed = T503.run_writer(tmp_path, "inplace-partial", size=64)
-    result, rc = T503.run_inspect(tmp_path, allow_same_host=True, expect_partial_prefix=True)
+    armed = _run_writer(tmp_path, "inplace-partial", size=64)
+    result, rc = T503.run_inspect(
+        tmp_path, WRITER_PBS_SHA256, allow_same_host=True,
+        expect_partial_prefix=True)
     assert rc == 0
     assert result["all_partial_prefix"] is True
     for item, state in zip(armed["targets"], result["classifications"]):
@@ -84,10 +96,12 @@ def test_control_leg_detects_partial_bytes(tmp_path):
 
 
 def test_control_rejects_arbitrary_full_length_other(tmp_path):
-    armed = T503.run_writer(tmp_path, "inplace-partial", size=64)
+    armed = _run_writer(tmp_path, "inplace-partial", size=64)
     for item in armed["targets"]:
         (tmp_path / item["rel"]).write_bytes(b"z" * 64)
-    result, rc = T503.run_inspect(tmp_path, allow_same_host=True, expect_partial_prefix=True)
+    result, rc = T503.run_inspect(
+        tmp_path, WRITER_PBS_SHA256, allow_same_host=True,
+        expect_partial_prefix=True)
     assert rc == 3
     assert result["all_partial_prefix"] is False
 
@@ -100,7 +114,7 @@ def test_repair_refuses_when_any_target_is_other():
 
 def test_clean_is_recorded_only_after_restore_verification(tmp_path):
     events = []
-    T503.run_writer(tmp_path, "atomic", size=64)
+    _run_writer(tmp_path, "atomic", size=64)
     _inspect_and_crash(tmp_path)
     result, rc = T503.run_repair(tmp_path, "receipt", allow_same_host=True, recorder=events.append)
     assert (result["result"], rc) == ("RESTORED", 0)
@@ -122,7 +136,7 @@ def test_writer_fsyncs_temp_before_replace(tmp_path, monkeypatch):
 
     monkeypatch.setattr(T503.os, "fsync", counted)
     events = []
-    T503.run_writer(tmp_path, "atomic", events.append, size=64)
+    _run_writer(tmp_path, "atomic", events.append, size=64)
     assert len(actual_temp_fsyncs) == len(T503.TARGETS) == 2
     fsyncs = [i for i, event in enumerate(events) if event == "target_temp_fsync"]
     replaces = [i for i, event in enumerate(events) if event == "target_replace"]
@@ -145,7 +159,10 @@ def test_cli_has_no_allow_same_host_escape():
     with pytest.raises(SystemExit):
         T503._parser().parse_args([
             "inspect", "--root", "/tmp/r", "--output", "/tmp/r/inspect.json",
-            "--receipt", "/tmp/r/inspect-receipt", "--pbs-jobid", "1", "--allow-same-host",
+            "--receipt", "/tmp/r/inspect-receipt", "--pbs-jobid", "1",
+            "--expect-writer-pbs-sha256", WRITER_PBS_SHA256,
+            "--recovery-pbs-sha256", RECOVERY_PBS_SHA256,
+            "--allow-same-host",
         ])
 
 
@@ -155,42 +172,54 @@ def test_unknown_leg_never_counts_as_pass():
 
 
 def test_inspect_requires_ready_and_mutated(tmp_path):
-    T503.run_writer(tmp_path, "atomic", size=64)
+    _run_writer(tmp_path, "atomic", size=64)
     (tmp_path / "ready").unlink()
-    assert T503.run_inspect(tmp_path, allow_same_host=True)[1] == 3
+    assert T503.run_inspect(
+        tmp_path, WRITER_PBS_SHA256, allow_same_host=True)[1] == 3
     armed_line = (tmp_path / "journal/attempt.jsonl").read_text().splitlines()[0]
     (tmp_path / "journal/attempt.jsonl").write_text(armed_line + "\n")
-    assert T503.run_inspect(tmp_path, allow_same_host=True)[1] == 3
+    assert T503.run_inspect(
+        tmp_path, WRITER_PBS_SHA256, allow_same_host=True)[1] == 3
 
 
 def test_inspect_records_mount_and_enforces_requested_fstype(tmp_path, monkeypatch):
-    T503.run_writer(tmp_path, "atomic", size=64)
+    _run_writer(tmp_path, "atomic", size=64)
     monkeypatch.setattr(T503, "_mount_info", lambda root: {
         "st_dev": 42, "mount_point": "/fake", "fstype": "ext4"})
-    result, rc = T503.run_inspect(tmp_path, allow_same_host=True)
+    result, rc = T503.run_inspect(
+        tmp_path, WRITER_PBS_SHA256, allow_same_host=True)
     assert rc == 0
     assert result["mount"] == {"st_dev": 42, "mount_point": "/fake", "fstype": "ext4"}
-    assert T503.run_inspect(tmp_path, allow_same_host=True, require_fstype="lustre")[1] == 3
+    assert T503.run_inspect(
+        tmp_path, WRITER_PBS_SHA256, allow_same_host=True,
+        require_fstype="lustre")[1] == 3
 
 
 def test_source_hash_binding_rejects_changed_writer_info(tmp_path):
-    T503.run_writer(tmp_path, "atomic", size=64)
+    _run_writer(tmp_path, "atomic", size=64)
     info_path = tmp_path / "writer-info"
     info = json.loads(info_path.read_text())
     info["probe_sha256"] = "0" * 64
     _write_json(info_path, info)
-    assert T503.run_inspect(tmp_path, allow_same_host=True)[1] == 3
+    assert T503.run_inspect(
+        tmp_path, WRITER_PBS_SHA256, allow_same_host=True)[1] == 3
+
+
+def test_inspect_rejects_unreviewed_writer_pbs_hash(tmp_path):
+    _run_writer(tmp_path, "atomic", size=64)
+    assert T503.run_inspect(
+        tmp_path, "0" * 64, allow_same_host=True)[1] == 3
 
 
 def test_stale_go_kill_is_rejected_before_writer_starts(tmp_path):
     (tmp_path / "go-kill").write_text("stale\n")
     with pytest.raises(T503.EvidenceError):
-        T503.run_writer(tmp_path, "atomic", size=64)
+        _run_writer(tmp_path, "atomic", size=64)
     assert not (tmp_path / "journal").exists()
 
 
 def test_crash_receipt_must_match_writer_identity(tmp_path):
-    T503.run_writer(tmp_path, "atomic", size=64)
+    _run_writer(tmp_path, "atomic", size=64)
     _inspect_and_crash(tmp_path)
     receipt_path = tmp_path / "crash-receipt"
     receipt = json.loads(receipt_path.read_text())
@@ -200,14 +229,47 @@ def test_crash_receipt_must_match_writer_identity(tmp_path):
     assert (result["result"], rc) == ("QUARANTINE", 4)
 
 
+def test_repair_rejects_one_byte_inspect_output_rewrite(tmp_path):
+    _run_writer(tmp_path, "atomic", size=64)
+    _inspect_and_crash(tmp_path)
+    output = tmp_path / "inspect.json"
+    receipt = json.loads((tmp_path / "inspect-receipt").read_text())
+    assert receipt["recovery_pbs_sha256"] == RECOVERY_PBS_SHA256
+    assert receipt["inspect_sha256"] == hashlib.sha256(output.read_bytes()).hexdigest()
+    assert receipt["mount"] == json.loads(output.read_text())["mount"]
+    changed = bytearray(output.read_bytes())
+    original = bytes(changed)
+    start = changed.index(b'"mount_point":"') + len(b'"mount_point":"')
+    changed[start] = ord("X") if changed[start] != ord("X") else ord("Y")
+    assert sum(left != right for left, right in zip(original, changed)) == 1
+    assert json.loads(changed)["mount"] != receipt["mount"]
+    output.write_bytes(changed)
+    result, rc = T503.run_repair(tmp_path, "receipt", allow_same_host=True)
+    assert (result["result"], result["restored_targets"], rc) == (
+        "QUARANTINE", [], 4)
+
+
+def test_repair_rejects_receipt_from_different_mount(tmp_path, monkeypatch):
+    mount = {"st_dev": 42, "mount_point": "/fake", "fstype": "lustre"}
+    monkeypatch.setattr(T503, "_mount_info", lambda root: dict(mount))
+    _run_writer(tmp_path, "atomic", size=64)
+    _inspect_and_crash(tmp_path)
+    mount["st_dev"] = 43
+    result, rc = T503.run_repair(tmp_path, "receipt", allow_same_host=True)
+    assert (result["result"], result["restored_targets"], rc) == (
+        "QUARANTINE", [], 4)
+
+
 def _prepare_scheduler_leg(root: Path, *, pbs_jobid: str = "0:890867.nqsv") -> None:
-    T503.run_writer(root, "atomic", size=64, pbs_jobid=pbs_jobid)
-    result, rc = T503.run_inspect(root, allow_same_host=True)
+    _run_writer(root, "atomic", size=64, pbs_jobid=pbs_jobid)
+    result, rc = T503.run_inspect(
+        root, WRITER_PBS_SHA256, allow_same_host=True)
     assert rc == 0
     result["rc"] = rc
     _write_json(root / "inspect.json", result)
     _write_json(root / "inspect-receipt", T503._inspect_receipt(
-        root, result, "recovery.18", root / "inspect.json"))
+        root, result, "recovery.18", root / "inspect.json",
+        RECOVERY_PBS_SHA256))
 
 
 def test_scheduler_evidence_is_proxy_and_requires_accounting(tmp_path):
@@ -275,9 +337,28 @@ def test_scheduler_evidence_rejects_empty_normalized_request_id(tmp_path):
     assert (repaired["result"], rc) == ("QUARANTINE", 4)
 
 
+def test_scheduler_evidence_rejects_nonzero_subrequest_prefix(tmp_path):
+    _prepare_scheduler_leg(tmp_path, pbs_jobid="1:890867.nqsv")
+    (tmp_path / "scheduler-terminal.txt").write_text(
+        "%NQSV(INFO): Batch job received signal SIGKILL. "
+        "(Exceeded per-req elapse time limit)\nRequest ID: 890867.nqsv\n")
+    repaired, rc = T503.run_repair(tmp_path, "scheduler", allow_same_host=True)
+    assert (repaired["result"], rc) == ("QUARANTINE", 4)
+
+
+def test_scheduler_evidence_rejects_multiple_request_ids(tmp_path):
+    _prepare_scheduler_leg(tmp_path)
+    (tmp_path / "scheduler-terminal.txt").write_text(
+        "%NQSV(INFO): Batch job received signal SIGKILL. "
+        "(Exceeded per-req elapse time limit)\n"
+        "Request ID: 890867.nqsv\nRequest ID: 890867.nqsv\n")
+    repaired, rc = T503.run_repair(tmp_path, "scheduler", allow_same_host=True)
+    assert (repaired["result"], rc) == ("QUARANTINE", 4)
+
+
 @pytest.mark.parametrize("mutation", ["seq", "duplicate-armed", "bad-type", "clean-not-last"])
 def test_repair_quarantines_invalid_journal_record_sequences(tmp_path, mutation):
-    T503.run_writer(tmp_path, "atomic", size=64)
+    _run_writer(tmp_path, "atomic", size=64)
     _inspect_and_crash(tmp_path)
     journal = tmp_path / "journal/attempt.jsonl"
     records = [json.loads(line) for line in journal.read_text().splitlines()]
@@ -297,7 +378,7 @@ def test_repair_quarantines_invalid_journal_record_sequences(tmp_path, mutation)
 
 
 def test_unterminated_tail_quarantines_without_append(tmp_path):
-    T503.run_writer(tmp_path, "atomic", size=64)
+    _run_writer(tmp_path, "atomic", size=64)
     _inspect_and_crash(tmp_path)
     journal = tmp_path / "journal/attempt.jsonl"
     with journal.open("ab") as stream:
@@ -308,9 +389,44 @@ def test_unterminated_tail_quarantines_without_append(tmp_path):
     assert journal.read_bytes() == before
 
 
+def test_restore_failure_after_first_replace_is_partial_restore(tmp_path, monkeypatch):
+    _run_writer(tmp_path, "atomic", size=64)
+    _inspect_and_crash(tmp_path)
+    real_replace = T503.os.replace
+    restore_replaces = 0
+
+    def fail_second_restore(source, target):
+        nonlocal restore_replaces
+        if str(source).endswith(".restore"):
+            restore_replaces += 1
+            if restore_replaces == 2:
+                raise OSError("injected second restore failure")
+        return real_replace(source, target)
+
+    monkeypatch.setattr(T503.os, "replace", fail_second_restore)
+    result, rc = T503.run_repair(tmp_path, "receipt", allow_same_host=True)
+    assert (result["result"], result["restored_targets"], rc) == (
+        "PARTIAL-RESTORE", [T503.TARGETS[0]], 9)
+
+
+def test_prewrite_refusal_remains_quarantine_without_writes(tmp_path):
+    armed = _run_writer(tmp_path, "inplace-partial", size=64)
+    _inspect_and_crash(tmp_path, partial=True)
+    journal = tmp_path / "journal/attempt.jsonl"
+    before_journal = journal.read_bytes()
+    before_targets = [(tmp_path / item["rel"]).read_bytes()
+                      for item in armed["targets"]]
+    result, rc = T503.run_repair(tmp_path, "receipt", allow_same_host=True)
+    assert (result["result"], result["restored_targets"], rc) == (
+        "QUARANTINE", [], 4)
+    assert journal.read_bytes() == before_journal
+    assert [(tmp_path / item["rel"]).read_bytes()
+            for item in armed["targets"]] == before_targets
+
+
 def test_writer_records_each_new_ancestor_parent_fsync(tmp_path):
     root = tmp_path / "new-a" / "new-b"
-    armed = T503.run_writer(root, "atomic", size=64)
+    armed = _run_writer(root, "atomic", size=64)
     durability = armed["ancestor_fsync"]
     assert durability["created_directories"] == [str(tmp_path / "new-a"), str(root)]
     assert durability["fsynced_parents"] == [str(tmp_path), str(tmp_path / "new-a")]
@@ -318,9 +434,11 @@ def test_writer_records_each_new_ancestor_parent_fsync(tmp_path):
 
 
 def _run_cli_leg(root: Path, mode: str, *, partial: bool) -> tuple[int, int]:
-    T503.run_writer(root, mode, size=64, pbs_jobid="writer.1")
+    _run_writer(root, mode, size=64, pbs_jobid="writer.1")
     inspect_argv = ["inspect", "--root", str(root), "--output", str(root / "inspect.json"),
-                    "--receipt", str(root / "inspect-receipt"), "--pbs-jobid", "recovery.2"]
+                    "--receipt", str(root / "inspect-receipt"), "--pbs-jobid", "recovery.2",
+                    "--expect-writer-pbs-sha256", WRITER_PBS_SHA256,
+                    "--recovery-pbs-sha256", RECOVERY_PBS_SHA256]
     if partial:
         inspect_argv.append("--expect-partial-prefix")
     assert T503.main(inspect_argv) == 0
@@ -359,6 +477,31 @@ def test_atomic_run_without_crash_verdicts_pass(tmp_path, monkeypatch):
     assert verdict["legs"]["L-B"]["result"] == "UNKNOWN"
 
 
+def test_partial_restore_repair_never_produces_go(tmp_path, monkeypatch):
+    _fixed_identities(monkeypatch)
+    monkeypatch.setattr(T503, "_mount_info", lambda root: {
+        "st_dev": 42, "mount_point": "/fake-lustre", "fstype": "lustre"})
+    atomic, control = tmp_path / "atomic", tmp_path / "control"
+    atomic.mkdir(); control.mkdir()
+    assert _run_cli_leg(atomic, "atomic", partial=False) == (0, 0)
+    assert _run_cli_leg(control, "inplace-partial", partial=True) == (4, 5)
+    repair_path = atomic / "repair.json"
+    repair = json.loads(repair_path.read_text())
+    repair.update(result="PARTIAL-RESTORE", rc=9)
+    _write_json(repair_path, repair)
+    verdict_root = tmp_path / "verdict"
+    verdict_root.mkdir()
+    rc = T503.main([
+        "verdict", "--root", str(verdict_root),
+        "--output", str(verdict_root / "verdict.json"),
+        "--leg-root", f"L-A={atomic}", "--leg-root", f"L-C={control}",
+    ])
+    verdict = json.loads((verdict_root / "verdict.json").read_text())
+    assert rc == 8
+    assert verdict["verdict"] == "NO-GO"
+    assert verdict["legs"]["L-A"]["result"] == "FAIL"
+
+
 def test_verdict_no_go_returns_nonzero_and_required_set_is_not_cli_controlled(tmp_path):
     parser = T503._parser()
     assert "--leg" not in parser.format_help()
@@ -387,6 +530,10 @@ def test_pbs_scripts_bind_jobs_sources_clients_and_stage_processes():
     assert "go-kill" in writer and "record-crash" in writer and "WAIT_STATUS" in writer
     assert "--pbs-sha256" in writer and "root-durability.json" in writer
     assert "${PBS_JOBID:-}" in recovery and "--require-fstype lustre" in recovery
+    assert "--expect-writer-pbs-sha256" in recovery
+    assert "--recovery-pbs-sha256" in recovery
+    assert 'sha256sum -- "$WRITER_PBS"' in recovery
+    assert 'sha256sum -- "$RECOVERY_PBS"' in recovery
     assert "exit 7" in recovery and "CRASH_WAITED" in recovery
     assert recovery.count('"$PY" -I -B "$PROBE"') >= 4
     assert "物理ノード死" in recovery and "leg-summary.json" in recovery
