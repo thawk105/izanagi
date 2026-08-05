@@ -413,6 +413,7 @@ def test_omitted_claude_drivers_resolve_before_finish_trial(tmp_path) -> None:
             run_root=tmp_path / "omitted-claude-driver-resolution",
             sub="/unused",
             do_build=False,
+            allow_unregistered_exploratory=True,
         )
     finally:
         A._finish_trial = original_finish_trial
@@ -477,6 +478,7 @@ def test_fixture_run_omitted_drivers_use_current_module_values(tmp_path) -> None
             run_root=tmp_path / "fixture-omitted-drivers",
             sub="/unused",
             do_build=False,
+            allow_unregistered_exploratory=True,
         )
     finally:
         A._preview = original_preview
@@ -508,6 +510,7 @@ def test_fixture_run_keeps_drive_and_preview_injection(tmp_path) -> None:
         do_build=False,
         drive=drive,
         preview=preview,
+        allow_unregistered_exploratory=True,
     )
     assert report["status"] == "complete"
     assert calls == {"drive": 1, "preview": 1}
