@@ -1,0 +1,176 @@
+[
+ {
+  "tag": "A-R3",
+  "cmd": "python3 -mcProfile tools/pegasus/exec_calibrate.py /tmp/argv.json",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/exec_calibrate.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R3",
+  "cmd": "python3 -m cProfile tools/pegasus/exec_calibrate.py /tmp/argv.json",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R3",
+  "cmd": "python3 -m cProfile -o /tmp/p.out tools/pegasus/certify_calibration.sh",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R3",
+  "cmd": "python3 -mpdb tools/pegasus/exec_calibrate.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/exec_calibrate.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R3",
+  "cmd": "python3 -mtrace --trace tools/pegasus/exec_calibrate.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/exec_calibrate.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R3",
+  "cmd": "python3 -mrunpy tools/pegasus/exec_calibrate.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/exec_calibrate.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R4",
+  "cmd": "python3 -m pytest.__main__ orchestrator/tests/test_hooks.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R4",
+  "cmd": "python3 -mpytest.__main__ -q",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R4",
+  "cmd": "python3 -m _pytest.main orchestrator/tests",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R6",
+  "cmd": "python3 -W ignore tools/pegasus/exec_calibrate.py /tmp/argv.json",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R6",
+  "cmd": "python3 -X faulthandler tools/pegasus/exec_calibrate.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R6",
+  "cmd": "bash -O extglob tools/pegasus/certify_calibration.sh",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R6",
+  "cmd": "python3 tools/pegasus/exec_calibrate.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/exec_calibrate.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R7",
+  "cmd": "cd hooks && python3 ../tools/pegasus/exec_calibrate.py /tmp/argv.json",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R7",
+  "cmd": "bash -lc 'cd tools/pegasus && python3 exec_calibrate.py /tmp/argv.json'",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R8",
+  "cmd": "systemd-run --user --scope -q --unit=izprobe -p MemoryAccounting=yes -- pytest -q",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R8",
+  "cmd": "systemd-run --user --scope -- python3 tools/pegasus/exec_calibrate.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R10",
+  "cmd": "bash -lc \"bash -lc 'bash -lc \\\"pytest -q\\\"'\"",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R10",
+  "cmd": "bash -lc \"bash -lc 'pytest -q'\"",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R10",
+  "cmd": "bash -lc 'pytest -q'",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R11",
+  "cmd": "pytest -h",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R11",
+  "cmd": "python3 -m pytest --co",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R11",
+  "cmd": "python3 tools/pegasus/run_probe.py --help",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/run_probe.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R11",
+  "cmd": "python3 -c 'print(1)' -m pytest",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "A-R5",
+  "cmd": "env -S 'pytest\\_-q'",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "A-R5",
+  "cmd": "env -S 'python3\\_-mpytest\\_tools/run_tests.py'",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "B-R3",
+  "cmd": "python3 tools/pegasus/probes/anything.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/probes/anything.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "BASE",
+  "cmd": "pytest -q",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "BASE",
+  "cmd": "python3 -m py_compile tools/pegasus/collect_receipt.py",
+  "rc": 0,
+  "stderr": ""
+ }
+]
