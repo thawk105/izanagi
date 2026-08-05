@@ -2267,6 +2267,812 @@ def _check_dispatch_inventory(findings: list[str]) -> None:
         )
 
 
+_ADMISSION_PREFIX = "tools/check_docs.py: Pegasus admission drift — "
+_ADMISSION_LOADER = "tools/pegasus_admission_registry.py"
+_ADMISSION_README = "tools/pegasus/README.md"
+_ADMISSION_PROJECTION_HEADER = ("path", "class", "evidence")
+_ADMISSION_UNKNOWN_HEADER = ("経路", "なぜ `unknown` か")
+_ADMISSION_MEASURED_HEADER = ("経路", "観測ピーク", "certified peak", "分類")
+_ADMISSION_DECLARATION_HEADER = (
+    "path",
+    "手順上の実行 site",
+    "registry class",
+)
+_ADMISSION_SITES = frozenset({"login-direct", "qsub-job-body", "compute-only"})
+_ADMISSION_CLASSES = frozenset({"local-ok", "dispatch-required", "unknown"})
+_ADMISSION_LITERAL_RE = re.compile(r"`([^`\r\n]+)`\Z")
+_ADMISSION_SITE_TAG_RE = re.compile(r"^[ \t]*# admission-site:[ \t]*(?P<site>\S.*?)[ \t]*$")
+_ADMISSION_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9_])tools(?:[/／]+)pegasus"
+    r"(?:[/／]+[A-Za-z0-9_.-]+)+(?:[/／]+)?",
+    re.IGNORECASE,
+)
+
+# This is an independent golden for the one grandfather warning whose presence is
+# normative even though the surrounding unknown inventory is intentionally open.
+_ADMISSION_REQUIRED_GRANDFATHER_WARNINGS = {
+    "tools/pegasus/submit_silo_ladder_rung1.sh": (
+        "local-ok",
+        "legacy-admitted (未実測)",
+    ),
+}
+
+
+@dataclass(frozen=True)
+class _AdmissionTable:
+    header: tuple[str, ...]
+    rows: tuple[tuple[str, ...], ...]
+
+
+@dataclass(frozen=True)
+class _AdmissionFence:
+    info: str
+    first_lineno: int
+    lines: tuple[str, ...]
+
+
+def _admission_finding(findings: list[str], detail: str) -> None:
+    findings.append(f"{_ADMISSION_PREFIX}{detail}")
+
+
+def _admission_exception(exc: BaseException) -> str:
+    """例外 payload を再評価せず、安全な型名だけを診断へ写す。"""
+
+    try:
+        name = type(exc).__name__
+        return name if isinstance(name, str) and name else "BaseException"
+    except BaseException:
+        return "BaseException"
+
+
+def _load_admission_registry(
+    findings: list[str],
+) -> dict[str, dict[str, str]] | None:
+    """canonical loader の exact source bytes を実行し、異常を単一 finding に畳む。"""
+
+    source = REPO / _ADMISSION_LOADER
+    module_name = "_izanagi_check_docs_pegasus_admission_registry"
+    previous_modules = sys.modules
+    previous_dont_write_bytecode = sys.dont_write_bytecode
+    try:
+        sys.dont_write_bytecode = True
+        with source.open("rb") as stream:
+            source_bytes = stream.read()
+        namespace = {
+            "__file__": str(source),
+            "__name__": module_name,
+            "__package__": "",
+        }
+        exec(
+            compile(source_bytes, str(source), "exec", dont_inherit=True),
+            namespace,
+        )
+        loader = namespace.get("load_admission_registry")
+        if not callable(loader):
+            raise TypeError("load_admission_registry が callable でない")
+        loaded = loader(REPO)
+        if not isinstance(loaded, Mapping) or not loaded:
+            raise TypeError("loader 返値が非空 Mapping でない")
+
+        registry: dict[str, dict[str, str]] = {}
+        for path, entry in loaded.items():
+            if not isinstance(path, str) or not isinstance(entry, Mapping):
+                raise TypeError("loader 返値の entry が path→Mapping でない")
+            entry_class = entry.get("class")
+            evidence = entry.get("evidence")
+            if (
+                entry_class not in _ADMISSION_CLASSES
+                or not isinstance(evidence, str)
+                or not evidence
+            ):
+                raise TypeError("loader 返値の class/evidence が不正")
+            registry[path] = {"class": entry_class, "evidence": evidence}
+        return registry
+    except BaseException as exc:
+        try:
+            detail = _admission_exception(exc)
+        except BaseException:
+            detail = "BaseException"
+        _admission_finding(findings, f"canonical registry を確定できない — {detail}")
+        return None
+    finally:
+        try:
+            sys.dont_write_bytecode = previous_dont_write_bytecode
+        except BaseException:
+            pass
+        try:
+            sys.modules = previous_modules
+        except BaseException:
+            pass
+
+
+def _admission_single_literal(cell: str) -> str | None:
+    match = _ADMISSION_LITERAL_RE.fullmatch(cell)
+    return match.group(1) if match is not None else None
+
+
+def _admission_path_mentions(
+    text: str,
+    registry: Mapping[str, object],
+) -> tuple[set[str], list[str]]:
+    """Pegasus-like path を正規化し、既知 path と非 canonical 綴りを返す。"""
+
+    by_folded = {path.casefold(): path for path in registry}
+    mentioned: set[str] = set()
+    noncanonical: list[str] = []
+    for match in _ADMISSION_PATH_RE.finditer(text):
+        raw = match.group(0)
+        normalized = raw.replace("／", "/")
+        normalized = re.sub(r"/+", "/", normalized).rstrip("/")
+        parts = normalized.split("/")
+        canonical_spelling = "/".join(("tools", "pegasus", *parts[2:]))
+        if raw != canonical_spelling:
+            noncanonical.append(raw)
+        canonical = by_folded.get(normalized.casefold())
+        if canonical is None:
+            continue
+        mentioned.add(canonical)
+        if raw != canonical and raw not in noncanonical:
+            noncanonical.append(raw)
+    return mentioned, noncanonical
+
+
+def _admission_fences(text: str) -> tuple[_AdmissionFence, ...]:
+    opener = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$")
+    active: tuple[str, int, str, int, list[str]] | None = None
+    fences: list[_AdmissionFence] = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if active is not None:
+            marker_char, marker_len, info, first_lineno, lines = active
+            stripped = line.lstrip(" \t")
+            if re.fullmatch(
+                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*",
+                stripped,
+            ):
+                fences.append(_AdmissionFence(info, first_lineno, tuple(lines)))
+                active = None
+            else:
+                lines.append(line)
+            continue
+        match = opener.fullmatch(line)
+        if match is not None:
+            marker = match.group("marker")
+            info = match.group("info").strip().split(maxsplit=1)[0].casefold()
+            active = (marker[0], len(marker), info, lineno + 1, [])
+    return tuple(fences)
+
+
+def _admission_command_paths(
+    fence: _AdmissionFence,
+    registry: Mapping[str, object],
+) -> list[tuple[str, bool]]:
+    """規範 command と判定できる行だけから (path, qsub 引数か) を抽出する。"""
+
+    if fence.info in {"diff", "patch", "text", "markdown", "md"}:
+        return []
+    commands: list[tuple[str, bool]] = []
+    negative = re.compile(
+        r"実行してはなら|実行しない|直接実行を禁止|拒否され|"
+        r"\b(?:do not|must not|never)\b",
+        re.IGNORECASE,
+    )
+    by_folded = {path.casefold(): path for path in registry}
+    for line in fence.lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "+", "-")) or negative.search(line):
+            continue
+        for match in _ADMISSION_PATH_RE.finditer(line):
+            raw = match.group(0)
+            normalized = re.sub(r"/+", "/", raw.replace("／", "/")).rstrip("/")
+            canonical = by_folded.get(normalized.casefold())
+            if canonical is None:
+                continue
+            before = line[:match.start()]
+            token_prefix = before.rsplit(maxsplit=1)[-1] if before.split() else before
+            if "://" in token_prefix or before.count("`") % 2:
+                continue
+            if "#" in before and before.index("#") < len(before):
+                continue
+            words = before.strip().split()
+            qsub_argument = bool(words and words[0] == "qsub")
+            interpreter_argument = bool(
+                words and words[0] in {"python", "python3", "bash", "sh"}
+            )
+            direct = not before.strip() or (
+                len(words) == 1
+                and (words[0].endswith("/") or words[0] in {"./"})
+            )
+            if qsub_argument or interpreter_argument or direct:
+                commands.append((canonical, qsub_argument))
+    return commands
+
+
+def _admission_code_spans_are_balanced(line: str) -> bool:
+    runs = [len(match.group(0)) for match in re.finditer(r"`+", line)]
+    return len(runs) % 2 == 0 and all(
+        runs[index] == runs[index + 1]
+        for index in range(0, len(runs), 2)
+    )
+
+
+def _admission_tables(
+    text: str,
+    *,
+    label: str,
+    findings: list[str],
+) -> list[_AdmissionTable] | None:
+    """可視な pipe table を構文検査し、orphan row も fail-closed にする。"""
+
+    lines = text.splitlines()
+    tables: list[_AdmissionTable] = []
+    index = 0
+    while index < len(lines):
+        if not lines[index].lstrip().startswith("|"):
+            index += 1
+            continue
+        block: list[str] = []
+        while index < len(lines) and lines[index].lstrip().startswith("|"):
+            block.append(lines[index])
+            index += 1
+        if (
+            len(block) < 2
+            or any("\\|" in line for line in block)
+            or any(not _admission_code_spans_are_balanced(line) for line in block)
+        ):
+            _admission_finding(
+                findings,
+                f"{label} に orphan row・escaped pipe・code span 崩れがある",
+            )
+            return None
+
+        header, header_leading, header_trailing = _markdown_table_cells(block[0])
+        separator, sep_leading, sep_trailing = _markdown_table_cells(block[1])
+        valid_separator = (
+            header_leading == header_trailing == 1
+            and sep_leading == sep_trailing == 1
+            and len(header) == len(separator)
+            and bool(header)
+            and all(re.fullmatch(r":?-{3,}:?", cell) for cell in separator)
+        )
+        rows: list[tuple[str, ...]] = []
+        malformed = not valid_separator
+        for line in block[2:]:
+            cells, leading, trailing = _markdown_table_cells(line)
+            if leading != 1 or trailing != 1 or len(cells) != len(header):
+                malformed = True
+                continue
+            rows.append(tuple(cells))
+        if malformed:
+            _admission_finding(
+                findings,
+                f"{label} に header/separator/row の malformed がある",
+            )
+            return None
+        if len(rows) != len(set(rows)):
+            _admission_finding(findings, f"{label} に duplicate row がある")
+            return None
+        tables.append(_AdmissionTable(tuple(header), tuple(rows)))
+    return tables
+
+
+def _admission_exact_table(
+    tables: list[_AdmissionTable],
+    header: tuple[str, ...],
+    *,
+    label: str,
+    findings: list[str],
+) -> _AdmissionTable | None:
+    matches = [table for table in tables if table.header == header]
+    if len(matches) != 1:
+        _admission_finding(
+            findings,
+            f"{label} の exact header が {len(matches)} 件",
+        )
+        return None
+    return matches[0]
+
+
+def _admission_runbook_section(
+    text: str, findings: list[str]
+) -> tuple[str, str] | None:
+    visible = _visible_dispatch_inventory_text(text)
+    sections = list(_DISPATCH_SECTION_RE.finditer(visible))
+    if len(sections) != 1:
+        _admission_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} の可視な `### 7.0` 節が {len(sections)} 件",
+        )
+        return None
+    section = sections[0]
+    parent_headings = list(_DISPATCH_PARENT_HEADING_RE.finditer(visible))
+    parents = [
+        heading
+        for heading in parent_headings
+        if (
+            heading.group("marker") == "##"
+            and _DISPATCH_PARENT_TITLE_RE.match(heading.group("title"))
+        )
+    ]
+    preceding = [heading for heading in parent_headings if heading.start() < section.start()]
+    if len(parents) != 1 or not preceding or preceding[-1] is not parents[0]:
+        _admission_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} の `### 7.0` が一意な親 `## 7` の直下でない",
+        )
+        return None
+    tail = visible[section.end():]
+    next_heading = re.search(r"^[ \t]{0,3}#{1,3}(?!#)[ \t]+", tail, re.MULTILINE)
+    visible_body = tail[:next_heading.start()] if next_heading is not None else tail
+
+    raw_sections = list(_DISPATCH_SECTION_RE.finditer(text))
+    if len(raw_sections) != 1:
+        _admission_finding(
+            findings,
+            f"{_DISPATCH_RUNBOOK} の raw `### 7.0` 節が {len(raw_sections)} 件",
+        )
+        return None
+    raw_section = raw_sections[0]
+    raw_tail = text[raw_section.end():]
+    raw_next = re.search(r"^[ \t]{0,3}#{1,3}(?!#)[ \t]+", raw_tail, re.MULTILINE)
+    raw_body = raw_tail[:raw_next.start()] if raw_next is not None else raw_tail
+    return visible_body, raw_body
+
+
+def _admission_hidden_header(
+    raw: str,
+    visible: str,
+    header: tuple[str, ...],
+) -> bool:
+    rendered = "| " + " | ".join(header) + " |"
+    raw_count = sum(line.strip() == rendered for line in raw.splitlines())
+    visible_count = sum(line.strip() == rendered for line in visible.splitlines())
+    return raw_count != visible_count
+
+
+def _check_admission_projection(
+    table: _AdmissionTable,
+    registry: dict[str, dict[str, str]],
+    findings: list[str],
+) -> None:
+    projected: set[tuple[str, str, str]] = set()
+    duplicates: set[tuple[str, str, str]] = set()
+    for row in table.rows:
+        values = tuple(_admission_single_literal(cell) for cell in row)
+        if any(value is None for value in values):
+            _admission_finding(
+                findings,
+                "runbook §7.0 投影表の cell が単一 backtick literal でない",
+            )
+            return
+        item = (values[0], values[1], values[2])
+        assert all(value is not None for value in item)
+        normalized = (str(item[0]), str(item[1]), str(item[2]))
+        if normalized in projected:
+            duplicates.add(normalized)
+        projected.add(normalized)
+    if duplicates:
+        _admission_finding(findings, "runbook §7.0 投影表に duplicate row がある")
+        return
+    canonical = {
+        (path, entry["class"], entry["evidence"])
+        for path, entry in registry.items()
+    }
+    if projected != canonical:
+        _admission_finding(
+            findings,
+            "runbook §7.0 投影表が registry と集合完全一致しない — "
+            f"registry_only={sorted(canonical - projected)}, "
+            f"runbook_only={sorted(projected - canonical)}",
+        )
+
+
+def _check_admission_unknown_table(
+    table: _AdmissionTable,
+    registry: dict[str, dict[str, str]],
+    findings: list[str],
+) -> None:
+    seen: set[str] = set()
+    for path_cell, explanation in table.rows:
+        path = _admission_single_literal(path_cell)
+        mentions, noncanonical = _admission_path_mentions(path_cell, registry)
+        if noncanonical:
+            _admission_finding(
+                findings,
+                f"unknown 表に非 canonical Pegasus path がある — {noncanonical}",
+            )
+            return
+        if path is None and mentions:
+            _admission_finding(findings, "unknown 表の path cell が単一 backtick literal でない")
+            return
+        if path is None or not path.startswith("tools/pegasus/"):
+            continue
+        if path in seen:
+            _admission_finding(findings, f"unknown 表に duplicate path がある — {path}")
+            return
+        seen.add(path)
+        entry = registry.get(path)
+        if entry is None:
+            _admission_finding(findings, f"unknown 表に未登録 path がある — {path}")
+            return
+        if entry["class"] == "unknown":
+            continue
+        legacy = (
+            entry["class"] == "local-ok"
+            and entry["evidence"].startswith("legacy-admitted")
+            and "`local-ok`" in explanation
+            and f"`{entry['evidence']}`" in explanation
+        )
+        if not legacy:
+            _admission_finding(
+                findings,
+                f"unknown 表の admission 説明が registry と不整合 — {path}",
+            )
+            return
+
+    expected = set(_ADMISSION_REQUIRED_GRANDFATHER_WARNINGS)
+    if not expected <= seen:
+        _admission_finding(
+            findings,
+            "unknown 表に必須 grandfather 警告がない — "
+            f"missing={sorted(expected - seen)}",
+        )
+        return
+    for path, (expected_class, expected_evidence) in (
+        _ADMISSION_REQUIRED_GRANDFATHER_WARNINGS.items()
+    ):
+        entry = registry.get(path)
+        if entry != {"class": expected_class, "evidence": expected_evidence}:
+            _admission_finding(
+                findings,
+                f"必須 grandfather golden が registry と不一致 — {path}",
+            )
+            return
+
+
+def _check_admission_measured_table(
+    table: _AdmissionTable,
+    registry: dict[str, dict[str, str]],
+    findings: list[str],
+) -> None:
+    paths: set[str] = set()
+    previous_path: str | None = None
+    for row in table.rows:
+        classification = _admission_single_literal(row[3]) or row[3]
+        if classification != "local-ok":
+            _admission_finding(findings, "runbook §7.0 実測表に非 local-ok 行がある")
+            return
+        explicit = re.search(r"`(tools/pegasus/[^`\s]+)(?:\s[^`]*)?`", row[0])
+        if explicit is not None:
+            previous_path = explicit.group(1)
+        elif row[0].startswith("同 "):
+            if previous_path is None:
+                _admission_finding(findings, "runbook §7.0 実測表の `同` 行に継承元がない")
+                return
+        else:
+            _admission_finding(findings, "runbook §7.0 実測表の path を解析できない")
+            return
+        assert previous_path is not None
+        paths.add(previous_path)
+    expected = {
+        path
+        for path, entry in registry.items()
+        if entry["evidence"] == "runbook §7.0 実測"
+    }
+    if paths != expected:
+        _admission_finding(
+            findings,
+            "runbook §7.0 実測表の path 集合が registry と不一致 — "
+            f"registry={sorted(expected)}, runbook={sorted(paths)}",
+        )
+
+
+def _check_admission_runbook(
+    text: str,
+    registry: dict[str, dict[str, str]],
+    findings: list[str],
+) -> None:
+    section = _admission_runbook_section(text, findings)
+    if section is None:
+        return
+    visible, raw = section
+    headers = (
+        _ADMISSION_PROJECTION_HEADER,
+        _ADMISSION_UNKNOWN_HEADER,
+        _ADMISSION_MEASURED_HEADER,
+    )
+    if any(_admission_hidden_header(raw, visible, header) for header in headers):
+        _admission_finding(findings, "runbook §7.0 に fence/comment へ隠した admission 表がある")
+        return
+    tables = _admission_tables(
+        visible,
+        label=f"{_DISPATCH_RUNBOOK} §7.0",
+        findings=findings,
+    )
+    if tables is None:
+        return
+    projection = _admission_exact_table(
+        tables,
+        _ADMISSION_PROJECTION_HEADER,
+        label="runbook §7.0 投影表",
+        findings=findings,
+    )
+    unknown = _admission_exact_table(
+        tables,
+        _ADMISSION_UNKNOWN_HEADER,
+        label="runbook §7.0 unknown 表",
+        findings=findings,
+    )
+    measured = _admission_exact_table(
+        tables,
+        _ADMISSION_MEASURED_HEADER,
+        label="runbook §7.0 実測表",
+        findings=findings,
+    )
+    if projection is None or unknown is None or measured is None:
+        return
+    _check_admission_projection(projection, registry, findings)
+    _check_admission_unknown_table(unknown, registry, findings)
+    _check_admission_measured_table(measured, registry, findings)
+
+
+def _check_admission_tagged_fences(
+    text: str,
+    registry: dict[str, dict[str, str]],
+    declared_sites: Mapping[str, str],
+    findings: list[str],
+) -> None:
+    """site tag を command target と exact 結合し、3 値を潰さず検査する。"""
+
+    placeholder = "<login-direct | qsub-job-body | compute-only>"
+    qsub_arguments: set[str] = set()
+    for fence in _admission_fences(text):
+        tag_rows = [
+            (index, match.group("site"))
+            for index, line in enumerate(fence.lines)
+            if (match := _ADMISSION_SITE_TAG_RE.fullmatch(line)) is not None
+            and match.group("site") != placeholder
+        ]
+        if len(tag_rows) > 1:
+            _admission_finding(
+                findings,
+                f"Pegasus README の fenced block に admission-site tag が重複 — line={fence.first_lineno}",
+            )
+            return
+        if tag_rows and tag_rows[0][1] not in _ADMISSION_SITES:
+            _admission_finding(
+                findings,
+                "Pegasus README の admission-site tag が閉集合外 — "
+                f"{tag_rows[0][1]}",
+            )
+            return
+
+        commands = _admission_command_paths(fence, registry)
+        if fence.info not in {"diff", "patch", "text", "markdown", "md"}:
+            for offset, line in enumerate(fence.lines):
+                stripped = line.strip()
+                if (
+                    "pegasus/" in line
+                    and "tools/pegasus/" not in line
+                    and not stripped.startswith(("#", "+", "-"))
+                    and "://" not in line
+                    and re.match(r"^(?:qsub|python\d*|bash|sh)\b", stripped)
+                ):
+                    _admission_finding(
+                        findings,
+                        "Pegasus README の fenced command が tools/pegasus/ literal を失っている — "
+                        f"lines={[fence.first_lineno + offset]}",
+                    )
+                    return
+        if not commands:
+            continue
+        if not tag_rows:
+            _admission_finding(
+                findings,
+                f"Pegasus README の registry 実行体を含む fenced command に admission-site tag がない — line={fence.first_lineno}",
+            )
+            return
+        tag_index, site = tag_rows[0]
+        if tag_index != 0:
+            _admission_finding(
+                findings,
+                f"Pegasus README の admission-site tag が fenced block の先頭行でない — line={fence.first_lineno}",
+            )
+            return
+        for path, qsub_argument in commands:
+            declared_site = declared_sites.get(path)
+            if declared_site != site:
+                _admission_finding(
+                    findings,
+                    "Pegasus README の fenced command site が宣言表と不一致 — "
+                    f"path={path}, tag={site}, declaration={declared_site}",
+                )
+                return
+            if site == "qsub-job-body" and not qsub_argument:
+                _admission_finding(
+                    findings,
+                    f"Pegasus README の qsub-job-body 実行体が qsub 引数でない — {path}",
+                )
+                return
+            if qsub_argument:
+                qsub_arguments.add(path)
+
+    required_qsub = {
+        path for path, site in declared_sites.items() if site == "qsub-job-body"
+    }
+    if qsub_arguments != required_qsub:
+        _admission_finding(
+            findings,
+            "Pegasus README の qsub-job-body 宣言集合が qsub 引数集合と不一致 — "
+            f"declaration={sorted(required_qsub)}, qsub={sorted(qsub_arguments)}",
+        )
+
+
+def _check_admission_readme(
+    text: str,
+    registry: dict[str, dict[str, str]],
+    findings: list[str],
+) -> None:
+    visible = _visible_dispatch_inventory_text(text)
+    section_matches = list(re.finditer(
+        r"^[ \t]{0,3}##(?!#)[ \t]+0\.(?:[ \t\u3000]+[^\n]+)?[ \t]*$",
+        visible,
+        re.MULTILINE,
+    ))
+    if len(section_matches) != 1:
+        _admission_finding(
+            findings,
+            f"{_ADMISSION_README} の可視な `## 0.` 節が {len(section_matches)} 件",
+        )
+        return
+    section_tail = visible[section_matches[0].end():]
+    next_section = re.search(r"^[ \t]{0,3}#{1,2}(?!#)[ \t]+", section_tail, re.MULTILINE)
+    visible_section = (
+        section_tail[:next_section.start()]
+        if next_section is not None
+        else section_tail
+    )
+    raw_section_matches = list(re.finditer(
+        r"^[ \t]{0,3}##(?!#)[ \t]+0\.(?:[ \t\u3000]+[^\n]+)?[ \t]*$",
+        text,
+        re.MULTILINE,
+    ))
+    if len(raw_section_matches) != 1:
+        _admission_finding(
+            findings,
+            f"{_ADMISSION_README} の raw `## 0.` 節が {len(raw_section_matches)} 件",
+        )
+        return
+    raw_section_tail = text[raw_section_matches[0].end():]
+    raw_next_section = re.search(
+        r"^[ \t]{0,3}#{1,2}(?!#)[ \t]+",
+        raw_section_tail,
+        re.MULTILINE,
+    )
+    raw_section = (
+        raw_section_tail[:raw_next_section.start()]
+        if raw_next_section is not None
+        else raw_section_tail
+    )
+    if _admission_hidden_header(
+        raw_section,
+        visible_section,
+        _ADMISSION_DECLARATION_HEADER,
+    ):
+        _admission_finding(findings, "Pegasus README の宣言表が fence/comment に隠れている")
+        return
+    tables = _admission_tables(
+        visible_section,
+        label=f"{_ADMISSION_README} 宣言表",
+        findings=findings,
+    )
+    if tables is None:
+        return
+    declaration = _admission_exact_table(
+        tables,
+        _ADMISSION_DECLARATION_HEADER,
+        label="Pegasus README 宣言表",
+        findings=findings,
+    )
+    if declaration is None:
+        return
+    if not declaration.rows:
+        _admission_finding(findings, "Pegasus README 宣言表が空である")
+        return
+
+    declared: set[str] = set()
+    declared_sites: dict[str, str] = {}
+    for row in declaration.rows:
+        values = tuple(_admission_single_literal(cell) for cell in row)
+        if any(value is None for value in values):
+            _admission_finding(findings, "Pegasus README 宣言表の cell が単一 backtick literal でない")
+            return
+        path, site, documented_class = (str(value) for value in values)
+        _, noncanonical = _admission_path_mentions(path, registry)
+        if noncanonical:
+            _admission_finding(
+                findings,
+                f"Pegasus README 宣言表に非 canonical Pegasus path がある — {noncanonical}",
+            )
+            return
+        if path in declared:
+            _admission_finding(findings, f"Pegasus README 宣言表に duplicate path がある — {path}")
+            return
+        declared.add(path)
+        declared_sites[path] = site
+        entry = registry.get(path)
+        if entry is None:
+            _admission_finding(findings, f"Pegasus README 宣言表に未登録 path がある — {path}")
+            return
+        if site not in _ADMISSION_SITES:
+            _admission_finding(findings, f"Pegasus README 宣言表の site が閉集合外 — {site}")
+            return
+        if documented_class != entry["class"]:
+            _admission_finding(findings, f"Pegasus README 宣言表の class が registry と不一致 — {path}")
+            return
+        if (site == "login-direct") != (entry["class"] == "local-ok"):
+            _admission_finding(findings, f"Pegasus README 宣言表の site/class が不整合 — {path}")
+            return
+
+    mentioned, noncanonical = _admission_path_mentions(text, registry)
+    if noncanonical:
+        _admission_finding(
+            findings,
+            f"Pegasus README に非 canonical Pegasus path がある — {noncanonical}",
+        )
+        return
+    if not mentioned <= declared:
+        _admission_finding(
+            findings,
+            "Pegasus README 本文の既知 path が宣言表に未掲載 — "
+            f"{sorted(mentioned - declared)}",
+        )
+        return
+    _check_admission_tagged_fences(text, registry, declared_sites, findings)
+
+
+def _check_pegasus_admission_docs_impl(findings: list[str]) -> None:
+    """registry の class/evidence と公表 inventory の同期だけを検査する。"""
+
+    registry = _load_admission_registry(findings)
+    if registry is None:
+        return
+    runbook = _safe_read_text(
+        REPO / _DISPATCH_RUNBOOK,
+        findings,
+        f"{_ADMISSION_PREFIX}{_DISPATCH_RUNBOOK} の読取失敗",
+    )
+    readme = _safe_read_text(
+        REPO / _ADMISSION_README,
+        findings,
+        f"{_ADMISSION_PREFIX}{_ADMISSION_README} の読取失敗",
+    )
+    if runbook is not None:
+        _check_admission_runbook(runbook, registry, findings)
+    if readme is not None:
+        _check_admission_readme(readme, registry, findings)
+
+
+def _check_pegasus_admission_docs(findings: list[str]) -> None:
+    """Admission 検査全体から BaseException を漏らさず fail-closed にする。"""
+
+    try:
+        _check_pegasus_admission_docs_impl(findings)
+    except BaseException as exc:
+        try:
+            detail = _admission_exception(exc)
+        except BaseException:
+            detail = "BaseException"
+        try:
+            _admission_finding(
+                findings,
+                f"admission checker 内部失敗を fail-closed 化 — {detail}",
+            )
+        except BaseException:
+            findings.append(
+                f"{_ADMISSION_PREFIX}admission checker 内部失敗を fail-closed 化 — BaseException"
+            )
+
+
 def _provenance_markdown_ambiguities(text: str) -> tuple[str, ...]:
     """共有 scanner が過剰 mask しうる provenance 固有の曖昧性を列挙する。"""
 
@@ -3181,6 +3987,7 @@ def main() -> int:
         )
 
     _check_dispatch_inventory(findings)
+    _check_pegasus_admission_docs(findings)
 
     # decisions.md の D 見出し重複 (grep index の壊れ)
     decisions_text = _safe_read_text(

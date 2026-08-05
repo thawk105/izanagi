@@ -41,6 +41,17 @@
   ない — brief の根拠にする機構は現物 file:line で実在を確認する (worklog 2026-07-28 (42)、
   旧番号 (38) から D70 統合時振り直し)
 
+
+- **再発: 2026-08-06** — 裁定 inbox が「**起票者の見立て**」として明示的に留保した推測が、
+  [T-495] の起票文では「ahead>0 のブランチを**検査なしに消した**経路を特定する」という
+  確定事実に変わり、wave がその誤った前提から出発した。一次資料 (削除セッションの transcript と
+  `output/insights/2026-07-30_dev-wave-improve-wave/s9-t193-ruling.md`) に当たると、
+  削除には内容検査・ユーザー明示承認・2 日前のユーザー裁定がすべて先行しており、
+  「検査なし」は事実でなかった。転写対象が日付・機構の実在状態から
+  **推測の確度 (見立て → 確定事実)** へ広がった顕在化である。検出は段 1 の前提実測と
+  段 3 の敵対レンズ 2 本 (独立に追認)。実害は誤前提での 1 wave 分の起票に留まり、
+  結論は是正して land した。恒久対応は memory から変更なし — 起票文が引く一次控えに
+  「見立て」「推測」の留保があるなら、brief はその留保ごと引くこと (worklog 2026-08-06)。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -1331,6 +1342,16 @@
 - **再発検知:** 上記2 nodeの単独対照、同file直列、repository全走16/32/48-worker対照。
   記録: worklog 2026-07-30 (70)、2026-07-31 (73)、2026-08-01 (95)
 
+
+- **再発: 2026-08-06 ([T-522] 受入全走)。** 6,606 件の全走 (48 worker、request `892018`) で
+  `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  が 1 件落ちた。原因は assert 不一致ではなく
+  `git -c core.useReplaceRefs=false cat-file --batch-check` の 15 秒 timeout (`returncode -9`) で、
+  同 file 単独の再走は 8 passed / 29.23 秒で再現しない。**[T-327] が 2026-08-05 に
+  同型 (全走 6,034 件で `git add -A` が 30 秒 timeout) を session fixture 化 + timeout 180 秒で
+  塞いだ直後の再発**であり、対策された呼び出しではなく `_batch_oids` 側の別の git 呼び出しで出た。
+  本 wave の差分 (admission registry) は当該コードへ到達しない。恒久対応は
+  [T-553] として起票する。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -2126,6 +2147,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 3 のレンズに「親自身の実測値とその一般化」を明示的に攻撃面へ入れる既存規律
   (`DW-S03`) が実際に機能した。本件はその有効性の実証でもある。
 
+
+- **再発: 2026-08-06** — 段 1 brief で `_collect_accounting` の固定待ちを 8 秒と書いたが、
+  内側の retry ループ (4 回 × 2 秒) だけを数え、それを包む `racctjob` / `racctreq` の 2 command
+  ループを掛け落としていた。正しくは 16 秒で、同じ brief の (P3) は 16 秒と書いており本文内で
+  矛盾していた。段 3 の 2 レンズが独立に指摘した。「関数を読んだ」を「呼び出し列を読んだ」と
+  取り違える同じ型で、対象が cleanup 列からループの入れ子へ変わっただけである。brief 本文は
+  書き換えず erratum で是正した (`output/insights/2026-08-06_t401-racct-permanent/brief-erratum-1.md` E1)。
 ### F92. fail-closed な controller に回収経路が無く、1 度の crash で wave が永久に前へ進めなくなった [手順漏れ]
 
 - 事象: 実測 controller が実行時 NameError で落ちた。落ちたのは `qsub` の後だったため request は
@@ -2997,3 +3025,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実走して示すことを要求した。
 - 再発検知: 実行時のみ表面化する形は、計算ノードでの実走が唯一の検査面である。probe の
   terminal state を必ず読み、`pre_performance_infra_failure` の detail から rc を特定する。
+
+### F136. 受入全走の隣で dispatch する検査を走らせ、9 件の偽の赤を得た [計測汚染] [手順漏れ]
+
+- 事象: docs のみの commit を検査するため `tools/run_tests.py` と
+  `tools/check_ai_provenance.py` を同時に起動したところ、受入全走が
+  `9 failed, 6444 passed, 20 skipped` で返った。落ちたのはすべて `output/` の
+  副作用スナップショット検査 (`test_official_*` 族) で、差分の実体は
+  `output/pegasus-dispatch/<nonce>/request.json` と `output/task-runs/pilot.json` —
+  **並走させた provenance 監査自身が dispatch 中に書いた receipt** だった。
+  同じ tree を単独で再走すると `6453 passed, 20 skipped` (rc=0) で、赤は再現しない。
+- 根本原因: `check_ai_provenance.py` は login で打つと計算ノードへ自動 dispatch し、その過程で
+  `output/` 配下へ receipt を書く。一方で受入側には「実行前後で `output/` が bit 単位で不変」を
+  assert する検査群がある。両者は互いを知らないため、同時に走らせると後者が前者の正当な
+  書き込みを副作用として検出する。テスト側の隔離漏れではなく、**同じ作業木で 2 つの
+  書き込み主体を同時に動かした操作側の誤り**である。
+- 恒久対応: memory `no-concurrent-dispatch-during-acceptance` — 受入全走の最中に
+  `output/` へ書く検査・ツール (provenance 監査、dispatch を伴うもの) を投入しない。
+  既存の `no-acceptance-run-during-mutation` と同型の規律で、対象を変異 harness から
+  「dispatch receipt を書く全経路」へ広げたものである。
+- 再発検知: 赤が `output/pegasus-dispatch/` や `output/task-runs/` の差分だけを指しているなら、
+  実装差分へ帰属する前に単独再走で再現性を実測する (`DW-O18`)。本件は単独再走で消えた。

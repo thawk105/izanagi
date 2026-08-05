@@ -53,6 +53,7 @@ import re
 import shlex
 import socket
 import sys
+import unicodedata
 
 
 def _repo_root() -> str:
@@ -69,7 +70,7 @@ if _BOOTSTRAP_ROOT not in sys.path:
     sys.path.insert(0, _BOOTSTRAP_ROOT)
 try:
     from orchestrator.campaign import site_policy
-except Exception:  # noqa: BLE001 — import 障害は _runtime_site の login fallback へ
+except BaseException:  # SystemExit も module 初期化から漏らさず hostname fallback へ
     site_policy = None
 
 
@@ -175,168 +176,101 @@ _PEGASUS_LOCAL_OK = "local-ok"
 _PEGASUS_DISPATCH_REQUIRED = "dispatch-required"
 _PEGASUS_UNKNOWN = "unknown"
 _PEGASUS_UNREGISTERED = object()
+_PEGASUS_ENTRY_FIELDS = frozenset({
+    "class", "reason", "primary_gate", "evidence",
+})
+_PEGASUS_CLASSES = frozenset({
+    _PEGASUS_LOCAL_OK, _PEGASUS_DISPATCH_REQUIRED, _PEGASUS_UNKNOWN,
+})
+_PEGASUS_RAW_MENTION_RE = re.compile(r"tools(?:/|\.)pegasus(?:/|\b)")
 
-# Pegasus admission の正本。class は login/suspect での受理可否だけを表し、
-# reason / primary_gate / evidence は役割・一次防壁・証拠状態を別軸で正直に残す。
-# local-ok 以外はすべて hook で拒否する。probe subtree の実行体は、資源証拠も
-# 昇格裁定もないため unknown として inventory に載せ、現行 DENY を維持する。
-_PEGASUS_ADMISSION_REGISTRY = {
-    "tools/pegasus/certify_calibration.sh": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "PBS calibration job body",
-        "primary_gate": "PBS allocation and job-body site preflight",
-        "evidence": "static job-body classification",
-    },
-    "tools/pegasus/collect_receipt.py": {
-        "class": _PEGASUS_UNKNOWN,
-        "reason": "input caps and capped-input measurement are incomplete",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured; unbounded input surfaces remain",
-    },
-    "tools/pegasus/collect_t126_qualification.py": {
-        "class": _PEGASUS_UNKNOWN,
-        "reason": "input caps and capped-input measurement are incomplete",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured; unbounded input surfaces remain",
-    },
-    "tools/pegasus/dispatch_compute.py": {
-        "class": _PEGASUS_LOCAL_OK,
-        "reason": "login-side compute dispatcher with a self-gated job mode",
-        "primary_gate": "dispatch_compute --job-run site gate",
-        "evidence": "legacy-admitted (未実測)",
-    },
-    "tools/pegasus/exec_calibrate.py": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "arbitrary exec trampoline used inside compute jobs",
-        "primary_gate": "compute allocation owned by the caller",
-        "evidence": "static arbitrary-exec classification",
-    },
-    "tools/pegasus/fetch_third_party.py": {
-        "class": _PEGASUS_LOCAL_OK,
-        "reason": "login-side third-party acquisition workflow",
-        "primary_gate": "fetch_third_party CLI validation",
-        "evidence": "runbook §7.0 実測",
-    },
-    "tools/pegasus/floor_campaign.sh": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "PBS floor campaign job body",
-        "primary_gate": "PBS allocation and job-body site preflight",
-        "evidence": "static job-body classification",
-    },
-    "tools/pegasus/floor_scoping.sh": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "PBS floor scoping job body",
-        "primary_gate": "PBS allocation and job-body site preflight",
-        "evidence": "static job-body classification",
-    },
-    "tools/pegasus/make_acquisition_receipt.py": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "receipt helper invoked from the calibration compute job",
-        "primary_gate": "compute allocation owned by certify_calibration.sh",
-        "evidence": "static compute-side call-site classification",
-    },
-    "tools/pegasus/probes/t139_positive_control_probe.pbs": {
-        "class": _PEGASUS_UNKNOWN,
-        "reason": "probe artifact has no login admission ruling",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured probe artifact",
-    },
-    "tools/pegasus/probes/t139_positive_control_probe.sh": {
-        "class": _PEGASUS_UNKNOWN,
-        "reason": "probe artifact has no login admission ruling",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured probe artifact",
-    },
-    "tools/pegasus/probes/t293_perf_site_probe.py": {
-        "class": _PEGASUS_UNKNOWN,
-        "reason": "probe artifact has no login admission ruling",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured probe artifact",
-    },
-    "tools/pegasus/probes/t293_perf_site_probe.pbs": {
-        "class": _PEGASUS_UNKNOWN,
-        "reason": "probe artifact has no login admission ruling",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured probe artifact",
-    },
-    "tools/pegasus/probes/t419_probe_causality.py": {
-        "class": _PEGASUS_UNKNOWN,
-        "reason": "probe artifact has no login admission ruling",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured probe artifact",
-    },
-    "tools/pegasus/probes/t419_probe_causality.pbs": {
-        "class": _PEGASUS_UNKNOWN,
-        "reason": "probe artifact has no login admission ruling",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured probe artifact",
-    },
-    "tools/pegasus/run_probe.py": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "probe semantics require a compute allocation",
-        "primary_gate": "compute-node environment attestation",
-        "evidence": "static semantic-site classification",
-    },
-    "tools/pegasus/silo_ladder_rung1.sh": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "PBS silo ladder job body",
-        "primary_gate": "PBS allocation and job-body site preflight",
-        "evidence": "static job-body classification",
-    },
-    "tools/pegasus/smoke_probe.sh": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "PBS smoke probe job body",
-        "primary_gate": "PBS allocation and job-body site preflight",
-        "evidence": "static job-body classification",
-    },
-    "tools/pegasus/submit_certify.sh": {
-        "class": _PEGASUS_LOCAL_OK,
-        "reason": "login-side PBS certification submitter",
-        "primary_gate": "qsub submission; compute work stays in job body",
-        "evidence": "legacy-admitted (未実測)",
-    },
-    "tools/pegasus/submit_floor.sh": {
-        "class": _PEGASUS_LOCAL_OK,
-        "reason": "login-side PBS floor submitter",
-        "primary_gate": "qsub submission; compute work stays in job body",
-        "evidence": "legacy-admitted (未実測)",
-    },
-    "tools/pegasus/submit_silo_ladder_rung1.sh": {
-        "class": _PEGASUS_LOCAL_OK,
-        "reason": "login-side PBS silo ladder submitter",
-        "primary_gate": "qsub submission; compute work stays in job body",
-        "evidence": "legacy-admitted (未実測)",
-    },
-    "tools/pegasus/submit_t126_qualification.sh": {
-        "class": _PEGASUS_UNKNOWN,
-        "reason": "input caps and capped-input measurement are incomplete",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured; preflight input surfaces remain",
-    },
-    "tools/pegasus/t126_qualification.sh": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "PBS T126 qualification job body",
-        "primary_gate": "PBS allocation and job-body site preflight",
-        "evidence": "static job-body classification",
-    },
-    "tools/pegasus/t141_region_profile.sh": {
-        "class": _PEGASUS_DISPATCH_REQUIRED,
-        "reason": "PBS T141 profiling job body",
-        "primary_gate": "PBS allocation and job-body site preflight",
-        "evidence": "static job-body classification",
-    },
-}
-
+# Pegasus admission の正本は JSON。loader 自身と返値の障害を hook module 初期化で
+# 漏らすと rc=1 の fail-open になるため、ここで BaseException まで吸収する。
 _NON_PEGASUS_SANCTIONED_PATHS = frozenset({
     "tools/run_tests.py",
     # checker 自身が site gate を持ち、login node では計算ノードへ dispatch し
     # SUSPECT では rc=16 で止まる = 「自分で fail-closed する entry point」。
     "tools/check_ai_provenance.py",
 })
-_SANCTIONED_PATHS = frozenset(
-    _NON_PEGASUS_SANCTIONED_PATHS
-    | {path for path, entry in _PEGASUS_ADMISSION_REGISTRY.items()
-       if entry["class"] == _PEGASUS_LOCAL_OK})
+
+
+def _is_canonical_pegasus_path(path) -> bool:
+    return (type(path) is str
+            and path.startswith("tools/pegasus/")
+            and not path.endswith("/")
+            and "\\" not in path
+            and not any(unicodedata.category(char) == "Cc" for char in path)
+            and os.path.normpath(path) == path)
+
+
+def _load_pegasus_admission_registry():
+    source = os.path.join(
+        _BOOTSTRAP_ROOT, "tools", "pegasus_admission_registry.py")
+    module_name = "_izanagi_pegasus_admission_registry_for_guard"
+    previous_modules = sys.modules
+    previous_dont_write_bytecode = sys.dont_write_bytecode
+    try:
+        # import machinery は stale/unchecked pyc を読み得る。review 対象である exact
+        # source bytes を直接 compile/exec し、pyc の読込み・生成経路を持たない。
+        with open(source, "rb") as stream:
+            source_bytes = stream.read()
+        namespace = {
+            "__file__": source,
+            "__name__": module_name,
+            "__package__": "",
+        }
+        exec(compile(source_bytes, source, "exec", dont_inherit=True), namespace)
+        loader = namespace.get("load_admission_registry")
+        if not callable(loader):
+            raise TypeError("load_admission_registry が callable でない")
+
+        loaded = loader(_BOOTSTRAP_ROOT)
+        if type(loaded) is not dict:
+            raise TypeError("loader return が plain dict でない")
+        if not loaded:
+            raise ValueError("loader return が空")
+        registry = {}
+        for path, entry in loaded.items():
+            if not _is_canonical_pegasus_path(path):
+                raise TypeError("loader return path が canonical Pegasus path でない")
+            if type(entry) is not dict or set(entry) != _PEGASUS_ENTRY_FIELDS:
+                raise TypeError("loader return entry の 4 field が不正")
+            copied = dict(entry)
+            if any(type(copied[field]) is not str or not copied[field]
+                   for field in _PEGASUS_ENTRY_FIELDS):
+                raise TypeError("loader return entry value が非空 plain str でない")
+            if copied["class"] not in _PEGASUS_CLASSES:
+                raise TypeError("loader return entry class が閉集合外")
+            registry[path] = copied
+
+        sanctioned_paths = frozenset(
+            _NON_PEGASUS_SANCTIONED_PATHS
+            | {path for path, entry in registry.items()
+               if entry["class"] == _PEGASUS_LOCAL_OK})
+        return registry, sanctioned_paths, ""
+    except BaseException as exc:  # SystemExit を含め module 初期化から絶対に漏らさない。
+        diagnostic = (
+            "Pegasus admission registry load failed: "
+            f"{type(exc).__name__}"
+        )
+        return {}, _NON_PEGASUS_SANCTIONED_PATHS, diagnostic
+    finally:
+        # loader 自身が sys の可変属性を壊しても cleanup 例外を hook 外へ漏らさない。
+        try:
+            sys.dont_write_bytecode = previous_dont_write_bytecode
+        except BaseException:
+            pass
+        try:
+            sys.modules = previous_modules
+        except BaseException:
+            pass
+
+
+(
+    _PEGASUS_ADMISSION_REGISTRY,
+    _SANCTIONED_PATHS,
+    _PEGASUS_ADMISSION_DIAGNOSTIC,
+) = _load_pegasus_admission_registry()
 _SANCTIONED_HEADS = frozenset({"qsub", "qdel", "qstat"})
 _PYTHON_HEAD_RE = re.compile(r"^python(?:\d+(?:\.\d+)*)?$")
 _PYTHON_MODULE_RE = re.compile(
@@ -595,6 +529,10 @@ def _invocation_path(token: str, repo_root: str) -> str:
 
 def _pegasus_admission_entry(path: str):
     """exact entry、Pegasus 配下の未登録 sentinel、管轄外 None を返す。"""
+    # registry lookup は Pegasus subtree に限定する。wrapper の postcondition が将来
+    # 退行しても、管轄外 key を admission allow に使わせない。
+    if path != "tools/pegasus" and not path.startswith("tools/pegasus/"):
+        return None
     entry = _PEGASUS_ADMISSION_REGISTRY.get(path)
     if entry is not None:
         return entry
@@ -1628,10 +1566,10 @@ def main() -> int:
         # production entry point だけが live site を注入する。decide() の既定 None は
         # 既存単体テストと非 Pegasus の受理集合を変えない。
         allow, reason = decide(command, site=_runtime_site())
-    except Exception as e:  # noqa: BLE001 — hook 自身の不具合で全 Bash を止めない。
+    except BaseException as exc:  # SystemExit/KeyboardInterrupt も hook 外へ漏らさない。
         # ただし生入力に防護対象が見えるときだけ fails-closed。
-        if _MENTION_RE.search(raw):
-            print(f"guard_bash hook 内部エラー ({type(e).__name__}: {e}) — 防護対象を"
+        if _MENTION_RE.search(raw) or _PEGASUS_RAW_MENTION_RE.search(raw):
+            print(f"guard_bash hook 内部エラー ({type(exc).__name__}) — 防護対象を"
                   "含むため fails-closed で拒否", file=sys.stderr)
             return 2
         return 0
