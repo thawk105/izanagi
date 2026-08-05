@@ -127,7 +127,13 @@ def _boundary_self(
     }
 
 
-def _subwindow(residual_by_cpu, *, duration_s: float = 1.0, migrated: bool = False):
+def _subwindow(
+    residual_by_cpu,
+    *,
+    duration_s: float = 1.0,
+    migrated: bool = False,
+    signal_cpus=None,
+):
     cpus = sorted(residual_by_cpu)
     before_cpu = {cpu: _cpu(10) for cpu in cpus}
     after_cpu = {
@@ -144,6 +150,7 @@ def _subwindow(residual_by_cpu, *, duration_s: float = 1.0, migrated: bool = Fal
         after_self,
         cpus,
         duration_s,
+        signal_cpus=signal_cpus,
     )
 
 
@@ -1033,6 +1040,118 @@ def test_subwindow_three_ticks_is_competitor_with_one_validity_reason():
     assert verdict["validity_reasons"] == [
         "A0_quiet_baseline:competing_process_detected"
     ]
+
+
+def test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms():
+    subwindow = _subwindow(
+        {0: 3, 1: 0}, duration_s=0.1, signal_cpus=[0]
+    )
+    isolation = T419.detect_isolation_competition(
+        {1: _process(1, 10, 5, 0)},
+        {1: _process(1, 10, 5, 0)},
+        {0: _cpu(10), 1: _cpu(10)},
+        {0: _cpu(10), 1: _cpu(10)},
+        [0, 1],
+        [(1, 10)],
+        subwindows=[subwindow],
+    )
+    verdict = _verdict_with_a0_isolation(isolation)
+
+    assert subwindow["signal_cpus"] == [0]
+    assert subwindow["signal_rate_exceeded_cpus"] == [0]
+    assert subwindow["non_signal_rate_exceeded_cpus"] == []
+    assert subwindow["unexplained_ticks_per_second"] == 30.0
+    assert isolation["isolation_attribution"] == "COMPETITOR"
+    assert (verdict["execution_validity"], verdict["causal_verdict"]) == (
+        "INVALID",
+        "NOT_EVALUATED",
+    )
+    assert T419.isolation_allows_later_arms(isolation) is False
+
+
+def test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection():
+    subwindow = _subwindow(
+        {0: 0, 1: 3}, duration_s=0.1, signal_cpus=[0]
+    )
+    isolation = T419.detect_isolation_competition(
+        {1: _process(1, 10, 5, 0)},
+        {1: _process(1, 10, 5, 0)},
+        {0: _cpu(10), 1: _cpu(10)},
+        {0: _cpu(10), 1: _cpu(10)},
+        [0, 1],
+        [(1, 10)],
+        subwindows=[subwindow],
+    )
+    fixture = T419.synthetic_fixture("confirmed")
+    fixture["observations"]["arms"]["A0_quiet_baseline"]["isolation"] = {
+        **isolation,
+        "visibility_complete": True,
+    }
+    a0_reads = fixture["observations"]["arms"]["A0_quiet_baseline"]["reads"]
+    for reading in a0_reads:
+        reading["isolation_subwindow_id"] = "fixture"
+    a0_reads[0]["mhz_by_cpu"][1] = 110.0
+    verdict = T419.evaluate(
+        fixture["observations"], fixture["calibration"], fixture["environment"]
+    )
+
+    assert subwindow["signal_cpus"] == [0]
+    assert subwindow["signal_rate_exceeded_cpus"] == []
+    assert subwindow["non_signal_rate_exceeded_cpus"] == [1]
+    assert subwindow["non_signal_rate_exceedances"] == [
+        {
+            "cpu": 1,
+            "unexplained_ticks": 3,
+            "unexplained_ticks_per_second": 30.0,
+            "duration_s": 0.1,
+        }
+    ]
+    assert isolation["isolation_attribution"] == "ATTRIBUTION_UNRESOLVED"
+    assert (verdict["execution_validity"], verdict["causal_verdict"]) == (
+        "VALID",
+        "CONFIRMED",
+    )
+    assert T419.isolation_allows_later_arms(isolation) is True
+    assert verdict["causal_metrics"]["non_signal_rate_exceeded_cpus"] == [1]
+    assert verdict["causal_metrics"][
+        "non_signal_rate_exceedance_control_out_of_band_intersections"
+    ] == [
+        {
+            "arm": "A0_quiet_baseline",
+            "subwindow_id": "fixture",
+            "cpu": 1,
+            "unexplained_ticks": 3,
+            "unexplained_ticks_per_second": 30.0,
+            "duration_s": 0.1,
+            "control_read_count": 30,
+            "control_out_of_band_read_count": 1,
+        }
+    ]
+
+
+def test_signal_and_non_signal_rate_exceedance_prefers_competitor():
+    subwindow = _subwindow(
+        {0: 3, 1: 3}, duration_s=0.1, signal_cpus=[0]
+    )
+    isolation = T419.detect_isolation_competition(
+        {1: _process(1, 10, 5, 0)},
+        {1: _process(1, 10, 5, 0)},
+        {0: _cpu(10), 1: _cpu(10)},
+        {0: _cpu(10), 1: _cpu(10)},
+        [0, 1],
+        [(1, 10)],
+        subwindows=[subwindow],
+    )
+    verdict = _verdict_with_a0_isolation(isolation)
+
+    assert subwindow["signal_rate_exceeded_cpus"] == [0]
+    assert subwindow["non_signal_rate_exceeded_cpus"] == [1]
+    assert isolation["isolation_attribution"] == "COMPETITOR"
+    assert (verdict["execution_validity"], verdict["causal_verdict"]) == (
+        "INVALID",
+        "NOT_EVALUATED",
+    )
+    assert T419.isolation_allows_later_arms(isolation) is False
 
 
 def test_subwindow_rate_equal_to_limit_is_unresolved():

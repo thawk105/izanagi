@@ -567,6 +567,9 @@ def causal_metrics(
                     else None
                 ),
             }
+    non_signal_intersections = non_signal_rate_exceedance_intersections(
+        observations, band
+    )
     return {
         "pinned_hit_rate": pinned_hit_rate,
         "pinned_hit_rate_threshold": PINNED_HIT_RATE_MIN,
@@ -581,7 +584,79 @@ def causal_metrics(
         "positive_contrast_cpu_threshold": POSITIVE_CONTRAST_CPU_MIN,
         "paired_contrast_condition": positive >= POSITIVE_CONTRAST_CPU_MIN,
         "incidental_out_of_band_intersection_by_cpu": intersection_metrics,
+        "non_signal_rate_exceeded_cpus": sorted(
+            {
+                int(item["cpu"])
+                for item in non_signal_intersections
+            }
+        ),
+        "non_signal_rate_exceedance_control_out_of_band_intersections": (
+            non_signal_intersections
+        ),
     }
+
+
+def non_signal_rate_exceedance_intersections(
+    observations: Mapping[str, Any], band: Mapping[str, float]
+) -> list[dict[str, Any]]:
+    """非 signal CPU の率超過と、同じ窓の control 帯外読みを交差する。"""
+    arms = observations.get("arms")
+    if not isinstance(arms, Mapping):
+        return []
+    result: list[dict[str, Any]] = []
+    for arm_name in ARM_ORDER:
+        arm = arms.get(arm_name)
+        isolation = arm.get("isolation") if isinstance(arm, Mapping) else None
+        subwindows = (
+            isolation.get("subwindows") if isinstance(isolation, Mapping) else []
+        )
+        if not isinstance(subwindows, list):
+            continue
+        reads_by_subwindow: dict[str, list[Mapping[str, Any]]] = {}
+        for reading in _arm_reads(observations, arm_name):
+            identifier = reading.get("isolation_subwindow_id")
+            if isinstance(identifier, str):
+                reads_by_subwindow.setdefault(identifier, []).append(reading)
+        for subwindow in subwindows:
+            if not isinstance(subwindow, Mapping):
+                continue
+            identifier = subwindow.get("subwindow_id")
+            exceedances = subwindow.get("non_signal_rate_exceedances")
+            if not isinstance(identifier, str) or not isinstance(exceedances, list):
+                continue
+            matching_reads = reads_by_subwindow.get(identifier, [])
+            for exceedance in exceedances:
+                if not isinstance(exceedance, Mapping):
+                    continue
+                cpu = int(exceedance["cpu"])
+                control_read_count = 0
+                control_out_of_band_read_count = 0
+                for reading in matching_reads:
+                    reader_cpus = {
+                        int(reading["reader_cpu_before"]),
+                        int(reading["reader_cpu_after"]),
+                    }
+                    pin_target = reading.get("pin_target")
+                    if pin_target is not None:
+                        reader_cpus.add(int(pin_target))
+                    if cpu in reader_cpus:
+                        continue
+                    control_read_count += 1
+                    control_out_of_band_read_count += cpu in out_of_band_cpu_ids(
+                        _reading_values(reading), band
+                    )
+                result.append(
+                    {
+                        "arm": arm_name,
+                        "subwindow_id": identifier,
+                        **dict(exceedance),
+                        "control_read_count": control_read_count,
+                        "control_out_of_band_read_count": (
+                            control_out_of_band_read_count
+                        ),
+                    }
+                )
+    return result
 
 
 def coresident_metrics(
@@ -2181,9 +2256,15 @@ def analyze_isolation_subwindow(
     allocated_cpus: Sequence[int],
     duration_s: float,
     migration_observed_identities: Sequence[tuple[int, int]] = (),
+    signal_cpus: Optional[Sequence[int]] = None,
 ) -> dict[str, Any]:
     """実時間付き subwindow の unexplained 率を、CPU 横断相殺なしで判定する。"""
     cpus = sorted(set(int(cpu) for cpu in allocated_cpus))
+    signal_cpu_set = (
+        set(cpus)
+        if signal_cpus is None
+        else {int(cpu) for cpu in signal_cpus if int(cpu) in cpus}
+    )
     errors: list[str] = []
     self_by_cpu = {cpu: 0 for cpu in cpus}
     self_unattributable_processes: list[dict[str, Any]] = []
@@ -2298,11 +2379,29 @@ def analyze_isolation_subwindow(
         unexplained_rate: Optional[float] = None
     else:
         unexplained_rate = unexplained / actual_duration_s
-    competitor = (
-        unexplained >= COMPETITOR_MIN_TICKS
-        and unexplained_rate is not None
-        and unexplained_rate > COMPETITOR_MAX_TICKS_PER_SECOND
-    )
+    rate_exceedances: list[dict[str, Any]] = []
+    if unexplained >= COMPETITOR_MIN_TICKS and unexplained_rate is not None:
+        for cpu, ticks in sorted(residual_by_cpu.items()):
+            cpu_rate = ticks / actual_duration_s
+            if (
+                ticks >= COMPETITOR_MIN_TICKS
+                and cpu_rate > COMPETITOR_MAX_TICKS_PER_SECOND
+            ):
+                rate_exceedances.append(
+                    {
+                        "cpu": cpu,
+                        "unexplained_ticks": ticks,
+                        "unexplained_ticks_per_second": cpu_rate,
+                        "duration_s": actual_duration_s,
+                    }
+                )
+    signal_rate_exceedances = [
+        item for item in rate_exceedances if int(item["cpu"]) in signal_cpu_set
+    ]
+    non_signal_rate_exceedances = [
+        item for item in rate_exceedances if int(item["cpu"]) not in signal_cpu_set
+    ]
+    competitor = bool(signal_rate_exceedances)
     migration_with_ticks = any(
         int(record["cpu_ticks_delta"]) > 0
         for record in migration_observed_processes
@@ -2338,12 +2437,22 @@ def analyze_isolation_subwindow(
         "residual_max_ticks": max(residual_by_cpu.values(), default=0),
         "unexplained_ticks": unexplained,
         "unexplained_ticks_per_second": unexplained_rate,
+        "signal_cpus": sorted(signal_cpu_set),
+        "signal_rate_exceeded_cpus": [
+            int(item["cpu"]) for item in signal_rate_exceedances
+        ],
+        "non_signal_rate_exceeded_cpus": [
+            int(item["cpu"]) for item in non_signal_rate_exceedances
+        ],
+        "non_signal_rate_exceedances": non_signal_rate_exceedances,
         "incidental_nonself_cpus": (
             residual_positive_cpus
             if attribution == "ATTRIBUTION_UNRESOLVED" and unexplained > 0
             else []
         ),
-        "competitor_cpus": residual_positive_cpus if competitor else [],
+        "competitor_cpus": [
+            int(item["cpu"]) for item in signal_rate_exceedances
+        ],
         "errors": errors,
     }
 
@@ -2722,6 +2831,7 @@ class IsolationTracker:
         self,
         subwindow_id: str,
         readings: Sequence[Mapping[str, Any]] = (),
+        additional_signal_cpus: Sequence[int] = (),
     ) -> dict[str, Any]:
         """最後の primary read 後に境界サンプルを採り、subwindow を閉じる。"""
         opened = self._open_subwindow
@@ -2733,6 +2843,7 @@ class IsolationTracker:
         self_snapshot_ns = time.monotonic_ns()
         duration_ns = cpu_snapshot_ns - opened["start_cpu_snapshot_monotonic_ns"]
         observed_reader_cpus: list[int] = []
+        signal_cpus = {int(cpu) for cpu in additional_signal_cpus}
         reader_transition = False
         reader_observation_errors = 0
         for reading in readings:
@@ -2743,6 +2854,13 @@ class IsolationTracker:
                 reader_observation_errors += 1
                 continue
             observed_reader_cpus.extend((before_reader, after_reader))
+            signal_cpus.update((before_reader, after_reader))
+            pin_target = reading.get("pin_target")
+            if pin_target is not None:
+                try:
+                    signal_cpus.add(int(pin_target))
+                except (TypeError, ValueError):
+                    reader_observation_errors += 1
             reader_transition = reader_transition or before_reader != after_reader
         reader_migration = reader_transition or len(set(observed_reader_cpus)) > 1
         analysis = analyze_isolation_subwindow(
@@ -2754,6 +2872,7 @@ class IsolationTracker:
             sorted(self.cpus),
             duration_ns / 1e9,
             [self._self_identity] if reader_migration else [],
+            sorted(signal_cpus),
         )
         analysis["duration_ns"] = duration_ns
         analysis["errors"].extend(
@@ -3158,7 +3277,9 @@ def _run_child_condition(
                 hard_deadline_ns=hard_deadline_ns,
             )
         finally:
-            tracker.finish_subwindow(subwindow_id, reads)
+            tracker.finish_subwindow(
+                subwindow_id, reads, additional_signal_cpus=[cpu]
+            )
     finally:
         _stop_child(pid, evidence)
         registry.completed(pid)
