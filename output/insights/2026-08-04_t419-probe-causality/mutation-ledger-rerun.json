@@ -1,0 +1,1278 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/7304a7734ed0b088402af77ba3478891/izdw-7304a7734e.o889407",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/7304a7734ed0b088402af77ba3478891/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n........................................................................ [ 66%]\n....................................                                     [100%]\n============================= 108 passed in 2.08s ==============================\n",
+      "stdout_sha256": "fef29e124677ec238fa87235580ec9e7719e24caaac1e169bf0ffa3d3c99c30f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+    "duration_s": 21.75,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "896a05062b56730026e0cd80d363d8a1ad416e461f9849919610526d6b46e740",
+    "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+    "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+    "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+    "status": "PASSED",
+    "test_output_sha256": "fef29e124677ec238fa87235580ec9e7719e24caaac1e169bf0ffa3d3c99c30f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+  },
+  "date": "2026-08-05T00:12:29.564891+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/db9a918898a374bab20341458377dd8b/izdw-db9a918898.o889408",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/db9a918898a374bab20341458377dd8b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n........................................................................ [ 66%]\n..........................F.........                                     [100%]\n=================================== FAILURES ===================================\n__________________ test_paired_contrast_only_fixture_kills_m1 __________________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_paired_contrast_only_fixture_kills_m1():\n        verdict = _verdict(\"paired_contrast_only\")\n        metrics = verdict[\"causal_metrics\"]\n        assert metrics[\"pinned_hit_rate\"] == 0.95\n        assert metrics[\"pinned_hit_rate_condition\"] is True\n        assert metrics[\"nonpinned_out_of_band_rate\"] == 141 / 11280\n        assert metrics[\"nonpinned_out_of_band_rate_condition\"] is True\n        assert metrics[\"positive_contrast_cpu_count\"] == 45\n>       assert metrics[\"paired_contrast_condition\"] is False\nE       assert True is False\n\norchestrator/tests/test_t419_probe_causality.py:224: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_paired_contrast_only_fixture_kills_m1\n======================== 1 failed, 107 passed in 2.08s =========================\n",
+        "stdout_sha256": "954132466982dadd466953ed1bc7ff826ed9df346b568c80f3c60025f6770623"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 26.894,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_paired_contrast_only_fixture_kills_m1"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_paired_contrast_only_fixture_kills_m1"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "02c6ad8400fad9e642a3e0c82a721f1bd1518f2bdeed19e57ff0bf7853efeb0c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d2023f415fc29febc731d073dc1868f3652603b38d69df9c01fc42e029de93f5",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "        \"paired_contrast_condition\": True,",
+          "old": "        \"paired_contrast_condition\": positive >= POSITIVE_CONTRAST_CPU_MIN,"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "KILLED",
+      "test_output_sha256": "954132466982dadd466953ed1bc7ff826ed9df346b568c80f3c60025f6770623",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/951796798c004dc66b99eccf960683e2/izdw-951796798c.o889410",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/951796798c004dc66b99eccf960683e2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n................................................................F....... [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n____________ test_a4_primary_count_gate_has_a_single_reason_fixture ____________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_a4_primary_count_gate_has_a_single_reason_fixture():\n        fixture = T419.synthetic_fixture(\"primary_count_only\")\n        reasons = T419.execution_validity_reasons(\n            fixture[\"observations\"], fixture[\"calibration\"], fixture[\"environment\"]\n        )\n>       assert reasons == [\"A4_migration_description:primary_read_count:29!=30\"]\nE       AssertionError: assert [] == ['A4_migratio...count:29!=30']\nE         \nE         Right contains one more item: 'A4_migration_description:primary_read_count:29!=30'\nE         Use -v to get more diff\n\norchestrator/tests/test_t419_probe_causality.py:376: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_a4_primary_count_gate_has_a_single_reason_fixture\n======================== 1 failed, 107 passed in 2.10s =========================\n",
+        "stdout_sha256": "3de7d33676b117b6689137c88ac98a3b6562dccc1193facc2c3c4796d495d21d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 32.006,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_a4_primary_count_gate_has_a_single_reason_fixture"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_a4_primary_count_gate_has_a_single_reason_fixture"
+      ],
+      "hang_risk": false,
+      "id": "M2a",
+      "injection_diff_sha256": "d701338f8ab3549c7bf51f4077a5a3c5b65c1e11a0ef843627f4061f095a5a63",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "67381e99eb68e664ed335ad396909769e5ad9c8578ec00671a6e49f9b494d0bb",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "        if False:",
+          "old": "        if not isinstance(reads, list) or len(reads) != EXPECTED_PRIMARY_READS[name]:"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "KILLED",
+      "test_output_sha256": "3de7d33676b117b6689137c88ac98a3b6562dccc1193facc2c3c4796d495d21d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/80e3f256f75231de4c72d409f6edad23/izdw-80e3f256f7.o889412",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/80e3f256f75231de4c72d409f6edad23/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n........................................................................ [ 66%]\n...........................F........                                     [100%]\n=================================== FAILURES ===================================\n___________ test_invalid_fixtures_are_not_evaluated[exception_only] ____________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\nfixture_name = 'exception_only'\n\n    @pytest.mark.parametrize(\n        \"fixture_name\",\n        [\n            \"missing_cpu\",\n            \"child_evidence_missing\",\n            \"child_status_mismatch\",\n            \"exception_only\",\n            \"band_missing\",\n            \"parser_unavailable\",\n            \"population_missing\",\n        ],\n    )\n    def test_invalid_fixtures_are_not_evaluated(fixture_name):\n        verdict = _verdict(fixture_name)\n>       assert (verdict[\"execution_validity\"], verdict[\"causal_verdict\"]) == (\n            \"INVALID\",\n            \"NOT_EVALUATED\",\n        )\nE       AssertionError: assert ('VALID', 'CONFIRMED') == ('INVALID', 'NOT_EVALUATED')\nE         \nE         At index 0 diff: 'VALID' != 'INVALID'\nE         Use -v to get more diff\n\norchestrator/tests/test_t419_probe_causality.py:357: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[exception_only]\n======================== 1 failed, 107 passed in 2.07s =========================\n",
+        "stdout_sha256": "1afa68aa64dd54faec21a7892ecd563b60a838ecfd5238d89e2b2e744ff42901"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 26.884,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[exception_only]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[exception_only]"
+      ],
+      "hang_risk": false,
+      "id": "M2b",
+      "injection_diff_sha256": "aab6175cda0b8faa345a20a9a1b41b911f3045fea297098082d0306833f32777",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bfcf88d984fc58f76db00bbadd58b18c301bbe8919bed717ef2c8f75d527558b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "    if False:\n        reasons.append(\"experiment_exception_present\")",
+          "old": "    if not isinstance(exceptions, list) or exceptions:\n        reasons.append(\"experiment_exception_present\")"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "KILLED",
+      "test_output_sha256": "1afa68aa64dd54faec21a7892ecd563b60a838ecfd5238d89e2b2e744ff42901",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/3dd2c8b527bc4b7829e1d7254d21b836/izdw-3dd2c8b527.o889413",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/3dd2c8b527bc4b7829e1d7254d21b836/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n........................................F......F........................ [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n______________________ test_band_endpoints_are_inclusive _______________________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_band_endpoints_are_inclusive():\n        band = T419.calibration_band([100.0], 2.0)\n>       assert T419.canonical_pass([98.0, 102.0], band) is True\nE       AssertionError: assert False is True\nE        +  where False = <function canonical_pass at 0x145f4445aef0>([98.0, 102.0], {'expected_median_mhz': 100.0, 'tolerance_pct': 2.0, 'lower_mhz': 98.0, 'upper_mhz': 102.0})\nE        +    where <function canonical_pass at 0x145f4445aef0> = T419.canonical_pass\n\norchestrator/tests/test_t419_probe_causality.py:275: AssertionError\n_________________ test_in_band_non_nominal_uses_canonical_band _________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_in_band_non_nominal_uses_canonical_band():\n        fixture = T419.synthetic_fixture(\"in_band_non_nominal\")\n>       assert T419.canonical_pass(fixture[\"samples\"], fixture[\"band\"]) is True\nE       AssertionError: assert False is True\nE        +  where False = <function canonical_pass at 0x14f57d956ef0>([101.0], {'expected_median_mhz': 100.0, 'tolerance_pct': 2.0, 'lower_mhz': 98.0, 'upper_mhz': 102.0})\nE        +    where <function canonical_pass at 0x14f57d956ef0> = T419.canonical_pass\n\norchestrator/tests/test_t419_probe_causality.py:326: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_band_endpoints_are_inclusive\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_in_band_non_nominal_uses_canonical_band\n======================== 2 failed, 106 passed in 2.08s =========================\n",
+        "stdout_sha256": "99499f1c7c1839eb6b8a2fbd683dfcdd5b28c1dec9dbde1edfc8761974d5aab9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 26.872,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_in_band_non_nominal_uses_canonical_band",
+        "orchestrator/tests/test_t419_probe_causality.py::test_band_endpoints_are_inclusive",
+        "orchestrator/tests/test_t419_probe_causality.py::test_band_formula_external_oracle_literals"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_band_endpoints_are_inclusive",
+        "orchestrator/tests/test_t419_probe_causality.py::test_in_band_non_nominal_uses_canonical_band"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "583c1c0646780c02bb097bf37b8851720096fa2e5b74996848007322fbd58564",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "be5f1b4fb7640be79c65e9df42c1ee1003b70145a8dfc9d954d2a98f28091821",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "    return bool(values) and all(\n        math.isfinite(value) and value == (lower + upper) / 2.0 for value in values\n    )",
+          "old": "    return bool(values) and all(\n        math.isfinite(value) and lower <= value <= upper for value in values\n    )"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "MISMATCH",
+      "test_output_sha256": "99499f1c7c1839eb6b8a2fbd683dfcdd5b28c1dec9dbde1edfc8761974d5aab9",
+      "test_output_tail": [
+        "============================= test session starts ==============================",
+        "platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0",
+        "rootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun",
+        "configfile: pytest.ini",
+        "plugins: xdist-3.8.0, cov-7.1.0",
+        "created: 48/48 workers",
+        "48 workers [108 items]",
+        "",
+        "........................................F......F........................ [ 66%]",
+        "....................................                                     [100%]",
+        "=================================== FAILURES ===================================",
+        "______________________ test_band_endpoints_are_inclusive _______________________",
+        "[gw10] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_band_endpoints_are_inclusive():",
+        "        band = T419.calibration_band([100.0], 2.0)",
+        ">       assert T419.canonical_pass([98.0, 102.0], band) is True",
+        "E       AssertionError: assert False is True",
+        "E        +  where False = <function canonical_pass at 0x145f4445aef0>([98.0, 102.0], {'expected_median_mhz': 100.0, 'tolerance_pct': 2.0, 'lower_mhz': 98.0, 'upper_mhz': 102.0})",
+        "E        +    where <function canonical_pass at 0x145f4445aef0> = T419.canonical_pass",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:275: AssertionError",
+        "_________________ test_in_band_non_nominal_uses_canonical_band _________________",
+        "[gw17] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_in_band_non_nominal_uses_canonical_band():",
+        "        fixture = T419.synthetic_fixture(\"in_band_non_nominal\")",
+        ">       assert T419.canonical_pass(fixture[\"samples\"], fixture[\"band\"]) is True",
+        "E       AssertionError: assert False is True",
+        "E        +  where False = <function canonical_pass at 0x14f57d956ef0>([101.0], {'expected_median_mhz': 100.0, 'tolerance_pct': 2.0, 'lower_mhz': 98.0, 'upper_mhz': 102.0})",
+        "E        +    where <function canonical_pass at 0x14f57d956ef0> = T419.canonical_pass",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:326: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_band_endpoints_are_inclusive",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_in_band_non_nominal_uses_canonical_band",
+        "======================== 2 failed, 106 passed in 2.08s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/0a6c6b10ed2d5b8026fa3dbb1c06422e/izdw-0a6c6b10ed.o889415",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/0a6c6b10ed2d5b8026fa3dbb1c06422e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n..............................................F......................... [ 66%]\n..................................FF                                     [100%]\n=================================== FAILURES ===================================\n____________ test_alpha_converges_by_positional_cumulative_minimum _____________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_alpha_converges_by_positional_cumulative_minimum():\n        fixture = T419.synthetic_fixture(\"alpha_converges\")\n        stages = T419.alpha_cumulative(fixture[\"vectors\"], fixture[\"band\"])\n>       assert stages[-1][\"canonical_pass\"] is True\nE       assert False is True\n\norchestrator/tests/test_t419_probe_causality.py:332: AssertionError\n_____ test_alpha_with_rotation_uses_nine_groups_and_records_three_discards _____\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_alpha_with_rotation_uses_nine_groups_and_records_three_discards():\n        fixture = T419.synthetic_fixture(\"confirmed\")\n        table = T419.evaluate_method_table(\n            fixture[\"observations\"], fixture[\"calibration\"][\"band\"]\n        )\n        rotation = table[\"alpha_with_rotation\"][\"rotation\"]\n    \n        assert table[\"reported_method_columns\"] == [\n            \"alpha\",\n            \"beta\",\n            \"gamma\",\n        ]\n        assert table[\"alpha\"] == table[\"alpha_with_rotation\"]\n        assert table[\"alpha_without_rotation\"][\"reported_as_alpha\"] is False\n        assert rotation[\"group_count\"] == 9\n        assert rotation[\"discarded_pin_target_count\"] == 3\n        assert rotation[\"discarded_pin_targets\"] == fixture[\"observations\"][\"arms\"][\n            \"A1_pin_sweep\"\n        ][\"pin_order\"][-3:]\n        assert [item[\"primary_read_index\"] for item in rotation[\"groups\"][0][\"positions\"]] == [\n            0,\n            5,\n            10,\n            15,\n            20,\n        ]\n>       assert table[\"alpha_with_rotation\"][\"should_pass\"] == {\n            \"evaluated\": 9,\n            \"passed\": 9,\n            \"rejected\": 0,\n            \"false_positive_overreject_count\": 0,\n            \"false_negative_missed_deviation_count\": 0,\n        }\nE       AssertionError: assert {'evaluated':...ount': 9, ...} == {'evaluated':...ount': 0, ...}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'false_positive_overreject_count': 9} != {'false_positive_overreject_count': 0}\nE         {'rejected': 9} != {'rejected': 0}\nE         {'passed': 0} != {'passed': 9}\nE         Use -v to get more diff\n\norchestrator/tests/test_t419_probe_causality.py:1409: AssertionError\n________________ test_should_pass_fixtures_are_not_overrejected ________________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_should_pass_fixtures_are_not_overrejected():\n        table = _verdict(\"overreject\")[\"method_table\"]\n>       assert all(\n            table[method][\"should_pass\"][\"false_positive_overreject_count\"] == 0\n            for method in (\"alpha\", \"beta\", \"gamma\")\n        )\nE       assert False\nE        +  where False = all(<generator object test_should_pass_fixtures_are_not_overrejected.<locals>.<genexpr> at 0x154589183920>)\n\norchestrator/tests/test_t419_probe_causality.py:694: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_alpha_converges_by_positional_cumulative_minimum\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected\n======================== 3 failed, 105 passed in 2.11s =========================\n",
+        "stdout_sha256": "61b1e2d32392d1e3e807940f90e56b865dea8438cb8c78db1e0e09d4c07b1f7d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 21.765,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_alpha_converges_by_positional_cumulative_minimum"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_alpha_converges_by_positional_cumulative_minimum",
+        "orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards",
+        "orchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "3a165769a0b6c1394f840fe2e696429c87cff068faf66e83ed93f74468afc62a",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "c9b47ca7226d1226167812d27fd16f9524af6bf0d966e654b7fb1d3b781cfcf9",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "            else {cpu: max(cumulative[cpu], vector[cpu]) for cpu in sorted(keys)}",
+          "old": "            else {cpu: min(cumulative[cpu], vector[cpu]) for cpu in sorted(keys)}"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "MISMATCH",
+      "test_output_sha256": "61b1e2d32392d1e3e807940f90e56b865dea8438cb8c78db1e0e09d4c07b1f7d",
+      "test_output_tail": [
+        "created: 48/48 workers",
+        "48 workers [108 items]",
+        "",
+        "..............................................F......................... [ 66%]",
+        "..................................FF                                     [100%]",
+        "=================================== FAILURES ===================================",
+        "____________ test_alpha_converges_by_positional_cumulative_minimum _____________",
+        "[gw18] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_alpha_converges_by_positional_cumulative_minimum():",
+        "        fixture = T419.synthetic_fixture(\"alpha_converges\")",
+        "        stages = T419.alpha_cumulative(fixture[\"vectors\"], fixture[\"band\"])",
+        ">       assert stages[-1][\"canonical_pass\"] is True",
+        "E       assert False is True",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:332: AssertionError",
+        "_____ test_alpha_with_rotation_uses_nine_groups_and_records_three_discards _____",
+        "[gw12] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_alpha_with_rotation_uses_nine_groups_and_records_three_discards():",
+        "        fixture = T419.synthetic_fixture(\"confirmed\")",
+        "        table = T419.evaluate_method_table(",
+        "            fixture[\"observations\"], fixture[\"calibration\"][\"band\"]",
+        "        )",
+        "        rotation = table[\"alpha_with_rotation\"][\"rotation\"]",
+        "    ",
+        "        assert table[\"reported_method_columns\"] == [",
+        "            \"alpha\",",
+        "            \"beta\",",
+        "            \"gamma\",",
+        "        ]",
+        "        assert table[\"alpha\"] == table[\"alpha_with_rotation\"]",
+        "        assert table[\"alpha_without_rotation\"][\"reported_as_alpha\"] is False",
+        "        assert rotation[\"group_count\"] == 9",
+        "        assert rotation[\"discarded_pin_target_count\"] == 3",
+        "        assert rotation[\"discarded_pin_targets\"] == fixture[\"observations\"][\"arms\"][",
+        "            \"A1_pin_sweep\"",
+        "        ][\"pin_order\"][-3:]",
+        "        assert [item[\"primary_read_index\"] for item in rotation[\"groups\"][0][\"positions\"]] == [",
+        "            0,",
+        "            5,",
+        "            10,",
+        "            15,",
+        "            20,",
+        "        ]",
+        ">       assert table[\"alpha_with_rotation\"][\"should_pass\"] == {",
+        "            \"evaluated\": 9,",
+        "            \"passed\": 9,",
+        "            \"rejected\": 0,",
+        "            \"false_positive_overreject_count\": 0,",
+        "            \"false_negative_missed_deviation_count\": 0,",
+        "        }",
+        "E       AssertionError: assert {'evaluated':...ount': 9, ...} == {'evaluated':...ount': 0, ...}",
+        "E         ",
+        "E         Omitting 2 identical items, use -vv to show",
+        "E         Differing items:",
+        "E         {'false_positive_overreject_count': 9} != {'false_positive_overreject_count': 0}",
+        "E         {'rejected': 9} != {'rejected': 0}",
+        "E         {'passed': 0} != {'passed': 9}",
+        "E         Use -v to get more diff",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:1409: AssertionError",
+        "________________ test_should_pass_fixtures_are_not_overrejected ________________",
+        "[gw19] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_should_pass_fixtures_are_not_overrejected():",
+        "        table = _verdict(\"overreject\")[\"method_table\"]",
+        ">       assert all(",
+        "            table[method][\"should_pass\"][\"false_positive_overreject_count\"] == 0",
+        "            for method in (\"alpha\", \"beta\", \"gamma\")",
+        "        )",
+        "E       assert False",
+        "E        +  where False = all(<generator object test_should_pass_fixtures_are_not_overrejected.<locals>.<genexpr> at 0x154589183920>)",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:694: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_alpha_converges_by_positional_cumulative_minimum",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected",
+        "======================== 3 failed, 105 passed in 2.11s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/8eb9ecfee689be16c6a2e276d00b9337/izdw-8eb9ecfee6.o889416",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/8eb9ecfee689be16c6a2e276d00b9337/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n........................................................................ [ 66%]\n...........................F......FF                                     [100%]\n=================================== FAILURES ===================================\n_____ test_alpha_with_rotation_uses_nine_groups_and_records_three_discards _____\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_alpha_with_rotation_uses_nine_groups_and_records_three_discards():\n        fixture = T419.synthetic_fixture(\"confirmed\")\n        table = T419.evaluate_method_table(\n            fixture[\"observations\"], fixture[\"calibration\"][\"band\"]\n        )\n        rotation = table[\"alpha_with_rotation\"][\"rotation\"]\n    \n        assert table[\"reported_method_columns\"] == [\n            \"alpha\",\n            \"beta\",\n            \"gamma\",\n        ]\n        assert table[\"alpha\"] == table[\"alpha_with_rotation\"]\n        assert table[\"alpha_without_rotation\"][\"reported_as_alpha\"] is False\n        assert rotation[\"group_count\"] == 9\n        assert rotation[\"discarded_pin_target_count\"] == 3\n        assert rotation[\"discarded_pin_targets\"] == fixture[\"observations\"][\"arms\"][\n            \"A1_pin_sweep\"\n        ][\"pin_order\"][-3:]\n        assert [item[\"primary_read_index\"] for item in rotation[\"groups\"][0][\"positions\"]] == [\n            0,\n            5,\n            10,\n            15,\n            20,\n        ]\n>       assert table[\"alpha_with_rotation\"][\"should_pass\"] == {\n            \"evaluated\": 9,\n            \"passed\": 9,\n            \"rejected\": 0,\n            \"false_positive_overreject_count\": 0,\n            \"false_negative_missed_deviation_count\": 0,\n        }\nE       AssertionError: assert {'evaluated':...ount': 9, ...} == {'evaluated':...ount': 0, ...}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'passed': 0} != {'passed': 9}\nE         {'rejected': 9} != {'rejected': 0}\nE         {'false_positive_overreject_count': 9} != {'false_positive_overreject_count': 0}\nE         Use -v to get more diff\n\norchestrator/tests/test_t419_probe_causality.py:1409: AssertionError\n_________ test_should_reject_rows_are_not_replaced_by_constant_reject __________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_should_reject_rows_are_not_replaced_by_constant_reject():\n        table = _verdict(\"confirmed\")[\"method_table\"]\n        assert table[\"alpha\"][\"should_reject\"][\"evaluated\"] == 0\n>       assert all(\n            table[method][\"should_reject\"][\"false_negative_missed_deviation_count\"] > 0\n            for method in (\"alpha_without_rotation\", \"beta\", \"gamma\")\n        )\nE       assert False\nE        +  where False = all(<generator object test_should_reject_rows_are_not_replaced_by_constant_reject.<locals>.<genexpr> at 0x14bd4c3138b0>)\n\norchestrator/tests/test_t419_probe_causality.py:703: AssertionError\n________________ test_should_pass_fixtures_are_not_overrejected ________________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_should_pass_fixtures_are_not_overrejected():\n        table = _verdict(\"overreject\")[\"method_table\"]\n>       assert all(\n            table[method][\"should_pass\"][\"false_positive_overreject_count\"] == 0\n            for method in (\"alpha\", \"beta\", \"gamma\")\n        )\nE       assert False\nE        +  where False = all(<generator object test_should_pass_fixtures_are_not_overrejected.<locals>.<genexpr> at 0x153cb1e4b8b0>)\n\norchestrator/tests/test_t419_probe_causality.py:694: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected\n======================== 3 failed, 105 passed in 2.11s =========================\n",
+        "stdout_sha256": "2078a9e68ad48d882e9d60e6db199dd600a52f93ec951c7bf61795afb0c005cf"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 21.766,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected",
+        "orchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards",
+        "orchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject",
+        "orchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "047f5922b9af2e9adcbe2b0cf230b44efabd1d9e77971c67a982514a208797db",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "dafd9476ee335275db1a3c06d75c3675149f15dd1ce42efa08fffcf2b4236337",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "    passed = 0",
+          "old": "    passed = sum(bool(value) for value in outcomes)"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "MISMATCH",
+      "test_output_sha256": "2078a9e68ad48d882e9d60e6db199dd600a52f93ec951c7bf61795afb0c005cf",
+      "test_output_tail": [
+        "...........................F......FF                                     [100%]",
+        "=================================== FAILURES ===================================",
+        "_____ test_alpha_with_rotation_uses_nine_groups_and_records_three_discards _____",
+        "[gw3] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_alpha_with_rotation_uses_nine_groups_and_records_three_discards():",
+        "        fixture = T419.synthetic_fixture(\"confirmed\")",
+        "        table = T419.evaluate_method_table(",
+        "            fixture[\"observations\"], fixture[\"calibration\"][\"band\"]",
+        "        )",
+        "        rotation = table[\"alpha_with_rotation\"][\"rotation\"]",
+        "    ",
+        "        assert table[\"reported_method_columns\"] == [",
+        "            \"alpha\",",
+        "            \"beta\",",
+        "            \"gamma\",",
+        "        ]",
+        "        assert table[\"alpha\"] == table[\"alpha_with_rotation\"]",
+        "        assert table[\"alpha_without_rotation\"][\"reported_as_alpha\"] is False",
+        "        assert rotation[\"group_count\"] == 9",
+        "        assert rotation[\"discarded_pin_target_count\"] == 3",
+        "        assert rotation[\"discarded_pin_targets\"] == fixture[\"observations\"][\"arms\"][",
+        "            \"A1_pin_sweep\"",
+        "        ][\"pin_order\"][-3:]",
+        "        assert [item[\"primary_read_index\"] for item in rotation[\"groups\"][0][\"positions\"]] == [",
+        "            0,",
+        "            5,",
+        "            10,",
+        "            15,",
+        "            20,",
+        "        ]",
+        ">       assert table[\"alpha_with_rotation\"][\"should_pass\"] == {",
+        "            \"evaluated\": 9,",
+        "            \"passed\": 9,",
+        "            \"rejected\": 0,",
+        "            \"false_positive_overreject_count\": 0,",
+        "            \"false_negative_missed_deviation_count\": 0,",
+        "        }",
+        "E       AssertionError: assert {'evaluated':...ount': 9, ...} == {'evaluated':...ount': 0, ...}",
+        "E         ",
+        "E         Omitting 2 identical items, use -vv to show",
+        "E         Differing items:",
+        "E         {'passed': 0} != {'passed': 9}",
+        "E         {'rejected': 9} != {'rejected': 0}",
+        "E         {'false_positive_overreject_count': 9} != {'false_positive_overreject_count': 0}",
+        "E         Use -v to get more diff",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:1409: AssertionError",
+        "_________ test_should_reject_rows_are_not_replaced_by_constant_reject __________",
+        "[gw20] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_should_reject_rows_are_not_replaced_by_constant_reject():",
+        "        table = _verdict(\"confirmed\")[\"method_table\"]",
+        "        assert table[\"alpha\"][\"should_reject\"][\"evaluated\"] == 0",
+        ">       assert all(",
+        "            table[method][\"should_reject\"][\"false_negative_missed_deviation_count\"] > 0",
+        "            for method in (\"alpha_without_rotation\", \"beta\", \"gamma\")",
+        "        )",
+        "E       assert False",
+        "E        +  where False = all(<generator object test_should_reject_rows_are_not_replaced_by_constant_reject.<locals>.<genexpr> at 0x14bd4c3138b0>)",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:703: AssertionError",
+        "________________ test_should_pass_fixtures_are_not_overrejected ________________",
+        "[gw19] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_should_pass_fixtures_are_not_overrejected():",
+        "        table = _verdict(\"overreject\")[\"method_table\"]",
+        ">       assert all(",
+        "            table[method][\"should_pass\"][\"false_positive_overreject_count\"] == 0",
+        "            for method in (\"alpha\", \"beta\", \"gamma\")",
+        "        )",
+        "E       assert False",
+        "E        +  where False = all(<generator object test_should_pass_fixtures_are_not_overrejected.<locals>.<genexpr> at 0x153cb1e4b8b0>)",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:694: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected",
+        "======================== 3 failed, 105 passed in 2.11s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/8cb8b0f329eff3eb432b2898608e1431/izdw-8cb8b0f329.o889417",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/8cb8b0f329eff3eb432b2898608e1431/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n........................................................................ [ 66%]\n.................F.FF....F..F...FFFF                                     [100%]\n=================================== FAILURES ===================================\n_______ test_positive_nonself_pid_delta_is_competitor_snapshot_evidence ________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_positive_nonself_pid_delta_is_competitor_snapshot_evidence():\n        before = {\n            1: _process(1, 10, 5, 0),\n            2: _process(2, 20, 5, 0),\n        }\n        after = {\n            1: _process(1, 10, 5, 0),\n            2: _process(2, 20, 11, 0),\n        }\n        result = T419.detect_isolation_competition(\n            before,\n            after,\n            {0: _cpu(10)},\n            {0: _cpu(10)},\n            [0],\n            [(1, 10)],\n            subwindows=[_subwindow({0: 3}, duration_s=0.1)],\n        )\n        assert result[\"residual_total\"] == 0\n>       assert result[\"isolation_attribution\"] == \"COMPETITOR\"\nE       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'\nE         \nE         - COMPETITOR\nE         + ATTRIBUTION_UNRESOLVED\n\norchestrator/tests/test_t419_probe_causality.py:838: AssertionError\n_______ test_short_lived_competitor_is_detected_from_unattributed_ticks ________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_short_lived_competitor_is_detected_from_unattributed_ticks():\n        before = {1: _process(1, 10, 5, 0)}\n        after = {1: _process(1, 10, 5, 0)}\n        result = T419.detect_isolation_competition(\n            before,\n            after,\n            {0: _cpu(10)},\n            {0: _cpu(11)},\n            [0],\n            [(1, 10)],\n            subwindows=[_subwindow({0: 3}, duration_s=0.1)],\n        )\n>       assert result[\"competition_detected\"] is True\nE       assert False is True\n\norchestrator/tests/test_t419_probe_causality.py:721: AssertionError\n_______________ test_released_child_pid_reuse_is_not_allowlisted _______________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_released_child_pid_reuse_is_not_allowlisted():\n        before = {\n            1: _process(1, 10, 5, 0),\n            20: _process(20, 100, 0, 0, ppid=1),\n        }\n        after = {\n            1: _process(1, 10, 5, 0),\n            20: _process(20, 200, 6, 0, ppid=999),\n        }\n        result = T419.detect_isolation_competition(\n            before,\n            after,\n            {0: _cpu(10)},\n            {0: _cpu(11)},\n            [0],\n            [(1, 10), (20, 100)],\n            subwindows=[_subwindow({0: 3}, duration_s=0.1)],\n        )\n>       assert result[\"competition_detected\"] is True\nE       assert False is True\n\norchestrator/tests/test_t419_probe_causality.py:752: AssertionError\n____ test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms ____\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms():\n        isolation = _nonself_isolation(\n            [3, 3],\n            subwindow=_subwindow({0: 3}, duration_s=0.1),\n        )\n        verdict = _verdict_with_a0_isolation(isolation)\n    \n        assert isolation[\"snapshot_nonself_ticks_by_cpu\"] == {0: 6}\n        assert isolation[\"subwindows\"][0][\"unexplained_ticks_per_second\"] == 30.0\n>       assert isolation[\"isolation_attribution\"] == \"COMPETITOR\"\nE       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'\nE         \nE         - COMPETITOR\nE         + ATTRIBUTION_UNRESOLVED\n\norchestrator/tests/test_t419_probe_causality.py:867: AssertionError\n____________ test_isolation_residual_is_never_cancelled_across_cpus ____________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_isolation_residual_is_never_cancelled_across_cpus():\n        result = T419.detect_isolation_competition(\n            {1: _process(1, 10, 5, 0)},\n            {1: _process(1, 10, 7, 0)},\n            {0: _cpu(10), 1: _cpu(10)},\n            {0: _cpu(11), 1: _cpu(11)},\n            [0, 1],\n            [(1, 10)],\n            pinned_self_intervals=[\n                {\"pid\": 1, \"starttime\": 10, \"target_cpu\": 0, \"cpu_ticks_delta\": 2}\n            ],\n            subwindows=[_subwindow({0: 0, 1: 3}, duration_s=0.1)],\n        )\n        assert result[\"self_attributed_ticks_by_cpu\"] == {0: 2, 1: 0}\n        assert result[\"residual_ticks_by_cpu\"] == {0: 0, 1: 1}\n>       assert result[\"isolation_attribution\"] == \"COMPETITOR\"\nE       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'\nE         \nE         - COMPETITOR\nE         + ATTRIBUTION_UNRESOLVED\n\norchestrator/tests/test_t419_probe_causality.py:1462: AssertionError\n___ test_residual_above_self_unattributable_invalidates_and_stops_later_arms ___\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_residual_above_self_unattributable_invalidates_and_stops_later_arms():\n        isolation = T419.detect_isolation_competition(\n            {1: _process(1, 10, 5, 0)},\n            {1: _process(1, 10, 5, 0)},\n            {0: _cpu(10)},\n            {0: _cpu(12)},\n            [0],\n            [(1, 10)],\n            subwindows=[_subwindow({0: 3}, duration_s=0.1)],\n        )\n        fixture = T419.synthetic_fixture(\"confirmed\")\n        fixture[\"observations\"][\"arms\"][\"A0_quiet_baseline\"][\"isolation\"] = {\n            **isolation,\n            \"visibility_complete\": True,\n        }\n        verdict = T419.evaluate(\n            fixture[\"observations\"], fixture[\"calibration\"], fixture[\"environment\"]\n        )\n        assert isolation[\"residual_total\"] == 2 > isolation[\"self_unattributable_total\"]\n>       assert isolation[\"isolation_attribution\"] == \"COMPETITOR\"\nE       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'\nE         \nE         - COMPETITOR\nE         + ATTRIBUTION_UNRESOLVED\n\norchestrator/tests/test_t419_probe_causality.py:814: AssertionError\n________ test_signal_and_non_signal_rate_exceedance_prefers_competitor _________\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_signal_and_non_signal_rate_exceedance_prefers_competitor():\n        subwindow = _subwindow(\n            {0: 3, 1: 3}, duration_s=0.1, signal_cpus=[0]\n        )\n        isolation = T419.detect_isolation_competition(\n            {1: _process(1, 10, 5, 0)},\n            {1: _process(1, 10, 5, 0)},\n            {0: _cpu(10), 1: _cpu(10)},\n            {0: _cpu(10), 1: _cpu(10)},\n            [0, 1],\n            [(1, 10)],\n            subwindows=[subwindow],\n        )\n        verdict = _verdict_with_a0_isolation(isolation)\n    \n        assert subwindow[\"signal_rate_exceeded_cpus\"] == [0]\n        assert subwindow[\"non_signal_rate_exceeded_cpus\"] == [1]\n>       assert isolation[\"isolation_attribution\"] == \"COMPETITOR\"\nE       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'\nE         \nE         - COMPETITOR\nE         + ATTRIBUTION_UNRESOLVED\n\norchestrator/tests/test_t419_probe_causality.py:1149: AssertionError\n__ test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms __\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms():\n        subwindow = _subwindow(\n            {0: 3, 1: 0}, duration_s=0.1, signal_cpus=[0]\n        )\n        isolation = T419.detect_isolation_competition(\n            {1: _process(1, 10, 5, 0)},\n            {1: _process(1, 10, 5, 0)},\n            {0: _cpu(10), 1: _cpu(10)},\n            {0: _cpu(10), 1: _cpu(10)},\n            [0, 1],\n            [(1, 10)],\n            subwindows=[subwindow],\n        )\n        verdict = _verdict_with_a0_isolation(isolation)\n    \n        assert subwindow[\"signal_cpus\"] == [0]\n        assert subwindow[\"signal_rate_exceeded_cpus\"] == [0]\n        assert subwindow[\"non_signal_rate_exceeded_cpus\"] == []\n        assert subwindow[\"unexplained_ticks_per_second\"] == 30.0\n>       assert isolation[\"isolation_attribution\"] == \"COMPETITOR\"\nE       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'\nE         \nE         - COMPETITOR\nE         + ATTRIBUTION_UNRESOLVED\n\norchestrator/tests/test_t419_probe_causality.py:1064: AssertionError\n______ test_subwindow_three_ticks_is_competitor_with_one_validity_reason _______\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_subwindow_three_ticks_is_competitor_with_one_validity_reason():\n        subwindow = _subwindow({0: 3}, duration_s=0.1)\n        isolation = T419.detect_isolation_competition(\n            {1: _process(1, 10, 5, 0)},\n            {1: _process(1, 10, 5, 0)},\n            {0: _cpu(10)},\n            {0: _cpu(10)},\n            [0],\n            [(1, 10)],\n            subwindows=[subwindow],\n        )\n        verdict = _verdict_with_a0_isolation(isolation)\n    \n        assert isolation[\"max_per_cpu_per_subwindow_residual_ticks\"] == 3\n        assert (\n            subwindow[\"unexplained_ticks_per_second\"]\n            > T419.COMPETITOR_MAX_TICKS_PER_SECOND\n        )\n>       assert isolation[\"isolation_attribution\"] == \"COMPETITOR\"\nE       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'\nE         \nE         - COMPETITOR\nE         + ATTRIBUTION_UNRESOLVED\n\norchestrator/tests/test_t419_probe_causality.py:1035: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_positive_nonself_pid_delta_is_competitor_snapshot_evidence\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_short_lived_competitor_is_detected_from_unattributed_ticks\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_released_child_pid_reuse_is_not_allowlisted\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_isolation_residual_is_never_cancelled_across_cpus\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_residual_above_self_unattributable_invalidates_and_stops_later_arms\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_subwindow_three_ticks_is_competitor_with_one_validity_reason\n========================= 9 failed, 99 passed in 2.11s =========================\n",
+        "stdout_sha256": "b8b86d1ccb8f59c57b64999da953aef9a55c7290b6a74315c088964c61450994"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 21.762,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms",
+        "orchestrator/tests/test_t419_probe_causality.py::test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms",
+        "orchestrator/tests/test_t419_probe_causality.py::test_subwindow_three_ticks_is_competitor_with_one_validity_reason",
+        "orchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_positive_nonself_pid_delta_is_competitor_snapshot_evidence",
+        "orchestrator/tests/test_t419_probe_causality.py::test_short_lived_competitor_is_detected_from_unattributed_ticks",
+        "orchestrator/tests/test_t419_probe_causality.py::test_released_child_pid_reuse_is_not_allowlisted",
+        "orchestrator/tests/test_t419_probe_causality.py::test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms",
+        "orchestrator/tests/test_t419_probe_causality.py::test_isolation_residual_is_never_cancelled_across_cpus",
+        "orchestrator/tests/test_t419_probe_causality.py::test_residual_above_self_unattributable_invalidates_and_stops_later_arms",
+        "orchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor",
+        "orchestrator/tests/test_t419_probe_causality.py::test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms",
+        "orchestrator/tests/test_t419_probe_causality.py::test_subwindow_three_ticks_is_competitor_with_one_validity_reason"
+      ],
+      "hang_risk": false,
+      "id": "N1",
+      "injection_diff_sha256": "010f758a04f0935b5dec768ff67e3b71a0dbf0950b9bd7507de091ac3e4b8612",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "a61dde55ca2f5c48b30bb8d0664040916e2e9f9106ca3a8c420de69a2bd2ec3b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "    competitor = False",
+          "old": "    competitor = bool(signal_rate_exceedances)"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "MISMATCH",
+      "test_output_sha256": "b8b86d1ccb8f59c57b64999da953aef9a55c7290b6a74315c088964c61450994",
+      "test_output_tail": [
+        "        )",
+        "        verdict = _verdict_with_a0_isolation(isolation)",
+        "    ",
+        "        assert subwindow[\"signal_rate_exceeded_cpus\"] == [0]",
+        "        assert subwindow[\"non_signal_rate_exceeded_cpus\"] == [1]",
+        ">       assert isolation[\"isolation_attribution\"] == \"COMPETITOR\"",
+        "E       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'",
+        "E         ",
+        "E         - COMPETITOR",
+        "E         + ATTRIBUTION_UNRESOLVED",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:1149: AssertionError",
+        "__ test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms __",
+        "[gw41] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms():",
+        "        subwindow = _subwindow(",
+        "            {0: 3, 1: 0}, duration_s=0.1, signal_cpus=[0]",
+        "        )",
+        "        isolation = T419.detect_isolation_competition(",
+        "            {1: _process(1, 10, 5, 0)},",
+        "            {1: _process(1, 10, 5, 0)},",
+        "            {0: _cpu(10), 1: _cpu(10)},",
+        "            {0: _cpu(10), 1: _cpu(10)},",
+        "            [0, 1],",
+        "            [(1, 10)],",
+        "            subwindows=[subwindow],",
+        "        )",
+        "        verdict = _verdict_with_a0_isolation(isolation)",
+        "    ",
+        "        assert subwindow[\"signal_cpus\"] == [0]",
+        "        assert subwindow[\"signal_rate_exceeded_cpus\"] == [0]",
+        "        assert subwindow[\"non_signal_rate_exceeded_cpus\"] == []",
+        "        assert subwindow[\"unexplained_ticks_per_second\"] == 30.0",
+        ">       assert isolation[\"isolation_attribution\"] == \"COMPETITOR\"",
+        "E       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'",
+        "E         ",
+        "E         - COMPETITOR",
+        "E         + ATTRIBUTION_UNRESOLVED",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:1064: AssertionError",
+        "______ test_subwindow_three_ticks_is_competitor_with_one_validity_reason _______",
+        "[gw40] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_subwindow_three_ticks_is_competitor_with_one_validity_reason():",
+        "        subwindow = _subwindow({0: 3}, duration_s=0.1)",
+        "        isolation = T419.detect_isolation_competition(",
+        "            {1: _process(1, 10, 5, 0)},",
+        "            {1: _process(1, 10, 5, 0)},",
+        "            {0: _cpu(10)},",
+        "            {0: _cpu(10)},",
+        "            [0],",
+        "            [(1, 10)],",
+        "            subwindows=[subwindow],",
+        "        )",
+        "        verdict = _verdict_with_a0_isolation(isolation)",
+        "    ",
+        "        assert isolation[\"max_per_cpu_per_subwindow_residual_ticks\"] == 3",
+        "        assert (",
+        "            subwindow[\"unexplained_ticks_per_second\"]",
+        "            > T419.COMPETITOR_MAX_TICKS_PER_SECOND",
+        "        )",
+        ">       assert isolation[\"isolation_attribution\"] == \"COMPETITOR\"",
+        "E       AssertionError: assert 'ATTRIBUTION_UNRESOLVED' == 'COMPETITOR'",
+        "E         ",
+        "E         - COMPETITOR",
+        "E         + ATTRIBUTION_UNRESOLVED",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:1035: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_positive_nonself_pid_delta_is_competitor_snapshot_evidence",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_short_lived_competitor_is_detected_from_unattributed_ticks",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_released_child_pid_reuse_is_not_allowlisted",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_isolation_residual_is_never_cancelled_across_cpus",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_residual_above_self_unattributable_invalidates_and_stops_later_arms",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_subwindow_three_ticks_is_competitor_with_one_validity_reason",
+        "========================= 9 failed, 99 passed in 2.11s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/7d594b23bc50228c41af9110b85f4231/izdw-7d594b23bc.o889418",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/7d594b23bc50228c41af9110b85f4231/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n........................................................................ [ 66%]\n..................................FF                                     [100%]\n=================================== FAILURES ===================================\n________ test_signal_and_non_signal_rate_exceedance_prefers_competitor _________\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_signal_and_non_signal_rate_exceedance_prefers_competitor():\n        subwindow = _subwindow(\n            {0: 3, 1: 3}, duration_s=0.1, signal_cpus=[0]\n        )\n        isolation = T419.detect_isolation_competition(\n            {1: _process(1, 10, 5, 0)},\n            {1: _process(1, 10, 5, 0)},\n            {0: _cpu(10), 1: _cpu(10)},\n            {0: _cpu(10), 1: _cpu(10)},\n            [0, 1],\n            [(1, 10)],\n            subwindows=[subwindow],\n        )\n        verdict = _verdict_with_a0_isolation(isolation)\n    \n>       assert subwindow[\"signal_rate_exceeded_cpus\"] == [0]\nE       assert [0, 1] == [0]\nE         \nE         Left contains one more item: 1\nE         Use -v to get more diff\n\norchestrator/tests/test_t419_probe_causality.py:1147: AssertionError\n_ test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection _\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection():\n        subwindow = _subwindow(\n            {0: 0, 1: 3}, duration_s=0.1, signal_cpus=[0]\n        )\n        isolation = T419.detect_isolation_competition(\n            {1: _process(1, 10, 5, 0)},\n            {1: _process(1, 10, 5, 0)},\n            {0: _cpu(10), 1: _cpu(10)},\n            {0: _cpu(10), 1: _cpu(10)},\n            [0, 1],\n            [(1, 10)],\n            subwindows=[subwindow],\n        )\n        fixture = T419.synthetic_fixture(\"confirmed\")\n        fixture[\"observations\"][\"arms\"][\"A0_quiet_baseline\"][\"isolation\"] = {\n            **isolation,\n            \"visibility_complete\": True,\n        }\n        a0_reads = fixture[\"observations\"][\"arms\"][\"A0_quiet_baseline\"][\"reads\"]\n        for reading in a0_reads:\n            reading[\"isolation_subwindow_id\"] = \"fixture\"\n        a0_reads[0][\"mhz_by_cpu\"][1] = 110.0\n        verdict = T419.evaluate(\n            fixture[\"observations\"], fixture[\"calibration\"], fixture[\"environment\"]\n        )\n    \n        assert subwindow[\"signal_cpus\"] == [0]\n>       assert subwindow[\"signal_rate_exceeded_cpus\"] == []\nE       assert [1] == []\nE         \nE         Left contains one more item: 1\nE         Use -v to get more diff\n\norchestrator/tests/test_t419_probe_causality.py:1099: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection\n======================== 2 failed, 106 passed in 2.10s =========================\n",
+        "stdout_sha256": "df98aa590de6983e8c9d2955fdcaee1ab3d9f9fe20a34062393acc844593d5cd"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 21.749,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor",
+        "orchestrator/tests/test_t419_probe_causality.py::test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection"
+      ],
+      "hang_risk": false,
+      "id": "N2",
+      "injection_diff_sha256": "91767b320c9099520ef177cfc79a619da7eac7a135970619e746621c298c6165",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "220550c93e9a348bf110334b4ed92590d6f3453a67502b36d64bb83d2a7682ef",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "    signal_rate_exceedances = list(rate_exceedances)",
+          "old": "    signal_rate_exceedances = [\n        item for item in rate_exceedances if int(item[\"cpu\"]) in signal_cpu_set\n    ]"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "MISMATCH",
+      "test_output_sha256": "df98aa590de6983e8c9d2955fdcaee1ab3d9f9fe20a34062393acc844593d5cd",
+      "test_output_tail": [
+        "============================= test session starts ==============================",
+        "platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0",
+        "rootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun",
+        "configfile: pytest.ini",
+        "plugins: xdist-3.8.0, cov-7.1.0",
+        "created: 48/48 workers",
+        "48 workers [108 items]",
+        "",
+        "........................................................................ [ 66%]",
+        "..................................FF                                     [100%]",
+        "=================================== FAILURES ===================================",
+        "________ test_signal_and_non_signal_rate_exceedance_prefers_competitor _________",
+        "[gw43] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_signal_and_non_signal_rate_exceedance_prefers_competitor():",
+        "        subwindow = _subwindow(",
+        "            {0: 3, 1: 3}, duration_s=0.1, signal_cpus=[0]",
+        "        )",
+        "        isolation = T419.detect_isolation_competition(",
+        "            {1: _process(1, 10, 5, 0)},",
+        "            {1: _process(1, 10, 5, 0)},",
+        "            {0: _cpu(10), 1: _cpu(10)},",
+        "            {0: _cpu(10), 1: _cpu(10)},",
+        "            [0, 1],",
+        "            [(1, 10)],",
+        "            subwindows=[subwindow],",
+        "        )",
+        "        verdict = _verdict_with_a0_isolation(isolation)",
+        "    ",
+        ">       assert subwindow[\"signal_rate_exceeded_cpus\"] == [0]",
+        "E       assert [0, 1] == [0]",
+        "E         ",
+        "E         Left contains one more item: 1",
+        "E         Use -v to get more diff",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:1147: AssertionError",
+        "_ test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection _",
+        "[gw42] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection():",
+        "        subwindow = _subwindow(",
+        "            {0: 0, 1: 3}, duration_s=0.1, signal_cpus=[0]",
+        "        )",
+        "        isolation = T419.detect_isolation_competition(",
+        "            {1: _process(1, 10, 5, 0)},",
+        "            {1: _process(1, 10, 5, 0)},",
+        "            {0: _cpu(10), 1: _cpu(10)},",
+        "            {0: _cpu(10), 1: _cpu(10)},",
+        "            [0, 1],",
+        "            [(1, 10)],",
+        "            subwindows=[subwindow],",
+        "        )",
+        "        fixture = T419.synthetic_fixture(\"confirmed\")",
+        "        fixture[\"observations\"][\"arms\"][\"A0_quiet_baseline\"][\"isolation\"] = {",
+        "            **isolation,",
+        "            \"visibility_complete\": True,",
+        "        }",
+        "        a0_reads = fixture[\"observations\"][\"arms\"][\"A0_quiet_baseline\"][\"reads\"]",
+        "        for reading in a0_reads:",
+        "            reading[\"isolation_subwindow_id\"] = \"fixture\"",
+        "        a0_reads[0][\"mhz_by_cpu\"][1] = 110.0",
+        "        verdict = T419.evaluate(",
+        "            fixture[\"observations\"], fixture[\"calibration\"], fixture[\"environment\"]",
+        "        )",
+        "    ",
+        "        assert subwindow[\"signal_cpus\"] == [0]",
+        ">       assert subwindow[\"signal_rate_exceeded_cpus\"] == []",
+        "E       assert [1] == []",
+        "E         ",
+        "E         Left contains one more item: 1",
+        "E         Use -v to get more diff",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:1099: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection",
+        "======================== 2 failed, 106 passed in 2.10s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/a6811bf30f6575da5959c6d5b5a55380/izdw-a6811bf30f.o889419",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/a6811bf30f6575da5959c6d5b5a55380/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n........................................................................ [ 66%]\n................................F...                                     [100%]\n=================================== FAILURES ===================================\n_______________ test_diagnostic_error_is_incomplete_and_invalid ________________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_diagnostic_error_is_incomplete_and_invalid():\n        snapshot, verdict = _verdict_with_a0_diagnostic_records(\n            [\n                {\n                    \"field\": \"cpuinfo_cur_freq\",\n                    \"status\": T419._diagnostic_exception_status(OSError(5, \"fixture\")),\n                }\n            ]\n        )\n    \n>       assert snapshot[\"complete\"] is False\nE       assert True is False\n\norchestrator/tests/test_t419_probe_causality.py:924: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_error_is_incomplete_and_invalid\n======================== 1 failed, 107 passed in 2.09s =========================\n",
+        "stdout_sha256": "81896ae94013f8a25b3fe9433d71a9cde0a08803961d3cecc76888065c5b2e50"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 21.742,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_error_is_incomplete_and_invalid"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_error_is_incomplete_and_invalid"
+      ],
+      "hang_risk": false,
+      "id": "N3",
+      "injection_diff_sha256": "57f2ac1368987f83562dec2d44e097abd5fe9be678172146ce92e6a038df6513",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c6b232e39bd3e81d39d2ed4e55d02f6122c7b7d7364a6c236e5ac2488c62fc84",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "        \"complete\": True,",
+          "old": "        \"complete\": counts[\"error\"] == 0,"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "KILLED",
+      "test_output_sha256": "81896ae94013f8a25b3fe9433d71a9cde0a08803961d3cecc76888065c5b2e50",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/d86f7b23f499d198b3c6df016a0f4aa4/izdw-d86f7b23f4.o889420",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/d86f7b23f499d198b3c6df016a0f4aa4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [108 items]\n\n........................................................................ [ 66%]\n...........................F......FF                                     [100%]\n=================================== FAILURES ===================================\n_________ test_method_table_includes_a2_sham_in_should_pass_population _________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_method_table_includes_a2_sham_in_should_pass_population():\n        table = _verdict(\"confirmed\")[\"method_table\"]\n>       assert table[\"alpha\"][\"should_pass\"][\"evaluated\"] == 9\nE       assert 24 == 9\n\norchestrator/tests/test_t419_probe_causality.py:687: AssertionError\n_________ test_should_reject_rows_are_not_replaced_by_constant_reject __________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_should_reject_rows_are_not_replaced_by_constant_reject():\n        table = _verdict(\"confirmed\")[\"method_table\"]\n>       assert table[\"alpha\"][\"should_reject\"][\"evaluated\"] == 0\nE       assert 11 == 0\n\norchestrator/tests/test_t419_probe_causality.py:702: AssertionError\n_____ test_alpha_with_rotation_uses_nine_groups_and_records_three_discards _____\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_alpha_with_rotation_uses_nine_groups_and_records_three_discards():\n        fixture = T419.synthetic_fixture(\"confirmed\")\n        table = T419.evaluate_method_table(\n            fixture[\"observations\"], fixture[\"calibration\"][\"band\"]\n        )\n        rotation = table[\"alpha_with_rotation\"][\"rotation\"]\n    \n        assert table[\"reported_method_columns\"] == [\n            \"alpha\",\n            \"beta\",\n            \"gamma\",\n        ]\n>       assert table[\"alpha\"] == table[\"alpha_with_rotation\"]\nE       AssertionError: assert {'reported_as...unt': 0, ...}} == {'stages': {'...unt': 3, ...}}\nE         \nE         Differing items:\nE         {'should_reject': {'evaluated': 11, 'passed': 11, 'rejected': 0, 'false_positive_overreject_count': 0, ...}} != {'should_reject': {'evaluated': 0, 'passed': 0, 'rejected': 0, 'false_positive_overreject_count': 0, ...}}\nE         {'should_pass': {'evaluated': 24, 'passed': 24, 'rejected': 0, 'false_positive_overreject_count': 0, ...}} != {'should_pass': {'evaluated': 9, 'passed': 9, 'rejected': 0, 'false_positive_overreject_count': 0, ...}}\nE         {'stages': {'1': {'should_pass': {'evaluated': 24, 'passed': 24, 'rejected': 0, 'false_positive_overreject_count': 0, .....}, 's...\nE         \nE         ...Full output truncated (2584 lines hidden), use '-vv' to show\n\norchestrator/tests/test_t419_probe_causality.py:1395: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_method_table_includes_a2_sham_in_should_pass_population\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject\nFAILED orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards\n======================== 3 failed, 105 passed in 2.11s =========================\n",
+        "stdout_sha256": "e3e8a4354935b722c6ff0a957704828a0970418b5ca19f5ebf24edaf46aacac5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b7d0483891c63e85b8c5f93f2e91790444f5dd3d8a8a0b5b4791480e406d3916",
+      "duration_s": 21.738,
+      "expected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_method_table_includes_a2_sham_in_should_pass_population",
+        "orchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject",
+        "orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards"
+      ],
+      "hang_risk": false,
+      "id": "N4",
+      "injection_diff_sha256": "97b6d3336304cff40cc9177ddad9630c16a24c4021693fe6aac10f18beddd762",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "d69fca34de4abbc668813a3a7bf6ad5981cc13a7d139cd5ad515dfc3d1d0773e",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t419_probe_causality.py",
+          "new": "        \"alpha\": {\n            \"reported_as_alpha\": False,\n            \"stages\": alpha_without_rotation_stages,\n            \"should_pass\": alpha_without_rotation_stages[str(ALPHA_K)][\"should_pass\"],\n            \"should_reject\": alpha_without_rotation_stages[str(ALPHA_K)][\"should_reject\"],\n        },",
+          "old": "        \"alpha\": rotating_alpha,"
+        }
+      ],
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "MISMATCH",
+      "test_output_sha256": "e3e8a4354935b722c6ff0a957704828a0970418b5ca19f5ebf24edaf46aacac5",
+      "test_output_tail": [
+        "============================= test session starts ==============================",
+        "platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0",
+        "rootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun",
+        "configfile: pytest.ini",
+        "plugins: xdist-3.8.0, cov-7.1.0",
+        "created: 48/48 workers",
+        "48 workers [108 items]",
+        "",
+        "........................................................................ [ 66%]",
+        "...........................F......FF                                     [100%]",
+        "=================================== FAILURES ===================================",
+        "_________ test_method_table_includes_a2_sham_in_should_pass_population _________",
+        "[gw18] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_method_table_includes_a2_sham_in_should_pass_population():",
+        "        table = _verdict(\"confirmed\")[\"method_table\"]",
+        ">       assert table[\"alpha\"][\"should_pass\"][\"evaluated\"] == 9",
+        "E       assert 24 == 9",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:687: AssertionError",
+        "_________ test_should_reject_rows_are_not_replaced_by_constant_reject __________",
+        "[gw20] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_should_reject_rows_are_not_replaced_by_constant_reject():",
+        "        table = _verdict(\"confirmed\")[\"method_table\"]",
+        ">       assert table[\"alpha\"][\"should_reject\"][\"evaluated\"] == 0",
+        "E       assert 11 == 0",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:702: AssertionError",
+        "_____ test_alpha_with_rotation_uses_nine_groups_and_records_three_discards _____",
+        "[gw17] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_alpha_with_rotation_uses_nine_groups_and_records_three_discards():",
+        "        fixture = T419.synthetic_fixture(\"confirmed\")",
+        "        table = T419.evaluate_method_table(",
+        "            fixture[\"observations\"], fixture[\"calibration\"][\"band\"]",
+        "        )",
+        "        rotation = table[\"alpha_with_rotation\"][\"rotation\"]",
+        "    ",
+        "        assert table[\"reported_method_columns\"] == [",
+        "            \"alpha\",",
+        "            \"beta\",",
+        "            \"gamma\",",
+        "        ]",
+        ">       assert table[\"alpha\"] == table[\"alpha_with_rotation\"]",
+        "E       AssertionError: assert {'reported_as...unt': 0, ...}} == {'stages': {'...unt': 3, ...}}",
+        "E         ",
+        "E         Differing items:",
+        "E         {'should_reject': {'evaluated': 11, 'passed': 11, 'rejected': 0, 'false_positive_overreject_count': 0, ...}} != {'should_reject': {'evaluated': 0, 'passed': 0, 'rejected': 0, 'false_positive_overreject_count': 0, ...}}",
+        "E         {'should_pass': {'evaluated': 24, 'passed': 24, 'rejected': 0, 'false_positive_overreject_count': 0, ...}} != {'should_pass': {'evaluated': 9, 'passed': 9, 'rejected': 0, 'false_positive_overreject_count': 0, ...}}",
+        "E         {'stages': {'1': {'should_pass': {'evaluated': 24, 'passed': 24, 'rejected': 0, 'false_positive_overreject_count': 0, .....}, 's...",
+        "E         ",
+        "E         ...Full output truncated (2584 lines hidden), use '-vv' to show",
+        "",
+        "orchestrator/tests/test_t419_probe_causality.py:1395: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_method_table_includes_a2_sham_in_should_pass_population",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject",
+        "FAILED orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards",
+        "======================== 3 failed, 105 passed in 2.11s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/ba2a9c85a166a8708ff87483d93573f7/izdw-ba2a9c85a1.o889403",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/pegasus-dispatch/ba2a9c85a166a8708ff87483d93573f7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t419_probe_causality.py::test_preregistered_threshold_literals_are_pinned\norchestrator/tests/test_t419_probe_causality.py::test_child_threshold_literals_are_pinned\norchestrator/tests/test_t419_probe_causality.py::test_preregistered_primary_read_total_is_445\norchestrator/tests/test_t419_probe_causality.py::test_default_hard_deadline_is_900_seconds\norchestrator/tests/test_t419_probe_causality.py::test_no_effect_is_refuted\norchestrator/tests/test_t419_probe_causality.py::test_all_out_of_band_is_not_confirmed\norchestrator/tests/test_t419_probe_causality.py::test_paired_contrast_only_fixture_kills_m1\norchestrator/tests/test_t419_probe_causality.py::test_pinned_hit_rate_boundary_0p95_is_inclusive\norchestrator/tests/test_t419_probe_causality.py::test_nonpinned_rate_boundary_0p05_is_inclusive\norchestrator/tests/test_t419_probe_causality.py::test_positive_contrast_boundary_46_is_inclusive\norchestrator/tests/test_t419_probe_causality.py::test_band_endpoints_are_inclusive\norchestrator/tests/test_t419_probe_causality.py::test_band_formula_external_oracle_literals\norchestrator/tests/test_t419_probe_causality.py::test_band_must_equal_median_plus_or_minus_tolerance_formula\norchestrator/tests/test_t419_probe_causality.py::test_even_length_median_is_arithmetic_middle\norchestrator/tests/test_t419_probe_causality.py::test_nonfinite_observed_values_fail_closed\norchestrator/tests/test_t419_probe_causality.py::test_nonfinite_calibration_values_are_rejected\norchestrator/tests/test_t419_probe_causality.py::test_empty_vectors_fail_closed\norchestrator/tests/test_t419_probe_causality.py::test_in_band_non_nominal_uses_canonical_band\norchestrator/tests/test_t419_probe_causality.py::test_alpha_converges_by_positional_cumulative_minimum\norchestrator/tests/test_t419_probe_causality.py::test_positive_paired_contrast_can_confirm\norchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[missing_cpu]\norchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[child_evidence_missing]\norchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[child_status_mismatch]\norchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[exception_only]\norchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[band_missing]\norchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[parser_unavailable]\norchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[population_missing]\norchestrator/tests/test_t419_probe_causality.py::test_missing_reads_is_invalid_and_not_evaluated\norchestrator/tests/test_t419_probe_causality.py::test_a4_primary_count_gate_has_a_single_reason_fixture\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_non_string_condition_mode\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_nonfinite_mhz_with_one_reason\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_coercible_vector_types_with_one_reason[string_cpu]\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_coercible_vector_types_with_one_reason[bool_cpu]\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_coercible_vector_types_with_one_reason[string_mhz]\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_coercible_vector_types_with_one_reason[bool_mhz]\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_unexpected_top_level_types[none]\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_unexpected_top_level_types[integer]\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_unexpected_top_level_types[list]\norchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_unexpected_top_level_types[string]\norchestrator/tests/test_t419_probe_causality.py::test_contention_invalidates_execution_and_verdict\norchestrator/tests/test_t419_probe_causality.py::test_a1_missing_anchor_is_invalid\norchestrator/tests/test_t419_probe_causality.py::test_a1_pin_order_must_be_allocated_permutation\norchestrator/tests/test_t419_probe_causality.py::test_a1_pin_order_and_flat_groups_match_seed_permutation\norchestrator/tests/test_t419_probe_causality.py::test_a1_sorted_order_is_rejected_even_when_it_is_a_permutation\norchestrator/tests/test_t419_probe_causality.py::test_a3_flat_reads_must_equal_nested_blocks\norchestrator/tests/test_t419_probe_causality.py::test_a2_flat_reads_must_equal_nested_conditions\norchestrator/tests/test_t419_probe_causality.py::test_a3_block_population_must_be_complete\norchestrator/tests/test_t419_probe_causality.py::test_quiet_block_anchor_is_required\norchestrator/tests/test_t419_probe_causality.py::test_a2_condition_cooldown_is_required\norchestrator/tests/test_t419_probe_causality.py::test_child_tick_delta_must_match_start_end_arithmetic\norchestrator/tests/test_t419_probe_causality.py::test_child_pid_starttime_identity_must_remain_stable\norchestrator/tests/test_t419_probe_causality.py::test_sham_above_one_tick_is_inconclusive\norchestrator/tests/test_t419_probe_causality.py::test_sham_one_tick_inclusive_boundary_is_valid\norchestrator/tests/test_t419_probe_causality.py::test_busy_five_tick_inclusive_boundary_is_valid\norchestrator/tests/test_t419_probe_causality.py::test_busy_four_ticks_is_inconclusive\norchestrator/tests/test_t419_probe_causality.py::test_two_inconclusive_a2_pairs_keep_arm_valid\norchestrator/tests/test_t419_probe_causality.py::test_three_inconclusive_a2_pairs_invalidate_arm\norchestrator/tests/test_t419_probe_causality.py::test_a3_contention_anchor_must_follow_busy_child_barrier\norchestrator/tests/test_t419_probe_causality.py::test_parser_crosscheck_requires_three_matching_files\norchestrator/tests/test_t419_probe_causality.py::test_parser_crosscheck_nonmatch_statuses_are_invalid[unavailable]\norchestrator/tests/test_t419_probe_causality.py::test_parser_crosscheck_nonmatch_statuses_are_invalid[error]\norchestrator/tests/test_t419_probe_causality.py::test_parser_crosscheck_nonmatch_statuses_are_invalid[mismatch]\norchestrator/tests/test_t419_probe_causality.py::test_invalid_bands_return_invalid_not_evaluated[none]\norchestrator/tests/test_t419_probe_causality.py::test_invalid_bands_return_invalid_not_evaluated[reversed]\norchestrator/tests/test_t419_probe_causality.py::test_invalid_bands_return_invalid_not_evaluated[nan]\norchestrator/tests/test_t419_probe_causality.py::test_causal_analysis_exception_becomes_invalid\norchestrator/tests/test_t419_probe_causality.py::test_method_table_includes_a2_sham_in_should_pass_population\norchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected\norchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject\norchestrator/tests/test_t419_probe_causality.py::test_short_lived_competitor_is_detected_from_unattributed_ticks\norchestrator/tests/test_t419_probe_causality.py::test_attributed_self_ticks_do_not_create_competition\norchestrator/tests/test_t419_probe_causality.py::test_released_child_pid_reuse_is_not_allowlisted\norchestrator/tests/test_t419_probe_causality.py::test_irq_and_softirq_only_ticks_are_clean\norchestrator/tests/test_t419_probe_causality.py::test_unpinned_reader_migration_is_unresolved_but_valid\norchestrator/tests/test_t419_probe_causality.py::test_residual_above_self_unattributable_invalidates_and_stops_later_arms\norchestrator/tests/test_t419_probe_causality.py::test_positive_nonself_pid_delta_is_competitor_snapshot_evidence\norchestrator/tests/test_t419_probe_causality.py::test_nonself_snapshot_is_identity_evidence_only_and_valid\norchestrator/tests/test_t419_probe_causality.py::test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms\norchestrator/tests/test_t419_probe_causality.py::test_root_system_slice_nonself_snapshot_is_identity_evidence_only\norchestrator/tests/test_t419_probe_causality.py::test_unreadable_diagnostic_fields_are_complete_and_valid\norchestrator/tests/test_t419_probe_causality.py::test_diagnostic_error_is_incomplete_and_invalid\norchestrator/tests/test_t419_probe_causality.py::test_diagnostic_status_counts_cover_all_four_values\norchestrator/tests/test_t419_probe_causality.py::test_diagnostic_errno_classification_is_exact[eacces]\norchestrator/tests/test_t419_probe_causality.py::test_diagnostic_errno_classification_is_exact[eperm]\norchestrator/tests/test_t419_probe_causality.py::test_diagnostic_errno_classification_is_exact[enoent]\norchestrator/tests/test_t419_probe_causality.py::test_diagnostic_errno_classification_is_exact[eio]\norchestrator/tests/test_t419_probe_causality.py::test_subwindow_global_unexplained_rate_below_threshold_is_unresolved\norchestrator/tests/test_t419_probe_causality.py::test_subwindow_two_tick_boundary_is_incidental_and_records_maximum\norchestrator/tests/test_t419_probe_causality.py::test_subwindow_three_ticks_is_competitor_with_one_validity_reason\norchestrator/tests/test_t419_probe_causality.py::test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms\norchestrator/tests/test_t419_probe_causality.py::test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection\norchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor\norchestrator/tests/test_t419_probe_causality.py::test_subwindow_rate_equal_to_limit_is_unresolved\norchestrator/tests/test_t419_probe_causality.py::test_missing_all_isolation_subwindows_has_single_structural_reason\norchestrator/tests/test_t419_probe_causality.py::test_same_endpoint_unpinned_self_is_unattributable_and_unresolved\norchestrator/tests/test_t419_probe_causality.py::test_unpinned_self_large_consumption_is_not_competitor\norchestrator/tests/test_t419_probe_causality.py::test_stably_single_cpu_affinity_self_is_attributed_to_that_cpu\norchestrator/tests/test_t419_probe_causality.py::test_subwindow_boundary_sampling_reads_only_self_tree_and_proc_stat\norchestrator/tests/test_t419_probe_causality.py::test_equal_singleton_return_migration_revokes_self_cpu_attribution\norchestrator/tests/test_t419_probe_causality.py::test_a1_incidental_out_of_band_intersection_is_split_by_population\norchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards\norchestrator/tests/test_t419_probe_causality.py::test_completed_child_fork_to_reap_ticks_are_all_attributed\norchestrator/tests/test_t419_probe_causality.py::test_isolation_residual_is_never_cancelled_across_cpus\norchestrator/tests/test_t419_probe_causality.py::test_isolation_window_order_contains_cpu_window_and_records_skew\norchestrator/tests/test_t419_probe_causality.py::test_late_uses_half_read_interval_threshold\norchestrator/tests/test_t419_probe_causality.py::test_scheduler_binding_unavailable_is_recorded_not_rejected\norchestrator/tests/test_t419_probe_causality.py::test_scheduler_binding_mismatch_is_explicit\norchestrator/tests/test_t419_probe_causality.py::test_final_binding_mismatch_returns_nonzero_and_has_no_done_marker\n\n108 tests collected in 0.19s\n",
+        "stdout_sha256": "4e91d2c03f3132ebcd22c49c9a1f43acd095147d4b01ef9396b24c05eb7dcc52"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t419_probe_causality.py::test_preregistered_threshold_literals_are_pinned",
+        "orchestrator/tests/test_t419_probe_causality.py::test_child_threshold_literals_are_pinned",
+        "orchestrator/tests/test_t419_probe_causality.py::test_preregistered_primary_read_total_is_445",
+        "orchestrator/tests/test_t419_probe_causality.py::test_default_hard_deadline_is_900_seconds",
+        "orchestrator/tests/test_t419_probe_causality.py::test_no_effect_is_refuted",
+        "orchestrator/tests/test_t419_probe_causality.py::test_all_out_of_band_is_not_confirmed",
+        "orchestrator/tests/test_t419_probe_causality.py::test_paired_contrast_only_fixture_kills_m1",
+        "orchestrator/tests/test_t419_probe_causality.py::test_pinned_hit_rate_boundary_0p95_is_inclusive",
+        "orchestrator/tests/test_t419_probe_causality.py::test_nonpinned_rate_boundary_0p05_is_inclusive",
+        "orchestrator/tests/test_t419_probe_causality.py::test_positive_contrast_boundary_46_is_inclusive",
+        "orchestrator/tests/test_t419_probe_causality.py::test_band_endpoints_are_inclusive",
+        "orchestrator/tests/test_t419_probe_causality.py::test_band_formula_external_oracle_literals",
+        "orchestrator/tests/test_t419_probe_causality.py::test_band_must_equal_median_plus_or_minus_tolerance_formula",
+        "orchestrator/tests/test_t419_probe_causality.py::test_even_length_median_is_arithmetic_middle",
+        "orchestrator/tests/test_t419_probe_causality.py::test_nonfinite_observed_values_fail_closed",
+        "orchestrator/tests/test_t419_probe_causality.py::test_nonfinite_calibration_values_are_rejected",
+        "orchestrator/tests/test_t419_probe_causality.py::test_empty_vectors_fail_closed",
+        "orchestrator/tests/test_t419_probe_causality.py::test_in_band_non_nominal_uses_canonical_band",
+        "orchestrator/tests/test_t419_probe_causality.py::test_alpha_converges_by_positional_cumulative_minimum",
+        "orchestrator/tests/test_t419_probe_causality.py::test_positive_paired_contrast_can_confirm",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[missing_cpu]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[child_evidence_missing]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[child_status_mismatch]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[exception_only]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[band_missing]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[parser_unavailable]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[population_missing]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_missing_reads_is_invalid_and_not_evaluated",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a4_primary_count_gate_has_a_single_reason_fixture",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_non_string_condition_mode",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_nonfinite_mhz_with_one_reason",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_coercible_vector_types_with_one_reason[string_cpu]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_coercible_vector_types_with_one_reason[bool_cpu]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_coercible_vector_types_with_one_reason[string_mhz]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_rejects_coercible_vector_types_with_one_reason[bool_mhz]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_unexpected_top_level_types[none]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_unexpected_top_level_types[integer]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_unexpected_top_level_types[list]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_execution_validity_is_total_for_unexpected_top_level_types[string]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_contention_invalidates_execution_and_verdict",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a1_missing_anchor_is_invalid",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a1_pin_order_must_be_allocated_permutation",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a1_pin_order_and_flat_groups_match_seed_permutation",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a1_sorted_order_is_rejected_even_when_it_is_a_permutation",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a3_flat_reads_must_equal_nested_blocks",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a2_flat_reads_must_equal_nested_conditions",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a3_block_population_must_be_complete",
+        "orchestrator/tests/test_t419_probe_causality.py::test_quiet_block_anchor_is_required",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a2_condition_cooldown_is_required",
+        "orchestrator/tests/test_t419_probe_causality.py::test_child_tick_delta_must_match_start_end_arithmetic",
+        "orchestrator/tests/test_t419_probe_causality.py::test_child_pid_starttime_identity_must_remain_stable",
+        "orchestrator/tests/test_t419_probe_causality.py::test_sham_above_one_tick_is_inconclusive",
+        "orchestrator/tests/test_t419_probe_causality.py::test_sham_one_tick_inclusive_boundary_is_valid",
+        "orchestrator/tests/test_t419_probe_causality.py::test_busy_five_tick_inclusive_boundary_is_valid",
+        "orchestrator/tests/test_t419_probe_causality.py::test_busy_four_ticks_is_inconclusive",
+        "orchestrator/tests/test_t419_probe_causality.py::test_two_inconclusive_a2_pairs_keep_arm_valid",
+        "orchestrator/tests/test_t419_probe_causality.py::test_three_inconclusive_a2_pairs_invalidate_arm",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a3_contention_anchor_must_follow_busy_child_barrier",
+        "orchestrator/tests/test_t419_probe_causality.py::test_parser_crosscheck_requires_three_matching_files",
+        "orchestrator/tests/test_t419_probe_causality.py::test_parser_crosscheck_nonmatch_statuses_are_invalid[unavailable]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_parser_crosscheck_nonmatch_statuses_are_invalid[error]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_parser_crosscheck_nonmatch_statuses_are_invalid[mismatch]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_bands_return_invalid_not_evaluated[none]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_bands_return_invalid_not_evaluated[reversed]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_invalid_bands_return_invalid_not_evaluated[nan]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_causal_analysis_exception_becomes_invalid",
+        "orchestrator/tests/test_t419_probe_causality.py::test_method_table_includes_a2_sham_in_should_pass_population",
+        "orchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected",
+        "orchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject",
+        "orchestrator/tests/test_t419_probe_causality.py::test_short_lived_competitor_is_detected_from_unattributed_ticks",
+        "orchestrator/tests/test_t419_probe_causality.py::test_attributed_self_ticks_do_not_create_competition",
+        "orchestrator/tests/test_t419_probe_causality.py::test_released_child_pid_reuse_is_not_allowlisted",
+        "orchestrator/tests/test_t419_probe_causality.py::test_irq_and_softirq_only_ticks_are_clean",
+        "orchestrator/tests/test_t419_probe_causality.py::test_unpinned_reader_migration_is_unresolved_but_valid",
+        "orchestrator/tests/test_t419_probe_causality.py::test_residual_above_self_unattributable_invalidates_and_stops_later_arms",
+        "orchestrator/tests/test_t419_probe_causality.py::test_positive_nonself_pid_delta_is_competitor_snapshot_evidence",
+        "orchestrator/tests/test_t419_probe_causality.py::test_nonself_snapshot_is_identity_evidence_only_and_valid",
+        "orchestrator/tests/test_t419_probe_causality.py::test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms",
+        "orchestrator/tests/test_t419_probe_causality.py::test_root_system_slice_nonself_snapshot_is_identity_evidence_only",
+        "orchestrator/tests/test_t419_probe_causality.py::test_unreadable_diagnostic_fields_are_complete_and_valid",
+        "orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_error_is_incomplete_and_invalid",
+        "orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_status_counts_cover_all_four_values",
+        "orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_errno_classification_is_exact[eacces]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_errno_classification_is_exact[eperm]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_errno_classification_is_exact[enoent]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_errno_classification_is_exact[eio]",
+        "orchestrator/tests/test_t419_probe_causality.py::test_subwindow_global_unexplained_rate_below_threshold_is_unresolved",
+        "orchestrator/tests/test_t419_probe_causality.py::test_subwindow_two_tick_boundary_is_incidental_and_records_maximum",
+        "orchestrator/tests/test_t419_probe_causality.py::test_subwindow_three_ticks_is_competitor_with_one_validity_reason",
+        "orchestrator/tests/test_t419_probe_causality.py::test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms",
+        "orchestrator/tests/test_t419_probe_causality.py::test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection",
+        "orchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor",
+        "orchestrator/tests/test_t419_probe_causality.py::test_subwindow_rate_equal_to_limit_is_unresolved",
+        "orchestrator/tests/test_t419_probe_causality.py::test_missing_all_isolation_subwindows_has_single_structural_reason",
+        "orchestrator/tests/test_t419_probe_causality.py::test_same_endpoint_unpinned_self_is_unattributable_and_unresolved",
+        "orchestrator/tests/test_t419_probe_causality.py::test_unpinned_self_large_consumption_is_not_competitor",
+        "orchestrator/tests/test_t419_probe_causality.py::test_stably_single_cpu_affinity_self_is_attributed_to_that_cpu",
+        "orchestrator/tests/test_t419_probe_causality.py::test_subwindow_boundary_sampling_reads_only_self_tree_and_proc_stat",
+        "orchestrator/tests/test_t419_probe_causality.py::test_equal_singleton_return_migration_revokes_self_cpu_attribution",
+        "orchestrator/tests/test_t419_probe_causality.py::test_a1_incidental_out_of_band_intersection_is_split_by_population",
+        "orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards",
+        "orchestrator/tests/test_t419_probe_causality.py::test_completed_child_fork_to_reap_ticks_are_all_attributed",
+        "orchestrator/tests/test_t419_probe_causality.py::test_isolation_residual_is_never_cancelled_across_cpus",
+        "orchestrator/tests/test_t419_probe_causality.py::test_isolation_window_order_contains_cpu_window_and_records_skew",
+        "orchestrator/tests/test_t419_probe_causality.py::test_late_uses_half_read_interval_threshold",
+        "orchestrator/tests/test_t419_probe_causality.py::test_scheduler_binding_unavailable_is_recorded_not_rejected",
+        "orchestrator/tests/test_t419_probe_causality.py::test_scheduler_binding_mismatch_is_explicit",
+        "orchestrator/tests/test_t419_probe_causality.py::test_final_binding_mismatch_returns_nonzero_and_has_no_done_marker"
+      ],
+      "duration_s": 277.414,
+      "rc": 0,
+      "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+      "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+      "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+      "status": "PASSED",
+      "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_paired_contrast_only_fixture_kills_m1"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "02c6ad8400fad9e642a3e0c82a721f1bd1518f2bdeed19e57ff0bf7853efeb0c",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "        \"paired_contrast_condition\": True,",
+            "old": "        \"paired_contrast_condition\": positive >= POSITIVE_CONTRAST_CPU_MIN,"
+          }
+        ]
+      },
+      "M2a": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_a4_primary_count_gate_has_a_single_reason_fixture"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d701338f8ab3549c7bf51f4077a5a3c5b65c1e11a0ef843627f4061f095a5a63",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "        if False:",
+            "old": "        if not isinstance(reads, list) or len(reads) != EXPECTED_PRIMARY_READS[name]:"
+          }
+        ]
+      },
+      "M2b": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_invalid_fixtures_are_not_evaluated[exception_only]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "aab6175cda0b8faa345a20a9a1b41b911f3045fea297098082d0306833f32777",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "    if False:\n        reasons.append(\"experiment_exception_present\")",
+            "old": "    if not isinstance(exceptions, list) or exceptions:\n        reasons.append(\"experiment_exception_present\")"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_in_band_non_nominal_uses_canonical_band",
+          "orchestrator/tests/test_t419_probe_causality.py::test_band_endpoints_are_inclusive",
+          "orchestrator/tests/test_t419_probe_causality.py::test_band_formula_external_oracle_literals"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "583c1c0646780c02bb097bf37b8851720096fa2e5b74996848007322fbd58564",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "    return bool(values) and all(\n        math.isfinite(value) and value == (lower + upper) / 2.0 for value in values\n    )",
+            "old": "    return bool(values) and all(\n        math.isfinite(value) and lower <= value <= upper for value in values\n    )"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_alpha_converges_by_positional_cumulative_minimum"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3a165769a0b6c1394f840fe2e696429c87cff068faf66e83ed93f74468afc62a",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "            else {cpu: max(cumulative[cpu], vector[cpu]) for cpu in sorted(keys)}",
+            "old": "            else {cpu: min(cumulative[cpu], vector[cpu]) for cpu in sorted(keys)}"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_should_pass_fixtures_are_not_overrejected",
+          "orchestrator/tests/test_t419_probe_causality.py::test_should_reject_rows_are_not_replaced_by_constant_reject"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "047f5922b9af2e9adcbe2b0cf230b44efabd1d9e77971c67a982514a208797db",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "    passed = 0",
+            "old": "    passed = sum(bool(value) for value in outcomes)"
+          }
+        ]
+      },
+      "N1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_signal_cpu_rate_exceedance_is_competitor_invalid_and_stops_later_arms",
+          "orchestrator/tests/test_t419_probe_causality.py::test_rate_qualified_nonself_is_competitor_invalid_and_stops_later_arms",
+          "orchestrator/tests/test_t419_probe_causality.py::test_subwindow_three_ticks_is_competitor_with_one_validity_reason",
+          "orchestrator/tests/test_t419_probe_causality.py::test_signal_and_non_signal_rate_exceedance_prefers_competitor"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "010f758a04f0935b5dec768ff67e3b71a0dbf0950b9bd7507de091ac3e4b8612",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "    competitor = False",
+            "old": "    competitor = bool(signal_rate_exceedances)"
+          }
+        ]
+      },
+      "N2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_non_signal_cpu_rate_exceedance_is_unresolved_valid_and_records_intersection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "91767b320c9099520ef177cfc79a619da7eac7a135970619e746621c298c6165",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "    signal_rate_exceedances = list(rate_exceedances)",
+            "old": "    signal_rate_exceedances = [\n        item for item in rate_exceedances if int(item[\"cpu\"]) in signal_cpu_set\n    ]"
+          }
+        ]
+      },
+      "N3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_diagnostic_error_is_incomplete_and_invalid"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "57f2ac1368987f83562dec2d44e097abd5fe9be678172146ce92e6a038df6513",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "        \"complete\": True,",
+            "old": "        \"complete\": counts[\"error\"] == 0,"
+          }
+        ]
+      },
+      "N4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t419_probe_causality.py::test_alpha_with_rotation_uses_nine_groups_and_records_three_discards"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "97b6d3336304cff40cc9177ddad9630c16a24c4021693fe6aac10f18beddd762",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t419_probe_causality.py",
+            "new": "        \"alpha\": {\n            \"reported_as_alpha\": False,\n            \"stages\": alpha_without_rotation_stages,\n            \"should_pass\": alpha_without_rotation_stages[str(ALPHA_K)][\"should_pass\"],\n            \"should_reject\": alpha_without_rotation_stages[str(ALPHA_K)][\"should_reject\"],\n        },",
+            "old": "        \"alpha\": rotating_alpha,"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "896a05062b56730026e0cd80d363d8a1ad416e461f9849919610526d6b46e740",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_t419_probe_causality.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "5094f10f109fc1ced15961068d77829a555dc5b1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_t419_probe_causality.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "debb1450621691bdf6d9944a62f04b814551d69d",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "41e8505eacaa04350a024bac88ac6815f95753867f8f31703c08855edbf98f94",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "2451eda90fdd15d708dbdefb6361dfb4112b4aa6f61798dcc14663665d1d8f3f",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 6,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 10,
+    "matching": 4,
+    "recorded": 10,
+    "registered": 10
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "53dbbbf45a265e3fb268275a1e8cdaee80155ec014cccf6731ca410343ee9a56",
+  "updated_at": "2026-08-05T00:17:05.879327+00:00"
+}
