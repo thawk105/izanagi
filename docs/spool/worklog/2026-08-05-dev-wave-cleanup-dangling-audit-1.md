@@ -58,10 +58,25 @@ title: 消えたブランチの未 land 作業を検出する監査を land し�
   状態だった (F42 の型)。**偽緑ガード側は緩めず**、テストファイルに自走 harness を足して解決した
   (`python3 orchestrator/tests/test_audit_dangling_commits.py` が実際に 8 本を実行する)。
   子は計算ノードへ dispatch できず全走を回せないため、**親の受入全走が最後の網になった。**
-- **エージェント工数。** codex 子 5 本 (段 5 実装 1、段 6 レビュー 2、fix 2)。段 2・3 は軽量版のため省略。
+- **land 直前に、監査が常時鳴る発生源を特定した。** local main を取り込んだ tree で実走すると
+  1 件報告された。出所は main に既に land しているテスト
+  `orchestrator/tests/test_s8c_preregistration_invariant.py` の `_candidate_commit()` で、
+  **実 repo の object store へ `git commit-tree` で合成 commit を作る**。内容は
+  「HEAD + その時点の index/worktree」で、どの ref からも参照されないため即座に到達不能になる。
+  つまり wave が作業中に受入を走らせるたび、その未 commit 作業を内容とする到達不能 commit が残り、
+  本監査は必ず報告する。この repo は常に並行 wave が走るため**実質的に常時鳴る**。
+- **これを受けて入口の rc 規律を直した。** 実装は当初「rc≠0 は停止」と書いていたが、これは
+  敵対レビュー A-9 が求めた原文より厳しい。A-9 は「rc=0 のときだけ削除へ進む。**rc=1 は報告・
+  救出判断**、rc=2 は全削除停止」であり rc=1 を停止にしていない。常時鳴りと合わさると cleanup が
+  事実上いつでもブロックされ、**鳴り続ける gate は無視されるようになるため安全上も逆効果**である。
+  原文どおり 3 分岐へ直した。監査の判定ロジックは変えていない (報告自体は正しい)。
+  テスト衛生の問題は scope 外として裁定へ返した。
+- **入口は 3,983 bytes で実効上限ちょうど、余裕ゼロである。** 次に入口を触る者は先に予算を作る必要がある。
+- **エージェント工数。** codex 子 6 本 (段 5 実装 1、段 6 レビュー 2、fix 3)。段 2・3 は軽量版のため省略。
 - **実測 (2026-08-05、worktree `dev-wave-cleanup-submodule-recurrence`、
   branch `worktree-dev-wave-cleanup-dangling-audit`)。**
-  受入全走 = **6,206 passed / 0 failed / 19 skipped** (697.95s)。
+  受入全走 = **6,304 passed / 0 failed / 19 skipped** (602.05s、入口 rc 規律の修正後・local main
+  `473d73fa` 取り込み後の最終走行)。その前段の走行は 6,206 passed / 0 failed。
   `tools/check_docs.py` = 違反なし。`check_ai_provenance.py` = 1,283 件で違反なし。
   `tools/audit_dangling_commits.py` の実走 = **要確認 0 件 (rc=0)**。
   変異 matrix = baseline PASSED、6 本中 5 本が期待どおり単一 node で KILLED。
