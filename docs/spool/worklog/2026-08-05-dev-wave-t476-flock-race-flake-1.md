@@ -70,6 +70,12 @@ title: [T-476] main を断続的に赤くしていた flock 競合窓テスト�
   木を壊さなくても計測を無効にする。これは worklog (194) が同じ形で自己申告した違反の再発であり、
   本 wave では 1 件目 (変異注入中の全走投入) と合わせて 2 回踏んだ。恒久対応は
   {{F:mutation-run-vs-acceptance-run}} の memory を「計測中の worktree は読むだけ」まで広げた。
+- **手順違反 3 件目 (自己申告、同型)**: land 再挑戦の周回で、受入全走と **provenance 全履歴監査を
+  並行**させた。監査は Pegasus へ自動 dispatch され `output/pegasus-dispatch/<nonce>/` へ
+  receipt を書くため、`output/` の不変を検査する `test_s8b_floor_campaign.py` の 5 node が
+  `assert repo_before == _real_output_snapshot()` で落ちた (`5 failed / 6177 passed`)。
+  監査は git を読むだけに見えるが**書き込みを伴う**。計測中の worktree では、読み取りに見える
+  操作でも成果物ディレクトリへ書くものを走らせてはいけない。1 件目・2 件目と同じ型の再発。
 - **段 8 自己改善**: 候補 2 件を裁定した。(1) 上記の計測汚染 → failures へ起票し、恒久対応は
   memory `no-acceptance-run-during-mutation` に置いた。`DW-M05` への追記を試みたが
   `docs/dev-wave/` の byte 予算が上限まで残り 4 bytes で入らず、**上限は上げない方針**に従って
