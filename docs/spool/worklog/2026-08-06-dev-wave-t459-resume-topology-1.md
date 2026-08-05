@@ -45,6 +45,12 @@ title: crash 後 resume の二重 build_start を recovery-abort で閉じた �
   独立欠陥として下の「新規」へ起票した。焦点再レビューは残 blocker なしと判定した。
 - 逐語 (brief / plan / 敵対 2 本 / 裁定 / 実装報告 / レビュー 2 本 / fix 裁定 / 焦点再レビュー /
   変異 spec・台帳) は `output/insights/2026-08-06_t459-resume-topology/` に凍結した。
+- **段 8 の改善候補 2 件は byte 予算に収まらず取り下げた (記録のみ)。** (a)「受入全走の隣で
+  子 process を走らせない」を `DW-O18` へ、(b)「実赤が期待を包含する MISMATCH は生存ではなく、
+  erratum を残して実測 node で取り直す」を `DW-M08` へ統合しようとしたが、追記後に
+  `docs/dev-wave/` の byte 予算と hard ceiling を超えた。**安全義務を削って捻出せず、
+  予算引き上げも提案しない** (自己改善契約)。(a) の実体は F57 の再発記録に、(b) の実体は
+  本エントリと insights の erratum 節に残る。
 
 ## 次の一手差分
 
