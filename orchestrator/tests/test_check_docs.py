@@ -19,7 +19,9 @@ import contextlib
 import hashlib
 import importlib.util
 import io
+import json
 import os
+import py_compile
 import re
 import shutil
 import subprocess
@@ -42,20 +44,103 @@ _S09_ACCEPTANCE_ORDER_LITERAL = (
     "`DW-O23` を行う。"
 )
 
-_SYNTHETIC_DISPATCH_RUNBOOK = """# synthetic Pegasus runbook
+_SYNTHETIC_ADMISSION_ENTRIES = {
+    "tools/pegasus/collect_receipt.py": {
+        "class": "unknown",
+        "reason": "synthetic unknown",
+        "primary_gate": "synthetic deny",
+        "evidence": "unmeasured synthetic input",
+    },
+    "tools/pegasus/fetch_third_party.py": {
+        "class": "local-ok",
+        "reason": "synthetic measured local path",
+        "primary_gate": "synthetic cli",
+        "evidence": "runbook §7.0 実測",
+    },
+    "tools/pegasus/smoke_probe.sh": {
+        "class": "dispatch-required",
+        "reason": "synthetic job body",
+        "primary_gate": "synthetic PBS allocation",
+        "evidence": "static job-body classification",
+    },
+    "tools/pegasus/submit_certify.sh": {
+        "class": "local-ok",
+        "reason": "synthetic submitter",
+        "primary_gate": "synthetic qsub",
+        "evidence": "legacy-admitted (未実測)",
+    },
+    "tools/pegasus/submit_silo_ladder_rung1.sh": {
+        "class": "local-ok",
+        "reason": "synthetic grandfather warning",
+        "primary_gate": "synthetic qsub",
+        "evidence": "legacy-admitted (未実測)",
+    },
+}
+
+_SYNTHETIC_PROJECTION_TABLE = """| path | class | evidence |
+|---|---|---|
+| `tools/pegasus/collect_receipt.py` | `unknown` | `unmeasured synthetic input` |
+| `tools/pegasus/fetch_third_party.py` | `local-ok` | `runbook §7.0 実測` |
+| `tools/pegasus/smoke_probe.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/submit_certify.sh` | `local-ok` | `legacy-admitted (未実測)` |
+| `tools/pegasus/submit_silo_ladder_rung1.sh` | `local-ok` | `legacy-admitted (未実測)` |"""
+
+_SYNTHETIC_UNKNOWN_TABLE = """| 経路 | なぜ `unknown` か |
+|---|---|
+| `tools/pegasus/collect_receipt.py` | 入力が未計測 |
+| `tools/pegasus/submit_certify.sh` | registry 上は `local-ok` / `legacy-admitted (未実測)` として grandfather 済み |
+| `tools/pegasus/submit_silo_ladder_rung1.sh` | registry 上は `local-ok` / `legacy-admitted (未実測)` として grandfather 済み |"""
+
+_SYNTHETIC_MEASURED_TABLE = """| 経路 | 観測ピーク | certified peak | 分類 |
+|---|---|---|---|
+| `tools/pegasus/fetch_third_party.py fetch` | 10 MiB | 138 MiB | local-ok |
+| 同 `fetch` | 9 MiB | 137 MiB | local-ok |"""
+
+_SYNTHETIC_DISPATCH_RUNBOOK = f"""# synthetic Pegasus runbook
 
 ## 7. synthetic execution policy
 
 ### 7.0 判定基準はディレクトリではなくメモリ量
+
+{_SYNTHETIC_PROJECTION_TABLE}
 
 | task | 子 script |
 |---|---|
 | `tests` | `tools/run_tests.py` |
 | `provenance` | `tools/check_ai_provenance.py` |
 
+{_SYNTHETIC_UNKNOWN_TABLE}
+
+{_SYNTHETIC_MEASURED_TABLE}
+
 ### 7.1 synthetic next section
 
 body
+"""
+
+_SYNTHETIC_ADMISSION_README = """# synthetic Pegasus tools
+
+## 0. 実行体と admission
+
+| path | 手順上の実行 site | registry class |
+|---|---|---|
+| `tools/pegasus/collect_receipt.py` | `compute-only` | `unknown` |
+| `tools/pegasus/fetch_third_party.py` | `login-direct` | `local-ok` |
+| `tools/pegasus/smoke_probe.sh` | `qsub-job-body` | `dispatch-required` |
+| `tools/pegasus/submit_certify.sh` | `login-direct` | `local-ok` |
+
+```bash
+# admission-site: qsub-job-body
+qsub tools/pegasus/smoke_probe.sh
+```
+
+```bash
+# admission-site: login-direct
+python3 tools/pegasus/fetch_third_party.py fetch
+tools/pegasus/submit_certify.sh
+```
+
+`tools/pegasus/collect_receipt.py` は login では拒否される。
 """
 
 _SYNTHETIC_DISPATCH_SOURCE = """from dataclasses import dataclass
@@ -73,7 +158,7 @@ TASKS = {
 """
 
 
-# operations 由来の条件 dispatch key (O07/O21/O22 を除く 20 件)。契約から導出するが、
+# operations 由来の条件 dispatch key (O07/O15/O21/O22 を除く 19 件)。契約から導出するが、
 # exact な外延は test_operation_contract_pins_exact_section_set が literal で pin する。
 _OPERATION_CONDITION_KEYS = sorted(
     key
@@ -361,7 +446,8 @@ def _write_command_guard_docs(root: str) -> None:
                 ]
             ):
                 chunks.append(
-                    f"`{path}`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O20`, `DW-O23`"
+                    f"`{path}`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, "
+                    "`DW-O16`〜`DW-O20`, `DW-O23`"
                 )
             else:
                 ids = ", ".join(f"`{section}`" for section in sections)
@@ -581,6 +667,20 @@ def _write_dispatch_inventory_fixture(root: str) -> None:
         "tools/pegasus/dispatch_compute.py",
         _SYNTHETIC_DISPATCH_SOURCE,
     )
+    shutil.copy(
+        check_docs.REPO / "tools" / "pegasus_admission_registry.py",
+        os.path.join(root, "tools", "pegasus_admission_registry.py"),
+    )
+    registry = {
+        "schema_version": "pegasus-admission-registry/v1",
+        "entries": _SYNTHETIC_ADMISSION_ENTRIES,
+    }
+    _write(
+        root,
+        "tools/pegasus/admission_registry.json",
+        json.dumps(registry, ensure_ascii=False, indent=2) + "\n",
+    )
+    _write(root, "tools/pegasus/README.md", _SYNTHETIC_ADMISSION_README)
 
 
 def _assert_violation(root: str, *needles: str) -> subprocess.CompletedProcess:
@@ -672,6 +772,69 @@ def _finding_set(res: subprocess.CompletedProcess) -> set[str]:
     }
 
 
+def _admission_findings(res: subprocess.CompletedProcess) -> list[str]:
+    prefix = check_docs._ADMISSION_PREFIX
+    return [
+        line.removeprefix("  - ")
+        for line in res.stdout.splitlines()
+        if line.startswith(f"  - {prefix}")
+    ]
+
+
+def _assert_admission_count(
+    root: str,
+    expected: int,
+    *needles: str,
+) -> subprocess.CompletedProcess:
+    res = _run_check(root)
+    admission = _admission_findings(res)
+    assert len(admission) == expected, (
+        f"admission finding 件数が不一致: expected={expected}, "
+        f"actual={admission}\nstdout={res.stdout}\nstderr={res.stderr}"
+    )
+    for finding in admission:
+        assert finding.startswith(check_docs._ADMISSION_PREFIX)
+    for needle in needles:
+        assert any(needle in finding for finding in admission), (
+            f"{needle!r} が admission finding にない: {admission}"
+        )
+    if expected:
+        assert res.returncode == 1, res.stdout
+    assert "Traceback" not in res.stdout + res.stderr
+    return res
+
+
+def _assert_admission_exact(
+    root: str,
+    *details: str,
+) -> subprocess.CompletedProcess:
+    res = _run_check(root)
+    expected = {check_docs._ADMISSION_PREFIX + detail for detail in details}
+    actual = set(_admission_findings(res))
+    assert actual == expected, (
+        f"admission finding 集合が不一致: expected={sorted(expected)}, "
+        f"actual={sorted(actual)}\nstdout={res.stdout}\nstderr={res.stderr}"
+    )
+    assert len(_admission_findings(res)) == len(expected), (
+        f"admission finding に重複がある: {_admission_findings(res)}"
+    )
+    assert res.returncode == (1 if expected else 0), res.stdout
+    assert "Traceback" not in res.stdout + res.stderr
+    return res
+
+
+def _rewrite_registry(root: str, mutate) -> None:
+    rel = "tools/pegasus/admission_registry.json"
+    with open(os.path.join(root, rel), encoding="utf-8") as stream:
+        document = json.load(stream)
+    mutate(document)
+    _write(
+        root,
+        rel,
+        json.dumps(document, ensure_ascii=False, indent=2) + "\n",
+    )
+
+
 # ===== baseline: 合成 repo は違反なし (positive control の土台) =====
 
 def test_synthetic_repo_baseline_clean():
@@ -680,6 +843,657 @@ def test_synthetic_repo_baseline_clean():
         res = _run_check(root)
         assert res.returncode == 0, f"baseline が違反ありになった:\n{res.stdout}\n{res.stderr}"
         assert "違反なし" in res.stdout, res.stdout
+        assert _admission_findings(res) == []
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_registry_load_failures_are_one_fail_closed_finding():
+    cases = {
+        "json missing": lambda root: os.remove(
+            os.path.join(root, "tools/pegasus/admission_registry.json")
+        ),
+        "loader missing": lambda root: os.remove(
+            os.path.join(root, "tools/pegasus_admission_registry.py")
+        ),
+        "invalid schema": lambda root: _rewrite_registry(
+            root,
+            lambda document: document.__setitem__("schema_version", "broken"),
+        ),
+        "unknown class": lambda root: _rewrite_registry(
+            root,
+            lambda document: document["entries"][
+                "tools/pegasus/collect_receipt.py"
+            ].__setitem__("class", "mystery"),
+        ),
+    }
+    for label, mutate in cases.items():
+        root = _build_min_repo()
+        try:
+            mutate(root)
+            _assert_admission_count(root, 1, "canonical registry を確定できない")
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_loader_executes_source_even_with_unchecked_stale_pyc():
+    """unchecked pyc が失敗しても、現 source の正常動作を採る。"""
+    root = _build_min_repo()
+    try:
+        rel = "tools/pegasus_admission_registry.py"
+        loader = os.path.join(root, rel)
+        source = _read(root, rel)
+        _write(root, rel, "raise SystemExit(0)\n")
+        py_compile.compile(
+            loader,
+            doraise=True,
+            invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH,
+        )
+        _write(root, rel, source)
+
+        result = _run_check(root)
+        assert result.returncode == 0, (
+            f"unchecked stale pyc が source より優先された:\n"
+            f"{result.stdout}\n{result.stderr}"
+        )
+        assert "違反なし" in result.stdout, result.stdout
+        assert _admission_findings(result) == []
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_loader_system_exit_never_evaporates_checker():
+    loaders = {
+        "top level": "raise SystemExit(0)\n",
+        "function": (
+            "def load_admission_registry(repo_root):\n"
+            "    raise SystemExit(0)\n"
+        ),
+    }
+    for label, source in loaders.items():
+        root = _build_min_repo()
+        try:
+            _write(root, "tools/pegasus_admission_registry.py", source)
+            result = _assert_admission_count(
+                root,
+                1,
+                "canonical registry を確定できない",
+                "SystemExit",
+            )
+            assert result.returncode == 1, f"{label}: {result.stdout}"
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_poisoned_exception_string_never_evaporates_checker():
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "tools/pegasus_admission_registry.py",
+            "class Poisoned(BaseException):\n"
+            "    def __str__(self):\n"
+            "        raise SystemExit(0)\n\n"
+            "def load_admission_registry(repo_root):\n"
+            "    raise Poisoned()\n",
+        )
+        _assert_admission_exact(
+            root,
+            "canonical registry を確定できない — Poisoned",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_outer_wrapper_fail_closed_on_poisoned_subchecker():
+    root = _build_min_repo()
+    try:
+        checker = "tools/check_docs.py"
+        source = _read(root, checker)
+        needle = "def _check_admission_runbook(\n"
+        replacement = (
+            "def _check_admission_runbook(\n"
+            "    text: str,\n"
+            "    registry: dict[str, dict[str, str]],\n"
+            "    findings: list[str],\n"
+            ") -> None:\n"
+            "    class Poisoned(BaseException):\n"
+            "        def __str__(self):\n"
+            "            raise SystemExit(0)\n"
+            "    raise Poisoned()\n\n"
+            "def _disabled_check_admission_runbook(\n"
+        )
+        assert source.count(needle) == 1
+        _write(root, checker, source.replace(needle, replacement, 1))
+        _assert_admission_exact(
+            root,
+            "admission checker 内部失敗を fail-closed 化 — Poisoned",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_projection_mutations_each_have_one_primary_finding():
+    collect_row = (
+        "| `tools/pegasus/collect_receipt.py` | `unknown` | "
+        "`unmeasured synthetic input` |"
+    )
+    smoke_row = (
+        "| `tools/pegasus/smoke_probe.sh` | `dispatch-required` | "
+        "`static job-body classification` |"
+    )
+    extra_row = "| `tools/pegasus/extra.py` | `unknown` | `unmeasured` |"
+    cases = {
+        "row deletion": lambda text: text.replace(collect_row + "\n", "", 1),
+        "row addition": lambda text: text.replace(smoke_row, smoke_row + "\n" + extra_row, 1),
+        "class change": lambda text: text.replace(
+            collect_row,
+            collect_row.replace("`unknown`", "`local-ok`"),
+            1,
+        ),
+        "evidence change": lambda text: text.replace(
+            collect_row,
+            collect_row.replace("unmeasured synthetic input", "changed evidence"),
+            1,
+        ),
+        "duplicate": lambda text: text.replace(collect_row, collect_row + "\n" + collect_row, 1),
+        "malformed": lambda text: text.replace(collect_row, "| `tools/pegasus/collect_receipt.py` | `unknown` |", 1),
+        "malformed header": lambda text: text.replace(
+            "| path | class | evidence |",
+            "| path | class |",
+            1,
+        ),
+        "malformed separator": lambda text: text.replace(
+            "|---|---|---|",
+            "|---|--|---|",
+            1,
+        ),
+        "escaped pipe": lambda text: text.replace(
+            collect_row,
+            collect_row.replace("synthetic input", "synthetic \\| input"),
+            1,
+        ),
+        "broken code span": lambda text: text.replace(
+            collect_row,
+            collect_row.replace("`unmeasured synthetic input`", "`unmeasured synthetic input"),
+            1,
+        ),
+        "moved section": lambda text: text.replace(
+            _SYNTHETIC_PROJECTION_TABLE + "\n\n",
+            "",
+            1,
+        ).replace("### 7.1 synthetic next section", "### 7.1 synthetic next section\n\n" + _SYNTHETIC_PROJECTION_TABLE, 1),
+        "fenced hidden": lambda text: text.replace(
+            _SYNTHETIC_PROJECTION_TABLE,
+            "```text\n" + _SYNTHETIC_PROJECTION_TABLE + "\n```",
+            1,
+        ),
+        "comment hidden": lambda text: text.replace(
+            _SYNTHETIC_PROJECTION_TABLE,
+            "<!--\n" + _SYNTHETIC_PROJECTION_TABLE + "\n-->",
+            1,
+        ),
+    }
+    for label, mutate in cases.items():
+        root = _build_min_repo()
+        try:
+            rel = "docs/pegasus-runbook.md"
+            _write(root, rel, mutate(_read(root, rel)))
+            _assert_admission_count(root, 1)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_registry_mutations_have_exact_attributed_finding_sets():
+    cases = {
+        "class": (
+            lambda document: document["entries"][
+                "tools/pegasus/collect_receipt.py"
+            ].__setitem__("class", "local-ok"),
+            {
+                "runbook §7.0 投影表が registry と集合完全一致しない — "
+                "registry_only=[('tools/pegasus/collect_receipt.py', 'local-ok', "
+                "'unmeasured synthetic input')], "
+                "runbook_only=[('tools/pegasus/collect_receipt.py', 'unknown', "
+                "'unmeasured synthetic input')]",
+                "unknown 表の admission 説明が registry と不整合 — "
+                "tools/pegasus/collect_receipt.py",
+                "Pegasus README 宣言表の class が registry と不一致 — "
+                "tools/pegasus/collect_receipt.py",
+            },
+        ),
+        "evidence": (
+            lambda document: document["entries"][
+                "tools/pegasus/submit_certify.sh"
+            ].__setitem__("evidence", "runbook §7.0 実測"),
+            {
+                "runbook §7.0 投影表が registry と集合完全一致しない — "
+                "registry_only=[('tools/pegasus/submit_certify.sh', 'local-ok', "
+                "'runbook §7.0 実測')], "
+                "runbook_only=[('tools/pegasus/submit_certify.sh', 'local-ok', "
+                "'legacy-admitted (未実測)')]",
+                "unknown 表の admission 説明が registry と不整合 — "
+                "tools/pegasus/submit_certify.sh",
+                "runbook §7.0 実測表の path 集合が registry と不一致 — "
+                "registry=['tools/pegasus/fetch_third_party.py', "
+                "'tools/pegasus/submit_certify.sh'], "
+                "runbook=['tools/pegasus/fetch_third_party.py']",
+            },
+        ),
+    }
+    for label, (mutate, expected) in cases.items():
+        root = _build_min_repo()
+        try:
+            _rewrite_registry(root, mutate)
+            _assert_admission_exact(root, *sorted(expected))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_unknown_table_rejects_non_unknown_and_incomplete_legacy_rows():
+    collect = "| `tools/pegasus/collect_receipt.py` | 入力が未計測 |"
+    legacy = (
+        "| `tools/pegasus/submit_certify.sh` | registry 上は `local-ok` / "
+        "`legacy-admitted (未実測)` として grandfather 済み |"
+    )
+    cases = {
+        "dispatch required": lambda text: text.replace(
+            collect,
+            "| `tools/pegasus/smoke_probe.sh` | 入力が未計測 |",
+            1,
+        ),
+        "missing local-ok": lambda text: text.replace(
+            legacy,
+            legacy.replace("`local-ok` / ", ""),
+            1,
+        ),
+        "missing exact evidence": lambda text: text.replace(
+            legacy,
+            legacy.replace("`legacy-admitted (未実測)`", "legacy entry"),
+            1,
+        ),
+    }
+    for label, mutate in cases.items():
+        root = _build_min_repo()
+        try:
+            rel = "docs/pegasus-runbook.md"
+            _write(root, rel, mutate(_read(root, rel)))
+            _assert_admission_count(root, 1, "unknown 表")
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_unknown_table_requires_grandfather_warning_golden():
+    row = (
+        "| `tools/pegasus/submit_silo_ladder_rung1.sh` | registry 上は "
+        "`local-ok` / `legacy-admitted (未実測)` として grandfather 済み |"
+    )
+    cases = {
+        "deleted": (
+            lambda text: text.replace(row + "\n", "", 1),
+            "unknown 表に必須 grandfather 警告がない — "
+            "missing=['tools/pegasus/submit_silo_ladder_rung1.sh']",
+        ),
+        "empty": (
+            lambda text: re.sub(
+                r"(?ms)(\| 経路 \| なぜ `unknown` か \|\n\|---\|---\|)\n.*?"
+                r"(?=\n\n\| 経路 \| 観測ピーク)",
+                r"\1",
+                text,
+                count=1,
+            ),
+            "unknown 表に必須 grandfather 警告がない — "
+            "missing=['tools/pegasus/submit_silo_ladder_rung1.sh']",
+        ),
+        "double slash": (
+            lambda text: text.replace(
+                row,
+                row.replace(
+                    "tools/pegasus/submit_silo_ladder_rung1.sh",
+                    "tools//pegasus/submit_silo_ladder_rung1.sh",
+                ),
+                1,
+            ),
+            "unknown 表に非 canonical Pegasus path がある — "
+            "['tools//pegasus/submit_silo_ladder_rung1.sh']",
+        ),
+        "case change": (
+            lambda text: text.replace(
+                row,
+                row.replace(
+                    "tools/pegasus/submit_silo_ladder_rung1.sh",
+                    "tools/Pegasus/submit_silo_ladder_rung1.sh",
+                ),
+                1,
+            ),
+            "unknown 表に非 canonical Pegasus path がある — "
+            "['tools/Pegasus/submit_silo_ladder_rung1.sh']",
+        ),
+        "fullwidth slash": (
+            lambda text: text.replace(
+                row,
+                row.replace(
+                    "tools/pegasus/submit_silo_ladder_rung1.sh",
+                    "tools／pegasus／submit_silo_ladder_rung1.sh",
+                ),
+                1,
+            ),
+            "unknown 表に非 canonical Pegasus path がある — "
+            "['tools／pegasus／submit_silo_ladder_rung1.sh']",
+        ),
+    }
+    for label, (mutate, expected) in cases.items():
+        root = _build_min_repo()
+        try:
+            rel = "docs/pegasus-runbook.md"
+            _write(root, rel, mutate(_read(root, rel)))
+            _assert_admission_exact(root, expected)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_measured_table_requires_exact_registry_path_set():
+    first = "| `tools/pegasus/fetch_third_party.py fetch` | 10 MiB | 138 MiB | local-ok |"
+    inherited = "| 同 `fetch` | 9 MiB | 137 MiB | local-ok |"
+    cases = {
+        "missing": (
+            lambda text: text.replace(first + "\n" + inherited, "", 1),
+            "runbook §7.0 実測表の path 集合が registry と不一致 — "
+            "registry=['tools/pegasus/fetch_third_party.py'], runbook=[]",
+        ),
+        "extra": (
+            lambda text: text.replace(
+                inherited,
+                inherited + "\n| `tools/pegasus/smoke_probe.sh run` | 1 MiB | 129 MiB | local-ok |",
+                1,
+            ),
+            "runbook §7.0 実測表の path 集合が registry と不一致 — "
+            "registry=['tools/pegasus/fetch_third_party.py'], "
+            "runbook=['tools/pegasus/fetch_third_party.py', 'tools/pegasus/smoke_probe.sh']",
+        ),
+        "non local classification": (
+            lambda text: text.replace(
+                first,
+                first.replace("local-ok", "unknown"),
+                1,
+            ),
+            "runbook §7.0 実測表に非 local-ok 行がある",
+        ),
+    }
+    for label, (mutate, expected) in cases.items():
+        root = _build_min_repo()
+        try:
+            rel = "docs/pegasus-runbook.md"
+            _write(root, rel, mutate(_read(root, rel)))
+            _assert_admission_exact(root, expected)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_runbook_orphan_pipe_row_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = "docs/pegasus-runbook.md"
+        text = _read(root, rel).replace(
+            "\n### 7.1 synthetic next section",
+            "\n\n| orphan row |\n\n### 7.1 synthetic next section",
+            1,
+        )
+        _write(root, rel, text)
+        _assert_admission_count(root, 1, "orphan row")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_readme_declaration_and_fenced_target_mutations_are_rejected():
+    collect = "| `tools/pegasus/collect_receipt.py` | `compute-only` | `unknown` |"
+    fetch = "| `tools/pegasus/fetch_third_party.py` | `login-direct` | `local-ok` |"
+    smoke = "| `tools/pegasus/smoke_probe.sh` | `qsub-job-body` | `dispatch-required` |"
+    submit = "| `tools/pegasus/submit_certify.sh` | `login-direct` | `local-ok` |"
+    cases = {
+        "coverage deletion": lambda text: text.replace(collect + "\n", "", 1),
+        "login direct non-local": lambda text: text.replace(
+            smoke,
+            smoke.replace("`qsub-job-body`", "`login-direct`"),
+            1,
+        ),
+        "qsub local": lambda text: text.replace(
+            submit,
+            submit.replace("`login-direct`", "`qsub-job-body`"),
+            1,
+        ),
+        "unregistered path": lambda text: text.replace(
+            fetch,
+            fetch + "\n| `tools/pegasus/unregistered.py` | `compute-only` | `unknown` |",
+            1,
+        ),
+        "variable target": lambda text: text.replace(
+            "qsub tools/pegasus/smoke_probe.sh",
+            "qsub tools/pegasus/smoke_probe.sh\nqsub \"$P/pegasus/smoke_probe.sh\"",
+            1,
+        ),
+        "invalid site": lambda text: text.replace(
+            collect,
+            collect.replace("`compute-only`", "`somewhere`"),
+            1,
+        ),
+        "class mismatch": lambda text: text.replace(
+            collect,
+            collect.replace("`unknown`", "`dispatch-required`"),
+            1,
+        ),
+        "duplicate": lambda text: text.replace(fetch, fetch + "\n" + fetch, 1),
+        "malformed": lambda text: text.replace(fetch, "| `tools/pegasus/fetch_third_party.py` | `login-direct` |", 1),
+        "hidden": lambda text: text.replace(
+            "| path | 手順上の実行 site | registry class |\n|---|---|---|",
+            "```text\n| path | 手順上の実行 site | registry class |\n|---|---|---|",
+            1,
+        ).replace(submit, submit + "\n```", 1),
+    }
+    for label, mutate in cases.items():
+        root = _build_min_repo()
+        try:
+            rel = "tools/pegasus/README.md"
+            _write(root, rel, mutate(_read(root, rel)))
+            _assert_admission_count(root, 1)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_readme_site_tags_and_three_site_values_are_exact():
+    qsub_tag = "# admission-site: qsub-job-body"
+    qsub_command = "qsub tools/pegasus/smoke_probe.sh"
+    login_tag = "# admission-site: login-direct"
+    collect_row = "| `tools/pegasus/collect_receipt.py` | `compute-only` | `unknown` |"
+    smoke_row = "| `tools/pegasus/smoke_probe.sh` | `qsub-job-body` | `dispatch-required` |"
+    cases = {
+        "missing tag": (
+            lambda text: text.replace(qsub_tag + "\n", "", 1),
+            lambda line: (
+                "Pegasus README の registry 実行体を含む fenced command に "
+                f"admission-site tag がない — line={line}"
+            ),
+        ),
+        "duplicate tag": (
+            lambda text: text.replace(qsub_tag, qsub_tag + "\n" + qsub_tag, 1),
+            lambda line: (
+                "Pegasus README の fenced block に admission-site tag が重複 — "
+                f"line={line}"
+            ),
+        ),
+        "tag not first": (
+            lambda text: text.replace(qsub_tag, "\n" + qsub_tag, 1),
+            lambda line: (
+                "Pegasus README の admission-site tag が fenced block の先頭行でない — "
+                f"line={line}"
+            ),
+        ),
+        "unknown tag": (
+            lambda text: text.replace(qsub_tag, "# admission-site: nowhere", 1),
+            lambda line: "Pegasus README の admission-site tag が閉集合外 — nowhere",
+        ),
+        "qsub path is not qsub argument": (
+            lambda text: text.replace(qsub_command, qsub_command.replace("qsub", "bash"), 1),
+            lambda line: (
+                "Pegasus README の qsub-job-body 実行体が qsub 引数でない — "
+                "tools/pegasus/smoke_probe.sh"
+            ),
+        ),
+        "qsub declaration has no qsub argument": (
+            lambda text: text.replace(qsub_command + "\n", "", 1),
+            lambda line: (
+                "Pegasus README の qsub-job-body 宣言集合が qsub 引数集合と不一致 — "
+                "declaration=['tools/pegasus/smoke_probe.sh'], qsub=[]"
+            ),
+        ),
+        "site swap": (
+            lambda text: text.replace(
+                collect_row,
+                collect_row.replace("`compute-only`", "`qsub-job-body`"),
+                1,
+            ).replace(
+                smoke_row,
+                smoke_row.replace("`qsub-job-body`", "`compute-only`"),
+                1,
+            ),
+            lambda line: (
+                "Pegasus README の fenced command site が宣言表と不一致 — "
+                "path=tools/pegasus/smoke_probe.sh, tag=qsub-job-body, "
+                "declaration=compute-only"
+            ),
+        ),
+        "compute path in login block": (
+            lambda text: text.replace(
+                login_tag,
+                login_tag + "\npython3 tools/pegasus/collect_receipt.py",
+                1,
+            ),
+            lambda line: (
+                "Pegasus README の fenced command site が宣言表と不一致 — "
+                "path=tools/pegasus/collect_receipt.py, tag=login-direct, "
+                "declaration=compute-only"
+            ),
+        ),
+    }
+    for label, (mutate, expected_for_line) in cases.items():
+        root = _build_min_repo()
+        try:
+            rel = "tools/pegasus/README.md"
+            original = _read(root, rel)
+            first_line = original[:original.index("```bash")].count("\n") + 2
+            _write(root, rel, mutate(original))
+            _assert_admission_exact(root, expected_for_line(first_line))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_readme_rejects_empty_and_noncanonical_path_surfaces():
+    table_rows = "\n".join(
+        line
+        for line in _SYNTHETIC_ADMISSION_README.splitlines()
+        if line.startswith("| `tools/pegasus/")
+    )
+    command = "qsub tools/pegasus/smoke_probe.sh"
+    cases = {
+        "empty declaration": (
+            lambda text: text.replace(table_rows + "\n", "", 1),
+            "Pegasus README 宣言表が空である",
+        ),
+        "double slash": (
+            lambda text: text.replace(command, command.replace("tools/", "tools//"), 1),
+            "Pegasus README に非 canonical Pegasus path がある — "
+            "['tools//pegasus/smoke_probe.sh']",
+        ),
+        "case change": (
+            lambda text: text.replace(command, command.replace("pegasus", "Pegasus"), 1),
+            "Pegasus README に非 canonical Pegasus path がある — "
+            "['tools/Pegasus/smoke_probe.sh']",
+        ),
+        "fullwidth slash": (
+            lambda text: text.replace(
+                command,
+                command.replace("tools/pegasus/", "tools／pegasus／"),
+                1,
+            ),
+            "Pegasus README に非 canonical Pegasus path がある — "
+            "['tools／pegasus／smoke_probe.sh']",
+        ),
+    }
+    for label, (mutate, expected) in cases.items():
+        root = _build_min_repo()
+        try:
+            rel = "tools/pegasus/README.md"
+            _write(root, rel, mutate(_read(root, rel)))
+            _assert_admission_exact(root, expected)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_readme_positive_command_and_negative_prose_controls_are_clean():
+    root = _build_min_repo()
+    try:
+        text = _read(root, "tools/pegasus/README.md")
+        assert "qsub tools/pegasus/smoke_probe.sh" in text
+        assert "python3 tools/pegasus/fetch_third_party.py fetch" in text
+        assert "login では拒否される" in text
+        text += """
+
+## 1. 非 admission の履歴資料
+
+<!--
+| path | 手順上の実行 site | registry class |
+|---|---|---|
+| historical | only | row |
+-->
+
+`tools/pegasus/smoke_probe.sh` は code span の参照であり command ではない。
+https://example.invalid/tools/pegasus/smoke_probe.sh
+
+```bash
+tools/pegasus/collect_receipt.py はログインで実行してはならない
+```
+
+```text
+過去事故の逐語: qsub tools/pegasus/smoke_probe.sh
+```
+
+```diff
+- qsub tools/pegasus/smoke_probe.sh
++ python3 tools/pegasus/collect_receipt.py
+```
+"""
+        _write(root, "tools/pegasus/README.md", text)
+        runbook = _read(root, "docs/pegasus-runbook.md").replace(
+            "### 7.1 synthetic next section",
+            "<!--\n| unrelated | hidden |\n|---|---|\n| data | only |\n-->\n\n"
+            "### 7.1 synthetic next section",
+            1,
+        )
+        _write(root, "docs/pegasus-runbook.md", runbook)
+        result = _assert_admission_count(root, 0)
+        assert result.returncode == 0, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_main_call_cannot_be_removed_without_evaporation_control_failing():
+    root = _build_min_repo()
+    try:
+        checker = "tools/check_docs.py"
+        source = _read(root, checker)
+        call = "    _check_pegasus_admission_docs(findings)\n"
+        assert source.count(call) == 1
+        _write(root, checker, source.replace(call, "", 1))
+        runbook = "docs/pegasus-runbook.md"
+        text = _read(root, runbook).replace(
+            "`unmeasured synthetic input`",
+            "`changed evidence`",
+            1,
+        )
+        _write(root, runbook, text)
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+        assert _admission_findings(result) == []
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -3486,8 +4300,10 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _rewrite_matching_lines(
             root,
             ".claude/commands/dev-wave.md",
-            lambda line: re.match(r"^\| (?:0[1-9]|1[0-9]|20|23) \|", line)
-            is not None,
+            lambda line: any(
+                line.startswith(f"| {key} |")
+                for key in _OPERATION_CONDITION_KEYS
+            ),
             lambda line: "",
             expected=len(_OPERATION_CONDITION_KEYS),
         )
@@ -3889,7 +4705,7 @@ _COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = len(
 
 
 def test_operation_contract_pins_exact_section_set():
-    """operations 契約の外延と配線を literal で固定する (O23 追加後の 20 節)。
+    """operations 契約の外延と配線を literal で固定する (O15 削除後の 19 節)。
 
     checker とテスト fixture は同じ `_OPERATION_NUMBERS` から導出される (F9 型の
     自己整合面)。fixture の literal range 表記が単純な縮小・拡大を先に赤くし、
@@ -3900,8 +4716,8 @@ def test_operation_contract_pins_exact_section_set():
     expected = {
         "DW-O01", "DW-O02", "DW-O03", "DW-O04", "DW-O05", "DW-O06",
         "DW-O08", "DW-O09", "DW-O10", "DW-O11", "DW-O12", "DW-O13",
-        "DW-O14", "DW-O15", "DW-O16", "DW-O17", "DW-O18", "DW-O19",
-        "DW-O20", "DW-O23",
+        "DW-O14", "DW-O16", "DW-O17", "DW-O18", "DW-O19", "DW-O20",
+        "DW-O23",
     }
     assert check_docs.REQUIRED_REFERENCE_SECTIONS[operations] == expected
     assert check_docs._ALL_OPERATIONS == frozenset(
@@ -3917,6 +4733,9 @@ def test_operation_contract_pins_exact_section_set():
         assert operations_pairs == {(operations, section)}, (
             f"条件 {key} の operations 配線が {section} 単独でない"
         )
+    assert check_docs.CONDITION_DISPATCH_CONTRACT["15"] == {
+        ("docs/dev-wave/mutation.md", "DW-M07")
+    }
     assert _OPERATION_CONDITION_KEYS == sorted(
         section.removeprefix("DW-O") for section in expected
     )
@@ -5291,6 +6110,7 @@ def test_real_repo_clean():
     )
     assert res.returncode == 0, f"実 repo で違反が出た:\n{res.stdout}\n{res.stderr}"
     assert "違反なし" in res.stdout, res.stdout
+    assert _admission_findings(res) == []
 
 
 # ===== handoff 48h stale + schema 検査 (S2, dev-wave 段5 U2, 段4裁定 B4) =====

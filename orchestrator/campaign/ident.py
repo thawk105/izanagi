@@ -186,14 +186,31 @@ def ensure_resumable_wal(
         cfg: CampaignConfig, layout: CampaignLayout, *,
         admission_policy: BuildAdmissionPolicy,
 ) -> wal.WalTailRepairResult:
-    """identity を確定してからに限り WAL の無終端 tail を物理修復する。
+    """identity 照合後に tail repair と interrupted-attempt recovery を行う。
 
     lock の無い既存 WAL は、どの config の記録か照合できないため修復も追記も
     しない。初回 campaign (lock 無し・WAL byte 無し) だけは原子的に lock を
     作成し、その後に機構層の repair を呼ぶ。
     """
     ensure_campaign_identity(cfg, layout, admission_policy=admission_policy)
-    return wal.repair_truncated_tail(layout)
+    repair = wal.repair_truncated_tail(
+        layout, reject_active_attempt=True,
+    )
+    wal.recover_interrupted_attempts(
+        layout, admission_policy=admission_policy,
+    )
+    return repair
+
+
+def ensure_resumable_attempts(
+        cfg: CampaignConfig, layout: CampaignLayout, *,
+        admission_policy: BuildAdmissionPolicy,
+) -> None:
+    """identity 照合後、tail を切り戻さず interrupted attempt だけを閉じる。"""
+    ensure_campaign_identity(cfg, layout, admission_policy=admission_policy)
+    wal.recover_interrupted_attempts(
+        layout, admission_policy=admission_policy,
+    )
 
 
 def ensure_campaign_identity(

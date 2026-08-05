@@ -37,7 +37,7 @@ from orchestrator.campaign.source_digest import (                    # noqa: E40
 
 
 _ROLES = ("planner", "coder", "auditor", "critic")
-_TRIAL_SCHEMA_VERSION = "p3-autonomous-workload-trial/v2"
+_TRIAL_SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
 _REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v2"
 _LAYER3_SCHEMA_VERSION = "layer3-material-report/v3"
 _LAYER3_GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
@@ -739,15 +739,15 @@ def test_report_and_run_start_schema_versions_are_required(tmp_path, target) -> 
         _verify(run, report)
 
 
-def test_schema_version_v2_is_required_and_v1_is_rejected(tmp_path) -> None:
-    assert A.SCHEMA_VERSION == "p3-autonomous-workload-trial/v2"
+def test_role_schema_v3_and_report_schema_v2_are_required(tmp_path) -> None:
+    assert A.SCHEMA_VERSION == "p3-autonomous-workload-trial/v3"
     assert A.REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v2"
-    assert _TRIAL_SCHEMA_VERSION == "p3-autonomous-workload-trial/v2"
+    assert _TRIAL_SCHEMA_VERSION == "p3-autonomous-workload-trial/v3"
     assert _REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v2"
     for target in ("start", "report"):
         run, events, report = _complete_trial(tmp_path / target)
         if target == "start":
-            events[0]["schema_version"] = "p3-autonomous-workload-trial/v1"
+            events[0]["schema_version"] = "p3-autonomous-workload-trial/v2"
             expected = "run-start.schema_version does not match producer version"
         else:
             report["schema_version"] = "p3-autonomous-workload-trial-report/v1"

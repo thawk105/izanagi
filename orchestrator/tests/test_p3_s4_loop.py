@@ -10,6 +10,8 @@ pytest でも 素の `python3 orchestrator/tests/test_p3_s4_loop.py` でも走�
 """
 from __future__ import annotations
 
+import ast
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -27,10 +29,20 @@ from campaign import ident, p3_s4_loop as L                        # noqa: E402
 from campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
 from campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
 from campaign import source_digest, trigger_gate_binding, wal      # noqa: E402
+from campaign.build_admission import (                             # noqa: E402
+    GeneratorId,
+    attest_generator_output,
+    build_run_context,
+    derive_build_admission,
+)
 from campaign.reflux_ir import TriggerGateIR, emit_predicate       # noqa: E402
 from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.loop import CampaignSummary                          # noqa: E402
 from campaign.pipeline import variant_id                           # noqa: E402
+from campaign.source_digest import (                               # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    SourceEvidence,
+)
 from campaign.projection_guard import (                            # noqa: E402
     AbilityProbeMaterialError,
     ProjectionPolicyError,
@@ -41,6 +53,7 @@ from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (Genome, STAGE_ABORT,                  # noqa: E402
                             STAGE_BUILD_START)
 from critic.digest import (DIFF_QUARANTINE_REASON,                 # noqa: E402
+                           IdentityProjection,
                            load_diff_rejections,
                            load_liveness_rejections, render_rejections)
 
@@ -469,6 +482,7 @@ def test_render_rejections_diff_section_has_no_perf_tokens():
     L.record_diff_reject(lay, _G, "#define X 1\ndouble now_backoff = 20.0;", res)
     out = render_rejections(
         [], [], {}, None, diff_rejections=load_diff_rejections(_critic_view(lay)),
+        identity_projection=IdentityProjection.RAW,
     )
     assert "diff-quarantine:hole-escape" in out
     for tok in ("throughput", "fitness", "ops/sec", "tps"):
@@ -506,7 +520,10 @@ def test_comment_reject_wal_to_critic_digest_does_not_repeat_payload():
 
     loaded = load_diff_rejections(_critic_view(lay))
     assert len(loaded) == 1
-    out = render_rejections([], [], {}, None, diff_rejections=loaded)
+    out = render_rejections(
+        [], [], {}, None, diff_rejections=loaded,
+        identity_projection=IdentityProjection.RAW,
+    )
     assert "diff-quarantine:hole-escape" in out
     assert sentinel not in out
 
@@ -521,6 +538,7 @@ def test_render_rejections_diff_only_not_all_green():
     L.record_diff_reject(lay, _G, "#define X 1\ndouble now_backoff = 20.0;", res)
     out = render_rejections(
         [], [], {}, None, diff_rejections=load_diff_rejections(_critic_view(lay)),
+        identity_projection=IdentityProjection.RAW,
     )
     assert "全 variant 緑" not in out
 
@@ -710,16 +728,366 @@ def test_make_critic_digest_reflux_off_drops_red_section():
     lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_s4loop_reflux_"))
     lay.ensure()
     L.record_diff_reject(lay, _G, "#define X 1\ndouble now_backoff = 20.0;", res)
-    _critic_view(lay)
-    real_require = L.require_admitted_campaign
-    with unittest.mock.patch.object(
-        L, "require_admitted_campaign", side_effect=real_require,
-    ) as require_spy:
-        on = L.make_critic_digest(lay, reflux=True)
-        off = L.make_critic_digest(lay, reflux=False)
-    assert require_spy.call_count == 2  # 各入口で一度だけ発行し全 loader が共有
+    view = _critic_view(lay)
+    projection = L.make_critic_identity_projection(view)
+    on = L.make_critic_digest(
+        view, tag="p3-s4", reflux=True,
+        identity_projection=projection,
+    )
+    off = L.make_critic_digest(
+        view, tag="p3-s4", reflux=False,
+        identity_projection=projection,
+    )
     assert "diff-quarantine" in on            # on アームは赤を還流
     assert "diff-quarantine" not in off       # off アームは落とす
+
+
+def _log_projection_start(lay, source_tag, attempt, *, stock=False):
+    """admission API と wal API で正規の terminal attempt を組む。"""
+    src_token = (
+        source_digest.STOCK
+        if stock else hashlib.sha256(source_tag.encode("utf-8")).hexdigest()
+    )
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=os.path.realpath(lay.root),
+        ccbench_commit=L.PIN,
+        genome_sha256=hashlib.sha256(
+            _G.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token=src_token,
+        source_bytes_sha256=hashlib.sha256(
+            f"projection-source:{source_tag}".encode("utf-8")
+        ).hexdigest(),
+        tracked_clean=stock,
+        tracked_diff_sha256=(
+            EMPTY_TRACKED_DIFF_SHA256
+            if stock else hashlib.sha256(
+                f"projection-diff:{source_tag}".encode("utf-8")
+            ).hexdigest()
+        ),
+        tracked_paths=(() if stock else ("include/projection-fixture.hh",)),
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    capability = attest_generator_output(
+        context,
+        evidence,
+        generator_input_sha256=hashlib.sha256(
+            f"projection-input:{source_tag}".encode("utf-8")
+        ).hexdigest(),
+    )
+    admission = derive_build_admission(
+        context, evidence, generator_receipt=capability,
+    )
+    receipt = admission.as_wal_receipt()
+    variant = variant_id(_G, src_token)
+    L.wal.log(lay, variant, L.STAGE_BUILD_START, L.ENV_TAG, {
+        "genome": _G.canonical(),
+        "src_token": src_token,
+        "build_attempt_id": attempt,
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    })
+    L.wal.log(lay, variant, L.STAGE_ABORT, L.ENV_TAG, {
+        "reason": "projection-fixture-reject",
+        "build_attempt_id": attempt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    })
+    return variant, src_token, receipt["receipt_sha256"]
+
+
+def test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock():
+    lay = _tmp_layout("projection-order")
+    stock_variant, stock_src, _ = _log_projection_start(
+        lay, "stock-source", "stock-attempt", stock=True,
+    )
+    raw_b, source_b, _ = _log_projection_start(lay, "source-b", "attempt-b1")
+    raw_a, _source_a, _ = _log_projection_start(lay, "source-a", "attempt-a")
+    repeated_b, _source_b2, receipt_b2 = _log_projection_start(
+        lay, "source-b", "attempt-b2",
+    )
+    assert repeated_b == raw_b
+
+    projection = L.make_critic_identity_projection(_critic_view(lay))
+    assert projection.project_variant(stock_variant) == "stock"
+    assert projection.project_src_token(stock_variant, stock_src) == "stock"
+    assert projection.project_variant(raw_b) == "candidate-0001"
+    assert projection.project_variant(raw_a) == "candidate-0002"
+    assert projection.project_src_token(raw_b, source_b) == "candidate-0001/source"
+    assert projection.project_build_attempt_id(
+        raw_b, "attempt-b1",
+    ) == "candidate-0001/attempt"
+    assert projection.project_build_attempt_id(
+        raw_b, "attempt-b2",
+    ) == "candidate-0001/attempt"
+    assert projection.project_build_admission_receipt_sha256(
+        raw_b, receipt_b2,
+    ) == "candidate-0001/admission"
+
+    # factory は module-global cache を持たず、別 campaign の初出順から作り直す。
+    other = _tmp_layout("projection-reset")
+    other_a, _, _ = _log_projection_start(other, "source-a", "attempt-a")
+    other_b, _, _ = _log_projection_start(other, "source-b", "attempt-b")
+    reset = L.make_critic_identity_projection(_critic_view(other))
+    assert reset.project_variant(other_a) == "candidate-0001"
+    assert reset.project_variant(other_b) == "candidate-0002"
+
+
+def test_critic_identity_projection_accepts_registered_ids_and_empty_values():
+    lay = _tmp_layout("projection-positive")
+    raw_v, raw_src, raw_receipt = _log_projection_start(
+        lay, "raw-src", "raw-attempt",
+    )
+    projection = L.make_critic_identity_projection(_critic_view(lay))
+    assert projection.project_variant(raw_v) == "candidate-0001"
+    assert projection.project_src_token(raw_v, raw_src) == "candidate-0001/source"
+    assert projection.project_build_attempt_id(
+        raw_v, "raw-attempt",
+    ) == "candidate-0001/attempt"
+    assert projection.project_build_admission_receipt_sha256(
+        raw_v, raw_receipt,
+    ) == "candidate-0001/admission"
+    assert projection.project_variant("") == ""
+    assert projection.project_variant(None) is None
+    assert projection.project_src_token(raw_v, "") == ""
+    assert projection.project_build_attempt_id(raw_v, None) is None
+
+
+def test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel():
+    lay = _tmp_layout("projection-unknown")
+    raw_v, _, _ = _log_projection_start(lay, "raw-src", "raw-attempt")
+    projection = L.make_critic_identity_projection(_critic_view(lay))
+    assert projection.project_variant("unknown-variant") == (
+        L.UNREGISTERED_CANDIDATE_LABEL
+    )
+    assert projection.project_variant("another-unknown-variant") == (
+        L.UNREGISTERED_CANDIDATE_LABEL
+    )
+    assert projection.project_src_token(
+        raw_v, "unknown-src-token",
+    ) == f"{L.UNREGISTERED_CANDIDATE_LABEL}/source"
+    assert projection.project_build_attempt_id(
+        raw_v, "unknown-attempt",
+    ) == f"{L.UNREGISTERED_CANDIDATE_LABEL}/attempt"
+    assert projection.project_build_admission_receipt_sha256(
+        raw_v, "unknown-receipt",
+    ) == f"{L.UNREGISTERED_CANDIDATE_LABEL}/admission"
+
+
+def test_make_critic_digest_requires_identity_projection():
+    lay = _tmp_layout("projection-required")
+    _log_projection_start(lay, "raw-src", "projection-required-attempt")
+    view = _critic_view(lay)
+    try:
+        L.make_critic_digest(view, tag="p3-s4", reflux=True)
+        raise AssertionError("identity_projection 省略が拒否されなかった")
+    except TypeError as exc:
+        assert "identity_projection" in str(exc)
+    try:
+        L.make_critic_digest(
+            view, tag="p3-s4", reflux=True, identity_projection=None,
+        )
+        raise AssertionError("None projector が拒否されなかった")
+    except TypeError as exc:
+        assert "IdentityProjection" in str(exc)
+
+
+def test_critic_identity_projection_requires_exact_admitted_view():
+    lay = _tmp_layout("projection-view-required")
+    try:
+        L.make_critic_identity_projection(lay)
+        raise AssertionError("raw layout から projector が作成された")
+    except TypeError as exc:
+        assert "require_admitted_campaign" in str(exc)
+
+
+def test_critic_digest_rejects_projector_from_different_admitted_snapshot():
+    lay = _tmp_layout("projection-snapshot")
+    _log_projection_start(lay, "raw-src", "projection-snapshot-attempt")
+    first = _critic_view(lay)
+    second = require_admitted_campaign(lay)
+    projection = L.make_critic_identity_projection(first)
+    try:
+        L.make_critic_digest(
+            second,
+            tag="p3-s4",
+            reflux=True,
+            identity_projection=projection,
+        )
+        raise AssertionError("別 admitted snapshot の projector が受理された")
+    except ValueError as exc:
+        assert "同じ admitted view" in str(exc)
+
+
+def test_synthetic_control_uses_closed_origin_field_not_workload_dict():
+    source = Path(L.__file__).with_name("p3_s4_red.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    function = next(
+        node for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_synthetic_integrity_rejection"
+    )
+    calls = [node for node in ast.walk(function) if isinstance(node, ast.Call)]
+    rejection = next(
+        node for node in calls
+        if isinstance(node.func, ast.Name) and node.func.id == "Rejection"
+    )
+    keywords = {keyword.arg: keyword.value for keyword in rejection.keywords}
+    assert ast.literal_eval(keywords["origin_kind"]) == "synthetic-fixture"
+    assert ast.literal_eval(keywords["workload"]) == {}
+
+
+def test_all_production_critic_digest_calls_explicit_projection_context():
+    """production caller の projector/tag/reflux 省略を AST で全数拒否する。"""
+    production_paths = [
+        Path(L.__file__),
+        Path(SORT_LOOP.__file__),
+        Path(TRIGGER_LOOP.__file__),
+        Path(L.__file__).with_name("p3_s4_red.py"),
+        Path(L.__file__).with_name("p3_autonomous_workload_trial.py"),
+        Path(_ORCH) / "critic" / "digest.py",
+    ]
+    make_calls = []
+    render_calls = []
+    for path in production_paths:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            name = (
+                node.func.id if isinstance(node.func, ast.Name)
+                else node.func.attr if isinstance(node.func, ast.Attribute)
+                else ""
+            )
+            keyword_names = {kw.arg for kw in node.keywords}
+            if name == "make_critic_digest":
+                make_calls.append((path.name, node.lineno, node, keyword_names))
+            elif name == "render_rejections":
+                render_calls.append((path.name, node.lineno, node, keyword_names))
+
+    assert len(make_calls) == 6
+    assert all(
+        {"tag", "reflux", "identity_projection"} <= keywords
+        for _path, _line, _node, keywords in make_calls
+    ), make_calls
+    assert len(render_calls) == 3
+    assert all(
+        "identity_projection" in keywords
+        for _path, _line, _node, keywords in render_calls
+    ), render_calls
+    for path, line, node, _keywords in make_calls + render_calls:
+        projection = next(
+            keyword.value for keyword in node.keywords
+            if keyword.arg == "identity_projection"
+        )
+        assert not (
+            isinstance(projection, ast.Attribute)
+            and projection.attr == "RAW"
+        ), (path, line)
+        if isinstance(projection, ast.Call):
+            factory_name = (
+                projection.func.id if isinstance(projection.func, ast.Name)
+                else projection.func.attr
+                if isinstance(projection.func, ast.Attribute)
+                else ""
+            )
+            assert factory_name == "make_critic_identity_projection", (path, line)
+        else:
+            assert isinstance(projection, ast.Name)
+            assert projection.id == "identity_projection", (path, line)
+
+
+def _single_production_make_digest_call(filename: str) -> ast.Call:
+    path = Path(L.__file__).with_name(filename)
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    calls = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = (
+            node.func.id if isinstance(node.func, ast.Name)
+            else node.func.attr if isinstance(node.func, ast.Attribute)
+            else ""
+        )
+        if name == "make_critic_digest":
+            calls.append(node)
+    assert len(calls) == 1
+    return calls[0]
+
+
+def _call_keyword(call: ast.Call, name: str) -> ast.expr:
+    values = [keyword.value for keyword in call.keywords if keyword.arg == name]
+    assert len(values) == 1
+    return values[0]
+
+
+def test_m12_trigger_consumer_explicit_tag():
+    call = _single_production_make_digest_call("p3_s4_loop_trigger_gating.py")
+    value = _call_keyword(call, "tag")
+    assert isinstance(value, ast.Name) and value.id == "CRITIC_TAG"
+
+
+def test_m12_trigger_consumer_explicit_reflux():
+    call = _single_production_make_digest_call("p3_s4_loop_trigger_gating.py")
+    assert ast.unparse(_call_keyword(call, "reflux")) == (
+        "cfg.search_config.get('reflux') == 'on'"
+    )
+
+
+def test_m12_autonomous_consumer_explicit_tag():
+    call = _single_production_make_digest_call("p3_autonomous_workload_trial.py")
+    value = _call_keyword(call, "tag")
+    assert (
+        isinstance(value, ast.Attribute)
+        and isinstance(value.value, ast.Name)
+        and value.value.id == "trigger"
+        and value.attr == "CRITIC_TAG"
+    )
+
+
+def test_m12_autonomous_consumer_explicit_reflux():
+    call = _single_production_make_digest_call("p3_autonomous_workload_trial.py")
+    assert ast.unparse(_call_keyword(call, "reflux")) == (
+        "cfg.search_config.get('reflux') == 'on'"
+    )
+
+
+def _assert_digest_projection_byte_equality(reflux: bool) -> None:
+    d = _mk_template_dir()
+    implementation = "#define X 1\ndouble now_backoff = 20.0;"
+    res, *_ = L.quarantine(d, implementation, source_rel=_SRC_REL, write=False)
+    lay = _tmp_layout(f"projection-bytes-{reflux}")
+    raw_variant = L.record_diff_reject(lay, _G, implementation, res)
+    view = _critic_view(lay)
+    projection = L.make_critic_identity_projection(view)
+    raw = L.make_critic_digest(
+        view,
+        tag="projection-byte-equality",
+        reflux=reflux,
+        identity_projection=IdentityProjection.RAW,
+    )
+    projected = L.make_critic_digest(
+        view,
+        tag="projection-byte-equality",
+        reflux=reflux,
+        identity_projection=projection,
+    )
+    if reflux:
+        expected = raw.replace(
+            raw_variant, projection.project_variant(raw_variant),
+        )
+        assert raw_variant in raw
+        assert projected == expected
+    else:
+        assert projected == raw
+
+
+def test_digest_projection_changes_only_identity_bytes_with_reflux_on():
+    _assert_digest_projection_byte_equality(reflux=True)
+
+
+def test_digest_projection_changes_only_identity_bytes_with_reflux_off():
+    _assert_digest_projection_byte_equality(reflux=False)
 
 
 # ==== LoopState checkpoint/resume (段 4b の cross-process 永続化) ==============
@@ -1077,6 +1445,82 @@ def test_drive_iteration_stops_before_running_when_reverse_exhausted():
     # checkpoint に畳込み後の reverse=REVERSE_STREAK が焼かれている
     st = L.load_loop_state(lay)
     assert st.reverse_recommendations == L.REVERSE_STREAK
+
+
+def test_drive_iteration_recovers_real_wal_start_before_entry_stop():
+    lay = _tmp_layout("recover-before-stop")
+    cfg, perf = L.default_cfg(), L.default_perf()
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    wal.log(lay, "crashed-v", STAGE_BUILD_START, "test-env", {
+        "build_attempt_id": "crashed-attempt",
+    })
+    seed = L.LoopState(
+        iteration=0, start_wall=time.time(),
+        reverse_recommendations=L.REVERSE_STREAK - 1,
+    )
+    L.save_loop_state(lay, seed)
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID, direction="increase", magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID, value=20.0,
+        implementation="double now_backoff = 20.0;",
+    )
+
+    out = L.drive_iteration(
+        cfg, perf, planner, coder, prior_critic_reverse=True,
+        sub="/must/not/run", do_build=False, layout=lay,
+    )
+    assert out["ran"] is False
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == [
+        STAGE_BUILD_START, STAGE_ABORT,
+    ]
+    assert records[-1].payload == {
+        "reason": "recovery-abort-incomplete-attempt",
+        "build_attempt_id": "crashed-attempt",
+    }
+
+
+def test_inner_run_recovers_reject_start_before_writing_retry_start():
+    import contextlib
+    from campaign import patchharness
+
+    lay = _tmp_layout("inner-reject-recovery")
+    cfg, perf = L.default_cfg(), L.default_perf()
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    implementation = "#define EVIL 1\ndouble now_backoff = 20.0;"
+    variant = L.diffq_variant_id(_G, implementation)
+    wal.log(lay, variant, STAGE_BUILD_START, "test-env", {
+        "genome": _G.canonical(), "src_token": "",
+        "build_attempt_id": "crashed-reject-attempt",
+    })
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID, direction="increase", magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID, value=20.0, implementation=implementation,
+    )
+    state = L.LoopState(start_wall=time.time())
+
+    with unittest.mock.patch.object(
+            patchharness, "applied",
+            side_effect=lambda *_args, **_kwargs: contextlib.nullcontext()):
+        out = L.run_one_iteration(
+            cfg, perf, planner, coder, state, _mk_template_dir(L.SOURCE_REL),
+            do_build=False, layout=lay, log=lambda *_args: None,
+        )
+
+    assert out["outcome"] == "rejected"
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == [
+        STAGE_BUILD_START, STAGE_ABORT, STAGE_BUILD_START, STAGE_ABORT,
+    ]
+    assert records[1].payload == {
+        "reason": "recovery-abort-incomplete-attempt",
+        "build_attempt_id": "crashed-reject-attempt",
+    }
+    assert records[2].payload["build_attempt_id"] != "crashed-reject-attempt"
 
 
 def test_drive_iteration_checkpoint_survives_across_calls():

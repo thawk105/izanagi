@@ -1,0 +1,3 @@
+state	pre_performance_infra_failure
+detail	job_exit_before_performance:rc=1
+run_commit	85b892ce476064a0953c0a1aa6614bc33a057b85

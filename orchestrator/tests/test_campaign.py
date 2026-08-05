@@ -826,6 +826,300 @@ def test_attempt_topology_accepts_abort_then_retry():
     assert state.attempts["attempt-b"].committed
 
 
+def _active_receiptful_attempt(lay, variant: str, attempt_id: str):
+    receipt, receipt_sha = _wal_admission_receipt(attempt_id)
+    _attempt_start(lay, variant, attempt_id, receipt, receipt_sha)
+    return receipt, receipt_sha
+
+
+def test_resumable_wal_rejects_truncated_tail_with_active_attempt_before_repair():
+    for case in ("lf-missing-verify", "signal-then-torn"):
+        cfg = _cfg(spec_content=f"truncated-active-{case}")
+        lay = CampaignLayout(root=_tmpdir(f"recovery_tail_{case}_")).ensure()
+        wal.write_lock(lay, ident.canonical_preimage(cfg))
+        _receipt, receipt_sha = _active_receiptful_attempt(
+            lay, "tail-v", f"attempt-{case}",
+        )
+        _attempt_stage(
+            lay, "tail-v", STAGE_BUILD_DONE, f"attempt-{case}", receipt_sha,
+        )
+        signal = WalRecord(
+            variant="tail-v", stage=STAGE_VERIFY_DONE, env_tag="test-env",
+            ts=3.0, payload={"verdict": "red", "certified": False},
+        )
+        if case == "lf-missing-verify":
+            with open(lay.wal_file, "ab") as stream:
+                stream.write(wal._record_to_line(signal).encode("utf-8"))
+        else:
+            wal.append(lay, signal)
+            with open(lay.wal_file, "ab") as stream:
+                stream.write(b'{"torn":')
+        before = open(lay.wal_file, "rb").read()
+        runs_before = set(os.listdir(lay.runs_dir))
+
+        try:
+            ident.ensure_resumable_wal(
+                cfg, lay, admission_policy=_BUILD_CONTEXT.policy,
+            )
+            assert False, "active attempt と truncated tail の併存を拒否すべき"
+        except wal.InterruptedAttemptRecoveryError as exc:
+            assert exc.condition == "truncated-tail-with-active-attempt"
+            assert exc.variant == "tail-v"
+        assert open(lay.wal_file, "rb").read() == before
+        assert set(os.listdir(lay.runs_dir)) == runs_before
+
+
+def _assert_recovery_blocked(lay, condition: str):
+    before = open(lay.wal_file, "rb").read()
+    try:
+        wal.recover_interrupted_attempts(
+            lay, admission_policy=_BUILD_CONTEXT.policy,
+        )
+        assert False, f"{condition} recovery を fail-closed に拒否すべき"
+    except wal.InterruptedAttemptRecoveryError as exc:
+        assert exc.condition == condition
+        assert exc.variant and exc.attempt_id and exc.attempt_ids
+    assert open(lay.wal_file, "rb").read() == before
+
+
+def test_recovery_payload_receipt_matrix_is_exact_and_retryable():
+    lay = _admission_aware_layout("recovery_payload_matrix_")
+    wal.log(lay, "receiptless-v", STAGE_BUILD_START, "old-env", {
+        "build_attempt_id": "receiptless-attempt",
+    })
+    _receipt, receipt_sha = _active_receiptful_attempt(
+        lay, "receiptful-v", "receiptful-attempt",
+    )
+    prefix = open(lay.wal_file, "rb").read()
+
+    recovered = wal.recover_interrupted_attempts(
+        lay, admission_policy=_BUILD_CONTEXT.policy,
+    )
+    assert len(recovered) == 2
+    by_variant = {record.variant: record for record in recovered}
+    assert by_variant["receiptless-v"].payload == {
+        "reason": "recovery-abort-incomplete-attempt",
+        "build_attempt_id": "receiptless-attempt",
+    }
+    assert by_variant["receiptful-v"].payload == {
+        "reason": "recovery-abort-incomplete-attempt",
+        "build_attempt_id": "receiptful-attempt",
+        "build_admission_receipt_sha256": receipt_sha,
+    }
+    assert by_variant["receiptless-v"].env_tag == "old-env"
+    assert open(lay.wal_file, "rb").read().startswith(prefix)
+    states = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+    assert states["receiptless-v"].retryable_abort
+    assert states["receiptful-v"].retryable_abort
+
+
+def test_recovery_fail_closed_after_verify_or_bench_signal():
+    for signal in (STAGE_VERIFY_DONE, STAGE_BENCH_DONE):
+        lay = _admission_aware_layout(f"recovery_signal_{signal}_")
+        _active_receiptful_attempt(lay, "signal-v", f"attempt-{signal}")
+        wal.log(lay, "signal-v", signal, "test-env", {"signal": True})
+        _assert_recovery_blocked(lay, "signal-after-start")
+
+
+def test_recovery_fail_closed_after_build_done_but_accepts_start_only():
+    blocked = _admission_aware_layout("recovery_build_done_")
+    _receipt, receipt_sha = _active_receiptful_attempt(
+        blocked, "built-v", "built-attempt",
+    )
+    _attempt_stage(
+        blocked, "built-v", STAGE_BUILD_DONE, "built-attempt", receipt_sha,
+    )
+    _assert_recovery_blocked(blocked, "attempt-record-after-start")
+
+    accepted = _admission_aware_layout("recovery_start_only_")
+    _active_receiptful_attempt(accepted, "building-v", "building-attempt")
+    recovered = wal.recover_interrupted_attempts(
+        accepted, admission_policy=_BUILD_CONTEXT.policy,
+    )
+    assert len(recovered) == 1
+    assert recovered[0].payload["build_attempt_id"] == "building-attempt"
+
+
+def test_recovery_api_requires_matching_post_policy_lock_without_mutating_wal():
+    missing = CampaignLayout(root=_tmpdir("recovery_missing_lock_")).ensure()
+    wal.log(missing, "missing-lock-v", STAGE_BUILD_START, "test-env", {
+        "build_attempt_id": "missing-lock-attempt",
+    })
+    _assert_recovery_blocked(missing, "admission-policy-lock-mismatch")
+
+    legacy = CampaignLayout(root=_tmpdir("recovery_legacy_lock_")).ensure()
+    wal.write_lock(legacy, json.dumps({
+        "spec_content": "legacy", "ccbench_commit": "deadbeef",
+        "search_tag": "legacy", "search_config": {}, "trial": "legacy",
+    }, sort_keys=True, separators=(",", ":")))
+    wal.log(legacy, "legacy-lock-v", STAGE_BUILD_START, "test-env", {
+        "build_attempt_id": "legacy-lock-attempt",
+    })
+    _assert_recovery_blocked(legacy, "admission-policy-lock-mismatch")
+
+
+def test_recovery_fail_closed_for_trigger_lock_or_attempt_commitment():
+    machine_search = {
+        "tier": "0-1", "scale": "silo", "axis": wal.TRIGGER_AXIS,
+        "generator": "reason-subset-v1",
+        "space": "reason-subsets(effective)+identall+stock",
+    }
+    machine = CampaignLayout(root=_tmpdir("recovery_trigger_machine_")).ensure()
+    wal.write_lock(
+        machine,
+        ident.canonical_preimage(_cfg(search_config=machine_search)),
+    )
+    _active_receiptful_attempt(machine, "machine-v", "machine-attempt")
+    _assert_recovery_blocked(machine, "trigger-campaign")
+
+    proposal = _trigger_admission_layout("recovery_trigger_commitment_")
+    receipt, receipt_sha, binding = _trigger_receipt_and_binding()
+    attempt_id = "proposal-attempt"
+    commitment = wal.log_trigger_binding(
+        proposal, "proposal-v", "test-env", attempt_id, binding,
+    )
+    wal.log(proposal, "proposal-v", STAGE_BUILD_START, "test-env", {
+        "build_attempt_id": attempt_id,
+        "src_token": receipt["source"]["src_token"],
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt_sha,
+        wal.TRIGGER_BINDING_COMMITMENT_KEY: commitment,
+    })
+    _assert_recovery_blocked(proposal, "trigger-campaign")
+
+
+def test_recovery_exhaustion_is_byte_stable():
+    lay = _admission_aware_layout("recovery_exhausted_")
+    for index in range(wal.INCOMPLETE_ATTEMPT_RECOVERY_LIMIT):
+        attempt_id = f"recovered-{index}"
+        _receipt, receipt_sha = _active_receiptful_attempt(
+            lay, "exhausted-v", attempt_id,
+        )
+        _attempt_stage(
+            lay, "exhausted-v", STAGE_ABORT, attempt_id, receipt_sha,
+            reason="recovery-abort-incomplete-attempt",
+        )
+    _active_receiptful_attempt(lay, "exhausted-v", "active-after-limit")
+    _assert_recovery_blocked(lay, "recovery-exhausted")
+
+
+def test_recovery_invalid_topology_and_multiple_active_are_byte_stable():
+    invalid = _admission_aware_layout("recovery_invalid_topology_")
+    _receipt, receipt_sha = _active_receiptful_attempt(
+        invalid, "invalid-history-v", "invalid-history-attempt",
+    )
+    _attempt_stage(
+        invalid, "invalid-history-v", STAGE_BUILD_DONE,
+        "invalid-history-attempt",
+        "f" * 64,
+    )
+    assert receipt_sha != "f" * 64
+    _attempt_stage(
+        invalid, "invalid-history-v", STAGE_ABORT,
+        "invalid-history-attempt", receipt_sha, reason="build-error",
+    )
+    _active_receiptful_attempt(
+        invalid, "recoverable-v", "recoverable-attempt",
+    )
+    _assert_recovery_blocked(invalid, "existing-topology-violation")
+
+    multiple = _admission_aware_layout("recovery_multiple_active_")
+    _active_receiptful_attempt(multiple, "multiple-v", "attempt-a")
+    _active_receiptful_attempt(multiple, "multiple-v", "attempt-b")
+    _assert_recovery_blocked(multiple, "multiple-active-attempts")
+
+
+def test_recovery_schema_detection_noops_only_without_attempt_keys():
+    lay = _admission_aware_layout("recovery_schema_noop_")
+    wal.log(lay, "guided-v", STAGE_BUILD_START, "test-env", {
+        "fixture": "no attempt-schema key",
+    })
+    before = open(lay.wal_file, "rb").read()
+    assert wal.recover_interrupted_attempts(
+        lay, admission_policy=_BUILD_CONTEXT.policy,
+    ) == []
+    assert open(lay.wal_file, "rb").read() == before
+
+    marker_on_non_start = _admission_aware_layout(
+        "recovery_schema_non_start_marker_"
+    )
+    wal.log(marker_on_non_start, "marked-v", STAGE_BUILD_DONE, "test-env", {
+        "build_attempt_id": "orphan-build-done",
+        "build_admission_receipt_sha256": "a" * 64,
+    })
+    _assert_recovery_blocked(
+        marker_on_non_start, "existing-topology-violation",
+    )
+
+
+def test_concurrent_recovery_appends_one_terminal_abort():
+    lay = _admission_aware_layout("recovery_concurrent_")
+    _active_receiptful_attempt(lay, "concurrent-v", "concurrent-attempt")
+    barrier = threading.Barrier(3)
+    results = []
+    failures = []
+
+    def recover():
+        barrier.wait()
+        try:
+            results.append(wal.recover_interrupted_attempts(
+                lay, admission_policy=_BUILD_CONTEXT.policy,
+            ))
+        except BaseException as exc:  # test worker must surface every failure
+            failures.append(exc)
+
+    workers = [threading.Thread(target=recover) for _ in range(2)]
+    for worker in workers:
+        worker.start()
+    barrier.wait()
+    for worker in workers:
+        worker.join()
+    assert failures == []
+    assert sorted(len(result) for result in results) == [0, 1]
+    recovery_aborts = [
+        record for record in wal.read_records(lay)
+        if record.stage == STAGE_ABORT
+        and record.payload.get("reason")
+        == "recovery-abort-incomplete-attempt"
+    ]
+    assert len(recovery_aborts) == 1
+
+
+def test_recovery_waits_for_external_exclusive_wal_lock():
+    lay = _admission_aware_layout("recovery_external_lock_")
+    _active_receiptful_attempt(lay, "locked-v", "locked-attempt")
+    holder_fd = os.open(lay.wal_file, os.O_RDWR | os.O_CLOEXEC)
+    fcntl.flock(holder_fd, fcntl.LOCK_EX)
+    started = threading.Event()
+    finished = threading.Event()
+    results = []
+    failures = []
+
+    def recover():
+        started.set()
+        try:
+            results.append(wal.recover_interrupted_attempts(
+                lay, admission_policy=_BUILD_CONTEXT.policy,
+            ))
+        except BaseException as exc:
+            failures.append(exc)
+        finally:
+            finished.set()
+
+    worker = threading.Thread(target=recover)
+    worker.start()
+    try:
+        assert started.wait(1.0), "recovery worker が開始しなかった"
+        assert not finished.wait(1.0), "外部 LOCK_EX 保持中に recovery が進んだ"
+    finally:
+        fcntl.flock(holder_fd, fcntl.LOCK_UN)
+        os.close(holder_fd)
+    worker.join(2.0)
+    assert not worker.is_alive()
+    assert failures == []
+    assert len(results) == 1 and len(results[0]) == 1
+
+
 def test_trigger_binding_canonical_fixture_replays_and_records_by_stage_validates():
     lay = _trigger_admission_layout("trigger_binding_positive_")
     binding = _write_trigger_attempt(lay)
@@ -4032,6 +4326,83 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 1 and s3.committed == 1 and s3.skipped == 0
+
+
+def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
+    """実 evaluate/WAL writer の start→process death→resume 境界を通す。"""
+    from campaign import artifact_admission
+    from campaign import loop as L
+
+    class ProcessCrash(BaseException):
+        pass
+
+    out_root = _tmpdir("izanagi_loop_real_writer_recovery_")
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="real-writer-recovery",
+        ccbench_commit="deadbeef",
+    )
+    genome_value = Genome("silo", {"BACK_OFF": 1})
+    saved_source_digest = L.source_digest
+    try:
+        with _mock_pipeline(certified=True):
+            L.source_digest = pipeline.source_digest
+            real_build = pipeline.buildcache.build
+
+            def crash_after_start(*_args, **_kwargs):
+                raise ProcessCrash("simulated process death after fsynced start")
+
+            pipeline.buildcache.build = crash_after_start
+            try:
+                try:
+                    L.run_campaign(
+                        cfg, [genome_value], PerfConfig(records=1, threads=1),
+                        "test-env", 1800, do_bench=False,
+                        output_root=out_root, log=lambda *_args: None,
+                        build_context=_BUILD_CONTEXT,
+                    )
+                    assert False, "BaseException crash が loop を脱出すべき"
+                except ProcessCrash:
+                    pass
+            finally:
+                pipeline.buildcache.build = real_build
+
+            lay = campaign_layout(
+                str(ident.campaign_id(_bound(cfg))), out_root,
+            )
+            before_recovery = open(lay.wal_file, "rb").read()
+            first_records = wal.read_records(lay)
+            assert [record.stage for record in first_records] == [STAGE_BUILD_START]
+
+            summary = L.run_campaign(
+                cfg, [genome_value], PerfConfig(records=1, threads=1),
+                "test-env", 1800, do_bench=False,
+                output_root=out_root, log=lambda *_args: None,
+                build_context=_BUILD_CONTEXT,
+            )
+    finally:
+        L.source_digest = saved_source_digest
+
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == [
+        STAGE_BUILD_START, STAGE_ABORT, STAGE_BUILD_START,
+        STAGE_BUILD_DONE, STAGE_VERIFY_DONE, STAGE_COMMIT,
+    ]
+    first_start, recovery_abort, retry_start = records[:3]
+    assert first_start.payload["build_attempt_id"] != \
+        retry_start.payload["build_attempt_id"]
+    assert recovery_abort.payload == {
+        "reason": "recovery-abort-incomplete-attempt",
+        "build_attempt_id": first_start.payload["build_attempt_id"],
+        "build_admission_receipt_sha256":
+            first_start.payload["build_admission_receipt_sha256"],
+    }
+    assert open(lay.wal_file, "rb").read().startswith(before_recovery)
+    replayed = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+    state = replayed[first_start.variant]
+    assert state.attempts[first_start.payload["build_attempt_id"]].aborted
+    assert state.attempts[retry_start.payload["build_attempt_id"]].committed
+    assert summary.committed == 1 and summary.skipped == 0
+    assert artifact_admission.require_admitted_campaign(lay).decision.admitted
 
 
 def test_loop_identity_skip_is_visible_when_stock_id_terminal():

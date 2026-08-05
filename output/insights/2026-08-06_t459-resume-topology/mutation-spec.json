@@ -1,0 +1,261 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 180,
+  "mutations": [
+    {
+      "id": "MU-1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "    payload = {\n        \"reason\": INCOMPLETE_ATTEMPT_RECOVERY_REASON,\n        \"build_attempt_id\": attempt.attempt_id,\n    }\n    if attempt.receipt_sha256 is not None:\n        payload[\"build_admission_receipt_sha256\"] = attempt.receipt_sha256\n    return WalRecord(",
+          "new": "    payload = {\n        \"reason\": INCOMPLETE_ATTEMPT_RECOVERY_REASON,\n    }\n    if attempt.receipt_sha256 is not None:\n        payload[\"build_admission_receipt_sha256\"] = attempt.receipt_sha256\n    return WalRecord("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_signal_does_not_overreject_later_start_only_recovery",
+        "orchestrator/tests/test_artifact_admission.py::test_other_variant_recovery_limit_does_not_overreject_first_recovery",
+        "orchestrator/tests/test_artifact_admission.py::test_recovered_attempt_then_retry_is_admitted_without_read_mutation",
+        "orchestrator/tests/test_campaign.py::test_concurrent_recovery_appends_one_terminal_abort",
+        "orchestrator/tests/test_campaign.py::test_loop_identity_error_retryable_survives_inflight_crash",
+        "orchestrator/tests/test_campaign.py::test_loop_resume_recovery_aborts_real_pipeline_crash_after_start",
+        "orchestrator/tests/test_campaign.py::test_recovery_fail_closed_after_build_done_but_accepts_start_only",
+        "orchestrator/tests/test_campaign.py::test_recovery_payload_receipt_matrix_is_exact_and_retryable",
+        "orchestrator/tests/test_campaign.py::test_recovery_waits_for_external_exclusive_wal_lock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "        \"build_attempt_id\": attempt.attempt_id,\n    }\n    if attempt.receipt_sha256 is not None:\n        payload[\"build_admission_receipt_sha256\"] = attempt.receipt_sha256\n    return WalRecord(",
+          "new": "        \"build_attempt_id\": attempt.attempt_id,\n    }\n    return WalRecord("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_signal_does_not_overreject_later_start_only_recovery",
+        "orchestrator/tests/test_artifact_admission.py::test_other_variant_recovery_limit_does_not_overreject_first_recovery",
+        "orchestrator/tests/test_artifact_admission.py::test_recovered_attempt_then_retry_is_admitted_without_read_mutation",
+        "orchestrator/tests/test_campaign.py::test_concurrent_recovery_appends_one_terminal_abort",
+        "orchestrator/tests/test_campaign.py::test_loop_resume_recovery_aborts_real_pipeline_crash_after_start",
+        "orchestrator/tests/test_campaign.py::test_recovery_fail_closed_after_build_done_but_accepts_start_only",
+        "orchestrator/tests/test_campaign.py::test_recovery_payload_receipt_matrix_is_exact_and_retryable",
+        "orchestrator/tests/test_campaign.py::test_recovery_waits_for_external_exclusive_wal_lock"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "            if later_attempt_record is not None:\n                raise InterruptedAttemptRecoveryError(",
+          "new": "            if False:\n                raise InterruptedAttemptRecoveryError("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_recovery_fail_closed_after_build_done_but_accepts_start_only",
+        "orchestrator/tests/test_campaign.py::test_recovery_fail_closed_after_verify_or_bench_signal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "            if (trigger_machine\n                    or TRIGGER_BINDING_COMMITMENT_KEY in start.payload):\n                raise InterruptedAttemptRecoveryError(",
+          "new": "            if False:\n                raise InterruptedAttemptRecoveryError("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_recovery_fail_closed_for_trigger_lock_or_attempt_commitment",
+        "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_drive_trigger_crash_tail_fails_before_stop_checkpoint_and_provenance",
+        "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_inner_run_reject_start_crash_fails_before_second_start"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/model.py",
+          "old": "RETRYABLE_ABORT_REASONS = frozenset({\n    \"identity-error\", \"bench-probe-error\", \"verify-probe-error\",\n    INCOMPLETE_ATTEMPT_RECOVERY_REASON,\n})",
+          "new": "RETRYABLE_ABORT_REASONS = frozenset({\n    \"identity-error\", \"bench-probe-error\", \"verify-probe-error\",\n})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_loop_identity_error_retryable_survives_inflight_crash",
+        "orchestrator/tests/test_campaign.py::test_loop_resume_recovery_aborts_real_pipeline_crash_after_start",
+        "orchestrator/tests/test_campaign.py::test_recovery_payload_receipt_matrix_is_exact_and_retryable"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "            if recovery_count >= INCOMPLETE_ATTEMPT_RECOVERY_LIMIT:\n                raise InterruptedAttemptRecoveryError(",
+          "new": "            if False:\n                raise InterruptedAttemptRecoveryError("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_recovery_exhaustion_is_byte_stable"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "        try:\n            validate_trigger_bindings(records, campaign_lock=campaign_lock)\n            _validate_attempt_topology(\n                records, admission_policy=admission_policy,\n            )\n        except AttemptTopologyError as exc:",
+          "new": "        try:\n            pass\n        except AttemptTopologyError as exc:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_each_attempt_schema_key_independently_enables_strict_recovery_validation[build-admission]",
+        "orchestrator/tests/test_artifact_admission.py::test_each_attempt_schema_key_independently_enables_strict_recovery_validation[build-attempt-id]",
+        "orchestrator/tests/test_artifact_admission.py::test_each_attempt_schema_key_independently_enables_strict_recovery_validation[receipt-sha256]",
+        "orchestrator/tests/test_artifact_admission.py::test_each_attempt_schema_key_independently_enables_strict_recovery_validation[trigger-commitment]",
+        "orchestrator/tests/test_campaign.py::test_recovery_invalid_topology_and_multiple_active_are_byte_stable",
+        "orchestrator/tests/test_campaign.py::test_recovery_schema_detection_noops_only_without_attempt_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-8a",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "                later for later in records[start_index + 1:]\n                if (later.variant == variant",
+          "new": "                later for later in records\n                if (later.variant == variant"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_signal_does_not_overreject_later_start_only_recovery"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-8b",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "            recovery_count = sum(\n                record.variant == variant\n                and record.stage == STAGE_ABORT",
+          "new": "            recovery_count = sum(\n                record.stage == STAGE_ABORT"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_other_variant_recovery_limit_does_not_overreject_first_recovery"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "        if reject_active_attempt and final_size:",
+          "new": "        if False and final_size:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_resumable_wal_rejects_truncated_tail_with_active_attempt_before_repair"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "            if payload.get(\"reason\") == INCOMPLETE_ATTEMPT_RECOVERY_REASON:\n                expected_keys = {\"reason\", \"build_attempt_id\"}",
+          "new": "            if False:\n                expected_keys = {\"reason\", \"build_attempt_id\"}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_recovery_abort_extra_keys_are_rejected_by_replay_and_admission[build-admission]",
+        "orchestrator/tests/test_artifact_admission.py::test_recovery_abort_extra_keys_are_rejected_by_replay_and_admission[fitness-tps]",
+        "orchestrator/tests/test_artifact_admission.py::test_recovery_abort_extra_keys_are_rejected_by_replay_and_admission[verify]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "        if (type(search_config) is not dict\n                or search_config.get(\"build_admission\")\n                != admission_policy.as_preimage()):\n            variant, attempt_ids = _recovery_context(records)",
+          "new": "        if False:\n            variant, attempt_ids = _recovery_context(records)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_recovery_api_requires_matching_post_policy_lock_without_mutating_wal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-12a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    # reject も campaign の初回 WAL write なので、repair 無しの recovery seam を先行する。\n    ident.ensure_resumable_attempts(",
+          "new": "    # reject も campaign の初回 WAL write なので、repair 無しの recovery seam を先行する。\n    ident.ensure_campaign_identity("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-12b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+          "old": "        source=None,\n    )\n    layout.ensure()\n    ident.ensure_resumable_attempts(",
+          "new": "        source=None,\n    )\n    layout.ensure()\n    ident.ensure_campaign_identity("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_inner_run_reject_start_crash_fails_before_second_start"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

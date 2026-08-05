@@ -318,6 +318,29 @@ def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     assert len(wal.read_records(layout)) == 4
 
 
+def test_public_sweep_recovers_real_wal_start_before_quarantine_write(monkeypatch):
+    layout = _tmp_layout()
+    _install_public_reject_sweep_fakes(monkeypatch, layout)
+    cfg = W.config_for("balanced")
+    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    wal.log(layout, "crashed-v", "build_start", W.ENV_TAG, {
+        "build_attempt_id": "crashed-attempt",
+    })
+    candidate = W.CANDIDATES[0][0]
+
+    result = W.run_sweep(
+        "balanced", names=[candidate], isolate=False, log=lambda _line: None,
+    )
+    assert result[candidate]["outcome"] == "quarantine-reject"
+    records = wal.read_records(layout)
+    assert records[0].payload["build_attempt_id"] == "crashed-attempt"
+    assert records[1].stage == "abort"
+    assert records[1].payload == {
+        "reason": "recovery-abort-incomplete-attempt",
+        "build_attempt_id": "crashed-attempt",
+    }
+
+
 def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
         monkeypatch):
     """public sweep→実 pipeline admission 境界で exact class 差を固定する。"""

@@ -34,6 +34,7 @@ from .build_admission import (
 )
 from .layout import CampaignLayout
 from .model import (
+    INCOMPLETE_ATTEMPT_RECOVERY_REASON,
     STAGE_ABORT,
     STAGE_BENCH_DONE,
     STAGE_BUILD_DONE,
@@ -66,6 +67,13 @@ _TRIGGER_ORPHAN_RECOVERY_KEYS = frozenset({"build_attempt_id", "reason"})
 _KNOWN_WAL_STAGES = frozenset(WAL_STAGES) | {
     trigger_gate_binding.WAL_RECORD_STAGE,
 }
+_ATTEMPT_SCHEMA_KEYS = frozenset({
+    "build_attempt_id",
+    "build_admission",
+    "build_admission_receipt_sha256",
+    TRIGGER_BINDING_COMMITMENT_KEY,
+})
+INCOMPLETE_ATTEMPT_RECOVERY_LIMIT = 3
 
 
 # ---- シリアライズ ----
@@ -110,6 +118,32 @@ class WalAppendError(RuntimeError):
 
 class AttemptTopologyError(ValueError):
     """Admission-aware WAL records do not form attempt-local transactions."""
+
+
+class InterruptedAttemptRecoveryError(RuntimeError):
+    """An explicit resume cannot safely terminate an interrupted attempt."""
+
+    def __init__(
+            self, *, condition: str, variant: str, attempt_ids: tuple[str, ...],
+            detail: str,
+    ):
+        if type(condition) is not str or not condition:
+            raise TypeError("condition は non-empty str が必要")
+        if type(variant) is not str or not variant:
+            raise TypeError("variant は non-empty str が必要")
+        if (type(attempt_ids) is not tuple or not attempt_ids
+                or any(type(item) is not str or not item for item in attempt_ids)):
+            raise TypeError("attempt_ids は non-empty str の tuple が必要")
+        self.condition = condition
+        self.variant = variant
+        self.attempt_ids = attempt_ids
+        self.attempt_id = attempt_ids[0]
+        self.detail = detail
+        super().__init__(
+            "interrupted attempt recovery blocked: "
+            f"condition={condition} variant={variant} "
+            f"attempts={','.join(attempt_ids)} detail={detail}"
+        )
 
 
 @dataclass(frozen=True)
@@ -489,8 +523,12 @@ def _write_receipt(layout: CampaignLayout, receipt: dict) -> str:
     return path
 
 
-def repair_truncated_tail(layout: CampaignLayout) -> WalTailRepairResult:
+def repair_truncated_tail(
+        layout: CampaignLayout, *, reject_active_attempt: bool = False,
+) -> WalTailRepairResult:
     """newline 終端後の tail だけを証拠 receipt 作成後に切り戻す。"""
+    if type(reject_active_attempt) is not bool:
+        raise TypeError("reject_active_attempt は exact bool が必要")
     getattr(layout, "_admit_materialization", lambda: None)()
     flags = os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC
     try:
@@ -512,6 +550,21 @@ def repair_truncated_tail(layout: CampaignLayout) -> WalTailRepairResult:
             )
 
         final_size = _last_frame_boundary(fd, original_size)
+        if reject_active_attempt and final_size:
+            prefix_records = _read_records_from_locked_fd(fd, final_size)
+            if any(
+                    _ATTEMPT_SCHEMA_KEYS & frozenset(record.payload)
+                    for record in prefix_records):
+                active_candidates = _active_attempt_candidates(prefix_records)
+                if active_candidates:
+                    variant, candidates = next(iter(active_candidates.items()))
+                    raise InterruptedAttemptRecoveryError(
+                        condition="truncated-tail-with-active-attempt",
+                        variant=variant,
+                        attempt_ids=tuple(item[0] for item in candidates),
+                        detail=("attempt-schema WAL has an active attempt and "
+                                "a truncated tail"),
+                    )
         removed_bytes = original_size - final_size
         removed_sha256, removed_preview = _digest_range(
             fd, final_size, removed_bytes,
@@ -989,10 +1042,315 @@ def _validate_attempt_topology(
                     raise AttemptTopologyError("abort: receiptless attempt に receipt SHA がある")
             elif _receipt_sha(payload, stage=record.stage) != attempt.receipt_sha256:
                 raise AttemptTopologyError("abort: attempt receipt SHA が不一致")
+            if payload.get("reason") == INCOMPLETE_ATTEMPT_RECOVERY_REASON:
+                expected_keys = {"reason", "build_attempt_id"}
+                if attempt.receipt_sha256 is not None:
+                    expected_keys.add("build_admission_receipt_sha256")
+                if set(payload) != expected_keys:
+                    raise AttemptTopologyError(
+                        "abort: interrupted-attempt recovery payload の "
+                        "exact key 集合が不正"
+                    )
             attempt.aborted = True
             attempt.stages_seen.append(record.stage)
             active.pop(record.variant, None)
     return by_variant
+
+
+def _read_records_from_locked_fd(fd: int, size: int) -> List[WalRecord]:
+    data = bytearray()
+    offset = 0
+    while offset < size:
+        chunk = os.pread(fd, min(65536, size - offset), offset)
+        if not chunk:
+            raise OSError(errno.EIO, "unexpected EOF while scanning locked WAL")
+        data.extend(chunk)
+        offset += len(chunk)
+    if data and data[-1:] != b"\n":
+        raise WalFramingError(
+            "WAL tail is not newline-terminated; explicit repair required"
+        )
+    if not data:
+        return []
+    return [
+        _line_to_record(frame.decode("utf-8"))
+        for frame in bytes(data[:-1]).split(b"\n")
+    ]
+
+
+def _recovery_context(records: List[WalRecord]) -> tuple[str, tuple[str, ...]]:
+    for record in reversed(records):
+        if not (_ATTEMPT_SCHEMA_KEYS & frozenset(record.payload)):
+            continue
+        attempt_id = record.payload.get("build_attempt_id")
+        return (
+            record.variant or "<unknown-variant>",
+            (attempt_id if type(attempt_id) is str and attempt_id
+             else "<unknown-attempt>",),
+        )
+    return "<unknown-variant>", ("<unknown-attempt>",)
+
+
+def _active_attempt_candidates(
+        records: List[WalRecord],
+) -> Dict[str, list[tuple[str, int, WalRecord]]]:
+    """Project only EOF-active IDs so multiple-active has a dedicated diagnosis."""
+    active: Dict[str, list[tuple[str, int, WalRecord]]] = {}
+    for index, record in enumerate(records):
+        attempt_id = record.payload.get("build_attempt_id")
+        if record.stage == STAGE_BUILD_START:
+            if type(attempt_id) is str and attempt_id:
+                active.setdefault(record.variant, []).append(
+                    (attempt_id, index, record)
+                )
+            continue
+        if record.stage not in {STAGE_COMMIT, STAGE_ABORT}:
+            continue
+        if type(attempt_id) is not str or not attempt_id:
+            continue
+        current = active.get(record.variant, [])
+        active[record.variant] = [
+            item for item in current if item[0] != attempt_id
+        ]
+    return {variant: items for variant, items in active.items() if items}
+
+
+def _project_active_attempts(
+        active_candidates: Dict[str, list[tuple[str, int, WalRecord]]],
+) -> Dict[str, tuple[int, WalRecord, BuildAttemptState]]:
+    """Project recovery inputs without performing topology validation."""
+    projected: Dict[str, tuple[int, WalRecord, BuildAttemptState]] = {}
+    for variant, candidates in active_candidates.items():
+        if len(candidates) != 1:
+            continue
+        attempt_id, start_index, start = candidates[0]
+        receipt_sha = start.payload.get("build_admission_receipt_sha256")
+        projected[variant] = (
+            start_index,
+            start,
+            BuildAttemptState(
+                attempt_id=attempt_id,
+                variant=variant,
+                receipt_sha256=(receipt_sha if type(receipt_sha) is str else None),
+                stages_seen=[STAGE_BUILD_START],
+            ),
+        )
+    return projected
+
+
+def _validate_recovery_suffix(
+        recoveries: List[WalRecord],
+        active_attempts: Dict[str, tuple[int, WalRecord, BuildAttemptState]],
+) -> None:
+    """Validate only the new recovery suffix against the projected active starts."""
+    if len(recoveries) != len(active_attempts):
+        raise AttemptTopologyError("recovery suffix と active attempt の件数が不一致")
+    seen: set[str] = set()
+    for record in recoveries:
+        projected = active_attempts.get(record.variant)
+        if projected is None or record.variant in seen:
+            raise AttemptTopologyError("recovery suffix の variant が active attempt と不一致")
+        _start_index, start, attempt = projected
+        expected_payload = {
+            "reason": INCOMPLETE_ATTEMPT_RECOVERY_REASON,
+            "build_attempt_id": attempt.attempt_id,
+        }
+        if attempt.receipt_sha256 is not None:
+            expected_payload["build_admission_receipt_sha256"] = attempt.receipt_sha256
+        if (record.stage != STAGE_ABORT
+                or record.env_tag != start.env_tag
+                or record.payload != expected_payload):
+            raise AttemptTopologyError(
+                "recovery suffix が active attempt の exact terminal record でない"
+            )
+        seen.add(record.variant)
+
+
+def _recovery_abort_record(start: WalRecord, attempt: BuildAttemptState) -> WalRecord:
+    payload = {
+        "reason": INCOMPLETE_ATTEMPT_RECOVERY_REASON,
+        "build_attempt_id": attempt.attempt_id,
+    }
+    if attempt.receipt_sha256 is not None:
+        payload["build_admission_receipt_sha256"] = attempt.receipt_sha256
+    return WalRecord(
+        variant=start.variant,
+        stage=STAGE_ABORT,
+        env_tag=start.env_tag,
+        ts=time.time(),
+        payload=payload,
+    )
+
+
+def _append_records_locked(
+        layout: CampaignLayout, fd: int, records: List[WalRecord],
+) -> None:
+    encoded = b"".join(
+        (_record_to_line(record) + "\n").encode("utf-8")
+        for record in records
+    )
+    for frame in encoded.splitlines(keepends=True):
+        parse_line(frame.decode("utf-8"))
+    total = len(encoded)
+    written = 0
+    while written < total:
+        try:
+            count = os.write(fd, encoded[written:])
+        except OSError as exc:
+            raise _append_error(layout, total, written, "write", exc) from exc
+        if count <= 0:
+            exc = OSError(errno.EIO, "os.write made no progress")
+            raise _append_error(layout, total, written, "write", exc) from exc
+        written += count
+    try:
+        os.fsync(fd)
+        dfd = os.open(
+            layout.runs_dir,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC,
+        )
+        try:
+            os.fsync(dfd)
+        finally:
+            os.close(dfd)
+    except OSError as exc:
+        raise _append_error(layout, total, written, "fsync", exc) from exc
+
+
+def recover_interrupted_attempts(
+        layout: CampaignLayout, *, admission_policy: BuildAdmissionPolicy,
+) -> List[WalRecord]:
+    """Atomically terminate only the exact fail-open crash window.
+
+    The existing WAL is scanned and validated, then the prospective suffix is
+    validated, while one exclusive lock is held.  Any guard failure happens
+    before the first write.  A WAL with no attempt-schema key is a byte-stable
+    no-op.
+    """
+    if type(admission_policy) is not BuildAdmissionPolicy:
+        raise TypeError("admission_policy は BuildRunContext.policy の exact value が必要")
+    getattr(layout, "_admit_materialization", lambda: None)()
+    flags = os.O_RDWR | os.O_APPEND | os.O_NOFOLLOW | os.O_CLOEXEC
+    try:
+        fd = os.open(layout.wal_file, flags)
+    except FileNotFoundError:
+        return []
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise OSError(errno.EINVAL, "WAL is not a regular file")
+        records = _read_records_from_locked_fd(fd, info.st_size)
+        campaign_lock = _campaign_lock_value(layout)
+        search_config = (
+            campaign_lock.get("search_config")
+            if type(campaign_lock) is dict else None
+        )
+        if (type(search_config) is not dict
+                or search_config.get("build_admission")
+                != admission_policy.as_preimage()):
+            variant, attempt_ids = _recovery_context(records)
+            raise InterruptedAttemptRecoveryError(
+                condition="admission-policy-lock-mismatch",
+                variant=variant,
+                attempt_ids=attempt_ids,
+                detail=("campaign.lock search_config.build_admission must "
+                        "match the current admission policy"),
+            )
+        if not any(
+                _ATTEMPT_SCHEMA_KEYS & frozenset(record.payload)
+                for record in records):
+            return []
+
+        active_candidates = _active_attempt_candidates(records)
+        for variant, candidates in active_candidates.items():
+            if len(candidates) > 1:
+                raise InterruptedAttemptRecoveryError(
+                    condition="multiple-active-attempts",
+                    variant=variant,
+                    attempt_ids=tuple(item[0] for item in candidates),
+                    detail="one variant has multiple EOF-active attempts",
+                )
+
+        try:
+            validate_trigger_bindings(records, campaign_lock=campaign_lock)
+            _validate_attempt_topology(
+                records, admission_policy=admission_policy,
+            )
+        except AttemptTopologyError as exc:
+            variant, attempt_ids = _recovery_context(records)
+            raise InterruptedAttemptRecoveryError(
+                condition="existing-topology-violation",
+                variant=variant,
+                attempt_ids=attempt_ids,
+                detail=str(exc),
+            ) from exc
+
+        active_attempts = _project_active_attempts(active_candidates)
+        recoveries: List[WalRecord] = []
+        trigger_machine = is_trigger_machine_campaign_lock(campaign_lock)
+        for variant, (start_index, start, attempt) in active_attempts.items():
+            later_attempt_record = next((
+                later for later in records[start_index + 1:]
+                if (later.variant == variant
+                    and later.stage in {
+                        STAGE_BUILD_DONE, STAGE_VERIFY_DONE, STAGE_BENCH_DONE,
+                    })
+            ), None)
+            if later_attempt_record is not None:
+                raise InterruptedAttemptRecoveryError(
+                    condition=(
+                        "attempt-record-after-start"
+                        if later_attempt_record.stage == STAGE_BUILD_DONE
+                        else "signal-after-start"
+                    ),
+                    variant=variant,
+                    attempt_ids=(attempt.attempt_id,),
+                    detail=("build_done, verify_done, or bench_done follows "
+                            "build_start"),
+                )
+            if (trigger_machine
+                    or TRIGGER_BINDING_COMMITMENT_KEY in start.payload):
+                raise InterruptedAttemptRecoveryError(
+                    condition="trigger-campaign",
+                    variant=variant,
+                    attempt_ids=(attempt.attempt_id,),
+                    detail="trigger attempts require an unrevised proof chain",
+                )
+            recovery_count = sum(
+                record.variant == variant
+                and record.stage == STAGE_ABORT
+                and record.payload.get("reason")
+                == INCOMPLETE_ATTEMPT_RECOVERY_REASON
+                for record in records
+            )
+            if recovery_count >= INCOMPLETE_ATTEMPT_RECOVERY_LIMIT:
+                raise InterruptedAttemptRecoveryError(
+                    condition="recovery-exhausted",
+                    variant=variant,
+                    attempt_ids=(attempt.attempt_id,),
+                    detail=("recovery count reached limit "
+                            f"{INCOMPLETE_ATTEMPT_RECOVERY_LIMIT}"),
+                )
+            recoveries.append(_recovery_abort_record(start, attempt))
+
+        if not recoveries:
+            return []
+        prospective = records + recoveries
+        try:
+            validate_trigger_bindings(prospective, campaign_lock=campaign_lock)
+            _validate_recovery_suffix(recoveries, active_attempts)
+        except AttemptTopologyError as exc:
+            last = recoveries[-1]
+            raise InterruptedAttemptRecoveryError(
+                condition="prospective-topology-violation",
+                variant=last.variant,
+                attempt_ids=(last.payload["build_attempt_id"],),
+                detail=str(exc),
+            ) from exc
+        _append_records_locked(layout, fd, recoveries)
+        return recoveries
+    finally:
+        os.close(fd)
 
 
 def replay(
