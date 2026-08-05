@@ -359,3 +359,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:admission-living-doc-closure":"[T-556]","T:admission-reason-gate-sync":"[T-555]","T:barrier-policy-on-old-commits":"[T-557]","T:dev-wave-docs-budget-headroom":"[T-558]","T:hook-wiring-skip-gate":"[T-554]","T:s8c-git-timeout-under-load":"[T-553]"},"authored":"2026-08-06","content_sha256":"ccabe4895244adc0c3b114956d953e5ca9fb975e6f902660d712c2e20157a85c","seq":1,"wave":"dev-wave-t522-admission-registry"}
 - {"allocations":{"D:pegasus-admission-registry-canonical":"D188"},"authored":"2026-08-06","content_sha256":"39fab98631ab4a97b98f2e787239e7c9dc560519f8d0a9dad3bc8be48b90ea6d","seq":2,"wave":"dev-wave-t522-admission-registry"}
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"34c3b12d2b6146523240ec4571a774b39cc38fa48b3a4cc438afa2838b43b8a2","seq":3,"wave":"dev-wave-t522-admission-registry"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"0a9940e2b1e02c43a79da18661139a86db78a792fc24c7de06bed90ecfe05454","seq":1,"wave":"dev-wave-t244-p3-reservation-fsm"}
+- {"allocations":{"D:mutation-attribution-masked-by-earlier-layer":"D190","D:origin-ledger-prequery-reservation":"D189"},"authored":"2026-08-06","content_sha256":"09491e30f01dccc033c6ceda3835611331ae3b0d68984bbc0f3148ffde293184","seq":1,"wave":"dev-wave-t244-p3-reservation-fsm"}
