@@ -255,3 +255,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:ruleops-real-repo-inventory-flake":"[T-496]"},"authored":"2026-08-05","content_sha256":"7f1dceed480e1e241e0e427f0a80592eafc5906b1050cf3e8a23ca69eda062f0","seq":1,"wave":"dev-wave-t476-flock-race-flake"}
 - {"allocations":{"D:flock-observation-by-event":"D168"},"authored":"2026-08-05","content_sha256":"8f2df874e37fe93d47ed8c7d89c9d513a97fd397d84b037a837b1632703e2a5e","seq":2,"wave":"dev-wave-t476-flock-race-flake"}
 - {"allocations":{"F:mutation-run-vs-acceptance-run":"F114"},"authored":"2026-08-05","content_sha256":"b60cfe551c66b5de49dd199477bc73f0738358794e5078909a18ea00615b342c","seq":3,"wave":"dev-wave-t476-flock-race-flake"}
+
+- {"allocations":{"T:campaign-prefix-cache-feasibility":"[T-498]","T:devwave-worker-class1-branch":"[T-497]","T:next-action-backlog-triage":"[T-499]"},"authored":"2026-08-05","content_sha256":"d0ad80bf88ce4a5d88de021df8f5e73db7fc1d557feaaa4ab8b78146fb36bb95","seq":1,"wave":"dev-wave-token-economy"}
+- {"allocations":{"D:compact-carry-format":"D169"},"authored":"2026-08-05","content_sha256":"b1aba49c09f03ffc45456555cb1565409997fa6bb8ed90cb25d9be0dff15d3e2","seq":2,"wave":"dev-wave-token-economy"}
+- {"allocations":{"F:acceptance-repo-write-race":"F115"},"authored":"2026-08-05","content_sha256":"d261bf5da153ffa00e5b5b1b22ba8c9695bf3b9b61fa7932f26bbabe50c6077d","seq":3,"wave":"dev-wave-token-economy"}
