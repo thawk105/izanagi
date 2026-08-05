@@ -48,7 +48,8 @@ title: [T-492] known 軸凍結の生成・検証層へ semantic membership を�
   初回走行では正例側 1 件の期待 node が 2 件足りず harness が MISMATCH で止まった。負例は診断文言を
   別 workload / 別 configuration まで含めて完全一致で固定しているため、検査を恒偽化すると常に
   走査の最初の値で落ち、期待文言とずれて道連れで赤くなる。登録側の誤りであって検査側の欠陥ではない。
-  初回結果は消さず erratum として insight に残した。受入全走は 6348 passed / 20 skipped。
+  初回結果は消さず erratum として insight に残した。受入全走は land 直前の tip で
+  6420 passed / 20 skipped (取り込み前の tip では 6348 passed / 20 skipped)。
 
 ## 次の一手差分
 

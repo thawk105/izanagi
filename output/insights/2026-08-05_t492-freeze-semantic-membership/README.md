@@ -147,8 +147,13 @@ repo_head = `53b4edd0d213e2ce37c9b767793eb2b0726a3f3b`。
 
 ## 7. 受入
 
-`python3 tools/run_tests.py -q -rf` を merge commit `f675df66` (local main `ea83d322` 取り込み後) で実走。
-**6348 passed / 20 skipped** (671.09s)、赤なし。
+`python3 tools/run_tests.py -q -rf` を 2 回実走した。
+
+- merge commit `f675df66` (local main `ea83d322` 取り込み後): **6348 passed / 20 skipped** (671.09s)。
+- land 直前の merge commit `50cfad5e` (local main `b0a49f0a` 取り込み後): **6420 passed /
+  20 skipped** (953.36s)。取り込んだ 6 commit に別 wave の production 変更が含まれるため取り直した。
+
+どちらも赤なし。
 
 段 6 の対象走行 (freeze 系 8 test file) は fix 前 **278 passed / 1 skipped**、
 fix 後 **279 passed / 1 skipped** (adapter 層の意味負例 1 本が純増)。
