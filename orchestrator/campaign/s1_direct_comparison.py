@@ -46,6 +46,14 @@ MAX_RETRIES = 2
 SESSION_STAGE = STAGE_S1_SESSION
 FREEZE_REL = "output/s1-freeze/measurement_freeze.json"
 BUDGET_REL = "output/s1-budget/time_ledger.json"
+_PREPARE_CELL_CONFIGURATIONS: frozenset[str] = frozenset({
+    "backoff_fixed_best",
+    "ident_all",
+    "p2_2_flag_opt",
+    "sort_best",
+    "stock_common",
+    "system_gate",
+})
 
 # 性能 session: trace/perf build 数分 + legacy trace run 最大120秒
 # (pipeline.TRACE_TIMEOUT_S) + verifier + bench 15秒 + settle を保守側へ丸める。
@@ -495,6 +503,8 @@ def prepare_cell(cell: Mapping, ccbench_pin: str):
     configuration = cell.get("configuration")
     if not isinstance(variant, dict) or not isinstance(configuration, str):
         raise DriverError("freeze cell.variant/configuration が不正")
+    if configuration not in _PREPARE_CELL_CONFIGURATIONS:
+        raise DriverError(f"未知の freeze configuration: {configuration!r}")
     flags = variant.get("flags")
     if not isinstance(flags, dict) or not flags:
         raise DriverError(f"freeze variant.flags が不正: {configuration}")

@@ -7,8 +7,11 @@ import argparse
 import copy
 import contextlib
 import errno
+import importlib.util
 import json
 import os
+import shutil
+import subprocess
 import sys
 import types
 from pathlib import Path
@@ -36,6 +39,58 @@ from s1_expected_goldens import (  # noqa: E402
     EXPECTED_GATES,
     EXPECTED_IDENT_ALL_PREDICATE,
     EXPECTED_SORT,
+)
+
+_OUTER_WHITESPACE = (
+    ("space", " "),
+    ("tab", "\t"),
+    ("crlf", "\r\n"),
+    ("vertical-tab", "\x0b"),
+    ("form-feed", "\x0c"),
+    ("nbsp", "\u00a0"),
+    ("ideographic-space", "\u3000"),
+)
+_FAKE_OPTIONS_CMAKE = (
+    'set(CCBENCH_BACK_OFF 1 CACHE STRING "backoff")\n'
+    'set(CCBENCH_BACKOFF_TRIGGER_GATING 0 CACHE STRING "trigger gate")\n'
+    "function(ccbench_universal_definitions out_var)\n"
+    "  set(${out_var}\n"
+    "    BACK_OFF=${CCBENCH_BACK_OFF}\n"
+    "    BACKOFF_TRIGGER_GATING=${CCBENCH_BACKOFF_TRIGGER_GATING}\n"
+    "    PARENT_SCOPE)\n"
+    "endfunction()\n"
+)
+_FAKE_SILO_CMAKE = (
+    "ccbench_add_protocol(silo\n"
+    "  SOURCES transaction.cc\n"
+    "  WORKLOADS ycsb)\n"
+)
+_FAKE_BACKOFF_HH = (
+    "class Backoff {\n"
+    " public:\n"
+    "  static int wait() {\n"
+    "#if BACK_OFF\n"
+    "    return 1;\n"
+    "#else\n"
+    "    return 0;\n"
+    "#endif\n"
+    "  }\n"
+    "};\n"
+)
+_FAKE_GATE_TRANSACTION_CC = (
+    "class Transaction {\n"
+    " public:\n"
+    "  void abort() {\n"
+    "    bool izanagi_gate_pass = false;\n"
+    "    // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
+    "#if BACKOFF_TRIGGER_GATING\n"
+    "    izanagi_gate_pass = true;\n"
+    "#else\n"
+    "    izanagi_gate_pass = false;\n"
+    "#endif\n"
+    "    // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
+    "  }\n"
+    "};\n"
 )
 
 
@@ -133,6 +188,48 @@ class TxExecutor {
 };
 """, encoding="utf-8")
     yield []
+
+
+def _require_g13() -> None:
+    if shutil.which("g++-13") is None:
+        pytest.skip(
+            "C++ toolchain 不在 (g++-13 が PATH に無い) — "
+            "本番 source_digest.resolve の identity 検査を実走できない"
+        )
+
+
+def _fake_ccbench_repo(root: Path) -> tuple[Path, str]:
+    (root / "cmake").mkdir(parents=True)
+    (root / "include").mkdir()
+    (root / "cc" / "silo").mkdir(parents=True)
+    (root / "cmake" / "Options.cmake").write_text(
+        _FAKE_OPTIONS_CMAKE, encoding="utf-8"
+    )
+    (root / "include" / "backoff.hh").write_text(
+        _FAKE_BACKOFF_HH, encoding="utf-8"
+    )
+    (root / "cc" / "silo" / "CMakeLists.txt").write_text(
+        _FAKE_SILO_CMAKE, encoding="utf-8"
+    )
+    (root / axis_trigger_gating.SOURCE_REL).write_text(
+        _FAKE_GATE_TRANSACTION_CC, encoding="utf-8"
+    )
+
+    def git(*args: str) -> str:
+        completed = subprocess.run(
+            ["git", "-C", str(root), *args],
+            capture_output=True,
+            text=True,
+        )
+        assert completed.returncode == 0, completed.stderr
+        return completed.stdout
+
+    git("init", "-q")
+    git("config", "user.email", "test@example.invalid")
+    git("config", "user.name", "izanagi-test")
+    git("add", "-A")
+    git("commit", "-q", "-m", "stock")
+    return root, git("rev-parse", "HEAD").strip()
 
 
 class _Clock:
@@ -324,6 +421,166 @@ def _gate_cell(configuration, predicate):
             },
         },
     }
+
+
+def test_prepare_configuration_allowlist_is_fixed_six():
+    assert S._PREPARE_CELL_CONFIGURATIONS == frozenset({
+        "backoff_fixed_best",
+        "ident_all",
+        "p2_2_flag_opt",
+        "sort_best",
+        "stock_common",
+        "system_gate",
+    })
+
+
+@pytest.mark.parametrize("configuration", ["stock_common", "p2_2_flag_opt"])
+def test_prepare_flags_only_configurations_do_not_patch_or_quarantine(
+        tmp_path, monkeypatch, configuration):
+    from campaign import patchharness
+    from campaign import p3_s4_loop as loop_axis
+
+    worktree = tmp_path / "worktree"
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *args, **kwargs: pytest.fail("flags-only 構成で patch してはならない"),
+    )
+    monkeypatch.setattr(
+        loop_axis, "quarantine",
+        lambda *args, **kwargs: pytest.fail("flags-only 構成で quarantine してはならない"),
+    )
+    monkeypatch.setattr(
+        S.source_digest, "resolve", lambda *args, **kwargs: "fixture-source",
+    )
+    flags = {"BACK_OFF": 1, "WAL": 0}
+    cell = {"configuration": configuration, "variant": {"flags": flags}}
+
+    with S.prepare_cell(cell, "fixture-pin") as prepared:
+        assert prepared.genome == Genome("silo", flags)
+        assert prepared.src_token == "fixture-source"
+
+
+@pytest.mark.parametrize(
+    "configuration", ["system-gate", "future_configuration", "unknown"],
+)
+def test_prepare_rejects_multiple_unknown_configurations_before_checkout(
+        monkeypatch, configuration):
+    from campaign import patchharness
+
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: pytest.fail("未知構成で checkout してはならない"),
+    )
+    cell = {
+        "configuration": configuration,
+        "variant": {"flags": {"BACK_OFF": 1}},
+    }
+    with pytest.raises(S.DriverError) as excinfo:
+        with S.prepare_cell(cell, "fixture-pin"):
+            pass
+    assert str(excinfo.value) == f"未知の freeze configuration: {configuration!r}"
+
+
+def test_prepare_rejects_configuration_added_only_to_producer_domain(
+        monkeypatch):
+    from campaign import patchharness, s1_measurement_freeze
+
+    added = "future_configuration"
+    monkeypatch.setattr(
+        s1_measurement_freeze,
+        "CONFIGURATIONS",
+        s1_measurement_freeze.CONFIGURATIONS + (added,),
+    )
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: pytest.fail("producer 追加値を checkout してはならない"),
+    )
+    assert added in s1_measurement_freeze.CONFIGURATIONS
+    with pytest.raises(S.DriverError) as excinfo:
+        with S.prepare_cell(
+                {"configuration": added, "variant": {"flags": {"BACK_OFF": 1}}},
+                "fixture-pin"):
+            pass
+    assert str(excinfo.value) == f"未知の freeze configuration: {added!r}"
+
+
+def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(
+        monkeypatch):
+    from campaign import patchharness, s1_measurement_freeze
+
+    added = "future_configuration"
+    monkeypatch.setattr(
+        s1_measurement_freeze,
+        "CONFIGURATIONS",
+        s1_measurement_freeze.CONFIGURATIONS + (added,),
+    )
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: pytest.fail(
+            "producer 追加値を checkout してはならない"
+        ),
+    )
+    module_name = "campaign._s1_direct_comparison_producer_independence_test"
+    spec = importlib.util.spec_from_file_location(module_name, S.__file__)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+        assert added in s1_measurement_freeze.CONFIGURATIONS
+        with pytest.raises(module.DriverError) as excinfo:
+            with module.prepare_cell(
+                    {
+                        "configuration": added,
+                        "variant": {"flags": {"BACK_OFF": 1}},
+                    },
+                    "fixture-pin"):
+                pass
+        assert str(excinfo.value) == (
+            f"未知の freeze configuration: {added!r}"
+        )
+        assert added not in module._PREPARE_CELL_CONFIGURATIONS
+    finally:
+        sys.modules.pop(module_name, None)
+
+
+def test_real_source_digest_unifies_all_outer_whitespace_tokens(tmp_path):
+    from campaign import p3_s4_loop as loop_axis
+
+    _require_g13()
+    sub, head = _fake_ccbench_repo(tmp_path / "fake-ccbench")
+    source = sub / axis_trigger_gating.SOURCE_REL
+    predicate = emit_predicate(TriggerGateIR(20))
+    genome = Genome("silo", {"BACK_OFF": 1, "BACKOFF_TRIGGER_GATING": 1})
+
+    exact_result, *_ = loop_axis.quarantine(
+        str(sub), predicate,
+        marker_id=axis_trigger_gating.MARKER_ID,
+        source_rel=axis_trigger_gating.SOURCE_REL,
+        write=True,
+    )
+    assert exact_result.passed
+    exact_source = source.read_bytes()
+    exact_token = S.source_digest.resolve(genome, head, ccbench_dir=str(sub))
+    exact_variant = pipeline.variant_id(genome, exact_token)
+
+    for name, outer in _OUTER_WHITESPACE:
+        source.write_text(_FAKE_GATE_TRANSACTION_CC, encoding="utf-8")
+        result, *_ = loop_axis.quarantine(
+            str(sub), f"{outer}{predicate}{outer}",
+            marker_id=axis_trigger_gating.MARKER_ID,
+            source_rel=axis_trigger_gating.SOURCE_REL,
+            write=True,
+        )
+        assert result.passed, name
+        assert source.read_bytes() == exact_source, name
+        token = S.source_digest.resolve(genome, head, ccbench_dir=str(sub))
+        assert token == exact_token, name
+        assert pipeline.variant_id(genome, token) == exact_variant, name
 
 
 @pytest.mark.parametrize(
