@@ -1,0 +1,67 @@
+あなたは izanagi プロジェクトの焦点再レビュアである。日本語で答えよ。
+目的は**防御**である。fix 2 巡目が所見を閉じたか、閉じたふりをしていないか、
+また 1 巡目のように**新しい回帰を入れていないか**を file:line で反証する。
+fix を守る側に回ってはならない。
+
+## 背景 (重要)
+
+1 巡目の fix は所見を閉じる一方で、`_write_exclusive` の cleanup に
+「自分が作っていないファイルを消す」回帰を新たに入れた。
+**同じ種類の事故を 2 巡目が繰り返していないかを最優先で疑え。**
+
+## 読むもの (読めなければ即停止し、その旨だけ返す)
+
+- 前回の焦点再レビュー (所見の正本): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/rerev-out.md
+- 2 巡目 fix の報告: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/fix2-out.md
+- 1 巡目 fix 後の snapshot: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/snapshot-fix1.patch
+- 段 4 裁定 (追記 1〜4): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/s4-adjudication.md
+- 現在の未 commit 差分: repo root で `git diff`
+
+## 親が実測した事実
+
+fix 2 巡目後、計算ノードで 9 test file を実走し **667 passed / 2 skipped / 0 failed**。
+(1 巡目後は 663 passed / 2 skipped / 0 failed だった。)
+
+## 必須の出力: 対応表
+
+前回の焦点再レビューが挙げた **NR-01・NR-02・NR-03** のそれぞれについて
+`closed` / `partial` / `regressed` を判定し、根拠 file:line を付けた表を出せ。
+**表が無い報告は差し戻す。**
+
+## 特に攻撃せよ
+
+1. **G-1 (temp 掃除) が正しく直ったか。** 削除するのが
+   「自分が `O_EXCL` で作成に成功した inode」だけであることを確かめよ。
+   - 作成失敗 (既存ファイル・symlink 衝突) で何も消さないか。
+   - inode 確認の方法が TOCTOU で騙されないか (作成後に別 process が差し替えた場合)。
+   - 例外経路で二重 unlink や、削除失敗の握り潰しが残っていないか。
+   - **この修正自体が新しい回帰を入れていないか** (正常系で temp が残る、fsync 失敗時に
+     partial file が残る、など)。
+2. **G-2 の (b) 採用が自己完結しているか。** `rejection.json` に保存された
+   `attestation_profile` と canonicalization 識別子だけから、記録された SHA-256 を
+   **成果物の外の情報を使わずに**再計算できるか。
+   - 保存された profile が「hash を取った対象そのもの」か、部分集合や別表現でないか。
+   - canonicalization 識別子が実際の実装 (`sort_keys` / `separators` / `ensure_ascii`) と
+     一致するか。文字列が実装から自動生成されて自己参照 oracle になっていないか。
+   - 成果物が巨大化して揮発値 (時刻・path・nonce) を巻き込んでいないか。
+3. **G-3 の例外集約が public 述語の戻り値を変えていないか。**
+   shape → policy → band の短絡順と戻り値が、1 巡目 snapshot および元の HEAD 版と
+   同じであることを、境界入力を列挙して確かめよ。
+   custom Mapping の例外が本当に構造化拒否になり、外へ漏れないか。
+4. **既存テストの期待値が変更されていないか。** fix2 の diff で、
+   1 巡目に許可された 4 node 以外の既存 assertion が緩められた箇所が無いか探せ。
+   「fixture を強化した」と称して実質的に検査対象をずらしていないか疑え。
+5. **所有外への波及。** `_write_exclusive` は publish 以外の呼び出し元にも使われる。
+   全 caller を列挙し、cleanup 意味論の変更が壊す経路が無いか確かめよ。
+
+## 出力形式
+
+対応表 → 新規所見 (あれば ID / 根拠 file:line / real か speculative か /
+成果物影響 1 行 / must-fix か nit か) → GO / NO-GO。
+**must-fix が 0 件なら明示的に「must-fix なし」と書け。**
+反証できなかった点は「反証できなかった」と明記せよ。
+あなたは read-only sandbox で pytest を実走できない。緑を主張してはならない。
+
+## 総括
+
+`## 総括` 節に、閉じた所見・残る所見・GO/NO-GO の理由を 10 行以内で書け。

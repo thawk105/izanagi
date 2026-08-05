@@ -1,0 +1,68 @@
+あなたは izanagi プロジェクトの実装者 (role=author) である。日本語で報告せよ。
+段 6 の fix 3 巡目 (上限) である。段 5 の実装子契約をすべて継承する。
+
+## 読むもの (読めなければ即停止し、その旨だけ返す)
+
+- 焦点再レビュー 2 (今回の正本): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/rerev2-out.md
+- 2 巡目 fix の報告: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/fix2-out.md
+- 現在の未 commit 差分: repo root で `git diff`
+
+## 権限境界 (継承。違反は差し戻し)
+
+- 編集してよいのは次の 4 本のコード・テストだけ。docs 編集と commit をするな。
+  - `orchestrator/campaign/execution_guard.py`
+  - `orchestrator/calibrator/cli.py`
+  - `orchestrator/tests/test_execution_guard.py`
+  - `orchestrator/tests/test_calibrator_certify.py`
+- **既存テストの期待値を変更してはならない。** 追加の許可は無い。
+- 親が計算ノードで実測した現状は **667 passed / 2 skipped / 0 failed** である。この緑を壊すな。
+
+## 直す所見はちょうど 1 件 (R2-01)
+
+**`_write_exclusive` の cleanup を、本 wave 以前の意味論へ戻す。**
+
+背景: 段 6 レビューの C-03 (書込み失敗時に `.publish-*.tmp` が orphan として残る) を
+閉じようとして、1 巡目で「無条件 unlink」、2 巡目で「`stat` による inode 検査つき unlink」を
+入れた。しかし 2 巡目の形は
+
+- `stat(path)` と `unlink(path)` が分離した **TOCTOU** であり、
+- その危険な cleanup を**共有 helper の全 caller へ新規に拡大**している。
+
+これは C-03 が指していた orphan 問題より重い risk である。**縮退させよ。**
+
+### 具体的に行うこと
+
+1. `_write_exclusive` を**本 wave 以前の挙動へ戻す**。
+   - helper 自身は `stat` も `unlink` も行わない。他 caller の挙動を 1 つも変えない。
+   - 失敗時にファイルを消す責務を helper に持たせない。
+2. 一時ファイルの掃除は **publish 経路 (`registered/` の `.publish-*.tmp`) だけ**に閉じる。
+   その経路が消してよいのは、本 wave 以前と同じく
+   「`_write_exclusive` が正常 return した (= 自分が `O_EXCL` で作成し書き切った) temp を、
+   その後の rename が失敗したとき」だけである。**この条件は本 wave 以前と同一にすること。**
+3. `_write_exclusive` の**書込み・fsync が失敗した場合**は、消さずに
+   **構造化した理由として残す** (orphan の path 名を含む reason または診断)。
+   消しに行って TOCTOU を作るより、残して申告する方を選ぶ。
+4. 上記に対応するテストを直す/足す。
+   - 作成前に既存 file / symlink があるとき、それが**保存される**こと (2 巡目で追加済みなら維持)。
+   - 書込み失敗時に orphan が**残り**、かつその事実が構造化して報告されること。
+   - rename 失敗時に temp が掃除されること (本 wave 以前と同じ)。
+   - **`_write_exclusive` の他 caller の挙動が変わっていないこと**を固定する検査を 1 本入れよ。
+
+## 直さないもの
+
+- R2-02 (partial-write fixture の検査ずれ) は **nit** であり、親は直さないと裁定した。触るな。
+- NR-01・NR-03 は closed と判定された。触るな。
+- PC-02 完全形、OPS-01 / OPS-02 / OPS-03、reservation 式、`tools/` 配下、
+  `env_contract.py`、`schema_v2.py` は scope 外である。
+
+## 報告 (継承)
+
+- R2-01 について `closed` / `partial` / `regressed` を明記した対応表を必ず付けよ。
+- `_write_exclusive` の全 caller を列挙し、本 wave 以前と挙動が同一であることを
+  caller ごとに述べよ。
+- 既存期待値を 1 つも変更していないことを明示せよ。
+- 緑を主張するなら nodeid を併記せよ。実走できないなら「実装済み・未実走」と書け。
+
+## 総括
+
+`## 総括` 節に、直した内容・残る risk・実走状況を 10 行以内で書け。

@@ -1,0 +1,217 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "            reasons.append(\"known-values-check-failed\")\n        if not _effective_clock_self_comparison_passes(profile):\n            reasons.append(\"effective-clock-self-comparison-failed\")\n",
+          "new": "            reasons.append(\"known-values-check-failed\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_early_admission_uses_canonical_predicate_not_diagnostic_count",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_acquisition_rejected_before_benchmark[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_acquisition_rejected_before_benchmark[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_acquisition_rejected_before_benchmark[47]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish[47]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_rejection_profile_hash_recomputes_from_artifact_only",
+        "orchestrator/tests/test_calibrator_certify.py::test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consumer_self"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        reasons.extend(certification_quality_reasons(result, evidence))\n        if not _effective_clock_self_comparison_passes(profile):\n            reasons.append(\"effective-clock-self-comparison-failed\")\n",
+          "new": "        reasons.extend(certification_quality_reasons(result, evidence))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_late_gate_rechecks_policy_after_benchmark"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        if not _effective_clock_policy_matches_current(\n            profile, attempt_tolerance_pct=attempt_tolerance_pct,\n        ):\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_gate_rejects_policy_change_after_late_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "old": "        if short_circuit_policy and not evaluation[\"policy_matches\"]:\n            return evaluation\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_public_predicate_preserves_legacy_overflow_short_circuits"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "old": "            if lower <= sample_mhz <= upper:\n                continue\n",
+          "new": "            if True:\n                continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_early_admission_uses_canonical_predicate_not_diagnostic_count",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_acquisition_rejected_before_benchmark[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_acquisition_rejected_before_benchmark[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_acquisition_rejected_before_benchmark[47]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish[47]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_rejection_profile_hash_recomputes_from_artifact_only",
+        "orchestrator/tests/test_calibrator_certify.py::test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consumer_self",
+        "orchestrator/tests/test_calibrator_certify.py::test_independent_published_bytes_self_comparison_detects_tampering",
+        "orchestrator/tests/test_calibrator_certify.py::test_self_gate_rejects_outlier_at_every_index",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_diagnostics_report_all_violation_details",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_diagnostics_structures_overflow_as_rejection",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_evaluator_decomposition_boundary_vectors",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_public_predicate_preserves_legacy_overflow_short_circuits"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "old": "        for sample_index, sample in enumerate(observed_samples):\n",
+          "new": "        for sample_index, sample in enumerate(observed_samples[1:-1], start=1):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_early_admission_uses_canonical_predicate_not_diagnostic_count",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_acquisition_rejected_before_benchmark[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_acquisition_rejected_before_benchmark[47]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_effective_clock_self_failure_is_quality_rejected_before_publish[47]",
+        "orchestrator/tests/test_calibrator_certify.py::test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consumer_self",
+        "orchestrator/tests/test_calibrator_certify.py::test_self_gate_rejects_outlier_at_every_index",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_canonical_predicate_golden_vectors",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_diagnostics_report_all_violation_details",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_diagnostics_structures_overflow_as_rejection",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_evaluator_decomposition_boundary_vectors",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_public_predicate_preserves_legacy_overflow_short_circuits"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "            reasons.append(\"known-values-check-failed\")\n        if not _effective_clock_self_comparison_passes(profile):\n            reasons.append(\"effective-clock-self-comparison-failed\")\n",
+          "new": "            reasons.append(\"known-values-check-failed\")\n        if _effective_clock_self_comparison_diagnostics(profile)[\"out_of_band_count\"]:\n            reasons.append(\"effective-clock-self-comparison-failed\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_early_admission_uses_canonical_predicate_not_diagnostic_count"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        published_self_comparison = _published_self_comparison_receipt(target)\n",
+          "new": "        published_self_comparison = _published_self_comparison_receipt(staging_artifact)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_independent_published_bytes_self_comparison_detects_tampering"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "            reasons.append(\"known-values-check-failed\")\n        if not _effective_clock_self_comparison_passes(profile):\n            reasons.append(\"effective-clock-self-comparison-failed\")\n",
+          "new": "            reasons.append(\"known-values-check-failed\")\n        if True:\n            reasons.append(\"effective-clock-self-comparison-failed\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_accepts_zero_subrequest_prefix_via_production_entry",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_injects_effective_clock_policy",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_exact_2101_profile_passes_both_gates_and_publishes",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_late_gate_rechecks_policy_after_benchmark",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_link_fallback_rejects_existing_target",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_falls_back_to_link_on_renameat2_einval",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_gate_rejects_policy_change_after_late_gate",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_rename_failure_cleans_completed_temp",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_temp_cleanup_failure_is_structured",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_temp_write_failure_removes_partial_file",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_published_artifact_passes_runtime_effective_clock_self_comparison",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_quality_rejection_is_v2_staged_and_nonzero",
+        "orchestrator/tests/test_calibrator_certify.py::test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consumer_self",
+        "orchestrator/tests/test_calibrator_certify.py::test_independent_published_bytes_self_comparison_detects_tampering"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "old": "    collect_all_violations: bool = True,\n",
+          "new": "    collect_all_violations: bool = False,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_diagnostics_report_all_violation_details",
+        "orchestrator/tests/test_execution_guard.py::test_effective_clock_diagnostics_structures_overflow_as_rejection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

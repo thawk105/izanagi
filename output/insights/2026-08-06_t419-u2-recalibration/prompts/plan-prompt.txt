@@ -1,0 +1,105 @@
+あなたは izanagi プロジェクトの実装プランを起草する read-only の設計者である。日本語で答えよ。
+
+## 読むもの (読めなければ即停止し、その旨だけ返す)
+
+- 親 brief: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/stage1-brief.md
+- repo root: 現在の作業ディレクトリ (git worktree)。以下は repo 相対パス。
+  - orchestrator/calibrator/cli.py (全体。特に _acquisition_reasons l.400-440、_certify_main l.496-690)
+  - orchestrator/calibrator/effective_clock_policy.py
+  - orchestrator/calibrator/schema_v2.py
+  - orchestrator/campaign/env_attestation.py (probe l.669-780、expected/observed comparison values
+    l.960-1015、compare_profiles l.1015-1046、load_verified_calibration l.1050-1140)
+  - orchestrator/campaign/execution_guard.py (l.150-260 — effective_clock_comparison_passes の正本)
+  - orchestrator/campaign/env_contract.py (全体。**編集禁止** — D176 の fuse を含む)
+  - orchestrator/tests/test_env_contract.py (l.54-80、l.830-900)
+  - orchestrator/tests/test_calibrator_certify.py
+  - orchestrator/tests/test_env_attestation.py
+  - orchestrator/tests/test_effective_clock_policy.py
+  - tools/pegasus/certify_calibration.sh (**編集禁止**。job 本体の段取りを読むだけ)
+  - tools/pegasus/submit_certify.sh (**編集禁止**)
+  - tools/pegasus/make_acquisition_receipt.py
+  - tools/pegasus/policy.json / tools/pegasus/policies/calibration_v1.json
+  - tools/pegasus/run_probe.py と tools/pegasus/probes/t419_probe_causality.pbs (生死 driver の先例)
+  - output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json
+    (effective_clock を見よ。CPU 40 が 3080.935、他は 2101.0)
+  - output/insights/2026-08-05_t419-alpha-wiring/README.md (方式 α の実装内容と限定)
+  - docs/pegasus-runbook.md の §7 と §8 (計算ノードでの実行作法、投入前チェックリスト)
+
+親 brief は本 wave の scope・不変条件・確定済みユーザー裁定の正本である。brief の (P1)〜(P4) は
+親の provisional 裁定であって確定ではない。あなたの仕事は「brief を実装可能な file:line 粒度の
+プランにすること」であり、brief に反する scope 拡大を勝手に決めないこと。
+
+## 背景 (親が実測した事実。信じてよいが、file:line で裏取りして誤りがあれば指摘せよ)
+
+1. 本番 attestation probe は D181 の方式 α になっており、login node 実行で
+   method = `proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1`、
+   96 CPU、median 2101.0、tolerance 2% 帯外 1 件 (3100.0) を実測した。
+2. 取得経路 `_acquisition_reasons` は job-id / host / node 数 / binary hash / walltime / known-values
+   しか検査せず、effective_clock の自己整合を一切検査しない。だから (登録済みの)
+   自己不整合な較正が status=accepted で publish された。
+3. 契約世代 2 世代目の登録は D176 の bootstrap fuse (`validate_generations`) が機械拒否する。
+   解除には未実装・未裁定の [T-529] 活性化権限が要る。**よって登録・pin 更新・
+   `KNOWN_SELF_INCONSISTENT_CALIBRATIONS` の空化は本 wave の scope 外**である。
+
+## タスク
+
+本 wave の実装プラン v1 を file:line 粒度で起草せよ。次の 4 単位を扱う。
+
+### 単位 1 (必須) — 取得経路の canonical 述語 self-pass gate
+
+publish される新しい較正が「自分の samples が自分の median に対して tolerance 帯を外れる」場合に
+`accepted` として publish されないようにする。要件:
+
+- **述語の権威を二重化しない。** 既存の canonical 述語 (`execution_guard` 側) を呼ぶ形にし、
+  帯計算を再実装しない。再実装が避けられないなら、その理由と同値性の証明方法を書け。
+- 発火点を file:line で 1 つに決めよ。`_acquisition_reasons` に足すのか、`_assemble_v2` の
+  status 決定へ足すのか、`window_probe` 側か。**それぞれの受理集合への影響を比較して選べ。**
+- 既存 artifact の**読み取り**経路 (`load_verified_calibration`、registry、consumer) を
+  一切狭めないこと。狭めると現行 g1 較正が読めなくなり、承認外の受理縮小になる。
+- 拒否は fail-closed で、診断に「どの位置がどれだけ帯を外れたか」を構造化して残すこと (規律 3)。
+- 恒真にならないこと。通る正例を 1 つ、落ちる負例を 1 つ、署名で書け。
+
+### 単位 2 (必須) — 計算ノードでの α 生死 driver
+
+2 時間の certify を投入する前に、Pegasus 計算ノード (専有 1 ノード、48 CPU) 上で本番 `ea.probe()` を
+走らせ、tolerance 2% 帯内 (帯外 0 件) かどうかを実測する使い捨て driver を設計せよ。
+
+- **既存経路を最大限使え。** `tools/pegasus/run_probe.py` + `probes/*.pbs` の先例に倣うのか、
+  それとも別の既存 driver があるのか、file:line で示せ。新規コードは 100 行以内に収めよ。
+- 出力は create-only で `output/env/pegasus/` 配下の job 専用ディレクトリへ置き、
+  帯外件数・median・method・hostname・load1 を機械可読に残すこと。
+- **この driver は non-certifying であることを自己宣言し、較正としては絶対に使えない形にせよ。**
+- 単独性の確認 (専有ノード上で他プロセスが動いていないこと) を観測に含めよ。
+
+### 単位 3 (条件付き) — [T-444] 取得経路の proof chain 束縛
+
+裁定は「取得経路の proof chain 束縛 (acquisition receipt 新設、D96 手続) を再発行サイクルへ同梱」。
+現行 artifact には既に `acquisition_receipt` オブジェクトがある。**現状で何が束縛されていて、
+何が束縛されていないかを file:line で棚卸しし、純増があるかを判定せよ。**
+純増が無い (既に束縛済み) なら「実装しない」と結論してよい。あるなら最小の追加を設計せよ。
+
+### 単位 4 (調査のみ) — [T-443] certify の build が過去に成功していた機序
+
+裁定は「各 campaign の CMake argv へ verified cache projection を足す。ただし単独では実施せず
+本サイクルへ同梱する。同梱時に certify が過去に成功していた機序 (login node の network か
+warm cache か) の検証を含める」。計算ノードは外部 network を持たない (runbook §7)。
+それでも certify job (0:867876.nqsv) の CCBench build は成功している。
+**certify_calibration.sh と CCBench の CMake を読んで、FetchContent がどこへ向かうか、
+何が事前取得されているかを file:line で確定せよ。** そのうえで、certify を再実行するために
+**本 wave で必要な変更があるか無いか**を判定せよ (campaign 側 argv の変更は本 wave の scope 外)。
+
+## 出力形式
+
+- 各単位について: 編集する file:line、追加する関数・テストの署名、受理集合への影響 (1 行)、
+  依存順序。
+- 単位間の依存と、並列化できるか否か。
+- **変異事前登録の候補**を単位ごとに列挙せよ (何を壊せばどの test node が赤くなるべきか)。
+  単一理由性が成立しない (別の層が同じ入力を拒否して赤くなる) 恐れがある箇所は明示せよ。
+- brief の (P1)〜(P4) のうち、file:line の実測から見て**誤っている**ものがあれば指摘せよ。
+- 実装しないと判断した項目と、その理由。
+- あなたは read-only sandbox で走っており pytest を実走できない。緑を主張してはならない。
+  静的検査だけで良いが、走らせるべき node id は列挙せよ。
+
+## 総括
+
+最後に `## 総括` 節を置き、プランの骨子・最大の risk・親が段 4 で裁定すべき択一を 10 行以内で書け。
