@@ -38,6 +38,7 @@ codex は `reasoning=high`、`sandbox=workspace-write` とする。
 - fixture への現行 hash 差し込みなど、テストを甘くして緑にしない（F27）。
 - 期待値に working tree の hash 等の揮発する診断 payload を焼き込まない。理由と件数を固定し
   揮発部分だけ外す。修正後は揮発源を実際に編集しても緑か確認する。
+- 実走できない子は所見・要件を `closed` と申告せず「実装済み・未実走」と書く。判定は親の実測による。
 - 完了報告に、所有外の caller、共有 fixture、consumer test への波及可能性を静的に列挙する。
 - 指示にない受理集合の拡大・縮小をしない。scope を書く前に現行の受理・拒否挙動を明記する。
 - 親 docs が未 land なら期待して赤くなる finding 集合を事前指定し、それ以外は回帰として報告する。
