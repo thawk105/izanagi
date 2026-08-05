@@ -343,3 +343,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:acceptance-mode-and-receipt":"[T-545]","T:dispatch-request-env-revalidation":"[T-547]","T:staged-delete-tree-identity":"[T-546]"},"authored":"2026-08-05","content_sha256":"afc9fe150b410224270c6d40225aa10fb608947c7c8c02dc0fe418f4e48c4d1d","seq":1,"wave":"dev-wave-t450-t412-preface"}
 - {"allocations":{"D:acceptance-deletion-gate-fail-closed":"D186"},"authored":"2026-08-05","content_sha256":"6bf6d36c4b81883b8e1be68c35e43e34e8e12fe95cd595f559b657758232569e","seq":2,"wave":"dev-wave-t450-t412-preface"}
+
+- {"allocations":{"T:disposable-probe-scale-cap":"[T-550]","T:pegasus-dependency-general-procurement":"[T-548]","T:probe-exclusivity-witness":"[T-549]","T:t139-mechanism-ablation":"[T-551]"},"authored":"2026-08-06","content_sha256":"c24504a36b6d33076f4bf6e2c987fb056472f2a7bceda6eff57d4c7f628853ca","seq":1,"wave":"dev-wave-t139-alt-x-probe"}
+- {"allocations":{"D:t139-alt-x-partial-recovery":"D187"},"authored":"2026-08-06","content_sha256":"d89ef131f0695aa4dd74a9ce1b0372102e6ac7649a03b31256c132dbc7bd4588","seq":2,"wave":"dev-wave-t139-alt-x-probe"}
+- {"allocations":{"F:local-single-statement-dependency":"F135","F:probe-clean-tree-scheduler-droppings":"F134"},"authored":"2026-08-06","content_sha256":"5f69185edc70acde0cc7c5d9b51983420b6938353970991f6d0c2d95b37905b4","seq":3,"wave":"dev-wave-t139-alt-x-probe"}
