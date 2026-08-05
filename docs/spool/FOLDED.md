@@ -372,3 +372,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"449fff529de98c94549f9922feddedbd42d42b1d2a2eb73fe060083b2a2c80e7","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
 - {"allocations":{"D:critic-candidate-label-projection":"D192"},"authored":"2026-08-06","content_sha256":"cd13ae288cf4303ffc06a030bf2a51f89d0736dd053cb4b85b11d561082ab98b","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"d825041451f3f42881012fd61b7a68b116d4639472876eba0298562926185efb","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
+
+- {"allocations":{"T:attempt-local-signal-binding":"[T-567]","T:campaign-execution-lease":"[T-565]","T:guided-nobuild-pseudo-wal":"[T-569]","T:plotter-admission-gate":"[T-570]","T:recovered-campaign-certifiability":"[T-566]","T:replay-read-only":"[T-571]","T:trigger-recovered-provenance":"[T-568]"},"authored":"2026-08-06","content_sha256":"21a3869d9b8b002724ec48bfbfd7b54a2a4feb854d61623e0597fec2a8db0047","seq":1,"wave":"dev-wave-t459-resume-topology"}
+- {"allocations":{"D:incomplete-attempt-recovery":"D193"},"authored":"2026-08-06","content_sha256":"c7d8d7252b048e14594fc526170d13c58beb51c9be7ee8d28a4ff9a61a9c4c08","seq":2,"wave":"dev-wave-t459-resume-topology"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"7f1c89d339a19207f3be050386e59f4b2c102a68ba9185a446d4dcff2c221af3","seq":3,"wave":"dev-wave-t459-resume-topology"}
