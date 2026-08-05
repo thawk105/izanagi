@@ -424,6 +424,23 @@ def test_validate_generations_accepts_single_generation_candidate():
     assert ec.validate_generations(mapping) is None
 
 
+def test_validate_generations_delegates_once_with_same_mapping(monkeypatch):
+    """public validator から fuse 前の検証 helper への委譲を直接固定する。"""
+    contract = _valid_contract()
+    mapping = {
+        contract.env_tag: (ec.GenerationEntry(generation=1, contract=contract),),
+    }
+    calls = []
+
+    def spy(candidate):
+        calls.append(candidate)
+
+    monkeypatch.setattr(ec, "_validate_generations_without_bootstrap_fuse", spy)
+    assert ec.validate_generations(mapping) is None
+    assert len(calls) == 1
+    assert calls[0] is mapping
+
+
 def test_validate_generations_public_rejects_invalid_single_generation_candidate():
     """public validator が fuse 前の構造検査へ委譲することを固定する。"""
     contract = _valid_contract()
