@@ -259,3 +259,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:campaign-prefix-cache-feasibility":"[T-498]","T:devwave-worker-class1-branch":"[T-497]","T:next-action-backlog-triage":"[T-499]"},"authored":"2026-08-05","content_sha256":"d0ad80bf88ce4a5d88de021df8f5e73db7fc1d557feaaa4ab8b78146fb36bb95","seq":1,"wave":"dev-wave-token-economy"}
 - {"allocations":{"D:compact-carry-format":"D169"},"authored":"2026-08-05","content_sha256":"b1aba49c09f03ffc45456555cb1565409997fa6bb8ed90cb25d9be0dff15d3e2","seq":2,"wave":"dev-wave-token-economy"}
 - {"allocations":{"F:acceptance-repo-write-race":"F115"},"authored":"2026-08-05","content_sha256":"d261bf5da153ffa00e5b5b1b22ba8c9695bf3b9b61fa7932f26bbabe50c6077d","seq":3,"wave":"dev-wave-token-economy"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"8da1fc40307b83aa14e1ff0603c2bd8d3a23d022104520f00afcf07571d1a246","seq":1,"wave":"rulings-20260805-i"}
