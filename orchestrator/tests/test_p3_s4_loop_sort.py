@@ -29,7 +29,7 @@ from campaign.layout import CampaignLayout                          # noqa: E402
 from campaign.model import Genome                                   # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
-from critic.digest import load_diff_rejections                      # noqa: E402
+from critic.digest import IdentityProjection, load_diff_rejections  # noqa: E402
 
 # 実 transaction.cc の EVOLVE-BLOCK 骨格 (sort marker) を写した fixture。silo-sort-variant.patch
 # と同型 (hole = #if 枝全体、実テンプレ原文の `// coder 編集面` も回帰保存)。
@@ -212,6 +212,7 @@ def test_render_rejections_uses_auditor_hint_for_auditor_subtypes():
     out = render_rejections(
         [], [], {}, None,
         diff_rejections=load_diff_rejections(_critic_view(lay)),
+        identity_projection=IdentityProjection.RAW,
     )
     assert "auditor" in out
     assert "フレーム/hole 逸脱" not in out.split("auditor-violation")[-1][:400]

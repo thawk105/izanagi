@@ -9,6 +9,7 @@ import atexit
 import hashlib
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -38,15 +39,24 @@ from campaign.source_digest import (                              # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
-from critic.digest import (STOCK_SRC_TOKEN, LivenessRejection,    # noqa: E402
+from critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection,  # noqa: E402
+                           IdentityProjection, LivenessRejection,
+                           Rejection, VerifyAbortSignal,
                            build_digest, load_diff_rejections,
                            load_liveness_rejections, load_rejections,
                            load_screen_rejections, load_verify_abort_signals,
                            load_workload,
-                           render_rejections, render_text)
+                           render_rejections as _render_rejections,
+                           render_text)
 
 
 _ADMISSION_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+
+
+def render_rejections(*args, **kwargs):
+    """既存 renderer 期待値は明示 raw 診断として維持する。"""
+    kwargs["identity_projection"] = IdentityProjection.RAW
+    return _render_rejections(*args, **kwargs)
 
 
 def _tmp_layout():
@@ -622,6 +632,203 @@ def test_stock_token_matches_source_digest():
     """STOCK_SRC_TOKEN のローカル定数が source_digest.STOCK から drift しない。"""
     from campaign import source_digest
     assert STOCK_SRC_TOKEN == source_digest.STOCK
+
+
+class _OneChannelProjection(IdentityProjection):
+    """1 test node で 1 identity channel だけを発火させる sentinel。"""
+
+    def __init__(self, channel: str, raw: str, projected: str):
+        self.channel = channel
+        self.raw = raw
+        self.projected = projected
+
+    def _project(self, channel: str, value):
+        if value is None or value == "":
+            return value
+        assert channel == self.channel
+        assert value == self.raw
+        return self.projected
+
+    def project_variant(self, value):
+        return self._project("variant", value)
+
+    def project_src_token(self, variant, value):
+        return self._project("src_token", value)
+
+    def project_build_attempt_id(self, variant, value):
+        return self._project("build_attempt_id", value)
+
+    def project_build_admission_receipt_sha256(self, variant, value):
+        return self._project("build_admission_receipt_sha256", value)
+
+
+def _assert_one_projection_channel(out: str, raw: str, projected: str) -> None:
+    assert projected in out
+    assert raw not in out
+
+
+def test_projection_m2_verify_red_variant_channel():
+    raw, projected = "M2-raw-verify-variant", "M2-projected-verify-variant"
+    out = _render_rejections(
+        [Rejection(genome="g", flags={}, verdict="indeterminate", variant=raw)],
+        [], identity_projection=_OneChannelProjection("variant", raw, projected),
+    )
+    _assert_one_projection_channel(out, raw, projected)
+
+
+def test_projection_m3_verify_red_src_token_channel():
+    raw, projected = "M3-raw-verify-src", "M3-projected-verify-src"
+    out = _render_rejections(
+        [Rejection(genome="g", flags={}, verdict="indeterminate", src_token=raw)],
+        [], identity_projection=_OneChannelProjection("src_token", raw, projected),
+    )
+    _assert_one_projection_channel(out, raw, projected)
+
+
+def test_projection_m4_liveness_variant_channel():
+    raw, projected = "M4-raw-live-variant", "M4-projected-live-variant"
+    out = _render_rejections(
+        [], [LivenessRejection(genome="g", flags={}, reason="trace-empty", variant=raw)],
+        identity_projection=_OneChannelProjection("variant", raw, projected),
+    )
+    _assert_one_projection_channel(out, raw, projected)
+
+
+def test_projection_m5_liveness_src_token_channel():
+    raw, projected = "M5-raw-live-src", "M5-projected-live-src"
+    out = _render_rejections(
+        [], [LivenessRejection(genome="g", flags={}, reason="trace-empty", src_token=raw)],
+        identity_projection=_OneChannelProjection("src_token", raw, projected),
+    )
+    _assert_one_projection_channel(out, raw, projected)
+
+
+def test_projection_m6_liveness_build_attempt_channel():
+    raw, projected = "M6-raw-attempt", "M6-projected-attempt"
+    out = _render_rejections(
+        [], [LivenessRejection(
+            genome="g", flags={}, reason="trace-empty",
+            extra={"build_attempt_id": raw},
+        )],
+        identity_projection=_OneChannelProjection("build_attempt_id", raw, projected),
+    )
+    _assert_one_projection_channel(out, raw, projected)
+
+
+def test_projection_m7_liveness_build_admission_channel():
+    raw, projected = "M7-raw-admission", "M7-projected-admission"
+    out = _render_rejections(
+        [], [LivenessRejection(
+            genome="g", flags={}, reason="trace-empty",
+            extra={"build_admission_receipt_sha256": raw},
+        )],
+        identity_projection=_OneChannelProjection(
+            "build_admission_receipt_sha256", raw, projected,
+        ),
+    )
+    _assert_one_projection_channel(out, raw, projected)
+
+
+def test_projection_m8_diff_quarantine_variant_channel():
+    raw, projected = "M8-raw-diff-variant", "M8-projected-diff-variant"
+    out = _render_rejections(
+        [], [], diff_rejections=[DiffQuarantineRejection(
+            genome="g", flags={}, subtype="fixture", reason="fixture", variant=raw,
+        )], identity_projection=_OneChannelProjection("variant", raw, projected),
+    )
+    _assert_one_projection_channel(out, raw, projected)
+
+
+def test_projection_m9_diff_quarantine_src_token_channel():
+    raw, projected = "M9-raw-diff-src", "M9-projected-diff-src"
+    out = _render_rejections(
+        [], [], diff_rejections=[DiffQuarantineRejection(
+            genome="g", flags={}, subtype="fixture", reason="fixture", src_token=raw,
+        )], identity_projection=_OneChannelProjection("src_token", raw, projected),
+    )
+    _assert_one_projection_channel(out, raw, projected)
+
+
+def test_projection_m10_verify_abort_variant_channel():
+    raw, projected = "M10-raw-abort-variant", "M10-projected-abort-variant"
+    out = _render_rejections(
+        [], [], abort_signals=[VerifyAbortSignal(
+            variant=raw, genome="g", commits=1, aborts=1, is_stock=False,
+        )], identity_projection=_OneChannelProjection("variant", raw, projected),
+    )
+    _assert_one_projection_channel(out, raw, projected)
+
+
+def test_projected_candidate_label_is_never_rendered_as_variant_field():
+    raw = "raw-candidate"
+    projected = "candidate-0001"
+    projection = _OneChannelProjection("variant", raw, projected)
+    out = _render_rejections(
+        [Rejection(genome="g", flags={}, verdict="indeterminate", variant=raw)],
+        [LivenessRejection(
+            genome="g", flags={}, reason="trace-empty", variant=raw,
+        )],
+        diff_rejections=[DiffQuarantineRejection(
+            genome="g", flags={}, subtype="fixture", reason="fixture", variant=raw,
+        )],
+        abort_signals=[VerifyAbortSignal(
+            variant=raw, genome="g", commits=1, aborts=1, is_stock=False,
+        )],
+        identity_projection=projection,
+    )
+    assert out.count(f"candidate_label={projected}") == 4
+    assert f"variant={projected}" not in out
+
+
+def test_synthetic_rejection_heading_has_closed_origin_not_workload_provenance():
+    out = _render_rejections(
+        [Rejection(
+            genome="g", flags={}, verdict="indeterminate",
+            origin_kind="synthetic-fixture",
+        )],
+        [],
+        identity_projection=IdentityProjection.RAW,
+    )
+    assert "origin_kind=synthetic-fixture" in out
+    assert "workload:" not in out
+    with pytest.raises(ValueError, match="origin_kind"):
+        _render_rejections(
+            [Rejection(
+                genome="g", flags={}, verdict="indeterminate",
+                origin_kind="unknown",
+            )],
+            [],
+            identity_projection=IdentityProjection.RAW,
+        )
+
+
+def test_critic_digest_direct_cli_uses_canonical_projection_type():
+    layout = _tmp_layout()
+    attempt = _start_attempt(layout, _G.format(b=1, l=1, t=0, w=0))
+    _attempt_event(
+        layout, attempt, STAGE_ABORT, {"reason": "direct-cli-fixture"},
+    )
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(Path(_ORCH) / "critic" / "digest.py"),
+            "--campaign-dir",
+            layout.root,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "# rejections" in completed.stdout
+    assert "Traceback" not in completed.stderr
+
+
+def test_render_rejections_requires_identity_projection():
+    with pytest.raises(TypeError, match="identity_projection"):
+        _render_rejections([], [])
+    with pytest.raises(TypeError, match="IdentityProjection"):
+        _render_rejections([], [], identity_projection=None)
 
 
 def _run():

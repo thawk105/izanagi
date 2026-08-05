@@ -16,6 +16,7 @@ import time
 import weakref
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -24,11 +25,15 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from orchestrator.campaign import claude_transport
+from orchestrator.campaign import artifact_admission
+from orchestrator.campaign import model as campaign_model
 from orchestrator.campaign import p3_autonomous_workload_trial as A
 from orchestrator.campaign import s8b_prediction_runner as S
+from orchestrator.campaign import wal
 from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
 from orchestrator.campaign.s8b_prediction_runner import PredictionRunnerError
 from orchestrator.campaign.reflux_ir import RefluxIRError, emit_predicate
+from orchestrator.critic.digest import DiffQuarantineRejection
 from calibrator import runner as calibrator_runner
 from orchestrator.campaign import claude_projected_provider as P
 
@@ -92,6 +97,77 @@ def _fake_drive(
     }
 
 
+_RELATION_GENOME = A.loop_core.Genome(
+    "silo", dict(A.trigger._BASE),
+)
+
+
+def _write_admitted_rejection_digest(cfg, layout, coder) -> str:
+    """実 WAL と実 renderer で no-build reject の digest を作る。"""
+    layout = A.CampaignLayout(
+        str(Path(layout.root).parent / str(A.trigger.ident.campaign_id(cfg)))
+    )
+    ir = A.parse_wire(coder.wire)
+    implementation = emit_predicate(ir)
+    binding_api = A.loop_core.trigger_gate_binding
+    binding = binding_api.TriggerGateBinding(
+        mask=ir.mask,
+        predicate_sha256=binding_api.expected_predicate_sha256(ir.mask),
+        nonce=binding_api.new_nonce(),
+        source=None,
+    )
+    rejection = A.loop_core.DiffQuarantineResult(
+        passed=False,
+        reason="fixture rejection",
+        digest={
+            "rejection_type": "diff-quarantine",
+            "subtype": "fixture-reject",
+            "reason": "fixture rejection",
+            "diff_region": A.trigger.SOURCE_REL,
+            "template_diff_id": A.trigger.MARKER_ID,
+            "evidence": "fixture evidence",
+        },
+    )
+    variant = A.loop_core.record_diff_reject(
+        layout, _RELATION_GENOME, implementation, rejection,
+        trigger_gate_binding=binding,
+    )
+    starts = [
+        record
+        for record in wal.read_records(layout)
+        if record.stage == campaign_model.STAGE_BUILD_START
+    ]
+    provenance = {
+        "entries": {
+            str(index): {
+                "variant": record.variant,
+                "build_attempt_id": record.payload["build_attempt_id"],
+                wal.TRIGGER_BINDING_COMMITMENT_KEY: record.payload[
+                    wal.TRIGGER_BINDING_COMMITMENT_KEY
+                ],
+            }
+            for index, record in enumerate(starts, 1)
+        },
+    }
+    reports = Path(layout.root) / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / artifact_admission._TRIGGER_PROVENANCE_BASENAME).write_bytes(
+        A._canonical_json_bytes(provenance) + b"\n"
+    )
+    A.loop_core.wal.write_lock(layout, A.ident.canonical_preimage(cfg))
+    critic_view = A.require_admitted_campaign(layout.root)
+    raw_digest = A.loop_core.make_critic_digest(
+        critic_view,
+        tag=A.trigger.CRITIC_TAG,
+        reflux=(cfg.search_config.get("reflux") == "on"),
+        identity_projection=A.loop_core.IdentityProjection.RAW,
+    )
+    (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
+        raw_digest, encoding="utf-8",
+    )
+    return variant
+
+
 def _fake_drive_with_finite_metrics(
     cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
     cache_root="", proposal_path="", extra_sources=(),
@@ -110,12 +186,9 @@ def _fake_drive_with_finite_metrics(
         proposal_path=proposal_path,
         extra_sources=extra_sources,
     )
-    (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
-        "fixture admitted digest", encoding="utf-8",
-    )
     outcome.update({
         "outcome": "certified",
-        "variant": "fixture-finite-metrics",
+        "variant": None,
         "fitness_tps": 12345.0,
         "records": {
             "bench_done": {
@@ -147,14 +220,33 @@ class _RecordingFixture(A.FixtureRoleProvider):
     def __init__(self, role):
         super().__init__(role)
         self.payloads = []
+        self.payload_bytes = []
 
     def invoke(self, *, invocation_id, payload):
         self.payloads.append(dict(payload))
+        self.payload_bytes.append(A._canonical_json_bytes(payload))
         return super().invoke(invocation_id=invocation_id, payload=payload)
 
 
+class _WireRecordingFixture(_RecordingFixture):
+    def __init__(self, role, *, wire):
+        super().__init__(role)
+        self.wire = wire
+
+    def invoke(self, *, invocation_id, payload):
+        response = super().invoke(invocation_id=invocation_id, payload=payload)
+        if self.role != "coder":
+            return response
+        value = json.loads(response.raw_response)
+        value["proposal"]["wire"] = self.wire
+        return dataclasses.replace(
+            response,
+            raw_response=A._canonical_json_bytes(value).decode("utf-8"),
+        )
+
+
 def _actual_campaign_layout(
-    run_root: Path, *, trial_id: str,
+    run_root: Path, *, trial_id: str, generations: int = 1,
 ) -> A.CampaignLayout:
     flags = A.WORKLOADS["ycsb-a"]
     descriptor, descriptor_record = A._descriptor_for(flags)
@@ -164,7 +256,7 @@ def _actual_campaign_layout(
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
-        generations=1,
+        generations=generations,
         build_context=_no_build_context(),
     )
     return A.CampaignLayout(
@@ -611,13 +703,15 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         providers["critic"].payloads,
         strict=True,
     ):
-        assert planner_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
-        assert coder_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
-        assert critic_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
+        assert planner_payload["schema_version"] == "p3-autonomous-workload-trial/v3"
+        assert coder_payload["schema_version"] == "p3-autonomous-workload-trial/v3"
+        assert critic_payload["schema_version"] == "p3-autonomous-workload-trial/v3"
         critic_keys = json.dumps(critic_payload, sort_keys=True)
         assert "trigger_gate_binding" not in critic_keys
         assert '"mask"' not in critic_keys
         assert '"wire"' not in critic_keys
+        assert critic_payload["critic_digest"] is None
+        assert critic_payload["harness_result"]["candidate_label"] is None
 
         current_perf = planner_payload["current_perf"]
         leading_indicators = planner_payload["leading_indicators"]
@@ -799,6 +893,7 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
 
     planner_payload = providers["planner"].payloads[0]
     coder_payload = providers["coder"].payloads[0]
+    auditor_payload = providers["auditor"].payloads[0]
     critic_payload = providers["critic"].payloads[0]
     common_keys = {
         "schema_version",
@@ -823,10 +918,25 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
         "baseline",
         "whiteboard",
     }
+    assert set(auditor_payload) == common_keys | {
+        "working_diff",
+        "diff_digest",
+        "designated_source_context",
+        "correctness_digest",
+    }
     assert set(critic_payload) == common_keys | {
         "harness_result",
         "critic_digest",
     }
+    assert set(critic_payload["harness_result"]) == {
+        "outcome",
+        "candidate_label",
+        "verdict",
+        "metrics",
+        "stop_reason",
+    }
+    assert critic_payload["harness_result"]["candidate_label"] is None
+    assert critic_payload["critic_digest"] is None
 
     critic_metrics = critic_payload["harness_result"]["metrics"]
     assert critic_metrics == {
@@ -843,6 +953,354 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
         == cell["descriptor"]["contention"]["label"]
     )
     assert "metrics" not in generation_record
+
+
+def test_auditor_declassification_annotation_is_exact_and_pins_sunset(
+    tmp_path,
+) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="auditor-declassification-account",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "invoked",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    policy = {
+        "source_class": "candidate-wire",
+        "current_precondition": "raw-ir-equals-effective-ir/v1",
+        "sunset_trigger": "reflux-control-separates-raw-and-effective-ir/v1",
+        "successor": {
+            "working_diff_source": (
+                "independent-canonical-emitter-from-raw-ir/v1"
+            ),
+            "allowed_json_pointers": ["/working_diff"],
+            "forbidden_json_pointers": ["/diff_digest"],
+        },
+    }
+    assert A.AUDITOR_DIFF_DECLASSIFICATION_POLICY == policy
+    auditor_payload = providers["auditor"].payloads[0]
+    expected = [{
+        "policy_id": "t244-auditor-diff-declassification/v1",
+        "policy_sha256": hashlib.sha256(
+            A._canonical_json_bytes(policy)
+        ).hexdigest(),
+        "disclosures": [
+            {
+                "json_pointer": "/working_diff",
+                "transform": "identity",
+                "value_sha256": hashlib.sha256(
+                    A._canonical_json_bytes(auditor_payload["working_diff"])
+                ).hexdigest(),
+            },
+            {
+                "json_pointer": "/diff_digest",
+                "transform": "sha256-hex-of-/working_diff",
+                "value_sha256": hashlib.sha256(
+                    A._canonical_json_bytes(auditor_payload["diff_digest"])
+                ).hexdigest(),
+            },
+        ],
+    }]
+    events = report["cells"][0]["generations"][0]["roles"]
+    assert events["auditor"]["declassifications"] == expected
+    assert all(
+        events[role]["declassifications"] == []
+        for role in ("planner", "coder", "critic")
+    )
+    journal_events = [
+        json.loads(line)
+        for line in (tmp_path / "invoked" / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+        if json.loads(line).get("event") == "role-attempt"
+    ]
+    journal_auditor = next(
+        event for event in journal_events if event["role"] == "auditor"
+    )
+    assert journal_auditor["declassifications"] == expected
+
+    def reject_before_audit(coder, *, sub):
+        preview_result = _fake_preview(coder, sub=sub)
+        preview_result["passed"] = False
+        preview_result["reason"] = "fixture pre-audit rejection"
+        return preview_result
+
+    skipped_providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    skipped = A.run_trial(
+        trial_id="auditor-declassification-skip",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "skipped",
+        sub="/unused",
+        do_build=False,
+        providers=skipped_providers,
+        drive=_fake_drive,
+        preview=reject_before_audit,
+        allow_unregistered_exploratory=True,
+    )
+    skipped_event = skipped["cells"][0]["generations"][0]["roles"]["auditor"]
+    assert skipped_event["status"] == "skipped"
+    assert skipped_event["declassifications"] == []
+    assert skipped_providers["auditor"].payload_bytes == []
+
+
+_AUDITOR_D_POINTERS = frozenset({
+    "/working_diff",
+    "/diff_digest",
+})
+_CRITIC_D_SELECTORS = frozenset({
+    "/harness_result/outcome",
+    "/harness_result/verdict",
+    "/harness_result/metrics",
+    "/harness_result/stop_reason",
+    "critic_digest:rejection-class",
+    "critic_digest:rejection-count",
+})
+
+
+def _canonical_without_json_pointers(
+    payload_bytes: bytes, pointers: frozenset[str],
+) -> bytes:
+    value = json.loads(payload_bytes)
+    for pointer in sorted(pointers):
+        parent = value
+        parts = pointer.removeprefix("/").split("/")
+        for part in parts[:-1]:
+            parent = parent[part]
+        del parent[parts[-1]]
+    return A._canonical_json_bytes(value)
+
+
+def _critic_bytes_without_declared_d(payload_bytes: bytes) -> bytes:
+    """宣言 selector が指す field だけを declassify して canonicalize する。"""
+    value = json.loads(payload_bytes)
+    digest = value["critic_digest"]
+    assert isinstance(digest, str)
+    structure: dict[str, Any] = {
+        "outside_rejection_sections": [],
+        "rejection_count": 0,
+        "rejections": [],
+    }
+    current = None
+    for line in digest.splitlines():
+        if (
+            line.startswith("## [")
+            and "] candidate_label=" in line
+        ):
+            classification, identity = line.split("] candidate_label=", 1)
+            current = {
+                "class": classification.removeprefix("## ["),
+                "identity_and_context": identity,
+                "body": [],
+            }
+            structure["rejections"].append(current)
+        else:
+            target = (
+                structure["outside_rejection_sections"]
+                if current is None
+                else current["body"]
+            )
+            target.append(line)
+    structure["rejection_count"] = len(structure["rejections"])
+
+    for selector in sorted(_CRITIC_D_SELECTORS):
+        if selector.startswith("/harness_result/"):
+            del value["harness_result"][selector.rsplit("/", 1)[1]]
+        elif selector == "critic_digest:rejection-class":
+            for rejection in structure["rejections"]:
+                rejection.pop("class")
+        elif selector == "critic_digest:rejection-count":
+            structure.pop("rejection_count")
+        else:  # selector を足すだけで暗黙に行を消せないよう fail-closed にする。
+            raise AssertionError(f"未実装の critic D selector: {selector}")
+    value["critic_digest"] = structure
+    return A._canonical_json_bytes(value)
+
+
+def _critic_relation_equivalent(payloads: list[bytes]) -> bool:
+    return len({_critic_bytes_without_declared_d(raw) for raw in payloads}) == 1
+
+
+def test_critic_relation_oracle_detects_candidate_derived_evidence_leak() -> None:
+    """候補由来 evidence は D の外なので、比較を同値にしてはならない。"""
+    assert _CRITIC_D_SELECTORS == frozenset({
+        "/harness_result/outcome",
+        "/harness_result/verdict",
+        "/harness_result/metrics",
+        "/harness_result/stop_reason",
+        "critic_digest:rejection-class",
+        "critic_digest:rejection-count",
+    })
+    payloads = []
+    for raw_variant in ("diffq-candidate-a", "diffq-candidate-b"):
+        digest = A.loop_core.render_rejections(
+            [],
+            [],
+            diff_rejections=[DiffQuarantineRejection(
+                genome="g",
+                flags={},
+                subtype="fixture",
+                reason="fixture rejection",
+                diff_region="r",
+                template_diff_id="m",
+                evidence=f"raw_variant={raw_variant}",
+            )],
+            identity_projection=A.loop_core.IdentityProjection.RAW,
+        )
+        value = {
+            "harness_result": {
+                "outcome": "rejected",
+                "candidate_label": "candidate-0001",
+                "verdict": "auditor-pass",
+                "metrics": {},
+                "stop_reason": "continue",
+            },
+            "critic_digest": digest,
+        }
+        payloads.append(A._canonical_json_bytes(value))
+    assert not _critic_relation_equivalent(payloads)
+
+
+def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> None:
+    """32 wire の実 no-build reject を同じ公開入力で比較する。"""
+    # P は S の決定前に固定される descriptor/workload/generation/policy、
+    # planner 入出力、coder 入力、baseline metrics、empty whiteboard だけである。
+    # outcome/metrics/stop/rejection 観測は P に含めず、上の D selector で除外する。
+    sink_bytes = {role: [] for role in ("planner", "coder", "auditor", "critic")}
+    trusted_variants = []
+    secret_records = []
+
+    for value in range(32):
+        wire = f"{value:05b}"
+        providers = {
+            role: _WireRecordingFixture(role, wire=wire)
+            for role in ("planner", "coder", "auditor", "critic")
+        }
+
+        def preview(coder, *, sub):
+            predicate = emit_predicate(A.parse_wire(coder.wire))
+            working_diff = "fixture-working-diff\n" + predicate
+            return {
+                "passed": True,
+                "working_diff": working_diff,
+                "diff_digest": hashlib.sha256(
+                    working_diff.encode("utf-8")
+                ).hexdigest(),
+                "subtype": None,
+                "reason": "",
+                "forbidden_identifiers": [],
+            }
+
+        def drive(
+            cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+            cache_root="", proposal_path="", extra_sources=(),
+        ):
+            assert do_build is False
+            variant = _write_admitted_rejection_digest(cfg, layout, coder)
+            return {
+                "outcome": "rejected",
+                "variant": variant,
+                "verdict": "auditor-pass",
+                "stop_reason": "continue",
+                "iteration": 1,
+                "ran": True,
+                "trigger_gate_binding_commitment": hashlib.sha256(
+                    ("fixture-binding:" + coder.wire).encode("utf-8")
+                ).hexdigest(),
+                "critic_digest_generated": True,
+            }
+
+        report = A.run_trial(
+            trial_id="role-sink-relation",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=tmp_path / f"wire-{wire}",
+            sub="/unused",
+            do_build=False,
+            providers=providers,
+            drive=drive,
+            preview=preview,
+            allow_unregistered_exploratory=True,
+        )
+        for role in sink_bytes:
+            assert len(providers[role].payload_bytes) == 1
+            sink_bytes[role].append(providers[role].payload_bytes[0])
+
+        generation = report["cells"][0]["generations"][0]
+        raw_variant = generation["harness"]["variant"]
+        predicate = emit_predicate(A.parse_wire(wire))
+        working_diff = "fixture-working-diff\n" + predicate
+        expected_variant = A.loop_core.diffq_variant_id(
+            _RELATION_GENOME, predicate,
+        )
+        assert raw_variant == expected_variant
+        assert raw_variant != providers["critic"].payloads[0][
+            "harness_result"
+        ]["candidate_label"]
+        campaign_layout = A.CampaignLayout(report["cells"][0]["campaign_root"])
+        build_starts = [
+            record
+            for record in wal.read_records(campaign_layout)
+            if record.stage == campaign_model.STAGE_BUILD_START
+        ]
+        assert len(build_starts) == 1
+        raw_build_attempt_id = build_starts[0].payload["build_attempt_id"]
+        assert raw_build_attempt_id.encode("ascii") not in (
+            providers["critic"].payload_bytes[0]
+        )
+        trusted_variants.append(raw_variant)
+        secret_records.append({
+            "wire": wire,
+            "canonical_predicate": predicate,
+            "working_diff": working_diff,
+            "diff_digest": hashlib.sha256(
+                working_diff.encode("utf-8")
+            ).hexdigest(),
+            "src_token": hashlib.sha256(
+                predicate.encode("utf-8")
+            ).hexdigest(),
+            "variant": raw_variant,
+            "build_attempt_id": raw_build_attempt_id,
+            "trigger_gate_binding_commitment": generation["harness"][
+                "trigger_gate_binding_commitment"
+            ],
+        })
+
+    assert len(set(sink_bytes["planner"])) == 1
+    assert len(set(sink_bytes["coder"])) == 1
+    assert len(set(sink_bytes["auditor"])) == 32
+    assert len({
+        _canonical_without_json_pointers(raw, _AUDITOR_D_POINTERS)
+        for raw in sink_bytes["auditor"]
+    }) == 1
+    assert _critic_relation_equivalent(sink_bytes["critic"])
+    assert len(set(trusted_variants)) == 32
+    for secret_field in (
+        "wire",
+        "canonical_predicate",
+        "working_diff",
+        "diff_digest",
+        "src_token",
+        "variant",
+        "build_attempt_id",
+        "trigger_gate_binding_commitment",
+    ):
+        assert len({record[secret_field] for record in secret_records}) == 32
 
 
 class _InvalidPlanner:
@@ -1180,7 +1638,11 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
     run_root = tmp_path / "run"
     for child in (run_root, run_root / "raw", run_root / "proposals"):
         child.mkdir(exist_ok=True)
-    campaign = A.CampaignLayout(str(tmp_path / "campaign"))
+    campaign = _actual_campaign_layout(
+        tmp_path,
+        trial_id="other-build-positive",
+        generations=2,
+    )
     monkeypatch.setattr(
         A, "exploration_campaign_layout", lambda _campaign_id: campaign,
     )
@@ -1192,13 +1654,11 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
         assert args[7] is True
         assert "site" not in kwargs
         Path(layout.root).mkdir(parents=True, exist_ok=True)
-        (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
-            "fixture digest", encoding="utf-8",
-        )
         return {
             "outcome": "certified", "variant": "fixture-variant",
             "fitness_tps": 1.0, "stop_reason": "continue",
             "iteration": 1, "ran": True,
+            "critic_digest_generated": False,
             "trigger_gate_binding_commitment": "b" * 64,
         }
 
@@ -1465,15 +1925,13 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
         assert build_context._authority_nonce is not None
         passed_layouts.append(layout)
         Path(layout.root).mkdir(parents=True, exist_ok=True)
-        (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
-            "fixture digest without performance", encoding="utf-8",
-        )
         return {
             "outcome": "dry-pass",
             "variant": None,
             "stop_reason": "continue",
             "iteration": 1,
             "ran": True,
+            "critic_digest_generated": False,
             "trigger_gate_binding_commitment": "b" * 64,
         }
 
@@ -1609,6 +2067,67 @@ def test_supervisor_error_still_writes_partial_terminal_report(tmp_path) -> None
         "supervisor-error",
         "run-finish",
     ]
+
+
+def test_unknown_custom_drive_identity_uses_fixed_sentinel_and_stays_complete(
+    tmp_path,
+) -> None:
+    """exploratory drive の非 WAL ID は raw でなく固定 label へ射影する。"""
+    def unknown_drive(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(),
+    ):
+        assert do_build is False
+        layout.ensure()
+        return {
+            "outcome": "certified",
+            "variant": "custom-without-build-start",
+            "fitness_tps": 1.0,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
+            "critic_digest_generated": False,
+        }
+
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="unknown-custom-drive-identity",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=unknown_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "complete"
+    assert "fatal_error" not in report
+    assert len(providers["critic"].payloads) == 1
+    critic_payload = providers["critic"].payloads[0]
+    assert critic_payload["harness_result"]["candidate_label"] == (
+        A.loop_core.UNREGISTERED_CANDIDATE_LABEL
+    )
+    assert "custom-without-build-start" not in json.dumps(
+        critic_payload, sort_keys=True,
+    )
+    events = [
+        json.loads(line)
+        for line in (tmp_path / "run" / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert any(
+        event.get("event") == "role-attempt" and event.get("role") == "critic"
+        for event in events
+    )
+    assert events[-1]["event"] == "run-finish"
 
 
 @pytest.mark.parametrize("outcome", ["success", "supervisor-error"])

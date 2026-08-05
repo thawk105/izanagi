@@ -48,6 +48,7 @@ from campaign.model import CampaignConfig, Genome                  # noqa: E402
 from campaign.p2_2 import _assert_single_tenant                    # noqa: E402
 from campaign.patchharness import applied, assert_pinned_clean     # noqa: E402
 from campaign.pipeline import PerfConfig                           # noqa: E402
+from campaign.p3_s4_loop import make_critic_identity_projection    # noqa: E402
 from critic.digest import (Rejection, load_liveness_rejections,    # noqa: E402
                            load_rejections, load_verify_abort_signals,
                            render_rejections)
@@ -114,7 +115,7 @@ def _fixture_run_trace(binary, trace_dir, flags, clocks_per_us, timeout_s=None,
 
 def _synthetic_integrity_rejection() -> Rejection:
     """integrity 型 (indeterminate) の合成 fixture (J8-B と同形)。実 run 由来ではない
-    ことを variant/src_token のラベルで明示する (critic への入力でも出所を偽らない)。"""
+    ことは閉じた origin_kind で heading に明示する。"""
     return Rejection(
         genome="silo|BACK_OFF=1,BACKOFF_FIXED=999,NO_WAIT_LOCKING_IN_VALIDATION=1,"
                "NO_WAIT_OF_TICTOC=0,WAL=0",
@@ -124,8 +125,8 @@ def _synthetic_integrity_rejection() -> Rejection:
                    "write_version_mismatch": 0, "malformed_keys": 0,
                    "notes": ["missing txids sample: [7, 8, 9]"]},
         stats={"txns": 97, "reads": 280, "writes": 95, "keys": 50, "edges": 110},
-        total_cycles=0,
-        variant="fixture-synthetic-integrity", src_token="fixture")
+        total_cycles=0, variant="", src_token="", workload={},
+        origin_kind="synthetic-fixture")
 
 
 def main(argv=None) -> int:
@@ -198,7 +199,9 @@ def main(argv=None) -> int:
     # --- digest 書き出し (critic の読みに渡す。integrity 型は合成 fixture を併記) ---
     digest_txt = render_rejections(
         rejs + [_synthetic_integrity_rejection()], livs, other,
-        load_verify_abort_signals(critic_view))
+        load_verify_abort_signals(critic_view),
+        identity_projection=make_critic_identity_projection(critic_view),
+    )
     out_path = os.path.join(layout.root, "s4_rejections_digest.txt")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(digest_txt)

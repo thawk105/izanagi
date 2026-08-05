@@ -128,6 +128,7 @@ else:
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
 from campaign import ident  # noqa: E402
+from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     BuildAdmissionError,
     BuildRunContext,
@@ -139,7 +140,7 @@ from campaign.build_admission import (  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_VERSION = "p3-autonomous-workload-trial/v2"
+SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
 REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v2"
 MAX_GENERATIONS = 10
 MAX_APPROVED_GENERATIONS = 1
@@ -169,6 +170,24 @@ _TRANSPORT_RECEIPT_KEYS = {
     "forwarded_tls_trust_override_keys",
     "pbs_jobid",
 }
+
+# Producer が journal へ添える自己申告 annotation。artifact acceptance gate ではない。
+AUDITOR_DIFF_DECLASSIFICATION_POLICY_ID = (
+    "t244-auditor-diff-declassification/v1"
+)
+AUDITOR_DIFF_DECLASSIFICATION_POLICY = {
+    "source_class": "candidate-wire",
+    "current_precondition": "raw-ir-equals-effective-ir/v1",
+    "sunset_trigger": "reflux-control-separates-raw-and-effective-ir/v1",
+    "successor": {
+        "working_diff_source": "independent-canonical-emitter-from-raw-ir/v1",
+        "allowed_json_pointers": ["/working_diff"],
+        "forbidden_json_pointers": ["/diff_digest"],
+    },
+}
+AUDITOR_DIFF_DECLASSIFICATION_POLICY_SHA256 = _sha256(
+    _canonical_json_bytes(AUDITOR_DIFF_DECLASSIFICATION_POLICY)
+)
 
 WORKLOADS: dict[str, dict[str, str]] = {
     "ycsb-a": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
@@ -920,6 +939,28 @@ def _invoke(
     transport_receipt: Mapping[str, Any] | None = None,
 ) -> tuple[Any | None, dict[str, Any]]:
     input_sha256 = _sha256(_canonical_json_bytes(payload))
+    declassifications: list[dict[str, Any]] = []
+    if role == "auditor":
+        declassifications.append({
+            "policy_id": AUDITOR_DIFF_DECLASSIFICATION_POLICY_ID,
+            "policy_sha256": AUDITOR_DIFF_DECLASSIFICATION_POLICY_SHA256,
+            "disclosures": [
+                {
+                    "json_pointer": "/working_diff",
+                    "transform": "identity",
+                    "value_sha256": _sha256(
+                        _canonical_json_bytes(payload["working_diff"])
+                    ),
+                },
+                {
+                    "json_pointer": "/diff_digest",
+                    "transform": "sha256-hex-of-/working_diff",
+                    "value_sha256": _sha256(
+                        _canonical_json_bytes(payload["diff_digest"])
+                    ),
+                },
+            ],
+        })
     base = {
         "event": "role-attempt",
         "workload": workload,
@@ -930,6 +971,7 @@ def _invoke(
         "descriptor_sha256": payload["descriptor_binding"]["output_sha256"],
         "attempt": 1,
         "retry": False,
+        "declassifications": declassifications,
     }
     try:
         response = provider.invoke(invocation_id=invocation_id, payload=payload)
@@ -1006,6 +1048,7 @@ def _journal_auditor_skip(
         "descriptor_sha256": common["descriptor_binding"]["output_sha256"],
         "attempt": 1,
         "retry": False,
+        "declassifications": [],
         "status": "skipped",
         "skip_reason": "machine-pre-audit-rejection",
         "pre_audit": evidence,
@@ -1698,12 +1741,37 @@ def _run_workload(
         current_metrics = _metric_projection(outcome)
 
         digest_path = Path(layout.root) / trigger.DIGEST_BASENAME
-        digest = digest_path.read_text(encoding="utf-8") if digest_path.exists() else ""
+        digest = None
+        raw_variant = outcome.get("variant")
+        if raw_variant is not None and type(raw_variant) is not str:
+            raise TypeError("harness output の variant は str/None が必要")
+        candidate_label = raw_variant
+        if digest_path.exists():
+            # ``layout`` can originate from the package or direct-script import
+            # surface.  Admission owns the canonical layout type, so cross that
+            # nominal boundary with the stable root value.
+            critic_view = require_admitted_campaign(layout.root)
+            identity_projection = loop_core.make_critic_identity_projection(
+                critic_view
+            )
+            candidate_label = identity_projection.project_variant(raw_variant)
+            digest = loop_core.make_critic_digest(
+                critic_view,
+                tag=trigger.CRITIC_TAG,
+                reflux=(cfg.search_config.get("reflux") == "on"),
+                identity_projection=identity_projection,
+            )
+        elif raw_variant:
+            # Exploratory/custom drives have always been accepted without a
+            # critic digest or admitted WAL.  Preserve that public acceptance
+            # surface while ensuring the candidate-dependent raw ID never
+            # reaches the critic recipient.
+            candidate_label = loop_core.UNREGISTERED_CANDIDATE_LABEL
         critic_payload = {
             **common,
             "harness_result": {
                 "outcome": outcome.get("outcome"),
-                "variant": outcome.get("variant"),
+                "candidate_label": candidate_label,
                 "verdict": outcome.get("verdict"),
                 "metrics": dict(current_metrics),
                 "stop_reason": outcome.get("stop_reason"),
