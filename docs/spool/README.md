@@ -69,8 +69,15 @@ wave 中:
 ```bash
 # fragment を書いたら形式を検査してから commit する
 python3 tools/check_docs.py
+# check_docs は base digest の不一致を検出しない (実測)。dry-run で確かめる。
+# --dry-run は計画 JSON を出すだけで台帳を変えない = fold ではない。
+python3 tools/spool_fold.py --dry-run
 git add -- docs/spool
 ```
+
+`base:` が古いまま land すると、fold は land の協調 lock の**中で**赤になる。そこで止まると
+`landed` を返せず、同じ wave 内へ巻き戻さず fresh context で再開することになる。
+`--dry-run` はその赤を手前で出すためにある。
 
 **wave 側で fold してはならない。** fold は `tools/dev_wave_land.py` が local main へ ff-only した
 直後、同じ協調 lock を保持したまま実行する。これにより採番・追記・ローテーションが直列化され、
@@ -84,7 +91,9 @@ fold が行うこと:
 3. canonical 3 台帳へ**追記**する。既存 bytes を書き換えるのは、既存 F エントリへの `## 再発` 挿入と、
    見送り台帳の既存項目への 1 行追記 (`見送り追記`) だけで、いずれも挿入であって削除・並べ替えをしない
 4. worklog の `### 次の一手` を「前エントリの順序を保存し、carry は
-   `変わらず ((直前エントリ番号) 参照)`、新規は末尾追加」で全文再生成する
+   `- [T-NNN] (参照先エントリ番号)`、新規は末尾追加」で全文再生成する。
+   **描画済み worklog の読み方と carry 書式の正本は `docs/worklog.md` 冒頭**であり、
+   本書は fragment 文法と fold producer 契約だけを持つ
 5. `docs/worklog.md` が閾値を超えるなら過去エントリを `docs/archive/` へ移し、
    `docs/archive/README.md` の索引を更新する
 6. fragment を削除 (GC) し、`FOLDED.md` へ receipt を追記する

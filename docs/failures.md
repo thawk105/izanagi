@@ -327,6 +327,16 @@
   切り詰めたプランを採用していた。**F24 の恒久対応 (`.done` の存在 + exit code だけで判定) が
   そのまま効き、実害はゼロ**であった。本追記は恒久対応の射程が log 本文 grep だけでなく
   **`-o` ファイルの存在・サイズ・末尾形にも及ぶ**ことを明示するためのものである
+
+- **再発: 2026-08-05** — 別機序で再発した。段 6 焦点再レビューで、codex の出力 `.md`
+  (13,253 bytes、末尾に結論あり) は書かれたのに完了マーカー `.done` が作られなかった。
+  ジョブ中断により detached wrapper が `echo $? > .done` に到達せず落ちたためである。
+  成果物だけを見ると完成しており、途中書きと区別できない。`DW-O01` の「完了は `.done` と
+  exit code だけで判定する。ログの grep も完了通知も判定にしてはならない」が防壁として働き、
+  採用せず再走した (孤児成果物は `s6-refocus-orphan.md` として保存)。
+  同日さらに、変異 harness の完了を待つ背景タスクが `.done` 生成前に「完了」通知を返し、
+  成果物を直接確認して実行中と判明した事例もある。**恒久対応は既存の `DW-O01` で足りる**
+  — 完了判定を `.done` + exit code に限る規律を、通知が先行した場合にも例外なく適用する。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -390,6 +400,25 @@
 - 再発検知: スキル末尾の事後検査 (`git submodule status` が `-` prefix なしで pin 一致)。worktree
   掃除をスキル外で即興したらレビューで差し戻す
 
+
+- **再発: 2026-08-05** ([T-472] wave の land 後の worktree 撤去)。2026-08-01 の再発と**同一経路**
+  である。`git worktree remove` が `working trees containing submodules cannot be moved or removed`
+  で拒否した時点で、本エントリが定める判別 (「そこで手を止めて `/cleanup-branches` を読む」) を
+  実行せず、即興で `git -C <worktree> submodule deinit -f external/ccbench` を打った。
+  結果も同じで、共有 `.git/config` の `submodule.*` 登録が消え main checkout の
+  `git submodule status` が `-` prefix になった。復元は `git submodule update --init external/ccbench`
+  で即時、pin `d706650` 一致と並行 4 worktree (t452-t453 / t474 / t476 / token-economy) の
+  無影響を確認済み。実害は一時的。
+- **前回の再発が診断した経路欠落が塞がれていなかった。** 2026-08-01 の追記は
+  「dev-wave の段 9 は自分の worktree を畳むよう求めるが、その手順の正本が
+  `/cleanup-branches` §3 にあることを指していない」と特定していたが、`DW-S09` への
+  ポインタ追記は未実施のままだった。今回その追記を試みたところ
+  `docs/dev-wave/**` が hard ceiling 25200 bytes に対し 25377 bytes となり、
+  予算超過で入らなかった (上限は上げない規律のため撤回)。**恒久対応の経路は依然未実装**であり、
+  裁定へ返した。
+- 補足: memory `bg-job-closes-its-own-worktree` は deinit 禁止を本文に持っていたが、
+  索引 1 行だけを見て動いたため到達しなかった。索引行に禁止を明記する形へ更新済み
+  (repo 外の個人 memory)。
 ### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
 - 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
   `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
@@ -1974,6 +2003,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同 `mutation-ledger-v9-erratum.json` (補正後、KILLED)
 - 近縁: F60 (期待 node が対象 gate を実行していない)、F33 (期待 node と記録 node の形式不一致)
 
+
+- **再発: 2026-08-05** — dev-wave token-economy の変異本走で、9 変異中 5 件 (M01〜M05) と
+  再照準した M07b が `MISMATCH` になった。いずれも **期待 node はすべて赤で、加えて更に多くの
+  node も赤** (actual ⊋ expected) であり、親が期待 node を新設テストだけから導いて過少列挙した。
+  検出力は登録より強い方向であり偽 SURVIVED ではない。`_match_key` の完全一致契約
+  (`KILLED` は `failed_keys == expected_keys`) がこれを MISMATCH として顕在化させた。
+  逐語は `output/insights/2026-08-05_token-economy-compact-carry/mutation-ledger.json`。
 ### F88. 計算ノードの既定 `python3` が oneAPI 版で orchestrator を import できない [環境前提] [手順漏れ]
 
 - 事象: 新規 probe を計算ノードへ投入したところ (request `881946`)、`qualification.submission` の
@@ -2450,3 +2486,83 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 「read-only の子が確認できない実環境の可読性・常駐プロセスは、実機の安価な 1 発で
   親が先に測る」を段 1 の前提実測へ入れる。本 wave の段 1 はログインノードしか測っておらず、
   計算ノード側は job を投げるまで未知のままだった。
+
+### F112. fix prompt の「既存テスト」が同 wave の未 land テストを含んで読め、fix 1 巡が編集ゼロで空振りした [手順漏れ] [コンテキスト浪費]
+
+- 事象: [T-471] 段 6 の fix 子が、指示された 14 所見のうち 1 件も編集せずに停止した。
+  停止理由は「凍結契約が要求する 5 arm を実装すると、既存テストの 4 arm 期待値が必ず赤になる。
+  『既存テストの期待値を変更しない』『期待値が誤りなら実装を変えず報告して止める』に従う」。
+  当該テストは同じ wave の段 5 が生成した untracked ファイルであった。
+- 根本原因: 親の fix prompt が `DW-S06-B` の定型「既存テストの期待値を変更しない」をそのまま
+  引き写し、**tracked な land 済みテストと、同 wave が段 5 で作った未 land のテストを
+  区別しなかった**。後者は fix の編集対象そのものだが、prompt からは読み取れなかった。
+  実装子の挙動自体は正しい fail-closed であり、欠陥は指示側にある。
+- 恒久対応: memory `fix-prompt-scope-tracked-tests` — fix prompt では「既存」を tracked に限定し、
+  同 wave の未 land テストは編集対象だと併記する。混在時は権威順序も書く。
+  **同じ規則を `DW-S06-B` 本文へ入れる案は dev-wave docs の hard ceiling (25200 bytes) に
+  収まらず、予算を上げないため裁定へ返した** (段 8 の予算契約どおり縮約でも収まらなかった)。
+- 再発検知: 段 6 の fix 子が編集ゼロで停止したら、まず prompt の権限境界文を疑う。
+  対応表が全件 `partial` かつ「実装した内容: 編集は行っていません」なら本型である。
+
+### F113. 変異事前登録に「赤くはなるが受理集合は変わらない」偽 kill を登録しかけた [恒真ゲート]
+
+- 事象: 段 4 で登録した共有層変異 (M5) の期待 node が
+  `test_p3_s4_loop.py::test_trigger_quarantine_rejects_noncanonical_text_before_structure_inspection`
+  だけだった。このテストは存在しない path を渡すため、membership を消すと後続の
+  ファイル読み込みが `FileNotFoundError` になって赤くなる。**node は赤くなるが、
+  非正準入力は依然 fail-closed のままで受理集合は変わっていない。**
+  同じ登録には他に 3 件の誤りがあった — 期待 node の不足 (2 件)、
+  「検査を省く」形の変異では正例テストが赤にならないこと (1 件)。
+- 根本原因: 親が事前登録を「gate を消せばそれを検査するテストが赤くなる」という
+  推論だけで書き、**赤の理由が受理集合の変化かどうかをテスト本体まで読んで確認しなかった**。
+  `DW-M01` が要求する「無効化時の赤理由が一つに絞れること」の確認を、
+  node 名の対応づけで代用していた。
+- 恒久対応: `DW-M01` / `DW-M03` の既存契約 (事前登録時に単一理由性をコードで確認する、
+  診断文字列だけの赤を kill にしない) を、段 6 の敵対レビュー 1 本のレンズへ明示的に入れる。
+  本 wave では段 6 レンズ B が走らせる前に 4 件すべてを検出し、是正後は
+  `tools/mutation_harness.py` の node 集合完全一致検査が 7/7 で通った。
+  是正しなければ harness は全て `MISMATCH` として fail-closed していた
+  (機械防壁は最終的に効くが、無駄な 1 巡を生む)。
+- 再発検知: `tools/mutation_harness.py` の期待 node 集合完全一致検査 (`MISMATCH` で停止)。
+  受理集合が変わらない変異は、事前登録の段階で診断感度 pin として別枠に分類する。
+
+### F114. 変異注入中の worktree で受入全走を投入し、mutant 入りの木を計測した [計測汚染]
+
+- 事象: 変異 harness が wave worktree へ mutant を注入して走らせている最中に、同じ worktree から
+  受入全走を dispatch した。全走は mutant 入りのテストを実行し、`1 failed / 5899 passed` を返した。
+  traceback に `mutant: drop the PROBE notification` が写っていたため気づいた。
+  この赤は成果物の欠陥ではなく計測の無効である。
+  同じ wave でもう 1 件、**全走の実行中に spool fragment を編集し `git add` した**ため
+  `test_check_docs.py::test_real_repo_clean` が中間状態を拾って赤くなり、`git add` が
+  real_repo 系テストの `index.lock` とも衝突した。受入全走は worktree に対して git 操作を行う。
+- 根本原因: 変異 harness の repo lock (`flock` 単一走行) は**他の harness だけ**を排除する。
+  素の `dispatch_compute` / `run_tests.py` は lock を取らないため、同じ worktree で
+  並行投入できてしまう。親の側にも「harness 走行中は本走を投入しない」という規律が無かった。
+  `DW-O19` は「本走は統合 commit 後に限る」までしか言っておらず、
+  変異注入中という別の禁止区間を持っていない。
+- 恒久対応: memory `no-acceptance-run-during-mutation` —
+  「**計測中の worktree は読むだけにする**。harness 走行中の worktree へ全走・部分走を投入せず、
+  全走の実行中は編集・stage・commit・merge をしない。投入前に `pgrep -f` を worktree path で
+  一意化して不在を確認し、harness / 全走の `.done` 後の走行だけを受入結果に数える。同時に進めたい
+  ときは片方を別 clone へ逃がす」。`docs/dev-wave/mutation.md` の `DW-M05` へ入れる案は、
+  同 directory の byte 予算が上限まで残り 4 bytes で入らず、**上限を上げない方針**に従って
+  memory へ置いた。`dispatch_compute` 側で harness 生存時に fail-closed で拒否する機械 gate は
+  防壁の新設にあたるため実装せず、裁定パッケージとしてユーザーへ返す。
+- 再発検知: 受入結果の traceback / stdout に `mutant:` を含む赤は計測汚染として扱い、
+  実装差分へ帰属させない。harness の `.done` が出た後の走行だけを受入結果に数える。
+
+### F115. 受入全走の最中に repo へ成果物を書き、実 output snapshot 検査を自分で赤にした [手順漏れ]
+
+- 事象: dev-wave token-economy の受入全走 (2026-08-05 12:45〜12:57、request 889879) が
+  **4 failed / 6,194 passed**。失敗はすべて `orchestrator/tests/test_s8b_floor_campaign.py` の
+  `assert repo_before == _real_output_snapshot()` である。差分が到達しえないファイルだったため
+  `DW-O18` に従い単独再走したところ **199 passed / 2 skipped / 0 failed** で再現しなかった。
+- 根本原因: **フレークではなく自分の書き込み。** 待ち時間を使って段 7 の逐語凍結を進め、
+  走行中の 12:46 に `output/insights/2026-08-05_token-economy-compact-carry/` を作成した。
+  これらのテストは実 repo の `output/` が campaign 実行前後で不変であることを検査するため、
+  親が同時に書けば必ず赤になる。当初「別 wave の全走との干渉」を疑ったが誤りだった。
+- 恒久対応: 受入全走の投入後は、完了まで repo 配下 (特に `output/`) へ書かない。
+  待ち時間の作業は repo 外の wave 成果物ディレクトリに限り、逐語凍結と fragment 作成は
+  全走の前か後に置く。記録 commit を先に済ませてツリーを固定してから全走を投入する。
+- 再発検知: 受入結果が `test_s8b_floor_campaign.py` の `_real_output_snapshot` 系だけで赤のとき、
+  実装差分でなく走行中の `output/` 書き込みをまず疑う。単独再走で緑なら本件型である。

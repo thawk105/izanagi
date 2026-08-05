@@ -1,0 +1,25 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 180,
+  "mutations": [
+    {
+      "id": "M07b",
+      "category": "negative",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        return substantive_digest(task_id, referenced, trail | {ordinal})\n",
+          "new": "        try:\n            return substantive_digest(task_id, referenced, trail | {ordinal})\n        except SpoolValidationError:\n            return _task_item_digest(item.block)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_missing_entry_rejects_before_stub_digest",
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_missing_task_rejects_before_stub_digest"
+      ],
+      "expected_status": "KILLED"
+    }
+  ]
+}

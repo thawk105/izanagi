@@ -1150,7 +1150,8 @@ def _extract_latest_active(worklog: str, archives: Mapping[str, str] | None = No
         return item_maps[ordinal]
     carry_re = re.compile(
         r"^- (?P<id>\[T-(?:0(?:0[1-9]|[1-9][0-9])|[1-9][0-9]{2,})\]) "
-        r"変わらず \(\((?P<ordinal>[1-9][0-9]*)\) 参照\)\n$"
+        r"(?:変わらず \(\((?P<legacy_ordinal>[1-9][0-9]*)\) 参照\)"
+        r"|\((?P<compact_ordinal>[1-9][0-9]*)\))\n"
     )
 
     def substantive_digest(task_id: str, ordinal: int, trail: frozenset[int]) -> str:
@@ -1162,7 +1163,21 @@ def _extract_latest_active(worklog: str, archives: Mapping[str, str] | None = No
         carry = carry_re.fullmatch(item.block)
         if carry is None:
             return _task_item_digest(item.block)
-        referenced = int(carry.group("ordinal"))
+        legacy_ordinal = carry.group("legacy_ordinal")
+        compact_ordinal = carry.group("compact_ordinal")
+        # 将来の regex 改変に対する構造 guard であり、現 regex では到達しない。
+        if (legacy_ordinal is None) == (compact_ordinal is None):
+            raise SpoolValidationError([
+                Issue(
+                    "docs/worklog.md",
+                    1,
+                    "carry-reference",
+                    f"{task_id} の carry 参照 ordinal を一意に抽出できない",
+                )
+            ])
+        referenced = int(
+            legacy_ordinal if legacy_ordinal is not None else compact_ordinal
+        )
         if referenced >= ordinal:
             raise SpoolValidationError([Issue("docs/worklog.md", 1, "carry-reference", f"{task_id} の carry 参照が過去 entry を指さない")])
         return substantive_digest(task_id, referenced, trail | {ordinal})
@@ -1336,7 +1351,7 @@ def _render_next_actions(
             if operation.base != expected_base:
                 raise SpoolValidationError([Issue("docs/spool/worklog", 1, "base-mismatch", f"{item.task_id} の base digest が現本文と不一致")])
         if operation is None or operation.kind == "carry":
-            block = f"- {item.task_id} 変わらず (({prior_ordinal}) 参照)\n"
+            block = f"- {item.task_id} ({prior_ordinal})\n"
             substantive = item.substantive_digest or _task_item_digest(item.block)
             rendered_items.append(_TaskItem(item.task_id, block, substantive))
         elif operation.kind == "更新":
@@ -1368,7 +1383,11 @@ def _render_next_actions(
         new_ids,
         rendered_items,
     )
-    section = "### 次の一手\n\n" + "".join(item.block for item in rendered_items)
+    section = (
+        "### 次の一手 — 「(番号)」だけの項は、その番号のエントリ "
+        "(archive 含む) から変わらない持ち越し\n\n"
+        + "".join(item.block for item in rendered_items)
+    )
     return section, rendered_items, completions, deferred
 
 
