@@ -268,3 +268,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:clean-gate-ignored-blindness":"[T-504]","T:dev-wave-budget-headroom":"[T-505]","T:mutation-restore-durability-impl":"[T-503]"},"authored":"2026-08-05","content_sha256":"a43058c98d6b8a91f65b7c577e004f0b8a13fedbe53c3f4559b465c2da0a3618","seq":1,"wave":"dev-wave-t487-design"}
 
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"7df174450d32364368ff133931e36d79fcad28ea157568d19933f30c20c3a190","seq":1,"wave":"dev-wave-t478-calibration-contract-generation"}
+
+- {"allocations":{"T:dev-wave-docs-budget-at-ceiling":"[T-508]","T:loader-self-pass-quarantine":"[T-506]","T:silo-driver-syspath-restore":"[T-509]","T:t126-attest-type-bug":"[T-507]"},"authored":"2026-08-05","content_sha256":"7d0dc5d59b67f6e39596431f59cf4f843e979d36eb6535508536ad12475d9f16","seq":1,"wave":"dev-wave-t452-t453-clock-authority"}
+- {"allocations":{"D:effective-clock-policy-authority":"D171"},"authored":"2026-08-05","content_sha256":"aeee656674d7ddda5d41546e59ce7a9f42361f19dd4fff959273a1ba7b705461","seq":2,"wave":"dev-wave-t452-t453-clock-authority"}
+- {"allocations":{"F:test-green-by-removing-production-gate":"F116"},"authored":"2026-08-05","content_sha256":"3231342cf0c8a35fa5d97463f193ec623347345c1ff81da6ed9a18fc0d063cf9","seq":3,"wave":"dev-wave-t452-t453-clock-authority"}
