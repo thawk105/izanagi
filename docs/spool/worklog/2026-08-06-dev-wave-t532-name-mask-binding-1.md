@@ -60,8 +60,9 @@ title: [T-532] known 軸凍結の trigger record へ name↔mask 束縛一致検
   (対象を name↔mask 束縛に限定する) の外側にあり、実装していない。
   逐語と根拠は `output/insights/2026-08-06_t532-name-mask-binding/`。
 - 受入全走は fix 前 6475 passed / 20 skipped、fix 後 6476 passed / 20 skipped、
-  local main 6b3182a6 を取り込んだ land 直前の tip で **6505 passed / 20 skipped**
-  (request 891994.nqsv)。いずれも Pegasus 計算ノードで実測した。
+  local main 6b3182a6 を取り込んだ tip で 6505 passed / 20 skipped (request 891994.nqsv)、
+  land 直前に local main 0f8c24a1 を取り込んだ最終 tip で **6506 passed / 20 skipped**
+  (request 892017.nqsv)。いずれも Pegasus 計算ノードで実測した。
 - **land 直前の 1 回目の全走で、差分が到達しえないテスト 1 本が赤くなった。** node は
   `test_codex_worker_launch.py::test_check_receipt_external_limit_detects_self_asserted_limit_tampering`
   で、本 wave の差分 (凍結文書の検査) からは到達経路がなく、当該 test file にも触った module への
