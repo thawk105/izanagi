@@ -214,3 +214,12 @@ def test_negative_fold_managed_paths_are_excluded_by_default(tmp_path: Path) -> 
             ["docs/archive/old-fragment.md", "docs/spool/worklog/fragment.md"],
         )
     ]
+
+
+def _run() -> int:
+    """pytest fixtures を含む全 node を素の runner からも実行する。"""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
