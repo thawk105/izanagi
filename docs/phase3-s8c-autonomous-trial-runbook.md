@@ -58,6 +58,17 @@ Codex role adapter はこの実走経路に使わない。`.codex/agents/README.
 既存 run root は受理しない。MVP は supervisor crash 後の in-place resume をまだ持たないため、
 再実行は新しい trial id で行い、旧 journal を上書きしない。
 
+**manifest を伴わない起動は既定で拒否される ([T-470] 配線 wave、U-4)。** §§3.1–3.3 はいずれも
+未登録の探索起動であり、`--allow-unregistered-exploratory` を明示しないと run root 作成前に
+`[u4-exploratory-opt-in]` で止まる。明示した起動は非認証であり、`launch_admission.certifying`
+が false のまま journal と report に記録され、正式選択の入力にはならない。
+
+**この opt-in は holdout 束縛 workload には使えない。** H1/H2 (`rr80` / `rr20`) に触れる起動は、
+opt-in を付けても `[u4-holdout-workload]` で無条件に拒否される。正式な holdout 起動には
+登録済み manifest、manifest の `prereg_commit` と一致する `effective_at(C)` capability、
+未消費の trial ID がすべて要る。現 repository は 12 述語の SATISFIED が 0 件なので、
+**正式 H1/H2 起動が通ることを期待してはならない。**
+
 ### 3.1 決定論 fixture、build なし
 
 ```bash
@@ -66,6 +77,7 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
   --provider fixture \
   --workloads ycsb-a,ycsb-b,ycsb-c \
   --max-generations 1 \
+  --allow-unregistered-exploratory \
   --no-build
 ```
 
@@ -79,6 +91,7 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
   --provider claude-headless \
   --workloads ycsb-a,ycsb-b,ycsb-c \
   --max-generations 1 \
+  --allow-unregistered-exploratory \
   --no-build
 ```
 
@@ -98,6 +111,7 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
   --provider claude-headless \
   --workloads ycsb-a,ycsb-b,ycsb-c \
   --max-generations 1 \
+  --allow-unregistered-exploratory \
   --max-wall-seconds 3600
 ```
 

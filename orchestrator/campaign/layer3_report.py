@@ -16,6 +16,10 @@ abort variant も commit-event-absent のため rejects に載り、詳細理由
 schema v1/v2 で生成済みの実レポートは、generator sha を内包する記録済み artifact
 であり、v3 への更新のために再生成しない。schema reader は v2 を引き続き受理するが、
 新規生成は admission decision receipt を必須にした v3 だけを発行する。
+新規 v3 は常に ``acceptance_receipt`` と ``certifying_input`` を持つ。通常の
+``build_report`` / ``render`` では前者が null、後者が false であり、受入前の材料
+report にすぎないことを機械可読に示す。既存 v3 reader では両 field の欠落を
+非認証入力として受理する。
 ``generated_from_head`` は provenance であり、決定論比較の対象外である（HEAD が動けば
 変わる）。
 """
@@ -43,7 +47,7 @@ STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "c
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
-from campaign import trigger_gate_binding, wal  # noqa: E402
+from campaign import s8c_acceptance_receipt, trigger_gate_binding, wal  # noqa: E402
 from campaign.artifact_admission import (  # noqa: E402
     ArtifactAdmissionError,
     require_admitted_campaign,
@@ -198,10 +202,37 @@ def _validate_schema(report: Mapping[str, Any]) -> None:
         schema["properties"]["schema_version"] = {"const": LEGACY_SCHEMA_VERSION}
         schema["required"].remove("admission_decision")
         schema["properties"].pop("admission_decision")
+    else:
+        # The shared schema artifact is outside this wiring unit's ownership.
+        # Extend its in-memory v3 contract at the reader boundary.
+        schema = json.loads(json.dumps(schema))
+        schema["properties"]["acceptance_receipt"] = {
+            "oneOf": [
+                {"type": "null"},
+                {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["path", "sha256"],
+                    "properties": {
+                        "path": {"type": "string", "minLength": 1},
+                        "sha256": {
+                            "type": "string", "pattern": "^[0-9a-f]{64}$",
+                        },
+                    },
+                },
+            ],
+        }
+        schema["properties"]["certifying_input"] = {"type": "boolean"}
     try:
         jsonschema.Draft7Validator(schema).validate(report)
     except jsonschema.ValidationError as exc:
         raise Layer3ReportError("layer3 schema 検証に失敗") from exc
+    certifying_input = report.get("certifying_input", False)
+    acceptance_receipt = report.get("acceptance_receipt")
+    if (certifying_input is True) != (acceptance_receipt is not None):
+        raise Layer3ReportError(
+            "certifying_input=true と acceptance_receipt 非 null は同値必須"
+        )
 
 
 def _variant_rows(records: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
@@ -466,11 +497,73 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         "whiteboard_provenance": whiteboard_provenance,
         "artifact_refs": _artifact_refs(campaign_dir), "source_refs": [],
         "admission_decision": admitted_campaign.decision.as_receipt(),
+        "acceptance_receipt": None,
+        "certifying_input": False,
         "mechanism_hypotheses": [],
     }
     report["source_refs"] = sorted(_report_primary_refs(report).elements())
     _validate_schema(report)
     _assert_bijection(records, whiteboard, report)
+    return report
+
+
+def build_accepted_report(
+    campaign_dir: Path,
+    *,
+    acceptance_receipt: s8c_acceptance_receipt.VerifiedAcceptanceReceipt,
+    generated_from_head: Optional[str] = None,
+    output_root: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Build a receipt-bound Layer 3 report for a future certified consumer.
+
+    No certified-selection consumer exists in this checkout.  This function is
+    therefore a fail-closed future entrypoint, not evidence that such a
+    consumer has been wired.  It accepts neither a return code nor stdout.
+    """
+    try:
+        verified = s8c_acceptance_receipt.require_current_verified_receipt(
+            acceptance_receipt
+        )
+    except s8c_acceptance_receipt.AcceptanceReceiptError as exc:
+        raise Layer3ReportError(f"acceptance receipt 検証に失敗: {exc}") from exc
+    if verified.certifying is not True:
+        raise Layer3ReportError("acceptance receipt が certifying=true でない")
+
+    resolved_campaign, _campaign_path = _resolve_campaign_dir(
+        campaign_dir, output_root,
+    )
+    matching = [
+        trial for trial in verified.trials
+        if trial.campaign_id == resolved_campaign.name
+    ]
+    if len(matching) != 1:
+        raise Layer3ReportError(
+            "acceptance receipt の campaign_id が対象 campaign と一意に一致しない"
+        )
+    lock = _read_json(resolved_campaign / "campaign.lock")
+    lock_trial = lock.get("trial") if isinstance(lock, Mapping) else None
+    receipt_trial_id = matching[0].trial_id
+    if not isinstance(lock_trial, str) or not (
+        lock_trial == receipt_trial_id
+        or lock_trial.startswith(receipt_trial_id + "-")
+    ):
+        raise Layer3ReportError(
+            "acceptance receipt の trial_id が対象 campaign と一致しない"
+        )
+
+    report = build_report(
+        resolved_campaign,
+        generated_from_head=generated_from_head,
+        output_root=output_root,
+    )
+    report.update({
+        "acceptance_receipt": {
+            "path": verified.relative_path,
+            "sha256": verified.sha256,
+        },
+        "certifying_input": True,
+    })
+    _validate_schema(report)
     return report
 
 
@@ -480,7 +573,11 @@ def render(campaign_dir: Path, out_json: Path, generated_from_head: Optional[str
     out_json = Path(out_json)
     if out_json.exists():
         raise Layer3ReportError("出力先が既に存在する: %s" % out_json)
-    report = build_report(campaign_dir, generated_from_head=generated_from_head, output_root=output_root)
+    report = build_report(
+        campaign_dir,
+        generated_from_head=generated_from_head,
+        output_root=output_root,
+    )
     encoded = _canonical_bytes(report) + b"\n"
     if not out_json.parent.is_dir():
         raise Layer3ReportError("出力先 parent directory が存在しない: %s" % out_json.parent)
