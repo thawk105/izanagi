@@ -39,6 +39,12 @@ title: 方式 α を本番 attestation の取得経路へ結線した — 較正
   完全一致・SURVIVED 0。** 単一理由性のため pre / post 検査と CPU 集合 / identity 検査を別変異に分け、
   K 退化は「最初の snapshot を再利用する」形へ、K 未満の切り下げは selector と reducer を同時に
   緩める三層変異へ再照準した。受入全走は local main 74b15367 を取り込んだ tip で 6482 passed / 20 skipped。
+- **段 8 の自己改善は候補 2 件で、規則の追加はしなかった。** 1 件目は「非 ASCII を含む
+  parametrize の期待 node は pytest が escape した形で書く」で、既存契約の「期待 node と記録 node は
+  突き合わせ前に同じ形式へ正規化する」でそのまま処理できた (収集出力から取って登録し、初回一致)。
+  2 件目は「worktree 隔離セッションでは redirect 付き複合コマンドが guard に拒まれるので起動 script を
+  書く」で、本 wave でも 4 回発火した。置き場である条件節の byte 予算が塞がっている状況は前 2 wave と
+  変わらないため、予算を上げず安全義務も削らず、**3 回目の発火実績として記録するに留める**。
 - 逐語と変異台帳は `output/insights/2026-08-05_t419-alpha-wiring/`。
 
 ## 次の一手差分
