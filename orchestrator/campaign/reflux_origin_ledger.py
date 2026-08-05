@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
-"""P3 用 origin-ledger prototype (codec / FSM / registry)。
+"""D153 W1〜W5 ledger 側契約に適合する P4 batch-freeze prototype。
 
-これは P3 の充足でも、producer / P7 consumer への結線でもない。Git commit 済み
+これは P4 の充足でも、producer / driver / formal consumer への結線でもない。
+ledger が束縛する evidence は digest claim であり、referent の実在・完全性・policy 適合は
+formal consumer の義務である。`sealed_queries` は evidence を伴う sealed member row 数で、
+物理 query 数の証明ではない。producer が receipt 後に実 query を実行する順序もここでは
+観測できない。W4 が固定するのは terminal member row 数であり、JSON byte 長は
+受容残余として固定しない。
+
+Git commit 済み
 authority は人間レビューを経た単一版の信頼入力として扱うが、in-process の private
 関数呼出しは capability 境界ではない。また、別 clone、Git checkout の rollback、同一
 UID による authority と runtime の協調再構築は検出しない。mutable runtime head は Git
@@ -38,13 +45,17 @@ __all__ = [
     "AUTHORITY_SCHEMA_ID",
     "AUTHORITY_RELATIVE_PATH",
     "EvidenceReference",
+    "EvidenceDigest",
     "QueryFloorConstraint",
     "BudgetPolicy",
     "AuthorityManifest",
+    "CommittedBatchMember",
+    "PreparedBatchMember",
+    "OpenedBatchMember",
+    "SealedBatchMember",
     "BatchCommitted",
     "BatchResultsPrepared",
     "BatchSealed",
-    "BatchTombstoned",
     "OriginSealed",
     "OriginSnapshot",
     "SealedBatch",
@@ -58,11 +69,11 @@ __all__ = [
     "RefluxOriginLedgerError",
 ]
 
-MANIFEST_SCHEMA_ID = "izanagi-reflux-origin-manifest/v1"
-AUTHORITY_SCHEMA_ID = "izanagi-reflux-origin-authority/v1"
-AUTHORITY_RELATIVE_PATH = "orchestrator/campaign/reflux_origin_authority_v1.json"
-_EVENT_SCHEMA_ID = "izanagi-reflux-origin-event/v1"
-_HEAD_SCHEMA_ID = "izanagi-reflux-origin-runtime-head/v1"
+MANIFEST_SCHEMA_ID = "izanagi-reflux-origin-manifest/v2"
+AUTHORITY_SCHEMA_ID = "izanagi-reflux-origin-authority/v2"
+AUTHORITY_RELATIVE_PATH = "orchestrator/campaign/reflux_origin_authority_v2.json"
+_EVENT_SCHEMA_ID = "izanagi-reflux-origin-event/v2"
+_HEAD_SCHEMA_ID = "izanagi-reflux-origin-runtime-head/v2"
 _FLOOR_FORMULA_ID = "q-lower-bound/base+perRound*R+Emin/v1"
 _TRIGGER_GATE_IR_SCHEMA = "izanagi-trigger-gate-ir/v1"
 _KNOWN_IR_SCHEMAS = frozenset({_TRIGGER_GATE_IR_SCHEMA})
@@ -74,16 +85,18 @@ _MAX_RECORD_BYTES = 1 << 20
 _MAX_LEDGER_BYTES = 64 << 20
 _MAX_AUTHORITY_BYTES = 8 << 20
 _GIT_TIMEOUT_SECONDS = 30
-_DOMAIN_MANIFEST = b"izanagi-reflux-origin-manifest/v1\0"
+_DOMAIN_MANIFEST = b"izanagi-reflux-origin-manifest/v2\0"
 _DOMAIN_CELL = b"izanagi-reflux-origin-cell/v1\0"
-_DOMAIN_STATE = b"izanagi-reflux-origin-state/v1\0"
+_DOMAIN_STATE = b"izanagi-reflux-origin-state/v2\0"
+_DOMAIN_MEMBER = b"izanagi-reflux-origin-batch-member/v1\0"
+_DOMAIN_RESULT_EVIDENCE = b"izanagi-reflux-origin-result-evidence/v1\0"
 _NULL_SHA256 = "0" * 64
 _MISSING = object()
 
-# Cheap allocation guards precede the constructive codec check below.  They are
-# necessary conditions only; admission is decided by serializing real frames.
+# Literal ceiling is independently pinned at max/max+1 by V21.  Admission still
+# serializes every relevant real frame before allocating authority-sized tuples.
+_MAX_BATCH_CARDINALITY = 2248
 _JSON_SHA_MEMBER_BYTES = 67
-_MAX_BATCH_CARDINALITY = (_MAX_RECORD_BYTES - 4) // (4 * _JSON_SHA_MEMBER_BYTES)
 _MAX_CLASS_CARDINALITY = (_MAX_RECORD_BYTES - 1) // _JSON_SHA_MEMBER_BYTES
 
 
@@ -184,6 +197,13 @@ def _relative_path(value: object, *, label: str) -> str:
 @dataclass(frozen=True, slots=True)
 class EvidenceReference:
     path: str
+    sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceDigest:
+    """A claimed content digest; this ledger deliberately does not dereference it."""
+
     sha256: str
 
 
@@ -443,37 +463,59 @@ def derive_cell_key(manifest: AuthorityManifest) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class CommittedBatchMember:
+    query_ordinal: int
+    candidate_commitment: str
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedBatchMember:
+    query_ordinal: int
+    candidate_commitment: str
+    result_evidence_commitment: str
+    constraint_commitment: str
+
+
+@dataclass(frozen=True, slots=True)
+class OpenedBatchMember:
+    query_ordinal: int
+    replicate_ordinal: int
+    candidate_salt: str
+    candidate_bytes: bytes
+    result_evidence_salt: str
+    outcome: str
+    evidence_digest: EvidenceDigest | None
+    constraint_salt: str
+    constraint_sha256: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class SealedBatchMember:
+    query_ordinal: int
+    replicate_ordinal: int
+    candidate_bytes: bytes
+    outcome: str
+    evidence_digest: EvidenceDigest | None
+    constraint_sha256: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class BatchCommitted:
     batch_id: str
     iteration_index: int
-    candidate_commitments: tuple[str, ...]
+    members: tuple[CommittedBatchMember, ...]
 
 
 @dataclass(frozen=True, slots=True)
 class BatchResultsPrepared:
     batch_id: str
-    candidate_commitments: tuple[str, ...]
-    outcome_commitments: tuple[str, ...]
-    result_commitments: tuple[str, ...]
-    constraint_commitments: tuple[str, ...]
+    members: tuple[PreparedBatchMember, ...]
 
 
 @dataclass(frozen=True, slots=True)
 class BatchSealed:
     batch_id: str
-    candidate_salts: tuple[str, ...]
-    candidate_bytes: tuple[bytes, ...]
-    outcome_salts: tuple[str, ...]
-    outcomes: tuple[str, ...]
-    result_salts: tuple[str, ...]
-    result_sha256s: tuple[str, ...]
-    constraint_salts: tuple[str, ...]
-    constraint_sha256s: tuple[str | None, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class BatchTombstoned:
-    batch_id: str
+    members: tuple[OpenedBatchMember, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -482,13 +524,14 @@ class OriginSealed:
     constraint_class_sha256s: tuple[str, ...]
     batch_count: int
     tombstone_count: int
+    sealed_queries: int
+    tombstoned_queries: int
 
 
 OriginEvent = (
     BatchCommitted
     | BatchResultsPrepared
     | BatchSealed
-    | BatchTombstoned
     | OriginSealed
 )
 
@@ -500,6 +543,8 @@ class OriginSnapshot:
     phase: str
     iterations_used: int
     queries_used: int
+    sealed_queries: int
+    tombstoned_queries: int
     batch_count: int
     tombstone_count: int
     terminal_status: str | None
@@ -510,10 +555,7 @@ class OriginSnapshot:
 class SealedBatch:
     origin_id: str
     batch_id: str
-    candidate_bytes: tuple[bytes, ...]
-    outcomes: tuple[str, ...]
-    result_sha256s: tuple[str, ...]
-    constraint_sha256s: tuple[str | None, ...]
+    members: tuple[SealedBatchMember, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -542,7 +584,7 @@ def _commitment(value: object, *, label: str) -> str:
 
 def _salt(value: object, *, label: str) -> str:
     value = _string(value, label=label)
-    if len(value) < 32 or len(value) % 2 or any(ch not in "0123456789abcdef" for ch in value):
+    if len(value) != 32 or any(ch not in "0123456789abcdef" for ch in value):
         _fail(f"invalid {label}")
     if not any(ch != "0" for ch in value):
         _fail(f"invalid {label}: all-zero salt")
@@ -557,113 +599,163 @@ def _salted_commitment(salt_hex: str, value: bytes) -> str:
     return _sha256(salt + value)
 
 
+def _evidence_digest(value: object, *, label: str) -> EvidenceDigest:
+    if type(value) is not EvidenceDigest:
+        _fail(f"invalid {label}")
+    return EvidenceDigest(_sha(value.sha256, label=f"{label}.sha256"))
+
+
+def _member_preimage(
+    candidate_bytes: bytes,
+    query_ordinal: int,
+    replicate_ordinal: int,
+) -> bytes:
+    if type(candidate_bytes) is not bytes:
+        _fail("invalid candidate opening bytes")
+    return _DOMAIN_MEMBER + _canonical_json({
+        "candidate_wire_b64": base64.b64encode(candidate_bytes).decode("ascii"),
+        "query_ordinal": _integer(query_ordinal, label="query ordinal"),
+        "replicate_ordinal": _integer(replicate_ordinal, label="replicate ordinal"),
+    })
+
+
+def _result_evidence_preimage(
+    outcome: object,
+    evidence_digest: object,
+) -> bytes:
+    outcome = _string(outcome, label="outcome")
+    if outcome not in ("accepted", "rejected", "tombstoned"):
+        _fail("invalid sealed outcome")
+    if evidence_digest is None:
+        evidence_sha: str | None = None
+    else:
+        evidence_sha = _evidence_digest(
+            evidence_digest, label="evidence digest"
+        ).sha256
+    if outcome == "tombstoned":
+        if evidence_sha is not None:
+            _fail("tombstoned result has evidence")
+    elif evidence_sha is None:
+        _fail(f"{outcome} result lacks evidence")
+    return _DOMAIN_RESULT_EVIDENCE + _canonical_json({
+        "evidence_sha256": evidence_sha,
+        "outcome": outcome,
+    })
+
+
+def _validate_result_matrix(
+    *,
+    outcome: object,
+    evidence_digest: object,
+    constraint_sha256: object,
+) -> tuple[str, EvidenceDigest | None, str | None]:
+    preimage = _result_evidence_preimage(outcome, evidence_digest)
+    del preimage
+    normalized_outcome = str(outcome)
+    normalized_evidence = (
+        None
+        if evidence_digest is None
+        else _evidence_digest(evidence_digest, label="evidence digest")
+    )
+    if normalized_outcome == "rejected":
+        constraint = _sha(constraint_sha256, label="constraint digest")
+    else:
+        if constraint_sha256 is not None:
+            _fail(f"{normalized_outcome} result has a constraint digest")
+        constraint = None
+    return normalized_outcome, normalized_evidence, constraint
+
+
+def _committed_member_object(member: object) -> dict[str, object]:
+    if type(member) is not CommittedBatchMember:
+        _fail("invalid committed member")
+    return {
+        "candidate_commitment": _commitment(
+            member.candidate_commitment, label="candidate commitment"
+        ),
+        "query_ordinal": _integer(member.query_ordinal, label="query ordinal"),
+    }
+
+
+def _prepared_member_object(member: object) -> dict[str, object]:
+    if type(member) is not PreparedBatchMember:
+        _fail("invalid prepared member")
+    return {
+        "candidate_commitment": _commitment(
+            member.candidate_commitment, label="candidate commitment"
+        ),
+        "constraint_commitment": _commitment(
+            member.constraint_commitment, label="constraint commitment"
+        ),
+        "query_ordinal": _integer(member.query_ordinal, label="query ordinal"),
+        "result_evidence_commitment": _commitment(
+            member.result_evidence_commitment,
+            label="result evidence commitment",
+        ),
+    }
+
+
+def _opened_member_object(member: object) -> dict[str, object]:
+    if type(member) is not OpenedBatchMember:
+        _fail("invalid opened member")
+    outcome, evidence, constraint = _validate_result_matrix(
+        outcome=member.outcome,
+        evidence_digest=member.evidence_digest,
+        constraint_sha256=member.constraint_sha256,
+    )
+    return {
+        "candidate_salt": _salt(member.candidate_salt, label="candidate salt"),
+        "candidate_wire_b64": base64.b64encode(member.candidate_bytes).decode("ascii")
+        if type(member.candidate_bytes) is bytes
+        else _fail("invalid candidate opening bytes"),
+        "constraint_salt": _salt(member.constraint_salt, label="constraint salt"),
+        "constraint_sha256": constraint,
+        "evidence_sha256": None if evidence is None else evidence.sha256,
+        "outcome": outcome,
+        "query_ordinal": _integer(member.query_ordinal, label="query ordinal"),
+        "replicate_ordinal": _integer(
+            member.replicate_ordinal, label="replicate ordinal"
+        ),
+        "result_evidence_salt": _salt(
+            member.result_evidence_salt, label="result evidence salt"
+        ),
+    }
+
+
 def _event_payload(event: OriginEvent) -> tuple[str, dict[str, object]]:
     if type(event) is BatchCommitted:
         batch_id = _string(event.batch_id, label="batch ID", token=True)
         iteration = _integer(event.iteration_index, label="iteration index")
-        commitments = _tuple_of(
-            event.candidate_commitments,
-            label="candidate commitments",
-            member=lambda item: _commitment(item, label="candidate commitment"),
+        members = _tuple_of(
+            event.members,
+            label="committed members",
+            member=_committed_member_object,
         )
         return "batch-committed", {
             "batch_id": batch_id,
             "iteration_index": iteration,
-            "cardinality": len(commitments),
-            "candidate_commitments": list(commitments),
-            "candidate_set_commitment": _sha256(_canonical_json(list(commitments))),
+            "cardinality": len(members),
+            "members": list(members),
         }
     if type(event) is BatchResultsPrepared:
-        candidates = _tuple_of(
-            event.candidate_commitments,
-            label="prepared candidates",
-            member=lambda item: _commitment(item, label="candidate commitment"),
-        )
-        outcomes = _tuple_of(
-            event.outcome_commitments,
-            label="outcome commitments",
-            member=lambda item: _commitment(item, label="outcome commitment"),
-        )
-        results = _tuple_of(
-            event.result_commitments,
-            label="result commitments",
-            member=lambda item: _commitment(item, label="result commitment"),
-        )
-        constraints = _tuple_of(
-            event.constraint_commitments,
-            label="constraint commitments",
-            member=lambda item: _commitment(item, label="constraint commitment"),
+        members = _tuple_of(
+            event.members,
+            label="prepared members",
+            member=_prepared_member_object,
         )
         return "batch-results-prepared", {
             "batch_id": _string(event.batch_id, label="batch ID", token=True),
-            "candidate_commitments": list(candidates),
-            "outcome_commitments": list(outcomes),
-            "result_commitments": list(results),
-            "constraint_commitments": list(constraints),
+            "members": list(members),
         }
     if type(event) is BatchSealed:
-        if type(event.candidate_bytes) is not tuple or not all(
-            type(item) is bytes for item in event.candidate_bytes
-        ):
-            _fail("invalid candidate opening bytes")
-        candidate_salts = _tuple_of(
-            event.candidate_salts,
-            label="candidate salts",
-            member=lambda item: _salt(item, label="candidate salt"),
+        members = _tuple_of(
+            event.members,
+            label="opened members",
+            member=_opened_member_object,
         )
-        outcome_salts = _tuple_of(
-            event.outcome_salts,
-            label="outcome salts",
-            member=lambda item: _salt(item, label="outcome salt"),
-        )
-        result_salts = _tuple_of(
-            event.result_salts,
-            label="result salts",
-            member=lambda item: _salt(item, label="result salt"),
-        )
-        constraint_salts = _tuple_of(
-            event.constraint_salts,
-            label="constraint salts",
-            member=lambda item: _salt(item, label="constraint salt"),
-        )
-        outcomes = _tuple_of(
-            event.outcomes,
-            label="outcomes",
-            member=lambda item: _string(item, label="outcome"),
-        )
-        if any(item not in ("accepted", "rejected") for item in outcomes):
-            _fail("invalid sealed outcome")
-        results = _tuple_of(
-            event.result_sha256s,
-            label="result digests",
-            member=lambda item: _sha(item, label="result digest"),
-        )
-        if type(event.constraint_sha256s) is not tuple:
-            _fail("invalid constraint digests")
-        constraints: list[str | None] = []
-        for outcome, value in zip(outcomes, event.constraint_sha256s, strict=False):
-            if outcome == "accepted":
-                if value is not None:
-                    _fail("accepted result has a constraint digest")
-                constraints.append(None)
-            else:
-                constraints.append(_sha(value, label="constraint digest"))
         return "batch-sealed", {
             "batch_id": _string(event.batch_id, label="batch ID", token=True),
-            "candidate_salts": list(candidate_salts),
-            "candidate_bytes_b64": [
-                base64.b64encode(item).decode("ascii") for item in event.candidate_bytes
-            ],
-            "outcome_salts": list(outcome_salts),
-            "outcomes": list(outcomes),
-            "result_salts": list(result_salts),
-            "result_sha256s": list(results),
-            "constraint_salts": list(constraint_salts),
-            "constraint_sha256s": constraints,
-        }
-    if type(event) is BatchTombstoned:
-        return "batch-tombstoned", {
-            "batch_id": _string(event.batch_id, label="batch ID", token=True),
+            "members": list(members),
         }
     if type(event) is OriginSealed:
         if type(event.aborted) is not bool:
@@ -679,6 +771,12 @@ def _event_payload(event: OriginEvent) -> tuple[str, dict[str, object]]:
             "batch_count": _integer(event.batch_count, label="seal batch count"),
             "tombstone_count": _integer(
                 event.tombstone_count, label="seal tombstone count"
+            ),
+            "sealed_queries": _integer(
+                event.sealed_queries, label="seal sealed queries"
+            ),
+            "tombstoned_queries": _integer(
+                event.tombstoned_queries, label="seal tombstoned queries"
             ),
         }
     _fail("unsupported origin event")
@@ -696,94 +794,146 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
     if event_type == "batch-committed":
         obj = _exact_object(
             payload,
-            frozenset({
-                "batch_id", "iteration_index", "cardinality",
-                "candidate_commitments", "candidate_set_commitment",
-            }),
+            frozenset({"batch_id", "iteration_index", "cardinality", "members"}),
             label="batch committed payload",
         )
-        raw = obj["candidate_commitments"]
+        raw = obj["members"]
         if type(raw) is not list:
-            _fail("invalid candidate commitments")
-        values = tuple(_sha(item, label="candidate commitment") for item in raw)
+            _fail("invalid committed members")
+        values = []
+        for item in raw:
+            member = _exact_object(
+                item,
+                frozenset({"candidate_commitment", "query_ordinal"}),
+                label="committed member",
+            )
+            values.append(CommittedBatchMember(
+                query_ordinal=_integer(
+                    member["query_ordinal"], label="query ordinal"
+                ),
+                candidate_commitment=_sha(
+                    member["candidate_commitment"], label="candidate commitment"
+                ),
+            ))
         if _integer(obj["cardinality"], label="cardinality") != len(values):
             _fail("candidate cardinality mismatch")
-        if _sha(obj["candidate_set_commitment"], label="candidate set commitment") != _sha256(
-            _canonical_json(list(values))
-        ):
-            _fail("candidate set commitment mismatch")
         return BatchCommitted(
             _string(obj["batch_id"], label="batch ID", token=True),
             _integer(obj["iteration_index"], label="iteration index"),
-            values,
+            tuple(values),
         )
     if event_type == "batch-results-prepared":
         obj = _exact_object(
             payload,
-            frozenset({
-                "batch_id", "candidate_commitments", "outcome_commitments",
-                "result_commitments", "constraint_commitments",
-            }),
+            frozenset({"batch_id", "members"}),
             label="results prepared payload",
         )
-        def hashes(name: str) -> tuple[str, ...]:
-            value = obj[name]
-            if type(value) is not list:
-                _fail(f"invalid {name}")
-            return tuple(_sha(item, label=name) for item in value)
+        raw = obj["members"]
+        if type(raw) is not list:
+            _fail("invalid prepared members")
+        members = []
+        for item in raw:
+            member = _exact_object(
+                item,
+                frozenset({
+                    "candidate_commitment", "constraint_commitment",
+                    "query_ordinal", "result_evidence_commitment",
+                }),
+                label="prepared member",
+            )
+            members.append(PreparedBatchMember(
+                query_ordinal=_integer(
+                    member["query_ordinal"], label="query ordinal"
+                ),
+                candidate_commitment=_sha(
+                    member["candidate_commitment"], label="candidate commitment"
+                ),
+                result_evidence_commitment=_sha(
+                    member["result_evidence_commitment"],
+                    label="result evidence commitment",
+                ),
+                constraint_commitment=_sha(
+                    member["constraint_commitment"],
+                    label="constraint commitment",
+                ),
+            ))
         return BatchResultsPrepared(
             _string(obj["batch_id"], label="batch ID", token=True),
-            hashes("candidate_commitments"),
-            hashes("outcome_commitments"),
-            hashes("result_commitments"),
-            hashes("constraint_commitments"),
+            tuple(members),
         )
     if event_type == "batch-sealed":
         obj = _exact_object(
             payload,
-            frozenset({
-                "batch_id", "candidate_salts", "candidate_bytes_b64", "outcome_salts",
-                "outcomes", "result_salts", "result_sha256s", "constraint_salts",
-                "constraint_sha256s",
-            }),
+            frozenset({"batch_id", "members"}),
             label="batch sealed payload",
         )
-        def strings(name: str) -> tuple[str, ...]:
-            value = obj[name]
-            if type(value) is not list:
-                _fail(f"invalid {name}")
-            return tuple(_string(item, label=name) for item in value)
-        raw_candidates = strings("candidate_bytes_b64")
-        try:
-            candidates = tuple(base64.b64decode(item, validate=True) for item in raw_candidates)
-        except (ValueError, binascii.Error):
-            _fail("invalid candidate base64")
-        raw_constraints = obj["constraint_sha256s"]
-        if type(raw_constraints) is not list:
-            _fail("invalid constraint digests")
-        constraints = tuple(
-            None if item is None else _sha(item, label="constraint digest")
-            for item in raw_constraints
-        )
+        raw = obj["members"]
+        if type(raw) is not list:
+            _fail("invalid opened members")
+        members = []
+        for item in raw:
+            member = _exact_object(
+                item,
+                frozenset({
+                    "candidate_salt", "candidate_wire_b64", "constraint_salt",
+                    "constraint_sha256", "evidence_sha256", "outcome",
+                    "query_ordinal", "replicate_ordinal", "result_evidence_salt",
+                }),
+                label="opened member",
+            )
+            wire_b64 = _string(
+                member["candidate_wire_b64"], label="candidate wire base64"
+            )
+            try:
+                candidate = base64.b64decode(wire_b64, validate=True)
+            except (ValueError, binascii.Error):
+                _fail("invalid candidate base64")
+            if base64.b64encode(candidate).decode("ascii") != wire_b64:
+                _fail("non-canonical candidate base64")
+            evidence = (
+                None
+                if member["evidence_sha256"] is None
+                else EvidenceDigest(
+                    _sha(member["evidence_sha256"], label="evidence digest")
+                )
+            )
+            outcome, evidence, constraint = _validate_result_matrix(
+                outcome=member["outcome"],
+                evidence_digest=evidence,
+                constraint_sha256=member["constraint_sha256"],
+            )
+            members.append(OpenedBatchMember(
+                query_ordinal=_integer(
+                    member["query_ordinal"], label="query ordinal"
+                ),
+                replicate_ordinal=_integer(
+                    member["replicate_ordinal"], label="replicate ordinal"
+                ),
+                candidate_salt=_salt(
+                    member["candidate_salt"], label="candidate salt"
+                ),
+                candidate_bytes=candidate,
+                result_evidence_salt=_salt(
+                    member["result_evidence_salt"],
+                    label="result evidence salt",
+                ),
+                outcome=outcome,
+                evidence_digest=evidence,
+                constraint_salt=_salt(
+                    member["constraint_salt"], label="constraint salt"
+                ),
+                constraint_sha256=constraint,
+            ))
         return BatchSealed(
             _string(obj["batch_id"], label="batch ID", token=True),
-            tuple(_salt(item, label="candidate salt") for item in strings("candidate_salts")),
-            candidates,
-            tuple(_salt(item, label="outcome salt") for item in strings("outcome_salts")),
-            strings("outcomes"),
-            tuple(_salt(item, label="result salt") for item in strings("result_salts")),
-            tuple(_sha(item, label="result digest") for item in strings("result_sha256s")),
-            tuple(_salt(item, label="constraint salt") for item in strings("constraint_salts")),
-            constraints,
+            tuple(members),
         )
-    if event_type == "batch-tombstoned":
-        obj = _exact_object(payload, frozenset({"batch_id"}), label="tombstone payload")
-        return BatchTombstoned(_string(obj["batch_id"], label="batch ID", token=True))
     if event_type == "origin-sealed":
         obj = _exact_object(
             payload,
             frozenset({
-                "seal_kind", "constraint_class_sha256s", "batch_count", "tombstone_count",
+                "seal_kind", "constraint_class_sha256s", "batch_count",
+                "tombstone_count", "sealed_queries", "tombstoned_queries",
             }),
             label="origin seal payload",
         )
@@ -800,6 +950,10 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
             ),
             batch_count=_integer(obj["batch_count"], label="batch count"),
             tombstone_count=_integer(obj["tombstone_count"], label="tombstone count"),
+            sealed_queries=_integer(obj["sealed_queries"], label="sealed queries"),
+            tombstoned_queries=_integer(
+                obj["tombstoned_queries"], label="tombstoned queries"
+            ),
         )
     _fail("unknown event type")
 
@@ -810,6 +964,7 @@ class _SemanticState:
     iterations_used: int = 0
     queries_used: int = 0
     sealed_queries: int = 0
+    tombstoned_queries: int = 0
     batch_count: int = 0
     tombstone_count: int = 0
     open_batch: dict[str, object] | None = None
@@ -817,6 +972,7 @@ class _SemanticState:
     seen_batches: set[str] | None = None
     rejected_constraints: set[str] | None = None
     seen_salts: set[str] | None = None
+    replicate_counts: dict[bytes, int] | None = None
     terminal_status: str | None = None
     constraint_class: tuple[str, ...] = ()
 
@@ -829,20 +985,29 @@ class _SemanticState:
             self.rejected_constraints = set()
         if self.seen_salts is None:
             self.seen_salts = set()
+        if self.replicate_counts is None:
+            self.replicate_counts = {}
 
 
 def _semantic_object(state: _SemanticState) -> dict[str, object]:
     open_batch: object = None
     if state.open_batch is not None:
+        raw_members = state.open_batch["members"]
         open_batch = {
-            key: value for key, value in state.open_batch.items()
-            if key not in {"outcomes", "result_sha256s", "constraint_sha256s"}
+            "batch_id": state.open_batch["batch_id"],
+            "members": [
+                _committed_member_object(item)
+                if type(item) is CommittedBatchMember
+                else _prepared_member_object(item)
+                for item in raw_members
+            ],
         }
     return {
         "phase": state.phase,
         "iterations_used": state.iterations_used,
         "queries_used": state.queries_used,
         "sealed_queries": state.sealed_queries,
+        "tombstoned_queries": state.tombstoned_queries,
         "batch_count": state.batch_count,
         "tombstone_count": state.tombstone_count,
         "open_batch": open_batch,
@@ -865,7 +1030,18 @@ def _preseal_semantic_sha(state: _SemanticState) -> str:
     projected.pop("rejected_constraints")
     projected.pop("constraint_class")
     projected.pop("seen_salts")
+    projected.pop("sealed_queries")
+    projected.pop("tombstoned_queries")
+    projected.pop("tombstone_count")
     return _sha256(_canonical_json(projected))
+
+
+def _assert_query_partition(state: _SemanticState) -> None:
+    pending = 0
+    if state.open_batch is not None:
+        pending = len(state.open_batch["members"])
+    if state.queries_used != state.sealed_queries + state.tombstoned_queries + pending:
+        _fail("origin query partition mismatch")
 
 
 def _validate_candidate_wire(schema_ref: str, raw: bytes) -> None:
@@ -895,20 +1071,45 @@ def _apply_event(
         if state.phase != "EMPTY":
             _fail("duplicate origin genesis")
         state.phase = "IDLE"
+        _assert_query_partition(state)
         return
     budget = manifest.budget_policy
     if type(event) is BatchCommitted:
         if state.phase != "IDLE":
             _fail("batch commit is not allowed in current phase")
-        cardinality = len(event.candidate_commitments)
+        batch_id = _string(event.batch_id, label="batch ID", token=True)
+        iteration_index = _integer(
+            event.iteration_index, label="iteration index"
+        )
+        if type(event.members) is not tuple:
+            _fail("invalid committed members")
+        cardinality = len(event.members)
+        if cardinality > _MAX_BATCH_CARDINALITY:
+            _fail("batch cardinality exceeds codec feasibility")
+        members = tuple(
+            CommittedBatchMember(
+                query_ordinal=_integer(
+                    member.query_ordinal, label="query ordinal"
+                ),
+                candidate_commitment=_sha(
+                    member.candidate_commitment, label="candidate commitment"
+                ),
+            )
+            if type(member) is CommittedBatchMember
+            else _fail("invalid committed member")
+            for member in event.members
+        )
         if (
             cardinality < budget.batch_cardinality_min
-            or len(set(event.candidate_commitments)) != cardinality
+            or len({item.candidate_commitment for item in members}) != cardinality
         ):
             _fail("invalid batch candidate commitments")
-        if event.iteration_index != state.iterations_used:
+        expected_queries = tuple(range(state.queries_used, state.queries_used + cardinality))
+        if tuple(item.query_ordinal for item in members) != expected_queries:
+            _fail("query ordinals are not origin-contiguous")
+        if iteration_index != state.iterations_used:
             _fail("iteration index is not contiguous")
-        if event.batch_id in state.seen_batches:
+        if batch_id in state.seen_batches:
             _fail("batch ID was reused")
         if state.iterations_used + 1 > budget.imax:
             _fail("Imax exceeded")
@@ -917,120 +1118,187 @@ def _apply_event(
         state.iterations_used += 1
         state.queries_used += cardinality
         state.batch_count += 1
-        state.seen_batches.add(event.batch_id)
+        state.seen_batches.add(batch_id)
         state.open_batch = {
-            "batch_id": event.batch_id,
-            "candidate_commitments": event.candidate_commitments,
+            "batch_id": batch_id,
+            "members": members,
         }
         state.phase = "BATCH_COMMITTED"
+        _assert_query_partition(state)
         return
     if type(event) is BatchResultsPrepared:
         if state.phase != "BATCH_COMMITTED" or state.open_batch is None:
             _fail("results preparation is not allowed in current phase")
-        candidates = state.open_batch["candidate_commitments"]
-        cardinality = len(candidates)
-        if event.batch_id != state.open_batch["batch_id"] or event.candidate_commitments != candidates:
-            _fail("prepared results do not match committed batch")
-        if not all(
-            len(values) == cardinality
-            for values in (
-                event.outcome_commitments,
-                event.result_commitments,
-                event.constraint_commitments,
+        committed_members = state.open_batch["members"]
+        cardinality = len(committed_members)
+        batch_id = _string(event.batch_id, label="batch ID", token=True)
+        if type(event.members) is not tuple:
+            _fail("invalid prepared members")
+        prepared_members = tuple(
+            PreparedBatchMember(
+                query_ordinal=_integer(
+                    member.query_ordinal, label="query ordinal"
+                ),
+                candidate_commitment=_sha(
+                    member.candidate_commitment, label="candidate commitment"
+                ),
+                result_evidence_commitment=_sha(
+                    member.result_evidence_commitment,
+                    label="result evidence commitment",
+                ),
+                constraint_commitment=_sha(
+                    member.constraint_commitment,
+                    label="constraint commitment",
+                ),
             )
+            if type(member) is PreparedBatchMember
+            else _fail("invalid prepared member")
+            for member in event.members
+        )
+        prepared_identity = tuple(
+            (item.query_ordinal, item.candidate_commitment)
+            for item in prepared_members
+        )
+        committed_identity = tuple(
+            (item.query_ordinal, item.candidate_commitment)
+            for item in committed_members
+        )
+        if (
+            batch_id != state.open_batch["batch_id"]
+            or prepared_identity != committed_identity
         ):
+            _fail("prepared results do not match committed batch")
+        if len(prepared_members) != cardinality:
             _fail("partial prepared result set")
-        state.open_batch.update({
-            "outcome_commitments": event.outcome_commitments,
-            "result_commitments": event.result_commitments,
-            "constraint_commitments": event.constraint_commitments,
-        })
+        state.open_batch["members"] = prepared_members
         state.phase = "RESULTS_PREPARED"
+        _assert_query_partition(state)
         return
     if type(event) is BatchSealed:
         if state.phase != "RESULTS_PREPARED" or state.open_batch is None:
             _fail("batch seal is not allowed in current phase")
         batch = state.open_batch
-        cardinality = len(batch["candidate_commitments"])
-        sequences: tuple[Sequence[object], ...] = (
-            event.candidate_salts, event.candidate_bytes, event.outcome_salts,
-            event.outcomes, event.result_salts, event.result_sha256s,
-            event.constraint_salts, event.constraint_sha256s,
-        )
-        if event.batch_id != batch["batch_id"] or any(
-            len(values) != cardinality for values in sequences
-        ):
+        prepared_members = batch["members"]
+        cardinality = len(prepared_members)
+        batch_id = _string(event.batch_id, label="batch ID", token=True)
+        if type(event.members) is not tuple:
+            _fail("invalid opened members")
+        if batch_id != batch["batch_id"] or len(event.members) != cardinality:
             _fail("partial or wrong batch opening")
-        if len(set(event.candidate_bytes)) != cardinality:
-            _fail("candidate plaintexts are not distinct")
-        salts = (
-            *event.candidate_salts,
-            *event.outcome_salts,
-            *event.result_salts,
-            *event.constraint_salts,
-        )
-        if len(set(salts)) != len(salts) or any(salt in state.seen_salts for salt in salts):
+        normalized: list[OpenedBatchMember] = []
+        salts: list[str] = []
+        for raw_member in event.members:
+            if type(raw_member) is not OpenedBatchMember:
+                _fail("invalid opened member")
+            salts.extend((
+                _salt(raw_member.candidate_salt, label="candidate salt"),
+                _salt(
+                    raw_member.result_evidence_salt,
+                    label="result evidence salt",
+                ),
+                _salt(raw_member.constraint_salt, label="constraint salt"),
+            ))
+        if len(set(salts)) != len(salts) or any(
+            salt in state.seen_salts for salt in salts
+        ):
             _fail("commitment salt was reused within origin")
-        for raw in event.candidate_bytes:
-            _validate_candidate_wire(str(manifest.candidate_ir["schema_ref"]), raw)
-        candidate_commitments = tuple(
-            _salted_commitment(salt, raw)
-            for salt, raw in zip(event.candidate_salts, event.candidate_bytes, strict=True)
-        )
-        outcome_commitments = tuple(
-            _salted_commitment(salt, outcome.encode("ascii"))
-            for salt, outcome in zip(event.outcome_salts, event.outcomes, strict=True)
-        )
-        result_commitments = tuple(
-            _salted_commitment(salt, digest.encode("ascii"))
-            for salt, digest in zip(event.result_salts, event.result_sha256s, strict=True)
-        )
-        constraint_commitments = tuple(
-            _salted_commitment(salt, b"" if digest is None else digest.encode("ascii"))
-            for salt, digest in zip(
-                event.constraint_salts, event.constraint_sha256s, strict=True
+        tombstone_seen = False
+        next_replicates = dict(state.replicate_counts)
+        for prepared, member in zip(prepared_members, event.members, strict=True):
+            if type(member) is not OpenedBatchMember:
+                _fail("invalid opened member")
+            query = _integer(member.query_ordinal, label="query ordinal")
+            replicate = _integer(
+                member.replicate_ordinal, label="replicate ordinal"
             )
-        )
-        if (
-            candidate_commitments != batch["candidate_commitments"]
-            or outcome_commitments != batch["outcome_commitments"]
-            or result_commitments != batch["result_commitments"]
-            or constraint_commitments != batch["constraint_commitments"]
-        ):
-            _fail("salted commitment opening mismatch")
-        for outcome, constraint in zip(
-            event.outcomes, event.constraint_sha256s, strict=True
-        ):
-            if outcome == "accepted" and constraint is not None:
-                _fail("accepted result has a constraint")
-            if outcome == "rejected":
-                if constraint is None:
-                    _fail("rejected result lacks a constraint")
-                state.rejected_constraints.add(constraint)
+            candidate_salt = _salt(member.candidate_salt, label="candidate salt")
+            result_salt = _salt(
+                member.result_evidence_salt, label="result evidence salt"
+            )
+            constraint_salt = _salt(
+                member.constraint_salt, label="constraint salt"
+            )
+            if type(member.candidate_bytes) is not bytes:
+                _fail("invalid candidate opening bytes")
+            raw = member.candidate_bytes
+            _validate_candidate_wire(str(manifest.candidate_ir["schema_ref"]), raw)
+            outcome, evidence, constraint = _validate_result_matrix(
+                outcome=member.outcome,
+                evidence_digest=member.evidence_digest,
+                constraint_sha256=member.constraint_sha256,
+            )
+            if outcome == "tombstoned":
+                tombstone_seen = True
+            elif tombstone_seen:
+                _fail("tombstoned members are not a terminal suffix")
+            expected_replicate = next_replicates.get(raw, 0)
+            if replicate != expected_replicate:
+                _fail("replicate ordinal is not origin-canonical")
+            next_replicates[raw] = expected_replicate + 1
+            if query != prepared.query_ordinal:
+                _fail("opened member query ordinal mismatch")
+            candidate_commitment = _salted_commitment(
+                candidate_salt, _member_preimage(raw, query, replicate)
+            )
+            result_commitment = _salted_commitment(
+                result_salt, _result_evidence_preimage(outcome, evidence)
+            )
+            constraint_commitment = _salted_commitment(
+                constraint_salt,
+                b"" if constraint is None else constraint.encode("ascii"),
+            )
+            if (
+                candidate_commitment != prepared.candidate_commitment
+                or result_commitment != prepared.result_evidence_commitment
+                or constraint_commitment != prepared.constraint_commitment
+            ):
+                _fail("salted commitment opening mismatch")
+            normalized.append(OpenedBatchMember(
+                query_ordinal=query,
+                replicate_ordinal=replicate,
+                candidate_salt=candidate_salt,
+                candidate_bytes=raw,
+                result_evidence_salt=result_salt,
+                outcome=outcome,
+                evidence_digest=evidence,
+                constraint_salt=constraint_salt,
+                constraint_sha256=constraint,
+            ))
+        sealed_members = []
+        sealed_count = tombstoned_count = 0
+        for member in normalized:
+            if member.outcome == "rejected":
+                assert member.constraint_sha256 is not None
+                state.rejected_constraints.add(member.constraint_sha256)
+            if member.outcome == "tombstoned":
+                tombstoned_count += 1
+            else:
+                sealed_count += 1
+            sealed_members.append(SealedBatchMember(
+                query_ordinal=member.query_ordinal,
+                replicate_ordinal=member.replicate_ordinal,
+                candidate_bytes=member.candidate_bytes,
+                outcome=member.outcome,
+                evidence_digest=member.evidence_digest,
+                constraint_sha256=member.constraint_sha256,
+            ))
         sealed = SealedBatch(
             origin_id=origin_id,
-            batch_id=event.batch_id,
-            candidate_bytes=event.candidate_bytes,
-            outcomes=event.outcomes,
-            result_sha256s=event.result_sha256s,
-            constraint_sha256s=event.constraint_sha256s,
+            batch_id=batch_id,
+            members=tuple(sealed_members),
         )
-        if event.batch_id in state.sealed_batches:
+        if batch_id in state.sealed_batches:
             _fail("duplicate sealed batch")
-        state.sealed_batches[event.batch_id] = sealed
+        state.sealed_batches[batch_id] = sealed
         state.seen_salts.update(salts)
-        state.sealed_queries += cardinality
+        state.replicate_counts = next_replicates
+        state.sealed_queries += sealed_count
+        state.tombstoned_queries += tombstoned_count
+        if tombstoned_count:
+            state.tombstone_count += 1
         state.open_batch = None
         state.phase = "IDLE"
-        return
-    if type(event) is BatchTombstoned:
-        if state.phase != "BATCH_COMMITTED" or state.open_batch is None:
-            _fail("tombstone is not allowed in current phase")
-        if event.batch_id != state.open_batch["batch_id"]:
-            _fail("tombstone batch mismatch")
-        state.tombstone_count += 1
-        state.open_batch = None
-        state.phase = "IDLE"
+        _assert_query_partition(state)
         return
     if type(event) is OriginSealed:
         if state.phase != "IDLE":
@@ -1038,8 +1306,11 @@ def _apply_event(
         if (
             event.batch_count != state.batch_count
             or event.tombstone_count != state.tombstone_count
+            or event.sealed_queries != state.sealed_queries
+            or event.tombstoned_queries != state.tombstoned_queries
         ):
             _fail("origin seal counters mismatch")
+        _assert_query_partition(state)
         supplied = event.constraint_class_sha256s
         if tuple(sorted(set(supplied))) != supplied:
             _fail("constraint class is not sorted and distinct")
@@ -1061,6 +1332,7 @@ def _apply_event(
             state.terminal_status = "certifiable"
         state.constraint_class = supplied
         state.phase = "ORIGIN_SEALED"
+        _assert_query_partition(state)
         return
     _fail("unsupported semantic event")
 
@@ -1165,7 +1437,7 @@ def _store_for_repo(repo: Path, *, committed_ref: str, fixture: bool) -> _Store:
     common_raw = _git_text(repo, ("rev-parse", "--path-format=absolute", "--git-common-dir"))
     common = Path(common_raw).resolve(strict=True)
     authority = repo / AUTHORITY_RELATIVE_PATH
-    runtime = common / "izanagi" / "reflux-origin-ledger" / "v1"
+    runtime = common / "izanagi" / "reflux-origin-ledger" / "v2"
     return _Store(repo, common, runtime, authority, committed_ref, fixture)
 
 
@@ -1262,6 +1534,7 @@ def _authority_from_bytes(live: bytes) -> _Authority:
     raw_cells: set[tuple[str, str, str, str]] = set()
     cell_digests: dict[str, tuple[str, str, str, str]] = {}
     previous_origin = ""
+    aggregate_head_transaction_bytes = 0
     for raw_entry in origins:
         entry = _exact_object(raw_entry, _AUTHORITY_ENTRY_KEYS, label="authority entry")
         manifest = _manifest_from_object(entry["manifest"])
@@ -1287,6 +1560,19 @@ def _authority_from_bytes(live: bytes) -> _Authority:
         if origin_id in entries:
             _fail("duplicate authority origin")
         entries[origin_id] = _AuthorityEntry(origin_id, cell_key, manifest)
+        _, head_transaction_bytes = _check_budget_codec_feasibility(
+            manifest.budget_policy
+        )
+        aggregate_head_transaction_bytes += head_transaction_bytes
+    try:
+        aggregate_head_bytes = (
+            len(_feasibility_head_genesis_frame(len(entries)))
+            + aggregate_head_transaction_bytes
+        )
+    except RefluxOriginLedgerError:
+        _fail("authority shared runtime head exceeds codec feasibility")
+    if aggregate_head_bytes > _MAX_LEDGER_BYTES:
+        _fail("authority shared runtime head exceeds ledger codec feasibility")
     canonical = _canonical_json({
         "authority_schema": AUTHORITY_SCHEMA_ID,
         "origins": [
@@ -1594,37 +1880,108 @@ def _dummy_hashes(count: int, *, offset: int = 0) -> tuple[str, ...]:
     return tuple(f"{offset + index + 1:064x}" for index in range(count))
 
 
-def _prepared_feasibility_frame(cardinality: int) -> bytes:
+def _feasibility_batch_frames(
+    cardinality: int,
+    *,
+    tombstoned: bool,
+) -> tuple[bytes, bytes, bytes]:
     hashes = _dummy_hashes(cardinality)
-    return _feasibility_event_frame(BatchResultsPrepared(
-        "x" * 128,
-        hashes,
-        hashes,
-        hashes,
-        hashes,
+    committed = tuple(
+        CommittedBatchMember(_MAX_INTEGER, digest) for digest in hashes
+    )
+    prepared = tuple(
+        PreparedBatchMember(_MAX_INTEGER, digest, digest, digest)
+        for digest in hashes
+    )
+    opened = []
+    for index, digest in enumerate(hashes):
+        salt_base = index * 3 + 1
+        opened.append(OpenedBatchMember(
+            query_ordinal=_MAX_INTEGER,
+            replicate_ordinal=_MAX_INTEGER,
+            candidate_salt=f"{salt_base:032x}"[-32:],
+            candidate_bytes=b"11111",
+            result_evidence_salt=f"{salt_base + 1:032x}"[-32:],
+            outcome="tombstoned" if tombstoned else "rejected",
+            evidence_digest=None if tombstoned else EvidenceDigest(digest),
+            constraint_salt=f"{salt_base + 2:032x}"[-32:],
+            constraint_sha256=None if tombstoned else digest,
+        ))
+    return (
+        _feasibility_event_frame(BatchCommitted(
+            "x" * 128, _MAX_INTEGER, committed
+        )),
+        _feasibility_event_frame(BatchResultsPrepared(
+            "x" * 128, prepared
+        )),
+        _feasibility_event_frame(BatchSealed(
+            "x" * 128, tuple(opened)
+        )),
+    )
+
+
+def _affine_batch_bytes(
+    *,
+    batches: int,
+    members: int,
+    tombstoned: bool,
+) -> int:
+    one = _feasibility_batch_frames(1, tombstoned=tombstoned)
+    two = _feasibility_batch_frames(2, tombstoned=tombstoned)
+    base = sum(map(len, one))
+    increment = sum(map(len, two)) - base
+    # The only non-affine field is BatchCommitted.payload.cardinality.  Frames
+    # for cardinalities 1 and 2 both have a one-digit value, so reserve the
+    # maximum additional decimal digits for every batch.  This is conservative
+    # for all legal partitions and exact when every batch has four digits.
+    cardinality_digit_reserve = len(str(_MAX_BATCH_CARDINALITY)) - 1
+    return (
+        batches * base
+        + (members - batches) * increment
+        + batches * cardinality_digit_reserve
+    )
+
+
+def _feasibility_head_genesis_frame(origin_count: int) -> bytes:
+    return _record_frame(_head_record(
+        record_index=0,
+        previous_record_sha256=_NULL_SHA256,
+        record_type="runtime-opened",
+        payload={
+            "authority_blob_sha256": "a" * 64,
+            "origin_heads": [
+                {
+                    "origin_id": "f" * 64,
+                    "event_index": 0,
+                    "event_sha256": "b" * 64,
+                }
+                for _ in range(origin_count)
+            ],
+        },
     ))
 
 
-def _check_budget_codec_feasibility(policy: BudgetPolicy) -> None:
-    """Admit only authority envelopes constructible by the real v1 codec."""
+def _check_budget_codec_feasibility(policy: BudgetPolicy) -> tuple[int, int]:
+    """Separate per-batch frame feasibility from origin-total capacity."""
     batch_min = policy.batch_cardinality_min
+    if batch_min > _MAX_BATCH_CARDINALITY:
+        _fail("batch minimum exceeds codec feasibility")
     try:
-        _prepared_feasibility_frame(batch_min)
+        _feasibility_batch_frames(batch_min, tombstoned=False)
+        _feasibility_batch_frames(batch_min, tombstoned=True)
     except RefluxOriginLedgerError:
         _fail("batch minimum exceeds codec feasibility")
-    for floor in policy.query_floor_constraints:
-        if floor.required_queries > _MAX_BATCH_CARDINALITY:
-            _fail("query floor exceeds codec feasibility")
-        try:
-            _prepared_feasibility_frame(floor.required_queries)
-        except RefluxOriginLedgerError:
-            _fail("query floor exceeds codec feasibility")
-    if policy.qmax > _MAX_BATCH_CARDINALITY:
-        _fail("Qmax exceeds codec feasibility")
-    try:
-        _prepared_feasibility_frame(policy.qmax)
-    except RefluxOriginLedgerError:
-        _fail("Qmax exceeds codec feasibility")
+    if policy.qmax > policy.imax * _MAX_BATCH_CARDINALITY:
+        _fail("Qmax cannot be partitioned into feasible batches")
+    maximum_floor = max(
+        floor.required_queries for floor in policy.query_floor_constraints
+    )
+    minimum_floor_batches = (
+        maximum_floor + _MAX_BATCH_CARDINALITY - 1
+    ) // _MAX_BATCH_CARDINALITY
+    maximum_budget_batches = min(policy.imax, policy.qmax // batch_min)
+    if minimum_floor_batches > maximum_budget_batches:
+        _fail("query floor cannot be partitioned into feasible batches")
     if policy.kmax > _MAX_CLASS_CARDINALITY:
         _fail("Kmax exceeds codec feasibility")
     try:
@@ -1633,41 +1990,11 @@ def _check_budget_codec_feasibility(policy: BudgetPolicy) -> None:
             _dummy_hashes(policy.kmax),
             _MAX_INTEGER,
             _MAX_INTEGER,
+            _MAX_INTEGER,
+            _MAX_INTEGER,
         ))
     except RefluxOriginLedgerError:
         _fail("Kmax exceeds codec feasibility")
-
-    hashes = _dummy_hashes(batch_min)
-    candidate_salts = tuple(f"{index + 1:032x}" for index in range(batch_min))
-    outcome_salts = tuple(
-        f"{batch_min + index + 1:032x}" for index in range(batch_min)
-    )
-    result_salts = tuple(
-        f"{2 * batch_min + index + 1:032x}" for index in range(batch_min)
-    )
-    constraint_salts = tuple(
-        f"{3 * batch_min + index + 1:032x}" for index in range(batch_min)
-    )
-    try:
-        committed_frame = _feasibility_event_frame(BatchCommitted(
-            "x" * 128,
-            _MAX_INTEGER,
-            hashes,
-        ))
-        sealed_frame = _feasibility_event_frame(BatchSealed(
-            "x" * 128,
-            candidate_salts,
-            tuple(value.encode("ascii") for value in hashes),
-            outcome_salts,
-            tuple("rejected" for _ in hashes),
-            result_salts,
-            hashes,
-            constraint_salts,
-            hashes,
-        ))
-        prepared_frame = _prepared_feasibility_frame(batch_min)
-    except RefluxOriginLedgerError:
-        _fail("batch minimum exceeds codec feasibility")
     head_prepared = _record_frame(_head_record(
         record_index=_MAX_INTEGER,
         previous_record_sha256="e" * 64,
@@ -1707,28 +2034,26 @@ def _check_budget_codec_feasibility(policy: BudgetPolicy) -> None:
             "cell_key": "b" * 64,
         },
     ))
-    head_genesis = _record_frame(_head_record(
-        record_index=0,
-        previous_record_sha256=_NULL_SHA256,
-        record_type="runtime-opened",
-        payload={
-            "authority_blob_sha256": "a" * 64,
-            "origin_heads": [{
-                "origin_id": "f" * 64,
-                "event_index": 0,
-                "event_sha256": "b" * 64,
-            }],
-        },
-    ))
+    head_genesis = _feasibility_head_genesis_frame(1)
     batch_count = min(policy.imax, policy.qmax // batch_min)
-    origin_bytes = len(origin_genesis) + batch_count * (
-        len(committed_frame) + len(prepared_frame) + len(sealed_frame)
-    ) + len(class_frame)
-    head_bytes = len(head_genesis) + (
+    normal_bytes = _affine_batch_bytes(
+        batches=batch_count,
+        members=policy.qmax,
+        tombstoned=False,
+    )
+    tombstone_bytes = _affine_batch_bytes(
+        batches=batch_count,
+        members=policy.qmax,
+        tombstoned=True,
+    )
+    origin_bytes = len(origin_genesis) + max(normal_bytes, tombstone_bytes) + len(class_frame)
+    head_transaction_bytes = (
         (batch_count * 3 + 1) * (len(head_prepared) + len(head_committed))
     )
+    head_bytes = len(head_genesis) + head_transaction_bytes
     if origin_bytes > _MAX_LEDGER_BYTES or head_bytes > _MAX_LEDGER_BYTES:
         _fail("authority budget exceeds ledger codec feasibility")
+    return origin_bytes, head_transaction_bytes
 
 
 def _event_record(
@@ -2365,16 +2690,17 @@ def _prepared_payload_projection(
             _fail("batch seal projection requires prepared results")
         return {
             "batch_id": payload["batch_id"],
-            "candidate_commitments": list(batch["candidate_commitments"]),
-            "outcome_commitments": list(batch["outcome_commitments"]),
-            "result_commitments": list(batch["result_commitments"]),
-            "constraint_commitments": list(batch["constraint_commitments"]),
+            "members": [
+                _prepared_member_object(member) for member in batch["members"]
+            ],
         }
     if event_type == "origin-sealed":
         return {
             "seal_kind": payload["seal_kind"],
             "batch_count": payload["batch_count"],
             "tombstone_count": payload["tombstone_count"],
+            "sealed_queries": payload["sealed_queries"],
+            "tombstoned_queries": payload["tombstoned_queries"],
         }
     return dict(payload)
 
@@ -2750,6 +3076,8 @@ def _read_origin_locked(
         phase=state.phase,
         iterations_used=state.iterations_used,
         queries_used=state.queries_used,
+        sealed_queries=state.sealed_queries,
+        tombstoned_queries=state.tombstoned_queries,
         batch_count=state.batch_count,
         tombstone_count=state.tombstone_count,
         terminal_status=state.terminal_status,

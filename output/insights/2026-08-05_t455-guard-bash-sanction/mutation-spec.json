@@ -1,0 +1,42 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-drop-fetch-sanction",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    \"tools/pegasus/fetch_third_party.py\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_allows_fetch_third_party_sanctioned_spellings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_entry_is_exact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-glob-sanction-all-pegasus",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    return _script_target(raw_head, head, args, repo_root) in _SANCTIONED_PATHS",
+          "new": "    return _script_target(raw_head, head, args, repo_root).startswith(\"tools/pegasus/\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_does_not_sanction_siblings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -177,6 +177,9 @@ _SANCTIONED_PATHS = frozenset({
     # SUSPECT では rc=16 で止まる = 「自分で fail-closed する entry point」。
     "tools/check_ai_provenance.py",
     "tools/pegasus/dispatch_compute.py",
+    # network を要する取得段は compute では成立せず login 専用であり、
+    # docs/pegasus-runbook.md §7.0 の実測で全 subcommand が local-ok 分類済み。
+    "tools/pegasus/fetch_third_party.py",
     "tools/pegasus/submit_certify.sh",
     "tools/pegasus/submit_floor.sh",
     "tools/pegasus/submit_silo_ladder_rung1.sh",
