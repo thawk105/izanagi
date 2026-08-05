@@ -549,3 +549,7 @@ def test_pbs_scripts_bind_jobs_sources_clients_and_stage_processes():
             'exit "$VERDICT_RC"',
         )
     )
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))
