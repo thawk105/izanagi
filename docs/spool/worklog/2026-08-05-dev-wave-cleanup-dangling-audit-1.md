@@ -45,8 +45,28 @@ title: 消えたブランチの未 land 作業を検出する監査を land し�
   規範値 512 MiB 未満で **`local-ok`**。入力規模は到達不能 127 commit / local branch 11 /
   main tree 8,954 path、wall 2.9 秒。メモリは main tree の path 集合と branch tip 数で増えるため、
   桁で増えたら再分類が要る。
-- **セッション異常 1 件。** 変異 spec の `category` に `positive-control` と書いて harness が
+- **セッション異常 2 件。** (1) 変異 spec の `category` に `positive-control` と書いて harness が
   `category が未知` で停止した。受理集合は `negative` / `positive` / `both-layers` である。
-  spec を直して再投入した。
+  (2) **変異走行の開始直後に親が docs fragment を書き、harness が untracked を検出して中止した。**
+  走行中は同じツリーで独立な文書作業もできない。記録を先に commit してから再走した。
+- **親の手続違反 1 件。** 最初の main 取り込みで `git merge --no-edit` を使い、provenance trailer の
+  無い merge commit を作った (`DW-O17` は自動 message と `--no-edit` を禁じている)。
+  `git reset --hard` で取り消し、message file → preflight → `commit -F` へ戻した。
+- **受入全走が 1 度赤になった。** 初回は 6,205 passed / **1 failed** で、失敗は
+  `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted`。
+  新設テストが自走 harness も allowlist 記載も持たず、素の runner で 0 件実行の偽緑になりうる
+  状態だった (F42 の型)。**偽緑ガード側は緩めず**、テストファイルに自走 harness を足して解決した
+  (`python3 orchestrator/tests/test_audit_dangling_commits.py` が実際に 8 本を実行する)。
+  子は計算ノードへ dispatch できず全走を回せないため、**親の受入全走が最後の網になった。**
+- **エージェント工数。** codex 子 5 本 (段 5 実装 1、段 6 レビュー 2、fix 2)。段 2・3 は軽量版のため省略。
+- **実測 (2026-08-05、worktree `dev-wave-cleanup-submodule-recurrence`、
+  branch `worktree-dev-wave-cleanup-dangling-audit`)。**
+  受入全走 = **6,206 passed / 0 failed / 19 skipped** (697.95s)。
+  `tools/check_docs.py` = 違反なし。`check_ai_provenance.py` = 1,283 件で違反なし。
+  `tools/audit_dangling_commits.py` の実走 = **要確認 0 件 (rc=0)**。
+  変異 matrix = baseline PASSED、6 本中 5 本が期待どおり単一 node で KILLED。
+  M02 のみ MISMATCH (条件 2 を落とすと merge control も同時に赤 = 過剰決定) で、
+  初回 ledger を erratum として残し、期待値を実測に合わせた M02B を再走して KILLED 一致。
+  逐語と変異台帳は `output/insights/2026-08-05_cleanup-dangling-audit/`。
 
 ## 次の一手差分
