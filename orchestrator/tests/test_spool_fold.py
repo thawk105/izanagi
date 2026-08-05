@@ -8,6 +8,7 @@ import importlib.util
 import inspect
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,11 @@ assert SPEC is not None and SPEC.loader is not None
 spool_fold = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = spool_fold
 SPEC.loader.exec_module(spool_fold)
+
+_GENERATED_NEXT_ACTION_HEADING = (
+    "### 次の一手 — 「(番号)」だけの項は、その番号のエントリ "
+    "(archive 含む) から変わらない持ち越し"
+)
 
 
 def _write(path: Path, text: str) -> None:
@@ -164,6 +170,18 @@ def _worklog_body(
 
 def _active_block(task_id: str) -> str:
     return _item(task_id, f"現本文 {task_id}")
+
+
+def _global_entry(ordinal: int, items: str, *, title: str = "fixture") -> str:
+    return (
+        f"## 2026-08-01 ({ordinal}) — {title}\n\n"
+        "### 次の一手\n\n"
+        f"{items}"
+    )
+
+
+def _synthetic_worklog(*entries: str) -> str:
+    return "# worklog\n\n## ローテーション\n\n---\n\n" + "\n".join(entries)
 
 
 def _raises(code: str, callable_object, *args):
@@ -445,7 +463,12 @@ def test_n08_all_carries_preserve_order_and_count(tmp_path: Path) -> None:
     _fragment(repo, "worklog", _worklog_body(repo, carry=("[T-001]", "[T-002]", "[T-003]")))
     text = _target(spool_fold.plan_fold(repo), "docs/worklog.md").after_bytes.decode()
     tail = text[text.rfind("### 次の一手"):]
-    expected = "### 次の一手\n\n- [T-001] 変わらず ((1) 参照)\n- [T-002] 変わらず ((1) 参照)\n- [T-003] 変わらず ((1) 参照)\n"
+    expected = (
+        f"{_GENERATED_NEXT_ACTION_HEADING}\n\n"
+        "- [T-001] (1)\n"
+        "- [T-002] (1)\n"
+        "- [T-003] (1)\n"
+    )
     assert tail == expected
 
 
@@ -493,9 +516,9 @@ def test_parallel_fold_implicitly_carries_task_added_by_earlier_wave(tmp_path: P
     text = _target(spool_fold.plan_fold(repo), "docs/worklog.md").after_bytes.decode("utf-8")
     tail = text[text.rfind("### 次の一手"):]
     assert tail == (
-        "### 次の一手\n\n"
-        "- [T-001] 変わらず ((2) 参照)\n"
-        "- [T-052] 変わらず ((2) 参照)\n"
+        f"{_GENERATED_NEXT_ACTION_HEADING}\n\n"
+        "- [T-001] (2)\n"
+        "- [T-052] (2)\n"
     )
 
 
@@ -526,6 +549,427 @@ def test_parallel_new_then_existing_update_uses_substantive_base_digest(tmp_path
     plan = spool_fold.plan_fold(repo, fold_date="2026-08-03")
     text = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
     assert "- [T-001] B の更新" in _next_action(_entry(text, 3))
+
+
+def test_generated_next_action_heading_and_compact_carry_are_byte_exact() -> None:
+    """末尾 reader 向け凡例と compact carry を固定 bytes で生成する。"""
+
+    substantive = "- [T-001] substantive\n"
+    section, _, _, _ = spool_fold._render_next_actions(
+        [spool_fold._TaskItem("[T-001]", substantive, _digest(substantive))],
+        (),
+        7,
+        {},
+        "heading-golden",
+    )
+    expected = (
+        "### 次の一手 — 「(番号)」だけの項は、その番号のエントリ "
+        "(archive 含む) から変わらない持ち越し\n\n"
+        "- [T-001] (7)\n"
+    )
+    assert section.encode("utf-8") == expected.encode("utf-8")
+    assert "[T-" not in section.splitlines()[0]
+
+
+def test_id_only_item_remains_substantive_under_compact_carry_format(tmp_path: Path) -> None:
+    """ID 単独 item は compact carry に拡大解釈せず、item 自身の base で更新できる。"""
+
+    repo = _repo(tmp_path)
+    item = "- [T-001]\n"
+    _write(repo / "docs/worklog.md", _synthetic_worklog(_global_entry(1, item)))
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "ID 単独実体を更新", _digest(item)),),
+        ),
+    )
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "- [T-001] ID 単独実体を更新" in _next_action(_entry(rendered, 2))
+
+
+def test_compact_and_legacy_carry_chain_resolves_substantive_base(tmp_path: Path) -> None:
+    """compact/legacy 混在は同一 latest entry から実体まで再帰解決する。"""
+
+    repo = _repo(tmp_path)
+    first_t001 = "- [T-001] 元実体 A\n"
+    first_t002 = "- [T-002] 元実体 B\n"
+    archive = (
+        _global_entry(1, first_t001 + first_t002, title="substantive")
+        + "\n"
+        + _global_entry(
+            2,
+            "- [T-001] 変わらず ((1) 参照)\n"
+            "- [T-002] 変わらず ((1) 参照)\n",
+            title="legacy",
+        )
+    )
+    _write(repo / "docs/archive/worklog-global-chain.md", archive)
+    _write(
+        repo / "docs/worklog.md",
+        _synthetic_worklog(
+            _global_entry(
+                3,
+                "- [T-001] (2)\n"
+                "- [T-002] 変わらず ((1) 参照)\n",
+                title="mixed latest",
+            )
+        ),
+    )
+    ordinal, active = spool_fold._extract_latest_active(
+        (repo / "docs/worklog.md").read_text(encoding="utf-8"),
+        {"worklog-global-chain.md": archive},
+    )
+    assert ordinal == 3
+    assert {item.task_id: item.substantive_digest for item in active} == {
+        "[T-001]": _digest(first_t001),
+        "[T-002]": _digest(first_t002),
+    }
+
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=("[T-002]",),
+            updated=(("[T-001]", "compact chain を更新", _digest(first_t001)),),
+        ),
+    )
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "- [T-001] compact chain を更新" in _next_action(_entry(rendered, 4))
+
+
+def test_compact_carry_missing_entry_rejects_before_stub_digest(tmp_path: Path) -> None:
+    """missing entry を compact stub 自身の digest へ fail-open しない。"""
+
+    repo = _repo(tmp_path)
+    stub = "- [T-001] (1)\n"
+    _write(repo / "docs/worklog.md", _synthetic_worklog(_global_entry(2, stub)))
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "未解決のまま更新", _digest(stub)),),
+        ),
+    )
+    _raises("carry-reference", spool_fold.plan_fold, repo)
+
+
+def test_compact_carry_missing_task_rejects_before_stub_digest(tmp_path: Path) -> None:
+    """entry に task がない compact 参照も stub digest へ fail-open しない。"""
+
+    repo = _repo(tmp_path)
+    stub = "- [T-001] (1)\n"
+    _write(
+        repo / "docs/archive/worklog-global-missing-task.md",
+        _global_entry(1, "- [T-002] 別 task\n"),
+    )
+    _write(repo / "docs/worklog.md", _synthetic_worklog(_global_entry(2, stub)))
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "未解決のまま更新", _digest(stub)),),
+        ),
+    )
+    _raises("carry-reference", spool_fold.plan_fold, repo)
+
+
+def test_compact_carry_future_or_self_reference_is_rejected(tmp_path: Path) -> None:
+    """compact carry の self/future 参照はどちらも過去参照 gate で拒否する。"""
+
+    for referenced in (2, 3):
+        worklog = _synthetic_worklog(
+            _global_entry(2, f"- [T-001] ({referenced})\n")
+        )
+        exc = _raises("carry-reference", spool_fold._extract_latest_active, worklog, {})
+        assert "過去 entry を指さない" in exc.issues[0].message
+
+
+def test_legacy_carry_future_reference_is_rejected() -> None:
+    """旧書式も current (2) から archive (3) への未来参照を拒否する。"""
+
+    worklog = _synthetic_worklog(
+        _global_entry(2, "- [T-001] 変わらず ((3) 参照)\n", title="legacy future")
+    )
+    archive = _global_entry(3, "- [T-001] future substantive\n", title="future")
+    exc = _raises(
+        "carry-reference",
+        spool_fold._extract_latest_active,
+        worklog,
+        {"worklog-global-future.md": archive},
+    )
+    assert "過去 entry を指さない" in exc.issues[0].message
+
+
+def test_compact_stub_digest_cannot_satisfy_mutating_base(tmp_path: Path) -> None:
+    """valid compact carry で stub 自身の digest を base にしても更新は通らない。"""
+
+    repo = _repo(tmp_path)
+    substantive = "- [T-001] 元実体\n"
+    stub = "- [T-001] (1)\n"
+    _write(
+        repo / "docs/archive/worklog-global-substantive.md",
+        _global_entry(1, substantive),
+    )
+    _write(repo / "docs/worklog.md", _synthetic_worklog(_global_entry(2, stub)))
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "stub base で更新", _digest(stub)),),
+        ),
+    )
+    _raises("base-mismatch", spool_fold.plan_fold, repo)
+
+
+def test_compact_carry_gate_rejects_noncanonical_forms_as_substantive(tmp_path: Path) -> None:
+    """compact 予約形以外は従来どおり実体 item として digest する。"""
+
+    malformed_items = (
+        "- [T-001] (0)\n",
+        "- [T-001] (01)\n",
+        "- [T-001] (1) 実体本文\n",
+        "- [T-001] ()\n",
+    )
+    for index, item in enumerate(malformed_items):
+        parent = tmp_path / f"malformed-{index}"
+        parent.mkdir()
+        repo = _repo(parent)
+        _write(repo / "docs/worklog.md", _synthetic_worklog(_global_entry(1, item)))
+        _fragment(
+            repo,
+            "worklog",
+            _worklog_body(
+                repo,
+                carry=(),
+                updated=(("[T-001]", f"誤形 {index} を更新", _digest(item)),),
+            ),
+        )
+        plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+        rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+        assert f"- [T-001] 誤形 {index} を更新" in _next_action(_entry(rendered, 2))
+
+
+def test_multiline_compact_prefix_item_uses_full_substantive_digest(tmp_path: Path) -> None:
+    """fullmatch でない複数行 item は compact 先頭でも実体として更新できる。"""
+
+    repo = _repo(tmp_path)
+    substantive = "- [T-001] 元本文\n"
+    multiline = "- [T-001] (1)\n  詳細\n"
+    _write(
+        repo / "docs/worklog.md",
+        _synthetic_worklog(
+            _global_entry(1, substantive, title="referenced"),
+            _global_entry(2, multiline, title="multiline substantive"),
+        ),
+    )
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "複数行実体を更新", _digest(multiline)),),
+        ),
+    )
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "- [T-001] 複数行実体を更新" in _next_action(_entry(rendered, 3))
+
+
+def test_four_digit_compact_carry_chain_resolves_ordinal_1000() -> None:
+    """T-1000 と ordinal 1000 を含む compact chain を 3 桁固定せず解決する。"""
+
+    substantive = "- [T-1000] four digit substantive\n"
+    archive = (
+        _global_entry(1000, substantive, title="four digit base")
+        + "\n"
+        + _global_entry(1001, "- [T-1000] (1000)\n", title="four digit carry")
+    )
+    worklog = _synthetic_worklog(
+        _global_entry(1002, "- [T-1000] (1001)\n", title="four digit latest")
+    )
+    ordinal, active = spool_fold._extract_latest_active(
+        worklog, {"worklog-global-four-digit.md": archive}
+    )
+    assert ordinal == 1002
+    assert [(item.task_id, item.substantive_digest) for item in active] == [
+        ("[T-1000]", _digest(substantive))
+    ]
+
+
+def test_compact_carry_uses_explicit_prior_across_ordinal_gap(tmp_path: Path) -> None:
+    """current 末尾 (5) / archive max (9) / new (10) で carry は (5) を保持する。"""
+
+    repo = _repo(tmp_path)
+    substantive = "- [T-001] current-five\n"
+    _write(repo / "docs/worklog.md", _synthetic_worklog(_global_entry(5, substantive)))
+    _write(
+        repo / "docs/archive/worklog-global-max.md",
+        _global_entry(9, "- [T-999] archive-nine\n"),
+    )
+    _commit(repo, "ordinal gap canonical fixture")
+    _fragment(repo, "worklog", _worklog_body(repo, carry=()))
+    first = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    first_text = _target(first, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "## 2026-08-02 (10) — fold test" in first_text
+    assert _next_action(_entry(first_text, 10)) == (
+        f"{_GENERATED_NEXT_ACTION_HEADING}\n\n- [T-001] (5)\n"
+    )
+
+    spool_fold.apply_fold(repo, first)
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "gap 後の更新", _digest(substantive)),),
+        ),
+        authored="2026-08-03",
+        wave="wave-b",
+    )
+    second = spool_fold.plan_fold(repo, fold_date="2026-08-03")
+    second_text = _target(second, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "- [T-001] gap 後の更新" in _next_action(_entry(second_text, 11))
+
+
+def test_two_worklog_fragments_use_immediate_prior_ordinals(tmp_path: Path) -> None:
+    """同一 fold の第 2 entry は第 1 entry を carry し、apply 後も更新本文へ解決する。"""
+
+    repo = _repo(tmp_path)
+    original = _active_block("[T-001]")
+    updated = "- [T-001] A の更新\n"
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "A の更新", _digest(original)),),
+        ),
+        seq=1,
+    )
+    _fragment(repo, "worklog", _worklog_body(repo, carry=()), seq=2)
+    first = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    first_text = _target(first, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "- [T-001] A の更新" in _next_action(_entry(first_text, 2))
+    assert _next_action(_entry(first_text, 3)) == (
+        f"{_GENERATED_NEXT_ACTION_HEADING}\n\n- [T-001] (2)\n"
+    )
+
+    spool_fold.apply_fold(repo, first)
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "B の更新", _digest(updated)),),
+        ),
+        authored="2026-08-03",
+        wave="wave-b",
+    )
+    second = spool_fold.plan_fold(repo, fold_date="2026-08-03")
+    second_text = _target(second, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "- [T-001] B の更新" in _next_action(_entry(second_text, 4))
+
+
+def test_compact_carry_crosses_rotation_archive_boundary(tmp_path: Path) -> None:
+    """current の compact carry が archive の明示 ordinal にある実体を解決する。"""
+
+    repo = _repo(tmp_path)
+    substantive = "- [T-001] archived substantive\n"
+    _write(
+        repo / "docs/archive/worklog-rotated.md",
+        _global_entry(1, substantive, title="rotated target"),
+    )
+    _write(
+        repo / "docs/worklog.md",
+        _synthetic_worklog(_global_entry(2, "- [T-001] (1)\n", title="current")),
+    )
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "archive 境界後の更新", _digest(substantive)),),
+        ),
+    )
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    rendered = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "- [T-001] archive 境界後の更新" in _next_action(_entry(rendered, 3))
+
+
+def test_rotation_between_two_new_entries_preserves_compact_chain(tmp_path: Path) -> None:
+    """rotation apply 後の第 2 fold が archive 内の元実体 digest まで到達する。"""
+
+    repo = _repo(tmp_path, limit=100_000)
+    substantive = _active_block("[T-001]")
+    original = _synthetic_worklog(
+        _global_entry(1, substantive, title="first"),
+        _global_entry(
+            2,
+            substantive,
+            title="latest original " + ("capacity filler " * 32),
+        ),
+    )
+    _write(repo / "docs/worklog.md", original)
+    _fragment(repo, "worklog", _worklog_body(repo, carry=(), prose="- projected entry"))
+
+    preview = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    projected = _target(preview, "docs/worklog.md").after_bytes
+    projected_text = projected.decode("utf-8")
+    projected_entries = list(spool_fold.WORKLOG_ENTRY_RE.finditer(projected_text))
+    assert [entry.group("ordinal") for entry in projected_entries] == ["1", "2", "3"]
+    first_start = len(projected_text[: projected_entries[0].start()].encode("utf-8"))
+    second_start = len(projected_text[: projected_entries[1].start()].encode("utf-8"))
+    third_start = len(projected_text[: projected_entries[2].start()].encode("utf-8"))
+    expected_current = projected[:first_start] + projected[third_start:]
+    current_after_moving_only_first = projected[:first_start] + projected[second_start:]
+    limit = 400
+    assert len(expected_current) < limit
+    assert len(current_after_moving_only_first) > limit
+    _write(repo / "tools/check_docs.py", f"WORKLOG_ROTATE_BYTES = {limit}\n")
+    _commit(repo, "rotation capacity fixture")
+
+    first = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    assert first.rotation_path is not None
+    archived = _target(first, first.rotation_path).after_bytes.decode("utf-8")
+    current = _target(first, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert [entry.group("ordinal") for entry in spool_fold.WORKLOG_ENTRY_RE.finditer(archived)] == ["1", "2"]
+    assert [entry.group("ordinal") for entry in spool_fold.WORKLOG_ENTRY_RE.finditer(current)] == ["3"]
+    assert _next_action(_entry(current, 3)) == (
+        f"{_GENERATED_NEXT_ACTION_HEADING}\n\n- [T-001] (2)\n"
+    )
+    spool_fold.apply_fold(repo, first)
+
+    _fragment(
+        repo,
+        "worklog",
+        _worklog_body(
+            repo,
+            carry=(),
+            updated=(("[T-001]", "rotation 後の更新", _digest(substantive)),),
+        ),
+        authored="2026-08-03",
+        wave="wave-b",
+    )
+    second = spool_fold.plan_fold(repo, fold_date="2026-08-03")
+    second_text = _target(second, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert "- [T-001] rotation 後の更新" in _next_action(_entry(second_text, 4))
 
 
 def test_non_active_transition_target_remains_rejected(tmp_path: Path) -> None:
@@ -1372,10 +1816,10 @@ def test_deferred_append_only_fragment_preserves_all_active_tasks(tmp_path: Path
     plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
     worklog = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
     assert _next_action(_entry(worklog, 2)) == (
-        "### 次の一手\n\n"
-        "- [T-001] 変わらず ((1) 参照)\n"
-        "- [T-002] 変わらず ((1) 参照)\n"
-        "- [T-003] 変わらず ((1) 参照)\n"
+        f"{_GENERATED_NEXT_ACTION_HEADING}\n\n"
+        "- [T-001] (1)\n"
+        "- [T-002] (1)\n"
+        "- [T-003] (1)\n"
     )
 
 
@@ -1459,7 +1903,10 @@ def test_completion_update_and_defer_form_explicit_sinks(tmp_path: Path) -> None
     phase = _target(plan, "docs/phase3.md").after_bytes.decode("utf-8")
     latest = _next_action(_entry(worklog, 2))
     assert "[T-001]" not in latest and "[T-003]" not in latest
-    assert latest == "### 次の一手\n\n- [T-002] **P1**: 更新本文\n"
+    assert latest == (
+        f"{_GENERATED_NEXT_ACTION_HEADING}\n\n"
+        "- [T-002] **P1**: 更新本文\n"
+    )
     assert "- [T-001] **完了 (本エントリ)**: 終端" in worklog
     assert "- [T-003] 見送り — 理由: 条件未成立" in phase
 
@@ -1468,15 +1915,29 @@ def test_rotation_preserves_d70_archive_current_boundary(tmp_path: Path) -> None
     """D70: rotation archive の末尾 entry から現行先頭 entry への ID 保存境界を固定する。"""
 
     repo = _repo(tmp_path, limit=320)
-    before = (repo / "docs/worklog.md").read_bytes()
-    with (repo / "docs/worklog.md").open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write("\n## 2026-08-01 (2) — boundary seed\n\n- body body body body\n\n### 次の一手\n\n- [T-001] 現本文 [T-001]\n")
-    before = (repo / "docs/worklog.md").read_bytes()
+    worklog_path = repo / "docs/worklog.md"
+    seed = worklog_path.read_text(encoding="utf-8")
+    _write(
+        worklog_path,
+        seed.replace("- seed body\n", "- seed body " + ("archive filler " * 4) + "\n", 1),
+    )
+    with worklog_path.open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write(
+            "\n## 2026-08-01 (2) — boundary\n\n"
+            "### 次の一手\n\n- [T-001] 現本文 [T-001]\n"
+        )
+    before = worklog_path.read_bytes()
     _fragment(repo, "worklog", _worklog_body(repo))
     plan = spool_fold.plan_fold(repo)
     assert plan.rotation_path is not None
+    assert (
+        len(_target(plan, plan.rotation_path).after_bytes)
+        + len(_target(plan, "docs/worklog.md").after_bytes)
+        > 320
+    )
     archive = _target(plan, plan.rotation_path).after_bytes.decode("utf-8")
     current = _target(plan, "docs/worklog.md").after_bytes.decode("utf-8")
+    assert len(current.encode("utf-8")) <= 320
     archive_ids = set(spool_fold.TASK_RE.findall(_next_action(_entry(archive, 1))))
     current_ids = set(spool_fold.TASK_RE.findall(_next_action(_entry(current, 2))))
     assert archive_ids <= current_ids
@@ -1629,6 +2090,23 @@ def test_real_worklog_105_to_106_next_action_is_byte_exact_golden() -> None:
     source = _active_from_entry(_real_entry(105))
     expected_entry = _real_entry(106)
     expected = _next_action(expected_entry)
+    frozen_heading = "### 次の一手\n"
+    assert expected.startswith(frozen_heading)
+    expected = (
+        _GENERATED_NEXT_ACTION_HEADING
+        + "\n"
+        + expected[len(frozen_heading):]
+    )
+    legacy_carry_re = re.compile(
+        r"^- (?P<id>\[T-[0-9]+\]) 変わらず "
+        r"\(\((?P<ordinal>[1-9][0-9]*)\) 参照\)$",
+        re.MULTILINE,
+    )
+    expected, replacement_count = legacy_carry_re.subn(
+        lambda match: f"- {match.group('id')} ({match.group('ordinal')})",
+        expected,
+    )
+    assert replacement_count == 215
     expected_items = {item.task_id: item.block for item in _active_from_entry(expected_entry)}
     assert len(source) == 216
     assert len(expected_items) == 222
