@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 import json
 import os
 from pathlib import Path
@@ -742,6 +743,101 @@ def test_attestation_json_parse_failure_is_retryable_infra(monkeypatch, tmp_path
     assert captured.value.reason_code == "parse_failure"
 
 
+@pytest.mark.parametrize(
+    "payload,reason_code",
+    [
+        ('{"schema_version":"pegasus-probe-output/v2",'
+         '"schema_version":"pegasus-probe-output/v2",'
+         '"ok":true,"observed_epoch":1,"profile":{}}', "parse_failure"),
+        (json.dumps({
+            "schema_version": "pegasus-probe-output/v2",
+            "ok": False,
+            "observed_epoch": 1,
+            "error": {"stage": "probe", "type": "RuntimeError", "message": "x"},
+        }), "attestation"),
+    ],
+    ids=["duplicate-key", "typed-failure"],
+)
+def test_live_attestation_parser_failures_preserve_infra_reason(
+        monkeypatch, tmp_path, payload, reason_code):
+    def fake_run(argv, **kwargs):
+        Path(argv[argv.index("--output") + 1]).write_text(
+            payload, encoding="utf-8",
+        )
+        Path(kwargs["stdout_path"]).write_text(payload, encoding="utf-8")
+        Path(kwargs["stderr_path"]).write_text("", encoding="utf-8")
+        return subprocess.CompletedProcess(argv, 0, payload, "")
+
+    monkeypatch.setattr(driver, "_run", fake_run)
+    with pytest.raises(driver.InfraFailure) as captured:
+        driver._attest_environment(tmp_path)
+    assert captured.value.reason_code == reason_code
+
+
+@pytest.mark.parametrize("authority,want", [(2.0, False), (3.0, True)])
+def test_silo_live_clock_wiring_moves_with_policy_and_uses_exact_keys(
+        monkeypatch, tmp_path, authority, want):
+    contract = driver.env_contract.lookup("pegasus")
+    verified = driver.env_attestation.load_verified_calibration(contract, ROOT)
+    assert verified.calibration is not None
+    expected_raw = driver.env_attestation.profile_to_dict(
+        verified.attestation_profile,
+    )
+    expected_raw["effective_clock"]["samples_mhz"] = [2101.0] * 48
+    expected_raw["effective_clock"]["tolerance_pct"] = authority
+    expected = driver.env_attestation.normalize_profile(expected_raw)
+    calibration = dataclasses.replace(
+        verified.calibration, attestation_profile=expected,
+    )
+    synthetic_verified = dataclasses.replace(
+        verified, calibration=calibration,
+    )
+    monkeypatch.setattr(
+        driver.env_attestation, "load_verified_calibration",
+        lambda _contract, _root: synthetic_verified,
+    )
+    monkeypatch.setattr(
+        driver.execution_guard.effective_clock_policy,
+        "EFFECTIVE_CLOCK_TOLERANCE_PCT", authority,
+    )
+    observed_raw = copy.deepcopy(expected_raw)
+    del observed_raw["effective_clock"]["tolerance_pct"]
+    observed_raw["effective_clock"]["samples_mhz"] = (
+        [2101.0] * 47 + [2164.03]
+    )
+    payload = json.dumps({
+        "schema_version": "pegasus-probe-output/v2",
+        "ok": True,
+        "observed_epoch": 1,
+        "profile": observed_raw,
+    })
+
+    def fake_run(argv, **kwargs):
+        Path(argv[argv.index("--output") + 1]).write_text(
+            payload, encoding="utf-8",
+        )
+        Path(kwargs["stdout_path"]).write_text(payload, encoding="utf-8")
+        Path(kwargs["stderr_path"]).write_text("", encoding="utf-8")
+        return subprocess.CompletedProcess(argv, 0, payload, "")
+
+    calls = []
+    real_predicate = driver.execution_guard.effective_clock_comparison_passes
+
+    def predicate_spy(expected_clock, observed_clock):
+        assert set(expected_clock) == {"samples_mhz", "tolerance_pct"}
+        assert set(observed_clock) == {"samples_mhz"}
+        calls.append((copy.deepcopy(expected_clock), copy.deepcopy(observed_clock)))
+        return real_predicate(expected_clock, observed_clock)
+
+    monkeypatch.setattr(driver, "_run", fake_run)
+    monkeypatch.setattr(
+        driver.execution_guard, "effective_clock_comparison_passes", predicate_spy,
+    )
+    result = driver._attest_environment(tmp_path)
+    assert result["effective_clock_match"] is want
+    assert len(calls) == 1
+
+
 def test_runtime_binding_covers_all_execution_semantics_modules():
     paths = {
         item["path"] for item in driver.runtime_modules_binding(ROOT)
@@ -751,7 +847,9 @@ def test_runtime_binding_covers_all_execution_semantics_modules():
         "orchestrator/campaign/silo_ladder_rung1_contract.py",
         "orchestrator/campaign/env_contract.py",
         "orchestrator/campaign/env_attestation.py",
+        "orchestrator/campaign/execution_guard.py",
         "orchestrator/calibrator/__init__.py",
+        "orchestrator/calibrator/effective_clock_policy.py",
         "orchestrator/calibrator/schema_v2.py",
         "orchestrator/calibrator/tsc.py",
         "orchestrator/campaign/patchharness.py",
@@ -1164,10 +1262,24 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
     document["gap_leg"]["attestation"]["contract_sha256"] = (
         contract.contract_sha256
     )
-    (active / "attestation-job.json").write_text(
-        json.dumps({"ok": True, "profile": calibration["attestation_profile"]}),
-        encoding="utf-8",
-    )
+    observed_profile = copy.deepcopy(calibration["attestation_profile"])
+    del observed_profile["effective_clock"]["tolerance_pct"]
+    expected_samples = calibration["attestation_profile"]["effective_clock"][
+        "samples_mhz"
+    ]
+    ordered_samples = sorted(expected_samples)
+    middle = len(ordered_samples) // 2
+    median = (ordered_samples[middle - 1] + ordered_samples[middle]) / 2.0
+    # U-2/T-453 に適合する all-green fixture。旧 median-only outlier は別負例で保持する。
+    observed_profile["effective_clock"]["samples_mhz"] = [
+        median for _ in expected_samples
+    ]
+    (active / "attestation-job.json").write_text(json.dumps({
+        "schema_version": "pegasus-probe-output/v2",
+        "ok": True,
+        "observed_epoch": 1,
+        "profile": observed_profile,
+    }), encoding="utf-8")
     (active / "schedule-receipt.json").write_text(
         json.dumps(document["gap_leg"]["schedule_receipt"]),
         encoding="utf-8",
@@ -1686,6 +1798,90 @@ def _reseal_materialized_raw(root: Path, document: dict) -> None:
     }), encoding="utf-8")
     driver.write_raw_manifest(root)
     document["raw_bundle"]["paths"] = driver.validate_raw_manifest(root)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        "{",
+        ('{"schema_version":"pegasus-probe-output/v2",'
+         '"schema_version":"pegasus-probe-output/v2",'
+         '"ok":true,"observed_epoch":1,"profile":{}}'),
+        json.dumps({
+            "schema_version": "pegasus-probe-output/v2",
+            "ok": False,
+            "observed_epoch": 1,
+            "error": {"stage": "probe", "type": "RuntimeError", "message": "x"},
+        }),
+    ],
+    ids=["malformed", "duplicate-key", "typed-failure"],
+)
+def test_raw_attestation_parser_failures_remain_raw_bundle_evidence(
+        tmp_path, payload):
+    document = _evidence(_fixture("p_plus_2.json"))
+    raw = tmp_path / "raw"
+    _materialize_raw_bundle(raw, document)
+    (raw / "attempts/1/attestation-job.json").write_text(
+        payload, encoding="utf-8",
+    )
+    _reseal_materialized_raw(raw, document)
+
+    failures = driver.validate_raw_bundle(document, raw)
+
+    assert [item.reason_code for item in failures] == ["raw_bundle"]
+
+
+def test_silo_raw_clock_wiring_moves_with_policy_and_uses_exact_keys(
+        tmp_path, monkeypatch):
+    document = _evidence(_fixture("p_plus_2.json"))
+    raw = tmp_path / "raw"
+    _materialize_raw_bundle(raw, document)
+    probe_path = raw / "attempts/1/attestation-job.json"
+    payload = json.loads(probe_path.read_text(encoding="utf-8"))
+    payload["profile"]["effective_clock"]["samples_mhz"] = (
+        [2101.0] * 47 + [2164.03]
+    )
+    probe_path.write_text(json.dumps(payload), encoding="utf-8")
+    _reseal_materialized_raw(raw, document)
+
+    # 2% authority では +3% vector を current raw replay が拒否する。
+    failures = driver.validate_raw_bundle(document, raw)
+    assert [item.reason_code for item in failures] == ["raw_bundle"]
+
+    real_load_json = driver._load_json
+    calibration_path = (
+        ROOT / document["binding"]["calibration"]["path"]
+    ).resolve()
+
+    def policy_three_calibration(path):
+        loaded = real_load_json(path)
+        if Path(path).resolve() == calibration_path:
+            loaded = copy.deepcopy(loaded)
+            loaded["attestation_profile"]["effective_clock"][
+                "tolerance_pct"
+            ] = 3.0
+        return loaded
+
+    monkeypatch.setattr(driver, "_load_json", policy_three_calibration)
+    monkeypatch.setattr(
+        driver.execution_guard.effective_clock_policy,
+        "EFFECTIVE_CLOCK_TOLERANCE_PCT", 3.0,
+    )
+    calls = []
+    real_predicate = driver.execution_guard.effective_clock_comparison_passes
+
+    def predicate_spy(expected_clock, observed_clock):
+        assert set(expected_clock) == {"samples_mhz", "tolerance_pct"}
+        assert set(observed_clock) == {"samples_mhz"}
+        calls.append((copy.deepcopy(expected_clock), copy.deepcopy(observed_clock)))
+        return real_predicate(expected_clock, observed_clock)
+
+    monkeypatch.setattr(
+        driver.execution_guard, "effective_clock_comparison_passes", predicate_spy,
+    )
+
+    assert driver.validate_raw_bundle(document, raw) == ()
+    assert len(calls) == 1
 
 
 def test_raw_bundle_rejects_duplicate_ycsb_target_compile_entry(tmp_path):

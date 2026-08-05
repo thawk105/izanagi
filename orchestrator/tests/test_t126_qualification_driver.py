@@ -9,6 +9,7 @@ import signal
 import subprocess
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -18,7 +19,8 @@ sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_HERE.parent))
 
 import test_campaign as campaign_fixtures  # noqa: E402
-from campaign import env_contract, pipeline  # noqa: E402
+from calibrator import schema_v2  # noqa: E402
+from campaign import env_attestation, env_contract, pipeline  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     BuildProvenance,
     GeneratorId,
@@ -45,6 +47,30 @@ from qualification.t126_driver import (  # noqa: E402
     QualificationDriverError,
     run_series,
 )
+from qualification import t126_driver  # noqa: E402
+from test_schema_v2 import _valid_document  # noqa: E402
+
+
+def test_t452_attest_preserves_intentional_fail_closed_behavior(monkeypatch, tmp_path):
+    """[T-452] wave では意図的に現挙動を保存した。修正はユーザー裁定待ちの別タスク。"""
+    calibration = schema_v2.validate_calibration_v2(_valid_document())
+    raw = env_attestation.profile_to_dict(calibration.attestation_profile)
+    del raw["effective_clock"]["tolerance_pct"]
+    observed = env_attestation.normalize_observed_profile(raw)
+    verified = SimpleNamespace(
+        calibration=calibration,
+        attestation_profile_sha256=env_attestation.profile_sha256(
+            calibration.attestation_profile,
+        ),
+    )
+    monkeypatch.setattr(
+        t126_driver.env_attestation, "load_verified_calibration",
+        lambda _contract, _root: verified,
+    )
+    monkeypatch.setattr(t126_driver.env_attestation, "probe", lambda: observed)
+
+    with pytest.raises(QualificationDriverError, match="AttestationError"):
+        t126_driver._attest(tmp_path, object())
 
 def test_qualification_entry_constructs_run_context_for_live_member_build():
     source = (_ROOT / "orchestrator/qualification/t126_driver.py").read_text(

@@ -35,7 +35,7 @@ _IMPORT_ROOT = Path(__file__).resolve().parents[2]
 if str(_IMPORT_ROOT) not in sys.path:
     sys.path.insert(0, str(_IMPORT_ROOT))
 
-from orchestrator.campaign import env_contract, patchharness
+from orchestrator.campaign import env_attestation, env_contract, execution_guard, patchharness
 from orchestrator.campaign import silo_ladder_rung1_contract as patch_contract
 
 
@@ -257,7 +257,9 @@ def _runtime_module_paths(repo: Path) -> list[Path]:
         repo / "orchestrator/campaign/silo_ladder_rung1_contract.py",
         repo / "orchestrator/campaign/env_contract.py",
         repo / "orchestrator/campaign/env_attestation.py",
+        repo / "orchestrator/campaign/execution_guard.py",
         repo / "orchestrator/calibrator/__init__.py",
+        repo / "orchestrator/calibrator/effective_clock_policy.py",
         repo / "orchestrator/calibrator/schema_v2.py",
         repo / "orchestrator/calibrator/tsc.py",
         repo / "orchestrator/campaign/patchharness.py",
@@ -1931,11 +1933,12 @@ def _attest_environment(
     repo = _repo_root()
     contract = env_contract.lookup("pegasus")
     calibration_path = repo / contract.calibration_ref.path
-    if sha256_file(calibration_path) != contract.calibration_ref.sha256:
-        raise DriverError("registered calibration hash differs from env contract")
-    calibration = _load_json(calibration_path)
-    if calibration.get("quality", {}).get("status") != "accepted":
-        raise DriverError("registered calibration quality is not accepted")
+    try:
+        verified = env_attestation.load_verified_calibration(contract, repo)
+    except env_attestation.AttestationError as exc:
+        raise DriverError(f"registered calibration admission failed: {exc}") from exc
+    if verified.calibration is None:
+        raise DriverError("registered calibration has no attestation profile")
     probe_path = raw / "attestation-job.json"
     probe = _run(
         [sys.executable, str(repo / "tools/pegasus/run_probe.py"),
@@ -1950,19 +1953,25 @@ def _attest_environment(
             f"environment attestation probe rc={probe.returncode}",
         )
     try:
-        observed = _load_json(probe_path)
-    except DriverError as exc:
+        parsed_probe = env_attestation.parse_probe_output(probe_path.read_bytes())
+    except (OSError, env_attestation.AttestationError) as exc:
         raise InfraFailure(
             "parse_failure", f"attestation JSON parse failed: {exc}",
         ) from exc
-    if observed.get("ok") is not True:
+    if not parsed_probe.ok or parsed_probe.profile is None:
         raise InfraFailure("attestation", "environment attestation probe is not ok")
-    actual = observed["profile"]
-    expected = calibration["attestation_profile"]
-    expected_clock = statistics.median(expected["effective_clock"]["samples_mhz"])
-    actual_clock = statistics.median(actual["effective_clock"]["samples_mhz"])
-    tolerance = expected["effective_clock"]["tolerance_pct"]
-    clock_match = abs(actual_clock - expected_clock) <= expected_clock * tolerance / 100.0
+    actual = env_attestation.observed_profile_to_dict(parsed_probe.profile)
+    expected = env_attestation.profile_to_dict(verified.attestation_profile)
+    expected_clock = {
+        "samples_mhz": list(expected["effective_clock"]["samples_mhz"]),
+        "tolerance_pct": expected["effective_clock"]["tolerance_pct"],
+    }
+    observed_clock = {
+        "samples_mhz": list(actual["effective_clock"]["samples_mhz"]),
+    }
+    clock_match = execution_guard.effective_clock_comparison_passes(
+        expected_clock, observed_clock,
+    )
     result = {
         "contract_sha256": contract.contract_sha256,
         "calibration_sha256": contract.calibration_ref.sha256,
@@ -1978,11 +1987,11 @@ def _attest_environment(
         "cpuset_match": (
             actual["cores"]["affinity_visible"] == 48
             and actual["cores"]["physical"] == 48
-            and calibration["acquisition_receipt"]["allocation"]["cpuset_size"] == 48
+            and verified.calibration.acquisition_receipt.allocation.cpuset_size == 48
         ),
         "ht_match": (
             actual["cores"]["smt_active"] is False
-            and calibration["acquisition_receipt"]["allocation"]["ht_off"] is True
+            and verified.calibration.acquisition_receipt.allocation.ht_off is True
         ),
         "numa_match": actual["numa"] == expected["numa"],
         "per_sample_solo_checks": [],
@@ -3393,26 +3402,29 @@ def validate_raw_bundle(
         calibration = _load_json(
             _repo_root() / document["binding"]["calibration"]["path"]
         )
-        observed_attestation = _load_json(active_root / "attestation-job.json")
-        if observed_attestation.get("ok") is not True:
+        parsed_probe = env_attestation.parse_probe_output(
+            (active_root / "attestation-job.json").read_bytes()
+        )
+        if not parsed_probe.ok or parsed_probe.profile is None:
             raise DriverError("raw attestation probe is not ok")
-        actual_profile = observed_attestation["profile"]
+        actual_profile = env_attestation.observed_profile_to_dict(parsed_probe.profile)
         expected_profile = calibration["attestation_profile"]
-        expected_clock = statistics.median(
-            expected_profile["effective_clock"]["samples_mhz"]
-        )
-        actual_clock = statistics.median(
-            actual_profile["effective_clock"]["samples_mhz"]
-        )
-        tolerance = expected_profile["effective_clock"]["tolerance_pct"]
+        expected_clock = {
+            "samples_mhz": list(expected_profile["effective_clock"]["samples_mhz"]),
+            "tolerance_pct": expected_profile["effective_clock"]["tolerance_pct"],
+        }
+        observed_clock = {
+            "samples_mhz": list(actual_profile["effective_clock"]["samples_mhz"]),
+        }
         derived_attestation = {
             "cpu_model_match": (
                 actual_profile["cpu"]["model_name_normalized"]
                 == expected_profile["cpu"]["model_name_normalized"]
             ),
             "effective_clock_match": (
-                abs(actual_clock - expected_clock)
-                <= expected_clock * tolerance / 100.0
+                execution_guard.effective_clock_comparison_passes(
+                    expected_clock, observed_clock,
+                )
                 and actual_profile["effective_clock"]["method"]
                 == expected_profile["effective_clock"]["method"]
                 and actual_profile["effective_clock"]["governor"]
@@ -3488,7 +3500,8 @@ def validate_raw_bundle(
             accounting.read_text(encoding="utf-8", errors="replace"),
             document["gap_leg"]["attempts"][-1]["job_id"],
         )
-    except (DriverError, OSError, KeyError, TypeError, ValueError) as exc:
+    except (DriverError, OSError, KeyError, TypeError, ValueError,
+            env_attestation.AttestationError) as exc:
         return (EvidenceFailure("raw_bundle", str(exc)),)
     return ()
 

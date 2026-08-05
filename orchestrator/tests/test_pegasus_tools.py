@@ -199,11 +199,10 @@ def test_pbs_directive_parser_rejects_duplicate_late_or_commented(tmp_path, body
 
 def test_certify_uses_frozen_cli_names_and_reservation_exports():
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
-    for flag in (
-        "--certify", "--receipt-json", "--binary-sha256",
-        "--effective-clock-tolerance-pct",
-    ):
+    for flag in ("--certify", "--receipt-json", "--binary-sha256"):
         assert flag in source
+    assert "--effective-clock-tolerance-pct" not in source
+    assert "legacy effective clock tolerance input is forbidden" in source
     for field in (
         "JOB_ID", "REQUESTED_S", "SCHEDULER_STARTED_EPOCH", "DEADLINE_EPOCH",
         "HOST", "BOOT_ID", "SCRIPT_SHA256", "NONCE",
@@ -689,33 +688,137 @@ def test_known_values_cpu_check_rejects_nearby_sku(
 
 @dataclasses.dataclass(frozen=True)
 class _ProbeFixture:
-    cores: int
-    nested: dict
+    marker: str
 
 
-def test_run_probe_fixture_to_stdout_shape_and_file(tmp_path):
+def _probe_profile_payload():
+    return {
+        "cpu": {}, "cores": {}, "cache_topology": [], "numa": [], "tsc": {},
+        "effective_clock": {
+            "samples_mhz": [2101.0],
+            "method": "proc-cpuinfo",
+            "governor": "performance",
+        },
+        "visibility": {},
+    }
+
+
+def _assert_probe_payload(payload, *, ok, stage=None):
+    assert set(payload) == {
+        "schema_version", "ok", "observed_epoch", "profile" if ok else "error",
+    }
+    assert payload["schema_version"] == "pegasus-probe-output/v2"
+    assert type(payload["ok"]) is bool and payload["ok"] is ok
+    assert type(payload["observed_epoch"]) is int
+    assert not isinstance(payload["observed_epoch"], bool)
+    if ok:
+        assert set(payload["profile"]["effective_clock"]) == {
+            "samples_mhz", "method", "governor",
+        }
+    else:
+        assert set(payload["error"]) == {"stage", "type", "message"}
+        assert payload["error"]["stage"] == stage
+        assert all(type(payload["error"][key]) is str and payload["error"][key]
+                   for key in ("stage", "type", "message"))
+
+
+def test_run_probe_fixture_to_stdout_shape_and_file(tmp_path, monkeypatch, capsys):
     module = _load("probe_entry_fixture", TOOL_DIR / "run_probe.py")
-    fake = SimpleNamespace(probe=lambda: _ProbeFixture(cores=7, nested={"ok": True}))
+    token = _ProbeFixture(marker="observed")
+    fake = SimpleNamespace(
+        probe=lambda: token,
+        observed_profile_to_dict=lambda value: (
+            _probe_profile_payload() if value is token else pytest.fail("wrong profile")
+        ),
+    )
     target = tmp_path / "observation.json"
     rc, payload = module.run(output=target, importer=lambda _: fake)
     assert rc == 0
-    assert payload["ok"] is True
-    assert payload["profile"] == {"cores": 7, "nested": {"ok": True}}
+    _assert_probe_payload(payload, ok=True)
     assert json.loads(target.read_text(encoding="utf-8")) == payload
+    monkeypatch.setattr(module, "run", lambda **_kwargs: (rc, payload))
+    assert module.main([]) == rc
+    assert json.loads(capsys.readouterr().out) == payload
 
 
-def test_run_probe_import_failure_is_structured_and_nonzero(tmp_path):
+def test_run_probe_import_failure_is_structured_and_nonzero(tmp_path, monkeypatch, capsys):
     module = _load("probe_entry_missing", TOOL_DIR / "run_probe.py")
 
     def missing(_):
-        raise ModuleNotFoundError("fixture module is absent")
+        raise ModuleNotFoundError()
 
     target = tmp_path / "error.json"
     rc, payload = module.run(output=target, importer=missing)
     assert rc != 0
-    assert payload["ok"] is False
-    assert payload["error"]["stage"] == "import"
+    _assert_probe_payload(payload, ok=False, stage="import")
     assert json.loads(target.read_text(encoding="utf-8")) == payload
+    monkeypatch.setattr(module, "run", lambda **_kwargs: (rc, payload))
+    assert module.main([]) == rc
+    assert json.loads(capsys.readouterr().out) == payload
+
+
+def test_run_probe_probe_failure_is_structured_in_file_and_stdout(
+        tmp_path, monkeypatch, capsys):
+    module = _load("probe_entry_probe_failure", TOOL_DIR / "run_probe.py")
+
+    def fail_probe():
+        raise RuntimeError()
+
+    fake = SimpleNamespace(
+        probe=fail_probe,
+        observed_profile_to_dict=lambda _value: pytest.fail("serializer must not run"),
+    )
+    target = tmp_path / "error.json"
+    rc, payload = module.run(output=target, importer=lambda _: fake)
+    assert rc == 3
+    _assert_probe_payload(payload, ok=False, stage="probe")
+    assert json.loads(target.read_text(encoding="utf-8")) == payload
+    monkeypatch.setattr(module, "run", lambda **_kwargs: (rc, payload))
+    assert module.main([]) == rc
+    assert json.loads(capsys.readouterr().out) == payload
+
+
+def test_run_probe_write_failure_is_structured_for_stdout(tmp_path, monkeypatch, capsys):
+    module = _load("probe_entry_write_failure", TOOL_DIR / "run_probe.py")
+    token = _ProbeFixture(marker="observed")
+    fake = SimpleNamespace(
+        probe=lambda: token,
+        observed_profile_to_dict=lambda _value: _probe_profile_payload(),
+    )
+    target = tmp_path / "already-exists.json"
+    target.write_text("preserved\n", encoding="utf-8")
+    rc, payload = module.run(output=target, importer=lambda _: fake)
+    assert rc == 4
+    _assert_probe_payload(payload, ok=False, stage="write")
+    assert target.read_text(encoding="utf-8") == "preserved\n"
+    monkeypatch.setattr(module, "run", lambda **_kwargs: (rc, payload))
+    assert module.main([]) == rc
+    assert json.loads(capsys.readouterr().out) == payload
+
+
+def test_run_probe_write_failure_has_nonempty_message_for_empty_exception(
+        tmp_path, monkeypatch):
+    module = _load("probe_entry_empty_write_failure", TOOL_DIR / "run_probe.py")
+    fake = SimpleNamespace(
+        probe=lambda: _ProbeFixture(marker="observed"),
+        observed_profile_to_dict=lambda _value: _probe_profile_payload(),
+    )
+
+    def fail_write(_path, _payload):
+        raise OSError()
+
+    monkeypatch.setattr(module, "_write_create_only", fail_write)
+    rc, payload = module.run(
+        output=tmp_path / "unwritten.json", importer=lambda _: fake,
+    )
+    assert rc == 4
+    _assert_probe_payload(payload, ok=False, stage="write")
+
+
+def test_smoke_probe_calls_v2_producer_and_preserves_stdout_copy():
+    source = (TOOL_DIR / "smoke_probe.sh").read_text(encoding="utf-8")
+    assert 'run_probe.py" --output "$probe_file"' in source
+    assert '>"$RUN_DIR/run_probe.stdout"' in source
 
 
 def _collector_fixture(tmp_path: Path, *, pbs_jobid: str | None = None):
@@ -963,7 +1066,6 @@ REPO_ROOT={json.dumps(str(tmp_path))}
 TOOLS={json.dumps(str(TOOL_DIR))}
 BINARY=/unused/binary
 BINARY_SHA={'a' * 64}
-PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT=5
 CALIBRATE_PATH=/fixture/perf/bin:/usr/bin
 """
     result = subprocess.run(
@@ -977,6 +1079,24 @@ CALIBRATE_PATH=/fixture/perf/bin:/usr/bin
     assert argv[:3] == ["env", "PATH=/fixture/perf/bin:/usr/bin", "python3"]
     assert argv[3] == str(tmp_path / "orchestrator" / "calibrate.py")
     assert argv[argv.index("--binary") + 1] == "/unused/binary"
+
+
+def test_certify_job_rejects_legacy_tolerance_environment():
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    start = source.index('if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}" ]]')
+    end = source.index("\n\n# submit receipt", start)
+    fragment = source[start:end]
+    command = (
+        'write_failure() { printf "%s:%s:%s\\n" "$1" "$2" "$3"; }\n'
+        + fragment
+    )
+    env = os.environ.copy()
+    env["PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT"] = "2.0"
+    result = subprocess.run(
+        ["bash", "-c", command], capture_output=True, text=True, env=env,
+    )
+    assert result.returncode == 2
+    assert "2:submit_binding:legacy effective clock tolerance input is forbidden" in result.stdout
 
 
 def test_qstat_failure_reaches_allocation_unavailable_path(tmp_path):
@@ -997,6 +1117,7 @@ def test_qstat_failure_reaches_allocation_unavailable_path(tmp_path):
     timeout.chmod(0o755)
     stub_args = tmp_path / "timeout.args"
     env = os.environ.copy()
+    env.pop("PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT", None)
     env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
     env["STUB_TIMEOUT_ARGS"] = str(stub_args)
     result = subprocess.run(
@@ -1075,7 +1196,6 @@ def test_submit_dry_run_does_not_resolve_cluster_commands(tmp_path):
         "bash", str(fixture_tools / "submit_certify.sh"),
         "--repo-root", str(fixture_repo),
         "--attempts-root", str(attempts),
-        "--effective-clock-tolerance-pct", "1.5",
         "--dry-run",
     ], capture_output=True, text=True, env=env)
     assert result.returncode == 0, result.stderr
@@ -1085,6 +1205,31 @@ def test_submit_dry_run_does_not_resolve_cluster_commands(tmp_path):
     receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
     assert receipt["dry_run"] is True
     assert all(item["rc"] == 0 for item in receipt["preflight"].values())
+    assert "PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT" not in result.stdout
+
+    base = [
+        "bash", str(fixture_tools / "submit_certify.sh"),
+        "--repo-root", str(fixture_repo),
+        "--attempts-root", str(attempts),
+    ]
+    before = set((attempts / "submissions").iterdir())
+    for hostile in (
+        ["--effective-clock-tolerance-pct", "2.0"],
+        ["--effective-clock-tolerance-pct", "100.0"],
+        ["--clock-window", "2.0"],
+    ):
+        rejected = subprocess.run(
+            base + hostile + ["--dry-run"], capture_output=True, text=True, env=env,
+        )
+        assert rejected.returncode == 2
+        assert set((attempts / "submissions").iterdir()) == before
+
+    legacy_env = dict(env, PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT="2.0")
+    rejected = subprocess.run(
+        base + ["--dry-run"], capture_output=True, text=True, env=legacy_env,
+    )
+    assert rejected.returncode == 2
+    assert set((attempts / "submissions").iterdir()) == before
 
 
 if __name__ == "__main__":

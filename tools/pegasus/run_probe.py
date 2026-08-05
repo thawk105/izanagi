@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import importlib
 import json
 import os
@@ -19,17 +18,6 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
 _ORCHESTRATOR = os.path.join(_REPO_ROOT, "orchestrator")
 sys.path.insert(0, _ORCHESTRATOR)
-
-
-def _jsonable(value: object) -> object:
-    if dataclasses.is_dataclass(value) and not isinstance(value, type):
-        return dataclasses.asdict(value)
-    if isinstance(value, Mapping):
-        return dict(value)
-    raise TypeError(
-        "probe() result must be a dataclass instance or mapping, "
-        f"got {type(value).__name__}"
-    )
 
 
 def _write_create_only(path: Path, payload: Mapping[str, Any]) -> None:
@@ -47,23 +35,24 @@ def run(
     try:
         module = importer("campaign.env_attestation")
         probe_fn = getattr(module, "probe")
+        serialize_profile = getattr(module, "observed_profile_to_dict")
     except Exception as exc:  # import/attribute failure must remain visible and non-zero
         payload: dict[str, Any] = {
-            "schema_version": "pegasus-probe-output/v1",
+            "schema_version": "pegasus-probe-output/v2",
             "ok": False,
             "observed_epoch": int(time.time()),
             "error": {
                 "stage": "import",
                 "type": type(exc).__name__,
-                "message": str(exc),
+                "message": str(exc) or type(exc).__name__,
             },
         }
         rc = 2
     else:
         try:
-            profile = _jsonable(probe_fn())
+            profile = serialize_profile(probe_fn())
             payload = {
-                "schema_version": "pegasus-probe-output/v1",
+                "schema_version": "pegasus-probe-output/v2",
                 "ok": True,
                 "observed_epoch": int(time.time()),
                 "profile": profile,
@@ -71,13 +60,13 @@ def run(
             rc = 0
         except Exception as exc:
             payload = {
-                "schema_version": "pegasus-probe-output/v1",
+                "schema_version": "pegasus-probe-output/v2",
                 "ok": False,
                 "observed_epoch": int(time.time()),
                 "error": {
                     "stage": "probe",
                     "type": type(exc).__name__,
-                    "message": str(exc),
+                    "message": str(exc) or type(exc).__name__,
                 },
             }
             rc = 3
@@ -87,13 +76,13 @@ def run(
             _write_create_only(output, payload)
         except Exception as exc:
             payload = {
-                "schema_version": "pegasus-probe-output/v1",
+                "schema_version": "pegasus-probe-output/v2",
                 "ok": False,
                 "observed_epoch": int(time.time()),
                 "error": {
                     "stage": "write",
                     "type": type(exc).__name__,
-                    "message": str(exc),
+                    "message": str(exc) or type(exc).__name__,
                 },
             }
             rc = 4
