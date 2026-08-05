@@ -14,9 +14,10 @@ import os
 import re
 import statistics
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Mapping, Optional, Protocol
+from typing import Callable, Mapping, Optional, Protocol, Sequence
 
 from calibrator import schema_v2 as _schema_v2
 from calibrator import effective_clock_policy
@@ -32,6 +33,14 @@ PROBE_VERSION = "1"
 PEGASUS_PROBE_OUTPUT_V1 = "pegasus-probe-output/v1"
 PEGASUS_PROBE_OUTPUT_V2 = "pegasus-probe-output/v2"
 LEGACY_SCHEMA_VERSION = "calibration/v1"
+EFFECTIVE_CLOCK_ALPHA_K = 5
+EFFECTIVE_CLOCK_ALPHA_INTERVAL_NS = 50_000_000
+EFFECTIVE_CLOCK_ALPHA_RULE_ID = "sysfs-affinity-intersection-evenly-spaced-v1"
+EFFECTIVE_CLOCK_METHOD = (
+    f"proc-cpuinfo-rotating-min/k{EFFECTIVE_CLOCK_ALPHA_K}"
+    f"/interval-ns{EFFECTIVE_CLOCK_ALPHA_INTERVAL_NS}"
+    f"/{EFFECTIVE_CLOCK_ALPHA_RULE_ID}"
+)
 
 _CPU_DIR_RE = re.compile(r"cpu([0-9]+)")
 _INDEX_DIR_RE = re.compile(r"index([0-9]+)")
@@ -49,6 +58,24 @@ class AttestationError(RuntimeError):
 
 class HardwareProbe(Protocol):
     def __call__(self) -> _schema_v2.ObservedAttestationProfile: ...
+
+
+class CpuinfoSamplingRuntime(Protocol):
+    """方式 alpha が使う OS/read 境界。集約済み値は注入しない。"""
+
+    def get_affinity(self) -> set[int]: ...
+
+    def set_affinity(self, cpus: set[int]) -> None: ...
+
+    def current_processor(self, proc_root: Path) -> int: ...
+
+    def read_cpuinfo(
+        self, path: Path,
+    ) -> tuple[dict[str, object], dict[int, float]]: ...
+
+    def monotonic_ns(self) -> int: ...
+
+    def sleep(self, seconds: float) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -254,6 +281,244 @@ def _parse_cpuinfo(path: Path) -> tuple[dict[str, object], dict[int, float]]:
     }, mhz_by_cpu
 
 
+def _current_processor(proc_root: Path) -> int:
+    """呼出し thread の ``/proc`` stat から processor field を返す。"""
+    stat = _read_text(proc_root / "thread-self/stat", field="/proc/thread-self/stat")
+    comm_end = stat.rfind(")")
+    if comm_end < 1:
+        raise AttestationError("/proc/thread-self/stat の comm field が不正")
+    fields_after_comm = stat[comm_end + 1:].split()
+    processor_offset = 39 - 3
+    if len(fields_after_comm) <= processor_offset:
+        raise AttestationError("/proc/thread-self/stat に processor field がない")
+    return _parse_int(
+        fields_after_comm[processor_offset], field="/proc/thread-self/stat.processor",
+    )
+
+
+@dataclass(frozen=True)
+class _LinuxCpuinfoSamplingRuntime:
+    def get_affinity(self) -> set[int]:
+        return set(os.sched_getaffinity(0))
+
+    def set_affinity(self, cpus: set[int]) -> None:
+        os.sched_setaffinity(0, cpus)
+
+    def current_processor(self, proc_root: Path) -> int:
+        return _current_processor(proc_root)
+
+    def read_cpuinfo(
+        self, path: Path,
+    ) -> tuple[dict[str, object], dict[int, float]]:
+        return _parse_cpuinfo(path)
+
+    def monotonic_ns(self) -> int:
+        return time.monotonic_ns()
+
+    def sleep(self, seconds: float) -> None:
+        time.sleep(seconds)
+
+
+DEFAULT_CPUINFO_RUNTIME: CpuinfoSamplingRuntime = _LinuxCpuinfoSamplingRuntime()
+
+
+def _select_evenly_spaced_cpu_ids(
+    cpus: set[int], count: int, rule_id: str,
+) -> list[int]:
+    if rule_id != EFFECTIVE_CLOCK_ALPHA_RULE_ID:
+        raise AttestationError(f"未知の effective-clock target 選択規則: {rule_id!r}")
+    if type(count) is not int or count < 2:
+        raise AttestationError("effective-clock target 数は 2 以上の整数でなければならない")
+    if any(type(cpu) is not int or cpu < 0 for cpu in cpus):
+        raise AttestationError("effective-clock target 候補に不正な CPU ID がある")
+    ordered = sorted(cpus)
+    if len(ordered) < count:
+        raise AttestationError(
+            f"方式 alpha に必要な affinity CPU が不足: required={count} "
+            f"observed={len(ordered)}"
+        )
+    targets = [
+        ordered[round(index * (len(ordered) - 1) / (count - 1))]
+        for index in range(count)
+    ]
+    if len(set(targets)) != count:
+        raise AttestationError("effective-clock target 選択が distinct CPU を返さなかった")
+    return targets
+
+
+def _reduce_cpuinfo_reads(
+    reads: Sequence[tuple[Mapping[str, object], Mapping[int, float]]],
+    expected_cpu_ids: set[int],
+) -> tuple[dict[str, object], dict[int, float]]:
+    """K snapshot を CPU ごとの最小 MHz へ集約し、集合・identity drift を拒否する。"""
+    if len(reads) != EFFECTIVE_CLOCK_ALPHA_K:
+        raise AttestationError(
+            f"方式 alpha の cpuinfo read 数が不正: required={EFFECTIVE_CLOCK_ALPHA_K} "
+            f"observed={len(reads)}"
+        )
+    if not expected_cpu_ids:
+        raise AttestationError("方式 alpha の expected CPU 集合が空")
+    first_identity = dict(reads[0][0])
+    minima = {cpu_id: math.inf for cpu_id in expected_cpu_ids}
+    for read_index, (identity, mhz_by_cpu) in enumerate(reads):
+        observed_cpu_ids = set(mhz_by_cpu)
+        if observed_cpu_ids != expected_cpu_ids:
+            raise AttestationError(
+                f"cpuinfo processor 集合が read {read_index} で drift: "
+                f"expected={sorted(expected_cpu_ids)} observed={sorted(observed_cpu_ids)}"
+            )
+        if dict(identity) != first_identity:
+            raise AttestationError(f"cpuinfo identity が read {read_index} で drift")
+        for cpu_id in expected_cpu_ids:
+            value = mhz_by_cpu[cpu_id]
+            if type(value) not in {int, float} or not math.isfinite(value) or value <= 0.0:
+                raise AttestationError(
+                    f"cpuinfo read {read_index} の cpu{cpu_id} MHz が正の有限値でない"
+                )
+            minima[cpu_id] = min(minima[cpu_id], float(value))
+    return first_identity, minima
+
+
+def _runtime_monotonic_ns(runtime: CpuinfoSamplingRuntime) -> int:
+    try:
+        value = runtime.monotonic_ns()
+    except (AttributeError, OSError, TypeError, ValueError) as exc:
+        raise AttestationError(f"monotonic clock を取得できない: {exc}") from exc
+    if type(value) is not int or value < 0:
+        raise AttestationError("monotonic clock が非負整数 nanoseconds でない")
+    return value
+
+
+def _wait_until_ns(runtime: CpuinfoSamplingRuntime, deadline_ns: int) -> None:
+    while True:
+        now_ns = _runtime_monotonic_ns(runtime)
+        if now_ns >= deadline_ns:
+            return
+        try:
+            runtime.sleep((deadline_ns - now_ns) / 1_000_000_000)
+        except (AttributeError, OSError, TypeError, ValueError) as exc:
+            raise AttestationError(f"effective-clock interval 待機に失敗: {exc}") from exc
+
+
+def _collect_rotating_cpuinfo(
+    path: Path,
+    proc_root: Path,
+    expected_cpu_ids: set[int],
+    runtime: CpuinfoSamplingRuntime,
+) -> tuple[dict[str, object], dict[int, float], int]:
+    """affinity 巡回、K read、元 affinity の exact 復元を一つの境界に閉じる。"""
+    try:
+        original_affinity = frozenset(runtime.get_affinity())
+    except (AttributeError, OSError, TypeError, ValueError) as exc:
+        raise AttestationError(f"sched_getaffinity を利用できない: {exc}") from exc
+    if not original_affinity:
+        raise AttestationError("sched_getaffinity が空の CPU 集合を返した")
+    if any(type(cpu) is not int or cpu < 0 for cpu in original_affinity):
+        raise AttestationError("sched_getaffinity が不正な CPU ID を返した")
+    targets = _select_evenly_spaced_cpu_ids(
+        expected_cpu_ids & set(original_affinity),
+        EFFECTIVE_CLOCK_ALPHA_K,
+        EFFECTIVE_CLOCK_ALPHA_RULE_ID,
+    )
+    reads: list[tuple[dict[str, object], dict[int, float]]] = []
+    previous_read_started_ns: Optional[int] = None
+    primary_error: Optional[Exception] = None
+    restore_errors: list[str] = []
+    try:
+        for read_index, target in enumerate(targets):
+            try:
+                runtime.set_affinity({target})
+            except (AttributeError, OSError, TypeError, ValueError) as exc:
+                raise AttestationError(
+                    f"effective-clock read {read_index} の cpu{target} pin に失敗: {exc}"
+                ) from exc
+
+            deadline_ns = None
+            if previous_read_started_ns is not None:
+                deadline_ns = previous_read_started_ns + EFFECTIVE_CLOCK_ALPHA_INTERVAL_NS
+                _wait_until_ns(runtime, deadline_ns)
+
+            try:
+                pinned_affinity = set(runtime.get_affinity())
+            except (AttributeError, OSError, TypeError, ValueError) as exc:
+                raise AttestationError(
+                    f"effective-clock read {read_index} の affinity 再取得に失敗: {exc}"
+                ) from exc
+            if pinned_affinity != {target}:
+                raise AttestationError(
+                    f"effective-clock read {read_index} の pin mask が不一致: "
+                    f"target={target} observed={sorted(pinned_affinity)}"
+                )
+
+            try:
+                pre_processor = runtime.current_processor(proc_root)
+            except (AttributeError, OSError, TypeError, ValueError) as exc:
+                raise AttestationError(
+                    f"effective-clock read {read_index} の pre processor を取得できない: {exc}"
+                ) from exc
+            if pre_processor != target:
+                raise AttestationError(
+                    f"effective-clock read {read_index} の pre processor が不一致: "
+                    f"target={target} observed={pre_processor}"
+                )
+
+            read_started_ns = _runtime_monotonic_ns(runtime)
+            if deadline_ns is not None and read_started_ns < deadline_ns:
+                raise AttestationError(
+                    f"effective-clock read {read_index} が interval deadline より前に開始した"
+                )
+            previous_read_started_ns = read_started_ns
+            try:
+                identity, mhz_by_cpu = runtime.read_cpuinfo(path)
+            except (AttestationError, OSError, TypeError, ValueError) as exc:
+                raise AttestationError(
+                    f"effective-clock read {read_index} の cpuinfo 取得に失敗: {exc}"
+                ) from exc
+
+            try:
+                post_processor = runtime.current_processor(proc_root)
+            except (AttributeError, OSError, TypeError, ValueError) as exc:
+                raise AttestationError(
+                    f"effective-clock read {read_index} の post processor を取得できない: {exc}"
+                ) from exc
+            if post_processor != target:
+                raise AttestationError(
+                    f"effective-clock read {read_index} の post processor が不一致: "
+                    f"target={target} observed={post_processor}"
+                )
+            reads.append((identity, mhz_by_cpu))
+    except Exception as exc:
+        primary_error = exc
+    finally:
+        try:
+            runtime.set_affinity(set(original_affinity))
+        except Exception as exc:
+            restore_errors.append(f"元 affinity の復元設定に失敗: {exc}")
+        try:
+            restored_affinity = set(runtime.get_affinity())
+        except Exception as exc:
+            restore_errors.append(f"元 affinity の復元後再取得に失敗: {exc}")
+        else:
+            try:
+                if restored_affinity != set(original_affinity):
+                    restore_errors.append(
+                        f"元 affinity の復元が不一致: expected={sorted(original_affinity)} "
+                        f"observed={sorted(restored_affinity)}"
+                    )
+            except Exception as exc:
+                restore_errors.append(f"元 affinity の復元検証に失敗: {exc}")
+    if primary_error is not None:
+        if restore_errors:
+            raise AttestationError(
+                f"{primary_error}; 復元時の追加失敗: {'; '.join(restore_errors)}"
+            ) from primary_error
+        raise primary_error
+    if restore_errors:
+        raise AttestationError("; ".join(restore_errors))
+    identity, minima = _reduce_cpuinfo_reads(reads, expected_cpu_ids)
+    return identity, minima, len(original_affinity)
+
+
 def _cache_topology(cpus: list[tuple[int, Path]]) -> list[_schema_v2.CacheTopologyEntry]:
     unique: dict[tuple, _schema_v2.CacheTopologyEntry] = {}
     expected_indexes: Optional[list[int]] = None
@@ -401,18 +666,19 @@ def _visibility(proc_root: Path) -> _schema_v2.VisibilityProfile:
     )
 
 
-def probe(roots: ProbeRoots = DEFAULT_PROBE_ROOTS) -> _schema_v2.ObservedAttestationProfile:
+def probe(
+    roots: ProbeRoots = DEFAULT_PROBE_ROOTS,
+    *,
+    cpuinfo_runtime: CpuinfoSamplingRuntime = DEFAULT_CPUINFO_RUNTIME,
+) -> _schema_v2.ObservedAttestationProfile:
     """現在 hardware を strict に観測する。部分読取りは probe 全体を拒否する。"""
     if not isinstance(roots, ProbeRoots):
         raise AttestationError("roots は ProbeRoots でなければならない")
     cpus = _cpu_directories(roots.sys_cpu)
     cpu_ids = {cpu_id for cpu_id, _ in cpus}
-    cpu_identity, mhz_by_cpu = _parse_cpuinfo(roots.proc / "cpuinfo")
-    if set(mhz_by_cpu) != cpu_ids:
-        raise AttestationError(
-            f"cpuinfo processor と sysfs CPU が不一致: cpuinfo={sorted(mhz_by_cpu)} "
-            f"sysfs={sorted(cpu_ids)}"
-        )
+    cpu_identity, mhz_by_cpu, affinity_visible = _collect_rotating_cpuinfo(
+        roots.proc / "cpuinfo", roots.proc, cpu_ids, cpuinfo_runtime,
+    )
     core_ids = set()
     governors = set()
     for cpu_id, cpu_path in cpus:
@@ -425,13 +691,8 @@ def probe(roots: ProbeRoots = DEFAULT_PROBE_ROOTS) -> _schema_v2.ObservedAttesta
         ))
     if len(governors) != 1:
         raise AttestationError(f"CPU 間で scaling governor が異なる: {sorted(governors)}")
-    try:
-        affinity_visible = len(os.sched_getaffinity(0))
-    except (AttributeError, OSError) as exc:
-        raise AttestationError(f"sched_getaffinity を利用できない: {exc}") from exc
-    if affinity_visible < 1:
-        raise AttestationError("sched_getaffinity が空の CPU 集合を返した")
 
+    # 方式 alpha の affinity 復元完了後だけ TSC 測定へ進む。
     tsc_profile = _measure_tsc_profile()
     try:
         return _schema_v2.ObservedAttestationProfile(
@@ -446,7 +707,7 @@ def probe(roots: ProbeRoots = DEFAULT_PROBE_ROOTS) -> _schema_v2.ObservedAttesta
             tsc=tsc_profile,
             effective_clock=_schema_v2.ObservedEffectiveClockProfile(
                 samples_mhz=[mhz_by_cpu[cpu_id] for cpu_id in sorted(cpu_ids)],
-                method="proc-cpuinfo",
+                method=EFFECTIVE_CLOCK_METHOD,
                 governor=next(iter(governors)),
             ),
             visibility=_visibility(roots.proc),

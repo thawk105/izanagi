@@ -182,41 +182,161 @@ def _independent_comparison_passes(field: str, expected: object, observed: objec
 
 def effective_clock_comparison_passes(expected: object, observed: object) -> bool:
     """Canonical pure predicate for effective-clock expected/observed values."""
-    if not isinstance(expected, Mapping) or set(expected) != {
-        "samples_mhz", "tolerance_pct",
-    }:
-        return False
-    if not isinstance(observed, Mapping) or set(observed) != {"samples_mhz"}:
-        return False
-    tolerance = expected.get("tolerance_pct")
-    if (type(tolerance) not in (int, float)
-            or tolerance != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT):
-        return False
-    return _effective_clock_band_math_passes(expected, observed)
+    evaluation = _effective_clock_band_evaluation(
+        expected,
+        observed,
+        collect_all_violations=False,
+        catch_overflow=False,
+        short_circuit_policy=True,
+    )
+    return bool(
+        evaluation["input_valid"]
+        and evaluation["policy_matches"]
+        and evaluation["band_pass"]
+    )
 
 
-def _effective_clock_band_math_passes(expected: object, observed: object) -> bool:
-    """Arbitrary-width clock-band mathematics; never a public admission gate."""
+def _effective_clock_band_evaluation(
+    expected: object,
+    observed: object,
+    *,
+    collect_all_violations: bool = True,
+    catch_overflow: bool = True,
+    short_circuit_policy: bool = False,
+) -> dict:
+    """Evaluate shape, policy identity, and arbitrary-width band diagnostics.
+
+    ``band_pass`` deliberately preserves the permissive historical mathematics:
+    numeric strings and bool samples remain float-coercible, arbitrary tolerance
+    widths remain evaluable, and expected/observed sample counts need not match.
+    Diagnostics collect every violation; the legacy math caller requests first-
+    violation short-circuiting and leaves ``OverflowError`` behavior unchanged.
+    """
+    evaluation = {
+        "input_valid": False,
+        "policy_matches": False,
+        "band_pass": False,
+        "median_mhz": None,
+        "lower_mhz": None,
+        "upper_mhz": None,
+        "out_of_band_count": None,
+        "violations": [],
+        "evaluation_error": None,
+    }
     try:
-        if not isinstance(expected, Mapping) or not isinstance(observed, Mapping):
-            return False
+        if not isinstance(expected, Mapping):
+            return evaluation
+        expected_keys = expected.keys()
+        if (len(expected_keys) != 2
+                or "samples_mhz" not in expected_keys
+                or "tolerance_pct" not in expected_keys):
+            return evaluation
+        if not isinstance(observed, Mapping):
+            return evaluation
+        observed_keys = observed.keys()
+        if len(observed_keys) != 1 or "samples_mhz" not in observed_keys:
+            return evaluation
+        evaluation["input_valid"] = True
+        tolerance = expected.get("tolerance_pct")
+        evaluation["policy_matches"] = bool(
+            type(tolerance) in (int, float)
+            and tolerance
+            == effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT
+        )
+        if short_circuit_policy and not evaluation["policy_matches"]:
+            return evaluation
         expected_samples = expected.get("samples_mhz")
         observed_samples = observed.get("samples_mhz")
-        tolerance = expected.get("tolerance_pct")
+    except Exception as exc:
+        evaluation["input_valid"] = False
+        evaluation["evaluation_error"] = {
+            "type": type(exc).__name__,
+            "message": str(exc),
+        }
+        return evaluation
+
+    try:
         if (type(expected_samples) is not list or type(observed_samples) is not list
                 or not expected_samples or not observed_samples
                 or type(tolerance) not in (int, float)):
-            return False
+            evaluation["input_valid"] = False
+            return evaluation
         expected_median = float(statistics.median(expected_samples))
         allowed_delta = abs(expected_median) * float(tolerance) / 100.0
         lower = expected_median - allowed_delta
         upper = expected_median + allowed_delta
-        return all(
-            lower <= float(sample) <= upper
-            for sample in observed_samples
-        )
+        evaluation.update({
+            "median_mhz": expected_median if math.isfinite(expected_median) else None,
+            "lower_mhz": lower if math.isfinite(lower) else None,
+            "upper_mhz": upper if math.isfinite(upper) else None,
+        })
+        for sample_index, sample in enumerate(observed_samples):
+            sample_mhz = float(sample)
+            if lower <= sample_mhz <= upper:
+                continue
+            if sample_mhz < lower:
+                direction = "below"
+                outside_by = lower - sample_mhz
+            elif sample_mhz > upper:
+                direction = "above"
+                outside_by = sample_mhz - upper
+            else:
+                direction = "indeterminate"
+                outside_by = None
+            deviation = sample_mhz - expected_median
+            evaluation["violations"].append({
+                "sample_index": sample_index,
+                "sample_mhz": sample_mhz if math.isfinite(sample_mhz) else None,
+                "direction": direction,
+                "deviation_from_median_mhz": (
+                    deviation if math.isfinite(deviation) else None
+                ),
+                "outside_by_mhz": (
+                    outside_by
+                    if outside_by is None or math.isfinite(outside_by)
+                    else None
+                ),
+            })
+            if not collect_all_violations:
+                break
+        evaluation["out_of_band_count"] = len(evaluation["violations"])
+        evaluation["band_pass"] = not evaluation["violations"]
+        return evaluation
+    except OverflowError as exc:
+        if not catch_overflow:
+            raise
+        evaluation["input_valid"] = False
+        evaluation["band_pass"] = False
+        evaluation["out_of_band_count"] = None
+        evaluation["evaluation_error"] = {
+            "type": type(exc).__name__,
+            "message": str(exc),
+        }
+        return evaluation
     except (TypeError, ValueError, statistics.StatisticsError):
-        return False
+        evaluation["input_valid"] = False
+        evaluation["band_pass"] = False
+        evaluation["out_of_band_count"] = None
+        evaluation["violations"] = []
+        return evaluation
+
+
+def effective_clock_comparison_diagnostics(
+    expected: object, observed: object,
+) -> dict:
+    """Project structured clock-band diagnostics without granting admission."""
+    return _effective_clock_band_evaluation(expected, observed)
+
+
+def _effective_clock_band_math_passes(expected: object, observed: object) -> bool:
+    """Arbitrary-width clock-band mathematics; never a public admission gate."""
+    return bool(_effective_clock_band_evaluation(
+        expected,
+        observed,
+        collect_all_violations=False,
+        catch_overflow=False,
+        short_circuit_policy=False,
+    )["band_pass"])
 
 
 def _json_value(value: object, *, field: str) -> None:

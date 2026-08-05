@@ -37,7 +37,7 @@ from orchestrator.campaign.source_digest import (                    # noqa: E40
 
 
 _ROLES = ("planner", "coder", "auditor", "critic")
-_TRIAL_SCHEMA_VERSION = "p3-autonomous-workload-trial/v2"
+_TRIAL_SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
 _REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v2"
 _LAYER3_SCHEMA_VERSION = "layer3-material-report/v3"
 _LAYER3_GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
@@ -264,6 +264,7 @@ def _start(run: Path, workloads: list[str], *, budget: int = 1) -> dict:
         "do_build": False,
         "performance_early_stop": False,
         "scientific_claim": False,
+        "launch_admission": _launch_admission(workloads),
         "seq": 1,
         "ts": "2026-08-01T00:00:01+00:00",
     }
@@ -287,7 +288,20 @@ def _report(run: Path, workloads: list[str], *, budget: int = 1) -> dict:
         },
         "claim_scope": {"scientific_claim": False},
         "attempt_journal": str(run / "attempts.jsonl"),
+        "launch_admission": _launch_admission(workloads),
         "cells": [],
+    }
+
+
+def _launch_admission(workloads: list[str]) -> dict:
+    return {
+        "mode": "explicit-unregistered-exploratory",
+        "certifying": False,
+        "reason_code": "explicit-unregistered-exploratory",
+        "trial_id": "fixture-completeness",
+        "workloads": list(workloads),
+        "binding": None,
+        "activation_report_digest_sha256": None,
     }
 
 
@@ -725,15 +739,15 @@ def test_report_and_run_start_schema_versions_are_required(tmp_path, target) -> 
         _verify(run, report)
 
 
-def test_schema_version_v2_is_required_and_v1_is_rejected(tmp_path) -> None:
-    assert A.SCHEMA_VERSION == "p3-autonomous-workload-trial/v2"
+def test_role_schema_v3_and_report_schema_v2_are_required(tmp_path) -> None:
+    assert A.SCHEMA_VERSION == "p3-autonomous-workload-trial/v3"
     assert A.REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v2"
-    assert _TRIAL_SCHEMA_VERSION == "p3-autonomous-workload-trial/v2"
+    assert _TRIAL_SCHEMA_VERSION == "p3-autonomous-workload-trial/v3"
     assert _REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v2"
     for target in ("start", "report"):
         run, events, report = _complete_trial(tmp_path / target)
         if target == "start":
-            events[0]["schema_version"] = "p3-autonomous-workload-trial/v1"
+            events[0]["schema_version"] = "p3-autonomous-workload-trial/v2"
             expected = "run-start.schema_version does not match producer version"
         else:
             report["schema_version"] = "p3-autonomous-workload-trial-report/v1"
@@ -956,6 +970,7 @@ def test_auditor_skip_is_journaled_and_has_no_carve_out(tmp_path) -> None:
         do_build=False,
         preview=preview,
         drive=drive,
+        allow_unregistered_exploratory=True,
     )
     auditor = report["cells"][0]["generations"][0]["roles"]["auditor"]
     assert auditor["event"] == "role-attempt"
@@ -1034,6 +1049,7 @@ def test_m4a_producer_supervisor_error_preserves_constructed_generation(
         sub="/unused",
         do_build=False,
         preview=broken_preview,
+        allow_unregistered_exploratory=True,
     )
     generation = report["cells"][0]["generations"][0]
     assert generation["generation"] == 1
@@ -1104,6 +1120,24 @@ def test_m5_run_start_workload_order_mismatch_is_rejected(tmp_path) -> None:
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
         match=r"\[run-envelope\] run-start workloads do not match report order$",
+    ):
+        _verify(run, report)
+
+
+@pytest.mark.parametrize("mutation", ["missing-report", "start-mismatch"])
+def test_launch_admission_is_required_and_exact_between_start_and_report(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    if mutation == "missing-report":
+        report.pop("launch_admission")
+    else:
+        events[0]["launch_admission"]["trial_id"] = "other-trial"
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[launch-admission\] ",
     ):
         _verify(run, report)
 
@@ -1365,6 +1399,7 @@ def _campaign_report(cell: dict, *, trial_id: str = "fixture-completeness") -> d
         "trial_id": trial_id,
         "generation_budget_per_workload": 1,
         "status": "partial",
+        "launch_admission": {"certifying": False},
         "cells": [copy.deepcopy(cell)],
     }
 
@@ -1627,6 +1662,7 @@ def test_role_append_io_failure_cannot_publish_incomplete_report(
             run_root=run,
             sub="/unused",
             do_build=False,
+            allow_unregistered_exploratory=True,
         )
     assert not (run / "report.json").exists()
     events = [
@@ -1677,6 +1713,7 @@ def test_journal_change_after_verifier_read_is_fail_closed(
                 "reason": "",
                 "forbidden_identifiers": [],
             },
+            allow_unregistered_exploratory=True,
         )
     assert not (run / "report.json").exists()
 
@@ -1705,6 +1742,7 @@ def test_completeness_failure_is_not_caught_and_report_is_not_written(
             sub="/unused",
             do_build=False,
             preview=broken_preview,
+            allow_unregistered_exploratory=True,
         )
     assert not (run / "report.json").exists()
     events = [

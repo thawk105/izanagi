@@ -16,6 +16,7 @@ import time
 import weakref
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -24,11 +25,15 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from orchestrator.campaign import claude_transport
+from orchestrator.campaign import artifact_admission
+from orchestrator.campaign import model as campaign_model
 from orchestrator.campaign import p3_autonomous_workload_trial as A
 from orchestrator.campaign import s8b_prediction_runner as S
+from orchestrator.campaign import wal
 from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
 from orchestrator.campaign.s8b_prediction_runner import PredictionRunnerError
 from orchestrator.campaign.reflux_ir import RefluxIRError, emit_predicate
+from orchestrator.critic.digest import DiffQuarantineRejection
 from calibrator import runner as calibrator_runner
 from orchestrator.campaign import claude_projected_provider as P
 
@@ -47,6 +52,28 @@ def _coder_authority():
     return parser.parse_args([
         "--allow-coder-derived-build",
     ]).coder_build_authority
+
+
+@contextlib.contextmanager
+def _exploratory_scope(trial_id: str, workloads: list[str]):
+    admission = A.trial_registry.admit_unregistered_exploratory(
+        trial_id=trial_id,
+        workloads=workloads,
+        allow_unregistered_exploratory=True,
+        repository_root=A.ROOT,
+        registry_path=A.ROOT / A.trial_registry.DEFAULT_REGISTRY_PATH,
+    )
+    scope = A._RunScopeBinding(admission, A._RUN_SCOPE_SEAL)
+    token = A._ACTIVE_TRIAL_BINDING.set(scope)
+    try:
+        yield admission
+    finally:
+        A._ACTIVE_TRIAL_BINDING.reset(token)
+
+
+def _run_workload_with_scope(**kwargs):
+    with _exploratory_scope(kwargs["trial_id"], [kwargs["workload"]]):
+        return A._run_workload(**kwargs)
 
 
 def _fake_drive(
@@ -70,6 +97,77 @@ def _fake_drive(
     }
 
 
+_RELATION_GENOME = A.loop_core.Genome(
+    "silo", dict(A.trigger._BASE),
+)
+
+
+def _write_admitted_rejection_digest(cfg, layout, coder) -> str:
+    """実 WAL と実 renderer で no-build reject の digest を作る。"""
+    layout = A.CampaignLayout(
+        str(Path(layout.root).parent / str(A.trigger.ident.campaign_id(cfg)))
+    )
+    ir = A.parse_wire(coder.wire)
+    implementation = emit_predicate(ir)
+    binding_api = A.loop_core.trigger_gate_binding
+    binding = binding_api.TriggerGateBinding(
+        mask=ir.mask,
+        predicate_sha256=binding_api.expected_predicate_sha256(ir.mask),
+        nonce=binding_api.new_nonce(),
+        source=None,
+    )
+    rejection = A.loop_core.DiffQuarantineResult(
+        passed=False,
+        reason="fixture rejection",
+        digest={
+            "rejection_type": "diff-quarantine",
+            "subtype": "fixture-reject",
+            "reason": "fixture rejection",
+            "diff_region": A.trigger.SOURCE_REL,
+            "template_diff_id": A.trigger.MARKER_ID,
+            "evidence": "fixture evidence",
+        },
+    )
+    variant = A.loop_core.record_diff_reject(
+        layout, _RELATION_GENOME, implementation, rejection,
+        trigger_gate_binding=binding,
+    )
+    starts = [
+        record
+        for record in wal.read_records(layout)
+        if record.stage == campaign_model.STAGE_BUILD_START
+    ]
+    provenance = {
+        "entries": {
+            str(index): {
+                "variant": record.variant,
+                "build_attempt_id": record.payload["build_attempt_id"],
+                wal.TRIGGER_BINDING_COMMITMENT_KEY: record.payload[
+                    wal.TRIGGER_BINDING_COMMITMENT_KEY
+                ],
+            }
+            for index, record in enumerate(starts, 1)
+        },
+    }
+    reports = Path(layout.root) / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / artifact_admission._TRIGGER_PROVENANCE_BASENAME).write_bytes(
+        A._canonical_json_bytes(provenance) + b"\n"
+    )
+    A.loop_core.wal.write_lock(layout, A.ident.canonical_preimage(cfg))
+    critic_view = A.require_admitted_campaign(layout.root)
+    raw_digest = A.loop_core.make_critic_digest(
+        critic_view,
+        tag=A.trigger.CRITIC_TAG,
+        reflux=(cfg.search_config.get("reflux") == "on"),
+        identity_projection=A.loop_core.IdentityProjection.RAW,
+    )
+    (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
+        raw_digest, encoding="utf-8",
+    )
+    return variant
+
+
 def _fake_drive_with_finite_metrics(
     cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
     cache_root="", proposal_path="", extra_sources=(),
@@ -88,12 +186,9 @@ def _fake_drive_with_finite_metrics(
         proposal_path=proposal_path,
         extra_sources=extra_sources,
     )
-    (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
-        "fixture admitted digest", encoding="utf-8",
-    )
     outcome.update({
         "outcome": "certified",
-        "variant": "fixture-finite-metrics",
+        "variant": None,
         "fitness_tps": 12345.0,
         "records": {
             "bench_done": {
@@ -125,14 +220,33 @@ class _RecordingFixture(A.FixtureRoleProvider):
     def __init__(self, role):
         super().__init__(role)
         self.payloads = []
+        self.payload_bytes = []
 
     def invoke(self, *, invocation_id, payload):
         self.payloads.append(dict(payload))
+        self.payload_bytes.append(A._canonical_json_bytes(payload))
         return super().invoke(invocation_id=invocation_id, payload=payload)
 
 
+class _WireRecordingFixture(_RecordingFixture):
+    def __init__(self, role, *, wire):
+        super().__init__(role)
+        self.wire = wire
+
+    def invoke(self, *, invocation_id, payload):
+        response = super().invoke(invocation_id=invocation_id, payload=payload)
+        if self.role != "coder":
+            return response
+        value = json.loads(response.raw_response)
+        value["proposal"]["wire"] = self.wire
+        return dataclasses.replace(
+            response,
+            raw_response=A._canonical_json_bytes(value).decode("utf-8"),
+        )
+
+
 def _actual_campaign_layout(
-    run_root: Path, *, trial_id: str,
+    run_root: Path, *, trial_id: str, generations: int = 1,
 ) -> A.CampaignLayout:
     flags = A.WORKLOADS["ycsb-a"]
     descriptor, descriptor_record = A._descriptor_for(flags)
@@ -142,7 +256,7 @@ def _actual_campaign_layout(
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
-        generations=1,
+        generations=generations,
         build_context=_no_build_context(),
     )
     return A.CampaignLayout(
@@ -533,6 +647,7 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         providers=providers,
         drive=_fake_drive,
         preview=_fake_preview,
+        allow_unregistered_exploratory=True,
     )
     assert report["status"] == "complete"
     assert report["schema_version"] == "p3-autonomous-workload-trial-report/v2"
@@ -588,13 +703,15 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         providers["critic"].payloads,
         strict=True,
     ):
-        assert planner_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
-        assert coder_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
-        assert critic_payload["schema_version"] == "p3-autonomous-workload-trial/v2"
+        assert planner_payload["schema_version"] == "p3-autonomous-workload-trial/v3"
+        assert coder_payload["schema_version"] == "p3-autonomous-workload-trial/v3"
+        assert critic_payload["schema_version"] == "p3-autonomous-workload-trial/v3"
         critic_keys = json.dumps(critic_payload, sort_keys=True)
         assert "trigger_gate_binding" not in critic_keys
         assert '"mask"' not in critic_keys
         assert '"wire"' not in critic_keys
+        assert critic_payload["critic_digest"] is None
+        assert critic_payload["harness_result"]["candidate_label"] is None
 
         current_perf = planner_payload["current_perf"]
         leading_indicators = planner_payload["leading_indicators"]
@@ -675,6 +792,7 @@ def test_fixture_no_build_cli_uses_public_drive_without_critic_digest(
         "--workloads", "ycsb-a",
         "--max-generations", "1",
         "--no-build",
+        "--allow-unregistered-exploratory",
         "--ccbench-dir", str(ccbench),
         "--run-root", str(run_root),
     ]) == 0
@@ -727,6 +845,7 @@ def test_generation_one_recipient_wiring_uses_role_projection(
         providers=providers,
         drive=_fake_drive,
         preview=_fake_preview,
+        allow_unregistered_exploratory=True,
     )
 
     assert report["status"] == "complete"
@@ -761,6 +880,7 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
         providers=providers,
         drive=_fake_drive_with_finite_metrics,
         preview=_fake_preview,
+        allow_unregistered_exploratory=True,
     )
 
     assert report["status"] == "complete"
@@ -773,6 +893,7 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
 
     planner_payload = providers["planner"].payloads[0]
     coder_payload = providers["coder"].payloads[0]
+    auditor_payload = providers["auditor"].payloads[0]
     critic_payload = providers["critic"].payloads[0]
     common_keys = {
         "schema_version",
@@ -797,10 +918,25 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
         "baseline",
         "whiteboard",
     }
+    assert set(auditor_payload) == common_keys | {
+        "working_diff",
+        "diff_digest",
+        "designated_source_context",
+        "correctness_digest",
+    }
     assert set(critic_payload) == common_keys | {
         "harness_result",
         "critic_digest",
     }
+    assert set(critic_payload["harness_result"]) == {
+        "outcome",
+        "candidate_label",
+        "verdict",
+        "metrics",
+        "stop_reason",
+    }
+    assert critic_payload["harness_result"]["candidate_label"] is None
+    assert critic_payload["critic_digest"] is None
 
     critic_metrics = critic_payload["harness_result"]["metrics"]
     assert critic_metrics == {
@@ -817,6 +953,354 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
         == cell["descriptor"]["contention"]["label"]
     )
     assert "metrics" not in generation_record
+
+
+def test_auditor_declassification_annotation_is_exact_and_pins_sunset(
+    tmp_path,
+) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="auditor-declassification-account",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "invoked",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    policy = {
+        "source_class": "candidate-wire",
+        "current_precondition": "raw-ir-equals-effective-ir/v1",
+        "sunset_trigger": "reflux-control-separates-raw-and-effective-ir/v1",
+        "successor": {
+            "working_diff_source": (
+                "independent-canonical-emitter-from-raw-ir/v1"
+            ),
+            "allowed_json_pointers": ["/working_diff"],
+            "forbidden_json_pointers": ["/diff_digest"],
+        },
+    }
+    assert A.AUDITOR_DIFF_DECLASSIFICATION_POLICY == policy
+    auditor_payload = providers["auditor"].payloads[0]
+    expected = [{
+        "policy_id": "t244-auditor-diff-declassification/v1",
+        "policy_sha256": hashlib.sha256(
+            A._canonical_json_bytes(policy)
+        ).hexdigest(),
+        "disclosures": [
+            {
+                "json_pointer": "/working_diff",
+                "transform": "identity",
+                "value_sha256": hashlib.sha256(
+                    A._canonical_json_bytes(auditor_payload["working_diff"])
+                ).hexdigest(),
+            },
+            {
+                "json_pointer": "/diff_digest",
+                "transform": "sha256-hex-of-/working_diff",
+                "value_sha256": hashlib.sha256(
+                    A._canonical_json_bytes(auditor_payload["diff_digest"])
+                ).hexdigest(),
+            },
+        ],
+    }]
+    events = report["cells"][0]["generations"][0]["roles"]
+    assert events["auditor"]["declassifications"] == expected
+    assert all(
+        events[role]["declassifications"] == []
+        for role in ("planner", "coder", "critic")
+    )
+    journal_events = [
+        json.loads(line)
+        for line in (tmp_path / "invoked" / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+        if json.loads(line).get("event") == "role-attempt"
+    ]
+    journal_auditor = next(
+        event for event in journal_events if event["role"] == "auditor"
+    )
+    assert journal_auditor["declassifications"] == expected
+
+    def reject_before_audit(coder, *, sub):
+        preview_result = _fake_preview(coder, sub=sub)
+        preview_result["passed"] = False
+        preview_result["reason"] = "fixture pre-audit rejection"
+        return preview_result
+
+    skipped_providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    skipped = A.run_trial(
+        trial_id="auditor-declassification-skip",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "skipped",
+        sub="/unused",
+        do_build=False,
+        providers=skipped_providers,
+        drive=_fake_drive,
+        preview=reject_before_audit,
+        allow_unregistered_exploratory=True,
+    )
+    skipped_event = skipped["cells"][0]["generations"][0]["roles"]["auditor"]
+    assert skipped_event["status"] == "skipped"
+    assert skipped_event["declassifications"] == []
+    assert skipped_providers["auditor"].payload_bytes == []
+
+
+_AUDITOR_D_POINTERS = frozenset({
+    "/working_diff",
+    "/diff_digest",
+})
+_CRITIC_D_SELECTORS = frozenset({
+    "/harness_result/outcome",
+    "/harness_result/verdict",
+    "/harness_result/metrics",
+    "/harness_result/stop_reason",
+    "critic_digest:rejection-class",
+    "critic_digest:rejection-count",
+})
+
+
+def _canonical_without_json_pointers(
+    payload_bytes: bytes, pointers: frozenset[str],
+) -> bytes:
+    value = json.loads(payload_bytes)
+    for pointer in sorted(pointers):
+        parent = value
+        parts = pointer.removeprefix("/").split("/")
+        for part in parts[:-1]:
+            parent = parent[part]
+        del parent[parts[-1]]
+    return A._canonical_json_bytes(value)
+
+
+def _critic_bytes_without_declared_d(payload_bytes: bytes) -> bytes:
+    """宣言 selector が指す field だけを declassify して canonicalize する。"""
+    value = json.loads(payload_bytes)
+    digest = value["critic_digest"]
+    assert isinstance(digest, str)
+    structure: dict[str, Any] = {
+        "outside_rejection_sections": [],
+        "rejection_count": 0,
+        "rejections": [],
+    }
+    current = None
+    for line in digest.splitlines():
+        if (
+            line.startswith("## [")
+            and "] candidate_label=" in line
+        ):
+            classification, identity = line.split("] candidate_label=", 1)
+            current = {
+                "class": classification.removeprefix("## ["),
+                "identity_and_context": identity,
+                "body": [],
+            }
+            structure["rejections"].append(current)
+        else:
+            target = (
+                structure["outside_rejection_sections"]
+                if current is None
+                else current["body"]
+            )
+            target.append(line)
+    structure["rejection_count"] = len(structure["rejections"])
+
+    for selector in sorted(_CRITIC_D_SELECTORS):
+        if selector.startswith("/harness_result/"):
+            del value["harness_result"][selector.rsplit("/", 1)[1]]
+        elif selector == "critic_digest:rejection-class":
+            for rejection in structure["rejections"]:
+                rejection.pop("class")
+        elif selector == "critic_digest:rejection-count":
+            structure.pop("rejection_count")
+        else:  # selector を足すだけで暗黙に行を消せないよう fail-closed にする。
+            raise AssertionError(f"未実装の critic D selector: {selector}")
+    value["critic_digest"] = structure
+    return A._canonical_json_bytes(value)
+
+
+def _critic_relation_equivalent(payloads: list[bytes]) -> bool:
+    return len({_critic_bytes_without_declared_d(raw) for raw in payloads}) == 1
+
+
+def test_critic_relation_oracle_detects_candidate_derived_evidence_leak() -> None:
+    """候補由来 evidence は D の外なので、比較を同値にしてはならない。"""
+    assert _CRITIC_D_SELECTORS == frozenset({
+        "/harness_result/outcome",
+        "/harness_result/verdict",
+        "/harness_result/metrics",
+        "/harness_result/stop_reason",
+        "critic_digest:rejection-class",
+        "critic_digest:rejection-count",
+    })
+    payloads = []
+    for raw_variant in ("diffq-candidate-a", "diffq-candidate-b"):
+        digest = A.loop_core.render_rejections(
+            [],
+            [],
+            diff_rejections=[DiffQuarantineRejection(
+                genome="g",
+                flags={},
+                subtype="fixture",
+                reason="fixture rejection",
+                diff_region="r",
+                template_diff_id="m",
+                evidence=f"raw_variant={raw_variant}",
+            )],
+            identity_projection=A.loop_core.IdentityProjection.RAW,
+        )
+        value = {
+            "harness_result": {
+                "outcome": "rejected",
+                "candidate_label": "candidate-0001",
+                "verdict": "auditor-pass",
+                "metrics": {},
+                "stop_reason": "continue",
+            },
+            "critic_digest": digest,
+        }
+        payloads.append(A._canonical_json_bytes(value))
+    assert not _critic_relation_equivalent(payloads)
+
+
+def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> None:
+    """32 wire の実 no-build reject を同じ公開入力で比較する。"""
+    # P は S の決定前に固定される descriptor/workload/generation/policy、
+    # planner 入出力、coder 入力、baseline metrics、empty whiteboard だけである。
+    # outcome/metrics/stop/rejection 観測は P に含めず、上の D selector で除外する。
+    sink_bytes = {role: [] for role in ("planner", "coder", "auditor", "critic")}
+    trusted_variants = []
+    secret_records = []
+
+    for value in range(32):
+        wire = f"{value:05b}"
+        providers = {
+            role: _WireRecordingFixture(role, wire=wire)
+            for role in ("planner", "coder", "auditor", "critic")
+        }
+
+        def preview(coder, *, sub):
+            predicate = emit_predicate(A.parse_wire(coder.wire))
+            working_diff = "fixture-working-diff\n" + predicate
+            return {
+                "passed": True,
+                "working_diff": working_diff,
+                "diff_digest": hashlib.sha256(
+                    working_diff.encode("utf-8")
+                ).hexdigest(),
+                "subtype": None,
+                "reason": "",
+                "forbidden_identifiers": [],
+            }
+
+        def drive(
+            cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+            cache_root="", proposal_path="", extra_sources=(),
+        ):
+            assert do_build is False
+            variant = _write_admitted_rejection_digest(cfg, layout, coder)
+            return {
+                "outcome": "rejected",
+                "variant": variant,
+                "verdict": "auditor-pass",
+                "stop_reason": "continue",
+                "iteration": 1,
+                "ran": True,
+                "trigger_gate_binding_commitment": hashlib.sha256(
+                    ("fixture-binding:" + coder.wire).encode("utf-8")
+                ).hexdigest(),
+                "critic_digest_generated": True,
+            }
+
+        report = A.run_trial(
+            trial_id="role-sink-relation",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=tmp_path / f"wire-{wire}",
+            sub="/unused",
+            do_build=False,
+            providers=providers,
+            drive=drive,
+            preview=preview,
+            allow_unregistered_exploratory=True,
+        )
+        for role in sink_bytes:
+            assert len(providers[role].payload_bytes) == 1
+            sink_bytes[role].append(providers[role].payload_bytes[0])
+
+        generation = report["cells"][0]["generations"][0]
+        raw_variant = generation["harness"]["variant"]
+        predicate = emit_predicate(A.parse_wire(wire))
+        working_diff = "fixture-working-diff\n" + predicate
+        expected_variant = A.loop_core.diffq_variant_id(
+            _RELATION_GENOME, predicate,
+        )
+        assert raw_variant == expected_variant
+        assert raw_variant != providers["critic"].payloads[0][
+            "harness_result"
+        ]["candidate_label"]
+        campaign_layout = A.CampaignLayout(report["cells"][0]["campaign_root"])
+        build_starts = [
+            record
+            for record in wal.read_records(campaign_layout)
+            if record.stage == campaign_model.STAGE_BUILD_START
+        ]
+        assert len(build_starts) == 1
+        raw_build_attempt_id = build_starts[0].payload["build_attempt_id"]
+        assert raw_build_attempt_id.encode("ascii") not in (
+            providers["critic"].payload_bytes[0]
+        )
+        trusted_variants.append(raw_variant)
+        secret_records.append({
+            "wire": wire,
+            "canonical_predicate": predicate,
+            "working_diff": working_diff,
+            "diff_digest": hashlib.sha256(
+                working_diff.encode("utf-8")
+            ).hexdigest(),
+            "src_token": hashlib.sha256(
+                predicate.encode("utf-8")
+            ).hexdigest(),
+            "variant": raw_variant,
+            "build_attempt_id": raw_build_attempt_id,
+            "trigger_gate_binding_commitment": generation["harness"][
+                "trigger_gate_binding_commitment"
+            ],
+        })
+
+    assert len(set(sink_bytes["planner"])) == 1
+    assert len(set(sink_bytes["coder"])) == 1
+    assert len(set(sink_bytes["auditor"])) == 32
+    assert len({
+        _canonical_without_json_pointers(raw, _AUDITOR_D_POINTERS)
+        for raw in sink_bytes["auditor"]
+    }) == 1
+    assert _critic_relation_equivalent(sink_bytes["critic"])
+    assert len(set(trusted_variants)) == 32
+    for secret_field in (
+        "wire",
+        "canonical_predicate",
+        "working_diff",
+        "diff_digest",
+        "src_token",
+        "variant",
+        "build_attempt_id",
+        "trigger_gate_binding_commitment",
+    ):
+        assert len({record[secret_field] for record in secret_records}) == 32
 
 
 class _InvalidPlanner:
@@ -866,6 +1350,7 @@ def test_unknown_response_key_is_not_reflected_to_journal_or_trial_report(
         providers=providers,
         drive=_fake_drive,
         preview=_fake_preview,
+        allow_unregistered_exploratory=True,
     )
     journal_text = (run_root / "attempts.jsonl").read_text(encoding="utf-8")
     report_text = (run_root / "report.json").read_text(encoding="utf-8")
@@ -895,6 +1380,7 @@ def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path, monkeypatch) ->
         providers=providers,
         drive=_fake_drive,
         preview=_fake_preview,
+        allow_unregistered_exploratory=True,
     )
     assert report["status"] == "partial"
     cell = report["cells"][0]
@@ -938,6 +1424,7 @@ def test_run_trial_rejects_compute_build_before_artifact_or_provider(
             run_root=run_root,
             sub="/unused",
             do_build=True,
+            allow_unregistered_exploratory=True,
         )
     assert not run_root.exists()
 
@@ -955,6 +1442,7 @@ def test_run_trial_other_build_requires_parser_authority_before_artifact(
             workloads=["ycsb-a"], generations=1,
             provider_kind="claude-headless", run_root=run_root,
             sub="/unused", do_build=True,
+            allow_unregistered_exploratory=True,
         )
     assert not run_root.exists()
 
@@ -964,19 +1452,17 @@ def test_8c_internal_entrypoints_have_no_site_injection_surface() -> None:
     assert "site" not in inspect.signature(A._finish_trial).parameters
 
 
-def test_run_workload_direct_compute_build_rejects_before_provider(
-    tmp_path, monkeypatch,
+def test_run_workload_direct_call_without_sealed_scope_is_rejected(
+    tmp_path,
 ) -> None:
-    monkeypatch.setattr(
-        A.trigger, "_current_site",
-        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
-    )
-
     class _Poison:
         def __getattr__(self, name):
-            pytest.fail(f"compute rejection reached provider/journal: {name}")
+            pytest.fail(f"scope rejection reached provider/journal: {name}")
 
-    with pytest.raises(A.AutonomousTrialError, match="T-276"):
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[run-scope\] workload requires a sealed launch admission",
+    ):
         A._run_workload(
             workload="ycsb-a", generations=1,
             providers={role: _Poison() for role in A.ROLE_FILES},
@@ -987,6 +1473,47 @@ def test_run_workload_direct_compute_build_rejects_before_provider(
     assert not (tmp_path / "run").exists()
 
 
+def test_public_run_trial_scope_preserves_t276_worker_gate(
+    tmp_path, monkeypatch,
+) -> None:
+    sites = iter((
+        A.trigger.site_policy.OTHER,
+        A.trigger.site_policy.PEGASUS_COMPUTE,
+    ))
+    monkeypatch.setattr(A.trigger, "_current_site", lambda: next(sites))
+
+    def exercise_worker(**kwargs):
+        return A._run_workload(
+            workload="ycsb-a",
+            generations=1,
+            providers={},
+            journal=kwargs["journal"],
+            run_root=kwargs["run_root"],
+            sub="/unused",
+            do_build=True,
+            cache_root="",
+            trial_id=kwargs["trial_id"],
+            started_monotonic=kwargs["started_monotonic"],
+            max_wall_s=60,
+            build_context=kwargs["build_context"],
+        )
+
+    monkeypatch.setattr(A, "_finish_trial", exercise_worker)
+    with pytest.raises(A.AutonomousTrialError, match="T-276"):
+        A.run_trial(
+            trial_id="public-scope-t276",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=tmp_path / "public-scope-t276",
+            sub="/unused",
+            do_build=True,
+            providers={},
+            coder_authority=_coder_authority(),
+            allow_unregistered_exploratory=True,
+        )
+
+
 def test_finish_trial_direct_compute_build_rejects_before_provider(
     tmp_path, monkeypatch,
 ) -> None:
@@ -994,19 +1521,60 @@ def test_finish_trial_direct_compute_build_rejects_before_provider(
         A.trigger, "_current_site",
         lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
     )
-    with pytest.raises(A.AutonomousTrialError, match="T-276"):
-        A._finish_trial(
-            trial_id="compute-finish-rejected", selected=["ycsb-a"], generations=1,
-            provider_kind="claude-headless", run_root=tmp_path / "run",
-            sub="/unused", do_build=True, cache_root="", max_wall_s=60,
-            drive=lambda *_a, **_k: pytest.fail("drive reached"),
-            preview=lambda *_a, **_k: pytest.fail("preview reached"),
-            journal=SimpleNamespace(), started="fixture",
-            started_monotonic=time.monotonic(), active_providers={},
-            fatal_error=None,
-            transport_receipt=None,
-        )
+    with _exploratory_scope(
+        "compute-finish-rejected", ["ycsb-a"],
+    ) as admission:
+        with pytest.raises(A.AutonomousTrialError, match="T-276"):
+            A._finish_trial(
+                trial_id="compute-finish-rejected", selected=["ycsb-a"], generations=1,
+                provider_kind="claude-headless", run_root=tmp_path / "run",
+                sub="/unused", do_build=True, cache_root="", max_wall_s=60,
+                drive=lambda *_a, **_k: pytest.fail("drive reached"),
+                preview=lambda *_a, **_k: pytest.fail("preview reached"),
+                journal=SimpleNamespace(), started="fixture",
+                started_monotonic=time.monotonic(), active_providers={},
+                fatal_error=None,
+                transport_receipt=None,
+                launch_admission=admission,
+            )
     assert not (tmp_path / "run").exists()
+
+
+def test_finish_trial_rejects_copied_seal_from_different_admission(
+    tmp_path,
+) -> None:
+    copied = A.trial_registry.admit_unregistered_exploratory(
+        trial_id="copied-admission-source",
+        workloads=["ycsb-a"],
+        allow_unregistered_exploratory=True,
+        repository_root=A.ROOT,
+        registry_path=A.ROOT / A.trial_registry.DEFAULT_REGISTRY_PATH,
+    )
+    with _exploratory_scope("copied-admission-target", ["ycsb-a"]):
+        with pytest.raises(
+            A.trial_registry.TrialRegistryError,
+            match=r"\[launch-admission\] supplied admission differs from fresh derivation$",
+        ):
+            A._finish_trial(
+                trial_id="copied-admission-target",
+                selected=["ycsb-a"],
+                generations=1,
+                provider_kind="fixture",
+                run_root=tmp_path / "copied-admission",
+                sub="/unused",
+                do_build=False,
+                cache_root="",
+                max_wall_s=60,
+                drive=lambda *_args, **_kwargs: pytest.fail("drive reached"),
+                preview=lambda *_args, **_kwargs: pytest.fail("preview reached"),
+                journal=SimpleNamespace(),
+                started="fixture",
+                started_monotonic=time.monotonic(),
+                active_providers={},
+                fatal_error={"type": "Fixture", "message": "stop"},
+                transport_receipt=None,
+                launch_admission=copied,
+            )
 
 
 def test_compute_build_requires_matching_t276_transport_admission(
@@ -1070,7 +1638,11 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
     run_root = tmp_path / "run"
     for child in (run_root, run_root / "raw", run_root / "proposals"):
         child.mkdir(exist_ok=True)
-    campaign = A.CampaignLayout(str(tmp_path / "campaign"))
+    campaign = _actual_campaign_layout(
+        tmp_path,
+        trial_id="other-build-positive",
+        generations=2,
+    )
     monkeypatch.setattr(
         A, "exploration_campaign_layout", lambda _campaign_id: campaign,
     )
@@ -1082,13 +1654,11 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
         assert args[7] is True
         assert "site" not in kwargs
         Path(layout.root).mkdir(parents=True, exist_ok=True)
-        (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
-            "fixture digest", encoding="utf-8",
-        )
         return {
             "outcome": "certified", "variant": "fixture-variant",
             "fitness_tps": 1.0, "stop_reason": "continue",
             "iteration": 1, "ran": True,
+            "critic_digest_generated": False,
             "trigger_gate_binding_commitment": "b" * 64,
         }
 
@@ -1096,7 +1666,7 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
         role: _RecordingFixture(role)
         for role in ("planner", "coder", "auditor", "critic")
     }
-    result = A._run_workload(
+    result = _run_workload_with_scope(
         workload="ycsb-a", generations=2, providers=providers,
         journal=A.AttemptJournal(run_root / "attempts.jsonl"), run_root=run_root,
         sub="/unused", do_build=True, cache_root="",
@@ -1113,7 +1683,7 @@ def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) 
 
 def test_run_workload_direct_call_rejects_unapproved_budget(tmp_path) -> None:
     with pytest.raises(A.AutonomousTrialError, match="承認済み上限"):
-        A._run_workload(
+        _run_workload_with_scope(
             workload="ycsb-a",
             generations=2,
             providers={},
@@ -1143,7 +1713,7 @@ def test_run_workload_rejects_existing_campaign_state(tmp_path, monkeypatch) -> 
         for role in ("planner", "coder", "auditor", "critic")
     }
     with pytest.raises(A.AutonomousTrialError, match="既存 campaign state"):
-        A._run_workload(
+        _run_workload_with_scope(
             workload="ycsb-a",
             generations=1,
             providers=providers,
@@ -1171,7 +1741,7 @@ def test_run_workload_accepts_fresh_campaign_state(tmp_path, monkeypatch) -> Non
         role: _RecordingFixture(role)
         for role in ("planner", "coder", "auditor", "critic")
     }
-    result = A._run_workload(
+    result = _run_workload_with_scope(
         workload="ycsb-a",
         generations=1,
         providers=providers,
@@ -1207,7 +1777,7 @@ def test_run_workload_rejects_actual_existing_campaign_state(tmp_path) -> None:
         for role in ("planner", "coder", "auditor", "critic")
     }
     with pytest.raises(A.AutonomousTrialError, match="既存 campaign state"):
-        A._run_workload(
+        _run_workload_with_scope(
             workload="ycsb-a",
             generations=1,
             providers=providers,
@@ -1236,7 +1806,7 @@ def test_run_workload_accepts_actual_fresh_campaign_layout(tmp_path) -> None:
         role: _RecordingFixture(role)
         for role in ("planner", "coder", "auditor", "critic")
     }
-    result = A._run_workload(
+    result = _run_workload_with_scope(
         workload="ycsb-a",
         generations=1,
         providers=providers,
@@ -1298,7 +1868,7 @@ def test_run_workload_build_passes_exploration_layout_to_trigger(
             "trigger_gate_binding_commitment": "b" * 64,
         }
 
-    result = A._run_workload(
+    result = _run_workload_with_scope(
         workload="ycsb-a",
         generations=1,
         providers=providers,
@@ -1335,7 +1905,8 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
     )
     passed_layouts = []
 
-    def fake_finalize(cell):
+    def fake_finalize(cell, *, launch_admission):
+        assert launch_admission.certifying is False
         cell["admission_decision"] = {
             "schema_version": "campaign-artifact-admission-decision/v1",
             "admission_status": "admitted",
@@ -1354,15 +1925,13 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
         assert build_context._authority_nonce is not None
         passed_layouts.append(layout)
         Path(layout.root).mkdir(parents=True, exist_ok=True)
-        (Path(layout.root) / A.trigger.DIGEST_BASENAME).write_text(
-            "fixture digest without performance", encoding="utf-8",
-        )
         return {
             "outcome": "dry-pass",
             "variant": None,
             "stop_reason": "continue",
             "iteration": 1,
             "ran": True,
+            "critic_digest_generated": False,
             "trigger_gate_binding_commitment": "b" * 64,
         }
 
@@ -1382,6 +1951,7 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
         drive=drive_build,
         preview=_fake_preview,
         coder_authority=_coder_authority(),
+        allow_unregistered_exploratory=True,
     )
     expected = (
         tmp_path / "exploration" / "campaigns" / report["cells"][0]["campaign_id"]
@@ -1400,7 +1970,7 @@ def test_run_workload_no_build_stays_trial_local(tmp_path) -> None:
         role: _RecordingFixture(role)
         for role in ("planner", "coder", "auditor", "critic")
     }
-    result = A._run_workload(
+    result = _run_workload_with_scope(
         workload="ycsb-a",
         generations=1,
         providers=providers,
@@ -1480,6 +2050,7 @@ def test_supervisor_error_still_writes_partial_terminal_report(tmp_path) -> None
         do_build=False,
         drive=_fake_drive,
         preview=broken_preview,
+        allow_unregistered_exploratory=True,
     )
     assert report["status"] == "partial"
     assert report["fatal_error"] == {
@@ -1496,6 +2067,67 @@ def test_supervisor_error_still_writes_partial_terminal_report(tmp_path) -> None
         "supervisor-error",
         "run-finish",
     ]
+
+
+def test_unknown_custom_drive_identity_uses_fixed_sentinel_and_stays_complete(
+    tmp_path,
+) -> None:
+    """exploratory drive の非 WAL ID は raw でなく固定 label へ射影する。"""
+    def unknown_drive(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(),
+    ):
+        assert do_build is False
+        layout.ensure()
+        return {
+            "outcome": "certified",
+            "variant": "custom-without-build-start",
+            "fitness_tps": 1.0,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
+            "critic_digest_generated": False,
+        }
+
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="unknown-custom-drive-identity",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=unknown_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "complete"
+    assert "fatal_error" not in report
+    assert len(providers["critic"].payloads) == 1
+    critic_payload = providers["critic"].payloads[0]
+    assert critic_payload["harness_result"]["candidate_label"] == (
+        A.loop_core.UNREGISTERED_CANDIDATE_LABEL
+    )
+    assert "custom-without-build-start" not in json.dumps(
+        critic_payload, sort_keys=True,
+    )
+    events = [
+        json.loads(line)
+        for line in (tmp_path / "run" / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert any(
+        event.get("event") == "role-attempt" and event.get("role") == "critic"
+        for event in events
+    )
+    assert events[-1]["event"] == "run-finish"
 
 
 @pytest.mark.parametrize("outcome", ["success", "supervisor-error"])
@@ -1524,6 +2156,7 @@ def test_run_trial_closes_owned_providers_in_reverse_order(
         do_build=False,
         drive=_fake_drive,
         preview=preview,
+        allow_unregistered_exploratory=True,
     )
     assert report["status"] == ("complete" if outcome == "success" else "partial")
     assert close_order == ["critic", "auditor", "coder", "planner"]
@@ -1546,6 +2179,7 @@ def test_run_trial_does_not_close_injected_providers(tmp_path) -> None:
         providers=providers,
         drive=_fake_drive,
         preview=_fake_preview,
+        allow_unregistered_exploratory=True,
     )
     assert report["status"] == "complete"
     assert all(provider.close_calls == 0 for provider in providers.values())
@@ -1643,6 +2277,7 @@ def test_main_default_generation_budget_is_one(tmp_path, monkeypatch) -> None:
             "--trial-id", "fixture-no-build-accepted",
             "--provider", "fixture",
             "--no-build",
+            "--allow-unregistered-exploratory",
             "--ccbench-dir", str(tmp_path / "ccbench"),
             "--run-root", str(tmp_path / "run"),
         ])
@@ -1683,6 +2318,7 @@ def test_main_accepts_claude_headless_no_build_at_cli_gate(
             "--trial-id", "claude-no-build-accepted",
             "--provider", "claude-headless",
             "--no-build",
+            "--allow-unregistered-exploratory",
             "--ccbench-dir", str(tmp_path / "ccbench"),
             "--run-root", str(tmp_path / "run"),
         ])
@@ -1703,6 +2339,7 @@ def test_main_default_run_root_is_exploration_autonomous_trials(
         "--trial-id", "default-exploration-root",
         "--provider", "fixture",
         "--no-build",
+        "--allow-unregistered-exploratory",
         "--ccbench-dir", str(tmp_path / "ccbench"),
     ]) == 0
     assert captured["run_root"] == (
@@ -1728,6 +2365,7 @@ def test_main_explicit_run_root_still_wins(tmp_path, monkeypatch) -> None:
         "--trial-id", "explicit-root",
         "--provider", "fixture",
         "--no-build",
+        "--allow-unregistered-exploratory",
         "--ccbench-dir", str(tmp_path / "ccbench"),
         "--run-root", str(explicit),
     ]) == 0
@@ -2178,7 +2816,38 @@ def t325_registered_trial(tmp_path, monkeypatch):
     _t325_git(repo, "add", str(A.trial_registry.DEFAULT_REGISTRY_PATH))
     _t325_git(repo, "commit", "-m", "register trial manifest")
     trial_id = "t325-h1-on"
+    prereg_report = A.s8c_preregistration.ActivationReport(
+        commit=prereg_commit,
+        condition_freeze_valid=True,
+        freeze_generation=1,
+        protected_sha256="1" * 64,
+        freeze_reason_code="valid",
+        section5_findings=(),
+        predicates=(),
+        core_module_blob_sha256="2" * 64,
+        evaluator_module_blob_sha256="3" * 64,
+        effective=True,
+    )
+    capability = A.s8c_preregistration._construct_effective(prereg_report)
+    monkeypatch.setattr(
+        A.s8c_preregistration,
+        "activation_report_at",
+        lambda repo_root, commit: prereg_report,
+    )
+    monkeypatch.setattr(
+        A.s8c_preregistration,
+        "effective_at",
+        lambda repo_root, commit: capability,
+    )
     binding = A.trial_registry.load_launch_binding(
+        manifest_path=manifest_path,
+        trial_id=trial_id,
+        workloads=["rr80"],
+        repository_root=repo,
+        registry_path=registry_path,
+    )
+    admission = A.trial_registry.admit_registered_launch(
+        effective_preregistration=capability,
         manifest_path=manifest_path,
         trial_id=trial_id,
         workloads=["rr80"],
@@ -2191,6 +2860,8 @@ def t325_registered_trial(tmp_path, monkeypatch):
         registry_path=registry_path,
         trial_id=trial_id,
         binding=binding,
+        capability=capability,
+        admission=admission,
     )
 
 
@@ -2206,6 +2877,7 @@ def _t325_run(fixture, run_root: Path, **overrides):
         "drive": _fake_drive,
         "preview": _fake_preview,
         "trial_manifest": fixture.manifest_path,
+        "effective_preregistration": fixture.capability,
     }
     arguments.update(overrides)
     return A.run_trial(**arguments)
@@ -2266,13 +2938,15 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
     t325_registered_trial,
 ) -> None:
     authority = _coder_authority()
-    binding = A._trial_launch_binding(
+    admission = A._trial_launch_admission(
         trial_manifest=t325_registered_trial.manifest_path,
         trial_id=t325_registered_trial.trial_id,
         workloads=["rr80"],
         generations=1,
+        allow_unregistered_exploratory=False,
+        effective_preregistration=t325_registered_trial.capability,
     )
-    assert binding == t325_registered_trial.binding
+    assert admission.binding == t325_registered_trial.binding
     context = A.build_run_context(
         generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP,
         coder_authority=authority,
@@ -2283,7 +2957,7 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
         generations=1,
         build_context=context,
     )
-    assert prepared.campaign_id == binding.campaign_id
+    assert prepared.campaign_id == admission.binding.campaign_id
     with pytest.raises(A.BuildAdmissionError, match="既に使用済み"):
         A.build_run_context(
             generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP,
@@ -2300,23 +2974,125 @@ def test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields(
     assert report["status"] == "complete"
     assert {field: report[field] for field in expected} == expected
     assert {field: _t325_run_start(run_root)[field] for field in expected} == expected
+    assert report["launch_admission"] == _t325_run_start(run_root)["launch_admission"]
+    assert report["launch_admission"]["certifying"] is False
     assert "arm" not in report
     assert "holdout" not in report
+
+
+def test_formal_start_is_recorded_before_run_root_and_blocks_other_root(
+    tmp_path,
+    monkeypatch,
+    t325_registered_trial,
+) -> None:
+    first_root = tmp_path / "formal-first-root"
+    original = A.trial_registry.record_trial_start_once
+    observations: list[bool] = []
+
+    def observe_start(**kwargs):
+        observations.append(Path(kwargs["run_root"]).exists())
+        return original(**kwargs)
+
+    monkeypatch.setattr(
+        A.trial_registry,
+        "record_trial_start_once",
+        observe_start,
+    )
+    first = _t325_run(t325_registered_trial, first_root)
+    assert first["status"] == "complete"
+    assert observations == [False]
+
+    second_root = tmp_path / "formal-second-root"
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[lifecycle-start-once\] ",
+    ):
+        _t325_run(t325_registered_trial, second_root)
+    assert not second_root.exists()
+
+
+def test_formal_post_start_io_failure_records_indeterminate_and_stays_consumed(
+    tmp_path,
+    monkeypatch,
+    t325_registered_trial,
+) -> None:
+    run_root = tmp_path / "formal-post-start-failure"
+
+    def fail_namespace(_path: str) -> None:
+        raise OSError("fixture namespace I/O failure")
+
+    monkeypatch.setattr(A, "ensure_exploration_namespace", fail_namespace)
+    with pytest.raises(OSError, match="fixture namespace I/O failure"):
+        _t325_run(t325_registered_trial, run_root)
+
+    lifecycle = t325_registered_trial.repo / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+    rows = [json.loads(line) for line in lifecycle.read_text().splitlines()]
+    assert [row["event"] for row in rows] == ["start", "terminal"]
+    assert rows[-1] == {
+        "schema_version": A.trial_registry.LIFECYCLE_SCHEMA_VERSION,
+        "event": "terminal",
+        "trial_id": t325_registered_trial.trial_id,
+        "terminal_status": "indeterminate",
+        "report_sha256": None,
+        "attempt_journal_sha256": None,
+    }
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[lifecycle-start-once\] ",
+    ):
+        _t325_run(t325_registered_trial, tmp_path / "formal-rerun-denied")
+
+
+def test_formal_terminal_write_failure_is_explicit_and_does_not_allow_rerun(
+    tmp_path,
+    monkeypatch,
+    t325_registered_trial,
+) -> None:
+    monkeypatch.setattr(
+        A,
+        "ensure_exploration_namespace",
+        lambda _path: (_ for _ in ()).throw(OSError("original I/O failure")),
+    )
+    original_terminal = A.trial_registry.record_trial_terminal
+    monkeypatch.setattr(
+        A.trial_registry,
+        "record_trial_terminal",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            OSError("terminal I/O failure")
+        ),
+    )
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match="start remains consumed: original=OSError; terminal=OSError$",
+    ):
+        _t325_run(t325_registered_trial, tmp_path / "terminal-write-failure")
+
+    monkeypatch.setattr(A.trial_registry, "record_trial_terminal", original_terminal)
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[lifecycle-start-once\] ",
+    ):
+        _t325_run(t325_registered_trial, tmp_path / "terminal-write-rerun")
 
 
 def test_p9_exploratory_run_with_absent_registry_preserves_report_shape(
     tmp_path, monkeypatch,
 ) -> None:
-    monkeypatch.setattr(A, "ROOT", tmp_path / "repo-without-registry")
+    repo = tmp_path / "repo-without-registry"
+    repo.mkdir()
+    _t325_git(repo, "init")
+    _t325_git(repo, "config", "user.name", "Exploratory Fixture")
+    _t325_git(repo, "config", "user.email", "fixture@example.invalid")
+    (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+    _t325_git(repo, "add", "seed.txt")
+    _t325_git(repo, "commit", "-m", "seed")
+    monkeypatch.setattr(A, "ROOT", repo)
 
     def manifest_gate_must_not_run(*args, **kwargs):
         pytest.fail("manifest gate ran for an exploratory launch")
 
     monkeypatch.setattr(
         A.trial_registry, "load_launch_binding", manifest_gate_must_not_run
-    )
-    monkeypatch.setattr(
-        A.trial_registry, "resolve_measurement_commit", manifest_gate_must_not_run
     )
     run_root = tmp_path / "exploratory-run"
     report = A.run_trial(
@@ -2329,13 +3105,17 @@ def test_p9_exploratory_run_with_absent_registry_preserves_report_shape(
         do_build=False,
         drive=_fake_drive,
         preview=_fake_preview,
+        allow_unregistered_exploratory=True,
     )
     assert set(report) == {
         "schema_version", "trial_id", "status", "started_at", "finished_at",
         "provider", "do_build", "workloads_requested",
         "generation_budget_per_workload", "stop_policy", "claim_scope",
-        "attempt_journal", "cells", "attempt_journal_sha256",
+        "attempt_journal", "launch_admission", "cells",
+        "attempt_journal_sha256",
     }
+    assert report["launch_admission"]["certifying"] is False
+    assert _t325_run_start(run_root)["launch_admission"] == report["launch_admission"]
     assert not ({"prereg_commit", "measurement_head", "manifest_sha256"} & report.keys())
 
 
@@ -2353,11 +3133,96 @@ def test_p9_prime_m27_prime_existing_registry_unregistered_exploratory_passes(
         do_build=False,
         drive=_fake_drive,
         preview=_fake_preview,
+        allow_unregistered_exploratory=True,
     )
     assert report["status"] == "complete"
     binding_fields = {"prereg_commit", "measurement_head", "manifest_sha256"}
     assert not (binding_fields & report.keys())
     assert not (binding_fields & _t325_run_start(run_root).keys())
+
+
+def test_manifestless_launch_is_rejected_by_default_before_run_root(
+    tmp_path,
+) -> None:
+    run_root = tmp_path / "default-denied"
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[u4-exploratory-opt-in\] ",
+    ):
+        A.run_trial(
+            trial_id="default-denied-before-artifacts",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+        )
+    assert not run_root.exists()
+
+
+def test_public_cli_holdout_opt_in_reaches_u4_gate_without_workload_patch(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    repo = tmp_path / "holdout-cli-repo"
+    repo.mkdir()
+    _t325_git(repo, "init")
+    _t325_git(repo, "config", "user.name", "Holdout CLI Fixture")
+    _t325_git(repo, "config", "user.email", "fixture@example.invalid")
+    (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+    _t325_git(repo, "add", "seed.txt")
+    _t325_git(repo, "commit", "-m", "seed")
+    monkeypatch.setattr(A, "ROOT", repo)
+    run_root = tmp_path / "holdout-cli-run"
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[u4-holdout-workload\] ",
+    ):
+        A.main([
+            "--trial-id", "holdout-cli-denied",
+            "--provider", "fixture",
+            "--workloads", "rr80",
+            "--no-build",
+            "--allow-unregistered-exploratory",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(run_root),
+        ])
+    assert "rr80" not in A.WORKLOADS
+    assert not run_root.exists()
+
+
+def test_m04_programmatic_holdout_reaches_u4_gate_before_unknown_workload(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    repo = tmp_path / "holdout-programmatic-repo"
+    repo.mkdir()
+    _t325_git(repo, "init")
+    _t325_git(repo, "config", "user.name", "Holdout Programmatic Fixture")
+    _t325_git(repo, "config", "user.email", "fixture@example.invalid")
+    (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+    _t325_git(repo, "add", "seed.txt")
+    _t325_git(repo, "commit", "-m", "seed")
+    monkeypatch.setattr(A, "ROOT", repo)
+    run_root = tmp_path / "holdout-programmatic-run"
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=(r"\[u4-holdout-workload\] holdout workloads cannot use "
+               r"exploratory admission: \['rr80'\]$"),
+    ):
+        A.run_trial(
+            trial_id="holdout-programmatic-denied",
+            workloads=["rr80"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            allow_unregistered_exploratory=True,
+        )
+    assert "rr80" not in A.WORKLOADS
+    assert not run_root.exists()
 
 
 def test_p10_cli_manifest_gate_precedes_build_preparation_and_forwards_manifest(
@@ -2402,7 +3267,8 @@ def test_p10_cli_manifest_gate_precedes_build_preparation_and_forwards_manifest(
         "registry-gate", "campaign-gate", "build-preparation", "run-trial",
     ]
     assert captured["trial_manifest"] == t325_registered_trial.manifest_path
-    assert captured["trial_binding"] == t325_registered_trial.binding
+    assert captured["trial_admission"].binding == t325_registered_trial.binding
+    assert captured["effective_preregistration"] is t325_registered_trial.capability
 
 
 def test_m23_prime_run_trial_registry_gate_rejects_before_run_root(
@@ -2493,10 +3359,20 @@ def test_m26_manifest_binding_survives_provider_init_and_supervisor_failures(
     def broken_preview(coder, *, sub):
         raise RuntimeError("supervisor failed")
 
+    second_trial_id = "t325-h1-off"
+    second_binding = A.trial_registry.load_launch_binding(
+        manifest_path=t325_registered_trial.manifest_path,
+        trial_id=second_trial_id,
+        workloads=["rr80"],
+        repository_root=t325_registered_trial.repo,
+        registry_path=t325_registered_trial.registry_path,
+    )
+    second_expected = _t325_binding_fields(second_binding)
     supervisor_root = tmp_path / "supervisor-failure"
     supervisor_report = _t325_run(
         t325_registered_trial,
         supervisor_root,
+        trial_id=second_trial_id,
         providers={
             role: A.FixtureRoleProvider(role)
             for role in ("planner", "coder", "auditor", "critic")
@@ -2505,10 +3381,12 @@ def test_m26_manifest_binding_survives_provider_init_and_supervisor_failures(
     )
     assert supervisor_report["status"] == "partial"
     assert supervisor_report["cells"][0]["stop_reason"] == "supervisor-error"
-    assert {field: supervisor_report[field] for field in expected} == expected
     assert {
-        field: _t325_run_start(supervisor_root)[field] for field in expected
-    } == expected
+        field: supervisor_report[field] for field in second_expected
+    } == second_expected
+    assert {
+        field: _t325_run_start(supervisor_root)[field] for field in second_expected
+    } == second_expected
 
 
 def test_m30_registered_trial_id_without_manifest_is_rejected(
@@ -2525,7 +3403,7 @@ def test_m30_registered_trial_id_without_manifest_is_rejected(
     ):
         A.run_trial(
             trial_id=t325_registered_trial.trial_id,
-            workloads=["rr80"],
+            workloads=["ycsb-a"],
             generations=1,
             provider_kind="fixture",
             run_root=run_root,
@@ -2533,17 +3411,18 @@ def test_m30_registered_trial_id_without_manifest_is_rejected(
             do_build=False,
             drive=_fake_drive,
             preview=_fake_preview,
+            allow_unregistered_exploratory=True,
         )
     assert not run_root.exists()
 
 
-def test_registered_trial_id_direct_run_workload_is_rejected(
+def test_registered_trial_id_direct_run_workload_requires_run_scope(
     tmp_path, t325_registered_trial,
 ) -> None:
     run_root = tmp_path / "direct-workload-rejected"
     with pytest.raises(
         A.trial_registry.TrialRegistryError,
-        match="registered trial_id cannot run without its manifest",
+        match=r"\[run-scope\] workload requires a sealed launch admission",
     ):
         A._run_workload(
             workload="rr80",
@@ -2611,6 +3490,10 @@ def test_run_trial_rejects_every_dataclass_replace_binding_field(
         t325_registered_trial.binding,
         **{field: forged_value},
     )
+    forged_admission = dataclasses.replace(
+        t325_registered_trial.admission,
+        binding=forged,
+    )
     run_root = tmp_path / f"forged-binding-{field}"
     with pytest.raises(A.trial_registry.TrialRegistryError, match=error):
         A.run_trial(
@@ -2622,7 +3505,8 @@ def test_run_trial_rejects_every_dataclass_replace_binding_field(
             sub="/unused",
             do_build=False,
             trial_manifest=t325_registered_trial.manifest_path,
-            trial_binding=forged,
+            effective_preregistration=t325_registered_trial.capability,
+            trial_admission=forged_admission,
         )
     assert not run_root.exists()
 
@@ -2648,7 +3532,8 @@ def test_run_trial_rejects_head_move_after_cli_binding(
             sub="/unused",
             do_build=False,
             trial_manifest=t325_registered_trial.manifest_path,
-            trial_binding=t325_registered_trial.binding,
+            effective_preregistration=t325_registered_trial.capability,
+            trial_admission=t325_registered_trial.admission,
         )
     assert not run_root.exists()
 
@@ -2669,8 +3554,9 @@ def test_m32_cli_manifestless_gate_is_not_masked_by_run_trial(
         A.main([
             "--trial-id", t325_registered_trial.trial_id,
             "--provider", "fixture",
-            "--workloads", "rr80",
+            "--workloads", "ycsb-a",
             "--no-build",
+            "--allow-unregistered-exploratory",
             "--ccbench-dir", str(tmp_path / "ccbench"),
             "--run-root", str(tmp_path / "m32-run"),
         ])
@@ -2743,6 +3629,7 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
             sub="/unused",
             do_build=False,
             trial_manifest=manifest_path,
+            effective_preregistration=t325_registered_trial.capability,
         )
     assert not run_root.exists()
 

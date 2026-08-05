@@ -1,0 +1,96 @@
+あなたは izanagi プロジェクトの実装者 (role=author) である。日本語で報告せよ。
+
+## 読むもの (読めなければ即停止し、その旨だけ返す)
+
+- 段 4 裁定 (正本): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/s4-adjudication.md
+- 親 brief: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/stage1-brief.md
+- 段 2 プラン: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-u2-recalibration/plan-out.md
+- 段 3 敵対 2 本: 同ディレクトリの adv-a-out.md / adv-b-out.md
+
+**段 4 裁定が唯一の正本である。** プランと敵対レビューは根拠資料であって、
+裁定と食い違う場合は裁定に従え。裁定の「実装しないもの」を 1 つも実装するな。
+
+## 権限境界 (違反は差し戻し)
+
+- 編集してよいのは **コードとテストだけ**である。docs を編集するな。commit するな。
+- 編集してよいファイルは次に限る。
+  - `orchestrator/campaign/execution_guard.py`
+  - `orchestrator/calibrator/cli.py`
+  - `orchestrator/tests/test_execution_guard.py`
+  - `orchestrator/tests/test_calibrator_certify.py`
+  - 必要なら `orchestrator/tests/` 配下の新規 test file 1 本まで
+- 次は**絶対に編集するな**: `orchestrator/campaign/env_contract.py`、`env_attestation.py`、
+  `orchestrator/calibrator/schema_v2.py` の受理集合、`tools/pegasus/` 配下すべて、
+  `hooks/` 配下、`output/` 配下、`docs/` 配下。
+- 既存テストの期待値を反転・緩和・skip・削除するな。赤くなったら実装側が誤りである。
+  期待値の側が誤りだと判断したら、実装を変えずに報告して止まれ。
+- 指示にない受理集合の拡大・縮小をするな。scope を書く前に、現行の受理・拒否挙動を報告に明記せよ。
+
+## 実装する内容 (段 4 裁定「プラン v2」の 3 項)
+
+### 1. `execution_guard.py` — 帯評価の 3 分解と診断
+
+現行 public `effective_clock_comparison_passes()` (`execution_guard.py:183` 付近) と
+private `_effective_clock_band_math_passes()` の**挙動を 1 bit も変えない**まま、
+評価を 1 箇所へ集約する private evaluator を抽出せよ。evaluator は少なくとも
+`input_valid` / `policy_matches` / `band_pass` と、違反位置の詳細を返すこと。
+
+- public 述語は `input_valid and policy_matches and band_pass` の連言として再構成する。
+- 診断 projection (関数名は任意) を追加する。返す情報は
+  `median_mhz` / `lower_mhz` / `upper_mhz` / `out_of_band_count` と、各違反の
+  `sample_index` / `sample_mhz` / `direction` / `deviation_from_median_mhz` / `outside_by_mhz`、
+  および `input_valid` / `policy_matches` / `band_pass` の 3 値。
+- **診断値を受理判断に使ってはならない。** 受理は必ず public 述語の戻り値で決める。
+- **同値性を境界 unit vector で固定するテストを書け。** 最低限:
+  tolerance が 0 / 2.0 / 100、2.0 の上下等号ちょうどと `math.nextafter` で 1 ulp 外側、
+  空列、NaN、numeric string (`"100"`)、bool、非 float、expected と observed の長さ違い。
+  既存 golden (`orchestrator/tests/test_execution_guard.py:424` 付近) が
+  「private math は true だが canonical は false」という非同値を既に固定している。
+  **その非同値を壊すな。**
+
+### 2. `cli.py` — early gate の追加、構造化診断、policy 同一性検査
+
+- `_acquisition_reasons` (`cli.py:400`) に effective clock の self-comparison を **追加**する。
+  判定は既存 `_effective_clock_self_comparison_passes` (`cli.py:380`) を経由し、
+  したがって canonical 述語を呼ぶこと。帯計算を再実装するな。
+  reason 文字列は `effective-clock-self-comparison-failed` を使う (既存 late gate と同じ文字列)。
+- **`cli.py:611-613` の既存 late gate は削除するな。** 両方を残す。
+  これは段 3 レンズ A の F-01 (実行中に policy 定数が再束縛されると early と late で判定が割れる)
+  に対する裁定である。
+- early 拒否のとき、`rejection.json` へ構造化診断と、評価されなかった検査の一覧
+  (`not_evaluated`) を書け。`quality.reasons` は文字列列なので詳細をそこへ文字列化するな。
+  early 拒否では benchmark を開始してはならない (`calibrate_fn` を呼ばない)。
+- **publish 直前**に「attempt 開始時に profile へ書いた `tolerance_pct` が、publish 時点の
+  `effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT` と一致する」ことを独立に検査し、
+  不一致なら fail-closed で拒否せよ (publish しない)。
+
+### 3. 独立 self-comparison
+
+**publish 済み artifact の bytes を読み直し**、CLI の内部状態を一切使わずに canonical 述語を
+適用して合否を返す検査を追加せよ。CLI 内部 gate の再掲にしてはならない。
+bytes を改竄した fixture (publish 後に 1 sample を帯外へ書き換える) で、この検査が
+赤くなることを固定せよ。
+
+## 禁止の署名 (これを満たすこと)
+
+- 禁止: `not canonical_effective_clock_passes(artifact.effective_clock)` な artifact を publish する。
+- 禁止: attempt 開始時 policy と publish 時 policy が異なる状態で publish する。
+- 禁止: 受理判断が `out_of_band_count == 0` に依存する。
+- 通る正例: `samples_mhz = [2101.0] * 48`, `tolerance_pct = 2.0`, policy = 2.0 のまま
+  attempt が終わる → early gate 通過・late gate 通過・publish される。この正例が
+  緑であるテストを必ず含めよ (過剰拒否の検出)。
+
+## 検査と報告 (DW-S05-C)
+
+- 緑を主張するなら走らせた nodeid と範囲を併記せよ。実走できないなら
+  「実装済み・未実走」と書け。所見を `closed` と偽るな。
+- テストを新設・改名したなら、それを制約する meta-test も走らせよ。
+- fixture へ現行 hash を差し込んでテストを甘くするな。
+- 期待値へ working tree の hash 等の揮発する診断 payload を焼き込むな。
+- 完了報告に、所有外の caller・共有 fixture・consumer test への波及可能性を静的に列挙せよ。
+  特に `execution_guard` の public 述語を呼ぶ全 caller を列挙せよ。
+- 親 docs は未 land である。期待して赤くなる finding 集合を事前に指定し、それ以外は回帰として報告せよ。
+
+## 総括
+
+最後に `## 総括` 節を置き、実装した内容・走らせた検査・残る risk を 10 行以内で書け。

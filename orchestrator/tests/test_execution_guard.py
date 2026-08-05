@@ -14,6 +14,7 @@ import json
 import math
 import os
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -553,6 +554,187 @@ def test_effective_clock_canonical_predicate_golden_vectors():
             "effective_clock.samples_mhz", vector["expected"], vector["observed"],
         )
         assert consumer_got is vector["canonical_want"], vector["label"]
+
+
+def test_effective_clock_evaluator_decomposition_boundary_vectors():
+    lower = 98.0
+    upper = 102.0
+    vectors = [
+        ("zero-exact", {"samples_mhz": [100.0], "tolerance_pct": 0.0},
+         {"samples_mhz": [100.0]}, True, False),
+        ("policy-lower-equality", {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+         {"samples_mhz": [lower]}, True, True),
+        ("policy-upper-equality", {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+         {"samples_mhz": [upper]}, True, True),
+        ("policy-lower-one-ulp-outside",
+         {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+         {"samples_mhz": [math.nextafter(lower, -math.inf)]}, False, False),
+        ("policy-upper-one-ulp-outside",
+         {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+         {"samples_mhz": [math.nextafter(upper, math.inf)]}, False, False),
+        ("hundred-inclusive", {"samples_mhz": [100.0], "tolerance_pct": 100.0},
+         {"samples_mhz": [0.0, 200.0]}, True, False),
+        ("empty", {"samples_mhz": [], "tolerance_pct": 2.0},
+         {"samples_mhz": []}, False, False),
+        ("nan", {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+         {"samples_mhz": [math.nan]}, False, False),
+        ("numeric-string", {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+         {"samples_mhz": ["100"]}, True, True),
+        ("bool-sample", {"samples_mhz": [1.0], "tolerance_pct": 2.0},
+         {"samples_mhz": [True]}, True, True),
+        ("integer-sample", {"samples_mhz": [100], "tolerance_pct": 2.0},
+         {"samples_mhz": [100]}, True, True),
+        ("non-float", {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+         {"samples_mhz": [{}]}, False, False),
+        ("length-mismatch", {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+         {"samples_mhz": [100.0, 101.0]}, True, True),
+    ]
+    for label, expected, observed, math_want, canonical_want in vectors:
+        evaluation = eg._effective_clock_band_evaluation(expected, observed)
+        assert evaluation["band_pass"] is math_want, label
+        assert eg._effective_clock_band_math_passes(expected, observed) is math_want, label
+        conjunction = bool(
+            evaluation["input_valid"]
+            and evaluation["policy_matches"]
+            and evaluation["band_pass"]
+        )
+        assert conjunction is canonical_want, label
+        assert eg.effective_clock_comparison_passes(
+            expected, observed,
+        ) is canonical_want, label
+
+
+def test_effective_clock_diagnostics_report_all_violation_details():
+    diagnostics = eg.effective_clock_comparison_diagnostics(
+        {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+        {"samples_mhz": [97.0, 100.0, 103.0]},
+    )
+    assert diagnostics == {
+        "input_valid": True,
+        "policy_matches": True,
+        "band_pass": False,
+        "median_mhz": 100.0,
+        "lower_mhz": 98.0,
+        "upper_mhz": 102.0,
+        "out_of_band_count": 2,
+        "evaluation_error": None,
+        "violations": [
+            {
+                "sample_index": 0,
+                "sample_mhz": 97.0,
+                "direction": "below",
+                "deviation_from_median_mhz": -3.0,
+                "outside_by_mhz": 1.0,
+            },
+            {
+                "sample_index": 2,
+                "sample_mhz": 103.0,
+                "direction": "above",
+                "deviation_from_median_mhz": 3.0,
+                "outside_by_mhz": 1.0,
+            },
+        ],
+    }
+
+
+def test_zero_outliers_does_not_override_policy_mismatch():
+    expected = {"samples_mhz": [100.0], "tolerance_pct": 0.0}
+    observed = {"samples_mhz": [100.0]}
+    diagnostics = eg.effective_clock_comparison_diagnostics(expected, observed)
+    assert diagnostics["input_valid"] is True
+    assert diagnostics["policy_matches"] is False
+    assert diagnostics["band_pass"] is True
+    assert diagnostics["out_of_band_count"] == 0
+    assert not eg.effective_clock_comparison_passes(expected, observed)
+
+
+def test_effective_clock_public_predicate_preserves_legacy_overflow_short_circuits():
+    huge = 10 ** 400
+    vectors = [
+        (
+            "policy-mismatch-before-band-math",
+            {"samples_mhz": [huge], "tolerance_pct": 0.0},
+            {"samples_mhz": [huge]},
+        ),
+        (
+            "first-band-failure-before-later-overflow",
+            {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+            {"samples_mhz": [200.0, huge]},
+        ),
+    ]
+    for label, expected, observed in vectors:
+        assert eg.effective_clock_comparison_passes(expected, observed) is False, label
+
+    assert eg._effective_clock_band_math_passes(
+        vectors[1][1], vectors[1][2],
+    ) is False
+
+
+def test_effective_clock_diagnostics_structures_overflow_as_rejection():
+    huge = 10 ** 400
+    diagnostics = eg.effective_clock_comparison_diagnostics(
+        {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+        {"samples_mhz": [200.0, huge]},
+    )
+    assert diagnostics["input_valid"] is False
+    assert diagnostics["policy_matches"] is True
+    assert diagnostics["band_pass"] is False
+    assert diagnostics["out_of_band_count"] is None
+    assert diagnostics["violations"] == [{
+        "sample_index": 0,
+        "sample_mhz": 200.0,
+        "direction": "above",
+        "deviation_from_median_mhz": 100.0,
+        "outside_by_mhz": 98.0,
+    }]
+    assert diagnostics["evaluation_error"]["type"] == "OverflowError"
+
+
+class _ExplodingClockMapping(Mapping):
+    def __init__(self, failure_method):
+        self._failure_method = failure_method
+        self._data = {
+            "samples_mhz": [100.0],
+            "tolerance_pct": 2.0,
+        }
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self):
+        return len(self._data)
+
+    def __contains__(self, key):
+        if self._failure_method == "__contains__":
+            raise RuntimeError("injected __contains__ failure")
+        return key in self._data
+
+    def keys(self):
+        if self._failure_method == "keys":
+            raise RuntimeError("injected keys failure")
+        return super().keys()
+
+    def get(self, key, default=None):
+        if self._failure_method == "get":
+            raise RuntimeError("injected get failure")
+        return self._data.get(key, default)
+
+
+def test_effective_clock_custom_mapping_failures_are_structured_rejections():
+    observed = {"samples_mhz": [100.0]}
+    for failure_method in ("__contains__", "keys", "get"):
+        expected = _ExplodingClockMapping(failure_method)
+        assert eg.effective_clock_comparison_passes(expected, observed) is False
+        diagnostics = eg.effective_clock_comparison_diagnostics(expected, observed)
+        assert diagnostics["input_valid"] is False
+        assert diagnostics["band_pass"] is False
+        assert diagnostics["evaluation_error"] == {
+            "type": "RuntimeError",
+            "message": f"injected {failure_method} failure",
+        }
 
 
 class _FixedNow:

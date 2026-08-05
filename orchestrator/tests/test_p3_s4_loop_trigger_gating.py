@@ -599,8 +599,17 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
             "layout_root": compute.root,
         }
 
+    def critic_digest_spy(
+        view, tag="p3-s4", reflux=True, *, identity_projection,
+    ):
+        assert view is not None
+        assert isinstance(tag, str)
+        assert isinstance(reflux, bool)
+        assert identity_projection is not None
+        return "compute-only\n"
+
     monkeypatch.setattr(T, "drive_iteration", fake_drive)
-    monkeypatch.setattr(L, "make_critic_digest", lambda *_a, **_k: "compute-only\n")
+    monkeypatch.setattr(L, "make_critic_digest", critic_digest_spy)
     monkeypatch.setattr(
         T, "exploration_campaign_layout",
         lambda campaign_id: (

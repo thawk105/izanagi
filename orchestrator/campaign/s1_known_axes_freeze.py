@@ -23,6 +23,7 @@ sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import axis_trigger_gating as trigger_axis  # noqa: E402
 from campaign import backoff_sweep, genome, s6_sort_sweep, s8a_trigger_sweep  # noqa: E402
+from campaign import trigger_gate_binding  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.pipeline import variant_id  # noqa: E402
 
@@ -76,6 +77,98 @@ ENTRY_KEYS = {
 
 class FreezeError(RuntimeError):
     """凍結生成・照合を fail-closed で止めるエラー。"""
+
+
+def _require_canonical_trigger_predicate(
+        predicate: object, *, workload: str, configuration: str) -> None:
+    if not trigger_gate_binding.is_canonical_predicate(predicate):
+        raise FreezeError(
+            f"entries.{workload}.{configuration}.gate_predicate が正準集合外")
+
+
+def _trigger_reasons_for_mask(mask: int) -> Tuple[str, ...]:
+    return tuple(
+        reason
+        for bit, reason in enumerate(trigger_axis.GATEABLE_REASONS)
+        if mask & (1 << bit)
+    )
+
+
+def _build_trigger_name_mask_index() -> Dict[str, int]:
+    index: Dict[str, int] = {}
+    for mask in range(32):
+        name = s8a_trigger_sweep.subset_name(_trigger_reasons_for_mask(mask))
+        if type(name) is not str:
+            raise FreezeError(
+                "trigger subset name が非文字列: "
+                f"type={type(name).__name__}")
+        if name in index:
+            raise FreezeError(
+                f"trigger subset name が mask 間で重複: {name!r}")
+        index[name] = mask
+
+    alias = s8a_trigger_sweep.IDENT_NAME
+    all_mask = (1 << len(trigger_axis.GATEABLE_REASONS)) - 1
+    if all_mask != 31:
+        raise FreezeError(f"trigger 要因数から得た全 mask が 31 でない: {all_mask}")
+    if type(alias) is not str:
+        raise FreezeError(
+            "trigger ident_all alias が非文字列: "
+            f"type={type(alias).__name__}")
+    if alias in index:
+        raise FreezeError(
+            f"trigger ident_all alias が既存名と衝突: {alias!r}")
+    index[alias] = all_mask
+    return index
+
+
+_TRIGGER_NAME_MASK_BINDING_CACHE: Optional[
+    Tuple[Dict[str, int], Tuple[Tuple[str, ...], ...]]
+] = None
+
+
+def _trigger_name_mask_binding_index(
+) -> Tuple[Dict[str, int], Tuple[Tuple[str, ...], ...]]:
+    global _TRIGGER_NAME_MASK_BINDING_CACHE
+    cached = _TRIGGER_NAME_MASK_BINDING_CACHE
+    if cached is None:
+        index = _build_trigger_name_mask_index()
+        expected_names_by_mask = tuple(
+            tuple(
+                name
+                for name, indexed_mask in index.items()
+                if indexed_mask == mask
+            )
+            for mask in range(32)
+        )
+        cached = (index, expected_names_by_mask)
+        _TRIGGER_NAME_MASK_BINDING_CACHE = cached
+    return cached
+
+
+def _require_trigger_name_mask_binding(
+        name: object, predicate: object, *,
+        workload: str, configuration: str) -> None:
+    _require_canonical_trigger_predicate(
+        predicate, workload=workload, configuration=configuration)
+    predicate_mask = trigger_gate_binding.mask_for_canonical_predicate(predicate)
+    name_mask_index, expected_names_by_mask = _trigger_name_mask_binding_index()
+    expected_names = expected_names_by_mask[predicate_mask]
+
+    def reject() -> None:
+        raise FreezeError(
+            f"entries.{workload}.{configuration}.name と gate_predicate の mask が不一致: "
+            f"name={name!r} predicate_mask={predicate_mask} "
+            f"expected_names={expected_names!r}")
+
+    if type(name) is not str:
+        raise FreezeError(
+            f"entries.{workload}.{configuration}.name と gate_predicate の mask が不一致: "
+            f"name_type={type(name).__name__}")
+    if name not in name_mask_index:
+        reject()
+    if name_mask_index[name] != predicate_mask:
+        reject()
 
 
 def _sha256(path: Path) -> str:
@@ -491,9 +584,15 @@ def _trigger_entries(workload: str, gate_name: str) -> Tuple[Dict, Dict]:
         return value
 
     gate_predicate = implementation(re_prov, gate_name, "remeasure")
+    _require_trigger_name_mask_binding(
+        gate_name, gate_predicate,
+        workload=workload, configuration="system_gate")
     if gate_predicate != implementation(main_prov, gate_name, "main"):
         raise FreezeError(f"trigger gate predicate が main/remeasure で不一致: {workload} {gate_name}")
     ident_predicate = implementation(re_prov, "ident_all", "remeasure")
+    _require_trigger_name_mask_binding(
+        "ident_all", ident_predicate,
+        workload=workload, configuration="ident_all")
     if ident_predicate != implementation(main_prov, "ident_all", "main"):
         raise FreezeError(f"ident_all predicate が main/remeasure で不一致: {workload}")
     common_module_sources = [
@@ -710,6 +809,17 @@ def _validate_schema(doc: Mapping) -> None:
     for workload, entry in entries.items():
         if not isinstance(entry, dict) or set(entry) != ENTRY_KEYS:
             raise FreezeError(f"entries.{workload} keys が schema と不一致")
+        for configuration in ("system_gate", "ident_all"):
+            record = entry.get(configuration)
+            if not isinstance(record, Mapping):
+                raise FreezeError(
+                    f"entries.{workload}.{configuration} が object ではない")
+            _require_trigger_name_mask_binding(
+                record.get("name"),
+                record.get("gate_predicate"),
+                workload=workload,
+                configuration=configuration,
+            )
     generator_doc = doc.get("generator")
     if not isinstance(generator_doc, dict) or set(generator_doc) != {"path", "sha256"}:
         raise FreezeError("generator schema が不一致")

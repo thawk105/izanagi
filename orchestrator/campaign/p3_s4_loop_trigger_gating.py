@@ -746,9 +746,12 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     L.save_loop_state(layout, state)
 
     if do_build and out["outcome"] != "dry-pass":
+        critic_view = L.require_admitted_campaign(layout.root)
         digest_txt = L.make_critic_digest(
-            layout, tag=CRITIC_TAG,
+            critic_view,
+            tag=CRITIC_TAG,
             reflux=(cfg.search_config.get("reflux") == "on"),
+            identity_projection=L.make_critic_identity_projection(critic_view),
         )
         with open(os.path.join(layout.root, DIGEST_BASENAME), "w", encoding="utf-8") as f:
             f.write(digest_txt)

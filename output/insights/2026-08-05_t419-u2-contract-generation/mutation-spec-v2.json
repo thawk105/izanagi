@@ -1,0 +1,26 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 300,
+ "mutations": [
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_env_contract.py",
+     "old": "    \"pegasus\": (\n        \"e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01\",\n    ),\n",
+     "new": "    \"pegasus\": (\n        \"e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02\",\n    ),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes",
+    "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env",
+    "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

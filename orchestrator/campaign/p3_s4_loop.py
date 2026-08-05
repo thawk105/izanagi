@@ -56,7 +56,8 @@ from campaign.axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa:
 from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
-from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
+from campaign.artifact_admission import (AdmittedCampaign,        # noqa: E402
+                                         require_admitted_campaign)
 from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
                                       parse_template_file)
@@ -72,10 +73,12 @@ from campaign.projection_guard import (                            # noqa: E402
     assert_no_ability_probe_material,
 )
 from critic.digest import (DIFF_QUARANTINE_REASON,                  # noqa: E402
+                           STOCK_SRC_TOKEN,
                            build_digest, load_diff_rejections,
                            load_liveness_rejections, load_rejections,
                            load_verify_abort_signals, render_rejections,
                            render_text)
+from critic.identity_projection import IdentityProjection          # noqa: E402
 
 # ---- campaign 定数 (p3_s4_red 様式。実走前に pin/env を確認する) -----------------
 PIN = "028f34d"                       # 段4/D38 時点で凍結した pin (当時の submodule HEAD、
@@ -271,10 +274,170 @@ def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: s
     return v
 
 
+UNREGISTERED_CANDIDATE_LABEL = "candidate-unregistered"
+
+
+@dataclass(frozen=True)
+class CriticIdentityProjection(IdentityProjection):
+    """1 campaign の BUILD_START から作る候補 ID 射影。"""
+
+    admitted_view: AdmittedCampaign = field(repr=False, compare=False)
+    variant_labels: Dict[str, str]
+    src_token_labels: Dict[Tuple[str, str], str]
+    build_attempt_labels: Dict[Tuple[str, str], str]
+    build_admission_labels: Dict[Tuple[str, str], str]
+
+    @staticmethod
+    def _nonempty_string(value: Optional[str], channel: str) -> Optional[str]:
+        if value is None or value == "":
+            return value
+        if type(value) is not str:
+            raise TypeError(f"{channel} は str/None が必要")
+        return value
+
+    @classmethod
+    def _lookup_variant(
+        cls, mapping: Dict[str, str], value: Optional[str], channel: str,
+    ) -> Optional[str]:
+        raw = cls._nonempty_string(value, channel)
+        if raw is None or raw == "":
+            return raw
+        try:
+            return mapping[raw]
+        except KeyError:
+            return UNREGISTERED_CANDIDATE_LABEL
+
+    @classmethod
+    def _lookup_derived(
+        cls, mapping: Dict[Tuple[str, str], str], variant: Optional[str],
+        value: Optional[str], channel: str,
+    ) -> Optional[str]:
+        raw = cls._nonempty_string(value, channel)
+        if raw is None or raw == "":
+            return raw
+        parent = cls._nonempty_string(variant, "variant")
+        try:
+            return mapping[(parent or "", raw)]
+        except KeyError:
+            suffix = {
+                "src_token": "source",
+                "build_attempt_id": "attempt",
+                "build_admission_receipt_sha256": "admission",
+            }[channel]
+            return f"{UNREGISTERED_CANDIDATE_LABEL}/{suffix}"
+
+    def project_variant(self, value: Optional[str]) -> Optional[str]:
+        return self._lookup_variant(self.variant_labels, value, "variant")
+
+    def project_src_token(
+        self, variant: Optional[str], value: Optional[str],
+    ) -> Optional[str]:
+        return self._lookup_derived(
+            self.src_token_labels, variant, value, "src_token",
+        )
+
+    def project_build_attempt_id(
+        self, variant: Optional[str], value: Optional[str],
+    ) -> Optional[str]:
+        return self._lookup_derived(
+            self.build_attempt_labels, variant, value, "build_attempt_id",
+        )
+
+    def project_build_admission_receipt_sha256(
+        self, variant: Optional[str], value: Optional[str],
+    ) -> Optional[str]:
+        return self._lookup_derived(
+            self.build_admission_labels, variant, value,
+            "build_admission_receipt_sha256",
+        )
+
+
+def _bind_projection_value(
+    mapping: Dict, key, projected: str, channel: str,
+) -> None:
+    current = mapping.get(key)
+    if current is not None and current != projected:
+        raise ValueError(f"{channel} の campaign 内対応が競合")
+    mapping[key] = projected
+
+
+def make_critic_identity_projection(
+    view: AdmittedCampaign,
+) -> CriticIdentityProjection:
+    """admission 済み同一 snapshot の BUILD_START 初出から label を作る。"""
+    if type(view) is not AdmittedCampaign:
+        raise TypeError("view は require_admitted_campaign() の exact value が必要")
+    variant_labels: Dict[str, str] = {}
+    src_token_labels: Dict[Tuple[str, str], str] = {}
+    build_attempt_labels: Dict[Tuple[str, str], str] = {}
+    build_admission_labels: Dict[Tuple[str, str], str] = {}
+    next_ordinal = 1
+
+    for record in view.records:
+        if record.stage != STAGE_BUILD_START:
+            continue
+        raw_variant = record.variant
+        raw_src_token = record.payload.get("src_token")
+        if type(raw_variant) is not str or not raw_variant:
+            raise ValueError("BUILD_START variant が非空 str でない")
+        if raw_src_token is not None and type(raw_src_token) is not str:
+            raise TypeError("BUILD_START src_token は str/None が必要")
+
+        if raw_variant in variant_labels:
+            label = variant_labels[raw_variant]
+            if (label == STOCK_SRC_TOKEN) != (raw_src_token == STOCK_SRC_TOKEN):
+                raise ValueError("同じ variant の stock/candidate 分類が競合")
+        elif raw_src_token == STOCK_SRC_TOKEN:
+            label = STOCK_SRC_TOKEN
+        else:
+            label = f"candidate-{next_ordinal:04d}"
+            next_ordinal += 1
+        _bind_projection_value(
+            variant_labels, raw_variant, label, "variant",
+        )
+
+        if raw_src_token:
+            source_label = (
+                STOCK_SRC_TOKEN if raw_src_token == STOCK_SRC_TOKEN
+                else f"{label}/source"
+            )
+            _bind_projection_value(
+                src_token_labels, (raw_variant, raw_src_token),
+                source_label, "src_token",
+            )
+        raw_attempt = record.payload.get("build_attempt_id")
+        if raw_attempt:
+            if type(raw_attempt) is not str:
+                raise TypeError("BUILD_START build_attempt_id は str/None が必要")
+            _bind_projection_value(
+                build_attempt_labels, (raw_variant, raw_attempt),
+                f"{label}/attempt", "build_attempt_id",
+            )
+        raw_admission = record.payload.get("build_admission_receipt_sha256")
+        if raw_admission:
+            if type(raw_admission) is not str:
+                raise TypeError(
+                    "BUILD_START build_admission_receipt_sha256 は str/None が必要"
+                )
+            _bind_projection_value(
+                build_admission_labels, (raw_variant, raw_admission),
+                f"{label}/admission", "build_admission_receipt_sha256",
+            )
+
+    return CriticIdentityProjection(
+        admitted_view=view,
+        variant_labels=dict(variant_labels),
+        src_token_labels=dict(src_token_labels),
+        build_attempt_labels=dict(build_attempt_labels),
+        build_admission_labels=dict(build_admission_labels),
+    )
+
+
 # ==== critic 入力 digest (緑 + 赤、還流 on/off スイッチ) =======================
 
-def make_critic_digest(layout: CampaignLayout, tag: str = "p3-s4",
-                       reflux: bool = True) -> str:
+def make_critic_digest(view: AdmittedCampaign, tag: str = "p3-s4",
+                       reflux: bool = True, *,
+                       identity_projection: IdentityProjection) -> str:
     """critic に渡す digest テキストを組む。
 
     緑 (render_text: committed LI) + 赤 (render_rejections: verify-red/liveness/
@@ -282,7 +445,15 @@ def make_critic_digest(layout: CampaignLayout, tag: str = "p3-s4",
     rejection の構造化 anomaly を還流させない対照アーム (main-experiment の LLM ablation、
     合流 1 点の切替。phase3.md 段 6 の第 3 アーム reason-only は段 6)。緑 LI は両アーム
     共通 (性能数値は trace-disabled build 由来、規律1)。"""
-    view = require_admitted_campaign(layout.root)
+    if not isinstance(identity_projection, IdentityProjection):
+        raise TypeError("identity_projection は IdentityProjection が必要")
+    if type(view) is not AdmittedCampaign:
+        raise TypeError("view は require_admitted_campaign() の exact value が必要")
+    if (
+        isinstance(identity_projection, CriticIdentityProjection)
+        and identity_projection.admitted_view is not view
+    ):
+        raise ValueError("digest と identity projector は同じ admitted view が必要")
     green = render_text([build_digest(tag, {}, view)])
     if not reflux:
         return green
@@ -290,7 +461,8 @@ def make_critic_digest(layout: CampaignLayout, tag: str = "p3-s4",
     red = render_rejections(
         load_rejections(view), livs, other,
         load_verify_abort_signals(view),
-        diff_rejections=load_diff_rejections(view))
+        diff_rejections=load_diff_rejections(view),
+        identity_projection=identity_projection)
     return green + "\n\n" + red
 
 
@@ -844,8 +1016,13 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     save_loop_state(layout, state)
 
     if do_build and out["outcome"] != "dry-pass":
+        critic_view = require_admitted_campaign(layout.root)
         digest_txt = make_critic_digest(
-            layout, reflux=(cfg.search_config.get("reflux") == "on"))
+            critic_view,
+            tag="p3-s4",
+            reflux=(cfg.search_config.get("reflux") == "on"),
+            identity_projection=make_critic_identity_projection(critic_view),
+        )
         with open(os.path.join(layout.root, "s4_loop_digest.txt"), "w", encoding="utf-8") as f:
             f.write(digest_txt)
         out["critic_digest_generated"] = True
@@ -956,12 +1133,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     stop = check_stop(state)
     dqs = []
     if out["outcome"] != "dry-pass":
-        digest_txt = make_critic_digest(layout, reflux=(a.reflux == "on"))
+        critic_view = require_admitted_campaign(layout.root)
+        digest_txt = make_critic_digest(
+            critic_view,
+            tag="p3-s4",
+            reflux=(a.reflux == "on"),
+            identity_projection=make_critic_identity_projection(critic_view),
+        )
         layout.ensure()
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(digest_txt)
         # WAL 機械判定 (宣言でなくレコードを gate に — kickoff/D30 様式)。
-        critic_view = require_admitted_campaign(layout.root)
         dqs = load_diff_rejections(critic_view)
     # iteration の WAL 非依存を **差分**で実証する (1==1 の恒真 assert にしない): loop の
     # iteration は WAL レコード数と一致しない = WAL から導出していないことの witness (D39 決定2)。

@@ -296,3 +296,79 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"b0513e43fe724488d3b13c08f2bf1f7401dad16d3b83ad6c80f2a96f4f41e1a2","seq":1,"wave":"rulings-20260805-m"}
 
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"3ff85b4eeefd2df136a93908fc70e59656ea83278e43d37c17837a0cfe2cb594","seq":1,"wave":"dev-wave-t213-shared-scratch"}
+
+- {"allocations":{"D:pegasus-admission-registry":"D175"},"authored":"2026-08-05","content_sha256":"3a77ae066f56a9590136b87d8c90e014340158ddf55f45c965ca3b531433964d","seq":1,"wave":"dev-wave-t481-pegasus-admission"}
+- {"allocations":{"F:classification-bootstrap-deadlock":"F123","F:fix-prompt-restore-without-exceptions":"F124","F:norm-procedure-barrier-three-way-drift":"F122","F:pegasus-blanket-rule-porous":"F121"},"authored":"2026-08-05","content_sha256":"6c7c2124e4f811096c209ecff3e42f3e419e348600b455351cdcf9e15ea28462","seq":2,"wave":"dev-wave-t481-pegasus-admission"}
+- {"allocations":{"T:collect-receipt-input-caps":"[T-519]","T:dev-wave-fix-prompt-contract":"[T-521]","T:guard-bash-residual-bypasses":"[T-518]","T:pegasus-admission-registry-authority":"[T-522]","T:pegasus-measurement-surface":"[T-520]"},"authored":"2026-08-05","content_sha256":"9106562d4166e27257dbadad3dbc93998a56a0d0546cfb4f280cbedaaa9b9e42","seq":3,"wave":"dev-wave-t481-pegasus-admission"}
+
+- {"allocations":{"T:holdout-full-condition-binding":"[T-525]","T:holdout-workload-projection":"[T-527]","T:s8b-pilot-holdout-observation":"[T-523]","T:s8c-check-cli-double-import":"[T-526]","T:trial-experiment-unit-redesign":"[T-524]"},"authored":"2026-08-05","content_sha256":"7c42991aeaa2939168150f34d71d5a3d8a59c9f261e3ff7c8da90d63e1a42089","seq":1,"wave":"dev-wave-t470-t327-wiring"}
+- {"allocations":{"F:merge-author-trailer-without-conflict":"F125"},"authored":"2026-08-05","content_sha256":"98326473e1500d9e539b0525eb5a04c065d3dbeb333eda67342506f9acf8a6ce","seq":2,"wave":"dev-wave-t470-t327-wiring"}
+
+- {"allocations":{"T:campaign-env-contract-none-bypass":"[T-530]","T:contract-generation-activation-authority":"[T-529]","T:probe-method-alpha-production-wiring":"[T-528]"},"authored":"2026-08-05","content_sha256":"5e5043888a1cb1daa9ef30b5e033cb2ca31c04be4a0c6b8401eb5e112f906811","seq":1,"wave":"dev-wave-t419-u2-contract-generation"}
+- {"allocations":{"D:contract-generation-bootstrap-fuse":"D176"},"authored":"2026-08-05","content_sha256":"8e979989eb8b5bc208477bc33bb5c5c0db58ee12410e118003adb712a7379108","seq":1,"wave":"dev-wave-t419-u2-contract-generation"}
+- {"allocations":{"F:delegation-seam-left-unpinned-by-its-own-fix":"F127","F:fuse-masks-mutation-attribution":"F126"},"authored":"2026-08-05","content_sha256":"c28ac6462783df4243880b7174bd30b6838f7ed2ff77be7b22c955582b959f72","seq":1,"wave":"dev-wave-t419-u2-contract-generation"}
+
+- {"allocations":{"T:freeze-membership-authority-provenance":"[T-534]","T:freeze-refreeze-generation-transition":"[T-531]","T:holdout-freeze-semantic-closure":"[T-533]","T:trigger-name-mask-binding":"[T-532]"},"authored":"2026-08-05","content_sha256":"bb636da57e7a681ad102dfc9b3f171b343462c446f8de7959509b6441fe8d1f1","seq":1,"wave":"dev-wave-t492-freeze-semantic-membership"}
+- {"allocations":{"D:freeze-generator-self-hash-boundary":"D178","D:freeze-semantic-membership-at-schema":"D177"},"authored":"2026-08-05","content_sha256":"33b86c87bbf2b2dae19fc45594d7cb75d8ab7d8f332924bfaa1c7d5351a00dcd","seq":2,"wave":"dev-wave-t492-freeze-semantic-membership"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"83aadb0307b673d25bf10dcc8a32284c5740b02df9da659e068806e3d991e371","seq":3,"wave":"dev-wave-t492-freeze-semantic-membership"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"1f57c7d35f4ca1b10db8d993830fe616c613e637c2d8847a8f7096f5fa597bed","seq":1,"wave":"dev-wave-t244-p3-design"}
+- {"allocations":{"D:t244-p3-design-package":"D179"},"authored":"2026-08-05","content_sha256":"38be6579fb57198f591288310813ec8a641efb529410c3bb6ab067795a496d65","seq":1,"wave":"dev-wave-t244-p3-design"}
+- {"allocations":{"F:concurrent-codex-same-output-path":"F128"},"authored":"2026-08-05","content_sha256":"e3e6a455e67acad33e0539d94b6e66209479f782b39caa76e211d9766b09e8e3","seq":1,"wave":"dev-wave-t244-p3-design"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"a0fa05077c01f205633be656761f051ed8d4eaf913b184687b6e8023d792bb30","seq":1,"wave":"rulings-20260805-n"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"0e4305fd4d709265aedb18cc25864ff3c71824fa77131eca0c1bc2ec94314697","seq":1,"wave":"rulings-20260805-o"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"d9739ed2277641c376886ce422302d207c0e558aabc3c7557f37624be3d995f0","seq":1,"wave":"rulings-20260805-p"}
+
+- {"allocations":{"T:compute-result-channel-ownership":"[T-536]","T:trust-root-control-surface":"[T-535]"},"authored":"2026-08-05","content_sha256":"208c145e00d7be244acbcf8a22ec6a294f23a6d33232d8331883c38b148aeb9f","seq":1,"wave":"dev-wave-t213-redefine"}
+
+- {"allocations":{"D:pegasus-measurement-turn":"D180"},"authored":"2026-08-05","content_sha256":"5373d9e393233cbcc9ab58d31de3f5282c24f2430fbe1b1bd0a6d27128f00d22","seq":1,"wave":"dev-wave-t520-measurement-turn"}
+- {"allocations":{"T:dev-wave-docs-only-contract":"[T-537]"},"authored":"2026-08-05","content_sha256":"10f31a925b726f873b1c582d946fe74bded5e247eac5151265b817ebb12ca24c","seq":2,"wave":"dev-wave-t520-measurement-turn"}
+
+- {"allocations":{"T:acquisition-transcript-schema":"[T-539]","T:alpha-production-protocol-validation":"[T-538]","T:oracle-reservation-probe-allowance":"[T-540]","T:probe-warmup-carryover":"[T-542]","T:t126-attestation-type-mismatch":"[T-541]"},"authored":"2026-08-05","content_sha256":"761737c3a9d60d35d8b0c12cd12d7b655598e3172126e073fe237b8d93eeb9fb","seq":1,"wave":"dev-wave-t419-alpha-wiring"}
+- {"allocations":{"D:alpha-acquisition-identity":"D181","D:thread-self-stat-for-pin-check":"D182"},"authored":"2026-08-05","content_sha256":"ff24918041aa72aec6a24b8db060dc4dae7e129ec91a511402de64f4e8c008c7","seq":1,"wave":"dev-wave-t419-alpha-wiring"}
+- {"allocations":{"F:pin-check-gap-during-wait":"F130","F:self-stat-not-thread-stat":"F129"},"authored":"2026-08-05","content_sha256":"bb6cba7c479194ff7a75d532ddb31c95f311873f476683c7a67b7338d2471eda","seq":1,"wave":"dev-wave-t419-alpha-wiring"}
+
+- {"allocations":{"D:disposable-probe-mutation-wrapper":"D184","D:t244-p3-liveness-fixture-only":"D183"},"authored":"2026-08-05","content_sha256":"19848d26c03f809697adcfe2b3ed117281ef2287f14172f5dc4e395a869d9858","seq":1,"wave":"dev-wave-t244-p3-liveness"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"68276f8e4e33f41878e790e972312e894166e0cfb19e2f0567a0895ebc6c6c0c","seq":2,"wave":"dev-wave-t244-p3-liveness"}
+- {"allocations":{"F:brief-missed-closed-vocabulary":"F131","F:fix-inflated-disposable-probe":"F132"},"authored":"2026-08-05","content_sha256":"738c90a98283e6e77a8455a4e12294a1496e4d2ef6ec4a1424059495da7811b7","seq":3,"wave":"dev-wave-t244-p3-liveness"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"c88894833f585a48e99929cb131e6070c4f8a792f3a5517eac3a44e69b116f8d","seq":4,"wave":"dev-wave-t244-p3-liveness"}
+
+- {"allocations":{"T:holdout-name-mask-bypass":"[T-544]","T:s1b-pairing-mask-identity":"[T-543]"},"authored":"2026-08-06","content_sha256":"986b35902528975dce3d34ca5e6af0cc80ac29205b81720df76a9b67785ea92a","seq":1,"wave":"dev-wave-t532-name-mask-binding"}
+- {"allocations":{"D:trigger-name-mask-forward-authority":"D185"},"authored":"2026-08-06","content_sha256":"6f2cbfdfd9c73abe73683d0009a779a4a049b61db7b675017858b8a8670579ca","seq":2,"wave":"dev-wave-t532-name-mask-binding"}
+- {"allocations":{"F:scan-order-false-kill":"F133"},"authored":"2026-08-06","content_sha256":"611b843835dc9ed6753a24acd9b1a30c60c62538e1f8744f7708babc409c560e","seq":3,"wave":"dev-wave-t532-name-mask-binding"}
+
+- {"allocations":{"T:acceptance-mode-and-receipt":"[T-545]","T:dispatch-request-env-revalidation":"[T-547]","T:staged-delete-tree-identity":"[T-546]"},"authored":"2026-08-05","content_sha256":"afc9fe150b410224270c6d40225aa10fb608947c7c8c02dc0fe418f4e48c4d1d","seq":1,"wave":"dev-wave-t450-t412-preface"}
+- {"allocations":{"D:acceptance-deletion-gate-fail-closed":"D186"},"authored":"2026-08-05","content_sha256":"6bf6d36c4b81883b8e1be68c35e43e34e8e12fe95cd595f559b657758232569e","seq":2,"wave":"dev-wave-t450-t412-preface"}
+
+- {"allocations":{"T:disposable-probe-scale-cap":"[T-550]","T:pegasus-dependency-general-procurement":"[T-548]","T:probe-exclusivity-witness":"[T-549]","T:t139-mechanism-ablation":"[T-551]"},"authored":"2026-08-06","content_sha256":"c24504a36b6d33076f4bf6e2c987fb056472f2a7bceda6eff57d4c7f628853ca","seq":1,"wave":"dev-wave-t139-alt-x-probe"}
+- {"allocations":{"D:t139-alt-x-partial-recovery":"D187"},"authored":"2026-08-06","content_sha256":"d89ef131f0695aa4dd74a9ce1b0372102e6ac7649a03b31256c132dbc7bd4588","seq":2,"wave":"dev-wave-t139-alt-x-probe"}
+- {"allocations":{"F:local-single-statement-dependency":"F135","F:probe-clean-tree-scheduler-droppings":"F134"},"authored":"2026-08-06","content_sha256":"5f69185edc70acde0cc7c5d9b51983420b6938353970991f6d0c2d95b37905b4","seq":3,"wave":"dev-wave-t139-alt-x-probe"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"aa5f7e60863577f44675596e21e5412ba91e04f7e96b9e23de285521df902955","seq":1,"wave":"dev-wave-t495-branch-deletion-path"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"9bf775a9dd5c313364c575cec5516a2e01032fff0c0e2b386138e0480b5d8f58","seq":2,"wave":"dev-wave-t495-branch-deletion-path"}
+
+- {"allocations":{"T:probe-terminal-proof-provenance":"[T-552]"},"authored":"2026-08-06","content_sha256":"5d16cb54eed816e6e3572abe8011187a63c1484d231397611f74b7701413276f","seq":1,"wave":"dev-wave-t401-racct-permanent"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"26c348e883671b10e5821b087ce68460bc0f99efffac05d388e03f9e7192a799","seq":2,"wave":"dev-wave-t401-racct-permanent"}
+
+- {"allocations":{"F:concurrent-dispatch-during-acceptance":"F136"},"authored":"2026-08-05","content_sha256":"78f351a8f0ca48392f545ca5ebf4afe94c0b44addf0d45750f9461d27e0e2ee7","seq":3,"wave":"dev-wave-t520-measurement-turn"}
+
+- {"allocations":{"T:admission-living-doc-closure":"[T-556]","T:admission-reason-gate-sync":"[T-555]","T:barrier-policy-on-old-commits":"[T-557]","T:dev-wave-docs-budget-headroom":"[T-558]","T:hook-wiring-skip-gate":"[T-554]","T:s8c-git-timeout-under-load":"[T-553]"},"authored":"2026-08-06","content_sha256":"ccabe4895244adc0c3b114956d953e5ca9fb975e6f902660d712c2e20157a85c","seq":1,"wave":"dev-wave-t522-admission-registry"}
+- {"allocations":{"D:pegasus-admission-registry-canonical":"D188"},"authored":"2026-08-06","content_sha256":"39fab98631ab4a97b98f2e787239e7c9dc560519f8d0a9dad3bc8be48b90ea6d","seq":2,"wave":"dev-wave-t522-admission-registry"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"34c3b12d2b6146523240ec4571a774b39cc38fa48b3a4cc438afa2838b43b8a2","seq":3,"wave":"dev-wave-t522-admission-registry"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"0a9940e2b1e02c43a79da18661139a86db78a792fc24c7de06bed90ecfe05454","seq":1,"wave":"dev-wave-t244-p3-reservation-fsm"}
+- {"allocations":{"D:mutation-attribution-masked-by-earlier-layer":"D190","D:origin-ledger-prequery-reservation":"D189"},"authored":"2026-08-06","content_sha256":"09491e30f01dccc033c6ceda3835611331ae3b0d68984bbc0f3148ffde293184","seq":1,"wave":"dev-wave-t244-p3-reservation-fsm"}
+
+- {"allocations":{"T:certify-attempt-path-runbook":"[T-562]","T:certify-midjob-source-drift":"[T-563]","T:certify-reservation-formula":"[T-561]","T:independent-verifier-receipt":"[T-560]","T:publish-transaction-position":"[T-559]"},"authored":"2026-08-06","content_sha256":"a8edebb86b635bdd960029025e9515733916df1f7de382689f385aeef4282efc","seq":1,"wave":"dev-wave-t419-u2-recalibration"}
+- {"allocations":{"D:certify-clock-gate-early-and-published-recheck":"D191"},"authored":"2026-08-06","content_sha256":"8e32a7bcc93e6e8df58a8e20a9341de5886e99c48ef31a7b561e5e8cc13a36ce","seq":2,"wave":"dev-wave-t419-u2-recalibration"}
+- {"allocations":{"F:cleanup-fix-creates-destructive-path":"F137","F:mutation-expected-nodes-underregistered":"F138"},"authored":"2026-08-06","content_sha256":"fd915b5d32fb0e35785603d110cefbcd4c95ad811b19164c604c756e7543c22b","seq":3,"wave":"dev-wave-t419-u2-recalibration"}
+- {"allocations":{"T:certify-pinned-dependency-sources-missing":"[T-564]"},"authored":"2026-08-06","content_sha256":"466ae95956cb0deec3eb29b9416322122618027099bdf15b3548289a622e5309","seq":4,"wave":"dev-wave-t419-u2-recalibration"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"a8b25368f5d51fe3a0bd2fd6e43f10da7ab8cc2bcbce5a3a36d1aa0b4768f170","seq":5,"wave":"dev-wave-t419-u2-recalibration"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"449fff529de98c94549f9922feddedbd42d42b1d2a2eb73fe060083b2a2c80e7","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
+- {"allocations":{"D:critic-candidate-label-projection":"D192"},"authored":"2026-08-06","content_sha256":"cd13ae288cf4303ffc06a030bf2a51f89d0736dd053cb4b85b11d561082ab98b","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"d825041451f3f42881012fd61b7a68b116d4639472876eba0298562926185efb","seq":1,"wave":"dev-wave-t244-p2-noninterference"}

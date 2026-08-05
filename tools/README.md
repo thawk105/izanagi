@@ -8,7 +8,8 @@
 1. **`hostname` が Pegasus のログインノード (`pegasus0N`) なら、そのスクリプトの実行場所を
    決める前に分類する。** 分類は runbook §7.0 の 3 値 (`local-ok` / `dispatch-required` /
    `unknown`) で、判定量は「同時に生きる全子孫を含む cgroup の charged memory のピーク」である。
-   per-process のピーク RSS を代理値にしてはならない。
+   per-process のピーク RSS を代理値にしてはならない。**実測はユーザー端末の手番で、
+   AI・自動化は測らず依頼する** (§7.0)。
 2. **`unknown` は `dispatch-required` と同じに扱う。** 測っていないもの、入力サイズに上限が無く
    実行ごとに変わるものを、軽い側へ倒さない。
 3. **`dispatch-required` をログインノードで走らせない。** 自動で計算ノードへ送られる exact task は
@@ -21,14 +22,15 @@
 ## なぜ場所でなく量で判定するか
 
 ログインノードは共有で、per-user cgroup の上限は 1 つしかなく swap は無い。上限を超えると
-OOM killer が同じ cgroup の中から犠牲を選ぶため、**上限を超えさせた張本人とは別のプロセスが
-死ぬ**。したがって「重い処理の一覧」を閉じた列挙で持つと、列挙に載っていない新しい重い処理が
-他人のセッションを殺す。判定を実測量に置けば、一覧を更新しなくても**判定の対象**にはなる。
+OOM killer が同じ cgroup から犠牲を選ぶため、**上限を超えさせた張本人とは別のプロセスが死ぬ**。
+重い処理を閉じた列挙で持つと、載っていない新しい重い処理が他人のセッションを殺す。判定を
+実測量に置けば、一覧を更新しなくても**判定の対象**にはなる。
 
-**ただしこれは prompt 規律であって機械強制ではない。** 分類 registry も、実行直前に未分類を
-拒否する gate も存在しない。`tools/check_docs.py` が検査するのは runbook の exact task 表と
-dispatcher の `TASKS` の同期だけで、新しい高メモリスクリプトを追加しても緑のまま通る。
-**この文書を読まなかった人・cron・IDE・他 AI は止まらない。**
+**機械強制は 3 層で、どれも全経路は覆わない。** (1) path ごとの registry gate は `tools/pegasus/`
+配下だけ (正本 `tools/pegasus/admission_registry.json`、[T-522])。(2) path を問わない重量 command
+gate (`pytest` / `cmake --build` 等)。(3) entry point 自身の site gate。`check_docs.py` は task 表と
+`TASKS`、registry と docs の投影一致を検査する。
+**3 層の外は緑のまま通り、人・cron・IDE・他 AI・`python3 -c` も止まらない。**
 
 計算ノード側の資材 (certification / floor / 劣化梯子の job script と submitter) は
 `tools/pegasus/README.md`、Pegasus 全体の操作は `docs/pegasus-runbook.md` を引く。

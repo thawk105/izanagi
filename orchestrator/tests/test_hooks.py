@@ -12,7 +12,9 @@ import importlib.util
 import io
 import json
 import os
+import py_compile
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -41,6 +43,18 @@ GW = _load_hook("guard_write")
 GB = _load_hook("guard_bash")
 GR = _load_hook("guard_read")
 GA = _load_hook("guard_agent")
+
+
+def _load_pegasus_registry_loader():
+    path = os.path.join(_REPO, "tools", "pegasus_admission_registry.py")
+    spec = importlib.util.spec_from_file_location(
+        "pegasus_admission_registry_for_test_hooks", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+PAR = _load_pegasus_registry_loader()
 
 # template patch (silo-backoff-fixed.patch) と同型の合成骨格。
 _SKELETON = """#pragma once
@@ -723,6 +737,244 @@ def test_bash_login_python_module_option_boundaries_allowed():
         assert ok, f"Python -m 境界の非重量形が過剰拒否された: {cmd!r} ({why})"
 
 
+def test_bash_login_module_identity_and_borrow_matrix():
+    """module identity は綴り・結合形・interpreter 版に依存させない。"""
+    for cmd in (
+        "python3 -m pytest.__main__ tools/run_tests.py",
+        "python3 -mpytest.__main__ tools/pegasus/fetch_third_party.py",
+        "python3 -qm _pytest.main tools/pegasus/dispatch_compute.py",
+        "python3 -qmpytest tools/run_tests.py",
+        "python3 -Bmpytest tools/pegasus/submit_certify.sh",
+        "python3.10 -Bm pytest.__main__ tools/run_tests.py",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"module 実行体が sanctioned data path を借用した: {cmd!r}"
+
+
+def test_bash_login_script_executor_modules_classify_their_target():
+    for cmd in (
+        "python3 -m cProfile tools/pegasus/exec_calibrate.py",
+        "python3 -mcProfile -o /tmp/profile.out "
+        "tools/pegasus/certify_calibration.sh",
+        "python3.10 -Bmprofile -s cumulative "
+        "tools/pegasus/exec_calibrate.py",
+        "python3 -mpdb -c continue tools/pegasus/exec_calibrate.py",
+        "python3 -mtrace --trace tools/pegasus/exec_calibrate.py",
+        "python3 -mrunpy tools.pegasus.exec_calibrate",
+        "python3 -m coverage run tools/pegasus/exec_calibrate.py",
+        "python3 -BmcProfile -- tools/pegasus/exec_calibrate.py --help",
+        "python3.10 -Bmtrace --trace -- "
+        "tools/pegasus/exec_calibrate.py --report",
+        "python3 -mcProfile tools/pegasus/exec_calibrate.py --help",
+        "env FOO=1 nice -n 0 python3.10 -BmcProfile -- "
+        "tools/pegasus/exec_calibrate.py --help",
+        "bash -lc 'python3 -Bmtrace --trace -- "
+        "tools/pegasus/exec_calibrate.py --report'",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"script 実行 module が target の admission を迂回した: {cmd!r}"
+
+
+def test_bash_login_closes_additional_executor_module_spellings():
+    absolute = os.path.join(_REPO, "tools/pegasus/collect_receipt.py")
+    commands = (
+        "python3 -m pydoc tools/pegasus/collect_receipt.py",
+        "python3 -mpydoc -- tools/pegasus/collect_receipt.py",
+        "python3.10 -Bmpydoc -- ./tools/pegasus/collect_receipt.py",
+        f"python3.10 -Bmpydoc -- {absolute}",
+        "python3.10 -Bmdoctest tools/pegasus/collect_receipt.py",
+        "python3.10 -Bmunittest tools/pegasus/collect_receipt.py",
+        "python3 -m pydoc /tmp/safe.py tools/pegasus/collect_receipt.py",
+        "python3 -m doctest /tmp/safe.py tools/pegasus/collect_receipt.py",
+        "python3 -m unittest /tmp/safe.py tools/pegasus/collect_receipt.py",
+        "python3 -m trace --trace --module tools.pegasus.exec_calibrate",
+        "env FOO=1 nice -n 0 python3.10 -Bmpydoc -- "
+        "tools/pegasus/collect_receipt.py",
+        "bash -lc 'python3 -m doctest tools/pegasus/collect_receipt.py'",
+    )
+    for cmd in commands:
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"追加 executor module の実行対象が通った: {cmd!r}"
+    for cmd in (
+        "python3 -m pydoc /tmp/safe.py",
+        "python3 -m doctest /tmp/safe.py",
+        "python3 -m unittest /tmp/safe.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"Pegasus 外の executor target が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_executor_nonexecuting_modes_restore_baseline_allow():
+    for cmd in (
+        "python3 -m timeit tools/pegasus/exec_calibrate.py",
+        "python3.10 -B -m timeit tools/pegasus/exec_calibrate.py",
+        "python3 -m runpy tools/pegasus/exec_calibrate.py",
+        "env FOO=1 python3 -B -m runpy tools/pegasus/exec_calibrate.py",
+        "python3 -m trace --report -f /tmp/counts "
+        "tools/pegasus/exec_calibrate.py",
+        "bash -lc 'python3 -m trace --report -f /tmp/counts "
+        "tools/pegasus/exec_calibrate.py'",
+        "python3 -m cProfile --help tools/pegasus/exec_calibrate.py",
+        "python3 -B -m cProfile --help tools/pegasus/exec_calibrate.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"module の非 file 実行 mode が過剰拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_executor_output_cannot_overwrite_admission_paths():
+    commands = (
+        "python3 -BmcProfile -o tools/pegasus/exec_calibrate.py /tmp/safe.py",
+        "python3 -BmcProfile -otools/pegasus/exec_calibrate.py /tmp/safe.py",
+        "python3.10 -Bmprofile "
+        "--outfile=tools/pegasus/collect_receipt.py /tmp/safe.py",
+        "env FOO=1 nice -n 0 python3 -BmcProfile "
+        "--outfile tools/pegasus/fetch_third_party.py /tmp/safe.py",
+        "python3 -BmcProfile -o tools/run_tests.py -- /tmp/safe.py",
+    )
+    for cmd in commands:
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"executor が admission path を出力先にできた: {cmd!r}"
+
+    for cmd in (
+        "python3 -BmcProfile -o /tmp/profile.out /tmp/safe.py",
+        "python3 -m cProfile -o tools/pegasus/exec_calibrate.py "
+        "--help /tmp/safe.py",
+        "python3 -BmcProfile -- /tmp/safe.py "
+        "-o tools/pegasus/exec_calibrate.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"program argv の出力 option 字面が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_pydoc_server_and_write_modes_do_not_execute_positionals():
+    commands = (
+        "python3 -Bmpydoc -n localhost tools/pegasus/exec_calibrate.py",
+        "python3.10 -Bmpydoc -p 8080 tools/pegasus/exec_calibrate.py",
+        "python3 -m pydoc -b tools/pegasus/exec_calibrate.py",
+        "python3 -m pydoc -w tools/pegasus/exec_calibrate.py",
+        "env FOO=1 nice -n 0 python3.10 -Bmpydoc "
+        "-n localhost -- tools/pegasus/exec_calibrate.py",
+        "bash -lc 'python3 -B -m pydoc -w tools/pegasus/exec_calibrate.py'",
+    )
+    for cmd in commands:
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"pydoc 非実行 mode が位置引数を実行体扱いした: {cmd!r} ({why})"
+
+
+def test_bash_login_static_reader_modules_keep_paths_as_data():
+    for cmd in (
+        "python3 -m py_compile tools/pegasus/exec_calibrate.py",
+        "python3 -B -m py_compile tools/pegasus/collect_receipt.py",
+        "python3 -B -m py_compile tools/pegasus/certify_calibration.sh",
+        "python3.10 -m json.tool tools/pegasus/policy.json",
+        "python3 -m compileall tools/pegasus",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"静的 reader module が data path を実行体扱いした: {cmd!r} ({why})"
+
+
+def test_bash_login_interpreter_prefix_value_options_reveal_scripts():
+    for cmd in (
+        "python3 -W ignore tools/pegasus/exec_calibrate.py",
+        "python3 -Wignore tools/pegasus/exec_calibrate.py",
+        "python3 -X faulthandler tools/pegasus/exec_calibrate.py",
+        "python3 -Xfaulthandler tools/pegasus/exec_calibrate.py",
+        "python3 -- tools/pegasus/exec_calibrate.py",
+        "bash -O extglob tools/pegasus/certify_calibration.sh",
+        "bash -Oextglob tools/pegasus/certify_calibration.sh",
+        "bash -o errexit tools/pegasus/certify_calibration.sh",
+        "bash --rcfile /tmp/bashrc tools/pegasus/certify_calibration.sh",
+        "bash -- tools/pegasus/certify_calibration.sh",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"interpreter option 値が実 script を隠した: {cmd!r}"
+
+    # baseline が最初の非 option token とみなした重量 path/綴りは fail-closed。
+    for cmd in (
+        "python3 -c 'print(1)' -m pytest",
+        "python3 --help tools/pegasus/collect_receipt.py",
+        "python3 -Z tools/pegasus/collect_receipt.py",
+        "env FOO=1 python3.10 -Z tools/pegasus/collect_receipt.py",
+        "bash -s tools/pegasus/certify_calibration.sh",
+        "python3 -mpy_compile tools/pegasus/collect_receipt.py",
+        "python3 -mrunpy tools/pegasus/exec_calibrate.py",
+        "python3.10 -Bmtimeit tools/pegasus/exec_calibrate.py",
+        "python3 -mcProfile --help tools/pegasus/exec_calibrate.py",
+        "python3 -Bmpy_compile tools/pegasus/certify_calibration.sh",
+        "python3.10 -mjson.tool tools/pegasus/policy.json",
+        "python3 -W tools/pegasus/exec_calibrate.py /tmp/safe.py",
+        "bash -O tools/pegasus/certify_calibration.sh /tmp/safe.sh",
+        "bash -lc 'python3 --help tools/pegasus/collect_receipt.py'",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"interpreter の baseline 実行体が fail-open した: {cmd!r}"
+
+    for cmd in (
+        "python3 -c 'print(1)' tools/pegasus/exec_calibrate.py",
+        "python3.10 -Bc 'print(1)' tools/pegasus/exec_calibrate.py",
+        "env FOO=1 python3 -c 'print(1)' tools/pegasus/exec_calibrate.py",
+        "bash -c 'true' tools/pegasus/certify_calibration.sh",
+        "bash -xc 'true' tools/pegasus/certify_calibration.sh",
+        "python3 -c 'print(1)' /tmp/plain-data",
+        "python3 --help /tmp/plain-data",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"interpreter の data argv が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_shell_startup_files_are_execution_targets():
+    path = "tools/pegasus/certify_calibration.sh"
+    absolute = os.path.join(_REPO, path)
+    for cmd in (
+        f"bash --rcfile {path} -i",
+        f"bash --rcfile ./{path} -i",
+        f"bash --init-file={absolute} -i",
+        f"env FOO=1 nice -n 0 bash --rcfile={path} -i",
+        f"qstat; bash --init-file {path} -i",
+        f"bash -lc 'bash --rcfile {absolute} -i'",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"shell startup file の実行対象が通った: {cmd!r}"
+    ok, why = GB.decide("bash --rcfile /tmp/bashrc -i", site="PEGASUS_LOGIN")
+    assert ok, f"Pegasus 外の shell startup file が誤拒否された: {why}"
+
+    for cmd in (
+        f"bash --rcfile {path} -c 'true'",
+        f"bash --init-file={path} -c 'true'",
+        f"env FOO=1 nice -n 0 bash --rcfile={path} -c 'true'",
+        f"bash -lc \"bash --rcfile {path} -c 'true'\"",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"非対話 shell の未使用 startup file が誤拒否された: {cmd!r} ({why})"
+
+    for cmd in (
+        f"bash --rcfile {path} -ic 'true'",
+        f"bash --init-file={path} -i -c 'true'",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"対話指定付き shell startup file が通った: {cmd!r}"
+
+
+def test_bash_nonrefusing_sites_allow_module_and_prefix_matrix():
+    commands = (
+        "python3 -m pytest.__main__ orchestrator/tests/test_hooks.py",
+        "python3 -mpytest tools/run_tests.py",
+        "python3 -m cProfile tools/pegasus/exec_calibrate.py",
+        "python3 -mpdb tools/pegasus/exec_calibrate.py",
+        "python3 -m py_compile tools/pegasus/exec_calibrate.py",
+        "python3 -W ignore tools/pegasus/exec_calibrate.py",
+        "bash -O extglob tools/pegasus/certify_calibration.sh",
+        "bash --rcfile tools/pegasus/certify_calibration.sh -i",
+        "python3.10 -Bmpydoc -- tools/pegasus/collect_receipt.py",
+        "python3 -c 'print(1)' -m pytest",
+        "python3 -m timeit tools/pegasus/exec_calibrate.py",
+    )
+    for site in ("OTHER", "PEGASUS_COMPUTE"):
+        for cmd in commands:
+            ok, why = GB.decide(cmd, site=site)
+            assert ok, f"{site} で parser matrix の受理 bit が変化した: {cmd!r} ({why})"
+
+
 def test_bash_login_wrapper_values_reveal_actual_head():
     # M9: wrapper の option 値 skip を削除する変異を kill する。
     for cmd in (
@@ -896,6 +1148,929 @@ _FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS = (
     "./tools/pegasus/fetch_third_party.py verify",
     "python3 tools/pegasus/fetch_third_party.py verify-deps",
 )
+
+
+_PEGASUS_EXPECTED_CLASSES = {
+    "tools/pegasus/certify_calibration.sh": "dispatch-required",
+    "tools/pegasus/collect_receipt.py": "unknown",
+    "tools/pegasus/collect_t126_qualification.py": "unknown",
+    "tools/pegasus/dispatch_compute.py": "local-ok",
+    "tools/pegasus/exec_calibrate.py": "dispatch-required",
+    "tools/pegasus/fetch_third_party.py": "local-ok",
+    "tools/pegasus/floor_campaign.sh": "dispatch-required",
+    "tools/pegasus/floor_scoping.sh": "dispatch-required",
+    "tools/pegasus/make_acquisition_receipt.py": "dispatch-required",
+    "tools/pegasus/probes/t139_positive_control_probe.pbs": "unknown",
+    "tools/pegasus/probes/t139_positive_control_probe.sh": "unknown",
+    "tools/pegasus/probes/t293_perf_site_probe.pbs": "unknown",
+    "tools/pegasus/probes/t293_perf_site_probe.py": "unknown",
+    "tools/pegasus/probes/t419_probe_causality.pbs": "unknown",
+    "tools/pegasus/probes/t419_probe_causality.py": "unknown",
+    "tools/pegasus/run_probe.py": "dispatch-required",
+    "tools/pegasus/silo_ladder_rung1.sh": "dispatch-required",
+    "tools/pegasus/smoke_probe.sh": "dispatch-required",
+    "tools/pegasus/submit_certify.sh": "local-ok",
+    "tools/pegasus/submit_floor.sh": "local-ok",
+    "tools/pegasus/submit_silo_ladder_rung1.sh": "local-ok",
+    "tools/pegasus/submit_t126_qualification.sh": "unknown",
+    "tools/pegasus/t126_qualification.sh": "dispatch-required",
+    "tools/pegasus/t141_region_profile.sh": "dispatch-required",
+}
+_PEGASUS_EXPECTED_ENTRIES = {
+    "tools/pegasus/certify_calibration.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS calibration job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/collect_receipt.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/collect_t126_qualification.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/dispatch_compute.py": {
+        "class": "local-ok",
+        "reason": "login-side compute dispatcher with a self-gated job mode",
+        "primary_gate": "dispatch_compute --job-run site gate",
+        "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/exec_calibrate.py": {
+        "class": "dispatch-required",
+        "reason": "arbitrary exec trampoline used inside compute jobs",
+        "primary_gate": "compute allocation owned by the caller",
+        "evidence": "static arbitrary-exec classification"
+    },
+    "tools/pegasus/fetch_third_party.py": {
+        "class": "local-ok",
+        "reason": "login-side third-party acquisition workflow",
+        "primary_gate": "fetch_third_party CLI validation",
+        "evidence": "runbook §7.0 実測"
+    },
+    "tools/pegasus/floor_campaign.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS floor campaign job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/floor_scoping.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS floor scoping job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/make_acquisition_receipt.py": {
+        "class": "dispatch-required",
+        "reason": "receipt helper invoked from the calibration compute job",
+        "primary_gate": "compute allocation owned by certify_calibration.sh",
+        "evidence": "static compute-side call-site classification"
+    },
+    "tools/pegasus/probes/t139_positive_control_probe.pbs": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t139_positive_control_probe.sh": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t293_perf_site_probe.pbs": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t293_perf_site_probe.py": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t419_probe_causality.pbs": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t419_probe_causality.py": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/run_probe.py": {
+        "class": "dispatch-required",
+        "reason": "probe semantics require a compute allocation",
+        "primary_gate": "compute-node environment attestation",
+        "evidence": "static semantic-site classification"
+    },
+    "tools/pegasus/silo_ladder_rung1.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS silo ladder job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/smoke_probe.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS smoke probe job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/submit_certify.sh": {
+        "class": "local-ok",
+        "reason": "login-side PBS certification submitter",
+        "primary_gate": "qsub submission; compute work stays in job body",
+        "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_floor.sh": {
+        "class": "local-ok",
+        "reason": "login-side PBS floor submitter",
+        "primary_gate": "qsub submission; compute work stays in job body",
+        "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_silo_ladder_rung1.sh": {
+        "class": "local-ok",
+        "reason": "login-side PBS silo ladder submitter",
+        "primary_gate": "qsub submission; compute work stays in job body",
+        "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_t126_qualification.sh": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; preflight input surfaces remain"
+    },
+    "tools/pegasus/t126_qualification.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS T126 qualification job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/t141_region_profile.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS T141 profiling job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    }
+}
+
+_PEGASUS_DIRECT_COMMANDS = {
+    path: f"python3 {path}" if path.endswith(".py") else path
+    for path in _PEGASUS_EXPECTED_CLASSES
+}
+
+_PEGASUS_REGISTRY_FAILURES = (
+    "json-missing",
+    "json-empty",
+    "json-invalid",
+    "json-duplicate-key",
+    "json-wrong-type",
+    "json-unknown-class",
+    "json-bom",
+    "json-schema-version",
+    "loader-missing",
+    "loader-system-exit",
+    "loader-none",
+    "loader-list",
+    "loader-scalar-entry",
+    "loader-raising-mapping",
+    "loader-outside-local-ok",
+    "loader-missing-field",
+    "loader-extra-field",
+    "loader-empty-field",
+    "loader-unknown-class",
+)
+
+_LOCAL_OK_NORMALIZED_SPELLINGS = (
+    ("dispatch-dot", "./tools/pegasus/dispatch_compute.py", True),
+    ("dispatch-double", "tools//pegasus/dispatch_compute.py", True),
+    ("dispatch-trailing-slash",
+     "tools/pegasus/dispatch_compute.py/", True),
+    ("dispatch-absolute",
+     f"{_REPO}/tools/pegasus/dispatch_compute.py", True),
+    ("dispatch-python",
+     "python3 tools/pegasus/dispatch_compute.py", True),
+    ("fetch-dot", "./tools/pegasus/fetch_third_party.py", True),
+    ("fetch-double", "tools//pegasus/fetch_third_party.py", True),
+    ("fetch-trailing-slash", "tools/pegasus/fetch_third_party.py/", True),
+    ("fetch-absolute",
+     f"{_REPO}/tools/pegasus/fetch_third_party.py", True),
+    ("fetch-python",
+     "python3 tools/pegasus/fetch_third_party.py", True),
+    ("certify-dot", "./tools/pegasus/submit_certify.sh", True),
+    ("certify-double", "tools//pegasus/submit_certify.sh", True),
+    ("certify-trailing-slash", "tools/pegasus/submit_certify.sh/", True),
+    ("certify-absolute",
+     f"{_REPO}/tools/pegasus/submit_certify.sh", True),
+    ("certify-bash", "bash tools/pegasus/submit_certify.sh", True),
+    ("floor-dot", "./tools/pegasus/submit_floor.sh", True),
+    ("floor-double", "tools//pegasus/submit_floor.sh", True),
+    ("floor-trailing-slash", "tools/pegasus/submit_floor.sh/", True),
+    ("floor-absolute", f"{_REPO}/tools/pegasus/submit_floor.sh", True),
+    ("floor-bash", "bash tools/pegasus/submit_floor.sh", True),
+    ("silo-dot", "./tools/pegasus/submit_silo_ladder_rung1.sh", True),
+    ("silo-double", "tools//pegasus/submit_silo_ladder_rung1.sh", True),
+    ("silo-trailing-slash",
+     "tools/pegasus/submit_silo_ladder_rung1.sh/", True),
+    ("silo-absolute",
+     f"{_REPO}/tools/pegasus/submit_silo_ladder_rung1.sh", True),
+    ("silo-bash",
+     "bash tools/pegasus/submit_silo_ladder_rung1.sh", True),
+)
+
+
+def _canonical_registry_bytes(document):
+    return (json.dumps(
+        document, ensure_ascii=False, indent=2, allow_nan=False
+    ) + "\n").encode("utf-8")
+
+
+_SYNTHETIC_VALID_ENTRY = {
+    "class": "local-ok",
+    "reason": "synthetic valid reason",
+    "primary_gate": "synthetic valid gate",
+    "evidence": "synthetic valid evidence",
+}
+
+
+def _synthetic_registry_document(
+        path="tools/pegasus/dispatch_compute.py", entry=None):
+    return {
+        "schema_version": "pegasus-admission-registry/v1",
+        "entries": {path: dict(entry or _SYNTHETIC_VALID_ENTRY)},
+    }
+
+
+def _negative_registry_bytes(case):
+    document = _synthetic_registry_document()
+    path = next(iter(document["entries"]))
+    entry = document["entries"][path]
+
+    if case == "root-order":
+        document = {
+            "entries": document["entries"],
+            "schema_version": document["schema_version"],
+        }
+    elif case == "path-order":
+        document["entries"] = {
+            "tools/pegasus/fetch_third_party.py": dict(entry),
+            "tools/pegasus/dispatch_compute.py": dict(entry),
+        }
+    elif case == "field-order":
+        document["entries"][path] = {
+            "reason": entry["reason"],
+            "class": entry["class"],
+            "primary_gate": entry["primary_gate"],
+            "evidence": entry["evidence"],
+        }
+    elif case == "four-space-indent":
+        return (json.dumps(
+            document, ensure_ascii=False, indent=4, allow_nan=False
+        ) + "\n").encode("utf-8")
+    elif case == "missing-final-newline":
+        return _canonical_registry_bytes(document)[:-1]
+    elif case == "extra-final-newline":
+        return _canonical_registry_bytes(document) + b"\n"
+    elif case == "empty-entries":
+        document["entries"] = {}
+    elif case in {
+            "outside-path", "absolute-path", "parent-path", "double-slash",
+            "nul-path", "control-path"}:
+        replacement = {
+            "outside-path": "tools/not-pegasus/dispatch_compute.py",
+            "absolute-path": "/tools/pegasus/dispatch_compute.py",
+            "parent-path": "tools/pegasus/../dispatch_compute.py",
+            "double-slash": "tools/pegasus//dispatch_compute.py",
+            "nul-path": "tools/pegasus/bad\x00.py",
+            "control-path": "tools/pegasus/bad\x1f.py",
+        }[case]
+        document["entries"] = {replacement: entry}
+    elif case == "missing-field":
+        entry.pop("evidence")
+    elif case == "extra-field":
+        entry["extra"] = "unexpected"
+    elif case == "empty-field":
+        entry["evidence"] = ""
+    else:
+        raise AssertionError(f"unknown negative registry case: {case}")
+    return _canonical_registry_bytes(document)
+
+
+_NEGATIVE_REGISTRY_CASES = (
+    "root-order",
+    "path-order",
+    "field-order",
+    "four-space-indent",
+    "missing-final-newline",
+    "extra-final-newline",
+    "empty-entries",
+    "outside-path",
+    "absolute-path",
+    "parent-path",
+    "double-slash",
+    "missing-field",
+    "extra-field",
+    "empty-field",
+    "nul-path",
+    "control-path",
+)
+
+
+def _registry_bytes_for_failure(failure):
+    source = os.path.join(
+        _REPO, "tools", "pegasus", "admission_registry.json")
+    with open(source, "rb") as stream:
+        healthy = stream.read()
+    if failure == "json-empty":
+        return b""
+    if failure == "json-invalid":
+        return b"{"
+    if failure == "json-duplicate-key":
+        line = b'  "schema_version": "pegasus-admission-registry/v1",\n'
+        return healthy.replace(line, line + line, 1)
+    if failure == "json-bom":
+        return b"\xef\xbb\xbf" + healthy
+
+    document = json.loads(healthy)
+    if failure == "json-wrong-type":
+        document["entries"] = []
+    elif failure == "json-one-entry":
+        entry = document["entries"]["tools/pegasus/dispatch_compute.py"]
+        document["entries"] = {
+            "tools/pegasus/dispatch_compute.py": entry,
+        }
+    elif failure == "json-unknown-class":
+        document["entries"]["tools/pegasus/dispatch_compute.py"]["class"] = \
+            "future-class"
+    elif failure == "json-schema-version":
+        document["schema_version"] = "pegasus-admission-registry/v0"
+    else:
+        raise AssertionError(f"unknown JSON failure fixture: {failure}")
+    return _canonical_registry_bytes(document)
+
+
+_LOADER_FIXTURE_SOURCES = {
+    "loader-top-level-system-exit": "raise SystemExit(0)\n",
+    "loader-top-level-keyboard-interrupt": "raise KeyboardInterrupt()\n",
+    "loader-system-exit": (
+        "def load_admission_registry(repo_root):\n"
+        "    raise SystemExit(0)\n"
+    ),
+    "loader-keyboard-interrupt": (
+        "def load_admission_registry(repo_root):\n"
+        "    raise KeyboardInterrupt()\n"
+    ),
+    "loader-none": (
+        "def load_admission_registry(repo_root):\n"
+        "    return None\n"
+    ),
+    "loader-list": (
+        "def load_admission_registry(repo_root):\n"
+        "    return []\n"
+    ),
+    "loader-empty": (
+        "def load_admission_registry(repo_root):\n"
+        "    return {}\n"
+    ),
+    "loader-scalar-entry": (
+        "def load_admission_registry(repo_root):\n"
+        "    return {'tools/pegasus/dispatch_compute.py': 1}\n"
+    ),
+    "loader-raising-mapping": (
+        "class RaisingMapping(dict):\n"
+        "    def items(self):\n"
+        "        raise RuntimeError('broken mapping')\n"
+        "def load_admission_registry(repo_root):\n"
+        "    return RaisingMapping()\n"
+    ),
+    "loader-entry-getitem": (
+        "class RaisingEntry(dict):\n"
+        "    def __getitem__(self, key):\n"
+        "        raise RuntimeError('broken entry getitem')\n"
+        "def load_admission_registry(repo_root):\n"
+        "    return {'tools/pegasus/dispatch_compute.py': RaisingEntry({\n"
+        "        'class': 'local-ok', 'reason': 'r',\n"
+        "        'primary_gate': 'g', 'evidence': 'e'})}\n"
+    ),
+    "loader-sanctioned-derivation": (
+        "import builtins\n"
+        "def load_admission_registry(repo_root):\n"
+        "    original_frozenset = builtins.frozenset\n"
+        "    def raising_frozenset(*args, **kwargs):\n"
+        "        builtins.frozenset = original_frozenset\n"
+        "        raise RuntimeError('broken sanctioned derivation')\n"
+        "    builtins.frozenset = raising_frozenset\n"
+        "    return {'tools/pegasus/dispatch_compute.py': {\n"
+        "        'class': 'local-ok', 'reason': 'r',\n"
+        "        'primary_gate': 'g', 'evidence': 'e'}}\n"
+    ),
+    "loader-cleanup-system-exit": (
+        "import sys\n"
+        "class RaisingModules:\n"
+        "    def pop(self, *args, **kwargs):\n"
+        "        raise RuntimeError('cleanup trap')\n"
+        "sys.modules = RaisingModules()\n"
+        "raise SystemExit(0)\n"
+    ),
+    "loader-outside-local-ok": (
+        "def load_admission_registry(repo_root):\n"
+        "    return {'pytest': {'class': 'local-ok', 'reason': 'r',\n"
+        "        'primary_gate': 'g', 'evidence': 'e'}}\n"
+    ),
+    "loader-missing-field": (
+        "def load_admission_registry(repo_root):\n"
+        "    return {'tools/pegasus/dispatch_compute.py': {\n"
+        "        'class': 'local-ok', 'reason': 'r', 'primary_gate': 'g'}}\n"
+    ),
+    "loader-extra-field": (
+        "def load_admission_registry(repo_root):\n"
+        "    return {'tools/pegasus/dispatch_compute.py': {\n"
+        "        'class': 'local-ok', 'reason': 'r', 'primary_gate': 'g',\n"
+        "        'evidence': 'e', 'extra': 'x'}}\n"
+    ),
+    "loader-empty-field": (
+        "def load_admission_registry(repo_root):\n"
+        "    return {'tools/pegasus/dispatch_compute.py': {\n"
+        "        'class': 'local-ok', 'reason': '', 'primary_gate': 'g',\n"
+        "        'evidence': 'e'}}\n"
+    ),
+    "loader-unknown-class": (
+        "def load_admission_registry(repo_root):\n"
+        "    return {'tools/pegasus/dispatch_compute.py': {\n"
+        "        'class': 'future', 'reason': 'r', 'primary_gate': 'g',\n"
+        "        'evidence': 'e'}}\n"
+    ),
+}
+
+
+def _prepare_guard_fixture(tmp_path, failure):
+    hooks = tmp_path / "hooks"
+    tools = tmp_path / "tools"
+    registry_dir = tools / "pegasus"
+    hooks.mkdir()
+    registry_dir.mkdir(parents=True)
+    shutil.copyfile(
+        os.path.join(_REPO, "hooks", "guard_bash.py"),
+        hooks / "guard_bash.py",
+    )
+
+    loader = tools / "pegasus_admission_registry.py"
+    if failure in _LOADER_FIXTURE_SOURCES:
+        loader.write_text(_LOADER_FIXTURE_SOURCES[failure], encoding="utf-8")
+    elif failure != "loader-missing":
+        shutil.copyfile(
+            os.path.join(_REPO, "tools", "pegasus_admission_registry.py"),
+            loader,
+        )
+
+    if (failure != "json-missing" and failure != "loader-missing"
+            and failure not in _LOADER_FIXTURE_SOURCES):
+        (registry_dir / "admission_registry.json").write_bytes(
+            _registry_bytes_for_failure(failure))
+    return hooks / "guard_bash.py"
+
+
+def _install_login_site_policy(tmp_path):
+    campaign = tmp_path / "orchestrator" / "campaign"
+    campaign.mkdir(parents=True)
+    (tmp_path / "orchestrator" / "__init__.py").write_text(
+        "", encoding="utf-8")
+    (campaign / "__init__.py").write_text("", encoding="utf-8")
+    (campaign / "site_policy.py").write_text(
+        "import re\n"
+        "LOGIN_FALLBACK_RE = re.compile(r'^pegasus0[1-9]$')\n"
+        "PEGASUS_LOGIN = 'PEGASUS_LOGIN'\n"
+        "def current_site():\n"
+        "    return PEGASUS_LOGIN\n"
+        "def refuses_heavy_work(site):\n"
+        "    return site == PEGASUS_LOGIN\n"
+        "def heavy_work_refusal(site, what):\n"
+        "    return what\n",
+        encoding="utf-8",
+    )
+
+
+def _run_guard_subprocess(
+        hook, tmp_path,
+        command="python3 tools/pegasus/dispatch_compute.py --help",
+        timeout=3):
+    _install_login_site_policy(tmp_path)
+    payload = json.dumps({
+        "tool_name": "Bash",
+        "tool_input": {"command": command},
+    })
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return subprocess.run(
+        [sys.executable, str(hook)],
+        input=payload,
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env=env,
+        timeout=timeout,
+    )
+
+
+def _load_guard_fixture(tmp_path, failure):
+    path = _prepare_guard_fixture(tmp_path, failure)
+    module_name = f"_guard_bash_admission_failure_{failure.replace('-', '_')}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    module = importlib.util.module_from_spec(spec)
+    previous_dont_write_bytecode = sys.dont_write_bytecode
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        assert sys.dont_write_bytecode is previous_dont_write_bytecode
+        while str(tmp_path) in sys.path:
+            sys.path.remove(str(tmp_path))
+    assert not (tmp_path / "tools" / "__pycache__").exists(), \
+        "loader exact-path import が __pycache__ を書いた"
+    return module
+
+
+def _assert_failed_registry_is_closed(module):
+    assert module._PEGASUS_ADMISSION_REGISTRY == {}
+    assert module._PEGASUS_ADMISSION_DIAGNOSTIC
+    assert module._SANCTIONED_PATHS == {
+        "tools/run_tests.py", "tools/check_ai_provenance.py"}
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        for path, command in _PEGASUS_DIRECT_COMMANDS.items():
+            ok, why = module.decide(command, site=site)
+            assert not ok, \
+                f"{site} の registry 異常時に Pegasus direct が通った: {path} ({why})"
+        for command in (
+            "python3 tools/run_tests.py orchestrator/tests/test_hooks.py -q",
+            "python3 tools/check_ai_provenance.py --range A..B",
+        ):
+            ok, why = module.decide(command, site=site)
+            assert ok, \
+                f"{site} の registry 異常が非 Pegasus sanctioned を落とした: {why}"
+
+
+def test_bash_pegasus_registry_schema_and_fixed_classes():
+    assert GB._PEGASUS_ADMISSION_REGISTRY == _PEGASUS_EXPECTED_ENTRIES, \
+        "Pegasus admission の 24 entry × 4 field が literal golden と不一致"
+    assert set(GB._PEGASUS_ADMISSION_REGISTRY) == set(_PEGASUS_EXPECTED_CLASSES)
+    for path, expected_class in _PEGASUS_EXPECTED_CLASSES.items():
+        entry = GB._PEGASUS_ADMISSION_REGISTRY[path]
+        assert set(entry) == {"class", "reason", "primary_gate", "evidence"}
+        assert entry["class"] == expected_class, \
+            f"Pegasus class が固定期待値から変化した: {path}"
+        for field in ("reason", "primary_gate", "evidence"):
+            assert isinstance(entry[field], str) and entry[field], \
+                f"Pegasus admission の {field} が空: {path}"
+
+    expected_local_evidence = {
+        "tools/pegasus/dispatch_compute.py": "legacy-admitted (未実測)",
+        "tools/pegasus/fetch_third_party.py": "runbook §7.0 実測",
+        "tools/pegasus/submit_certify.sh": "legacy-admitted (未実測)",
+        "tools/pegasus/submit_floor.sh": "legacy-admitted (未実測)",
+        "tools/pegasus/submit_silo_ladder_rung1.sh":
+            "legacy-admitted (未実測)",
+    }
+    actual = {
+        path: entry["evidence"]
+        for path, entry in GB._PEGASUS_ADMISSION_REGISTRY.items()
+        if entry["class"] == "local-ok"
+    }
+    assert actual == expected_local_evidence, \
+        "local-ok の実測/legacy 証拠状態を偽ってはならない"
+
+
+@pytest.mark.parametrize("failure", _PEGASUS_REGISTRY_FAILURES)
+def test_bash_pegasus_registry_failures_close_all_direct_entries(
+        tmp_path, failure):
+    """registry/loader 異常は Pegasus direct だけを全拒否へ縮退させる。"""
+    module = _load_guard_fixture(tmp_path, failure)
+    _assert_failed_registry_is_closed(module)
+
+
+def test_bash_pegasus_loader_accepts_nonempty_schema_without_exact_24(tmp_path):
+    """production validator に healthy registry の exact-24 を持ち込ませない。"""
+    module = _load_guard_fixture(tmp_path, "json-one-entry")
+    assert module._PEGASUS_ADMISSION_REGISTRY == {
+        "tools/pegasus/dispatch_compute.py": {
+            "class": "local-ok",
+            "reason": "login-side compute dispatcher with a self-gated job mode",
+            "primary_gate": "dispatch_compute --job-run site gate",
+            "evidence": "legacy-admitted (未実測)",
+        },
+    }
+    assert module._PEGASUS_ADMISSION_DIAGNOSTIC == ""
+
+
+def test_bash_pegasus_wrapper_rejects_empty_loader_registry(tmp_path):
+    """wrapper も空 registry を diagnostic 付き縮退として拒否する。"""
+    module = _load_guard_fixture(tmp_path, "loader-empty")
+    _assert_failed_registry_is_closed(module)
+
+
+@pytest.mark.parametrize("failure", (
+    "loader-none",
+    "loader-list",
+    "loader-scalar-entry",
+    "loader-raising-mapping",
+    "loader-top-level-system-exit",
+    "loader-top-level-keyboard-interrupt",
+    "loader-system-exit",
+    "loader-keyboard-interrupt",
+    "loader-entry-getitem",
+    "loader-sanctioned-derivation",
+    "loader-cleanup-system-exit",
+))
+def test_bash_pegasus_loader_failures_are_denied_by_real_subprocess(
+        tmp_path, failure):
+    """module 初期化障害が hook rc=0 の fail-open にならない。"""
+    hook = _prepare_guard_fixture(tmp_path, failure)
+    result = _run_guard_subprocess(hook, tmp_path, timeout=3)
+    assert result.returncode == 2, \
+        f"{failure} で hook が fail-open: stderr={result.stderr[:200]}"
+
+
+@pytest.mark.parametrize("failure", (
+    "loader-outside-local-ok",
+    "loader-missing-field",
+    "loader-extra-field",
+    "loader-empty-field",
+    "loader-unknown-class",
+))
+def test_bash_pegasus_wrapper_postcondition_fails_closed_in_subprocess(
+        tmp_path, failure):
+    """loader が validator 契約を破っても wrapper 自身が再検証する。"""
+    hook = _prepare_guard_fixture(tmp_path, failure)
+    command = "pytest -q" if failure == "loader-outside-local-ok" else \
+        "python3 tools/pegasus/dispatch_compute.py --help"
+    result = _run_guard_subprocess(
+        hook, tmp_path, command=command, timeout=3)
+    assert result.returncode == 2, \
+        f"{failure} が wrapper postcondition を迂回: {result.stderr[:200]}"
+
+
+def test_bash_pegasus_entry_lookup_rejects_registry_keys_outside_subtree():
+    malicious = {
+        "pytest": {
+            "class": "local-ok",
+            "reason": "r",
+            "primary_gate": "g",
+            "evidence": "e",
+        },
+    }
+    with patch.object(GB, "_PEGASUS_ADMISSION_REGISTRY", malicious):
+        assert GB._pegasus_admission_entry("pytest") is None
+
+
+@pytest.mark.parametrize("case", _NEGATIVE_REGISTRY_CASES)
+def test_pegasus_registry_negative_corpus_is_rejected_by_loader(tmp_path, case):
+    """canonical bytes・path・field schema の各独立条件を loader で固定する。"""
+    registry_dir = tmp_path / "tools" / "pegasus"
+    registry_dir.mkdir(parents=True)
+    (registry_dir / "admission_registry.json").write_bytes(
+        _negative_registry_bytes(case))
+    with pytest.raises(PAR.AdmissionRegistryError):
+        PAR.load_admission_registry(tmp_path)
+
+
+@pytest.mark.parametrize("case", _NEGATIVE_REGISTRY_CASES)
+def test_pegasus_registry_negative_corpus_closes_real_hook(tmp_path, case):
+    """同じ negative corpus が production hook でも exact rc=2 になる。"""
+    hook = _prepare_guard_fixture(tmp_path, "json-one-entry")
+    registry = tmp_path / "tools" / "pegasus" / "admission_registry.json"
+    registry.write_bytes(_negative_registry_bytes(case))
+    result = _run_guard_subprocess(hook, tmp_path, timeout=3)
+    assert result.returncode == 2, \
+        f"{case} が実 hook で fail-open: {result.stderr[:200]}"
+
+
+@pytest.mark.parametrize("kind", (
+    "final-symlink",
+    "directory",
+    "oversize",
+    "fifo-no-writer",
+    "permission-denied",
+))
+def test_pegasus_registry_file_boundary_closes_real_hook(tmp_path, kind):
+    """NOFOLLOW・regular・size cap・NONBLOCK・permission error を実 fd で固定する。"""
+    hook = _prepare_guard_fixture(tmp_path, "json-one-entry")
+    registry = tmp_path / "tools" / "pegasus" / "admission_registry.json"
+    if kind == "final-symlink":
+        target = tmp_path / "attacker-registry.json"
+        target.write_bytes(_canonical_registry_bytes(
+            _synthetic_registry_document()))
+        registry.unlink()
+        registry.symlink_to(target)
+    elif kind == "directory":
+        registry.unlink()
+        registry.mkdir()
+    elif kind == "oversize":
+        document = _synthetic_registry_document()
+        path = next(iter(document["entries"]))
+        document["entries"][path]["evidence"] = "x" * (1024 * 1024)
+        raw = _canonical_registry_bytes(document)
+        assert len(raw) > 1024 * 1024
+        registry.write_bytes(raw)
+    elif kind == "fifo-no-writer":
+        registry.unlink()
+        os.mkfifo(registry)
+    elif kind == "permission-denied":
+        registry.chmod(0)
+    else:
+        raise AssertionError(kind)
+
+    result = _run_guard_subprocess(hook, tmp_path, timeout=3)
+    assert result.returncode == 2, \
+        f"{kind} が実 hook で fail-open: {result.stderr[:200]}"
+
+
+def test_pegasus_loader_regular_file_check_has_an_independent_detector(
+        tmp_path):
+    registry_dir = tmp_path / "tools" / "pegasus"
+    registry_dir.mkdir(parents=True)
+    raw = _canonical_registry_bytes(_synthetic_registry_document())
+    (registry_dir / "admission_registry.json").write_bytes(raw)
+
+    class DirectoryMetadata:
+        st_mode = stat.S_IFDIR
+        st_size = len(raw)
+
+    with patch.object(PAR.os, "fstat", return_value=DirectoryMetadata()), \
+            patch.object(PAR.os, "read", side_effect=(raw, b"")):
+        with pytest.raises(PAR.AdmissionRegistryError):
+            PAR.load_admission_registry(tmp_path)
+
+
+def test_pegasus_loader_stat_size_cap_has_an_independent_detector(tmp_path):
+    registry_dir = tmp_path / "tools" / "pegasus"
+    registry_dir.mkdir(parents=True)
+    raw = _canonical_registry_bytes(_synthetic_registry_document())
+    (registry_dir / "admission_registry.json").write_bytes(raw)
+
+    class OversizeMetadata:
+        st_mode = stat.S_IFREG
+        st_size = 1024 * 1024 + 1
+
+    with patch.object(PAR.os, "fstat", return_value=OversizeMetadata()):
+        with pytest.raises(PAR.AdmissionRegistryError):
+            PAR.load_admission_registry(tmp_path)
+
+
+def test_pegasus_loader_bounded_read_has_an_independent_detector(tmp_path):
+    registry_dir = tmp_path / "tools" / "pegasus"
+    registry_dir.mkdir(parents=True)
+    path = registry_dir / "admission_registry.json"
+    path.write_bytes(_canonical_registry_bytes(_synthetic_registry_document()))
+    document = _synthetic_registry_document()
+    entry_path = next(iter(document["entries"]))
+    document["entries"][entry_path]["evidence"] = "x" * (1024 * 1024)
+    oversize = _canonical_registry_bytes(document)
+    assert len(oversize) > 1024 * 1024
+
+    class SmallRegularMetadata:
+        st_mode = stat.S_IFREG
+        st_size = 1
+
+    with patch.object(PAR.os, "fstat", return_value=SmallRegularMetadata()), \
+            patch.object(PAR.os, "read", side_effect=(oversize, b"")):
+        with pytest.raises(PAR.AdmissionRegistryError):
+            PAR.load_admission_registry(tmp_path)
+
+
+def test_pegasus_loader_cleanup_exception_is_normalized(tmp_path):
+    registry_dir = tmp_path / "tools" / "pegasus"
+    registry_dir.mkdir(parents=True)
+    (registry_dir / "admission_registry.json").write_bytes(
+        _canonical_registry_bytes(_synthetic_registry_document()))
+    real_close = PAR.os.close
+
+    def close_then_interrupt(descriptor):
+        real_close(descriptor)
+        raise KeyboardInterrupt()
+
+    with patch.object(PAR.os, "close", side_effect=close_then_interrupt):
+        with pytest.raises(PAR.AdmissionRegistryError):
+            PAR.load_admission_registry(tmp_path)
+
+
+def _synthetic_loader_source(classification):
+    entry = dict(_SYNTHETIC_VALID_ENTRY)
+    entry["class"] = classification
+    return (
+        "def load_admission_registry(repo_root):\n"
+        f"    return {{'tools/pegasus/dispatch_compute.py': {entry!r}}}\n"
+    )
+
+
+def test_bash_pegasus_loader_executes_source_even_with_unchecked_stale_pyc(
+        tmp_path):
+    """unchecked pyc が local-ok でも、現 source の dispatch-required を採る。"""
+    hook = _prepare_guard_fixture(tmp_path, "json-one-entry")
+    loader = tmp_path / "tools" / "pegasus_admission_registry.py"
+    loader.write_text(_synthetic_loader_source("local-ok"), encoding="utf-8")
+    py_compile.compile(
+        str(loader),
+        doraise=True,
+        invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH,
+    )
+    loader.write_text(
+        _synthetic_loader_source("dispatch-required"), encoding="utf-8")
+
+    result = _run_guard_subprocess(hook, tmp_path, timeout=3)
+    assert result.returncode == 2, \
+        f"unchecked stale pyc が source より優先された: {result.stderr[:200]}"
+
+
+@pytest.mark.parametrize(
+    "_label,command,expected",
+    _LOCAL_OK_NORMALIZED_SPELLINGS,
+    ids=[row[0] for row in _LOCAL_OK_NORMALIZED_SPELLINGS],
+)
+def test_bash_local_ok_normalized_spelling_bits_are_literal_golden(
+        _label, command, expected):
+    """変更前 local-ok 5本の正規化綴り acceptance bit を固定する。"""
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        ok, why = GB.decide(command, site=site)
+        assert ok is expected, \
+            f"{site} の正規化綴り bit が変化した: {command!r} ({why})"
+
+
+def test_bash_pegasus_registry_login_and_suspect_bits_are_pinned():
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        for path, expected_class in _PEGASUS_EXPECTED_CLASSES.items():
+            ok, why = GB.decide(_PEGASUS_DIRECT_COMMANDS[path], site=site)
+            expected = expected_class == "local-ok"
+            assert ok is expected, \
+                f"{site} の受理 bit が不正: {path}: {ok} ({why})"
+
+
+def test_bash_other_and_compute_keep_all_pegasus_entry_bits():
+    for site in ("OTHER", "PEGASUS_COMPUTE"):
+        for path, command in _PEGASUS_DIRECT_COMMANDS.items():
+            ok, why = GB.decide(command, site=site)
+            assert ok, f"{site} の既存 ALLOW bit が変化した: {path} ({why})"
+
+
+def test_bash_login_rejects_unregistered_nested_pegasus_entry():
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        ok, _ = GB.decide(
+            "python3 tools/pegasus/future/nested_entry.py", site=site)
+        assert not ok, f"{site} で未登録 nested Pegasus entry が通った"
+
+
+def test_bash_pegasus_execution_inventory_is_synchronized():
+    """保証するのは再帰 execution inventory と registry key の同期だけである。
+
+    class の正しさ、資源証拠の妥当性、runtime admission の実効性は保証しない。
+    """
+    root = os.path.join(_REPO, "tools", "pegasus")
+    inventory = set()
+    for directory, _, filenames in os.walk(root):
+        for filename in filenames:
+            absolute = os.path.join(directory, filename)
+            if not os.path.isfile(absolute):
+                continue
+            mode = os.stat(absolute).st_mode
+            with open(absolute, "rb") as candidate:
+                has_shebang = candidate.read(2) == b"#!"
+            if (filename.endswith((".py", ".sh", ".pbs"))
+                    or mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                    or has_shebang):
+                inventory.add(os.path.relpath(absolute, _REPO))
+    registry = set(GB._PEGASUS_ADMISSION_REGISTRY)
+    assert inventory == registry, \
+        ("保証するのは execution inventory 同期だけ: "
+         f"registry 欠落={sorted(inventory - registry)}, "
+         f"実体欠落={sorted(registry - inventory)}")
+
+
+def test_bash_login_pbs_shebang_entries_remain_unknown_and_denied():
+    for path in (
+        "tools/pegasus/probes/t293_perf_site_probe.pbs",
+        "tools/pegasus/probes/t419_probe_causality.pbs",
+    ):
+        assert GB._PEGASUS_ADMISSION_REGISTRY[path]["class"] == "unknown"
+        ok, _ = GB.decide(f"bash {path}", site="PEGASUS_LOGIN")
+        assert not ok, f"unknown の PBS job body が login で通った: {path}"
+
+
+def test_bash_sanctioned_pegasus_paths_are_derived_from_registry():
+    expected = {
+        path for path, expected_class in _PEGASUS_EXPECTED_CLASSES.items()
+        if expected_class == "local-ok"
+    }
+    actual = {
+        path for path in GB._SANCTIONED_PATHS
+        if path.startswith("tools/pegasus/")
+    }
+    assert actual == expected
 
 
 def test_bash_login_allows_fetch_third_party_sanctioned_spellings():
@@ -1105,21 +2280,47 @@ def test_bash_login_keeps_required_session_commands_available():
                     f"production main が LOGIN の通常 Bash 操作を停止した: {cmd!r}"
 
 
-def test_bash_main_rule_error_is_scoped_to_protected_commands():
+@pytest.mark.parametrize("fault_type", (RuntimeError, SystemExit, KeyboardInterrupt))
+def test_bash_main_rule_error_is_scoped_to_protected_commands(fault_type):
     cases = (
         ("git status --short", 0),
         (f"cat {_WAL}", 2),
+        ("python3 tools/pegasus/dispatch_compute.py --help", 2),
+        ("python3 -m tools.pegasus.dispatch_compute --help", 2),
     )
     for cmd, expected in cases:
         payload = json.dumps({
             "tool_name": "Bash",
             "tool_input": {"command": cmd},
         })
-        with patch.object(GB, "decide", side_effect=RuntimeError("rule bug")):
+        with patch.object(GB, "decide", side_effect=fault_type("rule bug")):
             with patch.object(GB.sys, "stdin", io.StringIO(payload)):
                 actual = GB.main()
                 assert actual == expected, \
                     f"規則エラーの影響範囲が不正: {cmd!r} rc={actual}"
+
+
+def test_bash_main_internal_error_conservatively_rejects_pegasus_mentions():
+    """これは意図した保守的挙動であり、内部例外時にだけ発火する。"""
+    mention = "rg tools/pegasus/README.md"
+    unrelated = "rg TODO ."
+
+    payload = json.dumps({
+        "tool_name": "Bash",
+        "tool_input": {"command": mention},
+    })
+    with patch.object(GB, "decide", return_value=(True, "")):
+        with patch.object(GB.sys, "stdin", io.StringIO(payload)):
+            assert GB.main() == 0
+
+    for command, expected in ((mention, 2), (unrelated, 0)):
+        payload = json.dumps({
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+        })
+        with patch.object(GB, "decide", side_effect=RuntimeError("rule bug")):
+            with patch.object(GB.sys, "stdin", io.StringIO(payload)):
+                assert GB.main() == expected
 
 
 def test_bash_login_resolves_python_modules_to_exact_repo_paths():

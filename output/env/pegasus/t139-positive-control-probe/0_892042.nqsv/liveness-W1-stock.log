@@ -1,0 +1,125 @@
+#FLAGS_clocks_per_us:	2100
+#FLAGS_epoch_time:	40
+#FLAGS_extime:		3
+#FLAGS_thread_num:	48
+#FLAGS_ycsb_max_ope:	10
+#FLAGS_ycsb_rmw:	1
+#FLAGS_ycsb_rratio:	50
+#FLAGS_ycsb_tuple_num:	10000
+#FLAGS_ycsb_zipf_skew:	0.9
+izanagi_t139_pc.window[1].worker[33]=1
+izanagi_t139_pc.window[1].worker[12]=1
+izanagi_t139_pc.window[1].worker[29]=1
+izanagi_t139_pc.window[1].worker[1]=1
+izanagi_t139_pc.window[1].worker[5]=1
+izanagi_t139_pc.window[1].worker[22]=1
+izanagi_t139_pc.window[1].worker[47]=1
+izanagi_t139_pc.window[1].worker[13]=1
+izanagi_t139_pc.window[1].worker[8]=1
+izanagi_t139_pc.window[1].worker[25]=1
+izanagi_t139_pc.window[1].worker[34]=1
+izanagi_t139_pc.window[1].worker[7]=1
+izanagi_t139_pc.window[1].worker[27]=1
+izanagi_t139_pc.window[1].worker[42]=1
+izanagi_t139_pc.window[1].worker[37]=1
+izanagi_t139_pc.window[1].worker[30]=1
+izanagi_t139_pc.window[1].worker[41]=1
+izanagi_t139_pc.window[1].worker[44]=1
+izanagi_t139_pc.window[1].worker[2]=1
+izanagi_t139_pc.window[1].worker[6]=1
+izanagi_t139_pc.window[1].worker[14]=1
+izanagi_t139_pc.window[1].worker[24]=1
+izanagi_t139_pc.window[1].worker[26]=1
+izanagi_t139_pc.window[1].worker[40]=1
+izanagi_t139_pc.window[1].worker[19]=1
+izanagi_t139_pc.window[1].worker[0]=1
+izanagi_t139_pc.window[1].worker[23]=1
+izanagi_t139_pc.window[1].worker[31]=1
+izanagi_t139_pc.window[1].worker[28]=1
+izanagi_t139_pc.window[1].worker[32]=1
+izanagi_t139_pc.window[1].worker[11]=1
+izanagi_t139_pc.window[1].worker[4]=1
+izanagi_t139_pc.window[1].worker[10]=1
+izanagi_t139_pc.window[1].worker[39]=1
+izanagi_t139_pc.window[1].worker[20]=1
+izanagi_t139_pc.window[1].worker[17]=1
+izanagi_t139_pc.window[1].worker[3]=1
+izanagi_t139_pc.window[1].worker[21]=1
+izanagi_t139_pc.window[1].worker[18]=1
+izanagi_t139_pc.window[1].worker[9]=1
+izanagi_t139_pc.window[1].worker[35]=1
+izanagi_t139_pc.window[1].worker[38]=1
+izanagi_t139_pc.window[1].worker[43]=1
+izanagi_t139_pc.window[1].worker[15]=1
+izanagi_t139_pc.window[1].worker[16]=1
+izanagi_t139_pc.window[1].worker[36]=1
+izanagi_t139_pc.window[1].worker[46]=1
+izanagi_t139_pc.window[1].worker[45]=1
+izanagi_t139_pc.window[2].worker[10]=1
+izanagi_t139_pc.window[2].worker[40]=1
+izanagi_t139_pc.window[2].worker[47]=1
+izanagi_t139_pc.window[2].worker[34]=1
+izanagi_t139_pc.window[2].worker[22]=1
+izanagi_t139_pc.window[2].worker[37]=1
+izanagi_t139_pc.window[2].worker[16]=1
+izanagi_t139_pc.window[2].worker[31]=1
+izanagi_t139_pc.window[2].worker[42]=1
+izanagi_t139_pc.window[2].worker[2]=1
+izanagi_t139_pc.window[2].worker[4]=1
+izanagi_t139_pc.window[2].worker[45]=1
+izanagi_t139_pc.window[2].worker[20]=1
+izanagi_t139_pc.window[2].worker[19]=1
+izanagi_t139_pc.window[2].worker[1]=1
+izanagi_t139_pc.window[2].worker[26]=1
+izanagi_t139_pc.window[2].worker[9]=1
+izanagi_t139_pc.window[2].worker[8]=1
+izanagi_t139_pc.window[2].worker[27]=1
+izanagi_t139_pc.window[2].worker[35]=1
+izanagi_t139_pc.window[2].worker[39]=1
+izanagi_t139_pc.window[2].worker[38]=1
+izanagi_t139_pc.window[2].worker[13]=1
+izanagi_t139_pc.window[2].worker[25]=1
+izanagi_t139_pc.window[2].worker[23]=1
+izanagi_t139_pc.window[2].worker[33]=1
+izanagi_t139_pc.window[2].worker[14]=1
+izanagi_t139_pc.window[2].worker[43]=1
+izanagi_t139_pc.window[2].worker[0]=1
+izanagi_t139_pc.window[2].worker[6]=1
+izanagi_t139_pc.window[2].worker[7]=1
+izanagi_t139_pc.window[2].worker[29]=1
+izanagi_t139_pc.window[2].worker[41]=1
+izanagi_t139_pc.window[2].worker[18]=1
+izanagi_t139_pc.window[2].worker[11]=1
+izanagi_t139_pc.window[2].worker[30]=1
+izanagi_t139_pc.window[2].worker[36]=1
+izanagi_t139_pc.window[2].worker[44]=1
+izanagi_t139_pc.window[2].worker[5]=1
+izanagi_t139_pc.window[2].worker[17]=1
+izanagi_t139_pc.window[2].worker[28]=1
+izanagi_t139_pc.window[2].worker[12]=1
+izanagi_t139_pc.window[2].worker[32]=1
+izanagi_t139_pc.window[2].worker[3]=1
+izanagi_t139_pc.window[2].worker[21]=1
+izanagi_t139_pc.window[2].worker[15]=1
+izanagi_t139_pc.window[2].worker[24]=1
+izanagi_t139_pc.window[2].worker[46]=1
+#ShowOptParameters(): ADD_ANALYSIS 1: BACK_OFF 0: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0
+actual_extime:	3
+extra_reads:	21098836
+make_procedure_latency_rate:	0.0057
+other_work_latency_rate:	0.2531
+read_latency_rate:	0.6490
+tree_traversal:	236294470
+write_latency_rate:	0.0468
+vali_latency_rate:	0.0454
+version_malloc:	0
+success_forwarding_:	0
+abort_counts_:	22534324
+batch_abort_counts_:	0
+commit_counts_:	2270460
+batch_commit_counts_:	0
+maxrss:	98148 kB
+abort_rate:	0.9085
+batch_abort_rate:	-nan
+latency[ns]:	63423.2711
+throughput[tps]:	756820

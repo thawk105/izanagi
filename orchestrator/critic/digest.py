@@ -30,6 +30,7 @@ from campaign.artifact_admission import (AdmittedCampaign,        # noqa: E402
 from campaign.layout import CampaignLayout                        # noqa: E402
 from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT, STAGE_VERIFY_DONE)
+from critic.identity_projection import IdentityProjection         # noqa: E402
 
 # critic が見る指標と「大きいほど良いか」(throughput/ipc は大、他は小が良い)。
 INDICATORS = ["throughput_tps", "abort_rate", "latency_ns", "llc_miss_rate", "ipc"]
@@ -105,6 +106,8 @@ class Rejection:
     # D36 決定 4 (段 5 配線予定): red payload に workload タグが載る。形 (str/dict) は
     # D36 実装時に確定するため、payload に来たら生値で保持する前方寛容フィールド。
     workload: Dict = field(default_factory=dict)
+    # admitted WAL と合成 control を同じ heading で混同しない閉じた出所。
+    origin_kind: str = "admitted-wal"
 
 
 # liveness-red の reason 集合 (pipeline.evaluate の _abort が書く文字列と 1:1)。
@@ -558,7 +561,8 @@ def render_rejections(rejections: List[Rejection],
                       other_counts: Optional[Dict[str, int]] = None,
                       abort_signals: Optional[List[VerifyAbortSignal]] = None,
                       diff_rejections: Optional[List[DiffQuarantineRejection]] = None,
-                      screen_rejections: Optional[List[ScreenRejection]] = None
+                      screen_rejections: Optional[List[ScreenRejection]] = None,
+                      *, identity_projection: IdentityProjection,
                       ) -> str:
     """赤 (reject 済み) variant の構造化 anomaly を critic/LLM 可読テキストにする。
 
@@ -575,14 +579,23 @@ def render_rejections(rejections: List[Rejection],
     (build 前に検疫で弾いた)。verdict/liveness とは別節で subtype 明示で描画し、critic
     が形状を推理せずデータから読む (D37)。diff は coder の提案由来 = 外部入力ゆえ、
     evidence 内の文字列もデータであって指示ではない (規律6)。"""
+    if not isinstance(identity_projection, IdentityProjection):
+        raise TypeError("identity_projection は IdentityProjection が必要")
     L: List[str] = ["# rejections — 正しさ/liveness/frame/screening で不採用 "
                     "(未認証性能数値は表示しない)", ""]
     if (not rejections and not liveness and not (other_counts or {})
             and not (diff_rejections or []) and not (screen_rejections or [])):
         L.append("(rejection なし — 全 variant 緑)")
     for rj in rejections:
-        L.append(f"## [{rj.verdict}] variant={rj.variant or '?'} genome={rj.genome}"
-                 + (f" src_token={rj.src_token}" if rj.src_token else ""))
+        projected_variant = identity_projection.project_variant(rj.variant)
+        projected_src_token = identity_projection.project_src_token(
+            rj.variant, rj.src_token,
+        )
+        if rj.origin_kind not in {"admitted-wal", "synthetic-fixture"}:
+            raise ValueError(f"未知の rejection origin_kind: {rj.origin_kind!r}")
+        L.append(f"## [{rj.verdict}] candidate_label={projected_variant or '?'} "
+                 f"origin_kind={rj.origin_kind} genome={rj.genome}"
+                 + (f" src_token={projected_src_token}" if projected_src_token else ""))
         if rj.workload:
             L.append(f"  workload: {rj.workload}")
         if rj.verdict == "non-serializable":
@@ -622,13 +635,33 @@ def render_rejections(rejections: List[Rejection],
                 L.append(f"  · {note}")
         L.append("")
     for lv in liveness:
-        L.append(f"## [liveness:{lv.reason}] variant={lv.variant or '?'} "
+        projected_variant = identity_projection.project_variant(lv.variant)
+        projected_src_token = identity_projection.project_src_token(
+            lv.variant, lv.src_token,
+        )
+        L.append(f"## [liveness:{lv.reason}] candidate_label={projected_variant or '?'} "
                  f"genome={lv.genome}"
-                 + (f" src_token={lv.src_token}" if lv.src_token else ""))
+                 + (f" src_token={projected_src_token}" if projected_src_token else ""))
         if lv.workload:
             L.append(f"  workload: {lv.workload}")
         if lv.extra:
-            L.append("  " + " ".join(f"{k}={v}" for k, v in sorted(lv.extra.items())))
+            projected_extra = dict(lv.extra)
+            if "build_attempt_id" in projected_extra:
+                projected_extra["build_attempt_id"] = (
+                    identity_projection.project_build_attempt_id(
+                        lv.variant, projected_extra["build_attempt_id"],
+                    )
+                )
+            if "build_admission_receipt_sha256" in projected_extra:
+                projected_extra["build_admission_receipt_sha256"] = (
+                    identity_projection.project_build_admission_receipt_sha256(
+                        lv.variant,
+                        projected_extra["build_admission_receipt_sha256"],
+                    )
+                )
+            L.append("  " + " ".join(
+                f"{k}={v}" for k, v in sorted(projected_extra.items())
+            ))
         hint = _LIVENESS_HINTS.get(lv.reason)
         if hint:
             L.append(f"  読み方: {hint}")
@@ -640,9 +673,14 @@ def render_rejections(rejections: List[Rejection],
             L.append(f"- genome={sr.genome}")
         L.append("")
     for dq in (diff_rejections or []):
-        L.append(f"## [diff-quarantine:{dq.subtype or '?'}] variant={dq.variant or '?'} "
+        projected_variant = identity_projection.project_variant(dq.variant)
+        projected_src_token = identity_projection.project_src_token(
+            dq.variant, dq.src_token,
+        )
+        L.append(f"## [diff-quarantine:{dq.subtype or '?'}] "
+                 f"candidate_label={projected_variant or '?'} "
                  f"genome={dq.genome}"
-                 + (f" src_token={dq.src_token}" if dq.src_token else ""))
+                 + (f" src_token={projected_src_token}" if projected_src_token else ""))
         L.append(f"  marker={dq.template_diff_id or '?'} / region={dq.diff_region or '?'}")
         L.append(f"  理由: {dq.reason or '(理由なし)'}")
         if dq.evidence:
@@ -680,7 +718,10 @@ def render_rejections(rejections: List[Rejection],
         elif base is None:
             L.append("(stock 対照なし — 比は計算不能。率のみ表示)")
         for s in abort_signals:
-            tag = "stock" if s.is_stock else f"variant={s.variant}"
+            tag = (
+                "stock" if s.is_stock
+                else f"candidate_label={identity_projection.project_variant(s.variant)}"
+            )
             r = s.rate()
             if r is None:
                 L.append(f"- {tag}: aborts 記録なし (旧形式 WAL)")
@@ -704,11 +745,14 @@ def main(argv) -> int:
     a = ap.parse_args(argv[1:])
     if a.campaign_dir:
         view = require_admitted_campaign(CampaignLayout(root=a.campaign_dir))
+        from campaign.p3_s4_loop import make_critic_identity_projection
+        identity_projection = make_critic_identity_projection(view)
         parts = [render_text([build_digest(a.tag, {}, view)])]
         lrs, other = load_liveness_rejections(view)
         parts.append(render_rejections(load_rejections(view), lrs, other,
                                        load_verify_abort_signals(view),
-                                       screen_rejections=load_screen_rejections(view)))
+                                       screen_rejections=load_screen_rejections(view),
+                                       identity_projection=identity_projection))
         print("\n".join(parts))
         return 0
     digests = load_p2_2_digests()

@@ -7,6 +7,7 @@ V15 = submodule auto-init の ``--no-fetch`` 除去。
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import subprocess
 import sys
@@ -17,6 +18,12 @@ import pytest
 
 
 _REPO = Path(__file__).resolve().parents[2]
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
+
+from tools.pegasus import dispatch_compute as DC
+
+
 _RUNNER = _REPO / "tools" / "run_tests.py"
 _SPEC = importlib.util.spec_from_file_location("run_tests_preflight_test", _RUNNER)
 assert _SPEC and _SPEC.loader
@@ -66,6 +73,26 @@ def _tracked_repo(tmp_path: Path) -> Path:
     _git(repo, "add", "tracked.txt")
     _git(repo, "commit", "-qm", "fixture")
     return repo
+
+
+class _LookupRecordingEnvironment(dict[str, str]):
+    """Record key-specific lookups while leaving generic ``items()`` copies alone."""
+
+    def __init__(self, values):
+        super().__init__(values)
+        self.lookups: list[str] = []
+
+    def __contains__(self, key):
+        self.lookups.append(key)
+        return super().__contains__(key)
+
+    def __getitem__(self, key):
+        self.lookups.append(key)
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        self.lookups.append(key)
+        return super().get(key, default)
 
 
 def _create_submodule_markers(repo: Path) -> None:
@@ -268,25 +295,30 @@ def test_unstaged_deletion_gate_detects_count_and_scrubs_git_env(
     assert "git add -A" in stderr
 
 
-def test_unstaged_deletion_exact_bypass_warns_and_continues(
+def test_acceptance_unstaged_deletion_exact_legacy_bypass_is_rejected(
     tmp_path, monkeypatch, capsys,
 ):
     repo = _tracked_repo(tmp_path)
     (repo / "tracked.txt").unlink()
     monkeypatch.setenv("IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS", "1")
-    assert RT._preflight_unstaged_deletions([], repo) == 0
-    assert "許可して続行" in capsys.readouterr().err
+    assert RT._preflight_unstaged_deletions([], repo) == 13
+    stderr = capsys.readouterr().err
+    assert "git add -A" in stderr
+    assert "復元" in stderr
+    assert "許可して続行" not in stderr
 
 
 @pytest.mark.parametrize("value", ["true", "01", " 1"])
-def test_unstaged_deletion_bypass_is_exact_one(tmp_path, monkeypatch, value):
+def test_acceptance_unstaged_deletion_legacy_env_spellings_are_rejected(
+    tmp_path, monkeypatch, value,
+):
     repo = _tracked_repo(tmp_path)
     (repo / "tracked.txt").unlink()
     monkeypatch.setenv("IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS", value)
     assert RT._preflight_unstaged_deletions([], repo) == 13
 
 
-def test_final_trigger_forbids_unstaged_deletion_bypass(
+def test_acceptance_unstaged_deletion_is_rejected_for_final_trigger(
     tmp_path, monkeypatch, capsys,
 ):
     repo = _tracked_repo(tmp_path)
@@ -294,7 +326,51 @@ def test_final_trigger_forbids_unstaged_deletion_bypass(
     monkeypatch.setenv("IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS", "1")
     monkeypatch.setenv("IZANAGI_TEST_TRIGGER", "final")
     assert RT._preflight_unstaged_deletions([], repo) == 13
-    assert "final" in capsys.readouterr().err
+    stderr = capsys.readouterr().err
+    assert "git add -A" in stderr
+    assert "復元" in stderr
+    assert "許可して続行" not in stderr
+
+
+def test_acceptance_deletion_preflight_never_reads_legacy_bypass_env(
+    tmp_path, monkeypatch,
+):
+    repo = _tracked_repo(tmp_path)
+    (repo / "tracked.txt").unlink()
+    environ = _LookupRecordingEnvironment(os.environ)
+    legacy_key = "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS"
+    environ[legacy_key] = "yes"
+    monkeypatch.setattr(RT.os, "environ", environ)
+
+    assert RT._preflight_unstaged_deletions([], repo) == 13
+    assert legacy_key not in environ.lookups
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        subprocess.CompletedProcess(["git"], 128, "", "failure"),
+        FileNotFoundError("git"),
+        UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid"),
+    ],
+    ids=["git-rc-128", "git-file-not-found", "git-unicode-decode"],
+)
+def test_acceptance_deletion_git_failure_never_reads_legacy_bypass_env(
+    tmp_path, monkeypatch, failure,
+):
+    legacy_key = "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS"
+    environ = _LookupRecordingEnvironment(os.environ)
+    environ[legacy_key] = "yes"
+    monkeypatch.setattr(RT.os, "environ", environ)
+    invoked = mock.Mock()
+    if isinstance(failure, subprocess.CompletedProcess):
+        invoked.return_value = failure
+    else:
+        invoked.side_effect = failure
+    monkeypatch.setattr(RT.subprocess, "run", invoked)
+
+    assert RT._preflight_unstaged_deletions([], tmp_path) == 13
+    assert legacy_key not in environ.lookups
 
 
 def test_targeted_run_does_not_invoke_deletion_gate(monkeypatch, tmp_path):
@@ -302,6 +378,53 @@ def test_targeted_run_does_not_invoke_deletion_gate(monkeypatch, tmp_path):
     monkeypatch.setattr(RT.subprocess, "run", invoked)
     assert RT._preflight_unstaged_deletions(["/tmp/target.py"], tmp_path) == 0
     invoked.assert_not_called()
+
+
+def test_targeted_run_with_unstaged_deletion_still_passes(
+    monkeypatch, tmp_path,
+):
+    repo = _tracked_repo(tmp_path)
+    (repo / "tracked.txt").unlink()
+    invoked = mock.Mock(side_effect=AssertionError("git must not run"))
+    monkeypatch.setattr(RT.subprocess, "run", invoked)
+
+    assert RT._preflight_unstaged_deletions(["tracked.txt"], repo) == 0
+    invoked.assert_not_called()
+
+
+def test_acceptance_run_passes_after_staged_deletion(tmp_path):
+    repo = _tracked_repo(tmp_path)
+    (repo / "tracked.txt").unlink()
+    _git(repo, "add", "-A")
+
+    staged = _git(repo, "diff", "--cached", "--name-status").stdout
+    assert staged.splitlines() == ["D\ttracked.txt"]
+    assert RT._preflight_unstaged_deletions([], repo) == 0
+
+
+def test_dispatch_generated_request_env_drops_legacy_deletion_bypass(tmp_path):
+    """親が新規生成する request の environment field だけを検査する。
+
+    実 child process の environment と既存 request を読む側の再検査は射程外。
+    """
+    output_root = tmp_path / "dispatch"
+    run_command = mock.Mock(side_effect=RuntimeError("stop after request write"))
+    legacy_key = "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS"
+
+    assert DC.dispatch(
+        ["orchestrator/tests/test_run_tests_preflight.py", "-q"],
+        repo_root=_REPO,
+        output_root=output_root,
+        environ={legacy_key: "yes", "PYTEST_ADDOPTS": "-q"},
+        run_command=run_command,
+        nonce="legacy-env-transport",
+    ) == DC.INFRA_RC
+    request = json.loads(
+        (output_root / "legacy-env-transport" / "request.json").read_text(
+            encoding="utf-8",
+        ),
+    )
+    assert request["environment"] == {"PYTEST_ADDOPTS": "-q"}
 
 
 def test_targeted_run_does_not_invoke_ruleops_preflight(monkeypatch, tmp_path):
@@ -359,24 +482,36 @@ def test_acceptance_ruleops_timeout_is_rc15(monkeypatch, tmp_path, capsys):
     assert "child rc=timeout" in capsys.readouterr().err
 
 
-def test_deletion_git_failure_warns_and_continues(monkeypatch, tmp_path, capsys):
+def test_acceptance_deletion_git_rc_failure_fails_closed(
+    monkeypatch, tmp_path, capsys,
+):
     monkeypatch.setattr(
         RT.subprocess,
         "run",
         lambda *a, **kw: subprocess.CompletedProcess(a[0], 128, "", "failure"),
     )
-    assert RT._preflight_unstaged_deletions([], tmp_path) == 0
-    assert "警告" in capsys.readouterr().err
+    assert RT._preflight_unstaged_deletions([], tmp_path) == 13
+    stderr = capsys.readouterr().err
+    assert "git rc=128" in stderr
+    assert "受入形は未検査" in stderr
+    assert "git add -A" in stderr
+    assert "復元" in stderr
+    assert "続行します" not in stderr
 
 
-def test_deletion_git_unavailable_warns_and_continues(
+def test_acceptance_deletion_git_unavailable_fails_closed(
     monkeypatch, tmp_path, capsys,
 ):
     monkeypatch.setattr(
         RT.subprocess, "run", mock.Mock(side_effect=FileNotFoundError("git")),
     )
-    assert RT._preflight_unstaged_deletions([], tmp_path) == 0
-    assert "警告" in capsys.readouterr().err
+    assert RT._preflight_unstaged_deletions([], tmp_path) == 13
+    stderr = capsys.readouterr().err
+    assert "実行不能" in stderr
+    assert "受入形は未検査" in stderr
+    assert "git add -A" in stderr
+    assert "復元" in stderr
+    assert "続行します" not in stderr
 
 
 @pytest.mark.parametrize(
@@ -387,7 +522,7 @@ def test_deletion_git_unavailable_warns_and_continues(
         UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid"),
     ],
 )
-def test_final_deletion_git_failure_is_unverified_and_fails_closed(
+def test_final_deletion_git_failure_remains_unverified_and_fails_closed(
     monkeypatch, tmp_path, capsys, failure,
 ):
     monkeypatch.setenv("IZANAGI_TEST_TRIGGER", "final")
@@ -397,17 +532,24 @@ def test_final_deletion_git_failure_is_unverified_and_fails_closed(
         monkeypatch.setattr(RT.subprocess, "run", mock.Mock(side_effect=failure))
     assert RT._preflight_unstaged_deletions([], tmp_path) == 13
     stderr = capsys.readouterr().err
-    assert "final" in stderr
-    assert "未検査" in stderr
+    assert "受入形は未検査" in stderr
+    assert "git add -A" in stderr
+    assert "復元" in stderr
+    assert "続行します" not in stderr
 
 
-def test_nonfinal_deletion_decode_failure_warns_and_continues(
+def test_nonfinal_deletion_decode_failure_fails_closed(
     monkeypatch, tmp_path, capsys,
 ):
     failure = UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid")
     monkeypatch.setattr(RT.subprocess, "run", mock.Mock(side_effect=failure))
-    assert RT._preflight_unstaged_deletions([], tmp_path) == 0
-    assert "警告" in capsys.readouterr().err
+    assert RT._preflight_unstaged_deletions([], tmp_path) == 13
+    stderr = capsys.readouterr().err
+    assert "実行不能" in stderr
+    assert "受入形は未検査" in stderr
+    assert "git add -A" in stderr
+    assert "復元" in stderr
+    assert "続行します" not in stderr
 
 
 def test_submodule_existing_real_markers_need_no_git(monkeypatch, tmp_path):

@@ -40,6 +40,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
         sys.path.insert(0, str(_ROOT_FOR_IMPORT))
     from orchestrator.campaign import p3_s4_loop as loop_core
     from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger
+    from orchestrator.campaign import s8c_preregistration
     from orchestrator.campaign import trial_registry
     from orchestrator.campaign.reflux_ir import emit_predicate, parse_wire
     from orchestrator.campaign.autonomous_trial_completeness import (
@@ -82,6 +83,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 else:
     from . import p3_s4_loop as loop_core
     from . import p3_s4_loop_trigger_gating as trigger
+    from . import s8c_preregistration
     from . import trial_registry
     from .reflux_ir import emit_predicate, parse_wire
     from .autonomous_trial_completeness import (
@@ -126,6 +128,7 @@ else:
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
 from campaign import ident  # noqa: E402
+from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     BuildAdmissionError,
     BuildRunContext,
@@ -137,7 +140,7 @@ from campaign.build_admission import (  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_VERSION = "p3-autonomous-workload-trial/v2"
+SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
 REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v2"
 MAX_GENERATIONS = 10
 MAX_APPROVED_GENERATIONS = 1
@@ -167,6 +170,24 @@ _TRANSPORT_RECEIPT_KEYS = {
     "forwarded_tls_trust_override_keys",
     "pbs_jobid",
 }
+
+# Producer が journal へ添える自己申告 annotation。artifact acceptance gate ではない。
+AUDITOR_DIFF_DECLASSIFICATION_POLICY_ID = (
+    "t244-auditor-diff-declassification/v1"
+)
+AUDITOR_DIFF_DECLASSIFICATION_POLICY = {
+    "source_class": "candidate-wire",
+    "current_precondition": "raw-ir-equals-effective-ir/v1",
+    "sunset_trigger": "reflux-control-separates-raw-and-effective-ir/v1",
+    "successor": {
+        "working_diff_source": "independent-canonical-emitter-from-raw-ir/v1",
+        "allowed_json_pointers": ["/working_diff"],
+        "forbidden_json_pointers": ["/diff_digest"],
+    },
+}
+AUDITOR_DIFF_DECLASSIFICATION_POLICY_SHA256 = _sha256(
+    _canonical_json_bytes(AUDITOR_DIFF_DECLASSIFICATION_POLICY)
+)
 
 WORKLOADS: dict[str, dict[str, str]] = {
     "ycsb-a": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
@@ -273,7 +294,7 @@ _RUN_SCOPE_SEAL = object()
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class _RunScopeBinding:
-    binding: trial_registry.TrialBinding | None
+    admission: trial_registry.TrialLaunchAdmission
     _seal: object = dataclasses.field(repr=False)
 
 
@@ -611,29 +632,40 @@ def _prepare_campaign_identity(
     )
 
 
-def _trial_launch_binding(
+def _trial_launch_admission(
     *,
     trial_manifest: Path | None,
     trial_id: str,
     workloads: Sequence[str],
     generations: int,
-) -> trial_registry.TrialBinding | None:
+    allow_unregistered_exploratory: bool,
+    effective_preregistration: (
+        s8c_preregistration.EffectivePreregistration | None
+    ),
+) -> trial_registry.TrialLaunchAdmission:
     """Run the artifact-free launcher gate at either public boundary."""
     registry_path = ROOT / trial_registry.DEFAULT_REGISTRY_PATH
     if trial_manifest is None:
-        trial_registry.assert_unregistered_for_exploratory(
-            trial_id,
-            registry_path,
-            ROOT,
+        return trial_registry.admit_unregistered_exploratory(
+            trial_id=trial_id,
+            workloads=workloads,
+            allow_unregistered_exploratory=allow_unregistered_exploratory,
+            repository_root=ROOT,
+            registry_path=registry_path,
         )
-        return None
-    binding = trial_registry.load_launch_binding(
+    admission = trial_registry.admit_registered_launch(
+        effective_preregistration=effective_preregistration,
         manifest_path=Path(trial_manifest),
         trial_id=trial_id,
         workloads=workloads,
         repository_root=ROOT,
         registry_path=registry_path,
     )
+    binding = admission.binding
+    if binding is None:  # pragma: no cover - sealed registry postcondition
+        raise trial_registry.TrialRegistryError(
+            "[launch-admission] registered admission has no binding"
+        )
     identity_context = build_run_context(
         generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
     )
@@ -647,7 +679,7 @@ def _trial_launch_binding(
         binding,
         actual_campaign_id=prepared.campaign_id,
     )
-    return binding
+    return admission
 
 
 def _preview(coder: trigger.CoderProposalTriggerGating, *, sub: str) -> dict[str, Any]:
@@ -907,6 +939,28 @@ def _invoke(
     transport_receipt: Mapping[str, Any] | None = None,
 ) -> tuple[Any | None, dict[str, Any]]:
     input_sha256 = _sha256(_canonical_json_bytes(payload))
+    declassifications: list[dict[str, Any]] = []
+    if role == "auditor":
+        declassifications.append({
+            "policy_id": AUDITOR_DIFF_DECLASSIFICATION_POLICY_ID,
+            "policy_sha256": AUDITOR_DIFF_DECLASSIFICATION_POLICY_SHA256,
+            "disclosures": [
+                {
+                    "json_pointer": "/working_diff",
+                    "transform": "identity",
+                    "value_sha256": _sha256(
+                        _canonical_json_bytes(payload["working_diff"])
+                    ),
+                },
+                {
+                    "json_pointer": "/diff_digest",
+                    "transform": "sha256-hex-of-/working_diff",
+                    "value_sha256": _sha256(
+                        _canonical_json_bytes(payload["diff_digest"])
+                    ),
+                },
+            ],
+        })
     base = {
         "event": "role-attempt",
         "workload": workload,
@@ -917,6 +971,7 @@ def _invoke(
         "descriptor_sha256": payload["descriptor_binding"]["output_sha256"],
         "attempt": 1,
         "retry": False,
+        "declassifications": declassifications,
     }
     try:
         response = provider.invoke(invocation_id=invocation_id, payload=payload)
@@ -993,6 +1048,7 @@ def _journal_auditor_skip(
         "descriptor_sha256": common["descriptor_binding"]["output_sha256"],
         "attempt": 1,
         "retry": False,
+        "declassifications": [],
         "status": "skipped",
         "skip_reason": "machine-pre-audit-rejection",
         "pre_audit": evidence,
@@ -1138,7 +1194,11 @@ def _assert_build_transport_admitted(
     )
 
 
-def _finalize_build_cell_admission(cell: Mapping[str, Any]) -> None:
+def _finalize_build_cell_admission(
+    cell: Mapping[str, Any],
+    *,
+    launch_admission: trial_registry.TrialLaunchAdmission,
+) -> None:
     """Render and validate the Layer-3/admission chain before report publish."""
     campaign_root_value = cell.get("campaign_root")
     if not isinstance(campaign_root_value, str) or not campaign_root_value:
@@ -1186,8 +1246,33 @@ def _finish_trial(
     transport_receipt: Mapping[str, Any] | None,
     transport_admission: ClaudeTransportAdmission | None = None,
     build_context: BuildRunContext | None = None,
-    trial_binding: trial_registry.TrialBinding | None = None,
+    launch_admission: trial_registry.TrialLaunchAdmission,
+    effective_preregistration: (
+        s8c_preregistration.EffectivePreregistration | None
+    ) = None,
+    trial_manifest: Path | None = None,
+    allow_unregistered_exploratory: bool = True,
 ) -> dict[str, Any]:
+    trial_registry.assert_rederived_launch_admission(
+        launch_admission,
+        effective_preregistration=effective_preregistration,
+        manifest_path=trial_manifest,
+        trial_id=trial_id,
+        workloads=selected,
+        allow_unregistered_exploratory=allow_unregistered_exploratory,
+        repository_root=ROOT,
+        registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
+    )
+    active_scope = _ACTIVE_TRIAL_BINDING.get()
+    if (
+        type(active_scope) is not _RunScopeBinding
+        or active_scope._seal is not _RUN_SCOPE_SEAL
+        or trial_registry.launch_admission_record(active_scope.admission)
+        != trial_registry.launch_admission_record(launch_admission)
+    ):
+        raise trial_registry.TrialRegistryError(
+            "[run-scope] finish requires the exact sealed run_trial admission"
+        )
     if fatal_error is None:
         _assert_build_transport_admitted(
             do_build,
@@ -1277,7 +1362,9 @@ def _finish_trial(
     )
     for cell in cells:
         if do_build:
-            _finalize_build_cell_admission(cell)
+            _finalize_build_cell_admission(
+                cell, launch_admission=launch_admission,
+            )
         else:
             cell["admission_decision"] = {"admission_status": "not-applicable"}
     report = {
@@ -1305,6 +1392,9 @@ def _finish_trial(
             ),
         },
         "attempt_journal": str(run_root / "attempts.jsonl"),
+        "launch_admission": trial_registry.launch_admission_record(
+            launch_admission
+        ),
         "cells": cells,
     }
     if fatal_error is not None:
@@ -1313,6 +1403,7 @@ def _finish_trial(
         report["transport_receipt"] = _validate_transport_receipt(
             dict(transport_receipt), expected=transport_receipt
         )
+    trial_binding = launch_admission.binding
     if trial_binding is not None:
         report.update({
             "prereg_commit": trial_binding.prereg_commit,
@@ -1365,21 +1456,26 @@ def _run_workload(
 ) -> dict[str, Any]:
     active_scope = _ACTIVE_TRIAL_BINDING.get()
     if active_scope is None:
-        trial_registry.assert_unregistered_for_exploratory(
-            trial_id,
-            ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
-            ROOT,
+        raise trial_registry.TrialRegistryError(
+            "[run-scope] workload requires a sealed launch admission from run_trial"
         )
-        active_binding = None
-    elif (
+    if (
         type(active_scope) is not _RunScopeBinding
         or active_scope._seal is not _RUN_SCOPE_SEAL
     ):
         raise trial_registry.TrialRegistryError(
             "[run-scope] active workload scope was not issued by run_trial"
         )
-    else:
-        active_binding = active_scope.binding
+    active_admission = active_scope.admission
+    trial_registry.assert_issued_trial_launch_admission(active_admission)
+    if (
+        active_admission.trial_id != trial_id
+        or workload not in active_admission.workloads
+    ):
+        raise trial_registry.TrialRegistryError(
+            "[launch-admission] active admission differs from workload inputs"
+        )
+    active_binding = active_admission.binding
     if active_binding is not None:
         trial_registry.assert_issued_trial_binding(active_binding)
         if (
@@ -1645,12 +1741,37 @@ def _run_workload(
         current_metrics = _metric_projection(outcome)
 
         digest_path = Path(layout.root) / trigger.DIGEST_BASENAME
-        digest = digest_path.read_text(encoding="utf-8") if digest_path.exists() else ""
+        digest = None
+        raw_variant = outcome.get("variant")
+        if raw_variant is not None and type(raw_variant) is not str:
+            raise TypeError("harness output の variant は str/None が必要")
+        candidate_label = raw_variant
+        if digest_path.exists():
+            # ``layout`` can originate from the package or direct-script import
+            # surface.  Admission owns the canonical layout type, so cross that
+            # nominal boundary with the stable root value.
+            critic_view = require_admitted_campaign(layout.root)
+            identity_projection = loop_core.make_critic_identity_projection(
+                critic_view
+            )
+            candidate_label = identity_projection.project_variant(raw_variant)
+            digest = loop_core.make_critic_digest(
+                critic_view,
+                tag=trigger.CRITIC_TAG,
+                reflux=(cfg.search_config.get("reflux") == "on"),
+                identity_projection=identity_projection,
+            )
+        elif raw_variant:
+            # Exploratory/custom drives have always been accepted without a
+            # critic digest or admitted WAL.  Preserve that public acceptance
+            # surface while ensuring the candidate-dependent raw ID never
+            # reaches the critic recipient.
+            candidate_label = loop_core.UNREGISTERED_CANDIDATE_LABEL
         critic_payload = {
             **common,
             "harness_result": {
                 "outcome": outcome.get("outcome"),
-                "variant": outcome.get("variant"),
+                "candidate_label": candidate_label,
                 "verdict": outcome.get("verdict"),
                 "metrics": dict(current_metrics),
                 "stop_reason": outcome.get("stop_reason"),
@@ -1682,6 +1803,31 @@ def _run_workload(
     return result
 
 
+def _record_indeterminate_terminal(
+    token: trial_registry.TrialLifecycleToken,
+    *,
+    cause: BaseException,
+) -> None:
+    """Terminalize a consumed formal trial or expose irrecoverable ledger I/O.
+
+    If the terminal append itself fails, the original start remains consumed
+    and rerun stays forbidden.  The raised error names both the original
+    failure and the failed terminalization instead of implying recovery.
+    """
+    try:
+        trial_registry.record_trial_terminal(
+            token,
+            terminal_status="indeterminate",
+        )
+    except BaseException as terminal_error:
+        raise AutonomousTrialError(
+            "formal trial failed after lifecycle start and indeterminate "
+            "terminalization also failed; the start remains consumed: "
+            f"original={type(cause).__name__}; "
+            f"terminal={type(terminal_error).__name__}"
+        ) from terminal_error
+
+
 def run_trial(
     *,
     trial_id: str,
@@ -1700,7 +1846,11 @@ def run_trial(
     preview: Callable[..., Mapping[str, Any]] = _PREVIEW_NOT_PROVIDED,
     coder_authority: CoderBuildAuthority | None = None,
     trial_manifest: Path | None = None,
-    trial_binding: trial_registry.TrialBinding | None = None,
+    allow_unregistered_exploratory: bool = False,
+    effective_preregistration: (
+        s8c_preregistration.EffectivePreregistration | None
+    ) = None,
+    trial_admission: trial_registry.TrialLaunchAdmission | None = None,
 ) -> dict[str, Any]:
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
@@ -1743,9 +1893,56 @@ def run_trial(
         raise AutonomousTrialError(
             "Pegasus compute transport は owned projected providers 専用"
         )
+    if type(allow_unregistered_exploratory) is not bool:
+        raise AutonomousTrialError(
+            "allow_unregistered_exploratory は bool 必須"
+        )
     selected = list(workloads)
-    if not selected or len(selected) != len(set(selected)):
-        raise AutonomousTrialError("workloads は重複なしの非空列必須")
+    if trial_admission is None:
+        trial_admission = _trial_launch_admission(
+            trial_manifest=trial_manifest,
+            trial_id=trial_id,
+            workloads=selected,
+            generations=generations,
+            allow_unregistered_exploratory=allow_unregistered_exploratory,
+            effective_preregistration=effective_preregistration,
+        )
+    else:
+        trial_registry.assert_issued_trial_launch_admission(trial_admission)
+        supplied_binding = trial_admission.binding
+        if supplied_binding is not None:
+            observed_head = trial_registry.resolve_measurement_commit(ROOT)
+            if observed_head != supplied_binding.measurement_head:
+                raise trial_registry.TrialRegistryError(
+                    "[measurement-head-moved] HEAD changed after CLI preflight"
+                )
+            if trial_manifest is None:
+                raise trial_registry.TrialRegistryError(
+                    "[launch-admission] registered admission requires its manifest"
+                )
+            trial_registry.assert_rederived_launch_binding(
+                supplied_binding,
+                manifest_path=Path(trial_manifest),
+                trial_id=trial_id,
+                workloads=selected,
+                repository_root=ROOT,
+                registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
+            )
+        derived_admission = _trial_launch_admission(
+            trial_manifest=trial_manifest,
+            trial_id=trial_id,
+            workloads=selected,
+            generations=generations,
+            allow_unregistered_exploratory=allow_unregistered_exploratory,
+            effective_preregistration=effective_preregistration,
+        )
+        if (
+            trial_registry.launch_admission_record(trial_admission)
+            != trial_registry.launch_admission_record(derived_admission)
+        ):
+            raise trial_registry.TrialRegistryError(
+                "[launch-admission] supplied admission differs from fresh derivation"
+            )
     unknown = sorted(set(selected) - set(WORKLOADS))
     if unknown:
         raise AutonomousTrialError(f"unknown workloads: {unknown}")
@@ -1757,95 +1954,90 @@ def run_trial(
         raise AutonomousTrialError(
             "build trial requires parser-issued --allow-coder-derived-build authority"
         )
-    if trial_binding is None:
-        trial_binding = _trial_launch_binding(
-            trial_manifest=trial_manifest,
-            trial_id=trial_id,
-            workloads=selected,
-            generations=generations,
-        )
-    else:
-        trial_registry.assert_issued_trial_binding(trial_binding)
-        observed_head = trial_registry.resolve_measurement_commit(ROOT)
-        if observed_head != trial_binding.measurement_head:
-            raise trial_registry.TrialRegistryError(
-                "[measurement-head-moved] HEAD changed after CLI preflight"
-            )
-        if trial_manifest is None:
-            raise trial_registry.TrialRegistryError(
-                "[launch-binding] supplied binding requires its trial manifest"
-            )
-        trial_registry.assert_rederived_launch_binding(
-            trial_binding,
-            manifest_path=Path(trial_manifest),
-            trial_id=trial_id,
-            workloads=selected,
-            repository_root=ROOT,
-            registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
-        )
     run_root = Path(run_root)
     _reject_worktree_container(run_root)
     if run_root.exists() or run_root.is_symlink():
         raise AutonomousTrialError(
             f"run_root は新規 directory 必須 (resume は MVP 範囲外): {run_root}"
         )
-    run_root.mkdir(parents=True)
-    ensure_exploration_namespace(str(run_root))
-    for child in ("raw", "proposals"):
-        (run_root / child).mkdir()
-    journal = AttemptJournal(run_root / "attempts.jsonl")
-    started = _now_iso()
-    started_monotonic = time.monotonic()
-    build_context = build_run_context(
-        generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
-        coder_authority=coder_authority if do_build else None,
-    )
-    transport_admission: ClaudeTransportAdmission | None = None
-    transport_receipt: dict[str, Any] | None = None
-    source_env_snapshot: dict[str, str] | None = None
-    admission_error: BaseException | None = None
-    if allow_pegasus_compute_transport:
-        source_env_snapshot = dict(os.environ)
-        try:
-            transport_admission = admit_claude_transport(
-                source_env=source_env_snapshot,
-                repository_root=ROOT,
-            )
-            transport_receipt = _validate_transport_receipt(
-                transport_admission.receipt.as_dict()
-            )
-            journal.append({
-                "event": "transport-admission",
-                "transport_receipt": transport_receipt,
+    lifecycle_token: trial_registry.TrialLifecycleToken | None = None
+    if trial_admission.mode == "registered-effective":
+        lifecycle_token = trial_registry.record_trial_start_once(
+            admission=trial_admission,
+            effective_preregistration=effective_preregistration,
+            manifest_path=Path(trial_manifest),
+            run_root=run_root,
+            repository_root=ROOT,
+            registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
+            lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
+        )
+    try:
+        run_root.mkdir(parents=True)
+        ensure_exploration_namespace(str(run_root))
+        for child in ("raw", "proposals"):
+            (run_root / child).mkdir()
+        journal = AttemptJournal(run_root / "attempts.jsonl")
+        started = _now_iso()
+        started_monotonic = time.monotonic()
+        build_context = build_run_context(
+            generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+            coder_authority=coder_authority if do_build else None,
+        )
+        transport_admission: ClaudeTransportAdmission | None = None
+        transport_receipt: dict[str, Any] | None = None
+        source_env_snapshot: dict[str, str] | None = None
+        admission_error: BaseException | None = None
+        if allow_pegasus_compute_transport:
+            source_env_snapshot = dict(os.environ)
+            try:
+                transport_admission = admit_claude_transport(
+                    source_env=source_env_snapshot,
+                    repository_root=ROOT,
+                )
+                transport_receipt = _validate_transport_receipt(
+                    transport_admission.receipt.as_dict()
+                )
+                journal.append({
+                    "event": "transport-admission",
+                    "transport_receipt": transport_receipt,
+                })
+            except Exception as exc:
+                admission_error = exc
+                journal.append({
+                    "event": "transport-admission-error",
+                    "type": type(exc).__name__,
+                    "message": _redacted_transport_error(exc, None),
+                })
+        run_start = {
+            "event": "run-start",
+            "schema_version": SCHEMA_VERSION,
+            "trial_id": trial_id,
+            "provider": provider_kind,
+            "workloads": selected,
+            "generation_budget_per_workload": generations,
+            "max_wall_s": max_wall_s,
+            "do_build": do_build,
+            "performance_early_stop": False,
+            "scientific_claim": False,
+            "launch_admission": trial_registry.launch_admission_record(
+                trial_admission
+            ),
+        }
+        trial_binding = trial_admission.binding
+        if trial_binding is not None:
+            run_start.update({
+                "prereg_commit": trial_binding.prereg_commit,
+                "measurement_head": trial_binding.measurement_head,
+                "manifest_sha256": trial_binding.manifest_sha256,
             })
-        except Exception as exc:
-            admission_error = exc
-            journal.append({
-                "event": "transport-admission-error",
-                "type": type(exc).__name__,
-                "message": _redacted_transport_error(exc, None),
-            })
-    run_start = {
-        "event": "run-start",
-        "schema_version": SCHEMA_VERSION,
-        "trial_id": trial_id,
-        "provider": provider_kind,
-        "workloads": selected,
-        "generation_budget_per_workload": generations,
-        "max_wall_s": max_wall_s,
-        "do_build": do_build,
-        "performance_early_stop": False,
-        "scientific_claim": False,
-    }
-    if trial_binding is not None:
-        run_start.update({
-            "prereg_commit": trial_binding.prereg_commit,
-            "measurement_head": trial_binding.measurement_head,
-            "manifest_sha256": trial_binding.manifest_sha256,
-        })
-    journal.append(run_start)
+        journal.append(run_start)
+    except BaseException as exc:
+        if lifecycle_token is not None:
+            _record_indeterminate_terminal(lifecycle_token, cause=exc)
+        raise
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
+    lifecycle_terminalized = False
     fatal_error: dict[str, str] | None = (
         {
             "type": type(admission_error).__name__,
@@ -1881,10 +2073,10 @@ def run_trial(
                     fatal_error=fatal_error,
                     transport_receipt=transport_receipt,
                 )
-        run_scope = _RunScopeBinding(trial_binding, _RUN_SCOPE_SEAL)
+        run_scope = _RunScopeBinding(trial_admission, _RUN_SCOPE_SEAL)
         scope_token = _ACTIVE_TRIAL_BINDING.set(run_scope)
         try:
-            return _finish_trial(
+            report = _finish_trial(
                 trial_id=trial_id,
                 selected=selected,
                 generations=generations,
@@ -1904,10 +2096,26 @@ def run_trial(
                 transport_receipt=transport_receipt,
                 transport_admission=transport_admission,
                 build_context=build_context,
-                trial_binding=trial_binding,
+                launch_admission=trial_admission,
+                effective_preregistration=effective_preregistration,
+                trial_manifest=trial_manifest,
+                allow_unregistered_exploratory=(
+                    allow_unregistered_exploratory
+                ),
             )
+            if lifecycle_token is not None:
+                trial_registry.record_trial_terminal(
+                    lifecycle_token,
+                    terminal_status=report["status"],
+                )
+                lifecycle_terminalized = True
+            return report
         finally:
             _ACTIVE_TRIAL_BINDING.reset(scope_token)
+    except BaseException as exc:
+        if lifecycle_token is not None and not lifecycle_terminalized:
+            _record_indeterminate_terminal(lifecycle_token, cause=exc)
+        raise
     finally:
         if owns_active_providers:
             _close_owned_providers(active_providers)
@@ -1917,7 +2125,9 @@ def _parse_workloads(raw: str) -> list[str]:
     values = [item.strip().lower() for item in raw.split(",") if item.strip()]
     if not values:
         raise argparse.ArgumentTypeError("workloads is empty")
-    unknown = sorted(set(values) - set(WORKLOADS))
+    unknown = sorted(
+        set(values) - set(WORKLOADS) - set(trial_registry.HOLDOUT_WORKLOADS)
+    )
     if unknown:
         raise argparse.ArgumentTypeError(f"unknown workloads: {unknown}")
     if len(values) != len(set(values)):
@@ -1938,6 +2148,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--max-generations", type=int, default=1)
     parser.add_argument("--max-wall-seconds", type=int, default=DEFAULT_MAX_WALL_S)
     parser.add_argument("--no-build", action="store_true")
+    parser.add_argument(
+        "--allow-unregistered-exploratory",
+        action="store_true",
+        default=False,
+    )
     add_coder_build_authority_argument(parser)
     parser.add_argument("--claude-executable", default="claude")
     parser.add_argument(
@@ -1978,11 +2193,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             / "exploration" / "autonomous-trials" / args.trial_id
         )
     fixed_sub = str(Path(args.ccbench_dir).resolve())
-    launch_binding = _trial_launch_binding(
+    effective_preregistration = None
+    if args.trial_manifest is not None:
+        manifest = trial_registry.load_trial_manifest(args.trial_manifest)
+        effective_preregistration = s8c_preregistration.effective_at(
+            ROOT,
+            manifest.prereg_commit,
+        )
+    launch_admission = _trial_launch_admission(
         trial_manifest=args.trial_manifest,
         trial_id=args.trial_id,
         workloads=args.workloads,
         generations=args.max_generations,
+        allow_unregistered_exploratory=args.allow_unregistered_exploratory,
+        effective_preregistration=effective_preregistration,
     )
     if args.no_build:
         assert_pinned_clean(fixed_sub, trigger.PIN)
@@ -2015,7 +2239,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 None if args.no_build else args.coder_build_authority
             ),
             trial_manifest=args.trial_manifest,
-            trial_binding=launch_binding,
+            allow_unregistered_exploratory=(
+                args.allow_unregistered_exploratory
+            ),
+            effective_preregistration=effective_preregistration,
+            trial_admission=launch_admission,
         )
     print(json.dumps({
         "status": report["status"],

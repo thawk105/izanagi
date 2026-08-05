@@ -1,0 +1,24 @@
+{
+ "estimated_run_seconds": 900,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt.py::test_m13_reference_bytes_are_rehashed_not_self_compared[lifecycle]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "m13b",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "    prefix = data[:prefix_bytes]\n    if expected != expected:\n        _fail(\"receipt-reference-prefix\", f\"{label} prefix bytes differ from receipt\")\n",
+     "old": "    prefix = data[:prefix_bytes]\n    if hashlib.sha256(prefix).hexdigest() != expected:\n        _fail(\"receipt-reference-prefix\", f\"{label} prefix bytes differ from receipt\")\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}
