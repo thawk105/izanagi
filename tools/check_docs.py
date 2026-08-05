@@ -350,8 +350,9 @@ COMMAND_INTERFACES = {
 }
 
 # DW-O07 は T-154(1) 裁定 (2026-07-28) で削除済み — 復活時は裁定を新規に起こす。
+# DW-O15 も T-450 裁定で削除済み — 復活時は裁定を新規に起こす。
 # DW-O21/O22 は core の external continuation 条件が使用済みなので、land は DW-O23。
-_OPERATION_NUMBERS = (*range(1, 7), *range(8, 21), 23)
+_OPERATION_NUMBERS = (*range(1, 7), *range(8, 15), *range(16, 21), 23)
 DEV_WAVE_LAND_HELPER = "tools/dev_wave_land.py"
 DEV_WAVE_LAND_UNIQUE_ROUTE_LITERAL = (
     "`tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路"
@@ -478,7 +479,7 @@ CONDITION_DISPATCH_CONTRACT = {
     f"{i:02d}": _pairs(_OPERATIONS, f"DW-O{i:02d}")
     for i in _OPERATION_NUMBERS
 }
-CONDITION_DISPATCH_CONTRACT["15"] |= _pairs(_MUTATION, "DW-M07")
+CONDITION_DISPATCH_CONTRACT["15"] = _pairs(_MUTATION, "DW-M07")
 CONDITION_DISPATCH_CONTRACT.update({
     "21": _pairs(_CORE, "DW-CTX"),
     "22": _pairs(_CORE, "DW-CTX"),

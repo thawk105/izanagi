@@ -17,6 +17,7 @@ worklog エントリと `docs/decisions.md` の当該 D が正本で、ここは
 | `s6-fix-a.md` / `s6-fix-b.md` | 段 6 fix 1 巡目 |
 | `s6-refocus.md` | 段 6 焦点再レビュー (所見ごとの closed/partial/regressed 対応表) |
 | `s6-fix2-a.md` / `s6-fix2-b.md` | 段 6 fix 2 巡目 |
+| `s9-merge-verify.md` | 段 9 の merge 統合結果の検証 (F125 の恒久対応。auto-merge した 2 file の意味検査) |
 | `mutation-spec.json` | 変異事前登録 11 本 |
 | `mutation-ledger.json` | 変異本走の台帳 (KILLED 9 / MISMATCH 2 / SURVIVED 0 / TIMEOUT 0) |
 

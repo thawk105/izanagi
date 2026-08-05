@@ -669,6 +669,11 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した
+- **repo を submit directory にする job は `qsub -o <file> -e <file>` で scheduler 出力を repo 外へ
+  向けた。** 既定では submit directory へ書かれるため、tree の clean を要求する job は
+  **前回 job の出力自体で落ちる**。`-o` / `-e` には directory でなくファイル path を渡す
+  (directory は `NQScrereq: [BSV EINVAL] Not a regular file.` で受理されない)。
+  job script に絶対 path を書く形は採らない — 機体固有値を repo へ持ち込むため
 - **wave worktree から exploration campaign / 8c trial を実走する job は、job script が
   `IZANAGI_EXPLORATION_OUTPUT_ROOT` を job 専用の `/work` 配下へ export した** ([T-422] / F98。
   実 path は job script が組み立て、shared code・test・docs へ固定値を書かない。process 起動前に

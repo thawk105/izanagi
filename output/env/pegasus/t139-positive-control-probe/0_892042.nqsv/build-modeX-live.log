@@ -1,0 +1,28 @@
+[  0%] Built target masstree_build
+[ 21%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o
+[ 21%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o
+[ 21%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o
+[ 28%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o
+[ 28%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o
+[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o
+[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o
+[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o
+[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o
+[ 50%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o
+[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o
+[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o
+[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o
+[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o
+[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o
+[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o
+[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o
+[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o
+[ 85%] Linking C static library libmimalloc.a
+[ 85%] Built target mimalloc-static
+[ 85%] Linking CXX static library libccbench_common.a
+[ 85%] Built target ccbench_common
+[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o
+[ 92%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o
+[100%] Linking CXX executable ycsb_silo.exe
+[100%] Built target ycsb_silo.exe

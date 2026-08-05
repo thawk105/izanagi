@@ -238,6 +238,17 @@ def test_canonical_predicate_membership_is_exact_after_outer_strip():
 
 
 @pytest.mark.parametrize("outer", _OUTER_WHITESPACE)
+def test_mask_for_canonical_predicate_recovers_all_32_masks(outer):
+    assert "mask_for_canonical_predicate" in BINDING.__all__
+    for mask in range(32):
+        predicate = IR.emit_predicate(IR.TriggerGateIR(mask))
+        assert BINDING.mask_for_canonical_predicate(predicate) == mask
+        assert BINDING.mask_for_canonical_predicate(
+            f"{outer}{predicate}{outer}"
+        ) == mask
+
+
+@pytest.mark.parametrize("outer", _OUTER_WHITESPACE)
 def test_canonicalize_predicate_returns_injected_emitter_bytes(
         monkeypatch, outer):
     predicate = IR.emit_predicate(IR.TriggerGateIR(0)).strip()
@@ -278,6 +289,36 @@ def test_canonicalize_predicate_rejects_nonmember_with_uniform_error():
         lambda: BINDING.canonicalize_predicate(predicate.encode("utf-8")),
         lambda: BINDING.canonicalize_predicate(None),
         lambda: BINDING.canonicalize_predicate(PredicateSubclass(predicate)),
+    )
+    fingerprints = {
+        (type(exc), str(exc), exc.args, exc.__context__, exc.__cause__)
+        for exc in (_capture_rejection(failure) for failure in failures)
+    }
+    assert fingerprints == {
+        (
+            BINDING.TriggerGateBindingError,
+            "invalid trigger gate binding",
+            ("invalid trigger gate binding",),
+            None,
+            None,
+        )
+    }
+
+
+def test_mask_for_canonical_predicate_rejects_nonmember_uniformly():
+    predicate = IR.emit_predicate(IR.TriggerGateIR(0))
+
+    class PredicateSubclass(str):
+        pass
+
+    failures = (
+        lambda: BINDING.mask_for_canonical_predicate(
+            "izanagi_gate_pass = true;"),
+        lambda: BINDING.mask_for_canonical_predicate(predicate + " // comment"),
+        lambda: BINDING.mask_for_canonical_predicate(predicate.encode("utf-8")),
+        lambda: BINDING.mask_for_canonical_predicate(None),
+        lambda: BINDING.mask_for_canonical_predicate(
+            PredicateSubclass(predicate)),
     )
     fingerprints = {
         (type(exc), str(exc), exc.args, exc.__context__, exc.__cause__)

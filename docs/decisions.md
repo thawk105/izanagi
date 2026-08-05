@@ -8994,3 +8994,142 @@ commitment 原像への wire 混入) を一時変異させ、3 件とも当該 n
   本 wave が作った probe が恒真かどうかには答えない。
 
 **一般化の射程:** 独立 2 例が揃っていないため族全体への制度化はしない。本 wave の方法として記録する。
+
+## D185. trigger record の期待名は emitter の正引きで決め、逆文法パーサを作らない (2026-08-06)
+
+**決定:** 凍結文書の trigger record について `name` と `gate_predicate` の一致を検査するとき、
+期待値は次の**正引き**で得る。
+
+1. 述語 → mask (`trigger_gate_binding.mask_for_canonical_predicate`、32 正準述語の逆 index)
+2. mask → 要因部分集合 (`GATEABLE_REASONS` の bit 順)
+3. 要因部分集合 → 正準名 (`s8a_trigger_sweep.subset_name`)
+
+`g_rl` のような名を文法として逆パースする実装は作らない。名の権威は emitter 側にあり、
+検査側が文法を二重実装すると drift する。
+
+`ident_all` は全要因 mask の明示 alias として index へ登録する。全要因 mask には
+`subset_name` が返す通常名と `ident_all` の 2 つの正当な名があり、configuration 固有の名称制限は
+加えない。それは name↔mask 一致を越える schema 拡張になる。
+
+**emitter 名の単射性は仮定せず検査する。** mask 0〜31 の全点で index を構築し、同じ名が 2 つの mask へ
+現れたら fail-closed で止める。alias が既存名と衝突する場合も止める。
+
+**index の構築は初回検査呼出しまで遅延し、成功時だけキャッシュする。** module 読み込み時に構築すると、
+失敗が consumer の構造化拒否境界より前に出て raw import traceback と pytest collection error になる。
+遅延すれば各 consumer の既存例外境界の中で拒否として現れる。
+
+**非 str の `name` は membership より先に exact 型検査で拒否する。** membership は `__eq__` を使うため、
+`__hash__` / `__eq__` を偽装した object が正準名と等価に見える。述語側は既に exact `str` を要求しており、
+名側だけ緩いのは非対称である。**この拒否経路の診断では対象 object の `repr` を呼ばない** —
+f-string の `!r` は例外構築より先に `__repr__` を実行するため、`__repr__` が例外を送出する入力で
+一様な拒否例外を送出できなくなる。
+
+**理由:**
+- 期待名の権威を emitter に一本化すると、名の文法が変わっても検査側の追随が要らない。
+- 単射性を仮定して正引きすると、略称が衝突した将来の emitter で同じ名が 2 つの mask を指し、
+  「name が指す mask」が一意でなくなる。仮定は検査で置き換える。
+- 遅延構築は fail-closed 性を落とさずに診断の構造を保つ。import は副作用の場所として不適切である。
+
+**却下した選択肢:**
+- 名の逆文法パーサ — 略称表の二重実装になり、emitter との drift を検出できない。
+- 期待名表のハードコード — 現行 3 名だけを固定する実装が全テストを通ってしまい、
+  他の mask を過剰拒否する欠陥を検出できない。
+- 検査 helper を `trigger_gate_binding` へ置く — 同 module は WAL・pipeline・loop から import され、
+  emitter は pipeline を import するため循環する。
+- module 読み込み時の index 構築 — 上記のとおり consumer の拒否境界を壊す。
+
+## D186. [T-412] 前置 — 受入形の未 stage 削除検査を trigger 非依存の fail-closed にし、[T-450] の `DW-O15` 削除を同じ変更単位で入れる (2026-08-06)
+
+**決定 (1): deletion preflight を受入形で trigger 非依存の fail-closed にする。** D97 決定 1(b) が
+定めた「bypass は `IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS=1` のみ、`final` trigger では不可」を
+supersede する。`tools/run_tests.py` から同 env の定数と全 bypass 分岐を削除し、git 検査が
+成立しない場合 (実行不能 / rc≠0 / decode 失敗) も受入形では rc=13 とする。
+`tools/pegasus/dispatch_compute.py` の tests task env allowlist からも同 key を外し、
+親 dispatcher が生成する request に載らないようにする。`_is_acceptance_run` は変更しない —
+targeted run を gate の外に置く正本であり、これを広げると開発の常用経路が止まる。
+
+**決定 (2): 受理集合の変化を両方向で記録する (D96 の手続義務)。** deletion preflight は
+**縮小のみ**で、受理から拒否へ移るのは 2 系統 (受入形 × 未 stage 削除 × legacy env=`1` × 非 final、
+および受入形 × git 検査失敗 × 非 final) だけである。一方 `tools/check_docs.py` の
+`_OPERATION_NUMBERS` から 15 を外す変更は**非単調**である — `DW-O15` を持つ文書集合を新たに拒否し、
+持たない集合を新たに受理する。「縮小のみ」は deletion preflight 単体の性質であって、
+本変更単位全体の性質ではない。境界テストは同じ変更単位で追随させた。
+
+**決定 (3): 「残余義務の完全機械化」は達成していないと明記し、`DW-O11` 第 2 文を残す。**
+段 3 の敵対レンズ 2 本が独立に示したとおり、(a) `PYTEST_ADDOPTS` が非空だと `_is_acceptance_run`
+は偽になるのに pytest は既定 target 全体を走るため、受入形の判定を外れたまま全走できる、
+(b) 受入結果と landed tip を結ぶ receipt が存在せず、land helper 自身が tested SHA を受入証明と
+みなさないと明記している、(c) 意図しない削除を**復元**しても緑になるため「stage が緑への唯一経路」
+も偽である。したがって剪定で回収できる bytes は **0** であり、`DW-O11` は削除せず、
+「git 検査不能」と「復旧・stage・復元」を含む形へ**是正**した (223 bytes、削除前と同値以下)。
+
+**決定 (4): task-run 台帳の bypass 使用 field は不要として閉じる。** D97 の「既知の残余」が挙げた
+3 limb のうち、bypass 使用 field は本決定で reader ごと bypass が消えるため、実装しても
+全 run で false にしかならない恒真な監査 field になる。残る 2 limb (隔離 checkout への
+modules cache 複製、rc 13/14 の診断粒度) は従来どおり据え置く。
+
+**却下した案:** (a) `exploratory-full` mode を新設して stage 前の全走を残す — API 設計であり、
+`DW-G04` の発火 path を本 wave で書けない。`git add -A` は commit ではなく `git reset` で戻せるため、
+探索用途は stage 後でも同一 tree を測れる。(b) bypass を存置したまま「機械化した」と記録する —
+escape hatch を残した機械化は規律 2 が名指しする reward hack の形である。(c) 受入 receipt と
+land 結線まで本変更単位へ含める — 受理集合を大きく変える設計であり、段 2 / 3 の攻撃を経ていない。
+(d) 計算ノード側 `_job_run` が request の `environment` を allowlist で再検査する — 別機構
+(機械をまたぐデータの信頼境界) であり、未知 key を拒否するか黙って落とすかの択一が未検討で、
+稼働中 job を落としうる。(a) 以外はいずれも裁定パッケージへ送る。
+
+**研究状態への影響:** certified 選択・レポート・proof chain の値は変わらない。変わるのは、
+受入形の全走が「未 stage 削除を含む木」や「git 検査が成立しない環境」で緑を返せなくなることと、
+dev-wave 文書予算が正味 55 bytes 空くことである。
+
+## D187. 代替 X (4 stripe・cache line 分離・固定回数 stripe 計算) は両 workload で部分回復し、生死確認は成立した — ただし J=1 の engineering screen であり正例 artifact ではない (2026-08-06)
+
+**決定 (1): 代替 X は成立したと記録する。** ユーザー裁定「択 (a) = O(1) stripe 計算 + cache line
+padding を備えた代替 X で probe を再走する」を実行し、事前登録した受理条件
+「両 workload で全標本が `mode1 < modeX < stock`」を満たした。D126 が不成立と記録した前候補の
+置き換えである。一次資料 = `output/insights/2026-08-05_t139-alt-x-probe/`。
+
+**実測 (Pegasus gen_S request `892042`、trace-disabled、t48、2 workload × 3 arm × 5 rep):**
+
+| workload | mode1 (劣化) | modeX (代替 X) | stock | modeX/mode1 | 回復率 |
+|---|---|---|---|---|---|
+| W1 高競合 write | 92,425 | 185,797 | 782,534 | 2.01x | 13.5% |
+| W2 中競合 mixed | 1,024,233 | 2,383,734 | 10,434,011 | 2.33x | 14.4% |
+
+前候補は W1 で 1.36x、**W2 で 0.85x と逆転**していた。
+
+**決定 (2): stripe 数は 4 とし、その理由を「stock との分離」に置かない。** 親 brief は
+「増やすと stock へ近づきすぎる」として 2 を選んだが、定量的に支持されない — stock/mode1 は
+W1 で約 8 倍・W2 で約 10 倍あり、4 stripe でも上限側の余裕は十分である。下限側は 2 stripe だと
+W2 で前候補の最良値から +17% を要し、余裕が小さい。加えて**回復幅が大きいほど標準化効果が大きく、
+RF 統計設計が裁定した二段階設計 (大きい効果に絞る) の本走が成立しやすい**。
+この選択は前回 raw だけを入力とし、**新しい走行の結果を見る前に**確定した。
+
+**決定 (3): stripe 関数は先頭窓・中央窓・末尾窓・長さ・storage を固定回数 load で混ぜる。**
+`transaction.cc` は YCSB 専用ではないため、可変長 key で退化しない形が要る。親が実測したところ、
+**末尾窓だけ、および先頭窓 + 末尾窓 + 長さのいずれも、共通 prefix と共通 suffix を持つ同一長の
+key 族では 100% が 1 stripe へ退化した**。中央窓を入れて最大 bucket 占有率 27.10% に収まった。
+per-byte loop は持たない (YCSB の 8 byte key では従来の byte 走査が実質 O(1) と同じ回数になり、
+「O(1) 化」が測定対象上で何も変えないため)。
+
+**決定 (4): 本 study は engineering screen であり、適格性を主張しない。** J=1・未較正・
+非適格として `verdict.tsv` と事前登録の双方に明示した。適格性の権威は独立 validator だけが持ち
+(D162 決定 1・3)、その validator と consumer は未実装である。**したがって非発行の理由は
+「権威境界が未裁定だから」ではなく「J=1 であり validator が無いから」である。**
+
+**決定 (5): 機序の帰属をしない。** 本 study は cache line 分離・stripe 計算の固定回数化・
+stripe 数の 3 つを同時に変えた。どれが効いたかは分離していない。ablation は別の事前登録 study とする。
+
+**決定 (6): 実装と事前登録を実走前に commit し、実走を commit へ束縛する。** job は投入時に渡した
+期待 commit と job 開始時の HEAD の exact 一致を要求し、その commit の blob だけを展開する。
+依存は pin の Git object から不変 snapshot を作り、書き込み用の複製と bytes 同一性を照合する。
+queue 待ちの間に HEAD が進んでも、投入した identity 以外は実行されない。
+
+**却下した案:** (a) 第 4 arm として旧候補を残す — run 数・liveness 件数・受理条件が変わり、
+事前登録する問い自体が変わる。(b) 共有 policy の依存 path を書き換える — 凍結済み証拠が
+その sha256 を pin しており、他タスクの証拠を壊す (D107 / D110 が既に却下した型)。
+(c) 結果を見てから stripe 数や workload を変える — 事後調整であり D126 決定 (4) に反する。
+
+**研究状態への影響:** certified 選択、材料レポート、proof chain、凍結 bytes、既存 gate は
+いずれも不変である。probe は gate を新設せず受理集合を変えないため**変異 matrix は対象外**。
+変わるのは、[T-139] の状態が「代替 X の設計待ち」から「**生死確認は成立、後続は RF 統計設計に
+準拠した本走の設計**」へ進んだことである。
