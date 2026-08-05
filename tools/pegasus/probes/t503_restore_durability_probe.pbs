@@ -1,0 +1,89 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=00:10:00
+#PBS -b 1
+
+if [[ -z "${T503_ROOT:-}" || -z "${T503_MODE:-}" || -z "${T503_KILL_MODE:-}" \
+      || -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
+  exit 2
+fi
+[[ "$T503_ROOT" == /* ]] || exit 2
+[[ "$T503_MODE" == atomic || "$T503_MODE" == inplace-partial ]] || exit 2
+[[ "$T503_KILL_MODE" == sigkill || "$T503_KILL_MODE" == walltime ]] || exit 2
+
+check_no_symlink_components() {
+  local path=$1 component current=/
+  local -a components
+  [[ "$path" == /* ]] || return 1
+  IFS=/ read -r -a components <<< "$path"
+  for component in "${components[@]}"; do
+    [[ -z "$component" ]] && continue
+    if [[ "$current" == / ]]; then current="/$component"; else current="$current/$component"; fi
+    [[ ! -L "$current" ]] || return 1
+  done
+}
+
+umask 077
+set -o noclobber
+REAL_WORKDIR=$(realpath -e -- "$PBS_O_WORKDIR") || exit 2
+[[ "$REAL_WORKDIR" == "$PBS_O_WORKDIR" ]] || exit 2
+check_no_symlink_components "$REAL_WORKDIR" || exit 2
+check_no_symlink_components "$T503_ROOT" || exit 2
+PROBE="$REAL_WORKDIR/tools/pegasus/probes/t503_restore_durability_probe.py"
+PBS_SOURCE=$(realpath -e -- "$0") || exit 2
+[[ -f "$PROBE" && ! -L "$PROBE" && -f "$PBS_SOURCE" && ! -L "$PBS_SOURCE" ]] || exit 2
+check_no_symlink_components "$PROBE" || exit 2
+PY=$(command -v python3.10) || exit 2
+PROBE_SHA256=$(sha256sum -- "$PROBE" | awk '{print $1}') || exit 2
+PBS_SHA256=$(sha256sum -- "$PBS_SOURCE" | awk '{print $1}') || exit 2
+
+for name in targets journal ready writer.log writer-info go-kill crash-receipt \
+            inspect.json inspect-receipt repair.json verify.json leg-summary.json; do
+  [[ ! -e "$T503_ROOT/$name" && ! -L "$T503_ROOT/$name" ]] || exit 2
+done
+
+"$PY" -I -B "$PROBE" prepare-root --root "$T503_ROOT" \
+  --output "$T503_ROOT/root-durability.json" || exit $?
+REAL_ROOT=$(realpath -e -- "$T503_ROOT") || exit 2
+[[ "$REAL_ROOT" == "$T503_ROOT" ]] || exit 2
+check_no_symlink_components "$REAL_ROOT" || exit 2
+
+"$PY" -I -B "$PROBE" write --root "$REAL_ROOT" --mode "$T503_MODE" \
+  --pbs-jobid "$PBS_JOBID" --pbs-sha256 "$PBS_SHA256" --block \
+  > "$REAL_ROOT/writer.log" 2>&1 &
+WRITER_PID=$!
+
+READY_WAITED=0
+while [[ ! -e "$REAL_ROOT/ready" && "$READY_WAITED" -lt 300 ]]; do
+  kill -0 "$WRITER_PID" 2>/dev/null || exit 6
+  sleep 1
+  READY_WAITED=$((READY_WAITED + 1))
+done
+if [[ ! -e "$REAL_ROOT/ready" ]]; then
+  kill "$WRITER_PID" 2>/dev/null || true
+  wait "$WRITER_PID" 2>/dev/null || true
+  exit 6
+fi
+
+if [[ "$T503_KILL_MODE" == walltime ]]; then
+  # walltime は allocation 終了の proxy であり、物理ノード死を証明しない。
+  while kill -0 "$WRITER_PID" 2>/dev/null; do sleep 5; done
+  wait "$WRITER_PID" 2>/dev/null
+  exit 6
+fi
+
+GO_WAITED=0
+while [[ ! -e "$REAL_ROOT/go-kill" && "$GO_WAITED" -lt 300 ]]; do
+  kill -0 "$WRITER_PID" 2>/dev/null || exit 6
+  sleep 1
+  GO_WAITED=$((GO_WAITED + 1))
+done
+[[ -e "$REAL_ROOT/go-kill" ]] || exit 6
+kill -9 "$WRITER_PID" 2>/dev/null || exit 6
+wait "$WRITER_PID" 2>/dev/null
+WAIT_STATUS=$?
+kill -0 "$WRITER_PID" 2>/dev/null && exit 6
+"$PY" -I -B "$PROBE" record-crash --root "$REAL_ROOT" \
+  --pid "$WRITER_PID" --wait-status "$WAIT_STATUS" || exit $?
+exit 0
