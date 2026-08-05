@@ -51,6 +51,10 @@ title: 資源分類の実測をユーザー端末の手番として明文化し�
   `spool_fold.py --dry-run` が担う — commit 直前に両者の緑を実測した。
 - 段 2・3 は DW-C00 の軽量版として省略した (docs-only につき実装子なし)。段 1 で受理集合・
   正しさ防壁・設計択一のいずれにも触れないことを確認した上での省略である。
+- **段 8 候補 2 件のうち 1 件は起票しなかった。** 「新規 worktree の submodule 未初期化で
+  `check_wave_startup.py` が必ず赤になるのに `DW-O20` が触れていない」は本 wave でも実測したが、
+  land 直前に取り込んだ local main で、並行 wave が同じ事実を [T-432] の 4 件目として既に
+  記録していた。独立再観測の価値より重複起票の害が大きいので、[T-432] へ寄せた。
 
 ## 次の一手差分
 
@@ -81,8 +85,4 @@ title: 資源分類の実測をユーザー端末の手番として明文化し�
   must-fix (虚偽の事実記述・未実施検査の完了記録) を出し、うち 3 件は親自身の fix が作った
   欠陥だった。(b) は段構成と軽量版の境界に触るため実装せず裁定へ返す。(a) は
   `docs/dev-wave/mutation.md` の既存節へ 1 文で入るが、`docs/dev-wave/**` の byte 予算があり
-  [T-521] と同じ交換制 ([T-505] 恒久機構) の適用が前提になる
-- {{T:dev-wave-worktree-submodule-init}} **P3・新規**: 背景 job が新しい worktree を作ると
-  submodule が未初期化で、`tools/check_wave_startup.py` が必ず赤になる (本 wave で実測)。
-  `DW-O20` は startup checker の実行を義務づけるが、この既定の赤と `git submodule update --init`
-  での復旧に触れていない。数語の追記だが `docs/dev-wave/**` の予算交換が要る
+  [T-521] と同じ交換制 ([T-505] 恒久機構) の適用と、[T-432] が数える予算残の解消が前提になる
