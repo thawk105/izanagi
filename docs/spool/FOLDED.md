@@ -362,3 +362,9 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"0a9940e2b1e02c43a79da18661139a86db78a792fc24c7de06bed90ecfe05454","seq":1,"wave":"dev-wave-t244-p3-reservation-fsm"}
 - {"allocations":{"D:mutation-attribution-masked-by-earlier-layer":"D190","D:origin-ledger-prequery-reservation":"D189"},"authored":"2026-08-06","content_sha256":"09491e30f01dccc033c6ceda3835611331ae3b0d68984bbc0f3148ffde293184","seq":1,"wave":"dev-wave-t244-p3-reservation-fsm"}
+
+- {"allocations":{"T:certify-attempt-path-runbook":"[T-562]","T:certify-midjob-source-drift":"[T-563]","T:certify-reservation-formula":"[T-561]","T:independent-verifier-receipt":"[T-560]","T:publish-transaction-position":"[T-559]"},"authored":"2026-08-06","content_sha256":"a8edebb86b635bdd960029025e9515733916df1f7de382689f385aeef4282efc","seq":1,"wave":"dev-wave-t419-u2-recalibration"}
+- {"allocations":{"D:certify-clock-gate-early-and-published-recheck":"D191"},"authored":"2026-08-06","content_sha256":"8e32a7bcc93e6e8df58a8e20a9341de5886e99c48ef31a7b561e5e8cc13a36ce","seq":2,"wave":"dev-wave-t419-u2-recalibration"}
+- {"allocations":{"F:cleanup-fix-creates-destructive-path":"F137","F:mutation-expected-nodes-underregistered":"F138"},"authored":"2026-08-06","content_sha256":"fd915b5d32fb0e35785603d110cefbcd4c95ad811b19164c604c756e7543c22b","seq":3,"wave":"dev-wave-t419-u2-recalibration"}
+- {"allocations":{"T:certify-pinned-dependency-sources-missing":"[T-564]"},"authored":"2026-08-06","content_sha256":"466ae95956cb0deec3eb29b9416322122618027099bdf15b3548289a622e5309","seq":4,"wave":"dev-wave-t419-u2-recalibration"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"a8b25368f5d51fe3a0bd2fd6e43f10da7ab8cc2bcbce5a3a36d1aa0b4768f170","seq":5,"wave":"dev-wave-t419-u2-recalibration"}
