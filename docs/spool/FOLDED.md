@@ -336,3 +336,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:brief-missed-closed-vocabulary":"F131","F:fix-inflated-disposable-probe":"F132"},"authored":"2026-08-05","content_sha256":"738c90a98283e6e77a8455a4e12294a1496e4d2ef6ec4a1424059495da7811b7","seq":3,"wave":"dev-wave-t244-p3-liveness"}
 
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"c88894833f585a48e99929cb131e6070c4f8a792f3a5517eac3a44e69b116f8d","seq":4,"wave":"dev-wave-t244-p3-liveness"}
+
+- {"allocations":{"T:holdout-name-mask-bypass":"[T-544]","T:s1b-pairing-mask-identity":"[T-543]"},"authored":"2026-08-06","content_sha256":"986b35902528975dce3d34ca5e6af0cc80ac29205b81720df76a9b67785ea92a","seq":1,"wave":"dev-wave-t532-name-mask-binding"}
+- {"allocations":{"D:trigger-name-mask-forward-authority":"D185"},"authored":"2026-08-06","content_sha256":"6f2cbfdfd9c73abe73683d0009a779a4a049b61db7b675017858b8a8670579ca","seq":2,"wave":"dev-wave-t532-name-mask-binding"}
+- {"allocations":{"F:scan-order-false-kill":"F133"},"authored":"2026-08-06","content_sha256":"611b843835dc9ed6753a24acd9b1a30c60c62538e1f8744f7708babc409c560e","seq":3,"wave":"dev-wave-t532-name-mask-binding"}

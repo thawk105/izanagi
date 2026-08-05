@@ -20,6 +20,7 @@ __all__ = [
     "canonicalize_predicate",
     "expected_predicate_sha256",
     "is_canonical_predicate",
+    "mask_for_canonical_predicate",
     "new_nonce",
     "canonical_json",
     "commitment",
@@ -94,9 +95,16 @@ def _build_canonical_predicate_index(emitted: Iterable[str]) -> dict[str, str]:
     return index
 
 
-_CANONICAL_PREDICATE_INDEX = _build_canonical_predicate_index(
+_CANONICAL_PREDICATES_BY_MASK = tuple(
     emit_predicate(TriggerGateIR(mask)) for mask in range(32)
 )
+_CANONICAL_PREDICATE_INDEX = _build_canonical_predicate_index(
+    _CANONICAL_PREDICATES_BY_MASK
+)
+_CANONICAL_PREDICATE_MASK_INDEX = {
+    predicate.strip(): mask
+    for mask, predicate in enumerate(_CANONICAL_PREDICATES_BY_MASK)
+}
 CANONICAL_PREDICATES: frozenset[str] = frozenset(_CANONICAL_PREDICATE_INDEX)
 
 
@@ -108,6 +116,16 @@ def canonicalize_predicate(text: object) -> str:
     if key not in _CANONICAL_PREDICATE_INDEX:
         _reject()
     return _CANONICAL_PREDICATE_INDEX[key]
+
+
+def mask_for_canonical_predicate(text: object) -> int:
+    """Recover the mask encoded by one accepted canonical predicate."""
+    if type(text) is not str:
+        _reject()
+    key = text.strip()
+    if key not in _CANONICAL_PREDICATE_MASK_INDEX:
+        _reject()
+    return _CANONICAL_PREDICATE_MASK_INDEX[key]
 
 
 def is_canonical_predicate(text: object) -> bool:
