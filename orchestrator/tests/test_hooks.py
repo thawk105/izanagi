@@ -890,6 +890,46 @@ def test_bash_login_rejects_mutating_or_unknown_ninja_tools():
         assert not ok, f"読み取り専用でない ninja tool が login で通った: {cmd!r}"
 
 
+_FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS = (
+    "python3 tools/pegasus/fetch_third_party.py fetch",
+    "python3 ./tools/pegasus/fetch_third_party.py hydrate",
+    "./tools/pegasus/fetch_third_party.py verify",
+    "python3 tools/pegasus/fetch_third_party.py verify-deps",
+)
+
+
+def test_bash_login_allows_fetch_third_party_sanctioned_spellings():
+    """exact path 1 本が 4 つの local-ok subcommand を受理することを守る。"""
+    for cmd in _FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS:
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"sanctioned な third-party 取得経路が拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_fetch_third_party_entry_is_exact():
+    """sanctioned な受理集合が repo 内の実在する exact path 1 本であることを守る。"""
+    assert "tools/pegasus/fetch_third_party.py" in GB._SANCTIONED_PATHS
+    assert os.path.isfile(os.path.join(
+        _REPO, "tools", "pegasus", "fetch_third_party.py"))
+
+
+def test_bash_login_fetch_third_party_does_not_sanction_siblings():
+    """collect_receipt.py は login 手順なので未裁定の拒否を pin しない。
+    control は login 手順にない計算ノード側 job script から選ぶ。"""
+    for cmd in (
+        "bash tools/pegasus/certify_calibration.sh",
+        "python3 tools/pegasus/run_probe.py",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"非 sanctioned な Pegasus 兄弟が login で通った: {cmd!r}"
+
+
+def test_bash_compute_allows_fetch_third_party_spellings():
+    """login 用 sanctioned 追加が compute の既存受理集合を縮小しないことを守る。"""
+    for cmd in _FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS:
+        ok, why = GB.decide(cmd, site="PEGASUS_COMPUTE")
+        assert ok, f"compute の third-party 取得経路が拒否された: {cmd!r} ({why})"
+
+
 _PROVENANCE_SANCTIONED_SPELLINGS = (
     "python3 tools/check_ai_provenance.py --range 72849d3..HEAD",
     "python3 ./tools/check_ai_provenance.py --range 72849d3..HEAD",

@@ -1029,7 +1029,7 @@ def _role_subprocess_shim(path: Path) -> Path:
         "elif 'gating_spec' in payload:\n"
         "  role = 'coder'\n"
         "  result = {'proposal': {'axis': 'silo-backoff-trigger-gating', "
-        "'implementation': 'izanagi_gate_pass = true;', "
+        "'wire': '11111', "
         "'justification': 'wrapper fixture', 'confidence': 'low'}}\n"
         "elif 'working_diff' in payload:\n"
         "  role = 'auditor'\n"
@@ -1386,6 +1386,8 @@ def test_p1_flag_omitted_run_trial_has_no_transport_io_or_fields(
     original_now = A._now_iso
     original_provider_now = CP._now_iso
     original_monotonic = A.time.monotonic
+    original_drive = A.trigger.drive_iteration
+    original_preview = A._preview
 
     def forbidden(name):
         def call(*args, **kwargs):
@@ -1402,6 +1404,8 @@ def test_p1_flag_omitted_run_trial_has_no_transport_io_or_fields(
         A._now_iso = lambda: "2026-08-01T00:00:00+09:00"
         CP._now_iso = lambda: "2026-08-01T00:00:00+09:00"
         A.time.monotonic = lambda: 0.0
+        A.trigger.drive_iteration = _dry_drive
+        A._preview = _dry_preview
         executable = str(_role_subprocess_shim(tmp_path / "p1-claude"))
         for index in range(2):
             run_root = tmp_path / f"p1-run-{index}"
@@ -1415,8 +1419,6 @@ def test_p1_flag_omitted_run_trial_has_no_transport_io_or_fields(
                 do_build=False,
                 max_wall_s=60,
                 claude_executable=executable,
-                drive=_dry_drive,
-                preview=_dry_preview,
             )
             disk_report = json.loads((run_root / "report.json").read_bytes())
             journal_events = [
@@ -1434,12 +1436,16 @@ def test_p1_flag_omitted_run_trial_has_no_transport_io_or_fields(
         assert calls == []
         assert artifacts[0] == artifacts[1]
     finally:
+        A._preview = original_preview
+        A.trigger.drive_iteration = original_drive
         A.time.monotonic = original_monotonic
         CP._now_iso = original_provider_now
         A._now_iso = original_now
         T._read_policy_bytes = original_reader
         T.site_policy.current_site = original_site
         A.admit_claude_transport = original_admit
+    assert A.trigger.drive_iteration is original_drive
+    assert A._preview is original_preview
 
 
 def test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers(
@@ -1454,6 +1460,8 @@ def test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers(
     original_reader = T._read_policy_bytes
     original_now = A._now_iso
     original_monotonic = A.time.monotonic
+    original_drive = A.trigger.drive_iteration
+    original_preview = A._preview
 
     def counted_site():
         calls["site"] += 1
@@ -1470,6 +1478,8 @@ def test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers(
         T._read_policy_bytes = counted_reader
         A._now_iso = lambda: "2026-08-01T00:00:00+09:00"
         A.time.monotonic = lambda: 0.0
+        A.trigger.drive_iteration = _dry_drive
+        A._preview = _dry_preview
         report = A.run_trial(
             trial_id="p2-flag-on",
             workloads=["ycsb-a"],
@@ -1481,15 +1491,17 @@ def test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers(
             max_wall_s=60,
             claude_executable=str(_role_subprocess_shim(tmp_path / "p2-claude")),
             allow_pegasus_compute_transport=True,
-            drive=_dry_drive,
-            preview=_dry_preview,
         )
     finally:
+        A._preview = original_preview
+        A.trigger.drive_iteration = original_drive
         A.time.monotonic = original_monotonic
         A._now_iso = original_now
         T._read_policy_bytes = original_reader
         T.site_policy.current_site = original_site
         A.os.environ = original_environ
+    assert A.trigger.drive_iteration is original_drive
+    assert A._preview is original_preview
     assert calls == {"site": 1, "policy": 1}
     assert report["status"] == "complete"
     assert report["transport_receipt"]["pbs_jobid"] == "987654.pegasus"
@@ -1601,6 +1613,7 @@ def _dry_drive(*args, **kwargs):
         "iteration": 1,
         "ran": True,
         "records": {},
+        "trigger_gate_binding_commitment": "b" * 64,
     }
 
 

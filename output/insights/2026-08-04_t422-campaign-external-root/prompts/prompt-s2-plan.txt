@@ -1,0 +1,52 @@
+あなたは izanagi の dev-wave 段 2 プラン起草者 (read-only) である。日本語で書く。
+
+まず /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/brief.md を読む。
+読めなければ何も起草せず「brief を読めない」とだけ出力して即終了する。
+
+タスク: brief の scope (exploration campaign の実行先を wave worktree の外へ向けられるようにする、
+F98 択 (iii)) を実装する file:line 粒度のプランを起草する。
+
+必ず読むコード (カレントは wave worktree の repo root):
+- orchestrator/campaign/layout.py (全文。特に exploration_campaign_layout,
+  ensure_exploration_namespace, ExplorationCampaignLayout, _campaign_slug, repo_output_root)
+- orchestrator/campaign/loop.py の run_campaign 前後 (90-140 行付近)
+- orchestrator/campaign/p3_kickoff.py:100-130、orchestrator/campaign/p3_s4_loop.py:660-700 と
+  790-930 の layout 構築箇所、p3_s4_loop_sort.py / p3_s4_loop_trigger_gating.py / p3_s4_red.py の
+  exploration_campaign_layout 呼び出し箇所
+- orchestrator/campaign/p3_autonomous_workload_trial.py:1030-1060, 1210-1275 (output_root 逆導出)
+- orchestrator/campaign/s8b_oracle_exploration.py:60-90 (--output-root CLI の既存形)
+- tools/dev_wave_land.py:780-800 (_verify_wave_clean)
+- orchestrator/tests/ の layout / campaign_layout / exploration を扱う既存テスト (grep で特定)
+- orchestrator/tests/test_dev_wave_land.py の fixture 構築部 (temp repo/worktree の作り方)
+
+プランに必ず含めるもの:
+1. 注入 seam の設計: 環境変数 1 本 (brief P1) の名称案 (IZANAGI_ 慣行)、優先順位
+   (明示 output_root 引数 > env > 既定 repo output root)、および env 値の検証
+   (絶対 path 要求か、repo 内 path を拒否するか、symlink の扱い、空文字の扱い)。
+   どの関数の何行目にどう入れるかを diff 形式に近い粒度で示す
+2. 影響を受ける呼び出し元の全列挙と、それぞれ変更が必要か不要か (env seam が layout.py に
+   入れば呼び出し元は不変で済むか)。p3_autonomous_workload_trial.py の逆導出と
+   p3_s4_loop*.py の layout.root 同一性比較が env 設定時に自壊しないかを個別に検討する
+3. F98 再発検知テストの設計 (brief P3): temp git repo + worktree fixture で
+   (a) env 設定時に campaign layout ensure 後の worktree が git status 空で
+   _verify_wave_clean 相当を通る、(b) env 未設定 (既定) では worktree 内に生成され
+   拒否される対照、の 2 面。既存の test_dev_wave_land.py fixture を再利用できるか、
+   layout 側テスト (orchestrator/tests/) に置くべきかを file 名まで確定する
+4. 既存テストへの波及 (期待値を変えないで済む設計か)。env が親プロセスから漏れて
+   既存テストを汚す危険 (monkeypatch.delenv の要否) の検討
+5. docs の最小変更点 (機械固有 path を書かない範囲で、どの文書のどの節に何を足すか)
+6. 実装しない範囲の明示: guard_bash / dev_wave_land / durable_root は不変。
+   official CampaignLayout (campaign_layout) の経路は変えない
+
+制約 (違反プランは不採用):
+- 防壁コード (hooks/, tools/dev_wave_land.py, durable_root.py) の変更を含めない
+- env 未設定時の挙動は現行と byte 単位で同一
+- 機械固有の実 path をコード・テスト・docs に埋めない
+- _campaign_slug の traversal 防御と namespace marker の exact-bytes / symlink 拒否契約を弱めない
+- 既存テストの期待値変更を含めない
+
+read-only sandbox のため pytest は走らせなくてよい。静的検査 (コード読解) だけで書く。
+テストの緑赤の主張はしない (実測は親が行う)。
+
+出力: file:line 粒度のプラン全文。最後に必ず `## 総括` 節を置き、変更ファイル数・
+新規テスト数・リスク上位 3 点を要約する。

@@ -1,0 +1,237 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/ec980976a9be0d540a08fa77e3593b3e/izdw-ec980976a9.o887871",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/ec980976a9be0d540a08fa77e3593b3e/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.                                                                        [100%]\n1 passed in 2.07s\n",
+      "stdout_sha256": "f331523763fba1acbf78d48f1935e718d482774f4e0b9fb1b3e32c07d0d8e9c5"
+    },
+    "artifact_error": null,
+    "collection_sha256": "5cffa9456e72c9c36d9402e92cd3997072330cc7748dfe1e721e05c24a9dbf4c",
+    "duration_s": 21.705,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "806b6bceb7623451e93d608fbd4f996709d6bbe53e34701b2d1db547053e21ba",
+    "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+    "runner_sha256": "fcd62fb2047d85831eb2148f517c8dcc6074f8b8fe4999dfea82d45ea79d4445",
+    "spec_sha256": "ce18c9ab3fb73b61f96ee79132f831a6e52b66fd17e3ce707b05530ef70a233d",
+    "status": "PASSED",
+    "test_output_sha256": "f331523763fba1acbf78d48f1935e718d482774f4e0b9fb1b3e32c07d0d8e9c5",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+  },
+  "date": "2026-08-04T12:48:58.265544+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/b8aa5ad29b83a0f1acd0a101c1c454d7/izdw-b8aa5ad29b.o887878",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/b8aa5ad29b83a0f1acd0a101c1c454d7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n______ test_exploration_output_root_env_precedence_and_official_isolation ______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_exploration_output_root_env_precedence_and_official_isolation():\n        \"\"\"M1/M2: exploration だけが explicit > env > legacy default を使う。\"\"\"\n        sentinel = object()\n        saved_env = os.environ.get(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, sentinel)\n        saved_repo_output_root = layout_module.repo_output_root\n        layout_module._reset_exploration_output_root_pin_for_tests()\n        try:\n            os.environ.pop(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, None)\n            legacy = os.path.join(saved_repo_output_root(), \"..\", \"output\")\n            layout_module.repo_output_root = lambda: legacy\n            default_layout = exploration_campaign_layout(\"env-default\")\n            assert default_layout.root == os.path.join(\n                legacy, \"exploration\", \"campaigns\", \"env-default\",\n            )\n            layout_module.repo_output_root = saved_repo_output_root\n    \n            external = _tmpdir(\"izanagi_exploration_env_\")\n            os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = external\n            first = exploration_campaign_layout(\"env-first\")\n            second = exploration_campaign_layout(\"env-second\")\n>           assert first.root == os.path.join(\n                external, \"exploration\", \"campaigns\", \"env-first\",\n            )\nE           AssertionError: assert '/work/1/SFC/...gns/env-first' == '/tmp/izanagi...gns/env-first'\nE             \nE             - /tmp/izanagi_exploration_env_cvhrq424/exploration/campaigns/env-first\nE             + /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/exploration/campaigns/env-first\n\norchestrator/tests/test_campaign.py:3633: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation\n1 failed in 2.12s\n",
+        "stdout_sha256": "e5d2baf2d143b70bcc3784183551fc635405196470956cd0ea980af142638948"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5cffa9456e72c9c36d9402e92cd3997072330cc7748dfe1e721e05c24a9dbf4c",
+      "duration_s": 26.786,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "105206f47fc0a0545c4d275b98733c788d796c4130444222a1247e47a3ca2fb1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4a18f41617bbc540fe281f39ad352dce11c9ae2b173fe9c02b3874c7a0fd8be3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layout.py",
+          "new": "        configured = None\n",
+          "old": "        configured = os.environ.get(_EXPLORATION_OUTPUT_ROOT_ENV)\n"
+        }
+      ],
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "fcd62fb2047d85831eb2148f517c8dcc6074f8b8fe4999dfea82d45ea79d4445",
+      "spec_sha256": "ce18c9ab3fb73b61f96ee79132f831a6e52b66fd17e3ce707b05530ef70a233d",
+      "status": "KILLED",
+      "test_output_sha256": "e5d2baf2d143b70bcc3784183551fc635405196470956cd0ea980af142638948",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/1fe5d0de144e664dc183c8f9f248f57d/izdw-1fe5d0de14.o887882",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/1fe5d0de144e664dc183c8f9f248f57d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n______ test_exploration_output_root_env_precedence_and_official_isolation ______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_exploration_output_root_env_precedence_and_official_isolation():\n        \"\"\"M1/M2: exploration だけが explicit > env > legacy default を使う。\"\"\"\n        sentinel = object()\n        saved_env = os.environ.get(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, sentinel)\n        saved_repo_output_root = layout_module.repo_output_root\n        layout_module._reset_exploration_output_root_pin_for_tests()\n        try:\n            os.environ.pop(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, None)\n            legacy = os.path.join(saved_repo_output_root(), \"..\", \"output\")\n            layout_module.repo_output_root = lambda: legacy\n            default_layout = exploration_campaign_layout(\"env-default\")\n            assert default_layout.root == os.path.join(\n                legacy, \"exploration\", \"campaigns\", \"env-default\",\n            )\n            layout_module.repo_output_root = saved_repo_output_root\n    \n            external = _tmpdir(\"izanagi_exploration_env_\")\n            os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = external\n            first = exploration_campaign_layout(\"env-first\")\n            second = exploration_campaign_layout(\"env-second\")\n            assert first.root == os.path.join(\n                external, \"exploration\", \"campaigns\", \"env-first\",\n            )\n            assert os.path.dirname(os.path.dirname(first.root)) == os.path.join(\n                external, \"exploration\",\n            )\n            assert os.path.dirname(os.path.dirname(second.root)) == os.path.join(\n                external, \"exploration\",\n            )\n            official = campaign_layout(\"official-isolated\")\n            assert official.root == os.path.join(\n                saved_repo_output_root(), \"campaigns\", \"official-isolated\",\n            )\n    \n            os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = \"\"\n            explicit = \"legacy-relative-explicit-root\"\n>           explicit_layout = exploration_campaign_layout(\n                \"explicit-wins\", output_root=explicit,\n            )\n\norchestrator/tests/test_campaign.py:3649: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/layout.py:484: in exploration_campaign_layout\n    root = _resolve_exploration_output_root(output_root)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\noutput_root = 'legacy-relative-explicit-root', legacy_base = ''\n\n    def _resolve_exploration_output_root(\n        output_root: str = \"\", *, legacy_base: str = \"\",\n    ) -> str:\n        \"\"\"Resolve the exploration base root while preserving legacy callers.\n    \n        A non-empty explicit argument wins unchanged.  Only the environment path is\n        canonicalized and admitted, then pinned for the lifetime of the process.\n        \"\"\"\n        if output_root and os.environ.get(_EXPLORATION_OUTPUT_ROOT_ENV) is None:\n            return output_root\n    \n        # env read, admission, comparison, and pinning form one process-wide\n        # transaction shared by both supported module identities.\n        with _exploration_output_root_state[\"lock\"]:\n            configured = os.environ.get(_EXPLORATION_OUTPUT_ROOT_ENV)\n            current_pin = _exploration_output_root_state[\"pin\"]\n            if configured is None:\n                if current_pin is not None:\n                    raise ValueError(\n                        f\"{_EXPLORATION_OUTPUT_ROOT_ENV} が process 内で変更された\"\n                    )\n                return legacy_base or repo_output_root()\n            if configured == \"\":\n>               raise ValueError(f\"{_EXPLORATION_OUTPUT_ROOT_ENV} は非空でなければならない\")\nE               ValueError: IZANAGI_EXPLORATION_OUTPUT_ROOT は非空でなければならない\n\norchestrator/campaign/layout.py:308: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation\n1 failed in 2.14s\n",
+        "stdout_sha256": "a2eceb98bfccf924a9557db697e3cc2cbb80b3c027a859fefc44d857cb56ce7d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5cffa9456e72c9c36d9402e92cd3997072330cc7748dfe1e721e05c24a9dbf4c",
+      "duration_s": 21.729,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "d3d84ac9bb3b92aaf55268c704f1ed66b27db194846c89bddda89c2c41b48a31",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d539fe69efeecb88f581c06fdf777d940a0517496568b7c9cc5afb7f460260f0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layout.py",
+          "new": "    if output_root and os.environ.get(_EXPLORATION_OUTPUT_ROOT_ENV) is None:\n        return output_root\n",
+          "old": "    if output_root:\n        return output_root\n"
+        }
+      ],
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "fcd62fb2047d85831eb2148f517c8dcc6074f8b8fe4999dfea82d45ea79d4445",
+      "spec_sha256": "ce18c9ab3fb73b61f96ee79132f831a6e52b66fd17e3ce707b05530ef70a233d",
+      "status": "KILLED",
+      "test_output_sha256": "a2eceb98bfccf924a9557db697e3cc2cbb80b3c027a859fefc44d857cb56ce7d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/0f0f88696ccedc9f2955000a35dd8d02/izdw-0f0f88696c.o887868",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/output/pegasus-dispatch/0f0f88696ccedc9f2955000a35dd8d02/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation\n\n1 test collected in 0.16s\n",
+        "stdout_sha256": "884189345558afe6caabed8867770d6a39f5c983d1b50e73a99491d894fec29f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+      ],
+      "duration_s": 21.75,
+      "rc": 0,
+      "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+      "runner_sha256": "fcd62fb2047d85831eb2148f517c8dcc6074f8b8fe4999dfea82d45ea79d4445",
+      "spec_sha256": "ce18c9ab3fb73b61f96ee79132f831a6e52b66fd17e3ce707b05530ef70a233d",
+      "status": "PASSED",
+      "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "105206f47fc0a0545c4d275b98733c788d796c4130444222a1247e47a3ca2fb1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/layout.py",
+            "new": "        configured = None\n",
+            "old": "        configured = os.environ.get(_EXPLORATION_OUTPUT_ROOT_ENV)\n"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d3d84ac9bb3b92aaf55268c704f1ed66b27db194846c89bddda89c2c41b48a31",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/layout.py",
+            "new": "    if output_root and os.environ.get(_EXPLORATION_OUTPUT_ROOT_ENV) is None:\n        return output_root\n",
+            "old": "    if output_root:\n        return output_root\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "806b6bceb7623451e93d608fbd4f996709d6bbe53e34701b2d1db547053e21ba",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "0bc8b1e70b14668923a3a6980ac8c146e8778868",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_precedence_and_official_isolation"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7a19d99e6937d8a932a3a18fdfecbca04c82237f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "fcd62fb2047d85831eb2148f517c8dcc6074f8b8fe4999dfea82d45ea79d4445",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "ce18c9ab3fb73b61f96ee79132f831a6e52b66fd17e3ce707b05530ef70a233d",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t422-campaign-external-root/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "82433afbe96e71dcb693c726b5b35634952cda72c2a164c644dea5b9779e41bd",
+  "updated_at": "2026-08-04T12:50:10.919355+00:00"
+}

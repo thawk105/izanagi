@@ -1,0 +1,45 @@
+あなたは izanagi の dev-wave 段 6 の敵対レビュー子 (read-only) である。日本語で書く。
+これは自プロジェクトの実装差分に対する防御目的の内部レビューであり、攻撃対象は差分の欠陥だけである。
+
+まず次の 3 ファイルを読む。読めなければ「入力を読めない」とだけ出力して即終了する。
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/brief.md
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s4-ruling.md (裁定 = 受入基準)
+- /work/1/SFC/tanab/dev-wave-jobs/t422-campaign-external-root/s5-author.md (実装子の報告)
+
+レビュー対象はカレント repo (wave worktree) の未 commit 差分 (`git diff` で見る)。
+対象ファイル: orchestrator/campaign/layout.py、orchestrator/campaign/p3_autonomous_workload_trial.py、
+orchestrator/tests/test_campaign.py、orchestrator/tests/test_dev_wave_land.py、
+orchestrator/tests/conftest.py
+
+あなたのレンズ: **正しさ境界と gate 実効性**。守る側に回らず、壊す欠陥だけを探す。
+
+必ず検討する攻撃面 (主張は file:line で裏取り):
+1. s4-ruling.md の各採用項目 (A-1/A-2/A-4/A-5/B-1/B-3 と gate 署名) が実装と一致するか。
+   宣言と実装の食い違い・実装したふりを探す
+2. [恒真ゲート]: 新テストが常に緑になる形をしていないか。特に
+   - 例外 type だけ見て message を見ない assert が別要因の ValueError を誤許容しないか
+   - fake evaluate / monkeypatch が検査対象そのものを置き換えていないか
+   - `layout_module.os.geteuid` の書き換え (test_campaign.py の所有検査テスト) は global os を
+     変異する。他テスト・並列実行への漏れと復元の完全性
+3. gate 迂回: `_reject_worktree_container` の判定 (resolve 後 parts の連続 2 要素) を
+   すり抜ける実 path 形 (相対 path、trailing slash、`.claude` 単独、symlink で container 外へ
+   見せかける等)。`ensure()` 以外に ExplorationCampaignLayout を materialize する経路が
+   残っていないか (wal.write_lock / run_campaign が ensure を経ずに書く経路)
+4. pin の競合: process pin が複数 thread / 複数 module identity
+   (campaign.layout と orchestrator.campaign.layout の二重 import) で分裂しないか。
+   conftest は両 identity を reset するが、pin 自体は module 変数 — 二重 import 環境で
+   片方の pin だけ立つと何が起きるか
+5. env 検証の穴: `.git` 祖先検査は resolved path に対してだが、`_lstat_directory_components` は
+   resolve 前の candidate に対して走る — この順序で漏れる形はあるか。
+   `candidate.resolve(strict=False)` 後に再検査しない component はどれか
+6. 8c: `run_trial` の gate 位置は `run_root.exists()` 検査より前 — 例外 type (ValueError vs
+   AutonomousTrialError) の一貫性、CLI 側の error handling への影響
+7. 既定経路の bytes 不変: env 未設定時に repo_output_root() の返り値へ resolve() や
+   正規化が掛かっていないか (byte 単位の互換)
+
+各所見: 種別、深刻度、file:line、具体的な壊れ方 (どの値・受理集合・参照がどう変わるか /
+成果物影響 1 行)、修正方向 1 行。成果物影響を書けない所見は nit と明記する。
+所見ゼロの面は「攻撃したが破れなかった理由」を 1 行。
+
+read-only のため pytest は実走しない (静的検査でよい。実測は親が行う)。
+最後に必ず `## 総括` 節: real 候補数、must-fix 数、最深刻 1 件。

@@ -134,6 +134,385 @@ def test_claude_run_rejects_injected_providers_before_artifact(tmp_path) -> None
     assert not run_root.exists()
 
 
+def _assert_claude_call_rejected_before_side_effects(
+    tmp_path: Path,
+    *,
+    trial_id: str,
+    expected_match: str,
+    **overrides,
+) -> None:
+    run_root = tmp_path / trial_id
+    reached: list[str] = []
+    originals = {
+        "AttemptJournal": A.AttemptJournal,
+        "ensure_exploration_namespace": A.ensure_exploration_namespace,
+        "_provider_set": A._provider_set,
+        "_assert_build_site_opted_in": A._assert_build_site_opted_in,
+        "admit_claude_transport": A.admit_claude_transport,
+    }
+
+    def forbidden(name):
+        def call(*args, **kwargs):
+            reached.append(name)
+            raise AssertionError(f"driver injection rejection reached {name}")
+
+        return call
+
+    arguments = {
+        "trial_id": trial_id,
+        "workloads": ["ycsb-a"],
+        "generations": 1,
+        "provider_kind": "claude-headless",
+        "run_root": run_root,
+        "sub": "/unused",
+        "do_build": False,
+    }
+    arguments.update(overrides)
+    try:
+        for name in originals:
+            setattr(A, name, forbidden(name))
+        with pytest.raises(A.AutonomousTrialError, match=expected_match):
+            A.run_trial(**arguments)
+    finally:
+        for name, original in originals.items():
+            setattr(A, name, original)
+    for name, original in originals.items():
+        assert getattr(A, name) is original
+    assert reached == []
+    assert not run_root.exists()
+
+
+@pytest.mark.parametrize(
+    ("injected_names", "value_kind"),
+    [
+        pytest.param(("drive",), "current", id="drive-current"),
+        pytest.param(("preview",), "current", id="preview-current"),
+        pytest.param(("drive", "preview"), "current", id="both-current"),
+        pytest.param(("drive",), "fake", id="drive-fake"),
+        pytest.param(("preview",), "fake", id="preview-fake"),
+        pytest.param(("drive", "preview"), "fake", id="both-fake"),
+    ],
+)
+def test_claude_run_rejects_injected_drive_or_preview_before_artifact(
+    tmp_path, injected_names, value_kind,
+) -> None:
+    def fake_drive(*args, **kwargs):
+        raise AssertionError((args, kwargs))
+
+    def fake_preview(*args, **kwargs):
+        raise AssertionError((args, kwargs))
+
+    values = (
+        {
+            "drive": A.trigger.drive_iteration,
+            "preview": A._preview,
+        }
+        if value_kind == "current"
+        else {"drive": fake_drive, "preview": fake_preview}
+    )
+    injected = {name: values[name] for name in injected_names}
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id=f"driver-{value_kind}-{'-'.join(injected_names)}",
+        expected_match=(
+            r"^claude-headless drive/preview は caller 注入を許可しない\Z"
+        ),
+        **injected,
+    )
+
+
+def test_claude_run_rejects_non_callable_drive_before_artifact(tmp_path) -> None:
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id="driver-non-callable",
+        expected_match=(
+            r"^claude-headless drive/preview は caller 注入を許可しない\Z"
+        ),
+        drive=object(),
+    )
+
+
+def test_claude_run_rejects_non_callable_preview_before_artifact(tmp_path) -> None:
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id="preview-non-callable",
+        expected_match=(
+            r"^claude-headless drive/preview は caller 注入を許可しない\Z"
+        ),
+        preview=object(),
+    )
+
+
+@pytest.mark.parametrize("injected_name", ["drive", "preview"])
+def test_claude_run_rejects_adversarial_equality_driver_values_before_artifact(
+    tmp_path, injected_name,
+) -> None:
+    class _LooksOmitted:
+        def __eq__(self, other):
+            del other
+            return True
+
+        def __ne__(self, other):
+            del other
+            return False
+
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id=f"{injected_name}-adversarial-equality",
+        expected_match=(
+            r"^claude-headless drive/preview は caller 注入を許可しない\Z"
+        ),
+        **{injected_name: _LooksOmitted()},
+    )
+
+
+def test_claude_run_rejects_injected_drive_when_build_enabled(tmp_path) -> None:
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id="driver-build-enabled",
+        expected_match=(
+            r"^claude-headless drive/preview は caller 注入を許可しない\Z"
+        ),
+        do_build=True,
+        drive=A.trigger.drive_iteration,
+    )
+
+
+def test_provider_injection_rejection_precedes_driver_injection(tmp_path) -> None:
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id="provider-before-driver",
+        expected_match=(
+            r"^claude-headless provider は caller 注入を許可しない\Z"
+        ),
+        providers={},
+        drive=A.trigger.drive_iteration,
+    )
+
+
+def test_driver_injection_rejection_precedes_generation_budget(tmp_path) -> None:
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id="driver-before-generation-budget",
+        expected_match=(
+            r"^claude-headless drive/preview は caller 注入を許可しない\Z"
+        ),
+        generations=2,
+        drive=A.trigger.drive_iteration,
+    )
+
+
+def test_driver_injection_rejection_precedes_wall_validation(tmp_path) -> None:
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id="driver-before-wall-validation",
+        expected_match=(
+            r"^claude-headless drive/preview は caller 注入を許可しない\Z"
+        ),
+        max_wall_s=0,
+        drive=A.trigger.drive_iteration,
+    )
+
+
+def test_driver_injection_rejection_precedes_compute_transport(tmp_path) -> None:
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id="driver-before-compute-transport",
+        expected_match=(
+            r"^claude-headless drive/preview は caller 注入を許可しない\Z"
+        ),
+        allow_pegasus_compute_transport=True,
+        drive=A.trigger.drive_iteration,
+    )
+
+
+def test_provider_kind_rejects_str_subclass_before_artifact(tmp_path) -> None:
+    class _SneakyKind(str):
+        pass
+
+    _assert_claude_call_rejected_before_side_effects(
+        tmp_path,
+        trial_id="provider-kind-str-subclass",
+        expected_match=r"^provider kind は plain str 必須: _SneakyKind\Z",
+        provider_kind=_SneakyKind("claude-headless"),
+    )
+
+
+def test_driver_injection_rejection_creates_no_run_root_without_build_site_patch(
+    tmp_path,
+) -> None:
+    run_root = tmp_path / "driver-before-run-root"
+    reached: list[str] = []
+    originals = {
+        "AttemptJournal": A.AttemptJournal,
+        "ensure_exploration_namespace": A.ensure_exploration_namespace,
+        "_provider_set": A._provider_set,
+    }
+
+    def forbidden(name):
+        def call(*args, **kwargs):
+            reached.append(name)
+            raise AssertionError(f"driver injection rejection reached {name}")
+
+        return call
+
+    try:
+        for name in originals:
+            setattr(A, name, forbidden(name))
+        with pytest.raises(
+            A.AutonomousTrialError,
+            match=(
+                r"^claude-headless drive/preview は caller 注入を許可しない\Z"
+            ),
+        ):
+            A.run_trial(
+                trial_id="driver-before-run-root",
+                workloads=["ycsb-a"],
+                generations=1,
+                provider_kind="claude-headless",
+                run_root=run_root,
+                sub="/unused",
+                do_build=False,
+                drive=A.trigger.drive_iteration,
+            )
+    finally:
+        for name, original in originals.items():
+            setattr(A, name, original)
+    for name, original in originals.items():
+        assert getattr(A, name) is original
+    assert reached == []
+    assert not run_root.exists()
+
+
+def test_omitted_claude_drivers_resolve_before_finish_trial(tmp_path) -> None:
+    sequence: list[str] = []
+    captured = {}
+    original_provider_set = A._provider_set
+    original_finish_trial = A._finish_trial
+    expected_drive = A.trigger.drive_iteration
+    expected_preview = A._preview
+
+    def capture_provider_set(**kwargs):
+        sequence.append("provider-set")
+        assert kwargs["kind"] == "claude-headless"
+        return {}
+
+    def capture_finish_trial(**kwargs):
+        sequence.append("finish-trial")
+        captured.update(kwargs)
+        return {"status": "captured"}
+
+    try:
+        A._provider_set = capture_provider_set
+        A._finish_trial = capture_finish_trial
+        report = A.run_trial(
+            trial_id="omitted-claude-driver-resolution",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="claude-headless",
+            run_root=tmp_path / "omitted-claude-driver-resolution",
+            sub="/unused",
+            do_build=False,
+        )
+    finally:
+        A._finish_trial = original_finish_trial
+        A._provider_set = original_provider_set
+    assert A._provider_set is original_provider_set
+    assert A._finish_trial is original_finish_trial
+    assert report == {"status": "captured"}
+    assert sequence == ["provider-set", "finish-trial"]
+    assert captured["drive"] is expected_drive
+    assert captured["preview"] is expected_preview
+    assert captured["drive"] is not A._DRIVE_NOT_PROVIDED
+    assert captured["preview"] is not A._PREVIEW_NOT_PROVIDED
+
+
+def _fixture_preview(*args, **kwargs):
+    del args, kwargs
+    return {
+        "passed": False,
+        "working_diff": "",
+        "diff_digest": "0" * 64,
+        "subtype": "fixture",
+        "reason": "deterministic pre-audit stop",
+        "forbidden_identifiers": [],
+    }
+
+
+def _fixture_drive(*args, **kwargs):
+    del args, kwargs
+    return {
+        "outcome": "rejected",
+        "variant": "fixture-variant",
+        "verdict": "fixture-verdict",
+        "stop_reason": "continue",
+        "iteration": 1,
+        "ran": True,
+        "records": {},
+        "trigger_gate_binding_commitment": "b" * 64,
+    }
+
+
+def test_fixture_run_omitted_drivers_use_current_module_values(tmp_path) -> None:
+    calls = {"drive": 0, "preview": 0}
+    original_drive = A.trigger.drive_iteration
+    original_preview = A._preview
+
+    def drive(*args, **kwargs):
+        calls["drive"] += 1
+        return _fixture_drive(*args, **kwargs)
+
+    def preview(*args, **kwargs):
+        calls["preview"] += 1
+        return _fixture_preview(*args, **kwargs)
+
+    try:
+        A.trigger.drive_iteration = drive
+        A._preview = preview
+        report = A.run_trial(
+            trial_id="fixture-omitted-drivers",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=tmp_path / "fixture-omitted-drivers",
+            sub="/unused",
+            do_build=False,
+        )
+    finally:
+        A._preview = original_preview
+        A.trigger.drive_iteration = original_drive
+    assert A.trigger.drive_iteration is original_drive
+    assert A._preview is original_preview
+    assert report["status"] == "complete"
+    assert calls == {"drive": 1, "preview": 1}
+
+
+def test_fixture_run_keeps_drive_and_preview_injection(tmp_path) -> None:
+    calls = {"drive": 0, "preview": 0}
+
+    def drive(*args, **kwargs):
+        calls["drive"] += 1
+        return _fixture_drive(*args, **kwargs)
+
+    def preview(*args, **kwargs):
+        calls["preview"] += 1
+        return _fixture_preview(*args, **kwargs)
+
+    report = A.run_trial(
+        trial_id="fixture-explicit-drivers",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "fixture-explicit-drivers",
+        sub="/unused",
+        do_build=False,
+        drive=drive,
+        preview=preview,
+    )
+    assert report["status"] == "complete"
+    assert calls == {"drive": 1, "preview": 1}
+
+
 def test_tracker_pure_evaluator_rejects_duplicate_session_id() -> None:
     evaluation = evaluate_role_session_isolation(
         (("planner", "shared-session"), ("coder", "shared-session"))

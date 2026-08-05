@@ -390,6 +390,25 @@
 - 再発検知: スキル末尾の事後検査 (`git submodule status` が `-` prefix なしで pin 一致)。worktree
   掃除をスキル外で即興したらレビューで差し戻す
 
+
+- **再発: 2026-08-05** ([T-472] wave の land 後の worktree 撤去)。2026-08-01 の再発と**同一経路**
+  である。`git worktree remove` が `working trees containing submodules cannot be moved or removed`
+  で拒否した時点で、本エントリが定める判別 (「そこで手を止めて `/cleanup-branches` を読む」) を
+  実行せず、即興で `git -C <worktree> submodule deinit -f external/ccbench` を打った。
+  結果も同じで、共有 `.git/config` の `submodule.*` 登録が消え main checkout の
+  `git submodule status` が `-` prefix になった。復元は `git submodule update --init external/ccbench`
+  で即時、pin `d706650` 一致と並行 4 worktree (t452-t453 / t474 / t476 / token-economy) の
+  無影響を確認済み。実害は一時的。
+- **前回の再発が診断した経路欠落が塞がれていなかった。** 2026-08-01 の追記は
+  「dev-wave の段 9 は自分の worktree を畳むよう求めるが、その手順の正本が
+  `/cleanup-branches` §3 にあることを指していない」と特定していたが、`DW-S09` への
+  ポインタ追記は未実施のままだった。今回その追記を試みたところ
+  `docs/dev-wave/**` が hard ceiling 25200 bytes に対し 25377 bytes となり、
+  予算超過で入らなかった (上限は上げない規律のため撤回)。**恒久対応の経路は依然未実装**であり、
+  裁定へ返した。
+- 補足: memory `bg-job-closes-its-own-worktree` は deinit 禁止を本文に持っていたが、
+  索引 1 行だけを見て動いたため到達しなかった。索引行に禁止を明記する形へ更新済み
+  (repo 外の個人 memory)。
 ### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
 - 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
   `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
@@ -731,6 +750,11 @@
   走らせ、表示された rc=0 は `tail` のものだった。実際は Pegasus dispatch が queue-wait-timeout の
   infra 失敗で監査未実行。land 前に出力全文を読み直して検出し、単独 rc で再走した。O17 は単独 rc を
   既に要求しており手順は増補しない。
+
+- **再発: 2026-08-04** — 親が `run_tests.py ... | tail` で dispatch を投げ、pipeline rc (=tail) を
+  見て緑と誤読しかけた。dispatch の `result.json` の `child_rc=1` を突き合わせて実測前に検出し、
+  偽緑の記録には至っていない (near miss)。以後の受入・変異走行は rc をパイプに通さず
+  ファイルへ直接取得した。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -2331,6 +2355,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 赤の内容が `*_head` / `HEAD` / commit hash の不一致なら、まず自分の走行中 commit を疑う。
   `git reflog` の時刻と job の Started/Ended を突き合わせれば確定できる。
 
+
+- **再発: 2026-08-05** — [T-244] P4 batch freeze wave。今度は受入全走ではなく**変異 matrix の走行中**に、
+  親が段 7 の spool fragment を作って untracked file を増やした。`tools/mutation_harness.py` は
+  runner 実行前の preflight で untracked file を検出して `rc=2` で停止し、**偽の赤ではなく
+  fail-closed で止まった**。防壁が機能したので実害は再走の一手間だけである。
+  根本原因は F106 と同一で、長い走行を待ち時間とみなし、その間に別の段の作業を worktree 内で進めたこと。
+  「計算ノードへ dispatch するから自分の worktree を触っても影響しない」という誤認も同じである。
+  本 wave の親は同じ注意を自分の handoff に書いたうえで踏んだ。恒久対応は F106 のまま
+  (`DW-O19` の「本走は統合 commit 後に限る」と harness preflight) で、
+  **受入全走だけでなく変異本走にも同じ「投入から結果取得までは worktree を触らない」を適用する**
+  という読み方を本再発で顕在化する。段を跨ぐ待ち時間には repo 外の作業だけを置く。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -2393,3 +2428,83 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 上記 pin を破る定数固定化を変異 matrix (`M07`) が撃つ。
   E2E fixture のクランプ自体は本 wave の変更面ではないため、**除去は未実施**であり
   裁定へ返した項目に含まれる。
+
+### F110. 単独性の合格条件を「非自 process の CPU 時間ゼロ」にしたため、計算ノードでは決して満たせなかった [恒真ゲート] [計測汚染]
+
+- 事象: [T-419] の probe 因果実験を Pegasus 計算ノード bnode138 で走らせたところ、最初の arm (A0) で
+  競合を検出して fail-closed 停止し、因果の本体である A1 (pin sweep) が走らなかった。
+  検出された「競合」は NQSV 自身のノード常駐デーモン `nqs_shpd`
+  (uid 0、cgroup `/system.slice/nqs-jsv.service`、CPU 22、正の CPU 時間) だった。
+- 根本原因: 親が段 6 で裁定した単独性 gate が「非自 PID が正の CPU-time delta を持てば COMPETITOR」
+  という**到達不能な必要条件**だった。batch scheduler のノードデーモンは全計算ノードに常駐するため、
+  この条件は**どのノードでも永久に偽**になる。恒真ゲートの裏返し (恒偽ゲート) であり、
+  「厳しくして安全側」と見えて実際には**測定そのものを不可能にする**型である。
+  実機で走らせる前に、その機体に何が常駐しているかを実測していなかった。
+- 影響: 計算ノード job 1 本を消費して `execution_validity=INVALID` /
+  `causal_verdict=NOT_EVALUATED` だけを得た。F108 の因果は依然として未立証のまま。
+  ただし **fail-closed 自体は正しく働いており、無効な実験を有効な因果結論として記録しなかった**。
+- 恒久対応: **未実施 (ユーザー裁定待ち)。** 是正案は「`/system.slice` の uid 0 システムデーモンを
+  環境として記録し、テナントの競合と区別する」で、裁定パッケージ
+  `output/insights/2026-08-04_t419-probe-causality/ruling-package.md` §6 U-1b(i) に置いた。
+  実装面の修正には Codex `role=author` が要るが利用枠切れのため着手していない。
+- 再発検知: 同 insight の `mutation-ledger-2layer.json` が示すとおり、単独性 gate の
+  両分岐を同時に無効化する変異は `test_contention_invalidates_execution_and_verdict` と
+  `test_residual_above_self_unattributable_invalidates_and_stops_later_arms` を赤にする。
+  gate 自体はテストで pin 済みで、**欠けているのは「合格条件が到達可能か」の事前実測**である。
+
+### F111. permission で読めない診断 field を「不完全 = 致命」とし、裁定の三分類から逸脱した [手順漏れ]
+
+- 事象: 同じ実験で診断 snapshot が `pre.complete=False` になり、validity 理由
+  `diagnostic_snapshot_incomplete` が立った。原因は
+  `/sys/devices/system/cpu/cpufreq/policyN/cpuinfo_cur_freq` が 48 policy すべてで
+  Permission denied (非 root) だったことである。
+- 根本原因: 段 4 の親裁定は「**不在・不可読・値ありを区別して記録する**」(段 3 レンズ B-11 の採用) と
+  書いていたのに、実装は「不可読 → incomplete → validity 失敗」にしていた。
+  裁定文と実装の乖離を親が段 6 のレビューで捕まえられなかった (レビュー 3 本とも
+  `cpuinfo_cur_freq` の実可読性を実測していない。read-only 子には測れない)。
+- 影響: 上の F と重なって A1 以降を止めた。単独では致命ではないが、
+  **どの計算ノードでも常に成立する**ため、これ単独でも実験は永久に INVALID になる。
+- 恒久対応: **未実施 (ユーザー裁定待ち)。** 裁定パッケージ §6 U-1b(ii)。
+  裁定どおり「不可読」を記録値として扱い、incomplete=致命 にしない。
+- 再発検知: 「read-only の子が確認できない実環境の可読性・常駐プロセスは、実機の安価な 1 発で
+  親が先に測る」を段 1 の前提実測へ入れる。本 wave の段 1 はログインノードしか測っておらず、
+  計算ノード側は job を投げるまで未知のままだった。
+
+### F112. fix prompt の「既存テスト」が同 wave の未 land テストを含んで読め、fix 1 巡が編集ゼロで空振りした [手順漏れ] [コンテキスト浪費]
+
+- 事象: [T-471] 段 6 の fix 子が、指示された 14 所見のうち 1 件も編集せずに停止した。
+  停止理由は「凍結契約が要求する 5 arm を実装すると、既存テストの 4 arm 期待値が必ず赤になる。
+  『既存テストの期待値を変更しない』『期待値が誤りなら実装を変えず報告して止める』に従う」。
+  当該テストは同じ wave の段 5 が生成した untracked ファイルであった。
+- 根本原因: 親の fix prompt が `DW-S06-B` の定型「既存テストの期待値を変更しない」をそのまま
+  引き写し、**tracked な land 済みテストと、同 wave が段 5 で作った未 land のテストを
+  区別しなかった**。後者は fix の編集対象そのものだが、prompt からは読み取れなかった。
+  実装子の挙動自体は正しい fail-closed であり、欠陥は指示側にある。
+- 恒久対応: memory `fix-prompt-scope-tracked-tests` — fix prompt では「既存」を tracked に限定し、
+  同 wave の未 land テストは編集対象だと併記する。混在時は権威順序も書く。
+  **同じ規則を `DW-S06-B` 本文へ入れる案は dev-wave docs の hard ceiling (25200 bytes) に
+  収まらず、予算を上げないため裁定へ返した** (段 8 の予算契約どおり縮約でも収まらなかった)。
+- 再発検知: 段 6 の fix 子が編集ゼロで停止したら、まず prompt の権限境界文を疑う。
+  対応表が全件 `partial` かつ「実装した内容: 編集は行っていません」なら本型である。
+
+### F113. 変異事前登録に「赤くはなるが受理集合は変わらない」偽 kill を登録しかけた [恒真ゲート]
+
+- 事象: 段 4 で登録した共有層変異 (M5) の期待 node が
+  `test_p3_s4_loop.py::test_trigger_quarantine_rejects_noncanonical_text_before_structure_inspection`
+  だけだった。このテストは存在しない path を渡すため、membership を消すと後続の
+  ファイル読み込みが `FileNotFoundError` になって赤くなる。**node は赤くなるが、
+  非正準入力は依然 fail-closed のままで受理集合は変わっていない。**
+  同じ登録には他に 3 件の誤りがあった — 期待 node の不足 (2 件)、
+  「検査を省く」形の変異では正例テストが赤にならないこと (1 件)。
+- 根本原因: 親が事前登録を「gate を消せばそれを検査するテストが赤くなる」という
+  推論だけで書き、**赤の理由が受理集合の変化かどうかをテスト本体まで読んで確認しなかった**。
+  `DW-M01` が要求する「無効化時の赤理由が一つに絞れること」の確認を、
+  node 名の対応づけで代用していた。
+- 恒久対応: `DW-M01` / `DW-M03` の既存契約 (事前登録時に単一理由性をコードで確認する、
+  診断文字列だけの赤を kill にしない) を、段 6 の敵対レビュー 1 本のレンズへ明示的に入れる。
+  本 wave では段 6 レンズ B が走らせる前に 4 件すべてを検出し、是正後は
+  `tools/mutation_harness.py` の node 集合完全一致検査が 7/7 で通った。
+  是正しなければ harness は全て `MISMATCH` として fail-closed していた
+  (機械防壁は最終的に効くが、無駄な 1 巡を生む)。
+- 再発検知: `tools/mutation_harness.py` の期待 node 集合完全一致検査 (`MISMATCH` で停止)。
+  受理集合が変わらない変異は、事前登録の段階で診断感度 pin として別枠に分類する。

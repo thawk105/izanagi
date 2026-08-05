@@ -1,0 +1,151 @@
+{
+  "attempt_id": "20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9",
+  "canonical_byte_comparison": {
+    "candidates": [
+      "python3.10",
+      "/usr/bin/python3.10",
+      "/bin/python3.10"
+    ],
+    "canonical_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/tools/pegasus/dispatch_compute.py",
+    "canonical_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "canonical_template_sha256": "4146275a4dfff31e3d041007b0acc97f6307238c2c44dba378b24a6da019118b",
+    "files": {
+      "flock_cross_node.pbs": {
+        "file_sha256": "a91f4b660cd093581b00e25ece93a863355b1797f72f7f09f452914743bc72c3",
+        "interpreter_loop_exact_byte_matches": 1,
+        "path_line_exact_byte_matches": 1
+      },
+      "signal_job_body.sh": {
+        "file_sha256": "7d006d6fb453fc62d26628144c60b9109b36ca33ee9bbd160ce75fb2ca8d89ce",
+        "interpreter_loop_exact_byte_matches": 1,
+        "path_line_exact_byte_matches": 1
+      },
+      "signal_walltime_default.pbs": {
+        "file_sha256": "9f23b0e4ec3d0805cfad84b30f61f854b215fa63c1eac6178c58f843804e8b83",
+        "interpreter_loop_exact_byte_matches": 1,
+        "path_line_exact_byte_matches": 1
+      },
+      "signal_walltime_mitigation.pbs": {
+        "file_sha256": "48a90e28b9f016f647557f462617132d0659fe981436072a59363cba90f73e40",
+        "interpreter_loop_exact_byte_matches": 1,
+        "path_line_exact_byte_matches": 1
+      }
+    },
+    "path_line_sha256": "263bc1bad3492bd10009e18e4969fe86862153dc56413227cbc186be206fc7f1",
+    "rendered_interpreter_loop_sha256": "da4efe902cfcc7c6947ef21f5301123d807ed5c9386c120af0792e7c60f7a75e"
+  },
+  "command_paths": {
+    "git": "/usr/bin/git",
+    "qdel": "/opt/nec/nqsv/bin/qdel",
+    "qstat": "/opt/nec/nqsv/bin/qstat",
+    "qsub": "/system/tool/bin/qsub",
+    "qwait": "/opt/nec/nqsv/bin/qwait",
+    "racctjob": "/opt/nec/nqsv/bin/racctjob",
+    "racctreq": "/opt/nec/nqsv/bin/racctreq",
+    "rbudgetcheck": "/opt/nec/nqsv/bin/rbudgetcheck"
+  },
+  "driver_files_tracked": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_cross_node.pbs",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_interpreter_probe.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_probe.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_interpreter_probe.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_job_body.sh",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_observer.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_probe.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_default.pbs",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_mitigation.pbs",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_split_warning.pbs",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/README.md"
+  ],
+  "driver_hashes": {
+    "README.md": {
+      "sha256": "2110461e6218d82f3bdf95ab0efd7e5260400d1fde01e363d40f07e779354143",
+      "size": 14529
+    },
+    "flock_cross_node.pbs": {
+      "sha256": "a91f4b660cd093581b00e25ece93a863355b1797f72f7f09f452914743bc72c3",
+      "size": 1528
+    },
+    "flock_interpreter_probe.py": {
+      "sha256": "f780b55ddd529b5e5c927222ab2777da4a0098c94f9a0b35a32950b5d8c73ae5",
+      "size": 179
+    },
+    "flock_probe.py": {
+      "sha256": "a067de33839b033bb6b26b463deef90a746ddf78f1fc087b4557ebed77c790f6",
+      "size": 79214
+    },
+    "run_probes.py": {
+      "sha256": "12d710645fc251190b458698ca8ce4071df8b9ec0f1978712832a2c86f47975b",
+      "size": 201267
+    },
+    "signal_interpreter_probe.py": {
+      "sha256": "a08f87a24cddb4e42af747aef401756185e95cd5a92d726a966df16eb7af693e",
+      "size": 213
+    },
+    "signal_job_body.sh": {
+      "sha256": "7d006d6fb453fc62d26628144c60b9109b36ca33ee9bbd160ce75fb2ca8d89ce",
+      "size": 3521
+    },
+    "signal_observer.py": {
+      "sha256": "3c769c82639668f41a3faacded24235d7379017ac309385685bd78409858ce17",
+      "size": 73140
+    },
+    "signal_probe.py": {
+      "sha256": "938048b832056e615d8c764ecbdd5bf8f3b17e97686aab8bbd378338bd13c81c",
+      "size": 30251
+    },
+    "signal_walltime_default.pbs": {
+      "sha256": "9f23b0e4ec3d0805cfad84b30f61f854b215fa63c1eac6178c58f843804e8b83",
+      "size": 1389
+    },
+    "signal_walltime_mitigation.pbs": {
+      "sha256": "48a90e28b9f016f647557f462617132d0659fe981436072a59363cba90f73e40",
+      "size": 1473
+    },
+    "signal_walltime_split_warning.pbs": {
+      "sha256": "ffa7b3fa1a21cf245c2cf0240aff6645e2ce236a65ad63e360267dd21b894e75",
+      "size": 1005
+    }
+  },
+  "leg": "t362-mitigation",
+  "path_env_raw": "/home/SFC/tanab/.local/bin:/home/SFC/tanab/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/usr/local/bin:/system/tool/bin:/opt/nec/nqsv/bin",
+  "paths": {
+    "driver_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver",
+    "home_attempt_root": "/home/SFC/tanab/.izanagi-t361/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9",
+    "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation",
+    "stderr_template": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9/scheduler/t362-mitigation.%r.%03j.e",
+    "stdout_template": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9/scheduler/t362-mitigation.%r.%03j.o",
+    "work_attempt_root": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9"
+  },
+  "qsub_argv": [
+    "qsub",
+    "-v",
+    "T362_ATTEMPT_ID=20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9,T362_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T362_MODE=mitigation,T362_RUN_NONCE=20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9,T362_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9",
+    "-o",
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9/scheduler/t362-mitigation.%r.%03j.o",
+    "-e",
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9/scheduler/t362-mitigation.%r.%03j.e",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_mitigation.pbs"
+  ],
+  "qsub_environment": {
+    "T362_ATTEMPT_ID": "20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9",
+    "T362_DRIVER_ROOT": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver",
+    "T362_MODE": "mitigation",
+    "T362_RUN_NONCE": "20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9",
+    "T362_RUN_ROOT": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9"
+  },
+  "read_write_probes": {
+    "home": {
+      "path": "/home/SFC/tanab/.izanagi-t361/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9/home-read-write.probe.raw",
+      "sha256": "6cb8057d042134c67d636818cedea1c6a36552587157dc5a1d81e67358ba1f43"
+    },
+    "work": {
+      "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9/controller/work-read-write.probe.raw",
+      "sha256": "1bc43b3bb60d53660b8b0644655ea43a6631414d954f1dcec5045a8f697a67b0"
+    }
+  },
+  "schema": "izanagi-t361-t362-controller-preflight/v1",
+  "source_commit": "d71a9c13d8887315b7849f7518b5f42bca27cd24",
+  "time_ns": 1785848061848398314
+}

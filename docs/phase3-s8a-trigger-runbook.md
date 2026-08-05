@@ -53,17 +53,19 @@ axis は `"silo-backoff-trigger-gating"`。direction/magnitude の意味論を�
 禁止 (D43 の敵対レビュー裁定を継承。要因選択の推理は coder の専権)。
 
 ### (b) coder-v4-autonomous-trigger-gating spawn
-入力 JSON のフィールドは coder 定義 (草案) の「入力」節が正本。構築時の注意:
-- `gating_spec` (骨格抜粋) は coder 定義に**固定で埋め込まれた裸の enum メンバ名リスト**を
-  そのまま使う — 実 patch から都度抜粋しない (patch の per-member コメントに「YCSB では
-  発火しない要因」の情報が含まれ、偵察隣接の絞り込みヒントになる。E 段レビュー must-fix)。
+入力 JSON のフィールドは coder 定義の「入力」節が正本。構築時の注意:
+- coder の出力は **5 文字の wire** ([T-428] で C++ 1 行から縮小。bit 順・極性は coder 定義の
+  「合成対象と制約」節が正本)。`gating_spec` には同節を inline で渡す — 実 patch から都度
+  抜粋しない (patch の per-member コメントに「YCSB では発火しない要因」の情報が含まれ、
+  偵察隣接の絞り込みヒントになる。E 段レビュー must-fix)。
 - `baseline` は E 段 campaign 自身の実測 (throughput/abort率) — 偵察の数値は使わない。
 - whiteboard は `loop_state.json` の抽象 whiteboard (機序なし) をそのまま。
 
 ### (c) diff プレビュー
 ```
-python3 -m campaign.p3_s4_loop_trigger_gating --preview-diff <scratch>/impl.txt
+python3 -m campaign.p3_s4_loop_trigger_gating --preview-wire <5 文字の wire>
 ```
+preview も本走と同じ凍結 parser/emitter 経路で正準 C++ を導出する ([T-428])。
 `passed=false` は sort runbook §1(c) と同じ扱い (auditor を呼ばず coder へ差し戻し)。
 
 ### (d) auditor spawn
@@ -82,11 +84,14 @@ python3 -m campaign.p3_s4_loop_trigger_gating --run-iteration <scratch>/prop.jso
 ```
 - **`--allow-coder-derived-build` は必須** — coder 由来 source の build は既定拒否であり、
   この明示 opt-in が無ければ `BuildAdmissionError` で止まる (D125)。`--no-build` では不要。
-- pre-build 検査は 3 段: diff 検疫 (構造) → **構文契約 grep (語彙: 禁止識別子 =
-  subtype "syntax-contract" で機械 reject)** → auditor gate (digest 突合 + verdict)。
-- **grep 緑は auditor 目視義務を免除しない** — grep が執行するのは禁止リスト上の識別子
-  のみで、auditor 目視はその超集合 (恒真述語・fairness 誘導・意味的違反) を担う
-  (E 段レビュー FC-8 裁定)。
+- pre-build 検査 ([T-428] で wire-only 化): proposal は `wire` (5 文字) だけを受理し、
+  凍結 parser/emitter が正準 C++ を導出 → diff 検疫 (構造) + 32 正準文字列 membership
+  (汎用 sink 側) → auditor gate (digest 突合 + verdict)。旧「構文契約 grep」は受理 gate
+  ではなく emitter 出力への内部 drift assertion に格下げ。
+- **機械検査緑は auditor 目視義務を免除しない** — auditor 目視は意味面 (恒真述語・
+  fairness 誘導・意味的違反) を担う (E 段レビュー FC-8 裁定)。
+- 各 attempt の raw binding (mask 等) は専用 WAL record にのみ置かれ、provenance・report には
+  commitment だけが残る ([T-428]、開示境界)。
 - provenance: `reports/p3_s8a_trigger_loop_provenance.json` にヘッダ (入口) + iteration
   entry (checkpoint 前進の直前) が自動で焼かれる。**entry が書けないと checkpoint は
   前進しない** (fails-closed) — 破損停止時はエラーメッセージの退避パス (.corrupt.*) を

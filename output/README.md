@@ -21,6 +21,7 @@ output/
 ├── s1-budget/                    S-1 計測の時間台帳 (time_ledger.json)
 ├── s6-rounds/                    S-2/S-3 提案ラウンドの匿名化・採点・集計 provenance
 ├── s8b-freeze/                   段 8b holdout freeze (holdout_freeze.json)
+├── s8c-preregistration/          段 8c 事前登録の**条件契約** hash 世代台帳 (condition-freeze.v1.g<N>.json)。側置きの immutable generation で、前世代の bytes hash・変更理由・裁定参照を持つ。**発効の宣言物ではない** — 発効は判定器が commit ごとに導出する (docs/phase3-8c-preregistration.md §6)。承認 record・active pointer・失効 record は置かない
 ├── exploration/                  探索 (非公式) 成果物の隔離 namespace (D65。official が型と marker で拒否)
 │   ├── namespace.json            namespace marker (exact bytes)。official report が exploration root を拒否する唯一の根拠であり、hooks が改変・削除を拒否する
 │   ├── campaigns/<campaign-id>/  s4 driver 族 (p3_s4_loop / _sort / _trigger_gating / p3_s4_red / p3_kickoff / 8c build) の**新規** campaign。構造は campaigns/ と同一で、WAL と campaign.lock は同じく hooks の保護対象
@@ -33,8 +34,8 @@ output/
 
 `<campaign-id>` = `<spec-slug>-<search-tag>-<cfg-hash8>` (内容ハッシュ、D13)。`<env-tag>` = `linux-baremetal` 等。
 
-`s1-freeze/`・`s1-budget/`・`s6-rounds/`・`s8b-freeze/`・`reports/` は campaign をまたぐ登録済み主実験の
-補助成果物である。`s1-freeze/` には `known_axes_freeze.json` と `measurement_freeze.json` (freeze v2、
+`s1-freeze/`・`s1-budget/`・`s6-rounds/`・`s8b-freeze/`・`s8c-preregistration/`・`reports/` は campaign を
+またぐ登録済み主実験の補助成果物である。`s1-freeze/` には `known_axes_freeze.json` と `measurement_freeze.json` (freeze v2、
 18 セル・比較対・schedule・実装 hash) が生成済みで、後者は S-1 計測開始 gate を閉じる時点で凍結した。
 `s6-rounds/` は独立セッションの提案・匿名化・採点を結ぶ記録であり、通常の campaign 出力ではない。
 
@@ -53,6 +54,10 @@ output/
   campaign tree に同じ保護が掛かる** (D123) — namespace の移動で防壁の強さを変えない。
   `exploration/namespace.json` も改変・削除を拒否する (marker が消えると official report が
   exploration root を official として受理しうるため)。
+- **hooks の保護対象は repo 内の campaign tree だけ**である。exploration campaign は
+  `IZANAGI_EXPLORATION_OUTPUT_ROOT` で repo 外 (job 専用領域) へ実行先を出せる ([T-422] / F98) が、
+  外部 root は hooks 防護外の使い捨て領域であり、certified 材料・proof chain 素材を置かない。
+  proof chain へ入る材料は従来どおり repo 内の official 経路だけが正本である。
 - `exploration/autonomous-trials/` の journal は正式 proof chain ではないため、この保護の対象外である。
 - `reports/` と `insights/` は生成物・散文を置く射影先で、機械防護の対象外である。ただし WAL や source
   identity と矛盾する根拠を後から書き換えてよい意味ではない。report は入力証拠を参照可能に保つ。

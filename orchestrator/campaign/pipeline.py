@@ -46,9 +46,14 @@ from .build_admission import (  # noqa: E402
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
 from .env_contract import ExecutionEnvironmentContract          # noqa: E402
+from .axis_trigger_gating import (MARKER_ID as TRIGGER_MARKER_ID,
+                                  SOURCE_REL as TRIGGER_SOURCE_REL)  # noqa: E402
+from .diff_quarantine import parse_template_file                # noqa: E402
 from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
                     STAGE_BUILD_DONE, STAGE_BUILD_START, STAGE_COMMIT,
                     STAGE_VERIFY_DONE)
+from .reflux_ir import TriggerGateIR, emit_predicate             # noqa: E402
+from .trigger_gate_binding import SourceBinding, TriggerGateBinding
 from .source_digest import SourceEvidence                         # noqa: E402
 
 _DEFAULT_CXX = buildcache.DEFAULT_CXX
@@ -56,6 +61,27 @@ _compilers_for_current_site = buildcache.compilers_for_current_site
 
 BuildCapability = GeneratorReceipt | ReviewReceipt | None
 AdmissionCapabilityResolver = Callable[[SourceEvidence], BuildCapability]
+
+
+_TRIGGER_PREDICATE_REJECTION = (
+    "trigger binding predicate が materialized source と不一致"
+)
+
+
+def _require_materialized_trigger_predicate(
+        evidence: SourceEvidence, binding: TriggerGateBinding,
+) -> None:
+    """Bind one candidate mask to the exact one-line materialized source hole."""
+    source_path = os.path.join(evidence.source_root, TRIGGER_SOURCE_REL)
+    try:
+        marker = parse_template_file(source_path, TRIGGER_MARKER_ID)
+        hole_lines = None if marker is None else tuple(marker.hole_text.values())
+        expected = emit_predicate(TriggerGateIR(binding.mask)).strip().encode("utf-8")
+    except (OSError, UnicodeError, TypeError, ValueError):
+        raise BuildAdmissionError(_TRIGGER_PREDICATE_REJECTION) from None
+    if (hole_lines is None or len(hole_lines) != 1
+            or hole_lines[0].strip().encode("utf-8") != expected):
+        raise BuildAdmissionError(_TRIGGER_PREDICATE_REJECTION) from None
 
 
 def variant_id(genome: Genome, src_token: str = source_digest.STOCK) -> str:
@@ -449,7 +475,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              dependency_prefix: str = "", *,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
-             source_evidence: Optional[SourceEvidence] = None) -> EvalResult:
+             source_evidence: Optional[SourceEvidence] = None,
+             trigger_gate_binding=None) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -479,6 +506,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     `record_rep_returncodes` も既定 False の opt-in。True の official oracle 経路だけ、
     採用した再測定 round と identity で一意に対応する rep rc を bench_done に残す。
 
+    `trigger_gate_binding` は trigger proposal 専用。SourceEvidence 確定後に source-bound
+    binding を作り、raw record を build_start より先に、commitment だけを start payload
+    に記録する。None の既存 caller は従来 WAL 書式のまま。
+
     `screening` (D58) を指定したときだけ full bench を verify より前へ移し、明白な
     劣位点を uncertified のまま棄却する。COMMIT は従来どおり全 verify 構成通過後だけ。
 
@@ -491,6 +522,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     並列可 (lock.py の設計方針)。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    if trigger_gate_binding is not None and type(trigger_gate_binding) is not TriggerGateBinding:
+        raise TypeError("trigger_gate_binding は exact TriggerGateBinding または None が必要")
     if capability_resolver is not None and not callable(capability_resolver):
         raise TypeError("capability_resolver は callable または None が必要")
     if (isinstance(bench_max_rounds, bool) or not isinstance(bench_max_rounds, int)
@@ -551,12 +584,28 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # identity 核に持ち込まない, 規律2)。
     build_attempt_id = secrets.token_hex(16)
 
+    def _candidate_binding() -> Optional[TriggerGateBinding]:
+        if trigger_gate_binding is None:
+            return None
+        return TriggerGateBinding(
+            mask=trigger_gate_binding.mask,
+            predicate_sha256=trigger_gate_binding.predicate_sha256,
+            nonce=trigger_gate_binding.nonce,
+            source=None,
+        )
+
     def _prebuild_abort(reason: str, error: BaseException) -> EvalResult:
         v0 = variant_id(genome)
-        emit(layout, v0, STAGE_BUILD_START, env_tag, {
+        start_payload = {
             "genome": genome.canonical(),
             "build_attempt_id": build_attempt_id,
-        })
+        }
+        candidate = _candidate_binding()
+        if candidate is not None:
+            start_payload[wal.TRIGGER_BINDING_COMMITMENT_KEY] = wal.log_trigger_binding(
+                layout, v0, env_tag, build_attempt_id, candidate, emit=emit,
+            )
+        emit(layout, v0, STAGE_BUILD_START, env_tag, start_payload)
         emit(layout, v0, STAGE_ABORT, env_tag, {
             "reason": reason,
             "error": _exc_summary(error),
@@ -615,15 +664,49 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
 
     src_tok = evidence.src_token
     admission_receipt = admission.as_wal_receipt()
+    bound_binding = None
+    if trigger_gate_binding is not None:
+        try:
+            expected_source = SourceBinding(
+                src_token=evidence.src_token,
+                source_bytes_sha256=evidence.source_bytes_sha256,
+            )
+            if (trigger_gate_binding.source is not None
+                    and trigger_gate_binding.source != expected_source):
+                raise BuildAdmissionError(
+                    "trigger binding source が current SourceEvidence と不一致"
+                )
+            _require_materialized_trigger_predicate(evidence, trigger_gate_binding)
+            bound_binding = TriggerGateBinding(
+                mask=trigger_gate_binding.mask,
+                predicate_sha256=trigger_gate_binding.predicate_sha256,
+                nonce=trigger_gate_binding.nonce,
+                source=expected_source,
+            )
+            receipt_source = admission_receipt.get("source")
+            if (type(receipt_source) is not dict
+                    or receipt_source.get("src_token") != src_tok
+                    or receipt_source.get("source_bytes_sha256")
+                    != evidence.source_bytes_sha256):
+                raise BuildAdmissionError(
+                    "trigger binding source が build admission receipt と不一致"
+                )
+        except BuildAdmissionError as exc:
+            return _prebuild_abort("admission-error", exc)
     v = variant_id(genome, src_tok)
     res = EvalResult(genome=genome, variant=v, certified=False, aborted=False)
-    emit(layout, v, STAGE_BUILD_START, env_tag, {
+    start_payload = {
         "genome": genome.canonical(),
         "src_token": src_tok,
         "build_attempt_id": build_attempt_id,
         "build_admission": admission_receipt,
         "build_admission_receipt_sha256": admission.receipt_sha256,
-    })
+    }
+    if bound_binding is not None:
+        start_payload[wal.TRIGGER_BINDING_COMMITMENT_KEY] = wal.log_trigger_binding(
+            layout, v, env_tag, build_attempt_id, bound_binding, emit=emit,
+        )
+    emit(layout, v, STAGE_BUILD_START, env_tag, start_payload)
 
     def _abort(reason: str, note: str, extra: Optional[Dict] = None,
               workload_tag: Optional[str] = None) -> EvalResult:

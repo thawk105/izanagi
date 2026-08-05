@@ -15,6 +15,7 @@ import contextlib
 import errno
 import fcntl
 import hashlib
+import importlib
 import inspect
 import json
 import os
@@ -31,7 +32,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import (buildcache, genome, ident, pin, pipeline,  # noqa: E402
-                      source_digest, wal)
+                      source_digest, trigger_gate_binding, wal)
 from campaign import env_contract as ec                          # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     BuildAdmission,
@@ -51,9 +52,10 @@ from campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
                             STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE,
                             STAGE_S1_SESSION, STAGE_S8B_ORACLE_SESSION,
-                            STAGES, WAL_STAGES)
+                            STAGES, WAL_STAGES, WalRecord)
 from campaign.pipeline import (EvalResult, PerfConfig,           # noqa: E402
                                ScreeningConfig)
+from campaign.reflux_ir import TriggerGateIR, emit_predicate     # noqa: E402
 from campaign.source_digest import SourceEvidence                # noqa: E402
 from skiputil import Skip, skip                                  # noqa: E402
 from verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
@@ -704,6 +706,94 @@ def _admission_aware_layout(prefix: str):
     return lay
 
 
+def _trigger_admission_layout(prefix: str):
+    lay = CampaignLayout(root=_tmpdir(prefix)).ensure()
+    search = {
+        "tier": "0-1", "scale": "silo",
+        "axis": wal.TRIGGER_AXIS, "reflux": "on",
+        wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY: trigger_gate_binding.SCHEMA_VERSION,
+    }
+    wal.write_lock(lay, ident.canonical_preimage(_cfg(search_config=search)))
+    return lay
+
+
+def _trigger_receipt_and_binding(mask: int = 5):
+    receipt, receipt_sha = _wal_admission_receipt("trigger")
+    source = receipt["source"]
+    binding = trigger_gate_binding.TriggerGateBinding(
+        mask=mask,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(mask),
+        nonce=(f"{mask:x}" * 64)[:64],
+        source=trigger_gate_binding.SourceBinding(
+            src_token=source["src_token"],
+            source_bytes_sha256=source["source_bytes_sha256"],
+        ),
+    )
+    return receipt, receipt_sha, binding
+
+
+def _write_trigger_attempt(
+        lay, *, raw=None, commitment=None, binding_first=True,
+        duplicate_binding=False, receipt_bearing=True, abort_extra=None,
+        abort_reason="fixture-abort",
+):
+    attempt_id = "trigger-attempt"
+    receipt, receipt_sha, binding = _trigger_receipt_and_binding()
+    if not receipt_bearing:
+        binding = trigger_gate_binding.TriggerGateBinding(
+            mask=binding.mask,
+            predicate_sha256=binding.predicate_sha256,
+            nonce=binding.nonce,
+            source=None,
+        )
+    raw_payload = {
+        "build_attempt_id": attempt_id,
+        wal.TRIGGER_BINDING_PAYLOAD_KEY: (
+            trigger_gate_binding.to_record(binding) if raw is None else raw
+        ),
+    }
+    start_payload = {
+        "build_attempt_id": attempt_id,
+        wal.TRIGGER_BINDING_COMMITMENT_KEY: (
+            trigger_gate_binding.commitment(binding)
+            if commitment is None else commitment
+        ),
+    }
+    abort_payload = {"build_attempt_id": attempt_id, "reason": abort_reason}
+    if receipt_bearing:
+        start_payload.update({
+            "src_token": receipt["source"]["src_token"],
+            "build_admission": receipt,
+            "build_admission_receipt_sha256": receipt_sha,
+        })
+        abort_payload["build_admission_receipt_sha256"] = receipt_sha
+    abort_payload.update(abort_extra or {})
+
+    def write_binding():
+        wal.log(
+            lay, "trigger-v", trigger_gate_binding.WAL_RECORD_STAGE, "test-env",
+            raw_payload,
+        )
+
+    if binding_first:
+        write_binding()
+    wal.log(lay, "trigger-v", STAGE_BUILD_START, "test-env", start_payload)
+    if not binding_first:
+        write_binding()
+    if duplicate_binding:
+        write_binding()
+    wal.log(lay, "trigger-v", STAGE_ABORT, "test-env", abort_payload)
+    return binding
+
+
+def _assert_trigger_replay_rejected(lay, expected: str):
+    try:
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+        assert False, "invalid trigger binding campaign を拒否すべき"
+    except wal.AttemptTopologyError as exc:
+        assert expected in str(exc)
+
+
 def test_attempt_topology_rejects_cross_attempt_splice():
     lay = _admission_aware_layout("attempt_splice_")
     receipt_a, sha_a = _wal_admission_receipt("a")
@@ -734,6 +824,201 @@ def test_attempt_topology_accepts_abort_then_retry():
     assert state.committed
     assert state.attempts["attempt-a"].aborted
     assert state.attempts["attempt-b"].committed
+
+
+def test_trigger_binding_canonical_fixture_replays_and_records_by_stage_validates():
+    lay = _trigger_admission_layout("trigger_binding_positive_")
+    binding = _write_trigger_attempt(lay)
+    state = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["trigger-v"]
+    assert state.aborted and state.attempts["trigger-attempt"].aborted
+    by_stage = wal.records_by_stage(lay, "trigger-v")
+    assert by_stage[STAGE_BUILD_START][wal.TRIGGER_BINDING_COMMITMENT_KEY] == \
+        trigger_gate_binding.commitment(binding)
+    assert trigger_gate_binding.WAL_RECORD_STAGE not in by_stage
+
+
+def test_trigger_binding_replay_rejects_missing_binding_and_records_bypass():
+    lay = _trigger_admission_layout("trigger_binding_missing_")
+    receipt, receipt_sha, binding = _trigger_receipt_and_binding()
+    wal.log(lay, "trigger-v", STAGE_BUILD_START, "test-env", {
+        "build_attempt_id": "trigger-attempt",
+        "src_token": receipt["source"]["src_token"],
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt_sha,
+        wal.TRIGGER_BINDING_COMMITMENT_KEY: trigger_gate_binding.commitment(binding),
+    })
+    wal.log(lay, "trigger-v", STAGE_ABORT, "test-env", {
+        "build_attempt_id": "trigger-attempt",
+        "build_admission_receipt_sha256": receipt_sha,
+        "reason": "fixture-abort",
+    })
+    _assert_trigger_replay_rejected(lay, "一対一")
+    try:
+        wal.records_by_stage(lay, "trigger-v")
+        assert False, "records_by_stage が binding 検証を迂回した"
+    except wal.AttemptTopologyError as exc:
+        assert "一対一" in str(exc)
+
+
+def test_trigger_binding_replay_rejects_mask_or_predicate_sha_single_tamper():
+    for field in ("mask", "predicate_sha256"):
+        lay = _trigger_admission_layout(f"trigger_binding_{field}_")
+        _receipt, _sha, binding = _trigger_receipt_and_binding()
+        raw = trigger_gate_binding.to_record(binding)
+        raw[field] = (binding.mask + 1) % 32 if field == "mask" else "f" * 64
+        _write_trigger_attempt(lay, raw=raw)
+        _assert_trigger_replay_rejected(lay, "record が不正")
+
+
+def test_trigger_binding_replay_rejects_source_and_commitment_mismatch():
+    source_lay = _trigger_admission_layout("trigger_binding_source_mismatch_")
+    _receipt, _sha, binding = _trigger_receipt_and_binding()
+    raw = trigger_gate_binding.to_record(binding)
+    raw["source"]["source_bytes_sha256"] = "e" * 64
+    tampered_binding = trigger_gate_binding.validate_record(raw, require_source=True)
+    _write_trigger_attempt(
+        source_lay, raw=raw,
+        commitment=trigger_gate_binding.commitment(tampered_binding),
+    )
+    _assert_trigger_replay_rejected(source_lay, "source が receipt/WAL と不一致")
+
+    commitment_lay = _trigger_admission_layout("trigger_binding_commitment_mismatch_")
+    _write_trigger_attempt(commitment_lay, commitment="0" * 64)
+    _assert_trigger_replay_rejected(commitment_lay, "commitment")
+
+
+def test_trigger_binding_replay_rejects_duplicate_and_late_record():
+    duplicate = _trigger_admission_layout("trigger_binding_duplicate_")
+    _write_trigger_attempt(duplicate, duplicate_binding=True)
+    _assert_trigger_replay_rejected(duplicate, "重複")
+
+    late = _trigger_admission_layout("trigger_binding_late_")
+    _write_trigger_attempt(late, binding_first=False)
+    _assert_trigger_replay_rejected(late, "順序")
+
+
+def test_trigger_binding_replay_rejects_interposed_record():
+    lay = _trigger_admission_layout("trigger_binding_interposed_")
+    receipt, receipt_sha, binding = _trigger_receipt_and_binding()
+    attempt_id = "interposed-attempt"
+    raw = WalRecord(
+        variant="trigger-v", stage=trigger_gate_binding.WAL_RECORD_STAGE,
+        env_tag="test-env", ts=1.0,
+        payload={
+            "build_attempt_id": attempt_id,
+            wal.TRIGGER_BINDING_PAYLOAD_KEY:
+                trigger_gate_binding.to_record(binding),
+        },
+    )
+    interposed = WalRecord(
+        variant="other-v", stage=STAGE_S1_SESSION, env_tag="test-env",
+        ts=2.0, payload={},
+    )
+    start = WalRecord(
+        variant="trigger-v", stage=STAGE_BUILD_START, env_tag="test-env",
+        ts=3.0,
+        payload={
+            "build_attempt_id": attempt_id,
+            "src_token": receipt["source"]["src_token"],
+            "build_admission": receipt,
+            "build_admission_receipt_sha256": receipt_sha,
+            wal.TRIGGER_BINDING_COMMITMENT_KEY:
+                trigger_gate_binding.commitment(binding),
+        },
+    )
+    try:
+        wal.validate_trigger_bindings(
+            [raw, interposed, start],
+            campaign_lock=json.loads(wal.read_lock(lay)),
+        )
+        assert False, "binding と build_start の interposition を拒否すべき"
+    except wal.AttemptTopologyError as exc:
+        assert "順序" in str(exc)
+
+
+def test_trigger_binding_fsync_before_start_recovers_to_abort_tombstone():
+    lay = _trigger_admission_layout("trigger_binding_orphan_recovery_")
+    _receipt, _receipt_sha, binding = _trigger_receipt_and_binding(mask=6)
+    raw = WalRecord(
+        variant="trigger-v", stage=trigger_gate_binding.WAL_RECORD_STAGE,
+        env_tag="test-env", ts=1.0,
+        payload={
+            "build_attempt_id": "orphan-attempt",
+            wal.TRIGGER_BINDING_PAYLOAD_KEY:
+                trigger_gate_binding.to_record(binding),
+        },
+    )
+    lock = json.loads(wal.read_lock(lay))
+    assert wal.validate_trigger_bindings([raw], campaign_lock=lock) == {}
+    try:
+        wal.validate_trigger_bindings(
+            [raw, WalRecord(
+                variant="other-v", stage=STAGE_S1_SESSION,
+                env_tag="test-env", ts=2.0, payload={},
+            )],
+            campaign_lock=lock,
+        )
+        assert False, "末尾以外の orphan binding を拒否すべき"
+    except wal.AttemptTopologyError as exc:
+        assert "一対一" in str(exc)
+
+    wal.append(lay, raw)
+    states = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+    recovered = wal.read_records(lay)
+    assert [record.stage for record in recovered] == [
+        trigger_gate_binding.WAL_RECORD_STAGE, STAGE_ABORT,
+    ]
+    assert recovered[-1].payload == {
+        "build_attempt_id": "orphan-attempt",
+        "reason": "recovery-abort-trigger-binding-orphan",
+    }
+    assert states["trigger-v"].resumable
+    wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+    assert len(wal.read_records(lay)) == 2
+
+    _write_trigger_attempt(lay)
+    retried = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["trigger-v"]
+    assert retried.aborted
+    assert retried.attempts["trigger-attempt"].aborted
+
+
+def test_trigger_binding_receiptless_attempt_rejects_verify_payload():
+    positive = _trigger_admission_layout("trigger_binding_source_null_positive_")
+    _write_trigger_attempt(
+        positive, receipt_bearing=False, abort_reason="identity-error",
+    )
+    assert wal.replay(
+        positive, admission_policy=_BUILD_CONTEXT.policy,
+    )["trigger-v"].aborted
+
+    lay = _trigger_admission_layout("trigger_binding_source_null_verify_")
+    _write_trigger_attempt(
+        lay, receipt_bearing=False, abort_extra={"verify": {"certified": False}},
+    )
+    _assert_trigger_replay_rejected(lay, "verify payload")
+
+    stage_lay = _trigger_admission_layout("trigger_binding_source_null_stage_")
+    _receipt, _sha, source_binding = _trigger_receipt_and_binding()
+    candidate = trigger_gate_binding.TriggerGateBinding(
+        mask=source_binding.mask,
+        predicate_sha256=source_binding.predicate_sha256,
+        nonce=source_binding.nonce,
+        source=None,
+    )
+    wal.log_trigger_binding(
+        stage_lay, "trigger-v", "test-env", "trigger-attempt", candidate,
+    )
+    wal.log(stage_lay, "trigger-v", STAGE_BUILD_START, "test-env", {
+        "build_attempt_id": "trigger-attempt",
+        wal.TRIGGER_BINDING_COMMITMENT_KEY: trigger_gate_binding.commitment(candidate),
+    })
+    wal.log(stage_lay, "trigger-v", STAGE_VERIFY_DONE, "test-env", {
+        "certified": False,
+    })
+    wal.log(stage_lay, "trigger-v", STAGE_ABORT, "test-env", {
+        "build_attempt_id": "trigger-attempt", "reason": "fixture-abort",
+    })
+    _assert_trigger_replay_rejected(stage_lay, "build/verify/bench/commit")
 
 
 def test_attempt_topology_rejects_duplicate_start():
@@ -1513,6 +1798,71 @@ def test_variant_id_deterministic_and_sensitive():
     assert a != b                        # flag 値が違えば別 id
 
 
+def test_trigger_binding_does_not_enter_variant_id_preimage():
+    parameters = inspect.signature(pipeline.variant_id).parameters
+    assert tuple(parameters) == ("genome", "src_token")
+    genome_value = Genome("silo", {"BACK_OFF": 1, "WAL": 0})
+    source_token = "c" * 64
+    expected = pipeline.variant_id(genome_value, source_token)
+    for mask in range(32):
+        binding = trigger_gate_binding.TriggerGateBinding(
+            mask=mask,
+            predicate_sha256=trigger_gate_binding.expected_predicate_sha256(mask),
+            nonce=(f"{mask:02x}" * 32),
+            source=None,
+        )
+        assert trigger_gate_binding.commitment(binding)
+        assert pipeline.variant_id(genome_value, source_token) == expected
+
+
+def test_trigger_fixture_has_32_unique_predicates_source_bytes_and_variant_ids():
+    genome_value = Genome("silo", {"BACK_OFF": 1, "WAL": 0})
+    predicates = [emit_predicate(TriggerGateIR(mask)) for mask in range(32)]
+    materialized = [
+        ("fixture-prefix\n" + predicate + "\nfixture-suffix\n").encode("ascii")
+        for predicate in predicates
+    ]
+    source_tokens = [hashlib.sha256(body).hexdigest() for body in materialized]
+    variants = [pipeline.variant_id(genome_value, token) for token in source_tokens]
+    assert len(set(predicates)) == len(set(materialized)) == len(set(variants)) == 32
+
+
+def test_trigger_campaign_epoch_never_writes_pre_t428_paths():
+    from campaign import loop as campaign_loop
+    from campaign import p3_s4_loop_trigger_gating as trigger_driver
+
+    # 4f0d020 default_cfg の marker 前 other/compute config を ident.campaign_id で再計算。
+    old_ids = {
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-0e79a5f1",
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-63bc09ae",
+    }
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    cfg = trigger_driver.default_cfg()
+    current_id = str(ident.campaign_id(cfg))
+    assert cfg.search_config[wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY] == \
+        trigger_gate_binding.SCHEMA_VERSION
+    assert current_id not in old_ids
+    candidate = trigger_gate_binding.TriggerGateBinding(
+        mask=20,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(20),
+        nonce="2" * 64,
+        source=None,
+    )
+    output_root = _tmpdir("izanagi_trigger_epoch_")
+    summary = campaign_loop.run_campaign(
+        cfg, [], PerfConfig(records=1000, threads=2), "test-env", 1800,
+        do_bench=False, output_root=output_root, log=lambda *_args: None,
+        build_context=context, campaign_namespace="exploration",
+        trigger_gate_binding=candidate,
+    )
+    assert summary.campaign_id == current_id
+    assert os.path.exists(summary.layout_root)
+    for old_id in old_ids:
+        assert not os.path.lexists(
+            exploration_campaign_layout(old_id, output_root).root
+        )
+
+
 # ===== STAGE2: 評価パイプライン (build→verify→[bench]→commit) =====
 #
 # 実ビルド/実機なしでパイプラインの制御フローと **規律2 の自動執行** を回帰テスト化する。
@@ -1549,7 +1899,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    high_variance=False, unstable=False, competing=None,
                    trace_timeout=False, probe_raises=None,
                    bench_rounds=None, round_binding="unique",
-                   trace_content=None, site_compilers=None):
+                   trace_content=None, site_compilers=None, source_raises=False):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。
@@ -1667,6 +2017,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         bench_calls.source_resolve_calls.append((
             (genome_value, commit, ccbench_dir, cxx), {},
         ))
+        if source_raises:
+            raise RuntimeError("source evidence unavailable")
         return _source_evidence(
             genome_value,
             commit,
@@ -1802,6 +2154,129 @@ def test_build_admission_explicit_coder_opt_in_reaches_build_and_records_receipt
             assert record.payload["build_admission_receipt_sha256"] == receipt["receipt_sha256"]
 
 
+def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_builds():
+    lay = _tmp_layout()
+    from campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_materialized_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    with open(source_path, "w", encoding="utf-8") as stream:
+        stream.write(
+            f"// EVOLVE-BLOCK-BEGIN {axis_trigger_gating.MARKER_ID}\n"
+            "#if BACKOFF_TRIGGER_GATING\n"
+            f"{predicate}\n"
+            "#else\ntrue;\n#endif\n"
+            f"// EVOLVE-BLOCK-END {axis_trigger_gating.MARKER_ID}\n"
+        )
+    candidate = trigger_gate_binding.TriggerGateBinding(
+        mask=20,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(20),
+        nonce="d" * 64,
+        source=None,
+    )
+    with _mock_pipeline(certified=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            do_bench=False, build_context=_BUILD_CONTEXT,
+            trigger_gate_binding=candidate, ccbench_dir=source_root,
+            log=lambda *_args: None,
+        )
+    assert result.certified and calls.builds == [
+        ("legacy", True, None), ("legacy", False, None),
+    ]
+    records = wal.read_records(lay)
+    raw = next(record for record in records
+               if record.stage == trigger_gate_binding.WAL_RECORD_STAGE)
+    start = next(record for record in records if record.stage == STAGE_BUILD_START)
+    binding = trigger_gate_binding.validate_record(
+        raw.payload[wal.TRIGGER_BINDING_PAYLOAD_KEY], require_source=True,
+    )
+    receipt_source = start.payload["build_admission"]["source"]
+    assert binding.source == trigger_gate_binding.SourceBinding(
+        src_token=start.payload["src_token"],
+        source_bytes_sha256=receipt_source["source_bytes_sha256"],
+    )
+    assert binding.source.src_token == receipt_source["src_token"]
+    assert start.payload[wal.TRIGGER_BINDING_COMMITMENT_KEY] == \
+        trigger_gate_binding.commitment(binding)
+    assert "mask" not in start.payload
+
+
+def test_trigger_binding_rejects_crossed_materialized_predicate_and_mask():
+    lay = _tmp_layout()
+    from campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_cross_binding_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate_a = emit_predicate(TriggerGateIR(20))
+    with open(source_path, "w", encoding="utf-8") as stream:
+        stream.write(
+            f"// EVOLVE-BLOCK-BEGIN {axis_trigger_gating.MARKER_ID}\n"
+            "#if BACKOFF_TRIGGER_GATING\n"
+            f"{predicate_a}\n"
+            "#else\ntrue;\n#endif\n"
+            f"// EVOLVE-BLOCK-END {axis_trigger_gating.MARKER_ID}\n"
+        )
+    binding_b = trigger_gate_binding.TriggerGateBinding(
+        mask=21,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(21),
+        nonce="e" * 64,
+        source=None,
+    )
+    with _mock_pipeline(certified=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            do_bench=False, build_context=_BUILD_CONTEXT,
+            trigger_gate_binding=binding_b, ccbench_dir=source_root,
+            log=lambda *_args: None,
+        )
+    assert result.aborted and calls.builds == []
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == [
+        trigger_gate_binding.WAL_RECORD_STAGE, STAGE_BUILD_START, STAGE_ABORT,
+    ]
+    assert records[-1].payload["reason"] == "admission-error"
+    assert records[-1].payload["error"] == (
+        "BuildAdmissionError: "
+        "trigger binding predicate が materialized source と不一致"
+    )
+    assert all("mask" not in record.payload for record in records[1:])
+
+
+def test_trigger_prebuild_abort_records_source_null_binding_before_start():
+    lay = _tmp_layout()
+    candidate = trigger_gate_binding.TriggerGateBinding(
+        mask=3,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(3),
+        nonce="3" * 64,
+        source=None,
+    )
+    with _mock_pipeline(source_raises=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            do_bench=False, build_context=_BUILD_CONTEXT,
+            trigger_gate_binding=candidate, log=lambda *_args: None,
+        )
+    assert result.aborted and calls.builds == []
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == [
+        trigger_gate_binding.WAL_RECORD_STAGE, STAGE_BUILD_START, STAGE_ABORT,
+    ]
+    raw, start, _abort = records
+    restored = trigger_gate_binding.validate_record(
+        raw.payload[wal.TRIGGER_BINDING_PAYLOAD_KEY], require_source=False,
+    )
+    assert restored.source is None
+    assert start.payload[wal.TRIGGER_BINDING_COMMITMENT_KEY] == \
+        trigger_gate_binding.commitment(restored)
+
+
 def test_build_admission_stock_positive_reaches_build_without_coder_opt_in():
     lay = _tmp_layout()
     with _mock_pipeline(certified=True) as calls:
@@ -1893,19 +2368,24 @@ def test_build_admission_preview_never_reaches_build_entry_with_or_without_opt_i
 
     previews = []
     build_entries = []
-    for module in (sort_preview, trigger_preview):
-        saved_preview, saved_run = module._preview_diff, module.run_campaign
-        module._preview_diff = lambda *_args, **_kwargs: previews.append(module) or {
+    preview_cases = (
+        (sort_preview, "_preview_diff", "--preview-diff", "fixture.txt"),
+        (trigger_preview, "_preview_wire", "--preview-wire", "11111"),
+    )
+    for module, preview_name, preview_option, preview_value in preview_cases:
+        saved_preview, saved_run = getattr(module, preview_name), module.run_campaign
+        setattr(module, preview_name, lambda *_args, **_kwargs: previews.append(module) or {
             "passed": True,
-        }
+        })
         module.run_campaign = lambda *_args, **_kwargs: build_entries.append(module)
         try:
-            assert module.main(["--preview-diff", "fixture.txt"]) == 0
+            assert module.main([preview_option, preview_value]) == 0
             assert module.main([
-                "--preview-diff", "fixture.txt", "--allow-coder-derived-build",
+                preview_option, preview_value, "--allow-coder-derived-build",
             ]) == 0
         finally:
-            module._preview_diff, module.run_campaign = saved_preview, saved_run
+            setattr(module, preview_name, saved_preview)
+            module.run_campaign = saved_run
     assert len(previews) == 4
     assert build_entries == [], "preview が run_campaign build spy に到達した"
 
@@ -3607,6 +4087,455 @@ def test_layout_rejects_path_traversal():
         except ValueError:
             pass
     campaign_layout("readheavy-enum-abcd1234", output_root="/tmp/izanagi_x")  # 正常は通る
+
+
+def test_exploration_output_root_env_precedence_and_official_isolation():
+    """M1/M2: exploration だけが explicit > env > legacy default を使う。"""
+    sentinel = object()
+    saved_env = os.environ.get(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, sentinel)
+    saved_repo_output_root = layout_module.repo_output_root
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        os.environ.pop(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, None)
+        legacy = os.path.join(saved_repo_output_root(), "..", "output")
+        layout_module.repo_output_root = lambda: legacy
+        default_layout = exploration_campaign_layout("env-default")
+        assert default_layout.root == os.path.join(
+            legacy, "exploration", "campaigns", "env-default",
+        )
+        layout_module.repo_output_root = saved_repo_output_root
+
+        external = _tmpdir("izanagi_exploration_env_")
+        os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = external
+        first = exploration_campaign_layout("env-first")
+        second = exploration_campaign_layout("env-second")
+        assert first.root == os.path.join(
+            external, "exploration", "campaigns", "env-first",
+        )
+        assert os.path.dirname(os.path.dirname(first.root)) == os.path.join(
+            external, "exploration",
+        )
+        assert os.path.dirname(os.path.dirname(second.root)) == os.path.join(
+            external, "exploration",
+        )
+        official = campaign_layout("official-isolated")
+        assert official.root == os.path.join(
+            saved_repo_output_root(), "campaigns", "official-isolated",
+        )
+
+        os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = ""
+        explicit = "legacy-relative-explicit-root"
+        explicit_layout = exploration_campaign_layout(
+            "explicit-wins", output_root=explicit,
+        )
+        assert explicit_layout.root == os.path.join(
+            explicit, "exploration", "campaigns", "explicit-wins",
+        )
+    finally:
+        layout_module.repo_output_root = saved_repo_output_root
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, None)
+        else:
+            os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = saved_env
+
+
+def test_exploration_output_root_env_rejects_unsafe_values():
+    """M3/M4/M5: env root は fail-fast admission を満たす場合だけ受理する。"""
+    from pathlib import Path
+
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    layout_module._reset_exploration_output_root_pin_for_tests()
+
+    def rejected(value):
+        os.environ[env_name] = os.fspath(value)
+        try:
+            exploration_campaign_layout("unsafe-env")
+            assert False, f"unsafe env root を拒否すべき: {value!r}"
+        except ValueError:
+            pass
+
+    try:
+        rejected("")
+        rejected("relative/output")
+
+        repository = Path(layout_module.repo_output_root()).parent
+        rejected(repository)
+        rejected(repository / "output" / "nested")
+
+        foreign_repo = Path(_tmpdir("izanagi_foreign_repo_"))
+        (foreign_repo / ".git").mkdir()
+        rejected(foreign_repo / "output")
+        assert not (foreign_repo / "output").exists()
+
+        symlink_parent = Path(_tmpdir("izanagi_env_symlink_parent_"))
+        symlink_target = Path(_tmpdir("izanagi_env_symlink_target_"))
+        base_link = symlink_parent / "base-link"
+        base_link.symlink_to(symlink_target, target_is_directory=True)
+        rejected(base_link)
+        rejected(base_link / "child")
+
+        suffix_root = Path(_tmpdir("izanagi_env_suffix_symlink_"))
+        (suffix_root / "exploration").mkdir()
+        (suffix_root / "exploration" / "campaigns").symlink_to(
+            symlink_target, target_is_directory=True,
+        )
+        rejected(suffix_root)
+
+        autonomous_suffix_root = Path(_tmpdir("izanagi_env_8c_suffix_symlink_"))
+        (autonomous_suffix_root / "exploration").mkdir()
+        (autonomous_suffix_root / "exploration" / "autonomous-trials").symlink_to(
+            symlink_target, target_is_directory=True,
+        )
+        rejected(autonomous_suffix_root)
+
+        dotdot_root = (
+            Path(_tmpdir("izanagi_env_dotdot_"))
+            / "missing" / ".." / "resolved-base"
+        )
+        rejected(dotdot_root)
+
+        non_directory = Path(_tmpdir("izanagi_env_non_directory_")) / "file"
+        non_directory.write_text("not a directory\n", encoding="utf-8")
+        rejected(non_directory)
+
+        foreign_owner = Path(_tmpdir("izanagi_env_foreign_owner_"))
+        saved_effective_uid = layout_module._effective_uid
+        layout_module._effective_uid = lambda: foreign_owner.stat().st_uid + 1
+        try:
+            rejected(foreign_owner)
+        finally:
+            layout_module._effective_uid = saved_effective_uid
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_exploration_output_root_env_process_pin_rejects_drift():
+    """env 由来 root は raw 設定と解決値を process 内で固定する。"""
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    first = _tmpdir("izanagi_exploration_pin_first_")
+    second = _tmpdir("izanagi_exploration_pin_second_")
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        os.environ[env_name] = first
+        assert layout_module._resolve_exploration_output_root() == first
+        os.environ[env_name] = second
+        try:
+            layout_module._resolve_exploration_output_root()
+            assert False, "process 中の env root drift を拒否すべき"
+        except ValueError:
+            pass
+
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        assert layout_module._resolve_exploration_output_root() == second
+        os.environ.pop(env_name)
+        try:
+            layout_module._resolve_exploration_output_root()
+            assert False, "pinned env の削除を拒否すべき"
+        except ValueError:
+            pass
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_exploration_output_root_pin_rejects_env_removal_before_legacy_fallback():
+    """pin 後の env 削除は reset なしで legacy base へ切り替えられない。"""
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    first = _tmpdir("izanagi_exploration_pin_removed_")
+    legacy = os.path.join(_tmpdir("izanagi_exploration_legacy_"), "output")
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        os.environ[env_name] = first
+        assert layout_module._resolve_exploration_output_root(
+            legacy_base=legacy,
+        ) == first
+        os.environ.pop(env_name)
+        try:
+            layout_module._resolve_exploration_output_root(legacy_base=legacy)
+            assert False, "pinned env 削除後の legacy fallback を拒否すべき"
+        except ValueError:
+            pass
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_exploration_output_root_pin_is_shared_and_locked_across_aliases():
+    """二重 module identity でも pin と原子化 lock は process 内で一つ。"""
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    saved_sys_path = sys.path[:]
+    try:
+        sys.path.insert(0, os.path.dirname(_ORCH))
+        alternate = importlib.import_module("orchestrator.campaign.layout")
+    finally:
+        sys.path[:] = saved_sys_path
+    first = _tmpdir("izanagi_alias_pin_first_")
+    second = _tmpdir("izanagi_alias_pin_second_")
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        assert alternate is not layout_module
+        assert (
+            alternate._exploration_output_root_state
+            is layout_module._exploration_output_root_state
+        )
+        os.environ[env_name] = first
+        assert layout_module._resolve_exploration_output_root() == first
+        os.environ[env_name] = second
+        try:
+            alternate._resolve_exploration_output_root()
+            assert False, "別 alias からの process root drift を拒否すべき"
+        except ValueError:
+            pass
+
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        os.environ[env_name] = first
+        state = layout_module._exploration_output_root_state
+        started = threading.Event()
+        finished = threading.Event()
+        results = []
+        errors = []
+
+        def resolve_in_thread():
+            started.set()
+            try:
+                results.append(alternate._resolve_exploration_output_root())
+            except Exception as exc:  # noqa: BLE001 - thread result is asserted below
+                errors.append(exc)
+            finally:
+                finished.set()
+
+        state["lock"].acquire()
+        worker = threading.Thread(target=resolve_in_thread)
+        try:
+            worker.start()
+            assert started.wait(1.0)
+            assert not finished.wait(0.05), "resolver は process lock 内で動くべき"
+        finally:
+            state["lock"].release()
+        worker.join(5.0)
+        assert not worker.is_alive()
+        assert errors == []
+        assert results == [first]
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_autonomous_trial_env_run_root_and_worktree_container_gate():
+    """M7: 8c 省略 root は env base を使い、materialize 前に同じ gate を通る。"""
+    from pathlib import Path
+
+    from campaign import p3_autonomous_workload_trial as autonomous
+
+    sentinel = object()
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    saved_env = os.environ.get(env_name, sentinel)
+    saved_assert = autonomous.assert_pinned_clean
+    saved_run_trial = autonomous.run_trial
+    saved_resolver = autonomous._resolve_exploration_output_root
+    saved_root = autonomous.ROOT
+    external = _tmpdir("izanagi_autonomous_env_")
+    captured = {}
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        os.environ[env_name] = external
+        autonomous.assert_pinned_clean = lambda *_args, **_kwargs: None
+
+        def capture_run_trial(**kwargs):
+            captured.update(kwargs)
+            return {"status": "complete", "cells": []}
+
+        autonomous.run_trial = capture_run_trial
+        assert autonomous.main([
+            "--trial-id", "env-root-trial",
+            "--provider", "fixture",
+            "--no-build",
+            "--ccbench-dir", os.path.join(external, "ccbench"),
+        ]) == 0
+        assert captured["run_root"] == Path(
+            external, "exploration", "autonomous-trials", "env-root-trial",
+        )
+
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        os.environ.pop(env_name)
+        captured.clear()
+        legacy_root = Path(external, "resolved-checkout")
+        autonomous.ROOT = legacy_root
+        legacy_bases = []
+
+        def resolve_legacy(*, legacy_base=""):
+            legacy_bases.append(legacy_base)
+            return legacy_base
+
+        autonomous._resolve_exploration_output_root = resolve_legacy
+        assert autonomous.main([
+            "--trial-id", "legacy-default-trial",
+            "--provider", "fixture",
+            "--no-build",
+            "--ccbench-dir", os.path.join(external, "ccbench"),
+        ]) == 0
+        assert captured["run_root"] == Path(
+            legacy_root, "output", "exploration", "autonomous-trials",
+            "legacy-default-trial",
+        )
+        assert legacy_bases == [str(legacy_root / "output")]
+
+        autonomous.run_trial = saved_run_trial
+        container = Path(
+            _tmpdir("izanagi_autonomous_gate_"),
+            ".codex", "worktrees", "wave", "trial",
+        )
+        try:
+            autonomous.run_trial(
+                trial_id="container-gate",
+                workloads=("ycsb-a",),
+                generations=1,
+                provider_kind="fixture",
+                run_root=container,
+                sub="unused",
+                do_build=False,
+                providers={},
+            )
+            assert False, "8c run_root の worktree container を拒否すべき"
+        except ValueError as exc:
+            assert "worktree container" in str(exc)
+            assert env_name in str(exc)
+            assert "絶対 path" in str(exc)
+            assert "job 専用" in str(exc)
+            assert "base は exploration/ 自体ではない" in str(exc)
+        assert not container.exists()
+    finally:
+        autonomous.assert_pinned_clean = saved_assert
+        autonomous.run_trial = saved_run_trial
+        autonomous._resolve_exploration_output_root = saved_resolver
+        autonomous.ROOT = saved_root
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+
+def test_wal_materializers_reject_worktree_container_without_layout_ensure():
+    """F98: factory 直後の WAL 公開 API も作成前に container を拒否する。"""
+    from pathlib import Path
+
+    container = Path(
+        _tmpdir("izanagi_wal_gate_"), ".codex", "worktrees", "wave",
+    )
+    materializers = (
+        ("write-lock", lambda item: wal.write_lock(item, "preimage")),
+        (
+            "log",
+            lambda item: wal.log(
+                item, "variant", STAGE_ABORT, "test-env", {"reason": "fixture"},
+            ),
+        ),
+        ("atomic-lock", lambda item: wal.acquire_lock_atomic(item, "preimage")),
+    )
+    for suffix, materialize in materializers:
+        layout = exploration_campaign_layout(
+            f"wal-gate-{suffix}", output_root=str(container / suffix),
+        )
+        try:
+            materialize(layout)
+            assert False, f"{suffix} は worktree container を拒否すべき"
+        except ValueError as exc:
+            message = str(exc)
+            assert "worktree container" in message
+            assert layout_module._EXPLORATION_OUTPUT_ROOT_ENV in message
+        assert not Path(layout.root).exists()
+
+
+def test_wal_materializers_admit_official_layout_in_worktree_container(
+    tmp_path=None,
+):
+    """Official layout の4 materializer は worktree container 内でも書ける。"""
+    from pathlib import Path
+
+    with _tmp_dir(tmp_path) as tmp:
+        container = tmp / ".codex" / "worktrees" / "wave"
+
+        append_layout = CampaignLayout(root=str(container / "append"))
+        wal.log(
+            append_layout, "official", STAGE_ABORT, "test-env",
+            {"reason": "fixture"},
+        )
+        assert Path(append_layout.wal_file).is_file()
+
+        write_lock_layout = CampaignLayout(root=str(container / "write-lock"))
+        wal.write_lock(write_lock_layout, "official-preimage")
+        assert Path(write_lock_layout.lock_file).read_text(
+            encoding="utf-8",
+        ) == "official-preimage"
+
+        atomic_lock_layout = CampaignLayout(root=str(container / "atomic-lock"))
+        assert wal.acquire_lock_atomic(atomic_lock_layout, "atomic-preimage")
+        assert Path(atomic_lock_layout.lock_file).read_text(
+            encoding="utf-8",
+        ) == "atomic-preimage"
+
+        repair_layout = CampaignLayout(root=str(container / "repair"))
+        repair_layout.ensure()
+        Path(repair_layout.wal_file).write_bytes(b"torn-tail")
+        repaired = wal.repair_truncated_tail(repair_layout)
+        assert repaired.status == "repaired"
+        assert Path(repair_layout.wal_file).read_bytes() == b""
+        assert repaired.receipt_path is not None
+        assert Path(repaired.receipt_path).is_file()
+
+
+def test_wal_repair_rejects_exploration_worktree_container(tmp_path=None):
+    """Exploration repair は missing WAL でも materialization policy を先に通す。"""
+    from pathlib import Path
+
+    with _tmp_dir(tmp_path) as tmp:
+        container = tmp / ".codex" / "worktrees" / "wave"
+        layout = exploration_campaign_layout(
+            "repair-gate", output_root=str(container / "base"),
+        )
+        try:
+            wal.repair_truncated_tail(layout)
+            assert False, "exploration WAL repair は container を拒否すべき"
+        except ValueError as exc:
+            assert "worktree container" in str(exc)
+        assert not Path(layout.root).exists()
+
+
+def test_ensure_exploration_namespace_rejects_worktree_container(tmp_path=None):
+    """探索 namespace helper の直呼びも marker 作成前に container を拒否する。"""
+    from pathlib import Path
+
+    with _tmp_dir(tmp_path) as tmp:
+        root = tmp / ".claude" / "worktrees" / "wave" / "exploration"
+        try:
+            ensure_exploration_namespace(str(root))
+            assert False, "exploration namespace 直呼びは container を拒否すべき"
+        except ValueError as exc:
+            assert "worktree container" in str(exc)
+        assert not root.exists()
 
 
 def test_exploration_marker_precedes_campaign_directory_creation():

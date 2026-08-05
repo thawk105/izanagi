@@ -13,6 +13,8 @@ from pathlib import Path
 import re
 from typing import Any, Mapping, Sequence
 
+from .reflux_ir import parse_wire
+
 
 _ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_LEDGER = _ROOT / "patches" / "ledger.json"
@@ -29,6 +31,14 @@ _PLANNER_REQUIRED = frozenset({"axis", "direction", "magnitude"})
 _PLANNER_OPTIONAL = frozenset({"justification", "uncertainty"})
 _CODER_REQUIRED = frozenset({"axis", "implementation"})
 _CODER_OPTIONAL = frozenset({"value", "justification", "confidence"})
+CODER_CONTRACT_IMPLEMENTATION = "implementation"
+CODER_CONTRACT_TRIGGER_WIRE = "trigger-wire"
+_CODER_CONTRACTS = frozenset({
+    CODER_CONTRACT_IMPLEMENTATION,
+    CODER_CONTRACT_TRIGGER_WIRE,
+})
+_TRIGGER_CODER_REQUIRED = frozenset({"axis", "wire"})
+_TRIGGER_CODER_OPTIONAL = frozenset({"justification", "confidence"})
 _AUDITOR_REQUIRED = frozenset({"verdict", "diff_digest"})
 _AUDITOR_OPTIONAL = frozenset(
     {"violations", "nits", "proposed_tests", "uncertainty"}
@@ -275,8 +285,16 @@ def assert_closed_proposal_schema(
     *,
     require_auditor: bool,
     require_coder_value: bool,
+    coder_contract: str = CODER_CONTRACT_IMPLEMENTATION,
 ) -> None:
     """3 proposal loader 共通の required/optional closed key set gate。"""
+    if type(coder_contract) is not str or coder_contract not in _CODER_CONTRACTS:
+        raise ValueError("未知の coder contract mode")
+    if (
+        coder_contract == CODER_CONTRACT_TRIGGER_WIRE
+        and require_coder_value
+    ):
+        raise ValueError("trigger-wire coder contract は value を持たない")
     top_required = set(_PROPOSAL_TOP_REQUIRED)
     if require_auditor:
         top_required.add("auditor")
@@ -295,17 +313,25 @@ def assert_closed_proposal_schema(
         required=_PLANNER_REQUIRED,
         optional=_PLANNER_OPTIONAL,
     )
-    coder_required = set(_CODER_REQUIRED)
-    coder_optional = set(_CODER_OPTIONAL)
-    if require_coder_value:
-        coder_required.add("value")
-        coder_optional.remove("value")
+    if coder_contract == CODER_CONTRACT_TRIGGER_WIRE:
+        coder_required = set(_TRIGGER_CODER_REQUIRED)
+        coder_optional = set(_TRIGGER_CODER_OPTIONAL)
+    else:
+        coder_required = set(_CODER_REQUIRED)
+        coder_optional = set(_CODER_OPTIONAL)
+        if require_coder_value:
+            coder_required.add("value")
+            coder_optional.remove("value")
     _assert_key_set(
         document["coder"],
         field="$.coder",
         required=frozenset(coder_required),
         optional=frozenset(coder_optional),
     )
+    if coder_contract == CODER_CONTRACT_TRIGGER_WIRE:
+        # Key closure precedes value validation so legacy/extra fields cannot
+        # influence the canonical IR parser's rejection surface.
+        parse_wire(document["coder"]["wire"])
     if require_auditor:
         _assert_key_set(
             document["auditor"],

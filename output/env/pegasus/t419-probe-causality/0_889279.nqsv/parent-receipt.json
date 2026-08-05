@@ -1,0 +1,32 @@
+{
+ "schema": "t419-probe-causality-parent-receipt/v1",
+ "non_certifying": true,
+ "counterfactual_only": true,
+ "pbs_request_id": "889279.nqsv",
+ "note": "親 (Claude manager) が job 終了後に作った照合 receipt。job は自分の .o/.e と会計を hash できない。",
+ "accounting_from_job_stderr": {
+  "queue": "gen_S@nqsv",
+  "started": "Wed Aug  5 08:27:03 2026",
+  "ended": "Wed Aug  5 08:27:36 2026",
+  "elapse": "37"
+ },
+ "probe_rc": 3,
+ "wrapper_rc": 3,
+ "done_marker_present": true,
+ "sha256": {
+  "cpuinfo-raw-1.txt": "f7b696bbf56759f359b98b2acd4518cbd4614b6b2377692994951086d4bc2d6e",
+  "cpuinfo-raw-2.txt": "18ac02f68853beeefcadaaa81c0ae6bf26eeddcc7b90770969bcc65efdcc007a",
+  "cpuinfo-raw-3.txt": "4aa8d7afb15fbcfac30ca6415ab63a9956be574d804ef1e739c0a4c9f75cc189",
+  "done-marker": "58820811ea0bae81a5c3c93c254ba5fe9a5eef2b4345e36dc32e254cebc9671f",
+  "interpreter": "f2bdb85c39ac02bd4b03ec678ad417698617b3bbf1f7299a9e58431fbd0448c1",
+  "job.e889279": "7b8aa89e96866d4ad649ef32e2db0da6f05025515d888dfb0d54e97a035bafb7",
+  "job.o889279": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "manifest.json": "24787b95d4beef498d5e0eddd48902b11fd2585c6c7caa35f4ee59a027defe92",
+  "marker": "f418e82478a09cdbd0fa267aa588dada0bfd73ba95763d56208cf42d76b3de64",
+  "probe.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "probe.rc": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2",
+  "result.json": "ae0adea50094ae99f064506b4a167246d9b9961fc944553df538b9c9db01f1c2",
+  "selftest.log": "dc69f81567ee5c9290e0aa5208f70a89742cab3e814d0102ba6812d99b4ca968",
+  "wrapper.rc": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+ }
+}

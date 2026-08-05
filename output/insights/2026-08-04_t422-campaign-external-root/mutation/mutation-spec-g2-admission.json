@@ -1,0 +1,72 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 480,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M03",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layout.py",
+     "old": "        if configured == \"\":\n            raise ValueError(f\"{_EXPLORATION_OUTPUT_ROOT_ENV} は非空でなければならない\")\n",
+     "new": "        if configured == \"\":\n            return repo_output_root()\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_rejects_unsafe_values"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M04",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layout.py",
+     "old": "        if _has_git_ancestor(resolved):\n",
+     "new": "        if False and _has_git_ancestor(resolved):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_rejects_unsafe_values"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M05",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layout.py",
+     "old": "    current = Path(path.anchor)\n",
+     "new": "    return\n    current = Path(path.anchor)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_rejects_unsafe_values"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M08",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layout.py",
+     "old": "        if \"..\" in candidate.parts:\n",
+     "new": "        if False and \"..\" in candidate.parts:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_exploration_output_root_env_rejects_unsafe_values"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
