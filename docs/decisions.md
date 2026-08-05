@@ -8343,3 +8343,320 @@ consumer-local 層だけを消しても共有層が同じ入力を拒否する�
   拒否理由を別理由で先取りし、既存テストの意味を変える。
 - **共有 helper 側の membership を consumer へ移して一本化する** — 共有層は
   consumer 以外の materialize 経路も守っており、移設は受理集合を広げる。
+
+## D168. プロセス間 flock を観測するテストの待ちは、時計でなく事象で終端させる (2026-08-05)
+
+**決定:** 別プロセスの状態を観測するテストでは、待ちの終了条件に wall-clock を使わない。
+観測対象の値は**子の stdout へ 1 行**で通知させ、親は fd から 1 byte ずつ改行まで読む。
+親から子への解放通知は**子の stdin への 1 byte / EOF** で行う。ファイルの存在
+(`Path.exists()`) を「値が publish された」ことの代理にしない。
+真のデッドロックに備えた hang guard は既存の `SUBPROCESS_TIMEOUT` だけを使い、
+正常経路の成否がその値に依存しないようにする。両子プロセスは単一の `try/finally` が所有し、
+片方の回収失敗で他方を飛ばさずに独立して bounded 回収する。
+
+**理由:**
+- ファイルへの `write_text` は「生成 → 内容書込」の 2 段であり原子的でない。
+  親が `exists()` で待つと、内容書込前の空ファイルを読む窓が生まれる。実測では
+  受入全走 5900 件のうちこの 1 件だけが赤くなり、単独走行では緑という形で現れた。
+- deadline 超過を失敗の根拠にすると、**正しい実装が負荷で赤くなる**。計算ノードは 32〜48 並列で
+  走り、1 プロセスが数十秒 descheduled されうる。timeout を伸ばすのは確率を下げるだけで、
+  受理集合の時間条件を暗黙に持ち込むこと自体が非決定性の源である。
+- pipe の read は「相手が書く」か「相手が死ぬ (EOF)」で必ず終端する。終了条件が時計から
+  独立するため、負荷の大小で受理集合が変わらない。
+- 通知の受理は完全一致にする。prefix 除去 (`removeprefix`) は不一致時に元文字列を返すため、
+  形式の壊れた通知を正常値として受理してしまう。
+
+**却下した選択肢:**
+- 一時 file へ書いて `os.replace` で原子的に publish する — 空読みは消えるが、
+  親が「deadline 直前に publish された値を poll 位相の都合で読まない」race と、
+  deadline 超過を失敗にすることによる受理集合の縮小が残る。
+- timeout 値の延長 — 機序を直さず確率を下げるだけで、負荷が上がれば再発する。
+- 空値を `blocked` とみなす、空値を再試行して後続の値を採用する — 非原子的 publish を隠し、
+  相互排他の証明力を下げる。
+- buffered `readline()` に `select` を組み合わせる — Python 側 buffer に先読みされた行は
+  後続の `select` から見えず、子が親の解放を待ち親が `select` で待つ循環待ちを作る。
+
+## D169. 次の一手の carry 行を `- [T-NNN] (N)` にする — ordinal は残す (2026-08-05)
+
+**決定:** fold が生成する持ち越し行を `- [T-NNN] 変わらず ((N) 参照)` (38 bytes) から
+**`- [T-NNN] (N)`** (16 bytes) にする。凍結済み過去エントリは書き換えず、parser は旧書式を
+受理し続ける。あわせて生成する `### 次の一手` 見出しへ固定凡例を 1 行付ける。
+
+(1) **ordinal を行内に残す。** 「N は常に直前エントリだから省ける」という当初案は実データで
+反証された。exact carry 23,635 行のうち **1,316 行が `参照先 != エントリ番号 - 1`** を指す。
+`_global_ordinal_entries` は欠番・最大 ordinal・単調性のいずれも固定しない (コメントで明示)。
+fold は最初の fragment では現行 worklog 末尾、同一 fold 内の後続 fragment では直前に生成した
+エントリを使うため、`新エントリ番号 - 1` からも全履歴最大値からも導出してはならない。
+ID 単独行案は 6,636 bytes/エントリ削減できるが、既存の「ID だけの実体項目」を carry へ
+再分類する意味的衝突も作る。**削減 1,422 bytes を捨てて一意性を買う。**
+
+(2) **D70 の機械検査は変えない。** `check_docs.py` は無改変とした。`TASK_ID_AT_HEAD_RE` は
+`(?=$|[ \t])` を持つため compact 行も ID 単独行も**元から**受理しており、保存則の受理集合は
+不変である。ID 脱落が赤になることは段 6 レビューが確認した。
+
+(3) **carry の認識は完全一致の二択にする。** 旧形の受理形を一字も狭めない。
+`legacy_ordinal` / `compact_ordinal` のちょうど一方だけを採る。参照先 entry 不在・task 不在・
+循環・自己/未来参照はすべて例外のまま伝播させ、`_task_item_digest(item.block)` の stub へ
+退避する経路を作らない。退避を作ると `base-mismatch` 検査が意味的に恒真化し、
+古い本文から作った更新が通る。
+
+(4) **見出しへ固定凡例を付ける。** クラス 3 の読者は worklog 末尾エントリだけを読む契約であり、
+compact 行の意味が末尾から辿れない。`CLAUDE.md` の読取範囲を変えるのでなく、producer が
+毎エントリに 115 bytes の凡例を出す。凡例に `[T-...]` 形の token を含めない (採番母集団の汚染回避)。
+
+(5) **正本の分掌を一意化する。** 描画済み worklog の読み方と carry 書式は `docs/worklog.md` 冒頭、
+fragment 文法と fold producer 契約は `docs/spool/README.md` とする。
+
+**この決定が保証しないこと:**
+1. **繰り越し件数は減らない。** 245 件の carry はそのまま残る。滞留 129 件の整理は別判断。
+2. **過去エントリと archive は縮まない。** 凍結規約により遡及圧縮しない。
+3. **UTF-8 bytes は入力 token 数と同一ではない。** 削減率は bytes での値である。
+
+**却下した選択肢:**
+- **ID 単独行 `- [T-NNN]`**: (1) のとおり「直前エントリ」が履歴から一意に復元できない。
+- **`CLAUDE.md` へ読取範囲・書式解決を追記**: 書式正本の二重化になる。凡例で末尾自己完結にした。
+- **`変わらず` を残した短縮形**: 自己説明的だが削減が 2,133 bytes/エントリに落ちる。
+  凡例 1 行で同じ自己説明性を得られるため採らない。
+- **archive の遡及圧縮 / D70 機構自体の変更**: 凍結規約と、ユーザー裁定で入った機械検査に抵触する。
+
+## D170. 歴史枝の trigger 系 campaign へ raw admitted view を発行しない — D160 決定 5 の遡及結果だけを後発裁定で限定 supersede し、既存の凍結派生は grandfather する (2026-08-05)
+
+**決定 (D96 手続。境界テストと同一変更単位):** admission validator の歴史枝
+(`historical-pre-admission-schema` = pre-policy かつ Git snapshot 三点照合を通った artifact) に
+おいて、`campaign.lock` の `search_config.axis` が trigger 軸であれば `admission_status` を
+`legacy-unclassified` とし、raw view を発行しない。適用面は次のとおり。
+
+1. **判定は軸だけで行う。** 機械 sweep 形状 (generator / space の連言) で限定しない。
+   未知形の歴史 trigger artifact も fail-closed 側へ倒す。判定は純関数として切り出し、
+   合成 lock の真理値表で固定する — 実 artifact だけを見るテストは、判定を広げる変異も
+   狭める変異も corpus に反例が無い限り検出できないためである。
+2. **適用範囲は歴史枝に限る。** post-policy の分類・binding 要求・overlay 台帳の 3 件・
+   非 trigger の歴史 campaign はいずれも不変とし、過剰拒否を検出する正例で固定する。
+3. **既存の exact-hash 凍結派生は grandfather する。** 凍結台帳が当該 campaign の付随レポートを
+   admission gate を通さず直接読む経路は、そのまま権威として残す。凍結 bytes を再発行しない。
+   本決定が拒否するのは新しい raw view の発行と、そこから新規に材料レポートを起こすことだけである。
+4. **lock の権威となる読み取りを一回にする。** hash・parse・分類・snapshot 照合・receipt を
+   すべて同一 bytes に由来させる。従来は hash の後に読み直していたため、A→B→A の書き換えで
+   「hash は A・分類は B」の decision を合成できた。本決定が足す判定はその parse 済み lock を
+   読むため、閉じずに置くと新しい gate 自身の回避路になる。
+   **終端では live の lock / WAL hash を拒否専用に再照合する**。再照合で読んだ bytes は
+   分類にも receipt にも使わない。これは物理的な一回読みではなく、権威の一意化である。
+5. **supersede の範囲を逐語で限定する。** 置換するのは D160 決定 5 のうち
+   「機械 sweep 6 件は proposal 経路を持たないため遡及被害ゼロを実測した」という
+   raw admission の結果だけである。D160 が却下した「全 trigger campaign への binding 遡及要求」は
+   **却下のまま維持する** — 本決定は旧 artifact へ binding/v1 の遡及証拠を要求せず、
+   歴史枝の status だけで拒否する。D160 決定 1〜4、post-policy の marker/binding 規則、
+   「将来発見される正当な pre-cutover artifact は exact hash の個別 grandfather 登録だけを許す」
+   規則、既存凍結 bytes はいずれも置換しない。
+
+**理由:**
+- 後発のユーザー裁定 (2026-08-05) が、旧 trigger artifact に admitted view を名乗らせない
+  縮小版再検査を選んでいる。D160 は前日の判断であり、後発裁定が結果を上書きする。
+- 歴史枝は trigger 束縛検証を一切通らない。分類値による識別自体は従来から可能だったが、
+  raw view を発行する capability は `admission_status` が `legacy-unclassified` 以外であることだけで
+  決まり、消費側に分類分岐を強制していなかった。つまり「binding 証明済み」と「歴史的無証明」は
+  同じ型の view として渡されていた。
+- 当該 artifact の付随レポートに残る述語は実測上すべて正準集合に属するが、それは
+  **付随レポート文字列の membership** であって、実際に build された source の membership ではない。
+  述語は WAL の source token へ束縛されておらず、歴史 evidence だけでは証明できない。
+  証明できないものを「受理済み」と名乗らせないことが本決定の趣旨である。
+
+**主張の範囲 (正直な非主張):**
+(a) post-policy の機械 sweep は依然として membership 証拠なしで受理される。共有 validator は
+機械 lock に対し空の束縛集合を返し、producer も汎用検疫へ membership 証明を渡さない。
+この層は本決定の射程外で、別途起票する。
+(b) WAL 側の同型 ABA は残る。record 読み出し API が bytes を返さないため、hash した bytes と
+parse した bytes の同一性を保証できない。
+(c) 付随レポートの `implementation` field は述語と説明文の双方を保持しており、二義化したまま
+build された source へ束縛されていない。
+(d) validator 実装の sha256 は decision receipt に載るため、本決定の実装変更により
+**全 campaign の receipt で validator sha が変わる**。分類と status が変わるのは旧 trigger 6 件だけだが、
+receipt の値はそうではない。持続化済み decision receipt を持つ artifact は、実測した範囲
+(repo 内および `/work/1/SFC/tanab` 配下) では 0 件だった。他 filesystem の run-root は未探索であり、
+そこに旧 validator sha の材料レポートが存在すれば、campaign bytes が不変でも完全一致照合で
+落ちる。棚卸しの範囲と結果をこのとおり限定して記録する。
+
+**却下した選択肢:**
+- **証拠 field を足し、受理集合を変えずに掲載だけ義務付ける** — raw view を発行し続けるため
+  「admitted view を名乗らせない」を満たさない。field は admission の capability へ結線されず、
+  raw consumer の大半はそれを読まずに commit だけで材料を作るため、掲載は gate にならない。加えて decision と材料レポートの
+  schema version を同一のまま必須 field を足すことになり、persisted contract の in-place 変更になる。
+- **機械 sweep 形状の連言で拒否対象を限定する** — 未知形の歴史 trigger を受理側に残し、
+  かつ実 artifact だけのテストでは判定条件への帰属が成立しない。
+- **再検査台帳を新設する** — Git snapshot の path / lock / WAL 三点照合が既に exact な台帳として
+  機能しており、二重の権威を作る。
+- **拒否を post-policy まで広げる** — 本裁定の射程を超え、既存の受理集合を追加で縮小する。
+
+## D171. 実効クロック許容幅は独立 leaf module の単一定数を唯一の権威にする (2026-08-05)
+
+**決定:** `attestation_profile.effective_clock.tolerance_pct` の権威を
+`orchestrator/calibrator/effective_clock_policy.py` の
+`EFFECTIVE_CLOCK_TOLERANCE_PCT: Final[float] = 2.0` ただ 1 つに置く。env 別の表・setter・fallback・
+環境変数参照を持たせない。参照者は producer・loader・issuer・canonical consumer・取得時 self gate・
+registry 不変条件・silo の 7 者で、いずれも module-qualified で参照し literal を直書きしない。
+issuer の比較計算は独立実装のまま残し、共有するのは数値の権威だけとする (D155 決定 2 の相互裏取りを壊さない)。
+
+観測側 (probe) は tolerance を**型として持たない**。`EffectiveClockProfile` は expected 専用として残し、
+probe は `samples_mhz` / `method` / `governor` の 3 field だけを持つ observed 専用型を返す。
+出力 schema は `pegasus-probe-output/v2` へ上げ、v1 は「clock key がちょうど 4 個かつ sentinel が
+厳密に float `100.0`」の legacy parser で射影して履歴 replay を保つ。hash projection の版は
+**parser の戻り値が持つ source schema から導出**し、呼出側が選べる自由引数にしない。
+
+expected schema の上限は `<100.0` へ狭める。ただし **policy との完全一致は schema の責務にしない** —
+旧 policy の artifact を履歴として parse できる余地を残し、完全一致は各 trust boundary が担う。
+
+**理由:**
+- 値域を狭めるだけでは publish 値を人が選べる構造が残る。`tol=100` は帯を `[0, 2*median]` にし、
+  正の標本しか schema を通らないため実質恒真だった。恒真化は値域ではなく**権威の一元化と
+  観測側から tolerance を構造的に取り除くこと**で塞ぐ。
+- 「policy を持たない」を sentinel 数値でなく型で表せば、sentinel が expected 側へ漏れる経路が
+  そもそも存在しなくなる。
+- schema へ完全一致を入れると履歴 artifact が parse 不能になり、過去の試行台帳を読めなくなる。
+  重複防壁 (loader / issuer / consumer / self gate) の側で担保するほうが、履歴の可読性と
+  current admission の厳格さを両立できる。
+- 実装順は **observed 型分離 → policy authority → trust closure** でなければならない。
+  上限を先に狭めると probe の sentinel `100.0` がその瞬間に schema 違反になり、中間状態が緑にならない。
+
+**却下した選択肢:**
+- `env_contract.REGISTRY` の env_tag 別 field — env 追加担当者が特定環境だけ広げられ、
+  同じ述語の意味が環境ごとに変わる。
+- `CalibrationRef` への field 追加 — pin 更新者が policy も同時に書き換えられ、artifact 内の値と
+  二重正本になる。
+- artifact 内の `tolerance_pct` 自身を権威とする — 検査対象が自分の受理幅を宣言する自己署名構造で、
+  これが元の欠陥そのものである。
+- 環境変数 / shell / JSON 設定 — 投入 script・scheduler export・job script のいずれかが差し替えられる。
+- CLI option を残して policy 一致値のみ受理する案 — 権威と誤認される入力面が残る。
+- observed を共有型のまま `Optional` にする案・sentinel を明示化する案 — どちらも
+  「policy を持たない」が構造的事実にならず、field を戻す変異を型で殺せない。
+
+**保証しない範囲:** 固定するのは current admission における tolerance 値までである。
+policy `2.0` かつ self-pass な JSON を合成すれば、git 直接追加・attempt 複製・pin だけの更新・
+CLI 以外の producer から依然として登録できる。producer provenance の束縛
+(content-addressed path の強制、publish receipt と policy source の束縛) は別の防壁として独立に設計する。
+
+## D172. 断続的な赤への一次対応は、fail-closed 閾値でなく診断で行う (2026-08-05)
+
+**決定:** `tools/ruleops.py` の fail-closed 挙動 (exit code、`GIT_TIMEOUT_SECONDS`、
+retry の不在) は変えない。並列受入全走で稀に出る exit 2 への対応は、まず**呼び出し側が
+理由を残すこと**に限る。閾値の変更・retry の導入は、原因が理由行付きで特定できてから
+独立に裁定する。
+
+**理由:**
+- exit 2 の理由は失われていなかった。ruleops は例外送出の直前に必ず
+  `ruleops: <reason>: <detail>` を stderr へ出しており、捨てていたのはテスト側である。
+  原因不明のまま閾値を緩めるのは、観測できていない失敗に対して受理集合を広げる操作にあたる。
+- 並行アクセスで発火しうる理由は `git-unavailable` / `git-timeout` / `git-failed` /
+  `head-moved` の 4 つに絞れ、reason 行で一意に判別できる。どれが起きたかが分かれば、
+  必要な対応 (閾値・retry・呼び出し側の直列化・外部アクターの排除) は理由ごとに異なる。
+  1 標本・理由不明の段階で共通の緩和を当てると、効かない対策を「対応済み」と記録してしまう。
+- 診断の追加は受理集合を 1 bit も動かさない。rc==0 を要求する点は変えず、
+  失敗時の message だけが増える。閾値変更と違い、誤ったときの被害が無い。
+
+**却下した選択肢:**
+- `GIT_TIMEOUT_SECONDS` の引き上げ — 到達可能性は probe で実測したが、request 889456 が
+  timeout だった証拠はない。理由不明のまま上げると、真に固まった git を待つ時間だけが伸びる。
+- git 呼び出しの retry — `head-moved` は retry で消えるが、それは
+  「並行して HEAD を動かす者がいる」という**観測すべき事実を隠す**。正しさ検査の入力を
+  黙って作り直す機構は、規律 2 の方向に反する。
+- テストを `xfail` / 再試行にする — 赤の原因を消さずに赤の表示だけを消す操作であり、
+  受理集合を無裁定で広げる。
+
+## D173. materializer の受理集合は producer schema から独立させる (2026-08-05)
+
+**決定:** materialize 境界 (`prepare_cell` の `configuration` allowlist) が認可する集合は、
+producer 側の schema 定数を import して導出せず、consumer 内に固定集合として持つ。
+両者の一致は drift guard テストで可視化し、producer 側だけに値が増えたときは
+materializer が拒否し続けることを behavioral に固定する。
+
+**理由:**
+- producer 定数を流用すると、将来 producer に構成が増えた瞬間に materializer がそれを
+  自動認可する。共有 helper の偶発的閉包から consumer を独立させるという目的が失われる。
+- 独立性は「両者が今同じ値である」ことでは証明できない。producer だけに値を足したときに
+  materializer が拒否するか、を実際に走らせて初めて証明される。
+- consumer が先に import 済みだと後からの monkeypatch は届かない。証明には
+  producer を変えた後の**隔離 fresh import** が要る。これを怠ると、
+  producer 流用への差し替え変異がテストを生存する。
+
+**却下した選択肢:**
+- producer 定数の import 流用 — 上記のとおり独立閉包を失う。
+- 現行値の集合等価テストだけで独立性の証明とする — 流用変異も
+  単一 literal しか拒否しない変異も生存する。
+- 共通定数を新設して両者から参照する — 自己 hash 対象の freeze 生成器を変更することになり、
+  凍結 cascade を招く。
+
+## D174. 受理した表記ゆれは materialize 境界で正準 bytes へ畳む (2026-08-05)
+
+**決定:** 正準集合への所属を strip 同値で判定する述語言語では、受理した文字列をそのまま
+materialize せず、**membership 判定の直後・source へ書き込む直前**に emitter の正準 bytes へ
+解決してから materialize する。畳み込みは対象軸の marker に限定し、他軸の逐語性を壊さない。
+正準値は入力を `strip()` した結果ではなく、emitter 出力を値に持つ索引から引く。
+
+**理由:**
+- 受理はするが bytes を保存すると、同じ意味の 1 点から複数の source digest・variant id が
+  生まれ、certified 選択と試行台帳に重複候補が入る。下流の admission 検査も
+  同じ strip 同値で比較していると、この重複を止められない。
+- `strip()` の結果を返す実装は、emitter が現に strip 恒等である限り正しい値を返すため、
+  実データだけでは正準索引を引く実装と区別できない。将来 emitter が外周空白を
+  正準 bytes に含めた瞬間、digest の原文と materialize 済み source が食い違う。
+- 表記ゆれを畳んだ結果、従来なら preprocess や build で落ちていた入力が通るようになる。
+  これは受理集合の変更であり、不変条件は「membership 集合を変えない」に限定して書く。
+
+**却下した選択肢:**
+- 受理集合を完全一致へ狭める — 既存の strip 同値受理を破棄する非同値な変更で、
+  裁定済みの方針と異なる。
+- 各 consumer 側で畳む — materialize 経路が複数あるとき取り残しが生じる。
+  実際の書き込み関数を呼ぶ唯一の共有境界へ置くのが正しい。
+- 現状維持 — identity 多重化が残る。
+
+## D175. [T-481] Pegasus 実行体の login 受理を三値 registry で決め、証拠のない昇格を禁じる (2026-08-05)
+
+`hooks/guard_bash.py` が `tools/pegasus/` 配下を prefix 一致で一律に扱い、必要な entry を
+1 件ずつ sanctioned 化していた運用をやめる。ユーザー裁定 (2026-08-05 /rulings、択 (b)) に従う
+族再設計であり、D103 決定 5 の「`tools/pegasus/*` の glob 許可はしない」は維持する。
+
+**決定 (1): admission は path ごとの三値とし、`local-ok` だけを許可する。**
+registry は `path → {class, reason, primary_gate, evidence}` を持ち、class は
+`local-ok` / `dispatch-required` / `unknown`。`unknown`・`dispatch-required`・未登録
+(subdirectory を含む) はすべて拒否する。`_SANCTIONED_PATHS` は registry の `local-ok` から
+導出し、二重表を作らない。判定に prefix を使うのは「pegasus 配下だが未登録」を拒否する側だけで、
+許可側には使わない。
+
+**決定 (2): 証拠状態を class と別 field に持ち、未実測を実測済みと読ませない。**
+現在 `local-ok` の 5 本のうち `docs/pegasus-runbook.md` §7.0 の手順で実測されているのは
+`fetch_third_party.py` だけである。残り 4 本 (`dispatch_compute.py` /
+`submit_certify.sh` / `submit_floor.sh` / `submit_silo_ladder_rung1.sh`) は
+`legacy-admitted (未実測)` と明記して現状を記録する。**これは実測の代替ではない** —
+規範を厳格適用すれば現在通っている 4 本は落ちる。厳格化するか grandfather を追認するかは
+ユーザー裁定に残す。
+
+**決定 (3): 本 wave では許可へ反転させる entry を作らない。**
+族の症状として起票された `collect_receipt.py` は、scheduler stderr の全読み・JSON 全読み・
+`rglob` の全件 materialize を持ち、§7.0 が定める「入力サイズに上限が無い」= `unknown` に該当する。
+実測なしに `local-ok` と記録することは防壁を緩める方向の変異であり、規律 2 に反する。
+入力 cap ([T-482] 択 (c)) と cap 下の実測が揃うまで拒否のまま残す。
+
+**決定 (4): 分類の測定はユーザー端末でしか行えないことを明示する。**
+§7.0 の測定手順 (`systemd-run --user --scope` + `memory.current` sampling) は計算ノードで
+成立しない (PBS ジョブに user systemd session が無い。2026-08-05 実測)。一方 hook は未登録の
+実行体をログインノードで拒否する。したがって「登録には実測が要る / 実測には登録が要る」という
+循環がある。迂回は禁止で、hook の管轄外であるユーザー端末が現行唯一の正規経路である。
+恒久的な測定経路は裁定待ちとする。
+
+**決定 (5): `-m <module>` の実行体は module であり、位置引数は原則データとする。**
+例外は後続 script を実際に実行・import する module の閉集合
+(`cProfile` / `profile` / `pdb` / `trace` / `runpy` / `coverage` / `pydoc` / `doctest` / `unittest`)
+で、そこでは位置引数を実行対象として分類する。module identity は `pytest` / `pytest.__main__` /
+`_pytest.main` を同一視する。これで [T-483] の sanctioned 借用が閉じる。
+
+**決定 (6): 受理集合の変更は単調性で縛る。** 変更前に拒否していた綴りを許可へ変えず、
+変更前に許可していた綴りも本決定が列挙した「意図した縮小」以外では拒否へ変えない。
+段 6 で密着形 `-m py_compile <path>` を許可へ広げる案が出たが、単調性を優先して撤回した
+(分離形は従来どおり許可なので静的検査は失われない)。
+
+**却下:** `tools/pegasus/*` の glob 許可 (D103 決定 5 を維持)、hook が argv を検査する admission
+([T-482] 択 (b)。hook から入力サイズは見えず偽の安心を作る)、`^#PBS` の有無による自動分類
+(`dispatch_compute.py` が生成テンプレ内に同 directive を持ち誤判定する)、
+未実測 entry の役割ベース昇格。
+
+**研究状態への影響:** campaign の受理集合、certified 選択、proof chain、既存凍結 bytes は不変。
+変わるのは開発 harness の Bash 面における Pegasus 実行体の受理集合だけである。

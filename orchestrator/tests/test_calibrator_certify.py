@@ -6,6 +6,7 @@ import copy
 import errno
 import hashlib
 import json
+import math
 import shutil
 import sys
 from pathlib import Path
@@ -24,6 +25,8 @@ from calibrator.model import (CalibrationResult, CertificationEvidence,  # noqa:
 from calibrator.report import certification_quality_reasons  # noqa: E402
 from calibrator.schema_v2 import validate_calibration_v2  # noqa: E402
 from calibrator.tsc import TscMeasurement  # noqa: E402
+from campaign import env_attestation as ea  # noqa: E402
+from campaign import env_contract as ec  # noqa: E402
 from campaign import execution_guard as eg  # noqa: E402
 
 
@@ -217,7 +220,6 @@ def _profile() -> dict:
         "effective_clock": {
             "samples_mhz": [2390.0, 2410.0],
             "method": "fixture", "governor": "performance",
-            "tolerance_pct": 100.0,
         },
         "visibility": {
             "hidepid": "0", "pid_ns_shared_with_host": True,
@@ -246,7 +248,6 @@ def _pegasus_shaped_probe(sample_rows: list[list[float]]):
         profile["effective_clock"] = {
             "samples_mhz": list(samples),
             "method": "proc-cpuinfo", "governor": "performance",
-            "tolerance_pct": 100.0,
         }
         profiles.append(profile)
 
@@ -255,7 +256,7 @@ def _pegasus_shaped_probe(sample_rows: list[list[float]]):
     def probe():
         index = len(calls)
         calls.append(index)
-        return copy.deepcopy(profiles[index])
+        return ea.normalize_observed_profile(copy.deepcopy(profiles[index]))
 
     return probe, profiles, calls
 
@@ -332,8 +333,8 @@ def _fake_calibrate(*, bad_cv: bool = False):
 
 def _invoke(tmp_path: Path, monkeypatch, *, load1=None, bad_cv=False,
             composite=None, extra_args=None, receipt_mutator=None,
-            profile_fn=None, clock_fn=None, calibrate_fn=None,
-            effective_clock_tolerance_pct="5") -> tuple[int, Path, Path]:
+            profile_fn=None, clock_fn=None,
+            calibrate_fn=None) -> tuple[int, Path, Path]:
     binary = tmp_path / "ycsb_fixture.exe"
     binary.write_bytes(b"trace-disabled fixture")
     digest = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -366,10 +367,11 @@ def _invoke(tmp_path: Path, monkeypatch, *, load1=None, bad_cv=False,
         "--start-records", "1000", "--max-records", "1000", "--extime", "1",
         "--sweep-reps", "2", "--noise-reps", "3", "--certify",
         "--receipt-json", str(receipt_path), "--binary-sha256", digest,
-        "--effective-clock-tolerance-pct", str(effective_clock_tolerance_pct),
     ] + list(extra_args or [])
     rc = cli.main(
-        args, probe_fn=profile_fn or (lambda: copy.deepcopy(_profile())),
+        args, probe_fn=profile_fn or (
+            lambda: ea.normalize_observed_profile(copy.deepcopy(_profile()))
+        ),
         load1_fn=lambda: next(values),
         clock_fn=clock_fn or (lambda: TscMeasurement([1800.0] * 5, 1800.0, 1800)),
         subprocess_runner=subprocess_runner, nonce_fn=lambda: "abcdef1234567890",
@@ -487,7 +489,7 @@ def test_cli_visibility_gate_rejects_non_host_visibility_before_benchmark(
     called = []
     rc, attempt, registered = _invoke(
         tmp_path, monkeypatch,
-        profile_fn=lambda: copy.deepcopy(profile),
+        profile_fn=lambda: ea.normalize_observed_profile(copy.deepcopy(profile)),
         calibrate_fn=lambda **_kwargs: called.append(True),
     )
     assert rc != 0
@@ -528,29 +530,58 @@ def test_cli_quality_rejection_is_v2_staged_and_nonzero(tmp_path, monkeypatch):
     assert not registered.exists()
 
 
+def test_self_gate_rejects_outlier_at_every_index():
+    for index in range(48):
+        samples = [2101.0] * 48
+        samples[index] = 3080.0
+        assert not cli._effective_clock_self_comparison_passes({
+            "effective_clock": {
+                "samples_mhz": samples,
+                "method": "proc-cpuinfo",
+                "governor": "performance",
+                "tolerance_pct": 2.0,
+            },
+        })
+
+
+def test_self_gate_rejects_all_nonpolicy_equality_edges():
+    for tolerance in (
+        math.nextafter(2.0, math.inf),
+        math.nextafter(2.0, -math.inf),
+        2.5,
+        2.9,
+    ):
+        assert not cli._effective_clock_self_comparison_passes({
+            "effective_clock": {
+                "samples_mhz": [100.0],
+                "method": "proc-cpuinfo",
+                "governor": "performance",
+                "tolerance_pct": tolerance,
+            },
+        })
+
+
+@pytest.mark.parametrize("outlier_index", [0, 24, 47])
 def test_cli_effective_clock_self_failure_is_quality_rejected_before_publish(
-        tmp_path, monkeypatch):
+        tmp_path, monkeypatch, outlier_index):
+    failing_samples = [2101.0] * 48
+    failing_samples[outlier_index] = 3079.456
     sample_rows = [
         [2101.0] * 47 + [2095.0],
-        [2101.0] * 47 + [3079.456],
+        failing_samples,
         [2101.0] * 47 + [2120.0],
     ]
     probe, profiles, calls = _pegasus_shaped_probe(sample_rows)
     assert len({tuple(row) for row in sample_rows}) == 3
-    assert all(profile["effective_clock"]["tolerance_pct"] == 100.0
-               for profile in profiles)
-    probe_results = [
-        eg.effective_clock_comparison_passes(
-            profile["effective_clock"],
-            {"samples_mhz": list(profile["effective_clock"]["samples_mhz"])},
-        )
-        for profile in profiles
-    ]
-    assert probe_results == [True, True, True]
+    assert all(set(profile["effective_clock"]) == {
+        "samples_mhz", "method", "governor",
+    } for profile in profiles)
     policy_results = []
     for profile in profiles:
-        expected = copy.deepcopy(profile["effective_clock"])
-        expected["tolerance_pct"] = 5.0
+        expected = {
+            "samples_mhz": list(profile["effective_clock"]["samples_mhz"]),
+            "tolerance_pct": 2.0,
+        }
         policy_results.append(eg.effective_clock_comparison_passes(
             expected, {"samples_mhz": list(expected["samples_mhz"])},
         ))
@@ -568,7 +599,8 @@ def test_cli_effective_clock_self_failure_is_quality_rejected_before_publish(
     assert "effective-clock-self-comparison-failed" in validated.quality.reasons
     clock = validated.attestation_profile.effective_clock
     assert list(clock.samples_mhz) == sample_rows[1]
-    assert clock.tolerance_pct == 5.0
+    # U-2/U-3 が手入力の accepted set を policy 2.0 へ縮小したため。
+    assert clock.tolerance_pct == 2.0
     assert (attempt / "calibration.md").is_file()
     assert (attempt / "window-probes.json").is_file()
     assert not (attempt / "candidate.json").exists()
@@ -586,8 +618,9 @@ def test_cli_published_artifact_passes_runtime_effective_clock_self_comparison(
     ]
     probe, profiles, calls = _pegasus_shaped_probe(sample_rows)
     assert len({tuple(row) for row in sample_rows}) == 3
-    assert all(profile["effective_clock"]["tolerance_pct"] == 100.0
-               for profile in profiles)
+    assert all(set(profile["effective_clock"]) == {
+        "samples_mhz", "method", "governor",
+    } for profile in profiles)
     rc, _, registered = _invoke(
         tmp_path, monkeypatch, profile_fn=probe,
         receipt_mutator=_expect_48_physical_cores,
@@ -599,7 +632,8 @@ def test_cli_published_artifact_passes_runtime_effective_clock_self_comparison(
     validated = validate_calibration_v2(published[0].read_bytes())
     clock = validated.attestation_profile.effective_clock
     assert list(clock.samples_mhz) == sample_rows[1]
-    assert clock.tolerance_pct == 5.0
+    # U-2/U-3 が producer の accepted set を policy 2.0 へ縮小したため。
+    assert clock.tolerance_pct == 2.0
     expected = {
         "samples_mhz": list(clock.samples_mhz),
         "tolerance_pct": clock.tolerance_pct,
@@ -610,30 +644,199 @@ def test_cli_published_artifact_passes_runtime_effective_clock_self_comparison(
     )
 
 
-@pytest.mark.parametrize(
-    "tolerance_pct",
-    [2.0, 7.5],
-    ids=["pegasus-2pct", "nondefault-7_5pct"],
-)
-def test_cli_artifact_preserves_effective_clock_tolerance_argument(
-        tmp_path, monkeypatch, tolerance_pct):
-    rc, attempt, registered = _invoke(
-        tmp_path,
-        monkeypatch,
-        effective_clock_tolerance_pct=tolerance_pct,
-    )
+def test_cli_artifact_injects_effective_clock_policy(tmp_path, monkeypatch):
+    rc, attempt, registered = _invoke(tmp_path, monkeypatch)
 
     assert rc == 0
     attempt_artifact = validate_calibration_v2(
         (attempt / "calibration.json").read_bytes(),
     )
     attempt_clock = attempt_artifact.attestation_profile.effective_clock
-    assert attempt_clock.tolerance_pct == tolerance_pct
+    assert attempt_clock.tolerance_pct == 2.0
     published = list(registered.glob("calibration-*.json"))
     assert len(published) == 1
     registered_artifact = validate_calibration_v2(published[0].read_bytes())
     registered_clock = registered_artifact.attestation_profile.effective_clock
-    assert registered_clock.tolerance_pct == tolerance_pct
+    assert registered_clock.tolerance_pct == 2.0
+
+
+def test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consumer_self(
+        tmp_path, monkeypatch):
+    """Policy 変異が silo 以外の全 current admission layer へ同時に届く。"""
+    monkeypatch.setattr(
+        cli.effective_clock_policy, "EFFECTIVE_CLOCK_TOLERANCE_PCT", 3.0,
+    )
+    three_root = tmp_path / "policy-three"
+    three_root.mkdir()
+    vector_rows = [
+        [2101.0] * 48,
+        [2101.0] * 47 + [2164.03],
+        [2101.0] * 48,
+    ]
+    probe_three, _, calls_three = _pegasus_shaped_probe(vector_rows)
+    rc, _, registered = _invoke(
+        three_root, monkeypatch, profile_fn=probe_three,
+        receipt_mutator=_expect_48_physical_cores,
+    )
+    assert calls_three == [0, 1, 2]
+    assert rc == 0
+    published = next(registered.glob("calibration-*.json"))
+    produced = validate_calibration_v2(published.read_bytes())
+    assert produced.attestation_profile.effective_clock.tolerance_pct == 3.0
+
+    relative = published.relative_to(three_root).as_posix()
+    contract = ec.ExecutionEnvironmentContract(
+        env_tag=produced.env_tag,
+        clocks_per_us=produced.clocks_per_us,
+        numactl=(),
+        attestation_mode="required",
+        isolation_policy=ec.IsolationPolicy(
+            single_process=True, allow_resume=False,
+        ),
+        calibration_ref=ec.CalibrationRef(
+            path=relative,
+            sha256=hashlib.sha256(published.read_bytes()).hexdigest(),
+        ),
+    )
+    verified = ea.load_verified_calibration(contract, three_root)
+    assert verified.calibration is not None
+
+    expected_raw = ea.profile_to_dict(verified.attestation_profile)
+    expected_raw["effective_clock"]["samples_mhz"] = [2101.0] * 48
+    expected = ea.normalize_profile(expected_raw)
+    observed_raw = copy.deepcopy(expected_raw)
+    del observed_raw["effective_clock"]["tolerance_pct"]
+    observed_raw["effective_clock"]["samples_mhz"] = (
+        [2101.0] * 47 + [2164.03]
+    )
+    observed = ea.normalize_observed_profile(observed_raw)
+    comparisons = ea.compare_profiles(expected, observed, now_fn=lambda: 0)
+    clock_comparison = next(
+        item for item in comparisons
+        if item["field"] == "effective_clock.samples_mhz"
+    )
+    assert clock_comparison["verdict"] == "pass"
+    assert eg.effective_clock_comparison_passes(
+        clock_comparison["expected"], clock_comparison["observed"],
+    )
+    self_clock = copy.deepcopy(expected_raw["effective_clock"])
+    self_clock["samples_mhz"] = [2101.0] * 47 + [2164.03]
+    assert cli._effective_clock_self_comparison_passes({
+        "effective_clock": self_clock,
+    })
+    receipt_three = eg.attest_and_build_receipt(
+        contract, verified, probe_fn=lambda: observed,
+        now_fn=lambda: "2026-08-05T00:00:00Z",
+    )
+    assert eg.receipt_matches_contract(
+        receipt_three,
+        env_tag=contract.env_tag,
+        contract_sha256=contract.contract_sha256,
+        attestation_mode="required",
+        verified_calibration=verified,
+    )
+
+    monkeypatch.setattr(
+        cli.effective_clock_policy, "EFFECTIVE_CLOCK_TOLERANCE_PCT", 2.0,
+    )
+    two_root = tmp_path / "policy-two"
+    two_root.mkdir()
+    probe_two, _, calls_two = _pegasus_shaped_probe(vector_rows)
+    rc_two, attempt_two, _ = _invoke(
+        two_root, monkeypatch, profile_fn=probe_two,
+        receipt_mutator=_expect_48_physical_cores,
+    )
+    assert calls_two == [0, 1, 2]
+    assert rc_two != 0
+    rejected_two = validate_calibration_v2(
+        (attempt_two / "calibration.json").read_bytes(),
+    )
+    assert rejected_two.quality.reasons == [
+        "effective-clock-self-comparison-failed",
+    ]
+
+    literal_two = copy.deepcopy(expected_raw)
+    literal_two["effective_clock"]["tolerance_pct"] = 2.0
+    literal_two["effective_clock"]["samples_mhz"] = (
+        [2101.0] * 47 + [2164.03]
+    )
+    assert not cli._effective_clock_self_comparison_passes({
+        "effective_clock": copy.deepcopy(literal_two["effective_clock"]),
+    })
+    literal_two_comparisons = ea.compare_profiles(
+        ea.normalize_profile(literal_two), observed, now_fn=lambda: 0,
+    )
+    assert next(
+        item for item in literal_two_comparisons
+        if item["field"] == "effective_clock.samples_mhz"
+    )["verdict"] == "fail"
+    assert not eg.effective_clock_comparison_passes(
+        {
+            "samples_mhz": [2101.0] * 48,
+            "tolerance_pct": 2.0,
+        },
+        {"samples_mhz": [2101.0] * 47 + [2164.03]},
+    )
+
+    literal_two_path = three_root / "literal-two.json"
+    literal_two_document = json.loads(published.read_text(encoding="utf-8"))
+    literal_two_document["attestation_profile"]["effective_clock"][
+        "tolerance_pct"
+    ] = 2.0
+    literal_two_path.write_text(
+        json.dumps(literal_two_document), encoding="utf-8",
+    )
+    literal_two_contract = ec.ExecutionEnvironmentContract(
+        env_tag=contract.env_tag,
+        clocks_per_us=contract.clocks_per_us,
+        numactl=(),
+        attestation_mode="required",
+        isolation_policy=contract.isolation_policy,
+        calibration_ref=ec.CalibrationRef(
+            path=literal_two_path.relative_to(three_root).as_posix(),
+            sha256=hashlib.sha256(literal_two_path.read_bytes()).hexdigest(),
+        ),
+    )
+    verified_two = ea.load_verified_calibration(literal_two_contract, three_root)
+    receipt_two = copy.deepcopy(receipt_three)
+    receipt_two["contract_sha256"] = literal_two_contract.contract_sha256
+    receipt_two["attestation_profile_sha256"] = (
+        verified_two.attestation_profile_sha256
+    )
+    receipt_clock = next(
+        item for item in receipt_two["comparisons"]
+        if item["field"] == "effective_clock.samples_mhz"
+    )
+    receipt_clock["expected"]["tolerance_pct"] = 2.0
+    assert not eg.receipt_matches_contract(
+        receipt_two,
+        env_tag=literal_two_contract.env_tag,
+        contract_sha256=literal_two_contract.contract_sha256,
+        attestation_mode="required",
+        verified_calibration=verified_two,
+    )
+
+    # Loader equality の旧負例は帯幅 vector から独立に残す。
+    monkeypatch.setattr(
+        cli.effective_clock_policy, "EFFECTIVE_CLOCK_TOLERANCE_PCT", 3.0,
+    )
+    with pytest.raises(ea.AttestationError, match="current policy"):
+        ea.load_verified_calibration(literal_two_contract, three_root)
+
+
+@pytest.mark.parametrize("legacy_value", ["2.0", "100.0"])
+def test_cli_rejects_legacy_tolerance_override_before_attempt(
+        tmp_path, monkeypatch, legacy_value):
+    with pytest.raises(SystemExit) as caught:
+        _invoke(
+            tmp_path, monkeypatch,
+            extra_args=["--effective-clock-tolerance-pct", legacy_value],
+        )
+    assert caught.value.code == 2
+    attempt = tmp_path / "output/env/test-env/calibration/attempts/123.server"
+    registered = tmp_path / "output/env/test-env/calibration/registered"
+    assert not attempt.exists()
+    assert not registered.exists()
 
 
 def test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal(

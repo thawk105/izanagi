@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 
@@ -52,6 +53,61 @@ KNOWN_HISTORICAL = (
     "output/campaigns/p2-2-silo-balanced-enumerate-f1588056",
     "f15880560640c76223fb7c20ed4f8b1e6d4596ae80c94bdbc55c95d5201a180f",
     "d6e98161d8cc3a011688316c3a180a532c0374c87fbbcc30934106f51f95f34c",
+)
+LEGACY_TRIGGER_CAMPAIGNS = (
+    (
+        "output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2",
+        "b8f4a4e25158d0d9e6a5839da9a837d3d41af3af198e9da25ef76ae3b6557b88",
+        "3e447c7dd44d6daf35105e0db0acfc02afc20c295016a60e763f3f3f5d0eca41",
+    ),
+    (
+        "output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-c2d838b8",
+        "c2d838b89009ed499ac6e1f19990ad5653c0dde337859a012d934675bdd9b688",
+        "d5ec15db79957e44f7d10a5adbcc7d069db2f587f170fd83ae0dfcfe56df428d",
+    ),
+    (
+        "output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-654d5cd7",
+        "654d5cd73c0418e5cc6ce8924854528d35921d2ab7e850c7c2f1ea69eeeb3c41",
+        "6c519d85c5704dcdf040a37e01eba6d86f0f4a4b535561880d6af6f905590f4c",
+    ),
+    (
+        "output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c",
+        "8a237e8c48a3ed154840a167d8a6e43d843ebe1849bbadda885d8cb06a7b87f1",
+        "aa04b36a3a48d006664589a5bc71242ebbd5c7ea9ea3c46ac171266f1516847e",
+    ),
+    (
+        "output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8",
+        "a81ec3d876775cdee547c558d77fb4bc19515b89f76849acdd38f3d91bdd6be4",
+        "d218f4e47685b6c3bb25e47119aa3ef509022d2dbf29e2a4acd2e294b0924bbd",
+    ),
+    (
+        "output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-dcd2bbfb",
+        "dcd2bbfbd08942af7e2d49fd5c510ec657e89a630b2917ab55ed54d20619a55c",
+        "194746d89f1c92ef72e24daf83620ff179c386819b86b91be8159740f01c9225",
+    ),
+)
+ADMITTED_HISTORICAL_CAMPAIGNS = (
+    "output/campaigns/backoff-repro-silo-balanced-repro-87dbbf50",
+    "output/campaigns/backoff-repro-silo-write-heavy-repro-181607af",
+    "output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e",
+    "output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9",
+    "output/campaigns/backoff-sweep-silo-read-heavy-sweep-6f169f90",
+    "output/campaigns/backoff-sweep-silo-read-heavy-sweep-8ff95955",
+    "output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7",
+    "output/campaigns/p2-2-silo-balanced-enumerate-f1588056",
+    "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad",
+    "output/campaigns/p2-2-silo-write-heavy-enumerate-8967bed6",
+    "output/campaigns/p3-kickoff-coder-wiring-cba40400",
+    "output/campaigns/p3-s4-red-s4-red-consumer-9a1897c4",
+    "output/campaigns/p3-s6-sort-sweep-balanced-sweep-1b39095e",
+    "output/campaigns/p3-s6-sort-sweep-balanced-sweep-dd25aa8c",
+    "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef",
+    "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-d4552403",
+    "output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2",
+    "output/campaigns/s1-direct-block2-direct-comparison-9645b16a",
+    "output/campaigns/s1-direct-develop-direct-comparison-7bccdf1a",
+    "output/campaigns/s1-direct-develop-direct-comparison-d0f495bf",
+    "output/campaigns/s1-direct-floor-direct-comparison-b82b9229",
 )
 
 
@@ -241,6 +297,69 @@ def test_overlay_raw_sha_and_exact_membership_are_independently_pinned() -> None
     assert actual == EXPECTED_RECORDS
 
 
+def test_trusted_snapshot_campaign_corpus_is_fully_enumerated() -> None:
+    ledger = json.loads(A.LEDGER_PATH.read_bytes())
+    completed = subprocess.run(
+        [
+            "git", "-C", str(ROOT), "ls-tree", "-r", "--name-only",
+            ledger["created_from_commit"], "--", "output/campaigns",
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    actual = {
+        path.removesuffix("/campaign.lock")
+        for path in completed.stdout.splitlines()
+        if path.endswith("/campaign.lock")
+    }
+    overlay = {path for path, *_rest in EXPECTED_RECORDS}
+    legacy_trigger = {path for path, _lock_sha, _wal_sha in LEGACY_TRIGGER_CAMPAIGNS}
+    admitted_historical = set(ADMITTED_HISTORICAL_CAMPAIGNS)
+
+    assert actual == overlay | legacy_trigger | admitted_historical
+
+
+@pytest.mark.parametrize(
+    ("lock", "expected"),
+    [
+        pytest.param(
+            {
+                "search_config": {
+                    "axis": wal.TRIGGER_AXIS,
+                    "generator": "reason-subset-v1",
+                    "space": "reason-subsets(effective)+identall+stock",
+                },
+            },
+            True,
+            id="trigger-machine-shape",
+        ),
+        pytest.param(
+            {"search_config": {"axis": wal.TRIGGER_AXIS, "reflux": "on"}},
+            True,
+            id="trigger-proposal-shape",
+        ),
+        pytest.param(
+            {"search_config": {"axis": wal.TRIGGER_AXIS, "unknown": "shape"}},
+            True,
+            id="trigger-unknown-shape",
+        ),
+        pytest.param(
+            {"search_config": {"axis": "silo-writeset-sort"}},
+            False,
+            id="non-trigger-axis",
+        ),
+        pytest.param(
+            {"search_config": []}, False, id="search-config-not-dict",
+        ),
+        pytest.param({}, False, id="search-config-absent"),
+        pytest.param([], False, id="lock-not-dict"),
+    ],
+)
+def test_is_legacy_trigger_lock_truth_table(lock: object, expected: bool) -> None:
+    assert A._is_legacy_trigger_lock(lock) is expected
+
+
 def test_three_legacy_campaigns_are_denied() -> None:
     for path, campaign_id, lock_sha, wal_sha, count in EXPECTED_RECORDS:
         campaign = ROOT / path
@@ -258,6 +377,82 @@ def test_three_legacy_campaigns_are_denied() -> None:
         )
         with pytest.raises(A.CampaignNotAdmitted, match="legacy-unclassified"):
             A.require_admitted_campaign(campaign)
+
+
+@pytest.mark.parametrize(
+    ("path", "lock_sha", "wal_sha"),
+    LEGACY_TRIGGER_CAMPAIGNS,
+    ids=[Path(path).name for path, _lock_sha, _wal_sha in LEGACY_TRIGGER_CAMPAIGNS],
+)
+def test_legacy_trigger_campaigns_are_not_admitted(
+    path: str, lock_sha: str, wal_sha: str,
+) -> None:
+    campaign = ROOT / path
+    assert (
+        hashlib.sha256((campaign / "campaign.lock").read_bytes()).hexdigest()
+        == lock_sha
+    )
+    assert (
+        hashlib.sha256((campaign / "runs/wal.jsonl").read_bytes()).hexdigest()
+        == wal_sha
+    )
+
+    decision = A.classify_campaign(campaign)
+    assert decision.classification == "historical-pre-admission-schema"
+    assert decision.admission_status == "legacy-unclassified"
+    with pytest.raises(A.CampaignNotAdmitted, match="legacy-unclassified"):
+        A.require_admitted_campaign(campaign)
+
+
+@pytest.mark.parametrize(
+    "path",
+    ADMITTED_HISTORICAL_CAMPAIGNS,
+    ids=[Path(path).name for path in ADMITTED_HISTORICAL_CAMPAIGNS],
+)
+def test_nontrigger_historical_campaigns_remain_admitted(path: str) -> None:
+    admitted = A.require_admitted_campaign(ROOT / path)
+    assert admitted.decision.classification == "historical-pre-admission-schema"
+    assert admitted.decision.admission_status == "historical-not-reclassified"
+
+
+@pytest.mark.parametrize("schema", ["historical", "post-policy"])
+def test_lock_read_snapshot_is_rechecked_against_terminal_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, schema: str,
+) -> None:
+    if schema == "historical":
+        campaign = _write_campaign(
+            tmp_path / "historical",
+            {
+                "ccbench_commit": "historical",
+                "search_config": {"records": 1, "threads": 1},
+                "search_tag": "test", "spec_content": "test", "trial": "test",
+            },
+            [_record("build_start", {"genome": "g", "src_token": "old"}, ts=1.0)],
+        )
+        monkeypatch.setattr(
+            A, "_is_proven_pre_policy_artifact", lambda **_kwargs: True,
+        )
+    else:
+        campaign = _new_schema_campaign(tmp_path)
+    lock_path = campaign / "campaign.lock"
+    original_read_bytes = Path.read_bytes
+    replacement_raw = original_read_bytes(lock_path) + b"\n"
+    replaced = False
+
+    def read_then_replace(path: Path) -> bytes:
+        nonlocal replaced
+        raw = original_read_bytes(path)
+        if path == lock_path and not replaced:
+            lock_path.write_bytes(replacement_raw)
+            replaced = True
+        return raw
+
+    monkeypatch.setattr(Path, "read_bytes", read_then_replace)
+
+    with pytest.raises(A.ArtifactAdmissionError, match="bytes changed"):
+        A.require_admitted_campaign(campaign)
+    assert replaced
+    assert original_read_bytes(lock_path) == replacement_raw
 
 
 def test_overlay_named_campaign_with_changed_hash_is_tampering_not_fallthrough(

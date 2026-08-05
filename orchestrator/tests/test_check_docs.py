@@ -177,7 +177,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "9b2c0dac6cf1e8cfcd49a18840d62b6b3dcd2cdf322d1594266b5a4a71af43c7"
+    "757d46a3f7f7b4563d5731a931fde73cfd1bbd6364a6af1ee8a2c14279f39c35"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -246,6 +246,7 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
 - ahead>0 のブランチは `git cherry main <b>` を出す。rebase / cherry-pick で取り込まれた側は
   ahead>0 のまま残るため、ahead だけでは取り残しの有無を判定できない。`+` 行が真の取り残しで、
   ファイルが main に無ければ取り込み漏れとして §5 で報告する
+- `python3 tools/audit_dangling_commits.py` rc0削除/1§5報告・救出判断/2実行不能・削除停止
 
 ## 2. 安全条件 (満たさないものは削除せず報告に回す)
 
@@ -265,11 +266,10 @@ submodule の gitlink を含む worktree は `git worktree remove` を使わず�
 3. ディレクトリを削除して `git worktree prune`
 
 **`git submodule deinit` は使わない**。誤って実行した場合は
-`git submodule update --init external/ccbench` で復元する。事象と原因の正本は `docs/failures.md` F26。
+`git submodule update --init external/ccbench` で復元する。正本は `docs/failures.md` F26。
 
 ExitWorktree の remove を `discard_changes: true` で押し切らない。main が当該 commit を含むことを
-`git log` で確認し、`action: keep` で抜け、本節の手動手順
-(detach → branch -d → 削除 → prune) で畳む。関連事象は F26。
+`git log` で確認し、`action: keep` で抜け、本節の手動手順で畳む。
 cwd 固定の背景セッション (ExitWorktree が no-op・cd 非持続) では、自分が居る
 worktree の削除と prune を行わず、detach → branch -d → unlock まで実施して
 残りを引き渡す (F51)。
@@ -4719,6 +4719,33 @@ def test_backlog_guard_carried_id_in_next_action_is_clean():
         _write_backlog_docs(root, worklog_text=worklog)
         res = _run_check(root)
         assert res.returncode == 0, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_id_only_item_is_source_and_sink():
+    """ID 単独 source も D70 の対象とし、次 entry での脱落を具体 finding にする。"""
+
+    id_only_source = _CLEAN_WORKLOG.replace("1. [T-001] carry", "- [T-001]")
+    root = _build_min_repo()
+    try:
+        id_only_sink = id_only_source.replace("- [T-001] consumed", "- [T-001]")
+        _write_backlog_docs(root, worklog_text=id_only_sink)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        dropped = id_only_source.replace("- [T-001] consumed", "本文。")
+        _write_backlog_docs(root, worklog_text=dropped)
+        _assert_violation(
+            root,
+            "次の一手 ID [T-001]",
+            "後続エントリ",
+            "見送り台帳にもない",
+        )
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

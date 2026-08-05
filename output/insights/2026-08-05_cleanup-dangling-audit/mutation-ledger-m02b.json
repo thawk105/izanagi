@@ -1,0 +1,184 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence/output/pegasus-dispatch/1b67c97236e1e8e6386c7206b70daae9/izdw-1b67c97236.o890151",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence/output/pegasus-dispatch/1b67c97236e1e8e6386c7206b70daae9/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [8 items]\n\n........                                                                 [100%]\n============================== 8 passed in 2.06s ===============================\n",
+      "stdout_sha256": "affd55289109b9c96f55a74a03a6302e85cddb721a29d24caeda63b4519bab41"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f6660be7928367258b90b142231135581cb7b15273d6f59c7538b6602cda0c04",
+    "duration_s": 27.237,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "f984c66eee5ab9f456b8d542b3595a3c8ca67e587b094f5aec92575600d95eb7",
+    "repo_head": "21a22046c949c446c3fc98b04e9f431787836440",
+    "runner_sha256": "3296cc02b82a8314ff52218d245ee296de5731a8b9620af6efbdcda3508320ad",
+    "spec_sha256": "cdc6a3d5996fd3137b789896d5be6e5622388728c284f3fe8f84957e9e288574",
+    "status": "PASSED",
+    "test_output_sha256": "affd55289109b9c96f55a74a03a6302e85cddb721a29d24caeda63b4519bab41",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "9a5981e953c687dd749c33251e452919c1f2501f68a2c0eda8212ddbe2af69a0"
+  },
+  "date": "2026-08-05T05:49:20.692274+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence/output/pegasus-dispatch/6ff9cc928ef474accb267a643af06862/izdw-6ff9cc928e.o890152",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence/output/pegasus-dispatch/6ff9cc928ef474accb267a643af06862/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [8 items]\n\n......FF                                                                 [100%]\n=================================== FAILURES ===================================\n______________ test_negative_path_already_in_main_is_not_reported ______________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_negative_path_already_in_0')\n\n    def test_negative_path_already_in_main_is_not_reported(tmp_path: Path) -> None:\n        repo = _repo(tmp_path)\n        _commit_files(repo, \"doomed\", {\"tools/landed.py\": \"same work\\n\"})\n        _delete_branch(repo, \"doomed\")\n        landed = repo / \"tools\" / \"landed.py\"\n        landed.parent.mkdir(parents=True, exist_ok=True)\n        landed.write_text(\"same work\\n\", encoding=\"utf-8\")\n        _git(repo, \"add\", \"tools/landed.py\")\n        _git(repo, \"commit\", \"-qm\", \"land via another route\")\n    \n>       assert _audit(repo) == []\nE       AssertionError: assert [('dfa873c40b.../landed.py'])] == []\nE         \nE         Left contains one more item: ('dfa873c40bdbdf19785f3e6a995f1eecad38c80d', 'work on doomed', ['tools/landed.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:149: AssertionError\n_________ test_negative_main_side_of_unreachable_merge_is_not_reported _________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_negative_main_side_of_unr0')\n\n    def test_negative_main_side_of_unreachable_merge_is_not_reported(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        _git(repo, \"checkout\", \"-q\", \"-b\", \"doomed\")\n        (repo / \"base.txt\").write_text(\"branch revision\\n\", encoding=\"utf-8\")\n        _git(repo, \"add\", \"base.txt\")\n        _git(repo, \"commit\", \"-qm\", \"branch work\")\n    \n        _git(repo, \"checkout\", \"-q\", \"main\")\n        main_side = repo / \"main-side.txt\"\n        main_side.write_text(\"main side\\n\", encoding=\"utf-8\")\n        _git(repo, \"add\", \"main-side.txt\")\n        _git(repo, \"commit\", \"-qm\", \"main side addition\")\n    \n        _git(repo, \"checkout\", \"-q\", \"doomed\")\n        _git(repo, \"merge\", \"-q\", \"--no-ff\", \"-m\", \"merge main\", \"main\")\n        merge_commit = _git(repo, \"rev-parse\", \"HEAD\")\n    \n        _git(repo, \"checkout\", \"-q\", \"main\")\n        main_side.unlink()\n        _git(repo, \"add\", \"main-side.txt\")\n        _git(repo, \"commit\", \"-qm\", \"main side deletion\")\n        (repo / \"base.txt\").write_text(\"main anchor\\n\", encoding=\"utf-8\")\n        _git(repo, \"add\", \"base.txt\")\n        _git(repo, \"commit\", \"-qm\", \"main anchor\")\n        _git(repo, \"branch\", \"-D\", \"doomed\")\n    \n        assert merge_commit in ADC.unreachable_commits(repo)\n>       assert _audit(repo) == []\nE       AssertionError: assert [('d952d8ec98...['base.txt'])] == []\nE         \nE         Left contains one more item: ('d952d8ec9839ce3c75765abddc1302ab940c2eba', 'branch work', ['base.txt'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:194: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_already_in_main_is_not_reported\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_side_of_unreachable_merge_is_not_reported\n========================= 2 failed, 6 passed in 2.04s ==========================\n",
+        "stdout_sha256": "4bff218061f4e89dd600552496102bef68ac3028facf66cced16eaf414371c4a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f6660be7928367258b90b142231135581cb7b15273d6f59c7538b6602cda0c04",
+      "duration_s": 32.287,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_already_in_main_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_side_of_unreachable_merge_is_not_reported"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_already_in_main_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_side_of_unreachable_merge_is_not_reported"
+      ],
+      "hang_risk": false,
+      "id": "M02B",
+      "injection_diff_sha256": "df126c962e3df35c2b94ba1446d7809920ed9698d3aa29875110274e8ae439a7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "49b3ea7af5c44b4132833ccbfdf1e9441869c6863da9a7b8701acc1681517504",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "            if False:\n                continue\n",
+          "old": "            if path in main_paths:\n                continue\n"
+        }
+      ],
+      "repo_head": "21a22046c949c446c3fc98b04e9f431787836440",
+      "runner_sha256": "3296cc02b82a8314ff52218d245ee296de5731a8b9620af6efbdcda3508320ad",
+      "spec_sha256": "cdc6a3d5996fd3137b789896d5be6e5622388728c284f3fe8f84957e9e288574",
+      "status": "KILLED",
+      "test_output_sha256": "4bff218061f4e89dd600552496102bef68ac3028facf66cced16eaf414371c4a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9a5981e953c687dd749c33251e452919c1f2501f68a2c0eda8212ddbe2af69a0"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence/output/pegasus-dispatch/506f671e2f8b209b8563df4cf64a28e5/izdw-506f671e2f.o890149",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence/output/pegasus-dispatch/506f671e2f8b209b8563df4cf64a28e5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_audit_dangling_commits.py::test_positive_control_deleted_branch_work_is_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_main_reachable_commit_is_not_reported\norchestrator/tests/test_audit_dangling_commits.py::test_help_discloses_detection_limitations\norchestrator/tests/test_audit_dangling_commits.py::test_decode_error_is_execution_failure\norchestrator/tests/test_audit_dangling_commits.py::test_negative_path_already_in_main_is_not_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_path_on_live_branch_tip_is_not_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_main_side_of_unreachable_merge_is_not_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_fold_managed_paths_are_excluded_by_default\n\n8 tests collected in 0.03s\n",
+        "stdout_sha256": "f3d6925b3a3943d7449876ab2bd5fb2194d4f7bbd8908f001ec88c96b082bf72"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_control_deleted_branch_work_is_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_reachable_commit_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_help_discloses_detection_limitations",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_decode_error_is_execution_failure",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_already_in_main_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_on_live_branch_tip_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_side_of_unreachable_merge_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_fold_managed_paths_are_excluded_by_default"
+      ],
+      "duration_s": 22.266,
+      "rc": 0,
+      "repo_head": "21a22046c949c446c3fc98b04e9f431787836440",
+      "runner_sha256": "3296cc02b82a8314ff52218d245ee296de5731a8b9620af6efbdcda3508320ad",
+      "spec_sha256": "cdc6a3d5996fd3137b789896d5be6e5622388728c284f3fe8f84957e9e288574",
+      "status": "PASSED",
+      "tool_sha256": "9a5981e953c687dd749c33251e452919c1f2501f68a2c0eda8212ddbe2af69a0"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M02B": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_already_in_main_is_not_reported",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_side_of_unreachable_merge_is_not_reported"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "df126c962e3df35c2b94ba1446d7809920ed9698d3aa29875110274e8ae439a7",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "            if False:\n                continue\n",
+            "old": "            if path in main_paths:\n                continue\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f984c66eee5ab9f456b8d542b3595a3c8ca67e587b094f5aec92575600d95eb7",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_audit_dangling_commits.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "21a22046c949c446c3fc98b04e9f431787836440",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_audit_dangling_commits.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "4110c2081c79afb1ca8fecbaa19c26752d72467a",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "3296cc02b82a8314ff52218d245ee296de5731a8b9620af6efbdcda3508320ad",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "cdc6a3d5996fd3137b789896d5be6e5622388728c284f3fe8f84957e9e288574",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-cleanup-submodule-recurrence/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "9a5981e953c687dd749c33251e452919c1f2501f68a2c0eda8212ddbe2af69a0",
+  "updated_at": "2026-08-05T05:50:24.127745+00:00"
+}

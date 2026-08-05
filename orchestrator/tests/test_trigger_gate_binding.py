@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import inspect
 import json
 import sys
@@ -22,6 +23,15 @@ from campaign import trigger_gate_binding as BINDING  # noqa: E402
 
 _NONCE = "a5" * 32
 _SOURCE_SHA256 = hashlib.sha256(b"source bytes").hexdigest()
+_OUTER_WHITESPACE = (
+    pytest.param(" ", id="space"),
+    pytest.param("\t", id="tab"),
+    pytest.param("\r\n", id="crlf"),
+    pytest.param("\x0b", id="vertical-tab"),
+    pytest.param("\x0c", id="form-feed"),
+    pytest.param("\u00a0", id="nbsp"),
+    pytest.param("\u3000", id="ideographic-space"),
+)
 
 
 def _binding(mask: int, *, source=True) -> BINDING.TriggerGateBinding:
@@ -225,6 +235,63 @@ def test_canonical_predicate_membership_is_exact_after_outer_strip():
     assert not BINDING.is_canonical_predicate("return arbitrary_cpp();")
     assert not BINDING.is_canonical_predicate(b"izanagi_gate_pass = true;")
     assert not BINDING.is_canonical_predicate(None)
+
+
+@pytest.mark.parametrize("outer", _OUTER_WHITESPACE)
+def test_canonicalize_predicate_returns_injected_emitter_bytes(
+        monkeypatch, outer):
+    predicate = IR.emit_predicate(IR.TriggerGateIR(0)).strip()
+    emitted = f"{outer}{predicate}{outer}"
+    monkeypatch.setattr(
+        BINDING, "_CANONICAL_PREDICATE_INDEX", {predicate: emitted}
+    )
+
+    assert BINDING.canonicalize_predicate(predicate) == emitted
+    assert BINDING.canonicalize_predicate(f"{outer}{predicate}{outer}") == emitted
+
+
+def test_duplicate_stripped_predicate_fails_during_module_import(monkeypatch):
+    monkeypatch.setattr(IR, "emit_predicate", lambda _ir: "\t duplicate \r\n")
+    module_name = "campaign._duplicate_trigger_gate_binding_test"
+    spec = importlib.util.spec_from_file_location(module_name, BINDING.__file__)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        with pytest.raises(
+                RuntimeError,
+                match="duplicate canonical trigger predicate after outer strip"):
+            spec.loader.exec_module(module)
+    finally:
+        sys.modules.pop(module_name, None)
+
+
+def test_canonicalize_predicate_rejects_nonmember_with_uniform_error():
+    predicate = IR.emit_predicate(IR.TriggerGateIR(0))
+
+    class PredicateSubclass(str):
+        pass
+
+    failures = (
+        lambda: BINDING.canonicalize_predicate("izanagi_gate_pass = true;"),
+        lambda: BINDING.canonicalize_predicate(predicate + " // comment"),
+        lambda: BINDING.canonicalize_predicate(predicate.encode("utf-8")),
+        lambda: BINDING.canonicalize_predicate(None),
+        lambda: BINDING.canonicalize_predicate(PredicateSubclass(predicate)),
+    )
+    fingerprints = {
+        (type(exc), str(exc), exc.args, exc.__context__, exc.__cause__)
+        for exc in (_capture_rejection(failure) for failure in failures)
+    }
+    assert fingerprints == {
+        (
+            BINDING.TriggerGateBindingError,
+            "invalid trigger gate binding",
+            ("invalid trigger gate binding",),
+            None,
+            None,
+        )
+    }
 
 
 def test_canonical_json_has_stable_sorted_key_order_and_source_none():

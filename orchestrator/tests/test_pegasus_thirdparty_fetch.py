@@ -834,17 +834,35 @@ def test_argument_failure_is_one_stderr_line_and_rc2(
 
 
 def test_driver_import_removes_only_its_temporary_sys_path_entry() -> None:
-    tool = _load_tool()
-    code_root = str(REPO)
-    original = list(sys.path)
-    sentinel = "izanagi-test-sys-path-sentinel"
-    expected = [sentinel, *(entry for entry in original if entry != code_root)]
-    sys.path[:] = expected
-    try:
-        tool._driver_module()
-        assert sys.path == expected
-    finally:
-        sys.path[:] = original
+    script = """
+import importlib.util
+from pathlib import Path
+import sys
+
+tool_path = Path(sys.argv[1])
+repo = str(Path(sys.argv[2]))
+orchestrator = str(Path(repo) / "orchestrator")
+spec = importlib.util.spec_from_file_location("fetch_third_party_fresh", tool_path)
+assert spec is not None and spec.loader is not None
+tool = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(tool)
+expected = [
+    "izanagi-test-sys-path-sentinel",
+    *(entry for entry in sys.path if entry not in {repo, orchestrator}),
+]
+sys.path[:] = expected
+tool._driver_module()
+assert sys.path == expected, (expected, sys.path)
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(TOOL_PATH), str(REPO)],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_hydrate_clone_is_offline_no_hardlinks_and_never_copytree() -> None:

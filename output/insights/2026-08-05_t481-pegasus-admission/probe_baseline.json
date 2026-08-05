@@ -1,0 +1,218 @@
+[
+ {
+  "tag": "T481",
+  "cmd": "python3 tools/pegasus/collect_receipt.py --attempt-dir a --job-staging b --stdout c --stderr d",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/collect_receipt.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "python3 tools/pegasus/collect_t126_qualification.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/collect_t126_qualification.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "python3 tools/pegasus/make_acquisition_receipt.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/make_acquisition_receipt.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "python3 tools/pegasus/exec_calibrate.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/exec_calibrate.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "python3 tools/pegasus/run_probe.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/run_probe.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "python3 tools/pegasus/dispatch_compute.py tests",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T481",
+  "cmd": "python3 tools/pegasus/fetch_third_party.py fetch",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/submit_certify.sh --dry-run",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/submit_floor.sh --dry-run",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/submit_silo_ladder_rung1.sh --dry-run",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/submit_t126_qualification.sh --dry-run",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/submit_t126_qualification.sh) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/certify_calibration.sh",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/certify_calibration.sh) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/floor_campaign.sh",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/floor_campaign.sh) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/silo_ladder_rung1.sh",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/silo_ladder_rung1.sh) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/smoke_probe.sh",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/smoke_probe.sh) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/t126_qualification.sh",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/t126_qualification.sh) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "tools/pegasus/t141_region_profile.sh",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/t141_region_profile.sh) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T481",
+  "cmd": "qsub tools/pegasus/smoke_probe.sh",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T482",
+  "cmd": "python3 tools/pegasus/fetch_third_party.py fetch --repo-root /work/alternate --cache-root /work/cache",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T482",
+  "cmd": "python3 tools/run_tests.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T482",
+  "cmd": "python3 tools/pegasus/dispatch_compute.py --task tests --extra /work/other",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T483",
+  "cmd": "python3 -mpytest tools/pegasus/submit_certify.sh",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T483",
+  "cmd": "python3 -m pytest tools/pegasus/submit_certify.sh",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T483",
+  "cmd": "python3 -m pytest tools/run_tests.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T483",
+  "cmd": "python3 -m pytest tools/pegasus/exec_calibrate.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T483",
+  "cmd": "python3 -m pytest orchestrator/tests/test_hooks.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "T483",
+  "cmd": "python3 -m py_compile tools/pegasus/collect_receipt.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T483",
+  "cmd": "python3 -m py_compile tools/pegasus/fetch_third_party.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T483",
+  "cmd": "python3 -m py_compile tools/check_ai_provenance.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "T483",
+  "cmd": "python3 -m json.tool tools/pegasus/policy.json",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "BASE",
+  "cmd": "python3 tools/check_docs.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "BASE",
+  "cmd": "pytest orchestrator/tests/test_hooks.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "BASE",
+  "cmd": "cat tools/pegasus/README.md",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "BASE",
+  "cmd": "git status",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "BASE",
+  "cmd": "python3 tools/check_ai_provenance.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "BASE",
+  "cmd": "python3 tools/check_ai_provenance.py --message-file /tmp/m.txt",
+  "rc": 0,
+  "stderr": ""
+ }
+]

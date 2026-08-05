@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 700,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M6b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "old": "            if (not isinstance(observed_clock, Mapping)\n                    or set(observed_clock) != {\"samples_mhz\"}):\n                raise ExecutionGuardError(\n                    f\"receipt.comparisons[{index}].observed clock key 集合が exact でない\"\n                )",
+          "new": "            if not isinstance(observed_clock, Mapping):\n                raise ExecutionGuardError(\n                    f\"receipt.comparisons[{index}].observed clock key 集合が exact でない\"\n                )"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_execution_guard.py::test_receipt_v2_rejects_observed_clock_policy_injection"
+      ]
+    }
+  ]
+}

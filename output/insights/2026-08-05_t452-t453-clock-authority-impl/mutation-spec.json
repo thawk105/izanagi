@@ -1,0 +1,180 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 5400,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/effective_clock_policy.py",
+          "old": "EFFECTIVE_CLOCK_TOLERANCE_PCT: Final[float] = 2.0",
+          "new": "EFFECTIVE_CLOCK_TOLERANCE_PCT: Final[float] = 3.0"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_effective_clock_policy.py::test_effective_clock_policy_is_single_literal_authority",
+        "orchestrator/tests/test_calibrator_certify.py::test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consumer_self"
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "        if tolerance != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT:\n            raise AttestationError(",
+          "new": "        if False:\n            raise AttestationError("
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_loader_rejects_well_formed_nonpolicy_tolerance[2.0000000000000004]",
+        "orchestrator/tests/test_env_attestation.py::test_loader_rejects_well_formed_nonpolicy_tolerance[1.9999999999999998]",
+        "orchestrator/tests/test_env_attestation.py::test_loader_rejects_well_formed_nonpolicy_tolerance[2.5]",
+        "orchestrator/tests/test_env_attestation.py::test_loader_rejects_well_formed_nonpolicy_tolerance[2.9]"
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "                    or tolerance\n                    != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT):",
+          "new": "                    or tolerance\n                    != tolerance):"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_issuer_rejects_every_nonpolicy_equality_edge[2.0000000000000004]",
+        "orchestrator/tests/test_env_attestation.py::test_issuer_rejects_every_nonpolicy_equality_edge[1.9999999999999998]",
+        "orchestrator/tests/test_env_attestation.py::test_issuer_rejects_every_nonpolicy_equality_edge[2.5]",
+        "orchestrator/tests/test_env_attestation.py::test_issuer_rejects_every_nonpolicy_equality_edge[2.9]"
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "old": "            or tolerance != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT):",
+          "new": "            or False):"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_execution_guard.py::test_canonical_consumer_rejects_all_nonpolicy_equality_edges"
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "    observed = {\n        \"samples_mhz\": effective_clock.get(\"samples_mhz\"),\n    }",
+          "new": "    observed = {\n        \"samples_mhz\": (effective_clock.get(\"samples_mhz\") or [])[:-1],\n    }"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_self_gate_rejects_all_nonpolicy_equality_edges"
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/execution_guard.py",
+          "old": "            if (not isinstance(observed_clock, Mapping)",
+          "new": "            if (False and not isinstance(observed_clock, Mapping)"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_execution_guard.py::test_receipt_v2_rejects_observed_clock_policy_injection"
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_ladder_rung1.py",
+          "old": "    clock_match = execution_guard.effective_clock_comparison_passes(\n        expected_clock, observed_clock,\n    )",
+          "new": "    clock_match = abs(\n        statistics.median(observed_clock[\"samples_mhz\"])\n        - statistics.median(expected_clock[\"samples_mhz\"])\n    ) <= statistics.median(expected_clock[\"samples_mhz\"]) * expected_clock[\"tolerance_pct\"] / 100.0"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_driver.py::test_silo_live_clock_wiring_moves_with_policy_and_uses_exact_keys[2.0-False]",
+        "orchestrator/tests/test_silo_ladder_rung1_driver.py::test_silo_live_clock_wiring_moves_with_policy_and_uses_exact_keys[3.0-True]"
+      ]
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "            if type(tolerance) is not float or tolerance != 100.0:",
+          "new": "            if not tolerance:"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_output_v1_accepts_only_exact_float_sentinel[100]",
+        "orchestrator/tests/test_env_attestation.py::test_probe_output_v1_accepts_only_exact_float_sentinel[2.0]",
+        "orchestrator/tests/test_env_attestation.py::test_probe_output_v1_accepts_only_exact_float_sentinel[99.0]"
+      ]
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_env_contract.py",
+          "old": "        passes = _registry_clock_self_passes(profile)",
+          "new": "        passes = True"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception"
+      ]
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/schema_v2.py",
+          "old": "        if tolerance >= 100.0:",
+          "new": "        if tolerance == 100.0:"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_schema_v2.py::test_expected_clock_tolerance_upper_boundary_rejects[100.0]",
+        "orchestrator/tests/test_schema_v2.py::test_expected_clock_tolerance_upper_boundary_rejects[100.00000000000001]",
+        "orchestrator/tests/test_schema_v2.py::test_expected_clock_tolerance_upper_boundary_rejects[1e+300]"
+      ]
+    }
+  ]
+}

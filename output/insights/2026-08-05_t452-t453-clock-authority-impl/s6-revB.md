@@ -1,0 +1,45 @@
+| 是正 | 判定 | 検証結果 |
+|---|---|---|
+| B-3 | **closed** | `run_probe.py` は [import:35](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/tools/pegasus/run_probe.py:35)、[success:52](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/tools/pegasus/run_probe.py:52)、[probe:61](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/tools/pegasus/run_probe.py:61)、[write:74](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/tools/pegasus/run_probe.py:74) の全分岐が v2。型・exact-key 検査は [test_pegasus_tools.py:706](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_pegasus_tools.py:706)、file/stdout と各失敗分岐は同 [725](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_pegasus_tools.py:725)、[744](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_pegasus_tools.py:744)、[760](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_pegasus_tools.py:760)、[781](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_pegasus_tools.py:781)。smoke 経路も [818](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_pegasus_tools.py:818) で固定されている。 |
+| B-4 | **closed** | live は [silo_ladder_rung1.py:1957](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:1957) で `InfraFailure("parse_failure", …)`、raw は [3405](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:3405) と [3503](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:3503) で `EvidenceFailure("raw_bundle", …)`。malformed/duplicate/typed の分類期待も [driver test:732](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_silo_ladder_rung1_driver.py:732) と [1803](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_silo_ladder_rung1_driver.py:1803) に維持されている。 |
+| B-5 | **closed** | silo の live は [1965](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:1965)、raw は [3412](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:3412) で exact `{samples_mhz,tolerance_pct}` / `{samples_mhz}` を構築。`method`/`governor` の別比較も [1980](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:1980)、[3424](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:3424) に残る。spy は [826](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_silo_ladder_rung1_driver.py:826) と [1873](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_silo_ladder_rung1_driver.py:1873)。 |
+| B-6 | **closed** | 既存 18 vectors は同じテスト内・同じ順序で [test_execution_guard.py:424](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_execution_guard.py:424) に残り、private math/public canonical の二重 assertion は [543](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_execution_guard.py:543)。mapping/list/bool/empty も public predicate まで通る。 |
+| B-8 | **closed** | `f009da3..17bd409` および `f009da3..HEAD` の双方で指定三ファイルの diff は空。実装 patch にも hunk はない。 |
+
+## 所見
+
+### L6-B-1
+
+- **ID:** L6-B-1
+- **主張:** calibrator の自己比較 consumer が full clock map を canonical predicate に直結しており、正常な calibration でも判定が常に false になる。
+- **file:line:** [`cli.py:380`](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/calibrator/cli.py:380) は `effective_clock` 全体を expected に渡す。一方、predicate は [`execution_guard.py:183`](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/execution_guard.py:183) で expected を exact `{samples_mhz,tolerance_pct}` に制限する。自己比較対象は [`cli.py:544`](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/calibrator/cli.py:544) で observed の `method`/`governor` を保持したまま tolerance を追加するため、4-key map になる。false は [`cli.py:605`](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/calibrator/cli.py:605) で reject 理由になる。
+- **失敗シナリオ:** samples が完全一致する正常な v2 probe でも、expected key 集合が `{samples_mhz,method,governor,tolerance_pct}` となり、数値比較前に exact-key gate で失敗する。
+- **成果物影響:** 有効な新規 calibration を accepted/published にできず、後続 campaign が利用する current calibration を生成できない。
+- **強度:** **must-fix / land blocker**。既存の成功期待 [test_calibrator_certify.py:610](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_calibrator_certify.py:610) と自己比較期待 [708](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_calibrator_certify.py:708) に静的に反する。
+- **最小の是正案:** `_effective_clock_self_comparison_passes()` 内で expected を明示的な `{samples_mhz, tolerance_pct}`、observed を `{samples_mhz}` に射影してから public predicate を呼ぶ。predicate やテスト期待値は緩めない。
+
+## Consumer・移行確認
+
+`probe_hardware` は observed-only の `probe` alias になっている（[env_attestation.py:404](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/calibrator/env_attestation.py:404)、[458](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/calibrator/env_attestation.py:458)）。`campaign/loop.py`、floor campaign、oracle driver/report、ratified freeze は shared loader・integrated issuer・receipt consumer 経由であり、observed map を expected として直結していない。追従漏れは L6-B-1 の calibrator self-gate のみだった。
+
+[`t126_driver.py:439`](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/t126_driver.py:439) には旧型前提の呼び出しが残るが、これは親が受容済みの R-2 に対応する fail-closed 経路であり、NO-GO 理由にはしていない。`tools/pegasus/*.sh` は shared parser または v2 `run_probe.py` 経由で、旧 payload の直接 consumer は残っていない。
+
+## 履歴 replay
+
+`output/env/` の全 22 JSON と対応 stdout を読み、success 19 / failure 3、全 22 組で JSON の意味内容が一致することを確認した。failure 3 件は実際に `ok=false` かつ `profile`/`effective_clock` なしで、parser は [`env_attestation.py:596`](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/calibrator/env_attestation.py:596) の failure 分岐でそれらを要求せず射影する。
+
+v1 success 19 件はいずれも `tolerance_pct: 100.0` を持ち、legacy sentinel は [581](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/calibrator/env_attestation.py:581) に一致する。hash projection は [629](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/calibrator/env_attestation.py:629) で parsed schema に拘束され、v1 は tolerance を再構築し、v2 は observed-only を使う。caller が版を任意指定できる面はなく、版をまたぐ preimage の曖昧化はない。
+
+`git diff f009da3..17bd409 -- output/env` は空で、履歴 evidence の bytes は変更されていない。
+
+## T-453 結合
+
+歴史 evidence には legacy `true` と canonical 再導出 `false` の両方が意図的に残る（[evidence test:943](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_silo_ladder_rung1_evidence.py:943)、[969](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_silo_ladder_rung1_evidence.py:969)）。ただし current authority として二重 verdict にはならない。driver/runtime binding gate は [silo_ladder_rung1.py:3509](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:3509)、collect/verify の canonical 再検査は [4783](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:4783) と [4830](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/campaign/silo_ladder_rung1.py:4830) にあり、台帳も [`patches/ledger.json:6`](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/patches/ledger.json:6) で eligibility/recovery/pipeline を false としている。
+
+`grep -rn "tolerance_pct"` も指定の T-419 二ファイルを除外して確認した。残る `100.0` は v1 replay、[`test_schema_v2.py:78`](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority/orchestrator/tests/test_schema_v2.py:78) の `5.0` は一般 schema 許容テストであり、現行 policy の未移行 literal/golden ではない。
+
+## 総括
+
+- (a) **NO-GO**。pytest は未実行であり、本判定は静的検査による。
+- (b-1) L6-B-1 により、正常な calibrator certification が exact-key gate で必ず reject される。
+- (c) 親の全走では最初に `test_calibrator_certify.py:610` の成功経路と `:708` の自己比較を確認すべきである。

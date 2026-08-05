@@ -36,6 +36,9 @@ from campaign.source_digest import (  # noqa: E402
 
 ROOT = _HERE.parent.parent
 REAL_CAMPAIGN = ROOT / "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
+LEGACY_TRIGGER_SWEEP_CAMPAIGN = (
+    ROOT / "output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2"
+)
 YCSB = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
 ABORTED_FIXTURE_VARIANT = "2225adf39fa3"
 REJECTED_FIXTURE_VARIANT = "d85dc0fc5a6e"
@@ -359,6 +362,17 @@ def test_real_legacy_s8a_campaign_is_rejected(tmp_path):
     out = tmp_path / "report.json"
     with pytest.raises(layer3_report.Layer3ReportError, match="legacy-unclassified"):
         layer3_report.render(REAL_CAMPAIGN, out, generated_from_head="fixed-head")
+    assert not out.exists()
+
+
+def test_legacy_trigger_sweep_cannot_issue_new_report(tmp_path):
+    out = tmp_path / "report.json"
+    with pytest.raises(layer3_report.Layer3ReportError, match="legacy-unclassified"):
+        layer3_report.render(
+            LEGACY_TRIGGER_SWEEP_CAMPAIGN,
+            out,
+            generated_from_head="fixed-head",
+        )
     assert not out.exists()
 
 

@@ -600,11 +600,19 @@ def _install_real_seal_reservation(monkeypatch) -> dict[str, str]:
     return values
 
 
+def _observed(profile):
+    raw = env_attestation.profile_to_dict(profile)
+    del raw["effective_clock"]["tolerance_pct"]
+    return env_attestation.normalize_observed_profile(raw)
+
+
 def _install_required_contract(tmp_path: Path, monkeypatch):
     """production calibration/v2 reader + issuer を通す required env fixture。"""
     repo_root = tmp_path / "required-repo"
     repo_root.mkdir()
     document = _valid_calibration_v2_document()
+    # U-2/U-3 による current admission の正当な縮小: required fixture は policy と一致させる。
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = 2.0
     raw = json.dumps(
         document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
@@ -621,7 +629,7 @@ def _install_required_contract(tmp_path: Path, monkeypatch):
     verified = env_attestation.load_verified_calibration(contract, repo_root)
     monkeypatch.setattr(
         s8b_floor_campaign.env_attestation, "probe",
-        lambda: verified.attestation_profile,
+        lambda: _observed(verified.attestation_profile),
     )
 
     requested_s = 100_000
@@ -1366,12 +1374,13 @@ def test_required_v1_receipt_mode_mismatch_rejected_without_side_effects(
 def test_required_attestation_comparison_failure_has_zero_side_effects(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
-    observed = dataclasses.replace(
+    observed_expected_shape = dataclasses.replace(
         ctx["verified"].attestation_profile,
         cpu=dataclasses.replace(
             ctx["verified"].attestation_profile.cpu, vendor="DifferentVendor",
         ),
     )
+    observed = _observed(observed_expected_shape)
     monkeypatch.setattr(s8b_floor_campaign.env_attestation, "probe", lambda: observed)
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="comparisons failed"):
         s8b_floor_campaign.run_campaign(
@@ -3471,11 +3480,10 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         clean_clock = dataclasses.replace(
             calibration_clock,
             samples_mhz=clean_samples,
-            tolerance_pct=100.0,
         )
-        return dataclasses.replace(
+        return _observed(dataclasses.replace(
             calibration_profile, effective_clock=clean_clock,
-        )
+        ))
 
     monkeypatch.setattr(s8b_floor_campaign.env_attestation, "probe", attestation_probe)
     reservation_values = _install_real_seal_reservation(monkeypatch)

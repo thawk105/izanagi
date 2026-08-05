@@ -7,6 +7,8 @@ import copy
 import dataclasses
 import hashlib
 import json
+import math
+import statistics
 import sys
 from pathlib import Path
 
@@ -22,6 +24,7 @@ if str(_HERE) not in sys.path:
 from calibrator import schema_v2 as sv2  # noqa: E402
 from campaign import env_attestation as ea  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
+from campaign import execution_guard as eg  # noqa: E402
 from test_schema_v2 import _valid_document  # noqa: E402
 
 
@@ -78,7 +81,7 @@ def test_probe_fixture_tree_returns_frozen_schema_profile(tmp_path, monkeypatch)
     roots = _probe_tree(tmp_path)
     _patch_runtime_probe(monkeypatch)
     profile = ea.probe(roots)
-    assert isinstance(profile, sv2.AttestationProfile)
+    assert isinstance(profile, sv2.ObservedAttestationProfile)
     assert profile.cpu == sv2.CpuProfile(
         vendor="GenuineIntel", family=6, model=143,
         model_name_raw="Intel(R)  Xeon(TM) Test CPU @ 2.40GHz",
@@ -92,11 +95,12 @@ def test_probe_fixture_tree_returns_frozen_schema_profile(tmp_path, monkeypatch)
     assert profile.tsc.clocks_per_us_int == 1800
     assert profile.effective_clock.samples_mhz == [2390.0, 2410.0]
     assert profile.effective_clock.governor == "performance"
+    assert not hasattr(profile.effective_clock, "tolerance_pct")
     assert profile.visibility == sv2.VisibilityProfile(
         hidepid="0", pid_ns_shared_with_host=True,
         pid_ns_method="proc2-kthreadd",
     )
-    assert ea.normalize_profile(ea.profile_to_dict(profile)) == profile
+    assert ea.normalize_observed_profile(ea.observed_profile_to_dict(profile)) == profile
 
 
 def test_probe_rejects_mixed_governors_across_visible_cpus(tmp_path, monkeypatch):
@@ -166,7 +170,35 @@ def test_required_tsc_probe_has_no_fallback(monkeypatch):
 
 
 def _profile() -> sv2.AttestationProfile:
-    return sv2.validate_calibration_v2(_valid_document()).attestation_profile
+    document = _valid_document()
+    # U-2 の current issuer accepted set は policy 2.0 に縮小した。
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = 2.0
+    return sv2.validate_calibration_v2(document).attestation_profile
+
+
+def _observed(profile: sv2.AttestationProfile) -> sv2.ObservedAttestationProfile:
+    raw = ea.profile_to_dict(profile)
+    del raw["effective_clock"]["tolerance_pct"]
+    return ea.normalize_observed_profile(raw)
+
+
+def _observed_comparison_fixture(
+    profile: sv2.AttestationProfile,
+) -> sv2.ObservedAttestationProfile:
+    """Build comparator input without applying raw parser invariants."""
+    return sv2.ObservedAttestationProfile(
+        cpu=profile.cpu,
+        cores=profile.cores,
+        cache_topology=profile.cache_topology,
+        numa=profile.numa,
+        tsc=profile.tsc,
+        effective_clock=sv2.ObservedEffectiveClockProfile(
+            samples_mhz=profile.effective_clock.samples_mhz,
+            method=profile.effective_clock.method,
+            governor=profile.effective_clock.governor,
+        ),
+        visibility=profile.visibility,
+    )
 
 
 def _replace_cpu(profile, **values):
@@ -241,28 +273,245 @@ def _replace_clock(profile, **values):
 ])
 def test_compare_profiles_reports_each_field_mismatch(field, mutate):
     expected = _profile()
-    comparisons = ea.compare_profiles(expected, mutate(expected), now_fn=lambda: "now")
+    comparisons = ea.compare_profiles(
+        expected,
+        _observed_comparison_fixture(mutate(expected)),
+        now_fn=lambda: "now",
+    )
     failures = {item["field"] for item in comparisons if item["verdict"] == "fail"}
     assert field in failures
 
 
 def test_compare_profiles_normalizes_raw_name_and_applies_expected_clock_tolerance():
     expected = _profile()
-    observed = _replace_cpu(expected, model_name_raw="Intel Test CPU @ 2.10GHz")
-    observed = _replace_clock(observed, samples_mhz=[2450.0, 2460.0, 2440.0], tolerance_pct=0.1)
+    observed_raw_name = "Intel Test CPU @ 2.10GHz"
+    observed_expected_shape = _replace_cpu(
+        expected,
+        model_name_raw=observed_raw_name,
+        model_name_normalized=ea.normalize_cpu_model_name(observed_raw_name),
+    )
+    observed_expected_shape = _replace_clock(
+        observed_expected_shape, samples_mhz=[2440.0, 2448.0, 2430.0],
+    )
+    observed = _observed(observed_expected_shape)
     comparisons = ea.compare_profiles(expected, observed, now_fn=lambda: "now")
     by_field = {item["field"]: item["verdict"] for item in comparisons}
     assert by_field["cpu.model_name_raw"] == "pass"
     assert by_field["effective_clock.samples_mhz"] == "pass"
 
-    outlier = _replace_clock(expected, samples_mhz=[2400.0, 2400.0, 3000.0])
+    outlier = _observed(_replace_clock(
+        expected, samples_mhz=[2400.0, 2400.0, 3000.0],
+    ))
     outlier_comparisons = ea.compare_profiles(expected, outlier, now_fn=lambda: "now")
     assert next(item for item in outlier_comparisons
                 if item["field"] == "effective_clock.samples_mhz")["verdict"] == "fail"
 
 
+def _probe_document(version: str) -> dict:
+    profile = copy.deepcopy(_valid_document()["attestation_profile"])
+    if version == ea.PEGASUS_PROBE_OUTPUT_V1:
+        profile["effective_clock"]["tolerance_pct"] = 100.0
+    else:
+        del profile["effective_clock"]["tolerance_pct"]
+    return {
+        "schema_version": version,
+        "ok": True,
+        "observed_epoch": 1,
+        "profile": profile,
+    }
+
+
+@pytest.mark.parametrize("sentinel", [100, 2.0, 99.0])
+def test_probe_output_v1_accepts_only_exact_float_sentinel(sentinel):
+    document = _probe_document(ea.PEGASUS_PROBE_OUTPUT_V1)
+    document["profile"]["effective_clock"]["tolerance_pct"] = sentinel
+    with pytest.raises(ea.AttestationError, match="sentinel"):
+        ea.parse_probe_output(json.dumps(document))
+
+
+@pytest.mark.parametrize("tolerance", [2.0, 100.0])
+def test_probe_output_v2_rejects_tolerance_field(tolerance):
+    document = _probe_document(ea.PEGASUS_PROBE_OUTPUT_V2)
+    document["profile"]["effective_clock"]["tolerance_pct"] = tolerance
+    with pytest.raises(ea.AttestationError, match="effective_clock"):
+        ea.parse_probe_output(json.dumps(document))
+
+
+@pytest.mark.parametrize("version", [
+    ea.PEGASUS_PROBE_OUTPUT_V1,
+    ea.PEGASUS_PROBE_OUTPUT_V2,
+])
+def test_probe_output_rejects_forged_cpu_name_pair(version):
+    document = _probe_document(version)
+    document["profile"]["cpu"].update({
+        "model_name_raw": "Intel Xeon Platinum 8468H",
+        "model_name_normalized": "Intel Xeon Platinum 8468",
+    })
+
+    with pytest.raises(ea.AttestationError, match="normalized name"):
+        ea.parse_probe_output(json.dumps(document))
+
+
+@pytest.mark.parametrize("version", [
+    ea.PEGASUS_PROBE_OUTPUT_V1,
+    ea.PEGASUS_PROBE_OUTPUT_V2,
+])
+@pytest.mark.parametrize("level", ["top", "profile", "effective_clock"])
+def test_probe_output_rejects_duplicate_keys_at_every_raw_level(version, level):
+    document = _probe_document(version)
+    profile_text = json.dumps(document["profile"], separators=(",", ":"))
+    if level == "profile":
+        profile_text = profile_text.replace('"cpu":{', '"cpu":{},"cpu":{', 1)
+    elif level == "effective_clock":
+        profile_text = profile_text.replace(
+            '"samples_mhz":[', '"samples_mhz":[1.0],"samples_mhz":[', 1,
+        )
+    raw = (
+        '{"schema_version":' + json.dumps(version)
+        + ',"ok":true,"observed_epoch":1,"profile":' + profile_text
+        + (',"profile":' + profile_text if level == "top" else "")
+        + "}"
+    )
+    with pytest.raises(ea.AttestationError, match="duplicate key"):
+        ea.parse_probe_output(raw)
+
+
+def test_observed_hash_projection_preserves_source_schema_preimage():
+    v1_document = _probe_document(ea.PEGASUS_PROBE_OUTPUT_V1)
+    v2_document = _probe_document(ea.PEGASUS_PROBE_OUTPUT_V2)
+    parsed_v1 = ea.parse_probe_output(json.dumps(v1_document))
+    parsed_v2 = ea.parse_probe_output(json.dumps(v2_document))
+
+    def digest(profile):
+        return hashlib.sha256(json.dumps(
+            profile, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        ).encode("utf-8")).hexdigest()
+
+    assert ea.observed_profile_sha256(parsed_v1) == digest(v1_document["profile"])
+    assert ea.observed_profile_sha256(parsed_v2) == digest(v2_document["profile"])
+    assert "tolerance_pct" in ea.observed_profile_projection(parsed_v1)["effective_clock"]
+    assert "tolerance_pct" not in ea.observed_profile_projection(parsed_v2)["effective_clock"]
+
+
+_V1_CORPUS_PAIRS = (
+    ("calibration/job-staging/0:867865.nqsv/attestation-static.json", "calibration/job-staging/0:867865.nqsv/attestation-static.stdout"),
+    ("calibration/job-staging/0:867866.nqsv/attestation-static.json", "calibration/job-staging/0:867866.nqsv/attestation-static.stdout"),
+    ("calibration/job-staging/0:867867.nqsv/attestation-static.json", "calibration/job-staging/0:867867.nqsv/attestation-static.stdout"),
+    ("calibration/job-staging/0:867868.nqsv/attestation-static.json", "calibration/job-staging/0:867868.nqsv/attestation-static.stdout"),
+    ("calibration/job-staging/0:867869.nqsv/attestation-pre.json", "calibration/job-staging/0:867869.nqsv/attestation-pre.stdout"),
+    ("calibration/job-staging/0:867869.nqsv/attestation-static.json", "calibration/job-staging/0:867869.nqsv/attestation-static.stdout"),
+    ("calibration/job-staging/0:867870.nqsv/attestation-pre.json", "calibration/job-staging/0:867870.nqsv/attestation-pre.stdout"),
+    ("calibration/job-staging/0:867870.nqsv/attestation-static.json", "calibration/job-staging/0:867870.nqsv/attestation-static.stdout"),
+    ("calibration/job-staging/0:867872.nqsv/attestation-pre.json", "calibration/job-staging/0:867872.nqsv/attestation-pre.stdout"),
+    ("calibration/job-staging/0:867872.nqsv/attestation-static.json", "calibration/job-staging/0:867872.nqsv/attestation-static.stdout"),
+    ("calibration/job-staging/0:867874.nqsv/attestation-pre.json", "calibration/job-staging/0:867874.nqsv/attestation-pre.stdout"),
+    ("calibration/job-staging/0:867874.nqsv/attestation-static.json", "calibration/job-staging/0:867874.nqsv/attestation-static.stdout"),
+    ("calibration/job-staging/0:867876.nqsv/attestation-post.json", "calibration/job-staging/0:867876.nqsv/attestation-post.stdout"),
+    ("calibration/job-staging/0:867876.nqsv/attestation-pre.json", "calibration/job-staging/0:867876.nqsv/attestation-pre.stdout"),
+    ("calibration/job-staging/0:867876.nqsv/attestation-static.json", "calibration/job-staging/0:867876.nqsv/attestation-static.stdout"),
+    ("smoke/0:867857.nqsv/observation.json", "smoke/0:867857.nqsv/run_probe.stdout"),
+    ("smoke/0:867858.nqsv/observation.json", "smoke/0:867858.nqsv/run_probe.stdout"),
+    ("smoke/0:867859.nqsv/observation.json", "smoke/0:867859.nqsv/run_probe.stdout"),
+    ("smoke/0:867860.nqsv/observation.json", "smoke/0:867860.nqsv/run_probe.stdout"),
+    ("smoke/0:867861.nqsv/observation.json", "smoke/0:867861.nqsv/run_probe.stdout"),
+    ("smoke/0:867862.nqsv/observation.json", "smoke/0:867862.nqsv/run_probe.stdout"),
+    ("silo_ladder_rung1/job-staging/0_873920.nqsv/raw-bundle-attempt-1/attempts/1/attestation-job.json", "silo_ladder_rung1/job-staging/0_873920.nqsv/raw-bundle-attempt-1/attempts/1/attestation-job.stdout"),
+)
+_V1_CORPUS_DOCS = {
+    "calibration/attempts/0_867874.nqsv/calibration.md",
+    "calibration/attempts/0_867876.nqsv/calibration.md",
+    "silo_ladder_rung1/README.md",
+}
+_V1_SUCCESS_JSONS = {
+    "calibration/job-staging/0:867865.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867866.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867867.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867868.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867869.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867869.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867870.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867870.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867872.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867872.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867874.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867874.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867876.nqsv/attestation-post.json",
+    "calibration/job-staging/0:867876.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867876.nqsv/attestation-static.json",
+    "smoke/0:867860.nqsv/observation.json",
+    "smoke/0:867861.nqsv/observation.json",
+    "smoke/0:867862.nqsv/observation.json",
+    ("silo_ladder_rung1/job-staging/0_873920.nqsv/raw-bundle-attempt-1/"
+     "attempts/1/attestation-job.json"),
+}
+_V1_FAILURE_JSONS = {
+    "smoke/0:867857.nqsv/observation.json",
+    "smoke/0:867858.nqsv/observation.json",
+    "smoke/0:867859.nqsv/observation.json",
+}
+
+
+def test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies():
+    root = _ORCH.parent / "output/env/pegasus"
+    discovered_payloads = {
+        str(path.relative_to(root))
+        for path in root.rglob("*")
+        if path.suffix in {".json", ".stdout"}
+        and ea.PEGASUS_PROBE_OUTPUT_V1 in path.read_text(encoding="utf-8")
+    }
+    golden_payloads = {item for pair in _V1_CORPUS_PAIRS for item in pair}
+    discovered_docs = {
+        str(path.relative_to(root))
+        for path in (
+            *root.glob("calibration/attempts/*/calibration.md"),
+            root / "silo_ladder_rung1/README.md",
+        )
+        if path.is_file()
+    }
+    assert discovered_payloads == golden_payloads
+    assert discovered_docs == _V1_CORPUS_DOCS
+    assert all((root / path).is_file() for path in _V1_CORPUS_DOCS)
+    assert len(golden_payloads | discovered_docs) == 47
+    assert _V1_SUCCESS_JSONS.isdisjoint(_V1_FAILURE_JSONS)
+    assert _V1_SUCCESS_JSONS | _V1_FAILURE_JSONS == {
+        pair[0] for pair in _V1_CORPUS_PAIRS
+    }
+
+    registered = json.loads(next(
+        (root / "calibration/registered").glob("calibration-*.json")
+    ).read_text(encoding="utf-8"))
+    expected_clock = {
+        "samples_mhz": registered["attestation_profile"]["effective_clock"]["samples_mhz"],
+        "tolerance_pct": 2.0,
+    }
+    observed_success = set()
+    observed_failure = set()
+    for json_rel, stdout_rel in _V1_CORPUS_PAIRS:
+        json_raw = (root / json_rel).read_bytes()
+        stdout_raw = (root / stdout_rel).read_bytes()
+        assert json.loads(json_raw) == json.loads(stdout_raw)
+        parsed = ea.parse_probe_output(json_raw)
+        if not parsed.ok:
+            observed_failure.add(json_rel)
+            continue
+        observed_success.add(json_rel)
+        assert parsed.profile is not None
+        observed_samples = parsed.profile.effective_clock.samples_mhz
+        expected_median = statistics.median(expected_clock["samples_mhz"])
+        observed_median = statistics.median(observed_samples)
+        assert abs(observed_median - expected_median) <= expected_median * 0.02
+        assert not eg.effective_clock_comparison_passes(
+            expected_clock, {"samples_mhz": observed_samples},
+        )
+    assert observed_success == _V1_SUCCESS_JSONS
+    assert observed_failure == _V1_FAILURE_JSONS
+
+
 def _required_artifact(tmp_path: Path, doc: dict | None = None, *, raw: bytes | None = None):
     document = copy.deepcopy(doc if doc is not None else _valid_document())
+    if doc is None:
+        # U-2 の required-loader accepted set は policy 2.0 に縮小した。
+        document["attestation_profile"]["effective_clock"]["tolerance_pct"] = 2.0
     artifact_raw = raw if raw is not None else json.dumps(
         document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
@@ -286,6 +535,47 @@ def test_load_verified_calibration_accepts_result_to_dict_derived_v2(tmp_path):
     assert verified.calibration is not None
     assert verified.calibration.env_tag == contract.env_tag
     assert verified.attestation_profile_sha256 == ea.profile_sha256(_profile())
+
+
+@pytest.mark.parametrize("tolerance", [
+    math.nextafter(2.0, math.inf),
+    math.nextafter(2.0, -math.inf),
+    2.5,
+    2.9,
+])
+def test_loader_rejects_well_formed_nonpolicy_tolerance(tmp_path, tolerance):
+    document = _valid_document()
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = tolerance
+    _, contract = _required_artifact(tmp_path, document)
+    with pytest.raises(ea.AttestationError, match="current policy"):
+        ea.load_verified_calibration(contract, tmp_path)
+
+
+@pytest.mark.parametrize("tolerance", [
+    math.nextafter(2.0, math.inf),
+    math.nextafter(2.0, -math.inf),
+    2.5,
+    2.9,
+])
+def test_issuer_rejects_every_nonpolicy_equality_edge(tolerance):
+    expected = dataclasses.replace(
+        _profile(),
+        effective_clock=dataclasses.replace(
+            _profile().effective_clock,
+            samples_mhz=[100.0],
+            tolerance_pct=tolerance,
+        ),
+    )
+    observed = _observed(dataclasses.replace(
+        _profile(),
+        effective_clock=dataclasses.replace(
+            _profile().effective_clock, samples_mhz=[100.0],
+        ),
+    ))
+    comparisons = ea.compare_profiles(expected, observed, now_fn=lambda: "now")
+    clock = next(row for row in comparisons
+                 if row["field"] == "effective_clock.samples_mhz")
+    assert clock["verdict"] == "fail"
 
 
 def test_load_verified_calibration_rejects_sha_mismatch(tmp_path):

@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass
+from typing import Iterable
 
 from .reflux_ir import SCHEMA_ID, TriggerGateIR, emit_predicate
 
@@ -16,6 +17,7 @@ __all__ = [
     "SourceBinding",
     "TriggerGateBinding",
     "TriggerGateBindingError",
+    "canonicalize_predicate",
     "expected_predicate_sha256",
     "is_canonical_predicate",
     "new_nonce",
@@ -79,9 +81,33 @@ def expected_predicate_sha256(mask: int) -> str:
     return hashlib.sha256(predicate.encode()).hexdigest()
 
 
-CANONICAL_PREDICATES: frozenset[str] = frozenset(
-    emit_predicate(TriggerGateIR(mask)).strip() for mask in range(32)
+def _build_canonical_predicate_index(emitted: Iterable[str]) -> dict[str, str]:
+    """Index emitter bytes by their accepted outer-whitespace equivalent."""
+    index: dict[str, str] = {}
+    for predicate in emitted:
+        key = predicate.strip()
+        if key in index:
+            raise RuntimeError(
+                "duplicate canonical trigger predicate after outer strip"
+            )
+        index[key] = predicate
+    return index
+
+
+_CANONICAL_PREDICATE_INDEX = _build_canonical_predicate_index(
+    emit_predicate(TriggerGateIR(mask)) for mask in range(32)
 )
+CANONICAL_PREDICATES: frozenset[str] = frozenset(_CANONICAL_PREDICATE_INDEX)
+
+
+def canonicalize_predicate(text: object) -> str:
+    """Resolve an accepted predicate spelling to its canonical emitter bytes."""
+    if type(text) is not str:
+        _reject()
+    key = text.strip()
+    if key not in _CANONICAL_PREDICATE_INDEX:
+        _reject()
+    return _CANONICAL_PREDICATE_INDEX[key]
 
 
 def is_canonical_predicate(text: object) -> bool:

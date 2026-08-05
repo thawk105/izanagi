@@ -171,24 +171,198 @@ _FALLBACK_LOGIN = "PEGASUS_LOGIN"
 _FALLBACK_SUSPECT = "PEGASUS_SUSPECT"
 _POLICY_UNSET = object()
 
-_SANCTIONED_PATHS = frozenset({
+_PEGASUS_LOCAL_OK = "local-ok"
+_PEGASUS_DISPATCH_REQUIRED = "dispatch-required"
+_PEGASUS_UNKNOWN = "unknown"
+_PEGASUS_UNREGISTERED = object()
+
+# Pegasus admission の正本。class は login/suspect での受理可否だけを表し、
+# reason / primary_gate / evidence は役割・一次防壁・証拠状態を別軸で正直に残す。
+# local-ok 以外はすべて hook で拒否する。probe subtree の実行体は、資源証拠も
+# 昇格裁定もないため unknown として inventory に載せ、現行 DENY を維持する。
+_PEGASUS_ADMISSION_REGISTRY = {
+    "tools/pegasus/certify_calibration.sh": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "PBS calibration job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification",
+    },
+    "tools/pegasus/collect_receipt.py": {
+        "class": _PEGASUS_UNKNOWN,
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain",
+    },
+    "tools/pegasus/collect_t126_qualification.py": {
+        "class": _PEGASUS_UNKNOWN,
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain",
+    },
+    "tools/pegasus/dispatch_compute.py": {
+        "class": _PEGASUS_LOCAL_OK,
+        "reason": "login-side compute dispatcher with a self-gated job mode",
+        "primary_gate": "dispatch_compute --job-run site gate",
+        "evidence": "legacy-admitted (未実測)",
+    },
+    "tools/pegasus/exec_calibrate.py": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "arbitrary exec trampoline used inside compute jobs",
+        "primary_gate": "compute allocation owned by the caller",
+        "evidence": "static arbitrary-exec classification",
+    },
+    "tools/pegasus/fetch_third_party.py": {
+        "class": _PEGASUS_LOCAL_OK,
+        "reason": "login-side third-party acquisition workflow",
+        "primary_gate": "fetch_third_party CLI validation",
+        "evidence": "runbook §7.0 実測",
+    },
+    "tools/pegasus/floor_campaign.sh": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "PBS floor campaign job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification",
+    },
+    "tools/pegasus/floor_scoping.sh": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "PBS floor scoping job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification",
+    },
+    "tools/pegasus/make_acquisition_receipt.py": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "receipt helper invoked from the calibration compute job",
+        "primary_gate": "compute allocation owned by certify_calibration.sh",
+        "evidence": "static compute-side call-site classification",
+    },
+    "tools/pegasus/probes/t139_positive_control_probe.pbs": {
+        "class": _PEGASUS_UNKNOWN,
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact",
+    },
+    "tools/pegasus/probes/t139_positive_control_probe.sh": {
+        "class": _PEGASUS_UNKNOWN,
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact",
+    },
+    "tools/pegasus/probes/t293_perf_site_probe.py": {
+        "class": _PEGASUS_UNKNOWN,
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact",
+    },
+    "tools/pegasus/probes/t293_perf_site_probe.pbs": {
+        "class": _PEGASUS_UNKNOWN,
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact",
+    },
+    "tools/pegasus/probes/t419_probe_causality.py": {
+        "class": _PEGASUS_UNKNOWN,
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact",
+    },
+    "tools/pegasus/probes/t419_probe_causality.pbs": {
+        "class": _PEGASUS_UNKNOWN,
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact",
+    },
+    "tools/pegasus/run_probe.py": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "probe semantics require a compute allocation",
+        "primary_gate": "compute-node environment attestation",
+        "evidence": "static semantic-site classification",
+    },
+    "tools/pegasus/silo_ladder_rung1.sh": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "PBS silo ladder job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification",
+    },
+    "tools/pegasus/smoke_probe.sh": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "PBS smoke probe job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification",
+    },
+    "tools/pegasus/submit_certify.sh": {
+        "class": _PEGASUS_LOCAL_OK,
+        "reason": "login-side PBS certification submitter",
+        "primary_gate": "qsub submission; compute work stays in job body",
+        "evidence": "legacy-admitted (未実測)",
+    },
+    "tools/pegasus/submit_floor.sh": {
+        "class": _PEGASUS_LOCAL_OK,
+        "reason": "login-side PBS floor submitter",
+        "primary_gate": "qsub submission; compute work stays in job body",
+        "evidence": "legacy-admitted (未実測)",
+    },
+    "tools/pegasus/submit_silo_ladder_rung1.sh": {
+        "class": _PEGASUS_LOCAL_OK,
+        "reason": "login-side PBS silo ladder submitter",
+        "primary_gate": "qsub submission; compute work stays in job body",
+        "evidence": "legacy-admitted (未実測)",
+    },
+    "tools/pegasus/submit_t126_qualification.sh": {
+        "class": _PEGASUS_UNKNOWN,
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; preflight input surfaces remain",
+    },
+    "tools/pegasus/t126_qualification.sh": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "PBS T126 qualification job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification",
+    },
+    "tools/pegasus/t141_region_profile.sh": {
+        "class": _PEGASUS_DISPATCH_REQUIRED,
+        "reason": "PBS T141 profiling job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification",
+    },
+}
+
+_NON_PEGASUS_SANCTIONED_PATHS = frozenset({
     "tools/run_tests.py",
     # checker 自身が site gate を持ち、login node では計算ノードへ dispatch し
     # SUSPECT では rc=16 で止まる = 「自分で fail-closed する entry point」。
     "tools/check_ai_provenance.py",
-    "tools/pegasus/dispatch_compute.py",
-    # network を要する取得段は compute では成立せず login 専用であり、
-    # docs/pegasus-runbook.md §7.0 の実測で全 subcommand が local-ok 分類済み。
-    "tools/pegasus/fetch_third_party.py",
-    "tools/pegasus/submit_certify.sh",
-    "tools/pegasus/submit_floor.sh",
-    "tools/pegasus/submit_silo_ladder_rung1.sh",
 })
+_SANCTIONED_PATHS = frozenset(
+    _NON_PEGASUS_SANCTIONED_PATHS
+    | {path for path, entry in _PEGASUS_ADMISSION_REGISTRY.items()
+       if entry["class"] == _PEGASUS_LOCAL_OK})
 _SANCTIONED_HEADS = frozenset({"qsub", "qdel", "qstat"})
-_SHELL_COMMAND_OPTS = frozenset({"-c", "-lc", "-ic"})
 _PYTHON_HEAD_RE = re.compile(r"^python(?:\d+(?:\.\d+)*)?$")
 _PYTHON_MODULE_RE = re.compile(
     r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
+_PYTEST_MODULES = frozenset({"pytest", "pytest.__main__", "_pytest.main"})
+_SCRIPT_EXECUTOR_MODULE_OPTIONS = {
+    "cProfile": frozenset({"-o", "--outfile", "-s", "--sort", "-m"}),
+    "profile": frozenset({"-o", "--outfile", "-s", "--sort", "-m"}),
+    "pdb": frozenset({"-c", "--command", "-m"}),
+    "trace": frozenset({
+        "-f", "--file", "-C", "--coverdir", "--ignore-module",
+        "--ignore-dir", "--module",
+    }),
+    "runpy": frozenset(),
+    "pydoc": frozenset({"-k", "-n", "-p"}),
+    "doctest": frozenset({"-o", "--option"}),
+    "unittest": frozenset({"-k", "-s", "--start-directory", "-p", "--pattern",
+                            "-t", "--top-level-directory"}),
+}
+_SCRIPT_EXECUTOR_OUTPUT_OPTIONS = {
+    "cProfile": frozenset({"-o", "--outfile"}),
+    "profile": frozenset({"-o", "--outfile"}),
+}
+_MULTI_TARGET_EXECUTOR_MODULES = frozenset({"pydoc", "doctest", "unittest"})
+_MODULE_HELP_OPTIONS = frozenset({"-h", "--help"})
+_PYDOC_NONEXECUTING_MODES = frozenset({"-n", "-p", "-b", "-w"})
 _YCSB_EXE_RE = re.compile(r"^ycsb_.*\.exe$")
 _BUILD_VARIANTS_HEAD_RE = re.compile(r"(?:^|/)build-variants(?:/|$)")
 _NINJA_READ_ONLY_TOOLS = frozenset({
@@ -419,6 +593,76 @@ def _invocation_path(token: str, repo_root: str) -> str:
     return os.path.normpath(expanded)
 
 
+def _pegasus_admission_entry(path: str):
+    """exact entry、Pegasus 配下の未登録 sentinel、管轄外 None を返す。"""
+    entry = _PEGASUS_ADMISSION_REGISTRY.get(path)
+    if entry is not None:
+        return entry
+    # prefix は allow に使わず、Pegasus 配下の未登録を deny に倒すためだけに使う。
+    if path == "tools/pegasus" or path.startswith("tools/pegasus/"):
+        return _PEGASUS_UNREGISTERED
+    return None
+
+
+def _python_prefix_invocation(head: str, args):
+    """Python prefix を解釈し ``(kind, value, remaining_args)`` を返す。"""
+    if not _PYTHON_HEAD_RE.fullmatch(head):
+        return None
+    no_value_options = frozenset("bBdEhiIOPqRsSuvVx")
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--":
+            if i + 1 < len(args):
+                return "script", args[i + 1], args[i + 2:]
+            return "none", "", []
+        if token == "-":
+            return "stdin", "", args[i + 1:]
+        if not token.startswith("-"):
+            return "script", token, args[i + 1:]
+        if token.startswith("--"):
+            if token == "--check-hash-based-pycs":
+                if i + 1 >= len(args):
+                    return "invalid", "", []
+                i += 2
+                continue
+            if token.startswith("--check-hash-based-pycs="):
+                i += 1
+                continue
+            # help/version 等は interpreter 内で終了する。未知 long option も
+            # Python が拒否するが、残余は baseline 互換の fail-closed 検査へ渡す。
+            return "interpreter", token, args[i + 1:]
+
+        bundle = token[1:]
+        consumed_value = False
+        for j, option in enumerate(bundle):
+            if option in {"c", "m", "W", "X"}:
+                attached = bundle[j + 1:]
+                if attached:
+                    value = attached
+                    remaining = args[i + 1:]
+                    next_i = i + 1
+                elif i + 1 < len(args):
+                    value = args[i + 1]
+                    remaining = args[i + 2:]
+                    next_i = i + 2
+                else:
+                    return "invalid", "", []
+                if option == "c":
+                    return "command", value, remaining
+                if option == "m":
+                    return "module", value, remaining
+                # -W/-X は値を取るが prefix parsing は続く。
+                i = next_i
+                consumed_value = True
+                break
+            if option not in no_value_options:
+                return "invalid", "", args[i + 1:]
+        if not consumed_value:
+            i += 1
+    return "none", "", []
+
+
 def _python_module_invocation(head: str, args):
     """Python CLI の ``-m`` 形を ``(module, module_args)`` として返す。
 
@@ -426,37 +670,14 @@ def _python_module_invocation(head: str, args):
     ``-qm name`` / ``-Om name`` / ``-qmpytest`` を扱う。``-c`` / ``-W`` /
     ``-X`` の残部は各 option の値なので、その中の ``m`` は module option とみなさない。
     """
-    if not _PYTHON_HEAD_RE.fullmatch(head):
+    parsed = _python_prefix_invocation(head, args)
+    if parsed is None or parsed[0] != "module":
         return None
-    no_value_options = frozenset("bBdEhiIOPqRsSuvVx")
-    value_options = frozenset("cWX")
-    for i, token in enumerate(args):
-        if token == "-m":
-            if i + 1 < len(args):
-                return args[i + 1], args[i + 2:]
-            return None
-        if not token.startswith("-") or token.startswith("--") or token == "-":
-            continue
-        bundle = token[1:]
-        for j, option in enumerate(bundle):
-            if option == "m":
-                attached = bundle[j + 1:]
-                if attached:
-                    return attached, args[i + 1:]
-                if i + 1 < len(args):
-                    return args[i + 1], args[i + 2:]
-                return None
-            if option in value_options or option not in no_value_options:
-                break
-    return None
+    return parsed[1], parsed[2]
 
 
-def _python_module_target(head: str, args, repo_root: str) -> str:
-    """Python ``-m name`` の repo 内実体を exact path として返す。"""
-    invocation = _python_module_invocation(head, args)
-    if invocation is None:
-        return ""
-    module, _ = invocation
+def _python_module_path(module: str, repo_root: str) -> str:
+    """module 名の repo 内実体を exact path として返す。"""
     if not _PYTHON_MODULE_RE.fullmatch(module):
         return ""
     stem = module.replace(".", "/")
@@ -466,37 +687,297 @@ def _python_module_target(head: str, args, repo_root: str) -> str:
     return ""
 
 
-def _shell_command_index(args):
-    """shell の短 option 群に ``c`` があれば command-string の index を返す。"""
-    for i, arg in enumerate(args):
-        if (arg in _SHELL_COMMAND_OPTS
-                or (arg.startswith("-") and not arg.startswith("--")
-                    and "c" in arg[1:])):
-            return i + 1 if i + 1 < len(args) else None
+def _python_module_target(head: str, args, repo_root: str) -> str:
+    """Python ``-m name`` の repo 内実体を exact path として返す。"""
+    invocation = _python_module_invocation(head, args)
+    if invocation is None:
+        return ""
+    module, _ = invocation
+    return _python_module_path(module, repo_root)
+
+
+def _module_option_value(token: str, options):
+    """module CLI option の attached value、非該当 None を返す。"""
+    for option in options:
+        if option.startswith("--"):
+            if token.startswith(option + "="):
+                return token.split("=", 1)[1]
+        elif token.startswith(option) and token != option:
+            return token[len(option):]
     return None
 
 
-def _script_target(raw_head: str, head: str, args, repo_root: str) -> str:
+def _executor_module_target(value: str, repo_root: str) -> str:
+    """module 名なら repo 内実体へ写像し、それ以外は空文字列を返す。"""
+    return _python_module_path(value, repo_root)
+
+
+def _script_executor_output_targets(module: str, args, repo_root: str) -> tuple:
+    """program 決定前に指定された executor の出力先を返す。"""
+    output_options = _SCRIPT_EXECUTOR_OUTPUT_OPTIONS.get(module)
+    if output_options is None:
+        return ()
+    value_options = _SCRIPT_EXECUTOR_MODULE_OPTIONS[module]
+    targets = []
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _MODULE_HELP_OPTIONS:
+            return ()
+        if token == "--":
+            break
+        if token in output_options:
+            if i + 1 >= len(args):
+                break
+            targets.append(_invocation_path(args[i + 1], repo_root))
+            i += 2
+            continue
+        attached = _module_option_value(token, output_options)
+        if attached is not None:
+            targets.append(_invocation_path(attached, repo_root))
+            i += 1
+            continue
+        if token in value_options:
+            i += 2
+            continue
+        if _module_option_value(token, value_options) is not None:
+            i += 1
+            continue
+        if token.startswith("-"):
+            i += 1
+            continue
+        break
+    return tuple(targets)
+
+
+def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
+    """後続 script/module を実行する module の全実行対象を返す。"""
+    if module in {"coverage", "coverage.__main__"}:
+        if not args or args[0] != "run":
+            return ()
+        args = args[1:]
+        value_options = frozenset({
+            "--concurrency", "--context", "--data-file", "--include",
+            "--omit", "--rcfile", "--source", "-m", "--module",
+        })
+    else:
+        value_options = _SCRIPT_EXECUTOR_MODULE_OPTIONS.get(module)
+        if value_options is None:
+            return ()
+
+    targets = []
+    nonexecuting_mode = False
+    parsing_options = True
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if parsing_options and token in _MODULE_HELP_OPTIONS:
+            return ()
+        if parsing_options and module == "trace" and token == "--report":
+            return ()
+        if (parsing_options and module == "pydoc"
+                and token in _PYDOC_NONEXECUTING_MODES):
+            nonexecuting_mode = True
+            i += 2 if token in {"-n", "-p"} else 1
+            continue
+        if parsing_options and module == "pydoc":
+            attached_mode = _module_option_value(
+                token, frozenset({"-n", "-p"}))
+            if attached_mode is not None:
+                nonexecuting_mode = True
+                i += 1
+                continue
+        if parsing_options and token == "--":
+            positional = args[i + 1:]
+            if nonexecuting_mode:
+                return ()
+            if module not in _MULTI_TARGET_EXECUTOR_MODULES:
+                positional = positional[:1]
+            for value in positional:
+                mapped = _executor_module_target(value, repo_root)
+                targets.append(mapped or value)
+            return tuple(targets)
+        if parsing_options and token in value_options:
+            if i + 1 >= len(args):
+                return tuple(targets)
+            value = args[i + 1]
+            if token in {"-m", "--module"}:
+                mapped = _executor_module_target(value, repo_root)
+                return (mapped,) if mapped else ()
+            i += 2
+            continue
+        attached = (_module_option_value(token, value_options)
+                    if parsing_options else None)
+        if attached is not None:
+            if any(token.startswith(opt) for opt in {"-m", "--module"}):
+                mapped = _executor_module_target(attached, repo_root)
+                return (mapped,) if mapped else ()
+            i += 1
+            continue
+        if token.startswith("-"):
+            i += 1
+            continue
+        if nonexecuting_mode:
+            return ()
+        if module == "runpy":
+            mapped = _executor_module_target(token, repo_root)
+            return (mapped,) if mapped else ()
+        mapped = _executor_module_target(token, repo_root)
+        targets.append(mapped or token)
+        if module not in _MULTI_TARGET_EXECUTOR_MODULES:
+            return tuple(targets)
+        parsing_options = False
+        i += 1
+    return tuple(targets)
+
+
+_SHELL_VALUE_OPTIONS = frozenset({
+    "-O", "+O", "-o", "+o", "--init-file", "--rcfile",
+})
+_SHELL_STARTUP_FILE_OPTIONS = frozenset({"--init-file", "--rcfile"})
+
+
+def _shell_startup_targets(args) -> tuple:
+    """shell prefix に指定された startup file をすべて実行対象として返す。"""
+    kind, _, _ = _shell_prefix_invocation(args)
+    if kind == "command" and not _shell_prefix_is_interactive(args):
+        return ()
+    targets = []
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _SHELL_STARTUP_FILE_OPTIONS:
+            if i + 1 < len(args):
+                targets.append(args[i + 1])
+            i += 2
+            continue
+        attached = _module_option_value(token, _SHELL_STARTUP_FILE_OPTIONS)
+        if attached is not None:
+            targets.append(attached)
+            i += 1
+            continue
+        if token == "--" or token == "-" or not token.startswith(("-", "+")):
+            break
+        if token in _SHELL_VALUE_OPTIONS:
+            i += 2
+            continue
+        if _option_takes_attached_value(token, _SHELL_VALUE_OPTIONS):
+            i += 1
+            continue
+        if token.startswith("--"):
+            i += 1
+            continue
+        if "c" in token[1:] or "s" in token[1:]:
+            break
+        i += 1
+    return tuple(targets)
+
+
+def _shell_prefix_is_interactive(args) -> bool:
+    """command/script 決定前の shell option に ``-i`` があるか。"""
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--" or token == "-" or not token.startswith(("-", "+")):
+            return False
+        if token in _SHELL_VALUE_OPTIONS:
+            i += 2
+            continue
+        if _option_takes_attached_value(token, _SHELL_VALUE_OPTIONS):
+            i += 1
+            continue
+        if token.startswith("--"):
+            i += 1
+            continue
+        bundle = token[1:]
+        if "i" in bundle:
+            return True
+        if "c" in bundle or "s" in bundle:
+            return False
+        i += 1
+    return False
+
+
+def _shell_prefix_invocation(args):
+    """shell prefix を解釈し ``(kind, index, remaining_args)`` を返す。"""
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--":
+            if i + 1 < len(args):
+                return "script", i + 1, args[i + 2:]
+            return "interpreter", None, []
+        if token == "-":
+            return "stdin", None, args[i + 1:]
+        if not token.startswith(("-", "+")):
+            return "script", i, args[i + 1:]
+        if token in _SHELL_VALUE_OPTIONS:
+            if i + 1 >= len(args):
+                return "invalid", None, []
+            i += 2
+            continue
+        if _option_takes_attached_value(token, _SHELL_VALUE_OPTIONS):
+            i += 1
+            continue
+        if token.startswith("--"):
+            i += 1
+            continue
+        bundle = token[1:]
+        if "c" in bundle:
+            if i + 1 < len(args):
+                return "command", i + 1, args[i + 2:]
+            return "invalid", None, []
+        if "s" in bundle:
+            return "stdin", None, args[i + 1:]
+        i += 1
+    return "interpreter", None, []
+
+
+def _shell_command_index(args):
+    """shell の短 option 群に ``c`` があれば command-string の index を返す。"""
+    kind, index, _ = _shell_prefix_invocation(args)
+    return index if kind == "command" else None
+
+
+def _script_targets(raw_head: str, head: str, args, repo_root: str) -> tuple:
+    """registry/sanction 判定対象となる全 execution target を返す。"""
     candidates = [raw_head]
-    module_target = _python_module_target(head, args, repo_root)
-    if module_target:
-        candidates.append(module_target)
-    if _PYTHON_HEAD_RE.fullmatch(head) or head in {"bash", "sh", "zsh"}:
-        if head not in {"bash", "sh", "zsh"} or _shell_command_index(args) is None:
-            script = next((a for a in args if not a.startswith("-")), "")
-            if script:
-                candidates.append(script)
+    python_invocation = _python_prefix_invocation(head, args)
+    if python_invocation is not None:
+        kind, value, remaining = python_invocation
+        if kind == "module":
+            module_target = _python_module_path(value, repo_root)
+            if module_target:
+                candidates.append(module_target)
+            candidates.extend(_script_executor_targets(value, remaining, repo_root))
+        elif kind == "script":
+            candidates.append(value)
+    elif head in {"bash", "sh", "zsh"}:
+        candidates.extend(_shell_startup_targets(args))
+        kind, index, _ = _shell_prefix_invocation(args)
+        if kind == "script" and index is not None:
+            candidates.append(args[index])
+    targets = []
     for candidate in candidates:
         path = _invocation_path(candidate, repo_root)
-        if path in _SANCTIONED_PATHS or path.startswith("tools/pegasus/"):
-            return path
-    return _invocation_path(raw_head, repo_root)
+        if (path in _SANCTIONED_PATHS
+                or _pegasus_admission_entry(path) is not None):
+            if path not in targets:
+                targets.append(path)
+    return tuple(targets)
+
+
+def _script_target(raw_head: str, head: str, args, repo_root: str) -> str:
+    """互換用の単数 target。判定核は `_script_targets` で全件を検査する。"""
+    targets = _script_targets(raw_head, head, args, repo_root)
+    return targets[0] if targets else _invocation_path(raw_head, repo_root)
 
 
 def _is_sanctioned(raw_head: str, head: str, args, repo_root: str) -> bool:
     if head in _SANCTIONED_HEADS:
         return True
-    return _script_target(raw_head, head, args, repo_root) in _SANCTIONED_PATHS
+    targets = _script_targets(raw_head, head, args, repo_root)
+    return bool(targets) and all(target in _SANCTIONED_PATHS for target in targets)
 
 
 def _pytest_nonexecuting(args) -> bool:
@@ -508,7 +989,7 @@ def _python_pytest_args(head: str, args):
     if invocation is None:
         return None
     module, module_args = invocation
-    return module_args if module == "pytest" else None
+    return module_args if module in _PYTEST_MODULES else None
 
 
 def _make_parallel(args) -> bool:
@@ -563,7 +1044,7 @@ def _provenance_script_borrow(head: str, args) -> bool:
     違反ではない (module 側が実体で checker は data)。ただし **sanctioned 判定を
     script 引数から借りさせない** — 借りると ``-m pytest tools/check_ai_provenance.py``
     が `_is_sanctioned` の早期許可を取って pytest 判定へ到達しなくなる
-    (_script_target は python head の第 1 非 option 引数も候補にするため)。
+    (execution target の sanctioned 判定より先にこの分岐を評価する)。
     引数順に依存させない: ``-m py_compile a.py <checker>`` も借用と見なす。
     """
     invocation = _python_module_invocation(head, args)
@@ -589,6 +1070,92 @@ def _provenance_violation(raw_head: str, head: str, args, repo_root: str):
     return f"非 sanctioned provenance 履歴監査実行体 ({path or raw_head})"
 
 
+def _executor_output_violation(head: str, args, repo_root: str):
+    """executor の出力先が admission 対象を上書きする形を拒否する。"""
+    invocation = _python_module_invocation(head, args)
+    if invocation is None:
+        return None
+    module, module_args = invocation
+    for path in _script_executor_output_targets(module, module_args, repo_root):
+        if (_pegasus_admission_entry(path) is not None
+                or path in _SANCTIONED_PATHS):
+            return f"executor の出力先が admission 登録 path ({path})"
+    return None
+
+
+def _python_module_invocation_anywhere(args):
+    """baseline 互換: argv 全体から最初の ``-m`` 綴りを探す。"""
+    no_value_options = frozenset("bBdEhiIOPqRsSuvVx")
+    value_options = frozenset("cWX")
+    for i, token in enumerate(args):
+        if token == "-m":
+            if i + 1 < len(args):
+                return args[i + 1], args[i + 2:]
+            return None
+        if not token.startswith("-") or token.startswith("--") or token == "-":
+            continue
+        bundle = token[1:]
+        for j, option in enumerate(bundle):
+            if option == "m":
+                attached = bundle[j + 1:]
+                if attached:
+                    return attached, args[i + 1:]
+                if i + 1 < len(args):
+                    return args[i + 1], args[i + 2:]
+                return None
+            if option in value_options or option not in no_value_options:
+                break
+    return None
+
+
+def _baseline_first_token_violation(args, repo_root: str, pytest_args=None):
+    """baseline が実行体扱いした最初の非 option token だけを検査する。"""
+    token_index = next((i for i, arg in enumerate(args)
+                        if not arg.startswith("-") and arg != "--"), None)
+    if token_index is None:
+        return None
+    token = args[token_index]
+    path = _invocation_path(token, repo_root)
+    admission = _pegasus_admission_entry(path)
+    if (admission is _PEGASUS_UNREGISTERED
+            or (admission is not None
+                and admission["class"] != _PEGASUS_LOCAL_OK)):
+        return f"interpreter の baseline 実行体 ({path})"
+    base = os.path.basename(token)
+    if (base in {"pytest", "py.test"} and pytest_args is not None
+            and _pytest_nonexecuting(pytest_args)):
+        return None
+    if (base in {"pytest", "py.test", "cmake", "make", "ninja", "ctest", "perf"}
+            or _YCSB_EXE_RE.fullmatch(base)
+            or _BUILD_VARIANTS_HEAD_RE.search(token)):
+        return f"interpreter の baseline 重量対象 ({token})"
+    return None
+
+
+def _interpreter_residual_violation(head: str, args, repo_root: str):
+    """baseline の先頭 token と args 全体の pytest 検出を維持する。"""
+    python_invocation = _python_prefix_invocation(head, args)
+    if python_invocation is not None:
+        kind, _, _ = python_invocation
+        invocation = _python_module_invocation_anywhere(args)
+        pytest_args = (invocation[1] if invocation is not None
+                       and invocation[0] in _PYTEST_MODULES else None)
+        if kind != "command":
+            violation = _baseline_first_token_violation(
+                args, repo_root, pytest_args=pytest_args)
+            if violation:
+                return violation
+        if invocation is not None:
+            module, module_args = invocation
+            if module in _PYTEST_MODULES and not _pytest_nonexecuting(module_args):
+                return "interpreter argv の python3 -m pytest"
+    elif head in {"bash", "sh", "zsh"}:
+        kind, _, _ = _shell_prefix_invocation(args)
+        if kind != "command":
+            return _baseline_first_token_violation(args, repo_root)
+    return None
+
+
 def _heavy_segment_violation(seg, repo_root: str, depth: int):
     seg = _expand_env_split_strings(seg)
     if seg is None:
@@ -601,15 +1168,38 @@ def _heavy_segment_violation(seg, repo_root: str, depth: int):
     provenance = _provenance_violation(raw_head, head, args, repo_root)
     if provenance:
         return provenance
+
+    output = _executor_output_violation(head, args, repo_root)
+    if output:
+        return output
+
+    targets = _script_targets(raw_head, head, args, repo_root)
+    for target in targets:
+        admission = _pegasus_admission_entry(target)
+        if admission is _PEGASUS_UNREGISTERED:
+            return f"未登録 Pegasus 実行体 ({target})"
+        if admission is not None and admission["class"] != _PEGASUS_LOCAL_OK:
+            return (f"Pegasus {admission['class']} 実行体 ({target})")
+
+    residual = _interpreter_residual_violation(head, args, repo_root)
+    if residual:
+        return residual
+
+    # shell command-string は startup file の sanctioned 判定より先に検査する。
+    # 先に許可すると local-ok rcfile が内側の pytest を隠せてしまう。
+    if head in {"bash", "sh", "zsh"} and depth < 2:
+        command_index = _shell_command_index(args)
+        if command_index is not None:
+            nested = _heavy_command_violation(
+                args[command_index], repo_root, depth + 1)
+            if nested:
+                return nested
+
     # `-m <他 module> … <checker>` は checker を実行しないので通すが、sanctioned だけは
     # 借りさせず以降の既存判定 (pytest 等) へ落とす。
     if (not _provenance_script_borrow(head, args)
             and _is_sanctioned(raw_head, head, args, repo_root)):
         return None
-
-    target = _script_target(raw_head, head, args, repo_root)
-    if target.startswith("tools/pegasus/"):
-        return f"非 sanctioned Pegasus 実行体 ({target})"
 
     if head in {"pytest", "py.test"}:
         if not _pytest_nonexecuting(args):
@@ -649,11 +1239,6 @@ def _heavy_segment_violation(seg, repo_root: str, depth: int):
     if _YCSB_EXE_RE.fullmatch(head):
         return f"{head} benchmark 実行"
 
-    if head in {"bash", "sh", "zsh"} and depth < 2:
-        command_index = _shell_command_index(args)
-        if command_index is not None:
-            return _heavy_command_violation(
-                args[command_index], repo_root, depth + 1)
     return None
 
 

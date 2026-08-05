@@ -30,6 +30,7 @@ import time
 from typing import Callable, Dict, List, Optional
 
 from .model import CalibrationResult, CertificationEvidence
+from . import effective_clock_policy
 from .report import (certification_quality_reasons, render_text,
                      result_to_dict)
 from .runner import (CompositeProbeViolation, composite_competing_probe)
@@ -37,6 +38,7 @@ from .schema_v2 import (SCHEMA_VERSION, normalize_request_id,
                         validate_calibration_v2)
 from .sweep import MAX_RECORDS_DEFAULT, calibrate
 from .tsc import TscMeasurement, measure_tsc
+from campaign import env_attestation as _env_attestation
 from campaign.execution_guard import effective_clock_comparison_passes
 
 
@@ -128,8 +130,6 @@ def build_parser() -> argparse.ArgumentParser:
                    help="certification job が作った acquisition receipt JSON")
     p.add_argument("--binary-sha256", default=None,
                    help="certification 対象 binary の事前凍結 SHA-256")
-    p.add_argument("--effective-clock-tolerance-pct", type=float, default=None,
-                   help="smoke 配分から親が凍結した effective clock 許容幅")
     return p
 
 
@@ -335,11 +335,10 @@ def _binary_sha256(binary: str, subprocess_runner: Callable[..., object]) -> str
 
 
 def _profile_dict(value: object) -> dict:
-    if dataclasses.is_dataclass(value):
-        return dataclasses.asdict(value)
-    if type(value) is dict:
-        return copy.deepcopy(value)
-    raise CertificationError("attestation-invalid", f"unexpected profile type {type(value).__name__}")
+    try:
+        return _env_attestation.observed_profile_to_dict(value)  # type: ignore[arg-type]
+    except _env_attestation.AttestationError as exc:
+        raise CertificationError("attestation-invalid", str(exc)) from exc
 
 
 def _default_probe():
@@ -385,9 +384,16 @@ def _effective_clock_self_comparison_passes(profile: object) -> bool:
     effective_clock = profile.get("effective_clock")
     if type(effective_clock) is not dict:
         return False
+    expected = {
+        "samples_mhz": effective_clock.get("samples_mhz"),
+        "tolerance_pct": effective_clock.get("tolerance_pct"),
+    }
+    observed = {
+        "samples_mhz": effective_clock.get("samples_mhz"),
+    }
     return effective_clock_comparison_passes(
-        effective_clock,
-        {"samples_mhz": effective_clock.get("samples_mhz")},
+        expected,
+        observed,
     )
 
 
@@ -482,10 +488,6 @@ def _validate_cli(args) -> Optional[str]:
             return "--receipt-json is required with --certify"
         if not args.binary_sha256 or _HEX64_RE.fullmatch(args.binary_sha256) is None:
             return "--binary-sha256 HEX64 is required with --certify"
-        if args.effective_clock_tolerance_pct is None:
-            return "--effective-clock-tolerance-pct is required with --certify"
-        if not (0.0 < args.effective_clock_tolerance_pct <= 100.0):
-            return "--effective-clock-tolerance-pct must be in (0, 100]"
         if args.out_root is not None:
             return "--out-root is forbidden with --certify"
     return None
@@ -548,7 +550,9 @@ def _certify_main(
         measured_tsc = _coerce_tsc(clock_fn())
         profile = copy.deepcopy(dynamic_pre)
         profile["tsc"] = dataclasses.asdict(measured_tsc)
-        profile["effective_clock"]["tolerance_pct"] = args.effective_clock_tolerance_pct
+        profile["effective_clock"]["tolerance_pct"] = (
+            effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT
+        )
         # The rejected empty document is a schema-only preflight for the acquisition
         # material. It catches unknown/missing nested receipt fields before any bench.
         _assemble_v2(

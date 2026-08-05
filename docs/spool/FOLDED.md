@@ -251,3 +251,52 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:branch-deletion-path-investigation":"[T-495]","T:cleanup-unreachable-audit":"[T-494]"},"authored":"2026-08-05","content_sha256":"2722fd8f61f2292fe98bf43ed62446e0407ee76631c699a1acfb0f6de8a62bb1","seq":1,"wave":"rulings-20260805-h"}
 
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"d2f06f62c2e89bfde1a71d5a6d1dd123a62611f1797d6641113c8193be01cc9b","seq":1,"wave":"dev-wave-test-failure-triage"}
+
+- {"allocations":{"T:ruleops-real-repo-inventory-flake":"[T-496]"},"authored":"2026-08-05","content_sha256":"7f1dceed480e1e241e0e427f0a80592eafc5906b1050cf3e8a23ca69eda062f0","seq":1,"wave":"dev-wave-t476-flock-race-flake"}
+- {"allocations":{"D:flock-observation-by-event":"D168"},"authored":"2026-08-05","content_sha256":"8f2df874e37fe93d47ed8c7d89c9d513a97fd397d84b037a837b1632703e2a5e","seq":2,"wave":"dev-wave-t476-flock-race-flake"}
+- {"allocations":{"F:mutation-run-vs-acceptance-run":"F114"},"authored":"2026-08-05","content_sha256":"b60cfe551c66b5de49dd199477bc73f0738358794e5078909a18ea00615b342c","seq":3,"wave":"dev-wave-t476-flock-race-flake"}
+
+- {"allocations":{"T:campaign-prefix-cache-feasibility":"[T-498]","T:devwave-worker-class1-branch":"[T-497]","T:next-action-backlog-triage":"[T-499]"},"authored":"2026-08-05","content_sha256":"d0ad80bf88ce4a5d88de021df8f5e73db7fc1d557feaaa4ab8b78146fb36bb95","seq":1,"wave":"dev-wave-token-economy"}
+- {"allocations":{"D:compact-carry-format":"D169"},"authored":"2026-08-05","content_sha256":"b1aba49c09f03ffc45456555cb1565409997fa6bb8ed90cb25d9be0dff15d3e2","seq":2,"wave":"dev-wave-token-economy"}
+- {"allocations":{"F:acceptance-repo-write-race":"F115"},"authored":"2026-08-05","content_sha256":"d261bf5da153ffa00e5b5b1b22ba8c9695bf3b9b61fa7932f26bbabe50c6077d","seq":3,"wave":"dev-wave-token-economy"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"8da1fc40307b83aa14e1ff0603c2bd8d3a23d022104520f00afcf07571d1a246","seq":1,"wave":"rulings-20260805-i"}
+
+- {"allocations":{"T:post-policy-machine-sweep-membership":"[T-500]","T:trigger-provenance-implementation-overload":"[T-502]","T:wal-side-aba-in-admission":"[T-501]"},"authored":"2026-08-05","content_sha256":"bb0f3abe42a386d7a1e7b2db914172f31928ac124c2b15ba5a009da1ea9b1f30","seq":1,"wave":"dev-wave-t474-legacy-trigger-admission"}
+- {"allocations":{"D:legacy-trigger-raw-view-denial":"D170"},"authored":"2026-08-05","content_sha256":"a3faa86758bf46549e021d32fa8202c2e398da9526d3596a1f30b378eb3dbe7c","seq":1,"wave":"dev-wave-t474-legacy-trigger-admission"}
+
+- {"allocations":{"T:clean-gate-ignored-blindness":"[T-504]","T:dev-wave-budget-headroom":"[T-505]","T:mutation-restore-durability-impl":"[T-503]"},"authored":"2026-08-05","content_sha256":"a43058c98d6b8a91f65b7c577e004f0b8a13fedbe53c3f4559b465c2da0a3618","seq":1,"wave":"dev-wave-t487-design"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"7df174450d32364368ff133931e36d79fcad28ea157568d19933f30c20c3a190","seq":1,"wave":"dev-wave-t478-calibration-contract-generation"}
+
+- {"allocations":{"T:dev-wave-docs-budget-at-ceiling":"[T-508]","T:loader-self-pass-quarantine":"[T-506]","T:silo-driver-syspath-restore":"[T-509]","T:t126-attest-type-bug":"[T-507]"},"authored":"2026-08-05","content_sha256":"7d0dc5d59b67f6e39596431f59cf4f843e979d36eb6535508536ad12475d9f16","seq":1,"wave":"dev-wave-t452-t453-clock-authority"}
+- {"allocations":{"D:effective-clock-policy-authority":"D171"},"authored":"2026-08-05","content_sha256":"aeee656674d7ddda5d41546e59ce7a9f42361f19dd4fff959273a1ba7b705461","seq":2,"wave":"dev-wave-t452-t453-clock-authority"}
+- {"allocations":{"F:test-green-by-removing-production-gate":"F116"},"authored":"2026-08-05","content_sha256":"3231342cf0c8a35fa5d97463f193ec623347345c1ff81da6ed9a18fc0d063cf9","seq":3,"wave":"dev-wave-t452-t453-clock-authority"}
+
+- {"allocations":{"T:first-run-classification-site":"[T-511]","T:mutation-harness-xdist-group-nodes":"[T-512]","T:ruleops-git-timeout-threshold":"[T-510]"},"authored":"2026-08-05","content_sha256":"cbc207af728da0d0a33c5a38fe3fcd4323850076901761840779dc2341268e68","seq":1,"wave":"dev-wave-t496-ruleops-inventory-diag"}
+- {"allocations":{"D:ruleops-failclosed-threshold-unchanged":"D172"},"authored":"2026-08-05","content_sha256":"4ff520bee2bf0d7ff5218158c9825f335a2bd61626d35f7e4e941fbd2dc51d60","seq":2,"wave":"dev-wave-t496-ruleops-inventory-diag"}
+- {"allocations":{"F:first-run-classification-site-undefined":"F117"},"authored":"2026-08-05","content_sha256":"4d6d1cd7493a5d3ded9f3a394e1821c061dc79af3bb6a4c51b3480fd7dbb71a0","seq":3,"wave":"dev-wave-t496-ruleops-inventory-diag"}
+
+- {"allocations":{"T:diffq-reject-identity-canonicalization":"[T-515]","T:premateralized-source-admission-fold":"[T-513]","T:wait-without-polling-noise":"[T-514]"},"authored":"2026-08-05","content_sha256":"62f0ea551387a519f14b85ace503b6d738bbf6a71ac5b0c20809b093e895aa9e","seq":1,"wave":"dev-wave-t490-u1-u2"}
+- {"allocations":{"D:fold-before-materialize-at-shared-boundary":"D174","D:materializer-authority-independent-of-producer":"D173"},"authored":"2026-08-05","content_sha256":"19d9af3f707bfa710b7c8e37bc8555a18de8a2bdca62ca6163fdaa4eb9227018","seq":1,"wave":"dev-wave-t490-u1-u2"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"56202e66b567949a2351c4992e4be227f096274e8b5b4aefd2805c3cec950b1d","seq":1,"wave":"dev-wave-t490-u1-u2"}
+
+- {"allocations":{"T:dangling-audit-content-delta":"[T-516]"},"authored":"2026-08-05","content_sha256":"9adfe279584fe7e55791f3257a95c209c10a9096cbb22fed1c3132defd196d82","seq":1,"wave":"rulings-20260805-j"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"d6146de91f878fd48f70a48706f32b39ef16c4a8abac17a35bfc3ec18d0d8e1f","seq":1,"wave":"rulings-20260805-k"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"31a0dd45b2e788b7d091f7eb01cc5c0c5158465d011bb511cf3488adfeb024b7","seq":1,"wave":"dev-wave-cleanup-dangling-audit"}
+- {"allocations":{"F:branch-deleted-with-unlanded-work":"F118","F:implementation-blocked-by-provenance-after-the-fact":"F120","F:merge-parentwise-diff-inflates-changed-paths":"F119"},"authored":"2026-08-05","content_sha256":"b70ad4050cd705abb23a3445c26dbc5b7f4d46e1650d034ea75d32bc6560d7dc","seq":1,"wave":"dev-wave-cleanup-dangling-audit"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"9c13fc950ef4cb942f2144ce001b36a2e3ce8e1bd33a5e7682c9a965744f3b3a","seq":1,"wave":"rulings-20260805-l"}
+
+- {"allocations":{"T:transport-probe-lane":"[T-517]"},"authored":"2026-08-05","content_sha256":"854c5ffd6e27bd0ee22da0834db3c1cae476ee745281530804e5ddb0c7ef4c2b","seq":1,"wave":"dev-wave-t420-wall1-driver"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"596c5c9f79256f00889233d6538d5a91644995329465f11cb3767e6a5c6a92b6","seq":2,"wave":"dev-wave-t420-wall1-driver"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"b0513e43fe724488d3b13c08f2bf1f7401dad16d3b83ad6c80f2a96f4f41e1a2","seq":1,"wave":"rulings-20260805-m"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"3ff85b4eeefd2df136a93908fc70e59656ea83278e43d37c17837a0cfe2cb594","seq":1,"wave":"dev-wave-t213-shared-scratch"}
+
+- {"allocations":{"D:pegasus-admission-registry":"D175"},"authored":"2026-08-05","content_sha256":"3a77ae066f56a9590136b87d8c90e014340158ddf55f45c965ca3b531433964d","seq":1,"wave":"dev-wave-t481-pegasus-admission"}
+- {"allocations":{"F:classification-bootstrap-deadlock":"F123","F:fix-prompt-restore-without-exceptions":"F124","F:norm-procedure-barrier-three-way-drift":"F122","F:pegasus-blanket-rule-porous":"F121"},"authored":"2026-08-05","content_sha256":"6c7c2124e4f811096c209ecff3e42f3e419e348600b455351cdcf9e15ea28462","seq":2,"wave":"dev-wave-t481-pegasus-admission"}
+- {"allocations":{"T:collect-receipt-input-caps":"[T-519]","T:dev-wave-fix-prompt-contract":"[T-521]","T:guard-bash-residual-bypasses":"[T-518]","T:pegasus-admission-registry-authority":"[T-522]","T:pegasus-measurement-surface":"[T-520]"},"authored":"2026-08-05","content_sha256":"9106562d4166e27257dbadad3dbc93998a56a0d0546cfb4f280cbedaaa9b9e42","seq":3,"wave":"dev-wave-t481-pegasus-admission"}
