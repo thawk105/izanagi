@@ -206,3 +206,14 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:calibration-contract-generation":"[T-475]","T:calibration-producer-provenance":"[T-477]","T:reflux-ledger-flock-flake":"[T-476]"},"authored":"2026-08-04","content_sha256":"97cecf110e1856a5d41cae409082ad02aeebf67794bcd4f605a38eb61210b565","seq":1,"wave":"dev-wave-t452-clock-tolerance-authority"}
 
 - {"allocations":{"T:calibration-contract-generation-migration":"[T-478]"},"authored":"2026-08-05","content_sha256":"7802c6e19955a80d6eae7fd86d19599ad5039a0564580990bd20279274bd7292","seq":1,"wave":"rulings-20260805-b"}
+
+- {"allocations":{"T:qualification-role-field-name":"[T-479]"},"authored":"2026-08-05","content_sha256":"b3ad4d4ec99cf603857241eb5450cb5bfd5aec529e8a3a44179bb544092a78fa","seq":1,"wave":"dev-wave-t337-qualification-authority"}
+- {"allocations":{"D:qualification-authority-boundary":"D162"},"authored":"2026-08-05","content_sha256":"758c5e4c6a89f9ed34e86229b35e9022b7b355095464b8d5038fb641f4c4f6a3","seq":1,"wave":"dev-wave-t337-qualification-authority"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"7c369188b90356f14fdc6d01254ed90002b6e059db65c37282602497fb9163b3","seq":2,"wave":"dev-wave-t337-qualification-authority"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"95d67da5b5a92cf3c58a653e2d1d38d1503e03a2d105eb20c1dd7b2efb552fdb","seq":1,"wave":"dev-wave-t244-p3-producer-wiring"}
+- {"allocations":{"D:p3-producer-wiring-blocked":"D163"},"authored":"2026-08-05","content_sha256":"3649c1f5f13cb11e441302cc8a8b0caac8392aa75071a0fa4e41fb1e370456b2","seq":2,"wave":"dev-wave-t244-p3-producer-wiring"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"f8b2986bc50da09a881e4ba0925842225a2f4c71318dac6d4594556cb0e9ba73","seq":1,"wave":"rulings-20260805-c"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"fbbb011ded6d43d20459b0ef242be737d789d381cca3a88237e60caa10641730","seq":1,"wave":"rulings-20260805-d"}

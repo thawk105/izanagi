@@ -58,7 +58,22 @@ title: [T-244] D121 P2 の非干渉検査は実装を差し戻す — 現行 cri
 
 ### 更新
 
-- [T-244] **P1・P2 は実装差し戻し。ユーザー裁定 4 件待ち。未着手は P2・P7・P9 の 3 件**:
+- [T-244] **P1・P2 は実装差し戻しでユーザー裁定 5 件待ち。P3 は (4)(5) 裁定済み + (1)(2)(3) 設計起草待ち。P1 は機械部品のみ、P4 実装 wave 起票可、P5 残余は U-2。未着手は P7・P9 の 2 件**:
+  **P3**: producer 結線は D163 で実装不能と確定 (runtime genesis が private test seam の 1 点のみ、
+  予算束縛・commit-reveal・DW-G04 発火 gate が同時不成立)。**P3 は依然 FAIL** で cap-lift 上限 1
+  (D114) も不変。2026-08-05 の /rulings で裁定パッケージ 5 件のうち **(4) = origin proof の
+  durable cross-reference (origin_id / authority blob hash / batch id / seal commitment) を
+  producer 側で今出す** (U-G の「P3 充足は producer 結線と P7 まで含めて数える」と整合)、
+  **(5) = 複数候補を通すなら D96 手続 (report v3 + completeness + trial registry + 新 D +
+  境界テストを同一変更単位) を踏む** (単一候補のまま batch を諦める案は U-D / W1〜W5 と衝突する
+  ため不採用) が確定した。**(1) origin authority の実体化・(2) production runtime bootstrap と
+  authority 世代移行の主体・契約・(3) 結線先と batch 形状は、設計 wave が推奨付きパッケージを
+  起草して返す** — 1 の帰結が 2・3 の形を決めるため同一 wave とし、現候補 coverage artifact の
+  clocks 2100 と registry linux-baremetal 1800 の食い違いの解消案を含めること。
+  scope 外 real 所見 8 件 (A-2 / A-5 / A-6 / A-7 / A-8 / A-13 / B-4 / B-6) は同設計 wave の入力。
+  一次資料 = `output/insights/2026-08-05_t244-p3-producer-wiring/s4-adjudication.md`。
+  **P1**: 変わらず機械部品のみで未充足。**P4**: 実装 wave 起票可 (D153 の W1〜W5 裁定済み)。
+  **P5**: U-1 実装済み、残余は U-2 のみ。
   **P2**: payload 射影面の非干渉検査を新規 leaf として実装するために起票したが、
   段 3 の敵対 2 レンズが独立に NO-GO を返し、**実装せず設計メモとして凍結した**
   ({{D:t244-p2-literal-tripwire-remand}})。決め手は 3 件 — (i) 現行 critic payload が既に
@@ -66,7 +81,8 @@ title: [T-244] D121 P2 の非干渉検査は実装を差し戻す — 現行 cri
   recipient policy (D121 の未解決択一)・auditor declassification・IR SHA preimage の 3 裁定に
   依存し親の裁量外、(iii) `_invoke` 冒頭の fail-closed raise は build mode で terminal report を
   作れない経路を残す。**P2 は依然 FAIL** で、無条件義務 8 件のうち充足は P10 の 1 件のみ、
-  D114 の上限 1 も不変。実装差分がないため変異 matrix と受入全走は対象外。
+  D114 の上限 1 も不変。実装差分がないため**変異 matrix は対象外**とし、受入全走は
+  `DW-S07` の repo scan invariant 再走として実施した (3 回目が緑)。
   **ユーザー裁定待ち U-1〜U-5** = critic recipient policy (推奨 (i) 不透明 ID 置換、受理集合に
   波及するため D96 手続)、auditor declassification の定義 (推奨 (ii) 現状を明示的 declassification
   として会計し reflux-control 実装時に戻す条件を同時固定)、「IR schema SHA」の preimage
@@ -76,10 +92,10 @@ title: [T-244] D121 P2 の非干渉検査は実装を差し戻す — 現行 cri
   確定後に実装すべき形も記録した — secret を候補 wire、公開入力を固定して provider へ渡る
   serialized bytes の同一性を見る indistinguishability 検査であり、planner/coder は PASS、
   auditor は明示 declassification、**critic は FAIL になる**と予測済み。
-  **依頼が前提とした「無条件義務 8 件で唯一の未着手」は誤りで、未着手は P2・P7・P9 の 3 件**である。
-  P1・P3・P4・P5 の状況と逐語の所在は前エントリのまま変わらない。
+  **依頼が前提とした「無条件義務 8 件で唯一の未着手」は誤りだった** — 依頼時点の未着手は
+  P2・P7・P9 の 3 件で、本 wave の差し戻しにより **未着手は P7・P9 の 2 件**になった。
   本 wave の逐語 = `output/insights/2026-08-05_t244-p2-noninterference/`
-  base: 90a545202dce7e61e08d3c1b7830e95468ce4c8625b9514dcf272505814be10b
+  base: d1c09e8b406d9313aebf1ab9088477789ecfb83ef075cf2b2d0a604d74a52da4
 
 ### 新規
 
