@@ -356,8 +356,13 @@ _SCRIPT_EXECUTOR_MODULE_OPTIONS = {
     "unittest": frozenset({"-k", "-s", "--start-directory", "-p", "--pattern",
                             "-t", "--top-level-directory"}),
 }
+_SCRIPT_EXECUTOR_OUTPUT_OPTIONS = {
+    "cProfile": frozenset({"-o", "--outfile"}),
+    "profile": frozenset({"-o", "--outfile"}),
+}
 _MULTI_TARGET_EXECUTOR_MODULES = frozenset({"pydoc", "doctest", "unittest"})
 _MODULE_HELP_OPTIONS = frozenset({"-h", "--help"})
+_PYDOC_NONEXECUTING_MODES = frozenset({"-n", "-p", "-b", "-w"})
 _YCSB_EXE_RE = re.compile(r"^ycsb_.*\.exe$")
 _BUILD_VARIANTS_HEAD_RE = re.compile(r"(?:^|/)build-variants(?:/|$)")
 _NINJA_READ_ONLY_TOOLS = frozenset({
@@ -707,6 +712,44 @@ def _executor_module_target(value: str, repo_root: str) -> str:
     return _python_module_path(value, repo_root)
 
 
+def _script_executor_output_targets(module: str, args, repo_root: str) -> tuple:
+    """program 決定前に指定された executor の出力先を返す。"""
+    output_options = _SCRIPT_EXECUTOR_OUTPUT_OPTIONS.get(module)
+    if output_options is None:
+        return ()
+    value_options = _SCRIPT_EXECUTOR_MODULE_OPTIONS[module]
+    targets = []
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _MODULE_HELP_OPTIONS:
+            return ()
+        if token == "--":
+            break
+        if token in output_options:
+            if i + 1 >= len(args):
+                break
+            targets.append(_invocation_path(args[i + 1], repo_root))
+            i += 2
+            continue
+        attached = _module_option_value(token, output_options)
+        if attached is not None:
+            targets.append(_invocation_path(attached, repo_root))
+            i += 1
+            continue
+        if token in value_options:
+            i += 2
+            continue
+        if _module_option_value(token, value_options) is not None:
+            i += 1
+            continue
+        if token.startswith("-"):
+            i += 1
+            continue
+        break
+    return tuple(targets)
+
+
 def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
     """後続 script/module を実行する module の全実行対象を返す。"""
     if module in {"coverage", "coverage.__main__"}:
@@ -722,24 +765,39 @@ def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
         if value_options is None:
             return ()
 
-    if any(token in _MODULE_HELP_OPTIONS for token in args):
-        return ()
-    if module == "trace" and "--report" in args:
-        return ()
-
     targets = []
+    nonexecuting_mode = False
+    parsing_options = True
     i = 0
     while i < len(args):
         token = args[i]
-        if token == "--":
+        if parsing_options and token in _MODULE_HELP_OPTIONS:
+            return ()
+        if parsing_options and module == "trace" and token == "--report":
+            return ()
+        if (parsing_options and module == "pydoc"
+                and token in _PYDOC_NONEXECUTING_MODES):
+            nonexecuting_mode = True
+            i += 2 if token in {"-n", "-p"} else 1
+            continue
+        if parsing_options and module == "pydoc":
+            attached_mode = _module_option_value(
+                token, frozenset({"-n", "-p"}))
+            if attached_mode is not None:
+                nonexecuting_mode = True
+                i += 1
+                continue
+        if parsing_options and token == "--":
             positional = args[i + 1:]
+            if nonexecuting_mode:
+                return ()
             if module not in _MULTI_TARGET_EXECUTOR_MODULES:
                 positional = positional[:1]
             for value in positional:
                 mapped = _executor_module_target(value, repo_root)
                 targets.append(mapped or value)
             return tuple(targets)
-        if token in value_options:
+        if parsing_options and token in value_options:
             if i + 1 >= len(args):
                 return tuple(targets)
             value = args[i + 1]
@@ -748,7 +806,8 @@ def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
                 return (mapped,) if mapped else ()
             i += 2
             continue
-        attached = _module_option_value(token, value_options)
+        attached = (_module_option_value(token, value_options)
+                    if parsing_options else None)
         if attached is not None:
             if any(token.startswith(opt) for opt in {"-m", "--module"}):
                 mapped = _executor_module_target(attached, repo_root)
@@ -758,6 +817,8 @@ def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
         if token.startswith("-"):
             i += 1
             continue
+        if nonexecuting_mode:
+            return ()
         if module == "runpy":
             mapped = _executor_module_target(token, repo_root)
             return (mapped,) if mapped else ()
@@ -765,6 +826,7 @@ def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
         targets.append(mapped or token)
         if module not in _MULTI_TARGET_EXECUTOR_MODULES:
             return tuple(targets)
+        parsing_options = False
         i += 1
     return tuple(targets)
 
@@ -777,6 +839,9 @@ _SHELL_STARTUP_FILE_OPTIONS = frozenset({"--init-file", "--rcfile"})
 
 def _shell_startup_targets(args) -> tuple:
     """shell prefix に指定された startup file をすべて実行対象として返す。"""
+    kind, _, _ = _shell_prefix_invocation(args)
+    if kind == "command" and not _shell_prefix_is_interactive(args):
+        return ()
     targets = []
     i = 0
     while i < len(args):
@@ -806,6 +871,31 @@ def _shell_startup_targets(args) -> tuple:
             break
         i += 1
     return tuple(targets)
+
+
+def _shell_prefix_is_interactive(args) -> bool:
+    """command/script 決定前の shell option に ``-i`` があるか。"""
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--" or token == "-" or not token.startswith(("-", "+")):
+            return False
+        if token in _SHELL_VALUE_OPTIONS:
+            i += 2
+            continue
+        if _option_takes_attached_value(token, _SHELL_VALUE_OPTIONS):
+            i += 1
+            continue
+        if token.startswith("--"):
+            i += 1
+            continue
+        bundle = token[1:]
+        if "i" in bundle:
+            return True
+        if "c" in bundle or "s" in bundle:
+            return False
+        i += 1
+    return False
 
 
 def _shell_prefix_invocation(args):
@@ -980,39 +1070,89 @@ def _provenance_violation(raw_head: str, head: str, args, repo_root: str):
     return f"非 sanctioned provenance 履歴監査実行体 ({path or raw_head})"
 
 
+def _executor_output_violation(head: str, args, repo_root: str):
+    """executor の出力先が admission 対象を上書きする形を拒否する。"""
+    invocation = _python_module_invocation(head, args)
+    if invocation is None:
+        return None
+    module, module_args = invocation
+    for path in _script_executor_output_targets(module, module_args, repo_root):
+        if (_pegasus_admission_entry(path) is not None
+                or path in _SANCTIONED_PATHS):
+            return f"executor の出力先が admission 登録 path ({path})"
+    return None
+
+
+def _python_module_invocation_anywhere(args):
+    """baseline 互換: argv 全体から最初の ``-m`` 綴りを探す。"""
+    no_value_options = frozenset("bBdEhiIOPqRsSuvVx")
+    value_options = frozenset("cWX")
+    for i, token in enumerate(args):
+        if token == "-m":
+            if i + 1 < len(args):
+                return args[i + 1], args[i + 2:]
+            return None
+        if not token.startswith("-") or token.startswith("--") or token == "-":
+            continue
+        bundle = token[1:]
+        for j, option in enumerate(bundle):
+            if option == "m":
+                attached = bundle[j + 1:]
+                if attached:
+                    return attached, args[i + 1:]
+                if i + 1 < len(args):
+                    return args[i + 1], args[i + 2:]
+                return None
+            if option in value_options or option not in no_value_options:
+                break
+    return None
+
+
+def _baseline_first_token_violation(args, repo_root: str, pytest_args=None):
+    """baseline が実行体扱いした最初の非 option token だけを検査する。"""
+    token_index = next((i for i, arg in enumerate(args)
+                        if not arg.startswith("-") and arg != "--"), None)
+    if token_index is None:
+        return None
+    token = args[token_index]
+    path = _invocation_path(token, repo_root)
+    admission = _pegasus_admission_entry(path)
+    if (admission is _PEGASUS_UNREGISTERED
+            or (admission is not None
+                and admission["class"] != _PEGASUS_LOCAL_OK)):
+        return f"interpreter の baseline 実行体 ({path})"
+    base = os.path.basename(token)
+    if (base in {"pytest", "py.test"} and pytest_args is not None
+            and _pytest_nonexecuting(pytest_args)):
+        return None
+    if (base in {"pytest", "py.test", "cmake", "make", "ninja", "ctest", "perf"}
+            or _YCSB_EXE_RE.fullmatch(base)
+            or _BUILD_VARIANTS_HEAD_RE.search(token)):
+        return f"interpreter の baseline 重量対象 ({token})"
+    return None
+
+
 def _interpreter_residual_violation(head: str, args, repo_root: str):
-    """非 module/script 解析後の残余 argv に重量対象があれば拒否理由を返す。"""
-    remaining = None
+    """baseline の先頭 token と args 全体の pytest 検出を維持する。"""
     python_invocation = _python_prefix_invocation(head, args)
     if python_invocation is not None:
-        kind, _, candidate_remaining = python_invocation
-        if kind not in {"module", "script"}:
-            remaining = candidate_remaining
+        kind, _, _ = python_invocation
+        invocation = _python_module_invocation_anywhere(args)
+        pytest_args = (invocation[1] if invocation is not None
+                       and invocation[0] in _PYTEST_MODULES else None)
+        if kind != "command":
+            violation = _baseline_first_token_violation(
+                args, repo_root, pytest_args=pytest_args)
+            if violation:
+                return violation
+        if invocation is not None:
+            module, module_args = invocation
+            if module in _PYTEST_MODULES and not _pytest_nonexecuting(module_args):
+                return "interpreter argv の python3 -m pytest"
     elif head in {"bash", "sh", "zsh"}:
-        kind, _, candidate_remaining = _shell_prefix_invocation(args)
-        if kind != "script":
-            remaining = candidate_remaining
-    if remaining is None:
-        return None
-
-    for token in remaining:
-        if token.startswith("-") or token == "--":
-            continue
-        path = _invocation_path(token, repo_root)
-        admission = _pegasus_admission_entry(path)
-        if admission is not None:
-            return f"interpreter 残余 argv の Pegasus path ({path})"
-        if path in _SANCTIONED_PATHS:
-            return f"interpreter 残余 argv の重量 entry ({path})"
-        base = os.path.basename(token)
-        if (base in {"pytest", "py.test", "cmake", "make", "ninja", "ctest", "perf"}
-                or _YCSB_EXE_RE.fullmatch(base)
-                or _BUILD_VARIANTS_HEAD_RE.search(token)):
-            return f"interpreter 残余 argv の重量対象 ({token})"
-
-    pytest_args = _python_pytest_args("python3", remaining)
-    if pytest_args is not None and not _pytest_nonexecuting(pytest_args):
-        return "interpreter 残余 argv の python3 -m pytest"
+        kind, _, _ = _shell_prefix_invocation(args)
+        if kind != "command":
+            return _baseline_first_token_violation(args, repo_root)
     return None
 
 
@@ -1028,6 +1168,10 @@ def _heavy_segment_violation(seg, repo_root: str, depth: int):
     provenance = _provenance_violation(raw_head, head, args, repo_root)
     if provenance:
         return provenance
+
+    output = _executor_output_violation(head, args, repo_root)
+    if output:
+        return output
 
     targets = _script_targets(raw_head, head, args, repo_root)
     for target in targets:

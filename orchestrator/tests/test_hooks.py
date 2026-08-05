@@ -749,6 +749,14 @@ def test_bash_login_script_executor_modules_classify_their_target():
         "python3 -mtrace --trace tools/pegasus/exec_calibrate.py",
         "python3 -mrunpy tools.pegasus.exec_calibrate",
         "python3 -m coverage run tools/pegasus/exec_calibrate.py",
+        "python3 -BmcProfile -- tools/pegasus/exec_calibrate.py --help",
+        "python3.10 -Bmtrace --trace -- "
+        "tools/pegasus/exec_calibrate.py --report",
+        "python3 -mcProfile tools/pegasus/exec_calibrate.py --help",
+        "env FOO=1 nice -n 0 python3.10 -BmcProfile -- "
+        "tools/pegasus/exec_calibrate.py --help",
+        "bash -lc 'python3 -Bmtrace --trace -- "
+        "tools/pegasus/exec_calibrate.py --report'",
     ):
         ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
         assert not ok, f"script 実行 module が target の admission を迂回した: {cmd!r}"
@@ -786,26 +794,66 @@ def test_bash_login_closes_additional_executor_module_spellings():
 def test_bash_login_executor_nonexecuting_modes_restore_baseline_allow():
     for cmd in (
         "python3 -m timeit tools/pegasus/exec_calibrate.py",
-        "python3.10 -Bmtimeit tools/pegasus/exec_calibrate.py",
+        "python3.10 -B -m timeit tools/pegasus/exec_calibrate.py",
         "python3 -m runpy tools/pegasus/exec_calibrate.py",
-        "env FOO=1 python3 -Bmrunpy tools/pegasus/exec_calibrate.py",
+        "env FOO=1 python3 -B -m runpy tools/pegasus/exec_calibrate.py",
         "python3 -m trace --report -f /tmp/counts "
         "tools/pegasus/exec_calibrate.py",
         "bash -lc 'python3 -m trace --report -f /tmp/counts "
         "tools/pegasus/exec_calibrate.py'",
         "python3 -m cProfile --help tools/pegasus/exec_calibrate.py",
-        "python3 -mcProfile --help tools/pegasus/exec_calibrate.py",
+        "python3 -B -m cProfile --help tools/pegasus/exec_calibrate.py",
     ):
         ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
         assert ok, f"module の非 file 実行 mode が過剰拒否された: {cmd!r} ({why})"
 
 
+def test_bash_login_executor_output_cannot_overwrite_admission_paths():
+    commands = (
+        "python3 -BmcProfile -o tools/pegasus/exec_calibrate.py /tmp/safe.py",
+        "python3 -BmcProfile -otools/pegasus/exec_calibrate.py /tmp/safe.py",
+        "python3.10 -Bmprofile "
+        "--outfile=tools/pegasus/collect_receipt.py /tmp/safe.py",
+        "env FOO=1 nice -n 0 python3 -BmcProfile "
+        "--outfile tools/pegasus/fetch_third_party.py /tmp/safe.py",
+        "python3 -BmcProfile -o tools/run_tests.py -- /tmp/safe.py",
+    )
+    for cmd in commands:
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"executor が admission path を出力先にできた: {cmd!r}"
+
+    for cmd in (
+        "python3 -BmcProfile -o /tmp/profile.out /tmp/safe.py",
+        "python3 -m cProfile -o tools/pegasus/exec_calibrate.py "
+        "--help /tmp/safe.py",
+        "python3 -BmcProfile -- /tmp/safe.py "
+        "-o tools/pegasus/exec_calibrate.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"program argv の出力 option 字面が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_pydoc_server_and_write_modes_do_not_execute_positionals():
+    commands = (
+        "python3 -Bmpydoc -n localhost tools/pegasus/exec_calibrate.py",
+        "python3.10 -Bmpydoc -p 8080 tools/pegasus/exec_calibrate.py",
+        "python3 -m pydoc -b tools/pegasus/exec_calibrate.py",
+        "python3 -m pydoc -w tools/pegasus/exec_calibrate.py",
+        "env FOO=1 nice -n 0 python3.10 -Bmpydoc "
+        "-n localhost -- tools/pegasus/exec_calibrate.py",
+        "bash -lc 'python3 -B -m pydoc -w tools/pegasus/exec_calibrate.py'",
+    )
+    for cmd in commands:
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"pydoc 非実行 mode が位置引数を実行体扱いした: {cmd!r} ({why})"
+
+
 def test_bash_login_static_reader_modules_keep_paths_as_data():
     for cmd in (
         "python3 -m py_compile tools/pegasus/exec_calibrate.py",
-        "python3 -mpy_compile tools/pegasus/collect_receipt.py",
-        "python3 -Bmpy_compile tools/pegasus/certify_calibration.sh",
-        "python3.10 -mjson.tool tools/pegasus/policy.json",
+        "python3 -B -m py_compile tools/pegasus/collect_receipt.py",
+        "python3 -B -m py_compile tools/pegasus/certify_calibration.sh",
+        "python3.10 -m json.tool tools/pegasus/policy.json",
         "python3 -m compileall tools/pegasus",
     ):
         ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
@@ -828,24 +876,37 @@ def test_bash_login_interpreter_prefix_value_options_reveal_scripts():
         ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
         assert not ok, f"interpreter option 値が実 script を隠した: {cmd!r}"
 
-    # module/script 以外で解析が終わった後の重量 path/綴りは baseline 互換で fail-closed。
+    # baseline が最初の非 option token とみなした重量 path/綴りは fail-closed。
     for cmd in (
         "python3 -c 'print(1)' -m pytest",
-        "python3 -c 'print(1)' tools/pegasus/exec_calibrate.py",
         "python3 --help tools/pegasus/collect_receipt.py",
         "python3 -Z tools/pegasus/collect_receipt.py",
         "env FOO=1 python3.10 -Z tools/pegasus/collect_receipt.py",
         "bash -s tools/pegasus/certify_calibration.sh",
+        "python3 -mpy_compile tools/pegasus/collect_receipt.py",
+        "python3 -mrunpy tools/pegasus/exec_calibrate.py",
+        "python3.10 -Bmtimeit tools/pegasus/exec_calibrate.py",
+        "python3 -mcProfile --help tools/pegasus/exec_calibrate.py",
+        "python3 -Bmpy_compile tools/pegasus/certify_calibration.sh",
+        "python3.10 -mjson.tool tools/pegasus/policy.json",
+        "python3 -W tools/pegasus/exec_calibrate.py /tmp/safe.py",
+        "bash -O tools/pegasus/certify_calibration.sh /tmp/safe.sh",
         "bash -lc 'python3 --help tools/pegasus/collect_receipt.py'",
     ):
         ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
-        assert not ok, f"interpreter 残余の重量対象が fail-open した: {cmd!r}"
+        assert not ok, f"interpreter の baseline 実行体が fail-open した: {cmd!r}"
 
-    ok, why = GB.decide(
-        "python3 -c 'print(1)' /tmp/plain-data", site="PEGASUS_LOGIN")
-    assert ok, f"重量対象でない Python -c argv が誤拒否された: {why}"
-    ok, why = GB.decide("python3 --help /tmp/plain-data", site="PEGASUS_LOGIN")
-    assert ok, f"重量対象でない interpreter 残余が誤拒否された: {why}"
+    for cmd in (
+        "python3 -c 'print(1)' tools/pegasus/exec_calibrate.py",
+        "python3.10 -Bc 'print(1)' tools/pegasus/exec_calibrate.py",
+        "env FOO=1 python3 -c 'print(1)' tools/pegasus/exec_calibrate.py",
+        "bash -c 'true' tools/pegasus/certify_calibration.sh",
+        "bash -xc 'true' tools/pegasus/certify_calibration.sh",
+        "python3 -c 'print(1)' /tmp/plain-data",
+        "python3 --help /tmp/plain-data",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"interpreter の data argv が誤拒否された: {cmd!r} ({why})"
 
 
 def test_bash_login_shell_startup_files_are_execution_targets():
@@ -863,6 +924,22 @@ def test_bash_login_shell_startup_files_are_execution_targets():
         assert not ok, f"shell startup file の実行対象が通った: {cmd!r}"
     ok, why = GB.decide("bash --rcfile /tmp/bashrc -i", site="PEGASUS_LOGIN")
     assert ok, f"Pegasus 外の shell startup file が誤拒否された: {why}"
+
+    for cmd in (
+        f"bash --rcfile {path} -c 'true'",
+        f"bash --init-file={path} -c 'true'",
+        f"env FOO=1 nice -n 0 bash --rcfile={path} -c 'true'",
+        f"bash -lc \"bash --rcfile {path} -c 'true'\"",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"非対話 shell の未使用 startup file が誤拒否された: {cmd!r} ({why})"
+
+    for cmd in (
+        f"bash --rcfile {path} -ic 'true'",
+        f"bash --init-file={path} -i -c 'true'",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"対話指定付き shell startup file が通った: {cmd!r}"
 
 
 def test_bash_nonrefusing_sites_allow_module_and_prefix_matrix():
