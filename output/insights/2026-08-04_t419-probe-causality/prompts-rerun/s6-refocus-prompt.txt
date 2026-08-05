@@ -1,0 +1,51 @@
+あなたは izanagi dev-wave 段 6 の焦点再レビュー子 (read-only) である。目的は**防御的**である。
+1 巡目は NO-GO だった。今回の fix が本当に塞いだかを検証し、新しい回帰を探せ。攻撃側で書くこと。
+
+## 読むもの (絶対パス。読めなければ即停止し、その旨だけ報告)
+
+- 親 brief (**erratum-1 / erratum-2 が旧記述に優先する**):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/brief.md
+- 1 巡目の NO-GO 理由:
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s6-rev.md
+- 親の裁定 K-1〜K-5 (**最優先の契約**):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s6-fix-prompt.txt
+- fix の自己申告 (**信用せず検証**):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s6-fix.md
+- 差分:
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s6-fix-diff.patch
+- 実装:
+  /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/tools/pegasus/probes/t419_probe_causality.py
+  /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/orchestrator/tests/test_t419_probe_causality.py
+
+## 仕事
+
+1. **K-1〜K-5 と S6-01〜S6-06 を自分で検証**し closed / partial / regressed を file:line 根拠付きで判定。
+   特に K-1: subwindow 判定が本当に窓長不変か、arm 合計判定が残っていないか、
+   **境界サンプルが read と read の間に入り込んでいないか** (critical window の純度は死守すべき既存規律)。
+2. **「実機で決して満たせない条件」がまだ無いか**を最優先で見る。前回はそれで job を 1 本無駄にした。
+   VALID に必要な条件を列挙し、48 CPU に pin する A1、child を起こす A2、
+   busy 併走の A3+A2 で新たに発火しそうなものを名指しせよ。
+   subwindow 判定を入れたことで**判定回数が増えた**ぶん、偽陽性の機会も増えていないか。
+3. **新しい回帰**: 恒真・恒偽、過剰/過少 INVALID、fixture の過剰決定、445 の破壊、
+   primary read の増加、既存規律 (anchor / cooldown / hash 束縛 / argv 非保存) の毀損。
+4. **α の巡回実装が裁定どおりか**: A1 の randomized 順で連続 K=5 target・各 1 read・位置ごと累積最小、
+   9 群・余り 3 を記録、2×3 表の α 列が `alpha_with_rotation` を使っているか。
+   `alpha_without_rotation` が α として報告されていないか。
+5. **投入可否**。
+
+## 判定基準 (親の指示)
+
+- 残った所見は「**投入を止めるほどか**」で判定せよ。成果物影響を 1 行で書けない指摘、
+  実測がなければ判定できない指摘は **backlog** と明記し must-fix にしない。
+- 「もっと厳密にできる」は投入阻害の理由にならない。**投入結果が無価値になるか、
+  誤った因果結論を生むか**だけが NO-GO の理由である。
+- 既知の受容済み限界: 「巡回込み α の should-reject セルは今回の 445 読みでは埋まらない」は
+  親が受容済みで、**NO-GO 理由にしない** (記録されていれば可)。
+- 是正の実装 (probe 本体・較正・pin) は scope 外。正しさゲートを緩める提案は採用されない。
+
+## 出力形式
+
+冒頭に K-1〜K-5 / S6-01〜S6-06 の判定表。続けて所見ごとに:
+ID / 主張 / file:line / 失敗シナリオ / 成果物影響 / 強度 / must-fix か backlog か / 最小の是正案。
+最後に必ず `## 総括` 節: (a) **GO / NO-GO**、(b) NO-GO なら理由 3 件以内、
+(c) 実機で最初に発火しそうな条件、(d) 親が投入後に確認すべき事項、を 12 行以内。
