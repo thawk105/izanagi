@@ -2336,6 +2336,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 赤の内容が `*_head` / `HEAD` / commit hash の不一致なら、まず自分の走行中 commit を疑う。
   `git reflog` の時刻と job の Started/Ended を突き合わせれば確定できる。
 
+
+- **再発: 2026-08-05** — [T-244] P4 batch freeze wave。今度は受入全走ではなく**変異 matrix の走行中**に、
+  親が段 7 の spool fragment を作って untracked file を増やした。`tools/mutation_harness.py` は
+  runner 実行前の preflight で untracked file を検出して `rc=2` で停止し、**偽の赤ではなく
+  fail-closed で止まった**。防壁が機能したので実害は再走の一手間だけである。
+  根本原因は F106 と同一で、長い走行を待ち時間とみなし、その間に別の段の作業を worktree 内で進めたこと。
+  「計算ノードへ dispatch するから自分の worktree を触っても影響しない」という誤認も同じである。
+  本 wave の親は同じ注意を自分の handoff に書いたうえで踏んだ。恒久対応は F106 のまま
+  (`DW-O19` の「本走は統合 commit 後に限る」と harness preflight) で、
+  **受入全走だけでなく変異本走にも同じ「投入から結果取得までは worktree を触らない」を適用する**
+  という読み方を本再発で顕在化する。段を跨ぐ待ち時間には repo 外の作業だけを置く。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
