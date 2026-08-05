@@ -200,20 +200,79 @@ def test_crash_receipt_must_match_writer_identity(tmp_path):
     assert (result["result"], rc) == ("QUARANTINE", 4)
 
 
-def test_scheduler_evidence_is_proxy_and_requires_accounting(tmp_path):
-    T503.run_writer(tmp_path, "atomic", size=64, pbs_jobid="writer.17")
-    result, rc = T503.run_inspect(tmp_path, allow_same_host=True)
+def _prepare_scheduler_leg(root: Path, *, pbs_jobid: str = "0:890867.nqsv") -> None:
+    T503.run_writer(root, "atomic", size=64, pbs_jobid=pbs_jobid)
+    result, rc = T503.run_inspect(root, allow_same_host=True)
+    assert rc == 0
     result["rc"] = rc
-    _write_json(tmp_path / "inspect.json", result)
-    _write_json(tmp_path / "inspect-receipt", T503._inspect_receipt(
-        tmp_path, result, "recovery.18", tmp_path / "inspect.json"))
+    _write_json(root / "inspect.json", result)
+    _write_json(root / "inspect-receipt", T503._inspect_receipt(
+        root, result, "recovery.18", root / "inspect.json"))
+
+
+def test_scheduler_evidence_is_proxy_and_requires_accounting(tmp_path):
+    _prepare_scheduler_leg(tmp_path)
     (tmp_path / "scheduler-terminal.txt").write_text(
-        "PBS request ID: writer.17\nBatch job received signal SIGKILL. "
+        "Request ID: 890867.nqsv\n"
+        "%NQSV(INFO): Batch job received signal SIGKILL. "
         "(Exceeded per-req elapse time limit)\n")
     repaired, rc = T503.run_repair(tmp_path, "scheduler", allow_same_host=True)
     assert rc == 0
     assert repaired["crash_evidence"] == "scheduler-accounting"
     assert T503.SCHEDULER_PROXY in repaired["does_not_prove"]
+
+
+def test_scheduler_evidence_accepts_nqsv_accounting_format(tmp_path):
+    _prepare_scheduler_leg(tmp_path)
+    (tmp_path / "scheduler-terminal.txt").write_text(
+        "%NQSV(INFO): Batch job received signal SIGKILL. "
+        "(Exceeded per-req elapse time limit)\n\n"
+        "============================================================\n"
+        "Request ID:             890867.nqsv\n"
+        "Request Name:           t503_restore_durability_probe.pbs\n"
+        "Queue:                  gen_S@nqsv\n")
+    repaired, rc = T503.run_repair(tmp_path, "scheduler", allow_same_host=True)
+    assert rc == 0
+    assert repaired["crash_evidence"] == "scheduler-accounting"
+
+
+@pytest.mark.parametrize("terminal", [
+    "%NQSV(INFO): Batch job received signal SIGKILL. "
+    "(Exceeded per-req elapse time limit)\nRequest ID: 890868.nqsv\n",
+    "%NQSV(INFO): Batch job received signal SIGKILL. "
+    "(Exceeded per-req elapse time limit)\nRequest ID: 1890867.nqsv\n",
+    "%NQSV(INFO): Batch job received signal SIGKILL. "
+    "(Exceeded per-req elapse time limit)\nRequest ID: 890867.nqsv.bak\n",
+    "Exceeded per-req elapse time limit\nRequest ID: 890867.nqsv\n",
+    "%NQSV(INFO): Batch job received signal SIGKILL.\nRequest ID: 890867.nqsv\n",
+    "%NQSV(INFO): Batch job received signal SIGKILL.\n"
+    "Exceeded per-req elapse time limit\nRequest ID: 890867.nqsv\n",
+    "%NQSV(INFO): Batch job received signal SIGKILL. "
+    "(Exceeded per-req elapse time limit)\nPBS request ID: 890867.nqsv\n",
+], ids=[
+    "different-request",
+    "leading-partial-match",
+    "trailing-partial-match",
+    "missing-sigkill",
+    "missing-walltime",
+    "signal-and-walltime-on-different-lines",
+    "missing-request-id",
+])
+def test_scheduler_evidence_rejects_invalid_accounting(tmp_path, terminal):
+    _prepare_scheduler_leg(tmp_path)
+    (tmp_path / "scheduler-terminal.txt").write_text(terminal)
+    repaired, rc = T503.run_repair(tmp_path, "scheduler", allow_same_host=True)
+    assert (repaired["result"], rc) == ("QUARANTINE", 4)
+    assert repaired["error"] == "scheduler terminal accounting is invalid"
+
+
+def test_scheduler_evidence_rejects_empty_normalized_request_id(tmp_path):
+    _prepare_scheduler_leg(tmp_path, pbs_jobid="0:")
+    (tmp_path / "scheduler-terminal.txt").write_text(
+        "%NQSV(INFO): Batch job received signal SIGKILL. "
+        "(Exceeded per-req elapse time limit)\nRequest ID: 890867.nqsv\n")
+    repaired, rc = T503.run_repair(tmp_path, "scheduler", allow_same_host=True)
+    assert (repaired["result"], rc) == ("QUARANTINE", 4)
 
 
 @pytest.mark.parametrize("mutation", ["seq", "duplicate-armed", "bad-type", "clean-not-last"])

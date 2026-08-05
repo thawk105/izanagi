@@ -270,9 +270,17 @@ def _crash_evidence(root: Path, kind: str, writer: dict, inspect_receipt: dict) 
     if (root / "go-kill").exists() or (root / "go-kill").is_symlink():
         raise EvidenceError("scheduler leg must not contain go-kill")
     text = (root / "scheduler-terminal.txt").read_text()
-    request_lines = [line for line in text.splitlines() if re.search(r"PBS request ID", line)]
-    if (not any(writer["pbs_jobid"] in line for line in request_lines)
-            or not any("Exceeded per-req elapse time limit" in line for line in text.splitlines())):
+    lines = text.splitlines()
+    request_id = re.sub(r"^\d+:", "", writer["pbs_jobid"], count=1)
+    request_ids = []
+    for line in lines:
+        match = re.fullmatch(r"\s*Request ID:\s*(\S+)\s*", line)
+        if match:
+            request_ids.append(match.group(1))
+    if (not request_id or request_id not in request_ids
+            or not any("signal SIGKILL" in line
+                       and "Exceeded per-req elapse time limit" in line
+                       for line in lines)):
         raise EvidenceError("scheduler terminal accounting is invalid")
     return "scheduler-accounting", SCHEDULER_PROXY
 def run_repair(root, crash_evidence, allow_same_host=False, recorder=None, require_fstype=None):
