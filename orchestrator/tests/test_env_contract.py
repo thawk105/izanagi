@@ -491,7 +491,15 @@ def test_registry_policy_equality_rejects_near_and_rounded_values():
     assert len(KNOWN_SELF_INCONSISTENT_CALIBRATIONS) == 1
     verified = ea.load_verified_calibration(ec.lookup("pegasus"), REPO_ROOT)
     assert verified.calibration is not None
-    profile = verified.calibration.attestation_profile
+    profile = dataclasses.replace(
+        verified.calibration.attestation_profile,
+        effective_clock=dataclasses.replace(
+            verified.calibration.attestation_profile.effective_clock,
+            samples_mhz=[100.0],
+            tolerance_pct=2.0,
+        ),
+    )
+    assert _registry_clock_self_passes(profile)
     for tolerance in (
         math.nextafter(2.0, math.inf),
         math.nextafter(2.0, -math.inf),

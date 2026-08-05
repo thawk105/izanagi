@@ -384,9 +384,16 @@ def _effective_clock_self_comparison_passes(profile: object) -> bool:
     effective_clock = profile.get("effective_clock")
     if type(effective_clock) is not dict:
         return False
+    expected = {
+        "samples_mhz": effective_clock.get("samples_mhz"),
+        "tolerance_pct": effective_clock.get("tolerance_pct"),
+    }
+    observed = {
+        "samples_mhz": effective_clock.get("samples_mhz"),
+    }
     return effective_clock_comparison_passes(
-        effective_clock,
-        {"samples_mhz": effective_clock.get("samples_mhz")},
+        expected,
+        observed,
     )
 
 

@@ -32,11 +32,13 @@ import time
 from typing import Any, Iterable, Mapping, Sequence
 
 _IMPORT_ROOT = Path(__file__).resolve().parents[2]
-if str(_IMPORT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_IMPORT_ROOT))
+_ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[1]
+for _root in (_IMPORT_ROOT, _ORCHESTRATOR_ROOT):
+    if str(_root) not in sys.path:
+        sys.path.insert(0, str(_root))
 
-from orchestrator.campaign import env_attestation, env_contract, execution_guard, patchharness
-from orchestrator.campaign import silo_ladder_rung1_contract as patch_contract
+from campaign import env_attestation, env_contract, execution_guard, patchharness
+from campaign import silo_ladder_rung1_contract as patch_contract
 
 
 SCHEMA_VERSION = "silo_ladder_rung1/v1"

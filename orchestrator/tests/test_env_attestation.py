@@ -267,7 +267,7 @@ def test_compare_profiles_normalizes_raw_name_and_applies_expected_clock_toleran
         expected, model_name_raw="Intel Test CPU @ 2.10GHz",
     )
     observed_expected_shape = _replace_clock(
-        observed_expected_shape, samples_mhz=[2450.0, 2460.0, 2440.0],
+        observed_expected_shape, samples_mhz=[2440.0, 2448.0, 2430.0],
     )
     observed = _observed(observed_expected_shape)
     comparisons = ea.compare_profiles(expected, observed, now_fn=lambda: "now")
@@ -383,6 +383,33 @@ _V1_CORPUS_DOCS = {
     "calibration/attempts/0_867876.nqsv/calibration.md",
     "silo_ladder_rung1/README.md",
 }
+_V1_SUCCESS_JSONS = {
+    "calibration/job-staging/0:867865.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867866.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867867.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867868.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867869.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867869.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867870.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867870.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867872.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867872.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867874.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867874.nqsv/attestation-static.json",
+    "calibration/job-staging/0:867876.nqsv/attestation-post.json",
+    "calibration/job-staging/0:867876.nqsv/attestation-pre.json",
+    "calibration/job-staging/0:867876.nqsv/attestation-static.json",
+    "smoke/0:867860.nqsv/observation.json",
+    "smoke/0:867861.nqsv/observation.json",
+    "smoke/0:867862.nqsv/observation.json",
+    ("silo_ladder_rung1/job-staging/0_873920.nqsv/raw-bundle-attempt-1/"
+     "attempts/1/attestation-job.json"),
+}
+_V1_FAILURE_JSONS = {
+    "smoke/0:867857.nqsv/observation.json",
+    "smoke/0:867858.nqsv/observation.json",
+    "smoke/0:867859.nqsv/observation.json",
+}
 
 
 def test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies():
@@ -400,10 +427,16 @@ def test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies():
             *root.glob("calibration/attempts/*/calibration.md"),
             root / "silo_ladder_rung1/README.md",
         )
+        if path.is_file()
     }
     assert discovered_payloads == golden_payloads
     assert discovered_docs == _V1_CORPUS_DOCS
+    assert all((root / path).is_file() for path in _V1_CORPUS_DOCS)
     assert len(golden_payloads | discovered_docs) == 47
+    assert _V1_SUCCESS_JSONS.isdisjoint(_V1_FAILURE_JSONS)
+    assert _V1_SUCCESS_JSONS | _V1_FAILURE_JSONS == {
+        pair[0] for pair in _V1_CORPUS_PAIRS
+    }
 
     registered = json.loads(next(
         (root / "calibration/registered").glob("calibration-*.json")
@@ -412,17 +445,17 @@ def test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies():
         "samples_mhz": registered["attestation_profile"]["effective_clock"]["samples_mhz"],
         "tolerance_pct": 2.0,
     }
-    success = 0
-    failure = 0
+    observed_success = set()
+    observed_failure = set()
     for json_rel, stdout_rel in _V1_CORPUS_PAIRS:
         json_raw = (root / json_rel).read_bytes()
         stdout_raw = (root / stdout_rel).read_bytes()
         assert json.loads(json_raw) == json.loads(stdout_raw)
         parsed = ea.parse_probe_output(json_raw)
         if not parsed.ok:
-            failure += 1
+            observed_failure.add(json_rel)
             continue
-        success += 1
+        observed_success.add(json_rel)
         assert parsed.profile is not None
         observed_samples = parsed.profile.effective_clock.samples_mhz
         expected_median = statistics.median(expected_clock["samples_mhz"])
@@ -431,7 +464,8 @@ def test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies():
         assert not eg.effective_clock_comparison_passes(
             expected_clock, {"samples_mhz": observed_samples},
         )
-    assert (success, failure) == (19, 3)
+    assert observed_success == _V1_SUCCESS_JSONS
+    assert observed_failure == _V1_FAILURE_JSONS
 
 
 def _required_artifact(tmp_path: Path, doc: dict | None = None, *, raw: bytes | None = None):

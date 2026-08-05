@@ -629,16 +629,26 @@ def test_known_values_cpu_policy_and_comparison_use_normalized_exact_match():
     assert "expected_cpu in model" not in source
 
 
-@pytest.mark.parametrize(
-    "model,expected_passed",
-    [
-        ("Intel Xeon Platinum 8468", True),
-        ("Intel Xeon Platinum 8468H", False),
-    ],
-)
-def test_known_values_cpu_check_rejects_nearby_sku(
-        tmp_path, model, expected_passed):
-    attempt = tmp_path / "attempt"
+def _acquisition_probe_document(model: str) -> dict:
+    registered = next(
+        (REPO / "output/env/pegasus/calibration/registered").glob(
+            "calibration-*.json"
+        )
+    )
+    calibration = json.loads(registered.read_text(encoding="utf-8"))
+    profile = calibration["attestation_profile"]
+    del profile["effective_clock"]["tolerance_pct"]
+    profile["cpu"]["model_name_raw"] = model
+    profile["cpu"]["model_name_normalized"] = model
+    return {
+        "schema_version": "pegasus-probe-output/v2",
+        "ok": True,
+        "observed_epoch": 1,
+        "profile": profile,
+    }
+
+
+def _write_acquisition_fixture(attempt: Path, model: str) -> None:
     attempt.mkdir()
     (attempt / "submit-receipt.json").write_text(
         json.dumps({"qsub": {"request_id": "fixture.server"}}), encoding="utf-8",
@@ -646,13 +656,9 @@ def test_known_values_cpu_check_rejects_nearby_sku(
     (attempt / "topology.json").write_text(
         json.dumps({"cpuset_size": 48, "ht_off": True}), encoding="utf-8",
     )
-    (attempt / "attestation-pre.json").write_text(json.dumps({
-        "ok": True,
-        "profile": {
-            "cpu": {"model_name_normalized": model},
-            "cores": {"physical": 48},
-        },
-    }), encoding="utf-8")
+    (attempt / "attestation-pre.json").write_text(
+        json.dumps(_acquisition_probe_document(model)), encoding="utf-8",
+    )
     (attempt / "module-list.stdout").write_text(
         "intelpython/2022.3.1\n", encoding="utf-8",
     )
@@ -664,16 +670,31 @@ def test_known_values_cpu_check_rejects_nearby_sku(
     ):
         (attempt / name).write_text(value + "\n", encoding="utf-8")
 
+
+def _acquisition_argv(attempt: Path) -> list[str]:
     policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
-    argv = [
+    return [
         sys.executable, "-", str(attempt), "a" * 40, "b" * 64, "c" * 64,
         "bnode003", "bnode003", policy["expected_cpu_model"], "48", "7200",
-        "600", "cmake -S source -B build", "cmake --build build",
+        "600", "cmake -S source -B build", "cmake --build build", str(REPO),
     ]
+
+
+@pytest.mark.parametrize(
+    "model,expected_passed",
+    [
+        ("Intel Xeon Platinum 8468", True),
+        ("Intel Xeon Platinum 8468H", False),
+    ],
+)
+def test_known_values_cpu_check_rejects_nearby_sku(
+        tmp_path, model, expected_passed):
+    attempt = tmp_path / "attempt"
+    _write_acquisition_fixture(attempt, model)
     env = os.environ.copy()
     env["PBS_JOBID"] = "0:fixture.server"
     result = subprocess.run(
-        argv,
+        _acquisition_argv(attempt),
         input=_acquisition_candidate_source(),
         capture_output=True,
         text=True,
@@ -684,6 +705,34 @@ def test_known_values_cpu_check_rejects_nearby_sku(
         (attempt / "acquisition-candidate.json").read_text(encoding="utf-8"),
     )
     assert candidate["known_values_check"]["passed"] is expected_passed
+
+
+def test_acquisition_candidate_rejects_schema_valid_duplicate_probe_key(tmp_path):
+    policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
+    attempt = tmp_path / "attempt"
+    _write_acquisition_fixture(attempt, policy["expected_cpu_model"])
+    probe_path = attempt / "attestation-pre.json"
+    duplicate = probe_path.read_text(encoding="utf-8").replace(
+        '{"schema_version": "pegasus-probe-output/v2",',
+        ('{"schema_version": "pegasus-probe-output/v2", '
+         '"schema_version": "pegasus-probe-output/v2",'),
+        1,
+    )
+    probe_path.write_text(duplicate, encoding="utf-8")
+    env = os.environ.copy()
+    env["PBS_JOBID"] = "0:fixture.server"
+
+    result = subprocess.run(
+        _acquisition_argv(attempt),
+        input=_acquisition_candidate_source(),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode != 0
+    assert "duplicate key" in result.stderr
+    assert not (attempt / "acquisition-candidate.json").exists()
 
 
 @dataclasses.dataclass(frozen=True)

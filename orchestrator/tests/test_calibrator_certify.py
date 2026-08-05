@@ -578,8 +578,10 @@ def test_cli_effective_clock_self_failure_is_quality_rejected_before_publish(
     } for profile in profiles)
     policy_results = []
     for profile in profiles:
-        expected = copy.deepcopy(profile["effective_clock"])
-        expected["tolerance_pct"] = 2.0
+        expected = {
+            "samples_mhz": list(profile["effective_clock"]["samples_mhz"]),
+            "tolerance_pct": 2.0,
+        }
         policy_results.append(eg.effective_clock_comparison_passes(
             expected, {"samples_mhz": list(expected["samples_mhz"])},
         ))
@@ -664,13 +666,25 @@ def test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consum
     monkeypatch.setattr(
         cli.effective_clock_policy, "EFFECTIVE_CLOCK_TOLERANCE_PCT", 3.0,
     )
-    rc, _, registered = _invoke(tmp_path, monkeypatch)
+    three_root = tmp_path / "policy-three"
+    three_root.mkdir()
+    vector_rows = [
+        [2101.0] * 48,
+        [2101.0] * 47 + [2164.03],
+        [2101.0] * 48,
+    ]
+    probe_three, _, calls_three = _pegasus_shaped_probe(vector_rows)
+    rc, _, registered = _invoke(
+        three_root, monkeypatch, profile_fn=probe_three,
+        receipt_mutator=_expect_48_physical_cores,
+    )
+    assert calls_three == [0, 1, 2]
     assert rc == 0
     published = next(registered.glob("calibration-*.json"))
     produced = validate_calibration_v2(published.read_bytes())
     assert produced.attestation_profile.effective_clock.tolerance_pct == 3.0
 
-    relative = published.relative_to(tmp_path).as_posix()
+    relative = published.relative_to(three_root).as_posix()
     contract = ec.ExecutionEnvironmentContract(
         env_tag=produced.env_tag,
         clocks_per_us=produced.clocks_per_us,
@@ -684,7 +698,7 @@ def test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consum
             sha256=hashlib.sha256(published.read_bytes()).hexdigest(),
         ),
     )
-    verified = ea.load_verified_calibration(contract, tmp_path)
+    verified = ea.load_verified_calibration(contract, three_root)
     assert verified.calibration is not None
 
     expected_raw = ea.profile_to_dict(verified.attestation_profile)
@@ -710,6 +724,36 @@ def test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consum
     assert cli._effective_clock_self_comparison_passes({
         "effective_clock": self_clock,
     })
+    receipt_three = eg.attest_and_build_receipt(
+        contract, verified, probe_fn=lambda: observed,
+        now_fn=lambda: "2026-08-05T00:00:00Z",
+    )
+    assert eg.receipt_matches_contract(
+        receipt_three,
+        env_tag=contract.env_tag,
+        contract_sha256=contract.contract_sha256,
+        attestation_mode="required",
+        verified_calibration=verified,
+    )
+
+    monkeypatch.setattr(
+        cli.effective_clock_policy, "EFFECTIVE_CLOCK_TOLERANCE_PCT", 2.0,
+    )
+    two_root = tmp_path / "policy-two"
+    two_root.mkdir()
+    probe_two, _, calls_two = _pegasus_shaped_probe(vector_rows)
+    rc_two, attempt_two, _ = _invoke(
+        two_root, monkeypatch, profile_fn=probe_two,
+        receipt_mutator=_expect_48_physical_cores,
+    )
+    assert calls_two == [0, 1, 2]
+    assert rc_two != 0
+    rejected_two = validate_calibration_v2(
+        (attempt_two / "calibration.json").read_bytes(),
+    )
+    assert rejected_two.quality.reasons == [
+        "effective-clock-self-comparison-failed",
+    ]
 
     literal_two = copy.deepcopy(expected_raw)
     literal_two["effective_clock"]["tolerance_pct"] = 2.0
@@ -734,7 +778,7 @@ def test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consum
         {"samples_mhz": [2101.0] * 47 + [2164.03]},
     )
 
-    literal_two_path = tmp_path / "literal-two.json"
+    literal_two_path = three_root / "literal-two.json"
     literal_two_document = json.loads(published.read_text(encoding="utf-8"))
     literal_two_document["attestation_profile"]["effective_clock"][
         "tolerance_pct"
@@ -749,12 +793,35 @@ def test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consum
         attestation_mode="required",
         isolation_policy=contract.isolation_policy,
         calibration_ref=ec.CalibrationRef(
-            path=literal_two_path.relative_to(tmp_path).as_posix(),
+            path=literal_two_path.relative_to(three_root).as_posix(),
             sha256=hashlib.sha256(literal_two_path.read_bytes()).hexdigest(),
         ),
     )
+    verified_two = ea.load_verified_calibration(literal_two_contract, three_root)
+    receipt_two = copy.deepcopy(receipt_three)
+    receipt_two["contract_sha256"] = literal_two_contract.contract_sha256
+    receipt_two["attestation_profile_sha256"] = (
+        verified_two.attestation_profile_sha256
+    )
+    receipt_clock = next(
+        item for item in receipt_two["comparisons"]
+        if item["field"] == "effective_clock.samples_mhz"
+    )
+    receipt_clock["expected"]["tolerance_pct"] = 2.0
+    assert not eg.receipt_matches_contract(
+        receipt_two,
+        env_tag=literal_two_contract.env_tag,
+        contract_sha256=literal_two_contract.contract_sha256,
+        attestation_mode="required",
+        verified_calibration=verified_two,
+    )
+
+    # Loader equality の旧負例は帯幅 vector から独立に残す。
+    monkeypatch.setattr(
+        cli.effective_clock_policy, "EFFECTIVE_CLOCK_TOLERANCE_PCT", 3.0,
+    )
     with pytest.raises(ea.AttestationError, match="current policy"):
-        ea.load_verified_calibration(literal_two_contract, tmp_path)
+        ea.load_verified_calibration(literal_two_contract, three_root)
 
 
 @pytest.mark.parametrize("legacy_value", ["2.0", "100.0"])

@@ -743,23 +743,56 @@ def test_attestation_json_parse_failure_is_retryable_infra(monkeypatch, tmp_path
     assert captured.value.reason_code == "parse_failure"
 
 
+def _all_pass_live_probe_payload(*, duplicate_schema_key: bool = False) -> str:
+    contract = driver.env_contract.lookup("pegasus")
+    verified = driver.env_attestation.load_verified_calibration(contract, ROOT)
+    profile = driver.env_attestation.profile_to_dict(
+        verified.attestation_profile,
+    )
+    del profile["effective_clock"]["tolerance_pct"]
+    expected_samples = profile["effective_clock"]["samples_mhz"]
+    ordered = sorted(expected_samples)
+    middle = len(ordered) // 2
+    median = (ordered[middle - 1] + ordered[middle]) / 2.0
+    profile["effective_clock"]["samples_mhz"] = [
+        median for _ in expected_samples
+    ]
+    payload = json.dumps({
+        "schema_version": "pegasus-probe-output/v2",
+        "ok": True,
+        "observed_epoch": 1,
+        "profile": profile,
+    }, separators=(",", ":"))
+    if duplicate_schema_key:
+        payload = payload.replace(
+            '{"schema_version":"pegasus-probe-output/v2",',
+            ('{"schema_version":"pegasus-probe-output/v2",'
+             '"schema_version":"pegasus-probe-output/v2",'),
+            1,
+        )
+    return payload
+
+
 @pytest.mark.parametrize(
-    "payload,reason_code",
+    "case,reason_code",
     [
-        ('{"schema_version":"pegasus-probe-output/v2",'
-         '"schema_version":"pegasus-probe-output/v2",'
-         '"ok":true,"observed_epoch":1,"profile":{}}', "parse_failure"),
-        (json.dumps({
-            "schema_version": "pegasus-probe-output/v2",
-            "ok": False,
-            "observed_epoch": 1,
-            "error": {"stage": "probe", "type": "RuntimeError", "message": "x"},
-        }), "attestation"),
+        ("duplicate-key", "parse_failure"),
+        ("typed-failure", "attestation"),
     ],
     ids=["duplicate-key", "typed-failure"],
 )
 def test_live_attestation_parser_failures_preserve_infra_reason(
-        monkeypatch, tmp_path, payload, reason_code):
+        monkeypatch, tmp_path, case, reason_code):
+    if case == "duplicate-key":
+        payload = _all_pass_live_probe_payload(duplicate_schema_key=True)
+    else:
+        payload = json.dumps({
+            "schema_version": "pegasus-probe-output/v2",
+            "ok": False,
+            "observed_epoch": 1,
+            "error": {"stage": "probe", "type": "RuntimeError", "message": "x"},
+        })
+
     def fake_run(argv, **kwargs):
         Path(argv[argv.index("--output") + 1]).write_text(
             payload, encoding="utf-8",
@@ -790,7 +823,11 @@ def test_silo_live_clock_wiring_moves_with_policy_and_uses_exact_keys(
         verified.calibration, attestation_profile=expected,
     )
     synthetic_verified = dataclasses.replace(
-        verified, calibration=calibration,
+        verified,
+        calibration=calibration,
+        attestation_profile_sha256=(
+            driver.env_attestation.profile_sha256(expected)
+        ),
     )
     monkeypatch.setattr(
         driver.env_attestation, "load_verified_calibration",
@@ -833,8 +870,14 @@ def test_silo_live_clock_wiring_moves_with_policy_and_uses_exact_keys(
     monkeypatch.setattr(
         driver.execution_guard, "effective_clock_comparison_passes", predicate_spy,
     )
-    result = driver._attest_environment(tmp_path)
-    assert result["effective_clock_match"] is want
+    if want:
+        result = driver._attest_environment(tmp_path)
+        assert result["effective_clock_match"] is True
+        assert result["all_pass"] is True
+    else:
+        with pytest.raises(driver.InfraFailure) as captured:
+            driver._attest_environment(tmp_path)
+        assert captured.value.reason_code == "attestation"
     assert len(calls) == 1
 
 
@@ -1801,29 +1844,37 @@ def _reseal_materialized_raw(root: Path, document: dict) -> None:
 
 
 @pytest.mark.parametrize(
-    "payload",
+    "case",
     [
-        "{",
-        ('{"schema_version":"pegasus-probe-output/v2",'
-         '"schema_version":"pegasus-probe-output/v2",'
-         '"ok":true,"observed_epoch":1,"profile":{}}'),
-        json.dumps({
-            "schema_version": "pegasus-probe-output/v2",
-            "ok": False,
-            "observed_epoch": 1,
-            "error": {"stage": "probe", "type": "RuntimeError", "message": "x"},
-        }),
+        "malformed",
+        "duplicate-key",
+        "typed-failure",
     ],
     ids=["malformed", "duplicate-key", "typed-failure"],
 )
 def test_raw_attestation_parser_failures_remain_raw_bundle_evidence(
-        tmp_path, payload):
+        tmp_path, case):
     document = _evidence(_fixture("p_plus_2.json"))
     raw = tmp_path / "raw"
     _materialize_raw_bundle(raw, document)
-    (raw / "attempts/1/attestation-job.json").write_text(
-        payload, encoding="utf-8",
-    )
+    probe_path = raw / "attempts/1/attestation-job.json"
+    if case == "malformed":
+        payload = "{"
+    elif case == "duplicate-key":
+        payload = probe_path.read_text(encoding="utf-8").replace(
+            '{"schema_version": "pegasus-probe-output/v2",',
+            ('{"schema_version": "pegasus-probe-output/v2", '
+             '"schema_version": "pegasus-probe-output/v2",'),
+            1,
+        )
+    else:
+        payload = json.dumps({
+            "schema_version": "pegasus-probe-output/v2",
+            "ok": False,
+            "observed_epoch": 1,
+            "error": {"stage": "probe", "type": "RuntimeError", "message": "x"},
+        })
+    probe_path.write_text(payload, encoding="utf-8")
     _reseal_materialized_raw(raw, document)
 
     failures = driver.validate_raw_bundle(document, raw)

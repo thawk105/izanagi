@@ -534,13 +534,35 @@ def normalize_observed_profile(
     }:
         raise AttestationError("observed profile.effective_clock の schema key 集合が exact でない")
 
+    cpu = raw.get("cpu")
+    if not isinstance(cpu, Mapping) or set(cpu) != {
+        "vendor", "family", "model", "model_name_raw", "model_name_normalized",
+    }:
+        raise AttestationError("observed profile.cpu の schema key 集合が exact でない")
+
     # Reuse the expected parser for every shared field.  The synthetic value is
     # local validation material only and is never present in the observed type.
+    # The observed raw/normalized names must remain independent comparison
+    # values, so only the validation copy is made self-consistent here.
     expected_shape = dict(raw)
+    validation_cpu = dict(cpu)
+    try:
+        validation_cpu["model_name_normalized"] = normalize_cpu_model_name(
+            cpu["model_name_raw"],  # type: ignore[arg-type]
+        )
+    except (AttestationError, KeyError, TypeError) as exc:
+        raise AttestationError(f"observed profile.cpu が不正: {exc}") from exc
+    expected_shape["cpu"] = validation_cpu
     expected_shape["effective_clock"] = {**dict(clock), "tolerance_pct": 1.0}
     expected = normalize_profile(expected_shape)
+    try:
+        observed_cpu = _schema_v2.CpuProfile(**dict(cpu))
+    except (_schema_v2.CalibrationSchemaError, TypeError) as exc:
+        raise AttestationError(
+            f"raw observed profile が calibration/v2 型に違反: {exc}"
+        ) from exc
     return _schema_v2.ObservedAttestationProfile(
-        cpu=expected.cpu,
+        cpu=observed_cpu,
         cores=expected.cores,
         cache_topology=expected.cache_topology,
         numa=expected.numa,
