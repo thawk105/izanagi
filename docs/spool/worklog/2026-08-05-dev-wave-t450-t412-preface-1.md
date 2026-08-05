@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-05
 wave: dev-wave-t450-t412-preface
 seq: 1
-title: [T-450] の DW-O15 残骸を削除し、[T-412] 前置として受入形の削除検査を trigger 非依存の fail-closed にした — 剪定は 0 bytes 回収と確定 (コード + docs、受入 6460 passed/20 skipped、変異 12/12 KILLED、branch worktree-dev-wave-t450-t412-preface)
+title: [T-450] の DW-O15 残骸を削除し、[T-412] 前置として受入形の削除検査を trigger 非依存の fail-closed にした — 剪定は 0 bytes 回収と確定 (コード + docs、受入 6489 passed/20 skipped、変異 12/12 KILLED、branch worktree-dev-wave-t450-t412-preface)
 ---
 
 ## 本文
@@ -33,8 +33,10 @@ title: [T-450] の DW-O15 残骸を削除し、[T-412] 前置として受入形�
   実 task-run directory は 10 件。また `DW-G04` の発火 path は既存 deletion fixture で書けたので、
   「台帳が空だから書けない」という brief の理由付けは誤りだった
 - **子の工数。** codex 子 8 本 (plan 1、段 3 敵対 2、実装 2、段 6 レビュー 2、fix 1) +
-  焦点再レビュー 1 = 9 本。うち fix は 1 巡で閉じた。全走は 1 回、targeted 全走は 2 回、
-  変異走行は 2 回 (計 26 dispatch)
+  焦点再レビュー 1 = 9 本。うち fix は 1 巡で閉じた。受入全走は 2 回、targeted 走は 2 回、
+  変異走行は 2 回 (計 28 dispatch)。受入は本 wave の実装が揃った tip `a2f8b48b` で
+  6460 passed/20 skipped、land 対象 tip での再走が 6489 passed/20 skipped。
+  差 29 件は取り込んだ local main が持ち込んだテストで、本 wave の差分由来ではない
 - **[T-166] の 3 limb のうち 1 つを閉じた。** task-run 台帳の bypass 使用 field は、
   bypass が reader ごと消えたため実装しても全 run で false になる恒真な監査 field になる。
   残る 2 limb (隔離 checkout への modules cache 複製、rc 13/14 の診断粒度) は据え置き
