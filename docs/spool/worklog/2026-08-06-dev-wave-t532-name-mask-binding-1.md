@@ -59,7 +59,15 @@ title: [T-532] known 軸凍結の trigger record へ name↔mask 束縛一致検
   (対象を name↔mask 束縛に限定する) の外側にあり、実装していない。
   逐語と根拠は `output/insights/2026-08-06_t532-name-mask-binding/`。
 - 受入全走は fix 前 6475 passed / 20 skipped、fix 後 6476 passed / 20 skipped、
-  land 直前の再走は本エントリの後段に記す。いずれも Pegasus 計算ノードで実測した。
+  local main 6b3182a6 を取り込んだ land 直前の tip で **6505 passed / 20 skipped**
+  (request 891994.nqsv)。いずれも Pegasus 計算ノードで実測した。
+- **land 直前の 1 回目の全走で、差分が到達しえないテスト 1 本が赤くなった。** node は
+  `test_codex_worker_launch.py::test_check_receipt_external_limit_detects_self_asserted_limit_tampering`
+  で、本 wave の差分 (凍結文書の検査) からは到達経路がなく、当該 test file にも触った module への
+  参照がない。`DW-O18` に従い単独再走したところ **64 passed / 5.25 秒で再現しなかった**
+  (request 891982.nqsv)。同 file には「高負荷下で子プロセス系テストが落ちる race を閉じる」修正履歴があり、
+  赤が出た走行は 1014 秒 (緑の回は 710〜750 秒) で計算ノードが混んでいた。実装差分へ帰属させず、
+  負荷由来のフレークとして扱い、直後の全走 (上記 6505 passed) で緑を確定した。
 
 ## 次の一手差分
 
