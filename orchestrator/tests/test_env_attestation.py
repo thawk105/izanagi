@@ -33,13 +33,16 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def _probe_tree(tmp_path: Path) -> ea.ProbeRoots:
+def _probe_tree(
+    tmp_path: Path, *, cpu_ids: tuple[int, ...] = tuple(range(5)),
+) -> ea.ProbeRoots:
     proc = tmp_path / "proc"
     sys_cpu = tmp_path / "sys/devices/system/cpu"
     sys_node = tmp_path / "sys/devices/system/node"
     proc.mkdir()
     cpuinfo_blocks = []
-    for cpu, mhz in ((0, "2390.000"), (1, "2410.000")):
+    for cpu in cpu_ids:
+        mhz = f"{2390.0 + 5.0 * cpu:.3f}"
         cpuinfo_blocks.append(
             f"processor : {cpu}\n"
             "vendor_id : GenuineIntel\n"
@@ -60,12 +63,128 @@ def _probe_tree(tmp_path: Path) -> ea.ProbeRoots:
     _write(proc / "cpuinfo", "\n".join(cpuinfo_blocks))
     _write(proc / "mounts", "proc /proc proc rw,nosuid,nodev,noexec 0 0\n")
     _write(proc / "2/comm", "kthreadd\n")
-    _write(sys_node / "node0/cpulist", "1,0\n")
+    _write(sys_node / "node0/cpulist", ",".join(map(str, reversed(cpu_ids))) + "\n")
     return ea.ProbeRoots(proc=proc, sys_cpu=sys_cpu, sys_node=sys_node)
 
 
-def _patch_runtime_probe(monkeypatch) -> None:
-    monkeypatch.setattr(ea.os, "sched_getaffinity", lambda _pid: {0, 1})
+class _FakeCpuinfoRuntime:
+    def __init__(
+        self,
+        roots: ea.ProbeRoots,
+        *,
+        original_affinity: set[int] | None = None,
+        snapshots: list[tuple[dict[str, object], dict[int, float]]] | None = None,
+        reader_outlier_from_actual_processor: bool = False,
+    ) -> None:
+        self.roots = roots
+        self.original_affinity = set(
+            original_affinity if original_affinity is not None else range(5)
+        )
+        self.affinity = set(self.original_affinity)
+        self.snapshots = snapshots
+        self.requested_targets: list[int] = []
+        self.read_starts_ns: list[int] = []
+        self.sleep_calls: list[float] = []
+        self.events: list[tuple[str, object]] = []
+        self.now_ns = 0
+        self.last_target: int | None = None
+        self.actual_processor = min(self.original_affinity, default=None)
+        self.read_processor_history: list[int] = []
+        self.emitted_vectors: list[dict[int, float]] = []
+        self.reader_outlier_from_actual_processor = reader_outlier_from_actual_processor
+        self.wrong_pre_processor = False
+        self.wrong_post_processor = False
+        self.widen_affinity_during_sleep = False
+        self.noop_singleton_set = False
+        self.fail_singleton_set = False
+        self.fail_read_at: int | None = None
+        self.fail_restore = False
+        self.noop_restore = False
+        self.get_call_count = 0
+        self.fail_get_at: int | None = None
+        self.read_delay_ns = 0
+        self.runtime_read_calls = 0
+
+    def get_affinity(self) -> set[int]:
+        self.events.append(("get", tuple(sorted(self.affinity))))
+        call_index = self.get_call_count
+        self.get_call_count += 1
+        if self.fail_get_at == call_index:
+            raise OSError("get affinity failed")
+        return set(self.affinity)
+
+    def set_affinity(self, cpus: set[int]) -> None:
+        requested = set(cpus)
+        self.events.append(("set", tuple(sorted(requested))))
+        if len(requested) == 1:
+            self.last_target = next(iter(requested))
+            self.requested_targets.append(self.last_target)
+            if self.fail_singleton_set:
+                raise OSError("pin failed")
+            self.actual_processor = self.last_target
+            if not self.noop_singleton_set:
+                self.affinity = requested
+            return
+        if self.fail_restore:
+            raise OSError("restore failed")
+        if not self.noop_restore:
+            self.affinity = requested
+
+    def current_processor(self, proc_root: Path) -> int:
+        phase = "post" if self.events and self.events[-1][0] == "read" else "pre"
+        self.events.append((f"processor-{phase}", proc_root))
+        if self.actual_processor is None:
+            raise RuntimeError("processor requested before target")
+        if ((phase == "pre" and self.wrong_pre_processor)
+                or (phase == "post" and self.wrong_post_processor)):
+            return 99
+        return self.actual_processor
+
+    def read_cpuinfo(
+        self, path: Path,
+    ) -> tuple[dict[str, object], dict[int, float]]:
+        self.events.append(("read", path))
+        self.read_starts_ns.append(self.now_ns)
+        read_index = self.runtime_read_calls
+        self.runtime_read_calls += 1
+        if self.fail_read_at == read_index:
+            raise OSError("scripted cpuinfo read failure")
+        if self.snapshots is None:
+            result = ea._parse_cpuinfo(path)
+        else:
+            result = self.snapshots[read_index]
+        identity, mhz_by_cpu = result
+        identity = dict(identity)
+        mhz_by_cpu = dict(mhz_by_cpu)
+        if self.reader_outlier_from_actual_processor:
+            if self.actual_processor is None:
+                raise RuntimeError("cpuinfo read before processor selection")
+            self.read_processor_history.append(self.actual_processor)
+            mhz_by_cpu = {
+                cpu: (3000.0 if cpu == self.actual_processor else 2101.0)
+                for cpu in mhz_by_cpu
+            }
+            self.emitted_vectors.append(dict(mhz_by_cpu))
+        self.now_ns += self.read_delay_ns
+        return identity, mhz_by_cpu
+
+    def monotonic_ns(self) -> int:
+        self.events.append(("clock", self.now_ns))
+        return self.now_ns
+
+    def sleep(self, seconds: float) -> None:
+        self.events.append(("sleep", seconds))
+        self.sleep_calls.append(seconds)
+        self.now_ns += round(seconds * 1_000_000_000)
+        if self.widen_affinity_during_sleep:
+            self.affinity = set(self.original_affinity)
+
+
+def _patch_runtime_probe(
+    monkeypatch,
+    roots: ea.ProbeRoots,
+    **runtime_kwargs,
+) -> _FakeCpuinfoRuntime:
     monkeypatch.setattr(
         ea, "_measure_tsc_profile",
         lambda: sv2.TscProfile(
@@ -75,12 +194,13 @@ def _patch_runtime_probe(monkeypatch) -> None:
             source="clock_gettime-monotonic/rdtscp",
         ),
     )
+    return _FakeCpuinfoRuntime(roots, **runtime_kwargs)
 
 
 def test_probe_fixture_tree_returns_frozen_schema_profile(tmp_path, monkeypatch):
     roots = _probe_tree(tmp_path)
-    _patch_runtime_probe(monkeypatch)
-    profile = ea.probe(roots)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    profile = ea.probe(roots, cpuinfo_runtime=runtime)
     assert isinstance(profile, sv2.ObservedAttestationProfile)
     assert profile.cpu == sv2.CpuProfile(
         vendor="GenuineIntel", family=6, model=143,
@@ -88,12 +208,18 @@ def test_probe_fixture_tree_returns_frozen_schema_profile(tmp_path, monkeypatch)
         model_name_normalized="Intel Xeon Test CPU",
     )
     assert profile.cores == sv2.CoreProfile(
-        physical=2, logical=2, smt_active=False, affinity_visible=2,
+        physical=5, logical=5, smt_active=False, affinity_visible=5,
     )
-    assert [item.shared_cpus for item in profile.cache_topology] == [[0], [1]]
-    assert profile.numa == [sv2.NumaNode(node_id=0, cpulist=[0, 1])]
+    assert [item.shared_cpus for item in profile.cache_topology] == [
+        [0], [1], [2], [3], [4],
+    ]
+    assert profile.numa == [sv2.NumaNode(node_id=0, cpulist=[0, 1, 2, 3, 4])]
     assert profile.tsc.clocks_per_us_int == 1800
-    assert profile.effective_clock.samples_mhz == [2390.0, 2410.0]
+    assert profile.effective_clock.samples_mhz == [2390.0, 2395.0, 2400.0, 2405.0, 2410.0]
+    assert profile.effective_clock.method == (
+        "proc-cpuinfo-rotating-min/k5/interval-ns50000000/"
+        "sysfs-affinity-intersection-evenly-spaced-v1"
+    )
     assert profile.effective_clock.governor == "performance"
     assert not hasattr(profile.effective_clock, "tolerance_pct")
     assert profile.visibility == sv2.VisibilityProfile(
@@ -105,10 +231,10 @@ def test_probe_fixture_tree_returns_frozen_schema_profile(tmp_path, monkeypatch)
 
 def test_probe_rejects_mixed_governors_across_visible_cpus(tmp_path, monkeypatch):
     roots = _probe_tree(tmp_path)
-    _patch_runtime_probe(monkeypatch)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
     _write(roots.sys_cpu / "cpu1/cpufreq/scaling_governor", "powersave\n")
     with pytest.raises(ea.AttestationError, match="governor"):
-        ea.probe(roots)
+        ea.probe(roots, cpuinfo_runtime=runtime)
 
 
 @pytest.mark.parametrize("failure", [
@@ -116,7 +242,7 @@ def test_probe_rejects_mixed_governors_across_visible_cpus(tmp_path, monkeypatch
 ])
 def test_probe_rejects_partial_or_hidden_observation(tmp_path, monkeypatch, failure):
     roots = _probe_tree(tmp_path)
-    _patch_runtime_probe(monkeypatch)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
     if failure == "cache-field":
         (roots.sys_cpu / "cpu1/cache/index0/size").unlink()
     elif failure == "cache-index":
@@ -136,31 +262,429 @@ def test_probe_rejects_partial_or_hidden_observation(tmp_path, monkeypatch, fail
             "proc /proc proc rw,hidepid=2 0 0\n", encoding="utf-8",
         )
     with pytest.raises(ea.AttestationError):
-        ea.probe(roots)
+        ea.probe(roots, cpuinfo_runtime=runtime)
 
 
 @pytest.mark.parametrize("proc2_state", ["missing", "mismatch"])
 def test_probe_records_non_host_pid_namespace_without_probe_error(
         tmp_path, monkeypatch, proc2_state):
     roots = _probe_tree(tmp_path)
-    _patch_runtime_probe(monkeypatch)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
     proc2_comm = roots.proc / "2/comm"
     if proc2_state == "missing":
         proc2_comm.unlink()
     else:
         proc2_comm.write_text("not-kthreadd\n", encoding="utf-8")
-    visibility = ea.probe(roots).visibility
+    visibility = ea.probe(roots, cpuinfo_runtime=runtime).visibility
     assert visibility.pid_ns_shared_with_host is False
     assert visibility.pid_ns_method == "proc2-kthreadd"
 
 
 def test_probe_rejects_unexpected_proc2_comm_oserror(tmp_path, monkeypatch):
     roots = _probe_tree(tmp_path)
-    _patch_runtime_probe(monkeypatch)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
     (roots.proc / "2/comm").unlink()
     (roots.proc / "2/comm").mkdir()
     with pytest.raises(ea.AttestationError, match="/proc/2/comm"):
-        ea.probe(roots)
+        ea.probe(roots, cpuinfo_runtime=runtime)
+
+
+def _snapshots(
+    roots: ea.ProbeRoots, vectors: list[dict[int, float]],
+) -> list[tuple[dict[str, object], dict[int, float]]]:
+    identity, _ = ea._parse_cpuinfo(roots.proc / "cpuinfo")
+    return [(dict(identity), dict(vector)) for vector in vectors]
+
+
+def _clock_verdict(samples: list[float]) -> bool:
+    return eg.effective_clock_comparison_passes(
+        {"samples_mhz": [2100.0] * len(samples), "tolerance_pct": 2.0},
+        {"samples_mhz": samples},
+    )
+
+
+def test_alpha_method_identity_and_target_selection_are_versioned():
+    assert ea.EFFECTIVE_CLOCK_ALPHA_K == 5
+    assert ea.EFFECTIVE_CLOCK_ALPHA_INTERVAL_NS == 50_000_000
+    assert ea.EFFECTIVE_CLOCK_ALPHA_RULE_ID == (
+        "sysfs-affinity-intersection-evenly-spaced-v1"
+    )
+    assert ea.EFFECTIVE_CLOCK_METHOD == (
+        "proc-cpuinfo-rotating-min/k5/interval-ns50000000/"
+        "sysfs-affinity-intersection-evenly-spaced-v1"
+    )
+    assert ea._select_evenly_spaced_cpu_ids(
+        set(range(9)), ea.EFFECTIVE_CLOCK_ALPHA_K, ea.EFFECTIVE_CLOCK_ALPHA_RULE_ID,
+    ) == [0, 2, 4, 6, 8]
+
+
+def test_current_processor_reads_thread_self_stat(tmp_path):
+    proc = tmp_path / "proc"
+    thread_fields = ["S", *("0" for _ in range(35)), "7"]
+    leader_fields = ["S", *("0" for _ in range(35)), "3"]
+    _write(proc / "thread-self/stat", f"123 (worker thread) {' '.join(thread_fields)}\n")
+    _write(proc / "self/stat", f"100 (leader) {' '.join(leader_fields)}\n")
+    assert ea._current_processor(proc) == 7
+
+
+def test_probe_alpha_accepts_quiet_in_band_reads(tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    vectors = [
+        {cpu: 2100.0 + cpu + read_index for cpu in range(5)}
+        for read_index in range(5)
+    ]
+    runtime = _patch_runtime_probe(
+        monkeypatch, roots, snapshots=_snapshots(roots, vectors),
+    )
+    profile = ea.probe(roots, cpuinfo_runtime=runtime)
+    assert len({tuple(sorted(vector.items())) for vector in vectors}) == 5
+    assert all(_clock_verdict(list(vector.values())) for vector in vectors)
+    assert profile.effective_clock.samples_mhz == [
+        2100.0, 2101.0, 2102.0, 2103.0, 2104.0,
+    ]
+    assert _clock_verdict(profile.effective_clock.samples_mhz)
+    assert set(ea.observed_profile_to_dict(profile)["effective_clock"]) == {
+        "samples_mhz", "method", "governor",
+    }
+    assert runtime.requested_targets == [0, 1, 2, 3, 4]
+    assert runtime.affinity == runtime.original_affinity
+
+
+def test_probe_alpha_rotating_min_accepts_migrating_reader_outlier(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path, cpu_ids=tuple(range(9)))
+    runtime = _patch_runtime_probe(
+        monkeypatch,
+        roots,
+        original_affinity=set(range(9)),
+        reader_outlier_from_actual_processor=True,
+    )
+    profile = ea.probe(roots, cpuinfo_runtime=runtime)
+    assert len(runtime.read_processor_history) == 5
+    assert len(runtime.emitted_vectors) == 5
+    assert all(
+        vector[processor] == 3000.0
+        for processor, vector in zip(
+            runtime.read_processor_history, runtime.emitted_vectors,
+        )
+    )
+    assert all(
+        not _clock_verdict(list(vector.values()))
+        for vector in runtime.emitted_vectors
+    )
+    assert profile.effective_clock.samples_mhz == [2101.0] * 9
+    assert _clock_verdict(profile.effective_clock.samples_mhz)
+    assert runtime.runtime_read_calls == 5
+    assert runtime.affinity == set(range(9))
+
+
+def test_probe_alpha_rotates_through_selected_targets(tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path, cpu_ids=tuple(range(9)))
+    runtime = _patch_runtime_probe(
+        monkeypatch, roots, original_affinity=set(range(9)),
+    )
+    ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.requested_targets == [0, 2, 4, 6, 8]
+
+
+def test_probe_alpha_rotating_min_keeps_persistent_outlier_rejected(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path, cpu_ids=tuple(range(9)))
+    vectors = [
+        {cpu: (3000.0 if cpu == 1 else 2101.0) for cpu in range(9)}
+        for _ in range(5)
+    ]
+    runtime = _patch_runtime_probe(
+        monkeypatch,
+        roots,
+        original_affinity=set(range(9)),
+        snapshots=_snapshots(roots, vectors),
+    )
+    profile = ea.probe(roots, cpuinfo_runtime=runtime)
+    assert profile.effective_clock.samples_mhz[1] == 3000.0
+    assert not _clock_verdict(profile.effective_clock.samples_mhz)
+
+
+def test_alpha_min_characterization_is_asymmetric():
+    identity = {"vendor": "test"}
+    high_then_in_band = [
+        (identity, {0: value}) for value in [3000.0, 3000.0, 3000.0, 3000.0, 2100.0]
+    ]
+    in_band_then_low = [
+        (identity, {0: value}) for value in [2100.0, 2100.0, 2100.0, 2100.0, 2000.0]
+    ]
+    _, accepted = ea._reduce_cpuinfo_reads(high_then_in_band, {0})
+    _, rejected = ea._reduce_cpuinfo_reads(in_band_then_low, {0})
+    assert accepted == {0: 2100.0}
+    assert _clock_verdict([accepted[0]])
+    assert rejected == {0: 2000.0}
+    assert not _clock_verdict([rejected[0]])
+
+
+def test_alpha_reducer_takes_per_cpu_minimum():
+    identity = {"vendor": "test", "model": 1}
+    reads = [
+        (identity, {0: 2100.0 + index, 1: 2110.0 - index})
+        for index in range(5)
+    ]
+    reduced_identity, minima = ea._reduce_cpuinfo_reads(reads, {0, 1})
+    assert reduced_identity == identity
+    assert minima == {0: 2100.0, 1: 2106.0}
+
+    with pytest.raises(ea.AttestationError, match="read 数"):
+        ea._reduce_cpuinfo_reads(reads[:-1], {0, 1})
+
+
+def test_alpha_reducer_rejects_extra_cpu_set_drift():
+    identity = {"vendor": "test", "model": 1}
+    reads = [(identity, {0: 2100.0, 1: 2110.0}) for _ in range(5)]
+    reads[1][1][99] = 2105.0
+    with pytest.raises(ea.AttestationError, match="processor 集合"):
+        ea._reduce_cpuinfo_reads(reads, {0, 1})
+
+
+def test_alpha_reducer_rejects_identity_drift():
+    identity = {"vendor": "test", "model": 1}
+    reads = [(identity, {0: 2100.0, 1: 2110.0}) for _ in range(5)]
+    reads[1] = ({"vendor": "other", "model": 1}, reads[1][1])
+    with pytest.raises(ea.AttestationError, match="identity"):
+        ea._reduce_cpuinfo_reads(reads, {0, 1})
+
+
+def test_probe_alpha_rejects_fewer_than_k_affinity_without_read(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path, cpu_ids=(0, 1))
+    runtime = _patch_runtime_probe(
+        monkeypatch, roots, original_affinity={0, 1},
+    )
+    with pytest.raises(ea.AttestationError, match="affinity CPU が不足"):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.requested_targets == []
+    assert runtime.runtime_read_calls == 0
+
+
+@pytest.mark.parametrize("failure,match", [
+    ("error", "sched_getaffinity"),
+    ("empty", "空の CPU 集合"),
+])
+def test_probe_alpha_rejects_unavailable_or_empty_original_affinity_without_read(
+        tmp_path, monkeypatch, failure, match):
+    roots = _probe_tree(tmp_path)
+    original = set() if failure == "empty" else set(range(5))
+    runtime = _patch_runtime_probe(
+        monkeypatch, roots, original_affinity=original,
+    )
+    if failure == "error":
+        runtime.fail_get_at = 0
+    with pytest.raises(ea.AttestationError, match=match):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.requested_targets == []
+    assert runtime.runtime_read_calls == 0
+
+
+def test_probe_alpha_rejects_noop_set_by_mask_check_alone(tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    runtime.noop_singleton_set = True
+    with pytest.raises(ea.AttestationError, match="pin mask"):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.runtime_read_calls == 0
+    assert runtime.affinity == runtime.original_affinity
+
+
+def test_probe_alpha_rejects_affinity_widened_during_interval_wait(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    runtime.widen_affinity_during_sleep = True
+    with pytest.raises(ea.AttestationError, match="pin mask"):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.runtime_read_calls == 1
+    assert runtime.affinity == runtime.original_affinity
+
+
+def test_probe_alpha_set_error_has_no_runtime_or_direct_parser_fallback(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    parsed = ea._parse_cpuinfo(roots.proc / "cpuinfo")
+    runtime = _patch_runtime_probe(
+        monkeypatch, roots, snapshots=[parsed for _ in range(5)],
+    )
+    runtime.fail_singleton_set = True
+    direct_parser_calls = []
+
+    def direct_parser_spy(path):
+        direct_parser_calls.append(path)
+        return parsed
+
+    monkeypatch.setattr(ea, "_parse_cpuinfo", direct_parser_spy)
+    with pytest.raises(ea.AttestationError, match="pin に失敗"):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.runtime_read_calls == 0
+    assert direct_parser_calls == []
+    assert runtime.affinity == runtime.original_affinity
+
+
+def test_probe_alpha_rejects_wrong_reader_cpu_at_pre_check(tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    runtime.wrong_pre_processor = True
+    with pytest.raises(ea.AttestationError, match="pre processor"):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.affinity == runtime.original_affinity
+    assert runtime.runtime_read_calls == 0
+
+
+def test_probe_alpha_rejects_wrong_reader_cpu_at_post_check(tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    runtime.wrong_post_processor = True
+    with pytest.raises(ea.AttestationError, match="post processor"):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.affinity == runtime.original_affinity
+    assert runtime.runtime_read_calls == 1
+
+
+def test_probe_alpha_rejects_partial_k_read_and_restores_affinity(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    runtime.fail_read_at = 2
+    with pytest.raises(ea.AttestationError, match="read 2"):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.runtime_read_calls == 3
+    assert runtime.requested_targets == [0, 1, 2]
+    assert runtime.affinity == runtime.original_affinity
+
+
+def test_probe_alpha_rejects_extra_cpu_set_drift_between_reads(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    identity, _ = ea._parse_cpuinfo(roots.proc / "cpuinfo")
+    snapshots = [
+        (dict(identity), {cpu: 2100.0 for cpu in range(5)}) for _ in range(5)
+    ]
+    snapshots[1][1][99] = 2100.0
+    runtime = _patch_runtime_probe(monkeypatch, roots, snapshots=snapshots)
+    with pytest.raises(ea.AttestationError, match="processor 集合"):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.runtime_read_calls == 5
+    assert runtime.affinity == runtime.original_affinity
+
+
+def test_probe_alpha_rejects_identity_drift_between_reads(tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    identity, _ = ea._parse_cpuinfo(roots.proc / "cpuinfo")
+    snapshots = [
+        (dict(identity), {cpu: 2100.0 for cpu in range(5)}) for _ in range(5)
+    ]
+    snapshots[1][0]["model_name_raw"] = "drifted"
+    runtime = _patch_runtime_probe(monkeypatch, roots, snapshots=snapshots)
+    with pytest.raises(ea.AttestationError, match="identity"):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.runtime_read_calls == 5
+    assert runtime.affinity == runtime.original_affinity
+
+
+def test_probe_alpha_pin_failure_keeps_primary_when_restore_also_fails(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    runtime.fail_singleton_set = True
+    runtime.fail_restore = True
+    with pytest.raises(ea.AttestationError) as exc_info:
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    message = str(exc_info.value)
+    assert "pin に失敗" in message
+    assert "復元設定に失敗" in message
+
+
+def test_probe_alpha_read_failure_keeps_primary_when_restore_also_fails(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    runtime.fail_read_at = 2
+    runtime.fail_restore = True
+    with pytest.raises(ea.AttestationError) as exc_info:
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    message = str(exc_info.value)
+    assert "read 2" in message
+    assert "復元設定に失敗" in message
+
+
+@pytest.mark.parametrize("restore_mode,match", [
+    ("error", "復元設定"),
+    ("no-op", "復元が不一致"),
+    ("get-error", "復元後再取得"),
+])
+def test_probe_alpha_restore_failure_is_fatal(
+        tmp_path, monkeypatch, restore_mode, match):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    runtime.fail_restore = restore_mode == "error"
+    runtime.noop_restore = restore_mode == "no-op"
+    if restore_mode == "get-error":
+        runtime.fail_get_at = 6
+    with pytest.raises(ea.AttestationError, match=match):
+        ea.probe(roots, cpuinfo_runtime=runtime)
+    assert runtime.runtime_read_calls == 5
+
+
+def test_probe_alpha_read_starts_are_at_least_interval_apart(tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    ea.probe(roots, cpuinfo_runtime=runtime)
+    assert len(runtime.read_starts_ns) == ea.EFFECTIVE_CLOCK_ALPHA_K
+    assert all(
+        later - earlier >= ea.EFFECTIVE_CLOCK_ALPHA_INTERVAL_NS
+        for earlier, later in zip(runtime.read_starts_ns, runtime.read_starts_ns[1:])
+    )
+    assert runtime.read_starts_ns[-1] - runtime.read_starts_ns[0] >= (
+        (ea.EFFECTIVE_CLOCK_ALPHA_K - 1) * ea.EFFECTIVE_CLOCK_ALPHA_INTERVAL_NS
+    )
+
+
+def test_probe_alpha_accepts_late_reads_without_shortening_horizon(
+        tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _patch_runtime_probe(monkeypatch, roots)
+    runtime.read_delay_ns = 80_000_000
+    profile = ea.probe(roots, cpuinfo_runtime=runtime)
+    assert profile.effective_clock.samples_mhz == [
+        2390.0, 2395.0, 2400.0, 2405.0, 2410.0,
+    ]
+    assert runtime.sleep_calls == []
+    assert all(
+        later - earlier >= ea.EFFECTIVE_CLOCK_ALPHA_INTERVAL_NS
+        for earlier, later in zip(runtime.read_starts_ns, runtime.read_starts_ns[1:])
+    )
+
+
+def test_probe_measures_tsc_only_after_exact_affinity_restore(tmp_path, monkeypatch):
+    roots = _probe_tree(tmp_path)
+    runtime = _FakeCpuinfoRuntime(roots)
+
+    def measured_tsc():
+        runtime.events.append(("tsc", tuple(sorted(runtime.affinity))))
+        return sv2.TscProfile(
+            raw_samples_mhz=[1800.0] * 5,
+            median_mhz=1800.0,
+            clocks_per_us_int=1800,
+            source="clock_gettime-monotonic/rdtscp",
+        )
+
+    monkeypatch.setattr(ea, "_measure_tsc_profile", measured_tsc)
+    ea.probe(roots, cpuinfo_runtime=runtime)
+    tsc_index = runtime.events.index(("tsc", tuple(sorted(runtime.original_affinity))))
+    restore_set_index = max(
+        index for index, event in enumerate(runtime.events)
+        if event == ("set", tuple(sorted(runtime.original_affinity)))
+    )
+    restore_get_index = max(
+        index for index, event in enumerate(runtime.events[:tsc_index])
+        if event == ("get", tuple(sorted(runtime.original_affinity)))
+    )
+    assert restore_set_index < restore_get_index < tsc_index
 
 
 def test_required_tsc_probe_has_no_fallback(monkeypatch):
