@@ -15,54 +15,54 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-EVIDENCE_UNDEFINED]",
         "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-EVIDENCE_UNDEFINED]",
         "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-UNSATISFIED]",
         "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-EVIDENCE_UNDEFINED]",
         "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-EVIDENCE_UNDEFINED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-ERROR]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-EVIDENCE_UNDEFINED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-ERROR]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-EVIDENCE_UNDEFINED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-ERROR]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-EVIDENCE_UNDEFINED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-ERROR]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-EVIDENCE_UNDEFINED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-ERROR]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-EVIDENCE_UNDEFINED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-ERROR]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-EVIDENCE_UNDEFINED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-ERROR]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-EVIDENCE_UNDEFINED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-ERROR]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-UNSATISFIED]",
         "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-EVIDENCE_UNDEFINED]",
         "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-NOT_EVALUATED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-UNSATISFIED]",
         "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-ERROR]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-NOT_EVALUATED]"
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-UNSATISFIED]"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
@@ -78,9 +78,44 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[UNSATISFIED]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-NOT_EVALUATED]",
         "orchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[EVIDENCE_UNDEFINED]",
         "orchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[NOT_EVALUATED]"
       ],
       "expected_status": "KILLED",
@@ -97,7 +132,7 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_field_set_is_order_independent_but_names_and_normative_policy_are_protected"
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
@@ -113,7 +148,11 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_field_set_is_order_independent_but_names_and_normative_policy_are_protected"
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_recorded_revision_is_accepted_and_ruling_is_checked_at_revision_commit",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_revision_requires_ruling_reference_and_existing_ledger_entry",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_revision_ruling_must_be_structured_decisions_heading",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_valid_successor_merge_is_accepted",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
@@ -145,7 +184,9 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_revision_ruling_must_be_structured_decisions_heading"
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_recorded_revision_is_accepted_and_ruling_is_checked_at_revision_commit",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_revision_ruling_must_be_structured_decisions_heading",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_valid_successor_merge_is_accepted"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
@@ -161,7 +202,7 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_private_conjunction_helper_reads_commit_blob_not_dirty_worktree"
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_live_core_bytes_must_match_commit_blob"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
@@ -194,12 +235,7 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[null-json-null]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[\"\"-json-empty-string]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[\"\\u672a\\u8a18\\u5165\"-json-placeholder-string]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[\"\\uff08\\u672a\\u8a18\\u5165\\uff09\"-json-placeholder-string]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[[]-json-empty-container]",
-        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[{}-json-empty-container]"
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[null-json-null]"
       ],
       "expected_status": "KILLED",
       "hang_risk": false

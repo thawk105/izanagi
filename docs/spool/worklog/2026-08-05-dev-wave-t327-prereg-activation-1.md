@@ -47,6 +47,13 @@ title: [T-327] 8c 事前登録の自動発効を導出値として実装し、�
   `/work/1/SFC/tanab/dev-wave-jobs/t327-prereg-activation/` の `s4-ruling.md` §2 と
   `s6-fix-ruling.md` §2。
 
+- **受入・変異の実測** (Pegasus 計算ノード dispatch): 専用 3 ファイル 134 passed / 0 failed、
+  **受入全走 6035 passed / 19 skipped / 0 failed**、事前登録 10 変異は**全件 KILLED**
+  (台帳 2 本と突合は `output/insights/2026-08-05_t327-prereg-activation/`)。1 回目の本走で
+  m14 (merge の後継判定の緩和) が生存したため `DW-M02` に従い実効 gate へ再照準し、単一理由の
+  負例を追加して塞いだ (実装は不変)。受入全走では新設 invariant が `git add -A` の 30 秒 timeout で
+  フレークしたため、候補 commit 合成を session 共有にし timeout を延ばした (検査項目は不変)。
+
 ## 次の一手差分
 
 ### 更新
