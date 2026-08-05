@@ -330,3 +330,9 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:acquisition-transcript-schema":"[T-539]","T:alpha-production-protocol-validation":"[T-538]","T:oracle-reservation-probe-allowance":"[T-540]","T:probe-warmup-carryover":"[T-542]","T:t126-attestation-type-mismatch":"[T-541]"},"authored":"2026-08-05","content_sha256":"761737c3a9d60d35d8b0c12cd12d7b655598e3172126e073fe237b8d93eeb9fb","seq":1,"wave":"dev-wave-t419-alpha-wiring"}
 - {"allocations":{"D:alpha-acquisition-identity":"D181","D:thread-self-stat-for-pin-check":"D182"},"authored":"2026-08-05","content_sha256":"ff24918041aa72aec6a24b8db060dc4dae7e129ec91a511402de64f4e8c008c7","seq":1,"wave":"dev-wave-t419-alpha-wiring"}
 - {"allocations":{"F:pin-check-gap-during-wait":"F130","F:self-stat-not-thread-stat":"F129"},"authored":"2026-08-05","content_sha256":"bb6cba7c479194ff7a75d532ddb31c95f311873f476683c7a67b7338d2471eda","seq":1,"wave":"dev-wave-t419-alpha-wiring"}
+
+- {"allocations":{"D:disposable-probe-mutation-wrapper":"D184","D:t244-p3-liveness-fixture-only":"D183"},"authored":"2026-08-05","content_sha256":"19848d26c03f809697adcfe2b3ed117281ef2287f14172f5dc4e395a869d9858","seq":1,"wave":"dev-wave-t244-p3-liveness"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"68276f8e4e33f41878e790e972312e894166e0cfb19e2f0567a0895ebc6c6c0c","seq":2,"wave":"dev-wave-t244-p3-liveness"}
+- {"allocations":{"F:brief-missed-closed-vocabulary":"F131","F:fix-inflated-disposable-probe":"F132"},"authored":"2026-08-05","content_sha256":"738c90a98283e6e77a8455a4e12294a1496e4d2ef6ec4a1424059495da7811b7","seq":3,"wave":"dev-wave-t244-p3-liveness"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"c88894833f585a48e99929cb131e6070c4f8a792f3a5517eac3a44e69b116f8d","seq":4,"wave":"dev-wave-t244-p3-liveness"}
