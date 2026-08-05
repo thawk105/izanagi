@@ -11,6 +11,7 @@ import copy
 import dataclasses
 import hashlib
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -176,8 +177,63 @@ def test_validate_receipt_v2_rejects_duplicate_comparison_field():
     raise AssertionError("comparison field 重複を拒否しなかった")
 
 
+def _receipt_with_clock_comparison():
+    receipt = _receipt_v2()
+    receipt["comparisons"] = [{
+        "field": "effective_clock.samples_mhz",
+        "expected": {"samples_mhz": [100.0], "tolerance_pct": 2.0},
+        "observed": {"samples_mhz": [100.0]},
+        "verdict": "pass",
+    }]
+    return receipt
+
+
+def test_receipt_v2_accepts_exact_clock_projection():
+    assert eg.validate_receipt_v2(_receipt_with_clock_comparison()) is None
+
+
+def test_receipt_v2_rejects_observed_clock_policy_injection():
+    for tolerance in (2.0, 100.0):
+        receipt = _receipt_with_clock_comparison()
+        receipt["comparisons"][0]["observed"]["tolerance_pct"] = tolerance
+        try:
+            eg.validate_receipt_v2(receipt)
+        except eg.ExecutionGuardError:
+            continue
+        raise AssertionError("observed clock への tolerance 注入を拒否しなかった")
+
+
+def test_receipt_v2_rejects_expected_clock_key_drift():
+    for mutate in (
+        lambda value: value.pop("tolerance_pct"),
+        lambda value: value.__setitem__("method", "proc-cpuinfo"),
+    ):
+        receipt = _receipt_with_clock_comparison()
+        mutate(receipt["comparisons"][0]["expected"])
+        try:
+            eg.validate_receipt_v2(receipt)
+        except eg.ExecutionGuardError:
+            continue
+        raise AssertionError("expected clock key drift を拒否しなかった")
+
+
+def test_canonical_consumer_rejects_all_nonpolicy_equality_edges():
+    for tolerance in (
+        math.nextafter(2.0, math.inf),
+        math.nextafter(2.0, -math.inf),
+        2.5,
+        2.9,
+    ):
+        assert not eg.effective_clock_comparison_passes(
+            {"samples_mhz": [100.0], "tolerance_pct": tolerance},
+            {"samples_mhz": [100.0]},
+        )
+
+
 def _required_binding():
     document = _valid_document()
+    # U-2 の required admission accepted set は policy 2.0 に縮小した。
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = 2.0
     raw = json.dumps(
         document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
@@ -200,12 +256,18 @@ def _required_binding():
     return contract, verified
 
 
+def _observed(profile):
+    raw = ea.profile_to_dict(profile)
+    del raw["effective_clock"]["tolerance_pct"]
+    return ea.normalize_observed_profile(raw)
+
+
 def test_attest_and_build_receipt_uses_production_comparator_and_v2_validator():
     contract, verified = _required_binding()
     receipt = eg.attest_and_build_receipt(
         contract,
         verified,
-        probe_fn=lambda: verified.attestation_profile,
+        probe_fn=lambda: _observed(verified.attestation_profile),
         now_fn=lambda: "2026-07-18T00:00:00Z",
     )
     assert receipt["schema"] == eg.RECEIPT_SCHEMA_V2
@@ -225,10 +287,11 @@ def test_attest_and_build_receipt_uses_production_comparator_and_v2_validator():
 def test_attest_and_build_receipt_rejects_mismatch_through_production_comparator():
     """This becomes red if compare_profiles is mutated to return all-pass."""
     contract, verified = _required_binding()
-    observed = dataclasses.replace(
+    observed_expected_shape = dataclasses.replace(
         verified.attestation_profile,
         cpu=dataclasses.replace(verified.attestation_profile.cpu, model=144),
     )
+    observed = _observed(observed_expected_shape)
     try:
         eg.attest_and_build_receipt(
             contract, verified, probe_fn=lambda: observed,
@@ -292,7 +355,7 @@ def test_receipt_v2_recomputes_recorded_expected_observed_and_profile_sha():
     contract, verified = _required_binding()
     receipt = eg.attest_and_build_receipt(
         contract, verified,
-        probe_fn=lambda: verified.attestation_profile,
+        probe_fn=lambda: _observed(verified.attestation_profile),
         now_fn=lambda: "2026-07-18T00:00:00Z",
     )
 
@@ -335,10 +398,11 @@ def test_receipt_v2_recomputes_recorded_expected_observed_and_profile_sha():
 
 def test_receipt_consumer_is_independent_of_constant_true_issuer_comparator():
     contract, verified = _required_binding()
-    observed = dataclasses.replace(
+    observed_expected_shape = dataclasses.replace(
         verified.attestation_profile,
         cpu=dataclasses.replace(verified.attestation_profile.cpu, model=144),
     )
+    observed = _observed(observed_expected_shape)
     original = ea._recorded_verdict
     try:
         ea._recorded_verdict = lambda _field, _expected, _observed: "pass"
@@ -364,122 +428,131 @@ def test_effective_clock_canonical_predicate_golden_vectors():
             "label": "odd-all-inside",
             "expected": {"samples_mhz": [99.0, 100.0, 101.0], "tolerance_pct": 2.0},
             "observed": {"samples_mhz": [99.0, 100.0, 101.0]},
-            "want": True,
+            "math_want": True, "canonical_want": True,
         },
         {
             "label": "even-inclusive-boundaries",
             "expected": {"samples_mhz": [90.0, 100.0, 100.0, 110.0],
                          "tolerance_pct": 10.0},
             "observed": {"samples_mhz": [90.0, 110.0]},
-            "want": True,
+            # U-2 の public admission は非 policy 幅を拒否するが数学は保存する。
+            "math_want": True, "canonical_want": False,
         },
         {
             "label": "pegasus-shaped-one-outlier",
             "expected": {"samples_mhz": [100.0, 100.0, 150.0], "tolerance_pct": 2.0},
             "observed": {"samples_mhz": [100.0, 100.0, 150.0]},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "mean-drift-same-median-inside",
             "expected": {"samples_mhz": [100.0, 100.0, 119.0], "tolerance_pct": 20.0},
             "observed": {"samples_mhz": [100.0, 100.0, 119.0]},
-            "want": True,
+            # U-2 の public admission は非 policy 幅を拒否するが数学は保存する。
+            "math_want": True, "canonical_want": False,
         },
         {
             "label": "mean-drift-same-median-outside",
             "expected": {"samples_mhz": [100.0, 100.0, 130.0], "tolerance_pct": 20.0},
             "observed": {"samples_mhz": [100.0, 100.0, 130.0]},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "expected-not-mapping",
             "expected": [],
             "observed": {"samples_mhz": [100.0]},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "observed-not-mapping",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": 2.0},
             "observed": [],
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "expected-samples-not-list",
             "expected": {"samples_mhz": (100.0,), "tolerance_pct": 2.0},
             "observed": {"samples_mhz": [100.0]},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "observed-samples-not-list",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": 2.0},
             "observed": {"samples_mhz": (100.0,)},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "expected-empty",
             "expected": {"samples_mhz": [], "tolerance_pct": 2.0},
             "observed": {"samples_mhz": [100.0]},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "observed-empty",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": 2.0},
             "observed": {"samples_mhz": []},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "tolerance-bool",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": True},
             "observed": {"samples_mhz": [100.0]},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "nonnumeric-sample",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": 2.0},
             "observed": {"samples_mhz": ["bad"]},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "near-zero-tolerance-inside",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": 1e-12},
             "observed": {"samples_mhz": [100.0 + 5e-13]},
-            "want": True,
+            # U-2 の public admission は非 policy 幅を拒否するが数学は保存する。
+            "math_want": True, "canonical_want": False,
         },
         {
             "label": "near-zero-tolerance-outside",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": 1e-12},
             "observed": {"samples_mhz": [100.0 + 2e-12]},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
         {
             "label": "zero-tolerance-exact",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": 0.0},
             "observed": {"samples_mhz": [100.0]},
-            "want": True,
+            # U-2 の public admission は zero 幅を拒否するが数学は保存する。
+            "math_want": True, "canonical_want": False,
         },
         {
             "label": "hundred-tolerance-boundaries",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": 100.0},
             "observed": {"samples_mhz": [0.0, 200.0]},
-            "want": True,
+            # U-2/U-5 の public admission は 100 幅を拒否するが数学は保存する。
+            "math_want": True, "canonical_want": False,
         },
         {
             "label": "hundred-tolerance-outside",
             "expected": {"samples_mhz": [100.0], "tolerance_pct": 100.0},
             "observed": {"samples_mhz": [200.001]},
-            "want": False,
+            "math_want": False, "canonical_want": False,
         },
     ]
 
     for vector in vectors:
-        got = eg.effective_clock_comparison_passes(
+        math_got = eg._effective_clock_band_math_passes(
             vector["expected"], vector["observed"],
         )
-        assert got is vector["want"], vector["label"]
+        assert math_got is vector["math_want"], vector["label"]
+        canonical_got = eg.effective_clock_comparison_passes(
+            vector["expected"], vector["observed"],
+        )
+        assert canonical_got is vector["canonical_want"], vector["label"]
         consumer_got = eg._independent_comparison_passes(
             "effective_clock.samples_mhz", vector["expected"], vector["observed"],
         )
-        assert consumer_got is vector["want"], vector["label"]
+        assert consumer_got is vector["canonical_want"], vector["label"]
 
 
 class _FixedNow:

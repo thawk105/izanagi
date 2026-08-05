@@ -69,8 +69,15 @@ wave 中:
 ```bash
 # fragment を書いたら形式を検査してから commit する
 python3 tools/check_docs.py
+# check_docs は base digest の不一致を検出しない (実測)。dry-run で確かめる。
+# --dry-run は計画 JSON を出すだけで台帳を変えない = fold ではない。
+python3 tools/spool_fold.py --dry-run
 git add -- docs/spool
 ```
+
+`base:` が古いまま land すると、fold は land の協調 lock の**中で**赤になる。そこで止まると
+`landed` を返せず、同じ wave 内へ巻き戻さず fresh context で再開することになる。
+`--dry-run` はその赤を手前で出すためにある。
 
 **wave 側で fold してはならない。** fold は `tools/dev_wave_land.py` が local main へ ff-only した
 直後、同じ協調 lock を保持したまま実行する。これにより採番・追記・ローテーションが直列化され、
