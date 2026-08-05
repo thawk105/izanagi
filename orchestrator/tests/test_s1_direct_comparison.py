@@ -20,7 +20,7 @@ ORCH = TESTS.parent
 sys.path.insert(0, str(TESTS))
 sys.path.insert(0, str(ORCH))
 
-from campaign import pipeline, wal  # noqa: E402
+from campaign import axis_trigger_gating, pipeline, wal  # noqa: E402
 from campaign.build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
@@ -29,6 +29,7 @@ from campaign.model import Genome, STAGE_BUILD_START, STAGE_S1_SESSION  # noqa: 
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
 from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256, STOCK,  # noqa: E402
                                     SourceEvidence)
+from campaign.reflux_ir import TriggerGateIR, emit_predicate  # noqa: E402
 from campaign import s1_direct_comparison as S  # noqa: E402
 from campaign import t080_freeze_migration as T080  # noqa: E402
 from s1_expected_goldens import (  # noqa: E402
@@ -109,6 +110,27 @@ double now_backoff = static_cast<double>(BACKOFF_FIXED);
 double now_backoff = Backoff_.load(std::memory_order_acquire);
 #endif
 // EVOLVE-BLOCK-END silo-backoff-magnitude
+""", encoding="utf-8")
+    yield []
+
+
+@contextlib.contextmanager
+def _fixture_gate_patch(worktree: Path):
+    source = worktree / axis_trigger_gating.SOURCE_REL
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text("""#pragma once
+class TxExecutor {
+ public:
+  void abort() {
+  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating
+#if BACKOFF_TRIGGER_GATING
+  izanagi_gate_pass = true;
+#else
+  Backoff::backoff(FLAGS_clocks_per_us);
+#endif
+  // EVOLVE-BLOCK-END silo-backoff-trigger-gating
+  }
+};
 """, encoding="utf-8")
     yield []
 
@@ -286,6 +308,127 @@ def _capture_prepare_quarantine(
     assert calls[0]["implementation"] == expected["variant"][implementation_key]
     assert cell == expected
     return calls[0]
+
+
+def _gate_cell(configuration, predicate):
+    return {
+        "configuration": configuration,
+        "variant": {
+            "gate_predicate": predicate,
+            "flags": {
+                "BACKOFF_TRIGGER_GATING": 1,
+                "BACK_OFF": 1,
+                "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+                "NO_WAIT_OF_TICTOC": 0,
+                "WAL": 0,
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "mask", [pytest.param(mask, id=f"mask-{mask:02d}") for mask in range(32)],
+)
+def test_prepare_accepts_all_32_canonical_predicates(
+        tmp_path, monkeypatch, mask):
+    predicate = emit_predicate(TriggerGateIR(mask))
+    received = _capture_prepare_quarantine(
+        tmp_path, monkeypatch, _gate_cell("system_gate", predicate),
+        "gate_predicate",
+    )
+
+    assert received["implementation"] == predicate
+    assert received["marker_id"] == axis_trigger_gating.MARKER_ID
+    assert received["source_rel"] == axis_trigger_gating.SOURCE_REL
+
+
+@pytest.mark.parametrize(
+    "configuration, predicate",
+    [
+        *[
+            pytest.param(
+                "system_gate", EXPECTED_GATES[workload]["gate_predicate"],
+                id=f"{workload}-system-gate",
+            )
+            for workload in ("balanced", "write-heavy", "read-heavy")
+        ],
+        *[
+            pytest.param(
+                "ident_all", EXPECTED_IDENT_ALL_PREDICATE,
+                id=f"{workload}-ident-all",
+            )
+            for workload in ("balanced", "write-heavy", "read-heavy")
+        ],
+    ],
+)
+def test_prepare_accepts_six_frozen_gate_predicates(
+        tmp_path, monkeypatch, configuration, predicate):
+    received = _capture_prepare_quarantine(
+        tmp_path, monkeypatch, _gate_cell(configuration, predicate),
+        "gate_predicate",
+    )
+
+    assert received["implementation"] == predicate
+    assert received["marker_id"] == axis_trigger_gating.MARKER_ID
+    assert received["source_rel"] == axis_trigger_gating.SOURCE_REL
+
+
+def test_prepare_rejects_noncanonical_freeze_predicate(tmp_path, monkeypatch):
+    from campaign import patchharness
+    from campaign import p3_s4_loop as loop_axis
+
+    predicate = "izanagi_gate_pass = true;"
+    worktree = tmp_path / "worktree"
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(
+        loop_axis, "quarantine",
+        lambda *args, **kwargs: (
+            types.SimpleNamespace(passed=True), "base", "edited", "diff"),
+    )
+    monkeypatch.setattr(
+        S.source_digest, "resolve", lambda *args, **kwargs: "fixture-source",
+    )
+
+    with pytest.raises(S.DriverError) as excinfo:
+        with S.prepare_cell(
+                _gate_cell("system_gate", predicate),
+                "d706650cdb31e442bef45b9b4216951d4fb40969"):
+            pass
+
+    assert str(excinfo.value) == "freeze gate_predicate が正準集合外"
+    assert predicate not in str(excinfo.value)
+
+
+def test_prepare_rejects_noncanonical_predicate_with_real_quarantine(
+        tmp_path, monkeypatch):
+    from campaign import patchharness
+
+    predicate = "izanagi_gate_pass = true;"
+    worktree = tmp_path / "worktree"
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *args, **kwargs: _fixture_gate_patch(worktree),
+    )
+    monkeypatch.setattr(
+        S.source_digest, "resolve", lambda *args, **kwargs: "fixture-source",
+    )
+
+    with pytest.raises(S.DriverError):
+        with S.prepare_cell(
+                _gate_cell("system_gate", predicate),
+                "d706650cdb31e442bef45b9b4216951d4fb40969"):
+            pass
 
 
 @pytest.mark.parametrize(

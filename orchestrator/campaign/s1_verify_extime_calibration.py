@@ -39,7 +39,8 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import (axis_trigger_gating, buildcache, p3_s4_loop, pin,  # noqa: E402
-                      s1_known_axes_freeze, s8a_trigger_sweep, source_digest)
+                      s1_known_axes_freeze, s8a_trigger_sweep, source_digest,
+                      trigger_gate_binding)
 from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context, derive_build_admission)
 from campaign.layout import repo_output_root                              # noqa: E402
@@ -218,6 +219,9 @@ def validated_target(
         raise CalibrationError(
             "構築した g_rl の flags/gate_predicate が known_axes_freeze の "
             "read-heavy.system_gate と不一致")
+    if not trigger_gate_binding.is_canonical_predicate(
+            target["gate_predicate"]):
+        raise CalibrationError("freeze gate_predicate が正準集合外")
     return target
 
 
