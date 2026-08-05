@@ -358,6 +358,26 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 - **分類は 3 値。** `local-ok` = 上の測り方で実測して規範値未満、`dispatch-required` = 規範値以上、
   `unknown` = 未計測、または入力サイズに上限が無く実行ごとに変わる。
   **`unknown` は `dispatch-required` と同じに扱う** — 測っていないものを軽い側へ倒さない。
+- **測定が保証するのは記録した argv と入力だけである ([T-482] 択 (a))。** 上の手順は
+  「その 1 回の実行」を測る。したがって分類は**そのとき測った既定 argv と入力**に対してのみ有効で、
+  同じ path を別 argv・別入力で呼んだときの資源量を保証しない。`hooks/guard_bash.py` の admission は
+  **path 粒度**なので、許可された path が任意 argv で規範値未満であることは意味しない。
+  pin・入力・cap が変わったら測り直す。argv / env を含む admission と CLI 側の入力 cap の比較は
+  [T-482] (b)(c) として裁定待ちに残る。
+- **admission registry と証拠クラス。** `tools/pegasus/` 配下の実行体をログインノードで
+  実行してよいかの判定は `hooks/guard_bash.py` の admission registry が正本で、
+  path ごとに 3 値の class と `reason` / `primary_gate` / `evidence` を持つ。**hook が許可するのは
+  `local-ok` だけ**で、`unknown`・`dispatch-required`・未登録 (subdirectory を含む) はすべて拒否する。
+  `evidence` は現在 2 種類ある — 本節の手順で実測したもの (`fetch_third_party.py`) と、
+  **本節の手順で測られないまま以前から許可されていたもの (`legacy-admitted`)** である。
+  後者を「実測済み」と読み替えてはならない。`legacy-admitted` を実測へ移すか許可を撤回するかは
+  裁定待ちである。
+- **分類の測定は現状ログインノードでしか行えない。** 上の `systemd-run --user --scope` 手順は
+  計算ノードでは動かない (2026-08-05 実測: PBS ジョブに user systemd session が無く
+  `$DBUS_SESSION_BUS_ADDRESS` / `$XDG_RUNTIME_DIR` が未設定。ジョブ自身の cgroup は
+  `nqs-jsv.service` 配下で他テナントと混ざる)。一方 hook は未登録の実行体をログインノードで拒否する。
+  **したがって「登録には実測が要る / 実測には登録が要る」という循環がある。** 迂回してはならない —
+  hook の管轄外 (ユーザー端末) で測るのが現行の唯一の正規経路であり、恒久的な測定経路は裁定待ちである。
 - **投げ先。** ログインノードから**自動**で計算ノードへ dispatch されるのは下表の exact task だけ
   である (D103 決定 2 / D105 決定 3 が enum を閉じている)。表に無い重い処理は自動化されていない
   ので、`qsub` / `qlogin` で自分で計算ノードを確保して走らせる。sanctioned な経路が無ければ
