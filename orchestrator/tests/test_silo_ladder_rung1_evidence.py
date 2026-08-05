@@ -24,7 +24,7 @@ ROOT = HERE.parents[1]
 ORCHESTRATOR = ROOT / "orchestrator"
 sys.path.insert(0, str(ORCHESTRATOR))
 
-from campaign import env_contract  # noqa: E402
+from campaign import env_attestation, env_contract, execution_guard  # noqa: E402
 from campaign.silo_ladder_rung1 import (  # noqa: E402
     PIN,
     REPORT_MACRO,
@@ -63,6 +63,12 @@ EXPECTED_CHECK_KEYS = {
 SOURCE_FILES = (
     "cc/silo/transaction.cc",
     "cc/silo/ycsb_silo.cc",
+)
+HISTORICAL_SILO_EVIDENCE_IDENTITY = (
+    "38f5de0e2c71ff820696c051c9382f7850e2e7914319b20b8dff5ec45a484b37",
+    "e0e3779e67b3c67deacf7ea5bb2165aace4909d25e423f3e8df5c9a55fa5a3c2",
+    "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+    "92affaabf723d83c10731a9b506aceb346e3652a8aeedcba85d48f52a31355f8",
 )
 
 
@@ -934,12 +940,11 @@ def _assert_raw_attestation(
         assert pgrep_receipts[ordinal]["stdout_sha256"] == _sha256(pgrep_raw)
         assert item["load_threshold"] == load_threshold
         assert item["passed"] == (load["load1"] <= load_threshold)
-    probe = json.loads(
+    parsed_probe = env_attestation.parse_probe_output(
         raw_by_path["attestation-job.json"],
-        object_pairs_hook=_no_duplicate_object,
     )
-    assert probe["ok"] is True
-    actual = probe["profile"]
+    assert parsed_probe.ok and parsed_probe.profile is not None
+    actual = env_attestation.observed_profile_to_dict(parsed_probe.profile)
     expected = calibration["attestation_profile"]
     expected_median = statistics.median(
         expected["effective_clock"]["samples_mhz"]
@@ -948,14 +953,26 @@ def _assert_raw_attestation(
         actual["effective_clock"]["samples_mhz"]
     )
     tolerance = expected["effective_clock"]["tolerance_pct"]
-    derived = {
+    legacy_clock_match = (
+        abs(actual_median - expected_median)
+        <= expected_median * tolerance / 100
+    )
+    canonical_clock_match = execution_guard.effective_clock_comparison_passes(
+        {
+            "samples_mhz": expected["effective_clock"]["samples_mhz"],
+            "tolerance_pct": 2.0,
+        },
+        {"samples_mhz": actual["effective_clock"]["samples_mhz"]},
+    )
+    assert legacy_clock_match is True
+    assert canonical_clock_match is False
+    historical_derived = {
         "cpu_model_match": (
             actual["cpu"]["model_name_normalized"]
             == expected["cpu"]["model_name_normalized"]
         ),
         "effective_clock_match": (
-            abs(actual_median - expected_median)
-            <= expected_median * tolerance / 100
+            legacy_clock_match
             and actual["effective_clock"]["method"]
             == expected["effective_clock"]["method"]
             and actual["effective_clock"]["governor"]
@@ -976,8 +993,9 @@ def _assert_raw_attestation(
         ),
         "numa_match": actual["numa"] == expected["numa"],
     }
-    assert all(attestation[key] is value for key, value in derived.items())
-    return all(derived.values()) and all(item["passed"] for item in checks)
+    assert all(attestation[key] is value
+               for key, value in historical_derived.items())
+    return all(historical_derived.values()) and all(item["passed"] for item in checks)
 
 
 def _correctness_passes(correctness: Mapping[str, Any]) -> bool:
@@ -1179,6 +1197,17 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
         if item["id"] == "silo_ladder_rung1"
     )
     binding = evidence["binding"]
+    raw_probe = (
+        ROOT
+        / "output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/"
+          "raw-bundle-attempt-1/attempts/1/attestation-job.json"
+    )
+    assert (
+        _sha256(evidence_raw),
+        _sha256(raw_probe.read_bytes()),
+        binding["calibration"]["sha256"],
+        binding["driver"]["sha256"],
+    ) == HISTORICAL_SILO_EVIDENCE_IDENTITY
     assert evidence["limitations"] == {
         "raw_object_binary_bytes_retained": False,
         "nqsv_scheduler_exit_status": "unavailable",
@@ -1201,10 +1230,14 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
     }
     for key, relative in expected_bound_paths.items():
         assert binding[key]["path"] == relative
-        assert binding[key]["sha256"] == _sha256(
-            (ROOT / relative).read_bytes()
-        )
-    assert binding["runtime_modules"] == runtime_modules_binding(ROOT)
+        current_sha = _sha256((ROOT / relative).read_bytes())
+        if key == "driver":
+            assert binding[key]["sha256"] == HISTORICAL_SILO_EVIDENCE_IDENTITY[3]
+            assert binding[key]["sha256"] != current_sha
+        else:
+            assert binding[key]["sha256"] == current_sha
+    # 歴史 binding は保持し、現行 runtime binding とは一致させない。
+    assert binding["runtime_modules"] != runtime_modules_binding(ROOT)
 
     pin = binding["ccbench_pin_full"]
     assert isinstance(pin, str) and HEX40.fullmatch(pin)

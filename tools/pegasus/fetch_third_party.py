@@ -20,6 +20,7 @@ from typing import Any, Mapping, Sequence
 SCHEMA_VERSION = "pegasus-thirdparty-fetch/v1"
 CACHE_ENV = "IZANAGI_PEGASUS_THIRDPARTY_CACHE"
 _CODE_ROOT = Path(__file__).resolve().parents[2]
+_ORCHESTRATOR_ROOT = _CODE_ROOT / "orchestrator"
 _GIT_OPTIONS = (
     "-c", "core.fsmonitor=",
     "-c", "core.hooksPath=/dev/null",
@@ -49,24 +50,18 @@ class _ArgumentParser(argparse.ArgumentParser):
 
 
 def _driver_module() -> ModuleType:
-    """実 code root だけを一時挿入し、凍結 driver を import する。"""
-    code_root = str(_CODE_ROOT)
-    added = code_root not in sys.path
-    if added:
-        sys.path.insert(0, code_root)
+    """driver の両 import root を一時挿入し、元の sys.path を復元する。"""
+    original_sys_path = list(sys.path)
+    for root in (_CODE_ROOT, _ORCHESTRATOR_ROOT):
+        value = str(root)
+        if value not in sys.path:
+            sys.path.insert(0, value)
     try:
         from orchestrator.campaign import silo_ladder_rung1
 
         return silo_ladder_rung1
     finally:
-        if added:
-            if sys.path and sys.path[0] == code_root:
-                del sys.path[0]
-            else:
-                try:
-                    sys.path.remove(code_root)
-                except ValueError:
-                    pass
+        sys.path[:] = original_sys_path
 
 
 def _load_policy(

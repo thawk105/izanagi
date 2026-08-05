@@ -4,8 +4,7 @@ set -Eeuo pipefail
 
 usage() {
   cat <<'EOF'
-usage: submit_certify.sh --effective-clock-tolerance-pct PCT
-                         [--dry-run] [--repo-root PATH] [--attempts-root PATH]
+usage: submit_certify.sh [--dry-run] [--repo-root PATH] [--attempts-root PATH]
                          [--job-script PATH]
 EOF
 }
@@ -14,12 +13,15 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd -P)
 JOB_SCRIPT="$SCRIPT_DIR/certify_calibration.sh"
 ATTEMPTS_ROOT=""
-TOLERANCE=""
 DRY_RUN=0
+
+if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}" ]]; then
+  echo "legacy PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT is forbidden" >&2
+  exit 2
+fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --effective-clock-tolerance-pct) TOLERANCE=${2:?}; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
     --repo-root) REPO_ROOT=$(cd "${2:?}" && pwd -P); shift 2 ;;
     --attempts-root) ATTEMPTS_ROOT=${2:?}; shift 2 ;;
@@ -29,19 +31,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if ! python3 - "$TOLERANCE" <<'PY'
-import math
-import sys
-try:
-    value = float(sys.argv[1])
-except ValueError:
-    raise SystemExit(1)
-raise SystemExit(0 if math.isfinite(value) and 0.0 < value <= 100.0 else 1)
-PY
-then
-  echo "--effective-clock-tolerance-pct must be in (0, 100]" >&2
-  exit 2
-fi
 if [[ ! -f "$JOB_SCRIPT" ]]; then
   echo "job script not found: $JOB_SCRIPT" >&2
   exit 2
@@ -174,7 +163,7 @@ if [[ "$preflight_rc" -ne 0 ]]; then
   exit 3
 fi
 
-export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE,PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT=$TOLERANCE"
+export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE"
 qsub_cmd=(qsub -v "$export_spec" "$JOB_SCRIPT")
 printf 'qsub command:'
 printf ' %q' "${qsub_cmd[@]}"

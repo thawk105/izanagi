@@ -62,13 +62,43 @@ _TYPED_MARKER = (
     '"default_effect":"no-state-change",'
     '"schema_version":"ruleops-insight/v1"} -->\n'
 )
+_PROCESS_DIAGNOSTIC_CHARS = 16_384
 
 
-def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+def _diagnostic_stream(value: str | bytes | None) -> str:
+    if value is None:
+        return "<not captured>"
+    if isinstance(value, bytes):
+        text = value.decode("utf-8", errors="replace")
+    else:
+        text = value
+    if len(text) <= _PROCESS_DIAGNOSTIC_CHARS:
+        return text
+    omitted = len(text) - _PROCESS_DIAGNOSTIC_CHARS
+    return (
+        text[:_PROCESS_DIAGNOSTIC_CHARS]
+        + f"\n... <truncated {omitted} characters from end>"
+    )
+
+
+def _run_checked(command, **kwargs):
+    assert "check" not in kwargs
+    result = subprocess.run(command, check=False, **kwargs)
+    assert result.returncode == 0, (
+        "child process failed\n"
+        f"rc: {result.returncode}\n"
+        f"command: {list(command)!r}\n"
+        f"stdout:\n{_diagnostic_stream(result.stdout)}\n"
+        f"stderr:\n{_diagnostic_stream(result.stderr)}"
+    )
+    return result
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return _run_checked(
         ["git", "-C", str(repo), *args],
-        check=check,
         capture_output=True,
+        errors="replace",
         text=True,
     )
 
@@ -373,6 +403,55 @@ def _run_cli(repo: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     )
 
 
+def test_checked_git_failure_reports_command_rc_stdout_and_stderr(
+    tmp_path, monkeypatch,
+):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_git = bin_dir / "git"
+    fake_git.write_text(
+        "#!/usr/bin/env python3\n"
+        "import os\n"
+        "os.write(1, b'diagnostic stdout sentinel: \\xff\\n')\n"
+        "os.write(2, b'diagnostic stderr sentinel: \\xfe\\n')\n"
+        "raise SystemExit(23)\n",
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+    monkeypatch.setenv(
+        "PATH",
+        str(bin_dir) + os.pathsep + os.environ.get("PATH", ""),
+    )
+
+    with pytest.raises(AssertionError) as caught:
+        _git(tmp_path, "diagnostic-command-sentinel")
+
+    message = str(caught.value)
+    normalized_message = "\n".join(
+        line.strip() for line in message.splitlines()
+    )
+    expected_command = [
+        "git", "-C", str(tmp_path), "diagnostic-command-sentinel",
+    ]
+    assert "\nrc: 23\n" in normalized_message
+    assert f"\ncommand: {expected_command!r}\n" in normalized_message
+    assert (
+        "\nstdout:\ndiagnostic stdout sentinel: \ufffd\n"
+        in normalized_message
+    )
+    assert (
+        "\nstderr:\ndiagnostic stderr sentinel: \ufffd\n"
+        in normalized_message
+    )
+    assert "\ufffd" in message
+
+    truncated = _diagnostic_stream(
+        "stderr reason at head\n" + "x" * _PROCESS_DIAGNOSTIC_CHARS,
+    )
+    assert truncated.startswith("stderr reason at head\n")
+    assert "<truncated " in truncated
+
+
 def test_m1_m2_inventory_literal_scope_and_exact_keys(tmp_path):
     repo = _base_repo(tmp_path)
     inventory = R.build_inventory(repo)
@@ -516,9 +595,8 @@ def test_inventory_non_utf8_counter_excludes_out_of_scope_and_nonregular(tmp_pat
         f"160000,{head},output/insights/quartz-gitlink",
     )
     _git(repo, "commit", "-qm", "outside scope and nonregular entries")
-    assert subprocess.run(
+    assert _run_checked(
         ["git", "-C", str(repo), "cat-file", "blob", f"HEAD:{link_path}"],
-        check=True,
         capture_output=True,
     ).stdout == link_target
     inventory = R.build_inventory(repo)
@@ -587,9 +665,8 @@ def test_m3_dirty_worktree_does_not_change_head_inventory(tmp_path):
     before = _canonical(R.build_inventory(repo))
     candidate_path = "orchestrator/tests/test_candidate.py"
     target = repo / candidate_path
-    head_blob = subprocess.run(
+    head_blob = _run_checked(
         ["git", "-C", str(repo), "cat-file", "blob", f"HEAD:{candidate_path}"],
-        check=True,
         capture_output=True,
     ).stdout
     dirty_bytes = b"dirty worktree replacement\n"
@@ -1677,11 +1754,10 @@ def test_poisoned_local_git_signature_diff_textconv_and_recurse_helpers_never_ru
         " -----END PGP SIGNATURE-----\n"
         "\npoisoned local config fixture\n"
     ).encode("ascii")
-    signed = subprocess.run(
+    signed = _run_checked(
         ["git", "-C", str(repo), "hash-object", "-t", "commit", "-w", "--stdin"],
         input=commit_raw,
         capture_output=True,
-        check=True,
     ).stdout.decode("ascii").strip()
     _git(repo, "update-ref", "HEAD", signed)
     for key, value in (
@@ -1944,9 +2020,9 @@ def test_m12_shallow_repo_rejected(tmp_path):
     _write(source, "second.txt", "second\n")
     _commit(source, "second")
     shallow = tmp_path / "shallow"
-    subprocess.run(
+    _run_checked(
         ["git", "clone", "-q", "--depth", "1", source.as_uri(), str(shallow)],
-        check=True,
+        capture_output=True,
     )
     with pytest.raises(R.RuleOpsError) as caught:
         R.build_inventory(shallow)
@@ -1957,13 +2033,12 @@ def test_m12_shallow_repo_rejected(tmp_path):
 def test_real_checkout_independent_maximum_package_and_runner_preflight(
     tmp_path,
 ):
-    before = subprocess.run(
+    before = _run_checked(
         ["git", "status", "--porcelain=v1", "-z"],
         cwd=_REPO,
         capture_output=True,
-        check=True,
     ).stdout
-    inventory_run = subprocess.run(
+    inventory_run = _run_checked(
         [
             sys.executable,
             str(_TOOL),
@@ -1972,7 +2047,6 @@ def test_real_checkout_independent_maximum_package_and_runner_preflight(
             str(_REPO),
         ],
         capture_output=True,
-        check=True,
     )
     inventory = json.loads(inventory_run.stdout)
     assert set(inventory) == _INVENTORY_ROOT_KEYS
@@ -1987,18 +2061,17 @@ def test_real_checkout_independent_maximum_package_and_runner_preflight(
         else item["kind"] == "insight"
         for item in inventory["items"]
     )
-    after = subprocess.run(
+    after = _run_checked(
         ["git", "status", "--porcelain=v1", "-z"],
         cwd=_REPO,
         capture_output=True,
-        check=True,
     ).stdout
     assert after == before
 
     checkout = tmp_path / "real-checkout"
-    subprocess.run(
+    _run_checked(
         ["git", "clone", "-q", "--no-local", str(_REPO), str(checkout)],
-        check=True,
+        capture_output=True,
     )
     _git(checkout, "config", "user.email", "ruleops@example.invalid")
     _git(checkout, "config", "user.name", "RuleOps Test")
@@ -2059,7 +2132,7 @@ def test_real_checkout_independent_maximum_package_and_runner_preflight(
         "query": first_query,
     }]
     inspected = json.loads(
-        subprocess.run(
+        _run_checked(
             [
                 sys.executable,
                 str(checkout / "tools/ruleops.py"),
@@ -2072,7 +2145,6 @@ def test_real_checkout_independent_maximum_package_and_runner_preflight(
                 str(checkout),
             ],
             capture_output=True,
-            check=True,
         ).stdout
     )
     assert inspected["target"]["blob"] == target_blobs[first_path]

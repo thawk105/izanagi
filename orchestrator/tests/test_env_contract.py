@@ -21,6 +21,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
+import math
 import pathlib
 import sys
 from pathlib import Path
@@ -37,6 +38,7 @@ from campaign import env_attestation as ea  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
 from campaign import execution_guard as eg  # noqa: E402
 from campaign import p2_2  # noqa: E402
+from calibrator import effective_clock_policy  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -77,6 +79,7 @@ V2_ENV_NEUTRAL_MODULES = [
     ("orchestrator/campaign/layout.py", None),
     ("orchestrator/campaign/s8b_oracle_driver.py", None),
     ("orchestrator/calibrator/schema_v2.py", None),
+    ("orchestrator/calibrator/effective_clock_policy.py", None),
     ("orchestrator/calibrator/cli.py", None),
     ("orchestrator/calibrator/sweep.py", None),
     ("orchestrator/campaign/s8b_floor_campaign.py", None),
@@ -433,11 +436,18 @@ def test_registry_calibration_refs_are_canonical_hash_bound_and_meaningful():
         _assert_registry_calibration(registry_key, contract)
 
 
+def _registry_clock_self_passes(profile) -> bool:
+    expected = ea.expected_comparison_values(profile)["effective_clock.samples_mhz"]
+    observed = {"samples_mhz": list(expected["samples_mhz"])}
+    return eg.effective_clock_comparison_passes(expected, observed)
+
+
 def test_registry_effective_clock_self_failures_are_exact_known_exception():
     """この既知例外は [T-419] の U-1/U-2 が閉じたときに削除する。"""
     assert len(KNOWN_SELF_INCONSISTENT_CALIBRATIONS) == 1
     self_failures = set()
     checked_entries = 0
+    required_entries = 0
 
     for registry_key, contract in ec.REGISTRY.items():
         checked_entries += 1
@@ -448,19 +458,61 @@ def test_registry_effective_clock_self_failures_are_exact_known_exception():
             continue
 
         assert contract.attestation_mode == "required"
+        required_entries += 1
         assert verified.calibration is not None
         profile = verified.calibration.attestation_profile
-        expected = ea.expected_comparison_values(profile)["effective_clock.samples_mhz"]
-        observed = {"samples_mhz": list(expected["samples_mhz"])}
+        assert (profile.effective_clock.tolerance_pct
+                == effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT)
         ref = (contract.calibration_ref.path, contract.calibration_ref.sha256)
-        passes = eg.effective_clock_comparison_passes(expected, observed)
+        passes = _registry_clock_self_passes(profile)
         if not passes:
             self_failures.add(ref)
         if ref not in KNOWN_SELF_INCONSISTENT_CALIBRATIONS:
             assert passes, f"new self-inconsistent calibration: {registry_key} {ref}"
 
     assert checked_entries == 2
+    assert required_entries == 1
     assert self_failures == KNOWN_SELF_INCONSISTENT_CALIBRATIONS
+
+    base = ea.load_verified_calibration(ec.lookup("pegasus"), REPO_ROOT)
+    assert base.calibration is not None
+    synthetic = dataclasses.replace(
+        base.calibration.attestation_profile,
+        effective_clock=dataclasses.replace(
+            base.calibration.attestation_profile.effective_clock,
+            samples_mhz=[2101.0] * 47 + [3080.0],
+            tolerance_pct=2.0,
+        ),
+    )
+    assert not _registry_clock_self_passes(synthetic)
+
+
+def test_registry_policy_equality_rejects_near_and_rounded_values():
+    assert len(KNOWN_SELF_INCONSISTENT_CALIBRATIONS) == 1
+    verified = ea.load_verified_calibration(ec.lookup("pegasus"), REPO_ROOT)
+    assert verified.calibration is not None
+    profile = dataclasses.replace(
+        verified.calibration.attestation_profile,
+        effective_clock=dataclasses.replace(
+            verified.calibration.attestation_profile.effective_clock,
+            samples_mhz=[100.0],
+            tolerance_pct=2.0,
+        ),
+    )
+    assert _registry_clock_self_passes(profile)
+    for tolerance in (
+        math.nextafter(2.0, math.inf),
+        math.nextafter(2.0, -math.inf),
+        2.5,
+        2.9,
+    ):
+        mutated = dataclasses.replace(
+            profile,
+            effective_clock=dataclasses.replace(
+                profile.effective_clock, tolerance_pct=tolerance,
+            ),
+        )
+        assert not _registry_clock_self_passes(mutated)
 
 
 def test_legacy_calibration_allowlist_is_exact_and_closed():

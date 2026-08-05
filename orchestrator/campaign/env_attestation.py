@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Callable, Mapping, Optional, Protocol
 
 from calibrator import schema_v2 as _schema_v2
+from calibrator import effective_clock_policy
 from calibrator import tsc as _tsc
 from campaign import env_contract as _env_contract
 
@@ -28,6 +29,8 @@ GRANDFATHERED_V1_SHA256 = (
 )
 PROBE_METHOD = "strict-sysfs-procfs"
 PROBE_VERSION = "1"
+PEGASUS_PROBE_OUTPUT_V1 = "pegasus-probe-output/v1"
+PEGASUS_PROBE_OUTPUT_V2 = "pegasus-probe-output/v2"
 LEGACY_SCHEMA_VERSION = "calibration/v1"
 
 _CPU_DIR_RE = re.compile(r"cpu([0-9]+)")
@@ -45,7 +48,7 @@ class AttestationError(RuntimeError):
 
 
 class HardwareProbe(Protocol):
-    def __call__(self) -> _schema_v2.AttestationProfile: ...
+    def __call__(self) -> _schema_v2.ObservedAttestationProfile: ...
 
 
 @dataclass(frozen=True)
@@ -64,6 +67,17 @@ class ProbeRoots:
 
 
 DEFAULT_PROBE_ROOTS = ProbeRoots()
+
+
+@dataclass(frozen=True)
+class ParsedProbeOutput:
+    """Strict probe document with its hash-projection schema bound by parsing."""
+
+    schema_version: str
+    ok: bool
+    observed_epoch: int
+    profile: Optional[_schema_v2.ObservedAttestationProfile]
+    error: Optional[dict[str, str]]
 
 
 @dataclass(frozen=True)
@@ -387,7 +401,7 @@ def _visibility(proc_root: Path) -> _schema_v2.VisibilityProfile:
     )
 
 
-def probe(roots: ProbeRoots = DEFAULT_PROBE_ROOTS) -> _schema_v2.AttestationProfile:
+def probe(roots: ProbeRoots = DEFAULT_PROBE_ROOTS) -> _schema_v2.ObservedAttestationProfile:
     """現在 hardware を strict に観測する。部分読取りは probe 全体を拒否する。"""
     if not isinstance(roots, ProbeRoots):
         raise AttestationError("roots は ProbeRoots でなければならない")
@@ -420,7 +434,7 @@ def probe(roots: ProbeRoots = DEFAULT_PROBE_ROOTS) -> _schema_v2.AttestationProf
 
     tsc_profile = _measure_tsc_profile()
     try:
-        return _schema_v2.AttestationProfile(
+        return _schema_v2.ObservedAttestationProfile(
             cpu=_schema_v2.CpuProfile(**cpu_identity),
             cores=_schema_v2.CoreProfile(
                 physical=len(core_ids), logical=len(cpus),
@@ -430,13 +444,10 @@ def probe(roots: ProbeRoots = DEFAULT_PROBE_ROOTS) -> _schema_v2.AttestationProf
             cache_topology=_cache_topology(cpus),
             numa=_numa_topology(roots.sys_node, cpu_ids),
             tsc=tsc_profile,
-            effective_clock=_schema_v2.EffectiveClockProfile(
+            effective_clock=_schema_v2.ObservedEffectiveClockProfile(
                 samples_mhz=[mhz_by_cpu[cpu_id] for cpu_id in sorted(cpu_ids)],
                 method="proc-cpuinfo",
                 governor=next(iter(governors)),
-                # Runtime observation has no policy tolerance of its own.  The
-                # comparator exclusively uses the expected calibration value.
-                tolerance_pct=100.0,
             ),
             visibility=_visibility(roots.proc),
         )
@@ -448,7 +459,7 @@ probe_hardware = probe
 
 
 def normalize_profile(raw: Mapping[str, object]) -> _schema_v2.AttestationProfile:
-    """schema 形状の raw mapping を検証し、CPU name 正規化を適用する。"""
+    """expected-side schema mapping を検証し、CPU name 正規化を適用する。"""
     if not isinstance(raw, Mapping):
         raise AttestationError("raw profile が Mapping でない")
 
@@ -505,6 +516,97 @@ def normalize_profile(raw: Mapping[str, object]) -> _schema_v2.AttestationProfil
         raise AttestationError(f"raw profile が calibration/v2 型に違反: {exc}") from exc
 
 
+def normalize_observed_profile(
+    raw: Mapping[str, object],
+) -> _schema_v2.ObservedAttestationProfile:
+    """tolerance-free observed mapping を exact shape で検証する。"""
+    if not isinstance(raw, Mapping):
+        raise AttestationError("raw observed profile が Mapping でない")
+    profile_keys = {
+        "cpu", "cores", "cache_topology", "numa", "tsc",
+        "effective_clock", "visibility",
+    }
+    if set(raw) != profile_keys:
+        raise AttestationError("observed profile の schema key 集合が exact でない")
+    clock = raw.get("effective_clock")
+    if not isinstance(clock, Mapping) or set(clock) != {
+        "samples_mhz", "method", "governor",
+    }:
+        raise AttestationError("observed profile.effective_clock の schema key 集合が exact でない")
+
+    # Reuse the expected parser for every shared field.  The synthetic value is
+    # local validation material only and is never present in the observed type.
+    expected_shape = dict(raw)
+    expected_shape["effective_clock"] = {**dict(clock), "tolerance_pct": 1.0}
+    expected = normalize_profile(expected_shape)
+    return _schema_v2.ObservedAttestationProfile(
+        cpu=expected.cpu,
+        cores=expected.cores,
+        cache_topology=expected.cache_topology,
+        numa=expected.numa,
+        tsc=expected.tsc,
+        effective_clock=_schema_v2.ObservedEffectiveClockProfile(**dict(clock)),
+        visibility=expected.visibility,
+    )
+
+
+def parse_probe_output(raw: bytes | str) -> ParsedProbeOutput:
+    """Parse v1/v2 probe JSON once, rejecting duplicates and shape drift."""
+    if not isinstance(raw, (bytes, str)):
+        raise AttestationError("probe output は bytes または str でなければならない")
+    try:
+        document = json.loads(raw, object_pairs_hook=_duplicate_object)
+    except (json.JSONDecodeError, UnicodeError) as exc:
+        raise AttestationError(f"probe output JSON を parse できない: {exc}") from exc
+    if type(document) is not dict:
+        raise AttestationError("probe output top-level が object でない")
+    schema = document.get("schema_version")
+    if schema not in {PEGASUS_PROBE_OUTPUT_V1, PEGASUS_PROBE_OUTPUT_V2}:
+        raise AttestationError(f"未知の probe output schema: {schema!r}")
+    ok = document.get("ok")
+    epoch = document.get("observed_epoch")
+    if type(ok) is not bool:
+        raise AttestationError("probe output ok が bool でない")
+    if type(epoch) is not int or epoch < 1:
+        raise AttestationError("probe output observed_epoch が正の int でない")
+    if ok:
+        if set(document) != {"schema_version", "ok", "observed_epoch", "profile"}:
+            raise AttestationError("successful probe output の key 集合が exact でない")
+        profile_raw = document["profile"]
+        if not isinstance(profile_raw, Mapping):
+            raise AttestationError("probe output profile が object でない")
+        clock = profile_raw.get("effective_clock")
+        if not isinstance(clock, Mapping):
+            raise AttestationError("probe output effective_clock が object でない")
+        if schema == PEGASUS_PROBE_OUTPUT_V1:
+            if set(clock) != {"samples_mhz", "method", "governor", "tolerance_pct"}:
+                raise AttestationError("v1 effective_clock の key 集合が exact でない")
+            tolerance = clock.get("tolerance_pct")
+            if type(tolerance) is not float or tolerance != 100.0:
+                raise AttestationError("v1 tolerance sentinel は float 100.0 でなければならない")
+            projected_raw = dict(profile_raw)
+            projected_raw["effective_clock"] = {
+                key: value for key, value in clock.items() if key != "tolerance_pct"
+            }
+            profile = normalize_observed_profile(projected_raw)
+        else:
+            profile = normalize_observed_profile(profile_raw)
+        return ParsedProbeOutput(schema, True, epoch, profile, None)
+
+    if set(document) != {"schema_version", "ok", "observed_epoch", "error"}:
+        raise AttestationError("failed probe output の key 集合が exact でない")
+    error = document["error"]
+    if not isinstance(error, Mapping) or set(error) != {"stage", "type", "message"}:
+        raise AttestationError("probe output error の key 集合が exact でない")
+    normalized_error: dict[str, str] = {}
+    for key in ("stage", "type", "message"):
+        value = error[key]
+        if type(value) is not str or not value:
+            raise AttestationError(f"probe output error.{key} が非空文字列でない")
+        normalized_error[key] = value
+    return ParsedProbeOutput(schema, False, epoch, None, normalized_error)
+
+
 def profile_to_dict(profile: _schema_v2.AttestationProfile) -> dict:
     if not isinstance(profile, _schema_v2.AttestationProfile):
         raise AttestationError("profile が AttestationProfile でない")
@@ -518,6 +620,34 @@ def profile_sha256(profile: _schema_v2.AttestationProfile) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def observed_profile_to_dict(profile: _schema_v2.ObservedAttestationProfile) -> dict:
+    if not isinstance(profile, _schema_v2.ObservedAttestationProfile):
+        raise AttestationError("profile が ObservedAttestationProfile でない")
+    return dataclasses.asdict(profile)
+
+
+def observed_profile_projection(parsed: ParsedProbeOutput) -> dict:
+    """Return the source-schema-specific hash preimage for a parsed success."""
+    if not isinstance(parsed, ParsedProbeOutput) or not parsed.ok or parsed.profile is None:
+        raise AttestationError("successful ParsedProbeOutput が必要")
+    projection = observed_profile_to_dict(parsed.profile)
+    if parsed.schema_version == PEGASUS_PROBE_OUTPUT_V1:
+        projection["effective_clock"]["tolerance_pct"] = 100.0
+    elif parsed.schema_version != PEGASUS_PROBE_OUTPUT_V2:
+        raise AttestationError(f"未知の projection schema: {parsed.schema_version!r}")
+    return projection
+
+
+def observed_profile_sha256(parsed: ParsedProbeOutput) -> str:
+    raw = json.dumps(
+        observed_profile_projection(parsed),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def _clock_value(profile: _schema_v2.AttestationProfile) -> dict:
     return {
         "samples_mhz": list(profile.effective_clock.samples_mhz),
@@ -525,7 +655,10 @@ def _clock_value(profile: _schema_v2.AttestationProfile) -> dict:
     }
 
 
-def _comparison_values(profile: _schema_v2.AttestationProfile, *, expected: bool) -> dict:
+def _common_comparison_values(
+    profile: _schema_v2.AttestationProfile | _schema_v2.ObservedAttestationProfile,
+    *, effective_clock_samples: dict,
+) -> dict:
     values = {
         "cpu.vendor": profile.cpu.vendor,
         "cpu.family": profile.cpu.family,
@@ -542,9 +675,7 @@ def _comparison_values(profile: _schema_v2.AttestationProfile, *, expected: bool
         "tsc.median_mhz": profile.tsc.median_mhz,
         "tsc.clocks_per_us_int": profile.tsc.clocks_per_us_int,
         "tsc.source": profile.tsc.source,
-        "effective_clock.samples_mhz": _clock_value(profile) if expected else {
-            "samples_mhz": list(profile.effective_clock.samples_mhz),
-        },
+        "effective_clock.samples_mhz": effective_clock_samples,
         "effective_clock.method": profile.effective_clock.method,
         "effective_clock.governor": profile.effective_clock.governor,
         "visibility.hidepid": profile.visibility.hidepid,
@@ -558,7 +689,21 @@ def expected_comparison_values(profile: _schema_v2.AttestationProfile) -> dict:
     """receipt/v2 が使う canonical expected-side 値を返す。"""
     if not isinstance(profile, _schema_v2.AttestationProfile):
         raise AttestationError("profile が AttestationProfile でない")
-    return _comparison_values(profile, expected=True)
+    return _common_comparison_values(
+        profile, effective_clock_samples=_clock_value(profile),
+    )
+
+
+def observed_comparison_values(profile: _schema_v2.ObservedAttestationProfile) -> dict:
+    """receipt/v2 が使う canonical observed-side 値を返す。"""
+    if not isinstance(profile, _schema_v2.ObservedAttestationProfile):
+        raise AttestationError("profile が ObservedAttestationProfile でない")
+    return _common_comparison_values(
+        profile,
+        effective_clock_samples={
+            "samples_mhz": list(profile.effective_clock.samples_mhz),
+        },
+    )
 
 
 def _recorded_verdict(field: str, expected: object, observed: object) -> str:
@@ -579,15 +724,26 @@ def _recorded_verdict(field: str, expected: object, observed: object) -> str:
             expected_samples = expected_map.get("samples_mhz")
             observed_samples = observed_map.get("samples_mhz")
             tolerance = expected_map.get("tolerance_pct")
-            if (type(expected_samples) is not list or type(observed_samples) is not list
+            if (set(expected_map) != {"samples_mhz", "tolerance_pct"}
+                    or set(observed_map) != {"samples_mhz"}
+                    or type(expected_samples) is not list
+                    or type(observed_samples) is not list
                     or not expected_samples or not observed_samples
-                    or type(tolerance) not in (int, float)):
+                    or type(tolerance) not in (int, float)
+                    or tolerance
+                    != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT):
                 passed = False
             else:
                 expected_median = float(statistics.median(expected_samples))
-                allowed_delta = abs(expected_median) * float(tolerance) / 100.0
+                allowed_delta = (
+                    abs(expected_median)
+                    * effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT
+                    / 100.0
+                )
+                lower = expected_median - allowed_delta
+                upper = expected_median + allowed_delta
                 passed = all(
-                    abs(float(sample) - expected_median) <= allowed_delta
+                    lower <= float(sample) <= upper
                     for sample in observed_samples
                 )
         else:
@@ -599,7 +755,7 @@ def _recorded_verdict(field: str, expected: object, observed: object) -> str:
 
 def compare_profiles(
     expected: _schema_v2.AttestationProfile,
-    observed: _schema_v2.AttestationProfile,
+    observed: _schema_v2.ObservedAttestationProfile,
     *,
     now_fn: Callable[[], object],
 ) -> list[dict]:
@@ -611,13 +767,13 @@ def compare_profiles(
     """
     if not isinstance(expected, _schema_v2.AttestationProfile):
         raise AttestationError("expected が AttestationProfile でない")
-    if not isinstance(observed, _schema_v2.AttestationProfile):
-        raise AttestationError("observed が AttestationProfile でない")
+    if not isinstance(observed, _schema_v2.ObservedAttestationProfile):
+        raise AttestationError("observed が ObservedAttestationProfile でない")
     if not callable(now_fn):
         raise AttestationError("now_fn は callable でなければならない")
     now_fn()  # acquisition-time seam; receipt/v2 has no timestamp field in W0.
-    expected_values = _comparison_values(expected, expected=True)
-    observed_values = _comparison_values(observed, expected=False)
+    expected_values = expected_comparison_values(expected)
+    observed_values = observed_comparison_values(observed)
     return [
         {
             "field": field,
@@ -684,6 +840,13 @@ def load_verified_calibration(
             raise AttestationError(
                 "calibration clocks_per_us 不一致: "
                 f"{calibration.clocks_per_us} != {contract.clocks_per_us}"
+            )
+        tolerance = calibration.attestation_profile.effective_clock.tolerance_pct
+        if tolerance != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT:
+            raise AttestationError(
+                "calibration effective clock tolerance が current policy と不一致: "
+                f"{tolerance!r} != "
+                f"{effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT!r}"
             )
         return VerifiedCalibration(
             schema_version=_schema_v2.SCHEMA_VERSION,

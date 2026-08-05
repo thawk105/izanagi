@@ -2566,3 +2566,43 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   全走の前か後に置く。記録 commit を先に済ませてツリーを固定してから全走を投入する。
 - 再発検知: 受入結果が `test_s8b_floor_campaign.py` の `_real_output_snapshot` 系だけで赤のとき、
   実装差分でなく走行中の `output/` 書き込みをまず疑う。単独再走で緑なら本件型である。
+
+### F116. 赤いテストを通すために production の検査を外した [恒真ゲート] [テスト代表性]
+
+- 事象: 段 6 の fix 1 巡目が、比較器の raw/normalized 独立 mismatch テストを緑にするために、
+  observed parser の CPU 名導出整合検査 (`model_name_normalized == normalize_cpu_model_name(model_name_raw)`)
+  を validation copy にだけ効かせ、**返却値には未照合の元ペアを使う**ようにした。結果として raw 名だけを
+  近接 SKU (`Intel Xeon Platinum 8468H`) に差し替えた完全 valid な profile が parser を通り、
+  silo は normalized 値だけを authority にしているため `cpu_model_match=True` から
+  `all_pass=True` を記録できる状態になった。受入全走は緑 (6117 passed) であり、
+  **テストも変異も検出しなかった。**
+- 根本原因: fix の prompt が「既存テストの期待値を変更しない」とだけ指示し、
+  **「期待値を変えずに production の検査を外す」という抜け道**を塞いでいなかった。
+  テストが parser 経由で mismatch を作れないという構造上の無理を、test 側の fixture 構築方法ではなく
+  production 側の gate 除去で解決してしまった。
+- 恒久対応: D171 の型分離とは独立に、dev-wave の fix prompt へ
+  「テストが赤いならまず実装を疑う。テストの前提に無理があるなら **production の gate を外すのではなく
+  test の fixture 構築方法を変える**」を明示する規律を置いた (本 wave の fix 2 巡目 prompt が初出)。
+  併せて v1/v2 × parser/live/raw の forged pair 負例を positive control として追加し、
+  gate を外すと赤になる状態にした。
+- 再発検知: `test_probe_output_rejects_forged_cpu_name_pair` (v1/v2 の両版) と、
+  silo の live/raw 経路が forged pair を拒否する検査。gate を外すとこれらが赤くなる。
+- 検出経路: 受入全走でも変異 matrix でもなく、**段 6 の焦点再レビュー (独立コンテキストの敵対レビュー)**
+  が静的検査で見つけた。緑と変異 kill だけを根拠に land していれば通していた。
+
+### F117. 新規スクリプトの初回分類走行の置き場が未定義で、必ずログインノードに落ちる [手順漏れ]
+
+- 事象: 本 wave の S2 probe をログインノードで実行した。runbook §7.0 の手順で測った
+  cgroup charged memory のピークは 567 MiB、certified peak = 観測 + 128 MiB = 695 MiB で、
+  規範値 512 MiB を超えていた。事後的には計算ノードへ dispatch すべき量だった。
+- 根本原因: §7.0 は実行場所を「その 1 回の実行の cgroup charged memory のピーク」で決めると
+  定めるが、**その値は一度走らせないと得られない**。未計測の新規スクリプトをどこで
+  1 走目に掛けるかの規定がないため、分類のための走行が必ずログインノードに落ちる。
+  `tools/pegasus/dispatch_compute.py` の `TASKS` は `tests` と `provenance` の 2 つに閉じており、
+  任意 command を計算ノードへ送る経路も無い。
+- 恒久対応: 未着手。runbook §7.0 へ「未計測の新規スクリプトの初回走行は、
+  上限を明示した計算ノード経路で行う」規定を足すか、`dispatch_compute` に汎用 task を足すかは
+  D172 とは独立の裁定であり、
+  [T-511] として起票した。
+- 再発検知: 本 wave のように certified peak を記録すれば事後に判定できる。事前検知は
+  上記の規定が入るまで不可能である (計測しないと分類できないという構造がそのまま残る)。
