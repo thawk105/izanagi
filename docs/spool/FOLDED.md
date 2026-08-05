@@ -223,3 +223,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"ed85cf4a9b71fc2ceb0c671c31a22f6c13646aeda05ef47ff8aff155efe2c72c","seq":1,"wave":"dev-wave-t327-prereg-activation"}
 - {"allocations":{"D:s8c-automatic-activation":"D165"},"authored":"2026-08-05","content_sha256":"2250f18e20f2329b6e130be64161da7d99af0f5c0c3d736ad81c8018ac0ce2e7","seq":1,"wave":"dev-wave-t327-prereg-activation"}
+
+- {"allocations":{"T:guard-bash-module-borrow-family":"[T-483]","T:pegasus-login-procedure-blocked-family":"[T-481]","T:sanctioned-path-argv-granularity":"[T-482]"},"authored":"2026-08-05","content_sha256":"a2d42cfbaf9469dfa926c58fe714c20593a02ed767764c62db9c2834ecfc5593","seq":1,"wave":"dev-wave-t455-guard-bash-sanction-fetch"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"e8ec964b78f2b9bf76478e4382a06de754f94e7c6ad5e0591a602c5b0f87bf3c","seq":1,"wave":"dev-wave-t419-probe-rerun"}

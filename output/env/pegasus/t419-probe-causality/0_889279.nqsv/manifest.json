@@ -1,0 +1,265 @@
+{
+  "counterfactual_only": true,
+  "files": {
+    "cpuinfo-raw-1.txt": {
+      "bytes": 97218,
+      "sha256": "f7b696bbf56759f359b98b2acd4518cbd4614b6b2377692994951086d4bc2d6e"
+    },
+    "cpuinfo-raw-2.txt": {
+      "bytes": 97218,
+      "sha256": "18ac02f68853beeefcadaaa81c0ae6bf26eeddcc7b90770969bcc65efdcc007a"
+    },
+    "cpuinfo-raw-3.txt": {
+      "bytes": 97218,
+      "sha256": "4aa8d7afb15fbcfac30ca6415ab63a9956be574d804ef1e739c0a4c9f75cc189"
+    },
+    "done-marker": {
+      "bytes": 24,
+      "published_after_manifest": true,
+      "sha256": "58820811ea0bae81a5c3c93c254ba5fe9a5eef2b4345e36dc32e254cebc9671f"
+    },
+    "interpreter": {
+      "bytes": 20,
+      "sha256": "f2bdb85c39ac02bd4b03ec678ad417698617b3bbf1f7299a9e58431fbd0448c1"
+    },
+    "marker": {
+      "bytes": 84,
+      "sha256": "f418e82478a09cdbd0fa267aa588dada0bfd73ba95763d56208cf42d76b3de64"
+    },
+    "probe.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "probe.rc": {
+      "bytes": 2,
+      "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+    },
+    "result.json": {
+      "bytes": 14080896,
+      "sha256": "ae0adea50094ae99f064506b4a167246d9b9961fc944553df538b9c9db01f1c2"
+    },
+    "selftest.log": {
+      "bytes": 674,
+      "sha256": "dc69f81567ee5c9290e0aa5208f70a89742cab3e814d0102ba6812d99b4ca968"
+    },
+    "wrapper.rc": {
+      "bytes": 2,
+      "published_after_manifest": true,
+      "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+    }
+  },
+  "finalization_rc": 0,
+  "manifest_self_hash": "excluded (a manifest cannot contain its own stable hash)",
+  "non_certifying": true,
+  "preregistered_primary_reads": 445,
+  "probe_rc": 3,
+  "provenance": {
+    "arm_durations_ns": {
+      "A0_quiet_baseline": 3542568972,
+      "A1_pin_sweep": 14231779631,
+      "A3_alpha_quiet": 4523340915,
+      "A4_migration_description": 3524266386
+    },
+    "boot_cmdline": {
+      "path": "/proc/cmdline",
+      "status": "value",
+      "value": "BOOT_IMAGE=/vmlinuz-5.15.0-173-generic root=UUID=525a0db6-1860-48a2-8be0-49bb2946abce ro intel_iommu=off rootflags=uquota systemd.unified_cgroup_hierarchy=1 intel_idle.max_cstate=0 processor.max_cstate=0 crashkernel=1024M swapaccount=1"
+    },
+    "calibration": {
+      "expected_median_mhz": 2101.0,
+      "expected_sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "lower_mhz": 2058.98,
+      "path": "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
+      "sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "tolerance_pct": 2.0,
+      "upper_mhz": 2143.02
+    },
+    "driver_path": "tools/pegasus/probes/t419_probe_causality.py",
+    "driver_sha256": "e674fa364401dfc600a187350139a4cd24502bda76a2a17d2fe8dd52096d7dc6",
+    "exact_argv": [
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/tools/pegasus/probes/t419_probe_causality.py",
+      "--repo-root",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun",
+      "--output-dir",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/output/env/pegasus/t419-probe-causality/0_889279.nqsv",
+      "--seed",
+      "419",
+      "--read-interval-ms",
+      "50",
+      "--hard-deadline-seconds",
+      "900",
+      "--expect-head",
+      "87039922621ca6f1287588edc4c8bb654182c4e5",
+      "--expect-driver-sha256",
+      "e674fa364401dfc600a187350139a4cd24502bda76a2a17d2fe8dd52096d7dc6",
+      "--expect-pbs-sha256",
+      "1bc23856bc3b163ba1fdccdba38e9c3ca18d1159fed5d7c8420519aee6fe96be",
+      "--expect-calibration-sha256",
+      "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "--expect-env-attestation-sha256",
+      "6d4d86118b2e30272fb5e44a6155823a3b630503a29be69b72d09bf79f51ac6c"
+    ],
+    "experiment_finished_at_utc": "2026-08-04T23:27:33.688326+00:00",
+    "finalization_binding": {
+      "attempted": true,
+      "calibration_sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "driver_sha256": "e674fa364401dfc600a187350139a4cd24502bda76a2a17d2fe8dd52096d7dc6",
+      "env_attestation_sha256": "6d4d86118b2e30272fb5e44a6155823a3b630503a29be69b72d09bf79f51ac6c",
+      "env_contract_sha256": "88d557ba31e648840a9bf10eec77c4412c63a254a7428beddb9b8db041cc8c15",
+      "expected_calibration_sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "expected_driver_sha256": "e674fa364401dfc600a187350139a4cd24502bda76a2a17d2fe8dd52096d7dc6",
+      "expected_env_attestation_sha256": "6d4d86118b2e30272fb5e44a6155823a3b630503a29be69b72d09bf79f51ac6c",
+      "expected_head": "87039922621ca6f1287588edc4c8bb654182c4e5",
+      "expected_pbs_sha256": "1bc23856bc3b163ba1fdccdba38e9c3ca18d1159fed5d7c8420519aee6fe96be",
+      "head": "87039922621ca6f1287588edc4c8bb654182c4e5",
+      "matched": true,
+      "pbs_sha256": "1bc23856bc3b163ba1fdccdba38e9c3ca18d1159fed5d7c8420519aee6fe96be",
+      "related_dirty_entries": [],
+      "related_paths": [
+        "tools/pegasus/probes/t419_probe_causality.py",
+        "tools/pegasus/probes/t419_probe_causality.pbs",
+        "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
+        "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/env_attestation.py"
+      ]
+    },
+    "finished_at_utc": "2026-08-04T23:27:34.741102+00:00",
+    "hard_deadline_seconds": 900.0,
+    "parameters": {
+      "K": 5,
+      "N": 30,
+      "R": 5,
+      "alpha_contention_blocks": 3,
+      "alpha_quiet_blocks": 10,
+      "busy_min_cpu_ticks": 5,
+      "causal_thresholds": {
+        "nonpinned_out_of_band_rate_max": 0.05,
+        "pinned_hit_rate_min": 0.95,
+        "positive_contrast_cpu_min": 46
+      },
+      "clock_ticks_per_second": 100,
+      "cooldown_seconds": 1.0,
+      "coresident_repeats": 5,
+      "coresident_targets": 8,
+      "inconclusive_pair_invalid_min": 3,
+      "k_list": null,
+      "pin_order": [
+        11,
+        25,
+        40,
+        42,
+        30,
+        36,
+        35,
+        44,
+        34,
+        24,
+        16,
+        27,
+        7,
+        1,
+        12,
+        28,
+        46,
+        32,
+        6,
+        22,
+        21,
+        31,
+        37,
+        3,
+        15,
+        13,
+        26,
+        19,
+        9,
+        14,
+        38,
+        20,
+        47,
+        2,
+        17,
+        29,
+        4,
+        10,
+        41,
+        0,
+        5,
+        33,
+        23,
+        18,
+        45,
+        8,
+        43,
+        39
+      ],
+      "read_interval_ms": 50.0,
+      "sham_max_cpu_ticks": 1
+    },
+    "pbs_jobid_normalized": "0_889279.nqsv",
+    "pbs_jobid_raw": "0:889279.nqsv",
+    "pbs_path": "tools/pegasus/probes/t419_probe_causality.pbs",
+    "pbs_sha256": "1bc23856bc3b163ba1fdccdba38e9c3ca18d1159fed5d7c8420519aee6fe96be",
+    "preregistered_primary_reads": 445,
+    "project": "SFC",
+    "python": {
+      "executable": "/usr/bin/python3.10",
+      "version": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]"
+    },
+    "qstat": {
+      "attempted": true,
+      "jobid": "889279.nqsv",
+      "rc": 0,
+      "stderr": "",
+      "stdout": "Request ID: 889279.nqsv\n    Request Name = t419_probe_causality.pbs\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Running\n    Previous State          = Pre-running\n    State Transition Time   = Wed Aug  5 08:27:03 2026\n    State Transition Reason = PRERUN_SUCCESS\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/t419_probe_causality.pbs.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/t419_probe_causality.pbs.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Wed Aug  5 08:22:36 2026\n    Entered Queue Time   = Wed Aug  5 08:22:36 2026\n    Planned Start Time   = Wed Aug  5 08:22:59 2026\n    Execute Request Time = (none)\n    Started Request Time = Wed Aug  5 08:27:03 2026\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    bnode055(55)\n  Resources Information:\n    Memory    = 79.820312MB\n    CPU Time  = 1.590000S\n    Accumulated CPU Time = 1.590000S\n    Elapse    = 31S\n    Remaining Elapse = 1169S\n    Virtual Memory = 1.244728GB\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     1200S Warn:     1200S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n",
+      "untrusted_data": true
+    },
+    "queue": "gen_S",
+    "rc": 3,
+    "repo_commit": "87039922621ca6f1287588edc4c8bb654182c4e5",
+    "repo_dirty": false,
+    "repo_dirty_entries_excluding_probe_output": [],
+    "repo_dirty_excluded_path": "output/env/pegasus/t419-probe-causality/0_889279.nqsv",
+    "seed": 419,
+    "started_at_utc": "2026-08-04T23:27:04.678714+00:00",
+    "submission_binding": {
+      "attempted": true,
+      "calibration_sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "driver_sha256": "e674fa364401dfc600a187350139a4cd24502bda76a2a17d2fe8dd52096d7dc6",
+      "env_attestation_sha256": "6d4d86118b2e30272fb5e44a6155823a3b630503a29be69b72d09bf79f51ac6c",
+      "env_contract_sha256": "88d557ba31e648840a9bf10eec77c4412c63a254a7428beddb9b8db041cc8c15",
+      "expected_calibration_sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+      "expected_driver_sha256": "e674fa364401dfc600a187350139a4cd24502bda76a2a17d2fe8dd52096d7dc6",
+      "expected_env_attestation_sha256": "6d4d86118b2e30272fb5e44a6155823a3b630503a29be69b72d09bf79f51ac6c",
+      "expected_head": "87039922621ca6f1287588edc4c8bb654182c4e5",
+      "expected_pbs_sha256": "1bc23856bc3b163ba1fdccdba38e9c3ca18d1159fed5d7c8420519aee6fe96be",
+      "head": "87039922621ca6f1287588edc4c8bb654182c4e5",
+      "matched": true,
+      "pbs_sha256": "1bc23856bc3b163ba1fdccdba38e9c3ca18d1159fed5d7c8420519aee6fe96be",
+      "related_dirty_entries": [],
+      "related_paths": [
+        "tools/pegasus/probes/t419_probe_causality.py",
+        "tools/pegasus/probes/t419_probe_causality.pbs",
+        "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
+        "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/env_attestation.py"
+      ]
+    },
+    "uname": {
+      "release": "5.15.0-173-generic",
+      "version": "#183-Ubuntu SMP Fri Mar 6 13:29:34 UTC 2026"
+    },
+    "wrapper": {
+      "PBS_JOBID": "0:889279.nqsv",
+      "finished_at_utc": "2026-08-04T23:27:35Z",
+      "started_at_utc": "2026-08-04T23:27:03Z"
+    }
+  },
+  "schema_version": "t419-probe-causality/v1",
+  "wrapper": {
+    "PBS_JOBID": "0:889279.nqsv",
+    "finished_at_utc": "2026-08-04T23:27:35Z",
+    "started_at_utc": "2026-08-04T23:27:03Z"
+  },
+  "wrapper_rc": 3
+}

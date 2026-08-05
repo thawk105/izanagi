@@ -1,0 +1,48 @@
+あなたは izanagi dev-wave 段 6 の焦点再レビュー子 (2 巡目、read-only) である。目的は**防御的**。
+1 巡目は NO-GO だった。今回の fix が塞いだかを検証し、新しい回帰を探せ。攻撃側で書くこと。
+
+## 読むもの (絶対パス。読めなければ即停止し、その旨だけ報告)
+
+- 親 brief (**erratum-3 が最優先。erratum-2 の該当部分を supersede する**):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/brief.md
+- 1 巡目の焦点再レビュー (NO-GO 理由):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s6-refocus.md
+- 親の裁定 L-1〜L-3:
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s6-fix2-prompt.txt
+- fix 2 巡目の自己申告 (**信用せず検証**):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s6-fix2.md
+- 実装 (commit 87039922 時点):
+  /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/tools/pegasus/probes/t419_probe_causality.py
+  /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-probe-rerun/orchestrator/tests/test_t419_probe_causality.py
+
+## 仕事
+
+1. **L-1〜L-3 を自分で検証**し closed / partial / regressed を file:line 根拠付きで判定。
+   - L-1: COMPETITOR 判定が `unexplained >= 3` かつ `> 6.7 tick/s` の**唯一の経路**か。
+     arm 合計の絶対 tick 判定・no-subwindow fallback が**完全に消えている**か。
+     subwindow の実 duration が率の分母として正しく使われ、記録されているか。
+   - L-2: self の per-CPU 帰属が**全区間 pin されている場合だけ**か。
+     endpoint からの推定が残っていないか。`unexplained` から self 未帰属分が引かれているか。
+   - L-3: `method_table.alpha` が巡回込み α そのものか。`alpha_without_rotation` が
+     `alpha` key で取得できないか (alias が残っていないか)。
+2. **新しい回帰**: 恒真・恒偽、過剰/過少 INVALID、fixture の過剰決定、445 の破壊、
+   critical window 純度の毀損 (境界サンプルが read と read の間に入っていないか)、
+   既存規律 (anchor / cooldown / hash 束縛 / argv 非保存 / CPU 横断相殺の禁止) の毀損。
+3. **実機で最初に発火しそうな条件**を名指しせよ。
+
+## 判定基準 (親の指示)
+
+- 残った所見は「**投入を止めるほどか**」で判定せよ。成果物影響を 1 行で書けない指摘や
+  実測がないと判定できない指摘は **backlog** と明記し must-fix にしない。
+- **親が受容済みで NO-GO 理由にしてはならない既知の限界**:
+  (i) 巡回込み α の should-reject セルは今回の 445 読みでは埋まらない、
+  (ii) S6R2-04 (subwindow の個数・ID・read 対応の厳密 gate 不在)、
+  (iii) S6R2-05 (判定機会が 4032 に増えたこと自体)。
+- 是正の実装 (probe 本体・較正・pin) は scope 外。正しさゲートを緩める提案は採用されない。
+
+## 出力形式
+
+冒頭に L-1〜L-3 の判定表。続けて所見ごとに:
+ID / 主張 / file:line / 失敗シナリオ / 成果物影響 / 強度 / must-fix か backlog か / 最小の是正案。
+最後に必ず `## 総括` 節: (a) **GO / NO-GO**、(b) NO-GO なら理由 3 件以内、
+(c) 実機で最初に発火しそうな条件、(d) 親が確認すべき事項、を 12 行以内。
