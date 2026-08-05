@@ -1,0 +1,266 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "EFFECTIVE_CLOCK_METHOD = (\n    f\"proc-cpuinfo-rotating-min/k{EFFECTIVE_CLOCK_ALPHA_K}\"\n    f\"/interval-ns{EFFECTIVE_CLOCK_ALPHA_INTERVAL_NS}\"\n    f\"/{EFFECTIVE_CLOCK_ALPHA_RULE_ID}\"\n)\n",
+          "new": "EFFECTIVE_CLOCK_METHOD = \"proc-cpuinfo\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_fixture_tree_returns_frozen_schema_profile",
+        "orchestrator/tests/test_env_attestation.py::test_alpha_method_identity_and_target_selection_are_versioned"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "            reads.append((identity, mhz_by_cpu))\n",
+          "new": "            reads.append(reads[0] if reads else (identity, mhz_by_cpu))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rotating_min_accepts_migrating_reader_outlier",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_extra_cpu_set_drift_between_reads",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_identity_drift_between_reads"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "        for read_index, target in enumerate(targets):\n",
+          "new": "        for read_index, target in enumerate([targets[0]] * len(targets)):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_accepts_quiet_in_band_reads",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rotating_min_accepts_migrating_reader_outlier",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rotates_through_selected_targets",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_partial_k_read_and_restores_affinity"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "    minima = {cpu_id: math.inf for cpu_id in expected_cpu_ids}\n",
+          "new": "    minima = {cpu_id: -math.inf for cpu_id in expected_cpu_ids}\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "            minima[cpu_id] = min(minima[cpu_id], float(value))\n",
+          "new": "            minima[cpu_id] = max(minima[cpu_id], float(value))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_accepts_quiet_in_band_reads",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rotating_min_accepts_migrating_reader_outlier",
+        "orchestrator/tests/test_env_attestation.py::test_alpha_min_characterization_is_asymmetric",
+        "orchestrator/tests/test_env_attestation.py::test_alpha_reducer_takes_per_cpu_minimum"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "            if pinned_affinity != {target}:\n                raise AttestationError(\n                    f\"effective-clock read {read_index} の pin mask が不一致: \"\n                    f\"target={target} observed={sorted(pinned_affinity)}\"\n                )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_noop_set_by_mask_check_alone",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_affinity_widened_during_interval_wait"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "            if pre_processor != target:\n                raise AttestationError(\n                    f\"effective-clock read {read_index} の pre processor が不一致: \"\n                    f\"target={target} observed={pre_processor}\"\n                )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_wrong_reader_cpu_at_pre_check"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "            if post_processor != target:\n                raise AttestationError(\n                    f\"effective-clock read {read_index} の post processor が不一致: \"\n                    f\"target={target} observed={post_processor}\"\n                )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_wrong_reader_cpu_at_post_check"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "                raise AttestationError(\n                    f\"effective-clock read {read_index} の cpu{target} pin に失敗: {exc}\"\n                ) from exc\n",
+          "new": "                fallback_identity, fallback_mhz = _parse_cpuinfo(path)\n                return fallback_identity, dict(fallback_mhz), len(original_affinity)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_set_error_has_no_runtime_or_direct_parser_fallback",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_pin_failure_keeps_primary_when_restore_also_fails"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "        if observed_cpu_ids != expected_cpu_ids:\n            raise AttestationError(\n                f\"cpuinfo processor 集合が read {read_index} で drift: \"\n                f\"expected={sorted(expected_cpu_ids)} observed={sorted(observed_cpu_ids)}\"\n            )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_alpha_reducer_rejects_extra_cpu_set_drift",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_extra_cpu_set_drift_between_reads"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "        if dict(identity) != first_identity:\n            raise AttestationError(f\"cpuinfo identity が read {read_index} で drift\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_alpha_reducer_rejects_identity_drift",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_identity_drift_between_reads"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "            restore_errors.append(f\"元 affinity の復元設定に失敗: {exc}\")\n",
+          "new": "            del exc\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_pin_failure_keeps_primary_when_restore_also_fails",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_read_failure_keeps_primary_when_restore_also_fails",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_restore_failure_is_fatal[error-\\u5fa9\\u5143\\u8a2d\\u5b9a]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "    if len(ordered) < count:\n        raise AttestationError(\n            f\"方式 alpha に必要な affinity CPU が不足: required={count} \"\n            f\"observed={len(ordered)}\"\n        )\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "    if len(set(targets)) != count:\n        raise AttestationError(\"effective-clock target 選択が distinct CPU を返さなかった\")\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "    if len(reads) != EFFECTIVE_CLOCK_ALPHA_K:\n",
+          "new": "    if len(reads) < 2:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rejects_fewer_than_k_affinity_without_read",
+        "orchestrator/tests/test_env_attestation.py::test_alpha_reducer_takes_per_cpu_minimum"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "    return first_identity, minima\n",
+          "new": "    if len(minima) > 2:\n        ordered_values = sorted(minima.values())\n        median_value = ordered_values[len(ordered_values) // 2]\n        worst = max(minima, key=lambda cpu: minima[cpu])\n        if minima[worst] > median_value * 1.2:\n            minima[worst] = median_value\n    return first_identity, minima\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rotating_min_keeps_persistent_outlier_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_attestation.py",
+          "old": "        if dict(identity) != first_identity:\n            raise AttestationError(f\"cpuinfo identity が read {read_index} で drift\")\n",
+          "new": "        if dict(identity) != first_identity:\n            raise AttestationError(f\"cpuinfo identity が read {read_index} で drift\")\n        if dict(mhz_by_cpu) != dict(reads[0][1]):\n            raise AttestationError(f\"cpuinfo MHz が read {read_index} で drift\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_accepts_quiet_in_band_reads",
+        "orchestrator/tests/test_env_attestation.py::test_probe_alpha_rotating_min_accepts_migrating_reader_outlier",
+        "orchestrator/tests/test_env_attestation.py::test_alpha_min_characterization_is_asymmetric",
+        "orchestrator/tests/test_env_attestation.py::test_alpha_reducer_takes_per_cpu_minimum"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
