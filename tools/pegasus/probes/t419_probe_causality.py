@@ -9,6 +9,7 @@ done-marker がない出力は、result/manifest の有無にかかわらず不�
 from __future__ import annotations
 
 import argparse
+import errno
 import hashlib
 import json
 import math
@@ -35,6 +36,16 @@ DEFAULT_HARD_DEADLINE_SECONDS = 900.0
 COOLDOWN_SECONDS = 1.0
 BUSY_MIN_CPU_TICKS = 5
 SHAM_MAX_CPU_TICKS = 1
+COMPETITOR_MIN_TICKS = 3
+COMPETITOR_MAX_TICKS_PER_SECOND = 25.0
+"""走行 889279 の実測 65 subwindow で、非自活動の率は中央値 0.00 /
+最大 11.86 tick/s。その活動は読み値を汚していない — A1 の control 観測
+11,280 件のうち帯外は 1 件 (0.0089%) で、率 7.9 tick/s の subwindow が
+4 つあっても control 帯外は増えなかった。一方 A2 が置く busy child は
+1 コア占有で約 100 tick/s。25.0 は観測された背景最大 11.86 の約 2 倍、
+1 コア占有の約 1/4 であり、背景ノイズと実負荷を分離する。
+絶対下限 3 tick は据え置き。
+"""
 INCONCLUSIVE_PAIR_INVALID_MIN = 3
 CHILD_TERM_TIMEOUT_SECONDS = 2.0
 CHILD_KILL_TIMEOUT_SECONDS = 2.0
@@ -71,6 +82,7 @@ PREREGISTERED_PRIMARY_READS = 445
 _PBS_JOBID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9:._-]*")
 _HEX64_RE = re.compile(r"[0-9a-f]{64}")
 _HEAD_RE = re.compile(r"[0-9a-f]{40}")
+DIAGNOSTIC_FIELD_STATUSES = ("value", "absent", "unreadable", "error")
 
 
 def _error(exc: BaseException) -> dict[str, str]:
@@ -286,12 +298,66 @@ def _method_summary(outcomes: Sequence[bool], *, should_pass: bool) -> dict[str,
     }
 
 
+def alpha_with_rotation(
+    a1_arm: Mapping[str, Any], band: Mapping[str, float]
+) -> dict[str, Any]:
+    """A1 の randomized pin 順を K target ごとに束ね、各 target の先頭 read を使う。"""
+    pin_order = a1_arm.get("pin_order")
+    by_pin = a1_arm.get("by_pin")
+    if not isinstance(pin_order, list) or not isinstance(by_pin, list):
+        raise ValueError("A1 pin_order/by_pin missing for alpha rotation")
+    if len(pin_order) != len(by_pin):
+        raise ValueError("A1 pin_order/by_pin length mismatch for alpha rotation")
+    selected: list[tuple[int, Mapping[str, Any], int]] = []
+    for target_index, (target, group) in enumerate(zip(pin_order, by_pin)):
+        if not isinstance(group, Mapping) or int(group.get("pin_target", -1)) != int(target):
+            raise ValueError("A1 by_pin order mismatch for alpha rotation")
+        reads = group.get("reads")
+        if not isinstance(reads, list) or not reads or not isinstance(reads[0], Mapping):
+            raise ValueError("A1 by_pin primary read missing for alpha rotation")
+        selected.append((int(target), reads[0], target_index * PIN_REPEATS))
+
+    complete = len(selected) // ALPHA_K * ALPHA_K
+    groups = []
+    for start in range(0, complete, ALPHA_K):
+        members = selected[start : start + ALPHA_K]
+        analysis = alpha_cumulative(
+            [_reading_values(reading) for _, reading, _ in members], band
+        )
+        groups.append(
+            {
+                "group": start // ALPHA_K,
+                "positions": [
+                    {
+                        "position": position,
+                        "pin_target": target,
+                        "primary_read_index": flat_index,
+                        "within_target_primary_read_index": 0,
+                        "started_monotonic_ns": reading.get("started_monotonic_ns"),
+                    }
+                    for position, (target, reading, flat_index) in enumerate(members)
+                ],
+                "alpha": analysis,
+            }
+        )
+    discarded = selected[complete:]
+    return {
+        "k": ALPHA_K,
+        "primary_read_selector": "first_primary_read_per_pin_target",
+        "group_count": len(groups),
+        "discarded_pin_target_count": len(discarded),
+        "discarded_pin_targets": [target for target, _, _ in discarded],
+        "groups": groups,
+    }
+
+
 def evaluate_method_table(
     observations: Mapping[str, Any], band: Mapping[str, float]
 ) -> dict[str, Any]:
     """同じ raw vector に α/β/γ を当てる 2×3 counterfactual 表。"""
     arms = observations.get("arms") if isinstance(observations.get("arms"), Mapping) else {}
     a0 = _arm_reads(observations, "A0_quiet_baseline")
+    a1 = arms.get("A1_pin_sweep", {}) if isinstance(arms, Mapping) else {}
     a3q = _arm_reads(observations, "A3_alpha_quiet")
     a2 = arms.get("A2_coresident", {}) if isinstance(arms, Mapping) else {}
     a3c = _arm_reads(observations, "A3_alpha_contention")
@@ -346,15 +412,34 @@ def evaluate_method_table(
             outcomes.append(bool(analyzed[-1]["canonical_pass"]))
         return outcomes
 
-    alpha_stages: dict[str, Any] = {}
+    alpha_without_rotation_stages: dict[str, Any] = {}
     for stage in range(1, ALPHA_K + 1):
-        alpha_stages[str(stage)] = {
+        alpha_without_rotation_stages[str(stage)] = {
             "should_pass": _method_summary(
                 alpha_outcomes(quiet_alpha_blocks, stage), should_pass=True
             ),
             "should_reject": _method_summary(
                 alpha_outcomes(reject_alpha_blocks, stage), should_pass=False
             ),
+        }
+
+    rotation = alpha_with_rotation(a1, band) if isinstance(a1, Mapping) else {
+        "k": ALPHA_K,
+        "primary_read_selector": "first_primary_read_per_pin_target",
+        "group_count": 0,
+        "discarded_pin_target_count": 0,
+        "discarded_pin_targets": [],
+        "groups": [],
+    }
+    alpha_with_rotation_stages: dict[str, Any] = {}
+    for stage in range(1, ALPHA_K + 1):
+        outcomes = [
+            bool(group["alpha"][stage - 1]["canonical_pass"])
+            for group in rotation["groups"]
+        ]
+        alpha_with_rotation_stages[str(stage)] = {
+            "should_pass": _method_summary(outcomes, should_pass=True),
+            "should_reject": _method_summary([], should_pass=False),
         }
 
     beta_quiet = [
@@ -367,6 +452,12 @@ def evaluate_method_table(
     ]
     gamma_quiet = [gamma_pass(_reading_values(reading), band) for reading in quiet_reads]
     gamma_reject = [gamma_pass(_reading_values(reading), band) for reading in reject_reads]
+    rotating_alpha = {
+        "stages": alpha_with_rotation_stages,
+        "should_pass": alpha_with_rotation_stages[str(ALPHA_K)]["should_pass"],
+        "should_reject": alpha_with_rotation_stages[str(ALPHA_K)]["should_reject"],
+        "rotation": rotation,
+    }
     return {
         "semantics": {
             "should_pass": "quiet A0/A3 and A2 sham; rejection is over-rejection",
@@ -375,10 +466,14 @@ def evaluate_method_table(
                 "that misses an environment deviation"
             ),
         },
-        "alpha": {
-            "stages": alpha_stages,
-            "should_pass": alpha_stages[str(ALPHA_K)]["should_pass"],
-            "should_reject": alpha_stages[str(ALPHA_K)]["should_reject"],
+        "reported_method_columns": ["alpha", "beta", "gamma"],
+        "alpha": rotating_alpha,
+        "alpha_with_rotation": rotating_alpha,
+        "alpha_without_rotation": {
+            "reported_as_alpha": False,
+            "stages": alpha_without_rotation_stages,
+            "should_pass": alpha_without_rotation_stages[str(ALPHA_K)]["should_pass"],
+            "should_reject": alpha_without_rotation_stages[str(ALPHA_K)]["should_reject"],
         },
         "beta": {
             "should_pass": _method_summary(beta_quiet, should_pass=True),
@@ -396,11 +491,31 @@ def causal_metrics(
 ) -> dict[str, Any]:
     """A1 個々の読みから事前登録済み 3 条件を計算する。"""
     reads = _arm_reads(observations, "A1_pin_sweep")
+    arms = observations.get("arms")
+    a1 = arms.get("A1_pin_sweep") if isinstance(arms, Mapping) else None
+    isolation = a1.get("isolation") if isinstance(a1, Mapping) else None
+    subwindows = isolation.get("subwindows") if isinstance(isolation, Mapping) else []
+    incidental_by_subwindow: dict[str, set[int]] = {}
+    if isinstance(subwindows, list):
+        for subwindow in subwindows:
+            if not isinstance(subwindow, Mapping):
+                continue
+            identifier = subwindow.get("subwindow_id")
+            incidental = subwindow.get("incidental_nonself_cpus")
+            if isinstance(identifier, str) and isinstance(incidental, list):
+                incidental_by_subwindow[identifier] = {int(cpu) for cpu in incidental}
     pinned_hits = 0
     nonpinned_oob = 0
     nonpinned_total = 0
     by_cpu: dict[int, dict[str, list[bool]]] = {
         int(cpu): {"pinned": [], "control": []} for cpu in cpus
+    }
+    intersections: dict[int, dict[str, dict[str, int]]] = {
+        int(cpu): {
+            "pinned": {"incidental_read_count": 0, "intersection_count": 0},
+            "control": {"incidental_read_count": 0, "intersection_count": 0},
+        }
+        for cpu in cpus
     }
     for reading in reads:
         vector = _reading_values(reading)
@@ -409,9 +524,14 @@ def causal_metrics(
         oob = out_of_band_cpu_ids(vector, band)
         pinned_hits += target in oob
         for cpu in cpus:
-            by_cpu[int(cpu)]["pinned" if int(cpu) == target else "control"].append(
-                int(cpu) in oob
-            )
+            cpu_id = int(cpu)
+            population = "pinned" if cpu_id == target else "control"
+            by_cpu[cpu_id][population].append(cpu_id in oob)
+            identifier = reading.get("isolation_subwindow_id")
+            incidental_cpus = incidental_by_subwindow.get(str(identifier), set())
+            if cpu_id in incidental_cpus:
+                intersections[cpu_id][population]["incidental_read_count"] += 1
+                intersections[cpu_id][population]["intersection_count"] += cpu_id in oob
         excluded = {target, reader}
         for cpu in cpus:
             if int(cpu) in excluded:
@@ -421,6 +541,7 @@ def causal_metrics(
     pinned_hit_rate = pinned_hits / len(reads) if reads else 0.0
     nonpinned_rate = nonpinned_oob / nonpinned_total if nonpinned_total else 1.0
     contrasts: dict[int, dict[str, float]] = {}
+    intersection_metrics: dict[int, dict[str, dict[str, Any]]] = {}
     positive = 0
     for cpu in cpus:
         pinned_values = by_cpu[int(cpu)]["pinned"]
@@ -434,6 +555,21 @@ def causal_metrics(
             "nonpinned_control_out_of_band_rate": control_rate,
             "contrast": contrast,
         }
+        intersection_metrics[int(cpu)] = {}
+        for population in ("pinned", "control"):
+            counts = intersections[int(cpu)][population]
+            denominator = counts["incidental_read_count"]
+            intersection_metrics[int(cpu)][population] = {
+                **counts,
+                "intersection_rate": (
+                    counts["intersection_count"] / denominator
+                    if denominator
+                    else None
+                ),
+            }
+    non_signal_intersections = non_signal_rate_exceedance_intersections(
+        observations, band
+    )
     return {
         "pinned_hit_rate": pinned_hit_rate,
         "pinned_hit_rate_threshold": PINNED_HIT_RATE_MIN,
@@ -447,7 +583,80 @@ def causal_metrics(
         "positive_contrast_cpu_count": positive,
         "positive_contrast_cpu_threshold": POSITIVE_CONTRAST_CPU_MIN,
         "paired_contrast_condition": positive >= POSITIVE_CONTRAST_CPU_MIN,
+        "incidental_out_of_band_intersection_by_cpu": intersection_metrics,
+        "non_signal_rate_exceeded_cpus": sorted(
+            {
+                int(item["cpu"])
+                for item in non_signal_intersections
+            }
+        ),
+        "non_signal_rate_exceedance_control_out_of_band_intersections": (
+            non_signal_intersections
+        ),
     }
+
+
+def non_signal_rate_exceedance_intersections(
+    observations: Mapping[str, Any], band: Mapping[str, float]
+) -> list[dict[str, Any]]:
+    """非 signal CPU の率超過と、同じ窓の control 帯外読みを交差する。"""
+    arms = observations.get("arms")
+    if not isinstance(arms, Mapping):
+        return []
+    result: list[dict[str, Any]] = []
+    for arm_name in ARM_ORDER:
+        arm = arms.get(arm_name)
+        isolation = arm.get("isolation") if isinstance(arm, Mapping) else None
+        subwindows = (
+            isolation.get("subwindows") if isinstance(isolation, Mapping) else []
+        )
+        if not isinstance(subwindows, list):
+            continue
+        reads_by_subwindow: dict[str, list[Mapping[str, Any]]] = {}
+        for reading in _arm_reads(observations, arm_name):
+            identifier = reading.get("isolation_subwindow_id")
+            if isinstance(identifier, str):
+                reads_by_subwindow.setdefault(identifier, []).append(reading)
+        for subwindow in subwindows:
+            if not isinstance(subwindow, Mapping):
+                continue
+            identifier = subwindow.get("subwindow_id")
+            exceedances = subwindow.get("non_signal_rate_exceedances")
+            if not isinstance(identifier, str) or not isinstance(exceedances, list):
+                continue
+            matching_reads = reads_by_subwindow.get(identifier, [])
+            for exceedance in exceedances:
+                if not isinstance(exceedance, Mapping):
+                    continue
+                cpu = int(exceedance["cpu"])
+                control_read_count = 0
+                control_out_of_band_read_count = 0
+                for reading in matching_reads:
+                    reader_cpus = {
+                        int(reading["reader_cpu_before"]),
+                        int(reading["reader_cpu_after"]),
+                    }
+                    pin_target = reading.get("pin_target")
+                    if pin_target is not None:
+                        reader_cpus.add(int(pin_target))
+                    if cpu in reader_cpus:
+                        continue
+                    control_read_count += 1
+                    control_out_of_band_read_count += cpu in out_of_band_cpu_ids(
+                        _reading_values(reading), band
+                    )
+                result.append(
+                    {
+                        "arm": arm_name,
+                        "subwindow_id": identifier,
+                        **dict(exceedance),
+                        "control_read_count": control_read_count,
+                        "control_out_of_band_read_count": (
+                            control_out_of_band_read_count
+                        ),
+                    }
+                )
+    return result
 
 
 def coresident_metrics(
@@ -742,6 +951,9 @@ def _execution_validity_reasons_impl(
         else:
             if isolation.get("visibility_complete") is not True:
                 reasons.append(f"{name}:process_visibility_incomplete")
+            subwindows = isolation.get("subwindows")
+            if not isinstance(subwindows, list) or not subwindows:
+                reasons.append(f"{name}:isolation_subwindows_missing")
             attribution = isolation.get("isolation_attribution")
             if attribution == "COMPETITOR":
                 reasons.append(f"{name}:competing_process_detected")
@@ -1185,6 +1397,19 @@ def _synthetic_base() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
                 "visibility_complete": True,
                 "competition_detected": False,
                 "isolation_attribution": "CLEAN",
+                "subwindows": [
+                    {
+                        "subwindow_id": "synthetic:clean",
+                        "duration_s": 1.0,
+                        "unexplained_ticks": 0,
+                        "unexplained_ticks_per_second": 0.0,
+                        "isolation_attribution": "CLEAN",
+                        "residual_ticks_by_cpu": {},
+                        "incidental_nonself_cpus": [],
+                        "competitor_cpus": [],
+                        "errors": [],
+                    }
+                ],
                 "residual_total": 0,
                 "self_unattributable_total": 0,
                 "window_boundary_timestamps": {
@@ -1244,7 +1469,9 @@ def _synthetic_base() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     arms["A4_migration_description"] = arm(
         [_synthetic_read(cpus, in_band, reader_cpu=0) for _ in range(MIGRATION_READS)],
         discarded_anchors=[_synthetic_read(cpus, in_band, reader_cpu=0)],
-        migration_conclusion="UNRESOLVED",
+        migration_conclusion="NOT_OBSERVED",
+        migration_observed=False,
+        affinity_not_singleton=False,
     )
     quiet_blocks = [
         {
@@ -1652,18 +1879,71 @@ def _counter_delta(
     return result
 
 
+def _diagnostic_exception_status(exc: BaseException) -> str:
+    if isinstance(exc, FileNotFoundError) or (
+        isinstance(exc, OSError) and exc.errno == errno.ENOENT
+    ):
+        return "absent"
+    if isinstance(exc, PermissionError) or (
+        isinstance(exc, OSError) and exc.errno in {errno.EACCES, errno.EPERM}
+    ):
+        return "unreadable"
+    return "error"
+
+
+def diagnostic_status_summary(
+    records: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """診断 field の四値 status を集計し、error だけを incomplete とする。"""
+    counts = {status: 0 for status in DIAGNOSTIC_FIELD_STATUSES}
+    counts_by_field: dict[str, dict[str, int]] = {}
+    normalized = []
+    for source in records:
+        record = dict(source)
+        status = str(record.get("status", "error"))
+        if status not in counts:
+            status = "error"
+            record["status"] = status
+            record["error"] = {
+                "type": "InvalidDiagnosticStatus",
+                "message": str(source.get("status")),
+            }
+        field = str(record.get("field") or Path(str(record.get("path", "unknown"))).name)
+        record["field"] = field
+        counts[status] += 1
+        field_counts = counts_by_field.setdefault(
+            field, {item: 0 for item in DIAGNOSTIC_FIELD_STATUSES}
+        )
+        field_counts[status] += 1
+        normalized.append(record)
+    return {
+        "field_statuses": normalized,
+        "status_counts": counts,
+        "status_counts_by_field": counts_by_field,
+        "complete": counts["error"] == 0,
+    }
+
+
 def _read_path_record(path: Path, *, unit: Optional[str] = None) -> dict[str, Any]:
     base = {"path": str(path)}
     if unit is not None:
         base["unit"] = unit
     try:
         value = path.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        return {**base, "status": "absent", "errno": 2}
     except (OSError, UnicodeError) as exc:
+        status = _diagnostic_exception_status(exc)
+        if status == "absent":
+            return {**base, "status": status, "errno": errno.ENOENT}
+        if status == "unreadable":
+            return {
+                **base,
+                "status": status,
+                "errno": exc.errno if isinstance(exc, OSError) else None,
+                "error": _error(exc),
+            }
         return {
             **base,
-            "status": "error",
+            "status": status,
             "errno": exc.errno if isinstance(exc, OSError) else None,
             "error": _error(exc),
         }
@@ -1753,43 +2033,80 @@ def _sysfs_diagnostics(cpus: Sequence[int]) -> dict[str, Any]:
         for state in idle["states"]
         for record in (state["usage"], state["time"])
     )
+    records.extend(
+        {"path": idle["path"], "status": idle["status"]}
+        for idle in cpuidle.values()
+    )
     records.extend(record for values in thermal.values() for record in values.values())
     records.extend(
         record for policy in policies for record in policy["values"].values()
     )
     boost = _read_path_record(policy_root / "boost", unit="boolean")
     records.append(boost)
+    field_records = [
+        {**record, "field": Path(str(record["path"])).name}
+        for record in records
+    ]
+    summary = diagnostic_status_summary(field_records)
     return {
         "cpuidle": cpuidle,
         "thermal_throttle": thermal,
         "cpufreq": {"boost": boost, "policies": policies},
-        "errors": [record for record in records if record.get("status") == "error"],
+        **summary,
+        "errors": [
+            record for record in summary["field_statuses"]
+            if record.get("status") == "error"
+        ],
     }
 
 
 def diagnostic_snapshot(cpus: Sequence[int]) -> dict[str, Any]:
     """arm 境界だけで採る in-process diagnostics。"""
-    errors = []
+    field_statuses = []
     snapshot: dict[str, Any] = {"monotonic_ns": time.monotonic_ns()}
     try:
         snapshot["proc_stat"] = _proc_cpu_counters(cpus)
+        field_statuses.append({"field": "proc_stat", "status": "value"})
     except Exception as exc:
         snapshot["proc_stat"] = None
-        errors.append({"field": "proc_stat", **_error(exc)})
+        field_statuses.append(
+            {
+                "field": "proc_stat",
+                "status": _diagnostic_exception_status(exc),
+                "error": _error(exc),
+            }
+        )
     try:
         snapshot["interrupts"] = _interrupt_snapshot()
+        field_statuses.append({"field": "interrupts", "status": "value"})
     except Exception as exc:
         snapshot["interrupts"] = None
-        errors.append({"field": "interrupts", **_error(exc)})
+        field_statuses.append(
+            {
+                "field": "interrupts",
+                "status": _diagnostic_exception_status(exc),
+                "error": _error(exc),
+            }
+        )
     try:
         sysfs = _sysfs_diagnostics(cpus)
         snapshot.update(sysfs)
-        errors.extend({"field": "sysfs", **record} for record in sysfs["errors"])
+        field_statuses.extend(sysfs["field_statuses"])
     except Exception as exc:
         snapshot.update({"cpuidle": None, "thermal_throttle": None, "cpufreq": None})
-        errors.append({"field": "sysfs", **_error(exc)})
-    snapshot["errors"] = errors
-    snapshot["complete"] = not errors
+        field_statuses.append(
+            {
+                "field": "sysfs",
+                "status": _diagnostic_exception_status(exc),
+                "error": _error(exc),
+            }
+        )
+    summary = diagnostic_status_summary(field_statuses)
+    snapshot.update(summary)
+    snapshot["errors"] = [
+        record for record in summary["field_statuses"]
+        if record.get("status") == "error"
+    ]
     return snapshot
 
 
@@ -1930,6 +2247,274 @@ def _cpu_counter_components(values: Sequence[int]) -> dict[str, int]:
     return components
 
 
+def analyze_isolation_subwindow(
+    subwindow_id: str,
+    before_cpu: Mapping[int, Sequence[int]],
+    after_cpu: Mapping[int, Sequence[int]],
+    before_self: Mapping[tuple[int, int], Mapping[str, Any]],
+    after_self: Mapping[tuple[int, int], Mapping[str, Any]],
+    allocated_cpus: Sequence[int],
+    duration_s: float,
+    migration_observed_identities: Sequence[tuple[int, int]] = (),
+    signal_cpus: Optional[Sequence[int]] = None,
+) -> dict[str, Any]:
+    """実時間付き subwindow の unexplained 率を、CPU 横断相殺なしで判定する。"""
+    cpus = sorted(set(int(cpu) for cpu in allocated_cpus))
+    signal_cpu_set = (
+        set(cpus)
+        if signal_cpus is None
+        else {int(cpu) for cpu in signal_cpus if int(cpu) in cpus}
+    )
+    errors: list[str] = []
+    self_by_cpu = {cpu: 0 for cpu in cpus}
+    self_unattributable_processes: list[dict[str, Any]] = []
+    affinity_not_singleton_processes: list[dict[str, Any]] = []
+    migration_observed_processes: list[dict[str, Any]] = []
+    migration_identities = {
+        (int(pid), int(starttime))
+        for pid, starttime in migration_observed_identities
+    }
+    self_ticks_total = 0
+    self_unattributable_total = 0
+    for identity in sorted(set(before_self) | set(after_self)):
+        before = before_self.get(identity)
+        after = after_self.get(identity)
+        if not isinstance(before, Mapping) or not isinstance(after, Mapping):
+            errors.append(f"pid_{identity[0]}:self_boundary_lifetime_missing")
+            continue
+        try:
+            before_start = int(before["starttime"])
+            after_start = int(after["starttime"])
+            before_cpu_id = int(before["processor"])
+            after_cpu_id = int(after["processor"])
+            delta = int(after["ticks"]) - int(before["ticks"])
+        except (KeyError, TypeError, ValueError):
+            errors.append(f"pid_{identity[0]}:self_boundary_unparseable")
+            continue
+        if before_start != identity[1] or after_start != identity[1]:
+            errors.append(f"pid_{identity[0]}:self_boundary_starttime_mismatch")
+            continue
+        if delta < 0:
+            errors.append(f"pid_{identity[0]}:self_boundary_negative_tick_delta")
+            continue
+        self_ticks_total += delta
+        before_affinity = before.get("affinity")
+        after_affinity = after.get("affinity")
+        try:
+            before_affinity_ids = sorted(int(cpu) for cpu in before_affinity)
+            after_affinity_ids = sorted(int(cpu) for cpu in after_affinity)
+        except (TypeError, ValueError):
+            before_affinity_ids = []
+            after_affinity_ids = []
+        stably_singleton = (
+            len(before_affinity_ids) == 1
+            and before_affinity_ids == after_affinity_ids
+            and before_affinity_ids[0] in self_by_cpu
+        )
+        affinity_not_singleton = not stably_singleton
+        migration_observed = (
+            identity in migration_identities or before_cpu_id != after_cpu_id
+        )
+        pinned_cpu = (
+            before_affinity_ids[0]
+            if stably_singleton and not migration_observed
+            else None
+        )
+        if pinned_cpu is not None:
+            self_by_cpu[pinned_cpu] += delta
+            continue
+        self_unattributable_total += delta
+        record = {
+            "pid": identity[0],
+            "starttime": identity[1],
+            "before_cpu": before_cpu_id,
+            "after_cpu": after_cpu_id,
+            "before_affinity": before_affinity_ids,
+            "after_affinity": after_affinity_ids,
+            "cpu_ticks_delta": delta,
+            "affinity_not_singleton": affinity_not_singleton,
+            "migration_observed": migration_observed,
+            "reasons": [
+                reason
+                for reason, present in (
+                    ("affinity_not_singleton", affinity_not_singleton),
+                    ("migration_observed", migration_observed),
+                )
+                if present
+            ],
+        }
+        self_unattributable_processes.append(record)
+        if affinity_not_singleton:
+            affinity_not_singleton_processes.append(record)
+        if migration_observed:
+            migration_observed_processes.append(record)
+
+    components_by_cpu: dict[int, dict[str, int]] = {}
+    process_by_cpu: dict[int, int] = {}
+    residual_by_cpu: dict[int, int] = {}
+    try:
+        counter_delta = _counter_delta(before_cpu, after_cpu)
+    except (TypeError, ValueError) as exc:
+        errors.append(f"subwindow_counter_delta_invalid:{type(exc).__name__}")
+        counter_delta = {}
+    for cpu in cpus:
+        try:
+            components = _cpu_counter_components(counter_delta[cpu])
+        except (KeyError, TypeError, ValueError) as exc:
+            errors.append(f"cpu_{cpu}:subwindow_counter_invalid:{type(exc).__name__}")
+            continue
+        process_ticks = components["process_attributable"]
+        components_by_cpu[cpu] = components
+        process_by_cpu[cpu] = process_ticks
+        residual_by_cpu[cpu] = max(0, process_ticks - self_by_cpu[cpu])
+
+    residual_total = sum(residual_by_cpu.values())
+    unexplained = max(0, residual_total - self_unattributable_total)
+    try:
+        actual_duration_s = float(duration_s)
+    except (TypeError, ValueError, OverflowError):
+        actual_duration_s = math.nan
+    if not math.isfinite(actual_duration_s) or actual_duration_s <= 0.0:
+        errors.append("subwindow_duration_invalid")
+        unexplained_rate: Optional[float] = None
+    else:
+        unexplained_rate = unexplained / actual_duration_s
+    rate_exceedances: list[dict[str, Any]] = []
+    if unexplained >= COMPETITOR_MIN_TICKS and unexplained_rate is not None:
+        for cpu, ticks in sorted(residual_by_cpu.items()):
+            cpu_rate = ticks / actual_duration_s
+            if (
+                ticks >= COMPETITOR_MIN_TICKS
+                and cpu_rate > COMPETITOR_MAX_TICKS_PER_SECOND
+            ):
+                rate_exceedances.append(
+                    {
+                        "cpu": cpu,
+                        "unexplained_ticks": ticks,
+                        "unexplained_ticks_per_second": cpu_rate,
+                        "duration_s": actual_duration_s,
+                    }
+                )
+    signal_rate_exceedances = [
+        item for item in rate_exceedances if int(item["cpu"]) in signal_cpu_set
+    ]
+    non_signal_rate_exceedances = [
+        item for item in rate_exceedances if int(item["cpu"]) not in signal_cpu_set
+    ]
+    competitor = bool(signal_rate_exceedances)
+    migration_with_ticks = any(
+        int(record["cpu_ticks_delta"]) > 0
+        for record in migration_observed_processes
+    )
+    if competitor:
+        attribution = "COMPETITOR"
+    elif unexplained > 0 or migration_with_ticks:
+        attribution = "ATTRIBUTION_UNRESOLVED"
+    else:
+        attribution = "CLEAN"
+    residual_positive_cpus = sorted(
+        cpu for cpu, ticks in residual_by_cpu.items() if ticks > 0
+    )
+    return {
+        "subwindow_id": str(subwindow_id),
+        "duration_s": actual_duration_s,
+        "isolation_attribution": attribution,
+        "affinity_not_singleton": bool(affinity_not_singleton_processes),
+        "affinity_not_singleton_self_processes": affinity_not_singleton_processes,
+        "migration_observed": bool(migration_observed_processes),
+        "migration_observed_self_processes": migration_observed_processes,
+        "migration_detected": bool(migration_observed_processes),
+        # Compatibility-only detail; canonical reports use the two fields above.
+        "migrated_self_processes": self_unattributable_processes,
+        "self_ticks_total": self_ticks_total,
+        "self_attributed_ticks_by_cpu": self_by_cpu,
+        "self_unattributable_total": self_unattributable_total,
+        "self_unattributable_processes": self_unattributable_processes,
+        "process_attributable_ticks_by_cpu": process_by_cpu,
+        "proc_stat_components_by_cpu": components_by_cpu,
+        "residual_ticks_by_cpu": residual_by_cpu,
+        "residual_total": residual_total,
+        "residual_max_ticks": max(residual_by_cpu.values(), default=0),
+        "unexplained_ticks": unexplained,
+        "unexplained_ticks_per_second": unexplained_rate,
+        "signal_cpus": sorted(signal_cpu_set),
+        "signal_rate_exceeded_cpus": [
+            int(item["cpu"]) for item in signal_rate_exceedances
+        ],
+        "non_signal_rate_exceeded_cpus": [
+            int(item["cpu"]) for item in non_signal_rate_exceedances
+        ],
+        "non_signal_rate_exceedances": non_signal_rate_exceedances,
+        "incidental_nonself_cpus": (
+            residual_positive_cpus
+            if attribution == "ATTRIBUTION_UNRESOLVED" and unexplained > 0
+            else []
+        ),
+        "competitor_cpus": [
+            int(item["cpu"]) for item in signal_rate_exceedances
+        ],
+        "errors": errors,
+    }
+
+
+def summarize_isolation_subwindows(
+    subwindows: Sequence[Mapping[str, Any]], allocated_cpus: Sequence[int]
+) -> dict[str, Any]:
+    """subwindow 判定を arm 結果へ集約する。arm 合計 tick は判定に使わない。"""
+    cpus = sorted(set(int(cpu) for cpu in allocated_cpus))
+    maximum = {cpu: 0 for cpu in cpus}
+    incidental_cpus: set[int] = set()
+    competitor = False
+    unresolved = False
+    maximum_rate = 0.0
+    affinity_not_singleton = False
+    migration_observed = False
+    errors: list[str] = []
+    for index, subwindow in enumerate(subwindows):
+        if not isinstance(subwindow, Mapping):
+            errors.append(f"subwindow_{index}:not_mapping")
+            continue
+        for cpu, ticks in subwindow.get("residual_ticks_by_cpu", {}).items():
+            cpu_id = int(cpu)
+            if cpu_id in maximum:
+                maximum[cpu_id] = max(maximum[cpu_id], int(ticks))
+        incidental_cpus.update(int(cpu) for cpu in subwindow.get("incidental_nonself_cpus", []))
+        attribution = subwindow.get("isolation_attribution")
+        competitor = competitor or attribution == "COMPETITOR"
+        unresolved = unresolved or attribution == "ATTRIBUTION_UNRESOLVED"
+        affinity_not_singleton = (
+            affinity_not_singleton
+            or subwindow.get("affinity_not_singleton") is True
+        )
+        migration_observed = (
+            migration_observed or subwindow.get("migration_observed") is True
+        )
+        rate = subwindow.get("unexplained_ticks_per_second")
+        if isinstance(rate, (int, float)) and math.isfinite(float(rate)):
+            maximum_rate = max(maximum_rate, float(rate))
+        errors.extend(
+            f"{subwindow.get('subwindow_id', index)}:{item}"
+            for item in subwindow.get("errors", [])
+        )
+    return {
+        "isolation_attribution": (
+            "COMPETITOR"
+            if competitor
+            else "ATTRIBUTION_UNRESOLVED"
+            if unresolved or not subwindows
+            else "CLEAN"
+        ),
+        "subwindow_evidence_present": bool(subwindows),
+        "max_residual_ticks_by_cpu": maximum,
+        "max_per_cpu_per_subwindow_residual_ticks": max(maximum.values(), default=0),
+        "max_unexplained_ticks_per_second": maximum_rate,
+        "affinity_not_singleton": affinity_not_singleton,
+        "migration_observed": migration_observed,
+        "incidental_nonself_cpus": sorted(incidental_cpus),
+        "errors": errors,
+    }
+
+
 def detect_isolation_competition(
     before_processes: Mapping[int, Mapping[str, Any]],
     after_processes: Mapping[int, Mapping[str, Any]],
@@ -1940,18 +2525,71 @@ def detect_isolation_competition(
     completed_children: Sequence[Mapping[str, Any]] = (),
     pinned_self_intervals: Sequence[Mapping[str, Any]] = (),
     pinned_identity_cpus: Sequence[tuple[int, int, int]] = (),
+    subwindows: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """PID+starttime と CPU 別 residual から単独性を三値判定する。
 
-    曖昧量が自消費以下なら VALID とし、小さい競合は A1 非 pin 側帯外率 <=0.05 が捕捉する。
+    全 process snapshot は identity 証拠だけに使い、判定は実時間付き subwindow に限る。
     """
     cpus = set(int(cpu) for cpu in allocated_cpus)
     allowed = {(int(pid), int(start)) for pid, start in allowed_identities}
-    competitors: list[dict[str, Any]] = []
+    nonself_activity: list[dict[str, Any]] = []
+    nonself_migrations: list[dict[str, Any]] = []
+    snapshot_identity_discontinuities: list[dict[str, Any]] = []
+    nonself_by_cpu = {cpu: 0 for cpu in cpus}
     attributed_by_cpu = {cpu: 0 for cpu in cpus}
     attributed_by_identity: dict[tuple[int, int], int] = {}
     self_unattributable_total = 0
     errors: list[str] = []
+
+    def add_nonself(
+        record: Mapping[str, Any], delta: int, processors: set[int], *, force: bool = False
+    ) -> None:
+        if delta <= 0:
+            return
+        public = record.get("public")
+        if not isinstance(public, Mapping):
+            errors.append("nonself_process_public_record_missing")
+            return
+        if force:
+            snapshot_identity_discontinuities.append(
+                {
+                    **dict(public),
+                    "cpu_ticks_delta": delta,
+                    "attributed_cpu": int(public["processor"]),
+                    "observed_processors": sorted(processors),
+                    "classification": "snapshot_identity_discontinuity",
+                }
+            )
+            return
+        after_cpu = int(public["processor"])
+        in_scope = sorted(processors & cpus)
+        if len(in_scope) > 1:
+            nonself_migrations.append(
+                {
+                    **dict(public),
+                    "cpu_ticks_delta": delta,
+                    "attributed_cpu": None,
+                    "observed_processors": in_scope,
+                    "classification": "attribution_unresolved",
+                }
+            )
+            return
+        if after_cpu in cpus:
+            target = after_cpu
+        elif in_scope:
+            target = in_scope[-1]
+        else:
+            return
+        nonself_by_cpu[target] += delta
+        nonself_activity.append(
+            {
+                **dict(public),
+                "cpu_ticks_delta": delta,
+                "attributed_cpu": target,
+                "observed_processors": sorted(processors),
+            }
+        )
 
     def add_pinned(identity: tuple[int, int], target: int, delta: int, label: str) -> None:
         if identity not in allowed or target not in cpus or delta < 0:
@@ -2025,11 +2663,11 @@ def detect_isolation_competition(
                 else:
                     self_unattributable_total += delta - attributed
             elif delta > 0 and processors & cpus:
-                competitors.append(dict(after["public"]))  # type: ignore[index]
+                add_nonself(after, delta, processors)  # type: ignore[arg-type]
         elif isinstance(after, Mapping):
             processor = int(after["public"]["processor"])
             if after_identity not in allowed and int(after["ticks"]) > 0 and processor in cpus:
-                competitors.append(dict(after["public"]))
+                add_nonself(after, int(after["ticks"]), {processor}, force=True)
 
     counter_delta = _counter_delta(before_cpu, after_cpu)
     components_by_cpu: dict[int, dict[str, int]] = {}
@@ -2046,30 +2684,84 @@ def detect_isolation_competition(
         process_by_cpu[cpu] = process_ticks
         residual_by_cpu[cpu] = max(0, process_ticks - attributed_by_cpu[cpu])
     residual_total = sum(residual_by_cpu.values())
-    if competitors or residual_total > self_unattributable_total:
+    snapshot_nonself_processes = [
+        {**item, "classification": "snapshot_identity_evidence"}
+        for item in nonself_activity
+    ]
+    unknown_residual_by_cpu = {
+        cpu: max(0, residual_by_cpu.get(cpu, 0) - nonself_by_cpu[cpu])
+        for cpu in sorted(cpus)
+    }
+    unknown_residual_total = sum(unknown_residual_by_cpu.values())
+    subwindow_summary = summarize_isolation_subwindows(subwindows, sorted(cpus))
+    if subwindow_summary["isolation_attribution"] == "COMPETITOR":
         attribution = "COMPETITOR"
-    elif residual_total == 0:
-        attribution = "CLEAN"
-    else:
+    elif subwindow_summary["isolation_attribution"] == "ATTRIBUTION_UNRESOLVED":
         attribution = "ATTRIBUTION_UNRESOLVED"
+    else:
+        attribution = "CLEAN"
+    competitors = (
+        snapshot_identity_discontinuities + snapshot_nonself_processes
+        if attribution == "COMPETITOR"
+        else []
+    )
     return {
         "isolation_attribution": attribution,
         "competition_detected": attribution == "COMPETITOR",
         "competitors": competitors,
+        "snapshot_nonself_processes": snapshot_nonself_processes,
+        "snapshot_identity_discontinuities": snapshot_identity_discontinuities,
+        "nonself_migration_unresolved_processes": nonself_migrations,
+        "snapshot_nonself_ticks_by_cpu": {
+            cpu: ticks for cpu, ticks in sorted(nonself_by_cpu.items()) if ticks > 0
+        },
+        "incidental_nonself_cpus": subwindow_summary["incidental_nonself_cpus"],
         "proc_stat_components_by_cpu": components_by_cpu,
         "process_attributable_ticks_by_cpu": process_by_cpu,
         "self_attributed_ticks_by_cpu": attributed_by_cpu,
         "residual_ticks_by_cpu": residual_by_cpu,
         "residual_total": residual_total,
         "self_unattributable_total": self_unattributable_total,
+        "unknown_residual_ticks_by_cpu": unknown_residual_by_cpu,
+        "unknown_residual_total": unknown_residual_total,
+        "subwindows": [dict(item) for item in subwindows],
+        "subwindow_evidence_present": subwindow_summary[
+            "subwindow_evidence_present"
+        ],
+        "max_residual_ticks_by_cpu": subwindow_summary["max_residual_ticks_by_cpu"],
+        "max_per_cpu_per_subwindow_residual_ticks": subwindow_summary[
+            "max_per_cpu_per_subwindow_residual_ticks"
+        ],
+        "max_unexplained_ticks_per_second": subwindow_summary[
+            "max_unexplained_ticks_per_second"
+        ],
+        "affinity_not_singleton": subwindow_summary["affinity_not_singleton"],
+        "migration_observed": subwindow_summary["migration_observed"],
         # Compatibility diagnostic name; no CPU-crossing cancellation is performed.
         "unattributed_ticks_by_cpu": residual_by_cpu,
-        "errors": errors,
+        "errors": errors + subwindow_summary["errors"],
     }
 
 
+def _self_tree_stat_snapshot(
+    identities: Sequence[tuple[int, int]],
+) -> dict[tuple[int, int], dict[str, Any]]:
+    """既知の自 tree PID の stat と affinity を subwindow 境界で採る。"""
+    snapshot: dict[tuple[int, int], dict[str, Any]] = {}
+    for pid, starttime in sorted((int(pid), int(start)) for pid, start in identities):
+        stat = _child_stat(pid)
+        if int(stat["starttime"]) != starttime:
+            raise RuntimeError(f"self tree PID {pid} starttime changed")
+        try:
+            affinity: Optional[list[int]] = sorted(os.sched_getaffinity(pid))
+        except (AttributeError, OSError):
+            affinity = None
+        snapshot[(pid, starttime)] = {"pid": pid, **stat, "affinity": affinity}
+    return snapshot
+
+
 class IsolationTracker:
-    """arm 前後だけを採り、PID+starttime と未帰属 tick で単独性を判定する。
+    """arm 前後の全 process と、subwindow 境界の自 tree stat で単独性を判定する。
 
     self の process 窓は CPU counter 窓を包含し、隠れうる量の上界は skew 区間である。
     """
@@ -2082,11 +2774,14 @@ class IsolationTracker:
         self._before_processes: dict[int, dict[str, Any]] = {}
         self._before_cpu: dict[int, list[int]] = {}
         self._base_allowed: set[tuple[int, int]] = set()
+        self._completed_identities: set[tuple[int, int]] = set()
         self._self_identity: tuple[int, int] = (os.getpid(), -1)
         self.pinned_self_intervals: list[dict[str, Any]] = []
         self.pinned_identity_cpus: list[tuple[int, int, int]] = []
         self._start_process_snapshot_ns: Optional[int] = None
         self._start_cpu_counter_ns: Optional[int] = None
+        self.subwindows: list[dict[str, Any]] = []
+        self._open_subwindow: Optional[dict[str, Any]] = None
 
     def allow_child(self, pid: int, evidence: Mapping[str, Any]) -> None:
         self.active_children[int(pid)] = (int(pid), int(evidence["starttime"]))
@@ -2094,7 +2789,7 @@ class IsolationTracker:
     def disallow_child(self, pid: int, evidence: Mapping[str, Any]) -> None:
         identity = self.active_children.pop(int(pid), None)
         if identity is not None:
-            self._base_allowed.add(identity)
+            self._completed_identities.add(identity)
         self.completed_children.append(dict(evidence))
 
     def record_pinned_self_interval(
@@ -2113,6 +2808,98 @@ class IsolationTracker:
                 "cpu_ticks_delta": int(end["ticks"]) - int(start["ticks"]),
             }
         )
+
+    def start_subwindow(self, subwindow_id: str) -> None:
+        """anchor の直前に CPU counter と自 tree stat の境界サンプルを採る。"""
+        if self._open_subwindow is not None:
+            raise RuntimeError("isolation subwindow already open")
+        identities = self._base_allowed | set(self.active_children.values())
+        self_snapshot = _self_tree_stat_snapshot(sorted(identities))
+        self_snapshot_ns = time.monotonic_ns()
+        cpu_snapshot = _proc_cpu_counters(sorted(self.cpus))
+        cpu_snapshot_ns = time.monotonic_ns()
+        self._open_subwindow = {
+            "subwindow_id": str(subwindow_id),
+            "identities": sorted(identities),
+            "before_self": self_snapshot,
+            "before_cpu": cpu_snapshot,
+            "start_self_snapshot_monotonic_ns": self_snapshot_ns,
+            "start_cpu_snapshot_monotonic_ns": cpu_snapshot_ns,
+        }
+
+    def finish_subwindow(
+        self,
+        subwindow_id: str,
+        readings: Sequence[Mapping[str, Any]] = (),
+        additional_signal_cpus: Sequence[int] = (),
+    ) -> dict[str, Any]:
+        """最後の primary read 後に境界サンプルを採り、subwindow を閉じる。"""
+        opened = self._open_subwindow
+        if opened is None or opened.get("subwindow_id") != str(subwindow_id):
+            raise RuntimeError("isolation subwindow close mismatch")
+        cpu_snapshot = _proc_cpu_counters(sorted(self.cpus))
+        cpu_snapshot_ns = time.monotonic_ns()
+        self_snapshot = _self_tree_stat_snapshot(opened["identities"])
+        self_snapshot_ns = time.monotonic_ns()
+        duration_ns = cpu_snapshot_ns - opened["start_cpu_snapshot_monotonic_ns"]
+        observed_reader_cpus: list[int] = []
+        signal_cpus = {int(cpu) for cpu in additional_signal_cpus}
+        reader_transition = False
+        reader_observation_errors = 0
+        for reading in readings:
+            try:
+                before_reader = int(reading["reader_cpu_before"])
+                after_reader = int(reading["reader_cpu_after"])
+            except (KeyError, TypeError, ValueError):
+                reader_observation_errors += 1
+                continue
+            observed_reader_cpus.extend((before_reader, after_reader))
+            signal_cpus.update((before_reader, after_reader))
+            pin_target = reading.get("pin_target")
+            if pin_target is not None:
+                try:
+                    signal_cpus.add(int(pin_target))
+                except (TypeError, ValueError):
+                    reader_observation_errors += 1
+            reader_transition = reader_transition or before_reader != after_reader
+        reader_migration = reader_transition or len(set(observed_reader_cpus)) > 1
+        analysis = analyze_isolation_subwindow(
+            str(subwindow_id),
+            opened["before_cpu"],
+            cpu_snapshot,
+            opened["before_self"],
+            self_snapshot,
+            sorted(self.cpus),
+            duration_ns / 1e9,
+            [self._self_identity] if reader_migration else [],
+            sorted(signal_cpus),
+        )
+        analysis["duration_ns"] = duration_ns
+        analysis["errors"].extend(
+            "reader_cpu_observation_unparseable"
+            for _ in range(reader_observation_errors)
+        )
+        analysis["observed_reader_cpus"] = sorted(set(observed_reader_cpus))
+        analysis["observed_reader_migration"] = reader_migration
+        analysis["boundary_timestamps"] = {
+            "start_self_snapshot_monotonic_ns": opened[
+                "start_self_snapshot_monotonic_ns"
+            ],
+            "start_cpu_snapshot_monotonic_ns": opened[
+                "start_cpu_snapshot_monotonic_ns"
+            ],
+            "end_cpu_snapshot_monotonic_ns": cpu_snapshot_ns,
+            "end_self_snapshot_monotonic_ns": self_snapshot_ns,
+        }
+        analysis["boundary_skew_ns"] = (
+            opened["start_cpu_snapshot_monotonic_ns"]
+            - opened["start_self_snapshot_monotonic_ns"]
+            + self_snapshot_ns
+            - cpu_snapshot_ns
+        )
+        self.subwindows.append(analysis)
+        self._open_subwindow = None
+        return analysis
 
     def start(self) -> None:
         visible, visibility_errors = _proc_mount_visible()
@@ -2155,6 +2942,8 @@ class IsolationTracker:
         }
 
     def finish(self) -> dict[str, Any]:
+        if self._open_subwindow is not None:
+            raise RuntimeError("isolation subwindow left open")
         cpu = _proc_cpu_counters(sorted(self.cpus))
         cpu_counter_ns = time.monotonic_ns()
         processes, errors = _process_snapshot()
@@ -2184,7 +2973,11 @@ class IsolationTracker:
             "end": end_skew_ns,
         }
         self.record["window_skew_ns"] = start_skew_ns + end_skew_ns
-        allowed = self._base_allowed | set(self.active_children.values())
+        allowed = (
+            self._base_allowed
+            | self._completed_identities
+            | set(self.active_children.values())
+        )
         analysis = detect_isolation_competition(
             self._before_processes,
             processes,
@@ -2195,6 +2988,7 @@ class IsolationTracker:
             self.completed_children,
             self.pinned_self_intervals,
             self.pinned_identity_cpus,
+            self.subwindows,
         )
         self.record.update(analysis)
         return self.record
@@ -2469,20 +3263,29 @@ def _run_child_condition(
     tracker.allow_child(pid, evidence)
     reads: list[dict[str, Any]] = []
     anchor: Optional[dict[str, Any]] = None
+    subwindow_id = f"A2:target:{cpu}:mode:{mode}"
     try:
-        anchor = collect_cpuinfo_read(pin_target=reader_cpu, raw_cpuinfo=raw_cpuinfo)
-        reads = _collect_series(
-            count,
-            pin_target=reader_cpu,
-            interval_s=interval_s,
-            raw_cpuinfo=raw_cpuinfo,
-            first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
-            hard_deadline_ns=hard_deadline_ns,
-        )
+        tracker.start_subwindow(subwindow_id)
+        try:
+            anchor = collect_cpuinfo_read(pin_target=reader_cpu, raw_cpuinfo=raw_cpuinfo)
+            reads = _collect_series(
+                count,
+                pin_target=reader_cpu,
+                interval_s=interval_s,
+                raw_cpuinfo=raw_cpuinfo,
+                first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
+                hard_deadline_ns=hard_deadline_ns,
+            )
+        finally:
+            tracker.finish_subwindow(
+                subwindow_id, reads, additional_signal_cpus=[cpu]
+            )
     finally:
         _stop_child(pid, evidence)
         registry.completed(pid)
         tracker.disallow_child(pid, evidence)
+    for reading in reads:
+        reading["isolation_subwindow_id"] = subwindow_id
     status = intervention_status(mode, cpu, evidence)
     return {
         "mode": mode,
@@ -3172,22 +3975,29 @@ def run_experiment(
             raise RuntimeError("experiment admission preflight failed")
 
         def baseline(tracker: IsolationTracker) -> dict[str, Any]:
-            del tracker
             blocks = []
             reads = []
             anchors = []
             for block in range(BASELINE_READS // ALPHA_K):
                 check_deadline(f"A0:block:{block}")
-                anchor = collect_cpuinfo_read(pin_target=None, raw_cpuinfo=raw_cpuinfo)
-                anchors.append(anchor)
-                measured = _collect_series(
-                    ALPHA_K,
-                    pin_target=None,
-                    interval_s=interval_s,
-                    raw_cpuinfo=raw_cpuinfo,
-                    first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
-                    hard_deadline_ns=hard_deadline_ns,
-                )
+                subwindow_id = f"A0:block:{block}"
+                tracker.start_subwindow(subwindow_id)
+                measured: list[dict[str, Any]] = []
+                try:
+                    anchor = collect_cpuinfo_read(pin_target=None, raw_cpuinfo=raw_cpuinfo)
+                    anchors.append(anchor)
+                    measured = _collect_series(
+                        ALPHA_K,
+                        pin_target=None,
+                        interval_s=interval_s,
+                        raw_cpuinfo=raw_cpuinfo,
+                        first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
+                        hard_deadline_ns=hard_deadline_ns,
+                    )
+                finally:
+                    tracker.finish_subwindow(subwindow_id, measured)
+                for reading in measured:
+                    reading["isolation_subwindow_id"] = subwindow_id
                 reads.extend(measured)
                 blocks.append({"block": block, "discarded_anchor": anchor, "reads": measured})
             return {"reads": reads, "blocks": blocks, "discarded_anchors": anchors}
@@ -3208,19 +4018,27 @@ def run_experiment(
             by_pin = []
             for cpu in pin_order:
                 os.sched_setaffinity(0, {cpu})
+                subwindow_id = f"A1:pin:{cpu}"
+                tracker.start_subwindow(subwindow_id)
                 interval_start = _child_stat(os.getpid())
-                anchor = collect_cpuinfo_read(pin_target=cpu, raw_cpuinfo=raw_cpuinfo)
-                anchors.append(anchor)
-                measured = _collect_series(
-                    PIN_REPEATS,
-                    pin_target=cpu,
-                    interval_s=interval_s,
-                    raw_cpuinfo=raw_cpuinfo,
-                    first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
-                    hard_deadline_ns=hard_deadline_ns,
-                )
-                interval_end = _child_stat(os.getpid())
-                tracker.record_pinned_self_interval(cpu, interval_start, interval_end)
+                measured: list[dict[str, Any]] = []
+                try:
+                    anchor = collect_cpuinfo_read(pin_target=cpu, raw_cpuinfo=raw_cpuinfo)
+                    anchors.append(anchor)
+                    measured = _collect_series(
+                        PIN_REPEATS,
+                        pin_target=cpu,
+                        interval_s=interval_s,
+                        raw_cpuinfo=raw_cpuinfo,
+                        first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
+                        hard_deadline_ns=hard_deadline_ns,
+                    )
+                    interval_end = _child_stat(os.getpid())
+                    tracker.record_pinned_self_interval(cpu, interval_start, interval_end)
+                finally:
+                    tracker.finish_subwindow(subwindow_id, measured)
+                for reading in measured:
+                    reading["isolation_subwindow_id"] = subwindow_id
                 reads.extend(measured)
                 by_pin.append({"pin_target": cpu, "reads": measured})
             return {
@@ -3235,53 +4053,76 @@ def run_experiment(
         ))
         cooldown("after_A1")
 
-        unpin_anchor: dict[str, Any] = {}
-
-        def unpin_setup() -> list[dict[str, Any]]:
-            anchor = collect_cpuinfo_read(pin_target=None, raw_cpuinfo=raw_cpuinfo)
-            unpin_anchor["reading"] = anchor
-            return [anchor]
-
         os.sched_setaffinity(0, set(original_affinity))
-        store_arm("A4_migration_description", _execute_arm(
-            "A4_migration_description",
-            allocated_cpus,
-            lambda tracker: {
-                "reads": _collect_series(
+        def migration_description(tracker: IsolationTracker) -> dict[str, Any]:
+            subwindow_id = "A4:migration_description"
+            tracker.start_subwindow(subwindow_id)
+            reads: list[dict[str, Any]] = []
+            isolation_subwindow: Optional[dict[str, Any]] = None
+            try:
+                anchor = collect_cpuinfo_read(pin_target=None, raw_cpuinfo=raw_cpuinfo)
+                reads = _collect_series(
                     MIGRATION_READS,
                     pin_target=None,
                     interval_s=interval_s,
                     raw_cpuinfo=raw_cpuinfo,
                     first_deadline_ns=(
-                        unpin_anchor["reading"]["started_monotonic_ns"]
-                        + int(interval_s * 1e9)
+                        anchor["started_monotonic_ns"] + int(interval_s * 1e9)
                     ),
                     hard_deadline_ns=hard_deadline_ns,
+                )
+            finally:
+                isolation_subwindow = tracker.finish_subwindow(subwindow_id, reads)
+            for reading in reads:
+                reading["isolation_subwindow_id"] = subwindow_id
+            return {
+                "reads": reads,
+                "discarded_anchors": [anchor],
+                "migration_conclusion": (
+                    "OBSERVED"
+                    if isolation_subwindow.get("migration_observed") is True
+                    else "NOT_OBSERVED"
                 ),
-                "migration_conclusion": "UNRESOLVED",
+                "migration_observed": isolation_subwindow.get(
+                    "migration_observed"
+                ),
+                "affinity_not_singleton": isolation_subwindow.get(
+                    "affinity_not_singleton"
+                ),
                 "used_for_causal_verdict": False,
-            },
-            setup_fn=unpin_setup,
+            }
+
+        store_arm("A4_migration_description", _execute_arm(
+            "A4_migration_description",
+            allocated_cpus,
+            migration_description,
         ))
         cooldown("after_A4")
 
         def alpha_quiet(tracker: IsolationTracker) -> dict[str, Any]:
-            del tracker
             blocks = []
             reads = []
             anchors = []
             for block in range(ALPHA_QUIET_BLOCKS):
                 check_deadline(f"A3_quiet:block:{block}")
-                anchor = collect_cpuinfo_read(pin_target=None, raw_cpuinfo=raw_cpuinfo)
-                anchors.append(anchor)
-                measured = _collect_series(
-                    ALPHA_K,
-                    pin_target=None,
-                    interval_s=interval_s,
-                    raw_cpuinfo=raw_cpuinfo,
-                    first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
-                    hard_deadline_ns=hard_deadline_ns,
-                )
+                subwindow_id = f"A3_quiet:block:{block}"
+                tracker.start_subwindow(subwindow_id)
+                measured: list[dict[str, Any]] = []
+                try:
+                    anchor = collect_cpuinfo_read(pin_target=None, raw_cpuinfo=raw_cpuinfo)
+                    anchors.append(anchor)
+                    measured = _collect_series(
+                        ALPHA_K,
+                        pin_target=None,
+                        interval_s=interval_s,
+                        raw_cpuinfo=raw_cpuinfo,
+                        first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
+                        hard_deadline_ns=hard_deadline_ns,
+                    )
+                finally:
+                    tracker.finish_subwindow(subwindow_id, measured)
+                for reading in measured:
+                    reading["isolation_subwindow_id"] = subwindow_id
                 reads.extend(measured)
                 blocks.append(
                     {
@@ -3376,16 +4217,24 @@ def run_experiment(
             try:
                 for block in range(ALPHA_CONTENTION_BLOCKS):
                     check_deadline(f"A3_contention:block:{block}")
-                    anchor = collect_cpuinfo_read(pin_target=None, raw_cpuinfo=raw_cpuinfo)
-                    anchors.append(anchor)
-                    measured = _collect_series(
-                        ALPHA_K,
-                        pin_target=None,
-                        interval_s=interval_s,
-                        raw_cpuinfo=raw_cpuinfo,
-                        first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
-                        hard_deadline_ns=hard_deadline_ns,
-                    )
+                    subwindow_id = f"A3_contention:block:{block}"
+                    tracker.start_subwindow(subwindow_id)
+                    measured: list[dict[str, Any]] = []
+                    try:
+                        anchor = collect_cpuinfo_read(pin_target=None, raw_cpuinfo=raw_cpuinfo)
+                        anchors.append(anchor)
+                        measured = _collect_series(
+                            ALPHA_K,
+                            pin_target=None,
+                            interval_s=interval_s,
+                            raw_cpuinfo=raw_cpuinfo,
+                            first_deadline_ns=anchor["started_monotonic_ns"] + int(interval_s * 1e9),
+                            hard_deadline_ns=hard_deadline_ns,
+                        )
+                    finally:
+                        tracker.finish_subwindow(subwindow_id, measured)
+                    for reading in measured:
+                        reading["isolation_subwindow_id"] = subwindow_id
                     reads.extend(measured)
                     blocks.append(
                         {

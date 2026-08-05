@@ -225,3 +225,9 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:s8c-automatic-activation":"D165"},"authored":"2026-08-05","content_sha256":"2250f18e20f2329b6e130be64161da7d99af0f5c0c3d736ad81c8018ac0ce2e7","seq":1,"wave":"dev-wave-t327-prereg-activation"}
 
 - {"allocations":{"T:guard-bash-module-borrow-family":"[T-483]","T:pegasus-login-procedure-blocked-family":"[T-481]","T:sanctioned-path-argv-granularity":"[T-482]"},"authored":"2026-08-05","content_sha256":"a2d42cfbaf9469dfa926c58fe714c20593a02ed767764c62db9c2834ecfc5593","seq":1,"wave":"dev-wave-t455-guard-bash-sanction-fetch"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"e8ec964b78f2b9bf76478e4382a06de754f94e7c6ad5e0591a602c5b0f87bf3c","seq":1,"wave":"dev-wave-t419-probe-rerun"}
+
+- {"allocations":{"T:reflux-evidence-resolver-contract":"[T-485]","T:reflux-query-receipt-binding":"[T-484]"},"authored":"2026-08-05","content_sha256":"d4dc9ef1386b69a4dd301f8231a88cb75c5318a3be045d6ca72bda3d02504b74","seq":1,"wave":"dev-wave-t244-p4-batch-freeze"}
+- {"allocations":{"D:p4-batch-freeze-ledger-conformance":"D166"},"authored":"2026-08-05","content_sha256":"bd86948b32b4b7ad9fac1cbd35e2f92e5227514473e7b0409ba4d46727f767ab","seq":2,"wave":"dev-wave-t244-p4-batch-freeze"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"faaa472fb6a70abc4a19a13c5defa53949464081d33309b03534168e0fe59377","seq":3,"wave":"dev-wave-t244-p4-batch-freeze"}

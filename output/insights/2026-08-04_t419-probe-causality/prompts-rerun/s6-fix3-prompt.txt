@@ -1,0 +1,69 @@
+あなたは izanagi dev-wave 段 6 の fix 実装子 (3 巡目・最終、Codex role=author、workspace-write) である。
+段 5 実装子契約を全文継承する — 読めなければ即停止し、その旨だけ報告せよ:
+`/work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s5-impl-prompt.txt`
+
+## 正本
+
+- 親 brief (**erratum-3 と erratum-4 が最優先**):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/brief.md
+- 焦点再レビュー 2 巡目 (NO-GO、今回の対象):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s6-refocus2.md
+
+編集してよいのは 2 ファイル (`t419_probe_causality.py` / `test_t419_probe_causality.py`)。
+**これが最後の fix 巡回である。新機能を足さず、下記 3 点だけを直せ。**
+
+## 親の裁定
+
+### M-1 (b1) 窓内 migration を検出したら self 帰属を撤回する
+
+現状は両端 affinity から per-CPU 帰属を決め、窓内 migration を検出しても**その帰属を撤回していない**。
+検出した時点でその自 process の **per-CPU 帰属を取り消し、全量を
+`self_unattributable_total` へ移す**こと。endpoint 由来の帰属を残さない。
+単一理由 fixture を足す: **両端の affinity が同一 singleton なのに窓内で移動した self**
+(equal-singleton return migration) → per-CPU 帰属されず、`ATTRIBUTION_UNRESOLVED` になる。
+
+### M-2 (b2) `migration_detected` の意味を正す
+
+現状は「affinity が singleton でない」ことを migration と記録しており、非 pin の reader が
+常に migration 扱いになる。次の 2 つを**別 field** に分ける。
+
+- `affinity_not_singleton`: 単一 CPU に固定されていない (= per-CPU 帰属できない)。
+- `migration_observed`: 実際に走行 CPU が変わったことを観測した。
+
+どちらも per-CPU 帰属は行わない (全量 unattributable) が、**記録上は区別する**。
+A4 (migration 記述 arm) と因果レポートがこの 2 つを混同しないこと。
+
+### M-3 (erratum-4) 閾値を実測に基づき再較正する
+
+`COMPETITOR_MAX_TICKS_PER_SECOND` を **6.7 → 25.0** にする。docstring の根拠を次へ差し替える:
+
+「走行 889279 の実測 65 subwindow で、非自活動の率は中央値 0.00 / 最大 11.86 tick/s。
+その活動は読み値を汚していない — A1 の control 観測 11,280 件のうち帯外は 1 件 (0.0089%) で、
+率 7.9 tick/s の subwindow が 4 つあっても control 帯外は増えなかった。
+一方 A2 が置く busy child は 1 コア占有で約 100 tick/s。
+25.0 は観測された背景最大 11.86 の約 2 倍、1 コア占有の約 1/4 であり、
+背景ノイズと実負荷を分離する。絶対下限 3 tick は据え置き。」
+
+**因果判定の 3 条件 (0.95 / 0.05 / 46) は 1 bit も変えない。**
+テストで 25.0 の値そのものと、絶対下限 3 tick の境界 (2 tick は通る / 3 tick かつ率超えは落ちる) を固定する。
+
+## 禁止 (再掲)
+
+- 因果 3 条件、canonical band、`INVALID ⇒ NOT_EVALUATED`、**445 primary read**、arm 順序、
+  anchor・cooldown・critical window の純度、投入時 hash 束縛、α の巡回実装を変えない。
+- 既存テスト node の期待値を変えない (**M-3 の閾値定数を参照している既存 assert の値更新だけは
+  親が承認する**。それ以外は禁止)。
+- 受理集合を緩める方向の変更をしない。
+
+## 報告義務
+
+- M-1〜M-3 の closed / partial / regressed 対応表と、焦点再レビュー 2 巡目の 2 所見への対応。
+- 追加・変更したテスト node の完全列挙。**承認した閾値定数の参照更新以外に既存期待値の変更が
+  0 件であること**を明示。
+- **445 が不変であること**を確認して報告。
+- `python3.10 -m py_compile` と純計算 `--self-test` の rc。pytest は走らせない (0 件)。
+
+## 総括
+
+最後に必ず `## 総括` 節: (a) closed/partial/regressed、(b) 残リスク、(c) 親が実機で確認すべき事項、
+を 10 行以内。

@@ -1,0 +1,70 @@
+あなたは izanagi dev-wave 段 6 の fix 実装子 (2 巡目、Codex role=author、workspace-write) である。
+段 5 実装子契約を全文継承する — 読めなければ即停止し、その旨だけ報告せよ:
+`/work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s5-impl-prompt.txt`
+
+## 正本
+
+- 親 brief (**erratum-3 が最優先。erratum-2 の該当部分を supersede する**):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/brief.md
+- 焦点再レビュー (NO-GO、今回の対象):
+  /work/1/SFC/tanab/dev-wave-jobs/t419-probe-rerun/s6-refocus.md
+
+編集してよいのは 2 ファイル (`t419_probe_causality.py` / `test_t419_probe_causality.py`)。
+
+## 親の裁定 (erratum-3 の実装)
+
+### L-1 (S6R2-01 / S6-02 / S6R2-06) 判定を duration 正規化した率へ一本化する
+
+- **COMPETITOR の唯一の判定**: subwindow ごとに
+  `unexplained >= 3 tick` **かつ** `unexplained / duration_s > 6.7 tick/s`。
+  それ以外は `unexplained > 0` なら `ATTRIBUTION_UNRESOLVED`、0 なら `CLEAN`。
+- 定数を外出しし (`COMPETITOR_MIN_TICKS = 3`、`COMPETITOR_MAX_TICKS_PER_SECOND = 6.7`)、
+  docstring に根拠を書く: 「CLK_TCK=100 で 1 CPU の約 6.7%。前 wave A0 の実測 (常駐デーモンの
+  CPU 22 は 1.558 秒で residual 1 tick = 0.64 tick/s、かつ 30/30 帯内) の約 10 倍の余裕。
+  絶対下限 3 tick は極短窓での hair-trigger 防止」。
+- **`SNAPSHOT_NONSELF_TICKS_MAX` 系の arm 合計絶対 tick 判定を完全に削除する。**
+  no-subwindow fallback も残さない。**subwindow データが 1 つも無い arm は
+  fallback 閾値でなく構造欠陥として INVALID** にする (専用の validity reason を立てる)。
+- **非自 PID の snapshot 規則は identity と証拠の記録専用**にし、それ単独では COMPETITOR にしない。
+- subwindow ごとの **実 duration を必ず記録**する (率の分母であり、実機確認に要る)。
+  per-CPU per-subwindow residual の最大値の記録は維持する。
+- **A4 は読み方を変えない。** 率判定にしたので 1 窓 1.5 秒のままでよい。
+
+### L-2 (S6R2-02) self 帰属は pin されているときだけ
+
+- その subwindow の**全区間で affinity が単一 CPU で変化していない**自 process だけを
+  その CPU へ帰属させる。それ以外 (非 pin、途中で affinity が変わった、確認できない) は
+  **全量を `self_unattributable_total` へ入れる**。
+  **endpoint の CPU から per-CPU 量を推定してはならない** (c0→c1→c0 の往復は endpoint では見えない)。
+- `unexplained = max(0, Σ_cpu residual_cpu − self_unattributable_total)`。
+  自分の非 pin reader の消費で自分を COMPETITOR と誤断しないため。
+- 単一理由 fixture を足す: (i) 非 pin self が大量消費 → COMPETITOR にならない、
+  (ii) endpoint が同一で途中移動した self → per-CPU 帰属されず UNRESOLVED、
+  (iii) 真の非自負荷が率超え → COMPETITOR。
+
+### L-3 (S6R2-03 / S6-05) α の key を正す
+
+`method_table.alpha` は**巡回込みの α そのもの**にする。旧方式は `alpha_without_rotation` へ改名し、
+**`alpha` key では取得できないようにする (alias を残さない)**。
+**この 1 点に限り、既存テストが `alpha` key を読んでいる箇所の変更を親が承認する。**
+それ以外の既存テストの期待値変更は従来どおり禁止。
+
+## 禁止 (再掲)
+
+- 因果 3 条件 (0.95 / 0.05 / 46)、canonical band、`INVALID ⇒ NOT_EVALUATED`、
+  **445 primary read**、arm 順序、anchor・cooldown・critical window の純度、投入時 hash 束縛を変えない。
+- **境界サンプルを read と read の間に入れない** (既存の最重要規律)。
+- 受理集合を緩める方向の変更をしない。新機能を足さない。
+
+## 報告義務
+
+- **L-1〜L-3 と S6R2-01〜S6R2-06 の closed / partial / regressed 対応表**。
+- 追加・変更したテスト node の完全列挙。**承認した α key の変更以外に既存期待値の変更が
+  0 件であること**を明示。
+- **445 が不変であること**を確認して報告。
+- `python3.10 -m py_compile` と純計算 `--self-test` の rc。pytest は走らせない (0 件)。
+
+## 総括
+
+最後に必ず `## 総括` 節: (a) closed/partial/regressed の集計、(b) 残リスク、
+(c) 親が実機で確認すべき事項、を 12 行以内。

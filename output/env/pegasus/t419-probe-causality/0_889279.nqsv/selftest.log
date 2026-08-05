@@ -1,0 +1,17 @@
+PASS no_effect VALID REFUTED
+PASS all_out_of_band VALID REFUTED
+PASS missing_reads INVALID NOT_EVALUATED
+PASS primary_count_only INVALID NOT_EVALUATED
+PASS in_band_non_nominal constructed
+PASS alpha_converges constructed
+PASS contention INVALID NOT_EVALUATED
+PASS paired_contrast_only VALID REFUTED
+PASS missing_cpu INVALID NOT_EVALUATED
+PASS child_evidence_missing INVALID NOT_EVALUATED
+PASS child_status_mismatch INVALID NOT_EVALUATED
+PASS exception_only INVALID NOT_EVALUATED
+PASS band_missing INVALID NOT_EVALUATED
+PASS parser_unavailable INVALID NOT_EVALUATED
+PASS population_missing INVALID NOT_EVALUATED
+PASS overreject VALID CONFIRMED
+PASS confirmed VALID CONFIRMED
