@@ -14,7 +14,7 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
 - ahead>0 のブランチは `git cherry main <b>` を出す。rebase / cherry-pick で取り込まれた側は
   ahead>0 のまま残るため、ahead だけでは取り残しの有無を判定できない。`+` 行が真の取り残しで、
   ファイルが main に無ければ取り込み漏れとして §5 で報告する
-- `python3 tools/audit_dangling_commits.py` は rc=0 のみ削除へ進み、rc≠0 は停止し §5 報告
+- `python3 tools/audit_dangling_commits.py` rc0削除/1§5報告・救出判断/2実行不能・削除停止
 
 ## 2. 安全条件 (満たさないものは削除せず報告に回す)
 

@@ -177,7 +177,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "0f202920c97ec97d7625c343d377686cc6511b2b78a01cb502077123fd49429a"
+    "757d46a3f7f7b4563d5731a931fde73cfd1bbd6364a6af1ee8a2c14279f39c35"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -246,7 +246,7 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
 - ahead>0 のブランチは `git cherry main <b>` を出す。rebase / cherry-pick で取り込まれた側は
   ahead>0 のまま残るため、ahead だけでは取り残しの有無を判定できない。`+` 行が真の取り残しで、
   ファイルが main に無ければ取り込み漏れとして §5 で報告する
-- `python3 tools/audit_dangling_commits.py` は rc=0 のみ削除へ進み、rc≠0 は停止し §5 報告
+- `python3 tools/audit_dangling_commits.py` rc0削除/1§5報告・救出判断/2実行不能・削除停止
 
 ## 2. 安全条件 (満たさないものは削除せず報告に回す)
 
