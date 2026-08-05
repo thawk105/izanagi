@@ -368,3 +368,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:cleanup-fix-creates-destructive-path":"F137","F:mutation-expected-nodes-underregistered":"F138"},"authored":"2026-08-06","content_sha256":"fd915b5d32fb0e35785603d110cefbcd4c95ad811b19164c604c756e7543c22b","seq":3,"wave":"dev-wave-t419-u2-recalibration"}
 - {"allocations":{"T:certify-pinned-dependency-sources-missing":"[T-564]"},"authored":"2026-08-06","content_sha256":"466ae95956cb0deec3eb29b9416322122618027099bdf15b3548289a622e5309","seq":4,"wave":"dev-wave-t419-u2-recalibration"}
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"a8b25368f5d51fe3a0bd2fd6e43f10da7ab8cc2bcbce5a3a36d1aa0b4768f170","seq":5,"wave":"dev-wave-t419-u2-recalibration"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"449fff529de98c94549f9922feddedbd42d42b1d2a2eb73fe060083b2a2c80e7","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
+- {"allocations":{"D:critic-candidate-label-projection":"D192"},"authored":"2026-08-06","content_sha256":"cd13ae288cf4303ffc06a030bf2a51f89d0736dd053cb4b85b11d561082ab98b","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"d825041451f3f42881012fd61b7a68b116d4639472876eba0298562926185efb","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
