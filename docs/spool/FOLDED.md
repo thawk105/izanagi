@@ -350,3 +350,8 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"aa5f7e60863577f44675596e21e5412ba91e04f7e96b9e23de285521df902955","seq":1,"wave":"dev-wave-t495-branch-deletion-path"}
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"9bf775a9dd5c313364c575cec5516a2e01032fff0c0e2b386138e0480b5d8f58","seq":2,"wave":"dev-wave-t495-branch-deletion-path"}
+
+- {"allocations":{"T:probe-terminal-proof-provenance":"[T-552]"},"authored":"2026-08-06","content_sha256":"5d16cb54eed816e6e3572abe8011187a63c1484d231397611f74b7701413276f","seq":1,"wave":"dev-wave-t401-racct-permanent"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"26c348e883671b10e5821b087ce68460bc0f99efffac05d388e03f9e7192a799","seq":2,"wave":"dev-wave-t401-racct-permanent"}
+
+- {"allocations":{"F:concurrent-dispatch-during-acceptance":"F136"},"authored":"2026-08-05","content_sha256":"78f351a8f0ca48392f545ca5ebf4afe94c0b44addf0d45750f9461d27e0e2ee7","seq":3,"wave":"dev-wave-t520-measurement-turn"}
