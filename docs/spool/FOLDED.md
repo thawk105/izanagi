@@ -296,3 +296,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"b0513e43fe724488d3b13c08f2bf1f7401dad16d3b83ad6c80f2a96f4f41e1a2","seq":1,"wave":"rulings-20260805-m"}
 
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"3ff85b4eeefd2df136a93908fc70e59656ea83278e43d37c17837a0cfe2cb594","seq":1,"wave":"dev-wave-t213-shared-scratch"}
+
+- {"allocations":{"D:pegasus-admission-registry":"D175"},"authored":"2026-08-05","content_sha256":"3a77ae066f56a9590136b87d8c90e014340158ddf55f45c965ca3b531433964d","seq":1,"wave":"dev-wave-t481-pegasus-admission"}
+- {"allocations":{"F:classification-bootstrap-deadlock":"F123","F:fix-prompt-restore-without-exceptions":"F124","F:norm-procedure-barrier-three-way-drift":"F122","F:pegasus-blanket-rule-porous":"F121"},"authored":"2026-08-05","content_sha256":"6c7c2124e4f811096c209ecff3e42f3e419e348600b455351cdcf9e15ea28462","seq":2,"wave":"dev-wave-t481-pegasus-admission"}
+- {"allocations":{"T:collect-receipt-input-caps":"[T-519]","T:dev-wave-fix-prompt-contract":"[T-521]","T:guard-bash-residual-bypasses":"[T-518]","T:pegasus-admission-registry-authority":"[T-522]","T:pegasus-measurement-surface":"[T-520]"},"authored":"2026-08-05","content_sha256":"9106562d4166e27257dbadad3dbc93998a56a0d0546cfb4f280cbedaaa9b9e42","seq":3,"wave":"dev-wave-t481-pegasus-admission"}

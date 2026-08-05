@@ -1,0 +1,116 @@
+[
+ {
+  "tag": "sep",
+  "cmd": "python3 -m pytest orchestrator/tests/test_hooks.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "att",
+  "cmd": "python3 -mpytest orchestrator/tests/test_hooks.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "att",
+  "cmd": "python3 -mpytest",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "att",
+  "cmd": "python3 -mpytest -q",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "sep",
+  "cmd": "python3 -m pytest",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "sep",
+  "cmd": "python3 -m tools.check_ai_provenance",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "att",
+  "cmd": "python3 -mtools.check_ai_provenance",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "att",
+  "cmd": "python3 -mpy_compile tools/pegasus/collect_receipt.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: 非 sanctioned Pegasus 実行体 (tools/pegasus/collect_receipt.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "sep",
+  "cmd": "python3 -m py_compile tools/pegasus/collect_receipt.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "att",
+  "cmd": "python3 -mpytest tools/run_tests.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "att",
+  "cmd": "python3 -mpytest tools/check_ai_provenance.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "sep",
+  "cmd": "python3 -m pytest tools/check_ai_provenance.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "att",
+  "cmd": "python3 -mcompileall orchestrator",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "att",
+  "cmd": "python3.10 -mpytest orchestrator/tests/test_hooks.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3.10 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "sep",
+  "cmd": "python3.10 -m pytest orchestrator/tests/test_hooks.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3.10 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "att",
+  "cmd": "python3 -m=pytest orchestrator/tests/test_hooks.py",
+  "rc": 0,
+  "stderr": ""
+ },
+ {
+  "tag": "mix",
+  "cmd": "python3 -B -mpytest orchestrator/tests/test_hooks.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "mix",
+  "cmd": "python3 -Bm pytest orchestrator/tests/test_hooks.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ },
+ {
+  "tag": "mix",
+  "cmd": "python3 -Bmpytest orchestrator/tests/test_hooks.py",
+  "rc": 2,
+  "stderr": "[guard_bash] 拒否: python3 -m pytest による test 実行 を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+ }
+]
