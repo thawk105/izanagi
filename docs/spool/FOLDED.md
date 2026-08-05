@@ -276,3 +276,9 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:first-run-classification-site":"[T-511]","T:mutation-harness-xdist-group-nodes":"[T-512]","T:ruleops-git-timeout-threshold":"[T-510]"},"authored":"2026-08-05","content_sha256":"cbc207af728da0d0a33c5a38fe3fcd4323850076901761840779dc2341268e68","seq":1,"wave":"dev-wave-t496-ruleops-inventory-diag"}
 - {"allocations":{"D:ruleops-failclosed-threshold-unchanged":"D172"},"authored":"2026-08-05","content_sha256":"4ff520bee2bf0d7ff5218158c9825f335a2bd61626d35f7e4e941fbd2dc51d60","seq":2,"wave":"dev-wave-t496-ruleops-inventory-diag"}
 - {"allocations":{"F:first-run-classification-site-undefined":"F117"},"authored":"2026-08-05","content_sha256":"4d6d1cd7493a5d3ded9f3a394e1821c061dc79af3bb6a4c51b3480fd7dbb71a0","seq":3,"wave":"dev-wave-t496-ruleops-inventory-diag"}
+
+- {"allocations":{"T:diffq-reject-identity-canonicalization":"[T-515]","T:premateralized-source-admission-fold":"[T-513]","T:wait-without-polling-noise":"[T-514]"},"authored":"2026-08-05","content_sha256":"62f0ea551387a519f14b85ace503b6d738bbf6a71ac5b0c20809b093e895aa9e","seq":1,"wave":"dev-wave-t490-u1-u2"}
+- {"allocations":{"D:fold-before-materialize-at-shared-boundary":"D174","D:materializer-authority-independent-of-producer":"D173"},"authored":"2026-08-05","content_sha256":"19d9af3f707bfa710b7c8e37bc8555a18de8a2bdca62ca6163fdaa4eb9227018","seq":1,"wave":"dev-wave-t490-u1-u2"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"56202e66b567949a2351c4992e4be227f096274e8b5b4aefd2805c3cec950b1d","seq":1,"wave":"dev-wave-t490-u1-u2"}
+
+- {"allocations":{"T:dangling-audit-content-delta":"[T-516]"},"authored":"2026-08-05","content_sha256":"9adfe279584fe7e55791f3257a95c209c10a9096cbb22fed1c3132defd196d82","seq":1,"wave":"rulings-20260805-j"}
