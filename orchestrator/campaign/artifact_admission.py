@@ -381,6 +381,13 @@ def _is_proven_pre_policy_artifact(
     )
 
 
+def _is_legacy_trigger_lock(lock: object) -> bool:
+    if type(lock) is not dict:
+        return False
+    search = lock.get("search_config")
+    return type(search) is dict and search.get("axis") == wal.TRIGGER_AXIS
+
+
 def _parse_canonical_genome(value: object) -> Genome:
     if type(value) is not str or "|" not in value:
         raise ArtifactAdmissionError(
@@ -524,7 +531,13 @@ def _inspect_campaign(
     ledger, ledger_sha = _load_ledger()
     campaign_id = root.name
     relative = _repo_relative(root)
-    lock_sha = _sha256_file(lock_path)
+    try:
+        lock_raw = lock_path.read_bytes()
+    except OSError as exc:
+        raise ArtifactAdmissionError(
+            f"campaign artifact cannot be read: {lock_path}"
+        ) from exc
+    lock_sha = hashlib.sha256(lock_raw).hexdigest()
     wal_sha = _sha256_file(wal_path)
     validator_sha = _sha256_file(Path(__file__))
     identity_matches = [
@@ -586,7 +599,6 @@ def _inspect_campaign(
 
     records, truncated = wal.read_records_checked(layout)
 
-    lock_raw = lock_path.read_bytes()
     lock = _decode_json(lock_raw, label="campaign.lock")
     search = lock.get("search_config") if type(lock) is dict else None
     if type(search) is not dict or "build_admission" not in search:
@@ -605,7 +617,11 @@ def _inspect_campaign(
             )
         return CampaignAdmissionDecision(
             classification="historical-pre-admission-schema",
-            admission_status="historical-not-reclassified",
+            admission_status=(
+                "legacy-unclassified"
+                if _is_legacy_trigger_lock(lock)
+                else "historical-not-reclassified"
+            ),
             verification_status="not-evaluated-by-overlay",
             campaign_id=campaign_id,
             campaign_path=relative or root.as_posix(),
@@ -677,7 +693,7 @@ def _inspect_campaign(
             )
         receipt_shas.append(receipt["receipt_sha256"])
 
-    # Detect an in-place rewrite between hashing and semantic validation.
+    # Re-reads are reject-only: parsing and the receipt remain bound to lock_raw.
     if _sha256_file(lock_path) != lock_sha or _sha256_file(wal_path) != wal_sha:
         raise ArtifactAdmissionError("campaign bytes changed during admission validation")
     return CampaignAdmissionDecision(
