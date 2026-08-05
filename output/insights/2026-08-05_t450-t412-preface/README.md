@@ -135,3 +135,32 @@ spec v2 で再走し、12/12 KILLED・MISMATCH 0 を得た (`mutation-ledger-v2.
 - 段 1 brief は `DW-G04` の発火 path を「台帳が空だから書けない」としたが、これは誤り。
   既存の deletion fixture (`orchestrator/tests/test_run_tests_preflight.py` の未 stage 削除 fixture)
   が発火条件を満たす既存 artifact である。台帳を使わない理由は所有 ([T-166]) と設計択一の未整理である
+
+## 6. 段 8 自己改善 — 候補 1 件。実装せず裁定へ (予算の先約)
+
+`docs/skill-self-improvement.md` の発火 gate と routing を適用した。
+
+### 候補 — `DW-S04` に「scope 内外は対で列挙する」を足す
+
+- **実測**: 本 wave の段 4 裁定 §3 は in-scope 側に「child env に legacy key が現れないことを
+  固定する transport テスト」と書きながら、scope 外一覧には `_job_run` 側を入れなかった。
+  結果、fix 子は名前の是正だけを行い、焦点再レビューが NO-GO を出した。**レビュー 1 巡分の
+  往復が実際に無駄になった**
+- **行き先**: routing 3 (dev-wave 固有の手順 → 発火段の既存 leaf 節)。`docs/dev-wave/core.md` の
+  `DW-S04` へ 1 文 (実測 37 bytes) を足せば統合できる。裁定境界そのものの変更ではなく、
+  裁定文の**網羅性**を求める明確化である
+- **実装しない理由 (予算の先約)**: 適用後の `docs/dev-wave/**` は 25,181 / 25,200 bytes となり
+  機械 gate は通る。しかし本 wave が空けた 55 bytes は、archive (184) の裁定が
+  **待ちの 2 件 ((169) の V5 と (181) の `DW-O18` 追記) に充てると明言している**。
+  自己改善で先に 37 bytes を消費すると、その裁定を親が黙って上書きすることになる。
+  実際に編集して測ってから revert し、`docs/dev-wave/**` は 25,144 bytes に戻した
+- **択一**: (a) [T-454] のテスト化 pass が空けた分から入れる (**親の推奨**)、
+  (b) 待ちの 2 件より先に入れる、(c) 見送る
+
+**これは (164) の wave と同型の再発である。** そこでも「本 wave の主題 (枠不足) が、同じ wave の
+自己改善候補を実際に 1 件塞いだ」と記録されている。今回は枠を空けた側の wave でも同じことが
+起きた — 空いた枠に先約があるためである。
+
+**候補にしなかったもの:** 変異 spec の `category` 閉集合 (`negative` / `positive` / `both-layers`) を
+docs に書く案は採らない。harness が `category が未知: ...` で fail-fast し、正しい値を
+示さないまでも誤りを即座に止める。prose を足すのは機械検査の重複になる。
