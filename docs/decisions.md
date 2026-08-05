@@ -9133,3 +9133,141 @@ queue 待ちの間に HEAD が進んでも、投入した identity 以外は実�
 いずれも不変である。probe は gate を新設せず受理集合を変えないため**変異 matrix は対象外**。
 変わるのは、[T-139] の状態が「代替 X の設計待ち」から「**生死確認は成立、後続は RF 統計設計に
 準拠した本走の設計**」へ進んだことである。
+
+## D188. Pegasus admission の正本を data として置き、hook と checker を投影にする (2026-08-06)
+
+**決定 (1): 正本は `tools/pegasus/admission_registry.json`。**
+`hooks/guard_bash.py` の Python literal をやめ、`schema_version` + `entries` の JSON を唯一の正本とする。
+hook と `tools/check_docs.py` は共有 validator (`tools/pegasus_admission_registry.py`) を通した**投影**であり、
+どちらも正本ではない。値 (24 entry の `class` / `reason` / `primary_gate` / `evidence`) は移送前から
+1 文字も変えない。D175 決定 1 の三値 admission と `_SANCTIONED_PATHS` の導出はそのまま維持する。
+
+**決定 (2): 読み込み失敗はすべて空 registry へ縮退させ、module 初期化から例外を漏らさない。**
+hook は Bash 呼び出しごとに新しい process として起動され、**遮断するのは rc=2 だけである**。
+module 初期化で例外が漏れると process は rc=1 で死に、hook 契約上は遮断されないまま command が通る
+= fail-open になる。したがって loader 呼び出しは `BaseException` (`SystemExit` / `KeyboardInterrupt` を含む)
+まで捕捉し、`{}` と診断文字列へ縮退させる。`_SANCTIONED_PATHS` の導出も同じ `try` の中に置く。
+返値は wrapper 側でも再検証する (plain `dict`、canonical な `tools/pegasus/` path、4 field 揃い、
+非空 str、class 閉集合、非空 mapping)。validator が壊れても Pegasus 外の path が sanctioned にならない。
+
+**決定 (3): 単調性 (D175 決定 6) の射程は正常系に限る。**
+正本が読めない・schema に反する・未知 class を含むときは `tools/pegasus/` 配下を**すべて拒否する**。
+このとき現在 `local-ok` の 5 本も落ちる。これは受理集合の縮小であり D175 決定 6 の例外だが、
+規律 2 の下で fail-open は選択肢にならないため、**意図した fail-closed** として明示的に採る。
+非 Pegasus の sanctioned 2 本 (`tools/run_tests.py` / `tools/check_ai_provenance.py`) は影響を受けない。
+
+**決定 (4): loader は import machinery を使わず source bytes を `compile` / `exec` する。**
+`spec_from_file_location` + `SourceFileLoader` は `__pycache__` を読み得るため、review した source と
+実行されるコードが一致しない窓がある。hook と checker の両方で exact source bytes を読んで実行する。
+ファイル読み取りは `O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC` + fd に対する `fstat` の regular 判定と
+1 MiB cap で行う (`O_NONBLOCK` が無いと writer のいない FIFO で hook が止まる)。
+
+**決定 (5): docs との同期検査は class と evidence に限り、射程を明記する。**
+`check_docs.py` は runbook §7.0 の 24 行投影表、`unknown` 表の grandfather 明示、実測表の path 集合、
+`tools/pegasus/README.md` の実行体宣言表と site タグ付き block を正本と照合する。
+**`reason` / `primary_gate` の散文は投影しない** (裁定へ返した)。この検査は class の正しさ、資源の実測、
+hook が `.claude/settings.json` へ実配線されていること、parser が実行 target と認識しない綴り
+(`python3 -c`、cwd 相対、未解析 launcher) のいずれも保証しない。
+
+**決定 (6): 未実測 4 本は grandfather を追認したまま据え置く。**
+2026-08-05 のユーザー裁定に従い、`class` は `local-ok`、`evidence` は `legacy-admitted (未実測)` を維持する。
+実測で変わるのは evidence であって class ではない。この例外は当該 4 本限りで、他 entry の許可根拠に
+流用しない。
+
+**却下した選択肢:**
+- **loader を deadline 付き子プロセスで監督する** — 無限ループ耐性は上がるが、hook 本体が無限ループする
+  risk と同種であり、Bash 呼び出しごとに process を 1 つ増やすコストに見合わない。限界として記録する。
+- **canonical bytes の SHA-256 を test へ pin する** — 生成物から採った hash を期待値へ焼き込む形になり
+  (F27 型)、不一致時に「hash を更新して通す」誘惑を作る。代わりに 24 entry × 4 field を独立 literal golden とした。
+- **production validator に「ちょうど 24 entry」を要求する** — 合成 fixture の都合で validator を
+  弱める圧力を生む。件数と class 内訳の固定は test 側の独立 golden に置く。
+- **README の command 行を解析して実行 site を推定する** — 同じ手順を inline code や平文へ移すだけで
+  検査を逃げられる。宣言表 + site タグ付き block へ置き換えた。
+- **同一 inode の read 中書き換えの照合** — 更新側を atomic rename に限る運用契約で扱い、検査は入れない。
+
+**射程 (この決定が保証しないこと):**
+- 保証するのは「正しく `PEGASUS_LOGIN` / `PEGASUS_SUSPECT` と判定され、現行 parser が実行 target と
+  認識した綴り」の受理・拒否だけである。F121 の残穴 ([T-518]) は閉じていない。
+- 平文 (fence の外) の手順、basename だけの言及、変数で組み立てた path は site 一致を検査できない。
+- 研究成果物 (certified 選択、proof chain、凍結 bytes、3 台帳) は不変である。変わるのは開発 harness の
+  Bash 面だけである。
+
+## D189. origin ledger の予算消費点を予約 event へ移す — 予約を必須の前段にし、放棄は返却せず forfeit として seal まで証明する (2026-08-06)
+
+**決定:** origin ledger の event FSM へ `BatchReserved` と `BatchReservationAbandoned` を足し、
+`Imax` / `Qmax` 検査と `iterations_used` / `queries_used` の加算を `BatchCommitted` 受理時から
+**予約受理時**へ移す。相は 5 種から 6 種、event は 4 型から 6 型 (genesis を含めた行列では 7 入力) になる。
+
+- 予約は**必須**である。`IDLE` から `BatchCommitted` を直接受理しない。optional にすると caller が
+  予約を飛ばせて、予算束縛が名乗りだけになる。
+- 予約後に候補が作られない行の終端は `BatchReservationAbandoned` とし、**commit 前にだけ**受理する。
+  commit 済み batch の終端は従来どおり prepare → seal だけである。
+- 放棄しても予算は**返却しない**。放棄分は `forfeited_iterations` / `forfeited_queries` へ計上し、
+  `sealed_queries` にも `tombstoned_queries` にも入れない。`OriginSealed` の payload へ
+  この 2 counter を足し、terminal から iteration / query の内訳を導出できるようにする。
+- `forfeited_queries` は**予約した member 行数**であって物理 provider query 数ではない。
+  D166 決定 5 の限定をそのまま継承する。
+- `OriginSnapshot` に予約の binding (batch ID・iteration・cardinality・query 基点) を公開する。
+  これが無いと、予約直後に落ちた caller は再起動後に matching commit も abandon も構成できず、
+  origin が `BATCH_RESERVED` のまま永久に seal 不能になる。公開しても漏洩は増えない —
+  4 値はすでに公開 event stream に平文で載っている。
+- query partition を `queries_used == sealed + tombstoned + forfeited + pending` へ拡張し、
+  iteration partition (`iterations_used == batch_count + forfeited_iterations + 予約中 1`) を新設して、
+  genesis / 予約 / 放棄 / commit / prepare / seal / origin seal の**全受理枝**で検査する。
+
+**schema ID・domain・runtime path の版は上げない。** 破壊的な意味変更ではあるが、
+再解釈される既存 stream が存在しない — 追跡された runtime store は 1 件も無く、production 初期化は
+明示禁止のままで、fixture store はテストごとに新規作成される。版を上げると、authority 側だけが
+旧版に残って**同じ bytes の受理集合が版境界を跨いで分裂する**。それは避けるべき不整合である。
+
+**予算 feasibility の包絡線が狭まる。** 1 batch あたりの frame 数が 3 から 4 になるため、
+origin 上限 bytes の見積りが増え、64MiB の下で受理できる予算の組が狭くなる。これは受理集合の変更なので
+境界テストへ literal で固定した。**予算値を決める裁定は、この新しい包絡線を前提にする必要がある。**
+本番 authority は entry 0 件のままで、予算 feasibility 自体が走らないため影響を受けない
+(変更後も parse できることを正例として固定した)。
+
+**この決定が保証しないこと。**
+
+- **候補生成より前**は保証しない。ledger は provider 呼出しを観測しないため、1 件の予約の下で
+  provider を何回呼んだかを区別できない。束縛するのは commit できる member 行数と予算 counter だけである。
+- 予約放棄の event があるだけでは、kill 後の生存性は閉じない。上記の公開 binding と、
+  caller 側の再開規則が揃って初めて閉じる。
+- production provisioning は解禁しない。本番 authority (`origins: []`) と production 初期化禁止は不変。
+
+**却下した選択肢:**
+
+- **予約を optional にする** — caller が飛ばせるため予算束縛が実効化しない。
+- **caller の制御流だけを batch 先行にする** — 候補生成後・commit 直前に process を落として
+  新しい run-root で引き直す無課金経路を塞げない。予算消費点が commit のままだからである。
+- **event / head / state の schema を新世代へ分離する** — 再解釈される既存 stream が無い一方で、
+  authority 側を旧版に残すと同じ bytes の受理集合が分裂する。分離の利得より不整合の害が大きい。
+- **予約後に落ちた origin を自動で放棄扱いにする** — ledger が caller の意図を推定することになる。
+  再起動した caller が明示的に commit か abandon を出す方が、無返却の会計と整合する。
+- **放棄行を stock wire で埋めて commit 済みに見せる** — 実行していない候補を実行したと記録することになり、
+  正しさゲートを内側から壊す。
+
+## D190. 公開経路の変異帰属は、手前の層が相 guard をマスクしうると前提して設計する (2026-08-06)
+
+**決定:** FSM の相 guard を変異で裏取りするとき、公開 commit 経路だけで帰属を取らない。
+公開経路には durable な中間レコードの射影があり、event 種別によっては**相 guard より先に**
+その射影が拒否する。射影が先に落とす event については、reducer を直接呼ぶ経路でも
+相 guard の拒否を別に固定する。
+
+**理由:**
+
+- 本 wave の実測で、予約中の batch seal は相 guard ではなく中間レコード射影の前提検査で拒否された。
+  拒否集合は正しいが、**相 guard を実装から削除しても同じ node が同じ層で赤くなる**ため、
+  その node は相 guard の存在を証明していない。帰属が成立しないまま「変異で裏取りした」と
+  記録すると、台帳が実際より強い保証を主張することになる。
+- 同じマスクは他の event には効かない。予約 / 放棄 / commit / origin seal は射影の対象条件を
+  満たさずに reducer へ到達する。したがって「公開経路は常にマスクする」でも
+  「常にしない」でもなく、**event ごとに確かめるべき**性質である。
+
+**却下した選択肢:**
+
+- **射影より相 guard を先に走らせるよう実装を並べ替える** — 射影の前提検査は、成立しない状態から
+  射影を組み立てないための防壁であり、順序を入れ替えると別の穴が開く。
+- **拒否が起きれば層を問わず緑とする** — それは受理集合だけを見る検査であり、
+  どの防壁が効いているかを失う。防壁を 1 枚外しても気づけなくなる。
+
+**一般化の射程:** 独立 2 例が揃っていないため族全体への制度化はしない。本 wave の方法として記録する。
