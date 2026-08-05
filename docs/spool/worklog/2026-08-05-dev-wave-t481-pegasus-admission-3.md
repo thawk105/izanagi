@@ -64,7 +64,7 @@ title: [T-481] Pegasus 実行体の一律判定を三値 admission registry へ�
   (`local-ok` / `dispatch-required` / `unknown` + `reason` / `primary_gate` / `evidence`) へ置換し、
   未登録は fail-closed、`_SANCTIONED_PATHS` は registry から導出、悉皆 meta-test で inventory を
   同期する。設計は {{D:pegasus-admission-registry}}。**許可へ反転した entry は無く**、
-  残件は下記の新規 4 件へ分割した。
+  残件は下記の新規 5 件へ分割した。
   remaining: none
   base: 584fc3ecaa65a1520201b8867225abd1160733387625bf908e2ddc24f75c2074
 - [T-482] (a) を実装した。`docs/pegasus-runbook.md` §7.0 に「測定が保証するのは記録した argv と
@@ -101,6 +101,14 @@ title: [T-481] Pegasus 実行体の一律判定を三値 admission registry へ�
   wave の Bash 面は main checkout の hook に支配される」ため、ユーザー端末が唯一の正規経路である
   ({{F:classification-bootstrap-deadlock}})。択は (a) 現状追認し測定をユーザー手番として明文化、
   (b) 測定専用の bounded surface を設ける、(c) 計算ノードで動く測定手順へ §7.0 を改訂する
+- {{T:dev-wave-fix-prompt-contract}} **P3・新規 (ユーザー裁定待ち)**:
+  `docs/dev-wave/workers.md` の `DW-S06-B` へ 2 点を追記する。(a) 既存テストは
+  `git show HEAD:<path>` に在るものに限り、同 wave の未 land テストは fix の編集対象だと書く
+  (F112 の再発防止)。(b) 変更前挙動の復元を指示するときは、拒否側の再現だけでなく変更前の
+  許可側の例外も同じ粒度で列挙する ({{F:fix-prompt-restore-without-exceptions}} の恒久対応)。
+  **段 8 で実装を試みたが `docs/dev-wave/**` の byte 予算 25200 を 208 bytes 超過して取り消した。**
+  予算引き上げも他節の安全義務削減も規約が禁じ、外出しは dev-wave 系では読み込み削減 0 なので
+  採れない。裁定は (a) 予算の独立審査、(b) 既存節の縮約先の指定、(c) 追記見送りのいずれか
 - {{T:pegasus-admission-registry-authority}} **P3・新規 (ユーザー裁定待ち)**:
   admission registry の正本配置を決める。現在は `hooks/guard_bash.py` 内にあるが、
   runbook §7.0 の実測表・`tools/pegasus/README.md` の手順・`dispatch_compute.py` の TASKS との
