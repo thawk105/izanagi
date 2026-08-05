@@ -20,7 +20,7 @@ scope 外の層を実装したふりにせず、裁定パッケージ候補と�
 
 実装単位は編集ファイル所有が素集合になるよう分割し worktree を分ける。
 単位間に依存があれば先行単位を完了させ、所有パス限定 patch
-（`git add -A && git diff --cached -- <所有パス>` から作り `git apply`）だけを展開してから並列投入する。
+（`git add -A` 後 `git diff --cached --output=<f> -- <所有パス>` で作り `git apply`。隔離 session は `git -C` 不可）だけを展開してから並列投入する。
 codex は `reasoning=high`、`sandbox=workspace-write` とする。
 
 ## DW-S05-B — 段 5 権限と赤

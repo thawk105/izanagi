@@ -46,6 +46,12 @@ title: [T-244] P2 の critic 境界へ campaign-local pseudonym を入れた —
 - 受入全走は Pegasus 計算ノードで **6681 passed / 20 skipped** (request 892239.nqsv、1032.67s)。
   焦点 9 file は fix 後 615 passed / 0 failed (request 892135.nqsv)。
   変異は固定 HEAD `9b687e68` に対して走らせ、走行後の作業ツリー復元も確認した。
+- **段 8 の自己改善は候補 2 件で、1 件を実施し 1 件は発火実績の記録に留めた。**
+  (a) `DW-S05-A` の所有パス限定 patch の作り方が **worktree 隔離 session では動かない** —
+  guard が他 worktree への `git -C` を拒むため、`git diff --cached --output=` で書き出す形へ是正した
+  (+50 bytes、`docs/dev-wave/**` の残予算は 13 bytes)。安全義務は削っていない。
+  (b) redirect / pipe 付き複合 Bash の guard 拒否が本 wave でも 2 回発火した。置き場である条件節の
+  予算が塞がったままなので [T-432] へ発火実績として積むに留める。
 - 逐語と台帳は `output/insights/2026-08-06_t244-p2-noninterference/`。
 
 ## 次の一手差分
