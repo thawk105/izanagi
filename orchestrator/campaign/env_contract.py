@@ -24,7 +24,7 @@ import json
 import re
 from dataclasses import asdict, dataclass
 from types import MappingProxyType
-from typing import Tuple
+from typing import Mapping, Tuple
 
 # env 固有 literal はこのモジュールでは ``_build_registry`` の内部にのみ現れる。
 # その他の場所 (lookup / validation / property) は env 中立でなければならず、
@@ -160,43 +160,224 @@ class ExecutionEnvironmentContract:
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
-def _build_registry() -> dict:
+@dataclass(frozen=True)
+class GenerationEntry:
+    """契約世代を表す。これは data であって権限ではない。issuer の型 gate に使わない。"""
+
+    generation: int
+    contract: ExecutionEnvironmentContract
+
+    def __post_init__(self) -> None:
+        if type(self.generation) is not int or self.generation <= 0:
+            raise EnvContractError(
+                f"generation は正整数でなければならない: {self.generation!r}"
+            )
+        if type(self.contract) is not ExecutionEnvironmentContract:
+            raise EnvContractError(
+                "contract は exact ExecutionEnvironmentContract でなければならない: "
+                f"{self.contract!r}"
+            )
+
+
+def _leaf_json_pointers(value: object, pointer: str = "") -> dict[str, object]:
+    """canonical object を leaf-level JSON Pointer と値の対応へ平坦化する。"""
+    if type(value) is dict:
+        if not value:
+            return {pointer: value}
+        flattened: dict[str, object] = {}
+        for key, child in value.items():
+            token = str(key).replace("~", "~0").replace("/", "~1")
+            flattened.update(_leaf_json_pointers(child, f"{pointer}/{token}"))
+        return flattened
+    if type(value) in {list, tuple}:
+        if not value:
+            return {pointer: value}
+        flattened = {}
+        for index, child in enumerate(value):
+            flattened.update(_leaf_json_pointers(child, f"{pointer}/{index}"))
+        return flattened
+    return {pointer: value}
+
+
+def is_valid_successor(
+    predecessor: ExecutionEnvironmentContract,
+    successor: ExecutionEnvironmentContract,
+) -> bool:
+    """calibration path/SHA の対だけを変更する非同一 successor かを返す。"""
+    if (type(predecessor) is not ExecutionEnvironmentContract
+            or type(successor) is not ExecutionEnvironmentContract):
+        return False
+    before = _leaf_json_pointers(predecessor._canonical_obj())
+    after = _leaf_json_pointers(successor._canonical_obj())
+    differences = frozenset(
+        pointer
+        for pointer in before.keys() | after.keys()
+        if pointer not in before
+        or pointer not in after
+        or before[pointer] != after[pointer]
+    )
+    allowed = frozenset({
+        "/calibration_ref/path",
+        "/calibration_ref/sha256",
+    })
+    if not differences or not differences <= allowed:
+        return False
+    return (
+        ("/calibration_ref/path" in differences)
+        == ("/calibration_ref/sha256" in differences)
+    )
+
+
+def _build_registry() -> dict[str, tuple[GenerationEntry, ...]]:
     """静的 registry を構築する。**env 固有 literal はこの関数の内部にのみ現れる。**
 
     登録済み calibration の bytes と契約値を静的に束縛する。
     """
     return {
-        "linux-baremetal": ExecutionEnvironmentContract(
-            env_tag="linux-baremetal",
-            clocks_per_us=1800,
-            numactl=("numactl", "--interleave=all"),
-            attestation_mode="none",
-            isolation_policy=IsolationPolicy(single_process=False, allow_resume=True),
-            calibration_ref=CalibrationRef(
-                path="output/env/linux-baremetal/calibration/calibration_t48_skew0p9_rr50_rmw0.json",
-                sha256="751304772367418806eb6e63c9715cd430315066420e9e3e4c91bf356195eef5",
+        "linux-baremetal": (
+            GenerationEntry(
+                generation=1,
+                contract=ExecutionEnvironmentContract(
+                    env_tag="linux-baremetal",
+                    clocks_per_us=1800,
+                    numactl=("numactl", "--interleave=all"),
+                    attestation_mode="none",
+                    isolation_policy=IsolationPolicy(single_process=False, allow_resume=True),
+                    calibration_ref=CalibrationRef(
+                        path=(
+                            "output/env/linux-baremetal/calibration/"
+                            "calibration_t48_skew0p9_rr50_rmw0.json"
+                        ),
+                        sha256="751304772367418806eb6e63c9715cd430315066420e9e3e4c91bf356195eef5",
+                    ),
+                ),
             ),
         ),
-        "pegasus": ExecutionEnvironmentContract(
-            env_tag="pegasus",
-            clocks_per_us=2100,
-            numactl=(),
-            attestation_mode="required",
-            isolation_policy=IsolationPolicy(single_process=True, allow_resume=False),
-            calibration_ref=CalibrationRef(
-                path=(
-                    "output/env/pegasus/calibration/registered/"
-                    "calibration-753f535a8d024727.json"
+        "pegasus": (
+            GenerationEntry(
+                generation=1,
+                contract=ExecutionEnvironmentContract(
+                    env_tag="pegasus",
+                    clocks_per_us=2100,
+                    numactl=(),
+                    attestation_mode="required",
+                    isolation_policy=IsolationPolicy(single_process=True, allow_resume=False),
+                    calibration_ref=CalibrationRef(
+                        path=(
+                            "output/env/pegasus/calibration/registered/"
+                            "calibration-753f535a8d024727.json"
+                        ),
+                        sha256="753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+                    ),
                 ),
-                sha256="753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
             ),
         ),
     }
 
 
+def _validate_generations_without_bootstrap_fuse(
+    mapping: Mapping[str, tuple[GenerationEntry, ...]],
+) -> None:
+    """候補世代 mapping の構造と遷移を検証する。bootstrap fuse は含まない。"""
+    seen_hashes: set[str] = set()
+    for env_tag, sequence in mapping.items():
+        if type(sequence) is not tuple or not sequence:
+            raise EnvContractError(
+                f"{env_tag!r} の世代列は非空 exact tuple でなければならない"
+            )
+        for expected_generation, entry in enumerate(sequence, start=1):
+            if type(entry) is not GenerationEntry:
+                raise EnvContractError(
+                    f"{env_tag!r} の世代列要素は exact GenerationEntry でなければならない"
+                )
+            if entry.generation != expected_generation:
+                raise EnvContractError(
+                    f"{env_tag!r} の generation は順序どおり 1..N の連番でなければならない"
+                )
+            if entry.contract.env_tag != env_tag:
+                raise EnvContractError(
+                    f"mapping key {env_tag!r} と contract.env_tag "
+                    f"{entry.contract.env_tag!r} が一致しない"
+                )
+            contract_sha256 = entry.contract.contract_sha256
+            if contract_sha256 in seen_hashes:
+                raise EnvContractError(
+                    f"contract_sha256 が全 env・全世代で一意でない: {contract_sha256}"
+                )
+            seen_hashes.add(contract_sha256)
+        for predecessor, successor in zip(sequence, sequence[1:]):
+            if not is_valid_successor(predecessor.contract, successor.contract):
+                raise EnvContractError(
+                    f"{env_tag!r} に正当でない隣接 successor がある: "
+                    f"g{predecessor.generation} -> g{successor.generation}"
+                )
+
+
+def validate_generations(
+    mapping: Mapping[str, tuple[GenerationEntry, ...]],
+) -> None:
+    """候補世代 mapping を検証し、未認可の複数世代登録を fuse で拒否する。"""
+    _validate_generations_without_bootstrap_fuse(mapping)
+    for sequence in mapping.values():
+        if len(sequence) != 1:
+            raise EnvContractError(
+                "活性化権限 (activation record / activation receipt) が未実装のため、"
+                "2 世代目の登録を fail-closed で拒否する"
+            )
+
+
+def _build_contract_sha256_index(
+    mapping: Mapping[str, tuple[GenerationEntry, ...]],
+) -> Mapping[str, tuple[GenerationEntry, ...]]:
+    candidates: dict[str, list[GenerationEntry]] = {}
+    for sequence in mapping.values():
+        for entry in sequence:
+            candidates.setdefault(entry.contract.contract_sha256, []).append(entry)
+    return MappingProxyType({
+        contract_sha256: tuple(entries)
+        for contract_sha256, entries in candidates.items()
+    })
+
+
 # backing dict を module 名に束縛しない — MappingProxyType の裏側 dict へ到達する
 # 注入経路 (ec._REGISTRY[...] = ...) を構造的に塞ぐ (レビュー所見 R1-1)。
-REGISTRY = MappingProxyType(_build_registry())
+GENERATIONS: Mapping[str, tuple[GenerationEntry, ...]] = MappingProxyType(
+    _build_registry()
+)
+validate_generations(GENERATIONS)
+_CONTRACT_SHA256_INDEX = _build_contract_sha256_index(GENERATIONS)
+REGISTRY = MappingProxyType({
+    env_tag: sequence[-1].contract
+    for env_tag, sequence in GENERATIONS.items()
+})
+
+
+def resolve_by_contract_sha256(
+    contract_sha256: str,
+    *,
+    expected_env_tag: str | None = None,
+) -> GenerationEntry:
+    """全世代から hash-bound な GenerationEntry を一意に解決する。"""
+    if type(contract_sha256) is not str or _HEX64_RE.fullmatch(contract_sha256) is None:
+        raise EnvContractError(
+            "contract_sha256 は 64 桁の小文字 hex でなければならない: "
+            f"{contract_sha256!r}"
+        )
+    candidates = _CONTRACT_SHA256_INDEX.get(contract_sha256)
+    if candidates is None:
+        raise EnvContractError(f"未知の contract_sha256: {contract_sha256}")
+    if len(candidates) != 1:
+        raise EnvContractError(
+            f"contract_sha256 を一意に解決できない: {contract_sha256}"
+        )
+    entry = candidates[0]
+    if (expected_env_tag is not None
+            and entry.contract.env_tag != expected_env_tag):
+        raise EnvContractError(
+            f"contract_sha256 の env_tag {entry.contract.env_tag!r} が "
+            f"expected_env_tag {expected_env_tag!r} と一致しない"
+        )
+    return entry
 
 
 def lookup(env_tag: str) -> ExecutionEnvironmentContract:

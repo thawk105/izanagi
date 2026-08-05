@@ -1,0 +1,813 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/90e8f64e2af66d4c6f4d0b6f50d9e649/izdw-90e8f64e2a.o890910",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/90e8f64e2af66d4c6f4d0b6f50d9e649/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 54%]\n............................................................             [100%]\n132 passed in 2.19s\n",
+      "stdout_sha256": "18d5e4e7bfd09a8ab3dd734d8e7e7cd85ddfd72b8599635f6add97b1b7b9ce7f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "62b835160d2ba8663b4ef87a9d09dceeb2901d8b645ea3b3e10a91fd50165299",
+    "duration_s": 26.988,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "cc14127a0da573a15547e6188303dd5f6ac2938f64b2cef5d61b3be95d319313",
+    "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+    "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+    "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+    "status": "PASSED",
+    "test_output_sha256": "18d5e4e7bfd09a8ab3dd734d8e7e7cd85ddfd72b8599635f6add97b1b7b9ce7f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+  },
+  "date": "2026-08-05T08:43:51.980959+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/3636d004c28936ea889a8ab012d7cb98/izdw-3636d004c2.o890927",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/3636d004c28936ea889a8ab012d7cb98/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 54%]\n......................................................F.....             [100%]\n=================================== FAILURES ===================================\n______ test_validate_generations_synthetic_two_generation_negative_table _______\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_validate_generations_synthetic_two_generation_negative_table():\n        \"\"\"production は全 env が g1 一本なので、隣接検査はこの純関数でだけ発火する。\"\"\"\n        base = _valid_contract()\n        good_successor = _calibration_successor(base)\n        bad_successor = _calibration_successor(base, clocks_per_us=1001)\n        cases = [\n            (\n                \"non-contiguous\",\n                {\n                    base.env_tag: (\n                        ec.GenerationEntry(generation=1, contract=base),\n                        ec.GenerationEntry(generation=3, contract=good_successor),\n                    ),\n                },\n                \"1..N\",\n            ),\n            (\n                \"key-mismatch\",\n                {\"other-env\": (ec.GenerationEntry(generation=1, contract=base),)},\n                \"一致しない\",\n            ),\n            (\n                \"invalid-successor\",\n                {\n                    base.env_tag: (\n                        ec.GenerationEntry(generation=1, contract=base),\n                        ec.GenerationEntry(generation=2, contract=bad_successor),\n                    ),\n                },\n                \"正当でない隣接 successor\",\n            ),\n        ]\n        for _label, mapping, message in cases:\n>           with pytest.raises(ec.EnvContractError, match=message):\nE           Failed: DID NOT RAISE EnvContractError\n\norchestrator/tests/test_env_contract.py:489: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract.py::test_validate_generations_synthetic_two_generation_negative_table\n1 failed, 131 passed in 2.19s\n",
+        "stdout_sha256": "4a3074feaae19eab60cc936fb690d3b549adb79206c8b94f76d5ae6ff2a58b2b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "62b835160d2ba8663b4ef87a9d09dceeb2901d8b645ea3b3e10a91fd50165299",
+      "duration_s": 26.964,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_synthetic_two_generation_negative_table"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_synthetic_two_generation_negative_table"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "f8250c45fce2ef50fde916a143e1351ac79a6e5985b76c6321f26d7227755cbe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e0c93d6aa3be6959d7f1a330b5d01c6cf12d5d5a654572bfa80b0b512ef915ae",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract.py",
+          "new": "        pass\n",
+          "old": "        for predecessor, successor in zip(sequence, sequence[1:]):\n            if not is_valid_successor(predecessor.contract, successor.contract):\n                raise EnvContractError(\n                    f\"{env_tag!r} に正当でない隣接 successor がある: \"\n                    f\"g{predecessor.generation} -> g{successor.generation}\"\n                )\n"
+        }
+      ],
+      "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+      "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+      "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+      "status": "KILLED",
+      "test_output_sha256": "4a3074feaae19eab60cc936fb690d3b549adb79206c8b94f76d5ae6ff2a58b2b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/0eb1d01ff983da5dd2c1cce74313468f/izdw-0eb1d01ff9.o890935",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/0eb1d01ff983da5dd2c1cce74313468f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 54%]\n.......................................................F....             [100%]\n=================================== FAILURES ===================================\n__________________ test_is_valid_successor_leaf_pointer_table __________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_is_valid_successor_leaf_pointer_table():\n        base = _valid_contract()\n        cases = [\n            (\"no-op\", base, False),\n            (\"path+sha\", _calibration_successor(base), True),\n            (\n                \"sha-only\",\n                _calibration_successor(\n                    base,\n                    path=base.calibration_ref.path,\n                ),\n                False,\n            ),\n            (\n                \"path-only\",\n                _calibration_successor(\n                    base,\n                    sha256=base.calibration_ref.sha256,\n                ),\n                False,\n            ),\n            (\n                \"attestation-mode\",\n                _calibration_successor(base, attestation_mode=\"required\"),\n                False,\n            ),\n            (\n                \"clocks-per-us\",\n                _calibration_successor(base, clocks_per_us=1001),\n                False,\n            ),\n        ]\n        for label, successor, expected in cases:\n>           assert ec.is_valid_successor(base, successor) is expected, label\nE           AssertionError: attestation-mode\nE           assert True is False\nE            +  where True = <function is_valid_successor at 0x14d9963bde10>(ExecutionEnvironmentContract(env_tag='test-env', clocks_per_us=1000, numactl=('numactl', '--interleave=all'), attestat...on_ref=CalibrationRef(path='output/x.json', sha256='0000000000000000000000000000000000000000000000000000000000000000')), ExecutionEnvironmentContract(env_tag='test-env', clocks_per_us=1000, numactl=('numactl', '--interleave=all'), attestat...on_ref=CalibrationRef(path='output/y.json', sha256='1111111111111111111111111111111111111111111111111111111111111111')))\nE            +    where <function is_valid_successor at 0x14d9963bde10> = ec.is_valid_successor\n\norchestrator/tests/test_env_contract.py:416: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table\n1 failed, 131 passed in 2.20s\n",
+        "stdout_sha256": "05e7ec9b922d99a0ce81ebc22fe785b5c1a45c2f43a270814137ecceba7c38d2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "62b835160d2ba8663b4ef87a9d09dceeb2901d8b645ea3b3e10a91fd50165299",
+      "duration_s": 26.995,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "637299a6137e71894c79d831a6e8d9d8002fe3eff261758c8d6c46baef758d47",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3ee84c60803063ced9d95b14e6528d7decb0b7dff80ec4d0fdb6f65623269e08",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract.py",
+          "new": "    allowed = frozenset({\n        \"/calibration_ref/path\",\n        \"/calibration_ref/sha256\",\n        \"/attestation_mode\",\n    })\n",
+          "old": "    allowed = frozenset({\n        \"/calibration_ref/path\",\n        \"/calibration_ref/sha256\",\n    })\n"
+        }
+      ],
+      "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+      "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+      "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+      "status": "KILLED",
+      "test_output_sha256": "05e7ec9b922d99a0ce81ebc22fe785b5c1a45c2f43a270814137ecceba7c38d2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/857085f9529b21c743109bd330e037a6/izdw-857085f952.o890937",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/857085f9529b21c743109bd330e037a6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 54%]\n..........................................................F.             [100%]\n=================================== FAILURES ===================================\n__________________ test_is_valid_successor_leaf_pointer_table __________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_is_valid_successor_leaf_pointer_table():\n        base = _valid_contract()\n        cases = [\n            (\"no-op\", base, False),\n            (\"path+sha\", _calibration_successor(base), True),\n            (\n                \"sha-only\",\n                _calibration_successor(\n                    base,\n                    path=base.calibration_ref.path,\n                ),\n                False,\n            ),\n            (\n                \"path-only\",\n                _calibration_successor(\n                    base,\n                    sha256=base.calibration_ref.sha256,\n                ),\n                False,\n            ),\n            (\n                \"attestation-mode\",\n                _calibration_successor(base, attestation_mode=\"required\"),\n                False,\n            ),\n            (\n                \"clocks-per-us\",\n                _calibration_successor(base, clocks_per_us=1001),\n                False,\n            ),\n        ]\n        for label, successor, expected in cases:\n>           assert ec.is_valid_successor(base, successor) is expected, label\nE           AssertionError: sha-only\nE           assert True is False\nE            +  where True = <function is_valid_successor at 0x150db4d2de10>(ExecutionEnvironmentContract(env_tag='test-env', clocks_per_us=1000, numactl=('numactl', '--interleave=all'), attestat...on_ref=CalibrationRef(path='output/x.json', sha256='0000000000000000000000000000000000000000000000000000000000000000')), ExecutionEnvironmentContract(env_tag='test-env', clocks_per_us=1000, numactl=('numactl', '--interleave=all'), attestat...on_ref=CalibrationRef(path='output/x.json', sha256='1111111111111111111111111111111111111111111111111111111111111111')))\nE            +    where <function is_valid_successor at 0x150db4d2de10> = ec.is_valid_successor\n\norchestrator/tests/test_env_contract.py:416: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table\n1 failed, 131 passed in 2.20s\n",
+        "stdout_sha256": "f1427529146aede414c36166abcb0efe8ec3c7ae6fadc1b0964933ae73e4216e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "62b835160d2ba8663b4ef87a9d09dceeb2901d8b645ea3b3e10a91fd50165299",
+      "duration_s": 83.473,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "a955562ffb081f82c61eff91bfaf4841ba39aad8374f8acd938be1a50687ef5e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b81db469cd6f194546495cc41f07f7d0af6fa32574335470c977b9b452174065",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract.py",
+          "new": "    return True\n",
+          "old": "    return (\n        (\"/calibration_ref/path\" in differences)\n        == (\"/calibration_ref/sha256\" in differences)\n    )\n"
+        }
+      ],
+      "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+      "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+      "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+      "status": "KILLED",
+      "test_output_sha256": "f1427529146aede414c36166abcb0efe8ec3c7ae6fadc1b0964933ae73e4216e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/f0b3b9091fa8ece3419e09f000ff7c35/izdw-f0b3b9091f.o890952",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/f0b3b9091fa8ece3419e09f000ff7c35/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 54%]\n.........................................F..................             [100%]\n=================================== FAILURES ===================================\n____ test_validate_generations_valid_two_generation_reaches_bootstrap_fuse _____\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_validate_generations_valid_two_generation_reaches_bootstrap_fuse():\n        \"\"\"正しい synthetic 隣接列も、活性化権限までは production 登録を許可しない。\"\"\"\n        base = _valid_contract()\n        successor = _calibration_successor(base)\n        mapping = {\n            base.env_tag: (\n                ec.GenerationEntry(generation=1, contract=base),\n                ec.GenerationEntry(generation=2, contract=successor),\n            ),\n        }\n>       with pytest.raises(\n            ec.EnvContractError,\n            match=\"活性化権限.*activation record.*activation receipt.*fail-closed\",\n        ):\nE       Failed: DID NOT RAISE EnvContractError\n\norchestrator/tests/test_env_contract.py:523: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract.py::test_validate_generations_valid_two_generation_reaches_bootstrap_fuse\n1 failed, 131 passed in 2.20s\n",
+        "stdout_sha256": "c0af3d4015a786062fc7834abf8d71a2cf259b90533abf9b4848e3314107df9c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "62b835160d2ba8663b4ef87a9d09dceeb2901d8b645ea3b3e10a91fd50165299",
+      "duration_s": 26.866,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_valid_two_generation_reaches_bootstrap_fuse"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_valid_two_generation_reaches_bootstrap_fuse"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "7107e443a2be2cda6d2b2a1522ae6d8d6da3a403f0b08354be3b28f208719312",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e21398306535b6dbd6e99b11ce8c02a8f6d16e4c3bc7d64476502e5a775fbd25",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract.py",
+          "new": "    return None\n",
+          "old": "    for sequence in mapping.values():\n        if len(sequence) != 1:\n            raise EnvContractError(\n                \"活性化権限 (activation record / activation receipt) が未実装のため、\"\n                \"2 世代目の登録を fail-closed で拒否する\"\n            )\n"
+        }
+      ],
+      "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+      "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+      "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+      "status": "KILLED",
+      "test_output_sha256": "c0af3d4015a786062fc7834abf8d71a2cf259b90533abf9b4848e3314107df9c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/0b246fb88dec614e13147e89e784a037/izdw-0b246fb88d.o890955",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/0b246fb88dec614e13147e89e784a037/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 54%]\n.........................................................F..             [100%]\n=================================== FAILURES ===================================\n________ test_resolver_synthetic_index_resolves_non_current_generation _________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fc310cb340>\n\n    def test_resolver_synthetic_index_resolves_non_current_generation(monkeypatch):\n        base = _valid_contract()\n        successor = _calibration_successor(base)\n        mapping = {\n            base.env_tag: (\n                ec.GenerationEntry(generation=1, contract=base),\n                ec.GenerationEntry(generation=2, contract=successor),\n            ),\n        }\n        index = ec._build_contract_sha256_index(mapping)\n        assert isinstance(index, MappingProxyType)\n        monkeypatch.setattr(ec, \"_CONTRACT_SHA256_INDEX\", index)\n>       resolved = ec.resolve_by_contract_sha256(base.contract_sha256)\n\norchestrator/tests/test_env_contract.py:603: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncontract_sha256 = '1a778d2727cdffe70f32aeae39770eec4a3238ffef56bbf959900b4fa978db8a'\nexpected_env_tag = None\n\n    def resolve_by_contract_sha256(\n        contract_sha256: str,\n        *,\n        expected_env_tag: str | None = None,\n    ) -> GenerationEntry:\n        \"\"\"全世代から hash-bound な GenerationEntry を一意に解決する。\"\"\"\n        if type(contract_sha256) is not str or _HEX64_RE.fullmatch(contract_sha256) is None:\n            raise EnvContractError(\n                \"contract_sha256 は 64 桁の小文字 hex でなければならない: \"\n                f\"{contract_sha256!r}\"\n            )\n        candidates = _CONTRACT_SHA256_INDEX.get(contract_sha256)\n        if candidates is None:\n>           raise EnvContractError(f\"未知の contract_sha256: {contract_sha256}\")\nE           campaign.env_contract.EnvContractError: 未知の contract_sha256: 1a778d2727cdffe70f32aeae39770eec4a3238ffef56bbf959900b4fa978db8a\n\norchestrator/campaign/env_contract.py:368: EnvContractError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract.py::test_resolver_synthetic_index_resolves_non_current_generation\n1 failed, 131 passed in 2.20s\n",
+        "stdout_sha256": "7e993419f872db7dce580890580a213629d3c1e3a9f33b5d845af44dd0f97d29"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "62b835160d2ba8663b4ef87a9d09dceeb2901d8b645ea3b3e10a91fd50165299",
+      "duration_s": 32.121,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_resolver_synthetic_index_resolves_non_current_generation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_resolver_synthetic_index_resolves_non_current_generation"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "13939ec635d9f1b7470017c47adf747df8d9f097627b73ef8d87d937cb0497b8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "882592463cba9a7f98459c623667559496aa858464849355a6e7387d8998b8d8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract.py",
+          "new": "    candidates: dict[str, list[GenerationEntry]] = {}\n    for sequence in mapping.values():\n        for entry in sequence[-1:]:\n            candidates.setdefault(entry.contract.contract_sha256, []).append(entry)\n",
+          "old": "    candidates: dict[str, list[GenerationEntry]] = {}\n    for sequence in mapping.values():\n        for entry in sequence:\n            candidates.setdefault(entry.contract.contract_sha256, []).append(entry)\n"
+        }
+      ],
+      "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+      "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+      "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+      "status": "KILLED",
+      "test_output_sha256": "7e993419f872db7dce580890580a213629d3c1e3a9f33b5d845af44dd0f97d29",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/643ae194be7551f9c041cd07ce368270/izdw-643ae194be.o890959",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/643ae194be7551f9c041cd07ce368270/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 54%]\n......................................................F.....             [100%]\n=================================== FAILURES ===================================\n_____ test_validate_generations_rejects_cross_env_contract_hash_collision ______\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d78cd2f400>\n\n    def test_validate_generations_rejects_cross_env_contract_hash_collision(monkeypatch):\n        \"\"\"異なる preimage が同じ SHA-256 になる実効 collision guard を直接撃つ。\"\"\"\n        first = _valid_contract(env_tag=\"first-env\")\n        second = _valid_contract(env_tag=\"second-env\")\n        collision_hash = \"f\" * 64\n        monkeypatch.setattr(\n            ec.ExecutionEnvironmentContract,\n            \"contract_sha256\",\n            property(lambda _self: collision_hash),\n        )\n        mapping = {\n            first.env_tag: (ec.GenerationEntry(generation=1, contract=first),),\n            second.env_tag: (ec.GenerationEntry(generation=1, contract=second),),\n        }\n        assert first._canonical_obj() != second._canonical_obj()\n        assert first.contract_sha256 == second.contract_sha256 == collision_hash\n>       with pytest.raises(ec.EnvContractError, match=\"一意でない\"):\nE       Failed: DID NOT RAISE EnvContractError\n\norchestrator/tests/test_env_contract.py:509: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract.py::test_validate_generations_rejects_cross_env_contract_hash_collision\n1 failed, 131 passed in 2.18s\n",
+        "stdout_sha256": "9339a0d6a807018c3d1ecad5117c3fa278db31d4d9e47870794502e07b19aa36"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "62b835160d2ba8663b4ef87a9d09dceeb2901d8b645ea3b3e10a91fd50165299",
+      "duration_s": 73.028,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_rejects_cross_env_contract_hash_collision"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_rejects_cross_env_contract_hash_collision"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "ff3a77c56a1dec57f2785780e13df49bb1858f4db40d3c5a54fc331a52e45547",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e7c278a832bb2a890d132f87790970187d320218a166f9498fd11cebe51d7105",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract.py",
+          "new": "            seen_hashes.add(entry.contract.contract_sha256)\n",
+          "old": "            contract_sha256 = entry.contract.contract_sha256\n            if contract_sha256 in seen_hashes:\n                raise EnvContractError(\n                    f\"contract_sha256 が全 env・全世代で一意でない: {contract_sha256}\"\n                )\n            seen_hashes.add(contract_sha256)\n"
+        }
+      ],
+      "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+      "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+      "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+      "status": "KILLED",
+      "test_output_sha256": "9339a0d6a807018c3d1ecad5117c3fa278db31d4d9e47870794502e07b19aa36",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/2efa06e3ce8e6ec3ea6c8eb64bc1d1d5/izdw-2efa06e3ce.o890966",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/2efa06e3ce8e6ec3ea6c8eb64bc1d1d5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 54%]\n.............................................F.......F...F..             [100%]\n=================================== FAILURES ===================================\n________ test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env _________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env():\n        with pytest.raises(ec.EnvContractError, match=\"未知\"):\n            ec.resolve_by_contract_sha256(\"f\" * 64)\n        pegasus_hash = EXPECTED_GENERATION_HASHES[\"pegasus\"][0]\n>       with pytest.raises(ec.EnvContractError, match=\"expected_env_tag\"):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'expected_env_tag'\nE         Actual message: '未知の contract_sha256: e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02'\n\norchestrator/tests/test_env_contract.py:585: AssertionError\n_____ test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes _____\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes():\n        assert set(ec.GENERATIONS) == set(EXPECTED_GENERATION_HASHES)\n        for env_tag, expected_hashes in EXPECTED_GENERATION_HASHES.items():\n            sequence = ec.GENERATIONS[env_tag]\n            assert sequence\n>           assert tuple(\n                entry.contract.contract_sha256 for entry in sequence\n            ) == expected_hashes\nE           AssertionError: assert ('e576e9cd136...3cd9e242c01',) == ('e576e9cd136...3cd9e242c02',)\nE             \nE             At index 0 diff: 'e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01' != 'e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02'\nE             Use -v to get more diff\n\norchestrator/tests/test_env_contract.py:346: AssertionError\n_ test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1] _\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\nenv_tag = 'pegasus'\nexpected_hashes = ('e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02',)\n\n    @pytest.mark.parametrize(\"env_tag,expected_hashes\", EXPECTED_GENERATION_HASHES.items())\n    def test_resolve_by_contract_sha256_resolves_all_g1_hashes(env_tag, expected_hashes):\n>       entry = ec.resolve_by_contract_sha256(\n            expected_hashes[0], expected_env_tag=env_tag,\n        )\n\norchestrator/tests/test_env_contract.py:567: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncontract_sha256 = 'e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02'\nexpected_env_tag = 'pegasus'\n\n    def resolve_by_contract_sha256(\n        contract_sha256: str,\n        *,\n        expected_env_tag: str | None = None,\n    ) -> GenerationEntry:\n        \"\"\"全世代から hash-bound な GenerationEntry を一意に解決する。\"\"\"\n        if type(contract_sha256) is not str or _HEX64_RE.fullmatch(contract_sha256) is None:\n            raise EnvContractError(\n                \"contract_sha256 は 64 桁の小文字 hex でなければならない: \"\n                f\"{contract_sha256!r}\"\n            )\n        candidates = _CONTRACT_SHA256_INDEX.get(contract_sha256)\n        if candidates is None:\n>           raise EnvContractError(f\"未知の contract_sha256: {contract_sha256}\")\nE           campaign.env_contract.EnvContractError: 未知の contract_sha256: e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02\n\norchestrator/campaign/env_contract.py:368: EnvContractError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env\nFAILED orchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes\nFAILED orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1]\n3 failed, 129 passed in 2.21s\n",
+        "stdout_sha256": "eb0f09e616c804cedfb9ff32103d86823f1e8f1029f32b4a13ce183913e5cd46"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "62b835160d2ba8663b4ef87a9d09dceeb2901d8b645ea3b3e10a91fd50165299",
+      "duration_s": 26.88,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env",
+        "orchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1]"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "d8b8379d922d7d478286f246898ee60b52a1e179a55e08b81392f354cb35628a",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "09ecb1a22f29433095c0810306272ef479ea850200a053c12cacfa26a2a752cb",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_env_contract.py",
+          "new": "    \"pegasus\": (\n        \"e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02\",\n    ),\n",
+          "old": "    \"pegasus\": (\n        \"e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01\",\n    ),\n"
+        }
+      ],
+      "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+      "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+      "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+      "status": "MISMATCH",
+      "test_output_sha256": "eb0f09e616c804cedfb9ff32103d86823f1e8f1029f32b4a13ce183913e5cd46",
+      "test_output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........................................................................ [ 54%]",
+        ".............................................F.......F...F..             [100%]",
+        "=================================== FAILURES ===================================",
+        "________ test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env _________",
+        "[gw32] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env():",
+        "        with pytest.raises(ec.EnvContractError, match=\"未知\"):",
+        "            ec.resolve_by_contract_sha256(\"f\" * 64)",
+        "        pegasus_hash = EXPECTED_GENERATION_HASHES[\"pegasus\"][0]",
+        ">       with pytest.raises(ec.EnvContractError, match=\"expected_env_tag\"):",
+        "E       AssertionError: Regex pattern did not match.",
+        "E         Expected regex: 'expected_env_tag'",
+        "E         Actual message: '未知の contract_sha256: e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02'",
+        "",
+        "orchestrator/tests/test_env_contract.py:585: AssertionError",
+        "_____ test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes _____",
+        "[gw14] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes():",
+        "        assert set(ec.GENERATIONS) == set(EXPECTED_GENERATION_HASHES)",
+        "        for env_tag, expected_hashes in EXPECTED_GENERATION_HASHES.items():",
+        "            sequence = ec.GENERATIONS[env_tag]",
+        "            assert sequence",
+        ">           assert tuple(",
+        "                entry.contract.contract_sha256 for entry in sequence",
+        "            ) == expected_hashes",
+        "E           AssertionError: assert ('e576e9cd136...3cd9e242c01',) == ('e576e9cd136...3cd9e242c02',)",
+        "E             ",
+        "E             At index 0 diff: 'e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01' != 'e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02'",
+        "E             Use -v to get more diff",
+        "",
+        "orchestrator/tests/test_env_contract.py:346: AssertionError",
+        "_ test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1] _",
+        "[gw26] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "env_tag = 'pegasus'",
+        "expected_hashes = ('e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02',)",
+        "",
+        "    @pytest.mark.parametrize(\"env_tag,expected_hashes\", EXPECTED_GENERATION_HASHES.items())",
+        "    def test_resolve_by_contract_sha256_resolves_all_g1_hashes(env_tag, expected_hashes):",
+        ">       entry = ec.resolve_by_contract_sha256(",
+        "            expected_hashes[0], expected_env_tag=env_tag,",
+        "        )",
+        "",
+        "orchestrator/tests/test_env_contract.py:567: ",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "",
+        "contract_sha256 = 'e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02'",
+        "expected_env_tag = 'pegasus'",
+        "",
+        "    def resolve_by_contract_sha256(",
+        "        contract_sha256: str,",
+        "        *,",
+        "        expected_env_tag: str | None = None,",
+        "    ) -> GenerationEntry:",
+        "        \"\"\"全世代から hash-bound な GenerationEntry を一意に解決する。\"\"\"",
+        "        if type(contract_sha256) is not str or _HEX64_RE.fullmatch(contract_sha256) is None:",
+        "            raise EnvContractError(",
+        "                \"contract_sha256 は 64 桁の小文字 hex でなければならない: \"",
+        "                f\"{contract_sha256!r}\"",
+        "            )",
+        "        candidates = _CONTRACT_SHA256_INDEX.get(contract_sha256)",
+        "        if candidates is None:",
+        ">           raise EnvContractError(f\"未知の contract_sha256: {contract_sha256}\")",
+        "E           campaign.env_contract.EnvContractError: 未知の contract_sha256: e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02",
+        "",
+        "orchestrator/campaign/env_contract.py:368: EnvContractError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env",
+        "FAILED orchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes",
+        "FAILED orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1]",
+        "3 failed, 129 passed in 2.21s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/7505c218036e1ef24dee58f687acb781/izdw-7505c21803.o890970",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/7505c218036e1ef24dee58f687acb781/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 54%]\n.........................................................F..             [100%]\n=================================== FAILURES ===================================\n____ test_module_level_generation_validation_precedes_indexes_and_registry _____\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_module_level_generation_validation_precedes_indexes_and_registry():\n        \"\"\"bootstrap validation の import-time 結線を派生 view 構築より先に固定する。\"\"\"\n        tree = ast.parse(_read_module(\"orchestrator/campaign/env_contract.py\"))\n        validation_calls = [\n            node\n            for node in tree.body\n            if (\n                isinstance(node, ast.Expr)\n                and isinstance(node.value, ast.Call)\n                and isinstance(node.value.func, ast.Name)\n                and node.value.func.id == \"validate_generations\"\n                and len(node.value.args) == 1\n                and isinstance(node.value.args[0], ast.Name)\n                and node.value.args[0].id == \"GENERATIONS\"\n                and not node.value.keywords\n            )\n        ]\n    \n        assignment_lines = {}\n        for node in tree.body:\n            targets = []\n            if isinstance(node, ast.Assign):\n                targets = node.targets\n            elif isinstance(node, ast.AnnAssign):\n                targets = [node.target]\n            for target in targets:\n                if isinstance(target, ast.Name):\n                    assignment_lines[target.id] = node.lineno\n    \n>       assert len(validation_calls) == 1\nE       assert 0 == 1\nE        +  where 0 = len([])\n\norchestrator/tests/test_env_contract.py:559: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract.py::test_module_level_generation_validation_precedes_indexes_and_registry\n1 failed, 131 passed in 2.20s\n",
+        "stdout_sha256": "f96bea7ec5ab0f9e77145f6d862dc354e8b8c5d3ff7234f295d37e745f4453af"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "62b835160d2ba8663b4ef87a9d09dceeb2901d8b645ea3b3e10a91fd50165299",
+      "duration_s": 21.73,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_module_level_generation_validation_precedes_indexes_and_registry"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_module_level_generation_validation_precedes_indexes_and_registry"
+      ],
+      "hang_risk": false,
+      "id": "M9",
+      "injection_diff_sha256": "ca90e7865082846e5607463eb41291f8367070c0102bed2eeee11fccf5a34bbe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2a7b8ff899405ddfedbf57de0740bc44740d34756d21457debcc1524a53f3901",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract.py",
+          "new": "_CONTRACT_SHA256_INDEX = _build_contract_sha256_index(GENERATIONS)\n",
+          "old": "validate_generations(GENERATIONS)\n_CONTRACT_SHA256_INDEX = _build_contract_sha256_index(GENERATIONS)\n"
+        }
+      ],
+      "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+      "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+      "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+      "status": "KILLED",
+      "test_output_sha256": "f96bea7ec5ab0f9e77145f6d862dc354e8b8c5d3ff7234f295d37e745f4453af",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/cb5c4d0aa958ac1e079fd13447316338/izdw-cb5c4d0aa9.o890899",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/output/pegasus-dispatch/cb5c4d0aa958ac1e079fd13447316338/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[Linux-Baremetal]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[-leading-dash]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[.leading-dot]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[has space]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[under_score/slash]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[\\u65e5\\u672c\\u8a9e]\norchestrator/tests/test_env_contract.py::test_rejects_non_str_env_tag\norchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[0]\norchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1]\norchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1800]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800.0]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[True]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[False]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[None]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa1]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[numactl]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa3]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa4]\norchestrator/tests/test_env_contract.py::test_accepts_empty_numactl_tuple\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[None]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[True]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[False]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[0]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[optional]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[Required]\norchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[none]\norchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[required]\norchestrator/tests/test_env_contract.py::test_required_attestation_rejects_non_single_process\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[00000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[0000000000000000000000000000000000000000000000000000000000000000 ]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[123]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[123]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[None]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-1]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-true]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-None]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-0]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-false]\norchestrator/tests/test_env_contract.py::test_rejects_wrong_nested_types\norchestrator/tests/test_env_contract.py::test_lookup_baremetal_golden\norchestrator/tests/test_env_contract.py::test_lookup_pegasus_golden\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unregistered-env]\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[linux-baremetal-x]\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[]\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unknown]\norchestrator/tests/test_env_contract.py::test_lookup_non_str_fails_closed\norchestrator/tests/test_env_contract.py::test_lookup_non_hashable_fails_closed_with_exact_message\norchestrator/tests/test_env_contract.py::test_generation_entry_is_exact_frozen_data\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[0]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[-1]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[True]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[False]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[1.0]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[1]\norchestrator/tests/test_env_contract.py::test_generation_entry_requires_exact_contract_type\norchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes\norchestrator/tests/test_env_contract.py::test_generations_are_immutable_tuples_without_exposed_backing_dict\norchestrator/tests/test_env_contract.py::test_registry_and_lookup_are_generation_tail_view\norchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table\norchestrator/tests/test_env_contract.py::test_validate_generations_accepts_single_generation_candidate\norchestrator/tests/test_env_contract.py::test_validate_generations_rejects_bad_sequence_shapes_and_entries\norchestrator/tests/test_env_contract.py::test_validate_generations_without_bootstrap_fuse_accepts_valid_two_generation_candidate\norchestrator/tests/test_env_contract.py::test_validate_generations_synthetic_two_generation_negative_table\norchestrator/tests/test_env_contract.py::test_validate_generations_rejects_cross_env_contract_hash_collision\norchestrator/tests/test_env_contract.py::test_validate_generations_valid_two_generation_reaches_bootstrap_fuse\norchestrator/tests/test_env_contract.py::test_module_level_generation_validation_precedes_indexes_and_registry\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[linux-baremetal-expected_hashes0]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[None]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[123]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[00000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env\norchestrator/tests/test_env_contract.py::test_resolver_synthetic_index_resolves_non_current_generation\norchestrator/tests/test_env_contract.py::test_resolver_rejects_non_unique_synthetic_index\norchestrator/tests/test_env_contract.py::test_contract_is_frozen\norchestrator/tests/test_env_contract.py::test_nested_dataclasses_frozen\norchestrator/tests/test_env_contract.py::test_registry_is_read_only_mapping_proxy\norchestrator/tests/test_env_contract.py::test_no_register_api\norchestrator/tests/test_env_contract.py::test_no_mutable_backing_dict_exposed\norchestrator/tests/test_env_contract.py::test_forbidden_literals_cover_all_registry_values\norchestrator/tests/test_env_contract.py::test_matches_p2_2_constants\norchestrator/tests/test_env_contract.py::test_registry_calibration_refs_are_canonical_hash_bound_and_meaningful\norchestrator/tests/test_env_contract.py::test_none_mode_successor_transition_does_not_bypass_loader_grandfather_pin\norchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception\norchestrator/tests/test_env_contract.py::test_registry_policy_equality_rejects_near_and_rounded_values\norchestrator/tests/test_env_contract.py::test_legacy_calibration_allowlist_is_exact_and_closed\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[env-tag]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[clocks]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[schema]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[threads]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-skew]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rratio]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rmw]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[quality]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[attestation-profile]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[acquisition-receipt]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[noise-kind]\norchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[wrong-env-hash-copy]\norchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[missing-attestation]\norchestrator/tests/test_env_contract.py::test_pegasus_one_byte_mutation_is_rejected\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[/absolute/calibration.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/pegasus/calibration/../escape.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/wrong-env/calibration/artifact.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output//env/pegasus/calibration/artifact.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_rejects_symlink_escape\norchestrator/tests/test_env_contract.py::test_calibration_ref_has_no_free_text_note\norchestrator/tests/test_env_contract.py::test_contract_has_no_records_or_threads\norchestrator/tests/test_env_contract.py::test_contract_sha256_small_golden\norchestrator/tests/test_env_contract.py::test_contract_sha256_matches_independent_reference\norchestrator/tests/test_env_contract.py::test_pegasus_contract_sha256_golden\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides0]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides1]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides2]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides3]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides4]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides5]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides6]\norchestrator/tests/test_env_contract.py::test_contract_sha256_stable_and_hex64\norchestrator/tests/test_env_contract.py::test_v2_modules_have_no_env_literals_outside_registry\norchestrator/tests/test_env_contract.py::test_ast_check_is_not_vacuous_env_contract_has_literals\norchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_outside_region\norchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_inside_region_is_exempt\norchestrator/tests/test_env_contract.py::test_find_env_literals_ignores_bool_lookalikes\n\n132 tests collected in 0.29s\n",
+        "stdout_sha256": "ddedc1c056c93c3629b835d9ccf82d124e6b8e1923e2996379aeeba969a7403d"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[Linux-Baremetal]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[-leading-dash]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[.leading-dot]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[has space]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[under_score/slash]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[/u65e5/u672c/u8a9e]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_str_env_tag",
+        "orchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1800]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800.0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[True]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[False]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa1]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[numactl]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa3]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa4]",
+        "orchestrator/tests/test_env_contract.py::test_accepts_empty_numactl_tuple",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[True]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[False]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[optional]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[Required]",
+        "orchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[none]",
+        "orchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[required]",
+        "orchestrator/tests/test_env_contract.py::test_required_attestation_rejects_non_single_process",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[00000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[0000000000000000000000000000000000000000000000000000000000000000 ]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[123]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[123]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-1]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-true]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-false]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_wrong_nested_types",
+        "orchestrator/tests/test_env_contract.py::test_lookup_baremetal_golden",
+        "orchestrator/tests/test_env_contract.py::test_lookup_pegasus_golden",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unregistered-env]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[linux-baremetal-x]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unknown]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_non_str_fails_closed",
+        "orchestrator/tests/test_env_contract.py::test_lookup_non_hashable_fails_closed_with_exact_message",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_is_exact_frozen_data",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[0]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[-1]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[True]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[False]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[1.0]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[1]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_requires_exact_contract_type",
+        "orchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes",
+        "orchestrator/tests/test_env_contract.py::test_generations_are_immutable_tuples_without_exposed_backing_dict",
+        "orchestrator/tests/test_env_contract.py::test_registry_and_lookup_are_generation_tail_view",
+        "orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_accepts_single_generation_candidate",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_rejects_bad_sequence_shapes_and_entries",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_without_bootstrap_fuse_accepts_valid_two_generation_candidate",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_synthetic_two_generation_negative_table",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_rejects_cross_env_contract_hash_collision",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_valid_two_generation_reaches_bootstrap_fuse",
+        "orchestrator/tests/test_env_contract.py::test_module_level_generation_validation_precedes_indexes_and_registry",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[linux-baremetal-expected_hashes0]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[None]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[123]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[00000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env",
+        "orchestrator/tests/test_env_contract.py::test_resolver_synthetic_index_resolves_non_current_generation",
+        "orchestrator/tests/test_env_contract.py::test_resolver_rejects_non_unique_synthetic_index",
+        "orchestrator/tests/test_env_contract.py::test_contract_is_frozen",
+        "orchestrator/tests/test_env_contract.py::test_nested_dataclasses_frozen",
+        "orchestrator/tests/test_env_contract.py::test_registry_is_read_only_mapping_proxy",
+        "orchestrator/tests/test_env_contract.py::test_no_register_api",
+        "orchestrator/tests/test_env_contract.py::test_no_mutable_backing_dict_exposed",
+        "orchestrator/tests/test_env_contract.py::test_forbidden_literals_cover_all_registry_values",
+        "orchestrator/tests/test_env_contract.py::test_matches_p2_2_constants",
+        "orchestrator/tests/test_env_contract.py::test_registry_calibration_refs_are_canonical_hash_bound_and_meaningful",
+        "orchestrator/tests/test_env_contract.py::test_none_mode_successor_transition_does_not_bypass_loader_grandfather_pin",
+        "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception",
+        "orchestrator/tests/test_env_contract.py::test_registry_policy_equality_rejects_near_and_rounded_values",
+        "orchestrator/tests/test_env_contract.py::test_legacy_calibration_allowlist_is_exact_and_closed",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[env-tag]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[clocks]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[schema]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[threads]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-skew]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rratio]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rmw]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[quality]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[attestation-profile]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[acquisition-receipt]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[noise-kind]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[wrong-env-hash-copy]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[missing-attestation]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_one_byte_mutation_is_rejected",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[/absolute/calibration.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/pegasus/calibration/../escape.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/wrong-env/calibration/artifact.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output//env/pegasus/calibration/artifact.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_rejects_symlink_escape",
+        "orchestrator/tests/test_env_contract.py::test_calibration_ref_has_no_free_text_note",
+        "orchestrator/tests/test_env_contract.py::test_contract_has_no_records_or_threads",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_small_golden",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_matches_independent_reference",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_contract_sha256_golden",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides0]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides1]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides2]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides3]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides4]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides5]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides6]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_stable_and_hex64",
+        "orchestrator/tests/test_env_contract.py::test_v2_modules_have_no_env_literals_outside_registry",
+        "orchestrator/tests/test_env_contract.py::test_ast_check_is_not_vacuous_env_contract_has_literals",
+        "orchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_outside_region",
+        "orchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_inside_region_is_exempt",
+        "orchestrator/tests/test_env_contract.py::test_find_env_literals_ignores_bool_lookalikes"
+      ],
+      "duration_s": 155.089,
+      "rc": 0,
+      "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+      "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+      "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+      "status": "PASSED",
+      "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract.py::test_validate_generations_synthetic_two_generation_negative_table"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f8250c45fce2ef50fde916a143e1351ac79a6e5985b76c6321f26d7227755cbe",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract.py",
+            "new": "        pass\n",
+            "old": "        for predecessor, successor in zip(sequence, sequence[1:]):\n            if not is_valid_successor(predecessor.contract, successor.contract):\n                raise EnvContractError(\n                    f\"{env_tag!r} に正当でない隣接 successor がある: \"\n                    f\"g{predecessor.generation} -> g{successor.generation}\"\n                )\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "637299a6137e71894c79d831a6e8d9d8002fe3eff261758c8d6c46baef758d47",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract.py",
+            "new": "    allowed = frozenset({\n        \"/calibration_ref/path\",\n        \"/calibration_ref/sha256\",\n        \"/attestation_mode\",\n    })\n",
+            "old": "    allowed = frozenset({\n        \"/calibration_ref/path\",\n        \"/calibration_ref/sha256\",\n    })\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a955562ffb081f82c61eff91bfaf4841ba39aad8374f8acd938be1a50687ef5e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract.py",
+            "new": "    return True\n",
+            "old": "    return (\n        (\"/calibration_ref/path\" in differences)\n        == (\"/calibration_ref/sha256\" in differences)\n    )\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract.py::test_validate_generations_valid_two_generation_reaches_bootstrap_fuse"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7107e443a2be2cda6d2b2a1522ae6d8d6da3a403f0b08354be3b28f208719312",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract.py",
+            "new": "    return None\n",
+            "old": "    for sequence in mapping.values():\n        if len(sequence) != 1:\n            raise EnvContractError(\n                \"活性化権限 (activation record / activation receipt) が未実装のため、\"\n                \"2 世代目の登録を fail-closed で拒否する\"\n            )\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract.py::test_resolver_synthetic_index_resolves_non_current_generation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "13939ec635d9f1b7470017c47adf747df8d9f097627b73ef8d87d937cb0497b8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract.py",
+            "new": "    candidates: dict[str, list[GenerationEntry]] = {}\n    for sequence in mapping.values():\n        for entry in sequence[-1:]:\n            candidates.setdefault(entry.contract.contract_sha256, []).append(entry)\n",
+            "old": "    candidates: dict[str, list[GenerationEntry]] = {}\n    for sequence in mapping.values():\n        for entry in sequence:\n            candidates.setdefault(entry.contract.contract_sha256, []).append(entry)\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract.py::test_validate_generations_rejects_cross_env_contract_hash_collision"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ff3a77c56a1dec57f2785780e13df49bb1858f4db40d3c5a54fc331a52e45547",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract.py",
+            "new": "            seen_hashes.add(entry.contract.contract_sha256)\n",
+            "old": "            contract_sha256 = entry.contract.contract_sha256\n            if contract_sha256 in seen_hashes:\n                raise EnvContractError(\n                    f\"contract_sha256 が全 env・全世代で一意でない: {contract_sha256}\"\n                )\n            seen_hashes.add(contract_sha256)\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_nonempty_columns_and_g1_hashes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d8b8379d922d7d478286f246898ee60b52a1e179a55e08b81392f354cb35628a",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_env_contract.py",
+            "new": "    \"pegasus\": (\n        \"e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c02\",\n    ),\n",
+            "old": "    \"pegasus\": (\n        \"e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01\",\n    ),\n"
+          }
+        ]
+      },
+      "M9": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract.py::test_module_level_generation_validation_precedes_indexes_and_registry"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ca90e7865082846e5607463eb41291f8367070c0102bed2eeee11fccf5a34bbe",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract.py",
+            "new": "_CONTRACT_SHA256_INDEX = _build_contract_sha256_index(GENERATIONS)\n",
+            "old": "validate_generations(GENERATIONS)\n_CONTRACT_SHA256_INDEX = _build_contract_sha256_index(GENERATIONS)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "cc14127a0da573a15547e6188303dd5f6ac2938f64b2cef5d61b3be95d319313",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_env_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2400.0
+  },
+  "repo_head": "7dc3236eee81c31fdfc1884110dfd74a934e5f00",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_env_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "07411afca9c2ceab0c4fd18605ab4af7ad034563",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "88efd079df8c573f67e89ed9039eef45e04feadc49cc31ca538382f26ec535ca",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "aa50db1acdcd711a38b95631094837fde824bd3693e198c12e92e68865e58fce",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 7,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-u2-contract-generation/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "c9f47e15c30048855e4764049a67d3af6aae67b1c5d29a2536ea894bb4b7c911",
+  "updated_at": "2026-08-05T08:50:02.132785+00:00"
+}
