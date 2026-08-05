@@ -40,6 +40,13 @@ title: [T-213] 再定義の設計パッケージ 8 件を起草した — 敵対
   件 4 trust closure と site の型分離、件 5 attestation の二相化と qsub の write-ahead、
   件 6 残骸回収と worktree path、件 7 pilot の形、件 8 trust root の穴 2 件
 
+- **段 8 の自己改善は予算で入らなかった (実測)。** 候補は 1 件 —
+  `DW-O20` の startup NG のうち「新規 worktree の submodule 未初期化」は worktree 内の
+  `git submodule update --init` で解けるが、`DW-O20` にも tool の指示文にも書かれておらず、
+  指示文は「親セッションで初期化する」とだけ言う。1 行 (約 100 bytes) の追記を試したところ
+  `operations.md` が 8504 > 8400 bytes となり `check_docs` が赤。**予算を上げず変更を戻した**。
+  [T-432] へ 4 件目として追記する
+
 ## 次の一手差分
 
 ### 更新
@@ -51,6 +58,12 @@ title: [T-213] 再定義の設計パッケージ 8 件を起草した — 敵対
   推奨依存順序は 件 7 段階 1 → 件 2 → 件 3 → 件 4 → 件 6 → 件 5 → 件 7 段階 2 → 件 1 判定。
   逐語と 8 件の択一は `output/insights/2026-08-05_t213-redefinition-design.md`
   base: 5666032a085ec49cd66d440114b3030f5c2d7fa7434d0e20f88b953d96c825fb
+- [T-432] **P2・`docs/dev-wave/operations.md` の予算残に阻まれた是正が 4 件になった**: 既存 3 件に
+  加え、2026-08-05 に 4 件目 — `DW-O20` へ「新規 worktree の submodule 未初期化 NG は
+  そのworktree内の `git submodule update --init` で解消する」を足せない (1 行で 8504 > 8400 bytes)。
+  dev-wave の段 8 が予算で阻まれるのは (230) [T-481] に続く独立 2 例目であり、`DW-G03` の
+  族一般化条件を満たす。予算引き上げは独立審査事項、陳腐化ルールの削除・テスト化で空ける経路は未着手
+  base: 295187377069e0e94ddf4a3c78cbf0f58eb255042299eb6ccde1074fe7b7cd23
 
 ### 新規
 
