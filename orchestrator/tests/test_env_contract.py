@@ -424,6 +424,16 @@ def test_validate_generations_accepts_single_generation_candidate():
     assert ec.validate_generations(mapping) is None
 
 
+def test_validate_generations_public_rejects_invalid_single_generation_candidate():
+    """public validator が fuse 前の構造検査へ委譲することを固定する。"""
+    contract = _valid_contract()
+    mapping = {
+        contract.env_tag: (ec.GenerationEntry(generation=2, contract=contract),),
+    }
+    with pytest.raises(ec.EnvContractError, match="1..N"):
+        ec.validate_generations(mapping)
+
+
 def test_validate_generations_rejects_bad_sequence_shapes_and_entries():
     class GenerationEntrySubclass(ec.GenerationEntry):
         pass
