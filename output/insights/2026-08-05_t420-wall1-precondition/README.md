@@ -136,8 +136,12 @@ attestation で落ちるだけで、壁 1 の答えは得られない。
 ## 敵対検証
 
 中核主張「今日 build へ到達できる sanctioned 経路は無い」を独立 codex に read-only で反証させた
-(prompt / 逐語 = `/work/1/SFC/tanab/dev-wave-jobs/wave-t420-wall1-driver/`、
-`check_codex_output.py` rc=0)。判定は **partially-refuted**。親の裁定は以下のとおり。
+(`check_codex_output.py` rc=0)。判定は **partially-refuted**。親の裁定は以下のとおり。
+
+逐語と prompt は本 insight 配下へ凍結した (F20 — セッションを跨ぐ成果物を repo 外にだけ置かない)。
+
+- `evidence/adversarial-refutation.md` — 子の出力全文
+- `evidence/adversarial-refutation.prompt.txt` — 投入した prompt 全文
 
 | # | 所見 | 裁定 |
 |---|---|---|
