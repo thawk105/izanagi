@@ -1,0 +1,104 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    for commit in unreachable_commits(root):\n",
+          "new": "    for commit in sorted(set(unreachable_commits(root) + [main_commit])):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_reachable_commit_is_not_reported"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "            if path in main_paths:\n                continue\n",
+          "new": "            if False:\n                continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_already_in_main_is_not_reported"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "            if path in other_tip_paths:\n                continue\n",
+          "new": "            if False:\n                continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_on_live_branch_tip_is_not_reported"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "DEFAULT_EXCLUDED_PREFIXES = (\"docs/spool/\", \"docs/archive/\")\n",
+          "new": "DEFAULT_EXCLUDED_PREFIXES = ()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_fold_managed_paths_are_excluded_by_default"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    if not findings:\n",
+          "new": "    if True:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_control_deleted_branch_work_is_reported"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    diff_mode = \"-c\" if len(parent_line) > 2 else \"-m\"\n",
+          "new": "    diff_mode = \"-m\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_side_of_unreachable_merge_is_not_reported"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
