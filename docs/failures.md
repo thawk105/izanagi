@@ -2777,3 +2777,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   禁じるので、追記は [T-521] としてユーザー裁定へ返す。
   本項の現時点の対応は台帳への記録までである。
 - 再発検知: 上記 2 テストは land 済みで、同型の過大復元は受入で必ず赤になる。
+
+### F125. 競合なしの merge が実装面 provenance を欠いた [手順漏れ]
+
+- 事象: wave branch へ local main を取り込む merge commit を作ったところ、
+  `tools/check_ai_provenance.py` が「実装面に Codex role=author がない」で 1 件の違反を返した。
+  対象は auto-merge が成立した test file 1 本で、競合は起きていない。
+  `git commit --dry-run -F` の preflight は staged path しか見ないため通過していた。
+- 根本原因: `DW-O17` が Codex `role=author` を要求する条件を「競合解消が実装面なら」と書いており、
+  **競合なしでも merge commit の path 集合が両親のいずれとも異なりうる**ことを覆っていなかった。
+  provenance の checker は merge を「全 parent と異なる combined path」で判定するため、
+  auto-merge の結果そのものが実装面の新規内容として数えられる。
+- 恒久対応: `DW-O17` の条件を「実装面 path が両親と異なれば Codex `role=author` へ」に是正した
+  (競合の有無を条件にしない)。本 wave では merge を作り直し、統合結果の検証を Codex に回して
+  `scope=merge-resolution` の trailer を付け、full-history 監査を違反なしにした。
+- 再発検知: `tools/check_ai_provenance.py` の full-history 監査が既に検出する
+  (本件もそれで顕在化した)。preflight の `--dry-run -F` 単独通過を根拠にしない。
