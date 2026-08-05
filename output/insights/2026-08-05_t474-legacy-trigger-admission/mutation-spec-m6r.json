@@ -1,0 +1,33 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 900,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M6R",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/artifact_admission.py",
+     "old": "    if not decision.admitted:\n        raise CampaignNotAdmitted(\n",
+     "new": "    if False:\n        raise CampaignNotAdmitted(\n"
+    }
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2]",
+    "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-balanced-sweep-c2d838b8]",
+    "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-read-heavy-sweep-654d5cd7]",
+    "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c]",
+    "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8]",
+    "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-write-heavy-sweep-dcd2bbfb]",
+    "orchestrator/tests/test_artifact_admission.py::test_overlay_exact_bytes_remain_denied_after_relocation",
+    "orchestrator/tests/test_artifact_admission.py::test_three_legacy_campaigns_are_denied",
+    "orchestrator/tests/test_layer3_report.py::test_legacy_trigger_sweep_cannot_issue_new_report",
+    "orchestrator/tests/test_layer3_report.py::test_real_legacy_s8a_campaign_is_rejected"
+   ]
+  }
+ ]
+}

@@ -91,7 +91,9 @@ fold が行うこと:
 3. canonical 3 台帳へ**追記**する。既存 bytes を書き換えるのは、既存 F エントリへの `## 再発` 挿入と、
    見送り台帳の既存項目への 1 行追記 (`見送り追記`) だけで、いずれも挿入であって削除・並べ替えをしない
 4. worklog の `### 次の一手` を「前エントリの順序を保存し、carry は
-   `変わらず ((直前エントリ番号) 参照)`、新規は末尾追加」で全文再生成する
+   `- [T-NNN] (参照先エントリ番号)`、新規は末尾追加」で全文再生成する。
+   **描画済み worklog の読み方と carry 書式の正本は `docs/worklog.md` 冒頭**であり、
+   本書は fragment 文法と fold producer 契約だけを持つ
 5. `docs/worklog.md` が閾値を超えるなら過去エントリを `docs/archive/` へ移し、
    `docs/archive/README.md` の索引を更新する
 6. fragment を削除 (GC) し、`FOLDED.md` へ receipt を追記する

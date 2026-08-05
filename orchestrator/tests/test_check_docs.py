@@ -4723,6 +4723,33 @@ def test_backlog_guard_carried_id_in_next_action_is_clean():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_backlog_guard_id_only_item_is_source_and_sink():
+    """ID 単独 source も D70 の対象とし、次 entry での脱落を具体 finding にする。"""
+
+    id_only_source = _CLEAN_WORKLOG.replace("1. [T-001] carry", "- [T-001]")
+    root = _build_min_repo()
+    try:
+        id_only_sink = id_only_source.replace("- [T-001] consumed", "- [T-001]")
+        _write_backlog_docs(root, worklog_text=id_only_sink)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        dropped = id_only_source.replace("- [T-001] consumed", "本文。")
+        _write_backlog_docs(root, worklog_text=dropped)
+        _assert_violation(
+            root,
+            "次の一手 ID [T-001]",
+            "後続エントリ",
+            "見送り台帳にもない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_backlog_guard_consumed_id_in_body_is_clean():
     root = _build_min_repo()
     try:
