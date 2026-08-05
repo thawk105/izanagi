@@ -58,7 +58,7 @@ title: [T-244] P4 batch freeze を ledger 側契約として実装した — W2/
 
 ### 更新
 
-- [T-244] **P1・P3 は (4)(5) 裁定済み + (1)(2)(3) 設計起草待ち。P4 は ledger 側契約に適合、充足は未達。P5 残余は U-2**:
+- [T-244] **P1・P2 は実装差し戻しでユーザー裁定 5 件待ち。P3 は (4)(5) 裁定済み + (1)(2)(3) 設計起草待ち。P4 は ledger 側契約に適合 (充足は未達)。P5 残余は U-2。未着手は P7・P9 の 2 件**:
   **P4**: D153 の W1〜W5 を **ledger 側で実装完了** ({{D:p4-batch-freeze-ledger-conformance}})。
   member identity を `(wire, origin-wide query ordinal, origin-wide replicate ordinal)` の正準
   preimage へ束縛し、replicate は seal 前に公開しない。outcome と evidence digest claim を単一
@@ -68,12 +68,13 @@ title: [T-244] P4 batch freeze を ledger 側契約として実装した — W2/
   schema は v2 へ分離。**P4 充足は名乗らない** — 残余は producer 結線・driver 結線・実 authority 登録・
   seal 前漏洩を防ぐ storage 契約・formal consumer・proof chain 結線の 6 点で、U-G と同型の会計である。
   production caller ゼロ・authority registry 空は不変で受理集合の現在値も不変。
-  **P3**: 変わらず ((200) 参照) — producer 結線は D163 で実装不能と確定し、裁定パッケージ (1)(2)(3) は
-  設計 wave 待ち。本 wave の schema v2 分離は空 registry の版名変更であり、実在 authority の
-  世代移行の主体・契約は決めていない (設計 wave の所有面)。
-  **P1**: 変わらず機械部品のみで未充足。**P5**: U-1 実装済み、残余は U-2 のみ。
-  逐語は `output/insights/2026-08-05_t244-p4-batch-freeze/`。
-  base: d1c09e8b406d9313aebf1ab9088477789ecfb83ef075cf2b2d0a604d74a52da4
+  本 wave の schema v2 分離は空 registry の版名変更であり、実在 authority の世代移行の主体・契約は
+  決めていない (P3 の裁定パッケージ (2) の所有面)。逐語は
+  `output/insights/2026-08-05_t244-p4-batch-freeze/`。
+  **P3・P2・P1・P5・未着手の状況は (201) から変わらない** — P3 は producer 結線が D163 で実装不能と
+  確定し裁定パッケージ (1)(2)(3) が設計 wave 待ち、P2 は D164 で設計メモ凍結、P1 は機械部品のみ、
+  P5 は U-1 実装済みで残余 U-2、未着手は P7・P9 の 2 件。cap-lift は FAIL、D114 の上限 1 も不変。
+  base: 953863ef4d2867b49c713fadf056e0544175281600c316be1f1557787f48c570
 
 ### 新規
 
