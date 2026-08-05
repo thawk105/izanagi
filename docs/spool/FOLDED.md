@@ -264,3 +264,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:post-policy-machine-sweep-membership":"[T-500]","T:trigger-provenance-implementation-overload":"[T-502]","T:wal-side-aba-in-admission":"[T-501]"},"authored":"2026-08-05","content_sha256":"bb0f3abe42a386d7a1e7b2db914172f31928ac124c2b15ba5a009da1ea9b1f30","seq":1,"wave":"dev-wave-t474-legacy-trigger-admission"}
 - {"allocations":{"D:legacy-trigger-raw-view-denial":"D170"},"authored":"2026-08-05","content_sha256":"a3faa86758bf46549e021d32fa8202c2e398da9526d3596a1f30b378eb3dbe7c","seq":1,"wave":"dev-wave-t474-legacy-trigger-admission"}
+
+- {"allocations":{"T:clean-gate-ignored-blindness":"[T-504]","T:dev-wave-budget-headroom":"[T-505]","T:mutation-restore-durability-impl":"[T-503]"},"authored":"2026-08-05","content_sha256":"a43058c98d6b8a91f65b7c577e004f0b8a13fedbe53c3f4559b465c2da0a3618","seq":1,"wave":"dev-wave-t487-design"}
