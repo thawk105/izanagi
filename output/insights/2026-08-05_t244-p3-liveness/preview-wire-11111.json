@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "working_diff": "--- a/cc/silo/transaction.cc\n+++ b/cc/silo/transaction.cc\n@@ -101,7 +101,7 @@\n   // directives, no nondeterministic builtins (this comment avoids raw\n   // tokens so marker scanning does not false-positive).\n #if BACKOFF_TRIGGER_GATING\n-  izanagi_gate_pass = true;\n+  izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || izanagi_abort_reason_ == IzanagiAbortReason::kUpdateAbsent || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked || izanagi_abort_reason_ == IzanagiAbortReason::kNodeVali;\n #else\n   Backoff::backoff(FLAGS_clocks_per_us);\n #endif\n",
+  "diff_digest": "7919a7d25ca726890e98ed8ec095073e286d5d94d170ae21bf11de266a498dc6",
+  "subtype": null,
+  "reason": null
+}
