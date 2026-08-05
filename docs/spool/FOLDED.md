@@ -240,3 +240,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:mutation-preregistration-false-kill":"F113"},"authored":"2026-08-05","content_sha256":"c5891a5b90a8705fd580b1c33136909782a692717c4f2ed5c8676a89c6ee27ee","seq":3,"wave":"dev-wave-t472-canonical-predicate-consumers"}
 
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"c5116a45a20f3aa82bdb61861a88a0c6eccb68f4e705fb5964bf00fb64c653fa","seq":1,"wave":"rulings-20260805-e"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"c4d77aedc56569d3f6d8d064e08f2ca5582e361ff277df51a9db460548578653","seq":1,"wave":"rulings-20260805-f"}
