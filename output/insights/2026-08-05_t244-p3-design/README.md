@@ -10,6 +10,24 @@
 - 前提として使った裁定済み事項 = **(4)** origin proof の durable cross-reference を producer 側で今出す /
   **(5)** 複数候補を通すなら D96 手続
 
+### 行番号の基準と再確認 (erratum、land 直前に実測)
+
+本パッケージと逐語の file:line は**すべて起点 main `3075a8fd` 時点**のものである。land までに
+local main が `6d6cd095` まで進んだため、**設計の根拠にしている実装事実が生きているかを取り込み後に
+再確認した。結論は「事実はすべて不変、行番号だけが動いた」である。**
+
+- `orchestrator/campaign/reflux_origin_ledger.py` と `reflux_origin_authority_v2.json` は
+  **差分ゼロ**。§1 の事実 (b)(c)(d) と §3・§4 の根拠はそのまま有効である。
+- 8c driver の `WORKLOADS` は `ycsb-a/b/c` のまま (171 → 173 行)、`MAX_APPROVED_GENERATIONS = 1`
+  も不変 (143 → 145 行)。
+- 完全性 consumer の `attempt` 厳密 1 / `retry` false の pin も不変 (192-195 → 200-202 行)。
+- `trial_registry` の `certifying=False` / `arm_binding="declared-only"` (124-129 → 199-200 行) と
+  H1=rr80 / H2=rr20 の束縛 (46-49 → 52-55 行) も不変。
+
+**したがって §9 の択一 10 件はいずれも影響を受けない。** ただし (198) の前パッケージが
+行番号 stale で使えなくなった前例 (§1 の事実 (a)) があるため、実装 wave を起票するときは
+その時点の main に対して file:line を取り直すこと。
+
 ---
 
 ## 1. 先に読むべき 4 つの事実 (本 wave の実測。前提が動いている)
