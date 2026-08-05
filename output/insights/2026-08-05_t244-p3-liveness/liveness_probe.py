@@ -77,8 +77,10 @@ def load_preview(path: Path, wire: str) -> str:
     if type(working_diff) is not str or auditor_gate.compute_diff_digest(working_diff) != evidence:
         raise ValueError("working_diff does not match diff_digest")
     predicate = reflux_ir.emit_predicate(reflux_ir.parse_wire(wire))
-    if predicate not in working_diff:
-        raise ValueError("wire predicate is absent from working_diff")
+    added_lines = (line for line in working_diff.splitlines()
+                   if line.startswith("+") and not line.startswith("+++"))
+    if not any(predicate in line for line in added_lines):
+        raise ValueError("wire predicate is absent from working_diff additions")
     return evidence
 
 
@@ -187,6 +189,7 @@ def main() -> int:
     args = parser.parse_args()
     statuses = {name: "NOT_RUN" for name in CHECKS}
     details: dict[str, object] = {}
+    outcome = None
     stage, reason = "receipt_output", "not run"
     try:
         if args.keep is not None and Path(os.path.abspath(args.keep)) != RECEIPT:
@@ -195,13 +198,16 @@ def main() -> int:
         evidence = load_preview(args.preview_json, args.wire)
         stage = "fixture_ledger"
         checks, details = run_probe(args.wire, evidence)
+        outcome = "accepted"
         statuses = {name: "PASS" if checks[name] else "FAIL" for name in CHECKS}
         failed = [name for name in CHECKS if statuses[name] == "FAIL"]
         stage, reason = ("verification", ", ".join(failed)) if failed else ("complete", "none")
     except Exception as exc:
         reason = f"{type(exc).__name__}: {exc}"
-    receipt = {"schema": "izanagi-t244-p3-liveness-receipt/v1", **SCOPE, **details, "outcome": "accepted",
-               "outcome_semantics": SEMANTICS, "check_statuses": statuses, "stage": stage, "reason": reason}
+    receipt = {"schema": "izanagi-t244-p3-liveness-receipt/v1", **SCOPE, **details,
+               "check_statuses": statuses, "stage": stage, "reason": reason}
+    if outcome is not None:
+        receipt.update(outcome=outcome, outcome_semantics=SEMANTICS)
     if args.keep is not None and Path(os.path.abspath(args.keep)) == RECEIPT:
         try:
             descriptor = os.open(RECEIPT, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
@@ -211,7 +217,8 @@ def main() -> int:
         except Exception as exc:
             stage, reason = "receipt_output", f"{type(exc).__name__}: {exc}"
     print("scope: fixture-only; placeholder manifest; non-production; not P3 evidence")
-    print(f'outcome="accepted" semantics: {SEMANTICS}')
+    if outcome is not None:
+        print(f'outcome="{outcome}" semantics: {SEMANTICS}')
     print(f"stage: {stage}")
     print(f"reason: {reason}")
     for name in CHECKS:

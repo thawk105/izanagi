@@ -21,15 +21,15 @@
   "events": {
     "BatchCommitted": {
       "event_index": 1,
-      "event_sha256": "c2e25eb7bc50feaa3a6f166d1799870236dfb03ef38ed4120df62502f168279d"
+      "event_sha256": "002c4563c53b7f868789785d74d5e5e8516d08c0abc0875ad37c611c87179dfc"
     },
     "BatchResultsPrepared": {
       "event_index": 2,
-      "event_sha256": "244e43d87cb3fcc415d7e4b236c209340d9aebf726805686fb8abbad41bd0d63"
+      "event_sha256": "dd239ba5b0cdb0c3416181ad736dfffa13f465e312f903313475ba2607dcf4a2"
     },
     "BatchSealed": {
       "event_index": 3,
-      "event_sha256": "026c40d998c0bce9b1e796534a2d3493d32a14b81d64a29e8e5bf73a44cfec21"
+      "event_sha256": "5b1a576b7b0f263bd01610d97eb35068bb05dad8ce1eb159e647039d415f1a04"
     }
   },
   "fixture_only": true,

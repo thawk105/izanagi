@@ -32,8 +32,11 @@ def test_t244_p3_liveness_probe_kills_registered_ledger_mutations() -> None:
     )
     diagnostic = f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
     assert completed.returncode == 0, diagnostic
-    lines = set(completed.stdout.splitlines())
-    assert {f"{name}\tPASS" for name in CHECKS} <= lines, diagnostic
+    lines = completed.stdout.splitlines()
+    assert lines.count("stage: complete") == 1, diagnostic
+    for name in CHECKS:
+        observed = [line for line in lines if line.startswith(f"{name}\t")]
+        assert observed == [f"{name}\tPASS"], diagnostic
 
 
 def _run() -> int:
