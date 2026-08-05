@@ -18,6 +18,7 @@ sys.path.insert(0, _ORCH)
 
 from campaign import s1_verify_extime_calibration as M  # noqa: E402
 from campaign import t080_freeze_migration as T080  # noqa: E402
+from campaign.reflux_ir import TriggerGateIR, emit_predicate  # noqa: E402
 
 
 def _candidate(extime: int, wall: float, *, verdict: str = "serializable",
@@ -104,6 +105,77 @@ def test_validated_target_rejects_freeze_and_constructed_gate_mismatch():
     with pytest.raises(M.CalibrationError, match="known_axes_freeze"):
         M.validated_target(freeze, verify_fn=verify, target_builder=build_target)
     assert verified == [freeze]
+
+
+def _validated_target_inputs(frozen_predicate, target_predicate=None):
+    target_predicate = (frozen_predicate if target_predicate is None
+                        else target_predicate)
+    freeze = {
+        "entries": {"read-heavy": {"system_gate": {
+            "name": "g_rl", "flags": {"BACK_OFF": 1},
+            "gate_predicate": frozen_predicate,
+        }}},
+    }
+
+    def build_target():
+        return {
+            "name": "g_rl", "flags": {"BACK_OFF": 1},
+            "gate_predicate": target_predicate, "genome": SimpleNamespace(),
+        }
+
+    return freeze, build_target
+
+
+@pytest.mark.parametrize(
+    "mask", [pytest.param(mask, id=f"mask-{mask:02d}") for mask in range(32)],
+)
+def test_validated_target_accepts_all_32_canonical_predicates(mask):
+    predicate = emit_predicate(TriggerGateIR(mask))
+    freeze, build_target = _validated_target_inputs(predicate)
+
+    target = M.validated_target(
+        freeze, verify_fn=lambda _document: None,
+        target_builder=build_target,
+    )
+
+    assert target["gate_predicate"] == predicate
+
+
+def test_validated_target_rejects_matching_noncanonical_predicate():
+    predicate = "izanagi_gate_pass = true;"
+    freeze, build_target = _validated_target_inputs(predicate)
+
+    with pytest.raises(M.CalibrationError) as excinfo:
+        M.validated_target(
+            freeze, verify_fn=lambda _document: None,
+            target_builder=build_target,
+        )
+
+    assert str(excinfo.value) == "freeze gate_predicate が正準集合外"
+    assert predicate not in str(excinfo.value)
+
+
+def test_validated_target_rejects_noncanonical_target_side():
+    predicate = emit_predicate(TriggerGateIR(0))
+
+    class EqualToCanonicalPredicate:
+        def __eq__(self, other):
+            return other == predicate
+
+        def __ne__(self, other):
+            return not self == other
+
+    target_predicate = EqualToCanonicalPredicate()
+    freeze, build_target = _validated_target_inputs(predicate, target_predicate)
+
+    with pytest.raises(M.CalibrationError) as excinfo:
+        M.validated_target(
+            freeze, verify_fn=lambda _document: None,
+            target_builder=build_target,
+        )
+
+    assert str(excinfo.value) == "freeze gate_predicate が正準集合外"
+    assert predicate not in str(excinfo.value)
 
 
 def test_constructed_target_matches_frozen_read_heavy_gate_without_subprocess():
