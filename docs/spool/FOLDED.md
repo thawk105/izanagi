@@ -234,3 +234,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:assert-head-cost":"[T-489]","T:interruption-safe-restore":"[T-487]","T:production-cleanup-leg":"[T-486]","T:warn-delivery-latency":"[T-488]"},"authored":"2026-08-05","content_sha256":"abd0f906755effdf5ba199b96d059b408bd883bc4372236de5190e8b620852ba","seq":1,"wave":"dev-wave-t471-restore-bound"}
 - {"allocations":{"F:fix-prompt-existing-test-ambiguity":"F112"},"authored":"2026-08-05","content_sha256":"0eb1d6238d5ecb4235953013f21de3a34408af3473cb28c5924f4eb5f0b0d332","seq":2,"wave":"dev-wave-t471-restore-bound"}
+
+- {"allocations":{"T:t472-scope-out-rulings":"[T-490]"},"authored":"2026-08-05","content_sha256":"e2a859713675b3fe259314d02ced9290867dd66cd839ccdc37180f092c4d446e","seq":1,"wave":"dev-wave-t472-canonical-predicate-consumers"}
+- {"allocations":{"D:consumer-local-canonical-membership":"D167"},"authored":"2026-08-05","content_sha256":"aafa3d14a57295c403ed2c1e9ca0fbc1d4f4a147063921172c00f9d1b47634a0","seq":2,"wave":"dev-wave-t472-canonical-predicate-consumers"}
+- {"allocations":{"F:mutation-preregistration-false-kill":"F113"},"authored":"2026-08-05","content_sha256":"c5891a5b90a8705fd580b1c33136909782a692717c4f2ed5c8676a89c6ee27ee","seq":3,"wave":"dev-wave-t472-canonical-predicate-consumers"}
