@@ -8835,3 +8835,104 @@ land する」と D164 が却下した「発火しない検査を防壁として
 **研究状態への影響:** なし。本 wave は docs と逐語のみで、production 挙動・受理集合・certified 選択・
 材料レポート・試行台帳・proof chain・凍結 bytes はいずれも不変である。実装差分が無いため
 変異 matrix と実装後の受入全走は対象外。
+
+## D180. 資源分類の実測はユーザー端末の手番とし、循環を当面追認する (2026-08-05)
+
+**決定:** `docs/pegasus-runbook.md` §7.0 の資源分類 (同時に生きる全子孫を含む cgroup の charged
+memory ピークの実測) は、ログインノード上のユーザー端末 — `hooks/guard_bash.py` の管轄外 — で
+ユーザーが実行するものとし、AI セッション・子エージェント・自動化はこれを行わない。未実測の
+実行体は `unknown` に倒して止め、測定は §7.0 の「記録すること」の全項目を満たす依頼として
+ユーザーへ返す。記録欄と実測表へ入れてよいのは、そうして返ってきた値だけとする。D175 決定 4 が「裁定待ち」として残した恒久的な測定経路は、当面この手番を正規経路として
+追認する (2026-08-05 ユーザー裁定)。
+
+**supersede:** 本決定は D175 決定 4 の「恒久的な測定経路は裁定待ちとする」と、F123 恒久対応末尾の
+同旨の記述を置き換える。D175 決定 2 が残した「厳格化するか grandfather を追認するか」の裁定待ちも
+2026-08-05 のユーザー裁定で解決済みで、追認が現行である — 対象 4 本は `class` を `local-ok` に
+据え置き、`evidence` に `legacy-admitted (未実測)` を残す。実測して変わるのは `evidence` だけで、
+この例外を他 entry の許可根拠に流用しない。
+
+**理由:**
+- 計算ノードでは `systemd-run --user --scope` が成立せず (PBS ジョブに user systemd session が
+  無い)、hook はログインノードで未登録の実行体を拒否する。「登録には実測が要る / 実測には登録が
+  要る」という循環は実測で確定しており (F123)、迂回で解くのは防壁を緩める方向の変異である。
+- 手番を明文化しないと、次に分類を要する実行体が現れるたびに同じ循環へ再突入し、段が空振りする。
+  循環そのものを消すのではなく、誰が測るかを固定して前へ進める。
+- 未実測 entry の grandfather 追認と整合する。昇格の条件は本手番での実測であって、役割・慣行・
+  「以前から通っていた」ことではない。
+
+**却下した選択肢:**
+- 計算ノードで動く測定手順への §7.0 改訂 — 前提となる user systemd session の存在が実測で
+  否定されている。再提案には新しい実測が要る。
+- 測定専用の bounded surface の即時新設 — 受理集合に触る変更であり、admission registry の
+  族再設計と同じ単位で比較しないと二重表と二重の判定経路を作る。族再設計へ同梱する。
+
+**帰結:** 正規の測定面が hook の管轄外に確定したため、hook 面で `systemd-run` 経由の綴りを
+塞いでも測定経路は失われない。実際に塞ぐかどうかは族再設計が決める。
+
+**研究状態への影響:** 無し。campaign の受理集合、certified 選択、proof chain、凍結 bytes は
+不変で、変わるのは開発 harness の資源分類手続における手番の所在だけである。
+
+## D181. 方式 α の取得手続きを identity に載せ、時間窓を宣言する (2026-08-05)
+
+**決定:**
+
+1. 本番 attestation の effective clock は、走行 CPU を sysfs CPU 集合 ∩ 元 affinity から決定的に
+   等間隔 K=5 点選んで pin しながら `/proc/cpuinfo` を読み、**論理 CPU ごとの最小値**を
+   `effective_clock.samples_mhz` とする。受理述語 (全位置が帯内) と `tolerance_pct` は変えない。
+   方式 β (reader 除外) と γ (帯外 1 個まで許容) の性質は混ぜない。
+2. `effective_clock.method` は K・最小 interval・target 選択規則 ID から組み立て、独立した文字列
+   literal にしない。K か規則が変われば identity が必ず変わる。
+3. 読み開始は deadline 方式で 50 ms 以上あけ、最小 horizon `(K-1) × interval` を構造で保証する。
+   **遅延そのものは拒否理由にしない** — 遅れは horizon を伸ばす方向であり、承認外の過剰拒否を
+   新設しないためである。
+4. schema key 集合は変えない (`samples_mhz` / `method` / `governor`)。K 読みの生ベクトルは取得中だけ
+   メモリに置き、成果物へ出さない。
+
+**理由:**
+
+- 採用された α は「巡回が省略不能」であり、変更面は述語でなく**取得手続き**である。手続きが
+  identity に載っていなければ、method を名乗るだけの退化を成果物から区別できない。
+- 実験で 9/9 の should-pass を得た α 群は randomized pin sweep の各 target の先頭読みを束ねたもので
+  時間幅が広く、本番の連続 5 読み (約 100 ms) とは別プロトコルになる。機序 (reader が居る CPU は
+  必ず busy) の除去は時間窓に依存しないが、一過性の吸収は依存する。よって時間窓を宣言値として
+  identity に載せ、**9/9 を本番手続きの妥当性根拠には使わない**。
+- schema を広げると、旧 probe corpus と登録済み較正が method 比較へ届く前に schema 不正で落ちる
+  (必須 key の場合)、または exact schema を弱める (optional key の場合)。observed 側だけに足しても、
+  較正発行経路が observed dict を expected へ転用するため clock key の exact 検査に当たる。
+
+**帰結として明記する限定:** 「K 回取得したことの事後証拠」は成果物に残らない。method は手続きの
+証明ではない。取得 transcript の凍結は versioned schema の別 wave として裁定へ返す。
+また `min` は上向きの一過性を K−1 回まで消し、下向きは 1 回で残す非対称性を持つ。単読みに対する
+受理集合と同一ではない。
+
+**却下した選択肢:**
+
+- 生 K ベクトルを observed schema へ保持する — 上記のとおり旧 corpus・較正 loader・profile hash・
+  登録 artifact・contract pin を同時に動かすことになり、本 wave の不変条件と両立しない。
+- 時間窓を宣言せず連続読みにする — 一過性の吸収について何も保証できず、実験との差も記録に残らない。
+- 遅延を拒否理由にする — 実測に基づく閾値がなく、承認外の過剰拒否を新設する。
+
+## D182. pin の実効性検査は `/proc/thread-self/stat` で行う (2026-08-05)
+
+**決定:** 走行 CPU が pin 先と一致するかの検査は `/proc/thread-self/stat` の processor field を読む。
+`/proc/self/stat` を使ってはならない。pin mask の exact 検査は interval 待機の**直後**に置く。
+mask 検査・pre 検査・post 検査は互いに mask しない独立な 3 検査として書く。affinity は
+`try/finally` で復元し、復元後に再取得して exact 一致を確認する。復元失敗が pin/read の本来の
+失敗理由を上書きしないよう、primary と restore を合成して報告する。TSC 測定は復元完了後に固定する。
+
+**理由:**
+
+- `sched_setaffinity(0, ...)` は呼び出し **thread** に作用するのに、`/proc/self/stat` は
+  thread-group leader の stat である。worker thread から probe すると pin した thread ではない task を
+  検査することになり、誤拒否になるか、leader が偶然 target 上にいると壊れた pin 検査へ偽の裏付けを
+  与える。
+- mask 検査が待機の前だけにあると、待機中に affinity を広げられても pre/post の瞬間だけ target 上に
+  いれば通る。待機区間は最大 50 ms あり、無防備にできない。
+- 3 検査を独立に書かないと、1 箇所を壊す変異が別の検査に mask され、変異台帳の kill が
+  受理集合の変化へ帰属しなくなる。
+
+**却下した選択肢:**
+
+- affinity 変更を短命な helper process へ隔離する — attest する主体が親 process でなくなるという
+  意味変更を伴うため本 wave では採らない。暖機の持ち越し (復元しても走行 CPU・cache・P-state は
+  戻らない) は既知限界として残し、ablation は裁定へ返す。
