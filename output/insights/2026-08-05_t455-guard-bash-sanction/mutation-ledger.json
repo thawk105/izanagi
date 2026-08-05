@@ -1,0 +1,402 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/output/pegasus-dispatch/3cdcf172a67e0b87af868dc6c88ab5cf/izdw-3cdcf172a6.o889303",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/output/pegasus-dispatch/3cdcf172a67e0b87af868dc6c88ab5cf/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................s........................... [ 94%]\n....                                                                     [100%]\n75 passed, 1 skipped in 2.33s\n",
+      "stdout_sha256": "e9e5e32596dda33e07fbe08bbca049ba01147b9da71faeae289caa9a3708dbb8"
+    },
+    "artifact_error": null,
+    "collection_sha256": "a186b6e6e5c4126b289b805ade2f292c9904e2f2756e55319d4ba725c2182e17",
+    "duration_s": 47.394,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "b5246258c3a4f0d0f0b6ca535d44a16e1d4c63e13179c66fd5e2a2321a188214",
+    "repo_head": "a922ca94568bc03fa98402151e90e0e5e0c241f8",
+    "runner_sha256": "f8ed3970f1f226ad2d0e1d208a711ce006a6af9a65e3bc881816365544d09bc5",
+    "spec_sha256": "22124f175c4f5b4c8b353002706ee69c96ac81505e8ab9c137f5e5cf0ef0107d",
+    "status": "PASSED",
+    "test_output_sha256": "e9e5e32596dda33e07fbe08bbca049ba01147b9da71faeae289caa9a3708dbb8",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "53e8b247cf1c51cd15f4e243681951bc3f89f8c95921b16b8c40dd3385dc67a0"
+  },
+  "date": "2026-08-04T23:47:36.461934+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/output/pegasus-dispatch/177623bb36da2f6709bb7fc4d5e050c5/izdw-177623bb36.o889305",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/output/pegasus-dispatch/177623bb36da2f6709bb7fc4d5e050c5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................s.............................F...F.... [ 94%]\n....                                                                     [100%]\n=================================== FAILURES ===================================\n_______________ test_bash_login_fetch_third_party_entry_is_exact _______________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_bash_login_fetch_third_party_entry_is_exact():\n        \"\"\"sanctioned な受理集合が repo 内の実在する exact path 1 本であることを守る。\"\"\"\n>       assert \"tools/pegasus/fetch_third_party.py\" in GB._SANCTIONED_PATHS\nE       AssertionError: assert 'tools/pegasus/fetch_third_party.py' in frozenset({'tools/check_ai_provenance.py', 'tools/pegasus/dispatch_compute.py', 'tools/pegasus/submit_certify.sh', 'tools/pegasus/submit_floor.sh', 'tools/pegasus/submit_silo_ladder_rung1.sh', 'tools/run_tests.py'})\nE        +  where frozenset({'tools/check_ai_provenance.py', 'tools/pegasus/dispatch_compute.py', 'tools/pegasus/submit_certify.sh', 'tools/pegasus/submit_floor.sh', 'tools/pegasus/submit_silo_ladder_rung1.sh', 'tools/run_tests.py'}) = GB._SANCTIONED_PATHS\n\norchestrator/tests/test_hooks.py:910: AssertionError\n________ test_bash_login_allows_fetch_third_party_sanctioned_spellings _________\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_bash_login_allows_fetch_third_party_sanctioned_spellings():\n        \"\"\"exact path 1 本が 4 つの local-ok subcommand を受理することを守る。\"\"\"\n        for cmd in _FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS:\n            ok, why = GB.decide(cmd, site=\"PEGASUS_LOGIN\")\n>           assert ok, f\"sanctioned な third-party 取得経路が拒否された: {cmd!r} ({why})\"\nE           AssertionError: sanctioned な third-party 取得経路が拒否された: 'python3 tools/pegasus/fetch_third_party.py fetch' (非 sanctioned Pegasus 実行体 (tools/pegasus/fetch_third_party.py) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。)\nE           assert False\n\norchestrator/tests/test_hooks.py:905: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_entry_is_exact\nFAILED orchestrator/tests/test_hooks.py::test_bash_login_allows_fetch_third_party_sanctioned_spellings\n2 failed, 73 passed, 1 skipped in 2.32s\n",
+        "stdout_sha256": "7ef48d6e9751c236ec1a11fbed638f04f0263404bb29968b55a807cb06ba4ed8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a186b6e6e5c4126b289b805ade2f292c9904e2f2756e55319d4ba725c2182e17",
+      "duration_s": 26.873,
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_allows_fetch_third_party_sanctioned_spellings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_entry_is_exact"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_entry_is_exact",
+        "orchestrator/tests/test_hooks.py::test_bash_login_allows_fetch_third_party_sanctioned_spellings"
+      ],
+      "hang_risk": false,
+      "id": "M1-drop-fetch-sanction",
+      "injection_diff_sha256": "628d5cff380611c7c056efcc268b6f67c3c440016747aa0db12a17dbf4e399b8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a47ec2bdd413d6b3c9b351ea42abdff15d98c3a9cd9b252a25c4fb1fe3ab9cdd",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "new": "",
+          "old": "    \"tools/pegasus/fetch_third_party.py\",\n"
+        }
+      ],
+      "repo_head": "a922ca94568bc03fa98402151e90e0e5e0c241f8",
+      "runner_sha256": "f8ed3970f1f226ad2d0e1d208a711ce006a6af9a65e3bc881816365544d09bc5",
+      "spec_sha256": "22124f175c4f5b4c8b353002706ee69c96ac81505e8ab9c137f5e5cf0ef0107d",
+      "status": "KILLED",
+      "test_output_sha256": "7ef48d6e9751c236ec1a11fbed638f04f0263404bb29968b55a807cb06ba4ed8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "53e8b247cf1c51cd15f4e243681951bc3f89f8c95921b16b8c40dd3385dc67a0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/output/pegasus-dispatch/97e5e9306a48cb9d11d35af2071759b4/izdw-97e5e9306a.o889306",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/output/pegasus-dispatch/97e5e9306a48cb9d11d35af2071759b4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................................s.........FF [ 94%]\nFFF.                                                                     [100%]\n=================================== FAILURES ===================================\n__________ test_bash_login_retokenizes_env_split_and_skips_exec_argv0 __________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_bash_login_retokenizes_env_split_and_skips_exec_argv0():\n        for cmd in (\n            \"env -S 'pytest -q'\",\n            \"env --split-string='python3 -m pytest -q'\",\n            \"env -S 'python3 -m tools.pegasus.exec_calibrate argv.json'\",\n            \"sudo env -S 'pytest -q'\",\n            \"exec -a harmless pytest -q\",\n            \"exec -a harmless python3 -m tools.pegasus.exec_calibrate argv.json\",\n        ):\n            ok, _ = GB.decide(cmd, site=\"PEGASUS_LOGIN\")\n>           assert not ok, f\"wrapper が隠した実 head が login で通った: {cmd!r}\"\nE           AssertionError: wrapper が隠した実 head が login で通った: \"env -S 'python3 -m tools.pegasus.exec_calibrate argv.json'\"\nE           assert not True\n\norchestrator/tests/test_hooks.py:753: AssertionError\n_________ test_bash_login_fetch_third_party_does_not_sanction_siblings _________\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_bash_login_fetch_third_party_does_not_sanction_siblings():\n        \"\"\"collect_receipt.py は login 手順なので未裁定の拒否を pin しない。\n        control は login 手順にない計算ノード側 job script から選ぶ。\"\"\"\n        for cmd in (\n            \"bash tools/pegasus/certify_calibration.sh\",\n            \"python3 tools/pegasus/run_probe.py\",\n        ):\n            ok, _ = GB.decide(cmd, site=\"PEGASUS_LOGIN\")\n>           assert not ok, f\"非 sanctioned な Pegasus 兄弟が login で通った: {cmd!r}\"\nE           AssertionError: 非 sanctioned な Pegasus 兄弟が login で通った: 'bash tools/pegasus/certify_calibration.sh'\nE           assert not True\n\norchestrator/tests/test_hooks.py:923: AssertionError\n__________ test_bash_login_blocks_attached_and_bundled_python_modules __________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_bash_login_blocks_attached_and_bundled_python_modules():\n        for cmd in (\n            \"python3 -mpytest -q\",\n            \"python3 -qmpytest -q\",\n            \"python3 -qm pytest -q\",\n            \"python3 -Om pytest -q\",\n            \"python3 -mtools.pegasus.exec_calibrate argv.json\",\n            \"python3 -qm tools.pegasus.exec_calibrate argv.json\",\n        ):\n            ok, _ = GB.decide(cmd, site=\"PEGASUS_LOGIN\")\n>           assert not ok, f\"密着/結合した Python -m の重量実行が通った: {cmd!r}\"\nE           AssertionError: 密着/結合した Python -m の重量実行が通った: 'python3 -mtools.pegasus.exec_calibrate argv.json'\nE           assert not True\n\norchestrator/tests/test_hooks.py:709: AssertionError\n_________________ test_bash_login_sanctioned_entries_are_exact _________________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_bash_login_sanctioned_entries_are_exact():\n        assert \"tools/check_ai_provenance.py\" in GB._SANCTIONED_PATHS\n        assert os.path.isfile(os.path.join(_REPO, \"tools\", \"check_ai_provenance.py\"))\n        for cmd in (\n            \"python3 tools/run_tests.py -q\",\n            \"python3 ./tools/pegasus/dispatch_compute.py --help\",\n            *_PROVENANCE_SANCTIONED_SPELLINGS,\n            \"tools/pegasus/submit_certify.sh\",\n            \"bash tools/pegasus/submit_floor.sh\",\n            \"sh tools/pegasus/submit_silo_ladder_rung1.sh\",\n            \"qsub job.sh\",\n            \"qdel 12345\",\n            \"qstat 12345\",\n            \"git status\",\n            \"python3 tools/check_docs.py\",\n            \"rg pytest orchestrator/tests\",\n            \"cat AGENTS.md\",\n            \"codex exec review-this-diff\",\n        ):\n            ok, why = GB.decide(cmd, site=\"PEGASUS_LOGIN\")\n            assert ok, f\"sanctioned/純読み取り形が拒否された: {cmd!r} ({why})\"\n    \n        ok, _ = GB.decide(\n            \"python3 tools/pegasus/exec_calibrate.py argv.json\",\n            site=\"PEGASUS_LOGIN\")\n>       assert not ok, \"tools/pegasus/* の glob 許可で汎用 exec trampoline を通してはならない\"\nE       AssertionError: tools/pegasus/* の glob 許可で汎用 exec trampoline を通してはならない\nE       assert not True\n\norchestrator/tests/test_hooks.py:980: AssertionError\n_________ test_bash_login_resolves_python_modules_to_exact_repo_paths __________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_bash_login_resolves_python_modules_to_exact_repo_paths():\n        for interpreter in (\"python3\", \"/usr/bin/python3\", \".venv/bin/python\"):\n            ok, _ = GB.decide(\n                f\"{interpreter} -m tools.pegasus.exec_calibrate argv.json\",\n                site=\"PEGASUS_LOGIN\",\n            )\n>           assert not ok, \\\n                f\"module 形式の非 sanctioned trampoline が通った: {interpreter}\"\nE           AssertionError: module 形式の非 sanctioned trampoline が通った: python3\nE           assert not True\n\norchestrator/tests/test_hooks.py:1131: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hooks.py::test_bash_login_retokenizes_env_split_and_skips_exec_argv0\nFAILED orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_does_not_sanction_siblings\nFAILED orchestrator/tests/test_hooks.py::test_bash_login_blocks_attached_and_bundled_python_modules\nFAILED orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact\nFAILED orchestrator/tests/test_hooks.py::test_bash_login_resolves_python_modules_to_exact_repo_paths\n5 failed, 70 passed, 1 skipped in 2.30s\n",
+        "stdout_sha256": "8c62e8f8a85be5144049a25e69fd366c4d33cd6ff6604ffe8d13dca5db5021cc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a186b6e6e5c4126b289b805ade2f292c9904e2f2756e55319d4ba725c2182e17",
+      "duration_s": 26.854,
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_does_not_sanction_siblings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_retokenizes_env_split_and_skips_exec_argv0",
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_does_not_sanction_siblings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_attached_and_bundled_python_modules",
+        "orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact",
+        "orchestrator/tests/test_hooks.py::test_bash_login_resolves_python_modules_to_exact_repo_paths"
+      ],
+      "hang_risk": false,
+      "id": "M2-glob-sanction-all-pegasus",
+      "injection_diff_sha256": "3892e30b93b836827eb7f06d5557bd4a3a164b1c7915bdaf56c3f3632754e392",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "a2340816454248fd82fada3bff6f06a9473c16c4e477e7ad88e5ef9514b59061",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "new": "    return _script_target(raw_head, head, args, repo_root).startswith(\"tools/pegasus/\")",
+          "old": "    return _script_target(raw_head, head, args, repo_root) in _SANCTIONED_PATHS"
+        }
+      ],
+      "repo_head": "a922ca94568bc03fa98402151e90e0e5e0c241f8",
+      "runner_sha256": "f8ed3970f1f226ad2d0e1d208a711ce006a6af9a65e3bc881816365544d09bc5",
+      "spec_sha256": "22124f175c4f5b4c8b353002706ee69c96ac81505e8ab9c137f5e5cf0ef0107d",
+      "status": "MISMATCH",
+      "test_output_sha256": "8c62e8f8a85be5144049a25e69fd366c4d33cd6ff6604ffe8d13dca5db5021cc",
+      "test_output_tail": [
+        "        ):",
+        "            ok, _ = GB.decide(cmd, site=\"PEGASUS_LOGIN\")",
+        ">           assert not ok, f\"非 sanctioned な Pegasus 兄弟が login で通った: {cmd!r}\"",
+        "E           AssertionError: 非 sanctioned な Pegasus 兄弟が login で通った: 'bash tools/pegasus/certify_calibration.sh'",
+        "E           assert not True",
+        "",
+        "orchestrator/tests/test_hooks.py:923: AssertionError",
+        "__________ test_bash_login_blocks_attached_and_bundled_python_modules __________",
+        "[gw28] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_bash_login_blocks_attached_and_bundled_python_modules():",
+        "        for cmd in (",
+        "            \"python3 -mpytest -q\",",
+        "            \"python3 -qmpytest -q\",",
+        "            \"python3 -qm pytest -q\",",
+        "            \"python3 -Om pytest -q\",",
+        "            \"python3 -mtools.pegasus.exec_calibrate argv.json\",",
+        "            \"python3 -qm tools.pegasus.exec_calibrate argv.json\",",
+        "        ):",
+        "            ok, _ = GB.decide(cmd, site=\"PEGASUS_LOGIN\")",
+        ">           assert not ok, f\"密着/結合した Python -m の重量実行が通った: {cmd!r}\"",
+        "E           AssertionError: 密着/結合した Python -m の重量実行が通った: 'python3 -mtools.pegasus.exec_calibrate argv.json'",
+        "E           assert not True",
+        "",
+        "orchestrator/tests/test_hooks.py:709: AssertionError",
+        "_________________ test_bash_login_sanctioned_entries_are_exact _________________",
+        "[gw45] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_bash_login_sanctioned_entries_are_exact():",
+        "        assert \"tools/check_ai_provenance.py\" in GB._SANCTIONED_PATHS",
+        "        assert os.path.isfile(os.path.join(_REPO, \"tools\", \"check_ai_provenance.py\"))",
+        "        for cmd in (",
+        "            \"python3 tools/run_tests.py -q\",",
+        "            \"python3 ./tools/pegasus/dispatch_compute.py --help\",",
+        "            *_PROVENANCE_SANCTIONED_SPELLINGS,",
+        "            \"tools/pegasus/submit_certify.sh\",",
+        "            \"bash tools/pegasus/submit_floor.sh\",",
+        "            \"sh tools/pegasus/submit_silo_ladder_rung1.sh\",",
+        "            \"qsub job.sh\",",
+        "            \"qdel 12345\",",
+        "            \"qstat 12345\",",
+        "            \"git status\",",
+        "            \"python3 tools/check_docs.py\",",
+        "            \"rg pytest orchestrator/tests\",",
+        "            \"cat AGENTS.md\",",
+        "            \"codex exec review-this-diff\",",
+        "        ):",
+        "            ok, why = GB.decide(cmd, site=\"PEGASUS_LOGIN\")",
+        "            assert ok, f\"sanctioned/純読み取り形が拒否された: {cmd!r} ({why})\"",
+        "    ",
+        "        ok, _ = GB.decide(",
+        "            \"python3 tools/pegasus/exec_calibrate.py argv.json\",",
+        "            site=\"PEGASUS_LOGIN\")",
+        ">       assert not ok, \"tools/pegasus/* の glob 許可で汎用 exec trampoline を通してはならない\"",
+        "E       AssertionError: tools/pegasus/* の glob 許可で汎用 exec trampoline を通してはならない",
+        "E       assert not True",
+        "",
+        "orchestrator/tests/test_hooks.py:980: AssertionError",
+        "_________ test_bash_login_resolves_python_modules_to_exact_repo_paths __________",
+        "[gw12] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_bash_login_resolves_python_modules_to_exact_repo_paths():",
+        "        for interpreter in (\"python3\", \"/usr/bin/python3\", \".venv/bin/python\"):",
+        "            ok, _ = GB.decide(",
+        "                f\"{interpreter} -m tools.pegasus.exec_calibrate argv.json\",",
+        "                site=\"PEGASUS_LOGIN\",",
+        "            )",
+        ">           assert not ok, \\",
+        "                f\"module 形式の非 sanctioned trampoline が通った: {interpreter}\"",
+        "E           AssertionError: module 形式の非 sanctioned trampoline が通った: python3",
+        "E           assert not True",
+        "",
+        "orchestrator/tests/test_hooks.py:1131: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_hooks.py::test_bash_login_retokenizes_env_split_and_skips_exec_argv0",
+        "FAILED orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_does_not_sanction_siblings",
+        "FAILED orchestrator/tests/test_hooks.py::test_bash_login_blocks_attached_and_bundled_python_modules",
+        "FAILED orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact",
+        "FAILED orchestrator/tests/test_hooks.py::test_bash_login_resolves_python_modules_to_exact_repo_paths",
+        "5 failed, 70 passed, 1 skipped in 2.30s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "53e8b247cf1c51cd15f4e243681951bc3f89f8c95921b16b8c40dd3385dc67a0"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/output/pegasus-dispatch/2b47105308cabdefe70970d3a6e536f1/izdw-2b47105308.o889301",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/output/pegasus-dispatch/2b47105308cabdefe70970d3a6e536f1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_hooks.py::test_write_outside_jurisdiction_allowed\norchestrator/tests/test_hooks.py::test_wal_campaign_lock_buildcache_denied\norchestrator/tests/test_hooks.py::test_exploration_campaign_wal_and_lock_write_tools_denied\norchestrator/tests/test_hooks.py::test_exploration_namespace_marker_write_tools_denied\norchestrator/tests/test_hooks.py::test_exploration_projection_and_trial_journal_write_tools_allowed\norchestrator/tests/test_hooks.py::test_s8b_freeze_namespace_denied\norchestrator/tests/test_hooks.py::test_ccbench_surface_limited_to_evolve_sources\norchestrator/tests/test_hooks.py::test_symlinked_evolve_source_denied\norchestrator/tests/test_hooks.py::test_symlinked_output_tree_still_protects\norchestrator/tests/test_hooks.py::test_notebookedit_decoy_file_path_denied\norchestrator/tests/test_hooks.py::test_designated_source_edits_allowed_content_not_inspected\norchestrator/tests/test_hooks.py::test_constants_match_source_digest\norchestrator/tests/test_hooks.py::test_real_submodule_payload_edit\norchestrator/tests/test_hooks.py::test_bash_fast_path_and_reads_allowed\norchestrator/tests/test_hooks.py::test_bash_reports_write_allowed\norchestrator/tests/test_hooks.py::test_bash_exploration_campaign_tree_destruction_denied\norchestrator/tests/test_hooks.py::test_bash_exploration_reads_and_projection_writes_allowed\norchestrator/tests/test_hooks.py::test_bash_exploration_wal_reads_allowed\norchestrator/tests/test_hooks.py::test_bash_exploration_namespace_marker_protected_but_readable\norchestrator/tests/test_hooks.py::test_bash_official_campaign_root_direct_writers_keep_legacy_acceptance\norchestrator/tests/test_hooks.py::test_bash_exploration_autonomous_trial_journal_write_allowed\norchestrator/tests/test_hooks.py::test_bash_direct_writes_denied\norchestrator/tests/test_hooks.py::test_bash_opaque_with_protected_fails_closed\norchestrator/tests/test_hooks.py::test_bash_finding_bypasses_all_denied\norchestrator/tests/test_hooks.py::test_bash_round2_bypasses_denied\norchestrator/tests/test_hooks.py::test_bash_false_positive_fixes_allowed\norchestrator/tests/test_hooks.py::test_bash_other_keeps_legacy_acceptance_bits\norchestrator/tests/test_hooks.py::test_bash_login_blocks_python_module_pytest_variants\norchestrator/tests/test_hooks.py::test_bash_login_blocks_attached_and_bundled_python_modules\norchestrator/tests/test_hooks.py::test_bash_login_python_module_option_boundaries_allowed\norchestrator/tests/test_hooks.py::test_bash_login_wrapper_values_reveal_actual_head\norchestrator/tests/test_hooks.py::test_bash_login_retokenizes_env_split_and_skips_exec_argv0\norchestrator/tests/test_hooks.py::test_bash_login_recurses_into_shell_command_strings\norchestrator/tests/test_hooks.py::test_bash_login_recurses_into_bundled_shell_command_options\norchestrator/tests/test_hooks.py::test_bash_login_shell_without_command_option_stays_allowed\norchestrator/tests/test_hooks.py::test_bash_import_failure_fallback_refuses_login\norchestrator/tests/test_hooks.py::test_bash_fallback_regex_matches_site_policy_login_classification\norchestrator/tests/test_hooks.py::test_bash_login_blocks_direct_heavy_forms_and_segments\norchestrator/tests/test_hooks.py::test_bash_suspect_blocks_but_compute_allows_heavy_forms\norchestrator/tests/test_hooks.py::test_bash_login_nonexecuting_forms_allowed\norchestrator/tests/test_hooks.py::test_bash_login_rejects_mutating_or_unknown_ninja_tools\norchestrator/tests/test_hooks.py::test_bash_login_allows_fetch_third_party_sanctioned_spellings\norchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_entry_is_exact\norchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_does_not_sanction_siblings\norchestrator/tests/test_hooks.py::test_bash_compute_allows_fetch_third_party_spellings\norchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact\norchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[outside-repo-copy]\norchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[outside-repo-copy-direct]\norchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[home-relative-copy]\norchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[cwd-relative]\norchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[parent-relative]\norchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[shell-command-string]\norchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[dash-m-pytest]\norchestrator/tests/test_hooks.py::test_bash_login_allows_nonexecuting_provenance_flags\norchestrator/tests/test_hooks.py::test_bash_compute_allows_provenance_forms\norchestrator/tests/test_hooks.py::test_bash_login_allows_static_module_reads_of_provenance_script\norchestrator/tests/test_hooks.py::test_provenance_script_borrow_does_not_lend_sanctioned_status\norchestrator/tests/test_hooks.py::test_bash_login_provenance_branch_does_not_capture_readers\norchestrator/tests/test_hooks.py::test_bash_login_keeps_required_session_commands_available\norchestrator/tests/test_hooks.py::test_bash_main_rule_error_is_scoped_to_protected_commands\norchestrator/tests/test_hooks.py::test_bash_login_resolves_python_modules_to_exact_repo_paths\norchestrator/tests/test_hooks.py::test_bash_main_injects_live_login_site\norchestrator/tests/test_hooks.py::test_read_small_outside_or_missing_allowed\norchestrator/tests/test_hooks.py::test_read_large_guarded_without_range_denied\norchestrator/tests/test_hooks.py::test_read_large_with_explicit_range_allowed\norchestrator/tests/test_hooks.py::test_read_symlink_into_docs_still_guarded\norchestrator/tests/test_hooks.py::test_agent_adhoc_without_model_denied\norchestrator/tests/test_hooks.py::test_agent_explicit_model_allowed\norchestrator/tests/test_hooks.py::test_agent_pinned_role_and_fork_allowed\norchestrator/tests/test_hooks.py::test_agent_role_name_traversal_denied\norchestrator/tests/test_hooks.py::test_agent_frontmatter_parser_fidelity\norchestrator/tests/test_hooks.py::test_agent_dir_priority_first_definition_wins\norchestrator/tests/test_hooks.py::test_agent_non_agent_tool_ignored\norchestrator/tests/test_hooks.py::test_agent_all_project_roles_pinned\norchestrator/tests/test_hooks.py::test_settings_json_wires_all_hooks\norchestrator/tests/test_hooks.py::test_hook_scripts_run_as_subprocess\n\n76 tests collected in 0.11s\n",
+        "stdout_sha256": "5b6d64531341385ad20793799ca0d08cd400544366749296d53dc3eb6aecd205"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_write_outside_jurisdiction_allowed",
+        "orchestrator/tests/test_hooks.py::test_wal_campaign_lock_buildcache_denied",
+        "orchestrator/tests/test_hooks.py::test_exploration_campaign_wal_and_lock_write_tools_denied",
+        "orchestrator/tests/test_hooks.py::test_exploration_namespace_marker_write_tools_denied",
+        "orchestrator/tests/test_hooks.py::test_exploration_projection_and_trial_journal_write_tools_allowed",
+        "orchestrator/tests/test_hooks.py::test_s8b_freeze_namespace_denied",
+        "orchestrator/tests/test_hooks.py::test_ccbench_surface_limited_to_evolve_sources",
+        "orchestrator/tests/test_hooks.py::test_symlinked_evolve_source_denied",
+        "orchestrator/tests/test_hooks.py::test_symlinked_output_tree_still_protects",
+        "orchestrator/tests/test_hooks.py::test_notebookedit_decoy_file_path_denied",
+        "orchestrator/tests/test_hooks.py::test_designated_source_edits_allowed_content_not_inspected",
+        "orchestrator/tests/test_hooks.py::test_constants_match_source_digest",
+        "orchestrator/tests/test_hooks.py::test_real_submodule_payload_edit",
+        "orchestrator/tests/test_hooks.py::test_bash_fast_path_and_reads_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_reports_write_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_campaign_tree_destruction_denied",
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_reads_and_projection_writes_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_wal_reads_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_namespace_marker_protected_but_readable",
+        "orchestrator/tests/test_hooks.py::test_bash_official_campaign_root_direct_writers_keep_legacy_acceptance",
+        "orchestrator/tests/test_hooks.py::test_bash_exploration_autonomous_trial_journal_write_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_direct_writes_denied",
+        "orchestrator/tests/test_hooks.py::test_bash_opaque_with_protected_fails_closed",
+        "orchestrator/tests/test_hooks.py::test_bash_finding_bypasses_all_denied",
+        "orchestrator/tests/test_hooks.py::test_bash_round2_bypasses_denied",
+        "orchestrator/tests/test_hooks.py::test_bash_false_positive_fixes_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_other_keeps_legacy_acceptance_bits",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_python_module_pytest_variants",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_attached_and_bundled_python_modules",
+        "orchestrator/tests/test_hooks.py::test_bash_login_python_module_option_boundaries_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_login_wrapper_values_reveal_actual_head",
+        "orchestrator/tests/test_hooks.py::test_bash_login_retokenizes_env_split_and_skips_exec_argv0",
+        "orchestrator/tests/test_hooks.py::test_bash_login_recurses_into_shell_command_strings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_recurses_into_bundled_shell_command_options",
+        "orchestrator/tests/test_hooks.py::test_bash_login_shell_without_command_option_stays_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_import_failure_fallback_refuses_login",
+        "orchestrator/tests/test_hooks.py::test_bash_fallback_regex_matches_site_policy_login_classification",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_direct_heavy_forms_and_segments",
+        "orchestrator/tests/test_hooks.py::test_bash_suspect_blocks_but_compute_allows_heavy_forms",
+        "orchestrator/tests/test_hooks.py::test_bash_login_nonexecuting_forms_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_login_rejects_mutating_or_unknown_ninja_tools",
+        "orchestrator/tests/test_hooks.py::test_bash_login_allows_fetch_third_party_sanctioned_spellings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_entry_is_exact",
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_does_not_sanction_siblings",
+        "orchestrator/tests/test_hooks.py::test_bash_compute_allows_fetch_third_party_spellings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[outside-repo-copy]",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[outside-repo-copy-direct]",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[home-relative-copy]",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[cwd-relative]",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[parent-relative]",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[shell-command-string]",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_nonsanctioned_provenance_entrypoints[dash-m-pytest]",
+        "orchestrator/tests/test_hooks.py::test_bash_login_allows_nonexecuting_provenance_flags",
+        "orchestrator/tests/test_hooks.py::test_bash_compute_allows_provenance_forms",
+        "orchestrator/tests/test_hooks.py::test_bash_login_allows_static_module_reads_of_provenance_script",
+        "orchestrator/tests/test_hooks.py::test_provenance_script_borrow_does_not_lend_sanctioned_status",
+        "orchestrator/tests/test_hooks.py::test_bash_login_provenance_branch_does_not_capture_readers",
+        "orchestrator/tests/test_hooks.py::test_bash_login_keeps_required_session_commands_available",
+        "orchestrator/tests/test_hooks.py::test_bash_main_rule_error_is_scoped_to_protected_commands",
+        "orchestrator/tests/test_hooks.py::test_bash_login_resolves_python_modules_to_exact_repo_paths",
+        "orchestrator/tests/test_hooks.py::test_bash_main_injects_live_login_site",
+        "orchestrator/tests/test_hooks.py::test_read_small_outside_or_missing_allowed",
+        "orchestrator/tests/test_hooks.py::test_read_large_guarded_without_range_denied",
+        "orchestrator/tests/test_hooks.py::test_read_large_with_explicit_range_allowed",
+        "orchestrator/tests/test_hooks.py::test_read_symlink_into_docs_still_guarded",
+        "orchestrator/tests/test_hooks.py::test_agent_adhoc_without_model_denied",
+        "orchestrator/tests/test_hooks.py::test_agent_explicit_model_allowed",
+        "orchestrator/tests/test_hooks.py::test_agent_pinned_role_and_fork_allowed",
+        "orchestrator/tests/test_hooks.py::test_agent_role_name_traversal_denied",
+        "orchestrator/tests/test_hooks.py::test_agent_frontmatter_parser_fidelity",
+        "orchestrator/tests/test_hooks.py::test_agent_dir_priority_first_definition_wins",
+        "orchestrator/tests/test_hooks.py::test_agent_non_agent_tool_ignored",
+        "orchestrator/tests/test_hooks.py::test_agent_all_project_roles_pinned",
+        "orchestrator/tests/test_hooks.py::test_settings_json_wires_all_hooks",
+        "orchestrator/tests/test_hooks.py::test_hook_scripts_run_as_subprocess"
+      ],
+      "duration_s": 47.325,
+      "rc": 0,
+      "repo_head": "a922ca94568bc03fa98402151e90e0e5e0c241f8",
+      "runner_sha256": "f8ed3970f1f226ad2d0e1d208a711ce006a6af9a65e3bc881816365544d09bc5",
+      "spec_sha256": "22124f175c4f5b4c8b353002706ee69c96ac81505e8ab9c137f5e5cf0ef0107d",
+      "status": "PASSED",
+      "tool_sha256": "53e8b247cf1c51cd15f4e243681951bc3f89f8c95921b16b8c40dd3385dc67a0"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-drop-fetch-sanction": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hooks.py::test_bash_login_allows_fetch_third_party_sanctioned_spellings",
+          "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_entry_is_exact"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "628d5cff380611c7c056efcc268b6f67c3c440016747aa0db12a17dbf4e399b8",
+        "replacements": [
+          {
+            "file": "hooks/guard_bash.py",
+            "new": "",
+            "old": "    \"tools/pegasus/fetch_third_party.py\",\n"
+          }
+        ]
+      },
+      "M2-glob-sanction-all-pegasus": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_does_not_sanction_siblings",
+          "orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3892e30b93b836827eb7f06d5557bd4a3a164b1c7915bdaf56c3f3632754e392",
+        "replacements": [
+          {
+            "file": "hooks/guard_bash.py",
+            "new": "    return _script_target(raw_head, head, args, repo_root).startswith(\"tools/pegasus/\")",
+            "old": "    return _script_target(raw_head, head, args, repo_root) in _SANCTIONED_PATHS"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "b5246258c3a4f0d0f0b6ca535d44a16e1d4c63e13179c66fd5e2a2321a188214",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_hooks.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "a922ca94568bc03fa98402151e90e0e5e0c241f8",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_hooks.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "b38a29b76d8f08b6d546a7836e61355dcad71189",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "f8ed3970f1f226ad2d0e1d208a711ce006a6af9a65e3bc881816365544d09bc5",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "22124f175c4f5b4c8b353002706ee69c96ac81505e8ab9c137f5e5cf0ef0107d",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 1,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t455-guard-bash-sanction-fetch/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "53e8b247cf1c51cd15f4e243681951bc3f89f8c95921b16b8c40dd3385dc67a0",
+  "updated_at": "2026-08-04T23:49:20.246587+00:00"
+}
