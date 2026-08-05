@@ -261,3 +261,18 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:acceptance-repo-write-race":"F115"},"authored":"2026-08-05","content_sha256":"d261bf5da153ffa00e5b5b1b22ba8c9695bf3b9b61fa7932f26bbabe50c6077d","seq":3,"wave":"dev-wave-token-economy"}
 
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"8da1fc40307b83aa14e1ff0603c2bd8d3a23d022104520f00afcf07571d1a246","seq":1,"wave":"rulings-20260805-i"}
+
+- {"allocations":{"T:post-policy-machine-sweep-membership":"[T-500]","T:trigger-provenance-implementation-overload":"[T-502]","T:wal-side-aba-in-admission":"[T-501]"},"authored":"2026-08-05","content_sha256":"bb0f3abe42a386d7a1e7b2db914172f31928ac124c2b15ba5a009da1ea9b1f30","seq":1,"wave":"dev-wave-t474-legacy-trigger-admission"}
+- {"allocations":{"D:legacy-trigger-raw-view-denial":"D170"},"authored":"2026-08-05","content_sha256":"a3faa86758bf46549e021d32fa8202c2e398da9526d3596a1f30b378eb3dbe7c","seq":1,"wave":"dev-wave-t474-legacy-trigger-admission"}
+
+- {"allocations":{"T:clean-gate-ignored-blindness":"[T-504]","T:dev-wave-budget-headroom":"[T-505]","T:mutation-restore-durability-impl":"[T-503]"},"authored":"2026-08-05","content_sha256":"a43058c98d6b8a91f65b7c577e004f0b8a13fedbe53c3f4559b465c2da0a3618","seq":1,"wave":"dev-wave-t487-design"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"7df174450d32364368ff133931e36d79fcad28ea157568d19933f30c20c3a190","seq":1,"wave":"dev-wave-t478-calibration-contract-generation"}
+
+- {"allocations":{"T:dev-wave-docs-budget-at-ceiling":"[T-508]","T:loader-self-pass-quarantine":"[T-506]","T:silo-driver-syspath-restore":"[T-509]","T:t126-attest-type-bug":"[T-507]"},"authored":"2026-08-05","content_sha256":"7d0dc5d59b67f6e39596431f59cf4f843e979d36eb6535508536ad12475d9f16","seq":1,"wave":"dev-wave-t452-t453-clock-authority"}
+- {"allocations":{"D:effective-clock-policy-authority":"D171"},"authored":"2026-08-05","content_sha256":"aeee656674d7ddda5d41546e59ce7a9f42361f19dd4fff959273a1ba7b705461","seq":2,"wave":"dev-wave-t452-t453-clock-authority"}
+- {"allocations":{"F:test-green-by-removing-production-gate":"F116"},"authored":"2026-08-05","content_sha256":"3231342cf0c8a35fa5d97463f193ec623347345c1ff81da6ed9a18fc0d063cf9","seq":3,"wave":"dev-wave-t452-t453-clock-authority"}
+
+- {"allocations":{"T:first-run-classification-site":"[T-511]","T:mutation-harness-xdist-group-nodes":"[T-512]","T:ruleops-git-timeout-threshold":"[T-510]"},"authored":"2026-08-05","content_sha256":"cbc207af728da0d0a33c5a38fe3fcd4323850076901761840779dc2341268e68","seq":1,"wave":"dev-wave-t496-ruleops-inventory-diag"}
+- {"allocations":{"D:ruleops-failclosed-threshold-unchanged":"D172"},"authored":"2026-08-05","content_sha256":"4ff520bee2bf0d7ff5218158c9825f335a2bd61626d35f7e4e941fbd2dc51d60","seq":2,"wave":"dev-wave-t496-ruleops-inventory-diag"}
+- {"allocations":{"F:first-run-classification-site-undefined":"F117"},"authored":"2026-08-05","content_sha256":"4d6d1cd7493a5d3ded9f3a394e1821c061dc79af3bb6a4c51b3480fd7dbb71a0","seq":3,"wave":"dev-wave-t496-ruleops-inventory-diag"}

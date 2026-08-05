@@ -1,0 +1,83 @@
+あなたは izanagi dev-wave 段 6 の fix 実装子 (2 巡目、Codex role=author、workspace-write) である。
+段 5 の実装子契約をすべて継承する。出力は日本語で書くこと。
+
+## 読むもの (絶対パス。読めなければ推測で進めず即停止し、その旨だけ報告)
+
+1. **親の裁定 (最優先の契約)**:
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/s4-ruling.md
+2. **焦点再レビュー (fix 対象の一次資料)**:
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/s6-refocus.md
+3. 1 巡目 fix の自己申告:
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/s6-fix.md
+4. 1 巡目 fix 差分:
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t452-t453-clock-authority/s6-fix.patch
+
+repo root かつ作業ディレクトリ =
+/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t452-t453-clock-authority
+現在 HEAD = `94d5abd`。親の受入全走は **6117 passed / 19 skipped / 0 failed (rc=0)** で緑である。
+**したがって「赤を消す」仕事ではない。正しさゲートを元に戻す仕事である。**
+
+## 権限境界 (違反禁止)
+
+- 編集してよいのは**コードとテストだけ**。docs を編集しない。
+- **commit しない。** `git commit` / `git add` を実行しない。
+- `output/` 配下の artifact bytes を 1 byte も変更しない。
+- registry の calibration path/SHA、`contract_sha256`、`FROZEN_MANIFEST` を変更しない。
+- `KNOWN_SELF_INCONSISTENT_CALIBRATIONS` を空にしない (exact 1 件のまま)。
+- 裁定 R-1 (loader に self-pass を課さない)、R-2 (`t126_driver.py` を修正しない)、
+  R-3 後半 (T126 envelope を上げない) を守る。
+- submodule (`external/ccbench`) を触らない。
+
+## must-fix: NREG-CPU-1 — 1 巡目 fix が正しさゲートを外した
+
+**これは正しさゲートの弱体化である。最優先で戻すこと。**
+
+1 巡目の fix は `orchestrator/campaign/env_attestation.py:537-565` で、observed parser の
+CPU 名の導出整合性検査 (`model_name_normalized == normalize_cpu_model_name(model_name_raw)`) を
+**返却値に対しては効かないようにした**。validation copy だけ normalized を再生成し、
+返却値には未照合の元ペアを使っている。
+
+結果として、raw 名だけを `Intel Xeon Platinum 8468H`、normalized 名を期待値
+`Intel Xeon Platinum 8468` のままにした完全 valid な v2 profile が parser を通り、
+他の値と clock を帯内に置けば silo が `cpu_model_match=True` → `all_pass=True` を記録する
+(silo は `silo_ladder_rung1.py:1980, 3421` で normalized 値だけを authority にしている)。
+raw replay も同じ経路で通る。
+
+### 是正
+
+- **raw parser で `model_name_normalized == normalize_cpu_model_name(model_name_raw)` を
+  再び必須化する。** 返却値そのものがこの不変条件を満たすようにすること。
+- 1 巡目でこの gate を外した動機は、比較器の raw/normalized 独立 mismatch test
+  (`test_compare_profiles_reports_each_field_mismatch[cpu.model_name_raw-*]` など) を
+  通すためだったと思われる。**その test は parser を経由せず `ObservedAttestationProfile` の
+  fixture を直接構築する形へ変える。期待 verdict は変えないこと。**
+- **v1 / v2 の forged pair (raw と normalized が食い違う profile) を parser が拒否する
+  負例テストを追加する。** live 経路と raw replay 経路の両方で silo が拒否することも固定する。
+
+## backlog: IMP-R1 — `sys.path` の残留 (安全に直せる場合だけ直す)
+
+`silo_ladder_rung1.py:34-41` の module 名統一で repo root と orchestrator root を恒久挿入する
+ようになったが、`tools/pegasus/fetch_third_party.py:51-68` は一時追加した repo root しか除去しない。
+既存契約 (`test_pegasus_thirdparty_fetch.py:836`) は import 前後の `sys.path` 完全一致を要求する。
+
+これは **backlog** であり、成果物影響は未立証である。
+**受入の挙動を変えずに直せる場合だけ直すこと。** 直すなら fetcher が repo root と
+orchestrator root の双方を一時挿入・正確に復元する形にし、fresh subprocess で契約を検査する。
+少しでも波及が読めないなら**直さずに報告して止める**。
+
+## テストの扱い (絶対規律。1 巡目はここを踏んだ)
+
+- **既存テストを通すために production の検査を外してはならない。**
+  テストが赤いなら、まず実装が誤っていないかを疑う。テストの前提が parser を経由することに
+  無理があるなら、**production の gate を外すのではなく test の fixture 構築方法を変える**。
+- 期待値の反転・緩和・skip・xfail・削除を禁じる。
+- 指示にない受理集合の拡大・縮小をしない。**とくに拡大は禁止**である。
+
+## 報告
+
+- 冒頭に NREG-CPU-1 / IMP-R1 の closed / partial / regressed 対応表を置く。
+- 走らせた nodeid と rc を必ず併記する (部分走は積極的に行うこと)。
+- **受理集合の対比**を明記する: 変更前に parser が受理していた forged pair と、変更後の挙動。
+- 所有外の caller・共有 fixture・consumer test への波及可能性を静的に列挙する。
+- 裁定 R-1 / R-2 / R-3 後半と凍結境界を守ったことを明示的に確認する。
+- 最後に必ず `## 総括` 節を置き、12 行以内で結論を書く。

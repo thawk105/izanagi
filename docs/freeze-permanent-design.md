@@ -53,9 +53,12 @@ path として git 上の追加 (`--diff-filter=A`) は各 family 1 回だけで
 - trust root `V1_FREEZE_SHA256` (`s8b_ratified_freeze.py:62`) = holdout bytes。世代交代許可表
   `_TRANSITION_V1_TO_G1` は **13 pointer** で `/known_axes_freeze/sha256` を含まない (実測。
   D72 (3) の「12 pointer」は現行コードと不一致 = erratum)
-- `FROZEN_MANIFEST` (`orchestrator/tests/test_frozen_artifacts.py`) は 8 件 literal pin。検査は
-  `len == 8`・各 hash 一致・path prefix・64 hex 形式であり、**「旧 8 key の集合が保たれていること」は
-  検査しない** (件数が合えば差替えが通る)
+- `FROZEN_MANIFEST` (`orchestrator/tests/test_frozen_artifacts.py`) は **23 件** literal pin。検査は
+  `len == 23`・各 hash 一致・path prefix・64 hex 形式に加え、**独立した exact key-set との一致**
+  (`FROZEN_KEYSET_PROVISIONAL_82803D6D`) を検査する。**「8 件で、件数が合えば差替えが通る」という
+  旧記述は現行コードと不一致 = erratum** ([T-478] 段 3 レンズ A の指摘を親が実測確認、2026-08-05)。
+  ただし key-set pin は seal 時点の暫定・運用 sentinel であり、独立改竄境界でも恒久 freeze-family
+  membership でもない (D76 恒久形は別ファイル golden を要求)
 - holdout は `design_source` / `generator` の 2 drift (D73 (1)) が現存し、ancestry 以前に落ちる
 - known generator の入力 closure は宣言より広い: `campaign.lock` を読み (`s1_known_axes_freeze.py:157`
   で path 構築、`:160` で読込)、`campaign.pipeline.variant_id` (`:27`) と `campaign.model.Genome`

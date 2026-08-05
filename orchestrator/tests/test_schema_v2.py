@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -217,6 +218,22 @@ def test_attestation_profile_rejects_unknown_missing_and_noncanonical_lists():
     doc["attestation_profile"]["cache_topology"].reverse()
     with pytest.raises(sv2.CalibrationSchemaError, match="canonical"):
         sv2.validate_calibration_v2(doc)
+
+
+@pytest.mark.parametrize("tolerance", [100.0, math.nextafter(100.0, math.inf), 1e300])
+def test_expected_clock_tolerance_upper_boundary_rejects(tolerance):
+    document = _valid_document()
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = tolerance
+    with pytest.raises(sv2.CalibrationSchemaError, match="100 未満"):
+        sv2.validate_calibration_v2(document)
+
+
+def test_expected_clock_tolerance_upper_boundary_accepts_just_below_100():
+    document = _valid_document()
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = (
+        math.nextafter(100.0, -math.inf)
+    )
+    assert sv2.validate_calibration_v2(document).attestation_profile.effective_clock.tolerance_pct < 100.0
 
 
 @pytest.mark.parametrize("path,bad", [

@@ -151,17 +151,8 @@ if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[A
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE is missing or unsafe"
   exit 2
 fi
-if ! python3 - "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT:-}" <<'PY'
-import math
-import sys
-try:
-    value = float(sys.argv[1])
-except ValueError:
-    raise SystemExit(1)
-raise SystemExit(0 if math.isfinite(value) and 0.0 < value <= 100.0 else 1)
-PY
-then
-  write_failure 2 tolerance "effective clock tolerance is missing or outside (0,100]"
+if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}" ]]; then
+  write_failure 2 submit_binding "legacy effective clock tolerance input is forbidden"
   exit 2
 fi
 
@@ -562,16 +553,27 @@ timeout 120 python3 "$TOOLS/run_probe.py" --output "$ATTEMPT_DIR/attestation-pre
 # exact AcquisitionReceipt candidate を組み立て、W0 dataclass 自身で検証する。
 python3 - "$ATTEMPT_DIR" "$CCBENCH_HEAD" "$BINARY_SHA" "$CURRENT_SCRIPT_SHA" \
   "$ASSIGNED_HOST" "$HOSTNAME_OBSERVED" "$EXPECTED_CPU" "$EXPECTED_CORES" \
-  "$REQUESTED_S" "$FINALIZE_RESERVE_S" "${configure_argv[*]}" "${build_argv[*]}" <<'PY'
+  "$REQUESTED_S" "$FINALIZE_RESERVE_S" "${configure_argv[*]}" "${build_argv[*]}" \
+  "$REPO_ROOT" <<'PY'
 import json, os, shlex, sys
+from pathlib import Path
 (root, cc_head, binary_sha, script_sha, assigned, hostname, expected_cpu,
- expected_cores, requested_s, reserve_s, configure_text, build_text) = sys.argv[1:]
+ expected_cores, requested_s, reserve_s, configure_text, build_text,
+ repo_root) = sys.argv[1:]
+sys.path.insert(0, repo_root + "/orchestrator")
+from campaign.env_attestation import (
+    PEGASUS_PROBE_OUTPUT_V2,
+    observed_profile_to_dict,
+    parse_probe_output,
+)
 submit = json.load(open(os.path.join(root, "submit-receipt.json"), encoding="utf-8"))
 topology = json.load(open(os.path.join(root, "topology.json"), encoding="utf-8"))
-attestation = json.load(open(os.path.join(root, "attestation-pre.json"), encoding="utf-8"))
-if attestation.get("ok") is not True:
+attestation = parse_probe_output(Path(root, "attestation-pre.json").read_bytes())
+if attestation.schema_version != PEGASUS_PROBE_OUTPUT_V2 or not attestation.ok:
     raise SystemExit("pre attestation failed")
-profile = attestation["profile"]
+if attestation.profile is None:
+    raise SystemExit("pre attestation profile missing")
+profile = observed_profile_to_dict(attestation.profile)
 combined_modules = []
 for filename in ("module-list.stdout", "module-list.stderr"):
     for line in open(os.path.join(root, filename), encoding="utf-8", errors="replace"):
@@ -727,7 +729,6 @@ calibrate_argv=(
   --binary "$BINARY"
   --binary-sha256 "$BINARY_SHA"
   --receipt-json "$ATTEMPT_DIR/acquisition-receipt.json"
-  --effective-clock-tolerance-pct "$PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT"
 )
 python3 - "$CALIBRATE_ARGV_JSON" "${calibrate_argv[@]}" <<'PY'
 import json
