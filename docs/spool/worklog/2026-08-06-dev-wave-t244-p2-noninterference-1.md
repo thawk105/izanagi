@@ -43,7 +43,9 @@ title: [T-244] P2 の critic 境界へ campaign-local pseudonym を入れた —
   名乗らない。** 前 wave の real 所見のうち production 側の evidence 経路・payload 外観測・
   terminal report 経路は open のまま残る。
 - **scope 外の real 所見を裁定パッケージ 5 件として返す。** いずれも本 wave の裁定の外側にあり実装していない。
-- 受入全走は Pegasus 計算ノードで **6681 passed / 20 skipped** (request 892239.nqsv、1032.67s)。
+- 受入全走は Pegasus 計算ノードで 2 回。実装 + main `7c2a2cf1` 取り込みの tip `9b687e68` で
+  6681 passed / 20 skipped (request 892239.nqsv、1032.67s)、land 直前に main `7fa861a0` を
+  取り込んだ tip `5fe11936` で **6702 passed / 20 skipped** (request 892302.nqsv、1034.75s)。
   焦点 9 file は fix 後 615 passed / 0 failed (request 892135.nqsv)。
   変異は固定 HEAD `9b687e68` に対して走らせ、走行後の作業ツリー復元も確認した。
 - **段 8 の自己改善は候補 2 件で、1 件を実施し 1 件は発火実績の記録に留めた。**

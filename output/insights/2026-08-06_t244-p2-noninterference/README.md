@@ -1,7 +1,7 @@
 # [T-244] P2 — critic 境界の候補識別子射影 (U-1〜U-3 実装 wave) の逐語
 
-branch `worktree-dev-wave-t244-p2-noninterference`、land 候補 tip `9b687e68`
-(実装 commit `a506633e` + local main `7c2a2cf1` の取り込み)。
+branch `worktree-dev-wave-t244-p2-noninterference`。実装 commit は `a506633e`、
+受入を測った tip は `9b687e68` (main `7c2a2cf1` 取り込み) と `5fe11936` (main `7fa861a0` 取り込み)。
 
 前 wave (2026-08-05、実装しない裁定) の逐語は
 `output/insights/2026-08-05_t244-p2-noninterference/` にある。本 wave はその
@@ -53,6 +53,7 @@ cap-lift、build 経路の閉鎖、proof chain 保全、U-1 / U-2 / U-3 の「�
 |---|---|
 | 焦点 9 file (fix 後) | 615 passed / 0 failed (request 892135.nqsv) |
 | 変異 matrix | 19/19 KILLED、node 完全一致、SURVIVED 0 (固定 HEAD `9b687e68`) |
-| 受入全走 | **6681 passed / 20 skipped** (request 892239.nqsv、1032.67s) |
+| 受入全走 (tip `9b687e68`) | 6681 passed / 20 skipped (request 892239.nqsv、1032.67s) |
+| 受入全走 (tip `5fe11936`、land 直前) | **6702 passed / 20 skipped** (request 892302.nqsv、1034.75s) |
 
 いずれも Pegasus 計算ノードで `tools/run_tests.py` 経由の dispatch により実測した。
