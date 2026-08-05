@@ -355,3 +355,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"26c348e883671b10e5821b087ce68460bc0f99efffac05d388e03f9e7192a799","seq":2,"wave":"dev-wave-t401-racct-permanent"}
 
 - {"allocations":{"F:concurrent-dispatch-during-acceptance":"F136"},"authored":"2026-08-05","content_sha256":"78f351a8f0ca48392f545ca5ebf4afe94c0b44addf0d45750f9461d27e0e2ee7","seq":3,"wave":"dev-wave-t520-measurement-turn"}
+
+- {"allocations":{"T:admission-living-doc-closure":"[T-556]","T:admission-reason-gate-sync":"[T-555]","T:barrier-policy-on-old-commits":"[T-557]","T:dev-wave-docs-budget-headroom":"[T-558]","T:hook-wiring-skip-gate":"[T-554]","T:s8c-git-timeout-under-load":"[T-553]"},"authored":"2026-08-06","content_sha256":"ccabe4895244adc0c3b114956d953e5ca9fb975e6f902660d712c2e20157a85c","seq":1,"wave":"dev-wave-t522-admission-registry"}
+- {"allocations":{"D:pegasus-admission-registry-canonical":"D188"},"authored":"2026-08-06","content_sha256":"39fab98631ab4a97b98f2e787239e7c9dc560519f8d0a9dad3bc8be48b90ea6d","seq":2,"wave":"dev-wave-t522-admission-registry"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"34c3b12d2b6146523240ec4571a774b39cc38fa48b3a4cc438afa2838b43b8a2","seq":3,"wave":"dev-wave-t522-admission-registry"}
