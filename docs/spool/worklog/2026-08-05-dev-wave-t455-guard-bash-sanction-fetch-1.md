@@ -49,10 +49,12 @@ title: [T-455] third-party 取得ツールを guard_bash の sanctioned 実行�
 - **段 6 の焦点再レビューは行っていない。** fix が control 名の差し替え 1 点で、
   `hooks/guard_bash.py` に触れず受理集合を変えないため、追加の codex 巡回でなく
   親の変異 matrix と受入全走で裏取りした。
-- **受入・監査の実測値。** `tools/run_tests.py` 全走 = **5904 passed / 19 skipped** (662.47s、
-  計算ノード dispatch、rc=0)。`tools/check_ai_provenance.py` 全履歴 = **1193 件、違反なし**。
-  `tools/check_docs.py` = 違反なし。main 取り込み (4fbd890、13 commit) は事前に incoming 監査を
-  通してから merge commit にした。
+- **受入・監査の実測値。** `tools/run_tests.py` 全走を 2 回とも計算ノードへ dispatch して
+  実測した。1 回目 (記録 commit 前、HEAD 72cf949) = **5904 passed / 19 skipped** (662.47s、rc=0)、
+  2 回目 (main 再取り込み後の tip 3a26f8c) = **5904 passed / 19 skipped** (516.80s、rc=0)。
+  `tools/check_ai_provenance.py` 全履歴 = **1194 件、違反なし**。`tools/check_docs.py` = 違反なし。
+  main 取り込みは 2 回に分け (4fbd890 = 13 commit、d853332 = 8 commit)、どちらも事前に
+  incoming 監査を通してから merge commit にした。
 - **段 8 の dev-wave 改善候補 3 件は、いずれも実装せず記録に留めた。** (a) 冗長 gate と明記する
   変異でも `expected_nodes` は全層を列挙する必要がある (本 wave の M2 MISMATCH の直接原因。
   `DW-M03` は期待 node の書き方に触れていない)。(b) positive control に land 済み手順の実行体を
