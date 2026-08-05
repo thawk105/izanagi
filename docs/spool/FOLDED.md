@@ -303,3 +303,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:holdout-full-condition-binding":"[T-525]","T:holdout-workload-projection":"[T-527]","T:s8b-pilot-holdout-observation":"[T-523]","T:s8c-check-cli-double-import":"[T-526]","T:trial-experiment-unit-redesign":"[T-524]"},"authored":"2026-08-05","content_sha256":"7c42991aeaa2939168150f34d71d5a3d8a59c9f261e3ff7c8da90d63e1a42089","seq":1,"wave":"dev-wave-t470-t327-wiring"}
 - {"allocations":{"F:merge-author-trailer-without-conflict":"F125"},"authored":"2026-08-05","content_sha256":"98326473e1500d9e539b0525eb5a04c065d3dbeb333eda67342506f9acf8a6ce","seq":2,"wave":"dev-wave-t470-t327-wiring"}
+
+- {"allocations":{"T:campaign-env-contract-none-bypass":"[T-530]","T:contract-generation-activation-authority":"[T-529]","T:probe-method-alpha-production-wiring":"[T-528]"},"authored":"2026-08-05","content_sha256":"5e5043888a1cb1daa9ef30b5e033cb2ca31c04be4a0c6b8401eb5e112f906811","seq":1,"wave":"dev-wave-t419-u2-contract-generation"}
+- {"allocations":{"D:contract-generation-bootstrap-fuse":"D176"},"authored":"2026-08-05","content_sha256":"8e979989eb8b5bc208477bc33bb5c5c0db58ee12410e118003adb712a7379108","seq":1,"wave":"dev-wave-t419-u2-contract-generation"}
+- {"allocations":{"F:delegation-seam-left-unpinned-by-its-own-fix":"F127","F:fuse-masks-mutation-attribution":"F126"},"authored":"2026-08-05","content_sha256":"c28ac6462783df4243880b7174bd30b6838f7ed2ff77be7b22c955582b959f72","seq":1,"wave":"dev-wave-t419-u2-contract-generation"}
