@@ -104,7 +104,8 @@ PREREG_REL=$IZANAGI_T139_PREREGISTRATION_RELATIVE_PATH
    output/insights/2026-08-05_t139-alt-x-probe/preregistration.md ]] || exit 3
 
 extract_blob() {
-  local relative=$1 destination=$2 tmp="$destination.tmp"
+  local relative=$1 destination=$2 tmp
+  tmp="$destination.tmp"
   deadline_run 5 git --no-replace-objects -C "$IZANAGI_REPO_ROOT" \
     cat-file blob "$IZANAGI_RUN_COMMIT:$relative" >"$tmp" || return
   mv "$tmp" "$destination"

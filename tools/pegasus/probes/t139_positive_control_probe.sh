@@ -326,7 +326,8 @@ terminal_reject() {
 
 JOB_SID=$(ps -o sid= -p $$ | tr -d ' ')
 limited_check() {
-  local label=$1 phase=$2 snapshot="$OUT/limited-$label-$phase-processes.txt"
+  local label=$1 phase=$2 snapshot
+  snapshot="$OUT/limited-$label-$phase-processes.txt"
   ps -eo pid=,ppid=,sid=,psr=,stat=,comm=,args= |
     awk -v sid="$JOB_SID" '$3 != sid' >"$snapshot"
   {
