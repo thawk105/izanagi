@@ -73,8 +73,9 @@ title: [T-496] ruleops inventory の exit 2 を診断可能にし、fail-closed 
   初回計測をどこで走らせるかを定めていない** — 値は一度走らせないと測れないため、
   新規スクリプトの 1 走目は必ずログインノードに落ちる。恒久対応は
   {{F:first-run-classification-site-undefined}}。
-- **受入全走**: request 890142 = `6237 passed / 19 skipped / 0 failed` (816.53s、`-n 32`)。
-  waiver なし。[T-496] が報告した
+- **受入全走**: request 890142 = `6237 passed / 19 skipped / 0 failed` (816.53s、`-n 32`)、
+  local main 11 commit を追加取り込み後の request 890171 =
+  `6296 passed / 19 skipped / 0 failed` (657.71s、`-n 32`)。いずれも waiver なし。[T-496] が報告した
   `test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo` の赤は
   この全走では再現しなかった。**再現しなかったことは修理の証拠にはならない** — 元の赤も
   単独走行では再現しなかったためである。本 wave が主張できるのは
