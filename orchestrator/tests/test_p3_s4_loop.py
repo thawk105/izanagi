@@ -77,6 +77,15 @@ _T343_DIFF_REJECT_START_KEYS = (
 _T343_DIFF_REJECT_ABORT_KEYS = (
     _PRE_T343_DIFF_REJECT_ABORT_KEYS | {"build_attempt_id"}
 )
+_OUTER_WHITESPACE = (
+    ("space", " "),
+    ("tab", "\t"),
+    ("crlf", "\r\n"),
+    ("vertical-tab", "\x0b"),
+    ("form-feed", "\x0c"),
+    ("nbsp", "\u00a0"),
+    ("ideographic-space", "\u3000"),
+)
 
 
 def _critic_view(layout: CampaignLayout):
@@ -91,6 +100,16 @@ def _mk_template_dir(source_rel: str = _SRC_REL):
     os.makedirs(os.path.dirname(path) or d, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         f.write(_TEMPLATE)
+    return d
+
+
+def _mk_trigger_template_dir():
+    d = tempfile.mkdtemp(prefix="izanagi_trigger_quarantine_")
+    path = os.path.join(d, _SRC_REL)
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write(_TEMPLATE.replace(
+            "silo-backoff-magnitude", "silo-backoff-trigger-gating",
+        ))
     return d
 
 
@@ -169,13 +188,7 @@ def test_quarantine_fails_closed_on_broken_template():
 
 
 def test_trigger_quarantine_accepts_exact_32_canonical_predicates_with_outer_space():
-    trigger_template = _TEMPLATE.replace(
-        "silo-backoff-magnitude", "silo-backoff-trigger-gating",
-    )
-    d = tempfile.mkdtemp(prefix="izanagi_trigger_membership_")
-    path = os.path.join(d, _SRC_REL)
-    with open(path, "w", encoding="utf-8") as stream:
-        stream.write(trigger_template)
+    d = _mk_trigger_template_dir()
     predicates = []
     materialized = []
     variants = []
@@ -194,6 +207,54 @@ def test_trigger_quarantine_accepts_exact_32_canonical_predicates_with_outer_spa
         materialized.append(edited.encode("utf-8"))
         variants.append(variant_id(_G, trigger_gate_binding.expected_predicate_sha256(mask)))
     assert len(set(predicates)) == len(set(materialized)) == len(set(variants)) == 32
+
+
+def test_trigger_quarantine_materializes_all_outer_whitespace_identically():
+    d = _mk_trigger_template_dir()
+    predicate = emit_predicate(TriggerGateIR(20))
+    exact_result, exact_base, exact_edited, exact_diff = L.quarantine(
+        d, predicate,
+        marker_id="silo-backoff-trigger-gating",
+        source_rel=_SRC_REL,
+        write=False,
+    )
+    assert exact_result.passed
+
+    for name, outer in _OUTER_WHITESPACE:
+        result, base, edited, diff = L.quarantine(
+            d, f"{outer}{predicate}{outer}",
+            marker_id="silo-backoff-trigger-gating",
+            source_rel=_SRC_REL,
+            write=False,
+        )
+        assert result.passed, name
+        assert base.encode("utf-8") == exact_base.encode("utf-8"), name
+        assert edited.encode("utf-8") == exact_edited.encode("utf-8"), name
+        assert diff.encode("utf-8") == exact_diff.encode("utf-8"), name
+
+
+def test_sort_quarantine_preserves_outer_whitespace_bytes():
+    d = tempfile.mkdtemp(prefix="izanagi_sort_verbatim_")
+    path = os.path.join(d, _SRC_REL)
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write(_TEMPLATE.replace(
+            "silo-backoff-magnitude", "silo-writeset-sort",
+        ))
+    comparator = "int harmless = 1;"
+    exact_result, _base, exact_edited, exact_diff = L.quarantine(
+        d, comparator,
+        marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
+    )
+    padded = f"\n  {comparator}  \n"
+    padded_result, _base, padded_edited, padded_diff = L.quarantine(
+        d, padded,
+        marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
+    )
+
+    assert exact_result.passed and padded_result.passed
+    assert exact_edited.encode("utf-8") != padded_edited.encode("utf-8")
+    assert exact_diff.encode("utf-8") != padded_diff.encode("utf-8")
+    assert "\n      int harmless = 1;  \n" in padded_edited
 
 
 def test_trigger_quarantine_rejects_noncanonical_text_before_structure_inspection():

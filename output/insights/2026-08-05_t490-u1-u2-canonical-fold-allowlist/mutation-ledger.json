@@ -1,0 +1,1031 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/6508c644a63c883e6c0edac02dc36ddc/izdw-6508c644a6.o890155",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/6508c644a63c883e6c0edac02dc36ddc/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n..................s......................................                [100%]\n200 passed, 1 skipped in 2.46s\n",
+      "stdout_sha256": "32110bfa59771b7b03da47aa8744dadf5ab03863cf223ead19db8671879b160c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "8af5e0efda413e339b78a285be502f1f3aba5891bc15ec7c66d1fd61f68599e3",
+    "duration_s": 27.018,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "3eddd663267ddaa74807e8b9286f9cdbe71d4f5c7692d8d42e71a0b8b5eb10e7",
+    "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+    "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+    "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+    "status": "PASSED",
+    "test_output_sha256": "32110bfa59771b7b03da47aa8744dadf5ab03863cf223ead19db8671879b160c",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+  },
+  "date": "2026-08-05T05:51:00.621773+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/f3b1a64ff032e404a3a614314b5b615a/izdw-f3b1a64ff0.o890156",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/f3b1a64ff032e404a3a614314b5b615a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n.................................F..........................s........... [ 71%]\n.........................................................                [100%]\n=================================== FAILURES ===================================\n____ test_trigger_quarantine_materializes_all_outer_whitespace_identically _____\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_trigger_quarantine_materializes_all_outer_whitespace_identically():\n        d = _mk_trigger_template_dir()\n        predicate = emit_predicate(TriggerGateIR(20))\n        exact_result, exact_base, exact_edited, exact_diff = L.quarantine(\n            d, predicate,\n            marker_id=\"silo-backoff-trigger-gating\",\n            source_rel=_SRC_REL,\n            write=False,\n        )\n        assert exact_result.passed\n    \n        for name, outer in _OUTER_WHITESPACE:\n            result, base, edited, diff = L.quarantine(\n                d, f\"{outer}{predicate}{outer}\",\n                marker_id=\"silo-backoff-trigger-gating\",\n                source_rel=_SRC_REL,\n                write=False,\n            )\n            assert result.passed, name\n            assert base.encode(\"utf-8\") == exact_base.encode(\"utf-8\"), name\n>           assert edited.encode(\"utf-8\") == exact_edited.encode(\"utf-8\"), name\nE           AssertionError: space\nE           assert b'#pragma onc...);\\n  }\\n};\\n' == b'#pragma onc...);\\n  }\\n};\\n'\nE             \nE             At index 323 diff: b' ' != b'i'\nE             Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:232: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_materializes_all_outer_whitespace_identically\n1 failed, 199 passed, 1 skipped in 2.54s\n",
+        "stdout_sha256": "c12713575f1c44fbabe2e2fd4bebb45e3046777717a47819a059260c99020a74"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8af5e0efda413e339b78a285be502f1f3aba5891bc15ec7c66d1fd61f68599e3",
+      "duration_s": 27.362,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_materializes_all_outer_whitespace_identically"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_materializes_all_outer_whitespace_identically"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "715980d6b3721118eca67148f0d5530bb67314d210a453622ffa9958fc8ca6ad",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a3f967a00c3f6ea4808e439749cb8f8e8b0c46d230864657e7b142f95bfdd43f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "",
+          "old": "    if marker_id == TRIGGER_MARKER_ID:\n        implementation = trigger_gate_binding.canonicalize_predicate(\n            implementation\n        )\n"
+        }
+      ],
+      "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+      "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+      "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+      "status": "KILLED",
+      "test_output_sha256": "c12713575f1c44fbabe2e2fd4bebb45e3046777717a47819a059260c99020a74",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/f2519130a38aeda4b67c9ab2fdad3627/izdw-f2519130a3.o890157",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/f2519130a38aeda4b67c9ab2fdad3627/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n................s.......................................F............... [ 71%]\n..........F..FF.F..F...F....F.FFFFFFF.....FF......FF.....                [100%]\n=================================== FAILURES ===================================\n__________________ test_quarantine_passes_clean_backoff_value __________________\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_quarantine_passes_clean_backoff_value():\n        \"\"\"正常な straight-line 提案 (hole 内・生指令なし) は passed=True。\"\"\"\n        d = _mk_template_dir()\n>       res, base, edited, diff = L.quarantine(d, \"double now_backoff = 20.0;\",\n                                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:133: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n_______________ test_quarantine_fails_closed_on_broken_template ________________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_quarantine_fails_closed_on_broken_template():\n        \"\"\"骨格が壊れて parse_template_file が None を返す → MALFORMED 相当で fails-closed。\"\"\"\n        d = tempfile.mkdtemp(prefix=\"izanagi_s4loop_bad_\")\n        with open(os.path.join(d, _SRC_REL), \"w\", encoding=\"utf-8\") as f:\n            f.write(\"no evolve block here\\n\")\n>       res, *_ = L.quarantine(d, \"double now_backoff = 20.0;\",\n                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:184: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n________________ test_quarantine_rejects_marker_forgery_in_hole ________________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_quarantine_rejects_marker_forgery_in_hole():\n        \"\"\"hole 内の EVOLVE-BLOCK-BEGIN/END 指令はフレーム偽装 → HOLE_ESCAPE reject。\"\"\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(d,\n                               'const char* marker = \"EVOLVE-BLOCK-END demo\";\\n'\n                               \"double now_backoff = 20.0;\",\n                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:170: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n__________________ test_quarantine_rejects_directive_in_hole ___________________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_quarantine_rejects_directive_in_hole():\n        \"\"\"hole 内の行頭前処理指令 (#define 等) は HOLE_ESCAPE reject (二次検査)。\"\"\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(d, \"#define EVIL 1\\ndouble now_backoff = 20.0;\",\n                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:142: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n________ test_quarantine_write_occurs_only_after_structural_validation _________\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_quarantine_write_occurs_only_after_structural_validation():\n        d = _mk_template_dir()\n        path = os.path.join(d, _SRC_REL)\n        before = open(path, encoding=\"utf-8\").read()\n>       rejected, *_ = L.quarantine(\n            d, \"#define EVIL 1\\ndouble now_backoff = 20.0;\",\n            source_rel=_SRC_REL, write=True,\n        )\n\norchestrator/tests/test_p3_s4_loop.py:153: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n_______ test_trigger_membership_does_not_change_sort_or_backoff_markers ________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_trigger_membership_does_not_change_sort_or_backoff_markers():\n        backoff_dir = _mk_template_dir()\n>       backoff, *_ = L.quarantine(\n            backoff_dir, \"double now_backoff = 20.0;\",\n            marker_id=\"silo-backoff-magnitude\", source_rel=_SRC_REL, write=False,\n        )\n\norchestrator/tests/test_p3_s4_loop.py:281: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n_____________ test_make_critic_digest_reflux_off_drops_red_section _____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_make_critic_digest_reflux_off_drops_red_section():\n        \"\"\"reflux=off (還流 off ablation) では赤節を落とす (LLM ablation の対照)。\"\"\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(d, \"#define X 1\\ndouble now_backoff = 20.0;\",\n                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:708: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n____________ test_sort_quarantine_preserves_outer_whitespace_bytes _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_sort_quarantine_preserves_outer_whitespace_bytes():\n        d = tempfile.mkdtemp(prefix=\"izanagi_sort_verbatim_\")\n        path = os.path.join(d, _SRC_REL)\n        with open(path, \"w\", encoding=\"utf-8\") as stream:\n            stream.write(_TEMPLATE.replace(\n                \"silo-backoff-magnitude\", \"silo-writeset-sort\",\n            ))\n        comparator = \"int harmless = 1;\"\n>       exact_result, _base, exact_edited, exact_diff = L.quarantine(\n            d, comparator,\n            marker_id=\"silo-writeset-sort\", source_rel=_SRC_REL, write=False,\n        )\n\norchestrator/tests/test_p3_s4_loop.py:244: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n________________ test_record_and_load_diff_rejection_roundtrip _________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_record_and_load_diff_rejection_roundtrip():\n        \"\"\"diff 検疫 reject が WAL に焼かれ、load_diff_rejections が構造を保って復元する。\"\"\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(d, \"#define X 1\\ndouble now_backoff = 20.0;\",\n                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:313: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n____________ test_render_rejections_diff_section_has_no_perf_tokens ____________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_render_rejections_diff_section_has_no_perf_tokens():\n        \"\"\"render_rejections の diff-quarantine 節に性能数値 (fitness/throughput) が無い (規律2)。\"\"\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(d, \"#define X 1\\ndouble now_backoff = 20.0;\",\n                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:465: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n________________ test_render_rejections_diff_only_not_all_green ________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_render_rejections_diff_only_not_all_green():\n        \"\"\"diff-quarantine reject だけあるとき「全 variant 緑」と誤表示しない。\"\"\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(d, \"#define X 1\\ndouble now_backoff = 20.0;\",\n                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:517: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n____ test_record_diff_reject_without_binding_preserves_legacy_payload_bytes ____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1506248f2980>\n\n    def test_record_diff_reject_without_binding_preserves_legacy_payload_bytes(\n        monkeypatch,\n    ):\n        implementation = \"#define X 1\\ndouble now_backoff = 20.0;\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(\n            d, implementation, source_rel=_SRC_REL, write=False,\n        )\n\norchestrator/tests/test_p3_s4_loop.py:361: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n_______ test_comment_reject_wal_to_critic_digest_does_not_repeat_payload _______\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_comment_reject_wal_to_critic_digest_does_not_repeat_payload():\n        \"\"\"コメント payload は reject 後の WAL→critic 描画にも逐語で再掲しない。\"\"\"\n        sentinel = \"QPROBE_7f3a4\"\n        implementation = f\"double now_backoff = 20.0; // {sentinel}\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(d, implementation, source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:483: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n___________ test_diffq_reason_matches_diff_quarantine_rejection_type ___________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_diffq_reason_matches_diff_quarantine_rejection_type():\n        \"\"\"DIFF_QUARANTINE_REASON が diff_quarantine の rejection_type と 1:1 (暗黙 API 固定)。\"\"\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(d, \"#define X 1\\ndouble now_backoff = 20.0;\",\n                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:305: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n____________ test_diff_reject_not_double_counted_in_liveness_other _____________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_diff_reject_not_double_counted_in_liveness_other():\n        \"\"\"load_liveness_rejections が diff-quarantine を other に混ぜない (二重計上防止)。\"\"\"\n        d = _mk_template_dir()\n>       res, *_ = L.quarantine(d, \"#define X 1\\ndouble now_backoff = 20.0;\",\n                               source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:452: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n______ test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail ______\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail():\n        d = _mk_template_dir()\n        implementation = \"#define X 1\\ndouble now_backoff = 20.0;\"\n>       res, *_ = L.quarantine(d, implementation, source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:425: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n__ test_record_diff_reject_with_binding_writes_raw_record_and_commitment_only __\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_record_diff_reject_with_binding_writes_raw_record_and_commitment_only():\n        d = _mk_template_dir()\n        implementation = \"#define X 1\\ndouble now_backoff = 20.0;\"\n>       res, *_ = L.quarantine(d, implementation, source_rel=_SRC_REL, write=False)\n\norchestrator/tests/test_p3_s4_loop.py:330: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n_______ test_drive_iteration_clean_no_build_skips_admitted_critic_digest _______\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fe53a72410>\n\n    def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(monkeypatch):\n        import contextlib\n        from campaign import patchharness\n    \n        sub = _mk_template_dir(L.SOURCE_REL)\n        lay = _tmp_layout(\"dry-pass-no-digest\")\n        monkeypatch.setattr(\n            patchharness, \"applied\",\n            lambda *_args, **_kwargs: contextlib.nullcontext(),\n        )\n        planner = L.PlannerProposal(\n            axis=L.MARKER_ID, direction=\"increase\", magnitude=\"small\",\n        )\n        coder = L.CoderProposal(\n            axis=L.MARKER_ID, value=20.0,\n            implementation=\"double now_backoff = 20.0;\",\n        )\n>       out = L.drive_iteration(\n            L.default_cfg(), L.default_perf(), planner, coder, None, sub,\n            do_build=False, layout=lay,\n        )\n\norchestrator/tests/test_p3_s4_loop.py:1139: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:840: in drive_iteration\n    out = run_one_iteration(cfg, perf, planner, coder, state, sub,\norchestrator/campaign/p3_s4_loop.py:715: in run_one_iteration\n    res, _b, _e, _d = quarantine(sub, coder.implementation, write=False)\norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n____________ test_drive_iteration_checkpoint_survives_across_calls _____________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_drive_iteration_checkpoint_survives_across_calls():\n        \"\"\"fresh reject が identity を確立し、次候補の public drive が resume できる。\"\"\"\n        import contextlib\n        from campaign import patchharness\n    \n        sub = tempfile.mkdtemp(prefix=\"izanagi_s4loop_public_\")\n        os.makedirs(os.path.join(sub, \"include\"))\n        with open(os.path.join(sub, L.SOURCE_REL), \"w\", encoding=\"utf-8\") as stream:\n            stream.write(_TEMPLATE)\n        lay = _tmp_layout(\"drivereject\")\n        cfg, perf = L.default_cfg(), L.default_perf()\n        pl = L.PlannerProposal(axis=L.MARKER_ID, direction=\"increase\", magnitude=\"small\")\n        # hole-escape (行頭 #define) → diff 検疫 reject。value と literal は整合させる。\n        cd = L.CoderProposal(axis=L.MARKER_ID, value=20.0,\n                             implementation=\"#define EVIL 1\\ndouble now_backoff = 20.0;\")\n        with unittest.mock.patch.object(\n                patchharness, \"applied\",\n                side_effect=lambda *_a, **_k: contextlib.nullcontext()):\n>           out1 = L.drive_iteration(\n                cfg, perf, pl, cd, None, sub, do_build=False, layout=lay,\n            )\n\norchestrator/tests/test_p3_s4_loop.py:1100: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop.py:840: in drive_iteration\n    out = run_one_iteration(cfg, perf, planner, coder, state, sub,\norchestrator/campaign/p3_s4_loop.py:715: in run_one_iteration\n    res, _b, _e, _d = quarantine(sub, coder.implementation, write=False)\norchestrator/campaign/p3_s4_loop.py:211: in quarantine\n    implementation = trigger_gate_binding.canonicalize_predicate(\norchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate\n    _reject()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _reject() -> None:\n>       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None\nE       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding\n\norchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_passes_clean_backoff_value\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_fails_closed_on_broken_template\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_marker_forgery_in_hole\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_directive_in_hole\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_write_occurs_only_after_structural_validation\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_trigger_membership_does_not_change_sort_or_backoff_markers\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_preserves_outer_whitespace_bytes\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_without_binding_preserves_legacy_payload_bytes\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_diffq_reason_matches_diff_quarantine_rejection_type\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_with_binding_writes_raw_record_and_commitment_only\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls@real-repo\n19 failed, 181 passed, 1 skipped in 2.46s\n",
+        "stdout_sha256": "e5f18b1a09acd843ed956927909b4fda5014172498a0cbd4553e2b9115ecc5ee"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8af5e0efda413e339b78a285be502f1f3aba5891bc15ec7c66d1fd61f68599e3",
+      "duration_s": 27.375,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_preserves_outer_whitespace_bytes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_passes_clean_backoff_value",
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_fails_closed_on_broken_template",
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_marker_forgery_in_hole",
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_directive_in_hole",
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_write_occurs_only_after_structural_validation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_trigger_membership_does_not_change_sort_or_backoff_markers",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_preserves_outer_whitespace_bytes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_without_binding_preserves_legacy_payload_bytes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diffq_reason_matches_diff_quarantine_rejection_type",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_with_binding_writes_raw_record_and_commitment_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls@real-repo"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "df95c0fffd2ccc1309e3cc58140bff0708b7d2e0fbf06e37a23982d7975ecb42",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "f863f1dce5a370ee7f80e1d53c29ec0a7f30218acba517488a7bd72438855392",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "    implementation = trigger_gate_binding.canonicalize_predicate(\n        implementation\n    )\n",
+          "old": "    if marker_id == TRIGGER_MARKER_ID:\n        implementation = trigger_gate_binding.canonicalize_predicate(\n            implementation\n        )\n"
+        }
+      ],
+      "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+      "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+      "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+      "status": "MISMATCH",
+      "test_output_sha256": "e5f18b1a09acd843ed956927909b4fda5014172498a0cbd4553e2b9115ecc5ee",
+      "test_output_tail": [
+        "orchestrator/tests/test_p3_s4_loop.py:1139: ",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "orchestrator/campaign/p3_s4_loop.py:840: in drive_iteration",
+        "    out = run_one_iteration(cfg, perf, planner, coder, state, sub,",
+        "orchestrator/campaign/p3_s4_loop.py:715: in run_one_iteration",
+        "    res, _b, _e, _d = quarantine(sub, coder.implementation, write=False)",
+        "orchestrator/campaign/p3_s4_loop.py:211: in quarantine",
+        "    implementation = trigger_gate_binding.canonicalize_predicate(",
+        "orchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate",
+        "    _reject()",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "",
+        "    def _reject() -> None:",
+        ">       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None",
+        "E       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding",
+        "",
+        "orchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError",
+        "____________ test_drive_iteration_checkpoint_survives_across_calls _____________",
+        "[gw25] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_drive_iteration_checkpoint_survives_across_calls():",
+        "        \"\"\"fresh reject が identity を確立し、次候補の public drive が resume できる。\"\"\"",
+        "        import contextlib",
+        "        from campaign import patchharness",
+        "    ",
+        "        sub = tempfile.mkdtemp(prefix=\"izanagi_s4loop_public_\")",
+        "        os.makedirs(os.path.join(sub, \"include\"))",
+        "        with open(os.path.join(sub, L.SOURCE_REL), \"w\", encoding=\"utf-8\") as stream:",
+        "            stream.write(_TEMPLATE)",
+        "        lay = _tmp_layout(\"drivereject\")",
+        "        cfg, perf = L.default_cfg(), L.default_perf()",
+        "        pl = L.PlannerProposal(axis=L.MARKER_ID, direction=\"increase\", magnitude=\"small\")",
+        "        # hole-escape (行頭 #define) → diff 検疫 reject。value と literal は整合させる。",
+        "        cd = L.CoderProposal(axis=L.MARKER_ID, value=20.0,",
+        "                             implementation=\"#define EVIL 1\\ndouble now_backoff = 20.0;\")",
+        "        with unittest.mock.patch.object(",
+        "                patchharness, \"applied\",",
+        "                side_effect=lambda *_a, **_k: contextlib.nullcontext()):",
+        ">           out1 = L.drive_iteration(",
+        "                cfg, perf, pl, cd, None, sub, do_build=False, layout=lay,",
+        "            )",
+        "",
+        "orchestrator/tests/test_p3_s4_loop.py:1100: ",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "orchestrator/campaign/p3_s4_loop.py:840: in drive_iteration",
+        "    out = run_one_iteration(cfg, perf, planner, coder, state, sub,",
+        "orchestrator/campaign/p3_s4_loop.py:715: in run_one_iteration",
+        "    res, _b, _e, _d = quarantine(sub, coder.implementation, write=False)",
+        "orchestrator/campaign/p3_s4_loop.py:211: in quarantine",
+        "    implementation = trigger_gate_binding.canonicalize_predicate(",
+        "orchestrator/campaign/trigger_gate_binding.py:109: in canonicalize_predicate",
+        "    _reject()",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "",
+        "    def _reject() -> None:",
+        ">       raise TriggerGateBindingError(_REJECTION_MESSAGE) from None",
+        "E       campaign.trigger_gate_binding.TriggerGateBindingError: invalid trigger gate binding",
+        "",
+        "orchestrator/campaign/trigger_gate_binding.py:51: TriggerGateBindingError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_passes_clean_backoff_value",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_fails_closed_on_broken_template",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_marker_forgery_in_hole",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_directive_in_hole",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_quarantine_write_occurs_only_after_structural_validation",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_trigger_membership_does_not_change_sort_or_backoff_markers",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_preserves_outer_whitespace_bytes",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_without_binding_preserves_legacy_payload_bytes",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_diffq_reason_matches_diff_quarantine_rejection_type",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_with_binding_writes_raw_record_and_commitment_only",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "FAILED orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls@real-repo",
+        "19 failed, 181 passed, 1 skipped in 2.46s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/48cef957ac71de2970d9ccbaaa72dc02/izdw-48cef957ac.o890158",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/48cef957ac71de2970d9ccbaaa72dc02/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n............F..F......F...F.F...................F....................... [ 71%]\n.s...F...................................................                [100%]\n=================================== FAILURES ===================================\n___ test_canonicalize_predicate_returns_injected_emitter_bytes[vertical-tab] ___\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e1f2c12a70>\nouter = '\\x0b'\n\n    @pytest.mark.parametrize(\"outer\", _OUTER_WHITESPACE)\n    def test_canonicalize_predicate_returns_injected_emitter_bytes(\n            monkeypatch, outer):\n        predicate = IR.emit_predicate(IR.TriggerGateIR(0)).strip()\n        emitted = f\"{outer}{predicate}{outer}\"\n        monkeypatch.setattr(\n            BINDING, \"_CANONICAL_PREDICATE_INDEX\", {predicate: emitted}\n        )\n    \n>       assert BINDING.canonicalize_predicate(predicate) == emitted\nE       AssertionError: assert 'izanagi_gate...ason::kUnset;' == '\\x0bizanagi_...::kUnset;\\x0b'\nE         \nE         - \nE         \nE         - izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\nE         \nE         ?                                                                         -\nE         + izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\n\norchestrator/tests/test_trigger_gate_binding.py:249: AssertionError\n______ test_canonicalize_predicate_returns_injected_emitter_bytes[space] _______\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154544136a70>\nouter = ' '\n\n    @pytest.mark.parametrize(\"outer\", _OUTER_WHITESPACE)\n    def test_canonicalize_predicate_returns_injected_emitter_bytes(\n            monkeypatch, outer):\n        predicate = IR.emit_predicate(IR.TriggerGateIR(0)).strip()\n        emitted = f\"{outer}{predicate}{outer}\"\n        monkeypatch.setattr(\n            BINDING, \"_CANONICAL_PREDICATE_INDEX\", {predicate: emitted}\n        )\n    \n>       assert BINDING.canonicalize_predicate(predicate) == emitted\nE       AssertionError: assert 'izanagi_gate...ason::kUnset;' == ' izanagi_gat...son::kUnset; '\nE         \nE         -  izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset; \nE         ? -                                                                        -\nE         + izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\n\norchestrator/tests/test_trigger_gate_binding.py:249: AssertionError\n____ test_canonicalize_predicate_returns_injected_emitter_bytes[form-feed] _____\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149eb7ca2a10>\nouter = '\\x0c'\n\n    @pytest.mark.parametrize(\"outer\", _OUTER_WHITESPACE)\n    def test_canonicalize_predicate_returns_injected_emitter_bytes(\n            monkeypatch, outer):\n        predicate = IR.emit_predicate(IR.TriggerGateIR(0)).strip()\n        emitted = f\"{outer}{predicate}{outer}\"\n        monkeypatch.setattr(\n            BINDING, \"_CANONICAL_PREDICATE_INDEX\", {predicate: emitted}\n        )\n    \n>       assert BINDING.canonicalize_predicate(predicate) == emitted\nE       AssertionError: assert 'izanagi_gate...ason::kUnset;' == '\\x0cizanagi_...::kUnset;\\x0c'\nE         \nE         - \nE         \nE         - izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\nE         \nE         ?                                                                         -\nE         + izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\n\norchestrator/tests/test_trigger_gate_binding.py:249: AssertionError\n_______ test_canonicalize_predicate_returns_injected_emitter_bytes[tab] ________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ae6d0f6a40>\nouter = '\\t'\n\n    @pytest.mark.parametrize(\"outer\", _OUTER_WHITESPACE)\n    def test_canonicalize_predicate_returns_injected_emitter_bytes(\n            monkeypatch, outer):\n        predicate = IR.emit_predicate(IR.TriggerGateIR(0)).strip()\n        emitted = f\"{outer}{predicate}{outer}\"\n        monkeypatch.setattr(\n            BINDING, \"_CANONICAL_PREDICATE_INDEX\", {predicate: emitted}\n        )\n    \n>       assert BINDING.canonicalize_predicate(predicate) == emitted\nE       AssertionError: assert 'izanagi_gate...ason::kUnset;' == '\\tizanagi_ga...on::kUnset;\\t'\nE         \nE         - \tizanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\t\nE         ? -                                                                        -\nE         + izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\n\norchestrator/tests/test_trigger_gate_binding.py:249: AssertionError\n_ test_canonicalize_predicate_returns_injected_emitter_bytes[ideographic-space] _\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147026ca2980>\nouter = '\\u3000'\n\n    @pytest.mark.parametrize(\"outer\", _OUTER_WHITESPACE)\n    def test_canonicalize_predicate_returns_injected_emitter_bytes(\n            monkeypatch, outer):\n        predicate = IR.emit_predicate(IR.TriggerGateIR(0)).strip()\n        emitted = f\"{outer}{predicate}{outer}\"\n        monkeypatch.setattr(\n            BINDING, \"_CANONICAL_PREDICATE_INDEX\", {predicate: emitted}\n        )\n    \n>       assert BINDING.canonicalize_predicate(predicate) == emitted\nE       AssertionError: assert 'izanagi_gate...ason::kUnset;' == '\\u3000izanag...kUnset;\\u3000'\nE         \nE         - 　izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;　\nE         ? -                                                                        -\nE         + izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\n\norchestrator/tests/test_trigger_gate_binding.py:249: AssertionError\n_______ test_canonicalize_predicate_returns_injected_emitter_bytes[crlf] _______\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1472f57269b0>\nouter = '\\r\\n'\n\n    @pytest.mark.parametrize(\"outer\", _OUTER_WHITESPACE)\n    def test_canonicalize_predicate_returns_injected_emitter_bytes(\n            monkeypatch, outer):\n        predicate = IR.emit_predicate(IR.TriggerGateIR(0)).strip()\n        emitted = f\"{outer}{predicate}{outer}\"\n        monkeypatch.setattr(\n            BINDING, \"_CANONICAL_PREDICATE_INDEX\", {predicate: emitted}\n        )\n    \n>       assert BINDING.canonicalize_predicate(predicate) == emitted\nE       AssertionError: assert 'izanagi_gate...ason::kUnset;' == '\\r\\nizanagi_...::kUnset;\\r\\n'\nE         \nE         - \nE         - izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\nE         ?                                                                         --\nE         + izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\n\norchestrator/tests/test_trigger_gate_binding.py:249: AssertionError\n_______ test_canonicalize_predicate_returns_injected_emitter_bytes[nbsp] _______\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149d0f5f29e0>\nouter = '\\xa0'\n\n    @pytest.mark.parametrize(\"outer\", _OUTER_WHITESPACE)\n    def test_canonicalize_predicate_returns_injected_emitter_bytes(\n            monkeypatch, outer):\n        predicate = IR.emit_predicate(IR.TriggerGateIR(0)).strip()\n        emitted = f\"{outer}{predicate}{outer}\"\n        monkeypatch.setattr(\n            BINDING, \"_CANONICAL_PREDICATE_INDEX\", {predicate: emitted}\n        )\n    \n>       assert BINDING.canonicalize_predicate(predicate) == emitted\nE       AssertionError: assert 'izanagi_gate...ason::kUnset;' == '\\xa0izanagi_...::kUnset;\\xa0'\nE         \nE         -  izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset; \nE         ? -                                                                        -\nE         + izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset;\n\norchestrator/tests/test_trigger_gate_binding.py:249: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[vertical-tab]\nFAILED orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[space]\nFAILED orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[form-feed]\nFAILED orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[tab]\nFAILED orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[ideographic-space]\nFAILED orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[crlf]\nFAILED orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[nbsp]\n7 failed, 193 passed, 1 skipped in 2.47s\n",
+        "stdout_sha256": "651cbffdf755b29b2ba9abbb6994973e005c523899cf41e8926ba4b1ec2e13ae"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8af5e0efda413e339b78a285be502f1f3aba5891bc15ec7c66d1fd61f68599e3",
+      "duration_s": 27.476,
+      "expected_nodes": [
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[space]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[tab]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[crlf]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[vertical-tab]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[form-feed]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[nbsp]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[ideographic-space]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[vertical-tab]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[space]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[form-feed]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[tab]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[ideographic-space]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[crlf]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[nbsp]"
+      ],
+      "hang_risk": false,
+      "id": "M03",
+      "injection_diff_sha256": "d8e50bb3288a5b9887fe7671021fbc2a65ee01401af76daed6e86b3a10ba37b9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8c2e13ab0cdc2a81765e8519157e3958b743b4c85e4e4fa682fde534f18b3731",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trigger_gate_binding.py",
+          "new": "    return key\n",
+          "old": "    return _CANONICAL_PREDICATE_INDEX[key]\n"
+        }
+      ],
+      "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+      "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+      "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+      "status": "KILLED",
+      "test_output_sha256": "651cbffdf755b29b2ba9abbb6994973e005c523899cf41e8926ba4b1ec2e13ae",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/1028718134a5f1a91b185a10b552bcdf/izdw-1028718134.o890159",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/1028718134a5f1a91b185a10b552bcdf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n........F.............................................s................. [ 71%]\n.........................................................                [100%]\n=================================== FAILURES ===================================\n_________ test_duplicate_stripped_predicate_fails_during_module_import _________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151c02cfa8f0>\n\n    def test_duplicate_stripped_predicate_fails_during_module_import(monkeypatch):\n        monkeypatch.setattr(IR, \"emit_predicate\", lambda _ir: \"\\t duplicate \\r\\n\")\n        module_name = \"campaign._duplicate_trigger_gate_binding_test\"\n        spec = importlib.util.spec_from_file_location(module_name, BINDING.__file__)\n        assert spec is not None and spec.loader is not None\n        module = importlib.util.module_from_spec(spec)\n        sys.modules[module_name] = module\n        try:\n>           with pytest.raises(\n                    RuntimeError,\n                    match=\"duplicate canonical trigger predicate after outer strip\"):\nE                   Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_trigger_gate_binding.py:261: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_trigger_gate_binding.py::test_duplicate_stripped_predicate_fails_during_module_import\n1 failed, 199 passed, 1 skipped in 2.48s\n",
+        "stdout_sha256": "b94a09f95683ee9b3c0c3d83ca50600e9520d3d3fcee3939c95673327581520d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8af5e0efda413e339b78a285be502f1f3aba5891bc15ec7c66d1fd61f68599e3",
+      "duration_s": 27.375,
+      "expected_nodes": [
+        "orchestrator/tests/test_trigger_gate_binding.py::test_duplicate_stripped_predicate_fails_during_module_import"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trigger_gate_binding.py::test_duplicate_stripped_predicate_fails_during_module_import"
+      ],
+      "hang_risk": false,
+      "id": "M04",
+      "injection_diff_sha256": "53822b7702dbcac987d2ad937adb5fbe7241a5ebbb838d54ac7f0b3d38960683",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "72faa4f04a2970e9794177b8ebc1e59902a6a1286497b4d447993b000c65b6a0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trigger_gate_binding.py",
+          "new": "",
+          "old": "        if key in index:\n            raise RuntimeError(\n                \"duplicate canonical trigger predicate after outer strip\"\n            )\n"
+        }
+      ],
+      "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+      "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+      "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+      "status": "KILLED",
+      "test_output_sha256": "b94a09f95683ee9b3c0c3d83ca50600e9520d3d3fcee3939c95673327581520d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/f38ffa19998c1f35767794af05e544bc/izdw-f38ffa1999.o890160",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/f38ffa19998c1f35767794af05e544bc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n........................................................s............... [ 71%]\n................................................FF.F.FF..                [100%]\n=================================== FAILURES ===================================\n_ test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration] _\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e7ae056aa0>\nconfiguration = 'future_configuration'\n\n    @pytest.mark.parametrize(\n        \"configuration\", [\"system-gate\", \"future_configuration\", \"unknown\"],\n    )\n    def test_prepare_rejects_multiple_unknown_configurations_before_checkout(\n            monkeypatch, configuration):\n        from campaign import patchharness\n    \n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n        )\n        cell = {\n            \"configuration\": configuration,\n            \"variant\": {\"flags\": {\"BACK_OFF\": 1}},\n        }\n        with pytest.raises(S.DriverError) as excinfo:\n>           with S.prepare_cell(cell, \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:483: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:520: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n    )\nE   Failed: 未知構成で checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:476: Failed\n_ test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate] _\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14aa20a39e10>\nconfiguration = 'system-gate'\n\n    @pytest.mark.parametrize(\n        \"configuration\", [\"system-gate\", \"future_configuration\", \"unknown\"],\n    )\n    def test_prepare_rejects_multiple_unknown_configurations_before_checkout(\n            monkeypatch, configuration):\n        from campaign import patchharness\n    \n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n        )\n        cell = {\n            \"configuration\": configuration,\n            \"variant\": {\"flags\": {\"BACK_OFF\": 1}},\n        }\n        with pytest.raises(S.DriverError) as excinfo:\n>           with S.prepare_cell(cell, \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:483: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:520: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n    )\nE   Failed: 未知構成で checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:476: Failed\n_______ test_prepare_rejects_configuration_added_only_to_producer_domain _______\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14647d142a40>\n\n    def test_prepare_rejects_configuration_added_only_to_producer_domain(\n            monkeypatch):\n        from campaign import patchharness, s1_measurement_freeze\n    \n        added = \"future_configuration\"\n        monkeypatch.setattr(\n            s1_measurement_freeze,\n            \"CONFIGURATIONS\",\n            s1_measurement_freeze.CONFIGURATIONS + (added,),\n        )\n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\"producer 追加値を checkout してはならない\"),\n        )\n        assert added in s1_measurement_freeze.CONFIGURATIONS\n        with pytest.raises(S.DriverError) as excinfo:\n>           with S.prepare_cell(\n                    {\"configuration\": added, \"variant\": {\"flags\": {\"BACK_OFF\": 1}}},\n                    \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:504: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:520: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\"producer 追加値を checkout してはならない\"),\n    )\nE   Failed: producer 追加値を checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:500: Failed\n_ test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown] _\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1472df94a500>\nconfiguration = 'unknown'\n\n    @pytest.mark.parametrize(\n        \"configuration\", [\"system-gate\", \"future_configuration\", \"unknown\"],\n    )\n    def test_prepare_rejects_multiple_unknown_configurations_before_checkout(\n            monkeypatch, configuration):\n        from campaign import patchharness\n    \n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n        )\n        cell = {\n            \"configuration\": configuration,\n            \"variant\": {\"flags\": {\"BACK_OFF\": 1}},\n        }\n        with pytest.raises(S.DriverError) as excinfo:\n>           with S.prepare_cell(cell, \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:483: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:520: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n    )\nE   Failed: 未知構成で checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:476: Failed\n____ test_fresh_prepare_rejects_configuration_added_only_to_producer_domain ____\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145a5ec8e4a0>\n\n    def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(\n            monkeypatch):\n        from campaign import patchharness, s1_measurement_freeze\n    \n        added = \"future_configuration\"\n        monkeypatch.setattr(\n            s1_measurement_freeze,\n            \"CONFIGURATIONS\",\n            s1_measurement_freeze.CONFIGURATIONS + (added,),\n        )\n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\n                \"producer 追加値を checkout してはならない\"\n            ),\n        )\n        module_name = \"campaign._s1_direct_comparison_producer_independence_test\"\n        spec = importlib.util.spec_from_file_location(module_name, S.__file__)\n        assert spec is not None and spec.loader is not None\n        module = importlib.util.module_from_spec(spec)\n        sys.modules[module_name] = module\n        try:\n            spec.loader.exec_module(module)\n            assert added in s1_measurement_freeze.CONFIGURATIONS\n            with pytest.raises(module.DriverError) as excinfo:\n>               with module.prepare_cell(\n                        {\n                            \"configuration\": added,\n                            \"variant\": {\"flags\": {\"BACK_OFF\": 1}},\n                        },\n                        \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:536: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:520: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\n            \"producer 追加値を checkout してはならない\"\n        ),\n    )\nE   Failed: producer 追加値を checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:523: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain\n5 failed, 195 passed, 1 skipped in 2.48s\n",
+        "stdout_sha256": "bd879f23c5fadc6ae486ff719c93931047bf863c616843ff86950e7e80125ab6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8af5e0efda413e339b78a285be502f1f3aba5891bc15ec7c66d1fd61f68599e3",
+      "duration_s": 27.299,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+      ],
+      "hang_risk": false,
+      "id": "M05",
+      "injection_diff_sha256": "812192eeb0ff07fd1b95040a1bb684aa5139f56c22de07016fd0b6e1e4c0a6ff",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "53474f1516021e6e658b94a04aee5475bcbab257998b7599e61b10b5428f48b3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "new": "",
+          "old": "    if configuration not in _PREPARE_CELL_CONFIGURATIONS:\n        raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\n"
+        }
+      ],
+      "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+      "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+      "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+      "status": "KILLED",
+      "test_output_sha256": "bd879f23c5fadc6ae486ff719c93931047bf863c616843ff86950e7e80125ab6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/cbf44250d384d407b4adde79494a89ac/izdw-cbf44250d3.o890162",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/cbf44250d384d407b4adde79494a89ac/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n.....s................................................F..                [100%]\n=================================== FAILURES ===================================\n____ test_fresh_prepare_rejects_configuration_added_only_to_producer_domain ____\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153e789028c0>\n\n    def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(\n            monkeypatch):\n        from campaign import patchharness, s1_measurement_freeze\n    \n        added = \"future_configuration\"\n        monkeypatch.setattr(\n            s1_measurement_freeze,\n            \"CONFIGURATIONS\",\n            s1_measurement_freeze.CONFIGURATIONS + (added,),\n        )\n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\n                \"producer 追加値を checkout してはならない\"\n            ),\n        )\n        module_name = \"campaign._s1_direct_comparison_producer_independence_test\"\n        spec = importlib.util.spec_from_file_location(module_name, S.__file__)\n        assert spec is not None and spec.loader is not None\n        module = importlib.util.module_from_spec(spec)\n        sys.modules[module_name] = module\n        try:\n            spec.loader.exec_module(module)\n            assert added in s1_measurement_freeze.CONFIGURATIONS\n            with pytest.raises(module.DriverError) as excinfo:\n>               with module.prepare_cell(\n                        {\n                            \"configuration\": added,\n                            \"variant\": {\"flags\": {\"BACK_OFF\": 1}},\n                        },\n                        \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:536: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:517: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\n            \"producer 追加値を checkout してはならない\"\n        ),\n    )\nE   Failed: producer 追加値を checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:523: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain\n1 failed, 199 passed, 1 skipped in 2.48s\n",
+        "stdout_sha256": "6434648070437259730df61ac3d9da880b8b8184ac243470c5fe72e4e5d9ff0a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8af5e0efda413e339b78a285be502f1f3aba5891bc15ec7c66d1fd61f68599e3",
+      "duration_s": 290.832,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+      ],
+      "hang_risk": false,
+      "id": "M06",
+      "injection_diff_sha256": "ef47b7ef72e4e82c6fd57f3db1c68c6cc7c8a13c0e9463b190b6370d58d3e117",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "071f04a527d95f6e977647953a4ee3a7d060911604c017d51fedf31239cada7e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "new": "from campaign import s1_measurement_freeze as _producer_domain  # noqa: E402\n_PREPARE_CELL_CONFIGURATIONS: frozenset[str] = frozenset(\n    _producer_domain.CONFIGURATIONS)\n",
+          "old": "_PREPARE_CELL_CONFIGURATIONS: frozenset[str] = frozenset({\n    \"backoff_fixed_best\",\n    \"ident_all\",\n    \"p2_2_flag_opt\",\n    \"sort_best\",\n    \"stock_common\",\n    \"system_gate\",\n})\n"
+        }
+      ],
+      "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+      "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+      "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+      "status": "KILLED",
+      "test_output_sha256": "6434648070437259730df61ac3d9da880b8b8184ac243470c5fe72e4e5d9ff0a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/16661747bb6746ccb1ac1b25ea38a850/izdw-16661747bb.o890165",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/16661747bb6746ccb1ac1b25ea38a850/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n.......................................s................................ [ 71%]\n.............................................F.F...FF....                [100%]\n=================================== FAILURES ===================================\n_ test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration] _\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14682a65aad0>\nconfiguration = 'future_configuration'\n\n    @pytest.mark.parametrize(\n        \"configuration\", [\"system-gate\", \"future_configuration\", \"unknown\"],\n    )\n    def test_prepare_rejects_multiple_unknown_configurations_before_checkout(\n            monkeypatch, configuration):\n        from campaign import patchharness\n    \n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n        )\n        cell = {\n            \"configuration\": configuration,\n            \"variant\": {\"flags\": {\"BACK_OFF\": 1}},\n        }\n        with pytest.raises(S.DriverError) as excinfo:\n>           with S.prepare_cell(cell, \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:483: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:522: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n    )\nE   Failed: 未知構成で checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:476: Failed\n_ test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown] _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cb48fad7b0>\nconfiguration = 'unknown'\n\n    @pytest.mark.parametrize(\n        \"configuration\", [\"system-gate\", \"future_configuration\", \"unknown\"],\n    )\n    def test_prepare_rejects_multiple_unknown_configurations_before_checkout(\n            monkeypatch, configuration):\n        from campaign import patchharness\n    \n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n        )\n        cell = {\n            \"configuration\": configuration,\n            \"variant\": {\"flags\": {\"BACK_OFF\": 1}},\n        }\n        with pytest.raises(S.DriverError) as excinfo:\n>           with S.prepare_cell(cell, \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:483: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:522: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\"未知構成で checkout してはならない\"),\n    )\nE   Failed: 未知構成で checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:476: Failed\n_______ test_prepare_rejects_configuration_added_only_to_producer_domain _______\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a1614fa8c0>\n\n    def test_prepare_rejects_configuration_added_only_to_producer_domain(\n            monkeypatch):\n        from campaign import patchharness, s1_measurement_freeze\n    \n        added = \"future_configuration\"\n        monkeypatch.setattr(\n            s1_measurement_freeze,\n            \"CONFIGURATIONS\",\n            s1_measurement_freeze.CONFIGURATIONS + (added,),\n        )\n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\"producer 追加値を checkout してはならない\"),\n        )\n        assert added in s1_measurement_freeze.CONFIGURATIONS\n        with pytest.raises(S.DriverError) as excinfo:\n>           with S.prepare_cell(\n                    {\"configuration\": added, \"variant\": {\"flags\": {\"BACK_OFF\": 1}}},\n                    \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:504: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:522: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\"producer 追加値を checkout してはならない\"),\n    )\nE   Failed: producer 追加値を checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:500: Failed\n____ test_fresh_prepare_rejects_configuration_added_only_to_producer_domain ____\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f1f4c2d9f0>\n\n    def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(\n            monkeypatch):\n        from campaign import patchharness, s1_measurement_freeze\n    \n        added = \"future_configuration\"\n        monkeypatch.setattr(\n            s1_measurement_freeze,\n            \"CONFIGURATIONS\",\n            s1_measurement_freeze.CONFIGURATIONS + (added,),\n        )\n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: pytest.fail(\n                \"producer 追加値を checkout してはならない\"\n            ),\n        )\n        module_name = \"campaign._s1_direct_comparison_producer_independence_test\"\n        spec = importlib.util.spec_from_file_location(module_name, S.__file__)\n        assert spec is not None and spec.loader is not None\n        module = importlib.util.module_from_spec(spec)\n        sys.modules[module_name] = module\n        try:\n            spec.loader.exec_module(module)\n            assert added in s1_measurement_freeze.CONFIGURATIONS\n            with pytest.raises(module.DriverError) as excinfo:\n>               with module.prepare_cell(\n                        {\n                            \"configuration\": added,\n                            \"variant\": {\"flags\": {\"BACK_OFF\": 1}},\n                        },\n                        \"fixture-pin\"):\n\norchestrator/tests/test_s1_direct_comparison.py:536: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/s1_direct_comparison.py:522: in prepare_cell\n    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ('fixture-pin',)\nkwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}\n\n>       lambda *args, **kwargs: pytest.fail(\n            \"producer 追加値を checkout してはならない\"\n        ),\n    )\nE   Failed: producer 追加値を checkout してはならない\n\norchestrator/tests/test_s1_direct_comparison.py:523: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain\n4 failed, 196 passed, 1 skipped in 2.49s\n",
+        "stdout_sha256": "6c3785443ed01243620b9bb123633a09df2668a8a8e42fd8b190e68d762ba9e8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8af5e0efda413e339b78a285be502f1f3aba5891bc15ec7c66d1fd61f68599e3",
+      "duration_s": 32.618,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+      ],
+      "hang_risk": false,
+      "id": "M07",
+      "injection_diff_sha256": "493eddfc6c418a460aac44057d459f687f747ed192ba5ca8832c89f58c13a7eb",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "cbbdc0bd8786aa417c94dcd15750fa797acee3ae6daeaaef16ef2c0695321a28",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "new": "    if configuration == \"system-gate\":\n        raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\n",
+          "old": "    if configuration not in _PREPARE_CELL_CONFIGURATIONS:\n        raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\n"
+        }
+      ],
+      "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+      "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+      "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+      "status": "MISMATCH",
+      "test_output_sha256": "6c3785443ed01243620b9bb123633a09df2668a8a8e42fd8b190e68d762ba9e8",
+      "test_output_tail": [
+        "                    {\"configuration\": added, \"variant\": {\"flags\": {\"BACK_OFF\": 1}}},",
+        "                    \"fixture-pin\"):",
+        "",
+        "orchestrator/tests/test_s1_direct_comparison.py:504: ",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "/usr/lib/python3.10/contextlib.py:135: in __enter__",
+        "    return next(self.gen)",
+        "orchestrator/campaign/s1_direct_comparison.py:522: in prepare_cell",
+        "    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "",
+        "args = ('fixture-pin',)",
+        "kwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}",
+        "",
+        ">       lambda *args, **kwargs: pytest.fail(\"producer 追加値を checkout してはならない\"),",
+        "    )",
+        "E   Failed: producer 追加値を checkout してはならない",
+        "",
+        "orchestrator/tests/test_s1_direct_comparison.py:500: Failed",
+        "____ test_fresh_prepare_rejects_configuration_added_only_to_producer_domain ____",
+        "[gw17] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f1f4c2d9f0>",
+        "",
+        "    def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(",
+        "            monkeypatch):",
+        "        from campaign import patchharness, s1_measurement_freeze",
+        "    ",
+        "        added = \"future_configuration\"",
+        "        monkeypatch.setattr(",
+        "            s1_measurement_freeze,",
+        "            \"CONFIGURATIONS\",",
+        "            s1_measurement_freeze.CONFIGURATIONS + (added,),",
+        "        )",
+        "        monkeypatch.setattr(",
+        "            patchharness, \"checkout\",",
+        "            lambda *args, **kwargs: pytest.fail(",
+        "                \"producer 追加値を checkout してはならない\"",
+        "            ),",
+        "        )",
+        "        module_name = \"campaign._s1_direct_comparison_producer_independence_test\"",
+        "        spec = importlib.util.spec_from_file_location(module_name, S.__file__)",
+        "        assert spec is not None and spec.loader is not None",
+        "        module = importlib.util.module_from_spec(spec)",
+        "        sys.modules[module_name] = module",
+        "        try:",
+        "            spec.loader.exec_module(module)",
+        "            assert added in s1_measurement_freeze.CONFIGURATIONS",
+        "            with pytest.raises(module.DriverError) as excinfo:",
+        ">               with module.prepare_cell(",
+        "                        {",
+        "                            \"configuration\": added,",
+        "                            \"variant\": {\"flags\": {\"BACK_OFF\": 1}},",
+        "                        },",
+        "                        \"fixture-pin\"):",
+        "",
+        "orchestrator/tests/test_s1_direct_comparison.py:536: ",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "/usr/lib/python3.10/contextlib.py:135: in __enter__",
+        "    return next(self.gen)",
+        "orchestrator/campaign/s1_direct_comparison.py:522: in prepare_cell",
+        "    sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))",
+        "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "",
+        "args = ('fixture-pin',)",
+        "kwargs = {'base_dir': '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/external/ccbench'}",
+        "",
+        ">       lambda *args, **kwargs: pytest.fail(",
+        "            \"producer 追加値を checkout してはならない\"",
+        "        ),",
+        "    )",
+        "E   Failed: producer 追加値を checkout してはならない",
+        "",
+        "orchestrator/tests/test_s1_direct_comparison.py:523: Failed",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+        "FAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+        "FAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+        "FAILED orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain",
+        "4 failed, 196 passed, 1 skipped in 2.49s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/1d1aa54962f99e365a172b525b09fadb/izdw-1d1aa54962.o890166",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/1d1aa54962f99e365a172b525b09fadb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 35%]\n...............................................s........................ [ 71%]\n.......................F.........................F.......                [100%]\n=================================== FAILURES ===================================\n______________ test_prepare_configuration_allowlist_is_fixed_six _______________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_prepare_configuration_allowlist_is_fixed_six():\n>       assert S._PREPARE_CELL_CONFIGURATIONS == frozenset({\n            \"backoff_fixed_best\",\n            \"ident_all\",\n            \"p2_2_flag_opt\",\n            \"sort_best\",\n            \"stock_common\",\n            \"system_gate\",\n        })\nE       AssertionError: assert frozenset({'b...system_gate'}) == frozenset({'b...system_gate'})\nE         \nE         Extra items in the right set:\nE         'stock_common'\nE         Use -v to get more diff\n\norchestrator/tests/test_s1_direct_comparison.py:427: AssertionError\n_ test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common] _\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_prepare_flags_only_config0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15491093ab00>\nconfiguration = 'stock_common'\n\n    @pytest.mark.parametrize(\"configuration\", [\"stock_common\", \"p2_2_flag_opt\"])\n    def test_prepare_flags_only_configurations_do_not_patch_or_quarantine(\n            tmp_path, monkeypatch, configuration):\n        from campaign import patchharness\n        from campaign import p3_s4_loop as loop_axis\n    \n        worktree = tmp_path / \"worktree\"\n        monkeypatch.setattr(\n            patchharness, \"checkout\",\n            lambda *args, **kwargs: _fixture_checkout(worktree),\n        )\n        monkeypatch.setattr(\n            patchharness, \"applied\",\n            lambda *args, **kwargs: pytest.fail(\"flags-only 構成で patch してはならない\"),\n        )\n        monkeypatch.setattr(\n            loop_axis, \"quarantine\",\n            lambda *args, **kwargs: pytest.fail(\"flags-only 構成で quarantine してはならない\"),\n        )\n        monkeypatch.setattr(\n            S.source_digest, \"resolve\", lambda *args, **kwargs: \"fixture-source\",\n        )\n        flags = {\"BACK_OFF\": 1, \"WAL\": 0}\n        cell = {\"configuration\": configuration, \"variant\": {\"flags\": flags}}\n    \n>       with S.prepare_cell(cell, \"fixture-pin\") as prepared:\n\norchestrator/tests/test_s1_direct_comparison.py:462: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncell = {'configuration': 'stock_common', 'variant': {'flags': {'BACK_OFF': 1, 'WAL': 0}}}\nccbench_pin = 'fixture-pin'\n\n    @contextlib.contextmanager\n    def prepare_cell(cell: Mapping, ccbench_pin: str):\n        \"\"\"freeze variant の flags/code を使い、使い捨て worktree に該当点を実体化する。\"\"\"\n        from campaign import patchharness\n        from campaign import p3_s4_loop as loop_axis\n        from campaign import p3_s4_loop_sort as sort_axis\n        from campaign import axis_trigger_gating as gate_axis\n        from campaign import p3_s4_loop_trigger_gating as gate_loop\n    \n        variant = cell.get(\"variant\")\n        configuration = cell.get(\"configuration\")\n        if not isinstance(variant, dict) or not isinstance(configuration, str):\n            raise DriverError(\"freeze cell.variant/configuration が不正\")\n        if configuration not in _PREPARE_CELL_CONFIGURATIONS:\n>           raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\nE           campaign.s1_direct_comparison.DriverError: 未知の freeze configuration: 'stock_common'\n\norchestrator/campaign/s1_direct_comparison.py:506: DriverError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_configuration_allowlist_is_fixed_six\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common]\n2 failed, 198 passed, 1 skipped in 2.48s\n",
+        "stdout_sha256": "9158eeb36da1ebf3276e0b4f9cf5e27947706210a1781336e2ef1b4a6ce8b089"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "8af5e0efda413e339b78a285be502f1f3aba5891bc15ec7c66d1fd61f68599e3",
+      "duration_s": 27.468,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_configuration_allowlist_is_fixed_six",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_configuration_allowlist_is_fixed_six",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common]"
+      ],
+      "hang_risk": false,
+      "id": "M08",
+      "injection_diff_sha256": "a4b782fd7d0dbc87a8ce32a410e62f5ca6a860b80b40f45077ff935c17889cd0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9236cdc1e43ef929db200f7f084979e9e56bd6190a010545cc9ee1c57c188b8f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "new": "",
+          "old": "    \"stock_common\",\n"
+        }
+      ],
+      "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+      "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+      "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+      "status": "KILLED",
+      "test_output_sha256": "9158eeb36da1ebf3276e0b4f9cf5e27947706210a1781336e2ef1b4a6ce8b089",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/4d24d706176ad484e7ec417425f2202c/izdw-4d24d70617.o890153",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/output/pegasus-dispatch/4d24d706176ad484e7ec417425f2202c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_trigger_gate_binding.py::test_schema_and_wal_stage_constants_are_exact\norchestrator/tests/test_trigger_gate_binding.py::test_all_masks_construct_and_commit_deterministically\norchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[-1]\norchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[32]\norchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[True]\norchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[False]\norchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[1.0]\norchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[1]\norchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[None]\norchestrator/tests/test_trigger_gate_binding.py::test_predicate_digest_must_match_mask\norchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[predicate_sha256-000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[predicate_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\norchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[predicate_sha256-gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]\norchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[predicate_sha256-0000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[nonce-000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[nonce-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\norchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[nonce-gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]\norchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[nonce-0000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[1-4d4823794cbed3c4ee0bbc684c8f66e1dfd5afa6f078d494ce254ec5a4671753]\norchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[stock-000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[stock-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\norchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[stock-gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]\norchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[stock-0000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_trigger_gate_binding.py::test_record_key_closure_versions_and_required_source_reject\norchestrator/tests/test_trigger_gate_binding.py::test_nested_source_record_has_closed_keys\norchestrator/tests/test_trigger_gate_binding.py::test_rejections_have_one_disclosure_free_fingerprint\norchestrator/tests/test_trigger_gate_binding.py::test_canonical_predicate_membership_is_exact_after_outer_strip\norchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[space]\norchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[tab]\norchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[crlf]\norchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[vertical-tab]\norchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[form-feed]\norchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[nbsp]\norchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[ideographic-space]\norchestrator/tests/test_trigger_gate_binding.py::test_duplicate_stripped_predicate_fails_during_module_import\norchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_rejects_nonmember_with_uniform_error\norchestrator/tests/test_trigger_gate_binding.py::test_canonical_json_has_stable_sorted_key_order_and_source_none\norchestrator/tests/test_trigger_gate_binding.py::test_commitment_independent_literal_golden_vector\norchestrator/tests/test_trigger_gate_binding.py::test_new_nonce_is_exact_lowercase_hex_and_changes_commitment\norchestrator/tests/test_trigger_gate_binding.py::test_signature_stubs_keep_legacy_calls_valid_with_none_default\norchestrator/tests/test_p3_s4_loop.py::test_render_hole_preserves_indent_and_replaces_only_hole\norchestrator/tests/test_p3_s4_loop.py::test_quarantine_passes_clean_backoff_value\norchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_directive_in_hole\norchestrator/tests/test_p3_s4_loop.py::test_quarantine_write_occurs_only_after_structural_validation\norchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_marker_forgery_in_hole\norchestrator/tests/test_p3_s4_loop.py::test_quarantine_fails_closed_on_broken_template\norchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_accepts_exact_32_canonical_predicates_with_outer_space\norchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_materializes_all_outer_whitespace_identically\norchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_preserves_outer_whitespace_bytes\norchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_rejects_noncanonical_text_before_structure_inspection\norchestrator/tests/test_p3_s4_loop.py::test_trigger_membership_does_not_change_sort_or_backoff_markers\norchestrator/tests/test_p3_s4_loop.py::test_diffq_reason_matches_diff_quarantine_rejection_type\norchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip\norchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_with_binding_writes_raw_record_and_commitment_only\norchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_without_binding_preserves_legacy_payload_bytes\norchestrator/tests/test_p3_s4_loop.py::test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail\norchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other\norchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens\norchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload\norchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green\norchestrator/tests/test_p3_s4_loop.py::test_whiteboard_entry_has_no_attribution_field\norchestrator/tests/test_p3_s4_loop.py::test_project_whiteboard_appends_direction_only\norchestrator/tests/test_p3_s4_loop.py::test_check_stop_continue\norchestrator/tests/test_p3_s4_loop.py::test_check_stop_budget_iterations\norchestrator/tests/test_p3_s4_loop.py::test_check_stop_converged_same_direction_small\norchestrator/tests/test_p3_s4_loop.py::test_check_stop_not_converged_when_magnitude_changes\norchestrator/tests/test_p3_s4_loop.py::test_check_stop_reverse_exhausted\norchestrator/tests/test_p3_s4_loop.py::test_check_stop_reject_streak_not_converged\norchestrator/tests/test_p3_s4_loop.py::test_check_stop_converged_ignores_interleaved_reject\norchestrator/tests/test_p3_s4_loop.py::test_check_stop_reverse_exhausted_none_delta_still_fires\norchestrator/tests/test_p3_s4_loop.py::test_check_stop_reverse_escape_lives_when_delta_positive\norchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_rejects_tautology\norchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_rejects_condition_equals_invariant\norchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_rejects_empty_and_true\norchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_passes_non_tautology\norchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_rejects_constant_tautology\norchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_semantic_tautology_fails_open_by_design\norchestrator/tests/test_p3_s4_loop.py::test_value_literal_consistency_accepts_match\norchestrator/tests/test_p3_s4_loop.py::test_value_literal_consistency_rejects_mismatch\norchestrator/tests/test_p3_s4_loop.py::test_value_literal_consistency_fails_closed_when_value_absent\norchestrator/tests/test_p3_s4_loop.py::test_diffq_variant_id_deterministic_and_proposal_sensitive\norchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section\norchestrator/tests/test_p3_s4_loop.py::test_loop_state_roundtrip\norchestrator/tests/test_p3_s4_loop.py::test_checkpoint_whiteboard_value_domains_match_closed_literals\norchestrator/tests/test_p3_s4_loop.py::test_checkpoint_direction_and_magnitude_domains_match_role_policy\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_accepts_each_closed_whiteboard_value\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_unrecognized_whiteboard_strings\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_non_string_whiteboard_values\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_invalid_values_in_later_whiteboard_entry\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_exact_whiteboard_value_error_message\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_whiteboard_fields_in_domain_order\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_nonnull_delta_pct\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_fails_closed_on_missing_top_level_field\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_unknown_top_level_field\norchestrator/tests/test_p3_s4_loop.py::test_whiteboard_for_planner_rejects_nonnull_delta_pct\norchestrator/tests/test_p3_s4_loop.py::test_load_loop_state_missing_returns_none\norchestrator/tests/test_p3_s4_loop.py::test_state_to_dict_has_only_abstract_whiteboard_fields\norchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_unknown_whiteboard_field\norchestrator/tests/test_p3_s4_loop.py::test_cross_process_whiteboard_accumulates\norchestrator/tests/test_p3_s4_loop.py::test_fold_critic_reverse\norchestrator/tests/test_p3_s4_loop.py::test_wall_budget_via_start_wall\norchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted\norchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls\norchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest\norchestrator/tests/test_p3_s4_loop.py::test_load_proposal_file_rejects_nonbool_prior_reverse\norchestrator/tests/test_p3_s4_loop.py::test_load_proposal_file_accepts_null_and_bool_prior_reverse\norchestrator/tests/test_p3_s4_loop.py::test_projection_tripwire_preserves_clean_proposal_acceptance_in_all_three_loaders\norchestrator/tests/test_p3_s4_loop.py::test_projection_tripwire_rejects_excluded_token_in_all_three_loaders\norchestrator/tests/test_p3_s4_loop.py::test_projection_tripwire_rejects_normalized_excluded_path_in_free_text\norchestrator/tests/test_p3_s4_loop.py::test_projection_tripwire_collapses_parent_components_in_free_text\norchestrator/tests/test_p3_s4_loop.py::test_proposal_loaders_reject_unknown_keys_at_all_schema_layers\norchestrator/tests/test_p3_s4_loop.py::test_projection_policy_loader_fails_closed_on_missing_parse_and_policy\norchestrator/tests/test_p3_s4_loop.py::test_projection_policy_is_synchronized_with_registered_patch_material\norchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted\norchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_recovers_certified_from_wal\norchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_falls_back_to_fail_when_no_commit\norchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_never_reresolves_source\norchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_structurally_free_of_resolver\norchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_empty_skip_ids_does_not_fabricate_success\norchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_single_implementation_across_axes\norchestrator/tests/test_s1_direct_comparison.py::test_modified_freeze_is_refused_before_campaign_start\norchestrator/tests/test_s1_direct_comparison.py::test_receipt_exists_but_direct_comparison_loader_stays_legacy_strict\norchestrator/tests/test_s1_direct_comparison.py::test_direct_comparison_production_module_does_not_import_t080_adapter\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_backoff_fixed_best_preserves_evolve_block\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_backoff_fixed_best_refuses_flag_value_mismatch\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_configuration_allowlist_is_fixed_six\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[p2_2_flag_opt]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain\norchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain\norchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-00]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-01]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-02]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-03]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-04]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-05]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-06]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-07]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-08]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-09]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-10]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-11]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-12]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-13]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-14]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-15]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-16]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-17]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-18]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-19]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-20]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-21]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-22]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-23]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-24]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-25]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-26]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-27]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-28]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-29]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-30]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-31]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[balanced-system-gate]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[write-heavy-system-gate]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[read-heavy-system-gate]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[balanced-ident-all]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[write-heavy-ident-all]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[read-heavy-ident-all]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_noncanonical_freeze_predicate\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_noncanonical_predicate_with_real_quarantine\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_passes_comparator_verbatim_to_quarantine[synthetic-whitespace-sentinel]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_passes_comparator_verbatim_to_quarantine[canonical-balanced-sp-dd]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_passes_comparator_verbatim_to_quarantine[canonical-write-heavy-sk-ad]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_system_gate_passes_predicate_verbatim_to_quarantine[synthetic-whitespace-sentinel]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_system_gate_passes_predicate_verbatim_to_quarantine[canonical-balanced-g-rl]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_system_gate_passes_predicate_verbatim_to_quarantine[canonical-write-heavy-g-rt]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_ident_all_passes_predicate_verbatim_to_quarantine[synthetic-whitespace-sentinel]\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_ident_all_passes_predicate_verbatim_to_quarantine[canonical-ident-all]\norchestrator/tests/test_s1_direct_comparison.py::test_s1_v2_trial_does_not_reuse_v1_campaign_id\norchestrator/tests/test_s1_direct_comparison.py::test_schedule_mutation_refused_and_deviation_recorded\norchestrator/tests/test_s1_direct_comparison.py::test_budget_shortage_does_not_start_session\norchestrator/tests/test_s1_direct_comparison.py::test_budget_preflight_uses_conservative_upper_bound\norchestrator/tests/test_s1_direct_comparison.py::test_retry_limit_abandons_session_and_continues\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_transient_failure_retries_twice_then_succeeds\norchestrator/tests/test_s1_direct_comparison.py::test_prepare_freeze_contract_error_aborts_without_retry\norchestrator/tests/test_s1_direct_comparison.py::test_verifier_red_stops_without_retry\norchestrator/tests/test_s1_direct_comparison.py::test_trace_timeout_retries_but_verify_payload_does_not\norchestrator/tests/test_s1_direct_comparison.py::test_driver_uses_workload_flags_from_freeze\norchestrator/tests/test_s1_direct_comparison.py::test_driver_refuses_freeze_without_workload_flags\norchestrator/tests/test_s1_direct_comparison.py::test_verifier_red_in_one_campaign_blocks_other_campaign\norchestrator/tests/test_s1_direct_comparison.py::test_develop_calls_legacy_plus_s2_without_bench_18_times\norchestrator/tests/test_s1_direct_comparison.py::test_s1_session_stage_is_in_shared_wal_contract\norchestrator/tests/test_s1_direct_comparison.py::test_completed_campaign_resume_does_not_evaluate_again\norchestrator/tests/test_s1_direct_comparison.py::test_resume_repairs_tail_before_retry_and_session_result\norchestrator/tests/test_s1_direct_comparison.py::test_run_role_partial_wal_write_eio_preserves_error_and_stops_followup\norchestrator/tests/test_s1_direct_comparison.py::test_dry_run_refuses_unframed_tail_without_physical_change\norchestrator/tests/test_s1_direct_comparison.py::test_pipeline_bench_rounds_default_three_and_opt_in_one\n\n201 tests collected in 0.26s\n",
+        "stdout_sha256": "214b994b8cdf846f77017ddcea2916e8cb38f6dfc57270697c07ccb546debc61"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_trigger_gate_binding.py::test_schema_and_wal_stage_constants_are_exact",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_all_masks_construct_and_commit_deterministically",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[-1]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[32]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[True]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[False]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[1.0]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[1]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_mask_rejects_non_exact_int_and_out_of_range[None]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_predicate_digest_must_match_mask",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[predicate_sha256-000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[predicate_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[predicate_sha256-gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[predicate_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[nonce-000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[nonce-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[nonce-gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_binding_sha_and_nonce_require_lowercase_hex[nonce-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[1-4d4823794cbed3c4ee0bbc684c8f66e1dfd5afa6f078d494ce254ec5a4671753]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[stock-000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[stock-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[stock-gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_source_binding_fields_are_strict[stock-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_record_key_closure_versions_and_required_source_reject",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_nested_source_record_has_closed_keys",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_rejections_have_one_disclosure_free_fingerprint",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonical_predicate_membership_is_exact_after_outer_strip",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[space]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[tab]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[crlf]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[vertical-tab]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[form-feed]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[nbsp]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[ideographic-space]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_duplicate_stripped_predicate_fails_during_module_import",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_rejects_nonmember_with_uniform_error",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonical_json_has_stable_sorted_key_order_and_source_none",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_commitment_independent_literal_golden_vector",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_new_nonce_is_exact_lowercase_hex_and_changes_commitment",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_signature_stubs_keep_legacy_calls_valid_with_none_default",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_hole_preserves_indent_and_replaces_only_hole",
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_passes_clean_backoff_value",
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_directive_in_hole",
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_write_occurs_only_after_structural_validation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_rejects_marker_forgery_in_hole",
+        "orchestrator/tests/test_p3_s4_loop.py::test_quarantine_fails_closed_on_broken_template",
+        "orchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_accepts_exact_32_canonical_predicates_with_outer_space",
+        "orchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_materializes_all_outer_whitespace_identically",
+        "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_preserves_outer_whitespace_bytes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_rejects_noncanonical_text_before_structure_inspection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_trigger_membership_does_not_change_sort_or_backoff_markers",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diffq_reason_matches_diff_quarantine_rejection_type",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_with_binding_writes_raw_record_and_commitment_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_without_binding_preserves_legacy_payload_bytes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_sort_trigger_reject_writers_fail_closed_on_unframed_tail",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_whiteboard_entry_has_no_attribution_field",
+        "orchestrator/tests/test_p3_s4_loop.py::test_project_whiteboard_appends_direction_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_check_stop_continue",
+        "orchestrator/tests/test_p3_s4_loop.py::test_check_stop_budget_iterations",
+        "orchestrator/tests/test_p3_s4_loop.py::test_check_stop_converged_same_direction_small",
+        "orchestrator/tests/test_p3_s4_loop.py::test_check_stop_not_converged_when_magnitude_changes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_check_stop_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_check_stop_reject_streak_not_converged",
+        "orchestrator/tests/test_p3_s4_loop.py::test_check_stop_converged_ignores_interleaved_reject",
+        "orchestrator/tests/test_p3_s4_loop.py::test_check_stop_reverse_exhausted_none_delta_still_fires",
+        "orchestrator/tests/test_p3_s4_loop.py::test_check_stop_reverse_escape_lives_when_delta_positive",
+        "orchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_rejects_tautology",
+        "orchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_rejects_condition_equals_invariant",
+        "orchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_rejects_empty_and_true",
+        "orchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_passes_non_tautology",
+        "orchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_rejects_constant_tautology",
+        "orchestrator/tests/test_p3_s4_loop.py::test_mutation_red_gate_semantic_tautology_fails_open_by_design",
+        "orchestrator/tests/test_p3_s4_loop.py::test_value_literal_consistency_accepts_match",
+        "orchestrator/tests/test_p3_s4_loop.py::test_value_literal_consistency_rejects_mismatch",
+        "orchestrator/tests/test_p3_s4_loop.py::test_value_literal_consistency_fails_closed_when_value_absent",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diffq_variant_id_deterministic_and_proposal_sensitive",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_loop_state_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_checkpoint_whiteboard_value_domains_match_closed_literals",
+        "orchestrator/tests/test_p3_s4_loop.py::test_checkpoint_direction_and_magnitude_domains_match_role_policy",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_accepts_each_closed_whiteboard_value",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_unrecognized_whiteboard_strings",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_non_string_whiteboard_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_invalid_values_in_later_whiteboard_entry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_exact_whiteboard_value_error_message",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_reports_whiteboard_fields_in_domain_order",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_nonnull_delta_pct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_fails_closed_on_missing_top_level_field",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_unknown_top_level_field",
+        "orchestrator/tests/test_p3_s4_loop.py::test_whiteboard_for_planner_rejects_nonnull_delta_pct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_load_loop_state_missing_returns_none",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_to_dict_has_only_abstract_whiteboard_fields",
+        "orchestrator/tests/test_p3_s4_loop.py::test_state_from_dict_rejects_unknown_whiteboard_field",
+        "orchestrator/tests/test_p3_s4_loop.py::test_cross_process_whiteboard_accumulates",
+        "orchestrator/tests/test_p3_s4_loop.py::test_fold_critic_reverse",
+        "orchestrator/tests/test_p3_s4_loop.py::test_wall_budget_via_start_wall",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_load_proposal_file_rejects_nonbool_prior_reverse",
+        "orchestrator/tests/test_p3_s4_loop.py::test_load_proposal_file_accepts_null_and_bool_prior_reverse",
+        "orchestrator/tests/test_p3_s4_loop.py::test_projection_tripwire_preserves_clean_proposal_acceptance_in_all_three_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_projection_tripwire_rejects_excluded_token_in_all_three_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_projection_tripwire_rejects_normalized_excluded_path_in_free_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_projection_tripwire_collapses_parent_components_in_free_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_proposal_loaders_reject_unknown_keys_at_all_schema_layers",
+        "orchestrator/tests/test_p3_s4_loop.py::test_projection_policy_loader_fails_closed_on_missing_parse_and_policy",
+        "orchestrator/tests/test_p3_s4_loop.py::test_projection_policy_is_synchronized_with_registered_patch_material",
+        "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_recovers_certified_from_wal",
+        "orchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_falls_back_to_fail_when_no_commit",
+        "orchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_never_reresolves_source",
+        "orchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_structurally_free_of_resolver",
+        "orchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_empty_skip_ids_does_not_fabricate_success",
+        "orchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_single_implementation_across_axes",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_modified_freeze_is_refused_before_campaign_start",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_receipt_exists_but_direct_comparison_loader_stays_legacy_strict",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_direct_comparison_production_module_does_not_import_t080_adapter",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_backoff_fixed_best_preserves_evolve_block",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_backoff_fixed_best_refuses_flag_value_mismatch",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_configuration_allowlist_is_fixed_six",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[p2_2_flag_opt]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-00]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-01]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-02]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-03]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-04]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-05]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-06]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-07]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-08]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-09]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-10]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-11]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-12]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-13]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-14]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-15]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-16]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-17]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-18]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-19]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-20]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-21]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-22]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-23]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-24]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-25]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-26]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-27]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-28]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-29]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-30]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_all_32_canonical_predicates[mask-31]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[balanced-system-gate]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[write-heavy-system-gate]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[read-heavy-system-gate]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[balanced-ident-all]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[write-heavy-ident-all]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_accepts_six_frozen_gate_predicates[read-heavy-ident-all]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_noncanonical_freeze_predicate",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_noncanonical_predicate_with_real_quarantine",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_passes_comparator_verbatim_to_quarantine[synthetic-whitespace-sentinel]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_passes_comparator_verbatim_to_quarantine[canonical-balanced-sp-dd]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_passes_comparator_verbatim_to_quarantine[canonical-write-heavy-sk-ad]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_system_gate_passes_predicate_verbatim_to_quarantine[synthetic-whitespace-sentinel]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_system_gate_passes_predicate_verbatim_to_quarantine[canonical-balanced-g-rl]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_system_gate_passes_predicate_verbatim_to_quarantine[canonical-write-heavy-g-rt]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_ident_all_passes_predicate_verbatim_to_quarantine[synthetic-whitespace-sentinel]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_ident_all_passes_predicate_verbatim_to_quarantine[canonical-ident-all]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_s1_v2_trial_does_not_reuse_v1_campaign_id",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_schedule_mutation_refused_and_deviation_recorded",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_budget_shortage_does_not_start_session",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_budget_preflight_uses_conservative_upper_bound",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_retry_limit_abandons_session_and_continues",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_transient_failure_retries_twice_then_succeeds",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_freeze_contract_error_aborts_without_retry",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_verifier_red_stops_without_retry",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_trace_timeout_retries_but_verify_payload_does_not",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_driver_uses_workload_flags_from_freeze",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_driver_refuses_freeze_without_workload_flags",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_verifier_red_in_one_campaign_blocks_other_campaign",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_develop_calls_legacy_plus_s2_without_bench_18_times",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_s1_session_stage_is_in_shared_wal_contract",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_completed_campaign_resume_does_not_evaluate_again",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_resume_repairs_tail_before_retry_and_session_result",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_run_role_partial_wal_write_eio_preserves_error_and_stops_followup",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_dry_run_refuses_unframed_tail_without_physical_change",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_pipeline_bench_rounds_default_three_and_opt_in_one"
+      ],
+      "duration_s": 22.01,
+      "rc": 0,
+      "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+      "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+      "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+      "status": "PASSED",
+      "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_materializes_all_outer_whitespace_identically"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "715980d6b3721118eca67148f0d5530bb67314d210a453622ffa9958fc8ca6ad",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "",
+            "old": "    if marker_id == TRIGGER_MARKER_ID:\n        implementation = trigger_gate_binding.canonicalize_predicate(\n            implementation\n        )\n"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_preserves_outer_whitespace_bytes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "df95c0fffd2ccc1309e3cc58140bff0708b7d2e0fbf06e37a23982d7975ecb42",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "    implementation = trigger_gate_binding.canonicalize_predicate(\n        implementation\n    )\n",
+            "old": "    if marker_id == TRIGGER_MARKER_ID:\n        implementation = trigger_gate_binding.canonicalize_predicate(\n            implementation\n        )\n"
+          }
+        ]
+      },
+      "M03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[space]",
+          "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[tab]",
+          "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[crlf]",
+          "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[vertical-tab]",
+          "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[form-feed]",
+          "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[nbsp]",
+          "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[ideographic-space]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d8e50bb3288a5b9887fe7671021fbc2a65ee01401af76daed6e86b3a10ba37b9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trigger_gate_binding.py",
+            "new": "    return key\n",
+            "old": "    return _CANONICAL_PREDICATE_INDEX[key]\n"
+          }
+        ]
+      },
+      "M04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_trigger_gate_binding.py::test_duplicate_stripped_predicate_fails_during_module_import"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "53822b7702dbcac987d2ad937adb5fbe7241a5ebbb838d54ac7f0b3d38960683",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trigger_gate_binding.py",
+            "new": "",
+            "old": "        if key in index:\n            raise RuntimeError(\n                \"duplicate canonical trigger predicate after outer strip\"\n            )\n"
+          }
+        ]
+      },
+      "M05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]",
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+          "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "812192eeb0ff07fd1b95040a1bb684aa5139f56c22de07016fd0b6e1e4c0a6ff",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_direct_comparison.py",
+            "new": "",
+            "old": "    if configuration not in _PREPARE_CELL_CONFIGURATIONS:\n        raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\n"
+          }
+        ]
+      },
+      "M06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ef47b7ef72e4e82c6fd57f3db1c68c6cc7c8a13c0e9463b190b6370d58d3e117",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_direct_comparison.py",
+            "new": "from campaign import s1_measurement_freeze as _producer_domain  # noqa: E402\n_PREPARE_CELL_CONFIGURATIONS: frozenset[str] = frozenset(\n    _producer_domain.CONFIGURATIONS)\n",
+            "old": "_PREPARE_CELL_CONFIGURATIONS: frozenset[str] = frozenset({\n    \"backoff_fixed_best\",\n    \"ident_all\",\n    \"p2_2_flag_opt\",\n    \"sort_best\",\n    \"stock_common\",\n    \"system_gate\",\n})\n"
+          }
+        ]
+      },
+      "M07": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]",
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+          "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "493eddfc6c418a460aac44057d459f687f747ed192ba5ca8832c89f58c13a7eb",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_direct_comparison.py",
+            "new": "    if configuration == \"system-gate\":\n        raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\n",
+            "old": "    if configuration not in _PREPARE_CELL_CONFIGURATIONS:\n        raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\n"
+          }
+        ]
+      },
+      "M08": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_configuration_allowlist_is_fixed_six",
+          "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a4b782fd7d0dbc87a8ce32a410e62f5ca6a860b80b40f45077ff935c17889cd0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_direct_comparison.py",
+            "new": "",
+            "old": "    \"stock_common\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "3eddd663267ddaa74807e8b9286f9cdbe71d4f5c7692d8d42e71a0b8b5eb10e7",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_trigger_gate_binding.py",
+      "orchestrator/tests/test_p3_s4_loop.py",
+      "orchestrator/tests/test_s1_direct_comparison.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2400.0
+  },
+  "repo_head": "3ebdb382c24abcfc17655cb8a3becee15c1882d3",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_trigger_gate_binding.py",
+      "orchestrator/tests/test_p3_s4_loop.py",
+      "orchestrator/tests/test_s1_direct_comparison.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "dispatch_head_blob_sha256": "709eedb17bd4f9fd2fc66720a54e2c49be0b261b823ecf7829732e2d57f6d19b",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/tools/run_tests.py",
+    "entrypoint_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "ffd0ef9232a9bb9ed7bd0c245ee813211432e0e992a0c555aed87be7caf4ed07",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "9f2b9d7c473f689f524ead15242d66b6adb3f721",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "ebdbd85223ede28e179e6018fa555867b054f3d6ec417c85fcb9ae8b78040286",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "946470fe540e6d09e30690141b6b7f5b0f05db335ba6308fcb5c4601d09a4be4",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 2,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 6,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t490-u1-u2/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "13bec22086a51ed01093ccb179584e835d8098ffa39b89d8e0fa3af46cdf4c20",
+  "updated_at": "2026-08-05T05:59:54.015825+00:00"
+}

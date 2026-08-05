@@ -276,3 +276,21 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:first-run-classification-site":"[T-511]","T:mutation-harness-xdist-group-nodes":"[T-512]","T:ruleops-git-timeout-threshold":"[T-510]"},"authored":"2026-08-05","content_sha256":"cbc207af728da0d0a33c5a38fe3fcd4323850076901761840779dc2341268e68","seq":1,"wave":"dev-wave-t496-ruleops-inventory-diag"}
 - {"allocations":{"D:ruleops-failclosed-threshold-unchanged":"D172"},"authored":"2026-08-05","content_sha256":"4ff520bee2bf0d7ff5218158c9825f335a2bd61626d35f7e4e941fbd2dc51d60","seq":2,"wave":"dev-wave-t496-ruleops-inventory-diag"}
 - {"allocations":{"F:first-run-classification-site-undefined":"F117"},"authored":"2026-08-05","content_sha256":"4d6d1cd7493a5d3ded9f3a394e1821c061dc79af3bb6a4c51b3480fd7dbb71a0","seq":3,"wave":"dev-wave-t496-ruleops-inventory-diag"}
+
+- {"allocations":{"T:diffq-reject-identity-canonicalization":"[T-515]","T:premateralized-source-admission-fold":"[T-513]","T:wait-without-polling-noise":"[T-514]"},"authored":"2026-08-05","content_sha256":"62f0ea551387a519f14b85ace503b6d738bbf6a71ac5b0c20809b093e895aa9e","seq":1,"wave":"dev-wave-t490-u1-u2"}
+- {"allocations":{"D:fold-before-materialize-at-shared-boundary":"D174","D:materializer-authority-independent-of-producer":"D173"},"authored":"2026-08-05","content_sha256":"19d9af3f707bfa710b7c8e37bc8555a18de8a2bdca62ca6163fdaa4eb9227018","seq":1,"wave":"dev-wave-t490-u1-u2"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"56202e66b567949a2351c4992e4be227f096274e8b5b4aefd2805c3cec950b1d","seq":1,"wave":"dev-wave-t490-u1-u2"}
+
+- {"allocations":{"T:dangling-audit-content-delta":"[T-516]"},"authored":"2026-08-05","content_sha256":"9adfe279584fe7e55791f3257a95c209c10a9096cbb22fed1c3132defd196d82","seq":1,"wave":"rulings-20260805-j"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"d6146de91f878fd48f70a48706f32b39ef16c4a8abac17a35bfc3ec18d0d8e1f","seq":1,"wave":"rulings-20260805-k"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"31a0dd45b2e788b7d091f7eb01cc5c0c5158465d011bb511cf3488adfeb024b7","seq":1,"wave":"dev-wave-cleanup-dangling-audit"}
+- {"allocations":{"F:branch-deleted-with-unlanded-work":"F118","F:implementation-blocked-by-provenance-after-the-fact":"F120","F:merge-parentwise-diff-inflates-changed-paths":"F119"},"authored":"2026-08-05","content_sha256":"b70ad4050cd705abb23a3445c26dbc5b7f4d46e1650d034ea75d32bc6560d7dc","seq":1,"wave":"dev-wave-cleanup-dangling-audit"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"9c13fc950ef4cb942f2144ce001b36a2e3ce8e1bd33a5e7682c9a965744f3b3a","seq":1,"wave":"rulings-20260805-l"}
+
+- {"allocations":{"T:transport-probe-lane":"[T-517]"},"authored":"2026-08-05","content_sha256":"854c5ffd6e27bd0ee22da0834db3c1cae476ee745281530804e5ddb0c7ef4c2b","seq":1,"wave":"dev-wave-t420-wall1-driver"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"596c5c9f79256f00889233d6538d5a91644995329465f11cb3767e6a5c6a92b6","seq":2,"wave":"dev-wave-t420-wall1-driver"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"b0513e43fe724488d3b13c08f2bf1f7401dad16d3b83ad6c80f2a96f4f41e1a2","seq":1,"wave":"rulings-20260805-m"}

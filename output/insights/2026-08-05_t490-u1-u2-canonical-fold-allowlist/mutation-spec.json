@@ -1,0 +1,151 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1200,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if marker_id == TRIGGER_MARKER_ID:\n        implementation = trigger_gate_binding.canonicalize_predicate(\n            implementation\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_trigger_quarantine_materializes_all_outer_whitespace_identically"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if marker_id == TRIGGER_MARKER_ID:\n        implementation = trigger_gate_binding.canonicalize_predicate(\n            implementation\n        )\n",
+          "new": "    implementation = trigger_gate_binding.canonicalize_predicate(\n        implementation\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_preserves_outer_whitespace_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trigger_gate_binding.py",
+          "old": "    return _CANONICAL_PREDICATE_INDEX[key]\n",
+          "new": "    return key\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[space]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[tab]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[crlf]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[vertical-tab]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[form-feed]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[nbsp]",
+        "orchestrator/tests/test_trigger_gate_binding.py::test_canonicalize_predicate_returns_injected_emitter_bytes[ideographic-space]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trigger_gate_binding.py",
+          "old": "        if key in index:\n            raise RuntimeError(\n                \"duplicate canonical trigger predicate after outer strip\"\n            )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trigger_gate_binding.py::test_duplicate_stripped_predicate_fails_during_module_import"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "    if configuration not in _PREPARE_CELL_CONFIGURATIONS:\n        raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "_PREPARE_CELL_CONFIGURATIONS: frozenset[str] = frozenset({\n    \"backoff_fixed_best\",\n    \"ident_all\",\n    \"p2_2_flag_opt\",\n    \"sort_best\",\n    \"stock_common\",\n    \"system_gate\",\n})\n",
+          "new": "from campaign import s1_measurement_freeze as _producer_domain  # noqa: E402\n_PREPARE_CELL_CONFIGURATIONS: frozenset[str] = frozenset(\n    _producer_domain.CONFIGURATIONS)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "    if configuration not in _PREPARE_CELL_CONFIGURATIONS:\n        raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\n",
+          "new": "    if configuration == \"system-gate\":\n        raise DriverError(f\"未知の freeze configuration: {configuration!r}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[system-gate]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[future_configuration]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_multiple_unknown_configurations_before_checkout[unknown]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_rejects_configuration_added_only_to_producer_domain",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_fresh_prepare_rejects_configuration_added_only_to_producer_domain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "    \"stock_common\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_configuration_allowlist_is_fixed_six",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

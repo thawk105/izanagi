@@ -208,6 +208,10 @@ def quarantine(sub: str, implementation: str,
                     "diff_region": source_rel, "template_diff_id": marker_id,
                     "evidence": "canonical predicate membership failure"})
         return res, "", "", ""
+    if marker_id == TRIGGER_MARKER_ID:
+        implementation = trigger_gate_binding.canonicalize_predicate(
+            implementation
+        )
 
     path = os.path.join(sub, source_rel)
     with open(path, encoding="utf-8") as f:
