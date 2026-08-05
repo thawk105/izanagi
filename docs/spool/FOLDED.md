@@ -311,3 +311,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:freeze-membership-authority-provenance":"[T-534]","T:freeze-refreeze-generation-transition":"[T-531]","T:holdout-freeze-semantic-closure":"[T-533]","T:trigger-name-mask-binding":"[T-532]"},"authored":"2026-08-05","content_sha256":"bb636da57e7a681ad102dfc9b3f171b343462c446f8de7959509b6441fe8d1f1","seq":1,"wave":"dev-wave-t492-freeze-semantic-membership"}
 - {"allocations":{"D:freeze-generator-self-hash-boundary":"D178","D:freeze-semantic-membership-at-schema":"D177"},"authored":"2026-08-05","content_sha256":"33b86c87bbf2b2dae19fc45594d7cb75d8ab7d8f332924bfaa1c7d5351a00dcd","seq":2,"wave":"dev-wave-t492-freeze-semantic-membership"}
 - {"allocations":{},"authored":"2026-08-05","content_sha256":"83aadb0307b673d25bf10dcc8a32284c5740b02df9da659e068806e3d991e371","seq":3,"wave":"dev-wave-t492-freeze-semantic-membership"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"1f57c7d35f4ca1b10db8d993830fe616c613e637c2d8847a8f7096f5fa597bed","seq":1,"wave":"dev-wave-t244-p3-design"}
+- {"allocations":{"D:t244-p3-design-package":"D179"},"authored":"2026-08-05","content_sha256":"38be6579fb57198f591288310813ec8a641efb529410c3bb6ab067795a496d65","seq":1,"wave":"dev-wave-t244-p3-design"}
+- {"allocations":{"F:concurrent-codex-same-output-path":"F128"},"authored":"2026-08-05","content_sha256":"e3e6a455e67acad33e0539d94b6e66209479f782b39caa76e211d9766b09e8e3","seq":1,"wave":"dev-wave-t244-p3-design"}
