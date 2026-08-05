@@ -48,6 +48,13 @@ title: [T-532] known 軸凍結の trigger record へ name↔mask 束縛一致検
 - **変異走行は選択式で範囲を絞っている。** runner は 2 test file に `-k` 選択式を付けたもので、
   suite 全体ではない。登録した性質に対応する node をすべて含む選択であることを確認したうえで、
   絞っている事実を台帳と本記録の双方に残す。
+- **段 8 の自己改善は候補 3 件で、1 件を failures へ畳み、2 件は予算で阻まれた。**
+  (a) 走査順の偽 kill は {{F:scan-order-false-kill}} として新規 F へ送り、F113 へ再発を追記した。
+  (b) 「変異 spec の `old` だけでなく `new` も登録文と一致するか確認する」を `DW-M04` へ足したかったが、
+  **`docs/dev-wave/**` の合計上限 25200 bytes に対し現在 25199 bytes で残り 1 byte** のため入らない。
+  (c) worktree 隔離セッションで redirect / pipe 付き複合 Bash が guard に拒まれる既知候補が本 wave でも
+  4 回発火した (置き場である条件節の予算が塞がったままで、前 2 wave と状況が変わらない)。
+  予算引き上げは提案せず、安全義務も削らないので、いずれも [T-432] へ発火実績として記録するに留める。
 - **scope 外の real 所見 2 件を裁定パッケージとして返す。** いずれも本 wave の裁定
   (対象を name↔mask 束縛に限定する) の外側にあり、実装していない。
   逐語と根拠は `output/insights/2026-08-06_t532-name-mask-binding/`。
@@ -63,6 +70,17 @@ title: [T-532] known 軸凍結の trigger record へ name↔mask 束縛一致検
   再発行していない。official 受理集合が空のため現在値は変わらず、実効化は [T-531] の世代移行時。
   remaining: none
   base: 96fdae7914b2ceebe5efe50b99748d4f4606d079d637f513f28b535e7ed01f16
+
+### 更新
+
+- [T-432] **P2・`docs/dev-wave/` reference の予算残に阻まれた是正が 5 件になった**: 既存 4 件に加え、
+  2026-08-06 に 5 件目 — `DW-M04` へ「変異 spec の `old` だけでなく `new` も登録文と一致するか
+  確認する」を足せない。**逼迫しているのは個別上限ではなく合計上限で、25200 bytes に対し
+  現在 25199 bytes の残り 1 byte** である (`mutation.md` 単体は 3674 / 3750 でまだ 76 bytes ある)。
+  worktree 隔離下の redirect 拒否を避ける起動 script 手順も、置き場の予算が塞がったまま
+  本 wave で 4 回発火し、3 本目の wave での発火実績となった。予算引き上げは独立審査事項、
+  陳腐化ルールの削除・テスト化で空ける経路は未着手
+  base: ebb6dc7c42f0d961d398836592391af0fe75260fcacf93e426aa675e5d7f6221
 
 ### 新規
 
