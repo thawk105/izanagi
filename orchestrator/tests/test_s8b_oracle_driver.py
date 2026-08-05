@@ -1040,6 +1040,46 @@ def test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5(tmp_path)
     assert ancestry.refusal_reason == "known_axes.ancestry_object_type"
 
 
+def test_t080_static_adapter_rejects_noncanonical_known_predicate_as_schema():
+    receipt = _t080_receipt_document("a" * 40)
+    resolution = migration.ReceiptResolution(
+        state="active-valid",
+        refusals=(),
+        t080_freeze_migration_observation={},
+        validation_head="a" * 40,
+        receipt=receipt,
+    )
+    known = json.loads((ROOT / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
+    known["entries"]["balanced"]["system_gate"][
+        "gate_predicate"] = "izanagi_gate_pass = true;"
+    known_raw = migration._canonical_bytes(known)
+    holdout_raw = (ROOT / migration.HOLDOUT_REL).read_bytes()
+
+    with mock.patch.multiple(
+            migration,
+            _verify_known_closure=mock.DEFAULT,
+            _verify_holdout_closure=mock.DEFAULT,
+            _verify_metadata_closure=mock.DEFAULT,
+            _verify_reconstruction_static=mock.DEFAULT,
+            _verify_ccbench_current=mock.DEFAULT,
+            _verify_ccbench_basis_from_receipt=mock.DEFAULT,
+            _validate_positive_control=mock.DEFAULT,
+            _verify_known_pairing=mock.DEFAULT,
+            _verify_holdout_live_scan=mock.DEFAULT):
+        result = migration.static_gate_adapter(
+            resolution=resolution,
+            known_raw=known_raw,
+            holdout_raw=holdout_raw,
+            root=ROOT,
+        )
+
+    _assert_exact_refusals(result.refusals, {
+        "known-axes-freeze-verify: [known_axes.artifact_bytes]",
+        "known-axes-freeze-verify: [known_axes.schema] "
+        "entries.balanced.system_gate.gate_predicate が正準集合外",
+    })
+
+
 @pytest.mark.parametrize(
     "defect, expected_reason",
     [
@@ -2714,6 +2754,13 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
         record = freeze[field]
         target = root / record["path"]
         target.write_bytes(historical_bytes(record["path"], record["sha256"]))
+    known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
+    known_generator = known["generator"]
+    known_generator_path = root / known_generator["path"]
+    known_generator_path.write_bytes(historical_bytes(
+        known_generator["path"], known_generator["sha256"]))
+    assert hashlib.sha256(known_generator_path.read_bytes()).hexdigest() == (
+        known_generator["sha256"])
     generator = root / freeze["generator"]["path"]
     generator.write_bytes(generator.read_bytes() + b"# driver-gate-generator-tamper\n")
     generator_refusal = (
@@ -2722,9 +2769,10 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
         f"actual={hashlib.sha256(generator.read_bytes()).hexdigest()}"
     )
 
-    decision = driver.gate_check(
-        freeze_path=root / migration.HOLDOUT_REL, root=root,
-    )
+    with mock.patch.object(driver.s1_known_axes_freeze, "ROOT", root):
+        decision = driver.gate_check(
+            freeze_path=root / migration.HOLDOUT_REL, root=root,
+        )
 
     known_prefix = (
         "known-axes-freeze-verify: FreezeError: source sha256 不一致: "

@@ -23,6 +23,7 @@ sys.path.insert(0, str(_ORCHESTRATOR))
 
 from campaign import axis_trigger_gating as trigger_axis  # noqa: E402
 from campaign import backoff_sweep, genome, s6_sort_sweep, s8a_trigger_sweep  # noqa: E402
+from campaign import trigger_gate_binding  # noqa: E402
 from campaign.model import Genome  # noqa: E402
 from campaign.pipeline import variant_id  # noqa: E402
 
@@ -76,6 +77,13 @@ ENTRY_KEYS = {
 
 class FreezeError(RuntimeError):
     """凍結生成・照合を fail-closed で止めるエラー。"""
+
+
+def _require_canonical_trigger_predicate(
+        predicate: object, *, workload: str, configuration: str) -> None:
+    if not trigger_gate_binding.is_canonical_predicate(predicate):
+        raise FreezeError(
+            f"entries.{workload}.{configuration}.gate_predicate が正準集合外")
 
 
 def _sha256(path: Path) -> str:
@@ -491,9 +499,13 @@ def _trigger_entries(workload: str, gate_name: str) -> Tuple[Dict, Dict]:
         return value
 
     gate_predicate = implementation(re_prov, gate_name, "remeasure")
+    _require_canonical_trigger_predicate(
+        gate_predicate, workload=workload, configuration="system_gate")
     if gate_predicate != implementation(main_prov, gate_name, "main"):
         raise FreezeError(f"trigger gate predicate が main/remeasure で不一致: {workload} {gate_name}")
     ident_predicate = implementation(re_prov, "ident_all", "remeasure")
+    _require_canonical_trigger_predicate(
+        ident_predicate, workload=workload, configuration="ident_all")
     if ident_predicate != implementation(main_prov, "ident_all", "main"):
         raise FreezeError(f"ident_all predicate が main/remeasure で不一致: {workload}")
     common_module_sources = [
@@ -710,6 +722,16 @@ def _validate_schema(doc: Mapping) -> None:
     for workload, entry in entries.items():
         if not isinstance(entry, dict) or set(entry) != ENTRY_KEYS:
             raise FreezeError(f"entries.{workload} keys が schema と不一致")
+        for configuration in ("system_gate", "ident_all"):
+            record = entry.get(configuration)
+            if not isinstance(record, Mapping):
+                raise FreezeError(
+                    f"entries.{workload}.{configuration} が object ではない")
+            _require_canonical_trigger_predicate(
+                record.get("gate_predicate"),
+                workload=workload,
+                configuration=configuration,
+            )
     generator_doc = doc.get("generator")
     if not isinstance(generator_doc, dict) or set(generator_doc) != {"path", "sha256"}:
         raise FreezeError("generator schema が不一致")
