@@ -1,0 +1,4 @@
+hostname=bnode050
+PBS_JOBID=0:889400.nqsv
+epoch=1785888217
+compute_node_marker=true
