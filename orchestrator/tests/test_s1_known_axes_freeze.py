@@ -8,6 +8,7 @@ import inspect
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -106,6 +107,192 @@ def test_current_six_frozen_trigger_predicates_pass_semantic_membership():
     M._validate_schema(doc)
 
 
+def test_trigger_name_mask_binding_accepts_all_32_masks():
+    for mask in range(32):
+        reasons = tuple(
+            reason
+            for bit, reason in enumerate(M.trigger_axis.GATEABLE_REASONS)
+            if mask & (1 << bit)
+        )
+        name = M.s8a_trigger_sweep.subset_name(reasons)
+        predicate = M.s8a_trigger_sweep.predicate_for(reasons)
+        M._require_trigger_name_mask_binding(
+            name, f" \n{predicate}\t",
+            workload="balanced", configuration="system_gate")
+
+    all_reasons = M.trigger_axis.GATEABLE_REASONS
+    M._require_trigger_name_mask_binding(
+        M.s8a_trigger_sweep.IDENT_NAME,
+        f"\r\n{M.s8a_trigger_sweep.predicate_for(all_reasons)}\u3000",
+        workload="balanced", configuration="ident_all")
+
+
+def test_validate_schema_accepts_both_mask31_names():
+    current = _current_frozen_document()
+    predicate = M.s8a_trigger_sweep.predicate_for(
+        M.trigger_axis.GATEABLE_REASONS)
+    regular_name = M.s8a_trigger_sweep.subset_name(
+        M.trigger_axis.GATEABLE_REASONS)
+    for name in (regular_name, M.s8a_trigger_sweep.IDENT_NAME):
+        doc = copy.deepcopy(current)
+        record = doc["entries"]["balanced"]["ident_all"]
+        record["name"] = name
+        record["gate_predicate"] = predicate
+        M._validate_schema(doc)
+
+
+def test_duplicate_trigger_names_and_alias_collisions_fail_closed():
+    with mock.patch.object(
+            M.s8a_trigger_sweep, "subset_name", return_value="duplicate"):
+        with pytest.raises(M.FreezeError) as excinfo:
+            M._build_trigger_name_mask_index()
+    assert type(excinfo.value) is M.FreezeError
+    assert "mask 間で重複" in str(excinfo.value)
+
+    with mock.patch.object(
+            M.s8a_trigger_sweep, "IDENT_NAME", "g_none"):
+        with pytest.raises(M.FreezeError) as excinfo:
+            M._build_trigger_name_mask_index()
+    assert type(excinfo.value) is M.FreezeError
+    assert "alias が既存名と衝突" in str(excinfo.value)
+
+
+def test_consumer_import_defers_trigger_name_collision_until_first_check():
+    script = inspect.cleandoc(
+        """
+        from campaign import s8a_trigger_sweep
+
+        original_subset_name = s8a_trigger_sweep.subset_name
+        canonical_name = original_subset_name(())
+        predicate = s8a_trigger_sweep.predicate_for(())
+        s8a_trigger_sweep.subset_name = lambda _reasons: "duplicate"
+
+        from campaign import s1_measurement_freeze as consumer
+
+        known_axes = consumer.known_axes
+        assert known_axes._TRIGGER_NAME_MASK_BINDING_CACHE is None
+        try:
+            known_axes._require_trigger_name_mask_binding(
+                canonical_name, predicate,
+                workload="balanced", configuration="system_gate")
+        except known_axes.FreezeError as exc:
+            assert "mask 間で重複" in str(exc)
+        else:
+            raise AssertionError("最初の検査呼出しが衝突を拒否しなかった")
+        assert known_axes._TRIGGER_NAME_MASK_BINDING_CACHE is None
+
+        s8a_trigger_sweep.subset_name = original_subset_name
+        cached = known_axes._trigger_name_mask_binding_index()
+        assert known_axes._TRIGGER_NAME_MASK_BINDING_CACHE is not None
+
+        s8a_trigger_sweep.subset_name = lambda _reasons: "duplicate"
+        assert known_axes._trigger_name_mask_binding_index() is cached
+        """
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=M.ROOT / "orchestrator",
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
+def _assert_trigger_name_rejected(name: object) -> None:
+    predicate = M.s8a_trigger_sweep.predicate_for(())
+    with pytest.raises(M.FreezeError) as excinfo:
+        M._require_trigger_name_mask_binding(
+            name, predicate,
+            workload="balanced", configuration="system_gate")
+    assert type(excinfo.value) is M.FreezeError
+    assert "name と gate_predicate の mask が不一致" in str(excinfo.value)
+
+
+def test_trigger_name_mask_binding_rejects_unknown_string_name():
+    _assert_trigger_name_rejected("unknown")
+
+
+def test_trigger_name_mask_binding_rejects_none_name():
+    _assert_trigger_name_rejected(None)
+
+
+def test_trigger_name_mask_binding_rejects_integer_name():
+    _assert_trigger_name_rejected(1)
+
+
+def test_trigger_name_mask_binding_rejects_bytes_name():
+    _assert_trigger_name_rejected(b"g_none")
+
+
+def test_trigger_name_mask_binding_rejects_str_subclass_name():
+    class NameSubclass(str):
+        pass
+
+    _assert_trigger_name_rejected(NameSubclass("g_none"))
+
+
+def test_trigger_name_mask_binding_rejects_comparison_spoof_name():
+    class EqualToCanonicalName:
+        def __hash__(self):
+            return hash("g_none")
+
+        def __eq__(self, _other):
+            return True
+
+    _assert_trigger_name_rejected(EqualToCanonicalName())
+
+
+def test_trigger_name_mask_binding_non_string_diagnostics_ignore_repr():
+    class ReprBomb:
+        def __repr__(self):
+            raise RuntimeError("repr must not be called")
+
+    name = ReprBomb()
+    predicate = M.s8a_trigger_sweep.predicate_for(())
+    with pytest.raises(M.FreezeError) as excinfo:
+        M._require_trigger_name_mask_binding(
+            name, predicate,
+            workload="balanced", configuration="system_gate")
+    assert type(excinfo.value) is M.FreezeError
+    assert "name_type=ReprBomb" in str(excinfo.value)
+
+    with mock.patch.object(
+            M.s8a_trigger_sweep, "subset_name", return_value=name):
+        with pytest.raises(M.FreezeError) as excinfo:
+            M._build_trigger_name_mask_index()
+    assert type(excinfo.value) is M.FreezeError
+    assert "type=ReprBomb" in str(excinfo.value)
+
+    with mock.patch.object(M.s8a_trigger_sweep, "IDENT_NAME", name):
+        with pytest.raises(M.FreezeError) as excinfo:
+            M._build_trigger_name_mask_index()
+    assert type(excinfo.value) is M.FreezeError
+    assert "type=ReprBomb" in str(excinfo.value)
+
+
+def test_validate_schema_rejects_missing_trigger_name():
+    doc = _current_frozen_document()
+    del doc["entries"]["balanced"]["system_gate"]["name"]
+    with pytest.raises(M.FreezeError) as excinfo:
+        M._validate_schema(doc)
+    assert type(excinfo.value) is M.FreezeError
+    assert "name と gate_predicate の mask が不一致" in str(excinfo.value)
+
+
+def test_trigger_name_mask_binding_has_complete_diagnostic():
+    predicate = M.s8a_trigger_sweep.predicate_for(("readvali-tid",))
+    with pytest.raises(M.FreezeError) as excinfo:
+        M._require_trigger_name_mask_binding(
+            "g_rl", predicate,
+            workload="balanced", configuration="system_gate")
+    assert type(excinfo.value) is M.FreezeError
+    assert str(excinfo.value) == (
+        "entries.balanced.system_gate.name と gate_predicate の mask が不一致: "
+        "name='g_rl' predicate_mask=4 expected_names=('g_rt',)")
+
+
 def test_trigger_entries_rejects_coordinated_noncanonical_system_gate():
     entries = _current_frozen_document()["entries"]
     for workload in M.WORKLOADS:
@@ -138,6 +325,34 @@ def test_trigger_entries_rejects_coordinated_noncanonical_ident_all():
             f"entries.{workload}.ident_all.gate_predicate が正準集合外")
 
 
+def test_trigger_entries_rejects_coordinated_canonical_name_mask_tamper():
+    entries = _current_frozen_document()["entries"]
+    alternate_predicate = M.s8a_trigger_sweep.predicate_for(())
+    for workload in M.WORKLOADS:
+        gate_name = entries[workload]["system_gate"]["name"]
+        for configuration in ("system_gate", "ident_all"):
+            gate_predicate = entries[workload]["system_gate"]["gate_predicate"]
+            ident_predicate = entries[workload]["ident_all"]["gate_predicate"]
+            if configuration == "system_gate":
+                gate_predicate = alternate_predicate
+            else:
+                ident_predicate = alternate_predicate
+            provenance = _trigger_provenance(
+                gate_name=gate_name,
+                gate_predicate=gate_predicate,
+                ident_predicate=ident_predicate,
+            )
+            with pytest.raises(M.FreezeError) as excinfo:
+                _call_trigger_entries_with_mocked_provenance(
+                    workload=workload,
+                    gate_name=gate_name,
+                    provenance=provenance,
+                )
+            assert type(excinfo.value) is M.FreezeError
+            assert "name と gate_predicate の mask が不一致" in str(
+                excinfo.value)
+
+
 def test_validate_schema_rejects_noncanonical_system_gate():
     current = _current_frozen_document()
     for workload in M.WORKLOADS:
@@ -160,6 +375,21 @@ def test_validate_schema_rejects_noncanonical_ident_all():
             M._validate_schema(doc)
         assert str(excinfo.value) == (
             f"entries.{workload}.ident_all.gate_predicate が正準集合外")
+
+
+def test_validate_schema_rejects_coordinated_canonical_name_mask_tamper():
+    current = _current_frozen_document()
+    alternate_predicate = M.s8a_trigger_sweep.predicate_for(())
+    for workload in M.WORKLOADS:
+        for configuration in ("system_gate", "ident_all"):
+            doc = copy.deepcopy(current)
+            doc["entries"][workload][configuration][
+                "gate_predicate"] = alternate_predicate
+            with pytest.raises(M.FreezeError) as excinfo:
+                M._validate_schema(doc)
+            assert type(excinfo.value) is M.FreezeError
+            assert "name と gate_predicate の mask が不一致" in str(
+                excinfo.value)
 
 
 def test_generate_rejects_noncanonical_predicate_before_writing(tmp_path):
