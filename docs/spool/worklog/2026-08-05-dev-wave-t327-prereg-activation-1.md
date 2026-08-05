@@ -63,4 +63,4 @@ title: [T-327] 8c 事前登録の自動発効を導出値として実装し、�
   §5 欄名 / 発効ポリシー / 証拠契約) を hash 世代台帳で凍結した。**12 述語はすべて充足不能で
   出荷**しており、現 repository の判定は常に未発効である。残件 = (a) 条件ごとの充足判定器
   (production consumer を実証するもの)、(b) 起動・受入への結線 ([T-325] land 後)。
-  base: 241a2c4de9430a601ceefbb58ba65f4d75fdd12434ea1dd9455ae0e09f0adc57
+  base: 7a2395ef1b7bd0c47bced142aa8b2e4100f4135c1faba79f6f6cf22331cb759d
