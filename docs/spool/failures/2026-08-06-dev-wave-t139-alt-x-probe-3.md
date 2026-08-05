@@ -19,7 +19,7 @@ seq: 3
 - 恒久対応: 投入時に `-o` / `-e` を repo 外の wave directory の**ファイル**へ向ける
   (directory を渡すと `NQScrereq: [BSV EINVAL] Not a regular file.` で受理されない)。
   script 内に絶対 path を書く案は採らない — 機体固有値を repo へ持ち込むため。
-  手順は `docs/pegasus-runbook.md` の投入前チェックリストに従う。
+  手順を `docs/pegasus-runbook.md` の投入前チェックリストへ本 wave で追記した。
 - 再発検知: clean-tree 検査が発火した job は terminal state に
   `pre_performance_infra_failure` を残す。投入前に `git status --porcelain --untracked-files=all`
   が空であることを確認する。
