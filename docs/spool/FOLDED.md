@@ -206,3 +206,22 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:calibration-contract-generation":"[T-475]","T:calibration-producer-provenance":"[T-477]","T:reflux-ledger-flock-flake":"[T-476]"},"authored":"2026-08-04","content_sha256":"97cecf110e1856a5d41cae409082ad02aeebf67794bcd4f605a38eb61210b565","seq":1,"wave":"dev-wave-t452-clock-tolerance-authority"}
 
 - {"allocations":{"T:calibration-contract-generation-migration":"[T-478]"},"authored":"2026-08-05","content_sha256":"7802c6e19955a80d6eae7fd86d19599ad5039a0564580990bd20279274bd7292","seq":1,"wave":"rulings-20260805-b"}
+
+- {"allocations":{"T:qualification-role-field-name":"[T-479]"},"authored":"2026-08-05","content_sha256":"b3ad4d4ec99cf603857241eb5450cb5bfd5aec529e8a3a44179bb544092a78fa","seq":1,"wave":"dev-wave-t337-qualification-authority"}
+- {"allocations":{"D:qualification-authority-boundary":"D162"},"authored":"2026-08-05","content_sha256":"758c5e4c6a89f9ed34e86229b35e9022b7b355095464b8d5038fb641f4c4f6a3","seq":1,"wave":"dev-wave-t337-qualification-authority"}
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"7c369188b90356f14fdc6d01254ed90002b6e059db65c37282602497fb9163b3","seq":2,"wave":"dev-wave-t337-qualification-authority"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"95d67da5b5a92cf3c58a653e2d1d38d1503e03a2d105eb20c1dd7b2efb552fdb","seq":1,"wave":"dev-wave-t244-p3-producer-wiring"}
+- {"allocations":{"D:p3-producer-wiring-blocked":"D163"},"authored":"2026-08-05","content_sha256":"3649c1f5f13cb11e441302cc8a8b0caac8392aa75071a0fa4e41fb1e370456b2","seq":2,"wave":"dev-wave-t244-p3-producer-wiring"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"f8b2986bc50da09a881e4ba0925842225a2f4c71318dac6d4594556cb0e9ba73","seq":1,"wave":"rulings-20260805-c"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"fbbb011ded6d43d20459b0ef242be737d789d381cca3a88237e60caa10641730","seq":1,"wave":"rulings-20260805-d"}
+
+- {"allocations":{"T:ruleops-inventory-parallel-flake":"[T-480]"},"authored":"2026-08-05","content_sha256":"148eb81cff89ea461a90920c1b2abc1f9a4f2b1fa3aaeac8ccefe7fedb982c81","seq":1,"wave":"dev-wave-t244-p2-noninterference"}
+- {"allocations":{"D:t244-p2-literal-tripwire-remand":"D164"},"authored":"2026-08-05","content_sha256":"18572e8140f5226c9048110282309d9f62132cfddd700a55bd5e3d8987cae0a2","seq":2,"wave":"dev-wave-t244-p2-noninterference"}
+
+- {"allocations":{},"authored":"2026-08-05","content_sha256":"ed85cf4a9b71fc2ceb0c671c31a22f6c13646aeda05ef47ff8aff155efe2c72c","seq":1,"wave":"dev-wave-t327-prereg-activation"}
+- {"allocations":{"D:s8c-automatic-activation":"D165"},"authored":"2026-08-05","content_sha256":"2250f18e20f2329b6e130be64161da7d99af0f5c0c3d736ad81c8018ac0ce2e7","seq":1,"wave":"dev-wave-t327-prereg-activation"}
+
+- {"allocations":{"T:guard-bash-module-borrow-family":"[T-483]","T:pegasus-login-procedure-blocked-family":"[T-481]","T:sanctioned-path-argv-granularity":"[T-482]"},"authored":"2026-08-05","content_sha256":"a2d42cfbaf9469dfa926c58fe714c20593a02ed767764c62db9c2834ecfc5593","seq":1,"wave":"dev-wave-t455-guard-bash-sanction-fetch"}

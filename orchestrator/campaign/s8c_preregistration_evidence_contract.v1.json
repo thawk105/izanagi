@@ -1,0 +1,489 @@
+{
+  "schema_version": "s8c-preregistration-evidence-contract/v1",
+  "conditions": [
+    {
+      "condition_number": 1,
+      "required_evidence": [
+        {
+          "artifact_kind": "workload_supervisor",
+          "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "field_paths": [
+            "_campaign_for.search_config.records",
+            "_campaign_for.search_config.threads",
+            "_perf_for.records",
+            "_perf_for.threads",
+            "_descriptor_for.projected_input.records",
+            "_descriptor_for.projected_input.threads"
+          ],
+          "reachable_from": [
+            "main -> run_trial -> _run_workload -> _campaign_for",
+            "main -> run_trial -> _run_workload -> _perf_for",
+            "main -> run_trial -> _run_workload -> _descriptor_for"
+          ]
+        },
+        {
+          "artifact_kind": "ratified_generation_reference",
+          "path": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "field_paths": [
+            "load_ratified_freeze().sha256",
+            "load_ratified_freeze().holdouts"
+          ],
+          "reachable_from": [
+            "run_trial -> _run_workload -> load_ratified_freeze"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        "entrypoints": ["main", "run_trial"],
+        "proof": "The same ratified-generation hash and workload projection must reach all three production configuration sinks; helper names or probe-only return values are insufficient."
+      },
+      "negative_control_id": "nc_c01_perf_scale_regression",
+      "machine_checkable": false,
+      "static_only_note": "Only committed source reachability, constant projections, and a pre-run ratified-generation reference are inspected; no run output is required."
+    },
+    {
+      "condition_number": 2,
+      "required_evidence": [
+        {
+          "artifact_kind": "trial_registry",
+          "path": "orchestrator/campaign/trial_registry.py",
+          "field_paths": [
+            "manifest.cells[*].arm",
+            "run_start.arm",
+            "terminal_report.arm",
+            "campaign_identity.arm",
+            "proposal_path.arm",
+            "invocation_id.arm"
+          ],
+          "reachable_from": [
+            "run_trial -> bind_trial_arm -> campaign launch",
+            "accept_trial -> verify_arm_binding -> registry append"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/trial_registry.py",
+        "entrypoints": ["bind_trial_arm", "accept_trial"],
+        "proof": "The registry must prove injective arm binding at production sinks, not merely store a declared arm field."
+      },
+      "negative_control_id": "nc_c02_proposal_path_arm_collision",
+      "machine_checkable": false,
+      "static_only_note": "The future proof is defined over committed binding and acceptance code before execution; the authoritative registry capability is not yet present."
+    },
+    {
+      "condition_number": 3,
+      "required_evidence": [
+        {
+          "artifact_kind": "trial_manifest",
+          "path": "output/s8c-preregistration/trial-manifest.v1.json",
+          "field_paths": [
+            "schema_version",
+            "prereg_commit",
+            "cells[*].trial_id",
+            "cells[*].arm",
+            "cells[*].holdout",
+            "cells[*].campaign_id"
+          ],
+          "reachable_from": [
+            "run_trial -> load_manifest -> admit_manifest_cell",
+            "accept_trial -> compare_registry_to_manifest"
+          ]
+        },
+        {
+          "artifact_kind": "trial_registry",
+          "path": "orchestrator/campaign/trial_registry.py",
+          "field_paths": [
+            "registry.manifest_sha256",
+            "registry.prereg_commit",
+            "registry.trials[*]",
+            "registry.history_prefix_sha256"
+          ],
+          "reachable_from": [
+            "run_trial -> registry preflight",
+            "accept_trial -> append-only registry append"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/trial_registry.py",
+        "entrypoints": ["load_manifest", "accept_trial"],
+        "proof": "A strict manifest loader and append-only registry consumer must enforce the exact pre-run cell set and reject both omissions and extras."
+      },
+      "negative_control_id": "nc_c03_manifest_cell_removed",
+      "machine_checkable": false,
+      "static_only_note": "Manifest bytes, registry schema, and code reachability are all pre-run facts; the target registry module is capability-probed because it is absent."
+    },
+    {
+      "condition_number": 4,
+      "required_evidence": [
+        {
+          "artifact_kind": "workload_supervisor",
+          "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "field_paths": [
+            "run_trial.crash_handler.experiment_status",
+            "run_trial.crash_handler.remaining_cells"
+          ],
+          "reachable_from": [
+            "main -> run_trial -> crash handler -> mark_experiment_indeterminate"
+          ]
+        },
+        {
+          "artifact_kind": "trial_registry",
+          "path": "orchestrator/campaign/trial_registry.py",
+          "field_paths": [
+            "trial_lifecycle.started_once",
+            "trial_lifecycle.restart_forbidden"
+          ],
+          "reachable_from": [
+            "run_trial crash handler -> forbid_trial_restart",
+            "run_trial preflight -> reject_started_trial"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        "entrypoints": ["main", "run_trial"],
+        "proof": "The caught production crash path must mark the whole experiment indeterminate and invoke the registry's no-restart consumer before returning."
+      },
+      "negative_control_id": "nc_c04_partial_crash_survives",
+      "machine_checkable": false,
+      "static_only_note": "The check follows committed exception-handling and registry call paths; it does not require an actual crash or terminal report."
+    },
+    {
+      "condition_number": 5,
+      "required_evidence": [
+        {
+          "artifact_kind": "schedule_artifact",
+          "path": "output/s8c-preregistration/schedule.v1.json",
+          "field_paths": [
+            "schema_version",
+            "master_seed",
+            "cells[*].schedule_index",
+            "cells[*].arm",
+            "cells[*].holdout",
+            "cells[*].search_space_sha256",
+            "cells[*].initial_state_sha256"
+          ],
+          "reachable_from": [
+            "run_trial -> load_schedule -> launch next cell"
+          ]
+        },
+        {
+          "artifact_kind": "schedule_consumer",
+          "path": "orchestrator/campaign/s8c_schedule.py",
+          "field_paths": [
+            "regenerate(master_seed)",
+            "verify_exact_schedule_bytes",
+            "verify_shared_search_space_and_initial_state"
+          ],
+          "reachable_from": [
+            "run_trial -> verify_schedule -> consume_schedule"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/s8c_schedule.py",
+        "entrypoints": ["verify_schedule", "consume_schedule"],
+        "proof": "The production launcher must consume the independently regenerated byte-exact schedule and shared starting-state hashes."
+      },
+      "negative_control_id": "nc_c05_initial_state_hash_bitflip",
+      "machine_checkable": false,
+      "static_only_note": "The schedule is required to be committed before launch; no observed order or post-run artifact is accepted as readiness evidence."
+    },
+    {
+      "condition_number": 6,
+      "required_evidence": [
+        {
+          "artifact_kind": "budget_consumer",
+          "path": "orchestrator/campaign/s8c_budget.py",
+          "field_paths": [
+            "ledger.manifest_sha256",
+            "ledger.freeze_sha256",
+            "ledger.schedule_sha256",
+            "ledger.ratified_generation_sha256",
+            "reservation.cells[*].reserved_bench_s",
+            "settlement.cells[*].actual_bench_s"
+          ],
+          "reachable_from": [
+            "run_trial -> reserve_all_cells -> bench launch",
+            "bench terminal -> settle -> symmetric_indeterminate"
+          ]
+        },
+        {
+          "artifact_kind": "ratified_generation_reference",
+          "path": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "field_paths": ["load_ratified_freeze().sha256"],
+          "reachable_from": [
+            "run_trial -> load_ratified_freeze -> reserve_all_cells"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/s8c_budget.py",
+        "entrypoints": ["reserve_all_cells", "settle", "symmetric_indeterminate"],
+        "proof": "All cells must be reserved before any bench launch, actual bench seconds must be settled, and insufficiency must stop unrun arms symmetrically."
+      },
+      "negative_control_id": "nc_c06_one_arm_reservation_removed",
+      "machine_checkable": false,
+      "static_only_note": "Only the committed reservation/settlement consumer and its pre-run bindings are readiness evidence; spent values from a completed run are not required."
+    },
+    {
+      "condition_number": 7,
+      "required_evidence": [
+        {
+          "artifact_kind": "result_judge",
+          "path": "orchestrator/campaign/s8c_result_judge.py",
+          "field_paths": [
+            "floor_refs[*].path",
+            "floor_refs[*].sha256",
+            "floor_refs[*].env_tag",
+            "floor_refs[*].measurement_head",
+            "judge.conditions",
+            "result_table.cells[*]"
+          ],
+          "reachable_from": [
+            "accept_trial -> verify_floor_bytes -> judge -> publish_result_table"
+          ]
+        },
+        {
+          "artifact_kind": "ratified_generation_reference",
+          "path": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "field_paths": ["load_ratified_freeze().sha256"],
+          "reachable_from": [
+            "accept_trial -> load_ratified_freeze -> verify_floor_bytes"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/s8c_result_judge.py",
+        "entrypoints": ["verify_floor_bytes", "judge", "publish_result_table"],
+        "proof": "The formal acceptance consumer must verify both floor artifacts, evaluate exactly three judge conditions, and require the exact predeclared result-cell set."
+      },
+      "negative_control_id": "nc_c07_floor_or_result_cell_removed",
+      "machine_checkable": false,
+      "static_only_note": "Readiness checks schemas, floor references, and consumer reachability; it does not demand result values that only exist after execution."
+    },
+    {
+      "condition_number": 8,
+      "required_evidence": [
+        {
+          "artifact_kind": "trial_manifest",
+          "path": "output/s8c-preregistration/trial-manifest.v1.json",
+          "field_paths": ["prereg_commit", "manifest_sha256"],
+          "reachable_from": [
+            "run_trial -> manifest prereg_commit preflight",
+            "accept_trial -> historical manifest reread"
+          ]
+        },
+        {
+          "artifact_kind": "trial_registry",
+          "path": "orchestrator/campaign/trial_registry.py",
+          "field_paths": [
+            "run_start.prereg_commit",
+            "terminal_report.prereg_commit",
+            "registry.prereg_commit",
+            "measurement_head"
+          ],
+          "reachable_from": [
+            "effective_at(prereg_commit) -> run start",
+            "accept_trial -> exact prereg binding and ancestry verification"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/trial_registry.py",
+        "entrypoints": ["admit_preregistration", "accept_trial"],
+        "proof": "Admission and acceptance must reread historical bytes and require exact equality with the effective commit; accepting an older ancestor is forbidden."
+      },
+      "negative_control_id": "nc_c08_parent_commit_substitution",
+      "machine_checkable": false,
+      "static_only_note": "The binding mechanism and historical-byte verifier are committed pre-run facts; no run-start or report instance is required by this layer."
+    },
+    {
+      "condition_number": 9,
+      "required_evidence": [
+        {
+          "artifact_kind": "layer3_producer",
+          "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "field_paths": ["run_trial.pre_publish_layer3_verification"],
+          "reachable_from": [
+            "main -> run_trial -> assert_campaign_layer3_chain -> report publish"
+          ]
+        },
+        {
+          "artifact_kind": "trial_registry",
+          "path": "orchestrator/campaign/trial_registry.py",
+          "field_paths": [
+            "accept_trial.build_reports[*].layer3_chain",
+            "accept_trial.no_build.certifying"
+          ],
+          "reachable_from": [
+            "accept_trial -> assert_campaign_layer3_chain -> registry append"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/trial_registry.py",
+        "entrypoints": ["accept_trial"],
+        "proof": "The formal registry authority must execute Layer 3 verification for every build report and must never certify a missing or no-build chain."
+      },
+      "negative_control_id": "nc_c09_acceptance_skips_layer3",
+      "machine_checkable": false,
+      "static_only_note": "Static call reachability in producer and formal acceptance is sufficient; no persisted Layer 3 report from a completed run is required."
+    },
+    {
+      "condition_number": 10,
+      "required_evidence": [
+        {
+          "artifact_kind": "cross_binding_verifier",
+          "path": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "field_paths": [
+            "role_event.input_payload_sha256",
+            "role_event.raw_response_path",
+            "role_event.raw_response_sha256",
+            "provider.payload_sha256",
+            "provider.envelope_sha256",
+            "proposal.path",
+            "proposal.sha256",
+            "campaign_wal.build_records",
+            "campaign_wal.bench_records",
+            "layer3.artifact_refs",
+            "layer3.source_refs",
+            "layer3.admission_decision"
+          ],
+          "reachable_from": [
+            "accept_trial -> verify_s8c_cross_binding -> authoritative bytes reread"
+          ]
+        },
+        {
+          "artifact_kind": "trial_registry",
+          "path": "orchestrator/campaign/trial_registry.py",
+          "field_paths": ["accept_trial.cross_binding_receipt_sha256"],
+          "reachable_from": [
+            "accept_trial -> verify_s8c_cross_binding -> registry append"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/trial_registry.py",
+        "entrypoints": ["accept_trial"],
+        "proof": "One authoritative verifier must reread every referenced byte stream and bind supervisor, provider, proposal, WAL, bench, and Layer 3 fields before registry acceptance."
+      },
+      "negative_control_id": "nc_c10_raw_response_unbound",
+      "machine_checkable": false,
+      "static_only_note": "Readiness requires the verifier and acceptance call path, not a completed run's mutable artifact set."
+    },
+    {
+      "condition_number": 11,
+      "required_evidence": [
+        {
+          "artifact_kind": "generation_supervisor",
+          "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "field_paths": [
+            "MAX_APPROVED_GENERATIONS",
+            "main.generation_cap",
+            "run_trial.generation_cap",
+            "_run_workload.generation_cap",
+            "_run_workload.critic_feedback_consumer",
+            "_run_workload.sample_plan_sha256",
+            "_run_workload.cap_lift_sha256"
+          ],
+          "reachable_from": [
+            "main -> run_trial -> _run_workload -> apply_critic_feedback -> next generation"
+          ]
+        },
+        {
+          "artifact_kind": "sample_plan",
+          "path": "output/s8c-preregistration/sample-plan.v1.json",
+          "field_paths": [
+            "minimum_generations",
+            "critic_feedback_required",
+            "sample_count"
+          ],
+          "reachable_from": [
+            "run_trial -> verify_sample_plan -> _run_workload"
+          ]
+        },
+        {
+          "artifact_kind": "cap_lift",
+          "path": "output/s8c-preregistration/generation-cap-lift.v1.json",
+          "field_paths": [
+            "minimum_generations",
+            "entrypoints",
+            "ruling_reference"
+          ],
+          "reachable_from": [
+            "main, run_trial, _run_workload -> verify_generation_cap_lift"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        "entrypoints": ["main", "run_trial", "_run_workload"],
+        "proof": "Compliance requires a lifted multi-generation cap at all three entry boundaries, critic feedback consumed by the next generation, and bound sample-plan and cap-lift artifacts; a prohibition ruling alone is only auxiliary evidence."
+      },
+      "negative_control_id": "nc_c11_generation_cap_reverts_to_one",
+      "machine_checkable": false,
+      "static_only_note": "The check uses pre-run policy artifacts and committed consumer paths; it never treats the existence of a ruling or an observed multi-generation run as compliance."
+    },
+    {
+      "condition_number": 12,
+      "required_evidence": [
+        {
+          "artifact_kind": "workload_supervisor",
+          "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "field_paths": [
+            "run_trial.env_contract",
+            "run_trial.calibration_receipt",
+            "run_trial.allocation_receipt",
+            "run_trial.single_process",
+            "run_trial.allow_resume"
+          ],
+          "reachable_from": [
+            "main -> run_trial -> env_contract.lookup",
+            "run_trial -> execution_guard.attest_and_build_receipt",
+            "run_trial -> reservation.single_process_required -> campaign launch"
+          ]
+        },
+        {
+          "artifact_kind": "environment_contract",
+          "path": "orchestrator/campaign/env_contract.py",
+          "field_paths": [
+            "lookup(env_tag)",
+            "ExecutionEnvironmentContract.calibration_ref",
+            "ExecutionEnvironmentContract.isolation_policy.single_process",
+            "ExecutionEnvironmentContract.isolation_policy.allow_resume"
+          ],
+          "reachable_from": [
+            "run_trial -> lookup -> attestation and reservation consumers"
+          ]
+        },
+        {
+          "artifact_kind": "execution_guard",
+          "path": "orchestrator/campaign/execution_guard.py",
+          "field_paths": ["attest_and_build_receipt(contract, verified_calibration)"],
+          "reachable_from": [
+            "run_trial -> attest_and_build_receipt -> campaign launch"
+          ]
+        },
+        {
+          "artifact_kind": "allocation_consumer",
+          "path": "orchestrator/campaign/reservation.py",
+          "field_paths": ["single_process_required(isolation_policy)"],
+          "reachable_from": [
+            "run_trial -> single_process_required -> campaign launch"
+          ]
+        }
+      ],
+      "consumer_requirement": {
+        "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        "entrypoints": ["main", "run_trial"],
+        "proof": "The production 8c launcher must consume the registered environment, calibration and allocation attestations and reject multi-process or resume paths before launch."
+      },
+      "negative_control_id": "nc_c12_resume_or_multi_process_allowed",
+      "machine_checkable": false,
+      "static_only_note": "Only committed enforcement reachability and attestation schemas are checked; no live allocation or post-run environment observation is required."
+    }
+  ]
+}

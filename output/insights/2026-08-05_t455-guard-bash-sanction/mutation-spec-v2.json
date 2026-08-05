@@ -1,0 +1,28 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M2-glob-sanction-all-pegasus-v2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    return _script_target(raw_head, head, args, repo_root) in _SANCTIONED_PATHS",
+          "new": "    return _script_target(raw_head, head, args, repo_root).startswith(\"tools/pegasus/\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_retokenizes_env_split_and_skips_exec_argv0",
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_does_not_sanction_siblings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_blocks_attached_and_bundled_python_modules",
+        "orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact",
+        "orchestrator/tests/test_hooks.py::test_bash_login_resolves_python_modules_to_exact_repo_paths"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
