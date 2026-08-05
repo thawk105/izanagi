@@ -2137,6 +2137,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 3 のレンズに「親自身の実測値とその一般化」を明示的に攻撃面へ入れる既存規律
   (`DW-S03`) が実際に機能した。本件はその有効性の実証でもある。
 
+
+- **再発: 2026-08-06** — 段 1 brief で `_collect_accounting` の固定待ちを 8 秒と書いたが、
+  内側の retry ループ (4 回 × 2 秒) だけを数え、それを包む `racctjob` / `racctreq` の 2 command
+  ループを掛け落としていた。正しくは 16 秒で、同じ brief の (P3) は 16 秒と書いており本文内で
+  矛盾していた。段 3 の 2 レンズが独立に指摘した。「関数を読んだ」を「呼び出し列を読んだ」と
+  取り違える同じ型で、対象が cleanup 列からループの入れ子へ変わっただけである。brief 本文は
+  書き換えず erratum で是正した (`output/insights/2026-08-06_t401-racct-permanent/brief-erratum-1.md` E1)。
 ### F92. fail-closed な controller に回収経路が無く、1 度の crash で wave が永久に前へ進めなくなった [手順漏れ]
 
 - 事象: 実測 controller が実行時 NameError で落ちた。落ちたのは `qsub` の後だったため request は
