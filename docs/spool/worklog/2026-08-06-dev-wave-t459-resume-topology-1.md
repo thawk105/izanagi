@@ -39,7 +39,9 @@ title: crash 後 resume の二重 build_start を recovery-abort で閉じた �
 - **受入全走 3 回。** (1) 実装時点 6467 passed / 20 skipped (request `891865`)、
   (2) fix 1 巡目 2 failed (内訳は下記)、(3) main 取り込み後 **6512 passed / 20 skipped / 0 failed**
   (確定値)。(2) の 2 件は「新テストの fixture 不備による実赤 1 件」と「F57 の再発 1 件」で、
-  後者は単独再走で緑 (request `891949`)。
+  後者は単独再走で緑 (request `891949`)。その後の land 前受入でも **F57 型が別 subprocess
+  (git timeout) で 1 件再発**し、単独再走 8 passed で偽赤と確定した。同 wave 内で独立 2 例が
+  出たため、この型は launcher 固有でなく「全走中に外部 process を待つテスト」一般として記録した。
 - **敵対レビューの棄却なし・scope 外裁定 7 件。** 段 3 で 10 件、段 6 で 11 件の所見が出て、
   すべて real と裁定した。うち本 wave で塞いだのは 9 件 + fix 2 巡、残る 7 件は設計択一または
   独立欠陥として下の「新規」へ起票した。焦点再レビューは残 blocker なしと判定した。
