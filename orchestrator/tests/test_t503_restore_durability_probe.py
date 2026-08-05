@@ -526,6 +526,9 @@ def test_verdict_no_go_returns_nonzero_and_required_set_is_not_cli_controlled(tm
 def test_pbs_scripts_bind_jobs_sources_clients_and_stage_processes():
     writer = WRITER_PBS.read_text()
     recovery = RECOVERY_PBS.read_text()
+    assert recovery.index('while [[ ! -d "$T503_ROOT"') < recovery.index(
+        'realpath -e -- "$T503_ROOT"'
+    )
     assert "${PBS_JOBID:-}" in writer
     assert "go-kill" in writer and "record-crash" in writer and "WAIT_STATUS" in writer
     assert "--pbs-sha256" in writer and "root-durability.json" in writer

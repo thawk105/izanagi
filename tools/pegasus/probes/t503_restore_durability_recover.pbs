@@ -38,6 +38,12 @@ write_summary() {
 umask 077
 set -o noclobber
 REAL_WORKDIR=$(realpath -e -- "$PBS_O_WORKDIR") || exit 2
+ROOT_WAITED=0
+while [[ ! -d "$T503_ROOT" && "$ROOT_WAITED" -lt 300 ]]; do
+  sleep 1
+  ROOT_WAITED=$((ROOT_WAITED + 1))
+done
+[[ -d "$T503_ROOT" ]] || exit 6
 REAL_ROOT=$(realpath -e -- "$T503_ROOT") || exit 2
 [[ "$REAL_WORKDIR" == "$PBS_O_WORKDIR" && "$REAL_ROOT" == "$T503_ROOT" ]] || exit 2
 check_no_symlink_components "$REAL_WORKDIR" || exit 2
