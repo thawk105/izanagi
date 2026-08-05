@@ -13,6 +13,7 @@ import io
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -723,6 +724,244 @@ def test_bash_login_python_module_option_boundaries_allowed():
         assert ok, f"Python -m 境界の非重量形が過剰拒否された: {cmd!r} ({why})"
 
 
+def test_bash_login_module_identity_and_borrow_matrix():
+    """module identity は綴り・結合形・interpreter 版に依存させない。"""
+    for cmd in (
+        "python3 -m pytest.__main__ tools/run_tests.py",
+        "python3 -mpytest.__main__ tools/pegasus/fetch_third_party.py",
+        "python3 -qm _pytest.main tools/pegasus/dispatch_compute.py",
+        "python3 -qmpytest tools/run_tests.py",
+        "python3 -Bmpytest tools/pegasus/submit_certify.sh",
+        "python3.10 -Bm pytest.__main__ tools/run_tests.py",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"module 実行体が sanctioned data path を借用した: {cmd!r}"
+
+
+def test_bash_login_script_executor_modules_classify_their_target():
+    for cmd in (
+        "python3 -m cProfile tools/pegasus/exec_calibrate.py",
+        "python3 -mcProfile -o /tmp/profile.out "
+        "tools/pegasus/certify_calibration.sh",
+        "python3.10 -Bmprofile -s cumulative "
+        "tools/pegasus/exec_calibrate.py",
+        "python3 -mpdb -c continue tools/pegasus/exec_calibrate.py",
+        "python3 -mtrace --trace tools/pegasus/exec_calibrate.py",
+        "python3 -mrunpy tools.pegasus.exec_calibrate",
+        "python3 -m coverage run tools/pegasus/exec_calibrate.py",
+        "python3 -BmcProfile -- tools/pegasus/exec_calibrate.py --help",
+        "python3.10 -Bmtrace --trace -- "
+        "tools/pegasus/exec_calibrate.py --report",
+        "python3 -mcProfile tools/pegasus/exec_calibrate.py --help",
+        "env FOO=1 nice -n 0 python3.10 -BmcProfile -- "
+        "tools/pegasus/exec_calibrate.py --help",
+        "bash -lc 'python3 -Bmtrace --trace -- "
+        "tools/pegasus/exec_calibrate.py --report'",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"script 実行 module が target の admission を迂回した: {cmd!r}"
+
+
+def test_bash_login_closes_additional_executor_module_spellings():
+    absolute = os.path.join(_REPO, "tools/pegasus/collect_receipt.py")
+    commands = (
+        "python3 -m pydoc tools/pegasus/collect_receipt.py",
+        "python3 -mpydoc -- tools/pegasus/collect_receipt.py",
+        "python3.10 -Bmpydoc -- ./tools/pegasus/collect_receipt.py",
+        f"python3.10 -Bmpydoc -- {absolute}",
+        "python3.10 -Bmdoctest tools/pegasus/collect_receipt.py",
+        "python3.10 -Bmunittest tools/pegasus/collect_receipt.py",
+        "python3 -m pydoc /tmp/safe.py tools/pegasus/collect_receipt.py",
+        "python3 -m doctest /tmp/safe.py tools/pegasus/collect_receipt.py",
+        "python3 -m unittest /tmp/safe.py tools/pegasus/collect_receipt.py",
+        "python3 -m trace --trace --module tools.pegasus.exec_calibrate",
+        "env FOO=1 nice -n 0 python3.10 -Bmpydoc -- "
+        "tools/pegasus/collect_receipt.py",
+        "bash -lc 'python3 -m doctest tools/pegasus/collect_receipt.py'",
+    )
+    for cmd in commands:
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"追加 executor module の実行対象が通った: {cmd!r}"
+    for cmd in (
+        "python3 -m pydoc /tmp/safe.py",
+        "python3 -m doctest /tmp/safe.py",
+        "python3 -m unittest /tmp/safe.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"Pegasus 外の executor target が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_executor_nonexecuting_modes_restore_baseline_allow():
+    for cmd in (
+        "python3 -m timeit tools/pegasus/exec_calibrate.py",
+        "python3.10 -B -m timeit tools/pegasus/exec_calibrate.py",
+        "python3 -m runpy tools/pegasus/exec_calibrate.py",
+        "env FOO=1 python3 -B -m runpy tools/pegasus/exec_calibrate.py",
+        "python3 -m trace --report -f /tmp/counts "
+        "tools/pegasus/exec_calibrate.py",
+        "bash -lc 'python3 -m trace --report -f /tmp/counts "
+        "tools/pegasus/exec_calibrate.py'",
+        "python3 -m cProfile --help tools/pegasus/exec_calibrate.py",
+        "python3 -B -m cProfile --help tools/pegasus/exec_calibrate.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"module の非 file 実行 mode が過剰拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_executor_output_cannot_overwrite_admission_paths():
+    commands = (
+        "python3 -BmcProfile -o tools/pegasus/exec_calibrate.py /tmp/safe.py",
+        "python3 -BmcProfile -otools/pegasus/exec_calibrate.py /tmp/safe.py",
+        "python3.10 -Bmprofile "
+        "--outfile=tools/pegasus/collect_receipt.py /tmp/safe.py",
+        "env FOO=1 nice -n 0 python3 -BmcProfile "
+        "--outfile tools/pegasus/fetch_third_party.py /tmp/safe.py",
+        "python3 -BmcProfile -o tools/run_tests.py -- /tmp/safe.py",
+    )
+    for cmd in commands:
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"executor が admission path を出力先にできた: {cmd!r}"
+
+    for cmd in (
+        "python3 -BmcProfile -o /tmp/profile.out /tmp/safe.py",
+        "python3 -m cProfile -o tools/pegasus/exec_calibrate.py "
+        "--help /tmp/safe.py",
+        "python3 -BmcProfile -- /tmp/safe.py "
+        "-o tools/pegasus/exec_calibrate.py",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"program argv の出力 option 字面が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_pydoc_server_and_write_modes_do_not_execute_positionals():
+    commands = (
+        "python3 -Bmpydoc -n localhost tools/pegasus/exec_calibrate.py",
+        "python3.10 -Bmpydoc -p 8080 tools/pegasus/exec_calibrate.py",
+        "python3 -m pydoc -b tools/pegasus/exec_calibrate.py",
+        "python3 -m pydoc -w tools/pegasus/exec_calibrate.py",
+        "env FOO=1 nice -n 0 python3.10 -Bmpydoc "
+        "-n localhost -- tools/pegasus/exec_calibrate.py",
+        "bash -lc 'python3 -B -m pydoc -w tools/pegasus/exec_calibrate.py'",
+    )
+    for cmd in commands:
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"pydoc 非実行 mode が位置引数を実行体扱いした: {cmd!r} ({why})"
+
+
+def test_bash_login_static_reader_modules_keep_paths_as_data():
+    for cmd in (
+        "python3 -m py_compile tools/pegasus/exec_calibrate.py",
+        "python3 -B -m py_compile tools/pegasus/collect_receipt.py",
+        "python3 -B -m py_compile tools/pegasus/certify_calibration.sh",
+        "python3.10 -m json.tool tools/pegasus/policy.json",
+        "python3 -m compileall tools/pegasus",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"静的 reader module が data path を実行体扱いした: {cmd!r} ({why})"
+
+
+def test_bash_login_interpreter_prefix_value_options_reveal_scripts():
+    for cmd in (
+        "python3 -W ignore tools/pegasus/exec_calibrate.py",
+        "python3 -Wignore tools/pegasus/exec_calibrate.py",
+        "python3 -X faulthandler tools/pegasus/exec_calibrate.py",
+        "python3 -Xfaulthandler tools/pegasus/exec_calibrate.py",
+        "python3 -- tools/pegasus/exec_calibrate.py",
+        "bash -O extglob tools/pegasus/certify_calibration.sh",
+        "bash -Oextglob tools/pegasus/certify_calibration.sh",
+        "bash -o errexit tools/pegasus/certify_calibration.sh",
+        "bash --rcfile /tmp/bashrc tools/pegasus/certify_calibration.sh",
+        "bash -- tools/pegasus/certify_calibration.sh",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"interpreter option 値が実 script を隠した: {cmd!r}"
+
+    # baseline が最初の非 option token とみなした重量 path/綴りは fail-closed。
+    for cmd in (
+        "python3 -c 'print(1)' -m pytest",
+        "python3 --help tools/pegasus/collect_receipt.py",
+        "python3 -Z tools/pegasus/collect_receipt.py",
+        "env FOO=1 python3.10 -Z tools/pegasus/collect_receipt.py",
+        "bash -s tools/pegasus/certify_calibration.sh",
+        "python3 -mpy_compile tools/pegasus/collect_receipt.py",
+        "python3 -mrunpy tools/pegasus/exec_calibrate.py",
+        "python3.10 -Bmtimeit tools/pegasus/exec_calibrate.py",
+        "python3 -mcProfile --help tools/pegasus/exec_calibrate.py",
+        "python3 -Bmpy_compile tools/pegasus/certify_calibration.sh",
+        "python3.10 -mjson.tool tools/pegasus/policy.json",
+        "python3 -W tools/pegasus/exec_calibrate.py /tmp/safe.py",
+        "bash -O tools/pegasus/certify_calibration.sh /tmp/safe.sh",
+        "bash -lc 'python3 --help tools/pegasus/collect_receipt.py'",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"interpreter の baseline 実行体が fail-open した: {cmd!r}"
+
+    for cmd in (
+        "python3 -c 'print(1)' tools/pegasus/exec_calibrate.py",
+        "python3.10 -Bc 'print(1)' tools/pegasus/exec_calibrate.py",
+        "env FOO=1 python3 -c 'print(1)' tools/pegasus/exec_calibrate.py",
+        "bash -c 'true' tools/pegasus/certify_calibration.sh",
+        "bash -xc 'true' tools/pegasus/certify_calibration.sh",
+        "python3 -c 'print(1)' /tmp/plain-data",
+        "python3 --help /tmp/plain-data",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"interpreter の data argv が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_shell_startup_files_are_execution_targets():
+    path = "tools/pegasus/certify_calibration.sh"
+    absolute = os.path.join(_REPO, path)
+    for cmd in (
+        f"bash --rcfile {path} -i",
+        f"bash --rcfile ./{path} -i",
+        f"bash --init-file={absolute} -i",
+        f"env FOO=1 nice -n 0 bash --rcfile={path} -i",
+        f"qstat; bash --init-file {path} -i",
+        f"bash -lc 'bash --rcfile {absolute} -i'",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"shell startup file の実行対象が通った: {cmd!r}"
+    ok, why = GB.decide("bash --rcfile /tmp/bashrc -i", site="PEGASUS_LOGIN")
+    assert ok, f"Pegasus 外の shell startup file が誤拒否された: {why}"
+
+    for cmd in (
+        f"bash --rcfile {path} -c 'true'",
+        f"bash --init-file={path} -c 'true'",
+        f"env FOO=1 nice -n 0 bash --rcfile={path} -c 'true'",
+        f"bash -lc \"bash --rcfile {path} -c 'true'\"",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"非対話 shell の未使用 startup file が誤拒否された: {cmd!r} ({why})"
+
+    for cmd in (
+        f"bash --rcfile {path} -ic 'true'",
+        f"bash --init-file={path} -i -c 'true'",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"対話指定付き shell startup file が通った: {cmd!r}"
+
+
+def test_bash_nonrefusing_sites_allow_module_and_prefix_matrix():
+    commands = (
+        "python3 -m pytest.__main__ orchestrator/tests/test_hooks.py",
+        "python3 -mpytest tools/run_tests.py",
+        "python3 -m cProfile tools/pegasus/exec_calibrate.py",
+        "python3 -mpdb tools/pegasus/exec_calibrate.py",
+        "python3 -m py_compile tools/pegasus/exec_calibrate.py",
+        "python3 -W ignore tools/pegasus/exec_calibrate.py",
+        "bash -O extglob tools/pegasus/certify_calibration.sh",
+        "bash --rcfile tools/pegasus/certify_calibration.sh -i",
+        "python3.10 -Bmpydoc -- tools/pegasus/collect_receipt.py",
+        "python3 -c 'print(1)' -m pytest",
+        "python3 -m timeit tools/pegasus/exec_calibrate.py",
+    )
+    for site in ("OTHER", "PEGASUS_COMPUTE"):
+        for cmd in commands:
+            ok, why = GB.decide(cmd, site=site)
+            assert ok, f"{site} で parser matrix の受理 bit が変化した: {cmd!r} ({why})"
+
+
 def test_bash_login_wrapper_values_reveal_actual_head():
     # M9: wrapper の option 値 skip を削除する変異を kill する。
     for cmd in (
@@ -896,6 +1135,137 @@ _FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS = (
     "./tools/pegasus/fetch_third_party.py verify",
     "python3 tools/pegasus/fetch_third_party.py verify-deps",
 )
+
+
+_PEGASUS_EXPECTED_CLASSES = {
+    "tools/pegasus/certify_calibration.sh": "dispatch-required",
+    "tools/pegasus/collect_receipt.py": "unknown",
+    "tools/pegasus/collect_t126_qualification.py": "unknown",
+    "tools/pegasus/dispatch_compute.py": "local-ok",
+    "tools/pegasus/exec_calibrate.py": "dispatch-required",
+    "tools/pegasus/fetch_third_party.py": "local-ok",
+    "tools/pegasus/floor_campaign.sh": "dispatch-required",
+    "tools/pegasus/floor_scoping.sh": "dispatch-required",
+    "tools/pegasus/make_acquisition_receipt.py": "dispatch-required",
+    "tools/pegasus/probes/t139_positive_control_probe.pbs": "unknown",
+    "tools/pegasus/probes/t139_positive_control_probe.sh": "unknown",
+    "tools/pegasus/probes/t293_perf_site_probe.pbs": "unknown",
+    "tools/pegasus/probes/t293_perf_site_probe.py": "unknown",
+    "tools/pegasus/probes/t419_probe_causality.pbs": "unknown",
+    "tools/pegasus/probes/t419_probe_causality.py": "unknown",
+    "tools/pegasus/run_probe.py": "dispatch-required",
+    "tools/pegasus/silo_ladder_rung1.sh": "dispatch-required",
+    "tools/pegasus/smoke_probe.sh": "dispatch-required",
+    "tools/pegasus/submit_certify.sh": "local-ok",
+    "tools/pegasus/submit_floor.sh": "local-ok",
+    "tools/pegasus/submit_silo_ladder_rung1.sh": "local-ok",
+    "tools/pegasus/submit_t126_qualification.sh": "unknown",
+    "tools/pegasus/t126_qualification.sh": "dispatch-required",
+    "tools/pegasus/t141_region_profile.sh": "dispatch-required",
+}
+_PEGASUS_DIRECT_COMMANDS = {
+    path: f"python3 {path}" if path.endswith(".py") else path
+    for path in _PEGASUS_EXPECTED_CLASSES
+}
+
+
+def test_bash_pegasus_registry_schema_and_fixed_classes():
+    assert set(GB._PEGASUS_ADMISSION_REGISTRY) == set(_PEGASUS_EXPECTED_CLASSES)
+    for path, expected_class in _PEGASUS_EXPECTED_CLASSES.items():
+        entry = GB._PEGASUS_ADMISSION_REGISTRY[path]
+        assert set(entry) == {"class", "reason", "primary_gate", "evidence"}
+        assert entry["class"] == expected_class, \
+            f"Pegasus class が固定期待値から変化した: {path}"
+        for field in ("reason", "primary_gate", "evidence"):
+            assert isinstance(entry[field], str) and entry[field], \
+                f"Pegasus admission の {field} が空: {path}"
+
+    expected_local_evidence = {
+        "tools/pegasus/dispatch_compute.py": "legacy-admitted (未実測)",
+        "tools/pegasus/fetch_third_party.py": "runbook §7.0 実測",
+        "tools/pegasus/submit_certify.sh": "legacy-admitted (未実測)",
+        "tools/pegasus/submit_floor.sh": "legacy-admitted (未実測)",
+        "tools/pegasus/submit_silo_ladder_rung1.sh":
+            "legacy-admitted (未実測)",
+    }
+    actual = {
+        path: entry["evidence"]
+        for path, entry in GB._PEGASUS_ADMISSION_REGISTRY.items()
+        if entry["class"] == "local-ok"
+    }
+    assert actual == expected_local_evidence, \
+        "local-ok の実測/legacy 証拠状態を偽ってはならない"
+
+
+def test_bash_pegasus_registry_login_and_suspect_bits_are_pinned():
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        for path, expected_class in _PEGASUS_EXPECTED_CLASSES.items():
+            ok, why = GB.decide(_PEGASUS_DIRECT_COMMANDS[path], site=site)
+            expected = expected_class == "local-ok"
+            assert ok is expected, \
+                f"{site} の受理 bit が不正: {path}: {ok} ({why})"
+
+
+def test_bash_other_and_compute_keep_all_pegasus_entry_bits():
+    for site in ("OTHER", "PEGASUS_COMPUTE"):
+        for path, command in _PEGASUS_DIRECT_COMMANDS.items():
+            ok, why = GB.decide(command, site=site)
+            assert ok, f"{site} の既存 ALLOW bit が変化した: {path} ({why})"
+
+
+def test_bash_login_rejects_unregistered_nested_pegasus_entry():
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        ok, _ = GB.decide(
+            "python3 tools/pegasus/future/nested_entry.py", site=site)
+        assert not ok, f"{site} で未登録 nested Pegasus entry が通った"
+
+
+def test_bash_pegasus_execution_inventory_is_synchronized():
+    """保証するのは再帰 execution inventory と registry key の同期だけである。
+
+    class の正しさ、資源証拠の妥当性、runtime admission の実効性は保証しない。
+    """
+    root = os.path.join(_REPO, "tools", "pegasus")
+    inventory = set()
+    for directory, _, filenames in os.walk(root):
+        for filename in filenames:
+            absolute = os.path.join(directory, filename)
+            if not os.path.isfile(absolute):
+                continue
+            mode = os.stat(absolute).st_mode
+            with open(absolute, "rb") as candidate:
+                has_shebang = candidate.read(2) == b"#!"
+            if (filename.endswith((".py", ".sh", ".pbs"))
+                    or mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                    or has_shebang):
+                inventory.add(os.path.relpath(absolute, _REPO))
+    registry = set(GB._PEGASUS_ADMISSION_REGISTRY)
+    assert inventory == registry, \
+        ("保証するのは execution inventory 同期だけ: "
+         f"registry 欠落={sorted(inventory - registry)}, "
+         f"実体欠落={sorted(registry - inventory)}")
+
+
+def test_bash_login_pbs_shebang_entries_remain_unknown_and_denied():
+    for path in (
+        "tools/pegasus/probes/t293_perf_site_probe.pbs",
+        "tools/pegasus/probes/t419_probe_causality.pbs",
+    ):
+        assert GB._PEGASUS_ADMISSION_REGISTRY[path]["class"] == "unknown"
+        ok, _ = GB.decide(f"bash {path}", site="PEGASUS_LOGIN")
+        assert not ok, f"unknown の PBS job body が login で通った: {path}"
+
+
+def test_bash_sanctioned_pegasus_paths_are_derived_from_registry():
+    expected = {
+        path for path, expected_class in _PEGASUS_EXPECTED_CLASSES.items()
+        if expected_class == "local-ok"
+    }
+    actual = {
+        path for path in GB._SANCTIONED_PATHS
+        if path.startswith("tools/pegasus/")
+    }
+    assert actual == expected
 
 
 def test_bash_login_allows_fetch_third_party_sanctioned_spellings():
