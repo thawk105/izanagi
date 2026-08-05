@@ -375,8 +375,8 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                     f"{n_points} 点 (screening opt-in, campaign {layout.root}) ===")
                 prov[IDENT_NAME] = baseline_entry
                 _write_provenance(layout, tag, trial, effective, prov)
-            # quarantine reject が最初の WAL write でも self-seal しないよう先行する。
-            ident.ensure_campaign_identity(
+            # quarantine reject より前に identity 照合済みの active attempt を閉じる。
+            ident.ensure_resumable_attempts(
                 cfg, layout, admission_policy=build_context.policy,
             )
             for name in sel_names:

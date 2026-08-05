@@ -101,12 +101,18 @@ class WalRecord:
     payload: Dict = field(default_factory=dict)  # 段ごとの内容 (binary hash / verdict / tps 等)
 
 
+# crash 後の未完了 attempt を閉じる retryable terminal の正本。
+INCOMPLETE_ATTEMPT_RECOVERY_REASON = "recovery-abort-incomplete-attempt"
+
+
 # transient な環境故障ゆえ terminal abort でも次 run で再評価してよい abort reason
 # (identity-error = g++/git の一時失敗、*-probe-error = 競合検知 pgrep の一時失敗)。
 # variant 固有の欠陥 (verifier-red / build-error) や実競合検知 (competing-tenant) は含めない
 # — それらは terminal のまま。retryable 判定の正本 (loop / screening_driver が参照, D25/B-3)。
 RETRYABLE_ABORT_REASONS = frozenset({
-    "identity-error", "bench-probe-error", "verify-probe-error"})
+    "identity-error", "bench-probe-error", "verify-probe-error",
+    INCOMPLETE_ATTEMPT_RECOVERY_REASON,
+})
 
 
 @dataclass

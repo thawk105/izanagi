@@ -234,8 +234,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
                          f"{layout.root} != cfg 由来")
     layout.ensure()
-    # auditor/diff reject も初回 WAL write になりうるため identity を先に確立する。
-    ident.ensure_campaign_identity(
+    # auditor/diff reject も初回 WAL write になりうるため recovery seam を先行する。
+    ident.ensure_resumable_attempts(
         cfg, layout, admission_policy=build_context.policy,
     )
 
@@ -319,6 +319,9 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
+    ident.ensure_resumable_attempts(
+        cfg, layout, admission_policy=build_context.policy,
+    )
     state = L.load_loop_state(layout)
     if state is None:
         state = L.LoopState(start_wall=time.time())
