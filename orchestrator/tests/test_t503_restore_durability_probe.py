@@ -540,3 +540,12 @@ def test_pbs_scripts_bind_jobs_sources_clients_and_stage_processes():
     assert "exit 7" in recovery and "CRASH_WAITED" in recovery
     assert recovery.count('"$PY" -I -B "$PROBE"') >= 4
     assert "物理ノード死" in recovery and "leg-summary.json" in recovery
+    assert all(
+        token in (ROOT / "tools/pegasus/probes/t503_restore_durability_verdict.pbs").read_text()
+        for token in (
+            '${PBS_JOBID:-}',
+            '[[ ! -e "$T503_VERDICT_ROOT/verdict.json"',
+            'VERDICT_RC=$?',
+            'exit "$VERDICT_RC"',
+        )
+    )
