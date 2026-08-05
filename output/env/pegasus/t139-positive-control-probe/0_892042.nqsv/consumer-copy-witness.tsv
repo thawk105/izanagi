@@ -1,0 +1,6 @@
+name	snapshot_realpath	consumer_realpath	bytes_identical
+third_party_masstree	/scr/t139pc.3yyQYE/third-party-snapshots/masstree	/scr/t139pc.3yyQYE/third-party-consumer/masstree	1
+third_party_mimalloc	/scr/t139pc.3yyQYE/third-party-snapshots/mimalloc	/scr/t139pc.3yyQYE/third-party-consumer/mimalloc	1
+third_party_googletest	/scr/t139pc.3yyQYE/third-party-snapshots/googletest	/scr/t139pc.3yyQYE/third-party-consumer/googletest	1
+ccbench_stock	/scr/t139pc.3yyQYE/ccbench-source	/scr/t139pc.3yyQYE/src-stock	1
+ccbench_probe	/scr/t139pc.3yyQYE/ccbench-source	/scr/t139pc.3yyQYE/src-probe	1

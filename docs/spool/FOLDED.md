@@ -340,3 +340,22 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:holdout-name-mask-bypass":"[T-544]","T:s1b-pairing-mask-identity":"[T-543]"},"authored":"2026-08-06","content_sha256":"986b35902528975dce3d34ca5e6af0cc80ac29205b81720df76a9b67785ea92a","seq":1,"wave":"dev-wave-t532-name-mask-binding"}
 - {"allocations":{"D:trigger-name-mask-forward-authority":"D185"},"authored":"2026-08-06","content_sha256":"6f2cbfdfd9c73abe73683d0009a779a4a049b61db7b675017858b8a8670579ca","seq":2,"wave":"dev-wave-t532-name-mask-binding"}
 - {"allocations":{"F:scan-order-false-kill":"F133"},"authored":"2026-08-06","content_sha256":"611b843835dc9ed6753a24acd9b1a30c60c62538e1f8744f7708babc409c560e","seq":3,"wave":"dev-wave-t532-name-mask-binding"}
+
+- {"allocations":{"T:acceptance-mode-and-receipt":"[T-545]","T:dispatch-request-env-revalidation":"[T-547]","T:staged-delete-tree-identity":"[T-546]"},"authored":"2026-08-05","content_sha256":"afc9fe150b410224270c6d40225aa10fb608947c7c8c02dc0fe418f4e48c4d1d","seq":1,"wave":"dev-wave-t450-t412-preface"}
+- {"allocations":{"D:acceptance-deletion-gate-fail-closed":"D186"},"authored":"2026-08-05","content_sha256":"6bf6d36c4b81883b8e1be68c35e43e34e8e12fe95cd595f559b657758232569e","seq":2,"wave":"dev-wave-t450-t412-preface"}
+
+- {"allocations":{"T:disposable-probe-scale-cap":"[T-550]","T:pegasus-dependency-general-procurement":"[T-548]","T:probe-exclusivity-witness":"[T-549]","T:t139-mechanism-ablation":"[T-551]"},"authored":"2026-08-06","content_sha256":"c24504a36b6d33076f4bf6e2c987fb056472f2a7bceda6eff57d4c7f628853ca","seq":1,"wave":"dev-wave-t139-alt-x-probe"}
+- {"allocations":{"D:t139-alt-x-partial-recovery":"D187"},"authored":"2026-08-06","content_sha256":"d89ef131f0695aa4dd74a9ce1b0372102e6ac7649a03b31256c132dbc7bd4588","seq":2,"wave":"dev-wave-t139-alt-x-probe"}
+- {"allocations":{"F:local-single-statement-dependency":"F135","F:probe-clean-tree-scheduler-droppings":"F134"},"authored":"2026-08-06","content_sha256":"5f69185edc70acde0cc7c5d9b51983420b6938353970991f6d0c2d95b37905b4","seq":3,"wave":"dev-wave-t139-alt-x-probe"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"aa5f7e60863577f44675596e21e5412ba91e04f7e96b9e23de285521df902955","seq":1,"wave":"dev-wave-t495-branch-deletion-path"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"9bf775a9dd5c313364c575cec5516a2e01032fff0c0e2b386138e0480b5d8f58","seq":2,"wave":"dev-wave-t495-branch-deletion-path"}
+
+- {"allocations":{"T:probe-terminal-proof-provenance":"[T-552]"},"authored":"2026-08-06","content_sha256":"5d16cb54eed816e6e3572abe8011187a63c1484d231397611f74b7701413276f","seq":1,"wave":"dev-wave-t401-racct-permanent"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"26c348e883671b10e5821b087ce68460bc0f99efffac05d388e03f9e7192a799","seq":2,"wave":"dev-wave-t401-racct-permanent"}
+
+- {"allocations":{"F:concurrent-dispatch-during-acceptance":"F136"},"authored":"2026-08-05","content_sha256":"78f351a8f0ca48392f545ca5ebf4afe94c0b44addf0d45750f9461d27e0e2ee7","seq":3,"wave":"dev-wave-t520-measurement-turn"}
+
+- {"allocations":{"T:admission-living-doc-closure":"[T-556]","T:admission-reason-gate-sync":"[T-555]","T:barrier-policy-on-old-commits":"[T-557]","T:dev-wave-docs-budget-headroom":"[T-558]","T:hook-wiring-skip-gate":"[T-554]","T:s8c-git-timeout-under-load":"[T-553]"},"authored":"2026-08-06","content_sha256":"ccabe4895244adc0c3b114956d953e5ca9fb975e6f902660d712c2e20157a85c","seq":1,"wave":"dev-wave-t522-admission-registry"}
+- {"allocations":{"D:pegasus-admission-registry-canonical":"D188"},"authored":"2026-08-06","content_sha256":"39fab98631ab4a97b98f2e787239e7c9dc560519f8d0a9dad3bc8be48b90ea6d","seq":2,"wave":"dev-wave-t522-admission-registry"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"34c3b12d2b6146523240ec4571a774b39cc38fa48b3a4cc438afa2838b43b8a2","seq":3,"wave":"dev-wave-t522-admission-registry"}

@@ -9037,3 +9037,157 @@ f-string の `!r` は例外構築より先に `__repr__` を実行するため�
 - 検査 helper を `trigger_gate_binding` へ置く — 同 module は WAL・pipeline・loop から import され、
   emitter は pipeline を import するため循環する。
 - module 読み込み時の index 構築 — 上記のとおり consumer の拒否境界を壊す。
+
+## D186. [T-412] 前置 — 受入形の未 stage 削除検査を trigger 非依存の fail-closed にし、[T-450] の `DW-O15` 削除を同じ変更単位で入れる (2026-08-06)
+
+**決定 (1): deletion preflight を受入形で trigger 非依存の fail-closed にする。** D97 決定 1(b) が
+定めた「bypass は `IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS=1` のみ、`final` trigger では不可」を
+supersede する。`tools/run_tests.py` から同 env の定数と全 bypass 分岐を削除し、git 検査が
+成立しない場合 (実行不能 / rc≠0 / decode 失敗) も受入形では rc=13 とする。
+`tools/pegasus/dispatch_compute.py` の tests task env allowlist からも同 key を外し、
+親 dispatcher が生成する request に載らないようにする。`_is_acceptance_run` は変更しない —
+targeted run を gate の外に置く正本であり、これを広げると開発の常用経路が止まる。
+
+**決定 (2): 受理集合の変化を両方向で記録する (D96 の手続義務)。** deletion preflight は
+**縮小のみ**で、受理から拒否へ移るのは 2 系統 (受入形 × 未 stage 削除 × legacy env=`1` × 非 final、
+および受入形 × git 検査失敗 × 非 final) だけである。一方 `tools/check_docs.py` の
+`_OPERATION_NUMBERS` から 15 を外す変更は**非単調**である — `DW-O15` を持つ文書集合を新たに拒否し、
+持たない集合を新たに受理する。「縮小のみ」は deletion preflight 単体の性質であって、
+本変更単位全体の性質ではない。境界テストは同じ変更単位で追随させた。
+
+**決定 (3): 「残余義務の完全機械化」は達成していないと明記し、`DW-O11` 第 2 文を残す。**
+段 3 の敵対レンズ 2 本が独立に示したとおり、(a) `PYTEST_ADDOPTS` が非空だと `_is_acceptance_run`
+は偽になるのに pytest は既定 target 全体を走るため、受入形の判定を外れたまま全走できる、
+(b) 受入結果と landed tip を結ぶ receipt が存在せず、land helper 自身が tested SHA を受入証明と
+みなさないと明記している、(c) 意図しない削除を**復元**しても緑になるため「stage が緑への唯一経路」
+も偽である。したがって剪定で回収できる bytes は **0** であり、`DW-O11` は削除せず、
+「git 検査不能」と「復旧・stage・復元」を含む形へ**是正**した (223 bytes、削除前と同値以下)。
+
+**決定 (4): task-run 台帳の bypass 使用 field は不要として閉じる。** D97 の「既知の残余」が挙げた
+3 limb のうち、bypass 使用 field は本決定で reader ごと bypass が消えるため、実装しても
+全 run で false にしかならない恒真な監査 field になる。残る 2 limb (隔離 checkout への
+modules cache 複製、rc 13/14 の診断粒度) は従来どおり据え置く。
+
+**却下した案:** (a) `exploratory-full` mode を新設して stage 前の全走を残す — API 設計であり、
+`DW-G04` の発火 path を本 wave で書けない。`git add -A` は commit ではなく `git reset` で戻せるため、
+探索用途は stage 後でも同一 tree を測れる。(b) bypass を存置したまま「機械化した」と記録する —
+escape hatch を残した機械化は規律 2 が名指しする reward hack の形である。(c) 受入 receipt と
+land 結線まで本変更単位へ含める — 受理集合を大きく変える設計であり、段 2 / 3 の攻撃を経ていない。
+(d) 計算ノード側 `_job_run` が request の `environment` を allowlist で再検査する — 別機構
+(機械をまたぐデータの信頼境界) であり、未知 key を拒否するか黙って落とすかの択一が未検討で、
+稼働中 job を落としうる。(a) 以外はいずれも裁定パッケージへ送る。
+
+**研究状態への影響:** certified 選択・レポート・proof chain の値は変わらない。変わるのは、
+受入形の全走が「未 stage 削除を含む木」や「git 検査が成立しない環境」で緑を返せなくなることと、
+dev-wave 文書予算が正味 55 bytes 空くことである。
+
+## D187. 代替 X (4 stripe・cache line 分離・固定回数 stripe 計算) は両 workload で部分回復し、生死確認は成立した — ただし J=1 の engineering screen であり正例 artifact ではない (2026-08-06)
+
+**決定 (1): 代替 X は成立したと記録する。** ユーザー裁定「択 (a) = O(1) stripe 計算 + cache line
+padding を備えた代替 X で probe を再走する」を実行し、事前登録した受理条件
+「両 workload で全標本が `mode1 < modeX < stock`」を満たした。D126 が不成立と記録した前候補の
+置き換えである。一次資料 = `output/insights/2026-08-05_t139-alt-x-probe/`。
+
+**実測 (Pegasus gen_S request `892042`、trace-disabled、t48、2 workload × 3 arm × 5 rep):**
+
+| workload | mode1 (劣化) | modeX (代替 X) | stock | modeX/mode1 | 回復率 |
+|---|---|---|---|---|---|
+| W1 高競合 write | 92,425 | 185,797 | 782,534 | 2.01x | 13.5% |
+| W2 中競合 mixed | 1,024,233 | 2,383,734 | 10,434,011 | 2.33x | 14.4% |
+
+前候補は W1 で 1.36x、**W2 で 0.85x と逆転**していた。
+
+**決定 (2): stripe 数は 4 とし、その理由を「stock との分離」に置かない。** 親 brief は
+「増やすと stock へ近づきすぎる」として 2 を選んだが、定量的に支持されない — stock/mode1 は
+W1 で約 8 倍・W2 で約 10 倍あり、4 stripe でも上限側の余裕は十分である。下限側は 2 stripe だと
+W2 で前候補の最良値から +17% を要し、余裕が小さい。加えて**回復幅が大きいほど標準化効果が大きく、
+RF 統計設計が裁定した二段階設計 (大きい効果に絞る) の本走が成立しやすい**。
+この選択は前回 raw だけを入力とし、**新しい走行の結果を見る前に**確定した。
+
+**決定 (3): stripe 関数は先頭窓・中央窓・末尾窓・長さ・storage を固定回数 load で混ぜる。**
+`transaction.cc` は YCSB 専用ではないため、可変長 key で退化しない形が要る。親が実測したところ、
+**末尾窓だけ、および先頭窓 + 末尾窓 + 長さのいずれも、共通 prefix と共通 suffix を持つ同一長の
+key 族では 100% が 1 stripe へ退化した**。中央窓を入れて最大 bucket 占有率 27.10% に収まった。
+per-byte loop は持たない (YCSB の 8 byte key では従来の byte 走査が実質 O(1) と同じ回数になり、
+「O(1) 化」が測定対象上で何も変えないため)。
+
+**決定 (4): 本 study は engineering screen であり、適格性を主張しない。** J=1・未較正・
+非適格として `verdict.tsv` と事前登録の双方に明示した。適格性の権威は独立 validator だけが持ち
+(D162 決定 1・3)、その validator と consumer は未実装である。**したがって非発行の理由は
+「権威境界が未裁定だから」ではなく「J=1 であり validator が無いから」である。**
+
+**決定 (5): 機序の帰属をしない。** 本 study は cache line 分離・stripe 計算の固定回数化・
+stripe 数の 3 つを同時に変えた。どれが効いたかは分離していない。ablation は別の事前登録 study とする。
+
+**決定 (6): 実装と事前登録を実走前に commit し、実走を commit へ束縛する。** job は投入時に渡した
+期待 commit と job 開始時の HEAD の exact 一致を要求し、その commit の blob だけを展開する。
+依存は pin の Git object から不変 snapshot を作り、書き込み用の複製と bytes 同一性を照合する。
+queue 待ちの間に HEAD が進んでも、投入した identity 以外は実行されない。
+
+**却下した案:** (a) 第 4 arm として旧候補を残す — run 数・liveness 件数・受理条件が変わり、
+事前登録する問い自体が変わる。(b) 共有 policy の依存 path を書き換える — 凍結済み証拠が
+その sha256 を pin しており、他タスクの証拠を壊す (D107 / D110 が既に却下した型)。
+(c) 結果を見てから stripe 数や workload を変える — 事後調整であり D126 決定 (4) に反する。
+
+**研究状態への影響:** certified 選択、材料レポート、proof chain、凍結 bytes、既存 gate は
+いずれも不変である。probe は gate を新設せず受理集合を変えないため**変異 matrix は対象外**。
+変わるのは、[T-139] の状態が「代替 X の設計待ち」から「**生死確認は成立、後続は RF 統計設計に
+準拠した本走の設計**」へ進んだことである。
+
+## D188. Pegasus admission の正本を data として置き、hook と checker を投影にする (2026-08-06)
+
+**決定 (1): 正本は `tools/pegasus/admission_registry.json`。**
+`hooks/guard_bash.py` の Python literal をやめ、`schema_version` + `entries` の JSON を唯一の正本とする。
+hook と `tools/check_docs.py` は共有 validator (`tools/pegasus_admission_registry.py`) を通した**投影**であり、
+どちらも正本ではない。値 (24 entry の `class` / `reason` / `primary_gate` / `evidence`) は移送前から
+1 文字も変えない。D175 決定 1 の三値 admission と `_SANCTIONED_PATHS` の導出はそのまま維持する。
+
+**決定 (2): 読み込み失敗はすべて空 registry へ縮退させ、module 初期化から例外を漏らさない。**
+hook は Bash 呼び出しごとに新しい process として起動され、**遮断するのは rc=2 だけである**。
+module 初期化で例外が漏れると process は rc=1 で死に、hook 契約上は遮断されないまま command が通る
+= fail-open になる。したがって loader 呼び出しは `BaseException` (`SystemExit` / `KeyboardInterrupt` を含む)
+まで捕捉し、`{}` と診断文字列へ縮退させる。`_SANCTIONED_PATHS` の導出も同じ `try` の中に置く。
+返値は wrapper 側でも再検証する (plain `dict`、canonical な `tools/pegasus/` path、4 field 揃い、
+非空 str、class 閉集合、非空 mapping)。validator が壊れても Pegasus 外の path が sanctioned にならない。
+
+**決定 (3): 単調性 (D175 決定 6) の射程は正常系に限る。**
+正本が読めない・schema に反する・未知 class を含むときは `tools/pegasus/` 配下を**すべて拒否する**。
+このとき現在 `local-ok` の 5 本も落ちる。これは受理集合の縮小であり D175 決定 6 の例外だが、
+規律 2 の下で fail-open は選択肢にならないため、**意図した fail-closed** として明示的に採る。
+非 Pegasus の sanctioned 2 本 (`tools/run_tests.py` / `tools/check_ai_provenance.py`) は影響を受けない。
+
+**決定 (4): loader は import machinery を使わず source bytes を `compile` / `exec` する。**
+`spec_from_file_location` + `SourceFileLoader` は `__pycache__` を読み得るため、review した source と
+実行されるコードが一致しない窓がある。hook と checker の両方で exact source bytes を読んで実行する。
+ファイル読み取りは `O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC` + fd に対する `fstat` の regular 判定と
+1 MiB cap で行う (`O_NONBLOCK` が無いと writer のいない FIFO で hook が止まる)。
+
+**決定 (5): docs との同期検査は class と evidence に限り、射程を明記する。**
+`check_docs.py` は runbook §7.0 の 24 行投影表、`unknown` 表の grandfather 明示、実測表の path 集合、
+`tools/pegasus/README.md` の実行体宣言表と site タグ付き block を正本と照合する。
+**`reason` / `primary_gate` の散文は投影しない** (裁定へ返した)。この検査は class の正しさ、資源の実測、
+hook が `.claude/settings.json` へ実配線されていること、parser が実行 target と認識しない綴り
+(`python3 -c`、cwd 相対、未解析 launcher) のいずれも保証しない。
+
+**決定 (6): 未実測 4 本は grandfather を追認したまま据え置く。**
+2026-08-05 のユーザー裁定に従い、`class` は `local-ok`、`evidence` は `legacy-admitted (未実測)` を維持する。
+実測で変わるのは evidence であって class ではない。この例外は当該 4 本限りで、他 entry の許可根拠に
+流用しない。
+
+**却下した選択肢:**
+- **loader を deadline 付き子プロセスで監督する** — 無限ループ耐性は上がるが、hook 本体が無限ループする
+  risk と同種であり、Bash 呼び出しごとに process を 1 つ増やすコストに見合わない。限界として記録する。
+- **canonical bytes の SHA-256 を test へ pin する** — 生成物から採った hash を期待値へ焼き込む形になり
+  (F27 型)、不一致時に「hash を更新して通す」誘惑を作る。代わりに 24 entry × 4 field を独立 literal golden とした。
+- **production validator に「ちょうど 24 entry」を要求する** — 合成 fixture の都合で validator を
+  弱める圧力を生む。件数と class 内訳の固定は test 側の独立 golden に置く。
+- **README の command 行を解析して実行 site を推定する** — 同じ手順を inline code や平文へ移すだけで
+  検査を逃げられる。宣言表 + site タグ付き block へ置き換えた。
+- **同一 inode の read 中書き換えの照合** — 更新側を atomic rename に限る運用契約で扱い、検査は入れない。
+
+**射程 (この決定が保証しないこと):**
+- 保証するのは「正しく `PEGASUS_LOGIN` / `PEGASUS_SUSPECT` と判定され、現行 parser が実行 target と
+  認識した綴り」の受理・拒否だけである。F121 の残穴 ([T-518]) は閉じていない。
+- 平文 (fence の外) の手順、basename だけの言及、変数で組み立てた path は site 一致を検査できない。
+- 研究成果物 (certified 選択、proof chain、凍結 bytes、3 台帳) は不変である。変わるのは開発 harness の
+  Bash 面だけである。

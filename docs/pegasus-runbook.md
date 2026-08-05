@@ -358,6 +358,10 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 - **分類は 3 値。** `local-ok` = 上の測り方で実測して規範値未満、`dispatch-required` = 規範値以上、
   `unknown` = 未計測、または入力サイズに上限が無く実行ごとに変わる。
   **`unknown` は `dispatch-required` と同じに扱う** — 測っていないものを軽い側へ倒さない。
+  **例外が 1 つある。** registry の `local-ok` のうち evidence が `legacy-admitted` のものは、
+  この定義を**満たしていない** — 実測されないまま以前から許可されていた 4 本であり、
+  2026-08-05 のユーザー裁定で grandfather として追認したものである ([T-522])。
+  したがって「`local-ok` と書いてあるから実測済み」と読んではならない。判定には evidence を見る。
 - **測定が保証するのは記録した argv と入力だけである ([T-482] 択 (a))。** 上の手順は
   「その 1 回の実行」を測る。したがって分類は**そのとき測った既定 argv と入力**に対してのみ有効で、
   同じ path を別 argv・別入力で呼んだときの資源量を保証しない。`hooks/guard_bash.py` の admission は
@@ -365,9 +369,17 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
   pin・入力・cap が変わったら測り直す。argv / env を含む admission と CLI 側の入力 cap の比較は
   [T-482] (b)(c) として裁定待ちに残る。
 - **admission registry と証拠クラス。** `tools/pegasus/` 配下の実行体をログインノードで
-  実行してよいかの判定は `hooks/guard_bash.py` の admission registry が正本で、
-  path ごとに 3 値の class と `reason` / `primary_gate` / `evidence` を持つ。**hook が許可するのは
-  `local-ok` だけ**で、`unknown`・`dispatch-required`・未登録 (subdirectory を含む) はすべて拒否する。
+  実行してよいかの判定は **`tools/pegasus/admission_registry.json` が正本**で、path ごとに 3 値の
+  class と `reason` / `primary_gate` / `evidence` を持つ ([T-522])。`hooks/guard_bash.py` と
+  `tools/check_docs.py` は、共有 validator (`tools/pegasus_admission_registry.py`) を通した
+  **投影**であって正本ではない。**hook が許可するのは `local-ok` だけ**で、
+  `unknown`・`dispatch-required`・未登録 (subdirectory を含む) はすべて拒否する。
+  **この「拒否する」の射程は、正しく `PEGASUS_LOGIN` / `PEGASUS_SUSPECT` と判定された上で、
+  hook の parser が実行 target と認識した綴りに限られる。** `python3 -c`、cwd 相対で組み立てた path、
+  変数展開、未解析 launcher、script file 越しの実行は原理的に見えない (F121 の残穴。[T-518])。
+  正本が読めない・schema に反する・未知の class を含むときは、hook は空 registry へ縮退し
+  `tools/pegasus/` 配下を**すべて拒否する** (fail-closed)。この異常時には現在 `local-ok` の 5 本も
+  拒否されるため、単調性 (D175 決定 6) の射程は**正常系 (valid canonical registry) に限られる**。
   `evidence` は現在 2 種類ある — 本節の手順で実測したもの (`fetch_third_party.py`) と、
   **本節の手順で測られないまま以前から許可されていたもの (`legacy-admitted`)** である。
   後者を「実測済み」と読み替えてはならない。**未実測の 4 本は grandfather として追認済みで
@@ -375,6 +387,43 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
   `legacy-admitted (未実測)` のまま残す。** 実測して変わるのは `evidence` であって class ではない。
   この grandfather は当該 4 本限りの例外であり、他の entry を `local-ok` にするには下の手番手順
   での実測が要る。`legacy-admitted` を他 entry の許可根拠に流用しない。
+- **正本の投影表 (機械検査対象)。** 次の表は `tools/pegasus/admission_registry.json` の
+  (path, class, evidence) を投影したものである。`tools/check_docs.py` が正本との集合完全一致を
+  検査するので、**この 3 つの値のどれかを片方だけ編集すると赤になる**。値を変えるときは正本を先に直す。
+  **`reason` と `primary_gate` は投影しておらず、片方だけ変えても赤にならない** ([T-522] で裁定へ返した)。
+
+| path | class | evidence |
+|---|---|---|
+| `tools/pegasus/certify_calibration.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/collect_receipt.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/collect_t126_qualification.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/dispatch_compute.py` | `local-ok` | `legacy-admitted (未実測)` |
+| `tools/pegasus/exec_calibrate.py` | `dispatch-required` | `static arbitrary-exec classification` |
+| `tools/pegasus/fetch_third_party.py` | `local-ok` | `runbook §7.0 実測` |
+| `tools/pegasus/floor_campaign.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/floor_scoping.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
+| `tools/pegasus/probes/t139_positive_control_probe.pbs` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/probes/t139_positive_control_probe.sh` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/probes/t293_perf_site_probe.pbs` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/probes/t293_perf_site_probe.py` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/probes/t419_probe_causality.pbs` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/probes/t419_probe_causality.py` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/run_probe.py` | `dispatch-required` | `static semantic-site classification` |
+| `tools/pegasus/silo_ladder_rung1.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/smoke_probe.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/submit_certify.sh` | `local-ok` | `legacy-admitted (未実測)` |
+| `tools/pegasus/submit_floor.sh` | `local-ok` | `legacy-admitted (未実測)` |
+| `tools/pegasus/submit_silo_ladder_rung1.sh` | `local-ok` | `legacy-admitted (未実測)` |
+| `tools/pegasus/submit_t126_qualification.sh` | `unknown` | `unmeasured; preflight input surfaces remain` |
+| `tools/pegasus/t126_qualification.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/t141_region_profile.sh` | `dispatch-required` | `static job-body classification` |
+
+- **この投影検査が保証しないこと。** 検査するのは正本と docs の間の (path, class, evidence) の
+  一致だけである。`reason` / `primary_gate` の散文が正本と食い違っても検出しない ([T-522] で
+  裁定へ返した)。class の正しさ、資源の実測、hook が `.claude/settings.json` に実配線されて
+  いること、`python3 -c` や cwd 経路など parser が実行体として認識しない綴りは、いずれも
+  この検査の範囲外である。
 - **分類の測定はユーザー端末の手番である (2026-08-05 ユーザー裁定)。** 上の
   `systemd-run --user --scope` 手順は計算ノードでは動かない (2026-08-05 実測: PBS ジョブに
   user systemd session が無く `$DBUS_SESSION_BUS_ADDRESS` / `$XDG_RUNTIME_DIR` が未設定。
@@ -424,8 +473,10 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `provenance` | `tools/check_ai_provenance.py` |
 
 `tools/check_docs.py` がこの表と `tools/pegasus/dispatch_compute.py` の `TASKS` の乖離を検査する。
-**この検査が保証するのは公表 inventory の同期だけである** — メモリの計測、重いプログラムの発見、
-規範値の遵守、自動 dispatch の網羅性はいずれも保証しない。
+同 checker は本節の admission 投影表・`unknown` 表・実測表と、`tools/pegasus/README.md` の
+実行体宣言表も正本 JSON と照合する ([T-522])。
+**これらの検査が保証するのは公表 inventory と docs の同期だけである** — メモリの計測、
+重いプログラムの発見、規範値の遵守、自動 dispatch の網羅性はいずれも保証しない。
 
 **現時点で `unknown` (入力に hard cap が無い) と判明している login 側経路** (2026-08-01 の静的調査。
 **この一覧も閉じていない** — 走らせる前に測るのが規範であって、一覧に載ることが条件ではない)。
@@ -434,11 +485,12 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 |---|---|
 | `tools/codex_worker_ledger.py` | `~/.codex/sessions` を再帰走査し rollout を保持 (調査時点で約 887 MB / 941 rollout) |
 | `tools/strip_claude_session_trailers.sh` | clone + 全履歴 rewrite |
-| `tools/pegasus/submit_silo_ladder_rung1.sh` | login で外部 3 repo を clone |
+| `tools/pegasus/submit_silo_ladder_rung1.sh` | login で外部 3 repo を clone。**入力量としては `unknown` 相当だが、registry 上は `local-ok` / `legacy-admitted (未実測)` として grandfather 追認済みであり hook は許可する** |
 | `tools/plotting/plot_backoff.py` | matplotlib の import より前に campaign WAL を全読み |
 | `tools/check_workflow_models.py --dir` / `tools/ruleops.py` | 入力・履歴サイズに比例 |
 | `tools/check_docs.py` | archive / insight を全読みし本文をリスト保持 (総数・総 bytes 上限なし) |
 | `tools/dev_waves/checker.py` | 履歴量に上限の無い repo を 2 回 clone する |
+| `tools/codex_worker_launch.py` / `tools/codex_reasoning_ab.py` | prompt bytes・rollout JSONL に上限なし (ただし LLM 子の実行場所は上記の除外に従う) |
 
 **実測して `local-ok` に分類した経路** (2026-08-04、上の手順で専用 scope を作り測定。
 certified peak = 観測ピーク + max(25%, 128 MiB) を規範値 512 MiB と比較)。
@@ -452,7 +504,6 @@ certified peak = 観測ピーク + max(25%, 128 MiB) を規範値 512 MiB と比
 
 **pin が変われば入力サイズが変わるので再分類が要る。** 現在の pin (policy.json の
 `third_party_sources`) での測定値である。
-| `tools/codex_worker_launch.py` / `tools/codex_reasoning_ab.py` | prompt bytes・rollout JSONL に上限なし (ただし LLM 子の実行場所は上記の除外に従う) |
 
 強制の層と射程は次のとおりで、**全経路の機械保証はできない**。
 
@@ -618,6 +669,11 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した
+- **repo を submit directory にする job は `qsub -o <file> -e <file>` で scheduler 出力を repo 外へ
+  向けた。** 既定では submit directory へ書かれるため、tree の clean を要求する job は
+  **前回 job の出力自体で落ちる**。`-o` / `-e` には directory でなくファイル path を渡す
+  (directory は `NQScrereq: [BSV EINVAL] Not a regular file.` で受理されない)。
+  job script に絶対 path を書く形は採らない — 機体固有値を repo へ持ち込むため
 - **wave worktree から exploration campaign / 8c trial を実走する job は、job script が
   `IZANAGI_EXPLORATION_OUTPUT_ROOT` を job 専用の `/work` 配下へ export した** ([T-422] / F98。
   実 path は job script が組み立て、shared code・test・docs へ固定値を書かない。process 起動前に

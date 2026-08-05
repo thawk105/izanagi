@@ -1,0 +1,7 @@
+arm	mode1_mutex_symbols	modeX_mutex_symbols	trace_symbols
+stock	0	0	0
+mode1	1	0	0
+modeX	0	1	0
+stock-live	0	0	0
+mode1-live	1	0	0
+modeX-live	0	1	0

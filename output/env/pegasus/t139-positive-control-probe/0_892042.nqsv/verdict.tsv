@@ -1,0 +1,5 @@
+scope	engineering_screen_J1_uncalibrated_nonqualification
+row_structure	exact_30_cells	1
+W1	all_samples_mode1_lt_modeX_lt_stock	1
+W2	all_samples_mode1_lt_modeX_lt_stock	1
+all_workloads	all_samples_mode1_lt_modeX_lt_stock	1

@@ -60,7 +60,6 @@ TASKS = {
             "PYTEST_ADDOPTS",
             "IZANAGI_TEST_NPROC",
             "IZANAGI_TEST_TRIGGER",
-            "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS",
         }),
         probe_imports=("pytest", "xdist", "packaging"),
     ),
