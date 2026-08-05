@@ -76,3 +76,9 @@ title: [T-522] Pegasus admission registry を data 正本へ移し hook と chec
 - {{T:barrier-policy-on-old-commits}} **P3・新規 (ユーザー裁定待ち)**: 本 wave 以前の commit へ
   checkout すると新 checker 自体が消え、hook も commit 相対の旧版になる。「commit 相対の旧防壁へ戻る」
   ことを是とするか、「外部の最新 hook を維持する」設計にするかが未裁定である
+- {{T:dev-wave-docs-budget-headroom}} **P3・新規 (ユーザー裁定待ち)**: 段 8 の改善候補 1 件
+  (`DW-M08` へ「kill 判定は失敗 node 集合の完全一致であり、冗長 gate を落とした部分列挙は
+  MISMATCH になる」を明記する) が**予算で入らなかった**。`docs/dev-wave/**` は合計 25,192 /
+  hard ceiling 25,200 bytes で headroom が 8 bytes しかなく、`mutation.md` 単体も 3,674 / 3,750 で
+  30 bytes 不足した。予算値の変更は独立審査と定められているため実装せず返す。
+  (a) 予算の独立審査、(b) 既存節の意味等価な縮約で空ける、(c) 見送り、の択一
