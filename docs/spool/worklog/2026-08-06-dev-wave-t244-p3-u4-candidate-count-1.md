@@ -49,8 +49,11 @@ title: [T-244] P3 の member 行数と候補数を別 field へ分けた — 依
 - **変異走行中に docs を書いてツリーを汚し、自分で気づいて撤去した。** harness は untracked を
   検出して中止するため、記録は走行完了後に置いた。2 走目は `--out` が既存で起動時に停止したので、
   出力先を変えて走らせ直した (どちらも計算資源は消費していない)。
-- 受入全走は Pegasus 計算ノードで 1 回。実装 + main `23cc93d6` 取り込みの tip `16cfdc6d` で
-  **6779 passed / 20 skipped** (request 892689.nqsv、1363.20s)。
+- 受入全走は Pegasus 計算ノードで 2 回。実装 + main `23cc93d6` 取り込みの tip `16cfdc6d` で
+  **6779 passed / 20 skipped** (request 892689.nqsv、1363.20s)、記録と段 8 を載せた tip
+  `53e1c3ce` で **6779 passed / 20 skipped** (request 892718.nqsv、868.79s)。
+  land 直前の tip はこの記録訂正 commit 1 本だけ先へ進んでおり、docs のみで
+  `tools/check_docs.py` と fold dry-run を直接緑にして閉じた。
   焦点走行は fix 前 3 failed / 41 passed (request 892393.nqsv)、fix 後 48 passed / 0 failed。
   変異は同じ tip `16cfdc6d` に対して走らせ、走行後の作業ツリー復元も確認した。
 - **名乗りの上限を段 4 で先に固定した。** 名乗ってよいのは ledger の記録形における
