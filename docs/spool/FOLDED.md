@@ -406,3 +406,14 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:generation-guarantee-scope-limit":"D203","D:historical-reverify-entry-split":"D202"},"authored":"2026-08-06","content_sha256":"439c3034b7f638b13019a15051d1380e6e68633141e9d710f2dde31fb0afab26","seq":1,"wave":"dev-wave-t574-historical-resolver"}
 - {"allocations":{"T:generation-resume-availability":"[T-587]","T:oracle-run-contract-legacy-fallopen":"[T-588]","T:silo-verify-result-semantics":"[T-586]"},"authored":"2026-08-06","content_sha256":"bacfadcef1123374c54ba03a326bd76b8388ade81320f5650264991486714408","seq":2,"wave":"dev-wave-t574-historical-resolver"}
 - {"allocations":{"F:readonly-entry-shared-with-live-admission":"F142","F:redundant-gate-counted-as-new-guarantee":"F143"},"authored":"2026-08-06","content_sha256":"ddc5b88fd30f32134ca1ec2d35b65f955c763e1b6408a4f37b9d162352fb1d17","seq":3,"wave":"dev-wave-t574-historical-resolver"}
+
+- {"allocations":{"T:cleanup-dangling-codex-rewrite":"[T-589]","T:fetch-third-party-admission":"[T-591]","T:merge-provenance-author-rule":"[T-590]"},"authored":"2026-08-06","content_sha256":"42ad6cd573c50f1ecc787743b49fe05735640a5e2dde01300b7724e620f45e00","seq":1,"wave":"rulings-20260806-a"}
+- {"allocations":{"D:branch-deletion-user-instruction":"D204"},"authored":"2026-08-06","content_sha256":"5be68689314f27377800aeb8ea2ef7e2b4bbe287d489222427bbed96070ef1ab","seq":2,"wave":"rulings-20260806-a"}
+- {"allocations":{"T:dangling-audit-scope-fixes":"[T-593]","T:dw-rules-batch-adoption":"[T-592]","T:guard-worktree-compound-analysis":"[T-594]"},"authored":"2026-08-06","content_sha256":"d0599245f2f954793d8f55b951cb7843b5d1b4b8d627c841334c9550e278633c","seq":3,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"bfcf610b0b37492999daa0d8feab2907a3658679e32732e851c7bbac50835dbb","seq":4,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"f5e5ac7873bc5bb9e2160fa9ed7ff74dd26e79b88d4e51ffeeb9d2c5b9776054","seq":5,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"c0e7074d623c926a77ee60d916ac6a390856e03c4ab9a765e9a3b9f8b12597b4","seq":6,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"bb336c8f09c42b7a45f5e298faa41a76c45d860f152d6b5907edf824b9001f59","seq":7,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"6356f14231749a134ec193b2e9cef90e4a5e7ff6bdb70c72d0f9fe4672a4461b","seq":8,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"7fe69cfb26af11f55485d10923f0132b759b7983a60df79b78b4cd34e15b65b8","seq":9,"wave":"rulings-20260806-a"}
+- {"allocations":{"D:prototype-robustness-bar":"D205"},"authored":"2026-08-06","content_sha256":"d769a9f166f835635fe2911791f33ca34010e69c54bb1564822a2aa2aedada42","seq":10,"wave":"rulings-20260806-a"}
