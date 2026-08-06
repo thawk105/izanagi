@@ -388,3 +388,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"373d2455276ffa154ffcf7db39cbc07416ab7e0e3df6d9d4fd44b7b700dada98","seq":1,"wave":"dev-wave-t244-p3-u4-candidate-count"}
 - {"allocations":{"D:u4-member-rows-vs-candidates":"D198"},"authored":"2026-08-06","content_sha256":"c5c3484f9d306fe55dbc01acfcd850d7e4c74649e07841b40f3fa1a201c2787e","seq":1,"wave":"dev-wave-t244-p3-u4-candidate-count"}
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"42484a13bb13ce5c01e639fb3c87e0d59e93dc776018d92a39166ae97bbbc25a","seq":1,"wave":"dev-wave-t244-p3-u4-candidate-count"}
+
+- {"allocations":{"T:dev-wave-budget-priority":"[T-577]","T:dev-wave-l2-delta-audit":"[T-579]","T:dev-wave-single-launch-route":"[T-576]","T:mutation-key-remaining-vectors":"[T-578]"},"authored":"2026-08-06","content_sha256":"3e9ca7b3934b7bf4536d6a91f1418f1534e43907761098cba260b256711f78c2","seq":1,"wave":"dev-wave-t454-testification"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"ac213f689be8ab4f0837b90bb4ae6377752e359347c14b02ab34118258766959","seq":2,"wave":"dev-wave-t454-testification"}
