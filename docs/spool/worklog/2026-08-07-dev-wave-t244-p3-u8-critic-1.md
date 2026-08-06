@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-07
 wave: dev-wave-t244-p3-u8-critic
 seq: 1
-title: [T-244] critic 後置 (U-8) を実装した — 3 anchor のうち実在する Layer 3 admission だけへ後置し、新 event・版上げ・新上限はいずれも不要と実測した (コード + docs、受入 7078 passed / 20 skipped、変異 7/7 KILLED、branch worktree-dev-wave-t244-p3-u8-critic)
+title: [T-244] critic 後置 (U-8) を実装した — 3 anchor のうち実在する Layer 3 admission だけへ後置し、新 event・版上げ・新上限はいずれも不要と実測した (コード + docs、受入 7098 passed / 20 skipped、変異 7/7 KILLED、branch worktree-dev-wave-t244-p3-u8-critic)
 ---
 
 ## 本文

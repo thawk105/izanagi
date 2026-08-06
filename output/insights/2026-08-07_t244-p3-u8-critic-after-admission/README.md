@@ -83,4 +83,6 @@ critic は依然 ledger seal / proof issuance より前に metrics を受け取�
   harness は MISMATCH を返した。規約どおり初回を `mutation-ledger-run1-erratum.json` として凍結し、
   期待 node を実測集合 (2〜30 件) へ訂正して再走した。変異内容そのものは 1 byte も変えていない。
   M7 は承認外の過剰拒否を検出する正例で、既存正常系 30 件を赤にした。
-- **受入全走: 7078 passed / 20 skipped** (計算ノード、tip = 実装 + 逐語 + erratum + main 取り込み)。
+- **受入全走: 7098 passed / 20 skipped** (計算ノード、land する tip で実測)。
+  途中の tip (main 再取り込み前) では 7078 passed / 20 skipped だった。差は取り込んだ main が
+  持ち込んだテストの増加であり、本 wave の差分によるものではない。
