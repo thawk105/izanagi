@@ -1,0 +1,250 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        contract_resolver=_resolve_historical_contract_sha256,\n",
+          "new": "        contract_resolver=_resolve_current_contract_sha256,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_calibration_refusals_do_not_fallback_to_current[calibration-hash-mismatch]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_calibration_refusals_do_not_fallback_to_current[missing-calibration]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_rejects_dishonest_same_env_wrong_hash_resolver",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[ambiguous]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[cross-env]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[dishonest-resolver]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[malformed]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[unknown]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    entry = _env_contract.resolve_by_contract_sha256(\n        contract_sha256, expected_env_tag=expected_env_tag,\n    )\n",
+          "new": "    entry = _env_contract.resolve_by_contract_sha256(\n        contract_sha256,\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_rejects_dishonest_same_env_wrong_hash_resolver",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[ambiguous]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[cross-env]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[dishonest-resolver]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[malformed]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[unknown]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2c",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    entry = _env_contract.resolve_by_contract_sha256(\n        contract_sha256, expected_env_tag=expected_env_tag,\n    )\n",
+          "new": "    entry = _env_contract.resolve_by_contract_sha256(\n        contract_sha256,\n    )\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if (contract.env_tag != expected_env_tag\n            or contract.contract_sha256 != contract_sha256):\n",
+          "new": "    if contract.contract_sha256 != contract_sha256:\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        if (contract.env_tag != env_tag\n                or contract.contract_sha256 != document[\"contract_sha256\"]):\n",
+          "new": "        if contract.contract_sha256 != document[\"contract_sha256\"]:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_rejects_dishonest_same_env_wrong_hash_resolver",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[ambiguous]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[cross-env]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[dishonest-resolver]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[malformed]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[unknown]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if (contract.env_tag != expected_env_tag\n            or contract.contract_sha256 != contract_sha256):\n",
+          "new": "    if contract.env_tag != expected_env_tag:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        if (contract.env_tag != env_tag\n                or contract.contract_sha256 != document[\"contract_sha256\"]):\n",
+          "new": "        if contract.env_tag != env_tag:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3c",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if (contract.env_tag != expected_env_tag\n            or contract.contract_sha256 != contract_sha256):\n",
+          "new": "    if contract.env_tag != expected_env_tag:\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        if (contract.env_tag != env_tag\n                or contract.contract_sha256 != document[\"contract_sha256\"]):\n",
+          "new": "        if contract.env_tag != env_tag:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3e",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if (contract.env_tag != expected_env_tag\n            or contract.contract_sha256 != contract_sha256):\n",
+          "new": "    if contract.env_tag != expected_env_tag:\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        if (contract.env_tag != env_tag\n                or contract.contract_sha256 != document[\"contract_sha256\"]):\n",
+          "new": "        if contract.env_tag != env_tag:\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_floor_contract.py",
+          "old": "    if contract_sha256 != expected_contract_sha256:\n        raise FloorContractError(\n            \"protocol.contract_sha256 が contract_sha256_lookup の選択した contract と不一致\"\n        )\n",
+          "new": "    if contract_sha256 is None:\n        raise FloorContractError(\"unreachable\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_rejects_dishonest_same_env_wrong_hash_resolver"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3d",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_report.py",
+          "old": "            if (contract.env_tag != env_tag\n                    or contract.contract_sha256 != contract_sha256):\n",
+          "new": "            if contract.env_tag != env_tag:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_historical_resolver_fails_closed_without_current_fallback[dishonest-resolver]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        ratified, root, contract_resolver=_resolve_current_contract_sha256,\n",
+          "new": "        ratified, root, contract_resolver=_resolve_historical_contract_sha256,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_report.py",
+          "old": "            contract_resolver=env_contract.resolve_by_contract_sha256,\n",
+          "new": "            contract_resolver=(lambda h, *, expected_env_tag=None: env_contract.GenerationEntry(generation=1, contract=env_contract.lookup(expected_env_tag))),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_accepts_recorded_g1_under_g2_current",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_historical_resolver_fails_closed_without_current_fallback[ambiguous]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_historical_resolver_fails_closed_without_current_fallback[calibration-hash-mismatch]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_historical_resolver_fails_closed_without_current_fallback[cross-env]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_historical_resolver_fails_closed_without_current_fallback[dishonest-resolver]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_historical_resolver_fails_closed_without_current_fallback[malformed]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_historical_resolver_fails_closed_without_current_fallback[missing-calibration]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_historical_resolver_fails_closed_without_current_fallback[unknown]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_build_observations_resolves_contract_once_across_two_campaigns",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_manifest_contract_sha256_mismatch_with_registry_is_protocol_violation",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_required_receipt_consumer_derives_mode_and_passes_verified_calibration"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    except _env_attestation.AttestationError as exc:\n        raise RatifiedFreezeError(\n            \"journal-state-invalid\", f\"execution env contract を検証できない: {exc}\",\n            cause=\"receipt-contract\",\n        ) from exc\n",
+          "new": "    except _env_attestation.AttestationError:\n        verified_calibration = None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_calibration_refusals_do_not_fallback_to_current[missing-calibration]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_calibration_refusals_do_not_fallback_to_current[calibration-hash-mismatch]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "            extime_s=protocol[\"extime_s\"], clocks_per_us=contract.clocks_per_us,\n            numactl=contract.numactl,\n",
+          "new": "            extime_s=protocol[\"extime_s\"],\n            clocks_per_us=_env_contract.lookup(protocol[\"env_tag\"]).clocks_per_us,\n            numactl=_env_contract.lookup(protocol[\"env_tag\"]).numactl,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_run_cmd_projection_uses_passed_contract_as_structural_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
