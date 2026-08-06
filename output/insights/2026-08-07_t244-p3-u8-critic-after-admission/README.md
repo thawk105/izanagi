@@ -78,4 +78,9 @@ critic は依然 ledger seal / proof issuance より前に metrics を受け取�
 
 - 対象 2 file: 209 passed (実装直後) → 214 passed (fix 1 巡目) → 215 passed (N1 fix)。
   いずれも計算ノードで実測。ログインノードは実行基盤の attest 失敗で 2 回落ちたため計算ノードへ回した。
-- 変異 matrix と受入全走の結果は `mutation-ledger.json` と worklog に記録する。
+- **変異 matrix: 7/7 KILLED、baseline PASSED、rc=0** (`mutation-ledger.json`)。
+  初回走行は 7 変異すべてが赤くなったが、事前登録の期待 node が各 1 件と狭すぎたため
+  harness は MISMATCH を返した。規約どおり初回を `mutation-ledger-run1-erratum.json` として凍結し、
+  期待 node を実測集合 (2〜30 件) へ訂正して再走した。変異内容そのものは 1 byte も変えていない。
+  M7 は承認外の過剰拒否を検出する正例で、既存正常系 30 件を赤にした。
+- **受入全走: 7078 passed / 20 skipped** (計算ノード、tip = 実装 + 逐語 + erratum + main 取り込み)。
