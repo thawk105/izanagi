@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-07
 wave: dev-wave-t503-disposable-worktree
 seq: 1
-title: [T-503] 変異本走を使い捨て専有 worktree へ隔離する第一 slice を実装した — 共有木を触らないことだけを主張し §9.1 は 0/6 のまま (コード + docs、受入 7077 passed / 20 skipped、変異 14 件記録 (KILLED 9 / MISMATCH 5、全件で登録 node が赤)、branch worktree-dev-wave-t503-disposable-worktree)
+title: [T-503] 変異本走を使い捨て専有 worktree へ隔離する第一 slice を実装した — 共有木を触らないことだけを主張し §9.1 は 0/6 のまま (コード + docs、受入 7086 passed / 20 skipped、変異 14 件記録 (KILLED 9 / MISMATCH 5、全件で登録 node が赤)、branch worktree-dev-wave-t503-disposable-worktree)
 ---
 
 ## 本文
@@ -35,7 +35,10 @@ title: [T-503] 変異本走を使い捨て専有 worktree へ隔離する第一 
   待ち 142 件のままでも完走した走行がある。初回台帳は erratum として insight へ凍結した。
 - **受入全走の走行中に訂正 commit を作り、F106 を再発させた。** `validation_head` の不一致で
   1 failed になり、tree を固定した単独再走で 7077 passed / 20 skipped に戻った。
-  受入の正本は commit `3f2c43d7` に対する 3 走目である。
+  受入は 3 走した。実装 + 記録の tip `3f2c43d7` で 7077 passed / 20 skipped、
+  land 直前に main を取り込んだ tip `04f3c28f` で **7086 passed / 20 skipped** (件数差は
+  main が持ち込んだテストによる)。**certify したのは後者である。**
+  この受入数を書く docs-only commit 自体は走行後に作っており、tip はそれを含む。
 - **`DW-M05` は変更しなかった。** `docs/dev-wave/**` の hard ceiling に対し残りが 13 bytes で、
   追記すると安全義務を削る圧力がかかる。wrapper は必須ではないので運用規約は設計 §9.3 に置いた。
   必須化する slice で `DW-M05` の圧縮と同時に行う。
