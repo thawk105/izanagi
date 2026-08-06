@@ -1,0 +1,60 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=00:10:00
+#PBS -b 1
+
+if [[ -z "${T503_VERDICT_ROOT:-}" || -z "${T503_LEG_ROOTS:-}" \
+      || -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
+  exit 2
+fi
+[[ "$T503_VERDICT_ROOT" == /* ]] || exit 2
+
+check_no_symlink_components() {
+  local path=$1 component current=/
+  local -a components
+  [[ "$path" == /* ]] || return 1
+  IFS=/ read -r -a components <<< "$path"
+  for component in "${components[@]}"; do
+    [[ -z "$component" ]] && continue
+    if [[ "$current" == / ]]; then current="/$component"; else current="$current/$component"; fi
+    [[ ! -L "$current" ]] || return 1
+  done
+}
+
+umask 077
+set -o noclobber
+REAL_WORKDIR=$(realpath -e -- "$PBS_O_WORKDIR") || exit 2
+[[ "$REAL_WORKDIR" == "$PBS_O_WORKDIR" ]] || exit 2
+check_no_symlink_components "$REAL_WORKDIR" || exit 2
+check_no_symlink_components "$T503_VERDICT_ROOT" || exit 2
+mkdir -p -- "$T503_VERDICT_ROOT" || exit 2
+REAL_ROOT=$(realpath -e -- "$T503_VERDICT_ROOT") || exit 2
+[[ "$REAL_ROOT" == "$T503_VERDICT_ROOT" ]] || exit 2
+check_no_symlink_components "$REAL_ROOT" || exit 2
+[[ ! -e "$T503_VERDICT_ROOT/verdict.json" && ! -L "$T503_VERDICT_ROOT/verdict.json" ]] || exit 2
+
+PROBE="$REAL_WORKDIR/tools/pegasus/probes/t503_restore_durability_probe.py"
+PBS_SOURCE=$(realpath -e -- "$0") || exit 2
+[[ -f "$PROBE" && ! -L "$PROBE" && -f "$PBS_SOURCE" && ! -L "$PBS_SOURCE" ]] || exit 2
+check_no_symlink_components "$PROBE" || exit 2
+check_no_symlink_components "$PBS_SOURCE" || exit 2
+PY=$(command -v python3.10) || exit 2
+
+IFS=';' read -r -a LEG_ROOTS <<< "$T503_LEG_ROOTS"
+LEG_ARGS=()
+for leg_root in "${LEG_ROOTS[@]}"; do
+  [[ "$leg_root" == *=* ]] || exit 2
+  leg_name=${leg_root%%=*}
+  leg_path=${leg_root#*=}
+  [[ -n "$leg_name" && "$leg_path" == /* ]] || exit 2
+  REAL_LEG_ROOT=$(realpath -e -- "$leg_path") || exit 2
+  [[ "$REAL_LEG_ROOT" == "$leg_path" ]] || exit 2
+  check_no_symlink_components "$REAL_LEG_ROOT" || exit 2
+  LEG_ARGS+=(--leg-root "$leg_name=$REAL_LEG_ROOT")
+done
+
+"$PY" -I -B "$PROBE" verdict --root "$T503_VERDICT_ROOT" \
+  --output "$T503_VERDICT_ROOT/verdict.json" "${LEG_ARGS[@]}"
+VERDICT_RC=$?
+exit "$VERDICT_RC"
