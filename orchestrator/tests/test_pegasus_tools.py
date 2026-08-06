@@ -348,7 +348,7 @@ exit 0
 
 def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
     policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
-    assert policy["gflags_source_path"] == "/home/SFC/tanab/github/gflags"
+    assert policy["gflags_source_path"] == "/work/SFC/tanab/github/gflags"
     assert policy["gflags_expected_head"] == (
         "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
     )
@@ -382,7 +382,7 @@ def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
 
 def test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench():
     policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
-    assert policy["glog_source_path"] == "/home/SFC/tanab/github/glog"
+    assert policy["glog_source_path"] == "/work/SFC/tanab/github/glog"
     assert policy["glog_expected_head"] == (
         "8f9ccfe770add9e4c64e9b25c102658e3c763b73"
     )

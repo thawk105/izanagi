@@ -340,6 +340,14 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
     例外として漏らさない)。単体 gate CLI 経路 (ratified 未指定) では自身で
     ``load_ratified_freeze`` を一度呼ぶ。
     """
+    if (launch_validated is not None
+            and type(launch_validated) is not s8b_ratified_freeze.LaunchValidatedFreeze):
+        return _make_gate_decision(
+            t080_resolution,
+            refusals=[
+                "v2-execution: launch-validate: validated freeze object の型が不正"
+            ],
+        )
     root = Path(root)
     refusals: list[str] = []
     freeze: Optional[dict] = None
