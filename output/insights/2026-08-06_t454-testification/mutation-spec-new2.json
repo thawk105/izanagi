@@ -1,0 +1,73 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "MU-8-match-key-basename-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{_p.rsplit('/', 1)[-1]}::{_t}\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[basename]",
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-9-match-key-tail-two-components",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{'/'.join(_p.split('/')[-2:])}::{_t}\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-10-match-key-casefold",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo).casefold()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[casefold]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-11-match-key-drops-class-namespace",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{_p}::{_t.rsplit('::', 1)[-1]}\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[classns]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

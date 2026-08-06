@@ -1,0 +1,425 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/dd5dcf2864fc7bf1b4306e2ef0ded5a4/izdw-dd5dcf2864.o892676",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/dd5dcf2864fc7bf1b4306e2ef0ded5a4/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................................................         [100%]\n64 passed in 4.80s\n",
+      "stdout_sha256": "3b631caf603dfc3e28f5e80c97b11abbd409909e59b64301e1aa6810caf00e81"
+    },
+    "artifact_error": null,
+    "collection_sha256": "c1a4ba7a4d04969f8b510687c49f33c385604bd311cbba40981d5fcae22154e6",
+    "duration_s": 32.06,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "bff63ffd623560cabfe43ff3965107dbc912a2bdd60df0b08803be04db613c8c",
+    "repo_head": "b3dc8debfa1dd776fe1c3a5310818cc0d7a9d238",
+    "runner_sha256": "0c5f7c3a2c1a26232a3d36757f380654906de1b89e76e52e49422f986469bc7e",
+    "spec_sha256": "12b09df5429d155a7373bf7c6a6d197ed5d5e3f28f643a42d6c7d1483004c905",
+    "status": "PASSED",
+    "test_output_sha256": "3b631caf603dfc3e28f5e80c97b11abbd409909e59b64301e1aa6810caf00e81",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+  },
+  "date": "2026-08-06T02:10:20.414321+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/0a268914fc97e607fdd3c9d8a537ab1a/izdw-0a268914fc.o892677",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/0a268914fc97e607fdd3c9d8a537ab1a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................F...............F..........................         [100%]\n=================================== FAILURES ===================================\n__________ test_match_key_keeps_distinct_pytest_nodes_separate[tail2] __________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_match_key_keeps_distinct_0/repo')\nexpected_node = 'tests/p/x/a.py::test_gate'\nfailed_node = 'tests/q/x/a.py::test_gate'\n\n    @pytest.mark.parametrize(\n        (\"expected_node\", \"failed_node\"),\n        [\n            pytest.param(\n                \"tests/x/a.py::test_gate\", \"tests/y/a.py::test_gate\", id=\"basename\"\n            ),\n            pytest.param(\n                \"tests/p/x/a.py::test_gate\",\n                \"tests/q/x/a.py::test_gate\",\n                id=\"tail2\",\n            ),\n            pytest.param(\n                \"tests/A.py::test_gate\", \"tests/a.py::test_gate\", id=\"casefold\"\n            ),\n            pytest.param(\n                \"tests/a.py::C1::test_gate\",\n                \"tests/a.py::C2::test_gate\",\n                id=\"classns\",\n            ),\n        ],\n    )\n    def test_match_key_keeps_distinct_pytest_nodes_separate(\n        repo: Path, expected_node: str, failed_node: str\n    ) -> None:\n        status = MH._observed_status(\n            result={\"timed_out\": False, \"rc\": 1, \"artifact_error\": None},\n            failed=[failed_node],\n            expected=[expected_node],\n            repo=repo,\n        )\n    \n>       assert status == \"MISMATCH\"\nE       AssertionError: assert 'KILLED' == 'MISMATCH'\nE         \nE         - MISMATCH\nE         + KILLED\n\norchestrator/tests/test_mutation_harness.py:427: AssertionError\n________ test_match_key_keeps_distinct_pytest_nodes_separate[basename] _________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_match_key_keeps_distinct_0/repo')\nexpected_node = 'tests/x/a.py::test_gate'\nfailed_node = 'tests/y/a.py::test_gate'\n\n    @pytest.mark.parametrize(\n        (\"expected_node\", \"failed_node\"),\n        [\n            pytest.param(\n                \"tests/x/a.py::test_gate\", \"tests/y/a.py::test_gate\", id=\"basename\"\n            ),\n            pytest.param(\n                \"tests/p/x/a.py::test_gate\",\n                \"tests/q/x/a.py::test_gate\",\n                id=\"tail2\",\n            ),\n            pytest.param(\n                \"tests/A.py::test_gate\", \"tests/a.py::test_gate\", id=\"casefold\"\n            ),\n            pytest.param(\n                \"tests/a.py::C1::test_gate\",\n                \"tests/a.py::C2::test_gate\",\n                id=\"classns\",\n            ),\n        ],\n    )\n    def test_match_key_keeps_distinct_pytest_nodes_separate(\n        repo: Path, expected_node: str, failed_node: str\n    ) -> None:\n        status = MH._observed_status(\n            result={\"timed_out\": False, \"rc\": 1, \"artifact_error\": None},\n            failed=[failed_node],\n            expected=[expected_node],\n            repo=repo,\n        )\n    \n>       assert status == \"MISMATCH\"\nE       AssertionError: assert 'KILLED' == 'MISMATCH'\nE         \nE         - MISMATCH\nE         + KILLED\n\norchestrator/tests/test_mutation_harness.py:427: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]\nFAILED orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[basename]\n2 failed, 62 passed in 4.83s\n",
+        "stdout_sha256": "0c33839e1e32ca360aa370505727bb64637b040efe8cba9920b990399c4a79c3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1a4ba7a4d04969f8b510687c49f33c385604bd311cbba40981d5fcae22154e6",
+      "duration_s": 88.957,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[basename]",
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]",
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[basename]"
+      ],
+      "hang_risk": false,
+      "id": "MU-8-match-key-basename-only",
+      "injection_diff_sha256": "335cfdb005e6287aff4b78ec785e17f1d8a0c6e15141f3dce9e0d17e9278d089",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ad9aca7718bcc75fbe3414c954cd2072608b506ad631816c9e7b09a8719115fa",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{_p.rsplit('/', 1)[-1]}::{_t}\"",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+        }
+      ],
+      "repo_head": "b3dc8debfa1dd776fe1c3a5310818cc0d7a9d238",
+      "runner_sha256": "0c5f7c3a2c1a26232a3d36757f380654906de1b89e76e52e49422f986469bc7e",
+      "spec_sha256": "12b09df5429d155a7373bf7c6a6d197ed5d5e3f28f643a42d6c7d1483004c905",
+      "status": "KILLED",
+      "test_output_sha256": "0c33839e1e32ca360aa370505727bb64637b040efe8cba9920b990399c4a79c3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/8403c8904d2626efc5e981d828896e0b/izdw-8403c8904d.o892679",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/8403c8904d2626efc5e981d828896e0b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................F..............................................         [100%]\n=================================== FAILURES ===================================\n__________ test_match_key_keeps_distinct_pytest_nodes_separate[tail2] __________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_match_key_keeps_distinct_0/repo')\nexpected_node = 'tests/p/x/a.py::test_gate'\nfailed_node = 'tests/q/x/a.py::test_gate'\n\n    @pytest.mark.parametrize(\n        (\"expected_node\", \"failed_node\"),\n        [\n            pytest.param(\n                \"tests/x/a.py::test_gate\", \"tests/y/a.py::test_gate\", id=\"basename\"\n            ),\n            pytest.param(\n                \"tests/p/x/a.py::test_gate\",\n                \"tests/q/x/a.py::test_gate\",\n                id=\"tail2\",\n            ),\n            pytest.param(\n                \"tests/A.py::test_gate\", \"tests/a.py::test_gate\", id=\"casefold\"\n            ),\n            pytest.param(\n                \"tests/a.py::C1::test_gate\",\n                \"tests/a.py::C2::test_gate\",\n                id=\"classns\",\n            ),\n        ],\n    )\n    def test_match_key_keeps_distinct_pytest_nodes_separate(\n        repo: Path, expected_node: str, failed_node: str\n    ) -> None:\n        status = MH._observed_status(\n            result={\"timed_out\": False, \"rc\": 1, \"artifact_error\": None},\n            failed=[failed_node],\n            expected=[expected_node],\n            repo=repo,\n        )\n    \n>       assert status == \"MISMATCH\"\nE       AssertionError: assert 'KILLED' == 'MISMATCH'\nE         \nE         - MISMATCH\nE         + KILLED\n\norchestrator/tests/test_mutation_harness.py:427: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]\n1 failed, 63 passed in 4.81s\n",
+        "stdout_sha256": "7722de7bfbbf97e16a982ebb779aed3248d807c76243df8e584c6e4a86ea5e23"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1a4ba7a4d04969f8b510687c49f33c385604bd311cbba40981d5fcae22154e6",
+      "duration_s": 180.57,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]"
+      ],
+      "hang_risk": false,
+      "id": "MU-9-match-key-tail-two-components",
+      "injection_diff_sha256": "14bfa005cdd9b1cf1c69fb6fd027076f456a2c353fe3b178e01066edef0aff7e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "50127116eda3ed1f72c603fff420ee5ac24ceb242f126eecfaa28e411262efd4",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{'/'.join(_p.split('/')[-2:])}::{_t}\"",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+        }
+      ],
+      "repo_head": "b3dc8debfa1dd776fe1c3a5310818cc0d7a9d238",
+      "runner_sha256": "0c5f7c3a2c1a26232a3d36757f380654906de1b89e76e52e49422f986469bc7e",
+      "spec_sha256": "12b09df5429d155a7373bf7c6a6d197ed5d5e3f28f643a42d6c7d1483004c905",
+      "status": "KILLED",
+      "test_output_sha256": "7722de7bfbbf97e16a982ebb779aed3248d807c76243df8e584c6e4a86ea5e23",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/08a21b1648551e9616d1e9304e0a39ba/izdw-08a21b1648.o892681",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/08a21b1648551e9616d1e9304e0a39ba/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................F...........................         [100%]\n=================================== FAILURES ===================================\n________ test_match_key_keeps_distinct_pytest_nodes_separate[casefold] _________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_match_key_keeps_distinct_0/repo')\nexpected_node = 'tests/A.py::test_gate', failed_node = 'tests/a.py::test_gate'\n\n    @pytest.mark.parametrize(\n        (\"expected_node\", \"failed_node\"),\n        [\n            pytest.param(\n                \"tests/x/a.py::test_gate\", \"tests/y/a.py::test_gate\", id=\"basename\"\n            ),\n            pytest.param(\n                \"tests/p/x/a.py::test_gate\",\n                \"tests/q/x/a.py::test_gate\",\n                id=\"tail2\",\n            ),\n            pytest.param(\n                \"tests/A.py::test_gate\", \"tests/a.py::test_gate\", id=\"casefold\"\n            ),\n            pytest.param(\n                \"tests/a.py::C1::test_gate\",\n                \"tests/a.py::C2::test_gate\",\n                id=\"classns\",\n            ),\n        ],\n    )\n    def test_match_key_keeps_distinct_pytest_nodes_separate(\n        repo: Path, expected_node: str, failed_node: str\n    ) -> None:\n        status = MH._observed_status(\n            result={\"timed_out\": False, \"rc\": 1, \"artifact_error\": None},\n            failed=[failed_node],\n            expected=[expected_node],\n            repo=repo,\n        )\n    \n>       assert status == \"MISMATCH\"\nE       AssertionError: assert 'KILLED' == 'MISMATCH'\nE         \nE         - MISMATCH\nE         + KILLED\n\norchestrator/tests/test_mutation_harness.py:427: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[casefold]\n1 failed, 63 passed in 4.87s\n",
+        "stdout_sha256": "9e0308659c29ee022c8508fce07a379e2a339286081f19ab27c2ab41bcea7cf0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1a4ba7a4d04969f8b510687c49f33c385604bd311cbba40981d5fcae22154e6",
+      "duration_s": 57.616,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[casefold]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[casefold]"
+      ],
+      "hang_risk": false,
+      "id": "MU-10-match-key-casefold",
+      "injection_diff_sha256": "d1ae7ce2658be12443d9cf9a806e70858492e7147a712e5e812fc20a2051f46b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0013ccf14127c332e0f00d58cda286e91c95c86abe8830eb1c68967d5f2121e6",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo).casefold()",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+        }
+      ],
+      "repo_head": "b3dc8debfa1dd776fe1c3a5310818cc0d7a9d238",
+      "runner_sha256": "0c5f7c3a2c1a26232a3d36757f380654906de1b89e76e52e49422f986469bc7e",
+      "spec_sha256": "12b09df5429d155a7373bf7c6a6d197ed5d5e3f28f643a42d6c7d1483004c905",
+      "status": "KILLED",
+      "test_output_sha256": "9e0308659c29ee022c8508fce07a379e2a339286081f19ab27c2ab41bcea7cf0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/5a15c82ff9ea366e2e6fc6e15fd51af6/izdw-5a15c82ff9.o892683",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/5a15c82ff9ea366e2e6fc6e15fd51af6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................F...........................         [100%]\n=================================== FAILURES ===================================\n_________ test_match_key_keeps_distinct_pytest_nodes_separate[classns] _________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_match_key_keeps_distinct_0/repo')\nexpected_node = 'tests/a.py::C1::test_gate'\nfailed_node = 'tests/a.py::C2::test_gate'\n\n    @pytest.mark.parametrize(\n        (\"expected_node\", \"failed_node\"),\n        [\n            pytest.param(\n                \"tests/x/a.py::test_gate\", \"tests/y/a.py::test_gate\", id=\"basename\"\n            ),\n            pytest.param(\n                \"tests/p/x/a.py::test_gate\",\n                \"tests/q/x/a.py::test_gate\",\n                id=\"tail2\",\n            ),\n            pytest.param(\n                \"tests/A.py::test_gate\", \"tests/a.py::test_gate\", id=\"casefold\"\n            ),\n            pytest.param(\n                \"tests/a.py::C1::test_gate\",\n                \"tests/a.py::C2::test_gate\",\n                id=\"classns\",\n            ),\n        ],\n    )\n    def test_match_key_keeps_distinct_pytest_nodes_separate(\n        repo: Path, expected_node: str, failed_node: str\n    ) -> None:\n        status = MH._observed_status(\n            result={\"timed_out\": False, \"rc\": 1, \"artifact_error\": None},\n            failed=[failed_node],\n            expected=[expected_node],\n            repo=repo,\n        )\n    \n>       assert status == \"MISMATCH\"\nE       AssertionError: assert 'KILLED' == 'MISMATCH'\nE         \nE         - MISMATCH\nE         + KILLED\n\norchestrator/tests/test_mutation_harness.py:427: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[classns]\n1 failed, 63 passed in 4.89s\n",
+        "stdout_sha256": "7fa1906343c44dd13aa1c8bac6887233f1fb3eb8c606290d19b674332682a43d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1a4ba7a4d04969f8b510687c49f33c385604bd311cbba40981d5fcae22154e6",
+      "duration_s": 124.106,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[classns]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[classns]"
+      ],
+      "hang_risk": false,
+      "id": "MU-11-match-key-drops-class-namespace",
+      "injection_diff_sha256": "fff90fb5053bf54da22bf99bddadbd0b2782f6d7fd2c2dc53ed6502ed74935c9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6ba58e2f9eef6e436f4b6addce0afdcf31ff4079da6c7081c514b9e9959da5c6",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{_p}::{_t.rsplit('::', 1)[-1]}\"",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+        }
+      ],
+      "repo_head": "b3dc8debfa1dd776fe1c3a5310818cc0d7a9d238",
+      "runner_sha256": "0c5f7c3a2c1a26232a3d36757f380654906de1b89e76e52e49422f986469bc7e",
+      "spec_sha256": "12b09df5429d155a7373bf7c6a6d197ed5d5e3f28f643a42d6c7d1483004c905",
+      "status": "KILLED",
+      "test_output_sha256": "7fa1906343c44dd13aa1c8bac6887233f1fb3eb8c606290d19b674332682a43d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/7b42e242484f0ffc72e8a1181f3c5608/izdw-7b42e24248.o892673",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/7b42e242484f0ffc72e8a1181f3c5608/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line\norchestrator/tests/test_mutation_harness.py::test_cumulative_replacement_uses_the_result_of_the_previous_anchor\norchestrator/tests/test_mutation_harness.py::test_failed_node_parser_keeps_parameter_and_full_node\norchestrator/tests/test_mutation_harness.py::test_expected_spec_hash_mismatch_stops_before_runner_and_ledger\norchestrator/tests/test_mutation_harness.py::test_applied_diff_must_equal_registration_preflight\norchestrator/tests/test_mutation_harness.py::test_fake_runner_is_rejected_before_execution\norchestrator/tests/test_mutation_harness.py::test_expected_node_must_exist_in_pytest_collection\norchestrator/tests/test_mutation_harness.py::test_parameter_suffix_is_matched_exactly\norchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_superset_never_counts_as_killed\norchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_subset_never_counts_as_killed\norchestrator/tests/test_mutation_harness.py::test_same_test_part_from_different_path_never_counts_as_killed\norchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[basename]\norchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]\norchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[casefold]\norchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[classns]\norchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[2]\norchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[3]\norchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[5]\norchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[spec]\norchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[out]\norchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[temp]\norchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[False]\norchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[True]\norchestrator/tests/test_mutation_harness.py::test_startup_rejects_one_byte_head_mismatch_before_runner_or_ledger\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_head\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_spec_hash\norchestrator/tests/test_mutation_harness.py::test_resume_reruns_parse_error_and_skips_terminal_record\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_incomplete_running_record_before_runner\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_corrupt_json\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_duplicate_record_id\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_every_missing_terminal_and_baseline_field_before_runner\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[rc-0-status \\u304c rc/node/artifact evidence \\u3068\\u4e0d\\u4e00\\u81f4]\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[expected_nodes-value1-\\u73fe spec/evidence]\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[injection_diff_sha256-0000000000000000000000000000000000000000000000000000000000000000-\\u73fe spec/evidence]\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[tool_sha256-0000000000000000000000000000000000000000000000000000000000000000-\\u73fe spec/evidence]\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_minimal_forged_terminal_record\norchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[ABSENT-anchor count=0]\norchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[\"x\"-anchor count=2]\norchestrator/tests/test_mutation_harness.py::test_abnormal_rc_with_expected_failed_node_flushes_parse_error_and_stops\norchestrator/tests/test_mutation_harness.py::test_hang_risk_uses_short_timeout_records_evidence_and_restores\norchestrator/tests/test_mutation_harness.py::test_restore_verification_rejects_content_different_from_head\norchestrator/tests/test_mutation_harness.py::test_apply_mutation_calls_restore_at_the_production_callsite\norchestrator/tests/test_mutation_harness.py::test_flock_rejects_a_competing_harness_for_the_same_repo\norchestrator/tests/test_mutation_harness.py::test_atomic_writer_killed_before_replace_preserves_previous_ledger\norchestrator/tests/test_mutation_harness.py::test_signal_arriving_during_restore_is_deferred_until_all_targets_verified\norchestrator/tests/test_mutation_harness.py::test_completed_record_is_flushed_before_next_runner_sigkill\norchestrator/tests/test_mutation_harness.py::test_sigterm_handler_stops_child_and_restores_active_mutation\norchestrator/tests/test_mutation_harness.py::test_dispatch_reader_uses_receipt_bound_full_job_stdout\norchestrator/tests/test_mutation_harness.py::test_dispatch_run_calls_receipt_reader_instead_of_using_console_stdout\norchestrator/tests/test_mutation_harness.py::test_dispatch_collection_uses_compute_dispatcher_not_login_exempt_runner\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--q]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--qq]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local---quiet]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--v]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--vv]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local---verbose]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--q]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--qq]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch---quiet]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--v]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--vv]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch---verbose]\norchestrator/tests/test_mutation_harness.py::test_dispatch_reader_rejects_console_rc_different_from_receipt_line\norchestrator/tests/test_mutation_harness.py::test_unknown_spec_schema_is_rejected\n\n64 tests collected in 0.17s\n",
+        "stdout_sha256": "fdb248be8229445ac59fd71969c77ee4de40192a9ba7d86517ff70391e9471cf"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line",
+        "orchestrator/tests/test_mutation_harness.py::test_cumulative_replacement_uses_the_result_of_the_previous_anchor",
+        "orchestrator/tests/test_mutation_harness.py::test_failed_node_parser_keeps_parameter_and_full_node",
+        "orchestrator/tests/test_mutation_harness.py::test_expected_spec_hash_mismatch_stops_before_runner_and_ledger",
+        "orchestrator/tests/test_mutation_harness.py::test_applied_diff_must_equal_registration_preflight",
+        "orchestrator/tests/test_mutation_harness.py::test_fake_runner_is_rejected_before_execution",
+        "orchestrator/tests/test_mutation_harness.py::test_expected_node_must_exist_in_pytest_collection",
+        "orchestrator/tests/test_mutation_harness.py::test_parameter_suffix_is_matched_exactly",
+        "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_superset_never_counts_as_killed",
+        "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_subset_never_counts_as_killed",
+        "orchestrator/tests/test_mutation_harness.py::test_same_test_part_from_different_path_never_counts_as_killed",
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[basename]",
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]",
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[casefold]",
+        "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[classns]",
+        "orchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[2]",
+        "orchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[3]",
+        "orchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[5]",
+        "orchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[spec]",
+        "orchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[out]",
+        "orchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[temp]",
+        "orchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[False]",
+        "orchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[True]",
+        "orchestrator/tests/test_mutation_harness.py::test_startup_rejects_one_byte_head_mismatch_before_runner_or_ledger",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_head",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_spec_hash",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_reruns_parse_error_and_skips_terminal_record",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_incomplete_running_record_before_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_corrupt_json",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_duplicate_record_id",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_every_missing_terminal_and_baseline_field_before_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[rc-0-status /u304c rc/node/artifact evidence /u3068/u4e0d/u4e00/u81f4]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[expected_nodes-value1-/u73fe spec/evidence]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[injection_diff_sha256-0000000000000000000000000000000000000000000000000000000000000000-/u73fe spec/evidence]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[tool_sha256-0000000000000000000000000000000000000000000000000000000000000000-/u73fe spec/evidence]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_minimal_forged_terminal_record",
+        "orchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[ABSENT-anchor count=0]",
+        "orchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[\"x\"-anchor count=2]",
+        "orchestrator/tests/test_mutation_harness.py::test_abnormal_rc_with_expected_failed_node_flushes_parse_error_and_stops",
+        "orchestrator/tests/test_mutation_harness.py::test_hang_risk_uses_short_timeout_records_evidence_and_restores",
+        "orchestrator/tests/test_mutation_harness.py::test_restore_verification_rejects_content_different_from_head",
+        "orchestrator/tests/test_mutation_harness.py::test_apply_mutation_calls_restore_at_the_production_callsite",
+        "orchestrator/tests/test_mutation_harness.py::test_flock_rejects_a_competing_harness_for_the_same_repo",
+        "orchestrator/tests/test_mutation_harness.py::test_atomic_writer_killed_before_replace_preserves_previous_ledger",
+        "orchestrator/tests/test_mutation_harness.py::test_signal_arriving_during_restore_is_deferred_until_all_targets_verified",
+        "orchestrator/tests/test_mutation_harness.py::test_completed_record_is_flushed_before_next_runner_sigkill",
+        "orchestrator/tests/test_mutation_harness.py::test_sigterm_handler_stops_child_and_restores_active_mutation",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_reader_uses_receipt_bound_full_job_stdout",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_run_calls_receipt_reader_instead_of_using_console_stdout",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_collection_uses_compute_dispatcher_not_login_exempt_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--q]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--qq]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local---quiet]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--v]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--vv]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local---verbose]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--q]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--qq]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch---quiet]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--v]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--vv]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch---verbose]",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_reader_rejects_console_rc_different_from_receipt_line",
+        "orchestrator/tests/test_mutation_harness.py::test_unknown_spec_schema_is_rejected"
+      ],
+      "duration_s": 88.368,
+      "rc": 0,
+      "repo_head": "b3dc8debfa1dd776fe1c3a5310818cc0d7a9d238",
+      "runner_sha256": "0c5f7c3a2c1a26232a3d36757f380654906de1b89e76e52e49422f986469bc7e",
+      "spec_sha256": "12b09df5429d155a7373bf7c6a6d197ed5d5e3f28f643a42d6c7d1483004c905",
+      "status": "PASSED",
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MU-10-match-key-casefold": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[casefold]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d1ae7ce2658be12443d9cf9a806e70858492e7147a712e5e812fc20a2051f46b",
+        "replacements": [
+          {
+            "file": "tools/mutation_harness.py",
+            "new": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo).casefold()",
+            "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+          }
+        ]
+      },
+      "MU-11-match-key-drops-class-namespace": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[classns]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fff90fb5053bf54da22bf99bddadbd0b2782f6d7fd2c2dc53ed6502ed74935c9",
+        "replacements": [
+          {
+            "file": "tools/mutation_harness.py",
+            "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{_p}::{_t.rsplit('::', 1)[-1]}\"",
+            "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+          }
+        ]
+      },
+      "MU-8-match-key-basename-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[basename]",
+          "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "335cfdb005e6287aff4b78ec785e17f1d8a0c6e15141f3dce9e0d17e9278d089",
+        "replacements": [
+          {
+            "file": "tools/mutation_harness.py",
+            "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{_p.rsplit('/', 1)[-1]}::{_t}\"",
+            "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+          }
+        ]
+      },
+      "MU-9-match-key-tail-two-components": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_harness.py::test_match_key_keeps_distinct_pytest_nodes_separate[tail2]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "14bfa005cdd9b1cf1c69fb6fd027076f456a2c353fe3b178e01066edef0aff7e",
+        "replacements": [
+          {
+            "file": "tools/mutation_harness.py",
+            "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{'/'.join(_p.split('/')[-2:])}::{_t}\"",
+            "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "bff63ffd623560cabfe43ff3965107dbc912a2bdd60df0b08803be04db613c8c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mutation_harness.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "b3dc8debfa1dd776fe1c3a5310818cc0d7a9d238",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mutation_harness.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/tools/run_tests.py",
+    "entrypoint_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "249e2fa59faf9701860ebfb23f170e021b193bb6",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "0c5f7c3a2c1a26232a3d36757f380654906de1b89e76e52e49422f986469bc7e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "12b09df5429d155a7373bf7c6a6d197ed5d5e3f28f643a42d6c7d1483004c905",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f",
+  "updated_at": "2026-08-06T02:18:29.706769+00:00"
+}

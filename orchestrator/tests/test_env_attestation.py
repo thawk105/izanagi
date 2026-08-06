@@ -944,6 +944,7 @@ _V1_CORPUS_PAIRS = (
 _V1_CORPUS_DOCS = {
     "calibration/attempts/0_867874.nqsv/calibration.md",
     "calibration/attempts/0_867876.nqsv/calibration.md",
+    "calibration/attempts/0_892707.nqsv/calibration.md",
     "silo_ladder_rung1/README.md",
 }
 _V1_SUCCESS_JSONS = {
@@ -995,15 +996,16 @@ def test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies():
     assert discovered_payloads == golden_payloads
     assert discovered_docs == _V1_CORPUS_DOCS
     assert all((root / path).is_file() for path in _V1_CORPUS_DOCS)
-    assert len(golden_payloads | discovered_docs) == 47
+    assert len(golden_payloads | discovered_docs) == 48
     assert _V1_SUCCESS_JSONS.isdisjoint(_V1_FAILURE_JSONS)
     assert _V1_SUCCESS_JSONS | _V1_FAILURE_JSONS == {
         pair[0] for pair in _V1_CORPUS_PAIRS
     }
 
-    registered = json.loads(next(
-        (root / "calibration/registered").glob("calibration-*.json")
-    ).read_text(encoding="utf-8"))
+    registered_ref = ec.lookup("pegasus").calibration_ref
+    registered_raw = (_ORCH.parent / registered_ref.path).read_bytes()
+    assert hashlib.sha256(registered_raw).hexdigest() == registered_ref.sha256
+    registered = json.loads(registered_raw)
     expected_clock = {
         "samples_mhz": registered["attestation_profile"]["effective_clock"]["samples_mhz"],
         "tolerance_pct": 2.0,

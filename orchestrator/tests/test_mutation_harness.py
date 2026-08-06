@@ -349,6 +349,84 @@ def test_parameter_suffix_is_matched_exactly(repo: Path) -> None:
     assert record["failed_nodes"] == ["tests/test_gate.py::test_gate[two]"]
 
 
+def test_failed_nodes_strict_superset_never_counts_as_killed(repo: Path) -> None:
+    expected = ["tests/test_gate.py::test_gate[one]"]
+    failed = [*expected, "tests/test_gate.py::test_gate[two]"]
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=failed,
+        expected=expected,
+        repo=repo,
+    )
+
+    assert status == "MISMATCH"
+
+
+def test_failed_nodes_strict_subset_never_counts_as_killed(repo: Path) -> None:
+    expected = [
+        "tests/test_gate.py::test_gate[one]",
+        "tests/test_gate.py::test_gate[two]",
+    ]
+    failed = ["tests/test_gate.py::test_gate[one]"]
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=failed,
+        expected=expected,
+        repo=repo,
+    )
+
+    assert status == "MISMATCH"
+
+
+def test_same_test_part_from_different_path_never_counts_as_killed(
+    repo: Path,
+) -> None:
+    expected = ["tests/a.py::test_gate[one]"]
+    failed = ["tests/b.py::test_gate[one]"]
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=failed,
+        expected=expected,
+        repo=repo,
+    )
+
+    assert status == "MISMATCH"
+
+
+@pytest.mark.parametrize(
+    ("expected_node", "failed_node"),
+    [
+        pytest.param(
+            "tests/x/a.py::test_gate", "tests/y/a.py::test_gate", id="basename"
+        ),
+        pytest.param(
+            "tests/p/x/a.py::test_gate",
+            "tests/q/x/a.py::test_gate",
+            id="tail2",
+        ),
+        pytest.param(
+            "tests/A.py::test_gate", "tests/a.py::test_gate", id="casefold"
+        ),
+        pytest.param(
+            "tests/a.py::C1::test_gate",
+            "tests/a.py::C2::test_gate",
+            id="classns",
+        ),
+    ],
+)
+def test_match_key_keeps_distinct_pytest_nodes_separate(
+    repo: Path, expected_node: str, failed_node: str
+) -> None:
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=[failed_node],
+        expected=[expected_node],
+        repo=repo,
+    )
+
+    assert status == "MISMATCH"
+
+
 @pytest.mark.parametrize("rc", [2, 3, 5])
 def test_abnormal_pytest_rc_never_counts_as_killed(repo: Path, rc: int) -> None:
     expected = ["tests/test_gate.py::test_gate[one]"]

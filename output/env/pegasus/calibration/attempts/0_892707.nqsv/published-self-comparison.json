@@ -1,0 +1,9 @@
+{
+  "input_sha256": "94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9",
+  "passed": true,
+  "policy_identity": {
+    "authority": "calibrator.effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT",
+    "tolerance_pct": 2.0
+  },
+  "schema": "izanagi/published-effective-clock-self-comparison/v1"
+}
