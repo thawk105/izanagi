@@ -845,6 +845,47 @@ def test_run_contract_reps_declaration_is_fail_closed(
     }]
 
 
+@pytest.mark.parametrize(
+    ("field", "damage"),
+    [
+        pytest.param("env_tag", "missing", id="env-tag-missing"),
+        pytest.param("env_tag", "", id="env-tag-empty"),
+        pytest.param("env_tag", 1, id="env-tag-non-string"),
+        pytest.param("contract_sha256", "missing", id="contract-sha256-missing"),
+        pytest.param("contract_sha256", "", id="contract-sha256-empty"),
+        pytest.param("contract_sha256", 1, id="contract-sha256-non-string"),
+    ],
+)
+def test_run_contract_identity_declaration_is_fail_closed_before_resolution(
+        tmp_path, monkeypatch, field, damage):
+    manifest = _manifest(tmp_path)
+    if damage == "missing":
+        manifest["run_contract"].pop(field)
+    else:
+        manifest["run_contract"][field] = damage
+    manifest = _schema_less_legacy(manifest)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    resolver = mock.Mock(
+        side_effect=AssertionError("不正宣言を resolver へ渡してはいけない"),
+    )
+    monkeypatch.setattr(
+        report.env_contract, "resolve_by_contract_sha256", resolver,
+    )
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )
+    rows = observations["rows"]
+
+    assert len(rows) == len(manifest["schedule"]["rows"]) > 0
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert {row["reason"] for row in rows} == {
+        f"manifest.run_contract.{field} が非空 str でない",
+    }
+    resolver.assert_not_called()
+
+
 def test_run_contract_issue_does_not_override_missing_terminal_head_behavior(
         tmp_path):
     manifest = _manifest(tmp_path)
@@ -908,6 +949,49 @@ def test_staged_legacy_v1_without_run_contract_remains_accepted(tmp_path):
     assert type(legacy) is artifacts.LegacyManifest
     assert type(observations) is artifacts.OfficialObservations
     assert observations["manifest_kind"] == "legacy"
+
+
+def test_completed_legacy_without_run_contract_or_receipt_skips_contract_checks(
+        tmp_path, monkeypatch):
+    document = dict(_manifest(tmp_path))
+    document.pop("run_contract")
+    legacy = artifacts.load_official_manifest(json.dumps(document).encode())
+    assert type(legacy) is artifacts.LegacyManifest
+    assert "run_contract" not in legacy
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
+    start_payload = {
+        "manifest_sha256": oracle_manifest.manifest_sha256(legacy),
+        "block_id": "b0",
+        "campaign_id": "oracle-b0",
+        "t080_freeze_migration_observation": {
+            "state": "never-issued", "validation_head": "0" * 40,
+        },
+    }
+    assert "execution_receipt" not in start_payload
+    _session(layout, "campaign-start", start_payload)
+    _finish_campaign(layout, legacy)
+    resolver = mock.Mock(
+        side_effect=AssertionError("legacy manifest を resolver へ渡してはいけない"),
+    )
+    calibration_loader = mock.Mock(
+        side_effect=AssertionError("legacy manifest で calibration を読んではいけない"),
+    )
+    monkeypatch.setattr(
+        report.env_contract, "resolve_by_contract_sha256", resolver,
+    )
+    monkeypatch.setattr(
+        report.env_attestation, "load_verified_calibration", calibration_loader,
+    )
+
+    observations = report.build_observations(
+        manifest=legacy, output_root=tmp_path,
+    )
+    rows = observations["rows"]
+
+    assert len(rows) == len(legacy["schedule"]["rows"]) > 0
+    assert all(row["status"] == "completed" for row in rows)
+    resolver.assert_not_called()
+    calibration_loader.assert_not_called()
 
 
 def test_session_identity_wrong_issuer_rejects_completed_campaign_only_for_issuer(
