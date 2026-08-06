@@ -228,6 +228,18 @@ class _RecordingFixture(A.FixtureRoleProvider):
         return super().invoke(invocation_id=invocation_id, payload=payload)
 
 
+class _MalformedRecordingCritic:
+    def __init__(self) -> None:
+        self.payloads = []
+
+    def invoke(self, *, invocation_id, payload):
+        self.payloads.append(dict(payload))
+        return A.ProviderResponse(
+            raw_response="{}",
+            provenance={"child_id": invocation_id},
+        )
+
+
 class _WireRecordingFixture(_RecordingFixture):
     def __init__(self, role, *, wire):
         super().__init__(role)
@@ -1760,7 +1772,12 @@ def test_run_workload_accepts_fresh_campaign_state(tmp_path, monkeypatch) -> Non
     assert [generation["outcome"] for generation in result["generations"]] == [
         "dry-pass"
     ]
-    assert all(len(provider.payloads) == 1 for provider in providers.values())
+    assert all(
+        len(providers[role].payloads) == 1
+        for role in ("planner", "coder", "auditor")
+    )
+    assert providers["critic"].payloads == []
+    assert len(result["_pending_critics"]) == 1
 
 
 def test_run_workload_rejects_actual_existing_campaign_state(tmp_path) -> None:
@@ -1825,7 +1842,12 @@ def test_run_workload_accepts_actual_fresh_campaign_layout(tmp_path) -> None:
     assert [generation["outcome"] for generation in result["generations"]] == [
         "dry-pass"
     ]
-    assert all(len(provider.payloads) == 1 for provider in providers.values())
+    assert all(
+        len(providers[role].payloads) == 1
+        for role in ("planner", "coder", "auditor")
+    )
+    assert providers["critic"].payloads == []
+    assert len(result["_pending_critics"]) == 1
 
 
 def test_run_workload_build_passes_exploration_layout_to_trigger(
@@ -1959,6 +1981,719 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
     assert [Path(layout.root) for layout in passed_layouts] == [expected]
     assert Path(report["cells"][0]["campaign_root"]) == expected
     assert not (tmp_path / "campaigns" / report["cells"][0]["campaign_id"]).exists()
+
+
+def test_build_cell_admission_precedes_critic_invocation(
+    tmp_path, monkeypatch,
+) -> None:
+    """Keep the real finalizer and observe its render boundary before critic."""
+    order = []
+
+    class _OrderedCritic(_RecordingFixture):
+        def invoke(self, *, invocation_id, payload):
+            order.append("critic")
+            return super().invoke(invocation_id=invocation_id, payload=payload)
+
+    def fake_render(campaign_root, persisted, *, output_root):
+        order.append("admission")
+        assert persisted == campaign_root / "reports" / "layer3_report.json"
+        assert output_root == campaign_root.parent.parent
+        return {
+            "admission_decision": {
+                "schema_version": "campaign-artifact-admission-decision/v1",
+                "admission_status": "admitted",
+                "classification": "admitted-new-schema",
+            },
+        }
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(), build_context=None,
+    ):
+        assert do_build is True
+        assert type(build_context) is A.BuildRunContext
+        (Path(layout.root) / "reports").mkdir(parents=True, exist_ok=True)
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+            "critic_digest_generated": False,
+            "trigger_gate_binding_commitment": "b" * 64,
+        }
+
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    monkeypatch.setattr(A.layer3_report, "render", fake_render)
+    monkeypatch.setattr(A, "assert_campaign_layer3_chain", lambda **_kwargs: None)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor")
+    }
+    providers["critic"] = _OrderedCritic("critic")
+
+    report = A.run_trial(
+        trial_id="admission-before-critic",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=True,
+        providers=providers,
+        drive=drive_build,
+        preview=_fake_preview,
+        coder_authority=_coder_authority(),
+        allow_unregistered_exploratory=True,
+    )
+
+    assert order == ["admission", "critic"]
+    assert report["cells"][0]["admission_decision"] == {
+        "schema_version": "campaign-artifact-admission-decision/v1",
+        "admission_status": "admitted",
+        "classification": "admitted-new-schema",
+    }
+
+
+def test_post_admission_invalid_critic_marks_cell_role_invalid(tmp_path) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor")
+    }
+    providers["critic"] = _MalformedRecordingCritic()
+
+    report = A.run_trial(
+        trial_id="post-admission-invalid-critic",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    cell = report["cells"][0]
+    assert cell["stop_reason"] == "role-invalid"
+    assert report["status"] == "partial"
+    assert cell["admission_decision"] == {
+        "admission_status": "not-applicable",
+    }
+
+
+def test_build_post_admission_invalid_critic_keeps_positive_admission(
+    tmp_path, monkeypatch,
+) -> None:
+    def fake_render(campaign_root, persisted, *, output_root):
+        assert persisted == campaign_root / "reports" / "layer3_report.json"
+        assert output_root == campaign_root.parent.parent
+        return {
+            "admission_decision": {
+                "schema_version": "campaign-artifact-admission-decision/v1",
+                "admission_status": "admitted",
+                "classification": "admitted-new-schema",
+            },
+        }
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(), build_context=None,
+    ):
+        assert do_build is True
+        assert type(build_context) is A.BuildRunContext
+        (Path(layout.root) / "reports").mkdir(parents=True, exist_ok=True)
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+            "critic_digest_generated": False,
+            "trigger_gate_binding_commitment": "b" * 64,
+        }
+
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    monkeypatch.setattr(A.layer3_report, "render", fake_render)
+    monkeypatch.setattr(A, "assert_campaign_layer3_chain", lambda **_kwargs: None)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor")
+    }
+    providers["critic"] = _MalformedRecordingCritic()
+
+    report = A.run_trial(
+        trial_id="build-invalid-critic-keeps-admission",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=True,
+        providers=providers,
+        drive=drive_build,
+        preview=_fake_preview,
+        coder_authority=_coder_authority(),
+        allow_unregistered_exploratory=True,
+    )
+
+    cell = report["cells"][0]
+    assert report["status"] == "partial"
+    assert cell["stop_reason"] == "role-invalid"
+    assert cell["admission_decision"] == {
+        "schema_version": "campaign-artifact-admission-decision/v1",
+        "admission_status": "admitted",
+        "classification": "admitted-new-schema",
+    }
+
+
+def test_critic_invalid_cannot_drop_build_admission_decision(
+    tmp_path, monkeypatch,
+) -> None:
+    render_calls = 0
+
+    def fake_render(campaign_root, persisted, *, output_root):
+        nonlocal render_calls
+        render_calls += 1
+        assert persisted == campaign_root / "reports" / "layer3_report.json"
+        assert output_root == campaign_root.parent.parent
+        return {
+            "admission_decision": {
+                "schema_version": "campaign-artifact-admission-decision/v1",
+                "admission_status": "admitted",
+                "classification": "admitted-new-schema",
+            },
+        }
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(), build_context=None,
+    ):
+        assert do_build is True
+        assert type(build_context) is A.BuildRunContext
+        (Path(layout.root) / "reports").mkdir(parents=True, exist_ok=True)
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+            "critic_digest_generated": False,
+            "trigger_gate_binding_commitment": "b" * 64,
+        }
+
+    original = A._run_pending_critics
+
+    def drop_admission_after_invalid_critic(cell, **kwargs):
+        original(cell, **kwargs)
+        assert cell["stop_reason"] == "role-invalid"
+        cell.pop("admission_decision")
+
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    monkeypatch.setattr(A.layer3_report, "render", fake_render)
+    monkeypatch.setattr(A, "assert_campaign_layer3_chain", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        A, "_run_pending_critics", drop_admission_after_invalid_critic,
+    )
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor")
+    }
+    providers["critic"] = _MalformedRecordingCritic()
+    run_root = tmp_path / "run"
+
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match="^cell admission decision missing before report construction$",
+    ):
+        A.run_trial(
+            trial_id="critic-invalid-drops-build-admission",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=True,
+            providers=providers,
+            drive=drive_build,
+            preview=_fake_preview,
+            coder_authority=_coder_authority(),
+            allow_unregistered_exploratory=True,
+        )
+
+    assert render_calls == 1
+    assert not (run_root / "report.json").exists()
+
+
+def test_invalid_critic_overrides_harness_terminal_stop(tmp_path) -> None:
+    def terminal_drive(*args, **kwargs):
+        outcome = _fake_drive(*args, **kwargs)
+        outcome["stop_reason"] = "converged"
+        return outcome
+
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor")
+    }
+    providers["critic"] = _MalformedRecordingCritic()
+
+    report = A.run_trial(
+        trial_id="invalid-critic-overrides-harness",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=terminal_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    cell = report["cells"][0]
+    assert cell["generations"][0]["harness"]["stop_reason"] == "converged"
+    assert cell["stop_reason"] == "role-invalid"
+
+
+def test_pending_critic_phase_sets_role_invalid_directly(tmp_path) -> None:
+    def exercise(initial_stop_reason: str, label: str) -> dict[str, Any]:
+        run_root = tmp_path / label
+        (run_root / "raw").mkdir(parents=True)
+        cell = {
+            "workload": "ycsb-a",
+            "campaign_root": str(run_root / "campaign"),
+            "generations": [{"generation": 1, "roles": {}}],
+            "stop_reason": initial_stop_reason,
+            "admission_decision": {"admission_status": "not-applicable"},
+            "_pending_critics": [{
+                "generation": 1,
+                "common": {
+                    "generation": 1,
+                    "descriptor_binding": {"output_sha256": "d" * 64},
+                },
+                "outcome": {
+                    "outcome": "dry-pass",
+                    "verdict": None,
+                    "stop_reason": "continue",
+                },
+                "metrics": {
+                    "throughput_ops_sec": None,
+                    "abort_rate": None,
+                    "latency_ns": None,
+                    "llc_miss_rate": None,
+                    "ipc": None,
+                },
+                "raw_variant": None,
+            }],
+        }
+        A._run_pending_critics(
+            cell,
+            providers={"critic": _MalformedRecordingCritic()},
+            journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+            run_root=run_root,
+            transport_receipt=None,
+        )
+        return cell
+
+    fixed_budget = exercise("fixed-generation-budget", "fixed-budget")
+    assert fixed_budget["stop_reason"] == "role-invalid"
+    harness_terminal = exercise("converged", "harness-terminal")
+    assert harness_terminal["stop_reason"] == "role-invalid"
+
+
+def test_finish_trial_status_follows_both_critic_phases_by_ast() -> None:
+    tree = ast.parse(Path(A.__file__).read_text(encoding="utf-8"))
+    finish = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_finish_trial"
+    )
+    status_assignments = [
+        node
+        for node in ast.walk(finish)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "status"
+            for target in node.targets
+        )
+    ]
+    assert len(status_assignments) == 1
+    helper_calls = {
+        name: [
+            node
+            for node in ast.walk(finish)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == name
+        ]
+        for name in ("_finalize_cell_admission", "_run_pending_critics")
+    }
+    assert {name: len(calls) for name, calls in helper_calls.items()} == {
+        "_finalize_cell_admission": 2,
+        "_run_pending_critics": 2,
+    }
+    workload_loop = next(
+        node
+        for node in ast.walk(finish)
+        if isinstance(node, ast.For)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "workload"
+    )
+    workload_try = next(
+        node
+        for node in workload_loop.body
+        if isinstance(node, ast.Try)
+        and any(
+            isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Name)
+            and call.func.id == "_run_workload"
+            for call in ast.walk(node)
+        )
+    )
+    assert len(workload_try.handlers) == 1
+    handler = workload_try.handlers[0]
+    handler_helper_calls = {
+        name: [
+            node
+            for node in ast.walk(handler)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == name
+        ]
+        for name in helper_calls
+    }
+    assert {name: len(calls) for name, calls in handler_helper_calls.items()} == {
+        "_finalize_cell_admission": 1,
+        "_run_pending_critics": 1,
+    }
+    normal_body = workload_loop.body[workload_loop.body.index(workload_try) + 1:]
+    normal_helper_calls = {
+        name: [
+            node
+            for statement in normal_body
+            for node in ast.walk(statement)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == name
+        ]
+        for name in helper_calls
+    }
+    assert {name: len(calls) for name, calls in normal_helper_calls.items()} == {
+        "_finalize_cell_admission": 1,
+        "_run_pending_critics": 1,
+    }
+    handler_append = next(
+        node
+        for node in ast.walk(handler)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "cells"
+        and node.func.attr == "append"
+    )
+    assert handler_append.lineno < min(
+        call.lineno
+        for calls in handler_helper_calls.values()
+        for call in calls
+    )
+    assert status_assignments[0].lineno > max(
+        call.lineno
+        for calls in helper_calls.values()
+        for call in calls
+    )
+
+
+def test_cell_admission_failure_is_not_converted_to_supervisor_error(
+    tmp_path, monkeypatch,
+) -> None:
+    def fail_finalize(cell, *, launch_admission):
+        raise A.AutonomousTrialError("fixture admission failure")
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(), build_context=None,
+    ):
+        assert do_build is True
+        Path(layout.root).mkdir(parents=True, exist_ok=True)
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+            "critic_digest_generated": False,
+            "trigger_gate_binding_commitment": "b" * 64,
+        }
+
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    monkeypatch.setattr(A, "_finalize_build_cell_admission", fail_finalize)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    run_root = tmp_path / "run"
+
+    with pytest.raises(A.AutonomousTrialError, match="fixture admission failure"):
+        A.run_trial(
+            trial_id="cell-admission-failure",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=True,
+            providers=providers,
+            drive=drive_build,
+            preview=_fake_preview,
+            coder_authority=_coder_authority(),
+            allow_unregistered_exploratory=True,
+        )
+
+    assert providers["critic"].payloads == []
+    assert not (run_root / "report.json").exists()
+    events = [
+        json.loads(line)
+        for line in (run_root / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert all(event["event"] != "supervisor-error" for event in events)
+
+
+def test_pending_critic_failure_is_converted_to_supervisor_error(
+    tmp_path,
+) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor")
+    }
+    run_root = tmp_path / "run"
+
+    report = A.run_trial(
+        trial_id="pending-critic-supervisor-error",
+        workloads=["ycsb-a", "ycsb-b"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    assert report["status"] == "partial"
+    assert report["fatal_error"]["type"] == "KeyError"
+    assert len(report["cells"]) == 1
+    cell = report["cells"][0]
+    assert cell["stop_reason"] == "supervisor-error"
+    assert cell["admission_decision"] == {
+        "admission_status": "not-applicable",
+    }
+    assert (run_root / "report.json").is_file()
+    events = [
+        json.loads(line)
+        for line in (run_root / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert [event["event"] for event in events][-2:] == [
+        "supervisor-error", "run-finish",
+    ]
+
+
+def test_residual_pending_critics_block_report_publish(
+    tmp_path, monkeypatch,
+) -> None:
+    """This seam restores an artificial state unreachable from today's producer."""
+    original = A._run_pending_critics
+
+    def restore_consumed_pending(cell, **kwargs):
+        pending = list(cell["_pending_critics"])
+        original(cell, **kwargs)
+        cell["_pending_critics"] = pending
+
+    monkeypatch.setattr(A, "_run_pending_critics", restore_consumed_pending)
+    run_root = tmp_path / "run"
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match="^pending critic remained before report construction$",
+    ):
+        A.run_trial(
+            trial_id="residual-pending-blocks-report",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            drive=_fake_drive,
+            preview=_fake_preview,
+            allow_unregistered_exploratory=True,
+        )
+    assert not (run_root / "report.json").exists()
+
+
+def test_multi_generation_deferred_critic_fails_closed(
+    tmp_path, monkeypatch,
+) -> None:
+    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 2)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    run_root = tmp_path / "run"
+
+    with pytest.raises(RuntimeError, match="journal role attempts"):
+        A.run_trial(
+            trial_id="multi-generation-deferred-critic",
+            workloads=["ycsb-a"],
+            generations=2,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            providers=providers,
+            drive=_fake_drive,
+            preview=_fake_preview,
+            allow_unregistered_exploratory=True,
+        )
+
+    events = [
+        json.loads(line)
+        for line in (run_root / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert [
+        (event["generation"], event["role"])
+        for event in events
+        if event["event"] == "role-attempt"
+    ] == [
+        (1, "planner"),
+        (1, "coder"),
+        (1, "auditor"),
+        (2, "planner"),
+        (2, "coder"),
+        (2, "auditor"),
+        (1, "critic"),
+        (2, "critic"),
+    ]
+    assert [
+        payload["generation"] for payload in providers["critic"].payloads
+    ] == [1, 2]
+    assert not (run_root / "report.json").exists()
+
+
+def test_direct_run_workload_defers_critic_to_finish_trial(tmp_path) -> None:
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    for child in ("raw", "proposals"):
+        (run_root / child).mkdir()
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+
+    result = _run_workload_with_scope(
+        workload="ycsb-a",
+        generations=1,
+        providers=providers,
+        journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        cache_root="",
+        trial_id="direct-defers-critic",
+        started_monotonic=time.monotonic(),
+        max_wall_s=60,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        build_context=_no_build_context(),
+    )
+
+    assert providers["critic"].payloads == []
+    assert len(result["_pending_critics"]) == 1
+    pending = result["_pending_critics"][0]
+    assert set(pending) == {
+        "generation", "common", "outcome", "metrics", "raw_variant",
+    }
+    assert pending == {
+        "generation": 1,
+        "common": {
+            "schema_version": "p3-autonomous-workload-trial/v3",
+            "pilot_scope": "exploratory-ycsb-abc",
+            "scientific_claim": False,
+            "workload": "ycsb-a",
+            "generation": 1,
+            "workload_descriptor": result["descriptor"],
+            "descriptor_binding": result["descriptor_binding"],
+            "attempt_policy": {
+                "attempts_per_role_generation": 1,
+                "retry": False,
+            },
+            "stop_policy": {
+                "performance_early_stop": False,
+                "generation_budget_is_fixed": True,
+            },
+        },
+        "outcome": {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
+            "critic_digest_generated": False,
+        },
+        "metrics": {
+            "throughput_ops_sec": None,
+            "abort_rate": None,
+            "latency_ns": None,
+            "llc_miss_rate": None,
+            "ipc": None,
+        },
+        "raw_variant": None,
+    }
+    assert set(result["generations"][0]["roles"]) == {
+        "planner", "coder", "auditor",
+    }
 
 
 def test_run_workload_no_build_stays_trial_local(tmp_path) -> None:

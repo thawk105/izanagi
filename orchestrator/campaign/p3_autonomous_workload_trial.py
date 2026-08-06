@@ -1225,6 +1225,99 @@ def _finalize_build_cell_admission(
     cell["admission_decision"] = layer3["admission_decision"]
 
 
+def _finalize_cell_admission(
+    cell: dict[str, Any],
+    *,
+    do_build: bool,
+    launch_admission: trial_registry.TrialLaunchAdmission,
+) -> None:
+    """Finalize only the cell admission boundary.
+
+    This call intentionally remains outside the supervisor-error recovery
+    boundary.  Pending critic preparation and invocation are handled by the
+    separate helper below so their infrastructure failures retain the legacy
+    partial-report contract.
+    """
+    if do_build:
+        _finalize_build_cell_admission(
+            cell, launch_admission=launch_admission,
+        )
+    else:
+        cell["admission_decision"] = {"admission_status": "not-applicable"}
+
+
+def _run_pending_critics(
+    cell: dict[str, Any],
+    *,
+    providers: Mapping[str, Any],
+    journal: AttemptJournal,
+    run_root: Path,
+    transport_receipt: Mapping[str, Any] | None,
+    preserve_stop_reason: bool = False,
+) -> None:
+    pending_critics = cell.pop("_pending_critics", [])
+    for pending in pending_critics:
+        generation = pending["generation"]
+        generation_record = next(
+            record
+            for record in cell["generations"]
+            if record["generation"] == generation
+        )
+        outcome = pending["outcome"]
+        current_metrics = pending["metrics"]
+        raw_variant = pending["raw_variant"]
+        digest_path = Path(cell["campaign_root"]) / trigger.DIGEST_BASENAME
+        digest = None
+        candidate_label = raw_variant
+        if digest_path.exists():
+            critic_view = require_admitted_campaign(cell["campaign_root"])
+            identity_projection = loop_core.make_critic_identity_projection(
+                critic_view
+            )
+            candidate_label = identity_projection.project_variant(raw_variant)
+            # _campaign_for fixes this supervisor to the reflux-on trigger cfg.
+            # Recreate only that public setting after admission; do not retain
+            # the campaign object in the private pending material.
+            cfg = trigger.default_cfg(reflux=True)
+            digest = loop_core.make_critic_digest(
+                critic_view,
+                tag=trigger.CRITIC_TAG,
+                reflux=(cfg.search_config.get("reflux") == "on"),
+                identity_projection=identity_projection,
+            )
+        elif raw_variant:
+            candidate_label = loop_core.UNREGISTERED_CANDIDATE_LABEL
+        critic_payload = {
+            **pending["common"],
+            "harness_result": {
+                "outcome": outcome.get("outcome"),
+                "candidate_label": candidate_label,
+                "verdict": outcome.get("verdict"),
+                "metrics": dict(current_metrics),
+                "stop_reason": outcome.get("stop_reason"),
+            },
+            "critic_digest": digest,
+        }
+        critic, event = _invoke(
+            role="critic",
+            provider=providers["critic"],
+            invocation_id=(
+                f"{cell['workload']}.g{generation}.critic"
+            ),
+            payload=critic_payload,
+            raw_root=run_root / "raw",
+            journal=journal,
+            workload=cell["workload"],
+            generation=generation,
+            transport_receipt=transport_receipt,
+        )
+        generation_record["roles"]["critic"] = event
+        if critic is None:
+            if not preserve_stop_reason:
+                cell["stop_reason"] = "role-invalid"
+            break
+
+
 def _finish_trial(
     *,
     trial_id: str,
@@ -1347,8 +1440,70 @@ def _finish_trial(
                         "error": dict(fatal_error),
                     }
                 cells.append(cell)
+                _finalize_cell_admission(
+                    cell,
+                    do_build=do_build,
+                    launch_admission=launch_admission,
+                )
+                try:
+                    _run_pending_critics(
+                        cell,
+                        providers=active_providers,
+                        journal=journal,
+                        run_root=run_root,
+                        transport_receipt=transport_receipt,
+                        preserve_stop_reason=True,
+                    )
+                except Exception as exc:
+                    fatal_error = {
+                        "type": type(exc).__name__,
+                        "message": _redacted_transport_error(
+                            exc, transport_receipt,
+                        ),
+                    }
+                    journal.append(_event_with_transport_receipt(
+                        {
+                            "event": "supervisor-error",
+                            "workload": workload,
+                            **fatal_error,
+                        },
+                        transport_receipt,
+                    ))
+                    cell["stop_reason"] = "supervisor-error"
+                    cell["error"] = dict(fatal_error)
                 break
             cells.append(cell)
+            _finalize_cell_admission(
+                cell,
+                do_build=do_build,
+                launch_admission=launch_admission,
+            )
+            try:
+                _run_pending_critics(
+                    cell,
+                    providers=active_providers,
+                    journal=journal,
+                    run_root=run_root,
+                    transport_receipt=transport_receipt,
+                )
+            except Exception as exc:
+                fatal_error = {
+                    "type": type(exc).__name__,
+                    "message": _redacted_transport_error(
+                        exc, transport_receipt,
+                    ),
+                }
+                journal.append(_event_with_transport_receipt(
+                    {
+                        "event": "supervisor-error",
+                        "workload": workload,
+                        **fatal_error,
+                    },
+                    transport_receipt,
+                ))
+                cell["stop_reason"] = "supervisor-error"
+                cell["error"] = dict(fatal_error)
+                break
     status = (
         "complete"
         if len(cells) == len(selected)
@@ -1360,13 +1515,12 @@ def _finish_trial(
         )
         else "partial"
     )
-    for cell in cells:
-        if do_build:
-            _finalize_build_cell_admission(
-                cell, launch_admission=launch_admission,
-            )
-        else:
-            cell["admission_decision"] = {"admission_status": "not-applicable"}
+    if any("_pending_critics" in cell for cell in cells):
+        raise AutonomousTrialError("pending critic remained before report construction")
+    if any("admission_decision" not in cell for cell in cells):
+        raise AutonomousTrialError(
+            "cell admission decision missing before report construction"
+        )
     report = {
         "schema_version": REPORT_SCHEMA_VERSION,
         "trial_id": trial_id,
@@ -1522,6 +1676,7 @@ def _run_workload(
         "campaign_root": layout.root,
         "generations": [],
         "stop_reason": "fixed-generation-budget",
+        "_pending_critics": [],
     }
     if _partial is not None:
         _partial["cell"] = result
@@ -1739,64 +1894,19 @@ def _run_workload(
         generation_record["harness"] = outcome
         generation_record["outcome"] = outcome["outcome"]
         current_metrics = _metric_projection(outcome)
-
-        digest_path = Path(layout.root) / trigger.DIGEST_BASENAME
-        digest = None
-        raw_variant = outcome.get("variant")
-        if raw_variant is not None and type(raw_variant) is not str:
-            raise TypeError("harness output の variant は str/None が必要")
-        candidate_label = raw_variant
-        if digest_path.exists():
-            # ``layout`` can originate from the package or direct-script import
-            # surface.  Admission owns the canonical layout type, so cross that
-            # nominal boundary with the stable root value.
-            critic_view = require_admitted_campaign(layout.root)
-            identity_projection = loop_core.make_critic_identity_projection(
-                critic_view
-            )
-            candidate_label = identity_projection.project_variant(raw_variant)
-            digest = loop_core.make_critic_digest(
-                critic_view,
-                tag=trigger.CRITIC_TAG,
-                reflux=(cfg.search_config.get("reflux") == "on"),
-                identity_projection=identity_projection,
-            )
-        elif raw_variant:
-            # Exploratory/custom drives have always been accepted without a
-            # critic digest or admitted WAL.  Preserve that public acceptance
-            # surface while ensuring the candidate-dependent raw ID never
-            # reaches the critic recipient.
-            candidate_label = loop_core.UNREGISTERED_CANDIDATE_LABEL
-        critic_payload = {
-            **common,
-            "harness_result": {
-                "outcome": outcome.get("outcome"),
-                "candidate_label": candidate_label,
-                "verdict": outcome.get("verdict"),
-                "metrics": dict(current_metrics),
-                "stop_reason": outcome.get("stop_reason"),
-            },
-            "critic_digest": digest,
-        }
-        critic, event = _invoke(
-            role="critic",
-            provider=providers["critic"],
-            invocation_id=f"{workload}.g{generation}.critic",
-            payload=critic_payload,
-            raw_root=run_root / "raw",
-            journal=journal,
-            workload=workload,
-            generation=generation,
-            transport_receipt=transport_receipt,
-        )
-        generation_record["roles"]["critic"] = event
         result["generations"].append(generation_record)
         if _partial is not None:
             _partial["generation"] = None
-        if critic is None:
-            result["stop_reason"] = "role-invalid"
-            break
-        prior_reverse = critic["reverse_recommended"]
+        raw_variant = outcome.get("variant")
+        if raw_variant is not None and type(raw_variant) is not str:
+            raise TypeError("harness output の variant は str/None が必要")
+        result["_pending_critics"].append({
+            "generation": generation,
+            "common": dict(common),
+            "outcome": dict(outcome),
+            "metrics": dict(current_metrics),
+            "raw_variant": raw_variant,
+        })
         if outcome.get("stop_reason") != "continue":
             result["stop_reason"] = str(outcome.get("stop_reason"))
             break
