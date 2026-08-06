@@ -52,6 +52,14 @@ title: [T-503] 変異復元耐久化の生死確認を実機で通した — 部
 
 ### 新規
 
+- {{T:dw-g01-untracked-default}} **P2・新規・ユーザー裁定待ち**: `DW-G01` へ
+  「生死確認 driver は既定で untracked の使い捨て、tracked 化は再走要件を brief に書ける場合だけ」
+  を明文化する。本 wave で実測した無駄 (probe を tracked にした結果、テスト・変異 matrix・
+  受入全走・admission registry 登録が付いてきて fix 5 巡・実験 5 run を要した) が根拠。
+  **`docs/dev-wave/**` の byte 予算が上限のため今回は編集を見送った** — 2 行の追記で
+  hard ceiling 25200 を 230 bytes 超過する。予算を上げずに入れるには既存 L2 節の削除が要り、
+  削除の実施はユーザー裁定に限られる (`docs/skill-self-improvement.md` routing 3)。
+  裁定してほしいのは「どの L2 節を落として空けるか」または「この明文化を見送るか」。
 - {{T:t503-probe-kill-provenance}} **P2・新規**: 生死確認 probe の crash receipt に、
   scheduler 側の独立 anchor を束縛する。現状は `record-crash` が caller の wait status を
   信じるため、「READY → inspect → 実 kill 完了 → repair」の因果鎖は receipt だけでは証明できず、
