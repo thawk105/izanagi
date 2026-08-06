@@ -47,7 +47,7 @@
 - `phase3-s*.md`・`phase3-8b-*.md` — 現行 phase doc の従属文書 (段の設計書・手順書)。段ごとの内訳は phase3.md から辿る (段番号をここに列挙しない — 段の追加で腐るため)
 - `freeze-permanent-design.md` — freeze 族の恒久設計の正本 ([T-080]、R1..R16 承認済み 2026-07-22)
 - `freeze-permanent-design-s2.md` — 第 2 設計段パッケージ (§13 の exact 化 + 変異事前登録候補。段完了で凍結する design 族。未了事項は同書冒頭の状態行が正本)
-- `mutation-restore-durability-design.md` — 変異復元を grace 予算依存から journal + fsync + 再開時修復へ転換する設計 ([T-487] 起草、実装ゼロ・実測ゼロ。裁定軸は同書 §9 が正本)
+- `mutation-restore-durability-design.md` — 変異復元を grace 予算依存から journal + fsync + 再開時修復へ転換する設計 ([T-487] 起草、生死確認のみ実測・production 実装ゼロ。裁定軸は同書 §9 / §9.2 が正本)
 
 ## docs/ の外
 

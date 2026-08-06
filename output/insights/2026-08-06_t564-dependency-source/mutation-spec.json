@@ -1,0 +1,95 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/policy.json",
+          "old": "  \"expected_cpu_model\": \"Intel Xeon Platinum 8468\",",
+          "new": "  \"expected_cpu_model\":  \"Intel Xeon Platinum 8468\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/policy.json",
+          "old": "  \"gflags_source_path\": \"/work/SFC/tanab/github/gflags\",",
+          "new": "  \"gflags_source_path\": \"/home/SFC/tanab/github/gflags\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/policy.json",
+          "old": "  \"glog_source_path\": \"/work/SFC/tanab/github/glog\",",
+          "new": "  \"glog_source_path\": \"/home/SFC/tanab/github/glog\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/pegasus_policy_expected_goldens.py",
+          "old": "EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256 = (\n    \"b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\"\n)",
+          "new": "EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256 = (\n    \"bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\"\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/pegasus_policy_expected_goldens.py",
+          "old": "EXPECTED_CURRENT_PEGASUS_POLICY_SHA256 = (\n    \"bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\"\n)",
+          "new": "EXPECTED_CURRENT_PEGASUS_POLICY_SHA256 = (\n    \"b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\"\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

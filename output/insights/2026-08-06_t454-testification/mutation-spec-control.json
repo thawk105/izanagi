@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "MU-5-control-equal-sets-must-stay-killed",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\"",
+          "new": "    return \"MISMATCH\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
