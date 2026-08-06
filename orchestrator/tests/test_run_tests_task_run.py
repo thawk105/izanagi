@@ -177,6 +177,56 @@ def test_login_parent_records_once_and_dispatch_environment_has_no_run_id(
     assert record["sidecar"] is None
 
 
+def test_force_dispatch_records_one_task_run_and_strips_runner_option(
+    monkeypatch, tmp_path,
+):
+    records = []
+    events = []
+    monkeypatch.setenv("IZANAGI_TASK_RUN_ID", "20260720-e2-01234567")
+    monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(tmp_path / "ledger"))
+    monkeypatch.setattr(RT, "_bounded_scope_membership", lambda: None)
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        mock.Mock(side_effect=AssertionError("headroom must not be read")),
+    )
+    monkeypatch.setattr(
+        RT,
+        "_queue_dispatch_possible",
+        mock.Mock(side_effect=AssertionError("queue must not be read")),
+    )
+    for attribute, label in (
+        ("_preflight_unstaged_deletions", "deletion"),
+        ("_preflight_ruleops", "ruleops"),
+        ("_preflight_submodule", "submodule"),
+    ):
+        monkeypatch.setattr(
+            RT,
+            attribute,
+            lambda args, repo, label=label: events.append(label) or 0,
+        )
+    monkeypatch.setattr(RT, "_record_task_run", lambda **kw: records.append(kw))
+    times = iter((10.0, 12.0))
+    monkeypatch.setattr(RT.time, "monotonic", lambda: next(times))
+
+    def dispatch(args, *, environ):
+        events.append(("dispatch", list(args)))
+        assert "--force-dispatch" not in args
+        return 6
+
+    assert RT.main(
+        ["--force-dispatch", "test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 6
+    assert events == [
+        "deletion", "ruleops", "submodule", ("dispatch", ["test_target.py"]),
+    ]
+    assert len(records) == 1
+    assert records[0]["exit_status"] == 6
+    assert records[0]["duration_s"] == 2.0
+
+
 def test_previous_peak_estimate_dispatch_records_once(monkeypatch, tmp_path):
     records = []
     monkeypatch.setenv("IZANAGI_TASK_RUN_ID", "20260720-e2-01234567")

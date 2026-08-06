@@ -2755,6 +2755,57 @@ def test_login_history_audit_dispatches_to_compute_and_returns_child_rc(
     assert seen["argv"] == ["--range", "aaa..bbb"]
 
 
+def test_force_dispatch_login_bypasses_provenance_headroom_and_queue(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    dispatch = mock.Mock(return_value=7)
+    monkeypatch.setattr(provenance, "_bounded_scope_membership", lambda: None)
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        mock.Mock(side_effect=AssertionError("headroom must not be read")),
+    )
+    monkeypatch.setattr(
+        provenance,
+        "_queue_dispatch_possible",
+        mock.Mock(side_effect=AssertionError("queue must not be read")),
+    )
+    monkeypatch.setattr(
+        provenance,
+        "_audit_history",
+        mock.Mock(side_effect=AssertionError("login must not audit locally")),
+    )
+
+    assert provenance.main(
+        ["--force-dispatch", "--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 7
+    dispatch.assert_called_once_with(["--range", "aaa..bbb"])
+
+
+def test_without_force_dispatch_provenance_login_with_headroom_runs_local(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    grant = mock.Mock(return_value=(LH.Admission.LOCAL, 1234, "test"))
+    scope = mock.Mock(return_value=provenance._ScopeResult("child_rc", 0))
+    monkeypatch.setattr(LH, "grant_budget", grant)
+    monkeypatch.setattr(provenance, "_run_bounded_scope", scope)
+    monkeypatch.setattr(
+        provenance,
+        "_queue_dispatch_possible",
+        mock.Mock(side_effect=AssertionError("local headroom needs no queue")),
+    )
+
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
+    ) == 0
+    grant.assert_called_once_with(operation="provenance-range")
+    scope.assert_called_once_with(["--range", "aaa..bbb"], 1234)
+
+
 def test_default_login_admission_uses_login_headroom_grant_budget(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -3577,6 +3628,20 @@ def test_suspect_history_audit_refuses_with_infra_rc_without_dispatch(
     assert "provenance 履歴監査 を拒否します" in capsys.readouterr().err
 
 
+def test_force_dispatch_provenance_suspect_still_returns_infra_rc(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        provenance, "_queue_dispatch_possible", lambda: (True, "queue"),
+    )
+
+    assert provenance.main(
+        ["--force-dispatch", "--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_SUSPECT,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must not dispatch")),
+    ) == provenance.PEGASUS_DISPATCH_RC
+
+
 def test_suspect_history_refusal_observes_queue_once_and_includes_hint(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -3632,6 +3697,27 @@ def test_compute_and_other_sites_audit_locally(
     monkeypatch.setattr(provenance, "REPO", tmp_path)
     assert provenance.main(
         ["--range", f"{commit}^!"], site=site, dispatch_fn=refuse_dispatch,
+    ) == 0
+    assert "1 件、違反なし" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "site", [site_policy.PEGASUS_COMPUTE, site_policy.OTHER],
+)
+def test_force_dispatch_provenance_compute_and_other_audit_locally(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    site: str,
+):
+    _init_repo(tmp_path)
+    commit = _commit(tmp_path, {"docs/local.md": "local\n"}, CODEX_AUTHOR)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+
+    assert provenance.main(
+        ["--force-dispatch", "--range", f"{commit}^!"],
+        site=site,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must audit locally")),
     ) == 0
     assert "1 件、違反なし" in capsys.readouterr().out
 

@@ -22,6 +22,7 @@ PBS ジョブ内では割り当て分だけ、素のマシンではコア数ど�
     python3 tools/run_tests.py                 # スイート全体を自動並列度で
     python3 tools/run_tests.py path/to/test_x.py  # 対象を指定 (pytest へそのまま渡す)
     python3 tools/run_tests.py -n 4            # 並列度を明示上書き (最優先)
+    python3 tools/run_tests.py --force-dispatch  # LOGIN から必ず計算ノードへ
     IZANAGI_TEST_NPROC=max python3 tools/run_tests.py  # 上限を外し全 affinity コア
     IZANAGI_TEST_NPROC=12 python3 tools/run_tests.py   # 既定を数値で上書き
 """
@@ -113,6 +114,7 @@ _DELETION_GATE_RC = 13
 _SUBMODULE_GATE_RC = 14
 _RULEOPS_GATE_RC = 15
 _PEGASUS_DISPATCH_RC = 16
+_FORCE_DISPATCH_OPTION = "--force-dispatch"
 _PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({
     "--collect-only", "--co", "--help", "--version", "--markers", "--fixtures",
     "--fixtures-per-test", "--trace-config", "--setup-plan",
@@ -141,6 +143,28 @@ class _ScopeOutcome(Enum):
 class _ScopeResult(NamedTuple):
     outcome: _ScopeOutcome
     child_rc: Optional[int] = None
+
+
+def _consume_runner_options(args: Sequence[str]) -> tuple[list[str], bool]:
+    """runner 専用 option を pytest / dispatch child の argv から除く。"""
+
+    force_dispatch = _FORCE_DISPATCH_OPTION in args
+    return (
+        [value for value in args if value != _FORCE_DISPATCH_OPTION],
+        force_dispatch,
+    )
+
+
+def _print_runner_help(args: Sequence[str]) -> None:
+    """pytest の help を保ったまま runner 専用 option も公開する。"""
+
+    if "--help" in args:
+        print(
+            "Izanagi runner option:\n"
+            "  --force-dispatch  Pegasus LOGIN で headroom/queue 判定を"
+            "行わず必ず計算ノードへ dispatch する\n",
+            flush=True,
+        )
 
 
 class _ScopeSamples:
@@ -1625,7 +1649,10 @@ def main(
     dispatch_fn=None,
     admit_fn=None,
 ) -> int:
-    args = _normalize_args(sys.argv[1:] if argv is None else argv)
+    raw_args = list(sys.argv[1:] if argv is None else argv)
+    pytest_args, force_dispatch = _consume_runner_options(raw_args)
+    args = _normalize_args(pytest_args)
+    _print_runner_help(args)
     operation = _test_operation(args)
     resolved_site = site_policy.current_site() if site is None else site
     if resolved_site not in {
@@ -1657,6 +1684,7 @@ def main(
     if (
         bounded_membership is None
         and not bounded_scope_exempt
+        and not force_dispatch
         and site_policy.is_pegasus_login(resolved_site)
     ):
         module, cap, admission_outcome, headroom_reason, grant = (
@@ -1735,7 +1763,10 @@ def main(
     if preflight_rc:
         return preflight_rc
 
-    if not dispatch_exempt and resolved_site == site_policy.PEGASUS_SUSPECT:
+    if (
+        (force_dispatch or not dispatch_exempt)
+        and resolved_site == site_policy.PEGASUS_SUSPECT
+    ):
         queue_hint = _queue_dispatch_possible()
         print(
             site_policy.heavy_work_refusal(
@@ -1747,6 +1778,8 @@ def main(
         )
         return _PEGASUS_DISPATCH_RC
     if site_policy.is_pegasus_login(resolved_site):
+        if force_dispatch:
+            return _dispatch_result(dispatch_fn, args)
         if bounded_membership is True:
             pass
         elif login_admission_dispatch or not dispatch_exempt:

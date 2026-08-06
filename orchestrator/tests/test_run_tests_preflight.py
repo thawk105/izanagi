@@ -857,6 +857,78 @@ def test_m1_login_dispatch_runs_after_13_15_14_and_before_xdist(monkeypatch):
     ]
 
 
+def test_force_dispatch_login_bypasses_headroom_and_queue_after_preflights(
+    monkeypatch,
+):
+    """禁止署名: 強制時は admission を読まず 13→15→14→dispatch とする。"""
+
+    events = []
+
+    def preflight(name):
+        def run(args, repo):
+            assert args == ["test_target.py"]
+            events.append(name)
+            return 0
+
+        return run
+
+    def dispatch(args, *, environ):
+        events.append(("dispatch", list(args)))
+        return 7
+
+    monkeypatch.setattr(RT, "_bounded_scope_membership", lambda: None)
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        mock.Mock(side_effect=AssertionError("headroom must not be read")),
+    )
+    monkeypatch.setattr(
+        RT,
+        "_queue_dispatch_possible",
+        mock.Mock(side_effect=AssertionError("queue must not be read")),
+    )
+    monkeypatch.setattr(
+        RT, "_preflight_unstaged_deletions", preflight("deletion"),
+    )
+    monkeypatch.setattr(RT, "_preflight_ruleops", preflight("ruleops"))
+    monkeypatch.setattr(RT, "_preflight_submodule", preflight("submodule"))
+
+    assert RT.main(
+        ["--force-dispatch", "test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 7
+    assert events == [
+        "deletion", "ruleops", "submodule", ("dispatch", ["test_target.py"]),
+    ]
+
+
+def test_without_force_dispatch_login_with_headroom_still_runs_local(
+    monkeypatch,
+):
+    """通る正例: 無指定の LOGIN は余裕があれば local 実行を保つ。"""
+
+    grant = mock.Mock(return_value=(LH.Admission.LOCAL, 1234, "test"))
+    scope = mock.Mock(
+        return_value=RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
+    )
+    monkeypatch.setattr(LH, "grant_budget", grant)
+    monkeypatch.setattr(RT, "_run_bounded_scope", scope)
+    monkeypatch.setattr(
+        RT,
+        "_queue_dispatch_possible",
+        mock.Mock(side_effect=AssertionError("local headroom needs no queue")),
+    )
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
+    ) == 0
+    grant.assert_called_once_with(operation=RT._test_operation(["test_target.py"]))
+    scope.assert_called_once_with(["test_target.py"], 1234)
+
+
 def test_default_login_admission_calls_login_headroom_grant_budget(monkeypatch):
     grant = mock.Mock(return_value=(LH.Admission.DISPATCH, None, "test"))
     dispatch = mock.Mock(return_value=7)
@@ -1789,6 +1861,47 @@ def test_suspect_execution_refuses_without_dispatch_or_xdist(
     dispatch.assert_not_called()
     ensure.assert_not_called()
     assert "拒否" in capsys.readouterr().err
+
+
+def test_force_dispatch_suspect_still_returns_infra_rc(monkeypatch):
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+
+    assert RT.main(
+        ["--force-dispatch", "test_target.py"],
+        site=RT.site_policy.PEGASUS_SUSPECT,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("suspect must not dispatch")),
+    ) == RT._PEGASUS_DISPATCH_RC
+
+
+@pytest.mark.parametrize(
+    "site", [RT.site_policy.PEGASUS_COMPUTE, RT.site_policy.OTHER],
+)
+def test_force_dispatch_compute_and_other_run_locally_without_pytest_leak(
+    monkeypatch, site,
+):
+    commands = []
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
+    monkeypatch.setattr(RT, "_xdist_runtime_importable", lambda: True)
+    monkeypatch.setattr(RT, "_ensure_xdist", lambda: True)
+    monkeypatch.setattr(
+        RT.subprocess,
+        "call",
+        lambda command, **kwargs: commands.append(command) or 0,
+    )
+
+    assert RT.main(
+        ["--force-dispatch", "test_target.py"],
+        site=site,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must run locally")),
+    ) == 0
+    assert len(commands) == 1
+    assert "--force-dispatch" not in commands[0]
 
 
 def test_suspect_refusal_observes_queue_once_and_includes_unavailable_hint(

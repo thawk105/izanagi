@@ -1664,6 +1664,14 @@ def main(
 ) -> int:
     values = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--force-dispatch",
+        action="store_true",
+        help=(
+            "Pegasus LOGIN で headroom/queue 判定を行わず必ず"
+            "計算ノードへ dispatch する"
+        ),
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--range", dest="rev_range", help="検査する git revision range")
     group.add_argument(
@@ -1671,12 +1679,14 @@ def main(
         help="commit 前の message ファイルを検査する。標準入力は -",
     )
     args = parser.parse_args(values)
+    dispatch_values = [value for value in values if value != "--force-dispatch"]
     operation = "provenance-range" if args.rev_range is not None else "provenance"
 
-    # site gate は parse_args の後に置き、免除は args.message_file だけで判定する。
+    # site gate は parse_args の後に置き、通常の免除は args.message_file だけで
+    # 判定する。明示された force_dispatch はその免除も上書きする。
     # raw token allowlist を移植すると --message-f のような接頭辞省略形が免除から
     # 外れ、commit 直前の preflight が queue 待ちに依存する。
-    if args.message_file is None:
+    if args.message_file is None or args.force_dispatch:
         resolved_site = site_policy.current_site() if site is None else site
         if resolved_site not in {
             site_policy.OTHER,
@@ -1711,6 +1721,8 @@ def main(
             )
             return PEGASUS_DISPATCH_RC
         if site_policy.is_pegasus_login(resolved_site):
+            if args.force_dispatch:
+                return _invoke_dispatch(dispatch_fn, dispatch_values)
             if bounded_membership is None:
                 module, cap, admission_outcome, headroom_reason, grant = (
                     _evaluate_login_admission(admit_fn, operation=operation)
@@ -1721,7 +1733,7 @@ def main(
                     queue_possible, queue_reason = _queue_dispatch_possible()
                     if queue_possible:
                         _safe_release_grant(grant)
-                        return _invoke_dispatch(dispatch_fn, values)
+                        return _invoke_dispatch(dispatch_fn, dispatch_values)
                     queue_unavailable = True
                     if module is None:
                         return _no_execution_capacity(headroom_reason, queue_reason)
@@ -1772,7 +1784,7 @@ def main(
                             headroom_reason,
                             queue_reason,
                         )
-                    return _invoke_dispatch(dispatch_fn, values)
+                    return _invoke_dispatch(dispatch_fn, dispatch_values)
                 return PEGASUS_DISPATCH_RC
 
     try:
