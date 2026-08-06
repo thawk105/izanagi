@@ -1,0 +1,239 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 240,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    mapped = {state[\"aliases\"][key] for key in alias_keys if key in state[\"aliases\"]}",
+          "new": "    mapped = set()"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_conflicting_alias_graph_fails_closed",
+        "orchestrator/tests/test_claude_session_ledger.py::test_descending_terminal_usage_is_used_instead_of_fieldwise_maximum",
+        "orchestrator/tests/test_claude_session_ledger.py::test_partially_missing_event_timestamps_are_rejected_as_incomplete",
+        "orchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields",
+        "orchestrator/tests/test_claude_session_ledger.py::test_terminal_assistant_record_without_usage_is_not_silently_aggregated",
+        "orchestrator/tests/test_claude_session_ledger.py::test_timestamp_reversal_is_reported_and_chronological_terminal_is_used"
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "            terminal = request[\"terminal_rank\"] is None or rank > request[\"terminal_rank\"]",
+          "new": "            terminal = request[\"terminal_rank\"] is None"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_descending_terminal_usage_is_used_instead_of_fieldwise_maximum",
+        "orchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields",
+        "orchestrator/tests/test_claude_session_ledger.py::test_terminal_assistant_record_without_usage_is_not_silently_aggregated"
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    metrics[\"raw_input_tokens\"] += (\n        usage[\"cache_read_input_tokens\"]\n        + usage[\"cache_creation_input_tokens\"]\n        + usage[\"input_tokens\"]\n    )",
+          "new": "    metrics[\"raw_input_tokens\"] += (\n        usage[\"cache_creation_input_tokens\"]\n        + usage[\"input_tokens\"]\n    )"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract",
+        "orchestrator/tests/test_claude_session_ledger.py::test_descending_terminal_usage_is_used_instead_of_fieldwise_maximum",
+        "orchestrator/tests/test_claude_session_ledger.py::test_population_filters_corruption_and_file_limit_are_visible",
+        "orchestrator/tests/test_claude_session_ledger.py::test_recursive_sidechains_are_separate_and_only_explicitly_combined",
+        "orchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields",
+        "orchestrator/tests/test_claude_session_ledger.py::test_synthetic_zero_usage_is_excluded_and_reported",
+        "orchestrator/tests/test_claude_session_ledger.py::test_timestamp_reversal_is_reported_and_chronological_terminal_is_used",
+        "orchestrator/tests/test_claude_session_ledger.py::test_window_uses_each_event_timestamp_then_reports_mtime_fallback"
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    metrics[\"raw_input_tokens\"] += (\n        usage[\"cache_read_input_tokens\"]\n        + usage[\"cache_creation_input_tokens\"]\n        + usage[\"input_tokens\"]\n    )",
+          "new": "    metrics[\"raw_input_tokens\"] += (\n        usage[\"cache_read_input_tokens\"]\n        + usage[\"input_tokens\"]\n    )"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract",
+        "orchestrator/tests/test_claude_session_ledger.py::test_descending_terminal_usage_is_used_instead_of_fieldwise_maximum",
+        "orchestrator/tests/test_claude_session_ledger.py::test_population_filters_corruption_and_file_limit_are_visible",
+        "orchestrator/tests/test_claude_session_ledger.py::test_recursive_sidechains_are_separate_and_only_explicitly_combined",
+        "orchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields",
+        "orchestrator/tests/test_claude_session_ledger.py::test_synthetic_zero_usage_is_excluded_and_reported",
+        "orchestrator/tests/test_claude_session_ledger.py::test_timestamp_reversal_is_reported_and_chronological_terminal_is_used",
+        "orchestrator/tests/test_claude_session_ledger.py::test_window_uses_each_event_timestamp_then_reports_mtime_fallback"
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    metrics[\"raw_input_tokens\"] += (\n        usage[\"cache_read_input_tokens\"]\n        + usage[\"cache_creation_input_tokens\"]\n        + usage[\"input_tokens\"]\n    )",
+          "new": "    metrics[\"raw_input_tokens\"] += (\n        usage[\"cache_read_input_tokens\"]\n        + usage[\"cache_creation_input_tokens\"]\n    )"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract",
+        "orchestrator/tests/test_claude_session_ledger.py::test_descending_terminal_usage_is_used_instead_of_fieldwise_maximum",
+        "orchestrator/tests/test_claude_session_ledger.py::test_population_filters_corruption_and_file_limit_are_visible",
+        "orchestrator/tests/test_claude_session_ledger.py::test_recursive_sidechains_are_separate_and_only_explicitly_combined",
+        "orchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields",
+        "orchestrator/tests/test_claude_session_ledger.py::test_synthetic_zero_usage_is_excluded_and_reported",
+        "orchestrator/tests/test_claude_session_ledger.py::test_timestamp_reversal_is_reported_and_chronological_terminal_is_used",
+        "orchestrator/tests/test_claude_session_ledger.py::test_window_uses_each_event_timestamp_then_reports_mtime_fallback"
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    if request[\"terminal_model\"] == \"<synthetic>\" and all(",
+          "new": "    if request[\"terminal_model\"] == \"<never-matches-any-model>\" and all("
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_synthetic_zero_usage_is_excluded_and_reported"
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    selected_sidechain = min(base_sidechain, len(sidechain_candidates))",
+          "new": "    selected_sidechain = 0"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_reserved_balanced_quota_precedes_reassignment_when_candidates_compete"
+      ]
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    for label, key in ((\"root\", \"root\"), (\"sidechain\", \"sidechains\")):\n        metrics = report[key]",
+          "new": "    for label, key in ((\"root\", \"root\"), (\"sidechain\", \"sidechains\")):\n        metrics = _combined(report[\"root\"], report[\"sidechains\"]) if key == \"root\" else report[key]"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract"
+      ]
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    raw_timestamp = record.get(\"timestamp\")\n    event_timestamp = _parse_timestamp(raw_timestamp)",
+          "new": "    raw_timestamp = record.get(\"timestamp\")\n    event_timestamp = None"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_compaction_boundaries_are_reported_without_a_monotonic_curve",
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_file_budget_is_balanced_before_unused_quota_is_reassigned",
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract",
+        "orchestrator/tests/test_claude_session_ledger.py::test_partially_missing_event_timestamps_are_rejected_as_incomplete",
+        "orchestrator/tests/test_claude_session_ledger.py::test_read_only_run_preserves_entire_isolated_tree_and_makes_no_bytecode",
+        "orchestrator/tests/test_claude_session_ledger.py::test_recursive_sidechains_are_separate_and_only_explicitly_combined",
+        "orchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields",
+        "orchestrator/tests/test_claude_session_ledger.py::test_synthetic_zero_usage_is_excluded_and_reported",
+        "orchestrator/tests/test_claude_session_ledger.py::test_timestamp_reversal_is_reported_and_chronological_terminal_is_used",
+        "orchestrator/tests/test_claude_session_ledger.py::test_window_uses_each_event_timestamp_then_reports_mtime_fallback"
+      ]
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "        f\"  読めなかった file: {population['files_unreadable']}\",",
+          "new": "        \"  読めなかった file: 0\","
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract"
+      ]
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    selected = root_candidates[:selected_root] + sidechain_candidates[:selected_sidechain]",
+          "new": "    selected = root_candidates + sidechain_candidates"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_file_budget_is_balanced_before_unused_quota_is_reassigned",
+        "orchestrator/tests/test_claude_session_ledger.py::test_population_filters_corruption_and_file_limit_are_visible",
+        "orchestrator/tests/test_claude_session_ledger.py::test_reserved_balanced_quota_precedes_reassignment_when_candidates_compete"
+      ]
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "        f\"  projects root: {population['projects_root']}\",\n        f\"  project filter (OR): {population['project_filters'] or ['<all>']}\",\n        f\"  cwd filter (OR): {population['cwd_contains_filters'] or ['<all>']}\",",
+          "new": "        \"  projects root: <hidden>\",\n        \"  project filter (OR): <hidden>\",\n        \"  cwd filter (OR): <hidden>\","
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract"
+      ]
+    }
+  ]
+}
