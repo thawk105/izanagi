@@ -41,6 +41,9 @@ title: P3 の ever-issued cell 台帳 (U-3) は実装しないと裁定した �
 - **実測の順序 (`DW-O12`)。** 段 1 前提実測 → brief → 段 2 プラン → 段 3 敵対 2 本 → 段 4 裁定の順で
   実行した。段 5・6 は裁定により実行していない。段 2・3 の途中で local main が進んだため、
   記録前に `--ff-only` で取り込んでから base digest を採り直した。
+- **実装差分が無いので受入全走と変異 matrix は射程外だが、docs 関連テストは走らせた** —
+  `test_check_docs.py` + `test_spool_fold.py` が計算ノードで 382 passed (rc=0)。
+  その手前のログインノード実行で偽の赤 1 件と infra 失敗 1 件を踏んだので別項に起票した。
 - **成果物の所在。** brief・前提実測 (erratum 込み)・段 4 裁定は
   `output/insights/2026-08-07_t244-p3-u3-ever-issued-cell/`。段 2 プランと段 3 の 2 レンズの逐語は
   repo 外の wave job dir。
@@ -100,3 +103,19 @@ title: P3 の ever-issued cell 台帳 (U-3) は実装しないと裁定した �
   **P1**: 変わらず機械部品のみで未充足。**P4**: ledger 側実装済み (D166)、充足は名乗らない。
   **P5**: 残余は U-2 のみ。**未着手**: P7・P9。P3 は依然 FAIL、cap-lift FAIL、D114 上限 1 不変
   base: 58fb0706bf1f2c6bae02f29d03df26f0236ecda6e76f26ae5d05fda5a92272f6
+
+### 新規
+
+- {{T:check-docs-positive-control-flake}} **P3・新規**: `check_docs` の command 文書 guard の
+  positive control が 1 度だけ偽の赤を出した。`test_command_docs_guard_positive_controls`
+  の `reference_orphan_h2` case が「positive control が赤にならなかった」で落ちたが、同 case を
+  単独で再走すると 67/67 緑、同じ 2 file 構成を計算ノードで再走すると 382 passed で、
+  **再現しなかった**。`DW-O18` に従い実装差分へ帰属させず、フレークとして起票する。
+  positive control は check_docs を temp copy 上で変異させて赤を要求する形なので、
+  並列 worker 間で temp 木か生成物が干渉した可能性を最初に疑う。
+- {{T:login-bounded-scope-attest-failure}} **P2・新規**: ログインノードの bounded scope 実行が
+  `memory.max / memory.oom.group を走行中に attest できない` で停止し、dispatcher
+  infrastructure failure になった。同じコマンドを `--force-dispatch` で計算ノードへ回すと
+  完走する。ログイン実行を既定にした仕組みが land した当日に踏んでおり、**ログイン経路が
+  実質使えない場面がある**という実測である。予約は成立していた (予算 1945344000 bytes、
+  観測余裕 5758414848 bytes) ので、失敗しているのは予算判定ではなく scope の attest である。
