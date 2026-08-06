@@ -380,3 +380,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:dw-g01-untracked-default":"[T-572]","T:t503-probe-kill-provenance":"[T-573]"},"authored":"2026-08-06","content_sha256":"aaf093a98e7cec09f686852a55f02d6d0d4dca50bcf61c7c04c7574849eb4b86","seq":1,"wave":"dev-wave-t503-liveness"}
 - {"allocations":{"D:liveness-probe-single-commit":"D195","D:t503-liveness-probe-scope":"D194"},"authored":"2026-08-06","content_sha256":"5df5686719652116f0571c7c4342ec91c34f60822d0c2dd3b675ef32ff607aad","seq":2,"wave":"dev-wave-t503-liveness"}
 - {"allocations":{"F:t503-probe-realmachine-mismatch":"F139"},"authored":"2026-08-06","content_sha256":"f9bd99447c287d98e166cea5e85c6e3e0a0a56863e949bbb4c0eb1131d9e5712","seq":3,"wave":"dev-wave-t503-liveness"}
+
+- {"allocations":{"D:activation-authority-blocked-on-historical-resolver":"D196","D:env-contract-activation-naming":"D197"},"authored":"2026-08-06","content_sha256":"619bbbdacdb8ad5c237f5d60e06275f11667c8eac71c212d3e1eccbe277549c0","seq":1,"wave":"dev-wave-t529-activation-authority"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"56cdcd4205bbecd80b7ac1d3bfe6bd713c48995cdf8ce2ab0598932bf515f816","seq":2,"wave":"dev-wave-t529-activation-authority"}
+- {"allocations":{"T:historical-contract-resolver-dispatch":"[T-574]","T:silo-promotion-consumer-identity":"[T-575]"},"authored":"2026-08-06","content_sha256":"24703b2bff8697ff67c39707f5fb71f136e0433112495f47b4558996e610ac3d","seq":3,"wave":"dev-wave-t529-activation-authority"}
