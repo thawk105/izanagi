@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "MU-12-oldhead-match-key-basename-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{_p.rsplit('/', 1)[-1]}::{_t}\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-13-oldhead-match-key-tail-two-components",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{'/'.join(_p.split('/')[-2:])}::{_t}\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-14-oldhead-match-key-casefold",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo).casefold()"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-15-oldhead-match-key-drops-class-namespace",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    _p, _s, _t = _normalize_node(node, repo).partition(\"::\")\n    return f\"{_p}::{_t.rsplit('::', 1)[-1]}\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
