@@ -1,0 +1,125 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t503_restore_durability_probe.py",
+          "old": "    record_event(recorder, \"armed_write\")\n    _sync(journal, recorder, \"armed_fsync\")\n",
+          "new": "    record_event(recorder, \"armed_write\")\n"
+        },
+        {
+          "file": "tools/pegasus/probes/t503_restore_durability_probe.py",
+          "old": "    if mode == \"atomic\" and any(_sha(_target(root, x[\"rel\"]).read_bytes()) != x[\"mutated_sha256\"] for x in entries):\n",
+          "new": "    _sync(journal, recorder, \"armed_fsync\")\n    if mode == \"atomic\" and any(_sha(_target(root, x[\"rel\"]).read_bytes()) != x[\"mutated_sha256\"] for x in entries):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t503_restore_durability_probe.py::test_writer_fsyncs_armed_before_first_target_write"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t503_restore_durability_probe.py",
+          "old": "    return \"MUTATED\" if current_sha256 == mutated_sha256 else \"OTHER\"\n",
+          "new": "    return \"MUTATED\" if current_sha256 == mutated_sha256 else \"ORIGINAL\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t503_restore_durability_probe.py::test_partial_bytes_classify_as_other"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t503_restore_durability_probe.py",
+          "old": "    return \"RESTORED\" if len(values) == len(TARGETS) and all(value in {\"ORIGINAL\", \"MUTATED\"} for value in values) else \"QUARANTINE\"\n",
+          "new": "    return \"RESTORED\" if len(values) == len(TARGETS) and any(value in {\"ORIGINAL\", \"MUTATED\"} for value in values) else \"QUARANTINE\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t503_restore_durability_probe.py::test_repair_refuses_when_any_target_is_other"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t503_restore_durability_probe.py",
+          "old": "        if any(_sha(_target(root, x[\"rel\"]).read_bytes()) != x[\"original_sha256\"] for x in armed[\"targets\"]):\n            raise EvidenceError(\"restore verification failed\")\n        record_event(recorder, \"restore_verify\")\n        _append(root / \"journal/attempt.jsonl\", {\"record\": \"clean\", \"seq\": seq + 1}, recorder, \"clean_append\")\n",
+          "new": "        _append(root / \"journal/attempt.jsonl\", {\"record\": \"clean\", \"seq\": seq + 1}, recorder, \"clean_append\")\n        if any(_sha(_target(root, x[\"rel\"]).read_bytes()) != x[\"original_sha256\"] for x in armed[\"targets\"]):\n            raise EvidenceError(\"restore verification failed\")\n        record_event(recorder, \"restore_verify\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t503_restore_durability_probe.py::test_clean_is_recorded_only_after_restore_verification"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t503_restore_durability_probe.py",
+          "old": "            os.fsync(stream.fileno()); record_event(recorder, \"target_temp_fsync\")\n        os.replace(temp, target); record_event(recorder, \"target_replace\")\n",
+          "new": "            record_event(recorder, \"target_temp_fsync\")\n        os.replace(temp, target); record_event(recorder, \"target_replace\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t503_restore_durability_probe.py::test_writer_fsyncs_temp_before_replace"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t503_restore_durability_probe.py",
+          "old": "    if writer_identity.get(\"host\") == observer_identity.get(\"host\") or writer_boot is None or observer_boot is None or writer_boot == observer_boot:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t503_restore_durability_probe.py::test_cross_node_requirement_rejects_same_host"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t503_restore_durability_probe.py",
+          "old": "    return \"GO\" if all(legs.get(name) == \"PASS\" for name in REQUIRED_LEGS) else \"NO-GO\"\n",
+          "new": "    return \"GO\" if all(legs.get(name) in {\"PASS\", \"UNKNOWN\"} for name in REQUIRED_LEGS) else \"NO-GO\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t503_restore_durability_probe.py::test_unknown_leg_never_counts_as_pass"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
