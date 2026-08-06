@@ -3007,14 +3007,21 @@ def test_login_local_scope_returns_child_rc_without_dispatch(
     assert dispatch == []
 
 
-def test_provenance_cap_oom_falls_back_without_tree_clean_gate(
+def test_provenance_cap_oom_dirty_before_unchanged_after_dispatches_once(
     monkeypatch: pytest.MonkeyPatch,
 ):
     seen = []
+    dirty = provenance._TreeFingerprint("a" * 64, (91, 127, 44, 0, 0))
     monkeypatch.setattr(
         provenance,
         "_run_bounded_scope",
         lambda argv, cap: provenance._ScopeResult("cap_oom"),
+    )
+    fingerprint = mock.Mock(side_effect=[dirty, dirty])
+    monkeypatch.setattr(
+        provenance,
+        "_tree_and_submodules_fingerprint",
+        fingerprint,
     )
 
     def dispatch(argv):
@@ -3028,6 +3035,35 @@ def test_provenance_cap_oom_falls_back_without_tree_clean_gate(
         admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
     ) == 8
     assert seen == [["--range", "aaa..bbb"]]
+    assert fingerprint.call_count == 2
+
+
+def test_provenance_cap_oom_changed_tree_does_not_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    before = provenance._TreeFingerprint("a" * 64, (91, 127, 44, 0, 0))
+    after = provenance._TreeFingerprint("b" * 64, (112, 203, 44, 0, 0))
+    monkeypatch.setattr(
+        provenance,
+        "_run_bounded_scope",
+        lambda argv, cap: provenance._ScopeResult("cap_oom"),
+    )
+    monkeypatch.setattr(
+        provenance,
+        "_tree_and_submodules_fingerprint",
+        mock.Mock(side_effect=[before, after]),
+    )
+    dispatch = mock.Mock(side_effect=AssertionError("changed tree must not dispatch"))
+
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == provenance.PEGASUS_DISPATCH_RC
+    dispatch.assert_not_called()
+    assert "状態が変化" in capsys.readouterr().err
 
 
 def test_provenance_scope_infra_does_not_become_audit_failure(

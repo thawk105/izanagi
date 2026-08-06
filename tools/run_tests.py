@@ -159,6 +159,11 @@ class _ScopeAccounting(NamedTuple):
     grant: object
 
 
+class _TreeFingerprint(NamedTuple):
+    digest: str
+    summary: tuple[int, ...]
+
+
 _scope_accounting: ContextVar[Optional[_ScopeAccounting]] = ContextVar(
     "run_tests_scope_accounting", default=None,
 )
@@ -456,7 +461,20 @@ def _has_bounded_scope_exempt_flag(args: Sequence[str]) -> bool:
 
 
 def _test_operation(args: Sequence[str]) -> str:
-    return "tests-full" if _is_full_suite(args) else "tests-partial"
+    """Return the peak-ledger key for this target set.
+
+    Full-suite runs retain the single ``tests-full`` key.  Partial runs use
+    ``tests-partial-<12 hex>`` where the digest is SHA-256 over the sorted,
+    duplicate-free, repo-relative positional target strings.  Consequently
+    target order does not change the key, while a different target set does.
+    """
+
+    if _is_full_suite(args):
+        return "tests-full"
+    targets = sorted(set(_normalized_fingerprint_args(_positional_tokens(args))))
+    payload = json.dumps(targets, ensure_ascii=False, separators=(",", ":"))
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+    return f"tests-partial-{digest}"
 
 
 def _is_acceptance_run(args: Sequence[str]) -> bool:
@@ -1470,39 +1488,101 @@ def _run_bounded_scope_and_record(
     return result
 
 
-def _tree_and_submodules_clean(repo: Path | str) -> bool:
+def _tree_and_submodules_fingerprint(
+    repo: Path | str,
+) -> Optional[_TreeFingerprint]:
+    """Hash worktree/index and recursive submodule state; fail closed.
+
+    Status output captures untracked-path membership, while binary diffs also
+    distinguish edits to paths that were already dirty before the local run.
+    Recursive submodule HEAD/status/diff output is part of the same digest.
+    """
+
     repo_path = Path(repo).resolve()
     commands = (
-        [
-            "git", "-C", str(repo_path), "status", "--porcelain=v1",
-            "--untracked-files=all", "--ignore-submodules=none",
-        ],
-        [
-            "git", "-C", str(repo_path), "submodule", "foreach", "--recursive",
-            "--quiet", "git status --porcelain=v1 --untracked-files=all",
-        ],
+        (
+            "status",
+            [
+                "git", "-C", str(repo_path), "status", "--porcelain=v1", "-z",
+                "--untracked-files=all", "--ignore-submodules=none",
+            ],
+        ),
+        (
+            "diff",
+            [
+                "git", "-C", str(repo_path), "diff", "--binary",
+                "--no-ext-diff", "HEAD", "--",
+            ],
+        ),
+        (
+            "submodule-heads",
+            [
+                "git", "-C", str(repo_path), "submodule", "status",
+                "--recursive",
+            ],
+        ),
+        (
+            "submodule-status",
+            [
+                "git", "-C", str(repo_path), "submodule", "foreach",
+                "--recursive", "--quiet",
+                "git status --porcelain=v1 -z --untracked-files=all",
+            ],
+        ),
+        (
+            "submodule-diff",
+            [
+                "git", "-C", str(repo_path), "submodule", "foreach",
+                "--recursive", "--quiet",
+                "git diff --binary --no-ext-diff HEAD --",
+            ],
+        ),
     )
-    for command in commands:
+    fingerprint = hashlib.sha256()
+    summary: list[int] = []
+    for label, command in commands:
         try:
+            env = _git_env()
+            env["GIT_OPTIONAL_LOCKS"] = "0"
             result = subprocess.run(
                 command,
                 capture_output=True,
-                text=True,
-                env=_git_env(),
+                env=env,
                 timeout=120,
             )
-        except (OSError, UnicodeError, subprocess.TimeoutExpired):
-            return False
-        if result.returncode != 0 or result.stdout.strip():
-            return False
-    return True
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if result.returncode != 0 or not isinstance(result.stdout, bytes):
+            return None
+        label_bytes = label.encode("ascii")
+        fingerprint.update(len(label_bytes).to_bytes(2, "big"))
+        fingerprint.update(label_bytes)
+        fingerprint.update(len(result.stdout).to_bytes(8, "big"))
+        fingerprint.update(result.stdout)
+        summary.append(len(result.stdout))
+    return _TreeFingerprint(fingerprint.hexdigest(), tuple(summary))
 
 
-def _cap_oom_dirty_refusal() -> int:
+def _cap_oom_fingerprint_refusal(
+    before: Optional[_TreeFingerprint],
+    after: Optional[_TreeFingerprint],
+) -> int:
+    if before is None or after is None:
+        detail = (
+            "local 試行前後の tree / submodule 指紋を安全に取得できませんでした"
+            f"（before={'ok' if before is not None else 'failed'}、"
+            f"after={'ok' if after is not None else 'failed'}）"
+        )
+    else:
+        detail = (
+            "local 試行の前後で tree / submodule 状態が変化しました"
+            f"（digest {before.digest[:12]} -> {after.digest[:12]}、"
+            f"各状態出力 bytes {before.summary} -> {after.summary}）"
+        )
     print(
-        "bounded scope が MemoryMax に達しましたが、working tree または submodule が"
-        " clean ではないため自動 fallback しません。git status と git submodule status "
-        "--recursive を確認し、変更を復旧または退避してから再実行してください。",
+        "bounded scope が MemoryMax に達しましたが、"
+        f"{detail}。自動 fallback せず停止します。git status と "
+        "git submodule status --recursive で差分を確認してください。",
         file=sys.stderr,
         flush=True,
     )
@@ -1615,6 +1695,7 @@ def main(
                 _safe_release_grant(grant)
                 return _PEGASUS_DISPATCH_RC
             _print_granted_budget(cap, headroom_reason)
+            tree_before = _tree_and_submodules_fingerprint(Path(_REPO))
             try:
                 scope_result = _launch_local_scope(
                     args,
@@ -1633,10 +1714,15 @@ def main(
                 return _PEGASUS_DISPATCH_RC
             if scope_result.outcome is not _ScopeOutcome.CAP_OOM:
                 return _PEGASUS_DISPATCH_RC
+            tree_after = _tree_and_submodules_fingerprint(Path(_REPO))
+            if (
+                tree_before is None
+                or tree_after is None
+                or tree_before != tree_after
+            ):
+                return _cap_oom_fingerprint_refusal(tree_before, tree_after)
             if queue_unavailable:
                 return _no_execution_capacity(headroom_reason, queue_reason)
-            if not _tree_and_submodules_clean(Path(_REPO)):
-                return _cap_oom_dirty_refusal()
             return _dispatch_result(dispatch_fn, args)
 
     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))

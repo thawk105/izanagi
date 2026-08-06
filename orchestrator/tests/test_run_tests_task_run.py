@@ -286,7 +286,12 @@ def test_cap_oom_fallback_records_authoritative_compute_once(
         "_run_bounded_scope",
         lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
     )
-    monkeypatch.setattr(RT, "_tree_and_submodules_clean", lambda repo: True)
+    fingerprint = RT._TreeFingerprint("a" * 64, (0, 0, 0, 0, 0))
+    monkeypatch.setattr(
+        RT,
+        "_tree_and_submodules_fingerprint",
+        mock.Mock(side_effect=[fingerprint, fingerprint]),
+    )
     times = iter((30.0, 31.0, 32.0))
     monkeypatch.setattr(RT.time, "monotonic", lambda: next(times))
     dispatch = mock.Mock(return_value=4)

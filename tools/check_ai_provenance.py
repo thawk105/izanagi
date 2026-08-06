@@ -9,6 +9,7 @@ hook には配線しない。Izanagi の hook 2 本限定を維持しつつ、�
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib
 import os
 import re
@@ -1055,6 +1056,110 @@ def _invoke_dispatch(dispatch_fn, argv: Sequence[str]) -> int:
 
 
 @dataclass(frozen=True)
+class _TreeFingerprint:
+    digest: str
+    summary: tuple[int, ...]
+
+
+def _tree_and_submodules_fingerprint(repo: Path) -> _TreeFingerprint | None:
+    """Hash worktree/index and recursive submodule state; fail closed."""
+
+    repo_path = repo.resolve()
+    commands = (
+        (
+            "status",
+            [
+                "git", "-C", str(repo_path), "status", "--porcelain=v1", "-z",
+                "--untracked-files=all", "--ignore-submodules=none",
+            ],
+        ),
+        (
+            "diff",
+            [
+                "git", "-C", str(repo_path), "diff", "--binary",
+                "--no-ext-diff", "HEAD", "--",
+            ],
+        ),
+        (
+            "submodule-heads",
+            [
+                "git", "-C", str(repo_path), "submodule", "status",
+                "--recursive",
+            ],
+        ),
+        (
+            "submodule-status",
+            [
+                "git", "-C", str(repo_path), "submodule", "foreach",
+                "--recursive", "--quiet",
+                "git status --porcelain=v1 -z --untracked-files=all",
+            ],
+        ),
+        (
+            "submodule-diff",
+            [
+                "git", "-C", str(repo_path), "submodule", "foreach",
+                "--recursive", "--quiet",
+                "git diff --binary --no-ext-diff HEAD --",
+            ],
+        ),
+    )
+    env = {
+        key: value for key, value in os.environ.items()
+        if not key.startswith("GIT_")
+    }
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    fingerprint = hashlib.sha256()
+    summary: list[int] = []
+    for label, command in commands:
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                env=env,
+                timeout=120,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if result.returncode != 0 or not isinstance(result.stdout, bytes):
+            return None
+        label_bytes = label.encode("ascii")
+        fingerprint.update(len(label_bytes).to_bytes(2, "big"))
+        fingerprint.update(label_bytes)
+        fingerprint.update(len(result.stdout).to_bytes(8, "big"))
+        fingerprint.update(result.stdout)
+        summary.append(len(result.stdout))
+    return _TreeFingerprint(fingerprint.hexdigest(), tuple(summary))
+
+
+def _cap_oom_fingerprint_refusal(
+    before: _TreeFingerprint | None,
+    after: _TreeFingerprint | None,
+) -> int:
+    if before is None or after is None:
+        detail = (
+            "local 試行前後の tree / submodule 指紋を安全に取得できませんでした"
+            f"（before={'ok' if before is not None else 'failed'}、"
+            f"after={'ok' if after is not None else 'failed'}）"
+        )
+    else:
+        detail = (
+            "local 試行の前後で tree / submodule 状態が変化しました"
+            f"（digest {before.digest[:12]} -> {after.digest[:12]}、"
+            f"各状態出力 bytes {before.summary} -> {after.summary}）"
+        )
+    print(
+        "bounded scope が MemoryMax に達しましたが、"
+        f"{detail}。自動 fallback せず停止します。git status と "
+        "git submodule status --recursive で差分を確認してください。",
+        file=sys.stderr,
+        flush=True,
+    )
+    return PEGASUS_DISPATCH_RC
+
+
+@dataclass(frozen=True)
 class _ScopeResult:
     outcome: str
     child_rc: int | None = None
@@ -1634,6 +1739,7 @@ def main(
                     _safe_release_grant(grant)
                     return PEGASUS_DISPATCH_RC
                 _print_granted_budget(cap, headroom_reason)
+                tree_before = _tree_and_submodules_fingerprint(REPO)
                 try:
                     scope_result = _launch_local_scope(
                         values,
@@ -1651,6 +1757,16 @@ def main(
                 if scope_result.outcome == "dispatch_infra":
                     return PEGASUS_DISPATCH_RC
                 if scope_result.outcome == "cap_oom":
+                    tree_after = _tree_and_submodules_fingerprint(REPO)
+                    if (
+                        tree_before is None
+                        or tree_after is None
+                        or tree_before != tree_after
+                    ):
+                        return _cap_oom_fingerprint_refusal(
+                            tree_before,
+                            tree_after,
+                        )
                     if queue_unavailable:
                         return _no_execution_capacity(
                             headroom_reason,

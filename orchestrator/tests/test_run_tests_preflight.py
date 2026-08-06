@@ -175,6 +175,29 @@ def test_relative_and_absolute_target_have_one_suite_identity(tmp_path):
     assert RT._suite_identity(relative, "") == RT._suite_identity(absolute, "")
 
 
+def test_partial_operation_key_differs_for_different_target_sets():
+    first = RT._test_operation([
+        "orchestrator/tests/test_queue_state.py",
+    ])
+    second = RT._test_operation([
+        "orchestrator/tests/test_queue_state.py",
+        "orchestrator/tests/test_login_headroom.py",
+    ])
+
+    assert first.startswith("tests-partial-")
+    assert second.startswith("tests-partial-")
+    assert first != second
+
+
+def test_partial_operation_key_is_order_independent():
+    targets = [
+        "orchestrator/tests/test_queue_state.py",
+        "orchestrator/tests/test_login_headroom.py",
+    ]
+
+    assert RT._test_operation(targets) == RT._test_operation(list(reversed(targets)))
+
+
 @pytest.mark.parametrize(
     "args",
     [
@@ -848,7 +871,7 @@ def test_default_login_admission_calls_login_headroom_grant_budget(monkeypatch):
         site=RT.site_policy.PEGASUS_LOGIN,
         dispatch_fn=dispatch,
     ) == 7
-    grant.assert_called_once_with(operation="tests-partial")
+    grant.assert_called_once_with(operation=RT._test_operation(["test_target.py"]))
 
 
 def test_invalid_granted_budget_falls_back_to_dispatch(monkeypatch):
@@ -930,12 +953,13 @@ def test_login_headroom_and_queue_four_quadrants(
 
     assert rc == (0 if expected == "local" else 7)
     assert len(queue_checks) == (0 if headroom_available else 1)
+    operation = RT._test_operation(["test_target.py"])
     expected_grants = (
-        [{"operation": "tests-partial"}]
+        [{"operation": operation}]
         if headroom_available or queue_available
         else [
-            {"operation": "tests-partial"},
-            {"min_bytes": 0, "operation": "tests-partial"},
+            {"operation": operation},
+            {"min_bytes": 0, "operation": operation},
         ]
     )
     assert grants == expected_grants
@@ -1180,28 +1204,78 @@ def test_local_child_test_failure_never_falls_back(monkeypatch):
     dispatch.assert_not_called()
 
 
-@pytest.mark.parametrize(("clean", "expected_rc", "dispatches"), [
-    (True, 9, 1),
-    (False, RT._PEGASUS_DISPATCH_RC, 0),
-])
-def test_cap_oom_fallback_requires_clean_tree(
-    monkeypatch, clean, expected_rc, dispatches,
-):
+def test_cap_oom_dirty_before_unchanged_after_dispatches_once(monkeypatch):
+    """回帰: 開始時点の dirty は、local 試行が不変なら fallback を妨げない。"""
+
     dispatch = mock.Mock(return_value=9)
+    dirty = RT._TreeFingerprint("a" * 64, (91, 127, 44, 0, 0))
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
         lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
     )
-    monkeypatch.setattr(RT, "_tree_and_submodules_clean", lambda repo: clean)
+    fingerprint = mock.Mock(side_effect=[dirty, dirty])
+    monkeypatch.setattr(RT, "_tree_and_submodules_fingerprint", fingerprint)
 
     assert RT.main(
         ["test_target.py"],
         site=RT.site_policy.PEGASUS_LOGIN,
         dispatch_fn=dispatch,
         admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
-    ) == expected_rc
-    assert dispatch.call_count == dispatches
+    ) == 9
+    assert fingerprint.call_count == 2
+    dispatch.assert_called_once()
+
+
+def test_cap_oom_changed_tree_does_not_dispatch(monkeypatch, capsys):
+    dispatch = mock.Mock(side_effect=AssertionError("changed tree must not dispatch"))
+    before = RT._TreeFingerprint("a" * 64, (91, 127, 44, 0, 0))
+    after = RT._TreeFingerprint("b" * 64, (112, 203, 44, 0, 0))
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+    )
+    monkeypatch.setattr(
+        RT,
+        "_tree_and_submodules_fingerprint",
+        mock.Mock(side_effect=[before, after]),
+    )
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == RT._PEGASUS_DISPATCH_RC
+    dispatch.assert_not_called()
+    error = capsys.readouterr().err
+    assert "状態が変化" in error
+    assert "aaaaaaaaaaaa -> bbbbbbbbbbbb" in error
+
+
+def test_cap_oom_fingerprint_failure_does_not_dispatch(monkeypatch, capsys):
+    dispatch = mock.Mock(side_effect=AssertionError("unknown state must not dispatch"))
+    after = RT._TreeFingerprint("a" * 64, (91, 127, 44, 0, 0))
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+    )
+    monkeypatch.setattr(
+        RT,
+        "_tree_and_submodules_fingerprint",
+        mock.Mock(side_effect=[None, after]),
+    )
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == RT._PEGASUS_DISPATCH_RC
+    dispatch.assert_not_called()
+    assert "指紋を安全に取得できませんでした" in capsys.readouterr().err
 
 
 def test_scope_disappearance_after_sample_keeps_child_rc(
@@ -1645,7 +1719,7 @@ def test_small_partial_estimate_still_tries_local_scope(monkeypatch):
         site=RT.site_policy.PEGASUS_LOGIN,
         dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
     ) == 0
-    assert grants == [{"operation": "tests-partial"}]
+    assert grants == [{"operation": RT._test_operation(["test_target.py"])}]
     scope.assert_called_once_with(["test_target.py"], 1234)
 
 
