@@ -421,3 +421,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:claude-session-ledger":"D206","D:effort-downshift-needs-controlled-experiment":"D207","D:no-fixed-token-rates-in-entry-docs":"D208"},"authored":"2026-08-06","content_sha256":"316b9193cb85dd207a07e493d2f6c9cb78dcdf1b4a193ad387bf27d25a429891","seq":1,"wave":"dev-wave-token-hygiene"}
 - {"allocations":{"F:bg-job-idled-without-a-wait":"F145","F:measurement-double-count-reported-to-user":"F144"},"authored":"2026-08-06","content_sha256":"a737decc61fc7ebc0ec536efbd62acf0d63b10b6869a2f64020baed1091818f9","seq":2,"wave":"dev-wave-token-hygiene"}
 - {"allocations":{"T:claude-session-ledger-consumers":"[T-598]","T:codex-effort-ab-evaluation":"[T-595]","T:dev-wave-reference-budget-exhausted":"[T-597]","T:main-provenance-trailer-red":"[T-596]"},"authored":"2026-08-06","content_sha256":"91584765f8b41aa6dff7bda40a7508d79326cf7b2cd585a11d7f059bc994df99","seq":3,"wave":"dev-wave-token-hygiene"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"5c01dac163b27b2dba858671e18e107ee21a9e20fcdd5601da59d275be5d573f","seq":1,"wave":"dev-wave-t244-u10-draft"}
+- {"allocations":{"F:fix-begets-fix":"F146"},"authored":"2026-08-06","content_sha256":"a028310995444a9afd3c91df4558aab21c563c053403a8381f44a63b57211c0f","seq":2,"wave":"dev-wave-t244-u10-draft"}
