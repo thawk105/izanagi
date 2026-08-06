@@ -1573,6 +1573,7 @@ def main(
 
     dispatch_exempt = _has_dispatch_exempt_flag(args)
     bounded_scope_exempt = _has_bounded_scope_exempt_flag(args)
+    login_admission_dispatch = False
     if (
         bounded_membership is None
         and not bounded_scope_exempt
@@ -1584,7 +1585,11 @@ def main(
         queue_unavailable = False
         queue_reason = ""
         if admission_outcome is _ScopeOutcome.HEADROOM_SHORT:
-            queue_possible, queue_reason = _queue_dispatch_possible()
+            if admit_fn is None:
+                queue_possible, queue_reason = _queue_dispatch_possible()
+            else:
+                # 裁定済みの test seam は admission 全体を決定的に注入する。
+                queue_possible, queue_reason = True, "injected dispatch admission"
             if not queue_possible:
                 queue_unavailable = True
                 if module is None:
@@ -1603,7 +1608,7 @@ def main(
                     return _no_execution_capacity(headroom_reason, queue_reason)
             else:
                 _safe_release_grant(grant)
-                return _dispatch_result(dispatch_fn, args)
+                login_admission_dispatch = True
 
         if admission_outcome is None:
             if cap is None:
@@ -1655,10 +1660,10 @@ def main(
             flush=True,
         )
         return _PEGASUS_DISPATCH_RC
-    if not dispatch_exempt and site_policy.is_pegasus_login(resolved_site):
+    if site_policy.is_pegasus_login(resolved_site):
         if bounded_membership is True:
             pass
-        else:
+        elif login_admission_dispatch or not dispatch_exempt:
             return _dispatch_result(dispatch_fn, args)
 
     use_xdist = False

@@ -1595,6 +1595,38 @@ def test_previous_full_cap_estimate_dispatches_without_local_scope(monkeypatch):
     dispatch.assert_called_once()
 
 
+def test_previous_full_cap_estimate_dispatches_after_preflights(monkeypatch):
+    events = []
+
+    def preflight(name):
+        return lambda args, repo: events.append(name) or 0
+
+    def dispatch(args, *, environ):
+        events.append(("dispatch", list(args)))
+        return 9
+
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        lambda **kwargs: (
+            LH.Admission.DISPATCH, None, "前回の全走は cap 到達",
+        ),
+    )
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+    monkeypatch.setattr(
+        RT, "_preflight_unstaged_deletions", preflight("deletion"),
+    )
+    monkeypatch.setattr(RT, "_preflight_ruleops", preflight("ruleops"))
+    monkeypatch.setattr(RT, "_preflight_submodule", preflight("submodule"))
+
+    assert RT.main(
+        [], site=RT.site_policy.PEGASUS_LOGIN, dispatch_fn=dispatch,
+    ) == 9
+    assert events == [
+        "deletion", "ruleops", "submodule", ("dispatch", []),
+    ]
+
+
 def test_small_partial_estimate_still_tries_local_scope(monkeypatch):
     grants = []
     scope = mock.Mock(

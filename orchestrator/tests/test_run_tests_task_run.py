@@ -14,15 +14,16 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+_REPO = Path(__file__).resolve().parents[2]
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
+
 import pytest
 
 from tools.task_runs import init_pilot, start_run, validate_run
 from tools.task_runs import pytest_stats as PS
 import orchestrator.tests.conftest as CONF
 from orchestrator.campaign import login_headroom as LH
-
-
-_REPO = Path(__file__).resolve().parents[2]
 
 
 def _load(path: Path, name: str):
@@ -174,6 +175,37 @@ def test_login_parent_records_once_and_dispatch_environment_has_no_run_id(
     assert record["exit_status"] == 5
     assert record["duration_s"] == 4.5
     assert record["sidecar"] is None
+
+
+def test_previous_peak_estimate_dispatch_records_once(monkeypatch, tmp_path):
+    records = []
+    monkeypatch.setenv("IZANAGI_TASK_RUN_ID", "20260720-e2-01234567")
+    monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(tmp_path / "ledger"))
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        lambda **kwargs: (
+            LH.Admission.DISPATCH, None, "前回の部分走は cap 到達",
+        ),
+    )
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+    monkeypatch.setattr(RT, "_record_task_run", lambda **kw: records.append(kw))
+    times = iter((30.0, 32.0))
+    monkeypatch.setattr(RT.time, "monotonic", lambda: next(times))
+    dispatch = mock.Mock(return_value=6)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 6
+    dispatch.assert_called_once()
+    assert len(records) == 1
+    assert records[0]["exit_status"] == 6
+    assert records[0]["duration_s"] == 2.0
 
 
 def test_m7_parent_dispatch_environment_isolated_redundant_gate(monkeypatch):
