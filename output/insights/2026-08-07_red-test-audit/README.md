@@ -3,8 +3,10 @@
 依頼: 「現在、テストが赤なものはある？それを適切に直してほしい。」
 
 計測 checkout = `.claude/worktrees/dev-wave-red-tests` (branch `worktree-dev-wave-red-tests`、
-起点 `0d64599e`)。submodule `external/ccbench` は `d706650c` で pinned-clean。
+起点 `0d64599e`、権威ある受入結果は local main `23337171` を取り込んだ後のもの)。
+submodule `external/ccbench` は `d706650c` で pinned-clean。
 実行環境は Pegasus。全走は `run_tests.py` が計算ノードへ同期 dispatch した結果である。
+検査は特記のない限り起点 `0d64599e` 時点で実測した。
 
 ## 結論
 
@@ -16,7 +18,9 @@
 
 | 検査 | rc | 結果 |
 |---|---|---|
-| `python3 tools/run_tests.py` (受入形・引数なし) | 0 | **6837 passed / 20 skipped / 0 failed** |
+| `python3 tools/run_tests.py -rf` (**受入形ではない**、起点 `0d64599e`) | 0 | 6837 passed / 20 skipped / 0 failed |
+| `python3 tools/run_tests.py` (受入形、起点 `0d64599e`) | 1 | 1 failed / 6836 passed / 20 skipped — **走行中に親が docs を書いたことによる偽の赤** (F106 の 4 度目)。落ちたのは `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo` で、ツール実行前後の `git status` 一致を見る検査 |
+| `python3 tools/run_tests.py` (受入形、local main `23337171` 取り込み後) | 0 | **7057 passed / 20 skipped / 0 failed** ← 本 wave の権威ある受入結果 |
 | `python3 tools/check_docs.py` | 0 | 違反なし |
 | `python3 tools/check_codex_agents.py` | 0 | 0 native active / 13 static dormant |
 | `python3 tools/check_wave_startup.py` | 0 | submodule 初期化後に緑 |
