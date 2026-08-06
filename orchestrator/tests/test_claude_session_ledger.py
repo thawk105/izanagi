@@ -342,6 +342,70 @@ def test_default_file_budget_is_balanced_before_unused_quota_is_reassigned(
     assert report["sidechains"]["model_calls"] == 4
 
 
+def test_reserved_balanced_quota_precedes_reassignment_when_candidates_compete(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    for index in range(2):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"root-{index}.jsonl",
+            [
+                _assistant(
+                    request_id=f"root-{index}",
+                    message_id=f"root-message-{index}",
+                    usage=_usage(
+                        cache_read=1, cache_creation=0, input_tokens=0, output=1
+                    ),
+                )
+            ],
+        )
+    _write_jsonl(
+        projects,
+        "project-a",
+        "session/subagents/agent.jsonl",
+        [
+            _assistant(
+                request_id="side",
+                message_id="side-message",
+                usage=_usage(
+                    cache_read=0, cache_creation=1, input_tokens=0, output=1
+                ),
+            )
+        ],
+    )
+
+    rc, report, stderr = _run_json(
+        capsys, projects, "--strict", "--max-files", "2"
+    )
+
+    assert rc == 0
+    assert stderr == ""
+    assert report["population"]["files_scanned"] == 2
+    assert report["population"]["limit_reached"] is True
+    assert report["population"]["file_allocation"] == {
+        "policy": "balanced_root_sidechain_with_unused_quota_reassigned",
+        "root_base_quota": 1,
+        "sidechain_base_quota": 1,
+        "root_selected": 1,
+        "sidechain_selected": 1,
+    }
+    assert report["root"]["model_calls"] == 1
+    assert report["sidechains"]["model_calls"] == 1
+
+    rc, text, stderr = _run_text(
+        capsys, projects, "--strict", "--max-files", "2"
+    )
+
+    assert rc == 0
+    assert stderr == ""
+    assert text.count(
+        "  file 配分 (root/sidechain): 1/1 "
+        "(基準枠 1/1; 未使用枠は再配分)\n"
+    ) == 1
+
+
 @pytest.mark.parametrize("collision_kind", ["requestId", "message.id"])
 def test_raw_ids_do_not_merge_across_file_or_sidechain_provenance(
     tmp_path: Path,
