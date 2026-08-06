@@ -326,7 +326,14 @@ producer/consumer で独立に 2 件再現したときだけ許される。現�
 **`DW-O19` の現行手順は復元の正本を `git diff` / `git checkout --` としている。**
 実装後もこれを残すと、journal と所有確認を迂回した手動復元が正規手順として残る。同時に是正が要る。
 
-### 8.1 最安の生死確認実験 (`DW-G01`) `[未実装]`
+### 8.1 最安の生死確認実験 (`DW-G01`) `[実施済み — GO]`
+
+**2026-08-06 に実施した。** 一次資料と射程は
+`output/insights/2026-08-06_t503-restore-durability-liveness/`。結果は
+SIGKILL leg = PASS、正の control (部分 bytes 検出) = PASS、walltime proxy = PASS、
+**node-death leg = `UNKNOWN` (未実施)**。**部分 bytes は観測されず、NO-GO 条件は成立しない。**
+実験の実行体は `tools/pegasus/probes/t503_restore_durability_probe.py` と
+同 `_probe.pbs` / `_recover.pbs` / `_verdict.pbs`。以下は当初の設計記述である。
 
 大型機構を作る前に、実 repo を使わない 100 行以内の使い捨て driver で確かめる。
 

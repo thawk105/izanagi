@@ -91,6 +91,30 @@
       "primary_gate": "hook deny pending admission evidence",
       "evidence": "unmeasured probe artifact"
     },
+    "tools/pegasus/probes/t503_restore_durability_probe.pbs": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t503_restore_durability_probe.py": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t503_restore_durability_recover.pbs": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t503_restore_durability_verdict.pbs": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
     "tools/pegasus/run_probe.py": {
       "class": "dispatch-required",
       "reason": "probe semantics require a compute allocation",
