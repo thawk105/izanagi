@@ -1,0 +1,76 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 9000,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_report.py",
+          "old": "    if not isinstance(env_tag, str) or not env_tag:\n        raise ReportError(\"manifest.run_contract.env_tag が非空 str でない\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_identity_declaration_is_fail_closed_before_resolution[env-tag-missing]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_identity_declaration_is_fail_closed_before_resolution[env-tag-empty]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_identity_declaration_is_fail_closed_before_resolution[env-tag-non-string]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_report.py",
+          "old": "    if not isinstance(contract_sha256, str) or not contract_sha256:\n        raise ReportError(\n            \"manifest.run_contract.contract_sha256 が非空 str でない\"\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_identity_declaration_is_fail_closed_before_resolution[contract-sha256-missing]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_identity_declaration_is_fail_closed_before_resolution[contract-sha256-empty]",
+        "orchestrator/tests/test_s8b_oracle_report.py::test_run_contract_identity_declaration_is_fail_closed_before_resolution[contract-sha256-non-string]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_contract.py",
+          "old": "    if contract_sha256 != expected_contract_sha256:\n        raise FloorContractError(\n            \"protocol.contract_sha256 が contract_sha256_lookup の選択した contract と不一致\"\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_rejects_recorded_g1_when_current_contract_is_g2_before_calibration"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4p",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_report.py",
+          "old": "    run_contract = manifest.get(\"run_contract\") if isinstance(manifest, Mapping) else None\n    if not isinstance(run_contract, Mapping):\n        return None\n",
+          "new": "    run_contract = manifest.get(\"run_contract\") if isinstance(manifest, Mapping) else None\n    if not isinstance(run_contract, Mapping):\n        run_contract = {}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_report.py::test_completed_legacy_without_run_contract_or_receipt_skips_contract_checks"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
