@@ -2842,7 +2842,7 @@ def _launch_validate(
         contract_resolver: Callable[..., _env_contract.ExecutionEnvironmentContract],
         result_type: Type[LaunchValidatedFreeze] | Type[ReverifiedFreeze],
 ) -> LaunchValidatedFreeze | ReverifiedFreeze:
-    """§8.4 の全 binding graph と未知性層2を通して実走型へ昇格する。
+    """§8.4 の全 binding graph と未知性層2を通す full validation core。
 
     reason 優先順は §2.8 固定: (1) 引数型/HEAD、(2) generation==1、(3) path・
     存在・mode・strict parse、(4) semantic、(5) binding、(6) lineage、(7) exact

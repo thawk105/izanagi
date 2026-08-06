@@ -1267,6 +1267,8 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                      manifest_issue_messages: Sequence[str], *,
                      repo_root: Path,
                      current_receipt_invalid: bool,
+                     receipt_expectations,
+                     receipt_expectations_error: Optional[ReportError],
                      ) -> tuple[list[dict], _T080CampaignObservation]:
     bases = [_base_row(item) for item in rows]
     layout = _resolved_campaign_layout(campaign_id, output_root)
@@ -1376,13 +1378,9 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         # C3-10: manifest が v2 run_contract (env_tag + contract_sha256) を宣言する場合、
         # campaign-start の execution_receipt が env_tag/contract_sha256 と一致し、実行機
         # attestation を持つことを要求する (受理が恒真にならないよう存在と一致を両方検査)。
-        try:
-            expectations = _receipt_expectations(
-                manifest,
-                contract_resolver=env_contract.resolve_by_contract_sha256,
-            )
-        except ReportError as exc:
-            global_issues.append(str(exc))
+        expectations = receipt_expectations
+        if receipt_expectations_error is not None:
+            global_issues.append(str(receipt_expectations_error))
             expectations = None
         if expectations is not None:
             contract, verified = expectations
@@ -1625,6 +1623,15 @@ def build_observations(
     if type(manifest) is _artifacts.LegacyManifest:
         (schedule, allowed_excluded, manifest_sha, n, expected_reps,
          manifest_issues) = _validate_manifest(document)
+    receipt_expectations = None
+    receipt_expectations_error = None
+    try:
+        receipt_expectations = _receipt_expectations(
+            document,
+            contract_resolver=env_contract.resolve_by_contract_sha256,
+        )
+    except ReportError as exc:
+        receipt_expectations_error = exc
     by_block, campaign_ids, declaration_issues = _campaign_index(
         document["campaign_ids"], schedule,
     )
@@ -1659,6 +1666,8 @@ def build_observations(
                 assessed_manifest_issue_messages,
                 repo_root=Path(repo_root),
                 current_receipt_invalid=current_receipt_invalid,
+                receipt_expectations=receipt_expectations,
+                receipt_expectations_error=receipt_expectations_error,
             )
             t080_by_campaign[campaign_id] = t080_observation
             for ordinal, row in zip(ordinals, assessed):

@@ -759,7 +759,11 @@ def test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses
 )
 def test_public_reverify_resolver_refusals_do_not_fallback_to_current(
         tmp_path, case_id):
-    """public read-only 入口は resolver 拒否・不正返却を current lookup で救済しない。"""
+    """public read-only 入口は resolver 拒否・不正返却を current lookup で救済しない。
+
+    ambiguous / dishonest は patch-only の構造防御であり production artifact から
+    到達しない。
+    """
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
     g1 = EC.lookup(topology["protocol"]["env_tag"])
@@ -797,6 +801,43 @@ def test_public_reverify_resolver_refusals_do_not_fallback_to_current(
     current_fallback.assert_not_called()
 
 
+def test_public_reverify_rejects_dishonest_same_env_wrong_hash_resolver(tmp_path):
+    """same-env/wrong-hash 返却は patch-only の構造防御であり、
+    production artifact から到達しない。"""
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    g1 = EC.lookup(topology["protocol"]["env_tag"])
+    wrong = dataclasses.replace(
+        g1,
+        calibration_ref=EC.CalibrationRef(
+            path=g1.calibration_ref.path + ".dishonest",
+            sha256="e" * 64,
+        ),
+    )
+    assert wrong.env_tag == g1.env_tag
+    assert wrong.contract_sha256 != g1.contract_sha256
+    resolver = mock.Mock(
+        return_value=EC.GenerationEntry(generation=2, contract=wrong),
+    )
+    current_fallback = mock.Mock(
+        side_effect=AssertionError("dishonest resolver 拒否後に current へ fallback した"),
+    )
+
+    with mock.patch.object(M._env_contract, "lookup", current_fallback), \
+            mock.patch.object(
+                M._env_contract, "resolve_by_contract_sha256", resolver,
+            ):
+        with pytest.raises(M.RatifiedFreezeError) as excinfo:
+            M.reverify_published_freeze(freeze, root)
+
+    assert excinfo.value.reason == "floor-artifact-invalid"
+    assert excinfo.value.cause == "protocol-invalid"
+    assert resolver.call_count == 1
+    assert resolver.call_args.args == (g1.contract_sha256,)
+    assert resolver.call_args.kwargs == {"expected_env_tag": g1.env_tag}
+    current_fallback.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "case_id",
     ["missing-calibration", "calibration-hash-mismatch"],
@@ -811,21 +852,24 @@ def test_public_reverify_calibration_refusals_do_not_fallback_to_current(
     current_fallback = mock.Mock(
         side_effect=AssertionError("calibration 拒否後に current lookup へ fallback した"),
     )
-    attestation_error = M._env_attestation.AttestationError(case_id)
+    calibration_path = root / g1.calibration_ref.path
+    if case_id == "missing-calibration":
+        calibration_path.unlink()
+        expected_detail = "存在しない"
+    else:
+        calibration_path.write_bytes(b"tampered historical calibration\n")
+        expected_detail = "calibration sha256 不一致"
 
     with mock.patch.object(M._env_contract, "lookup", current_fallback), \
             mock.patch.object(
                 M._env_contract, "resolve_by_contract_sha256", resolver,
-            ), \
-            mock.patch.object(
-                M._env_attestation, "load_verified_calibration",
-                side_effect=attestation_error,
             ):
         with pytest.raises(M.RatifiedFreezeError) as excinfo:
             M.reverify_published_freeze(freeze, root)
 
     assert excinfo.value.reason == "journal-state-invalid"
     assert excinfo.value.cause == "receipt-contract"
+    assert expected_detail in str(excinfo.value)
     assert resolver.call_count == 1
     current_fallback.assert_not_called()
 

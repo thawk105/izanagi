@@ -7,6 +7,7 @@ import dataclasses
 import hashlib
 import importlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -1946,12 +1947,47 @@ def test_build_observations_accepts_recorded_g1_under_g2_current(tmp_path):
             manifest=manifest, output_root=tmp_path,
         )
 
-    assert all(row["status"] == "completed" for row in observations["rows"])
+    rows = observations["rows"]
+    expected_count = len(manifest["schedule"]["rows"])
+    assert len(rows) == len(observations["expected_cells"]) == expected_count > 0
+    assert all(row["status"] == "completed" for row in rows)
     assert resolver.call_count == 1
     assert resolver.call_args.args == (g1.contract_sha256,)
     assert resolver.call_args.kwargs == {"expected_env_tag": g1.env_tag}
     assert calibration_loader.call_count == 1
     assert calibration_loader.call_args.args[0] is g1
+
+
+def test_build_observations_resolves_contract_once_across_two_campaigns(tmp_path):
+    """manifest 単位の contract/calibration snapshot を2 campaign で共有する。"""
+    manifest = _two_campaign_manifest(tmp_path)
+    rows = manifest["schedule"]["rows"]
+    for campaign_id, block_id, item in (
+        ("oracle-b0", "b0", rows[0]),
+        ("oracle-b1", "b1", rows[1]),
+    ):
+        layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
+        _campaign_start(layout, manifest, campaign_id, block_id=block_id)
+        _finish_campaign_rows(layout, [item])
+    resolver = mock.Mock(wraps=env_contract.resolve_by_contract_sha256)
+    calibration_loader = mock.Mock(
+        wraps=report.env_attestation.load_verified_calibration,
+    )
+
+    with mock.patch.object(
+            report.env_contract, "resolve_by_contract_sha256", resolver,
+    ), mock.patch.object(
+            report.env_attestation, "load_verified_calibration", calibration_loader,
+    ):
+        observations = report.build_observations(
+            manifest=manifest, output_root=tmp_path,
+        )
+
+    observed_rows = observations["rows"]
+    assert len(observed_rows) == len(observations["expected_cells"]) == 2
+    assert [row["status"] for row in observed_rows] == ["completed", "completed"]
+    assert resolver.call_count == 1
+    assert calibration_loader.call_count == 1
 
 
 @pytest.mark.parametrize(
@@ -1972,7 +2008,11 @@ def test_build_observations_accepts_recorded_g1_under_g2_current(tmp_path):
 )
 def test_build_observations_historical_resolver_fails_closed_without_current_fallback(
         tmp_path, case_id, reason_fragment):
-    """public report の resolver/calibration 拒否 matrix は current へ fallback しない。"""
+    """public report の resolver/calibration 拒否 matrix は current へ fallback しない。
+
+    ambiguous / dishonest は patch-only の構造防御であり production artifact から
+    到達しない。
+    """
     manifest = _manifest(tmp_path)
     base = env_contract.lookup("linux-baremetal")
     production_resolver = env_contract.resolve_by_contract_sha256
@@ -2041,9 +2081,12 @@ def test_build_observations_historical_resolver_fails_closed_without_current_fal
             manifest=manifest, output_root=tmp_path,
         )
 
-    assert all(row["status"] == "protocol_violation" for row in observations["rows"])
+    rows = observations["rows"]
+    expected_count = len(manifest["schedule"]["rows"])
+    assert len(rows) == len(observations["expected_cells"]) == expected_count > 0
+    assert all(row["status"] == "protocol_violation" for row in rows)
     assert all(reason_fragment in (row.get("reason") or "")
-               for row in observations["rows"])
+               for row in rows)
     assert resolver_spy.call_count == 1
     assert resolver_spy.call_args.kwargs == {"expected_env_tag": base.env_tag}
     current_fallback.assert_not_called()
@@ -2066,8 +2109,13 @@ def test_manifest_contract_sha256_mismatch_with_registry_is_protocol_violation(
 
     assert all(row["status"] == "protocol_violation"
                for row in observations["rows"])
-    assert all("未知の contract_sha256" in (row.get("reason") or "")
-               for row in observations["rows"])
+    assert {
+        re.sub(r"[0-9a-f]{64}$", "<sha256>", row["reason"])
+        for row in observations["rows"]
+    } == {
+        "manifest env contract を検証できない: "
+        "未知の contract_sha256: <sha256>",
+    }
 
 
 def test_required_receipt_consumer_derives_mode_and_passes_verified_calibration(tmp_path):
