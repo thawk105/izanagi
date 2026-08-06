@@ -84,6 +84,12 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 新規に閉じるのは非 sanctioned な綴りだけで、Codex 子・script file 越し・`python3 -c`・ユーザー端末は
 原理的に見えない — は `docs/pegasus-runbook.md` §7 と D103 / D105 を正本とする。
 
+**raw `systemd-run` の拒否 ([T-300])。** LOGIN / SUSPECT では head が `systemd-run` の呼び出しを
+拒否する。上限付き scope は `tools/run_tests.py` などが**内部で**作るものであり、hook は
+subprocess の内側を見ないので raw 実行を許可する必要がない。**`_WRAPPERS` へは追加していない** —
+wrapper 化すると head の解釈が変わり、これまで拒否されていた綴りが許可側へ移る回帰が生じる
+(段 3 レンズが具体例を示した)。`command -v` / `-V` は所在の問い合わせなので終端 reader として通す。
+
 ## hook 3: guard_read.py (PreToolUse: Read) — コンテキスト衛生 (正しさ防壁ではない)
 
 大きい記録ファイルの offset/limit 無し Read を止め、D35 (grep index → 部分読み) を prompt 規律から

@@ -6,9 +6,10 @@
 (``output/s1-build-cache/`` の googletest 由来 ``*test*.py`` 等) を拾って
 **赤の有無が checkout に依存する**。``testpaths`` / ``norecursedirs`` でこれを閉じる。
 
-同時に、ini の ``addopts`` は **書いてはならない**。tools/run_tests.py の 4 ゲート
+同時に、ini の ``addopts`` は **書いてはならない**。tools/run_tests.py の 5 ゲート
 (``_is_full_suite`` / ``_has_no_execution_flag`` / ``_has_dispatch_exempt_flag`` /
-``_is_acceptance_run``) はいずれも環境変数 ``PYTEST_ADDOPTS`` しか読まず ini を見ないため、
+``_has_bounded_scope_exempt_flag`` / ``_is_acceptance_run``) はいずれも環境変数
+``PYTEST_ADDOPTS`` しか読まず ini を見ないため、
 ini 側に選択オプションを置くと「全走のつもりで実は選択走」が preflight を素通りする (規律 2)。
 本ファイルはその禁止を機械固定し、禁止が空虚でないこと (ini の addopts が実際に収集集合を
 狭めること) を正例で示す。
@@ -35,7 +36,7 @@ assert _SPEC and _SPEC.loader
 RT = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(RT)
 
-# 設定ファイルが担う契約はこの 2 キーだけ。キーを増やす改訂は 4 ゲートに対する
+# 設定ファイルが担う契約はこの 2 キーだけ。キーを増やす改訂は 5 ゲートに対する
 # 再裁定を要するので、集合そのものを固定する。
 _EXPECTED_INI_OPTIONS = {"testpaths", "norecursedirs"}
 _POISON = "raise RuntimeError('poison module was collected')\n"
@@ -98,13 +99,14 @@ def test_repo_pytest_ini_has_no_addopts_and_pins_testpaths():
 
     options = set(parser.options("pytest"))
     assert "addopts" not in options, (
-        "pytest.ini に addopts を置いてはいけない — run_tests.py の 4 ゲートは "
+        "pytest.ini に addopts を置いてはいけない — run_tests.py の 5 ゲートは "
         "PYTEST_ADDOPTS しか読まず、ini の選択オプションは preflight を素通りする"
     )
     assert options == _EXPECTED_INI_OPTIONS, (
-        "pytest.ini のキー集合が変わった。増減は run_tests.py の 4 ゲート "
+        "pytest.ini のキー集合が変わった。増減は run_tests.py の 5 ゲート "
         "(_is_full_suite / _has_no_execution_flag / _has_dispatch_exempt_flag / "
-        f"_is_acceptance_run) への影響を再裁定してから行う: {sorted(options)}"
+        "_has_bounded_scope_exempt_flag / _is_acceptance_run) への影響を"
+        f"再裁定してから行う: {sorted(options)}"
     )
 
     assert parser["pytest"]["testpaths"] == "orchestrator/tests"
@@ -259,6 +261,7 @@ def test_runner_default_target_survives_ini(monkeypatch: pytest.MonkeyPatch):
     assert RT._is_full_suite([]) is True
     assert RT._has_no_execution_flag([]) is False
     assert RT._has_dispatch_exempt_flag([]) is False
+    assert RT._has_bounded_scope_exempt_flag([]) is False
 
 
 def test_ini_testpaths_and_runner_default_target_point_at_the_same_tree():

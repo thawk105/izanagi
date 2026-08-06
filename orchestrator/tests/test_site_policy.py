@@ -8,6 +8,7 @@ import ast
 import os
 from pathlib import Path
 import sys
+import tempfile
 from unittest import mock
 
 
@@ -107,7 +108,11 @@ def test_current_site_hostname_exception_uses_nqsv_evidence():
         SP.socket,
         "gethostname",
         side_effect=RuntimeError("resolver failed"),
-    ), mock.patch.object(SP.shutil, "which", return_value=None):
+    ), mock.patch.object(
+        SP.shutil,
+        "which",
+        return_value=None,
+    ), mock.patch.object(SP.os.path, "isdir", return_value=False):
         assert SP.current_site() == SP.OTHER
 
 
@@ -121,6 +126,10 @@ def test_current_site_requires_qsub_and_qstat_together():
             SP.shutil,
             "which",
             side_effect=lambda name: markers.get(name),
+        ), mock.patch.object(
+            SP.os.path,
+            "isdir",
+            return_value=False,
         ):
             return SP.current_site()
 
@@ -129,6 +138,57 @@ def test_current_site_requires_qsub_and_qstat_together():
     )
     assert classify_with({"qsub": "/bin/qsub"}) == SP.OTHER
     assert classify_with({"qstat": "/bin/qstat"}) == SP.OTHER
+
+
+def test_has_nqsv_accepts_marker_without_path_evidence():
+    with tempfile.TemporaryDirectory() as marker:
+        with mock.patch.object(SP.shutil, "which", return_value=None):
+            assert SP._has_nqsv(marker) is True
+
+
+def test_has_nqsv_rejects_when_path_and_marker_are_absent():
+    with tempfile.TemporaryDirectory() as directory:
+        marker = os.path.join(directory, "missing-nqsv")
+        with mock.patch.object(SP.shutil, "which", return_value=None):
+            assert SP._has_nqsv(marker) is False
+
+
+def test_has_nqsv_accepts_path_evidence_without_marker():
+    with tempfile.TemporaryDirectory() as directory:
+        marker = os.path.join(directory, "missing-nqsv")
+        with mock.patch.object(
+            SP.shutil,
+            "which",
+            side_effect=lambda name: f"/fixture/{name}",
+        ):
+            assert SP._has_nqsv(marker) is True
+
+
+def test_has_nqsv_marker_oserror_fails_closed_without_leaking():
+    with mock.patch.object(
+        SP.shutil,
+        "which",
+        return_value=None,
+    ), mock.patch.object(
+        SP.os.path,
+        "isdir",
+        side_effect=OSError("marker unavailable"),
+    ):
+        assert SP._has_nqsv("/fixture/nqsv") is False
+
+
+def test_current_site_uses_marker_when_path_is_empty():
+    with tempfile.TemporaryDirectory() as marker:
+        with mock.patch.object(
+            SP.socket,
+            "gethostname",
+            return_value="pegasus02",
+        ), mock.patch.object(
+            SP.shutil,
+            "which",
+            return_value=None,
+        ), mock.patch.object(SP, "NQSV_MARKER_DIR", marker):
+            assert SP.current_site() == SP.PEGASUS_LOGIN
 
 
 def test_classify_site_does_not_resolve_the_real_environment():
@@ -234,6 +294,54 @@ def test_heavy_work_refusal_is_japanese_and_names_compliant_route():
         assert "計算ノード" in message
         assert "qsub" in message
         assert "qlogin" in message
+
+
+def test_heavy_work_refusal_is_pure_and_keeps_existing_text_without_hint():
+    expected = (
+        "pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。"
+        "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+    )
+    with mock.patch(
+        "subprocess.run",
+        side_effect=AssertionError("拒否文面の生成で subprocess を起動してはならない"),
+    ) as run:
+        assert SP.heavy_work_refusal(SP.PEGASUS_LOGIN, "pytest") == expected
+    run.assert_not_called()
+
+
+def test_heavy_work_refusal_keeps_existing_text_when_queue_is_available():
+    expected = (
+        "pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。"
+        "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+    )
+    assert SP.heavy_work_refusal(
+        SP.PEGASUS_LOGIN,
+        "pytest",
+        queue_hint=(True, "キューは利用できます。"),
+    ) == expected
+
+
+def test_heavy_work_refusal_adds_queue_diagnosis_only_with_unavailable_hint():
+    existing = (
+        "性能測定 を拒否します: Pegasus ログインノードでは重い処理を実行できません。"
+        "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+    )
+    queue_reason = (
+        "キュー gen_S は ENA=DIS、STS=INA、待ち数=95、実行数=68で、"
+        "現在利用できません。"
+    )
+    without_hint = SP.heavy_work_refusal(SP.PEGASUS_LOGIN, "性能測定")
+    message = SP.heavy_work_refusal(
+        SP.PEGASUS_LOGIN,
+        "性能測定",
+        queue_hint=(False, queue_reason),
+    )
+    assert without_hint == existing
+    assert queue_reason not in without_hint
+    assert message.startswith(existing)
+    assert queue_reason in message
+    assert "投入しても実行されません" in message
+    assert "したがって性能測定は現時点では実施できません" in message
 
 
 def test_site_policy_imports_only_approved_stdlib_modules():
