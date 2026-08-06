@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "MU-2-oldhead-kill-accepts-expected-subset-of-failed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\"",
+          "new": "    return \"KILLED\" if expected_keys <= failed_keys else \"MISMATCH\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-6-oldhead-kill-accepts-failed-subset-of-expected",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\"",
+          "new": "    return \"KILLED\" if failed_keys <= expected_keys else \"MISMATCH\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-7-oldhead-match-key-drops-path-component",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo).partition(\"::\")[2]"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
