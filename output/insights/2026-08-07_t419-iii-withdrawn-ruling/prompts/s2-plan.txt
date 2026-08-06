@@ -1,0 +1,66 @@
+あなたは izanagi (ワークロード特化の並行性制御を AI が合成・選択する研究システム) の
+開発 wave の実装プラン起草者である。read-only。コードもファイルも書かない。
+
+## 必読 (読めなければ即停止し、その旨だけを報告せよ)
+
+1. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-iii/s1-brief.md` — 親の段 1 brief。
+   前提実測と provisional 裁定 (P1)〜(P6) を含む。
+2. repo root は `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-iii`。
+   - `orchestrator/calibrator/cli.py` (特に `_published_self_comparison_receipt`、
+     `_effective_clock_self_comparison_passes`、`_certify_main` の publish 前後)
+   - `orchestrator/calibrator/effective_clock_policy.py`
+   - `orchestrator/calibrator/schema_v2.py` の `validate_calibration_v2`
+   - `orchestrator/campaign/execution_guard.py` の `effective_clock_comparison_passes` と
+     `_effective_clock_band_evaluation`
+   - `orchestrator/tests/test_calibrator_certify.py`
+   - `orchestrator/tests/test_env_contract.py` の `KNOWN_SELF_INCONSISTENT_CALIBRATIONS` 周辺
+   - `orchestrator/tests/test_env_attestation.py` の
+     `test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies`
+   - `tools/pegasus/certify_calibration.sh` (末尾の calibrate 呼び出し以降)
+   - `tools/pegasus/collect_receipt.py`
+   - `docs/decisions.md` の D181 と D191 (`grep -n "^## D181\|^## D191" docs/decisions.md` で位置を出す)
+3. 実 artifact: `output/env/pegasus/calibration/registered/calibration-94a4b79fa31bba3c.json`
+   (新較正、帯 pass) と `calibration-753f535a8d024727.json` (旧較正、帯 fail の既知例外)。
+   `output/env/pegasus/calibration/attempts/0_892707.nqsv/` (publish.json,
+   published-self-comparison.json)。
+
+## 依頼
+
+段 1 brief の scope に対する **file:line 粒度の実装プラン**を書け。目的は
+「publish 済み較正 artifact を、それを作った process の外から、bytes だけを入力に判定し、
+判定を第三者が再計算できる artifact として残す」ことである。
+
+プランには最低限これを含めること。
+
+1. 新規 module / entry の正確な path と、既存 module のどの関数の直後に何行入るか (file:line)。
+2. 判定 artifact の JSON schema (key を全部列挙。値の型と、何を preimage として残すか)。
+   第三者が **artifact だけから** 判定を再計算できることを要件とする。
+3. 既存テストのどれが影響を受けるか。特に:
+   - `output/env/pegasus` を rglob する exact 集合 test に新ファイルが引っかからないか
+   - `attempts/*/calibration.md` の exact 集合、48 件の count pin
+   - `check_docs.py` / `run_tests.py` の untracked・削除検査
+4. 新規テストの nodeid 案と、それぞれが**何を壊したら赤くなるか** (恒真なテストを書かない)。
+   実 artifact 2 件 (94a4=accept / 753f=reject) を固定 vector にする形を具体的に書け。
+5. `certify_calibration.sh` へ結線する場合の正確な挿入位置と、失敗時の rc の扱い。
+   publish 済み artifact を削除しないこと (D191 決定 4) を守る形にすること。
+6. 変異事前登録の候補: 「この 1 行を壊したらこの nodeid が赤くなる」を最低 6 件、
+   期待赤 node を**具体的な nodeid で**書け。冗長 (複数層が同時に赤くなる) なものはそう明記せよ。
+
+## 制約 (破ってはならない)
+
+- 帯計算を再実装してはならない。判定は `effective_clock_comparison_passes` を経由する (D191 決定 1)。
+- 診断値 (帯外件数・違反位置) を受理判断に使ってはならない (D191 決定 6)。
+- 登録済み較正・`env_contract`・凍結 bytes・pin を 1 件も動かさない。
+- `KNOWN_SELF_INCONSISTENT_CALIBRATIONS` を空にしない。
+- publish 済み artifact を削除しない。
+- 自己 hash 参照 (artifact 自身の hash を artifact 内に書く) を作らない。
+- 期待値に working tree の揮発する hash を焼き込まない。
+- 計算ノードの `python3` は古い版に解決されうる。import 連鎖を増やさない設計を優先せよ。
+
+## 出力
+
+書込可能な tmp が無いので pytest を走らせる必要はない。静的検査でよい。**実走していない検査を
+「緑」と書いてはならない。** 親が実測する。
+
+最後に `## 総括` 節を置き、(a) 採るべき設計、(b) brief の (P1)〜(P6) のうち**変えるべきもの**と理由、
+(c) 実装しない方がよい部分、を 15 行以内でまとめよ。

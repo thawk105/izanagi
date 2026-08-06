@@ -1,0 +1,58 @@
+あなたは izanagi (ワークロード特化の並行性制御を AI が合成・選択する研究システム) の
+**防御側**レビュアである。目的は、「独立に検証した」という名乗りが実態より強くなったまま
+研究記録に残るのを防ぐことにある。過大な名乗りは査読で崩れ、成果物全体の信用を落とす。
+これを事前に潰すための内部レビューである。read-only。ファイルは書かない。
+
+## 必読 (読めなければ即停止し、その旨だけを報告せよ)
+
+1. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-iii/s1-brief.md` — 親の段 1 brief。
+2. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t419-iii/s2-plan.md` — 段 2 のプラン。
+3. repo root = `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t419-iii`。
+   - `docs/decisions.md` の D191 (`grep -n "^## D191" docs/decisions.md`) の**射程節**を必ず読む。
+   - `tools/pegasus/certify_calibration.sh`、`tools/pegasus/collect_receipt.py`、
+     `orchestrator/calibrator/cli.py`、`orchestrator/campaign/env_contract.py`。
+
+## あなたのレンズ: 独立性の名乗り過剰と、効く層の網羅
+
+プランを守る側に回ってはならない。**プランと親 brief の両方が攻撃対象**である。
+
+1. **「完全独立」の実態。** この設計で本当に独立になっているのは何か、なっていないのは何か。
+   同じ source tree、同じ機体、同じ filesystem、同じ親 process が argv を選ぶ。
+   D191 の射程節が返した「別 process による完全独立の検証」を、この設計は満たすのか。
+   満たさないなら、**worklog に何と書けば嘘にならないか**を具体的な文で示せ。
+2. **抑止可能性。** 検証器を無効化・迂回できる経路を全部数えよ。
+   job script が呼ぶ形で、誰が rc を握り潰せるか。calibrator 自身が起動する形との差は本当にあるか。
+   「被検証者が検証者を選ばない」という親の主張 (P4) は成立しているか。
+3. **効く層の網羅。** この gate が実際に効くには、どの層まで結線されている必要があるか。
+   candidate: 取得 (certify job)、publish、登録 (registry / `env_contract`)、
+   loader (`load_verified_calibration`)、consumer (floor / oracle / campaign)、final receipt。
+   プランが触る層と触らない層を表にし、**触らない層を「実装したふり」にしていないか**を判定せよ。
+   scope 外だが real なものは、実装させず「裁定パッケージ候補」として返せ。
+4. **[T-419] 着手条件 (iii) の充足判定。** この実装が land したとき、(iii) は閉じるのか、
+   閉じないのか。閉じないなら**あと何が要るか**を条件の形で書け。
+   (iv) (`KNOWN_SELF_INCONSISTENT_CALIBRATIONS` の空化) との依存関係も明示せよ。
+5. **shell 結線の実効性。** プランは `job-result.json` を v2 へ上げ、
+   `independent_verification_rc` と `overall_rc` を足す。これを消費する側は誰か。
+   消費者がいない field は名乗りだけである。`collect_receipt.py` の
+   `calibrate_rc` 検査との整合、既存 attempt (867876 / 892707) の再収集が壊れないかを見よ。
+6. **過去 artifact の扱い。** 892707 は終了済みで final receipt が無い。
+   プランは中央 `verifications/` へ後から判定を書く。これは
+   「終了した job の成果物を事後に増やす」ことにならないか。ならないなら、
+   artifact 自身にどう書けば履歴として正直か。
+7. **親 brief の前提の誤り。** brief の表に事実誤認があれば指摘せよ。
+   特に `docs/phase3.md` の T-272 に関する記述と、pin 閉包の主張を実際に検証せよ。
+
+## 出力形式
+
+所見ごとに次を書け。所見は最大 12 件。**重要度順**に並べよ。
+
+- `[所見 N] 見出し`
+- 根拠 (file:line、または実際に読んだ artifact の値)
+- **これを直さないと成果物 (certified 選択結果・レポート・台帳) のどの値・受理集合・参照が
+  どう変わるか**を 1 行。書けない所見は `nit` と自己申告せよ。
+- 推奨する具体的な変更 (file:line 粒度)、または「裁定へ返す」
+
+書込可能な tmp が無いので pytest は不要。静的検査でよい。**実走していない検査を「緑」と
+書いてはならない。**
+
+最後に `## 総括` を置き、GO / NO-GO と、NO-GO なら最小の是正 3 点を 12 行以内で書け。
