@@ -384,3 +384,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:activation-authority-blocked-on-historical-resolver":"D196","D:env-contract-activation-naming":"D197"},"authored":"2026-08-06","content_sha256":"619bbbdacdb8ad5c237f5d60e06275f11667c8eac71c212d3e1eccbe277549c0","seq":1,"wave":"dev-wave-t529-activation-authority"}
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"56cdcd4205bbecd80b7ac1d3bfe6bd713c48995cdf8ce2ab0598932bf515f816","seq":2,"wave":"dev-wave-t529-activation-authority"}
 - {"allocations":{"T:historical-contract-resolver-dispatch":"[T-574]","T:silo-promotion-consumer-identity":"[T-575]"},"authored":"2026-08-06","content_sha256":"24703b2bff8697ff67c39707f5fb71f136e0433112495f47b4558996e610ac3d","seq":3,"wave":"dev-wave-t529-activation-authority"}
+
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"373d2455276ffa154ffcf7db39cbc07416ab7e0e3df6d9d4fd44b7b700dada98","seq":1,"wave":"dev-wave-t244-p3-u4-candidate-count"}
+- {"allocations":{"D:u4-member-rows-vs-candidates":"D198"},"authored":"2026-08-06","content_sha256":"c5c3484f9d306fe55dbc01acfcd850d7e4c74649e07841b40f3fa1a201c2787e","seq":1,"wave":"dev-wave-t244-p3-u4-candidate-count"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"42484a13bb13ce5c01e639fb3c87e0d59e93dc776018d92a39166ae97bbbc25a","seq":1,"wave":"dev-wave-t244-p3-u4-candidate-count"}
