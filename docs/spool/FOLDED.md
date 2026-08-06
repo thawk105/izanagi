@@ -439,3 +439,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:current-only-resume-spec":"D213","D:receipt-expectation-scope":"D212","D:silo-verify-result-current-compat":"D214"},"authored":"2026-08-07","content_sha256":"a5bed81b172ef1db3a2816f165e9158c8498b717400db3b449cea36671e96257","seq":1,"wave":"dev-wave-t574-world"}
 - {"allocations":{"T:generator-hash-rollover":"[T-608]","T:receipt-diagnostic-reach":"[T-605]","T:reverify-reachability":"[T-607]","T:v2-manifest-producer":"[T-606]"},"authored":"2026-08-07","content_sha256":"0a10a56268ef2bd96058d4383d307f4e07dc206e90496d42dab9d0511ff3bd5b","seq":2,"wave":"dev-wave-t574-world"}
 - {"allocations":{"F:tautological-exception-type-pin":"F150"},"authored":"2026-08-07","content_sha256":"ce9622204c6e4e0fba251e58b29f2ab79f392880e6736703332d3ac711f64cbf","seq":3,"wave":"dev-wave-t574-world"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"4f5e6563a34b116e896df0c1d139b801e20dc6970cbf91bd2b6c659835d09d48","seq":4,"wave":"dev-wave-t574-world"}
