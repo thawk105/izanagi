@@ -15,6 +15,7 @@ PEGASUS_SUSPECT = "PEGASUS_SUSPECT"
 
 LOGIN_FALLBACK_RE = re.compile(r"^pegasus0[1-9]$")
 _COMPUTE_RE = re.compile(r"^bnode[0-9]+$")
+NQSV_MARKER_DIR = "/opt/nec/nqsv"
 
 
 def _first_label(hostname: str | None) -> str | None:
@@ -45,17 +46,25 @@ def classify_site(hostname: str | None, environ, has_nqsv: bool) -> str:
     return OTHER
 
 
-def _has_nqsv() -> bool:
+def _has_nqsv(marker_path=None) -> bool:
+    """PATH 上の実行体または機体固有 directory から NQSV を検出する。"""
     try:
         qsub = shutil.which("qsub")
         qstat = shutil.which("qstat")
     except OSError:
+        qsub = qstat = None
+    if qsub is not None and qstat is not None:
+        return True
+
+    marker = NQSV_MARKER_DIR if marker_path is None else marker_path
+    try:
+        return os.path.isdir(marker)
+    except Exception:  # marker 観測不能は NQSV 証拠なしへ倒す
         return False
-    return qsub is not None and qstat is not None
 
 
 def current_site() -> str:
-    """実 hostname と PATH 上の NQSV marker から現在の site を解決する。"""
+    """実 hostname と PATH / directory の NQSV 証拠から現在の site を解決する。"""
     try:
         hostname = socket.gethostname()
     except Exception:  # hostname 解決不能は証拠の有無に応じて安全側へ分類する
@@ -121,7 +130,22 @@ def heavy_work_refusal(site: str, what: str) -> str:
         reason = "Pegasus 環境の疑いがあり、安全に実行場所を確定できません"
     else:
         reason = "この site では重い処理を実行できません"
-    return (
+    message = (
         f"{what} を拒否します: {reason}。"
         "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+    )
+    try:
+        queue_module = __import__(
+            "orchestrator.campaign.queue_state",
+            fromlist=("dispatch_possible",),
+        )
+        possible, queue_reason = queue_module.dispatch_possible()
+    except Exception:
+        return message
+    if possible:
+        return message
+    return (
+        message + f" 計算ノードが必要ですが、{queue_reason}"
+        " この状態では投入しても実行されません。"
+        "したがって性能測定は現時点では実施できません。"
     )

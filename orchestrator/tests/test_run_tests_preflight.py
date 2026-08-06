@@ -11,6 +11,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from unittest import mock
 
@@ -22,6 +23,7 @@ if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 from tools.pegasus import dispatch_compute as DC
+from orchestrator.campaign import login_headroom as LH
 
 
 _RUNNER = _REPO / "tools" / "run_tests.py"
@@ -824,10 +826,579 @@ def test_m1_login_dispatch_runs_after_13_15_14_and_before_xdist(monkeypatch):
         ["test_target.py"],
         site=classified_site,
         dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
     ) == 7
     assert events == [
         "deletion", "ruleops", "submodule", ("dispatch", ["test_target.py"]),
     ]
+
+
+def test_default_login_admission_calls_login_headroom_grant_budget(monkeypatch):
+    grant = mock.Mock(return_value=(LH.Admission.DISPATCH, None, "test"))
+    dispatch = mock.Mock(return_value=7)
+    monkeypatch.setattr(LH, "grant_budget", grant)
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 7
+    grant.assert_called_once_with()
+
+
+def test_invalid_granted_budget_falls_back_to_dispatch(monkeypatch):
+    dispatch = mock.Mock(return_value=7)
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        lambda: (LH.Admission.LOCAL, None, "test"),
+    )
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+    monkeypatch.setattr(
+        RT, "_run_bounded_scope",
+        mock.Mock(side_effect=AssertionError("scope must not start")),
+    )
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 7
+    dispatch.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("headroom_available", "queue_available", "expected"),
+    [
+        (True, True, "local"),
+        (True, False, "local"),
+        (False, True, "dispatch"),
+        (False, False, "local"),
+    ],
+)
+def test_login_headroom_and_queue_four_quadrants(
+    monkeypatch,
+    headroom_available,
+    queue_available,
+    expected,
+):
+    grants = []
+    queue_checks = []
+    caps = []
+    dispatch = mock.Mock(return_value=7)
+
+    def grant_budget(**kwargs):
+        grants.append(kwargs)
+        if headroom_available:
+            return LH.Admission.LOCAL, 2000, "観測余裕=2000 bytes"
+        if kwargs.get("min_bytes") == 0:
+            return LH.Admission.LOCAL, 500, "観測余裕=500 bytes"
+        return LH.Admission.DISPATCH, None, "観測余裕=500 bytes"
+
+    def queue_status():
+        queue_checks.append(True)
+        return queue_available, "キュー gen_S は ENA=DIS、STS=INA"
+
+    def run_scope(args, cap):
+        caps.append(cap)
+        return RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0)
+
+    monkeypatch.setattr(LH, "grant_budget", grant_budget)
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", queue_status)
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        run_scope,
+    )
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+
+    rc = RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    )
+
+    assert rc == (0 if expected == "local" else 7)
+    assert len(queue_checks) == (0 if headroom_available else 1)
+    expected_grants = (
+        [{}]
+        if headroom_available or queue_available
+        else [{}, {"min_bytes": 0}]
+    )
+    assert grants == expected_grants
+    assert caps == ([2000 if headroom_available else 500] if expected == "local" else [])
+    assert dispatch.call_count == (1 if expected == "dispatch" else 0)
+
+
+def test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch(
+    monkeypatch,
+    capsys,
+):
+    def grant_budget(**kwargs):
+        if kwargs.get("min_bytes") == 0:
+            return LH.Admission.LOCAL, 500, "観測余裕=500 bytes"
+        return LH.Admission.DISPATCH, None, "観測余裕=500 bytes"
+
+    dispatch = mock.Mock(side_effect=AssertionError("must not dispatch"))
+    monkeypatch.setattr(LH, "grant_budget", grant_budget)
+    monkeypatch.setattr(
+        RT,
+        "_queue_dispatch_possible",
+        lambda: (False, "キュー gen_S は ENA=DIS、STS=INA"),
+    )
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+    )
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == RT._PEGASUS_DISPATCH_RC
+    error = capsys.readouterr().err
+    assert "ログインの余裕もキューも無いため、いまは実行できません" in error
+    assert "500 bytes" in error
+    assert "ENA=DIS" in error
+    assert "STS=INA" in error
+    dispatch.assert_not_called()
+
+
+def test_headroom_short_queue_unavailable_zero_budget_stops(monkeypatch, capsys):
+    def grant_budget(**kwargs):
+        reason = "予約控除後の観測余裕=0 bytes、現在使用量=99 bytes、実効天井=99 bytes"
+        return LH.Admission.DISPATCH, None, reason
+
+    dispatch = mock.Mock(side_effect=AssertionError("must not dispatch"))
+    scope = mock.Mock(side_effect=AssertionError("scope must not start"))
+    monkeypatch.setattr(LH, "grant_budget", grant_budget)
+    monkeypatch.setattr(
+        RT,
+        "_queue_dispatch_possible",
+        lambda: (False, "キュー gen_S は ENA=ENA、STS=INA"),
+    )
+    monkeypatch.setattr(RT, "_run_bounded_scope", scope)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == RT._PEGASUS_DISPATCH_RC
+    error = capsys.readouterr().err
+    assert "0 bytes" in error
+    assert "ENA=ENA" in error
+    assert "STS=INA" in error
+    dispatch.assert_not_called()
+    scope.assert_not_called()
+
+
+def test_queue_state_import_failure_is_treated_as_dispatch_available(
+    monkeypatch,
+):
+    real_import = RT.importlib.import_module
+
+    def fail_queue_state(name, *args, **kwargs):
+        if name == "orchestrator.campaign.queue_state":
+            raise ImportError("injected")
+        return real_import(name, *args, **kwargs)
+
+    dispatch = mock.Mock(return_value=9)
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        lambda: (LH.Admission.DISPATCH, None, "観測余裕=0 bytes"),
+    )
+    monkeypatch.setattr(RT.importlib, "import_module", fail_queue_state)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 9
+    dispatch.assert_called_once()
+
+
+def test_m7_local_enters_scope_before_parent_preflights(monkeypatch):
+    events = []
+    monkeypatch.setattr(
+        RT, "_preflight_unstaged_deletions",
+        lambda a, r: events.append("deletion") or 0,
+    )
+    monkeypatch.setattr(
+        RT, "_preflight_ruleops", lambda a, r: events.append("ruleops") or 0,
+    )
+    monkeypatch.setattr(
+        RT, "_preflight_submodule",
+        lambda a, r: events.append("submodule") or 0,
+    )
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: events.append("scope")
+        or RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
+    )
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == 0
+    assert events == ["scope"]
+
+
+def test_scope_argv_uses_only_supported_memory_properties():
+    cap = LH.RESERVE_BYTES // 2
+    unit = "izanagi-run-tests-1234-deadbeef.scope"
+    command = RT._scope_command(
+        ["test_target.py"], cap, unit, script_path=_RUNNER,
+    )
+
+    assert command == [
+        "systemd-run", "--user", "--scope", "-q", f"--unit={unit}",
+        "-p", "MemoryAccounting=yes", "-p", f"MemoryMax={cap}",
+        "-p", "MemorySwapMax=0", "--",
+        sys.executable, str(_RUNNER.resolve()), "test_target.py",
+    ]
+    assert all("MemoryOOMGroup" not in arg for arg in command)
+
+
+def test_login_outcome_vocabulary_is_exactly_four_values():
+    assert {outcome.value for outcome in RT._ScopeOutcome} == {
+        "child_rc", "cap_oom", "headroom_short", "dispatch_infra",
+    }
+
+
+def test_scope_marker_requires_matching_cgroup_cap_and_oom_group(
+    monkeypatch, tmp_path,
+):
+    unit = "izanagi-run-tests-1234-deadbeef.scope"
+    cap = LH.RESERVE_BYTES // 2
+    proc = tmp_path / "self.cgroup"
+    proc.write_text(
+        f"0::/user.slice/user-123.slice/app.slice/{unit}\n",
+        encoding="utf-8",
+    )
+    cgroup_root = tmp_path / "cgroup"
+    scope = cgroup_root / "user.slice" / "user-123.slice" / "app.slice" / unit
+    scope.mkdir(parents=True)
+    (scope / "memory.max").write_text(f"{cap}\n", encoding="utf-8")
+    (scope / "memory.oom.group").write_text("0\n", encoding="utf-8")
+    monkeypatch.setenv(RT._BOUNDED_SCOPE_UNIT_ENV, unit)
+    monkeypatch.setenv(RT._BOUNDED_SCOPE_CAP_ENV, str(cap))
+    monkeypatch.setattr(RT, "_PROC_SELF_CGROUP", proc)
+    monkeypatch.setattr(RT, "_CGROUP_ROOT", cgroup_root)
+
+    assert RT._bounded_scope_membership() is True
+    assert (scope / "memory.oom.group").read_text(encoding="utf-8") == "1\n"
+    (scope / "memory.max").write_text(f"{cap + 1}\n", encoding="utf-8")
+    assert RT._bounded_scope_membership() is False
+
+
+@pytest.mark.parametrize(
+    ("failure", "readback", "expected_events"),
+    [
+        ("write", "1\n", ["write"]),
+        ("read", "1\n", ["write", "read"]),
+        (None, "0\n", ["write", "read"]),
+    ],
+)
+def test_scope_oom_group_write_and_readback_fail_closed(
+    failure, readback, expected_events,
+):
+    events = []
+
+    class OomGroupFile:
+        def write_text(self, value, *, encoding):
+            events.append("write")
+            assert (value, encoding) == ("1\n", "utf-8")
+            if failure == "write":
+                raise OSError("injected write failure")
+
+        def read_text(self, *, encoding):
+            events.append("read")
+            assert encoding == "utf-8"
+            if failure == "read":
+                raise OSError("injected read failure")
+            return readback
+
+    class Scope:
+        def __truediv__(self, name):
+            assert name == "memory.oom.group"
+            return OomGroupFile()
+
+    assert RT._attest_scope_oom_group(Scope()) is False
+    assert events == expected_events
+
+
+def test_failed_scope_oom_attestation_refuses_child_with_infra_rc(
+    monkeypatch, capsys,
+):
+    monkeypatch.setattr(RT, "_bounded_scope_membership", lambda: False)
+    monkeypatch.setattr(
+        RT,
+        "_preflight_unstaged_deletions",
+        mock.Mock(side_effect=AssertionError("child must fail before pytest")),
+    )
+
+    assert RT.main(["test_target.py"], site=RT.site_policy.OTHER) == 16
+    assert "memory.oom.group" in capsys.readouterr().err
+
+
+def test_local_child_test_failure_never_falls_back(monkeypatch):
+    dispatch = mock.Mock(side_effect=AssertionError("test red must not fallback"))
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 5),
+    )
+    monkeypatch.setattr(
+        RT, "_preflight_unstaged_deletions",
+        mock.Mock(side_effect=AssertionError("parent preflight must not run")),
+    )
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == 5
+    dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize(("clean", "expected_rc", "dispatches"), [
+    (True, 9, 1),
+    (False, RT._PEGASUS_DISPATCH_RC, 0),
+])
+def test_cap_oom_fallback_requires_clean_tree(
+    monkeypatch, clean, expected_rc, dispatches,
+):
+    dispatch = mock.Mock(return_value=9)
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+    )
+    monkeypatch.setattr(RT, "_tree_and_submodules_clean", lambda repo: clean)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == expected_rc
+    assert dispatch.call_count == dispatches
+
+
+def test_scope_disappearance_after_sample_keeps_child_rc(
+    monkeypatch, tmp_path, capsys,
+):
+    state = {"disappeared": False}
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+
+    def wait(*args, **kwargs):
+        state["disappeared"] = True
+        return 3
+
+    process.wait.side_effect = wait
+    monkeypatch.setattr(RT.subprocess, "Popen", lambda *a, **kw: process)
+
+    def cgroup_path(path, unit):
+        return None if state["disappeared"] else tmp_path
+
+    def attest(path):
+        assert not state["disappeared"], "post-run re-attestation is forbidden"
+        return True
+
+    def properties(path, cap):
+        assert not state["disappeared"], "post-run property read is forbidden"
+        return True
+
+    def current(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return 424242
+
+    monkeypatch.setattr(RT, "_scope_cgroup_path", cgroup_path)
+    monkeypatch.setattr(RT, "_attest_scope_oom_group", attest)
+    monkeypatch.setattr(RT, "_scope_properties_are_enforced", properties)
+    monkeypatch.setattr(RT, "_read_scope_current", current)
+
+    def events(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return 0, 0
+
+    monkeypatch.setattr(RT, "_read_scope_events", events)
+
+    result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
+    assert result == RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 3)
+    assert "bounded scope の観測ピーク: 424242 bytes" in capsys.readouterr().err
+
+
+def test_scope_without_any_successful_event_sample_is_dispatch_infra(
+    monkeypatch, tmp_path,
+):
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+    process.wait.return_value = 3
+    monkeypatch.setattr(RT.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(RT, "_scope_cgroup_path", lambda path, unit: tmp_path)
+    monkeypatch.setattr(RT, "_attest_scope_oom_group", lambda path: True)
+    monkeypatch.setattr(RT, "_scope_properties_are_enforced", lambda path, cap: True)
+    monkeypatch.setattr(RT, "_read_scope_current", lambda path: 1)
+    monkeypatch.setattr(
+        RT, "_read_scope_events", mock.Mock(side_effect=OSError("unreadable")),
+    )
+
+    result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
+    assert result == RT._ScopeResult(RT._ScopeOutcome.DISPATCH_INFRA)
+
+
+@pytest.mark.parametrize(
+    ("oom_group_attested", "properties_attested"),
+    [(False, True), (True, False)],
+)
+def test_scope_attestation_failure_stops_scope_and_is_dispatch_infra(
+    monkeypatch, tmp_path, oom_group_attested, properties_attested,
+):
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+    stop = mock.Mock()
+    monkeypatch.setattr(RT.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(RT, "_scope_cgroup_path", lambda path, unit: tmp_path)
+    monkeypatch.setattr(
+        RT, "_attest_scope_oom_group", lambda path: oom_group_attested,
+    )
+    monkeypatch.setattr(
+        RT,
+        "_scope_properties_are_enforced",
+        lambda path, cap: properties_attested,
+    )
+    monkeypatch.setattr(RT, "_stop_bounded_scope", stop)
+
+    result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
+
+    assert result == RT._ScopeResult(RT._ScopeOutcome.DISPATCH_INFRA)
+    stop.assert_called_once_with(process, mock.ANY)
+    process.wait.assert_not_called()
+
+
+def test_continuing_samples_retain_cap_oom_and_highest_peak(
+    monkeypatch, tmp_path, capsys,
+):
+    state = {"disappeared": False, "event_reads": 0, "current_reads": 0}
+    second_sample = threading.Event()
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+
+    def wait(*args, **kwargs):
+        assert second_sample.wait(1), "sampler did not continue to a second sample"
+        state["disappeared"] = True
+        return 137
+
+    process.wait.side_effect = wait
+    monkeypatch.setattr(RT.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(RT, "_scope_cgroup_path", lambda path, unit: tmp_path)
+    monkeypatch.setattr(RT, "_attest_scope_oom_group", lambda path: True)
+    monkeypatch.setattr(RT, "_scope_properties_are_enforced", lambda path, cap: True)
+
+    def current(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        state["current_reads"] += 1
+        return 100 if state["current_reads"] == 1 else 900
+
+    def events(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        state["event_reads"] += 1
+        if state["event_reads"] == 1:
+            return 0, 0
+        second_sample.set()
+        return 1, 1
+
+    monkeypatch.setattr(RT, "_read_scope_current", current)
+    monkeypatch.setattr(RT, "_read_scope_events", events)
+
+    result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
+    assert result == RT._ScopeResult(RT._ScopeOutcome.CAP_OOM)
+    assert "bounded scope の観測ピーク: 900 bytes" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("events", "expected"),
+    [
+        ((1, 0), RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 137)),
+        ((0, 1), RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 137)),
+        ((1, 1), RT._ScopeResult(RT._ScopeOutcome.CAP_OOM)),
+    ],
+)
+def test_cap_oom_requires_both_max_and_oom_events(
+    monkeypatch, tmp_path, events, expected,
+):
+    state = {"disappeared": False}
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+
+    def wait(*args, **kwargs):
+        state["disappeared"] = True
+        return 137
+
+    process.wait.side_effect = wait
+    monkeypatch.setattr(RT.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(RT, "_scope_cgroup_path", lambda path, unit: tmp_path)
+    monkeypatch.setattr(RT, "_attest_scope_oom_group", lambda path: True)
+    monkeypatch.setattr(RT, "_scope_properties_are_enforced", lambda path, cap: True)
+
+    def current(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return 1
+
+    def read_events(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return events
+
+    monkeypatch.setattr(RT, "_read_scope_current", current)
+    monkeypatch.setattr(RT, "_read_scope_events", read_events)
+
+    result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
+    assert result == expected
+
+
+def test_login_headroom_import_failure_falls_back_to_dispatch(monkeypatch):
+    real_import = RT.importlib.import_module
+
+    def fail_login_headroom(name, *args, **kwargs):
+        if name == "orchestrator.campaign.login_headroom":
+            raise ImportError("injected")
+        return real_import(name, *args, **kwargs)
+
+    dispatch = mock.Mock(return_value=6)
+    monkeypatch.setattr(RT.importlib, "import_module", fail_login_headroom)
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 6
+    dispatch.assert_called_once()
 
 
 @pytest.mark.parametrize("flag", sorted(_EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS))
@@ -846,6 +1417,7 @@ def test_login_dispatch_exemption_is_exact_closed_set(monkeypatch, flag):
         [flag],
         site=RT.site_policy.PEGASUS_LOGIN,
         dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
     ) == 0
     dispatch.assert_not_called()
 
@@ -862,6 +1434,7 @@ def test_login_setup_execution_shapes_are_not_dispatch_exempt(
         [flag],
         site=RT.site_policy.PEGASUS_LOGIN,
         dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
     ) == 3
     dispatch.assert_called_once()
 
@@ -883,6 +1456,18 @@ def test_suspect_execution_refuses_without_dispatch_or_xdist(
     dispatch.assert_not_called()
     ensure.assert_not_called()
     assert "拒否" in capsys.readouterr().err
+
+
+def test_suspect_never_enters_local_admission(monkeypatch):
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_SUSPECT,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must not dispatch")),
+        admit_fn=mock.Mock(side_effect=AssertionError("must not admit local")),
+    ) == RT._PEGASUS_DISPATCH_RC
 
 
 @pytest.mark.parametrize("version", [None, "2.4.9", "invalid"])

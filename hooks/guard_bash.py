@@ -1101,6 +1101,8 @@ def _heavy_segment_violation(seg, repo_root: str, depth: int):
     raw_head, head, args = _heavy_head_and_args(seg)
     if not head:
         return None
+    if head == "systemd-run":
+        return "systemd-run"
     # sanctioned 早期許可より前に評価する。後ろに置くと、script 引数から借りた
     # sanctioned 判定がこの分岐に到達させない。
     provenance = _provenance_violation(raw_head, head, args, repo_root)

@@ -11,6 +11,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
+from unittest import mock
 
 import pytest
 
@@ -19,6 +20,7 @@ sys.path.insert(0, str(REPO / "tools"))
 
 import check_ai_provenance as provenance  # noqa: E402
 import check_docs  # noqa: E402
+from orchestrator.campaign import login_headroom as LH  # noqa: E402
 
 site_policy = provenance.site_policy
 
@@ -2748,8 +2750,584 @@ def test_login_history_audit_dispatches_to_compute_and_returns_child_rc(
         ["--range", "aaa..bbb"],
         site=site_policy.PEGASUS_LOGIN,
         dispatch_fn=fake_dispatch,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
     ) == 7
     assert seen["argv"] == ["--range", "aaa..bbb"]
+
+
+def test_default_login_admission_uses_login_headroom_grant_budget(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    grant = mock.Mock(return_value=(LH.Admission.DISPATCH, None, "test"))
+    monkeypatch.setattr(LH, "grant_budget", grant)
+    monkeypatch.setattr(
+        provenance,
+        "_queue_dispatch_possible",
+        lambda: (True, "queue"),
+    )
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=lambda argv: 7,
+    ) == 7
+    grant.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("headroom_available", "queue_available", "expected"),
+    [
+        (True, True, "local"),
+        (True, False, "local"),
+        (False, True, "dispatch"),
+        (False, False, "local"),
+    ],
+)
+def test_provenance_headroom_and_queue_four_quadrants(
+    monkeypatch: pytest.MonkeyPatch,
+    headroom_available: bool,
+    queue_available: bool,
+    expected: str,
+):
+    grants = []
+    queue_checks = []
+    caps = []
+    dispatch = mock.Mock(return_value=7)
+
+    def grant_budget(**kwargs):
+        grants.append(kwargs)
+        if headroom_available:
+            return LH.Admission.LOCAL, 2000, "観測余裕=2000 bytes"
+        if kwargs.get("min_bytes") == 0:
+            return LH.Admission.LOCAL, 500, "観測余裕=500 bytes"
+        return LH.Admission.DISPATCH, None, "観測余裕=500 bytes"
+
+    def queue_status():
+        queue_checks.append(True)
+        return queue_available, "キュー gen_S は ENA=DIS、STS=INA"
+
+    def run_scope(argv, cap):
+        caps.append(cap)
+        return provenance._ScopeResult("child_rc", 0)
+
+    monkeypatch.setattr(LH, "grant_budget", grant_budget)
+    monkeypatch.setattr(provenance, "_queue_dispatch_possible", queue_status)
+    monkeypatch.setattr(
+        provenance,
+        "_run_bounded_scope",
+        run_scope,
+    )
+
+    rc = provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    )
+
+    assert rc == (0 if expected == "local" else 7)
+    assert len(queue_checks) == (0 if headroom_available else 1)
+    expected_grants = (
+        [{}]
+        if headroom_available or queue_available
+        else [{}, {"min_bytes": 0}]
+    )
+    assert grants == expected_grants
+    assert caps == ([2000 if headroom_available else 500] if expected == "local" else [])
+    assert dispatch.call_count == (1 if expected == "dispatch" else 0)
+
+
+def test_provenance_headroom_short_queue_unavailable_cap_oom_stops(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    def grant_budget(**kwargs):
+        if kwargs.get("min_bytes") == 0:
+            return LH.Admission.LOCAL, 500, "観測余裕=500 bytes"
+        return LH.Admission.DISPATCH, None, "観測余裕=500 bytes"
+
+    dispatch = mock.Mock(side_effect=AssertionError("must not dispatch"))
+    monkeypatch.setattr(LH, "grant_budget", grant_budget)
+    monkeypatch.setattr(
+        provenance,
+        "_queue_dispatch_possible",
+        lambda: (False, "キュー gen_S は ENA=DIS、STS=INA"),
+    )
+    monkeypatch.setattr(
+        provenance,
+        "_run_bounded_scope",
+        lambda argv, cap: provenance._ScopeResult("cap_oom"),
+    )
+
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == provenance.PEGASUS_DISPATCH_RC
+    error = capsys.readouterr().err
+    assert "ログインの余裕もキューも無いため、いまは実行できません" in error
+    assert "500 bytes" in error
+    assert "ENA=DIS" in error
+    assert "STS=INA" in error
+    dispatch.assert_not_called()
+
+
+def test_provenance_headroom_short_queue_unavailable_zero_budget_stops(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    reason = "予約控除後の観測余裕=0 bytes、現在使用量=99 bytes、実効天井=99 bytes"
+    dispatch = mock.Mock(side_effect=AssertionError("must not dispatch"))
+    scope = mock.Mock(side_effect=AssertionError("scope must not start"))
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        lambda **kwargs: (LH.Admission.DISPATCH, None, reason),
+    )
+    monkeypatch.setattr(
+        provenance,
+        "_queue_dispatch_possible",
+        lambda: (False, "キュー gen_S は ENA=ENA、STS=INA"),
+    )
+    monkeypatch.setattr(provenance, "_run_bounded_scope", scope)
+
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == provenance.PEGASUS_DISPATCH_RC
+    error = capsys.readouterr().err
+    assert "0 bytes" in error
+    assert "ENA=ENA" in error
+    assert "STS=INA" in error
+    dispatch.assert_not_called()
+    scope.assert_not_called()
+
+
+def test_login_local_scope_returns_child_rc_without_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    dispatch = []
+    monkeypatch.setattr(
+        provenance,
+        "_run_bounded_scope",
+        lambda argv, cap: provenance._ScopeResult("child_rc", 3),
+    )
+
+    def refuse_dispatch(argv):
+        dispatch.append(list(argv))
+        raise AssertionError("child rc must not fallback")
+
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=refuse_dispatch,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == 3
+    assert dispatch == []
+
+
+def test_provenance_cap_oom_falls_back_without_tree_clean_gate(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    seen = []
+    monkeypatch.setattr(
+        provenance,
+        "_run_bounded_scope",
+        lambda argv, cap: provenance._ScopeResult("cap_oom"),
+    )
+
+    def dispatch(argv):
+        seen.append(list(argv))
+        return 8
+
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == 8
+    assert seen == [["--range", "aaa..bbb"]]
+
+
+def test_provenance_scope_infra_does_not_become_audit_failure(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        provenance,
+        "_run_bounded_scope",
+        lambda argv, cap: provenance._ScopeResult("dispatch_infra"),
+    )
+    assert provenance.main(
+        [],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=lambda argv: (_ for _ in ()).throw(
+            AssertionError("infra must not dispatch"),
+        ),
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == provenance.PEGASUS_DISPATCH_RC
+
+
+def test_provenance_scope_argv_uses_only_supported_memory_properties():
+    cap = LH.RESERVE_BYTES // 2
+    unit = "izanagi-provenance-1234-deadbeef.scope"
+
+    command = provenance._scope_command(["--range", "aaa..bbb"], cap, unit)
+
+    assert command == [
+        "systemd-run", "--user", "--scope", "-q", f"--unit={unit}",
+        "-p", "MemoryAccounting=yes", "-p", f"MemoryMax={cap}",
+        "-p", "MemorySwapMax=0", "--", sys.executable,
+        str(Path(provenance.__file__).resolve()), "--range", "aaa..bbb",
+    ]
+    assert all("MemoryOOMGroup" not in arg for arg in command)
+
+
+def test_provenance_scope_marker_writes_oom_group_then_requires_cap_and_group(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    unit = "izanagi-provenance-1234-deadbeef.scope"
+    cap = LH.RESERVE_BYTES // 2
+    proc = tmp_path / "self.cgroup"
+    proc.write_text(
+        f"0::/user.slice/user-123.slice/app.slice/{unit}\n",
+        encoding="utf-8",
+    )
+    cgroup_root = tmp_path / "cgroup"
+    scope = cgroup_root / "user.slice" / "user-123.slice" / "app.slice" / unit
+    scope.mkdir(parents=True)
+    (scope / "memory.max").write_text(f"{cap}\n", encoding="utf-8")
+    (scope / "memory.oom.group").write_text("0\n", encoding="utf-8")
+    monkeypatch.setenv(provenance._BOUNDED_SCOPE_UNIT_ENV, unit)
+    monkeypatch.setenv(provenance._BOUNDED_SCOPE_CAP_ENV, str(cap))
+    monkeypatch.setattr(provenance, "_PROC_SELF_CGROUP", proc)
+    monkeypatch.setattr(provenance, "_CGROUP_ROOT", cgroup_root)
+
+    assert provenance._bounded_scope_membership() is True
+    assert (scope / "memory.oom.group").read_text(encoding="utf-8") == "1\n"
+    (scope / "memory.max").write_text(f"{cap + 1}\n", encoding="utf-8")
+    assert provenance._bounded_scope_membership() is False
+
+
+@pytest.mark.parametrize(
+    ("failure", "readback", "expected_events"),
+    [
+        ("write", "1\n", ["write"]),
+        ("read", "1\n", ["write", "read"]),
+        (None, "0\n", ["write", "read"]),
+    ],
+)
+def test_provenance_scope_oom_group_write_and_readback_fail_closed(
+    failure, readback, expected_events,
+):
+    events = []
+
+    class OomGroupFile:
+        def write_text(self, value, *, encoding):
+            events.append("write")
+            assert (value, encoding) == ("1\n", "utf-8")
+            if failure == "write":
+                raise OSError("injected write failure")
+
+        def read_text(self, *, encoding):
+            events.append("read")
+            assert encoding == "utf-8"
+            if failure == "read":
+                raise OSError("injected read failure")
+            return readback
+
+    class Scope:
+        def __truediv__(self, name):
+            assert name == "memory.oom.group"
+            return OomGroupFile()
+
+    assert provenance._attest_scope_oom_group(Scope()) is False
+    assert events == expected_events
+
+
+def test_failed_provenance_scope_oom_attestation_refuses_with_infra_rc(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    monkeypatch.setattr(provenance, "_bounded_scope_membership", lambda: False)
+    monkeypatch.setattr(
+        provenance,
+        "_audit_history",
+        lambda commits: (_ for _ in ()).throw(
+            AssertionError("child must fail before provenance audit"),
+        ),
+    )
+
+    assert provenance.main([], site=site_policy.OTHER) == 16
+    assert "memory.oom.group" in capsys.readouterr().err
+
+
+def test_provenance_scope_disappearance_after_sample_keeps_child_rc(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    state = {"disappeared": False}
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+
+    def wait(*args, **kwargs):
+        state["disappeared"] = True
+        return 3
+
+    process.wait.side_effect = wait
+    monkeypatch.setattr(provenance.subprocess, "Popen", lambda *a, **kw: process)
+    def cgroup_path(path, unit):
+        return None if state["disappeared"] else tmp_path
+
+    def attest(path):
+        assert not state["disappeared"], "post-run re-attestation is forbidden"
+        return True
+
+    def properties(path, cap):
+        assert not state["disappeared"], "post-run property read is forbidden"
+        return True
+
+    def current(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return 424242
+
+    monkeypatch.setattr(provenance, "_scope_cgroup_path", cgroup_path)
+    monkeypatch.setattr(provenance, "_attest_scope_oom_group", attest)
+    monkeypatch.setattr(provenance, "_scope_properties_are_enforced", properties)
+    monkeypatch.setattr(provenance, "_read_scope_current", current)
+
+    def events(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return 0, 0
+
+    monkeypatch.setattr(provenance, "_read_scope_events", events)
+
+    result = provenance._run_bounded_scope(
+        ["--range", "aaa..bbb"], LH.RESERVE_BYTES // 2,
+    )
+    assert result == provenance._ScopeResult("child_rc", 3)
+    assert "bounded scope の観測ピーク: 424242 bytes" in capsys.readouterr().err
+
+
+def test_provenance_scope_without_event_sample_is_dispatch_infra(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+    process.wait.return_value = 3
+    monkeypatch.setattr(provenance.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(
+        provenance, "_scope_cgroup_path", lambda path, unit: tmp_path,
+    )
+    monkeypatch.setattr(
+        provenance, "_attest_scope_oom_group", lambda path: True,
+    )
+    monkeypatch.setattr(
+        provenance, "_scope_properties_are_enforced", lambda path, cap: True,
+    )
+    monkeypatch.setattr(provenance, "_read_scope_current", lambda path: 1)
+    monkeypatch.setattr(
+        provenance,
+        "_read_scope_events",
+        mock.Mock(side_effect=OSError("unreadable")),
+    )
+
+    result = provenance._run_bounded_scope(
+        ["--range", "aaa..bbb"], LH.RESERVE_BYTES // 2,
+    )
+    assert result == provenance._ScopeResult("dispatch_infra")
+
+
+@pytest.mark.parametrize(
+    ("oom_group_attested", "properties_attested"),
+    [(False, True), (True, False)],
+)
+def test_provenance_scope_attestation_failure_stops_scope(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    oom_group_attested: bool,
+    properties_attested: bool,
+):
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+    stop = mock.Mock()
+    monkeypatch.setattr(provenance.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(
+        provenance, "_scope_cgroup_path", lambda path, unit: tmp_path,
+    )
+    monkeypatch.setattr(
+        provenance,
+        "_attest_scope_oom_group",
+        lambda path: oom_group_attested,
+    )
+    monkeypatch.setattr(
+        provenance,
+        "_scope_properties_are_enforced",
+        lambda path, cap: properties_attested,
+    )
+    monkeypatch.setattr(provenance, "_stop_bounded_scope", stop)
+
+    result = provenance._run_bounded_scope(
+        ["--range", "aaa..bbb"], LH.RESERVE_BYTES // 2,
+    )
+
+    assert result == provenance._ScopeResult("dispatch_infra")
+    stop.assert_called_once_with(process, mock.ANY)
+    process.wait.assert_not_called()
+
+
+def test_provenance_continuing_samples_retain_cap_oom_and_highest_peak(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    state = {"disappeared": False, "event_reads": 0, "current_reads": 0}
+    second_sample = threading.Event()
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+
+    def wait(*args, **kwargs):
+        assert second_sample.wait(1), "sampler did not continue to a second sample"
+        state["disappeared"] = True
+        return 137
+
+    process.wait.side_effect = wait
+    monkeypatch.setattr(provenance.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(
+        provenance, "_scope_cgroup_path", lambda path, unit: tmp_path,
+    )
+    monkeypatch.setattr(
+        provenance, "_attest_scope_oom_group", lambda path: True,
+    )
+    monkeypatch.setattr(
+        provenance, "_scope_properties_are_enforced", lambda path, cap: True,
+    )
+
+    def current(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        state["current_reads"] += 1
+        return 100 if state["current_reads"] == 1 else 900
+
+    def events(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        state["event_reads"] += 1
+        if state["event_reads"] == 1:
+            return 0, 0
+        second_sample.set()
+        return 1, 1
+
+    monkeypatch.setattr(provenance, "_read_scope_current", current)
+    monkeypatch.setattr(provenance, "_read_scope_events", events)
+
+    result = provenance._run_bounded_scope(
+        ["--range", "aaa..bbb"], LH.RESERVE_BYTES // 2,
+    )
+    assert result == provenance._ScopeResult("cap_oom")
+    assert "bounded scope の観測ピーク: 900 bytes" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("events", "expected"),
+    [
+        ((1, 0), provenance._ScopeResult("child_rc", 137)),
+        ((0, 1), provenance._ScopeResult("child_rc", 137)),
+        ((1, 1), provenance._ScopeResult("cap_oom")),
+    ],
+)
+def test_provenance_cap_oom_requires_both_max_and_oom_events(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    events: tuple[int, int],
+    expected: provenance._ScopeResult,
+):
+    state = {"disappeared": False}
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+
+    def wait(*args, **kwargs):
+        state["disappeared"] = True
+        return 137
+
+    process.wait.side_effect = wait
+    monkeypatch.setattr(provenance.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(
+        provenance, "_scope_cgroup_path", lambda path, unit: tmp_path,
+    )
+    monkeypatch.setattr(
+        provenance, "_attest_scope_oom_group", lambda path: True,
+    )
+    monkeypatch.setattr(
+        provenance, "_scope_properties_are_enforced", lambda path, cap: True,
+    )
+
+    def current(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return 1
+
+    def read_events(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return events
+
+    monkeypatch.setattr(provenance, "_read_scope_current", current)
+    monkeypatch.setattr(provenance, "_read_scope_events", read_events)
+
+    result = provenance._run_bounded_scope(
+        ["--range", "aaa..bbb"], LH.RESERVE_BYTES // 2,
+    )
+    assert result == expected
+
+
+def test_provenance_login_headroom_import_failure_dispatches(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    real_import = provenance.importlib.import_module
+
+    def fail_login_headroom(name, *args, **kwargs):
+        if name == "orchestrator.campaign.login_headroom":
+            raise ImportError("injected")
+        return real_import(name, *args, **kwargs)
+
+    seen = []
+    monkeypatch.setattr(provenance.importlib, "import_module", fail_login_headroom)
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=lambda argv: seen.append(list(argv)) or 6,
+    ) == 6
+    assert seen == [["--range", "aaa..bbb"]]
+
+
+def test_provenance_queue_state_import_failure_is_dispatch_available(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    real_import = provenance.importlib.import_module
+
+    def fail_queue_state(name, *args, **kwargs):
+        if name == "orchestrator.campaign.queue_state":
+            raise ImportError("injected")
+        return real_import(name, *args, **kwargs)
+
+    seen = []
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        lambda: (LH.Admission.DISPATCH, None, "観測余裕=0 bytes"),
+    )
+    monkeypatch.setattr(provenance.importlib, "import_module", fail_queue_state)
+
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=lambda argv: seen.append(list(argv)) or 6,
+    ) == 6
+    assert seen == [["--range", "aaa..bbb"]]
 
 
 @pytest.mark.parametrize("flag", ["--message-file", "--message-f"])
@@ -2772,8 +3350,37 @@ def test_login_message_file_is_dispatch_exempt(
         [flag, str(message)],
         site=site_policy.PEGASUS_LOGIN,
         dispatch_fn=refuse_dispatch,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
     ) == 0
     assert "違反なし" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("flag", ["--message-file", "--message-f"])
+def test_login_message_file_returns_before_admission_gate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    flag: str,
+):
+    _init_repo(tmp_path)
+    message = tmp_path / "message.txt"
+    message.write_text("ordinary\n\nAI-Agent: none\n", encoding="utf-8")
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "_bounded_scope_membership",
+        lambda: (_ for _ in ()).throw(AssertionError("gate must be exempt")),
+    )
+
+    assert provenance.main(
+        [flag, str(message)],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=lambda argv: (_ for _ in ()).throw(
+            AssertionError("dispatch must be exempt"),
+        ),
+        admit_fn=lambda estimate: (_ for _ in ()).throw(
+            AssertionError("admission must be exempt"),
+        ),
+    ) == 0
 
 
 def test_suspect_history_audit_refuses_with_infra_rc_without_dispatch(
@@ -2791,6 +3398,21 @@ def test_suspect_history_audit_refuses_with_infra_rc_without_dispatch(
         [], site=site_policy.PEGASUS_SUSPECT, dispatch_fn=refuse_dispatch,
     ) == provenance.PEGASUS_DISPATCH_RC
     assert "provenance 履歴監査 を拒否します" in capsys.readouterr().err
+
+
+def test_suspect_history_audit_never_enters_local_admission(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    assert provenance.main(
+        [],
+        site=site_policy.PEGASUS_SUSPECT,
+        dispatch_fn=lambda argv: (_ for _ in ()).throw(
+            AssertionError("suspect must not dispatch"),
+        ),
+        admit_fn=lambda estimate: (_ for _ in ()).throw(
+            AssertionError("suspect must not admit local"),
+        ),
+    ) == provenance.PEGASUS_DISPATCH_RC
 
 
 @pytest.mark.parametrize(
@@ -2882,6 +3504,7 @@ def test_dispatch_exception_is_folded_into_infra_rc(
     monkeypatch.setattr(provenance, "_audit_history", refuse_audit)
     assert provenance.main(
         [], site=site_policy.PEGASUS_LOGIN, dispatch_fn=exploding_dispatch,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
     ) == provenance.PEGASUS_DISPATCH_RC
     assert (
         "Pegasus dispatcher を完了できませんでした: OSError"

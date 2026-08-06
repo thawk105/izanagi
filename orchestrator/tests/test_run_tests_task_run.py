@@ -19,6 +19,7 @@ import pytest
 from tools.task_runs import init_pilot, start_run, validate_run
 from tools.task_runs import pytest_stats as PS
 import orchestrator.tests.conftest as CONF
+from orchestrator.campaign import login_headroom as LH
 
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -165,6 +166,7 @@ def test_login_parent_records_once_and_dispatch_environment_has_no_run_id(
         ["test_target.py"],
         site=RT.site_policy.PEGASUS_LOGIN,
         dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
     ) == 5
     assert len(captured["records"]) == 1
     record = captured["records"][0]
@@ -212,9 +214,106 @@ def test_login_dispatch_exception_records_single_infra_rc(monkeypatch, tmp_path)
         ["test_target.py"],
         site=RT.site_policy.PEGASUS_LOGIN,
         dispatch_fn=fail,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
     ) == RT._PEGASUS_DISPATCH_RC
     assert len(records) == 1
     assert records[0]["exit_status"] == RT._PEGASUS_DISPATCH_RC
+
+
+def test_local_scope_completion_records_once_in_scope_parent(monkeypatch):
+    records = []
+    monkeypatch.setenv("IZANAGI_TASK_RUN_ID", "20260720-e2-01234567")
+    monkeypatch.setattr(RT, "_record_task_run", lambda **kw: records.append(kw))
+    times = iter((30.0, 31.0))
+    monkeypatch.setattr(RT.time, "monotonic", lambda: next(times))
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
+    )
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == 0
+    assert len(records) == 1
+    assert records[0]["exit_status"] == 0
+
+
+def test_cap_oom_fallback_records_authoritative_compute_once(
+    monkeypatch, tmp_path,
+):
+    records = []
+    monkeypatch.setenv("IZANAGI_TASK_RUN_ID", "20260720-e2-01234567")
+    monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(tmp_path / "ledger"))
+    monkeypatch.setattr(RT, "_record_task_run", lambda **kw: records.append(kw))
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+    )
+    monkeypatch.setattr(RT, "_tree_and_submodules_clean", lambda repo: True)
+    times = iter((30.0, 31.0, 32.0))
+    monkeypatch.setattr(RT.time, "monotonic", lambda: next(times))
+    dispatch = mock.Mock(return_value=4)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == 4
+    dispatch.assert_called_once()
+    assert len(records) == 1
+    assert records[0]["exit_status"] == 4
+
+
+def test_scope_child_cannot_record_task_run_directly(monkeypatch, tmp_path):
+    for name, value in {
+        "IZANAGI_TASK_RUN_ID": "parent-only",
+        "IZANAGI_TASK_RUNS_ROOT": "/private/ledger",
+        "IZANAGI_TASK_RUN_SIDECAR": "/private/sidecar",
+    }.items():
+        monkeypatch.setenv(name, value)
+    captured = {}
+    state = {"disappeared": False}
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+
+    def wait(*args, **kwargs):
+        state["disappeared"] = True
+        return 0
+
+    process.wait.side_effect = wait
+
+    def popen(command, **kwargs):
+        captured.update(kwargs)
+        return process
+
+    monkeypatch.setattr(RT.subprocess, "Popen", popen)
+    monkeypatch.setattr(RT, "_scope_cgroup_path", lambda path, unit: tmp_path)
+    monkeypatch.setattr(RT, "_attest_scope_oom_group", lambda path: True)
+    monkeypatch.setattr(RT, "_scope_properties_are_enforced", lambda path, cap: True)
+
+    def current(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return 1
+
+    def events(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared")
+        return 0, 0
+
+    monkeypatch.setattr(RT, "_read_scope_current", current)
+    monkeypatch.setattr(RT, "_read_scope_events", events)
+
+    result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
+    assert result == RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0)
+    assert "IZANAGI_TASK_RUN_ID" not in captured["env"]
+    assert "IZANAGI_TASK_RUNS_ROOT" not in captured["env"]
+    assert "IZANAGI_TASK_RUN_SIDECAR" not in captured["env"]
 
 
 def test_sidecar_setup_and_record_failures_preserve_rc_and_output(monkeypatch, capsys):
