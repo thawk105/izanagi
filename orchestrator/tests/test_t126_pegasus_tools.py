@@ -24,6 +24,11 @@ _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent.parent
 sys.path.insert(0, str(_HERE.parent))
 
+from pegasus_policy_expected_goldens import (  # noqa: E402
+    EXPECTED_CURRENT_PEGASUS_POLICY_SHA256,
+    EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,
+)
+
 _SIGNAL_RESET_LAUNCHER_MARKER = (
     b'{"final_sighup":"SIG_DFL","final_sigterm":"SIG_DFL",'
     b'"initial_sighup":"SIG_IGN","initial_sigterm":"SIG_IGN"}\n')
@@ -1261,13 +1266,13 @@ def test_reservation_policy_and_job_headers_freeze_wmax_and_walltime():
 
 
 def test_shared_pegasus_policy_owns_no_t126_qualification_keys():
-    """T-126 must not mutate the shared policy that other campaigns byte-pin.
+    """T-126 keys stay out of the byte-pinned shared policy.
 
-    共有 policy は他タスクの凍結証拠が bytes を pin しているので T-126 は動かさ
-    ない。接頭辞を持たない key 追加も含めて drift を赤にする — 下の接頭辞走査は
-    ``t126_`` で始まる key しか捕まえないが、続く sha256 等値は committed
-    evidence が記録した bytes との差分を種類を問わず赤にする (key 名の変更、
-    T-126 接頭辞を持たない key の追加、値の書換え、空白のみの整形を含む)。
+    共有 policy の正当な更新では凍結 evidence を書き換えず、歴史 binding と
+    現行 bytes を分離する。接頭辞走査は ``t126_`` key を拒否し、現行 bytes の
+    明示 sha256 pin は key 名変更、接頭辞なし key 追加、値の書換え、空白だけの
+    整形を含む無断 drift を赤にする。凍結 binding は歴史 oracle と一致し、
+    現行値とは不一致でなければならない。
     """
     policy_relative = "tools/pegasus/policy.json"
     policy_path = _ROOT / policy_relative
@@ -1280,8 +1285,11 @@ def test_shared_pegasus_policy_owns_no_t126_qualification_keys():
          / "silo_ladder_rung1.json").read_text(encoding="utf-8"))
     pinned_policy = pinned["binding"]["policy"]
     assert pinned_policy["path"] == policy_relative
-    assert pinned_policy["sha256"] == hashlib.sha256(
+    current_policy_sha256 = hashlib.sha256(
         policy_path.read_bytes()).hexdigest()
+    assert current_policy_sha256 == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256
+    assert pinned_policy["sha256"] == EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256
+    assert pinned_policy["sha256"] != current_policy_sha256
 
 
 @pytest.mark.parametrize(

@@ -815,9 +815,10 @@ def verify_manifest(
 
     ``freeze_document`` / ``freeze_sha256`` は必須 (C2-7)。freeze を disk から
     再読込せず、hash 検証済みの単一 object だけを使う。通常 caller は
-    ``load_verified_freeze`` の戻り値を渡し、公式 report CLI は active ratified
-    経路の ``load_ratified_freeze`` → ``launch_validate`` が返した同一
-    document/sha256 を渡す。verify から use までの freeze byte 差替え (TOCTOU) を
+    ``load_verified_freeze`` の戻り値を渡し、公式 report CLI は publish 済み
+    ratified 経路の ``load_ratified_freeze`` → ``reverify_published_freeze`` が
+    historical contract で再検証した同一 document/sha256 を渡す。verify から use
+    までの freeze byte 差替え (TOCTOU) を
     consumer 間で断つための A3-6 経路。かつて存在した「freeze を manifest 記載 path
     から再読込する fallback」は撤去した (差替え窓を残すため)。
 

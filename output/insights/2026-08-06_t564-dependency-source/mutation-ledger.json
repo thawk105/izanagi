@@ -1,0 +1,751 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/1c2a444bc658e2c360287d5546c7e986/izdw-1c2a444bc6.o892622",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/1c2a444bc658e2c360287d5546c7e986/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [309 items]\n\n........................................................................ [ 23%]\n........................................................................ [ 46%]\n........................................................................ [ 69%]\n........................................................................ [ 93%]\n.....................                                                    [100%]\n============================= 309 passed in 23.12s =============================\n",
+      "stdout_sha256": "cf41be7f1f51a04862992da8024f693f4d025030076da56ae12d3f43e3fb72f0"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ed6a864b50c382f10eb7c396a16d14e2b3c336547a3db4a11b78cdc09f864cf4",
+    "duration_s": 47.261,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "7d2dd0447dc58e505214fd115b6cb041f4b35241d9aef3d000ebd9dbd88e2b2c",
+    "repo_head": "a6f6f37fbe646f017d6cd5cbdac54a1a740c126f",
+    "runner_sha256": "88c0b31bf6e4ccf7f9936fab3eefd8d2387f6e5dfeff718502913dd8a0df5096",
+    "spec_sha256": "a5474e1ad069537cb76458774ef858e951fbf2fccfbf238aba587a3aa6d30142",
+    "status": "PASSED",
+    "test_output_sha256": "cf41be7f1f51a04862992da8024f693f4d025030076da56ae12d3f43e3fb72f0",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "1b0be95b503df7e9da37099d502fdf8f5e6b4a21a215d2c7ab4dcb00c6c128d4"
+  },
+  "date": "2026-08-06T02:03:10.177636+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/72bf08b5b875dfc8d006de31a87a508b/izdw-72bf08b5b8.o892624",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/72bf08b5b875dfc8d006de31a87a508b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [309 items]\n\n........................................................................ [ 23%]\n...........................................F..........F................. [ 46%]\n........................................................................ [ 69%]\n........................................................................ [ 93%]\n.....................                                                    [100%]\n=================================== FAILURES ===================================\n______ test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head ______\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():\n        \"\"\"成果物欠落を含む全 binding drift を赤にし、all_pass を raw から再導出する。\"\"\"\n        evidence_raw, evidence = _load_json_bytes(EVIDENCE)\n        assert evidence_raw, \"committed evidence must not be empty\"\n        _, ledger = _load_json_bytes(LEDGER)\n        entry = next(\n            item for item in ledger[\"entries\"]\n            if item[\"id\"] == \"silo_ladder_rung1\"\n        )\n        binding = evidence[\"binding\"]\n        raw_probe = (\n            ROOT\n            / \"output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/\"\n              \"raw-bundle-attempt-1/attempts/1/attestation-job.json\"\n        )\n        assert (\n            _sha256(evidence_raw),\n            _sha256(raw_probe.read_bytes()),\n            binding[\"calibration\"][\"sha256\"],\n            binding[\"driver\"][\"sha256\"],\n        ) == HISTORICAL_SILO_EVIDENCE_IDENTITY\n        assert evidence[\"limitations\"] == {\n            \"raw_object_binary_bytes_retained\": False,\n            \"nqsv_scheduler_exit_status\": \"unavailable\",\n            \"third_party_rederivation\": \"sha256-chain-consistency-only\",\n        }\n    \n        patch_path = ROOT / entry[\"path\"]\n        patch_raw = patch_path.read_bytes()\n        patch_sha = _sha256(patch_raw)\n        assert binding[\"patch\"][\"path\"] == entry[\"path\"]\n        assert patch_sha == binding[\"patch\"][\"sha256\"] == entry[\"patch_sha256\"]\n        assert binding[\"ledger\"][\"path\"] == \"patches/ledger.json\"\n        assert binding[\"ledger\"][\"sha256\"] == _sha256(LEDGER.read_bytes())\n        expected_bound_paths = {\n            \"driver\": \"orchestrator/campaign/silo_ladder_rung1.py\",\n            \"pbs_job\": \"tools/pegasus/silo_ladder_rung1.sh\",\n            \"submitter\": \"tools/pegasus/submit_silo_ladder_rung1.sh\",\n            \"verifier_module\": \"orchestrator/verifier/report.py\",\n            \"policy\": \"tools/pegasus/policy.json\",\n        }\n        historical_sha256_by_key = {\n            \"driver\": HISTORICAL_SILO_EVIDENCE_IDENTITY[3],\n            \"policy\": EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,\n        }\n        for key, relative in expected_bound_paths.items():\n            assert binding[key][\"path\"] == relative\n            current_sha = _sha256((ROOT / relative).read_bytes())\n            if key == \"policy\":\n>               assert current_sha == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\nE               AssertionError: assert 'b9ced557fb12...253102db684e2' == 'bfb9069b5bbf...e8d5aeb27ccb1'\nE                 \nE                 - bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\nE                 + b9ced557fb126f41d2d6e25150de16ad64662bafd733a5be2f0253102db684e2\n\norchestrator/tests/test_silo_ladder_rung1_evidence.py:1243: AssertionError\n__________ test_shared_pegasus_policy_owns_no_t126_qualification_keys __________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_shared_pegasus_policy_owns_no_t126_qualification_keys():\n        \"\"\"T-126 keys stay out of the byte-pinned shared policy.\n    \n        共有 policy の正当な更新では凍結 evidence を書き換えず、歴史 binding と\n        現行 bytes を分離する。接頭辞走査は ``t126_`` key を拒否し、現行 bytes の\n        明示 sha256 pin は key 名変更、接頭辞なし key 追加、値の書換え、空白だけの\n        整形を含む無断 drift を赤にする。凍結 binding は歴史 oracle と一致し、\n        現行値とは不一致でなければならない。\n        \"\"\"\n        policy_relative = \"tools/pegasus/policy.json\"\n        policy_path = _ROOT / policy_relative\n        policy = json.loads(policy_path.read_text(encoding=\"utf-8\"))\n        assert not [key for key in policy if key.startswith(\"t126_\")]\n        assert RESERVATION_POLICY_RELATIVE_PATH in REQUIRED_CODE_IDENTITY_PATHS\n        assert \"orchestrator/campaign/build_admission.py\" in REQUIRED_CODE_IDENTITY_PATHS\n        pinned = json.loads(\n            (_ROOT / \"output/env/pegasus/silo_ladder_rung1\"\n             / \"silo_ladder_rung1.json\").read_text(encoding=\"utf-8\"))\n        pinned_policy = pinned[\"binding\"][\"policy\"]\n        assert pinned_policy[\"path\"] == policy_relative\n        current_policy_sha256 = hashlib.sha256(\n            policy_path.read_bytes()).hexdigest()\n>       assert current_policy_sha256 == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\nE       AssertionError: assert 'b9ced557fb12...253102db684e2' == 'bfb9069b5bbf...e8d5aeb27ccb1'\nE         \nE         - bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\nE         + b9ced557fb126f41d2d6e25150de16ad64662bafd733a5be2f0253102db684e2\n\norchestrator/tests/test_t126_pegasus_tools.py:1290: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head\nFAILED orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys\n======================== 2 failed, 307 passed in 7.35s =========================\n",
+        "stdout_sha256": "d88a08e15f999b10a99459afb416a9c42d14abe4a97ba2969d895f5355930a9b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ed6a864b50c382f10eb7c396a16d14e2b3c336547a3db4a11b78cdc09f864cf4",
+      "duration_s": 32.015,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "300da01c44fe0fb1fcb630d346a0628f44160e9b3c7679ed865737ea85608932",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4f733b688498cbf37f05e8cc638fe553d8a337ae849e95fdbd5069edac760d83",
+      "replacements": [
+        {
+          "file": "tools/pegasus/policy.json",
+          "new": "  \"expected_cpu_model\":  \"Intel Xeon Platinum 8468\",",
+          "old": "  \"expected_cpu_model\": \"Intel Xeon Platinum 8468\","
+        }
+      ],
+      "repo_head": "a6f6f37fbe646f017d6cd5cbdac54a1a740c126f",
+      "runner_sha256": "88c0b31bf6e4ccf7f9936fab3eefd8d2387f6e5dfeff718502913dd8a0df5096",
+      "spec_sha256": "a5474e1ad069537cb76458774ef858e951fbf2fccfbf238aba587a3aa6d30142",
+      "status": "KILLED",
+      "test_output_sha256": "d88a08e15f999b10a99459afb416a9c42d14abe4a97ba2969d895f5355930a9b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1b0be95b503df7e9da37099d502fdf8f5e6b4a21a215d2c7ab4dcb00c6c128d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/2e2bd97da08fe433edb3de00a0e03f3a/izdw-2e2bd97da0.o892626",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/2e2bd97da08fe433edb3de00a0e03f3a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [309 items]\n\n.................................................F...................... [ 23%]\n.......................................F.............F.................. [ 46%]\n........................................................................ [ 69%]\n........................................................................ [ 93%]\n.....................                                                    [100%]\n=================================== FAILURES ===================================\n_____ test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench _____\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():\n        policy = json.loads((TOOL_DIR / \"policy.json\").read_text(encoding=\"utf-8\"))\n>       assert policy[\"gflags_source_path\"] == \"/work/SFC/tanab/github/gflags\"\nE       AssertionError: assert '/home/SFC/ta...github/gflags' == '/work/SFC/ta...github/gflags'\nE         \nE         - /work/SFC/tanab/github/gflags\nE         ?  ^ ^^\nE         + /home/SFC/tanab/github/gflags\nE         ?  ^ ^^\n\norchestrator/tests/test_pegasus_tools.py:351: AssertionError\n______ test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head ______\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():\n        \"\"\"成果物欠落を含む全 binding drift を赤にし、all_pass を raw から再導出する。\"\"\"\n        evidence_raw, evidence = _load_json_bytes(EVIDENCE)\n        assert evidence_raw, \"committed evidence must not be empty\"\n        _, ledger = _load_json_bytes(LEDGER)\n        entry = next(\n            item for item in ledger[\"entries\"]\n            if item[\"id\"] == \"silo_ladder_rung1\"\n        )\n        binding = evidence[\"binding\"]\n        raw_probe = (\n            ROOT\n            / \"output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/\"\n              \"raw-bundle-attempt-1/attempts/1/attestation-job.json\"\n        )\n        assert (\n            _sha256(evidence_raw),\n            _sha256(raw_probe.read_bytes()),\n            binding[\"calibration\"][\"sha256\"],\n            binding[\"driver\"][\"sha256\"],\n        ) == HISTORICAL_SILO_EVIDENCE_IDENTITY\n        assert evidence[\"limitations\"] == {\n            \"raw_object_binary_bytes_retained\": False,\n            \"nqsv_scheduler_exit_status\": \"unavailable\",\n            \"third_party_rederivation\": \"sha256-chain-consistency-only\",\n        }\n    \n        patch_path = ROOT / entry[\"path\"]\n        patch_raw = patch_path.read_bytes()\n        patch_sha = _sha256(patch_raw)\n        assert binding[\"patch\"][\"path\"] == entry[\"path\"]\n        assert patch_sha == binding[\"patch\"][\"sha256\"] == entry[\"patch_sha256\"]\n        assert binding[\"ledger\"][\"path\"] == \"patches/ledger.json\"\n        assert binding[\"ledger\"][\"sha256\"] == _sha256(LEDGER.read_bytes())\n        expected_bound_paths = {\n            \"driver\": \"orchestrator/campaign/silo_ladder_rung1.py\",\n            \"pbs_job\": \"tools/pegasus/silo_ladder_rung1.sh\",\n            \"submitter\": \"tools/pegasus/submit_silo_ladder_rung1.sh\",\n            \"verifier_module\": \"orchestrator/verifier/report.py\",\n            \"policy\": \"tools/pegasus/policy.json\",\n        }\n        historical_sha256_by_key = {\n            \"driver\": HISTORICAL_SILO_EVIDENCE_IDENTITY[3],\n            \"policy\": EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,\n        }\n        for key, relative in expected_bound_paths.items():\n            assert binding[key][\"path\"] == relative\n            current_sha = _sha256((ROOT / relative).read_bytes())\n            if key == \"policy\":\n>               assert current_sha == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\nE               AssertionError: assert '12015a99e345...4a45f278f9321' == 'bfb9069b5bbf...e8d5aeb27ccb1'\nE                 \nE                 - bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\nE                 + 12015a99e345f1d0841ff9b1e533620fb364097450fe2a5349a4a45f278f9321\n\norchestrator/tests/test_silo_ladder_rung1_evidence.py:1243: AssertionError\n__________ test_shared_pegasus_policy_owns_no_t126_qualification_keys __________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_shared_pegasus_policy_owns_no_t126_qualification_keys():\n        \"\"\"T-126 keys stay out of the byte-pinned shared policy.\n    \n        共有 policy の正当な更新では凍結 evidence を書き換えず、歴史 binding と\n        現行 bytes を分離する。接頭辞走査は ``t126_`` key を拒否し、現行 bytes の\n        明示 sha256 pin は key 名変更、接頭辞なし key 追加、値の書換え、空白だけの\n        整形を含む無断 drift を赤にする。凍結 binding は歴史 oracle と一致し、\n        現行値とは不一致でなければならない。\n        \"\"\"\n        policy_relative = \"tools/pegasus/policy.json\"\n        policy_path = _ROOT / policy_relative\n        policy = json.loads(policy_path.read_text(encoding=\"utf-8\"))\n        assert not [key for key in policy if key.startswith(\"t126_\")]\n        assert RESERVATION_POLICY_RELATIVE_PATH in REQUIRED_CODE_IDENTITY_PATHS\n        assert \"orchestrator/campaign/build_admission.py\" in REQUIRED_CODE_IDENTITY_PATHS\n        pinned = json.loads(\n            (_ROOT / \"output/env/pegasus/silo_ladder_rung1\"\n             / \"silo_ladder_rung1.json\").read_text(encoding=\"utf-8\"))\n        pinned_policy = pinned[\"binding\"][\"policy\"]\n        assert pinned_policy[\"path\"] == policy_relative\n        current_policy_sha256 = hashlib.sha256(\n            policy_path.read_bytes()).hexdigest()\n>       assert current_policy_sha256 == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\nE       AssertionError: assert '12015a99e345...4a45f278f9321' == 'bfb9069b5bbf...e8d5aeb27ccb1'\nE         \nE         - bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\nE         + 12015a99e345f1d0841ff9b1e533620fb364097450fe2a5349a4a45f278f9321\n\norchestrator/tests/test_t126_pegasus_tools.py:1290: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench\nFAILED orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head\nFAILED orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys\n======================== 3 failed, 306 passed in 6.60s =========================\n",
+        "stdout_sha256": "81eb6a0079e2d04b32eaaf77fb9324f32441456343bb64ddead835f86943d1c6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ed6a864b50c382f10eb7c396a16d14e2b3c336547a3db4a11b78cdc09f864cf4",
+      "duration_s": 32.982,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "08887482895e95e5375f8ac87b724063a579ffe4817952e751cb26c12d040074",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "45eaade77154489b3cf721a800da6ead5823904ae6dd14255c073752e8bb7d58",
+      "replacements": [
+        {
+          "file": "tools/pegasus/policy.json",
+          "new": "  \"gflags_source_path\": \"/home/SFC/tanab/github/gflags\",",
+          "old": "  \"gflags_source_path\": \"/work/SFC/tanab/github/gflags\","
+        }
+      ],
+      "repo_head": "a6f6f37fbe646f017d6cd5cbdac54a1a740c126f",
+      "runner_sha256": "88c0b31bf6e4ccf7f9936fab3eefd8d2387f6e5dfeff718502913dd8a0df5096",
+      "spec_sha256": "a5474e1ad069537cb76458774ef858e951fbf2fccfbf238aba587a3aa6d30142",
+      "status": "KILLED",
+      "test_output_sha256": "81eb6a0079e2d04b32eaaf77fb9324f32441456343bb64ddead835f86943d1c6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1b0be95b503df7e9da37099d502fdf8f5e6b4a21a215d2c7ab4dcb00c6c128d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/aa51bfd3799469a870bf9b3768ec68c8/izdw-aa51bfd379.o892628",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/aa51bfd3799469a870bf9b3768ec68c8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [309 items]\n\n.................................................F...................... [ 23%]\n........................................F..............F................ [ 46%]\n........................................................................ [ 69%]\n........................................................................ [ 93%]\n.....................                                                    [100%]\n=================================== FAILURES ===================================\n______ test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench ______\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench():\n        policy = json.loads((TOOL_DIR / \"policy.json\").read_text(encoding=\"utf-8\"))\n>       assert policy[\"glog_source_path\"] == \"/work/SFC/tanab/github/glog\"\nE       AssertionError: assert '/home/SFC/tanab/github/glog' == '/work/SFC/tanab/github/glog'\nE         \nE         - /work/SFC/tanab/github/glog\nE         ?  ^ ^^\nE         + /home/SFC/tanab/github/glog\nE         ?  ^ ^^\n\norchestrator/tests/test_pegasus_tools.py:385: AssertionError\n______ test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head ______\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():\n        \"\"\"成果物欠落を含む全 binding drift を赤にし、all_pass を raw から再導出する。\"\"\"\n        evidence_raw, evidence = _load_json_bytes(EVIDENCE)\n        assert evidence_raw, \"committed evidence must not be empty\"\n        _, ledger = _load_json_bytes(LEDGER)\n        entry = next(\n            item for item in ledger[\"entries\"]\n            if item[\"id\"] == \"silo_ladder_rung1\"\n        )\n        binding = evidence[\"binding\"]\n        raw_probe = (\n            ROOT\n            / \"output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/\"\n              \"raw-bundle-attempt-1/attempts/1/attestation-job.json\"\n        )\n        assert (\n            _sha256(evidence_raw),\n            _sha256(raw_probe.read_bytes()),\n            binding[\"calibration\"][\"sha256\"],\n            binding[\"driver\"][\"sha256\"],\n        ) == HISTORICAL_SILO_EVIDENCE_IDENTITY\n        assert evidence[\"limitations\"] == {\n            \"raw_object_binary_bytes_retained\": False,\n            \"nqsv_scheduler_exit_status\": \"unavailable\",\n            \"third_party_rederivation\": \"sha256-chain-consistency-only\",\n        }\n    \n        patch_path = ROOT / entry[\"path\"]\n        patch_raw = patch_path.read_bytes()\n        patch_sha = _sha256(patch_raw)\n        assert binding[\"patch\"][\"path\"] == entry[\"path\"]\n        assert patch_sha == binding[\"patch\"][\"sha256\"] == entry[\"patch_sha256\"]\n        assert binding[\"ledger\"][\"path\"] == \"patches/ledger.json\"\n        assert binding[\"ledger\"][\"sha256\"] == _sha256(LEDGER.read_bytes())\n        expected_bound_paths = {\n            \"driver\": \"orchestrator/campaign/silo_ladder_rung1.py\",\n            \"pbs_job\": \"tools/pegasus/silo_ladder_rung1.sh\",\n            \"submitter\": \"tools/pegasus/submit_silo_ladder_rung1.sh\",\n            \"verifier_module\": \"orchestrator/verifier/report.py\",\n            \"policy\": \"tools/pegasus/policy.json\",\n        }\n        historical_sha256_by_key = {\n            \"driver\": HISTORICAL_SILO_EVIDENCE_IDENTITY[3],\n            \"policy\": EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,\n        }\n        for key, relative in expected_bound_paths.items():\n            assert binding[key][\"path\"] == relative\n            current_sha = _sha256((ROOT / relative).read_bytes())\n            if key == \"policy\":\n>               assert current_sha == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\nE               AssertionError: assert 'd1db7e0559cd...187de17fe4160' == 'bfb9069b5bbf...e8d5aeb27ccb1'\nE                 \nE                 - bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\nE                 + d1db7e0559cd3b6677f5a2efd2d7b8df17144b0a73ea61d0a0a187de17fe4160\n\norchestrator/tests/test_silo_ladder_rung1_evidence.py:1243: AssertionError\n__________ test_shared_pegasus_policy_owns_no_t126_qualification_keys __________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_shared_pegasus_policy_owns_no_t126_qualification_keys():\n        \"\"\"T-126 keys stay out of the byte-pinned shared policy.\n    \n        共有 policy の正当な更新では凍結 evidence を書き換えず、歴史 binding と\n        現行 bytes を分離する。接頭辞走査は ``t126_`` key を拒否し、現行 bytes の\n        明示 sha256 pin は key 名変更、接頭辞なし key 追加、値の書換え、空白だけの\n        整形を含む無断 drift を赤にする。凍結 binding は歴史 oracle と一致し、\n        現行値とは不一致でなければならない。\n        \"\"\"\n        policy_relative = \"tools/pegasus/policy.json\"\n        policy_path = _ROOT / policy_relative\n        policy = json.loads(policy_path.read_text(encoding=\"utf-8\"))\n        assert not [key for key in policy if key.startswith(\"t126_\")]\n        assert RESERVATION_POLICY_RELATIVE_PATH in REQUIRED_CODE_IDENTITY_PATHS\n        assert \"orchestrator/campaign/build_admission.py\" in REQUIRED_CODE_IDENTITY_PATHS\n        pinned = json.loads(\n            (_ROOT / \"output/env/pegasus/silo_ladder_rung1\"\n             / \"silo_ladder_rung1.json\").read_text(encoding=\"utf-8\"))\n        pinned_policy = pinned[\"binding\"][\"policy\"]\n        assert pinned_policy[\"path\"] == policy_relative\n        current_policy_sha256 = hashlib.sha256(\n            policy_path.read_bytes()).hexdigest()\n>       assert current_policy_sha256 == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\nE       AssertionError: assert 'd1db7e0559cd...187de17fe4160' == 'bfb9069b5bbf...e8d5aeb27ccb1'\nE         \nE         - bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\nE         + d1db7e0559cd3b6677f5a2efd2d7b8df17144b0a73ea61d0a0a187de17fe4160\n\norchestrator/tests/test_t126_pegasus_tools.py:1290: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench\nFAILED orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head\nFAILED orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys\n======================== 3 failed, 306 passed in 6.81s =========================\n",
+        "stdout_sha256": "c4b8f85937caa41f781df24aa9a91ad3b3620378b1fc062e021db9b56601560b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ed6a864b50c382f10eb7c396a16d14e2b3c336547a3db4a11b78cdc09f864cf4",
+      "duration_s": 84.96,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "d0082fbc2e5ac585d5dc9902530c2a4afea8e3c3d202c7e34c4f7eccf4dce24d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1400ab8c4c1a6c6bad777258cc99833ac2cb266a372688ea3199fd377fd005b0",
+      "replacements": [
+        {
+          "file": "tools/pegasus/policy.json",
+          "new": "  \"glog_source_path\": \"/home/SFC/tanab/github/glog\",",
+          "old": "  \"glog_source_path\": \"/work/SFC/tanab/github/glog\","
+        }
+      ],
+      "repo_head": "a6f6f37fbe646f017d6cd5cbdac54a1a740c126f",
+      "runner_sha256": "88c0b31bf6e4ccf7f9936fab3eefd8d2387f6e5dfeff718502913dd8a0df5096",
+      "spec_sha256": "a5474e1ad069537cb76458774ef858e951fbf2fccfbf238aba587a3aa6d30142",
+      "status": "KILLED",
+      "test_output_sha256": "c4b8f85937caa41f781df24aa9a91ad3b3620378b1fc062e021db9b56601560b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1b0be95b503df7e9da37099d502fdf8f5e6b4a21a215d2c7ab4dcb00c6c128d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/05e5f129d881c812a51ff409634d8810/izdw-05e5f129d8.o892630",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/05e5f129d881c812a51ff409634d8810/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [309 items]\n\n........................................................................ [ 23%]\n........................................F............F.................. [ 46%]\n........................................................................ [ 69%]\n........................................................................ [ 93%]\n.....................                                                    [100%]\n=================================== FAILURES ===================================\n______ test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head ______\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():\n        \"\"\"成果物欠落を含む全 binding drift を赤にし、all_pass を raw から再導出する。\"\"\"\n        evidence_raw, evidence = _load_json_bytes(EVIDENCE)\n        assert evidence_raw, \"committed evidence must not be empty\"\n        _, ledger = _load_json_bytes(LEDGER)\n        entry = next(\n            item for item in ledger[\"entries\"]\n            if item[\"id\"] == \"silo_ladder_rung1\"\n        )\n        binding = evidence[\"binding\"]\n        raw_probe = (\n            ROOT\n            / \"output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/\"\n              \"raw-bundle-attempt-1/attempts/1/attestation-job.json\"\n        )\n        assert (\n            _sha256(evidence_raw),\n            _sha256(raw_probe.read_bytes()),\n            binding[\"calibration\"][\"sha256\"],\n            binding[\"driver\"][\"sha256\"],\n        ) == HISTORICAL_SILO_EVIDENCE_IDENTITY\n        assert evidence[\"limitations\"] == {\n            \"raw_object_binary_bytes_retained\": False,\n            \"nqsv_scheduler_exit_status\": \"unavailable\",\n            \"third_party_rederivation\": \"sha256-chain-consistency-only\",\n        }\n    \n        patch_path = ROOT / entry[\"path\"]\n        patch_raw = patch_path.read_bytes()\n        patch_sha = _sha256(patch_raw)\n        assert binding[\"patch\"][\"path\"] == entry[\"path\"]\n        assert patch_sha == binding[\"patch\"][\"sha256\"] == entry[\"patch_sha256\"]\n        assert binding[\"ledger\"][\"path\"] == \"patches/ledger.json\"\n        assert binding[\"ledger\"][\"sha256\"] == _sha256(LEDGER.read_bytes())\n        expected_bound_paths = {\n            \"driver\": \"orchestrator/campaign/silo_ladder_rung1.py\",\n            \"pbs_job\": \"tools/pegasus/silo_ladder_rung1.sh\",\n            \"submitter\": \"tools/pegasus/submit_silo_ladder_rung1.sh\",\n            \"verifier_module\": \"orchestrator/verifier/report.py\",\n            \"policy\": \"tools/pegasus/policy.json\",\n        }\n        historical_sha256_by_key = {\n            \"driver\": HISTORICAL_SILO_EVIDENCE_IDENTITY[3],\n            \"policy\": EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,\n        }\n        for key, relative in expected_bound_paths.items():\n            assert binding[key][\"path\"] == relative\n            current_sha = _sha256((ROOT / relative).read_bytes())\n            if key == \"policy\":\n                assert current_sha == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\n            if key in historical_sha256_by_key:\n>               assert binding[key][\"sha256\"] == historical_sha256_by_key[key]\nE               AssertionError: assert 'b1c42e493148...fc2a36ac961ac' == 'bfb9069b5bbf...e8d5aeb27ccb1'\nE                 \nE                 - bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\nE                 + b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\n\norchestrator/tests/test_silo_ladder_rung1_evidence.py:1245: AssertionError\n__________ test_shared_pegasus_policy_owns_no_t126_qualification_keys __________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_shared_pegasus_policy_owns_no_t126_qualification_keys():\n        \"\"\"T-126 keys stay out of the byte-pinned shared policy.\n    \n        共有 policy の正当な更新では凍結 evidence を書き換えず、歴史 binding と\n        現行 bytes を分離する。接頭辞走査は ``t126_`` key を拒否し、現行 bytes の\n        明示 sha256 pin は key 名変更、接頭辞なし key 追加、値の書換え、空白だけの\n        整形を含む無断 drift を赤にする。凍結 binding は歴史 oracle と一致し、\n        現行値とは不一致でなければならない。\n        \"\"\"\n        policy_relative = \"tools/pegasus/policy.json\"\n        policy_path = _ROOT / policy_relative\n        policy = json.loads(policy_path.read_text(encoding=\"utf-8\"))\n        assert not [key for key in policy if key.startswith(\"t126_\")]\n        assert RESERVATION_POLICY_RELATIVE_PATH in REQUIRED_CODE_IDENTITY_PATHS\n        assert \"orchestrator/campaign/build_admission.py\" in REQUIRED_CODE_IDENTITY_PATHS\n        pinned = json.loads(\n            (_ROOT / \"output/env/pegasus/silo_ladder_rung1\"\n             / \"silo_ladder_rung1.json\").read_text(encoding=\"utf-8\"))\n        pinned_policy = pinned[\"binding\"][\"policy\"]\n        assert pinned_policy[\"path\"] == policy_relative\n        current_policy_sha256 = hashlib.sha256(\n            policy_path.read_bytes()).hexdigest()\n        assert current_policy_sha256 == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\n>       assert pinned_policy[\"sha256\"] == EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256\nE       AssertionError: assert 'b1c42e493148...fc2a36ac961ac' == 'bfb9069b5bbf...e8d5aeb27ccb1'\nE         \nE         - bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\nE         + b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\n\norchestrator/tests/test_t126_pegasus_tools.py:1291: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head\nFAILED orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys\n======================== 2 failed, 307 passed in 6.99s =========================\n",
+        "stdout_sha256": "607f4e2bee4f21387787637603f18d09a0e10be6e5d36ac99d2e5dd4f21d01da"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ed6a864b50c382f10eb7c396a16d14e2b3c336547a3db4a11b78cdc09f864cf4",
+      "duration_s": 72.997,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "78a219518b7091e959f5b555bdd9eba92b435ca5bf9c7351e0e5312ad7acfee9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ed1be428fbd746b54a9fbd3cb42f4064de5e56972e472a6b2b6ac05e5079b7ad",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/pegasus_policy_expected_goldens.py",
+          "new": "EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256 = (\n    \"bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\"\n)",
+          "old": "EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256 = (\n    \"b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\"\n)"
+        }
+      ],
+      "repo_head": "a6f6f37fbe646f017d6cd5cbdac54a1a740c126f",
+      "runner_sha256": "88c0b31bf6e4ccf7f9936fab3eefd8d2387f6e5dfeff718502913dd8a0df5096",
+      "spec_sha256": "a5474e1ad069537cb76458774ef858e951fbf2fccfbf238aba587a3aa6d30142",
+      "status": "KILLED",
+      "test_output_sha256": "607f4e2bee4f21387787637603f18d09a0e10be6e5d36ac99d2e5dd4f21d01da",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1b0be95b503df7e9da37099d502fdf8f5e6b4a21a215d2c7ab4dcb00c6c128d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/114f65d42ea8604961add578c9b2422e/izdw-114f65d42e.o892633",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/114f65d42ea8604961add578c9b2422e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [309 items]\n\n........................................................................ [ 23%]\n................................................F........F.............. [ 46%]\n........................................................................ [ 69%]\n........................................................................ [ 93%]\n.....................                                                    [100%]\n=================================== FAILURES ===================================\n______ test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head ______\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():\n        \"\"\"成果物欠落を含む全 binding drift を赤にし、all_pass を raw から再導出する。\"\"\"\n        evidence_raw, evidence = _load_json_bytes(EVIDENCE)\n        assert evidence_raw, \"committed evidence must not be empty\"\n        _, ledger = _load_json_bytes(LEDGER)\n        entry = next(\n            item for item in ledger[\"entries\"]\n            if item[\"id\"] == \"silo_ladder_rung1\"\n        )\n        binding = evidence[\"binding\"]\n        raw_probe = (\n            ROOT\n            / \"output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/\"\n              \"raw-bundle-attempt-1/attempts/1/attestation-job.json\"\n        )\n        assert (\n            _sha256(evidence_raw),\n            _sha256(raw_probe.read_bytes()),\n            binding[\"calibration\"][\"sha256\"],\n            binding[\"driver\"][\"sha256\"],\n        ) == HISTORICAL_SILO_EVIDENCE_IDENTITY\n        assert evidence[\"limitations\"] == {\n            \"raw_object_binary_bytes_retained\": False,\n            \"nqsv_scheduler_exit_status\": \"unavailable\",\n            \"third_party_rederivation\": \"sha256-chain-consistency-only\",\n        }\n    \n        patch_path = ROOT / entry[\"path\"]\n        patch_raw = patch_path.read_bytes()\n        patch_sha = _sha256(patch_raw)\n        assert binding[\"patch\"][\"path\"] == entry[\"path\"]\n        assert patch_sha == binding[\"patch\"][\"sha256\"] == entry[\"patch_sha256\"]\n        assert binding[\"ledger\"][\"path\"] == \"patches/ledger.json\"\n        assert binding[\"ledger\"][\"sha256\"] == _sha256(LEDGER.read_bytes())\n        expected_bound_paths = {\n            \"driver\": \"orchestrator/campaign/silo_ladder_rung1.py\",\n            \"pbs_job\": \"tools/pegasus/silo_ladder_rung1.sh\",\n            \"submitter\": \"tools/pegasus/submit_silo_ladder_rung1.sh\",\n            \"verifier_module\": \"orchestrator/verifier/report.py\",\n            \"policy\": \"tools/pegasus/policy.json\",\n        }\n        historical_sha256_by_key = {\n            \"driver\": HISTORICAL_SILO_EVIDENCE_IDENTITY[3],\n            \"policy\": EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,\n        }\n        for key, relative in expected_bound_paths.items():\n            assert binding[key][\"path\"] == relative\n            current_sha = _sha256((ROOT / relative).read_bytes())\n            if key == \"policy\":\n>               assert current_sha == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\nE               AssertionError: assert 'bfb9069b5bbf...e8d5aeb27ccb1' == 'b1c42e493148...fc2a36ac961ac'\nE                 \nE                 - b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\nE                 + bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\n\norchestrator/tests/test_silo_ladder_rung1_evidence.py:1243: AssertionError\n__________ test_shared_pegasus_policy_owns_no_t126_qualification_keys __________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_shared_pegasus_policy_owns_no_t126_qualification_keys():\n        \"\"\"T-126 keys stay out of the byte-pinned shared policy.\n    \n        共有 policy の正当な更新では凍結 evidence を書き換えず、歴史 binding と\n        現行 bytes を分離する。接頭辞走査は ``t126_`` key を拒否し、現行 bytes の\n        明示 sha256 pin は key 名変更、接頭辞なし key 追加、値の書換え、空白だけの\n        整形を含む無断 drift を赤にする。凍結 binding は歴史 oracle と一致し、\n        現行値とは不一致でなければならない。\n        \"\"\"\n        policy_relative = \"tools/pegasus/policy.json\"\n        policy_path = _ROOT / policy_relative\n        policy = json.loads(policy_path.read_text(encoding=\"utf-8\"))\n        assert not [key for key in policy if key.startswith(\"t126_\")]\n        assert RESERVATION_POLICY_RELATIVE_PATH in REQUIRED_CODE_IDENTITY_PATHS\n        assert \"orchestrator/campaign/build_admission.py\" in REQUIRED_CODE_IDENTITY_PATHS\n        pinned = json.loads(\n            (_ROOT / \"output/env/pegasus/silo_ladder_rung1\"\n             / \"silo_ladder_rung1.json\").read_text(encoding=\"utf-8\"))\n        pinned_policy = pinned[\"binding\"][\"policy\"]\n        assert pinned_policy[\"path\"] == policy_relative\n        current_policy_sha256 = hashlib.sha256(\n            policy_path.read_bytes()).hexdigest()\n>       assert current_policy_sha256 == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256\nE       AssertionError: assert 'bfb9069b5bbf...e8d5aeb27ccb1' == 'b1c42e493148...fc2a36ac961ac'\nE         \nE         - b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\nE         + bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\n\norchestrator/tests/test_t126_pegasus_tools.py:1290: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head\nFAILED orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys\n======================== 2 failed, 307 passed in 6.91s =========================\n",
+        "stdout_sha256": "4422c66dc3fbaefe08d2e7868ad9811ddaae3ce8fc970d3fdd8abe7fea008780"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ed6a864b50c382f10eb7c396a16d14e2b3c336547a3db4a11b78cdc09f864cf4",
+      "duration_s": 73.254,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "6a9036f39e90e284e8a9f5c6f23627108caea24ff16ce0aa0aa6f8a963f36e2a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3f9fcdb0161e7accaf0319817202a48094dfbc4ba3c7997bd8d13e9f46beb755",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/pegasus_policy_expected_goldens.py",
+          "new": "EXPECTED_CURRENT_PEGASUS_POLICY_SHA256 = (\n    \"b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\"\n)",
+          "old": "EXPECTED_CURRENT_PEGASUS_POLICY_SHA256 = (\n    \"bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\"\n)"
+        }
+      ],
+      "repo_head": "a6f6f37fbe646f017d6cd5cbdac54a1a740c126f",
+      "runner_sha256": "88c0b31bf6e4ccf7f9936fab3eefd8d2387f6e5dfeff718502913dd8a0df5096",
+      "spec_sha256": "a5474e1ad069537cb76458774ef858e951fbf2fccfbf238aba587a3aa6d30142",
+      "status": "KILLED",
+      "test_output_sha256": "4422c66dc3fbaefe08d2e7868ad9811ddaae3ce8fc970d3fdd8abe7fea008780",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1b0be95b503df7e9da37099d502fdf8f5e6b4a21a215d2c7ab4dcb00c6c128d4"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/298974750142f25691a708d06e923359/izdw-2989747501.o892621",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/pegasus-dispatch/298974750142f25691a708d06e923359/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[smoke_probe.sh]\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[submit_certify.sh]\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[certify_calibration.sh]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies\norchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[certify_calibration.sh]\norchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[submit_certify.sh]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n#PBS -A one\\n#PBS -A two\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\nset -e\\n#PBS -A late\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n##PBS -A hidden\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n# #PBS -A hidden\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_execs_valid_argv\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[missing]\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[invalid]\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe\norchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate\norchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_writes_perf_failure\norchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output\norchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench\norchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench\norchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir\norchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir\norchestrator/tests/test_pegasus_tools.py::test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_accepts_real_nqsv_867863_output\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_skips_none_and_tries_next_key\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[exec_host = (none)\\nexec_vnode = (none)\\nassigned_host = (none)\\nvnode = (none)\\nstime = (none)\\nstart_time = (none)\\nstart = (none)\\nStarted Request Time = (none)\\nExecution Hosts(JSVNO):\\n    (none)\\n]\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[Request ID: 867863.nqsv\\nCurrent State = Running\\n]\norchestrator/tests/test_pegasus_tools.py::test_smoke_toolchain_capture_detects_nonzero_gcc_version\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:0:X-0:X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[00:X-00:X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:X-X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[X-X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_rejects_empty_string\norchestrator/tests/test_pegasus_tools.py::test_certify_keeps_default_modules_and_uses_system_toolchain\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_policy_and_comparison_use_normalized_exact_match\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468-True]\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468H-False]\norchestrator/tests/test_pegasus_tools.py::test_acquisition_candidate_rejects_schema_valid_duplicate_probe_key\norchestrator/tests/test_pegasus_tools.py::test_run_probe_fixture_to_stdout_shape_and_file\norchestrator/tests/test_pegasus_tools.py::test_run_probe_import_failure_is_structured_and_nonzero\norchestrator/tests/test_pegasus_tools.py::test_run_probe_probe_failure_is_structured_in_file_and_stdout\norchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_is_structured_for_stdout\norchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_has_nonempty_message_for_empty_exception\norchestrator/tests/test_pegasus_tools.py::test_smoke_probe_calls_v2_producer_and_preserves_stdout_copy\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_fixture_to_final_json\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_accepts_raw_zero_subrequest_prefix\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[1:12345.scheduler]\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[other.scheduler]\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_missing_input_is_nonzero\norchestrator/tests/test_pegasus_tools.py::test_make_acquisition_receipt_round_trip_and_field_drop\norchestrator/tests/test_pegasus_tools.py::test_gflags_missing_source_writes_gflags_failure\norchestrator/tests/test_pegasus_tools.py::test_gflags_head_mismatch_writes_gflags_failure\norchestrator/tests/test_pegasus_tools.py::test_glog_head_mismatch_writes_glog_failure\norchestrator/tests/test_pegasus_tools.py::test_calibrate_failure_survives_err_trap_and_writes_job_result\norchestrator/tests/test_pegasus_tools.py::test_certify_job_rejects_legacy_tolerance_environment\norchestrator/tests/test_pegasus_tools.py::test_qstat_failure_reaches_allocation_unavailable_path\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-0:123.server-True]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-1:123.server-False]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-124.server-False]\norchestrator/tests/test_pegasus_tools.py::test_submit_dry_run_does_not_resolve_cluster_commands\norchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head\norchestrator/tests/test_t126_pegasus_tools.py::test_reservation_policy_and_job_headers_freeze_wmax_and_walltime\norchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/build_admission.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/buildcache.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/env_contract.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/pipeline.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/source_digest.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/__init__.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/artifacts.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/atomic_publish.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/attempt_ledger.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/collector.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/contract.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/identity.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/qsub_binding.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/retry_index.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/series.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/submission.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_control_v1.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_driver.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_evaluation_event_schema.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_event_schema.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_failure_receipt_schema.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_final_receipt_schema.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_marker_schema.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_reservation_policy_v1.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_series_result_schema.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/verifier/core.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[tools/pegasus/collect_t126_qualification.py]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[tools/pegasus/policy.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[tools/pegasus/submit_t126_qualification.sh]\norchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[tools/pegasus/t126_qualification.sh]\norchestrator/tests/test_t126_pegasus_tools.py::test_reservation_policy_wiring_is_pinned_to_the_contract_constant\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_scripts_pass_bash_syntax[tools/pegasus/submit_t126_qualification.sh]\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_scripts_pass_bash_syntax[tools/pegasus/t126_qualification.sh]\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-open-False-submit-receipt.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-open-False-job-result.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-short-write-False-submit-receipt.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-short-write-False-job-result.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-fsync-False-submit-receipt.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-fsync-False-job-result.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-publish-True-submit-receipt.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-publish-True-job-result.json]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[0-0123456789abcdef-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[0-0123456789abcdef-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[00-0123456789abcdef-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[00-0123456789abcdef-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[001-0123456789abcdef-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[001-0123456789abcdef-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[pid-0123456789abcdef-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[pid-0123456789abcdef-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdeF-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdeF-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcde-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcde-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdef0-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdef0-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[0-0123456789abcdef-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[0-0123456789abcdef-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[00-0123456789abcdef-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[00-0123456789abcdef-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[001-0123456789abcdef-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[001-0123456789abcdef-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[pid-0123456789abcdef-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[pid-0123456789abcdef-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdeF-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdeF-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcde-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcde-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdef0-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdef0-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_partial_canonical_job_result_closes_via_accounting_recovery\norchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_job_result_closes_idempotently_as_nonretry[False-34-pre-member-infrastructure]\norchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_job_result_closes_idempotently_as_nonretry[True-0-none]\norchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_result_is_preserved_before_adoption[wmax]\norchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_result_is_preserved_before_adoption[series-timing]\norchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_conflict_preserves_b_and_closes_with_a[wmax-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_conflict_preserves_b_and_closes_with_a[wmax-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_conflict_preserves_b_and_closes_with_a[series-timing-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_conflict_preserves_b_and_closes_with_a[series-timing-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_series_verifier_admits_only_phase_two_rejected_evidence_namespace\norchestrator/tests/test_t126_pegasus_tools.py::test_shared_create_writer_collector_callers_preserve_unsafe_stage[receipt]\norchestrator/tests/test_t126_pegasus_tools.py::test_shared_create_writer_collector_callers_preserve_unsafe_stage[rejected-evidence]\norchestrator/tests/test_t126_pegasus_tools.py::test_submitter_has_exact_opt_in_and_imports_persistent_publisher\norchestrator/tests/test_t126_pegasus_tools.py::test_job_script_has_no_persistent_import_and_has_isolated_publisher\norchestrator/tests/test_t126_pegasus_tools.py::test_m6a_missing_accounting_file_is_the_only_negative_then_closes\norchestrator/tests/test_t126_pegasus_tools.py::test_failure_schema_forces_new_classes_nonretry[job-result-publication-failed]\norchestrator/tests/test_t126_pegasus_tools.py::test_failure_schema_forces_new_classes_nonretry[job-result-accounting-mismatch]\norchestrator/tests/test_t126_pegasus_tools.py::test_accounting_missing_request_is_the_only_invalid_field\norchestrator/tests/test_t126_pegasus_tools.py::test_m6b_exact_accounting_job_id_is_single_effective_anchor\norchestrator/tests/test_t126_pegasus_tools.py::test_m6c_accounting_rc_vs_job_rc_closes_as_exact_mismatch\norchestrator/tests/test_t126_pegasus_tools.py::test_series_result_and_post_job_final_receipt_are_distinct\norchestrator/tests/test_t126_pegasus_tools.py::test_collector_fault_injection_and_success_rerun_are_exact_idempotent\norchestrator/tests/test_t126_pegasus_tools.py::test_receipt_is_invalid_until_idempotent_outcome_finalize[after-receipt-publish-p]\norchestrator/tests/test_t126_pegasus_tools.py::test_receipt_is_invalid_until_idempotent_outcome_finalize[after-outcome-pending-q]\norchestrator/tests/test_t126_pegasus_tools.py::test_collect_rejects_missing_partial_or_other_attempt_ledger_before_writes[missing-u]\norchestrator/tests/test_t126_pegasus_tools.py::test_collect_rejects_missing_partial_or_other_attempt_ledger_before_writes[intent-only-v]\norchestrator/tests/test_t126_pegasus_tools.py::test_collect_rejects_missing_partial_or_other_attempt_ledger_before_writes[other-attempt-w]\norchestrator/tests/test_t126_pegasus_tools.py::test_final_receipt_becomes_invalid_if_ledger_outcome_is_removed\norchestrator/tests/test_t126_pegasus_tools.py::test_ledger_outcome_semantics_cannot_be_coherently_rehashed[payload_update0]\norchestrator/tests/test_t126_pegasus_tools.py::test_ledger_outcome_semantics_cannot_be_coherently_rehashed[payload_update1]\norchestrator/tests/test_t126_pegasus_tools.py::test_ledger_failure_class_cannot_be_coherently_rehashed\norchestrator/tests/test_t126_pegasus_tools.py::test_post_verifier_rejects_semantic_job_result_after_coherent_hash_rewrite\norchestrator/tests/test_t126_pegasus_tools.py::test_m6d_final_series_pointer_swap_is_single_closure_reason\norchestrator/tests/test_t126_pegasus_tools.py::test_canonical_rc30_job_result_is_authoritative_when_cli_omits_it\norchestrator/tests/test_t126_pegasus_tools.py::test_public_verifier_reanchors_coherent_rc30_to_rc34_swap\norchestrator/tests/test_t126_pegasus_tools.py::test_final_consumer_rejects_job_series_start_and_completion_mismatch\norchestrator/tests/test_t126_pegasus_tools.py::test_late_terminal_after_series_result_closes_as_failure[143-job-result-publication-failed-t]\norchestrator/tests/test_t126_pegasus_tools.py::test_late_terminal_after_series_result_closes_as_failure[129-job-result-publication-failed-h]\norchestrator/tests/test_t126_pegasus_tools.py::test_late_terminal_after_series_result_closes_as_failure[137-job-result-publication-failed-k]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_result_exact_schema_rejects_empty_and_extra_keys[payload0]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_result_exact_schema_rejects_empty_and_extra_keys[payload1]\norchestrator/tests/test_t126_pegasus_tools.py::test_coherent_alternate_scheduler_job_swap_cannot_replace_attempt_binding\norchestrator/tests/test_t126_pegasus_tools.py::test_collector_rejects_static_nonce_parent_symlink_before_write\norchestrator/tests/test_t126_pegasus_tools.py::test_collector_rejects_substring_job_id_same_output_and_receipt_tamper\norchestrator/tests/test_t126_pegasus_tools.py::test_accounting_only_sigkill_recovers_pre_attempt_failure_namespace\norchestrator/tests/test_t126_pegasus_tools.py::test_deleted_normal_submit_cannot_be_reclassified_into_recovered_retry\norchestrator/tests/test_t126_pegasus_tools.py::test_identity_consumer_rejects_git_chain_tool_hash_and_snapshot_traversal\norchestrator/tests/test_t126_pegasus_tools.py::test_identity_consumer_rejects_protocol_policy_dependency_and_build_argv_tamper\norchestrator/tests/test_t126_pegasus_tools.py::test_consumer_rejects_coherently_rehashed_source_stage_perf_claim\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_compensating_cap_drift_before_scheduler_calls[1500-0-600]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_compensating_cap_drift_before_scheduler_calls[1500-600-0]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_compensating_cap_drift_before_scheduler_calls[900-1200-0]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_nul_in_walltime_before_scheduler_calls\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[member-cap]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[round-gap]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[prologue-cap]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[attestation-cap]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[finalize-reserve]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_mapping_masked_equal_float_type_drift[walltime-s]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_mapping_masked_equal_float_type_drift[wmax]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_overdetermined_reservation_policy_type_drift[near-float]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_overdetermined_reservation_policy_type_drift[bool]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_overdetermined_reservation_policy_type_drift[walltime-not-string]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_reservation_reader_rejects_python_failure_after_complete_output\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_resume_rejects_boolean_invocation_retry_index[False]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_resume_rejects_boolean_invocation_retry_index[True]\norchestrator/tests/test_t126_pegasus_tools.py::test_fake_qsub_qstat_exact_visibility_and_durable_receipt\norchestrator/tests/test_t126_pegasus_tools.py::test_duplicate_initial_is_rejected_before_any_additional_qsub\norchestrator/tests/test_t126_pegasus_tools.py::test_dry_run_does_not_consume_series_before_real_submit\norchestrator/tests/test_t126_pegasus_tools.py::test_m8c_qsub_nonzero_is_accepted_unknown_and_never_resubmitted\norchestrator/tests/test_t126_pegasus_tools.py::test_qsub_visibility_mismatch_leaves_intent_binding_but_no_receipt\norchestrator/tests/test_t126_pegasus_tools.py::test_post_qsub_receipt_write_failure_is_durably_bound_and_fail_closed\norchestrator/tests/test_t126_pegasus_tools.py::test_m8b_post_qsub_prebinding_crash_never_uses_raw_stdout_authority\norchestrator/tests/test_t126_pegasus_tools.py::test_binding_publish_before_ledger_bind_is_exactly_recoverable\norchestrator/tests/test_t126_pegasus_tools.py::test_binding_staging_without_canonical_never_authorizes_resubmit\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-open]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-short-write]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-fsync]\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-publish]\norchestrator/tests/test_t126_pegasus_tools.py::test_one_authorized_retry_submit_collector_chain_is_accepted_once\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_symlink_component_hidden_drift_and_unsupported_perf\norchestrator/tests/test_t126_pegasus_tools.py::test_submit_untracked_scan_failure_is_fail_closed_before_qsub\norchestrator/tests/test_t126_pegasus_tools.py::test_m8a_create_only_invocation_claim_serializes_parallel_submit\norchestrator/tests/test_t126_pegasus_tools.py::test_invocation_claim_short_write_is_completed_and_bound\norchestrator/tests/test_t126_pegasus_tools.py::test_m8d_binding_v2_exact_corpus_and_all_consumer_wiring\norchestrator/tests/test_t126_pegasus_tools.py::test_retry_index_boolean_is_rejected_by_python_production_consumers[False]\norchestrator/tests/test_t126_pegasus_tools.py::test_retry_index_boolean_is_rejected_by_python_production_consumers[True]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_prologue_rejects_boolean_submission_retry_index[False]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_prologue_rejects_boolean_submission_retry_index[True]\norchestrator/tests/test_t126_pegasus_tools.py::test_binding_v2_consumer_wiring_diagnostic_is_present\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[canonical]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[walltime]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[walltime-s]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[member-cap]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[round-gap]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[prologue-cap]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[attestation-cap]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[finalize-reserve]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[wmax]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_single_layer_equal_float_type_drift[member-cap]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_single_layer_equal_float_type_drift[round-gap]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_single_layer_equal_float_type_drift[attestation-cap]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_single_layer_equal_float_type_drift[finalize-reserve]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_mapping_masked_equal_float_type_drift[walltime-s]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_mapping_masked_equal_float_type_drift[wmax]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_mapping_masked_equal_float_type_drift[prologue-cap]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_overdetermined_reservation_policy_type_drift[near-float]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_overdetermined_reservation_policy_type_drift[bool]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_overdetermined_reservation_policy_type_drift[walltime-not-string]\norchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_reader_rejects_python_failure_after_complete_output\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[multiple]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[suffix]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[mode]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[symlink]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[nonregular]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[external-hardlink]\norchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_preflight_contract_covers_unforgeable_uid_gate\norchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[none]\norchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[valid]\norchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[attempt]\norchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[series]\norchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[job]\norchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[nonce]\norchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[extra]\norchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[symlink]\norchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[-12690001.nqsv]\norchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[after-open-12690002.nqsv]\norchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[after-short-write-12690003.nqsv]\norchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[after-fsync-12690004.nqsv]\norchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[after-publish-12690005.nqsv]\norchestrator/tests/test_t126_pegasus_tools.py::test_rejected_target_publisher_crash_closes_nonretry[after-open]\norchestrator/tests/test_t126_pegasus_tools.py::test_rejected_target_publisher_crash_closes_nonretry[after-short-write]\norchestrator/tests/test_t126_pegasus_tools.py::test_rejected_target_publisher_crash_closes_nonretry[after-fsync]\norchestrator/tests/test_t126_pegasus_tools.py::test_terminal_publisher_rejects_submitted_attempt_symlink_ancestor\norchestrator/tests/test_t126_pegasus_tools.py::test_m9a_targetless_full_staging_is_discarded_to_nonretry_failure[attempt]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9a_targetless_full_staging_is_discarded_to_nonretry_failure[early-job]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9b_after_publish_stage_cleanup_and_collector_rerun_converge\norchestrator/tests/test_t126_pegasus_tools.py::test_m9c_exact_early_job_staging_is_recovered_and_closed\norchestrator/tests/test_t126_pegasus_tools.py::test_m9d_inode_and_nlink_anomalies_are_nonmutating_rejections[different-inode]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9d_inode_and_nlink_anomalies_are_nonmutating_rejections[extra-hardlink]\norchestrator/tests/test_t126_pegasus_tools.py::test_reconciliation_rejects_ambiguous_staging_without_mutation[malformed-name]\norchestrator/tests/test_t126_pegasus_tools.py::test_reconciliation_rejects_ambiguous_staging_without_mutation[symlink]\norchestrator/tests/test_t126_pegasus_tools.py::test_reconciliation_rejects_ambiguous_staging_without_mutation[multiple]\norchestrator/tests/test_t126_pegasus_tools.py::test_collector_rejects_generator_unreachable_staging_suffixes[attempt]\norchestrator/tests/test_t126_pegasus_tools.py::test_collector_rejects_generator_unreachable_staging_suffixes[early-job]\norchestrator/tests/test_t126_pegasus_tools.py::test_cross_namespace_preflight_rejects_before_any_cleanup\norchestrator/tests/test_t126_pegasus_tools.py::test_reconciliation_fsync_order_brackets_after_publish_unlink\norchestrator/tests/test_t126_pegasus_tools.py::test_m9e_after_publish_retirement_precedes_series_verification\norchestrator/tests/test_t126_pegasus_tools.py::test_m9g_attempt_retirement_is_not_skipped_by_rejection_returns\norchestrator/tests/test_t126_pegasus_tools.py::test_invalid_return_does_not_strand_attempt_staging\norchestrator/tests/test_t126_pegasus_tools.py::test_series_after_publish_semantic_conflict_closes_with_preserved_b\norchestrator/tests/test_t126_pegasus_tools.py::test_cross_namespace_preflight_rejects_before_attempt_stage_retire[early-malformed-name]\norchestrator/tests/test_t126_pegasus_tools.py::test_cross_namespace_preflight_rejects_before_attempt_stage_retire[different-inode]\norchestrator/tests/test_t126_pegasus_tools.py::test_cross_namespace_preflight_rejects_before_attempt_stage_retire[extra-hardlink]\norchestrator/tests/test_t126_pegasus_tools.py::test_attempt_closure_rejects_unreconcilable_staging_bytes\norchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[False-False-semantic-valid]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[False-False-semantic-invalid]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[False-True-semantic-valid]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[False-True-semantic-invalid]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[True-False-semantic-valid]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[True-False-semantic-invalid]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[True-True-semantic-valid]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[True-True-semantic-invalid]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9i_targetless_attempt_staging_is_not_retired_before_verification[empty]\norchestrator/tests/test_t126_pegasus_tools.py::test_m9i_targetless_attempt_staging_is_not_retired_before_verification[complete]\norchestrator/tests/test_t126_pegasus_tools.py::test_m10a_invalid_to_missing_coherent_rehash_cannot_gain_retry\norchestrator/tests/test_t126_pegasus_tools.py::test_m10b_valid_canonical_requires_nonnull_exact_pointer\norchestrator/tests/test_t126_pegasus_tools.py::test_m10c_publish_then_scheduler_kill_closes_accounting_mismatch\norchestrator/tests/test_t126_pegasus_tools.py::test_m10d_new_failure_classes_are_disjoint_from_all_retry_authority\norchestrator/tests/test_t126_pegasus_tools.py::test_retry_protocol_eligible_reason_set_is_frozen\norchestrator/tests/test_t126_pegasus_tools.py::test_m11a_coherent_submission_job_rewrite_cannot_cross_committed_blob_edge\norchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[-True-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[after-open-False-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[after-short-write-False-False]\norchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[after-fsync-False-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[after-publish-True-True]\norchestrator/tests/test_t126_pegasus_tools.py::test_fr3_mutation_node_registry_is_exact_and_complete\n\n309 tests collected in 0.32s\n",
+        "stdout_sha256": "9c2f9446e674a4116f0cea8d9388a1b7a71a4be4973e79c0868dc657be13e169"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[smoke_probe.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[submit_certify.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[certify_calibration.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[certify_calibration.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[submit_certify.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n#PBS -A one/n#PBS -A two/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/nset -e/n#PBS -A late/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n##PBS -A hidden/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n# #PBS -A hidden/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_execs_valid_argv",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[missing]",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[invalid]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_writes_perf_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_accepts_real_nqsv_867863_output",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_skips_none_and_tries_next_key",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[exec_host = (none)/nexec_vnode = (none)/nassigned_host = (none)/nvnode = (none)/nstime = (none)/nstart_time = (none)/nstart = (none)/nStarted Request Time = (none)/nExecution Hosts(JSVNO):/n    (none)/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[Request ID: 867863.nqsv/nCurrent State = Running/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_smoke_toolchain_capture_detects_nonzero_gcc_version",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:0:X-0:X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[00:X-00:X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:X-X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[X-X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_rejects_empty_string",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_keeps_default_modules_and_uses_system_toolchain",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_policy_and_comparison_use_normalized_exact_match",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468-True]",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468H-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_acquisition_candidate_rejects_schema_valid_duplicate_probe_key",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_fixture_to_stdout_shape_and_file",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_import_failure_is_structured_and_nonzero",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_probe_failure_is_structured_in_file_and_stdout",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_is_structured_for_stdout",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_has_nonempty_message_for_empty_exception",
+        "orchestrator/tests/test_pegasus_tools.py::test_smoke_probe_calls_v2_producer_and_preserves_stdout_copy",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_fixture_to_final_json",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_accepts_raw_zero_subrequest_prefix",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[1:12345.scheduler]",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[other.scheduler]",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_missing_input_is_nonzero",
+        "orchestrator/tests/test_pegasus_tools.py::test_make_acquisition_receipt_round_trip_and_field_drop",
+        "orchestrator/tests/test_pegasus_tools.py::test_gflags_missing_source_writes_gflags_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_gflags_head_mismatch_writes_gflags_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_glog_head_mismatch_writes_glog_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_calibrate_failure_survives_err_trap_and_writes_job_result",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_job_rejects_legacy_tolerance_environment",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_failure_reaches_allocation_unavailable_path",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-0:123.server-True]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-1:123.server-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-124.server-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_submit_dry_run_does_not_resolve_cluster_commands",
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_reservation_policy_and_job_headers_freeze_wmax_and_walltime",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/build_admission.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/buildcache.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/env_contract.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/pipeline.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/campaign/source_digest.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/__init__.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/artifacts.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/atomic_publish.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/attempt_ledger.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/collector.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/contract.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/identity.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/qsub_binding.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/retry_index.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/series.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/submission.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_control_v1.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_driver.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_evaluation_event_schema.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_event_schema.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_failure_receipt_schema.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_final_receipt_schema.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_marker_schema.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_reservation_policy_v1.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/qualification/t126_series_result_schema.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/verifier/core.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[tools/pegasus/collect_t126_qualification.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[tools/pegasus/policy.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[tools/pegasus/submit_t126_qualification.sh]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[tools/pegasus/t126_qualification.sh]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_reservation_policy_wiring_is_pinned_to_the_contract_constant",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_scripts_pass_bash_syntax[tools/pegasus/submit_t126_qualification.sh]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_scripts_pass_bash_syntax[tools/pegasus/t126_qualification.sh]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-open-False-submit-receipt.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-open-False-job-result.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-short-write-False-submit-receipt.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-short-write-False-job-result.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-fsync-False-submit-receipt.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-fsync-False-job-result.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-publish-True-submit-receipt.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shell_publishers_recover_all_hard_crash_boundaries[after-publish-True-job-result.json]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[0-0123456789abcdef-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[0-0123456789abcdef-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[00-0123456789abcdef-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[00-0123456789abcdef-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[001-0123456789abcdef-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[001-0123456789abcdef-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[pid-0123456789abcdef-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[pid-0123456789abcdef-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdeF-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdeF-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcde-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcde-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdef0-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_persistent_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdef0-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[0-0123456789abcdef-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[0-0123456789abcdef-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[00-0123456789abcdef-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[00-0123456789abcdef-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[001-0123456789abcdef-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[001-0123456789abcdef-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[pid-0123456789abcdef-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[pid-0123456789abcdef-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdeF-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdeF-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcde-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcde-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdef0-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_terminal_publisher_rejects_generator_unreachable_suffixes[123-0123456789abcdef0-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_partial_canonical_job_result_closes_via_accounting_recovery",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_job_result_closes_idempotently_as_nonretry[False-34-pre-member-infrastructure]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_job_result_closes_idempotently_as_nonretry[True-0-none]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_result_is_preserved_before_adoption[wmax]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_result_is_preserved_before_adoption[series-timing]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_conflict_preserves_b_and_closes_with_a[wmax-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_conflict_preserves_b_and_closes_with_a[wmax-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_conflict_preserves_b_and_closes_with_a[series-timing-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_semantic_invalid_early_conflict_preserves_b_and_closes_with_a[series-timing-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_series_verifier_admits_only_phase_two_rejected_evidence_namespace",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_create_writer_collector_callers_preserve_unsafe_stage[receipt]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_create_writer_collector_callers_preserve_unsafe_stage[rejected-evidence]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submitter_has_exact_opt_in_and_imports_persistent_publisher",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_script_has_no_persistent_import_and_has_isolated_publisher",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m6a_missing_accounting_file_is_the_only_negative_then_closes",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_failure_schema_forces_new_classes_nonretry[job-result-publication-failed]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_failure_schema_forces_new_classes_nonretry[job-result-accounting-mismatch]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_accounting_missing_request_is_the_only_invalid_field",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m6b_exact_accounting_job_id_is_single_effective_anchor",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m6c_accounting_rc_vs_job_rc_closes_as_exact_mismatch",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_series_result_and_post_job_final_receipt_are_distinct",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_collector_fault_injection_and_success_rerun_are_exact_idempotent",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_receipt_is_invalid_until_idempotent_outcome_finalize[after-receipt-publish-p]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_receipt_is_invalid_until_idempotent_outcome_finalize[after-outcome-pending-q]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_collect_rejects_missing_partial_or_other_attempt_ledger_before_writes[missing-u]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_collect_rejects_missing_partial_or_other_attempt_ledger_before_writes[intent-only-v]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_collect_rejects_missing_partial_or_other_attempt_ledger_before_writes[other-attempt-w]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_final_receipt_becomes_invalid_if_ledger_outcome_is_removed",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_ledger_outcome_semantics_cannot_be_coherently_rehashed[payload_update0]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_ledger_outcome_semantics_cannot_be_coherently_rehashed[payload_update1]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_ledger_failure_class_cannot_be_coherently_rehashed",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_post_verifier_rejects_semantic_job_result_after_coherent_hash_rewrite",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m6d_final_series_pointer_swap_is_single_closure_reason",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_canonical_rc30_job_result_is_authoritative_when_cli_omits_it",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_public_verifier_reanchors_coherent_rc30_to_rc34_swap",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_final_consumer_rejects_job_series_start_and_completion_mismatch",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_late_terminal_after_series_result_closes_as_failure[143-job-result-publication-failed-t]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_late_terminal_after_series_result_closes_as_failure[129-job-result-publication-failed-h]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_late_terminal_after_series_result_closes_as_failure[137-job-result-publication-failed-k]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_result_exact_schema_rejects_empty_and_extra_keys[payload0]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_result_exact_schema_rejects_empty_and_extra_keys[payload1]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_coherent_alternate_scheduler_job_swap_cannot_replace_attempt_binding",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_collector_rejects_static_nonce_parent_symlink_before_write",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_collector_rejects_substring_job_id_same_output_and_receipt_tamper",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_accounting_only_sigkill_recovers_pre_attempt_failure_namespace",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_deleted_normal_submit_cannot_be_reclassified_into_recovered_retry",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_identity_consumer_rejects_git_chain_tool_hash_and_snapshot_traversal",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_identity_consumer_rejects_protocol_policy_dependency_and_build_argv_tamper",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_consumer_rejects_coherently_rehashed_source_stage_perf_claim",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_compensating_cap_drift_before_scheduler_calls[1500-0-600]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_compensating_cap_drift_before_scheduler_calls[1500-600-0]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_compensating_cap_drift_before_scheduler_calls[900-1200-0]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_nul_in_walltime_before_scheduler_calls",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[member-cap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[round-gap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[prologue-cap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[attestation-cap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_single_layer_equal_float_type_drift[finalize-reserve]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_mapping_masked_equal_float_type_drift[walltime-s]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_each_mapping_masked_equal_float_type_drift[wmax]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_overdetermined_reservation_policy_type_drift[near-float]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_overdetermined_reservation_policy_type_drift[bool]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_overdetermined_reservation_policy_type_drift[walltime-not-string]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_reservation_reader_rejects_python_failure_after_complete_output",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_resume_rejects_boolean_invocation_retry_index[False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_resume_rejects_boolean_invocation_retry_index[True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_fake_qsub_qstat_exact_visibility_and_durable_receipt",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_duplicate_initial_is_rejected_before_any_additional_qsub",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_dry_run_does_not_consume_series_before_real_submit",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m8c_qsub_nonzero_is_accepted_unknown_and_never_resubmitted",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_qsub_visibility_mismatch_leaves_intent_binding_but_no_receipt",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_post_qsub_receipt_write_failure_is_durably_bound_and_fail_closed",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m8b_post_qsub_prebinding_crash_never_uses_raw_stdout_authority",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_binding_publish_before_ledger_bind_is_exactly_recoverable",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_binding_staging_without_canonical_never_authorizes_resubmit",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-open]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-short-write]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-fsync]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-publish]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_one_authorized_retry_submit_collector_chain_is_accepted_once",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_rejects_symlink_component_hidden_drift_and_unsupported_perf",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_untracked_scan_failure_is_fail_closed_before_qsub",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m8a_create_only_invocation_claim_serializes_parallel_submit",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_invocation_claim_short_write_is_completed_and_bound",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m8d_binding_v2_exact_corpus_and_all_consumer_wiring",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_retry_index_boolean_is_rejected_by_python_production_consumers[False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_retry_index_boolean_is_rejected_by_python_production_consumers[True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_prologue_rejects_boolean_submission_retry_index[False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_prologue_rejects_boolean_submission_retry_index[True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_binding_v2_consumer_wiring_diagnostic_is_present",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[canonical]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[walltime]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[walltime-s]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[member-cap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[round-gap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[prologue-cap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[attestation-cap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[finalize-reserve]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_value[wmax]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_single_layer_equal_float_type_drift[member-cap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_single_layer_equal_float_type_drift[round-gap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_single_layer_equal_float_type_drift[attestation-cap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_single_layer_equal_float_type_drift[finalize-reserve]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_mapping_masked_equal_float_type_drift[walltime-s]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_mapping_masked_equal_float_type_drift[wmax]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_each_mapping_masked_equal_float_type_drift[prologue-cap]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_overdetermined_reservation_policy_type_drift[near-float]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_overdetermined_reservation_policy_type_drift[bool]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_rejects_overdetermined_reservation_policy_type_drift[walltime-not-string]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_job_reservation_reader_rejects_python_failure_after_complete_output",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[multiple]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[suffix]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[mode]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[symlink]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[nonregular]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_global_preflight_is_nonmutating[external-hardlink]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_embedded_publisher_preflight_contract_covers_unforgeable_uid_gate",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[none]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[valid]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[attempt]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[series]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[job]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[nonce]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[extra]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submitted_attempt_is_sole_terminal_publisher_target[symlink]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[-12690001.nqsv]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[after-open-12690002.nqsv]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[after-short-write-12690003.nqsv]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[after-fsync-12690004.nqsv]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_exact_committed_signal_publisher_collector_rerun_chain[after-publish-12690005.nqsv]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_rejected_target_publisher_crash_closes_nonretry[after-open]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_rejected_target_publisher_crash_closes_nonretry[after-short-write]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_rejected_target_publisher_crash_closes_nonretry[after-fsync]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_terminal_publisher_rejects_submitted_attempt_symlink_ancestor",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9a_targetless_full_staging_is_discarded_to_nonretry_failure[attempt]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9a_targetless_full_staging_is_discarded_to_nonretry_failure[early-job]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9b_after_publish_stage_cleanup_and_collector_rerun_converge",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9c_exact_early_job_staging_is_recovered_and_closed",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9d_inode_and_nlink_anomalies_are_nonmutating_rejections[different-inode]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9d_inode_and_nlink_anomalies_are_nonmutating_rejections[extra-hardlink]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_reconciliation_rejects_ambiguous_staging_without_mutation[malformed-name]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_reconciliation_rejects_ambiguous_staging_without_mutation[symlink]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_reconciliation_rejects_ambiguous_staging_without_mutation[multiple]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_collector_rejects_generator_unreachable_staging_suffixes[attempt]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_collector_rejects_generator_unreachable_staging_suffixes[early-job]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_cross_namespace_preflight_rejects_before_any_cleanup",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_reconciliation_fsync_order_brackets_after_publish_unlink",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9e_after_publish_retirement_precedes_series_verification",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9g_attempt_retirement_is_not_skipped_by_rejection_returns",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_invalid_return_does_not_strand_attempt_staging",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_series_after_publish_semantic_conflict_closes_with_preserved_b",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_cross_namespace_preflight_rejects_before_attempt_stage_retire[early-malformed-name]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_cross_namespace_preflight_rejects_before_attempt_stage_retire[different-inode]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_cross_namespace_preflight_rejects_before_attempt_stage_retire[extra-hardlink]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_attempt_closure_rejects_unreconcilable_staging_bytes",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[False-False-semantic-valid]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[False-False-semantic-invalid]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[False-True-semantic-valid]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[False-True-semantic-invalid]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[True-False-semantic-valid]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[True-False-semantic-invalid]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[True-True-semantic-valid]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9j_valid_canonical_with_rejected_early_result_fails_closed[True-True-semantic-invalid]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9i_targetless_attempt_staging_is_not_retired_before_verification[empty]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m9i_targetless_attempt_staging_is_not_retired_before_verification[complete]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m10a_invalid_to_missing_coherent_rehash_cannot_gain_retry",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m10b_valid_canonical_requires_nonnull_exact_pointer",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m10c_publish_then_scheduler_kill_closes_accounting_mismatch",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m10d_new_failure_classes_are_disjoint_from_all_retry_authority",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_retry_protocol_eligible_reason_set_is_frozen",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m11a_coherent_submission_job_rewrite_cannot_cross_committed_blob_edge",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[-True-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[after-open-False-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[after-short-write-False-False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[after-fsync-False-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m11b_exact_spooled_script_uses_embedded_isolated_publisher[after-publish-True-True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_fr3_mutation_node_registry_is_exact_and_complete"
+      ],
+      "duration_s": 22.33,
+      "rc": 0,
+      "repo_head": "a6f6f37fbe646f017d6cd5cbdac54a1a740c126f",
+      "runner_sha256": "88c0b31bf6e4ccf7f9936fab3eefd8d2387f6e5dfeff718502913dd8a0df5096",
+      "spec_sha256": "a5474e1ad069537cb76458774ef858e951fbf2fccfbf238aba587a3aa6d30142",
+      "status": "PASSED",
+      "tool_sha256": "1b0be95b503df7e9da37099d502fdf8f5e6b4a21a215d2c7ab4dcb00c6c128d4"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+          "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "300da01c44fe0fb1fcb630d346a0628f44160e9b3c7679ed865737ea85608932",
+        "replacements": [
+          {
+            "file": "tools/pegasus/policy.json",
+            "new": "  \"expected_cpu_model\":  \"Intel Xeon Platinum 8468\",",
+            "old": "  \"expected_cpu_model\": \"Intel Xeon Platinum 8468\","
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench",
+          "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+          "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "08887482895e95e5375f8ac87b724063a579ffe4817952e751cb26c12d040074",
+        "replacements": [
+          {
+            "file": "tools/pegasus/policy.json",
+            "new": "  \"gflags_source_path\": \"/home/SFC/tanab/github/gflags\",",
+            "old": "  \"gflags_source_path\": \"/work/SFC/tanab/github/gflags\","
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench",
+          "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+          "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d0082fbc2e5ac585d5dc9902530c2a4afea8e3c3d202c7e34c4f7eccf4dce24d",
+        "replacements": [
+          {
+            "file": "tools/pegasus/policy.json",
+            "new": "  \"glog_source_path\": \"/home/SFC/tanab/github/glog\",",
+            "old": "  \"glog_source_path\": \"/work/SFC/tanab/github/glog\","
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+          "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "78a219518b7091e959f5b555bdd9eba92b435ca5bf9c7351e0e5312ad7acfee9",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/pegasus_policy_expected_goldens.py",
+            "new": "EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256 = (\n    \"bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\"\n)",
+            "old": "EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256 = (\n    \"b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\"\n)"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+          "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6a9036f39e90e284e8a9f5c6f23627108caea24ff16ce0aa0aa6f8a963f36e2a",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/pegasus_policy_expected_goldens.py",
+            "new": "EXPECTED_CURRENT_PEGASUS_POLICY_SHA256 = (\n    \"b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac\"\n)",
+            "old": "EXPECTED_CURRENT_PEGASUS_POLICY_SHA256 = (\n    \"bfb9069b5bbf75f7e6c462f3fa5bc31da5d000fc3f537e22670e8d5aeb27ccb1\"\n)"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "7d2dd0447dc58e505214fd115b6cb041f4b35241d9aef3d000ebd9dbd88e2b2c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_pegasus_tools.py",
+      "orchestrator/tests/test_silo_ladder_rung1_evidence.py",
+      "orchestrator/tests/test_t126_pegasus_tools.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "a6f6f37fbe646f017d6cd5cbdac54a1a740c126f",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_pegasus_tools.py",
+      "orchestrator/tests/test_silo_ladder_rung1_evidence.py",
+      "orchestrator/tests/test_t126_pegasus_tools.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/tools/run_tests.py",
+    "entrypoint_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "252ed1d1798cc6e0763bf1ffa39a65137d5e20df",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "88c0b31bf6e4ccf7f9936fab3eefd8d2387f6e5dfeff718502913dd8a0df5096",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "a5474e1ad069537cb76458774ef858e951fbf2fccfbf238aba587a3aa6d30142",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "1b0be95b503df7e9da37099d502fdf8f5e6b4a21a215d2c7ab4dcb00c6c128d4",
+  "updated_at": "2026-08-06T02:09:01.126579+00:00"
+}

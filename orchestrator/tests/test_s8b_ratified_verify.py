@@ -699,6 +699,181 @@ def test_semantic_happy_path_loads_and_launch_validates(tmp_path):
     assert set(lv.binaries_by_cell) == set(topology["manifest"]["binaries"])
 
 
+def test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses(
+        tmp_path):
+    """read-only public 入口だけが記録 g1 を解決し、live admission は current g2 に留まる。"""
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    g1 = EC.lookup(topology["protocol"]["env_tag"])
+    g2 = dataclasses.replace(
+        g1,
+        calibration_ref=EC.CalibrationRef(
+            path=g1.calibration_ref.path + ".successor",
+            sha256="f" * 64,
+        ),
+    )
+    assert EC.is_valid_successor(g1, g2)
+    candidate = {
+        g1.env_tag: (
+            EC.GenerationEntry(generation=1, contract=g1),
+            EC.GenerationEntry(generation=2, contract=g2),
+        ),
+    }
+    assert EC._validate_generations_without_bootstrap_fuse(candidate) is None
+    with pytest.raises(EC.EnvContractError, match="活性化権限"):
+        EC.validate_generations(candidate)
+    historical = mock.Mock(wraps=EC.resolve_by_contract_sha256)
+    journal_spy = mock.Mock(wraps=M._validate_journal)
+    result_spy = mock.Mock(wraps=M._validate_result)
+    run_cmd_spy = mock.Mock(wraps=M._run_cmd_matches_portable_session)
+    occurrence_spy = mock.Mock(wraps=M._validate_axis_occurrences)
+
+    with mock.patch.object(M._env_contract, "lookup", return_value=g2), \
+            mock.patch.object(
+                M._env_contract, "resolve_by_contract_sha256", historical,
+            ), mock.patch.object(M, "_validate_journal", journal_spy), \
+            mock.patch.object(M, "_validate_result", result_spy), \
+            mock.patch.object(M, "_run_cmd_matches_portable_session", run_cmd_spy), \
+            mock.patch.object(M, "_validate_axis_occurrences", occurrence_spy):
+        reverified = M.reverify_published_freeze(freeze, root)
+        with pytest.raises(M.RatifiedFreezeError) as excinfo:
+            M.launch_validate(freeze, root)
+
+    assert type(reverified) is M.ReverifiedFreeze
+    assert not isinstance(reverified, M.LaunchValidatedFreeze)
+    assert historical.call_count == 1
+    assert historical.call_args.args == (g1.contract_sha256,)
+    assert historical.call_args.kwargs == {"expected_env_tag": g1.env_tag}
+    assert journal_spy.call_args.kwargs["contract"] is g1
+    assert result_spy.call_args.kwargs["contract"] is g1
+    assert occurrence_spy.call_args.kwargs["contract"] is g1
+    assert run_cmd_spy.call_count > 0
+    assert all(call.kwargs["contract"] is g1 for call in run_cmd_spy.call_args_list)
+    assert excinfo.value.reason == "floor-artifact-invalid"
+    assert excinfo.value.cause == "protocol-invalid"
+
+
+@pytest.mark.parametrize(
+    "case_id",
+    ["malformed", "unknown", "ambiguous", "cross-env", "dishonest-resolver"],
+)
+def test_public_reverify_resolver_refusals_do_not_fallback_to_current(
+        tmp_path, case_id):
+    """public read-only 入口は resolver 拒否・不正返却を current lookup で救済しない。
+
+    ambiguous / dishonest は patch-only の構造防御であり production artifact から
+    到達しない。
+    """
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    g1 = EC.lookup(topology["protocol"]["env_tag"])
+    foreign = EC.GenerationEntry(generation=1, contract=EC.lookup("pegasus"))
+
+    def resolve(recorded, *, expected_env_tag=None):
+        assert recorded == g1.contract_sha256
+        if case_id == "cross-env" and expected_env_tag is None:
+            return EC.GenerationEntry(generation=1, contract=g1)
+        if case_id == "dishonest-resolver":
+            return foreign
+        messages = {
+            "malformed": "contract_sha256 は 64 桁の小文字 hex でない",
+            "unknown": "未知の contract_sha256",
+            "ambiguous": "contract_sha256 を一意に解決できない",
+            "cross-env": "expected_env_tag と一致しない",
+        }
+        raise EC.EnvContractError(messages[case_id])
+
+    resolver = mock.Mock(side_effect=resolve)
+    current_fallback = mock.Mock(
+        side_effect=AssertionError("read-only 再検証が current lookup へ fallback した"),
+    )
+    with mock.patch.object(M._env_contract, "lookup", current_fallback), \
+            mock.patch.object(
+                M._env_contract, "resolve_by_contract_sha256", resolver,
+            ):
+        with pytest.raises(M.RatifiedFreezeError) as excinfo:
+            M.reverify_published_freeze(freeze, root)
+
+    assert excinfo.value.reason == "floor-artifact-invalid"
+    assert excinfo.value.cause == "protocol-invalid"
+    assert resolver.call_count == 1
+    assert resolver.call_args.kwargs == {"expected_env_tag": g1.env_tag}
+    current_fallback.assert_not_called()
+
+
+def test_public_reverify_rejects_dishonest_same_env_wrong_hash_resolver(tmp_path):
+    """same-env/wrong-hash 返却は patch-only の構造防御であり、
+    production artifact から到達しない。"""
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    g1 = EC.lookup(topology["protocol"]["env_tag"])
+    wrong = dataclasses.replace(
+        g1,
+        calibration_ref=EC.CalibrationRef(
+            path=g1.calibration_ref.path + ".dishonest",
+            sha256="e" * 64,
+        ),
+    )
+    assert wrong.env_tag == g1.env_tag
+    assert wrong.contract_sha256 != g1.contract_sha256
+    resolver = mock.Mock(
+        return_value=EC.GenerationEntry(generation=2, contract=wrong),
+    )
+    current_fallback = mock.Mock(
+        side_effect=AssertionError("dishonest resolver 拒否後に current へ fallback した"),
+    )
+
+    with mock.patch.object(M._env_contract, "lookup", current_fallback), \
+            mock.patch.object(
+                M._env_contract, "resolve_by_contract_sha256", resolver,
+            ):
+        with pytest.raises(M.RatifiedFreezeError) as excinfo:
+            M.reverify_published_freeze(freeze, root)
+
+    assert excinfo.value.reason == "floor-artifact-invalid"
+    assert excinfo.value.cause == "protocol-invalid"
+    assert resolver.call_count == 1
+    assert resolver.call_args.args == (g1.contract_sha256,)
+    assert resolver.call_args.kwargs == {"expected_env_tag": g1.env_tag}
+    current_fallback.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "case_id",
+    ["missing-calibration", "calibration-hash-mismatch"],
+)
+def test_public_reverify_calibration_refusals_do_not_fallback_to_current(
+        tmp_path, case_id):
+    """解決世代の calibration が読めなければ public read-only 入口全体を拒否する。"""
+    _need_v1()
+    root, freeze, topology = _build_launch_repo(tmp_path)
+    g1 = EC.lookup(topology["protocol"]["env_tag"])
+    resolver = mock.Mock(wraps=EC.resolve_by_contract_sha256)
+    current_fallback = mock.Mock(
+        side_effect=AssertionError("calibration 拒否後に current lookup へ fallback した"),
+    )
+    calibration_path = root / g1.calibration_ref.path
+    if case_id == "missing-calibration":
+        calibration_path.unlink()
+        expected_detail = "存在しない"
+    else:
+        calibration_path.write_bytes(b"tampered historical calibration\n")
+        expected_detail = "calibration sha256 不一致"
+
+    with mock.patch.object(M._env_contract, "lookup", current_fallback), \
+            mock.patch.object(
+                M._env_contract, "resolve_by_contract_sha256", resolver,
+            ):
+        with pytest.raises(M.RatifiedFreezeError) as excinfo:
+            M.reverify_published_freeze(freeze, root)
+
+    assert excinfo.value.reason == "journal-state-invalid"
+    assert excinfo.value.cause == "receipt-contract"
+    assert expected_detail in str(excinfo.value)
+    assert resolver.call_count == 1
+    current_fallback.assert_not_called()
+
+
 # --------------------------------------------------------------------------
 # V1 — source blob + G^==frozen_at_head + closure
 # --------------------------------------------------------------------------
@@ -1169,8 +1344,34 @@ def test_production_shape_run_cmd_calls_exact_portable_matcher(tmp_path):
     assert session["run_cmd"] is not None
     assert M._run_cmd_matches_portable_session(
         session, protocol=topology["protocol"], binaries=topology["manifest"]["binaries"],
+        contract=EC.lookup(topology["protocol"]["env_tag"]),
     )
     assert M.launch_validate(freeze, root).floor_artifact.document["sessions"][0]["run_cmd"]
+
+
+def test_run_cmd_projection_uses_passed_contract_as_structural_pin(tmp_path):
+    """これは構造 pin であって受理正例ではない。正当な successor では
+    clocks_per_us / numactl は世代間で同値になるため、この unit でしか検出できない。"""
+    _need_v1()
+    _root, _freeze, topology = _build_launch_repo(tmp_path)
+    session = dict(next(r for r in topology["journal"] if r["event"] == "session"))
+    base = EC.lookup(topology["protocol"]["env_tag"])
+    sentinel = dataclasses.replace(base, clocks_per_us=base.clocks_per_us + 1)
+    binary = topology["manifest"]["binaries"][session["cell_id"]]["binary"]
+    session["run_cmd"] = shlex.join(FC.build_portable_run_cmd(
+        binary=binary, workload=session["workload"], records=session["records"],
+        threads=session["threads"], extime_s=topology["protocol"]["extime_s"],
+        clocks_per_us=sentinel.clocks_per_us, numactl=sentinel.numactl,
+    ))
+
+    assert M._run_cmd_matches_portable_session(
+        session, protocol=topology["protocol"],
+        binaries=topology["manifest"]["binaries"], contract=sentinel,
+    )
+    assert not M._run_cmd_matches_portable_session(
+        session, protocol=topology["protocol"],
+        binaries=topology["manifest"]["binaries"], contract=base,
+    )
 
 
 def _mutate_run_cmd(state, mutation: str, *, result_only: bool = False) -> None:
@@ -1898,6 +2099,7 @@ def test_raw_scanner_and_occurrence_validator_equivalent_for_encodings():
         ],
         protocol={"env_tag": "linux-baremetal"},
         binaries={},
+        contract=EC.lookup("linux-baremetal"),
         closure_paths=frozenset({closure_path}),
     )
     raw_hits = HF.holdout_conjunction_hits({
@@ -2084,8 +2286,7 @@ def test_ratified_journal_required_consumer_passes_contract_mode_and_verified(tm
     verified = object()
     receipt_spy = mock.Mock(return_value=False)
 
-    with mock.patch.object(M._env_contract, "lookup", return_value=required), \
-            mock.patch.object(M._env_attestation, "load_verified_calibration",
+    with mock.patch.object(M._env_attestation, "load_verified_calibration",
                               return_value=verified), \
             mock.patch.object(M._execution_guard, "receipt_matches_contract", receipt_spy):
         with pytest.raises(M.RatifiedFreezeError) as excinfo:
@@ -2093,6 +2294,7 @@ def test_ratified_journal_required_consumer_passes_contract_mode_and_verified(tm
                 records, protocol=protocol, schedule=schedule, cells=cells,
                 binaries=binaries, cert_sha256=hashlib.sha256(cert_raw).hexdigest(),
                 manifest_sha256=hashlib.sha256(manifest_raw).hexdigest(), root=root,
+                contract=required,
             )
 
     assert excinfo.value.cause == "receipt-contract"
