@@ -19,6 +19,7 @@ sys.path.insert(0, str(_ORCH))
 
 from campaign import (  # noqa: E402
     buildcache,
+    pipeline,
     s2_verify_calibration,
     s3_lock_coverage,
     s5_permutation_coverage,
@@ -350,6 +351,41 @@ def test_cache_hit_does_not_consult_real_build_gate_or_call_run_stub():
     assert not results[0].cached
     assert results[1].cached
     assert [call[1] for call in calls] == ["configure", "build"]
+
+
+def test_m18_real_legacy_cache_hit_login_refuses_trace_producer():
+    """実 legacy entry の hit 後でも LOGIN では trace subprocess を起動しない。"""
+    with tempfile.TemporaryDirectory(prefix="izanagi_m18_legacy_hit_") as tmp:
+        root = Path(tmp)
+        fresh, fresh_calls = _fake_legacy_build(
+            root, site=site_policy.OTHER, jobs=1,
+        )
+        hit, hit_calls = _fake_legacy_build(
+            root, site=site_policy.PEGASUS_LOGIN, jobs=1,
+        )
+        assert not fresh.cached and hit.cached
+        assert fresh_calls and hit_calls == []
+
+        subprocess_calls = []
+
+        def forbidden_subprocess(*args, **kwargs):
+            subprocess_calls.append((args, kwargs))
+            raise AssertionError("LOGIN で cached trace binary を起動してはならない")
+
+        with patch.object(
+                pipeline, "_resolve_site",
+                lambda _site=None: site_policy.PEGASUS_LOGIN), patch.object(
+                    pipeline.subprocess, "run", forbidden_subprocess):
+            try:
+                pipeline._run_trace(
+                    hit.binary, str(root / "trace-output"), {}, clocks_per_us=1800,
+                )
+            except buildcache.BuildError:
+                pass
+            else:
+                raise AssertionError("legacy cache hit 後の trace producer が拒否されなかった")
+        assert subprocess_calls == []
+        assert not (root / "trace-output" / "log").exists()
 
 
 def test_jobs_are_absent_from_cache_identity_and_v2_completion_manifest():

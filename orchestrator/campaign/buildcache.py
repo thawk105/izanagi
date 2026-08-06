@@ -438,6 +438,19 @@ def _resolve_site(site: Optional[str]) -> str:
     return site_policy.current_site() if site is None else site
 
 
+def require_heavy_work_site(site: Optional[str], what: str) -> str:
+    """重い producer の起動を許す site を返し、login/suspect は拒否する。
+
+    拒否理由は subprocess を伴わない ``site_policy.heavy_work_refusal`` だけで
+    組み立てる。build cache hit 後の producer も同じ gate を再利用できるよう、
+    build 実行 helper から独立した入口にする。
+    """
+    resolved_site = _resolve_site(site)
+    if site_policy.refuses_heavy_work(resolved_site):
+        raise BuildError(site_policy.heavy_work_refusal(resolved_site, what))
+    return resolved_site
+
+
 def compilers_for_current_site() -> tuple[str, str]:
     """実 site が Pegasus compute のときだけ system compiler を選ぶ。"""
     if _resolve_site(None) == site_policy.PEGASUS_COMPUTE:
@@ -1041,11 +1054,7 @@ def _run(
         *, site: Optional[str] = None, env: Optional[Dict[str, str]] = None,
 ) -> None:
     if what in {"configure", "build"}:
-        resolved_site = _resolve_site(site)
-        if site_policy.refuses_heavy_work(resolved_site):
-            raise BuildError(
-                site_policy.heavy_work_refusal(resolved_site, f"cmake {what}")
-            )
+        require_heavy_work_site(site, f"cmake {what}")
     run_kwargs: Dict[str, Any] = {
         "capture_output": True,
         "text": True,
