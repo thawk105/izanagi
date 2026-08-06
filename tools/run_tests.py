@@ -1496,9 +1496,11 @@ def main(
         return preflight_rc
 
     if not dispatch_exempt and resolved_site == site_policy.PEGASUS_SUSPECT:
+        queue_hint = _queue_dispatch_possible()
         print(
             site_policy.heavy_work_refusal(
                 resolved_site, "pytest テスト実行",
+                queue_hint=queue_hint,
             ),
             file=sys.stderr,
             flush=True,

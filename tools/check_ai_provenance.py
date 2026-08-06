@@ -1481,9 +1481,11 @@ def main(
             )
             return PEGASUS_DISPATCH_RC
         if resolved_site == site_policy.PEGASUS_SUSPECT:
+            queue_hint = _queue_dispatch_possible()
             print(
                 site_policy.heavy_work_refusal(
                     resolved_site, "provenance 履歴監査",
+                    queue_hint=queue_hint,
                 ),
                 file=sys.stderr,
                 flush=True,

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import ast
+import inspect
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 import pytest
 
@@ -769,3 +771,62 @@ def test_login_headroom_is_stdlib_only_and_defers_annotations():
     future = next(node for node in tree.body if isinstance(node, ast.ImportFrom))
     assert future.module == "__future__"
     assert [alias.name for alias in future.names] == ["annotations"]
+
+
+def _parameter_cases(test):
+    cases = [({}, "")]
+    for mark in getattr(test, "pytestmark", ()):
+        if mark.name != "parametrize":
+            continue
+        raw_names, values = mark.args[:2]
+        names = (
+            [name.strip() for name in raw_names.split(",")]
+            if isinstance(raw_names, str)
+            else list(raw_names)
+        )
+        expanded = []
+        for base, base_label in cases:
+            for index, value in enumerate(values):
+                if hasattr(value, "values"):
+                    value = value.values
+                row = (value,) if len(names) == 1 else tuple(value)
+                parameters = dict(base, **dict(zip(names, row)))
+                expanded.append((parameters, f"{base_label}[{index}]"))
+        cases = expanded
+    return cases
+
+
+def _run():
+    tests = [
+        value
+        for name, value in sorted(globals().items())
+        if name.startswith("test_") and callable(value)
+    ]
+    passed = failed = 0
+    for test in tests:
+        for parameters, label in _parameter_cases(test):
+            case_name = test.__name__ + label
+            try:
+                with tempfile.TemporaryDirectory(
+                    prefix="izanagi_login_headroom_",
+                ) as temporary, pytest.MonkeyPatch.context() as monkeypatch:
+                    signature = inspect.signature(test).parameters
+                    if "tmp_path" in signature:
+                        parameters["tmp_path"] = Path(temporary)
+                    if "monkeypatch" in signature:
+                        parameters["monkeypatch"] = monkeypatch
+                    test(**parameters)
+                print(f"PASS {case_name}")
+                passed += 1
+            except AssertionError as exc:
+                print(f"FAIL {case_name}: {exc}")
+                failed += 1
+            except Exception as exc:  # noqa: BLE001
+                print(f"ERROR {case_name}: {type(exc).__name__}: {exc}")
+                failed += 1
+    print(f"\n{passed} passed, {failed} failed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

@@ -122,8 +122,18 @@ def default_build_jobs(site: str) -> int:
     return 16
 
 
-def heavy_work_refusal(site: str, what: str) -> str:
-    """重い処理の拒否理由と、計算ノードを使う準拠経路を日本語で返す。"""
+def heavy_work_refusal(
+    site: str,
+    what: str,
+    *,
+    queue_hint: tuple[bool, str] | None = None,
+) -> str:
+    """重い処理の拒否理由と、計算ノードを使う準拠経路を日本語で返す。
+
+    この leaf 自身はキューを観測しない。最上位 caller が既に観測した
+    ``dispatch_possible()`` の結果を ``queue_hint`` に渡した場合だけ、
+    利用不可の診断を追記する。
+    """
     if site == PEGASUS_LOGIN:
         reason = "Pegasus ログインノードでは重い処理を実行できません"
     elif site == PEGASUS_SUSPECT:
@@ -134,14 +144,9 @@ def heavy_work_refusal(site: str, what: str) -> str:
         f"{what} を拒否します: {reason}。"
         "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
     )
-    try:
-        queue_module = __import__(
-            "orchestrator.campaign.queue_state",
-            fromlist=("dispatch_possible",),
-        )
-        possible, queue_reason = queue_module.dispatch_possible()
-    except Exception:
+    if queue_hint is None:
         return message
+    possible, queue_reason = queue_hint
     if possible:
         return message
     return (

@@ -1458,6 +1458,30 @@ def test_suspect_execution_refuses_without_dispatch_or_xdist(
     assert "拒否" in capsys.readouterr().err
 
 
+def test_suspect_refusal_observes_queue_once_and_includes_unavailable_hint(
+    monkeypatch, capsys,
+):
+    queue_status = mock.Mock(return_value=(
+        False,
+        "キュー gen_S は ENA=DIS、STS=INAで、現在利用できません。",
+    ))
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", queue_status)
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_SUSPECT,
+    ) == RT._PEGASUS_DISPATCH_RC
+
+    queue_status.assert_called_once_with()
+    error = capsys.readouterr().err
+    assert "ENA=DIS" in error
+    assert "STS=INA" in error
+    assert "性能測定は現時点では実施できません" in error
+
+
 def test_suspect_never_enters_local_admission(monkeypatch):
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
     monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)

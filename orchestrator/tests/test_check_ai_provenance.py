@@ -3400,6 +3400,28 @@ def test_suspect_history_audit_refuses_with_infra_rc_without_dispatch(
     assert "provenance 履歴監査 を拒否します" in capsys.readouterr().err
 
 
+def test_suspect_history_refusal_observes_queue_once_and_includes_hint(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    queue_status = mock.Mock(return_value=(
+        False,
+        "キュー gen_S は ENA=DIS、STS=INAで、現在利用できません。",
+    ))
+    monkeypatch.setattr(provenance, "_queue_dispatch_possible", queue_status)
+
+    assert provenance.main(
+        [],
+        site=site_policy.PEGASUS_SUSPECT,
+    ) == provenance.PEGASUS_DISPATCH_RC
+
+    queue_status.assert_called_once_with()
+    error = capsys.readouterr().err
+    assert "ENA=DIS" in error
+    assert "STS=INA" in error
+    assert "性能測定は現時点では実施できません" in error
+
+
 def test_suspect_history_audit_never_enters_local_admission(
     monkeypatch: pytest.MonkeyPatch,
 ):

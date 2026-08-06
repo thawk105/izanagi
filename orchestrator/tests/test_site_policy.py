@@ -296,19 +296,32 @@ def test_heavy_work_refusal_is_japanese_and_names_compliant_route():
         assert "qlogin" in message
 
 
-def test_heavy_work_refusal_keeps_existing_text_when_queue_is_available():
+def test_heavy_work_refusal_is_pure_and_keeps_existing_text_without_hint():
     expected = (
         "pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。"
         "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
     )
     with mock.patch(
-        "orchestrator.campaign.queue_state.dispatch_possible",
-        return_value=(True, "キューは利用できます。"),
-    ):
+        "subprocess.run",
+        side_effect=AssertionError("拒否文面の生成で subprocess を起動してはならない"),
+    ) as run:
         assert SP.heavy_work_refusal(SP.PEGASUS_LOGIN, "pytest") == expected
+    run.assert_not_called()
 
 
-def test_heavy_work_refusal_adds_queue_diagnosis_when_unavailable():
+def test_heavy_work_refusal_keeps_existing_text_when_queue_is_available():
+    expected = (
+        "pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。"
+        "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+    )
+    assert SP.heavy_work_refusal(
+        SP.PEGASUS_LOGIN,
+        "pytest",
+        queue_hint=(True, "キューは利用できます。"),
+    ) == expected
+
+
+def test_heavy_work_refusal_adds_queue_diagnosis_only_with_unavailable_hint():
     existing = (
         "性能測定 を拒否します: Pegasus ログインノードでは重い処理を実行できません。"
         "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
@@ -317,36 +330,18 @@ def test_heavy_work_refusal_adds_queue_diagnosis_when_unavailable():
         "キュー gen_S は ENA=DIS、STS=INA、待ち数=95、実行数=68で、"
         "現在利用できません。"
     )
-    with mock.patch(
-        "orchestrator.campaign.queue_state.dispatch_possible",
-        return_value=(False, queue_reason),
-    ):
-        message = SP.heavy_work_refusal(SP.PEGASUS_LOGIN, "性能測定")
+    without_hint = SP.heavy_work_refusal(SP.PEGASUS_LOGIN, "性能測定")
+    message = SP.heavy_work_refusal(
+        SP.PEGASUS_LOGIN,
+        "性能測定",
+        queue_hint=(False, queue_reason),
+    )
+    assert without_hint == existing
+    assert queue_reason not in without_hint
     assert message.startswith(existing)
     assert queue_reason in message
     assert "投入しても実行されません" in message
     assert "したがって性能測定は現時点では実施できません" in message
-
-
-def test_heavy_work_refusal_keeps_existing_text_on_queue_observation_error():
-    expected = (
-        "pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。"
-        "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
-    )
-    with mock.patch(
-        "orchestrator.campaign.queue_state.dispatch_possible",
-        side_effect=RuntimeError("qstat failed"),
-    ):
-        assert SP.heavy_work_refusal(SP.PEGASUS_LOGIN, "pytest") == expected
-
-
-def test_heavy_work_refusal_keeps_existing_text_on_queue_import_error():
-    expected = (
-        "pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。"
-        "qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
-    )
-    with mock.patch("builtins.__import__", side_effect=ImportError("unavailable")):
-        assert SP.heavy_work_refusal(SP.PEGASUS_LOGIN, "pytest") == expected
 
 
 def test_site_policy_imports_only_approved_stdlib_modules():
