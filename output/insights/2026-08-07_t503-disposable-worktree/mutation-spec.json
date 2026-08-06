@@ -1,0 +1,232 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "MW-01",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "    if top_path != source:\n",
+          "new": "    if top_path != source and False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_source_must_be_the_exact_worktree_root_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-02",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "    if any(_path_within(scratch, root) for root in registered):\n",
+          "new": "    if False and any(_path_within(scratch, root) for root in registered):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_scratch_inside_any_registered_worktree_is_rejected_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-03",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "    if stat.S_ISLNK(metadata.st_mode):\n        raise MutationWorktreeError(\"--scratch-root は symlink であってはならない\")\n",
+          "new": "    if False and stat.S_ISLNK(metadata.st_mode):\n        raise MutationWorktreeError(\"--scratch-root は symlink であってはならない\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_scratch_symlink_is_rejected_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-04",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "        preflight.container.mkdir(mode=0o700, exist_ok=False)\n",
+          "new": "        preflight.container.mkdir(mode=0o700, exist_ok=True)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_existing_container_is_preserved_and_never_claimed_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-05",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)\n",
+          "new": "            fcntl.flock(stream.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-06",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "    if head != preflight.commit:\n",
+          "new": "    if head != preflight.commit and False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-07",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "        shutil.rmtree(binding.admin_dir)\n",
+          "new": "        shutil.rmtree(binding.admin_dir.parent)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_teardown_removes_only_own_admin_dir_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-08",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "            relocated = _stash_dispatch_evidence(preflight, required=evidence_required)\n",
+          "new": "            relocated = False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-09",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "                            else _ledger_is_terminal(\n                                preflight, args.expected_spec_sha256\n                            )\n",
+          "new": "                            else True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-10",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "    return WRAPPER_FAILURE_RC if child_rc is None else child_rc\n",
+          "new": "    return 0 if child_rc is None else 0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_child_return_code_is_propagated_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-11",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "    if wrapper_failed:\n        return WRAPPER_FAILURE_RC\n",
+          "new": "    if wrapper_failed and False:\n        return WRAPPER_FAILURE_RC\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-12",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "            os.killpg(process.pid, signum)\n",
+          "new": "            os.killpg(process.pid, signal.SIGTERM)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]"
+      ]
+    },
+    {
+      "id": "MW-13",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "        if any(_path_within(candidate, root) for root in forbidden):\n",
+          "new": "        if False and any(_path_within(candidate, root) for root in forbidden):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_spec_and_out_inside_registered_worktree_are_rejected_between_observation_points"
+      ]
+    },
+    {
+      "id": "MW-14",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "                                _assert_shared_unchanged(\n                                    state.preflight.shared_before\n                                )\n",
+          "new": "                                pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points"
+      ]
+    }
+  ]
+}

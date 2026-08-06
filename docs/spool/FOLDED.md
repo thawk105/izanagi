@@ -445,3 +445,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:certified-writer-prewrite-closure":"[T-609]"},"authored":"2026-08-07","content_sha256":"161a292b0f7f8943b8c28959ca5f93962989402505da25c2c8a3d7147540fbb3","seq":1,"wave":"dev-wave-t529-activation-impl"}
 - {"allocations":{"D:activation-authority-blocked-by-entry-surface":"D215"},"authored":"2026-08-07","content_sha256":"2b04a920cad5636f1415d98db96ee50aa7a7921a05daa3beca34a82b2c9ab446","seq":2,"wave":"dev-wave-t529-activation-impl"}
 - {"allocations":{"F:ruling-matched-by-topic-not-options":"F151"},"authored":"2026-08-07","content_sha256":"a5e24c7402e37d45d314c76e66760a5ab0e3afcea8906df74c5d3549de1aeaa4","seq":3,"wave":"dev-wave-t529-activation-impl"}
+
+- {"allocations":{"T:mutation-harness-force-dispatch":"[T-613]","T:mutation-worktree-activation-package":"[T-610]","T:mutation-worktree-run-location-class":"[T-611]","T:mutation-worktree-stale-gc":"[T-612]"},"authored":"2026-08-07","content_sha256":"80fb55d138d0a5a8b95022cb8e56e9108e10fef8735c00e4db0b136609d02c63","seq":1,"wave":"dev-wave-t503-disposable-worktree"}
+- {"allocations":{"D:disposable-mutation-worktree":"D216"},"authored":"2026-08-07","content_sha256":"eb01dae4bf11347f62ff0138d0a91f3d1e5d6b04f290db02717abb74734fccc1","seq":2,"wave":"dev-wave-t503-disposable-worktree"}
+- {"allocations":{"F:stage1-rc-read-through-pipe":"F152"},"authored":"2026-08-07","content_sha256":"e551b551c0c8d0d1d0fd62a236f177143fc878f9ebc69215b28a1ce53f925b4a","seq":3,"wave":"dev-wave-t503-disposable-worktree"}

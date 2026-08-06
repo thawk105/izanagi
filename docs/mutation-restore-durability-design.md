@@ -1,7 +1,8 @@
 # 変異復元の耐久化設計 ([T-487] 起草、未裁定)
 
-**状態:** 設計起草 + 生死確認のみ実測済み (§8.1)。**production 実装ゼロ。**
-第一 slice の着手は §9.2 の択一待ちで、L-B (物理ノード死) は `UNKNOWN` のままである。
+**状態:** 設計起草 + 生死確認 (§8.1) + **第一 slice の実装 (§9.3、`tools/mutation_worktree.py`)**。
+本文が要求する journal・原子的置換・再開時修復は**未実装**であり、§9.1 の必須 6 点の充足は 0/6、
+L-B (物理ノード死) は `UNKNOWN` のままである。
 本書の主張には次のタグを付ける。タグのない断定を certify 済みと読んではならない。
 
 - `[要求]` — 設計がこう要求する、の意。実装されていない
@@ -418,6 +419,43 @@ journal `clean` の前に terminal ledger record を書く / consumer が postch
   exact に固定する。receipt の code identity は leaf-only であり、抽出は盲点を広げる (別 task)。
 - 共通層を repo 全体の汎用 framework と呼ばない。`DW-G03` の独立 2 例は揃っていない。
 - test 名・docstring・完了記述に「syscall 順序であって物理永続性ではない」を残す。L-B は `UNKNOWN`。
+
+### 9.3 第一 slice の着手 `[2026-08-07 実装]`
+
+ユーザー裁定 V-1 (b) に従い、**§7.1 の「専有・使い捨て worktree 方式」を第一 slice として実装した**
+(`tools/mutation_worktree.py`)。`mutation_harness` は 1 byte も変えず、既存の `--repo` seam だけを使う。
+固定 commit から repo 外へ detached worktree を作り、その中で harness を走らせ、完走時だけ木と
+自分の worktree admin dir を消す。canonical state root・incarnation nonce・consumer lease・
+in-place repair の発行者問題は、「共有木を修復する」のではなく「専有木を捨てる」ことで回避する。
+
+**この slice は §9.1 の必須 6 点をいずれも充足しない。** journal・原子的置換・`clean` capability・
+metadata admission・quiescence 証明・legacy drain gate を実装していないからである。したがって
+V-3 / V-4 / V-5 は**発火面が存在せず未実装**であり、in-place 復元経路を作る後続 slice まで
+持ち越す (放棄ではない)。**`T-503 complete` とも、D130 条件 3 が `closed` とも、[T-486] が
+`closed` とも書いてはならない。** L-B は引き続き `UNKNOWN` である。
+
+主張する範囲は「共有木の観測点間で `git status` / `git submodule status` の stdout bytes が
+不変であること」だけで、file bytes 全体の不変でも物理永続性でもない。旧 direct 経路は残っており
+機械的 admission は無いので、**全 wave へ効かせるには別 slice の activation package が要る**。
+SIGKILL 残骸は共有木の外に出たが自動回収は無く、`--resume` か手動削除で閉じる — 
+**「人間待ちが消えた」のではなく「共有 checkout の汚染が消え、待ちが repo 外へ移り、
+resume 可能になった」**が正確である。
+
+**使うときの規約** (`DW-M05` は変更していない — wrapper は必須ではなく、`docs/dev-wave/**` は
+hard ceiling の残り 13 bytes で追記できないため。必須化する slice で `DW-M05` の圧縮と併せて行う)。
+
+- `--out` は repo 外に置く。wrapper は `<out>.lock` / `<out>.dispatch-evidence/` /
+  `<out>.wrapper-receipt.json` を派生させ、`<out>.lock` で同一 out の二重走行を排除する。
+- 未完了で残った container は wrapper の `--resume` で再開するか手で消す。**自動 GC は無い。**
+- **実行場所の分類が未実施なので `tools/README.md` の規約どおり `dispatch-required` として扱い、
+  計算ノードを確保して走らせる。**
+- wrapper 経由でも source/main は observation-only であり、**変異走行中に受入全走を投入しない・
+  tree へ書かないという既存の禁止は維持する。** 緩和には専用 probe と別裁定が要る。
+
+2026-08-07 の実測: 使い捨て木での受入全走は 6806 passed / 20 skipped で共有木と一致。
+provision 10.10 s + submodule 1.45 s / 134 MB、teardown の `rm -rf` 4.90 s。
+自分の admin dir だけを消す方式で登録が外れ (9→8)、`prunable` 0 件、他 worktree と共有 submodule は
+無傷 (**大域 `git worktree prune` は使わない**)。
 
 ---
 
