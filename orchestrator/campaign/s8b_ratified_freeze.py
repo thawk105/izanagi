@@ -35,7 +35,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Type
 
 from campaign import env_contract as _env_contract
 from campaign import env_attestation as _env_attestation
@@ -769,6 +769,22 @@ class LaunchValidatedFreeze:
     まで) を、``launch_validate`` が未知性層2 (現時点 search 再実行 + closure 完全一致 +
     列挙前後 digest + 陽性対照) を通してこの型へ昇格する。実走 consumer (oracle driver)
     はこの型を要求する — skip flag は作らない。unknownness 層2 は launch_validate 側。"""
+    ratified: "RatifiedFreeze"
+    activation_head: str
+    search_digest: str
+    symlink_gitlink_inventory: Tuple[str, ...]
+    floor_artifact: VerifiedFloorArtifact
+    binaries_by_cell: Mapping
+
+
+@dataclass(frozen=True)
+class ReverifiedFreeze:
+    """publish 済み freeze の read-only 再検証を通した型。
+
+    この型分離は偽造耐性を主張しない。効くのは自分たちの consumer が黙って
+    広がらないことだけである。実走 consumer は ``LaunchValidatedFreeze`` を要求し、
+    historical contract で再検証した値を admission token として受理しない。
+    """
     ratified: "RatifiedFreeze"
     activation_head: str
     search_digest: str
@@ -1796,14 +1812,13 @@ def _validate_journal(
         records: Tuple[dict, ...], *, protocol: Mapping, schedule: list[dict],
         cells: list[dict], binaries: Mapping[str, Mapping], cert_sha256: str,
         manifest_sha256: str, root: Path,
+        contract: _env_contract.ExecutionEnvironmentContract,
 ) -> dict:
     if not records:
         raise RatifiedFreezeError("journal-state-invalid", "journal が空", cause="journal-empty")
     try:
-        contract = _env_contract.lookup(protocol["env_tag"])
         verified_calibration = _env_attestation.load_verified_calibration(contract, root)
-    except (KeyError, _env_contract.EnvContractError,
-            _env_attestation.AttestationError) as exc:
+    except _env_attestation.AttestationError as exc:
         raise RatifiedFreezeError(
             "journal-state-invalid", f"execution env contract を検証できない: {exc}",
             cause="receipt-contract",
@@ -2086,7 +2101,7 @@ def _validate_journal(
                 cause="run-cmd-required",
             )
         if not _run_cmd_matches_portable_session(
-                record, protocol=protocol, binaries=binaries):
+                record, protocol=protocol, binaries=binaries, contract=contract):
             raise RatifiedFreezeError(
                 "journal-state-invalid",
                 f"session[{seq}].run_cmd が portable canonical argv と不一致",
@@ -2137,7 +2152,7 @@ def _validate_journal(
 
 def _validate_result(
         document: dict, *, protocol: Mapping, cells: list[dict], binaries: Mapping[str, Mapping],
-        journal: Mapping,
+        journal: Mapping, contract: _env_contract.ExecutionEnvironmentContract,
 ) -> None:
     _exact_keys(document, _RESULT_KEYS, reason="floor-artifact-invalid", label="result")
     if document["schema"] != _floor_contract.RESULT_SCHEMA:
@@ -2182,7 +2197,7 @@ def _validate_result(
     for index, record in enumerate(result_sessions):
         if (not isinstance(record, Mapping)
                 or not _run_cmd_matches_portable_session(
-                    record, protocol=protocol, binaries=binaries)):
+                    record, protocol=protocol, binaries=binaries, contract=contract)):
             raise RatifiedFreezeError(
                 "floor-artifact-invalid",
                 f"result.sessions[{index}].run_cmd が portable canonical argv と不一致",
@@ -2271,7 +2286,8 @@ def _walk_json(value, pointer: str = ""):
 
 def _run_cmd_matches_portable_session(
         record: Mapping, *, protocol: Mapping,
-        binaries: Mapping[str, Mapping]) -> bool:
+        binaries: Mapping[str, Mapping],
+        contract: _env_contract.ExecutionEnvironmentContract) -> bool:
     """session.run_cmd が検証済み構造値からの leaf 再構築と完全一致するか返す。"""
     run_cmd = record.get("run_cmd")
     if run_cmd is None:
@@ -2284,22 +2300,22 @@ def _run_cmd_matches_portable_session(
         return False
     try:
         tokens = shlex.split(run_cmd)
-        contract = _env_contract.lookup(protocol["env_tag"])
         expected = _floor_contract.build_portable_run_cmd(
             binary=binary_record["binary"], workload=record["workload"],
             records=record["records"], threads=record["threads"],
             extime_s=protocol["extime_s"], clocks_per_us=contract.clocks_per_us,
             numactl=contract.numactl,
         )
-    except (ValueError, KeyError, TypeError, _floor_contract.FloorContractError,
-            _env_contract.EnvContractError):
+    except (ValueError, KeyError, TypeError, _floor_contract.FloorContractError):
         return False
     return tuple(tokens) == expected
 
 
 def _validate_axis_occurrences(
         *, artifacts: Sequence[Tuple[str, object, Optional[bytes]]], protocol: Mapping,
-        binaries: Mapping[str, Mapping], closure_paths: frozenset = frozenset(),
+        binaries: Mapping[str, Mapping],
+        contract: _env_contract.ExecutionEnvironmentContract,
+        closure_paths: frozenset = frozenset(),
 ) -> Dict[str, list]:
     """軸 occurrence を path/record-index/pointer/holdout/axis/encoding 単位で検査する。"""
     axis_keys = {
@@ -2373,7 +2389,8 @@ def _validate_axis_occurrences(
                                     cmd_record = sessions[index]
                         if (cmd_record is not None
                                 and _run_cmd_matches_portable_session(
-                                    cmd_record, protocol=protocol, binaries=binaries)):
+                                    cmd_record, protocol=protocol, binaries=binaries,
+                                    contract=contract)):
                             allowed = True
                         if not allowed:
                             raise RatifiedFreezeError(
@@ -2749,7 +2766,82 @@ def _active_chain_exempt_exact(
     return exempt
 
 
-def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreeze:
+def _resolve_current_contract_sha256(
+        contract_sha256: str, *, expected_env_tag: Optional[str] = None,
+) -> _env_contract.ExecutionEnvironmentContract:
+    """live admission 用に recorded hash を current contract とのみ照合する。"""
+    if not isinstance(expected_env_tag, str) or not expected_env_tag:
+        raise _env_contract.EnvContractError("expected_env_tag が空でない文字列でない")
+    contract = _env_contract.lookup(expected_env_tag)
+    if contract.contract_sha256 != contract_sha256:
+        raise _env_contract.EnvContractError(
+            "記録 contract_sha256 が current contract と不一致"
+        )
+    return contract
+
+
+def _resolve_historical_contract_sha256(
+        contract_sha256: str, *, expected_env_tag: Optional[str] = None,
+) -> _env_contract.ExecutionEnvironmentContract:
+    """recorded hash を production historical resolver で一意解決する。"""
+    entry = _env_contract.resolve_by_contract_sha256(
+        contract_sha256, expected_env_tag=expected_env_tag,
+    )
+    if type(entry) is not _env_contract.GenerationEntry:
+        raise _env_contract.EnvContractError(
+            "contract resolver が exact GenerationEntry を返さなかった"
+        )
+    contract = entry.contract
+    if (contract.env_tag != expected_env_tag
+            or contract.contract_sha256 != contract_sha256):
+        raise _env_contract.EnvContractError(
+            "contract resolver の返却 entry が記録 env/hash と不一致"
+        )
+    return contract
+
+
+def _validate_published_protocol(
+        document: Mapping, *,
+        contract_resolver: Callable[..., _env_contract.ExecutionEnvironmentContract],
+) -> Tuple[dict, _env_contract.ExecutionEnvironmentContract]:
+    """protocol を検証し、記録 hash を一度だけ解決した contract と対で返す。"""
+    resolved: List[_env_contract.ExecutionEnvironmentContract] = []
+
+    def contract_sha256_lookup(env_tag: str) -> str:
+        if resolved:
+            raise _env_contract.EnvContractError(
+                "artifact の contract_sha256 resolver が複数回呼ばれた"
+            )
+        contract = contract_resolver(
+            document["contract_sha256"], expected_env_tag=env_tag,
+        )
+        if type(contract) is not _env_contract.ExecutionEnvironmentContract:
+            raise _env_contract.EnvContractError(
+                "contract resolver が exact ExecutionEnvironmentContract を返さなかった"
+            )
+        if (contract.env_tag != env_tag
+                or contract.contract_sha256 != document["contract_sha256"]):
+            raise _env_contract.EnvContractError(
+                "contract resolver の返却 entry が記録 env/hash と不一致"
+            )
+        resolved.append(contract)
+        return contract.contract_sha256
+
+    protocol = _floor_contract.validate_protocol(
+        document, contract_sha256_lookup=contract_sha256_lookup,
+    )
+    if len(resolved) != 1:
+        raise _floor_contract.FloorContractError(
+            "protocol contract が一度だけ解決されなかった"
+        )
+    return protocol, resolved[0]
+
+
+def _launch_validate(
+        ratified: RatifiedFreeze, root=ROOT, *,
+        contract_resolver: Callable[..., _env_contract.ExecutionEnvironmentContract],
+        result_type: Type[LaunchValidatedFreeze] | Type[ReverifiedFreeze],
+) -> LaunchValidatedFreeze | ReverifiedFreeze:
     """§8.4 の全 binding graph と未知性層2を通して実走型へ昇格する。
 
     reason 優先順は §2.8 固定: (1) 引数型/HEAD、(2) generation==1、(3) path・
@@ -2875,9 +2967,8 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
 
     # --- 4: semantic validation ---
     try:
-        protocol = _floor_contract.validate_protocol(
-            protocol_doc,
-            contract_sha256_lookup=lambda env: _env_contract.lookup(env).contract_sha256,
+        protocol, contract = _validate_published_protocol(
+            protocol_doc, contract_resolver=contract_resolver,
         )
     except (_floor_contract.FloorContractError, _env_contract.EnvContractError) as exc:
         raise RatifiedFreezeError(
@@ -2909,10 +3000,11 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
     journal = _validate_journal(
         journal_records, protocol=protocol, schedule=schedule, cells=cells,
         binaries=binaries, cert_sha256=cert_sha, manifest_sha256=manifest_sha,
-        root=root,
+        root=root, contract=contract,
     )
     _validate_result(
         result_doc, protocol=protocol, cells=cells, binaries=binaries, journal=journal,
+        contract=contract,
     )
 
     # --- 5: §8.4 binding graph (adjacency list の全辺) ---
@@ -3086,7 +3178,7 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
         occurrence_artifacts.append((path, None, captured[path]))
     expected_hits = _validate_axis_occurrences(
         artifacts=occurrence_artifacts, protocol=protocol, binaries=binaries,
-        closure_paths=closure_paths,
+        contract=contract, closure_paths=closure_paths,
     )
 
     digest_before = _enumeration_digest(root)
@@ -3129,7 +3221,7 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
             )
 
     inventory = _symlink_gitlink_inventory(head, root)
-    return LaunchValidatedFreeze(
+    return result_type(
         ratified=ratified,
         activation_head=head,
         search_digest=digest_after,
@@ -3137,6 +3229,29 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
         floor_artifact=verified_floor,
         binaries_by_cell=_deep_freeze(binaries),
     )
+
+
+def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreeze:
+    """current contract に束縛した live 実走 admission を行う。"""
+    validated = _launch_validate(
+        ratified, root, contract_resolver=_resolve_current_contract_sha256,
+        result_type=LaunchValidatedFreeze,
+    )
+    assert type(validated) is LaunchValidatedFreeze
+    return validated
+
+
+def reverify_published_freeze(
+        ratified: RatifiedFreeze, root=ROOT,
+) -> ReverifiedFreeze:
+    """記録 contract hash の世代で publish 済み freeze を read-only 再検証する。"""
+    reverified = _launch_validate(
+        ratified, root,
+        contract_resolver=_resolve_historical_contract_sha256,
+        result_type=ReverifiedFreeze,
+    )
+    assert type(reverified) is ReverifiedFreeze
+    return reverified
 
 
 def _closure_text(blob: bytes) -> str:

@@ -22,7 +22,7 @@ import re
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import Callable, Optional, TypedDict
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
@@ -1186,7 +1186,10 @@ PIPELINE_ORDER = {
 }
 
 
-def _receipt_expectations(manifest: Mapping):
+def _receipt_expectations(
+        manifest: Mapping, *,
+        contract_resolver: Callable[..., env_contract.GenerationEntry],
+):
     """manifest run_contract から env contract と verified calibration を導出する。
 
     run_contract を持たない (legacy) manifest では None を返し receipt 検査を課さない。
@@ -1199,10 +1202,22 @@ def _receipt_expectations(manifest: Mapping):
     if (isinstance(env_tag, str) and env_tag
             and isinstance(contract_sha256, str) and contract_sha256):
         try:
-            contract = env_contract.lookup(env_tag)
-            if contract.contract_sha256 != contract_sha256:
-                raise ReportError("manifest contract_sha256 が registry contract と不一致")
+            entry = contract_resolver(
+                contract_sha256, expected_env_tag=env_tag,
+            )
+            if type(entry) is not env_contract.GenerationEntry:
+                raise ReportError(
+                    "manifest contract resolver が exact GenerationEntry を返さなかった"
+                )
+            contract = entry.contract
+            if (contract.env_tag != env_tag
+                    or contract.contract_sha256 != contract_sha256):
+                raise ReportError(
+                    "manifest contract resolver の返却 entry が記録 env/hash と不一致"
+                )
             verified = env_attestation.load_verified_calibration(contract, ROOT)
+        except ReportError:
+            raise
         except (env_contract.EnvContractError, env_attestation.AttestationError) as exc:
             raise ReportError(f"manifest env contract を検証できない: {exc}") from exc
         return contract, verified
@@ -1362,7 +1377,10 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         # campaign-start の execution_receipt が env_tag/contract_sha256 と一致し、実行機
         # attestation を持つことを要求する (受理が恒真にならないよう存在と一致を両方検査)。
         try:
-            expectations = _receipt_expectations(manifest)
+            expectations = _receipt_expectations(
+                manifest,
+                contract_resolver=env_contract.resolve_by_contract_sha256,
+            )
         except ReportError as exc:
             global_issues.append(str(exc))
             expectations = None
@@ -1710,14 +1728,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         root = Path(args.repo_root)
         if type(manifest) is _artifacts.OfficialManifest:
             ratified = s8b_ratified_freeze.load_ratified_freeze(root)
-            launch_validated = s8b_ratified_freeze.launch_validate(
+            reverified = s8b_ratified_freeze.reverify_published_freeze(
                 ratified, root,
             )
             manifest = s8b_oracle_manifest.verify_manifest(
                 args.manifest,
                 root=root,
-                freeze_document=launch_validated.ratified.document,
-                freeze_sha256=launch_validated.ratified.sha256,
+                freeze_document=reverified.ratified.document,
+                freeze_sha256=reverified.ratified.sha256,
             )
         observations = build_observations(
             manifest=manifest, output_root=args.output_root, repo_root=root,

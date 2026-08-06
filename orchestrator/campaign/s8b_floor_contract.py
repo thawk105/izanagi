@@ -6,8 +6,9 @@ import しない。発行側と検証側が同じ protocol 正規化、``verify_
 freeze 由来セル集合、決定的 schedule を循環 import なしで利用するための単一源である。
 
 ``validate_protocol`` の ``contract_sha256_lookup`` は env registry の単一源を leaf 内へ複製
-しないための注入点であり、runtime bypass ではない。呼び手は検証対象 ``env_tag`` に対応する
-凍結済み contract hash を返し、未登録 tag は ``FloorContractError`` で拒否しなければならない。
+しないための注入点であり、runtime bypass ではない。producer / live admission の呼び手は
+検証時点の current contract hash を、publish 済み artifact の read-only consumer は記録 hash
+から解決した contract hash を返す。いずれも未登録 tag は ``FloorContractError`` で拒否する。
 """
 from __future__ import annotations
 
@@ -147,7 +148,7 @@ def validate_protocol(
         ) from exc
     if contract_sha256 != expected_contract_sha256:
         raise FloorContractError(
-            f"protocol.contract_sha256 が env_contract.lookup({env_tag!r}).contract_sha256 と不一致"
+            "protocol.contract_sha256 が contract_sha256_lookup の選択した contract と不一致"
         )
     ccbench_pin = _non_empty_str(document["ccbench_pin"], field="ccbench_pin")
     stock_configuration = _non_empty_str(
