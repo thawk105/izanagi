@@ -26,6 +26,18 @@ seq: 3
 
 ## 再発
 
+### F106
+
+- **再発: 2026-08-07** — 記録 commit 後の再走 (F34) として受入全走を投入した直後、
+  **走行中に誤診断の訂正 commit を作った**。`test_s8b_oracle_driver.py` の
+  `test_real_freeze_gate_lists_floor_and_budget_null@real-repo` が `validation_head` の不一致
+  (走行開始時の HEAD 対 訂正 commit 後の HEAD) で赤になり、1 failed / 7076 passed になった。
+  tree を固定して単独再走すると 7077 passed / 20 skipped で消えた。
+  根本原因は F106 と同一で、**長い走行を待ち時間とみなし、その間に別の作業を worktree 内で
+  進めた**こと。本 wave の親は変異本走では規律を守れたのに、受入では同じ罠を踏んだ。
+  訂正の緊急性を感じたことが「走行中でも短い docs commit なら」という判断を通した。
+  恒久対応は F106 のまま。**訂正であっても走行中は repo 外に控え、結果取得後に commit する。**
+
 ### F148
 
 - **再発: 2026-08-07** — 変異 matrix の本走が MW-06 で rc=16・stdout 0 byte で停止した。

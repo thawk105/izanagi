@@ -33,6 +33,9 @@ title: [T-503] 変異本走を使い捨て専有 worktree へ隔離する第一 
   dispatch への fallback が拒否され、receipt 行が出ないまま harness が F71 どおり
   fail-closed 停止 (`PARSE_ERROR`) したものである。**混雑は相関であって原因ではない** —
   待ち 142 件のままでも完走した走行がある。初回台帳は erratum として insight へ凍結した。
+- **受入全走の走行中に訂正 commit を作り、F106 を再発させた。** `validation_head` の不一致で
+  1 failed になり、tree を固定した単独再走で 7077 passed / 20 skipped に戻った。
+  受入の正本は commit `3f2c43d7` に対する 3 走目である。
 - **`DW-M05` は変更しなかった。** `docs/dev-wave/**` の hard ceiling に対し残りが 13 bytes で、
   追記すると安全義務を削る圧力がかかる。wrapper は必須ではないので運用規約は設計 §9.3 に置いた。
   必須化する slice で `DW-M05` の圧縮と同時に行う。
