@@ -42,7 +42,13 @@ title: [T-574] 記録 contract hash からの世代解決を read-only 再検証
   verifier か (今日すでに赤である)、(3) 世代更新を跨いだ resume を失ってよいか、の 3 つ。
   残る 4 件のうち 3 件 (真の世代別述語 dispatch、historical calibration の保存契約、
   oracle report の `repo_root` 分裂) は insights に記録するだけで起票しない。
-- **段 8 の改善候補は 1 件で、予算を実測したうえで見送った。** 詳細は該当エントリに書く。
+- **段 8 の改善候補は 2 件で、1 件を実施し 1 件を予算で見送った。** 実施したのは、親が段 1 の前提実測用に
+  書いた probe の `.py` を insights へ凍結して provenance の実装面 Codex author 契約に抵触した件で、
+  既存 F75 と同型のため**再発**として台帳へ送り、F75 の判別条件を「段 6 で harness を書く前」から
+  「親が実行可能ファイルを書くとき常に」へ広げた。見送ったのは、worktree 隔離された背景 job で
+  codex 起動を launcher script 経由にする作法で、`docs/dev-wave/**` の合計が
+  25,187 / 25,200 bytes と**残り 13 bytes** しかなく 1 行が入らない。**同じ理由での見送りは 3 例目**で、
+  予算飽和そのものを択一 R8 として返す (上限引き上げも dev-wave 系の外出しも既裁定で封じられている)。
 
 ## 次の一手差分
 

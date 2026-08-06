@@ -40,6 +40,20 @@ seq: 3
 
 ## 再発
 
+### F75
+
+- **再発: 2026-08-06** — 段 6 の harness ではなく**段 1 の前提実測 probe** で同じ型を踏んだ。
+  `DW-S01` は承認済み裁定の前提を親が実編集で測ることを義務づけており、その計器として親が
+  `.py` を書いて insights へ凍結したところ、`check_ai_provenance.py` の full-history 監査が
+  「実装面に Codex `role=author` がない」で 1 違反を返した。F75 本文は既に
+  「所在不問の Python・Shell」「harness・probe も対象」と明記しており、恒久対応として
+  「逐語を insights へコードブロックとして埋め込む」も示していたが、段 1 の時点では
+  凍結するか未定のまま `.py` を書き、段 7 で何も考えずに insights へ copy した。
+  結果として docs commit の amend と受入全走の再走 1 回を余分に費やした。
+  **判別を「段 6 で harness を書く前」から「親が実行可能ファイルを書くとき常に」へ広げる。**
+  対処は F75 と同じ (逐語を code block へ埋め込み、waiver は使わない)。
+  恒久対応は F75 から変更なし — 検出は `tools/check_ai_provenance.py` が fail-closed で担う
+
 ### F30
 
 - **再発: 2026-08-06** — 三度目。今回は **role 名を key にした pin** を数え落とした。段 1 で

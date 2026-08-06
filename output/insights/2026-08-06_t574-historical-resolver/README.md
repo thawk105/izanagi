@@ -69,3 +69,23 @@
 | R7 | **宣言済みだが不正な `run_contract` を legacy と見なす既存挙動を直すか。** (a) field があるのに `env_tag` / `contract_sha256` が欠落・空・非文字列なら manifest-global error にする (受理集合の縮小) / (b) 既存挙動を正式仕様として明記し回帰試験で固定 | 中 | 本 wave 以前から同一の分岐。contract / calibration / execution receipt の束縛なしに row が `completed` へ到達しうる |
 
 R1〜R3 が骨格を決める。とくに R1 は [T-529] (活性化権限) の前提そのものである。
+
+## 段 8 (自己改善) の結果
+
+候補 2 件を裁定した。
+
+- **候補 A (見送り、予算)**: worktree 隔離された背景 job では、`DW-O01` が示す 1 行の codex 起動形を
+  そのまま Bash へ渡すと harness が複合 command として拒否するため、launcher script を Write して
+  起動する。本 wave でも段 3 の完了確認で実際に拒否され 1 往復を失った。
+  `docs/dev-wave/operations.md` への追記が自然な行き先だが、`docs/dev-wave/**` の合計は
+  **25,187 / 25,200 bytes** で**残り 13 bytes** しかなく、1 行 (約 80 bytes) が入らない。
+  **同じ理由での見送りはこれで 3 例目**である。
+- **候補 B (実施)**: 段 1 の前提実測で親が書いた probe の `.py` を insights へ凍結したところ、
+  provenance の実装面 Codex `role=author` 契約に抵触した。これは既存 F75 と同型で、
+  F75 の恒久対応 (逐語を code block へ埋め込む) がそのまま解になった。失敗台帳へ**再発**として送り、
+  F75 の判別条件を「段 6 で harness を書く前」から「親が実行可能ファイルを書くとき常に」へ広げた。
+  dev-wave reference は変更しない (予算外の台帳で閉じたため)。
+
+| # | 択一 | 根拠 |
+|---|---|---|
+| R8 | **dev-wave reference の予算飽和をどうするか。** (a) 陳腐化した節をユーザー裁定で削って空ける / (b) 現状維持で候補を insights に貯め続ける | 残り 13 bytes。3 wave 連続で改善が入らず、同じ候補が繰り返し記録だけされている。**上限引き上げは既裁定で提案しない**。dev-wave 系の外出しも既裁定で禁じられている (読み込みが leaf 節単位で削減 0) |
