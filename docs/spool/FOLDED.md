@@ -435,3 +435,13 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:check-docs-positive-control-flake":"[T-603]","T:login-bounded-scope-attest-failure":"[T-604]"},"authored":"2026-08-07","content_sha256":"db204c2fed1513e2d4dc3b235f8b9737624264ef6d968744cbc8519410ae62ed","seq":1,"wave":"dev-wave-t244-p3-u3-ever-issued"}
 - {"allocations":{"D:u3-ever-issued-not-monotone":"D211"},"authored":"2026-08-07","content_sha256":"03d334d975b287ea90141ea67256e4c66331d5be96afb02fd9eeea680c8194d3","seq":2,"wave":"dev-wave-t244-p3-u3-ever-issued"}
+
+- {"allocations":{"D:current-only-resume-spec":"D213","D:receipt-expectation-scope":"D212","D:silo-verify-result-current-compat":"D214"},"authored":"2026-08-07","content_sha256":"a5bed81b172ef1db3a2816f165e9158c8498b717400db3b449cea36671e96257","seq":1,"wave":"dev-wave-t574-world"}
+- {"allocations":{"T:generator-hash-rollover":"[T-608]","T:receipt-diagnostic-reach":"[T-605]","T:reverify-reachability":"[T-607]","T:v2-manifest-producer":"[T-606]"},"authored":"2026-08-07","content_sha256":"0a10a56268ef2bd96058d4383d307f4e07dc206e90496d42dab9d0511ff3bd5b","seq":2,"wave":"dev-wave-t574-world"}
+- {"allocations":{"F:tautological-exception-type-pin":"F150"},"authored":"2026-08-07","content_sha256":"ce9622204c6e4e0fba251e58b29f2ab79f392880e6736703332d3ac711f64cbf","seq":3,"wave":"dev-wave-t574-world"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"4f5e6563a34b116e896df0c1d139b801e20dc6970cbf91bd2b6c659835d09d48","seq":4,"wave":"dev-wave-t574-world"}
+
+- {"allocations":{"T:certified-writer-prewrite-closure":"[T-609]"},"authored":"2026-08-07","content_sha256":"161a292b0f7f8943b8c28959ca5f93962989402505da25c2c8a3d7147540fbb3","seq":1,"wave":"dev-wave-t529-activation-impl"}
+- {"allocations":{"D:activation-authority-blocked-by-entry-surface":"D215"},"authored":"2026-08-07","content_sha256":"2b04a920cad5636f1415d98db96ee50aa7a7921a05daa3beca34a82b2c9ab446","seq":2,"wave":"dev-wave-t529-activation-impl"}
+- {"allocations":{"F:ruling-matched-by-topic-not-options":"F151"},"authored":"2026-08-07","content_sha256":"a5e24c7402e37d45d314c76e66760a5ab0e3afcea8906df74c5d3549de1aeaa4","seq":3,"wave":"dev-wave-t529-activation-impl"}
