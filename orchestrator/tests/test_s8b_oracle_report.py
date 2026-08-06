@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 import hashlib
 import importlib
 import json
+import re
 import shutil
 import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 from unittest import mock
 
 import pytest
@@ -1134,14 +1137,14 @@ def test_report_session_issuer_alias_and_identity_use_model_authority(
 def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
     root, manifest_path, _document = _ratified_cli_manifest(tmp_path)
     output = tmp_path / "official-cli-observations.json"
-    real_launch = report.s8b_ratified_freeze.launch_validate
+    real_reverify = report.s8b_ratified_freeze.reverify_published_freeze
     real_verify = oracle_manifest.verify_manifest
     recorded: dict[str, object] = {}
 
-    def launch_recording_wrapper(ratified, launch_root):
-        validated = real_launch(ratified, launch_root)
-        recorded["launch_validated"] = validated
-        return validated
+    def reverify_recording_wrapper(ratified, reverify_root):
+        reverified = real_reverify(ratified, reverify_root)
+        recorded["reverified"] = reverified
+        return reverified
 
     def verify_recording_wrapper(
             path, *, root, freeze_document, freeze_sha256):
@@ -1156,9 +1159,9 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
 
     with mock.patch.object(
             report.s8b_ratified_freeze,
-            "launch_validate",
-            side_effect=launch_recording_wrapper,
-    ) as launch_spy, mock.patch.object(
+            "reverify_published_freeze",
+            side_effect=reverify_recording_wrapper,
+    ) as reverify_spy, mock.patch.object(
             oracle_manifest,
             "verify_manifest",
             side_effect=verify_recording_wrapper,
@@ -1173,11 +1176,12 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
 
     assert rc == 0
     assert output.exists()
-    assert launch_spy.call_count == 1
+    assert reverify_spy.call_count == 1
     assert verify_spy.call_count == 1
-    launch_validated = recorded["launch_validated"]
-    assert recorded["freeze_document"] is launch_validated.ratified.document
-    assert recorded["freeze_sha256"] == launch_validated.ratified.sha256
+    reverified = recorded["reverified"]
+    assert type(reverified) is report.s8b_ratified_freeze.ReverifiedFreeze
+    assert recorded["freeze_document"] is reverified.ratified.document
+    assert recorded["freeze_sha256"] == reverified.ratified.sha256
 
 
 def test_cli_verify_failure_returns_two_without_output(tmp_path):
@@ -1913,6 +1917,181 @@ def test_receipt_mismatch_is_protocol_violation(tmp_path):
                for row in observations["rows"])
 
 
+def test_build_observations_accepts_recorded_g1_under_g2_current(tmp_path):
+    """public report 経路が production historical resolver を明示配線する正例。"""
+    manifest = _schema_less_legacy(_manifest(tmp_path))
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    g1 = env_contract.lookup("linux-baremetal")
+    g2 = dataclasses.replace(
+        g1,
+        calibration_ref=env_contract.CalibrationRef(
+            path=g1.calibration_ref.path + ".successor",
+            sha256="f" * 64,
+        ),
+    )
+    assert env_contract.is_valid_successor(g1, g2)
+    resolver = mock.Mock(wraps=env_contract.resolve_by_contract_sha256)
+    calibration_loader = mock.Mock(
+        wraps=report.env_attestation.load_verified_calibration,
+    )
+
+    with mock.patch.object(report.env_contract, "lookup", return_value=g2), \
+            mock.patch.object(
+                report.env_contract, "resolve_by_contract_sha256", resolver,
+            ), mock.patch.object(
+                report.env_attestation, "load_verified_calibration",
+                calibration_loader,
+            ):
+        observations = report.build_observations(
+            manifest=manifest, output_root=tmp_path,
+        )
+
+    rows = observations["rows"]
+    expected_count = len(manifest["schedule"]["rows"])
+    assert len(rows) == len(observations["expected_cells"]) == expected_count > 0
+    assert all(row["status"] == "completed" for row in rows)
+    assert resolver.call_count == 1
+    assert resolver.call_args.args == (g1.contract_sha256,)
+    assert resolver.call_args.kwargs == {"expected_env_tag": g1.env_tag}
+    assert calibration_loader.call_count == 1
+    assert calibration_loader.call_args.args[0] is g1
+
+
+def test_build_observations_resolves_contract_once_across_two_campaigns(tmp_path):
+    """manifest 単位の contract/calibration snapshot を2 campaign で共有する。"""
+    manifest = _two_campaign_manifest(tmp_path)
+    rows = manifest["schedule"]["rows"]
+    for campaign_id, block_id, item in (
+        ("oracle-b0", "b0", rows[0]),
+        ("oracle-b1", "b1", rows[1]),
+    ):
+        layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
+        _campaign_start(layout, manifest, campaign_id, block_id=block_id)
+        _finish_campaign_rows(layout, [item])
+    resolver = mock.Mock(wraps=env_contract.resolve_by_contract_sha256)
+    calibration_loader = mock.Mock(
+        wraps=report.env_attestation.load_verified_calibration,
+    )
+
+    with mock.patch.object(
+            report.env_contract, "resolve_by_contract_sha256", resolver,
+    ), mock.patch.object(
+            report.env_attestation, "load_verified_calibration", calibration_loader,
+    ):
+        observations = report.build_observations(
+            manifest=manifest, output_root=tmp_path,
+        )
+
+    observed_rows = observations["rows"]
+    assert len(observed_rows) == len(observations["expected_cells"]) == 2
+    assert [row["status"] for row in observed_rows] == ["completed", "completed"]
+    assert resolver.call_count == 1
+    assert calibration_loader.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "case_id,reason_fragment",
+    [
+        ("malformed", "64 桁"),
+        ("unknown", "未知"),
+        ("ambiguous", "一意"),
+        ("cross-env", "expected_env_tag"),
+        ("dishonest-resolver", "返却 entry"),
+        ("missing-calibration", "manifest env contract を検証できない"),
+        ("calibration-hash-mismatch", "manifest env contract を検証できない"),
+    ],
+    ids=[
+        "malformed", "unknown", "ambiguous", "cross-env",
+        "dishonest-resolver", "missing-calibration", "calibration-hash-mismatch",
+    ],
+)
+def test_build_observations_historical_resolver_fails_closed_without_current_fallback(
+        tmp_path, case_id, reason_fragment):
+    """public report の resolver/calibration 拒否 matrix は current へ fallback しない。
+
+    ambiguous / dishonest は patch-only の構造防御であり production artifact から
+    到達しない。
+    """
+    manifest = _manifest(tmp_path)
+    base = env_contract.lookup("linux-baremetal")
+    production_resolver = env_contract.resolve_by_contract_sha256
+
+    if case_id == "malformed":
+        manifest["run_contract"]["contract_sha256"] = "not-a-sha256"
+        resolver = production_resolver
+    elif case_id == "unknown":
+        manifest["run_contract"]["contract_sha256"] = "f" * 64
+        resolver = production_resolver
+    elif case_id == "ambiguous":
+        duplicate = env_contract.GenerationEntry(generation=1, contract=base)
+        duplicate_index = MappingProxyType({
+            base.contract_sha256: (duplicate, duplicate),
+        })
+        def resolver(recorded, *, expected_env_tag=None):
+            with mock.patch.object(
+                    env_contract, "_CONTRACT_SHA256_INDEX", duplicate_index):
+                return production_resolver(
+                    recorded, expected_env_tag=expected_env_tag,
+                )
+    elif case_id == "cross-env":
+        foreign = env_contract.lookup("pegasus")
+        manifest["run_contract"]["contract_sha256"] = foreign.contract_sha256
+        resolver = production_resolver
+    elif case_id == "dishonest-resolver":
+        manifest["run_contract"]["contract_sha256"] = "e" * 64
+        def resolver(_recorded, *, expected_env_tag=None):
+            return env_contract.GenerationEntry(generation=1, contract=base)
+    elif case_id == "missing-calibration":
+        contract = dataclasses.replace(
+            base,
+            calibration_ref=env_contract.CalibrationRef(
+                path="orchestrator/tests/nonexistent-historical-calibration.json",
+                sha256="d" * 64,
+            ),
+        )
+        manifest["run_contract"]["contract_sha256"] = contract.contract_sha256
+        def resolver(_recorded, *, expected_env_tag=None):
+            return env_contract.GenerationEntry(generation=1, contract=contract)
+    else:
+        contract = dataclasses.replace(
+            base,
+            calibration_ref=env_contract.CalibrationRef(
+                path=base.calibration_ref.path,
+                sha256="0" * 64,
+            ),
+        )
+        manifest["run_contract"]["contract_sha256"] = contract.contract_sha256
+        def resolver(_recorded, *, expected_env_tag=None):
+            return env_contract.GenerationEntry(generation=1, contract=contract)
+
+    manifest = _schema_less_legacy(manifest)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    resolver_spy = mock.Mock(side_effect=resolver)
+    current_fallback = mock.Mock(
+        side_effect=AssertionError("historical report が current lookup へ fallback した"),
+    )
+
+    with mock.patch.object(report.env_contract, "lookup", current_fallback), \
+            mock.patch.object(
+                report.env_contract, "resolve_by_contract_sha256", resolver_spy,
+            ):
+        observations = report.build_observations(
+            manifest=manifest, output_root=tmp_path,
+        )
+
+    rows = observations["rows"]
+    expected_count = len(manifest["schedule"]["rows"])
+    assert len(rows) == len(observations["expected_cells"]) == expected_count > 0
+    assert all(row["status"] == "protocol_violation" for row in rows)
+    assert all(reason_fragment in (row.get("reason") or "")
+               for row in rows)
+    assert resolver_spy.call_count == 1
+    assert resolver_spy.call_args.kwargs == {"expected_env_tag": base.env_tag}
+    current_fallback.assert_not_called()
+
+
 def test_manifest_contract_sha256_mismatch_with_registry_is_protocol_violation(
         tmp_path):
     """R8: env_tag は実在するが manifest contract hash だけが registry と違う。"""
@@ -1930,8 +2109,12 @@ def test_manifest_contract_sha256_mismatch_with_registry_is_protocol_violation(
 
     assert all(row["status"] == "protocol_violation"
                for row in observations["rows"])
-    assert {row["reason"] for row in observations["rows"]} == {
-        "manifest contract_sha256 が registry contract と不一致",
+    assert {
+        re.sub(r"[0-9a-f]{64}$", "<sha256>", row["reason"])
+        for row in observations["rows"]
+    } == {
+        "manifest env contract を検証できない: "
+        "未知の contract_sha256: <sha256>",
     }
 
 
@@ -1954,7 +2137,9 @@ def test_required_receipt_consumer_derives_mode_and_passes_verified_calibration(
     verified = object()
     receipt_spy = mock.Mock(return_value=False)
 
-    with mock.patch.object(report.env_contract, "lookup", return_value=required), \
+    entry = env_contract.GenerationEntry(generation=1, contract=required)
+    with mock.patch.object(
+            report.env_contract, "resolve_by_contract_sha256", return_value=entry), \
             mock.patch.object(report.env_attestation, "load_verified_calibration",
                               return_value=verified), \
             mock.patch.object(report.execution_guard, "receipt_matches_contract",

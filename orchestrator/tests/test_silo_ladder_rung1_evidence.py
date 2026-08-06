@@ -24,6 +24,10 @@ ROOT = HERE.parents[1]
 ORCHESTRATOR = ROOT / "orchestrator"
 sys.path.insert(0, str(ORCHESTRATOR))
 
+from pegasus_policy_expected_goldens import (  # noqa: E402
+    EXPECTED_CURRENT_PEGASUS_POLICY_SHA256,
+    EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,
+)
 from campaign import env_attestation, env_contract, execution_guard  # noqa: E402
 from campaign.silo_ladder_rung1 import (  # noqa: E402
     PIN,
@@ -1228,11 +1232,17 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
         "verifier_module": "orchestrator/verifier/report.py",
         "policy": "tools/pegasus/policy.json",
     }
+    historical_sha256_by_key = {
+        "driver": HISTORICAL_SILO_EVIDENCE_IDENTITY[3],
+        "policy": EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,
+    }
     for key, relative in expected_bound_paths.items():
         assert binding[key]["path"] == relative
         current_sha = _sha256((ROOT / relative).read_bytes())
-        if key == "driver":
-            assert binding[key]["sha256"] == HISTORICAL_SILO_EVIDENCE_IDENTITY[3]
+        if key == "policy":
+            assert current_sha == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256
+        if key in historical_sha256_by_key:
+            assert binding[key]["sha256"] == historical_sha256_by_key[key]
             assert binding[key]["sha256"] != current_sha
         else:
             assert binding[key]["sha256"] == current_sha

@@ -391,3 +391,18 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dev-wave-budget-priority":"[T-577]","T:dev-wave-l2-delta-audit":"[T-579]","T:dev-wave-single-launch-route":"[T-576]","T:mutation-key-remaining-vectors":"[T-578]"},"authored":"2026-08-06","content_sha256":"3e9ca7b3934b7bf4536d6a91f1418f1534e43907761098cba260b256711f78c2","seq":1,"wave":"dev-wave-t454-testification"}
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"ac213f689be8ab4f0837b90bb4ae6377752e359347c14b02ab34118258766959","seq":2,"wave":"dev-wave-t454-testification"}
+
+- {"allocations":{"D:no-issuerless-capability-freeze":"D199"},"authored":"2026-08-06","content_sha256":"2e786592053092bc63c27f4d641e56462817985458520aadb207112a4de6ebea","seq":1,"wave":"dev-wave-t503-restore-durability"}
+- {"allocations":{"T:clean-tracked-ignored-blindness":"[T-581]","T:proof-receipt-code-closure":"[T-580]"},"authored":"2026-08-06","content_sha256":"011aaa2a8a3308b6242e450a8856a2a2474e5ea22a3ff5fb2349d5e96208e9b6","seq":2,"wave":"dev-wave-t503-restore-durability"}
+
+- {"allocations":{"T:dependency-source-hydrate":"[T-585]","T:production-current-history-binding-test":"[T-582]","T:submit-certify-repo-root-binding":"[T-584]","T:submit-certify-scheduler-output":"[T-583]"},"authored":"2026-08-06","content_sha256":"4e6add24354bb3597f5390e44b7fde9c400f6d0065acf751b6d454483bba77e2","seq":1,"wave":"dev-wave-t564-dependency-source"}
+- {"allocations":{"D:dependency-source-out-of-home":"D200"},"authored":"2026-08-06","content_sha256":"4c04b1059ec7db2291567d4a982d7d51aebe2aaf46e5b32ceeed764c30248c32","seq":1,"wave":"dev-wave-t564-dependency-source"}
+- {"allocations":{"F:artifact-ingest-breaks-corpus-completeness":"F140","F:second-artifact-turns-single-element-pick-nondeterministic":"F141"},"authored":"2026-08-06","content_sha256":"64950e701e3cb80c869d6aad9b128cc7f14944a048455a595cc5a328978e5356","seq":1,"wave":"dev-wave-t564-dependency-source"}
+
+- {"allocations":{"D:s8c-wiring-not-fireable":"D201"},"authored":"2026-08-06","content_sha256":"d09ff6b4ad0c9ba27cc1b57b065a9faac6bbd24c959b79d30f9b4bcab8a78f25","seq":1,"wave":"dev-wave-t244-p3-8c-wiring"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"42b726584c2bfd1e051b262529e34272c78347d2d821fda4102761206b5972bc","seq":2,"wave":"dev-wave-t244-p3-8c-wiring"}
+- {"allocations":{},"authored":"2026-08-06","content_sha256":"1d98958226d86c64d1300cd988004fae409ed43d910830e2222e20f78f1ac26b","seq":3,"wave":"dev-wave-t244-p3-8c-wiring"}
+
+- {"allocations":{"D:generation-guarantee-scope-limit":"D203","D:historical-reverify-entry-split":"D202"},"authored":"2026-08-06","content_sha256":"439c3034b7f638b13019a15051d1380e6e68633141e9d710f2dde31fb0afab26","seq":1,"wave":"dev-wave-t574-historical-resolver"}
+- {"allocations":{"T:generation-resume-availability":"[T-587]","T:oracle-run-contract-legacy-fallopen":"[T-588]","T:silo-verify-result-semantics":"[T-586]"},"authored":"2026-08-06","content_sha256":"bacfadcef1123374c54ba03a326bd76b8388ade81320f5650264991486714408","seq":2,"wave":"dev-wave-t574-historical-resolver"}
+- {"allocations":{"F:readonly-entry-shared-with-live-admission":"F142","F:redundant-gate-counted-as-new-guarantee":"F143"},"authored":"2026-08-06","content_sha256":"ddc5b88fd30f32134ca1ec2d35b65f955c763e1b6408a4f37b9d162352fb1d17","seq":3,"wave":"dev-wave-t574-historical-resolver"}

@@ -1427,6 +1427,36 @@ def _fake_launch_validated(freeze_path: Path, *, env_tag=None):
     )
 
 
+def test_gate_check_core_rejects_reverified_freeze_token(tmp_path):
+    """live gate core は historical token を exact type 境界で拒否する。"""
+    freeze_path = tmp_path / "freeze.json"
+    freeze_path.write_text("{}\n", encoding="utf-8")
+    live = _fake_launch_validated(freeze_path)
+    historical = s8b_ratified_freeze.ReverifiedFreeze(
+        ratified=live.ratified,
+        activation_head=live.activation_head,
+        search_digest=live.search_digest,
+        symlink_gitlink_inventory=live.symlink_gitlink_inventory,
+        floor_artifact=live.floor_artifact,
+        binaries_by_cell=live.binaries_by_cell,
+    )
+    resolution = migration.ReceiptResolution(
+        "never-issued", (), None, "a" * 40,
+    )
+
+    decision = driver._gate_check_core(
+        freeze_path=freeze_path,
+        root=tmp_path,
+        t080_resolution=resolution,
+        launch_validated=historical,
+    )
+
+    assert not decision.allowed
+    _assert_exact_refusals(decision.refusals, {
+        "v2-execution: launch-validate: validated freeze object の型が不正",
+    })
+
+
 def _required_contract(repo_root: Path):
     document = copy.deepcopy(_valid_calibration_v2())
     # U-2/U-3 による current admission の正当な縮小: required fixture は policy と一致させる。

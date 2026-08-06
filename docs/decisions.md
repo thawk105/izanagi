@@ -9626,3 +9626,197 @@ origin 上限 bytes の見積りが増える。境界テストへ literal で固
   複数の event hash で表せる。
 - **記録だけして下限を強制しない** — 散文で「反 oracle 性は満たさない」と断るのと同じで、
   機械的な誤読を防げない。
+
+## D199. 発行者のいない capability を受ける API を v1 として凍結しない (2026-08-06)
+
+**決定:** 層の公開 API と record schema を実装・凍結してよいのは、その API が受け取る
+capability (canonical root、incarnation nonce、quiescence 証明、exclusive lease) の**発行者が
+実在する**ときだけとする。発行者が別 wave の scope にある間は、caller が自前構築できる値を
+capability の代わりに受ける API を作らない。配線先を持たない基盤層も同じ扱いとし、
+設計・逐語・択一を凍結して裁定へ返す。
+
+**理由:**
+- 発行者不在の capability を受ける API は、後で発行者を作ったときに必ず作り直しになる。
+  凍結した schema と test が先に既成事実として残ると、正しい形へ戻す方が高くつく。
+- caller が自前構築できる値は権威を表さない。同じ checkout に対して二つの正しい値が作れる以上、
+  それを鍵にした排他は split-brain を防げない。
+- 検証を caller の callback へ逃がした API は、no-op の復元でも terminal 状態を書ける。
+  これは正しさシグナルを後付けにする failure mode そのものである。
+- 配線しない層は `DW-G05` の成果物影響を書けない。書けない項目を実装 blocker にしないという
+  gate は、基盤層にも同じ強さで効く。
+
+**却下した選択肢:**
+- 基盤だけ先に作って後で配線する — 敵対レビュー 2 本が独立に「安全な部分集合は無い」と結論した。
+  抽出だけ先行すると、稼働中の durable 経路を触る risk だけを負って便益がゼロになる。
+- 発行者の代わりに caller callback を信頼する — 上記のとおり terminal 状態を自己申告できる。
+- schema を「暫定 v1」と称して凍結する — 暫定の表示は consumer には伝わらず、
+  version 付き schema は事実上の受理契約として読まれる。
+
+## D200. certify が pin する依存 source の所在を home の外へ移し、凍結 evidence の binding を歴史値として分離する (2026-08-06)
+
+**決定:** 共有 `tools/pegasus/policy.json` の `gflags_source_path` / `glog_source_path` を移す。
+受理する値は各 key ごとにちょうど 1 つで、旧 = `/home/SFC/tanab/github/gflags` および
+`/home/SFC/tanab/github/glog`、新 = `/work/SFC/tanab/github/gflags` および
+`/work/SFC/tanab/github/glog` である (一般形は `/work/<project>/<user>/github/` 配下だが、
+受理集合はこの exact な 2 値であって path family ではない)。
+併せて、この 2 値を固定していた境界テストを次の形へ移す (D96 の手続義務による同一変更単位の更新)。
+
+1. `orchestrator/tests/test_pegasus_tools.py` の path oracle 2 箇所を新 path の singleton へ移す。
+   旧 path と新 path の併用は許容しない。expected HEAD・path 不在・HEAD 不一致・dirty の
+   fail-closed 検査は変更しない。
+2. `orchestrator/tests/test_silo_ladder_rung1_evidence.py` の `binding["policy"]` を、同 test が
+   `driver` に対して既に用いている「歴史定数へ exact pin + 現行 bytes とは不一致」の分岐へ移す。
+   歴史 identity tuple を 5 要素へ伸ばし、index 4 に旧 policy binding の値を置く。
+3. `orchestrator/tests/test_t126_pegasus_tools.py` に現行 policy bytes の sha256 を**唯一の定数**として
+   置き、「現行 bytes == 定数」と「凍結 binding != 現行 bytes」の 2 本立てにする。
+   歴史値をこの file へ重複記載しない。
+
+**理由:**
+
+- home 配下の pin 済み source tree が環境から消えており、certification job は `gflags source path
+  missing` で 11 秒 fail-closed していた。新較正の取得は、活性化権限や source proof 以前にこの一点で
+  不能だった。運用方針として作業物を home へ置かない以上、同じ場所への再作成は採らない。
+- 凍結 evidence (`output/env/pegasus/silo_ladder_rung1/silo_ladder_rung1.json`) は過去の走行が
+  使った bytes の記録であり、**書き換えは歴史の改竄**である。したがって動かすのは検査の根拠だけとする。
+  同 evidence の `driver` binding は既に同じ理由で歴史値へ移してあり、本決定はその先例に揃えたものである。
+- 「凍結 evidence と一致」を検知の根拠にしたままだと、共有 policy を正当に更新するたびに
+  歴史記録の側を書き換える圧力が生まれる。現行 bytes の明示 pin へ根拠を移すことで、
+  **検知力を保存したまま**この圧力を断つ。変更前も変更後も、policy の任意の byte 変更は赤になる。
+- 現行 bytes の定数は、実装子が編集後のファイルから算出すると誤った編集にも一致する自己成就 pin に
+  なる。親が変更前 bytes から独立に算出した値を与え、実装が 1 byte でも違えば赤くなる形にした。
+
+**path 表記の選択:** 計算ノード上の実測で、`/work/SFC/...` と `/work/1/SFC/...` はともに可視・
+pin 済み HEAD 一致・porcelain 空だった。可視性に差が無いため、storage shard 番号を固定しない
+`/work/SFC/...` を採る。**この観測の射程を限定する** — 1 node allocation (`-b 1`) の 1 job・
+1 host・1 時刻であって、**専有は確認していない**。「非 symlink」も末端の gflags / glog directory
+だけの性質で、採用した表記は `/work/SFC → /work/1/SFC` という祖先 alias に依存する。
+alias が存在しない host では 10 consumer の source path が一斉に不在になる。
+
+**この 2 値を読む consumer は 10 本ある** (本決定の影響範囲):
+shell = `certify_calibration.sh`、`floor_campaign.sh`、`floor_scoping.sh`、`silo_ladder_rung1.sh`、
+`t126_qualification.sh`、`t141_region_profile.sh`。
+Python = `fetch_third_party.py`、`orchestrator/campaign/silo_ladder_rung1.py`、
+`orchestrator/qualification/identity.py`、`orchestrator/qualification/submission.py`。
+policy は T-126 の code identity 入力でもあるため、**新規 series identity と新規 campaign binding は
+変わる**。旧 policy で作った preimage / receipt を新しい checkout で継続すると fail-closed になりうる。
+過去の成果物 (T-139 / T-141 / T-293 の witness、登録済み較正) は過去実測の記録であり、書き換えない。
+
+**名乗りの段階を分ける。** この決定が可能にするのは「job が依存段を通過すること」までで、
+certify の完走・accepted calibration の取得・較正の活性化はそれぞれ別の段階であり、
+別の blocker を持つ。段階を跨いだ名乗りをしない。
+
+**却下した選択肢:**
+
+- **同じ home path へ pin 済み HEAD で再作成する** — 作業物を home へ置かない運用方針と衝突する。
+  消えた原因が特定できていない以上、同じ場所への再作成は同じ消失を招きうる。
+- **依存 source も cache 経由の hydrate 対象へ広げる** — `fetch_third_party.py` は FetchContent の
+  3 source を cache へ取りに行く道具で、この 2 依存を再作成する経路を持たない。対象拡張は
+  機体固有の絶対 path 結合そのものを除去でき、source proof の課題とも噛み合うが、
+  復旧の最小変更を超える。別タスクへ送る。
+- **凍結 evidence 側の binding を新しい hash へ書き換える** — 過去の走行が使った値の記録であり、
+  書き換えは歴史の改竄になる。採らない。
+
+## D201. 8c への origin ledger 結線は実装しない — 束縛を供給する経路が無く、batch 最低 2 行と 1 generation = 1 実行が構造的に噛み合わない (2026-08-06)
+
+**決定:** U-6 が結線先に定めた 8c 自律 trial への origin ledger 結線を、実装せず設計メモと
+裁定パッケージ 5 件に留める。ユーザー再裁定待ちへ戻し、親は不採用にしない。
+
+**根拠となる実測 (この wave で現物確認した新事実):**
+
+- **authority は 1 batch あたり最低 2 member row を強制する。** 予算 policy の parser は
+  `batch_member_row_count_min` を `minimum=2` で読むため、どの authority 値を選んでも
+  `member_row_count=1` の batch は作れない。一方 8c は 1 generation につき harness を 1 回だけ
+  呼び、承認上限は 1 generation (D114) である。**「1 回の実行」と「最低 2 行」が噛み合わない。**
+  台帳に記録されていたのは `batch_distinct_candidate_count_min <= batch_member_row_count_min`
+  の関係だけで、下限 2 そのものは未記録だった。
+- **`--no-build` の harness は実行せず `dry-pass` を返す。** ledger の seal outcome は
+  `accepted` / `rejected` / `tombstoned` の 3 値に閉じ、前 2 者は evidence digest を、
+  `rejected` はさらに constraint digest を必須とする。現行 harness の戻り値には
+  そのどれの正本も存在しない。よって結線しても書けるのは未実行行 (tombstone) だけであり、
+  sealed query counter は 0 のままで query floor を満たさない。
+- **束縛を供給する経路がどこにも無い。** 本番 authority は空 (D183)、CLI に束縛引数は無く、
+  headless provider への caller 注入は拒否される。非本番の store seam は private のみ。
+  残る発火経路は「この wave が新しく書くテストが private 関数を直接呼ぶ」だけで、
+  `DW-G04` の「既存 artifact path」に当たらない。
+
+**理由:**
+
+- `DW-G04` は、発火条件を満たす既存 artifact path か計測 ID を段 1 brief に書けない条件付き機能を
+  設計メモに留めると定める。前 wave が origin-proofs sidecar と report v3 を却下したのと同型の
+  判定であり、同じ基準を結線にも適用する。
+- 敵対 2 レンズが独立に NO-GO を返した。片方は「実装せず設計メモへ戻せ」、もう片方は
+  「member 行数・束縛・crash 回収を再設計せよ」と主張したが、後者を全部行っても束縛の供給経路は
+  生まれない。よって前者を採る。
+- 結線案の seam には公開の抜け道があった — fixture caller が束縛だけを渡して ledger client を
+  省略すると既定解決で本番 ledger に落ちる。module 再束縛も private sentinel も要らない。
+  さらに束縛が campaign / launch admission と結ばれておらず、正規 scope 内に未束縛の第二権限を
+  持ち込める。これらは結線を land する前に閉じる必要がある。
+
+**却下した選択肢:**
+
+- **本番 authority へ entry を 1 件書いて発火させる** — 予算値が未裁定のまま本番 provisioning を
+  解禁することになり、D183 に反する。
+- **非本番の pilot ledger store を CLI から指定できるようにする** — 公開 API が本番 store 固定で
+  あるという現行の防壁を、pilot のために store 差替え seam へ変える。予算 root を作り直せる穴の
+  再演になる。
+- **`--no-build` 限定で全 member を tombstone として seal する** — 予算を消費して 1 行も実行しない
+  記録を作るだけで、将来の consumer が member 行数を候補数と誤読する余地を残す
+  (D198 が分離した論点に逆行する)。
+- **結線先を変える** — 8c を結線先とする裁定そのものをやり直すことになるため、親が決めず裁定へ返す。
+
+**名乗りの上限:** この wave が名乗ってよいのは「結線を実装可能性の観点から実測し、
+発火 gate 不成立と判定して実装せず、新事実と裁定パッケージを返した」までである。
+結線の完了・予算束縛・生死の追加取得・本番 provisioning は名乗らない。
+D114 の承認上限 1、D166 の P4 FAIL、D183 は不変である。
+
+## D202. 履歴契約での再検証は live admission と別入口にする (2026-08-06)
+
+**決定:** artifact に記録された `contract_sha256` から契約世代を解決する経路は、
+`reverify_published_freeze` という **read-only 専用の新入口**に置く。
+`launch_validate` は current 契約束縛のまま受理集合を変えず、live 実走 admission に残す。
+新入口の戻り値は `LaunchValidatedFreeze` と別型の `ReverifiedFreeze` とし、oracle driver の
+exact type 検査が historical token を受け取らないようにする。
+記録 hash の解決は artifact 1 件につき一度だけ行い、同一 contract object を journal 検証・
+run_cmd 再導出・result 検証・occurrence 検証の全 edge へ必須引数で渡す。
+oracle report の manifest 再検証も同じ規律で resolver 必須にし、解決は manifest 単位で一度だけ行う。
+
+**理由:**
+- `launch_validate` は read-only の report 経路と live 実走 admission の共用入口である。
+  oracle driver が `run_block` の中でこれを呼び、通過後に marker・WAL・予算を書く。
+  同関数を履歴解決へ切り替えると、旧世代の floor 証拠と現世代の実行 receipt を混成した
+  新規実走が受理されうる。拡大してよいのは publish 済み成果物の再検証だけである。
+- 記録 hash を複数回解決すると、同じ artifact の各行が単一の契約・calibration snapshot へ
+  束縛されない。一度だけ解決して同じ object を配ることが、proof chain の前提である。
+- 型分離は偽造耐性を与えない。検証結果 token は封印されていない frozen dataclass であり、
+  手で構築できる。効くのは自分たちの consumer が黙って広がらないことだけであり、
+  本当の防壁は「live 経路が履歴 resolver をそもそも呼ばない」ことにある。
+  この限界を型の docstring に明記する。
+
+**却下した選択肢:**
+- `launch_validate` 自身を履歴解決へ切り替える — live 実走の受理集合まで広がる。
+- 各述語が記録 hash を個別に解決する — 同じ artifact 内で解決結果が割れうる。
+- 検証結果 token の型分離だけで live 経路を守る — token は偽造可能で、権限 gate にならない。
+
+## D203. 世代解決の保証は calibration 選択までとし、述語の世代分岐を名乗らない (2026-08-06)
+
+**決定:** 記録 hash からの世代解決を配線する段階で保証するのは
+**「記録 hash から世代を解決すること」と「解決した世代の calibration を選ぶこと」**に限る。
+`versioned predicate dispatch` という語をコード・docstring・テスト名・台帳で使わない。
+世代番号別の述語表も作らない。契約由来の値を解決世代から取る配線は行うが、
+それが観測可能な保証だとは主張せず、専用の構造 pin テストで「引数が効いている」ことだけを固定し、
+そのテストの docstring に受理正例ではない旨を書く。
+
+**理由:**
+- 正当な後継世代が変更できるのは calibration 参照の path と sha256 だけである。したがって
+  clock 値・numactl・attestation mode は世代間で必ず同値になり、解決世代の値を使う実装と
+  current を引く実装は、正当な世代では観測的に区別できない。
+- 区別できない実装を「世代別の述語検証済み」と台帳に書くと、後続の読み手が実在しない保証を
+  前提に設計する。名ばかりの保証を作らないという既存規律の直接の帰結である。
+- 変異検査でもこれを裏取りした。解決世代の値を使う配線を current 参照へ戻す変異は、
+  専用の構造 pin でしか殺せず、正当な世代を使う統合正例では殺せない。
+
+**却下した選択肢:**
+- 世代番号を key とする述語 dispatch 表を置く — 登録世代が 1 本しかない間は
+  「常に同じ述語を選ぶ表」であり、無条件分岐と観測的に区別できない。
+- 構造 pin テストを受理正例として数える — 正当な世代では作れない値差を人工的に作っており、
+  世代解決が効いた証拠ではない。

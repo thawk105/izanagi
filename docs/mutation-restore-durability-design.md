@@ -1,6 +1,7 @@
 # 変異復元の耐久化設計 ([T-487] 起草、未裁定)
 
-**状態:** 設計起草。**実装ゼロ・実測ゼロ。** ユーザー裁定待ち。
+**状態:** 設計起草 + 生死確認のみ実測済み (§8.1)。**production 実装ゼロ。**
+第一 slice の着手は §9.2 の択一待ちで、L-B (物理ノード死) は `UNKNOWN` のままである。
 本書の主張には次のタグを付ける。タグのない断定を certify 済みと読んではならない。
 
 - `[要求]` — 設計がこう要求する、の意。実装されていない
@@ -386,11 +387,37 @@ journal `clean` の前に terminal ledger record を書く / consumer が postch
 裁定がどう転んでも、次を満たさない実装を「転換が完了した」と呼んではならない。
 
 1. **quiescence の証明** — 旧 attempt の reader/writer がゼロであることを示せない間は修復も clear もしない
-2. **原子的 target 置換** — 部分 bytes を作らない
+2. **原子的 target 置換** — **live target に**部分 bytes を作らない
+   (準備中の temp に残る部分 bytes は別問題であり、quarantine 側で扱う)
 3. **祖先 directory までの耐久化** — journal へ到達する名前空間自体が消えない
 4. **canonical な state root と incarnation 束縛** — split-brain を作らない
 5. **legacy lock からの移行 gate** — 旧版の drain を receipt で証明してから切り替える
 6. **quarantine** — 曖昧時は無書込かつ consumer を fail-stop させる
+
+### 9.2 第一 slice を凍結しなかった理由 `[2026-08-06 実測]`
+
+生死確認 GO の後の実装 wave は、基盤 3 単位 (WAL primitive の抽出・原子的置換・journal 記録層) を
+**配線せずに作る**案を起草し、敵対相談 2 レンズを経て**実装せずに止めた**。裁定と逐語は
+`output/insights/2026-08-06_t503-restore-durability-implementation-ruling/`。着手前に決める
+択一は同書の表 (V-1〜V-6) が正本である。止めた根拠は次の 4 点で、いずれも一次資料で確認した。
+
+- **木へ触る process は arm より後に生まれる。** `mutation_harness` は target を書いた後に
+  runner を新 session で起動し、dispatch ではその先に job も生まれる。arm 時点の単一 writer
+  identity では §4.5 の quiescence 束縛を満たせない。runner 登録 record か exclusive lease が要る。
+- **incarnation nonce と job ID の発行者がいない。** worktree の git admin dir に不変の身元はなく、
+  `PBS_JOBID` は login shell では unset である。§4.3 の束縛は provisioner なしには空洞になる。
+- **`clean` の発行権限がない。** verifier を caller callback にすると、no-op 復元でも
+  `clean` を書けてしまう。sealed capability の発行者が要る。
+- **配線しない基盤は `DW-G05` の成果物影響を書けない。** 活性化しない限り certified 選択・
+  レポート・台帳の値・受理集合・参照は変わらない。有効な部分集合も見つからなかった。
+
+次に実装する wave への持ち越し条件:
+
+- 抽出を行うなら、`append` / recovery suffix / tail-repair receipt の各経路に**現行 bytes の
+  golden vector** を置き、例外の型・`__module__`・診断順序・materialization gate の位置を
+  exact に固定する。receipt の code identity は leaf-only であり、抽出は盲点を広げる (別 task)。
+- 共通層を repo 全体の汎用 framework と呼ばない。`DW-G03` の独立 2 例は揃っていない。
+- test 名・docstring・完了記述に「syscall 順序であって物理永続性ではない」を残す。L-B は `UNKNOWN`。
 
 ---
 
