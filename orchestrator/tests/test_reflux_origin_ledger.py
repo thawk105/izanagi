@@ -67,7 +67,8 @@ def _manifest_object(
     imax: int = 4,
     qmax: int = 8,
     kmax: int = 3,
-    batch_min: int = 2,
+    member_row_min: int = 2,
+    candidate_min: int = 1,
     floor_base: int = 0,
     floor_per_round: int = 2,
     floor_rounds: int = 1,
@@ -96,7 +97,8 @@ def _manifest_object(
             "imax": imax,
             "qmax": qmax,
             "kmax": kmax,
-            "batch_cardinality_min": batch_min,
+            "batch_member_row_count_min": member_row_min,
+            "batch_distinct_candidate_count_min": candidate_min,
             "query_floor_constraints": [{
                 "formula_id": FORMULA,
                 "base_queries": floor_base,
@@ -191,21 +193,23 @@ def _independent_head_frame(
 
 
 def _independent_worst_case_batch_frames(
-    cardinality: int,
+    member_row_count: int,
     *,
     tombstoned: bool = False,
 ) -> tuple[bytes, bytes, bytes, bytes]:
     maximum_integer = (1 << 63) - 1
-    hashes = tuple(f"{index + 1:064x}" for index in range(cardinality))
+    hashes = tuple(
+        f"{index + 1:064x}" for index in range(member_row_count)
+    )
     reserved = _independent_event_frame("batch-reserved", {
         "batch_id": "x" * 128,
-        "cardinality": cardinality,
+        "member_row_count": member_row_count,
         "iteration_index": maximum_integer,
         "query_ordinal_start": maximum_integer,
     })
     committed = _independent_event_frame("batch-committed", {
         "batch_id": "x" * 128,
-        "cardinality": cardinality,
+        "member_row_count": member_row_count,
         "iteration_index": maximum_integer,
         "members": [
             {"candidate_commitment": digest, "query_ordinal": maximum_integer}
@@ -227,9 +231,10 @@ def _independent_worst_case_batch_frames(
     members = []
     for index, digest in enumerate(hashes):
         salt_base = index * 3 + 1
+        candidate = f"{index % 32:05b}".encode("ascii")
         members.append({
             "candidate_salt": f"{salt_base:032x}"[-32:],
-            "candidate_wire_b64": "MTExMTE=",
+            "candidate_wire_b64": base64.b64encode(candidate).decode("ascii"),
             "constraint_salt": f"{salt_base + 2:032x}"[-32:],
             "constraint_sha256": None if tombstoned else digest,
             "evidence_sha256": None if tombstoned else digest,
@@ -240,18 +245,23 @@ def _independent_worst_case_batch_frames(
         })
     sealed = _independent_event_frame("batch-sealed", {
         "batch_id": "x" * 128,
+        "member_row_count": member_row_count,
+        "distinct_candidate_count": min(member_row_count, 32),
+        "sealed_distinct_candidate_count": (
+            0 if tombstoned else min(member_row_count, 32)
+        ),
         "members": members,
     })
     return reserved, committed, prepared, sealed
 
 
 def _independent_worst_case_abandoned_frames(
-    cardinality: int,
+    member_row_count: int,
 ) -> tuple[bytes, bytes]:
     maximum_integer = (1 << 63) - 1
     reserved = _independent_event_frame("batch-reserved", {
         "batch_id": "x" * 128,
-        "cardinality": cardinality,
+        "member_row_count": member_row_count,
         "iteration_index": maximum_integer,
         "query_ordinal_start": maximum_integer,
     })
@@ -296,9 +306,10 @@ def _independent_origin_ledger_upper_bytes(
             2, tombstoned=tombstoned
         )))
         increment = two - one
-        # Hand-derived conservative reserve for the 1 -> 2248 decimal width.
+        # Hand-derived conservative reserve: reserve/commit/seal member rows
+        # expand to four digits, and both distinct counts expand to two.
         branch_bytes.append(
-            batches * one + (members - batches) * increment + batches * 6
+            batches * one + (members - batches) * increment + batches * 11
         )
     return len(genesis) + max(branch_bytes) + len(class_frame)
 
@@ -517,10 +528,12 @@ def _batch_events(
 def _reservation_event(
     batch_id: str = "batch-0",
     iteration: int = 0,
-    cardinality: int = 2,
+    member_row_count: int = 2,
     query_start: int = 0,
 ) -> ledger.BatchReserved:
-    return ledger.BatchReserved(batch_id, iteration, cardinality, query_start)
+    return ledger.BatchReserved(
+        batch_id, iteration, member_row_count, query_start
+    )
 
 
 def _reservation_for(event: ledger.BatchCommitted) -> ledger.BatchReserved:
@@ -589,7 +602,7 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
     raw = _manifest_object()
     literal = (
         b'{"authority_series_id":"series-a","axis_semantics_sha256":"5555555555555555555555555555555555555555555555555555555555555555",'
-        b'"budget_policy":{"batch_cardinality_min":2,"imax":4,"kmax":3,"qmax":8,"query_floor_constraints":['
+        b'"budget_policy":{"batch_distinct_candidate_count_min":1,"batch_member_row_count_min":2,"imax":4,"kmax":3,"qmax":8,"query_floor_constraints":['
         b'{"base_queries":0,"evidence_min":0,"formula_id":"q-lower-bound/base+perRound*R+Emin/v1","queries_per_round":2,"rounds":1}]},'
         b'"candidate_ir":{"canonical_emitter_sha256":"8888888888888888888888888888888888888888888888888888888888888888","schema_ref":"izanagi-trigger-gate-ir/v1"},'
         b'"ccbench_commit_oid":"2222222222222222222222222222222222222222","environment_contract_sha256":"7777777777777777777777777777777777777777777777777777777777777777",'
@@ -605,7 +618,12 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
     event = ledger._event_record(
         origin_id=_h("1"), operation_id="op-golden", event_index=7,
         previous_event_sha256=_h("2"), event_type="batch-sealed",
-        payload={"batch_id": "batch-golden", "members": [{
+        payload={
+            "batch_id": "batch-golden",
+            "distinct_candidate_count": 1,
+            "member_row_count": 1,
+            "sealed_distinct_candidate_count": 0,
+            "members": [{
             "candidate_salt": "1" * 32,
             "candidate_wire_b64": "MTAwMDA=",
             "constraint_salt": "2" * 32,
@@ -615,24 +633,25 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
             "query_ordinal": 7,
             "replicate_ordinal": 3,
             "result_evidence_salt": "3" * 32,
-        }]},
+            }],
+        },
     )
     literal_event_frame = (
-        b'{"event_index":7,"event_sha256":"89cd860350ad017551d8b7b6ca9fc9aca231846890ccb81cc1e130174fffb5c0",'
+        b'{"event_index":7,"event_sha256":"0924fe76119fcc5dffd0c0e5efa37ab25b51c6ee9a1ae1a432a1bf16deea9a05",'
         b'"event_type":"batch-sealed","operation_id":"op-golden","origin_id":"1111111111111111111111111111111111111111111111111111111111111111",'
-        b'"payload":{"batch_id":"batch-golden","members":[{"candidate_salt":"11111111111111111111111111111111","candidate_wire_b64":"MTAwMDA=",'
+        b'"payload":{"batch_id":"batch-golden","distinct_candidate_count":1,"member_row_count":1,"members":[{"candidate_salt":"11111111111111111111111111111111","candidate_wire_b64":"MTAwMDA=",'
         b'"constraint_salt":"22222222222222222222222222222222","constraint_sha256":null,"evidence_sha256":null,"outcome":"tombstoned",'
-        b'"query_ordinal":7,"replicate_ordinal":3,"result_evidence_salt":"33333333333333333333333333333333"}]},'
+        b'"query_ordinal":7,"replicate_ordinal":3,"result_evidence_salt":"33333333333333333333333333333333"}],"sealed_distinct_candidate_count":0},'
         b'"previous_event_sha256":"2222222222222222222222222222222222222222222222222222222222222222",'
         b'"schema_version":"izanagi-reflux-origin-event/v2"}\n'
     )
     literal_event_core = literal_event_frame.replace(
-        b',"event_sha256":"89cd860350ad017551d8b7b6ca9fc9aca231846890ccb81cc1e130174fffb5c0"',
+        b',"event_sha256":"0924fe76119fcc5dffd0c0e5efa37ab25b51c6ee9a1ae1a432a1bf16deea9a05"',
         b"",
         1,
     )[:-1]
     assert hashlib.sha256(literal_event_core).hexdigest() == (
-        "89cd860350ad017551d8b7b6ca9fc9aca231846890ccb81cc1e130174fffb5c0"
+        "0924fe76119fcc5dffd0c0e5efa37ab25b51c6ee9a1ae1a432a1bf16deea9a05"
     )
     assert _canonical(event) + b"\n" == literal_event_frame
     reservation = ledger._event_record(
@@ -641,24 +660,24 @@ def test_v01_literal_manifest_event_state_and_receipt_goldens() -> None:
         payload={
             "batch_id": "batch-golden",
             "iteration_index": 7,
-            "cardinality": 2,
+            "member_row_count": 2,
             "query_ordinal_start": 14,
         },
     )
     literal_reservation_frame = (
-        b'{"event_index":8,"event_sha256":"1839a29ac3305866a010bf8efdd102a60d1eb5ed79c534720c21d24dbb4cb2ee",'
+        b'{"event_index":8,"event_sha256":"dfb3039e4d42e4b94c77096777cf59045a51a9b76c2920d406748cb599b9ce77",'
         b'"event_type":"batch-reserved","operation_id":"reserve-golden","origin_id":"1111111111111111111111111111111111111111111111111111111111111111",'
-        b'"payload":{"batch_id":"batch-golden","cardinality":2,"iteration_index":7,"query_ordinal_start":14},'
+        b'"payload":{"batch_id":"batch-golden","iteration_index":7,"member_row_count":2,"query_ordinal_start":14},'
         b'"previous_event_sha256":"2222222222222222222222222222222222222222222222222222222222222222",'
         b'"schema_version":"izanagi-reflux-origin-event/v2"}\n'
     )
     reservation_core = literal_reservation_frame.replace(
-        b',"event_sha256":"1839a29ac3305866a010bf8efdd102a60d1eb5ed79c534720c21d24dbb4cb2ee"',
+        b',"event_sha256":"dfb3039e4d42e4b94c77096777cf59045a51a9b76c2920d406748cb599b9ce77"',
         b"",
         1,
     )[:-1]
     assert hashlib.sha256(reservation_core).hexdigest() == (
-        "1839a29ac3305866a010bf8efdd102a60d1eb5ed79c534720c21d24dbb4cb2ee"
+        "dfb3039e4d42e4b94c77096777cf59045a51a9b76c2920d406748cb599b9ce77"
     )
     assert _canonical(reservation) + b"\n" == literal_reservation_frame
     abandoned = ledger._event_record(
@@ -879,7 +898,7 @@ def test_v03_manifest_identity_and_cell_equivalence_positive_negative() -> None:
     floor_change["budget_policy"]["query_floor_constraints"][0]["evidence_min"] = 1
     nested.append(floor_change)
     batch_change = json.loads(json.dumps(base))
-    batch_change["budget_policy"]["batch_cardinality_min"] = 3
+    batch_change["budget_policy"]["batch_member_row_count_min"] = 3
     batch_change["budget_policy"]["query_floor_constraints"][0]["queries_per_round"] = 3
     nested.append(batch_change)
     for changed in nested:
@@ -1014,7 +1033,7 @@ s=l._store_for_repo(Path({os.fspath(process_repo)!r}),committed_ref='HEAD',fixtu
 e=l.BatchReserved(
     {process_event.batch_id!r},
     {process_event.iteration_index!r},
-    {process_event.cardinality!r},
+    {process_event.member_row_count!r},
     {process_event.query_ordinal_start!r},
 )
 if {probe!r}:
@@ -1297,7 +1316,9 @@ def test_v06_historic_replay_and_committed_operation_identity(tmp_path: Path) ->
     assert _files(store, origin) == before
     with Raises("reuse mismatch"):
         _commit(store, origin, "operation-a", receipt_a.current_state_commitment, reserved)
-    altered = dataclasses.replace(reserved, cardinality=reserved.cardinality + 1)
+    altered = dataclasses.replace(
+        reserved, member_row_count=reserved.member_row_count + 1
+    )
     with Raises("reuse mismatch"):
         _commit(store, origin, "operation-a", base_a, altered)
     with Raises("reserved"):
@@ -1320,7 +1341,7 @@ def test_v06_historic_replay_and_committed_operation_identity(tmp_path: Path) ->
         )
 
 
-def test_v07_batch_prefix_cardinality_distinctness_and_single_inflight(tmp_path: Path) -> None:
+def test_v07_batch_prefix_member_row_distinctness_and_single_inflight(tmp_path: Path) -> None:
     """V7 / M-N4: scalar count でなく event prefix が第二 in-flight を拒否。"""
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
@@ -1330,7 +1351,7 @@ def test_v07_batch_prefix_cardinality_distinctness_and_single_inflight(tmp_path:
     second = _reservation_event("batch-1", 1, 2, 2)
     with Raises("current phase"):
         _commit(store, origin, "batch-second", receipt.current_state_commitment, second)
-    invalid_one = _reservation_event("one", cardinality=1)
+    invalid_one = _reservation_event("one", member_row_count=1)
     fresh_repo, (fresh_origin,) = _repo(tmp_path / "fresh")
     fresh = _store(fresh_repo)
     fresh_base = _snapshot(fresh, fresh_origin).state_commitment
@@ -1355,12 +1376,12 @@ def test_v07_batch_prefix_cardinality_distinctness_and_single_inflight(tmp_path:
             duplicate_reservation.current_state_commitment,
             duplicate,
         )
-    with Raises("batch minimum"):
-        _manifest(_manifest_object(batch_min=1))
+    with Raises("batch member row minimum"):
+        _manifest(_manifest_object(member_row_min=1))
 
 
-def test_v08_tombstone_no_refund_cardinality_accounting_and_no_provider(tmp_path: Path) -> None:
-    """V8 / M-N7: Q は cardinality 件、tombstone 後も I/Q は返却しない。"""
+def test_v08_tombstone_no_refund_member_row_accounting_and_no_provider(tmp_path: Path) -> None:
+    """V8 / M-N7: Q は member row 件、tombstone 後も I/Q は返却しない。"""
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
     tombstoned = _batch_events(
@@ -1395,7 +1416,7 @@ s=l._fixture_store_for_test({os.fspath(repo)!r},'HEAD',initialize=False)
 e=l.BatchReserved(
     {reserved.batch_id!r},
     {reserved.iteration_index!r},
-    {reserved.cardinality!r},
+    {reserved.member_row_count!r},
     {reserved.query_ordinal_start!r},
 )
 def hook(label):
@@ -1440,7 +1461,7 @@ def test_v09_process_crash_boundaries_reopen_exactly_once(tmp_path: Path) -> Non
             assert (
                 crashed_snapshot.reserved_batch_id,
                 crashed_snapshot.reserved_iteration_index,
-                crashed_snapshot.reserved_cardinality,
+                crashed_snapshot.reserved_member_row_count,
                 crashed_snapshot.reserved_query_ordinal_start,
             ) == ("batch-0", 0, 2, 0)
         with Raises():
@@ -1852,12 +1873,15 @@ def test_v13_global_chain_interleave_delete_reorder_and_cross_binding(tmp_path: 
             "tombstoned_queries": 0,
             "forfeited_iterations": 0,
             "forfeited_queries": 0,
+            "sealed_member_row_count": 0,
+            "origin_distinct_candidate_count": 0,
+            "origin_sealed_distinct_candidate_count": 0,
             "batch_count": 0,
             "tombstone_count": 0,
             "open_batch": {
                 "batch_id": batch_id,
                 "iteration_index": reserved_payload["iteration_index"],
-                "cardinality": reserved_payload["cardinality"],
+                "member_row_count": reserved_payload["member_row_count"],
                 "query_ordinal_start": reserved_payload["query_ordinal_start"],
                 "members": None,
             },
@@ -1936,25 +1960,27 @@ def test_v14_i_q_k_sealed_evidence_row_proxy_floor_not_physical_query_and_aborte
     with Raises("partitioned"):
         _manifest(_manifest_object(
             imax=1,
-            qmax=ledger._MAX_BATCH_CARDINALITY + 1,
-            floor_per_round=ledger._MAX_BATCH_CARDINALITY + 1,
+            qmax=ledger._MAX_BATCH_MEMBER_ROW_COUNT + 1,
+            floor_per_round=ledger._MAX_BATCH_MEMBER_ROW_COUNT + 1,
         ))
     with Raises("batch minimum exceeds codec feasibility"):
         _manifest(_manifest_object(
             imax=2,
-            qmax=ledger._MAX_BATCH_CARDINALITY + 1,
-            batch_min=ledger._MAX_BATCH_CARDINALITY + 1,
-            floor_per_round=ledger._MAX_BATCH_CARDINALITY + 1,
+            qmax=ledger._MAX_BATCH_MEMBER_ROW_COUNT + 1,
+            member_row_min=ledger._MAX_BATCH_MEMBER_ROW_COUNT + 1,
+            floor_per_round=ledger._MAX_BATCH_MEMBER_ROW_COUNT + 1,
         ))
     with Raises("partitioned"):
-        _manifest(_manifest_object(imax=1, qmax=ledger._MAX_BATCH_CARDINALITY + 1))
+        _manifest(_manifest_object(
+            imax=1, qmax=ledger._MAX_BATCH_MEMBER_ROW_COUNT + 1
+        ))
     with Raises("Kmax exceeds codec feasibility"):
         _manifest(_manifest_object(kmax=ledger._MAX_CLASS_CARDINALITY + 1))
     partitioned = _manifest_object(
         imax=2,
-        qmax=ledger._MAX_BATCH_CARDINALITY + 1,
-        batch_min=2,
-        floor_per_round=ledger._MAX_BATCH_CARDINALITY + 1,
+        qmax=ledger._MAX_BATCH_MEMBER_ROW_COUNT + 1,
+        member_row_min=2,
+        floor_per_round=ledger._MAX_BATCH_MEMBER_ROW_COUNT + 1,
     )
     _manifest(partitioned)
     raw = _manifest_object(imax=1, qmax=4, kmax=0)
@@ -2028,6 +2054,13 @@ def test_v15_strict_authority_event_json_paths_types_and_limits(tmp_path: Path) 
         "izanagi-reflux-origin-authority/v2"
     )
     raw = _manifest_object()
+    legacy_budget = json.loads(json.dumps(raw))
+    legacy_policy = legacy_budget["budget_policy"]
+    legacy_cardinality = legacy_policy.pop("batch_member_row_count_min")
+    legacy_policy.pop("batch_distinct_candidate_count_min")
+    legacy_policy["batch_cardinality_min"] = legacy_cardinality
+    with Raises("keys"):
+        _manifest(legacy_budget)
     malformed = json.loads(json.dumps(raw)); malformed["extra"] = 1
     with Raises("keys"):
         _manifest(malformed)
@@ -2071,6 +2104,68 @@ def test_v15_strict_authority_event_json_paths_types_and_limits(tmp_path: Path) 
     for altered in malformed_reservations:
         with Raises():
             ledger._event_from_payload(reserved_type, altered)
+    committed_type, committed_payload = ledger._event_payload(
+        _batch_events()[0]
+    )
+    for event_type, payload in (
+        (reserved_type, reserved_payload),
+        (committed_type, committed_payload),
+    ):
+        legacy_payload = {
+            key: value
+            for key, value in payload.items()
+            if key != "member_row_count"
+        }
+        legacy_payload["cardinality"] = payload["member_row_count"]
+        with Raises("keys"):
+            ledger._event_from_payload(event_type, legacy_payload)
+    assert {
+        field.name for field in dataclasses.fields(ledger.BatchSealed)
+    } == {"batch_id", "members"}
+    sealed_event = _batch_events(
+        candidates=(b"10000", b"10000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+    )[2]
+    sealed_type, sealed_payload = ledger._event_payload(sealed_event)
+    assert sealed_type == "batch-sealed"
+    assert sealed_payload["member_row_count"] == 2
+    assert sealed_payload["distinct_candidate_count"] == 1
+    assert sealed_payload["sealed_distinct_candidate_count"] == 1
+    assert ledger._event_from_payload(sealed_type, sealed_payload) == sealed_event
+    for field, reason in (
+        ("member_row_count", "member row count mismatch"),
+        ("distinct_candidate_count", "distinct candidate count mismatch"),
+        (
+            "sealed_distinct_candidate_count",
+            "executed distinct candidate count mismatch",
+        ),
+    ):
+        with Raises(reason):
+            ledger._event_from_payload(
+                sealed_type,
+                {**sealed_payload, field: int(sealed_payload[field]) + 1},
+            )
+        with Raises("keys"):
+            ledger._event_from_payload(
+                sealed_type,
+                {
+                    key: value
+                    for key, value in sealed_payload.items()
+                    if key != field
+                },
+            )
+    legacy_sealed_payload = {
+        key: value
+        for key, value in sealed_payload.items()
+        if key not in {
+            "member_row_count",
+            "distinct_candidate_count",
+            "sealed_distinct_candidate_count",
+        }
+    }
+    with Raises("keys"):
+        ledger._event_from_payload(sealed_type, legacy_sealed_payload)
     abandoned_type, abandoned_payload = ledger._event_payload(
         ledger.BatchReservationAbandoned("batch-0")
     )
@@ -2252,6 +2347,7 @@ def test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle(tmp_path
     )
     prepared_snapshot = _snapshot(store, origin)
     assert prepared_snapshot.phase == "RESULTS_PREPARED"
+    assert prepared_snapshot.origin_distinct_candidate_count == 0
     assert not hasattr(prepared_snapshot, "outcomes")
     assert not hasattr(second, "outcomes")
     visible = repr(dataclasses.asdict(prepared_snapshot)) + repr(dataclasses.asdict(second))
@@ -2279,6 +2375,7 @@ def test_v16_commit_reveal_privacy_order_exact_class_and_positive_cycle(tmp_path
     with Raises("opening mismatch"):
         _commit(store, origin, "wrong-open", second.current_state_commitment, wrong)
     third = _commit(store, origin, "positive-3", second.current_state_commitment, sealed)
+    assert _snapshot(store, origin).origin_distinct_candidate_count == 2
     with ledger._locked(store) as authority:
         revealed = ledger._read_sealed_batch_locked(store, authority, origin, "batch-0")
     assert tuple(member.outcome for member in revealed.members) == ("accepted", "rejected")
@@ -2443,12 +2540,15 @@ def test_v16_salt_contract_and_observer_reconstructs_preseal_bytes(tmp_path: Pat
         "tombstoned_queries": 0,
         "forfeited_iterations": 0,
         "forfeited_queries": 0,
+        "sealed_member_row_count": 0,
+        "origin_distinct_candidate_count": 0,
+        "origin_sealed_distinct_candidate_count": 0,
         "batch_count": 1,
         "tombstone_count": 0,
         "open_batch": {
             "batch_id": "batch-0",
             "iteration_index": 0,
-            "cardinality": 2,
+            "member_row_count": 2,
             "query_ordinal_start": 0,
             "members": prepared_payload["members"],
         },
@@ -2616,9 +2716,31 @@ def test_v17_member_identity_replicates_and_sealed_evidence_row_proxy_not_physic
     snap = _snapshot(store, origin)
     assert snap.queries_used == 4
     assert snap.sealed_queries == 4
+    assert snap.origin_distinct_candidate_count == 1
     with ledger._locked(store) as authority:
-        opened = ledger._read_sealed_batch_locked(store, authority, origin, "batch-1")
-    assert tuple(member.replicate_ordinal for member in opened.members) == (2, 3)
+        first_opened = ledger._read_sealed_batch_locked(
+            store, authority, origin, "batch-0"
+        )
+        second_opened = ledger._read_sealed_batch_locked(
+            store, authority, origin, "batch-1"
+        )
+    for opened in (first_opened, second_opened):
+        assert opened.member_row_count == 2
+        assert opened.distinct_candidate_count == 1
+        assert opened.sealed_distinct_candidate_count == 1
+    assert tuple(member.replicate_ordinal for member in second_opened.members) == (2, 3)
+    sealed_payloads = [
+        json.loads(frame)["payload"]
+        for frame in store.origin_path(origin).read_bytes().splitlines()
+        if json.loads(frame)["event_type"] == "batch-sealed"
+    ]
+    assert len(sealed_payloads) == 2
+    assert all(
+        payload["member_row_count"] == 2
+        and payload["distinct_candidate_count"] == 1
+        and payload["sealed_distinct_candidate_count"] == 1
+        for payload in sealed_payloads
+    )
     reset = _batch_events(
         "batch-2",
         iteration=2,
@@ -2823,9 +2945,27 @@ def test_v18_evidence_outcome_contract_and_fixed_member_tombstones(
             "evidence_sha256": evidence_sha,
             "constraint_sha256": constraint_sha,
         }
+        raw_members = [sealed_payload["members"][0], raw_member]
         raw_payload = {
-            **sealed_payload,
-            "members": [sealed_payload["members"][0], raw_member],
+            **{
+                key: value
+                for key, value in sealed_payload.items()
+                if key not in {
+                    "member_row_count",
+                    "distinct_candidate_count",
+                    "sealed_distinct_candidate_count",
+                }
+            },
+            "member_row_count": len(raw_members),
+            "distinct_candidate_count": len({
+                member["candidate_wire_b64"] for member in raw_members
+            }),
+            "sealed_distinct_candidate_count": len({
+                member["candidate_wire_b64"]
+                for member in raw_members
+                if member["outcome"] != "tombstoned"
+            }),
+            "members": raw_members,
         }
         if legal:
             event_type, payload = ledger._event_payload(events[2])
@@ -2993,6 +3133,29 @@ def test_v20_preseal_projection_hides_execution_counters_and_replicates() -> Non
     assert partial_state.tombstoned_queries == 1
     assert ledger._preseal_semantic_sha(accepted_state) == ledger._preseal_semantic_sha(partial_state)
 
+    repeated = _batch_events(
+        candidates=(b"10000", b"10000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+    )
+    distinct = _batch_events(
+        candidates=(b"10000", b"01000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+    )
+    repeated_state = state_after(repeated)
+    distinct_state = state_after(distinct)
+    assert repeated_state.sealed_member_row_count == 2
+    assert distinct_state.sealed_member_row_count == 2
+    assert repeated_state.origin_distinct_candidate_count == 1
+    assert distinct_state.origin_distinct_candidate_count == 2
+    assert repeated_state.origin_sealed_distinct_candidate_count == 1
+    assert distinct_state.origin_sealed_distinct_candidate_count == 2
+    assert ledger._semantic_sha(repeated_state) != ledger._semantic_sha(distinct_state)
+    assert ledger._preseal_semantic_sha(repeated_state) == (
+        ledger._preseal_semantic_sha(distinct_state)
+    )
+
     prepared_state = ledger._SemanticState()
     for event in (
         None,
@@ -3044,18 +3207,21 @@ def test_v21_exact_salt_width_and_independent_codec_partition_oracle() -> None:
 
     maximum_integer = (1 << 63) - 1
     maximum_record_bytes = 1 << 20
-    def independent_rejected_seal_frame(cardinality: int) -> bytes:
-        member = {
-            "candidate_salt": "1" * 32,
-            "candidate_wire_b64": "MTExMTE=",
-            "constraint_salt": "1" * 32,
-            "constraint_sha256": _h("f"),
-            "evidence_sha256": _h("f"),
-            "outcome": "rejected",
-            "query_ordinal": maximum_integer,
-            "replicate_ordinal": maximum_integer,
-            "result_evidence_salt": "1" * 32,
-        }
+    def independent_rejected_seal_frame(member_row_count: int) -> bytes:
+        members = []
+        for index in range(member_row_count):
+            candidate = f"{index % 32:05b}".encode("ascii")
+            members.append({
+                "candidate_salt": "1" * 32,
+                "candidate_wire_b64": base64.b64encode(candidate).decode("ascii"),
+                "constraint_salt": "1" * 32,
+                "constraint_sha256": _h("f"),
+                "evidence_sha256": _h("f"),
+                "outcome": "rejected",
+                "query_ordinal": maximum_integer,
+                "replicate_ordinal": maximum_integer,
+                "result_evidence_salt": "1" * 32,
+            })
         core = {
             "schema_version": "izanagi-reflux-origin-event/v2",
             "event_index": maximum_integer,
@@ -3065,7 +3231,10 @@ def test_v21_exact_salt_width_and_independent_codec_partition_oracle() -> None:
             "event_type": "batch-sealed",
             "payload": {
                 "batch_id": "x" * 128,
-                "members": [dict(member) for _ in range(cardinality)],
+                "distinct_candidate_count": min(member_row_count, 32),
+                "member_row_count": member_row_count,
+                "sealed_distinct_candidate_count": min(member_row_count, 32),
+                "members": members,
             },
         }
         record = dict(core)
@@ -3073,9 +3242,9 @@ def test_v21_exact_salt_width_and_independent_codec_partition_oracle() -> None:
         return _canonical(record) + b"\n"
     maximum = independent_rejected_seal_frame(2248)
     overflow = independent_rejected_seal_frame(2249)
-    assert len(maximum) == 1_048_246 <= maximum_record_bytes
-    assert len(overflow) == 1_048_712 > maximum_record_bytes
-    assert ledger._MAX_BATCH_CARDINALITY == 2248
+    assert len(maximum) == 1_048_337 <= maximum_record_bytes
+    assert len(overflow) == 1_048_803 > maximum_record_bytes
+    assert ledger._MAX_BATCH_MEMBER_ROW_COUNT == 2248
     _manifest(_manifest_object(
         imax=2,
         qmax=2249,
@@ -3095,14 +3264,14 @@ def test_v22_authority_floor_requires_an_existing_batch_partition() -> None:
     _manifest(_manifest_object(
         imax=2,
         qmax=2249,
-        batch_min=1124,
+        member_row_min=1124,
         floor_per_round=2249,
     ))
     with Raises("floor cannot be partitioned"):
         _manifest(_manifest_object(
             imax=2,
             qmax=2249,
-            batch_min=2248,
+            member_row_min=2248,
             floor_per_round=2249,
         ))
 
@@ -3129,52 +3298,58 @@ def test_v23_two_origin_shared_runtime_head_aggregate_max_and_max_plus_one() -> 
         ledger._authority_from_bytes(_authority_bytes([first, second_overflow]))
 
 
-def test_v24_origin_ledger_total_decimal_cardinality_max_and_max_plus_one() -> None:
+def test_v24_origin_ledger_total_decimal_count_max_and_max_plus_one() -> None:
     """F3/M-18c/M-21: decimal-width-aware independent ledger-total oracle."""
-    exact_digit_boundaries = {10: 11_957, 100: 93_769, 1000: 911_871}
-    conservative_bounds = {10: 11_961, 100: 93_771, 1000: 911_871}
-    for cardinality, exact_bytes in exact_digit_boundaries.items():
-        assert sum(map(len, _independent_worst_case_batch_frames(cardinality))) == exact_bytes
+    exact_digit_boundaries = {10: 12_056, 100: 93_869, 1000: 911_972}
+    conservative_bounds = {10: 12_062, 100: 93_872, 1000: 911_972}
+    for member_row_count, exact_bytes in exact_digit_boundaries.items():
+        assert sum(map(len, _independent_worst_case_batch_frames(
+            member_row_count
+        ))) == exact_bytes
         assert ledger._affine_batch_bytes(
-            batches=1, members=cardinality, tombstoned=False
-        ) == conservative_bounds[cardinality]
-    for cardinality in (1, 2, 2248):
-        abandoned = sum(map(len, _independent_worst_case_abandoned_frames(cardinality)))
-        normal = sum(map(len, _independent_worst_case_batch_frames(cardinality)))
+            batches=1, members=member_row_count, tombstoned=False
+        ) == conservative_bounds[member_row_count]
+    for member_row_count in (1, 2, 2248):
+        abandoned = sum(map(len, _independent_worst_case_abandoned_frames(
+            member_row_count
+        )))
+        normal = sum(map(len, _independent_worst_case_batch_frames(
+            member_row_count
+        )))
         tombstoned = sum(map(len, _independent_worst_case_batch_frames(
-            cardinality, tombstoned=True
+            member_row_count, tombstoned=True
         )))
         assert abandoned < normal
         assert abandoned < tombstoned
 
     maximum_ledger_bytes = 64 << 20
     maximum = _independent_origin_ledger_upper_bytes(
-        batches=33, members=73_721, kmax=4
+        batches=33, members=73_717, kmax=4
     )
     overflow = _independent_origin_ledger_upper_bytes(
-        batches=33, members=73_722, kmax=4
+        batches=33, members=73_718, kmax=4
     )
-    assert maximum == 67_108_839 <= maximum_ledger_bytes
-    assert overflow == 67_109_748 > maximum_ledger_bytes
+    assert maximum == 67_108_536 <= maximum_ledger_bytes
+    assert overflow == 67_109_445 > maximum_ledger_bytes
 
-    _manifest(_manifest_object(imax=33, qmax=73_721, kmax=4))
+    _manifest(_manifest_object(imax=33, qmax=73_717, kmax=4))
     with Raises("authority budget exceeds ledger codec feasibility"):
-        _manifest(_manifest_object(imax=33, qmax=73_722, kmax=4))
+        _manifest(_manifest_object(imax=33, qmax=73_718, kmax=4))
 
 
-def test_v25_public_commit_enforces_2248_member_codec_cardinality(
+def test_v25_public_commit_enforces_2248_member_row_codec_limit(
     tmp_path: Path,
 ) -> None:
     """F4/M-18b: the public commit path accepts 2248 and rejects 2249."""
     raw = _manifest_object(imax=2, qmax=2249)
 
-    def committed(cardinality: int) -> ledger.BatchCommitted:
+    def committed(member_row_count: int) -> ledger.BatchCommitted:
         return ledger.BatchCommitted(
-            "cardinality-boundary",
+            "member-row-boundary",
             0,
             tuple(
                 ledger.CommittedBatchMember(index, f"{index + 1:064x}")
-                for index in range(cardinality)
+                for index in range(member_row_count)
             ),
         )
 
@@ -3185,7 +3360,7 @@ def test_v25_public_commit_enforces_2248_member_codec_cardinality(
         accepted_origin,
         "reserve-2248",
         _snapshot(accepted_store, accepted_origin).state_commitment,
-        _reservation_event("cardinality-boundary", cardinality=2248),
+        _reservation_event("member-row-boundary", member_row_count=2248),
     )
     accepted = _commit(
         accepted_store,
@@ -3199,13 +3374,13 @@ def test_v25_public_commit_enforces_2248_member_codec_cardinality(
 
     rejected_repo, (rejected_origin,) = _repo(tmp_path / "rejected", [raw])
     rejected_store = _store(rejected_repo)
-    with Raises("batch cardinality exceeds codec feasibility"):
+    with Raises("batch member row count exceeds codec feasibility"):
         _commit(
             rejected_store,
             rejected_origin,
             "reserve-2249",
             _snapshot(rejected_store, rejected_origin).state_commitment,
-            _reservation_event("cardinality-boundary", cardinality=2249),
+            _reservation_event("member-row-boundary", member_row_count=2249),
         )
 
 
@@ -3240,7 +3415,7 @@ def test_v26_reservation_is_required_before_commit_and_binds_commit_identity(
     assert (
         pending.reserved_batch_id,
         pending.reserved_iteration_index,
-        pending.reserved_cardinality,
+        pending.reserved_member_row_count,
         pending.reserved_query_ordinal_start,
     ) == ("batch-0", 0, 2, 0)
 
@@ -3252,7 +3427,7 @@ def test_v26_reservation_is_required_before_commit_and_binds_commit_identity(
     extra_commitment = next(
         _h(char) for char in "abcdef" if _h(char) not in existing_commitments
     )
-    wrong_cardinality = dataclasses.replace(
+    wrong_member_row_count = dataclasses.replace(
         committed,
         members=(
             *committed.members,
@@ -3269,7 +3444,7 @@ def test_v26_reservation_is_required_before_commit_and_binds_commit_identity(
     for operation, event, reason in (
         ("wrong-batch", wrong_batch, "does not match"),
         ("wrong-iteration", wrong_iteration, "does not match"),
-        ("wrong-cardinality", wrong_cardinality, "does not match"),
+        ("wrong-member-row-count", wrong_member_row_count, "does not match"),
         ("wrong-query-base", wrong_query_base, "query ordinals"),
     ):
         with Raises(reason):
@@ -3322,7 +3497,7 @@ def test_v27_abandoned_reservation_forfeits_budget_and_allows_abort_seal(
     assert (
         snap.reserved_batch_id,
         snap.reserved_iteration_index,
-        snap.reserved_cardinality,
+        snap.reserved_member_row_count,
         snap.reserved_query_ordinal_start,
     ) == (None, None, None, None)
     for operation, event, reason in (
@@ -3450,7 +3625,7 @@ def _recovery_script(
         """\
 members=tuple(
     l.CommittedBatchMember(snap.reserved_query_ordinal_start+index,f'{index+1:064x}')
-    for index in range(snap.reserved_cardinality)
+    for index in range(snap.reserved_member_row_count)
 )
 event=l.BatchCommitted(
     snap.reserved_batch_id,
@@ -3474,7 +3649,7 @@ with l._locked(s) as authority:
     assert snap.phase=='BATCH_RESERVED'
     assert snap.reserved_batch_id is not None
     assert snap.reserved_iteration_index is not None
-    assert snap.reserved_cardinality is not None
+    assert snap.reserved_member_row_count is not None
     assert snap.reserved_query_ordinal_start is not None
 {action_source}
     receipt=l._commit_locked(
@@ -3628,7 +3803,7 @@ def test_v32_origin_seal_rejects_each_forfeited_counter_mismatch_alone(
 def test_v33_new_process_abandons_from_public_reservation_binding(
     tmp_path: Path,
 ) -> None:
-    """非最小 cardinality の累積 abandon を新 process 復旧で固定する。"""
+    """非最小 member row count の累積 abandon を新 process 復旧で固定する。"""
     repo, (origin,) = _repo(tmp_path)
     store = _store(repo)
     first_reserved = _commit(
@@ -3650,14 +3825,16 @@ def test_v33_new_process_abandons_from_public_reservation_binding(
         origin,
         "reserve-three",
         first_abandoned.current_state_commitment,
-        _reservation_event("batch-1", iteration=1, cardinality=3, query_start=2),
+        _reservation_event(
+            "batch-1", iteration=1, member_row_count=3, query_start=2
+        ),
     )
     pending = _snapshot(store, origin)
     assert pending.state_commitment == second_reserved.current_state_commitment
     assert (
         pending.reserved_batch_id,
         pending.reserved_iteration_index,
-        pending.reserved_cardinality,
+        pending.reserved_member_row_count,
         pending.reserved_query_ordinal_start,
     ) == ("batch-1", 1, 3, 2)
     assert (pending.iterations_used, pending.queries_used) == (2, 5)
@@ -3805,6 +3982,339 @@ def test_v35_origin_seal_prepared_hashes_use_independent_counter_projection() ->
         assert expected[0] != baseline[0]
         assert expected[1] != baseline[1]
         assert production_digests(altered) == expected
+
+
+def test_d96_default_explicit_positive_aggregate_and_aborted_boundaries(
+    tmp_path: Path,
+) -> None:
+    """既定1の維持と明示2の per-batch certifiable gate を対で固定する。"""
+    repeated = _batch_events(
+        candidates=(b"10000", b"10000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+    )
+
+    default_repo, (default_origin,) = _repo(tmp_path / "default")
+    default_store = _store(default_repo)
+    default_receipts = _commit_batch_sequence(
+        default_store, default_origin, repeated, "default-repeat"
+    )
+    default_terminal = _commit(
+        default_store,
+        default_origin,
+        "default-certifiable",
+        default_receipts[-1].current_state_commitment,
+        ledger.OriginSealed(False, (), 1, 0, 2, 0, 0, 0),
+    )
+    assert default_terminal.event_index == 5
+
+    explicit = _manifest_object(candidate_min=2)
+    explicit_repo, (explicit_origin,) = _repo(
+        tmp_path / "explicit", [explicit]
+    )
+    explicit_store = _store(explicit_repo)
+    explicit_receipts = _commit_batch_sequence(
+        explicit_store, explicit_origin, repeated, "explicit-repeat"
+    )
+    explicit_snapshot = _snapshot(explicit_store, explicit_origin)
+    assert explicit_snapshot.origin_distinct_candidate_count == 1
+    with ledger._locked(explicit_store) as authority:
+        explicit_batch = ledger._read_sealed_batch_locked(
+            explicit_store, authority, explicit_origin, "batch-0"
+        )
+    assert (
+        explicit_batch.member_row_count,
+        explicit_batch.distinct_candidate_count,
+        explicit_batch.sealed_distinct_candidate_count,
+    ) == (2, 1, 1)
+    with Raises("distinct candidate count is below minimum"):
+        _commit(
+            explicit_store,
+            explicit_origin,
+            "explicit-certifiable",
+            explicit_receipts[-1].current_state_commitment,
+            ledger.OriginSealed(False, (), 1, 0, 2, 0, 0, 0),
+        )
+
+    positive_repo, (positive_origin,) = _repo(
+        tmp_path / "positive", [explicit]
+    )
+    positive_store = _store(positive_repo)
+    distinct = _batch_events(
+        candidates=(b"10000", b"01000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+    )
+    positive_receipts = _commit_batch_sequence(
+        positive_store, positive_origin, distinct, "explicit-distinct"
+    )
+    _commit(
+        positive_store,
+        positive_origin,
+        "positive-certifiable",
+        positive_receipts[-1].current_state_commitment,
+        ledger.OriginSealed(False, (), 1, 0, 2, 0, 0, 0),
+    )
+
+    aggregate_raw = _manifest_object(
+        imax=2, qmax=4, candidate_min=2
+    )
+    aggregate_repo, (aggregate_origin,) = _repo(
+        tmp_path / "aggregate", [aggregate_raw]
+    )
+    aggregate_store = _store(aggregate_repo)
+    first = _batch_events(
+        candidates=(b"10000", b"10000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+    )
+    _commit_batch_sequence(
+        aggregate_store, aggregate_origin, first, "aggregate-a"
+    )
+    second = _batch_events(
+        "batch-1",
+        iteration=1,
+        candidates=(b"01000", b"01000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+        query_start=2,
+    )
+    aggregate_receipts = _commit_batch_sequence(
+        aggregate_store, aggregate_origin, second, "aggregate-b"
+    )
+    assert _snapshot(
+        aggregate_store, aggregate_origin
+    ).origin_distinct_candidate_count == 2
+    with Raises("distinct candidate count is below minimum"):
+        _commit(
+            aggregate_store,
+            aggregate_origin,
+            "aggregate-certifiable",
+            aggregate_receipts[-1].current_state_commitment,
+            ledger.OriginSealed(False, (), 2, 0, 4, 0, 0, 0),
+        )
+
+    aborted_repo, (aborted_origin,) = _repo(
+        tmp_path / "aborted", [explicit]
+    )
+    aborted_store = _store(aborted_repo)
+    aborted_receipts = _commit_batch_sequence(
+        aborted_store, aborted_origin, repeated, "aborted-repeat"
+    )
+    aborted_terminal = _commit(
+        aborted_store,
+        aborted_origin,
+        "aborted-terminal",
+        aborted_receipts[-1].current_state_commitment,
+        ledger.OriginSealed(True, (), 1, 0, 2, 0, 0, 0),
+    )
+    assert aborted_terminal.event_index == 5
+
+
+def test_all_tombstone_batch_is_outside_candidate_minimum_gate(
+    tmp_path: Path,
+) -> None:
+    """実行候補0の batch は gate 外、実行済み batch は通常どおり gate する。"""
+    tombstoned = _batch_events(
+        candidates=(b"10000", b"01000"),
+        outcomes=("tombstoned", "tombstoned"),
+        constraints=(None, None),
+    )
+
+    def prepare(
+        path: Path,
+        *,
+        candidate_min: int,
+        executed_candidates: tuple[bytes, bytes],
+    ) -> tuple[object, str, ledger.EventReceipt]:
+        raw = _manifest_object(imax=2, qmax=4, candidate_min=candidate_min)
+        repo, (origin,) = _repo(path, [raw])
+        store = _store(repo)
+        _commit_batch_sequence(store, origin, tombstoned, "tombstone-batch")
+        executed = _batch_events(
+            "batch-1",
+            iteration=1,
+            candidates=executed_candidates,
+            outcomes=("accepted", "accepted"),
+            constraints=(None, None),
+            query_start=2,
+        )
+        receipt = _commit_batch_sequence(
+            store, origin, executed, "executed-batch"
+        )[-1]
+        return store, origin, receipt
+
+    default_store, default_origin, default_receipt = prepare(
+        tmp_path / "default",
+        candidate_min=1,
+        executed_candidates=(b"00100", b"00010"),
+    )
+    _commit(
+        default_store,
+        default_origin,
+        "default-certifiable",
+        default_receipt.current_state_commitment,
+        ledger.OriginSealed(False, (), 2, 1, 2, 2, 0, 0),
+    )
+
+    passing_store, passing_origin, passing_receipt = prepare(
+        tmp_path / "explicit-pass",
+        candidate_min=2,
+        executed_candidates=(b"00100", b"00010"),
+    )
+    _commit(
+        passing_store,
+        passing_origin,
+        "explicit-pass-certifiable",
+        passing_receipt.current_state_commitment,
+        ledger.OriginSealed(False, (), 2, 1, 2, 2, 0, 0),
+    )
+
+    failing_store, failing_origin, failing_receipt = prepare(
+        tmp_path / "explicit-fail",
+        candidate_min=2,
+        executed_candidates=(b"00100", b"00100"),
+    )
+    with Raises("distinct candidate count is below minimum"):
+        _commit(
+            failing_store,
+            failing_origin,
+            "explicit-fail-certifiable",
+            failing_receipt.current_state_commitment,
+            ledger.OriginSealed(False, (), 2, 1, 2, 2, 0, 0),
+        )
+
+
+def test_t1_tombstone_counts_gate_only_executed_candidates(
+    tmp_path: Path,
+) -> None:
+    """A,A,B(tombstoned) は凍結2・実行1として gate する。"""
+    events = _batch_events(
+        candidates=(b"10000", b"10000", b"01000"),
+        outcomes=("accepted", "accepted", "tombstoned"),
+        constraints=(None, None, None),
+    )
+    sealed_type, sealed_payload = ledger._event_payload(events[2])
+    assert sealed_type == "batch-sealed"
+    assert sealed_payload["member_row_count"] == 3
+    assert sealed_payload["distinct_candidate_count"] == 2
+    assert sealed_payload["sealed_distinct_candidate_count"] == 1
+
+    high = _manifest_object(
+        imax=1, qmax=3, member_row_min=2, candidate_min=2
+    )
+    high_repo, (high_origin,) = _repo(tmp_path / "high", [high])
+    high_store = _store(high_repo)
+    high_receipts = _commit_batch_sequence(
+        high_store, high_origin, events, "t1-high"
+    )
+    high_snapshot = _snapshot(high_store, high_origin)
+    with ledger._locked(high_store) as authority:
+        batch = ledger._read_sealed_batch_locked(
+            high_store, authority, high_origin, "batch-0"
+        )
+        semantic = ledger._semantic_object(
+            ledger._replay(high_store, authority).states[high_origin]
+        )
+    assert (
+        batch.member_row_count,
+        batch.distinct_candidate_count,
+        batch.sealed_distinct_candidate_count,
+    ) == (3, 2, 1)
+    assert high_snapshot.origin_distinct_candidate_count == 2
+    assert (
+        semantic["sealed_member_row_count"],
+        semantic["origin_distinct_candidate_count"],
+        semantic["origin_sealed_distinct_candidate_count"],
+    ) == (3, 2, 1)
+    with Raises("distinct candidate count is below minimum"):
+        _commit(
+            high_store,
+            high_origin,
+            "t1-high-certifiable",
+            high_receipts[-1].current_state_commitment,
+            ledger.OriginSealed(False, (), 1, 1, 2, 1, 0, 0),
+        )
+
+    low = _manifest_object(
+        imax=1, qmax=3, member_row_min=2, candidate_min=1
+    )
+    low_repo, (low_origin,) = _repo(tmp_path / "low", [low])
+    low_store = _store(low_repo)
+    low_receipts = _commit_batch_sequence(
+        low_store, low_origin, events, "t1-low"
+    )
+    accepted = _commit(
+        low_store,
+        low_origin,
+        "t1-low-certifiable",
+        low_receipts[-1].current_state_commitment,
+        ledger.OriginSealed(False, (), 1, 1, 2, 1, 0, 0),
+    )
+    assert accepted.event_index == 5
+
+
+def test_t3_certifiable_gate_checks_every_batch_not_only_edges(
+    tmp_path: Path,
+) -> None:
+    """good(A,B)→bad(C,C)→good(B,D) の中央だけで拒否する。"""
+    raw = _manifest_object(imax=3, qmax=6, candidate_min=2)
+    repo, (origin,) = _repo(tmp_path, [raw])
+    store = _store(repo)
+    good_first = _batch_events(
+        "batch-0",
+        candidates=(b"10000", b"01000"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+    )
+    _commit_batch_sequence(store, origin, good_first, "t3-first")
+    bad_middle = _batch_events(
+        "batch-1",
+        iteration=1,
+        candidates=(b"00100", b"00100"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+        query_start=2,
+    )
+    _commit_batch_sequence(store, origin, bad_middle, "t3-middle")
+    good_last = _batch_events(
+        "batch-2",
+        iteration=2,
+        candidates=(b"01000", b"00010"),
+        outcomes=("accepted", "accepted"),
+        constraints=(None, None),
+        query_start=4,
+        prior_replicates={b"01000": 1},
+    )
+    final_receipts = _commit_batch_sequence(
+        store, origin, good_last, "t3-last"
+    )
+    with ledger._locked(store) as authority:
+        batches = tuple(
+            ledger._read_sealed_batch_locked(store, authority, origin, batch_id)
+            for batch_id in ("batch-0", "batch-1", "batch-2")
+        )
+    assert tuple(
+        batch.sealed_distinct_candidate_count for batch in batches
+    ) == (2, 1, 2)
+    with Raises("distinct candidate count is below minimum"):
+        _commit(
+            store,
+            origin,
+            "t3-certifiable",
+            final_receipts[-1].current_state_commitment,
+            ledger.OriginSealed(False, (), 3, 0, 6, 0, 0, 0),
+        )
+
+
+def test_t4_candidate_minimum_member_row_feasibility_boundary() -> None:
+    """candidate minimum は member row minimum 以下だけを受理する。"""
+    equal = _manifest_object(member_row_min=2, candidate_min=2)
+    policy = _manifest(equal).budget_policy
+    assert policy.batch_member_row_count_min == 2
+    assert policy.batch_distinct_candidate_count_min == 2
+    with Raises("exceeds member row minimum"):
+        _manifest(_manifest_object(member_row_min=2, candidate_min=3))
 
 
 def _run() -> int:
