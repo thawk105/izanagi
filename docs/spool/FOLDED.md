@@ -402,3 +402,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:s8c-wiring-not-fireable":"D201"},"authored":"2026-08-06","content_sha256":"d09ff6b4ad0c9ba27cc1b57b065a9faac6bbd24c959b79d30f9b4bcab8a78f25","seq":1,"wave":"dev-wave-t244-p3-8c-wiring"}
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"42b726584c2bfd1e051b262529e34272c78347d2d821fda4102761206b5972bc","seq":2,"wave":"dev-wave-t244-p3-8c-wiring"}
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"1d98958226d86c64d1300cd988004fae409ed43d910830e2222e20f78f1ac26b","seq":3,"wave":"dev-wave-t244-p3-8c-wiring"}
+
+- {"allocations":{"D:generation-guarantee-scope-limit":"D203","D:historical-reverify-entry-split":"D202"},"authored":"2026-08-06","content_sha256":"439c3034b7f638b13019a15051d1380e6e68633141e9d710f2dde31fb0afab26","seq":1,"wave":"dev-wave-t574-historical-resolver"}
+- {"allocations":{"T:generation-resume-availability":"[T-587]","T:oracle-run-contract-legacy-fallopen":"[T-588]","T:silo-verify-result-semantics":"[T-586]"},"authored":"2026-08-06","content_sha256":"bacfadcef1123374c54ba03a326bd76b8388ade81320f5650264991486714408","seq":2,"wave":"dev-wave-t574-historical-resolver"}
+- {"allocations":{"F:readonly-entry-shared-with-live-admission":"F142","F:redundant-gate-counted-as-new-guarantee":"F143"},"authored":"2026-08-06","content_sha256":"ddc5b88fd30f32134ca1ec2d35b65f955c763e1b6408a4f37b9d162352fb1d17","seq":3,"wave":"dev-wave-t574-historical-resolver"}
