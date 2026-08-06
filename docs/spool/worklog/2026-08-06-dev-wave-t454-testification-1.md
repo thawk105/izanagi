@@ -44,11 +44,13 @@ title: [T-454] テスト化 pass は変異 kill 判定の 7 vector を固定し�
   旧側の collection は 57 node、新側は 64 node で、差は追加した node だけである
   (旧側だけにある node はゼロ)。したがって「旧では生存し、新では対応 node だけが殺した」と
   限定でき、**一般的な検出力を示すものではない。**
-- **受入全走は 2 回。** (1) 実装 3 commit + main 取り込み時点の tip `4607d112` で
-  6781 passed / 20 skipped / 0 failed (request `892711.nqsv`)、(2) 記録 commit 後の land 直前再走でも
-  **6781 passed / 20 skipped / 0 failed** (request `892724.nqsv`、確定値)。
-  (2) の走行 tip と land tip の差は本 fragment のこの段落だけで、コード・テストの差はない。
-  受入直前に local main `23cc93d6` を取り込んだ (15 commit、競合なし)。
+- **受入全走は 3 回。** (1) 実装 3 commit + main `23cc93d6` 取り込み時点で
+  6781 passed / 20 skipped / 0 failed (request `892711.nqsv`)、(2) 記録 commit 後に同値
+  (request `892724.nqsv`)、(3) land 直前に main `3143302b` を追加取り込みして
+  **6786 passed / 20 skipped / 0 failed** (request `892892.nqsv`、**確定値**)。
+  (1)→(3) の差 5 件は取り込んだ local main が持ち込んだテストで、本 wave の差分由来ではない。
+  main は wave 中に 2 回進み (15 commit + 6 commit)、いずれも競合なしで取り込んだ。
+  (3) の走行 tip と land tip の差は本段落の文言だけで、コード・テストの差はない。
 - **byte 会計は 3 回訂正した。** 初稿の見積り → 第 1 次実測 → 焦点再レビューの独立検算で
   B-4 が強調記号 4 bytes 分の数え落としと判明。**既知需要 1,356 bytes に対し、
   回収見込みは A-1 (`DW-O01` pointer 化) −159 + A-2 (`DW-M05` pgrep pointer 化) −48 = −207 のみ**で、
