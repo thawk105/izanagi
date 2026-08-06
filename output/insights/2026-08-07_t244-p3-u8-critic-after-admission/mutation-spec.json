@@ -1,0 +1,120 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M1-swap-admission-and-critic-order",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "            cells.append(cell)\n            _finalize_cell_admission(\n                cell,\n                do_build=do_build,\n                launch_admission=launch_admission,\n            )\n            try:\n                _run_pending_critics(\n                    cell,\n                    providers=active_providers,\n                    journal=journal,\n                    run_root=run_root,\n                    transport_receipt=transport_receipt,\n                )",
+          "new": "            cells.append(cell)\n            try:\n                _run_pending_critics(\n                    cell,\n                    providers=active_providers,\n                    journal=journal,\n                    run_root=run_root,\n                    transport_receipt=transport_receipt,\n                )\n                _finalize_cell_admission(\n                    cell,\n                    do_build=do_build,\n                    launch_admission=launch_admission,\n                )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_build_cell_admission_precedes_critic_invocation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-drop-role-invalid-assignment",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "        if critic is None:\n            if not preserve_stop_reason:\n                cell[\"stop_reason\"] = \"role-invalid\"\n            break",
+          "new": "        if critic is None:\n            break"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_pending_critic_phase_sets_role_invalid_directly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-harness-stop-wins-over-critic-invalid",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "        if critic is None:\n            if not preserve_stop_reason:\n                cell[\"stop_reason\"] = \"role-invalid\"\n            break",
+          "new": "        if critic is None:\n            if not preserve_stop_reason and cell[\"stop_reason\"] == \"fixed-generation-budget\":\n                cell[\"stop_reason\"] = \"role-invalid\"\n            break"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_pending_critic_phase_sets_role_invalid_directly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-status-ignores-post-admission-role-invalid",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "            cell[\"stop_reason\"]\n            not in {\"role-invalid\", \"supervisor-error\", \"supervisor-wall-budget\"}",
+          "new": "            cell[\"stop_reason\"]\n            not in {\"supervisor-error\", \"supervisor-wall-budget\"}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_post_admission_invalid_critic_marks_cell_role_invalid"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-drop-pending-residue-guard",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "    if any(\"_pending_critics\" in cell for cell in cells):\n        raise AutonomousTrialError(\"pending critic remained before report construction\")",
+          "new": "    if False:\n        raise AutonomousTrialError(\"pending critic remained before report construction\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_residual_pending_critics_block_report_publish"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-drop-admission-decision-guard",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "    if any(\"admission_decision\" not in cell for cell in cells):\n        raise AutonomousTrialError(\n            \"cell admission decision missing before report construction\"\n        )",
+          "new": "    if False:\n        raise AutonomousTrialError(\n            \"cell admission decision missing before report construction\"\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_critic_invalid_cannot_drop_build_admission_decision"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-positive-control-overreject-single-generation",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "    if any(\"_pending_critics\" in cell for cell in cells):\n        raise AutonomousTrialError(\"pending critic remained before report construction\")",
+          "new": "    if True:\n        raise AutonomousTrialError(\"pending critic remained before report construction\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_fixture_trial_runs_ycsb_abc_and_binds_descriptor"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
