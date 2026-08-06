@@ -63,7 +63,11 @@
 
 ## 実測 (親が自分で走らせた値)
 
-- 受入全走: **6846 passed / 20 skipped** (merge `0d64599e` 取り込み後、branch tip `f264a269` 相当)。
+- 受入全走: **7066 passed / 20 skipped** (`child_rc=0`)。これが land した tip `ff63ef72`
+  (main `23337171` 取り込み後) を certify した値である。
+  途中の **6846 passed / 20 skipped** は main `0d64599e` を取り込んだ時点 (`f264a269` 相当) の値で、
+  その後の main 取り込みでテスト数が増えた。**worklog エントリの題は 6846 のまま land した** —
+  題に書いたのは land 直前の再走前の値であり、certify 値は 7066 である (erratum)。
 - 変異 run 2 (採用): **4/4 一致、全 KILLED**。
 - 変異 run 1: **erratum** (M4 の変異が非 Mapping 経路も巻き込み、事前登録外 2 node を落として
   MISMATCH。field 不在経路だけに絞って再照準したものが run 2)。消さずに残す。
