@@ -9439,3 +9439,109 @@ P2 は引き続き FAIL、D114 の `MAX_APPROVED_GENERATIONS = 1` も不変。
   lease は裁定へ返す。
 - **read 経路の書き込み除去や trigger provenance の schema 拡張の同時実施** — いずれも独立に
   審査すべき変更で、同 wave に混ぜると回復本体の検証が薄まる。
+
+## D194. 生死確認 probe は「自分で閉じられる範囲」だけを機械判定にする (2026-08-06)
+
+**決定:** `DW-G01` の生死確認 probe は、自分が観測した bytes・identity・順序から導ける条件だけを
+機械的な受理条件にする。probe が自分で作った証拠を自分で検証するしかない範囲 —
+crash が実際に起きたことの独立 anchor、journal の hash-chain、既存祖先 directory の耐久性、
+repair 自身の crash からの再開、本番 PBS 経路を通る正例 — は probe に実装せず、
+成果物へ**限界として明記**したうえで本番機構の実装 wave へ回す。
+
+**理由:**
+- probe は判定器と証拠生成器を兼ねる。両方を同じ module が持つ以上、
+  「記載されたイベントが実際に起きた」ことは probe 単体では原理的に証明できない。
+  ここへ検査を足しても、足した検査自身が同じ循環に入るだけで検出力は増えない。
+- 一方で「観測した bytes が完全か / 部分か」「observer が別 host・別 boot_id か」
+  「順序が契約どおりか」は、probe が外界から読んだ値だけで判定でき、循環しない。
+  生死確認が答えるべき問い (部分 bytes が出るか) はこちら側にある。
+- 限界を機械判定へ持ち込まずに文書へ書くと、**射程を超えた主張が成果物に載らない**。
+  実験の結論は「何を証明したか」と同じ重みで「何を証明していないか」を持つ。
+- 逆に限界を隠して受理条件を増やすと、通った緑が何を意味するか読めなくなり、
+  正しさシグナルを後付けにする failure mode に入る。
+
+**却下した選択肢:**
+- 独立 anchor が揃うまで probe を作り直す — `DW-G01` が要求する「最安の生死確認」を超え、
+  本番機構を先に作ることになる。確認前の専用機構構築は同 gate が明示的に禁じている。
+- 限界を nit として落とす — 成果物影響を書けない所見は nit だが、これらは
+  「GO をどこまで信じてよいか」を直接変えるため書ける。落とすと過大主張になる。
+- probe を untracked の使い捨てに留めて限界も記録しない — 後日の再走と、
+  実装 wave が引き継ぐべき未閉鎖点の受け渡しができなくなる。
+
+## D195. 実験の全 leg は同一 commit で測る (2026-08-06)
+
+**決定:** 複数 leg からなる実験は、全 leg を同一 commit の実行体で測る。判定器がソースの
+hash を受理条件に束縛する設計では、途中版で得た leg を最終判定へ合成しない。
+実装を直したら、既に緑だった leg も測り直す。
+
+**理由:**
+- 判定器が「この成果物は自分と同じ版の producer が作った」を要求するのは正しい (queue 待ち中の
+  差し替えを弾く)。その代償として、版が混ざった leg 群は**証拠が正当でも FAIL になる**。
+- 混在を許す例外を判定器へ入れると、まさに弾きたかった「別版 producer の成果物」を
+  受け入れる穴になる。判定器を緩めるのではなく、測り方を揃えるのが筋である。
+- 測り直しの費用は、実験 1 run の費用に対して線形にしか増えない。
+  一方、版が混ざった証拠を人手で「これは実質同じ」と判断すると、その判断は台帳に残らない。
+
+**却下した選択肢:**
+- 判定器に版混在の許容 flag を足す — 上記のとおり防ぎたい攻撃面をそのまま開ける。
+- 古い leg の成果物を新しい hash で書き換える — 一次資料の改竄であり、
+  「値なし前方参照と placeholder を禁じ、再走値は amend する」規律に反する。
+
+## D196. 活性化権限は historical resolver より先に実装しない (2026-08-06)
+
+**決定:** 契約世代の活性化権限 (activation record からの権威導出と全入口の activation receipt) を
+実装する前に、artifact に記録された contract hash から世代を解決する historical resolver と
+versioned predicate dispatch を production consumer へ配線する。D176 の bootstrap fuse は
+それまで外さない。活性化機構の設計案・入口同定・命名は
+`output/insights/2026-08-06_t529-activation-authority/` へ凍結し、実装は保留する。
+
+**理由:**
+- committed floor protocol は現行 pegasus 契約の `contract_sha256` を固定しており、
+  `s8b_floor_contract.validate_protocol` は artifact の値と
+  `contract_sha256_lookup(env_tag)` の一致を fail-closed で要求する。
+  `s8b_ratified_freeze` はその lookup に **current** の registry lookup を渡す。
+  同型の current 比較は ratified freeze の journal / run-command 再検証と oracle report にもある。
+  したがって 2 世代目を current にした瞬間、既存の certified floor / freeze / selector /
+  oracle report が「過去には有効だったが current でない」という理由だけで解決不能になる。
+  親が実測で確認した (protocol の hash と現行 lookup の hash が一致することを確認)。
+- よって fuse を外しても較正の再取得は進まない。blocker が fuse から履歴解決の不在へ移るだけであり、
+  活性化権限だけを先に入れても目的を達成しない。D176 自身が
+  「履歴 resolver は production の消費者を持たない data 層の準備である」と限定していた。
+- 活性化機構のうち今すぐ実装できる部分集合は、2 世代目を無条件拒否する実装と観測的に区別できない。
+  正例 (正規 evidence を持つ有効な 2 世代目が current になる成功ケース) を書けないためである。
+  区別できない実装を land すると、後続の読み手は活性化権限が実在すると誤読する。
+  これは D176 が型分離を却下した理由と同型の「名ばかりの保証」である。
+- 発火条件を満たす artifact path も計測 ID も現時点では書けない。2 世代目の取得は
+  pin 済み依存 source の消失と source proof の欠落で塞がれている。
+  条件付き機能の発火 gate (`docs/dev-wave/core.md` の `DW-G04`) は
+  この場合「設計メモに留める」と定めている。
+
+**却下した選択肢:**
+- 活性化 record と権威導出だけを先に land し、入口 receipt を後続 wave へ送る —
+  正例を書けないため永久 fuse 実装と区別できず、台帳に名ばかりの保証が残る。
+- fuse を外して 2 世代目後の旧 artifact 拒否を受理縮小として承認する —
+  certified 成果物の参照鎖を切る。承認されていない受理縮小である。
+- 活性化 record の非偽造性を acquisition receipt の存在検査だけで担保する —
+  同 receipt は自己申告値の schema であって publisher の実行を証明しない。
+  trust root の定義は別途裁定が要る。
+
+## D197. 活性化状態の識別子は `activation_serial` / `activation_state_sha256` を使う (2026-08-06)
+
+**決定:** 契約世代の活性化状態を表す識別子は、単調増加整数を `activation_serial`、
+活性化状態全体の hash を `activation_state_sha256`、直前状態の hash を
+`previous_activation_state_sha256` とする。`migration_epoch` と `bundle_hash` は使わない。
+
+**理由:**
+- repo 内で `epoch` は unix 時刻の一義で使われている (qsub の submit 時刻、予約の deadline、
+  収集の完了時刻、scheduler の開始時刻)。単調増加カウンタへ流用すると同名識別子が 2 義になる (D75)。
+- `migration_*` は既存の freeze migration 識別子と近く、一回限りの移行を指す語として定着している。
+- `bundle` は role bundle の hash と silo の raw bundle という別義が既にある。
+- `state` は「全 env の active contract 集合と serial・直前 hash を含む状態」の hash であることを
+  正確に表し、既存語の意味を増やさない。静的検索で 3 語とも既存衝突ゼロを確認した。
+- 段 2 と段 3 の 2 レンズが独立に親の暫定命名を否定し、この案を支持した。
+
+**却下した選択肢:**
+- `migration_epoch` / `bundle_hash` — 上記のとおり既存 2 義を 3 義にする。
+- 無修飾の `generation` を新 receipt の field 名に使う — 契約世代と LLM 提案世代が
+  同一 document 内で無修飾に混在しうる。receipt へ直列化する段では
+  `env_contract_generation` のように namespace を付ける。
