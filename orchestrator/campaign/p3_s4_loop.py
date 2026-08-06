@@ -876,8 +876,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
                          f"{layout.root} != cfg 由来")
     layout.ensure()
-    # reject も campaign の初回 WAL write なので、repair 無しの identity gate を先行する。
-    ident.ensure_campaign_identity(
+    # reject も campaign の初回 WAL write なので、repair 無しの recovery seam を先行する。
+    ident.ensure_resumable_attempts(
         cfg, layout, admission_policy=build_context.policy,
     )
 
@@ -995,6 +995,9 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
+    ident.ensure_resumable_attempts(
+        cfg, layout, admission_policy=build_context.policy,
+    )
     state = load_loop_state(layout)
     if state is None:
         state = LoopState(start_wall=time.time())

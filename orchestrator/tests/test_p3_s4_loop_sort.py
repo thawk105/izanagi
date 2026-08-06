@@ -350,6 +350,79 @@ def test_drive_iteration_stops_before_running_when_reverse_exhausted():
     assert st.reverse_recommendations == L.REVERSE_STREAK
 
 
+def test_drive_iteration_recovers_real_wal_start_before_entry_stop():
+    lay = _tmp_layout("recover-before-stop")
+    cfg, perf = S.default_cfg(), S.default_perf()
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    wal.log(lay, "crashed-v", "build_start", "test-env", {
+        "build_attempt_id": "crashed-attempt",
+    })
+    seed = L.LoopState(
+        iteration=0, start_wall=time.time(),
+        reverse_recommendations=L.REVERSE_STREAK - 1,
+    )
+    L.save_loop_state(lay, seed)
+    planner = _planner()
+    coder = S.CoderProposalSort(
+        axis=S.MARKER_ID, implementation=_CLEAN_IMPL,
+    )
+    auditor = S.AuditorVerdict(verdict="pass", diff_digest="a" * 64)
+
+    out = S.drive_iteration(
+        cfg, perf, planner, coder, auditor, prior_critic_reverse=True,
+        sub="/must/not/run", do_build=False, layout=lay,
+    )
+    assert out["ran"] is False
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == ["build_start", "abort"]
+    assert records[-1].payload == {
+        "reason": "recovery-abort-incomplete-attempt",
+        "build_attempt_id": "crashed-attempt",
+    }
+
+
+def test_inner_run_recovers_reject_start_before_writing_retry_start():
+    import contextlib
+    from unittest import mock
+    from campaign import patchharness
+
+    lay = _tmp_layout("inner-reject-recovery")
+    cfg, perf = S.default_cfg(), S.default_perf()
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    implementation = "#define EVIL 1\n" + _CLEAN_IMPL
+    variant = L.diffq_variant_id(_G, implementation)
+    wal.log(lay, variant, "build_start", "test-env", {
+        "genome": _G.canonical(), "src_token": "",
+        "build_attempt_id": "crashed-reject-attempt",
+    })
+    coder = S.CoderProposalSort(
+        axis=S.MARKER_ID, implementation=implementation,
+    )
+    auditor = S.AuditorVerdict(
+        verdict="pass", diff_digest="not-reached-before-quarantine-reject",
+    )
+    state = L.LoopState(start_wall=time.time())
+
+    with mock.patch.object(
+            patchharness, "applied",
+            side_effect=lambda *_args, **_kwargs: contextlib.nullcontext()):
+        out = S.run_one_iteration(
+            cfg, perf, _planner(), coder, auditor, state, _mk_template_dir(),
+            do_build=False, layout=lay, log=lambda *_args: None,
+        )
+
+    assert out["outcome"] == "rejected"
+    records = wal.read_records(lay)
+    assert [record.stage for record in records] == [
+        "build_start", "abort", "build_start", "abort",
+    ]
+    assert records[1].payload == {
+        "reason": "recovery-abort-incomplete-attempt",
+        "build_attempt_id": "crashed-reject-attempt",
+    }
+    assert records[2].payload["build_attempt_id"] != "crashed-reject-attempt"
+
+
 def test_drive_iteration_checkpoint_survives_across_calls():
     """fresh reject が identity を確立し、次候補の public drive が resume できる。"""
     import contextlib

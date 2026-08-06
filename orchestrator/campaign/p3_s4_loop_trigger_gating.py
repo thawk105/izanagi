@@ -539,7 +539,7 @@ def _run_one_iteration_resolved(
         source=None,
     )
     layout.ensure()
-    ident.ensure_campaign_identity(
+    ident.ensure_resumable_attempts(
         campaign_cfg, layout, admission_policy=build_context.policy,
     )
 
@@ -711,6 +711,9 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
     _assert_resume_allowed(contract, layout)
     layout.ensure()
+    ident.ensure_resumable_attempts(
+        campaign_cfg, layout, admission_policy=build_context.policy,
+    )
     _write_provenance_header(layout, extra_sources=extra_sources)
     state = L.load_loop_state(layout)
     if state is None:

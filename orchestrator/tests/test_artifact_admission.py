@@ -20,6 +20,7 @@ from orchestrator.campaign.build_admission import (
     derive_build_admission,
 )
 from orchestrator.campaign.model import Genome
+from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.pin import CURRENT_PIN
 from orchestrator.campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, SourceEvidence
 
@@ -279,6 +280,199 @@ def _classify_as_trigger(
         },
     }), encoding="utf-8")
     return _rename_for_lock(campaign)
+
+
+def test_recovered_attempt_then_retry_is_admitted_without_read_mutation(tmp_path):
+    campaign = _new_schema_campaign(tmp_path)
+    layout = CampaignLayout(root=str(campaign))
+    original = wal.read_records(layout)
+    start = original[0]
+    (campaign / "runs/wal.jsonl").write_text(
+        json.dumps({
+            "variant": start.variant,
+            "stage": start.stage,
+            "env_tag": start.env_tag,
+            "ts": start.ts,
+            "payload": start.payload,
+        }, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    crash_prefix = (campaign / "runs/wal.jsonl").read_bytes()
+    policy = build_run_context(
+        generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+    ).policy
+    recovered = wal.recover_interrupted_attempts(
+        layout, admission_policy=policy,
+    )
+    assert len(recovered) == 1
+    retry_payload = dict(start.payload)
+    retry_payload["build_attempt_id"] = "attempt-2"
+    terminal_payload = {
+        "build_attempt_id": "attempt-2",
+        "build_admission_receipt_sha256":
+            start.payload["build_admission_receipt_sha256"],
+    }
+    wal.log(layout, start.variant, "build_start", start.env_tag, retry_payload)
+    wal.log(layout, start.variant, "build_done", start.env_tag, terminal_payload)
+    wal.log(layout, start.variant, "commit", start.env_tag, terminal_payload)
+    before_admission = (campaign / "runs/wal.jsonl").read_bytes()
+
+    admitted = A.require_admitted_campaign(campaign)
+    assert admitted.decision.admitted
+    assert before_admission.startswith(crash_prefix)
+    assert (campaign / "runs/wal.jsonl").read_bytes() == before_admission
+
+
+@pytest.mark.parametrize("extra_key,extra_value", [
+    ("build_admission", {"forged": "body"}),
+    ("fitness_tps", 999999999),
+    ("verify", {"verdict": "forged"}),
+], ids=["build-admission", "fitness-tps", "verify"])
+def test_recovery_abort_extra_keys_are_rejected_by_replay_and_admission(
+        tmp_path, extra_key, extra_value):
+    campaign = _new_schema_campaign(tmp_path)
+    layout = CampaignLayout(root=str(campaign))
+    start = wal.read_records(layout)[0]
+    payload = {
+        "reason": "recovery-abort-incomplete-attempt",
+        "build_attempt_id": start.payload["build_attempt_id"],
+        "build_admission_receipt_sha256":
+            start.payload["build_admission_receipt_sha256"],
+        extra_key: extra_value,
+    }
+    records = [
+        _record("build_start", start.payload, ts=1.0, variant=start.variant),
+        _record("abort", payload, ts=2.0, variant=start.variant),
+    ]
+    (campaign / "runs/wal.jsonl").write_text(
+        "".join(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+                for record in records),
+        encoding="utf-8",
+    )
+    policy = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP).policy
+
+    with pytest.raises(wal.AttemptTopologyError, match="exact key"):
+        wal.replay(layout, admission_policy=policy)
+    with pytest.raises(A.ArtifactAdmissionError, match="exact key"):
+        A.require_admitted_campaign(campaign)
+
+
+@pytest.mark.parametrize("schema_key,schema_value", [
+    ("build_attempt_id", "orphan-attempt"),
+    ("build_admission", {"schema": "marker-only"}),
+    ("build_admission_receipt_sha256", "a" * 64),
+    (wal.TRIGGER_BINDING_COMMITMENT_KEY, "b" * 64),
+], ids=[
+    "build-attempt-id", "build-admission", "receipt-sha256",
+    "trigger-commitment",
+])
+def test_each_attempt_schema_key_independently_enables_strict_recovery_validation(
+        tmp_path, schema_key, schema_value):
+    campaign = _new_schema_campaign(tmp_path)
+    layout = CampaignLayout(root=str(campaign))
+    malformed = _record(
+        "build_done", {schema_key: schema_value}, ts=1.0,
+        variant="schema-marker-v",
+    )
+    wal_path = campaign / "runs/wal.jsonl"
+    wal_path.write_text(
+        json.dumps(malformed, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    before = wal_path.read_bytes()
+    policy = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP).policy
+
+    with pytest.raises(wal.InterruptedAttemptRecoveryError) as excinfo:
+        wal.recover_interrupted_attempts(layout, admission_policy=policy)
+    assert excinfo.value.condition == "existing-topology-violation"
+    assert wal_path.read_bytes() == before
+
+
+def _append_committed_retry(layout, start, attempt_id: str) -> None:
+    retry_start = dict(start.payload)
+    retry_start["build_attempt_id"] = attempt_id
+    terminal = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256":
+            start.payload["build_admission_receipt_sha256"],
+    }
+    wal.log(layout, start.variant, "build_start", start.env_tag, retry_start)
+    wal.log(layout, start.variant, "build_done", start.env_tag, terminal)
+    wal.log(layout, start.variant, "commit", start.env_tag, terminal)
+
+
+def test_historical_signal_does_not_overreject_later_start_only_recovery(tmp_path):
+    campaign = _new_schema_campaign(tmp_path)
+    layout = CampaignLayout(root=str(campaign))
+    start = wal.read_records(layout)[0]
+    first_terminal = {
+        "build_attempt_id": "historical-attempt",
+        "build_admission_receipt_sha256":
+            start.payload["build_admission_receipt_sha256"],
+    }
+    first_start = dict(start.payload)
+    first_start["build_attempt_id"] = "historical-attempt"
+    active_start = dict(start.payload)
+    active_start["build_attempt_id"] = "active-attempt"
+    records = [
+        _record("build_start", first_start, ts=1.0, variant=start.variant),
+        _record("build_done", first_terminal, ts=2.0, variant=start.variant),
+        _record("verify_done", {"verdict": "red"}, ts=3.0, variant=start.variant),
+        _record("abort", {**first_terminal, "reason": "verify-failed"},
+                ts=4.0, variant=start.variant),
+        _record("build_start", active_start, ts=5.0, variant=start.variant),
+    ]
+    (campaign / "runs/wal.jsonl").write_text(
+        "".join(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+                for record in records),
+        encoding="utf-8",
+    )
+    policy = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP).policy
+
+    recovered = wal.recover_interrupted_attempts(layout, admission_policy=policy)
+    assert len(recovered) == 1
+    assert recovered[0].payload["build_attempt_id"] == "active-attempt"
+    _append_committed_retry(layout, start, "retry-attempt")
+    before_admission = (campaign / "runs/wal.jsonl").read_bytes()
+    assert A.require_admitted_campaign(campaign).decision.admitted
+    assert (campaign / "runs/wal.jsonl").read_bytes() == before_admission
+
+
+def test_other_variant_recovery_limit_does_not_overreject_first_recovery(tmp_path):
+    campaign = _new_schema_campaign(tmp_path)
+    layout = CampaignLayout(root=str(campaign))
+    start = wal.read_records(layout)[0]
+    records = []
+    for index in range(wal.INCOMPLETE_ATTEMPT_RECOVERY_LIMIT):
+        attempt_id = f"variant-a-attempt-{index}"
+        records.extend([
+            _record("build_start", {"build_attempt_id": attempt_id},
+                    ts=float(index * 2 + 1), variant="variant-a"),
+            _record("abort", {
+                "reason": "recovery-abort-incomplete-attempt",
+                "build_attempt_id": attempt_id,
+            }, ts=float(index * 2 + 2), variant="variant-a"),
+        ])
+    active_start = dict(start.payload)
+    active_start["build_attempt_id"] = "variant-b-active"
+    records.append(_record(
+        "build_start", active_start, ts=10.0, variant=start.variant,
+    ))
+    (campaign / "runs/wal.jsonl").write_text(
+        "".join(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+                for record in records),
+        encoding="utf-8",
+    )
+    policy = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP).policy
+
+    recovered = wal.recover_interrupted_attempts(layout, admission_policy=policy)
+    assert len(recovered) == 1
+    assert recovered[0].variant == start.variant
+    assert recovered[0].payload["build_attempt_id"] == "variant-b-active"
+    _append_committed_retry(layout, start, "variant-b-retry")
+    before_admission = (campaign / "runs/wal.jsonl").read_bytes()
+    assert A.require_admitted_campaign(campaign).decision.admitted
+    assert (campaign / "runs/wal.jsonl").read_bytes() == before_admission
 
 
 def test_overlay_raw_sha_and_exact_membership_are_independently_pinned() -> None:

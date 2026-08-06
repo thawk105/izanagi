@@ -369,6 +369,31 @@ def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     assert len(wal.read_records(layout)) == 4
 
 
+def test_public_sweep_trigger_crash_tail_fails_before_quarantine_write(monkeypatch):
+    from campaign.layout import CampaignLayout
+
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_s8a_public_crash_tail_")
+    ).ensure()
+    _install_public_reject_sweep_fakes(monkeypatch, layout)
+    cfg = W.config_for("balanced", EFF3)
+    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    wal.log(layout, "trigger-crashed-v", STAGE_BUILD_START, W.ENV_TAG, {
+        "build_attempt_id": "trigger-crashed-attempt",
+    })
+    before = open(layout.wal_file, "rb").read()
+
+    with pytest.raises(wal.InterruptedAttemptRecoveryError) as excinfo:
+        W.run_sweep(
+            "balanced", names=[W.candidates(EFF3)[0][0]],
+            isolate=False, log=lambda _line: None,
+        )
+    assert excinfo.value.condition == "trigger-campaign"
+    assert excinfo.value.variant == "trigger-crashed-v"
+    assert excinfo.value.attempt_id == "trigger-crashed-attempt"
+    assert open(layout.wal_file, "rb").read() == before
+
+
 def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
         monkeypatch):
     """public sweep→実 pipeline admission 境界で exact class 差を固定する。"""

@@ -30,7 +30,10 @@ from campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
 from campaign import site_policy                                    # noqa: E402
 from campaign import wal                                            # noqa: E402
-from campaign.artifact_admission import require_admitted_campaign   # noqa: E402
+from campaign.artifact_admission import (                           # noqa: E402
+    ArtifactAdmissionError,
+    require_admitted_campaign,
+)
 from campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: E402
                                     auditor_reject_result,
                                     parse_auditor_dict)
@@ -1867,6 +1870,170 @@ def test_compute_no_resume_precedes_drive_entry_stop_and_provenance(monkeypatch)
     assert open(L.loop_state_path(lay), "rb").read() == state_before
     assert not os.path.exists(T._provenance_path(lay))
     assert wal.read_records(lay) == []
+
+
+def test_drive_trigger_crash_tail_fails_before_stop_checkpoint_and_provenance(
+        monkeypatch):
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+    lay = _tmp_layout("trigger-recovery-before-stop")
+    cfg, perf = T.default_cfg(), T.default_perf()
+    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    attempt_id = "trigger-crashed-attempt"
+    binding = _binding()
+    commitment_value = wal.log_trigger_binding(
+        lay, "trigger-crashed-v", "test-env", attempt_id, binding,
+    )
+    wal.log(lay, "trigger-crashed-v", "build_start", "test-env", {
+        "build_attempt_id": attempt_id,
+        wal.TRIGGER_BINDING_COMMITMENT_KEY: commitment_value,
+    })
+    seed = L.LoopState(
+        iteration=0, start_wall=time.time(),
+        reverse_recommendations=L.REVERSE_STREAK - 1,
+    )
+    L.save_loop_state(lay, seed)
+    checkpoint_before = open(L.loop_state_path(lay), "rb").read()
+    wal_before = open(lay.wal_file, "rb").read()
+    coder = T.CoderProposalTriggerGating(
+        axis=T.MARKER_ID, wire=_CLEAN_WIRE,
+    )
+    auditor = AuditorVerdict(verdict="pass", diff_digest="a" * 64)
+
+    with pytest.raises(wal.InterruptedAttemptRecoveryError) as excinfo:
+        T.drive_iteration(
+            cfg, perf, _planner(), coder, auditor,
+            prior_critic_reverse=True, sub="/must-not-run", do_build=False,
+            layout=lay,
+        )
+    assert excinfo.value.condition == "trigger-campaign"
+    assert excinfo.value.variant == "trigger-crashed-v"
+    assert excinfo.value.attempt_id == attempt_id
+    assert open(lay.wal_file, "rb").read() == wal_before
+    assert open(L.loop_state_path(lay), "rb").read() == checkpoint_before
+    assert not os.path.exists(T._provenance_path(lay))
+
+
+def test_inner_run_reject_start_crash_fails_before_second_start(monkeypatch):
+    import contextlib
+    from campaign import patchharness
+
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+    cfg = T.default_cfg()
+    policy = _CODER_CONTEXT.policy
+    attempt_id = "crashed-trigger-reject-attempt"
+    coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
+    predicate = emit_predicate(parse_wire(coder.wire))
+    variant = L.diffq_variant_id(_G, predicate)
+    sub = _mk_template_dir()
+    auditor = AuditorVerdict(
+        verdict="reject", diff_digest=_digest_for(sub),
+        violations=[{"type": 16}],
+    )
+
+    def new_layout(tag):
+        parent = tempfile.mkdtemp(prefix=f"izanagi_s8atrigloop_{tag}_")
+        return CampaignLayout(
+            root=os.path.join(parent, str(ident.campaign_id(cfg))),
+        ).ensure()
+
+    def seed_active_attempt(layout):
+        wal.write_lock(layout, ident.canonical_preimage(cfg))
+        commitment_value = wal.log_trigger_binding(
+            layout, variant, "test-env", attempt_id, _binding(),
+        )
+        wal.log(layout, variant, "build_start", "test-env", {
+            "genome": _G.canonical(), "src_token": "",
+            "build_attempt_id": attempt_id,
+            wal.TRIGGER_BINDING_COMMITMENT_KEY: commitment_value,
+        })
+
+    def write_provenance_for_starts(layout, records):
+        T._write_provenance_header(layout)
+        starts = [record for record in records if record.stage == "build_start"]
+        for iteration, start in enumerate(starts, 1):
+            T._append_provenance_entry(layout, iteration, {
+                "variant": start.variant,
+                "build_attempt_id": start.payload["build_attempt_id"],
+                wal.TRIGGER_BINDING_COMMITMENT_KEY:
+                    start.payload[wal.TRIGGER_BINDING_COMMITMENT_KEY],
+            })
+
+    current = new_layout("inner-trigger-reject-current")
+    seed_active_attempt(current)
+    before = open(current.wal_file, "rb").read()
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+
+    recovery_error = None
+    try:
+        T.run_one_iteration(
+            cfg, T.default_perf(), _planner(), coder, auditor,
+            L.LoopState(start_wall=time.time()), sub,
+            do_build=False, layout=current, log=lambda *_args: None,
+        )
+    except wal.InterruptedAttemptRecoveryError as exc:
+        recovery_error = exc
+    assert open(current.wal_file, "rb").read() == before
+    current_records = wal.read_records(current)
+    assert [record.stage for record in current_records] == [
+        TRIGGER_GATE_BINDING_WAL_STAGE, "build_start",
+    ]
+    assert recovery_error is not None
+    assert recovery_error.condition == "trigger-campaign"
+    assert variant in wal.replay(current, admission_policy=policy)
+    write_provenance_for_starts(current, current_records)
+    assert require_admitted_campaign(current).decision.admitted
+
+    mutant = new_layout("inner-trigger-reject-identity-only")
+    seed_active_attempt(mutant)
+    mutant_before = open(mutant.wal_file, "rb").read()
+
+    def identity_only(campaign_cfg, layout, *, admission_policy):
+        ident.ensure_campaign_identity(
+            campaign_cfg, layout, admission_policy=admission_policy,
+        )
+
+    monkeypatch.setattr(T.ident, "ensure_resumable_attempts", identity_only)
+    out = T.run_one_iteration(
+        cfg, T.default_perf(), _planner(), coder, auditor,
+        L.LoopState(start_wall=time.time()), sub,
+        do_build=False, layout=mutant, log=lambda *_args: None,
+    )
+    assert out["outcome"] == "rejected"
+    assert out["variant"] == variant
+    assert open(mutant.wal_file, "rb").read() != mutant_before
+    mutant_records = wal.read_records(mutant)
+    assert [record.stage for record in mutant_records] == [
+        TRIGGER_GATE_BINDING_WAL_STAGE, "build_start",
+        TRIGGER_GATE_BINDING_WAL_STAGE, "build_start", "abort",
+    ]
+    bindings = [
+        record for record in mutant_records
+        if record.stage == TRIGGER_GATE_BINDING_WAL_STAGE
+    ]
+    starts = [record for record in mutant_records if record.stage == "build_start"]
+    assert [record.variant for record in bindings] == [variant, variant]
+    assert [record.variant for record in starts] == [variant, variant]
+    assert (
+        bindings[0].payload["build_attempt_id"]
+        == starts[0].payload["build_attempt_id"]
+    )
+    assert (
+        bindings[1].payload["build_attempt_id"]
+        == starts[1].payload["build_attempt_id"]
+    )
+    assert starts[0].payload["build_attempt_id"] == attempt_id
+    assert starts[1].payload["build_attempt_id"] != attempt_id
+    assert mutant_records[-1].payload["build_attempt_id"] == (
+        starts[1].payload["build_attempt_id"]
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="variant に未終端 attempt"):
+        wal.replay(mutant, admission_policy=policy)
+    write_provenance_for_starts(mutant, mutant_records)
+    with pytest.raises(ArtifactAdmissionError, match="variant に未終端 attempt"):
+        require_admitted_campaign(mutant)
 
 
 def _pinned_clean_sub_or_skip():

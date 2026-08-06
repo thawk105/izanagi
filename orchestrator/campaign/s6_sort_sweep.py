@@ -272,11 +272,12 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                 log(f"\n=== s6 sort sweep  workload={tag}  trial={trial}  "
                     f"{n_points} 点 (screening opt-in, campaign {layout.root}) ===")
                 prov[STOCK_NAME] = baseline_entry
-                _write_provenance(layout, tag, trial, prov)
-            # quarantine reject が最初の WAL write でも self-seal しないよう先行する。
-            ident.ensure_campaign_identity(
+            # provenance/quarantine reject より前に identity 照合済みの active attempt を閉じる。
+            ident.ensure_resumable_attempts(
                 cfg, layout, admission_policy=build_context.policy,
             )
+            if screening_enabled:
+                _write_provenance(layout, tag, trial, prov)
             for name in sel_names:
                 if screening_enabled and name == STOCK_NAME:
                     continue
