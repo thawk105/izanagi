@@ -1,0 +1,357 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/d46ee0b77bf9dd8c8dd2b3c4437f43de/izdw-d46ee0b77b.o892464",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/d46ee0b77bf9dd8c8dd2b3c4437f43de/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................................             [100%]\n60 passed in 4.79s\n",
+      "stdout_sha256": "b0958aa1482a1a9bd04df7aebaa227f30d256aecc00f89965e6026c18d888e09"
+    },
+    "artifact_error": null,
+    "collection_sha256": "a3d25ca3bc5bbefeba51525afe7e7ef7e5ae020677f33f6ea62584db7a557c4e",
+    "duration_s": 32.03,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "2cc518f80a4f284f29f4962094a9950962f57026d971bb2be29832d71af0b01e",
+    "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+    "runner_sha256": "25a208c9b3f9d908005a94483674b91fd04eb78f9780cff8892e66e6bd0ab342",
+    "spec_sha256": "1b4bf915e4ec11718ec442ec99ddc602a2aa1e066b2cacaa70660809a2de8db4",
+    "status": "PASSED",
+    "test_output_sha256": "b0958aa1482a1a9bd04df7aebaa227f30d256aecc00f89965e6026c18d888e09",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+  },
+  "date": "2026-08-06T01:34:53.281990+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/f6431ad350f7e8774984145f38bdfd1e/izdw-f6431ad350.o892465",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/f6431ad350f7e8774984145f38bdfd1e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................F...........................             [100%]\n=================================== FAILURES ===================================\n___________ test_failed_nodes_strict_superset_never_counts_as_killed ___________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_failed_nodes_strict_super0/repo')\n\n    def test_failed_nodes_strict_superset_never_counts_as_killed(repo: Path) -> None:\n        expected = [\"tests/test_gate.py::test_gate[one]\"]\n        failed = [*expected, \"tests/test_gate.py::test_gate[two]\"]\n        status = MH._observed_status(\n            result={\"timed_out\": False, \"rc\": 1, \"artifact_error\": None},\n            failed=failed,\n            expected=expected,\n            repo=repo,\n        )\n    \n>       assert status == \"MISMATCH\"\nE       AssertionError: assert 'KILLED' == 'MISMATCH'\nE         \nE         - MISMATCH\nE         + KILLED\n\norchestrator/tests/test_mutation_harness.py:362: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_superset_never_counts_as_killed\n1 failed, 59 passed in 4.80s\n",
+        "stdout_sha256": "f7e223c08a0c59f2d6974bdd44cd9a29f2119cf0fca19caa61bfda1d143bac03"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a3d25ca3bc5bbefeba51525afe7e7ef7e5ae020677f33f6ea62584db7a557c4e",
+      "duration_s": 27.605,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_superset_never_counts_as_killed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_superset_never_counts_as_killed"
+      ],
+      "hang_risk": false,
+      "id": "MU-1-kill-accepts-expected-subset-of-failed",
+      "injection_diff_sha256": "83b2decab8dccedc36bccccf20a7f50333f4b015a92c5ae949a928c2b6c7a8d5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "897e54d7587b0092b5645f844df6c154a2c81afcf2c13b2e3313611ca439b407",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "new": "    return \"KILLED\" if expected_keys <= failed_keys else \"MISMATCH\"",
+          "old": "    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\""
+        }
+      ],
+      "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+      "runner_sha256": "25a208c9b3f9d908005a94483674b91fd04eb78f9780cff8892e66e6bd0ab342",
+      "spec_sha256": "1b4bf915e4ec11718ec442ec99ddc602a2aa1e066b2cacaa70660809a2de8db4",
+      "status": "KILLED",
+      "test_output_sha256": "f7e223c08a0c59f2d6974bdd44cd9a29f2119cf0fca19caa61bfda1d143bac03",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/1fc2b6ea1b371121a55e7b4ba3e0542a/izdw-1fc2b6ea1b.o892466",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/1fc2b6ea1b371121a55e7b4ba3e0542a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................F...........................             [100%]\n=================================== FAILURES ===================================\n____________ test_failed_nodes_strict_subset_never_counts_as_killed ____________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_failed_nodes_strict_subse0/repo')\n\n    def test_failed_nodes_strict_subset_never_counts_as_killed(repo: Path) -> None:\n        expected = [\n            \"tests/test_gate.py::test_gate[one]\",\n            \"tests/test_gate.py::test_gate[two]\",\n        ]\n        failed = [\"tests/test_gate.py::test_gate[one]\"]\n        status = MH._observed_status(\n            result={\"timed_out\": False, \"rc\": 1, \"artifact_error\": None},\n            failed=failed,\n            expected=expected,\n            repo=repo,\n        )\n    \n>       assert status == \"MISMATCH\"\nE       AssertionError: assert 'KILLED' == 'MISMATCH'\nE         \nE         - MISMATCH\nE         + KILLED\n\norchestrator/tests/test_mutation_harness.py:378: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_subset_never_counts_as_killed\n1 failed, 59 passed in 4.80s\n",
+        "stdout_sha256": "029e7bbdedc09b1acb33b9f082e2ebd96f5894ae7a7f61acfb3fa466aa8d8f4f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a3d25ca3bc5bbefeba51525afe7e7ef7e5ae020677f33f6ea62584db7a557c4e",
+      "duration_s": 32.029,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_subset_never_counts_as_killed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_subset_never_counts_as_killed"
+      ],
+      "hang_risk": false,
+      "id": "MU-3-kill-accepts-failed-subset-of-expected",
+      "injection_diff_sha256": "56e336d5e0212093dc89d668414baa799ee5d295237120bcee4309fad8cbc4fc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "807acde00be96cd0c6b6e9ec14329a36a4d34f7dfb6764090f1862df832586b4",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "new": "    return \"KILLED\" if failed_keys <= expected_keys else \"MISMATCH\"",
+          "old": "    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\""
+        }
+      ],
+      "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+      "runner_sha256": "25a208c9b3f9d908005a94483674b91fd04eb78f9780cff8892e66e6bd0ab342",
+      "spec_sha256": "1b4bf915e4ec11718ec442ec99ddc602a2aa1e066b2cacaa70660809a2de8db4",
+      "status": "KILLED",
+      "test_output_sha256": "029e7bbdedc09b1acb33b9f082e2ebd96f5894ae7a7f61acfb3fa466aa8d8f4f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/903358e9e78e2e4a865df393e6ab13b8/izdw-903358e9e7.o892467",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/903358e9e78e2e4a865df393e6ab13b8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................F...........................             [100%]\n=================================== FAILURES ===================================\n________ test_same_test_part_from_different_path_never_counts_as_killed ________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_same_test_part_from_diffe0/repo')\n\n    def test_same_test_part_from_different_path_never_counts_as_killed(\n        repo: Path,\n    ) -> None:\n        expected = [\"tests/a.py::test_gate[one]\"]\n        failed = [\"tests/b.py::test_gate[one]\"]\n        status = MH._observed_status(\n            result={\"timed_out\": False, \"rc\": 1, \"artifact_error\": None},\n            failed=failed,\n            expected=expected,\n            repo=repo,\n        )\n    \n>       assert status == \"MISMATCH\"\nE       AssertionError: assert 'KILLED' == 'MISMATCH'\nE         \nE         - MISMATCH\nE         + KILLED\n\norchestrator/tests/test_mutation_harness.py:393: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_harness.py::test_same_test_part_from_different_path_never_counts_as_killed\n1 failed, 59 passed in 4.83s\n",
+        "stdout_sha256": "24274a7ab8f2b67fb9888ed76023b27b4c38a05931a3bff8d8a79e8f93c2ef9a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a3d25ca3bc5bbefeba51525afe7e7ef7e5ae020677f33f6ea62584db7a557c4e",
+      "duration_s": 27.363,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_same_test_part_from_different_path_never_counts_as_killed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_same_test_part_from_different_path_never_counts_as_killed"
+      ],
+      "hang_risk": false,
+      "id": "MU-4-match-key-drops-path-component",
+      "injection_diff_sha256": "91aa7ea976e321cc0df78ffa88b7bdda7db8ab652f4ae2f5743f5db73d5a1af5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2c8bdf3266b22939e62085eac7fb931174af908ebcf24516b6cc11da97daa856",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "new": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo).partition(\"::\")[2]",
+          "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+        }
+      ],
+      "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+      "runner_sha256": "25a208c9b3f9d908005a94483674b91fd04eb78f9780cff8892e66e6bd0ab342",
+      "spec_sha256": "1b4bf915e4ec11718ec442ec99ddc602a2aa1e066b2cacaa70660809a2de8db4",
+      "status": "KILLED",
+      "test_output_sha256": "24274a7ab8f2b67fb9888ed76023b27b4c38a05931a3bff8d8a79e8f93c2ef9a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/fef5136415e30286493edbab03fb99bc/izdw-fef5136415.o892463",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/fef5136415e30286493edbab03fb99bc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line\norchestrator/tests/test_mutation_harness.py::test_cumulative_replacement_uses_the_result_of_the_previous_anchor\norchestrator/tests/test_mutation_harness.py::test_failed_node_parser_keeps_parameter_and_full_node\norchestrator/tests/test_mutation_harness.py::test_expected_spec_hash_mismatch_stops_before_runner_and_ledger\norchestrator/tests/test_mutation_harness.py::test_applied_diff_must_equal_registration_preflight\norchestrator/tests/test_mutation_harness.py::test_fake_runner_is_rejected_before_execution\norchestrator/tests/test_mutation_harness.py::test_expected_node_must_exist_in_pytest_collection\norchestrator/tests/test_mutation_harness.py::test_parameter_suffix_is_matched_exactly\norchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_superset_never_counts_as_killed\norchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_subset_never_counts_as_killed\norchestrator/tests/test_mutation_harness.py::test_same_test_part_from_different_path_never_counts_as_killed\norchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[2]\norchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[3]\norchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[5]\norchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[spec]\norchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[out]\norchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[temp]\norchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[False]\norchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[True]\norchestrator/tests/test_mutation_harness.py::test_startup_rejects_one_byte_head_mismatch_before_runner_or_ledger\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_head\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_spec_hash\norchestrator/tests/test_mutation_harness.py::test_resume_reruns_parse_error_and_skips_terminal_record\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_incomplete_running_record_before_runner\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_corrupt_json\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_duplicate_record_id\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_every_missing_terminal_and_baseline_field_before_runner\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[rc-0-status \\u304c rc/node/artifact evidence \\u3068\\u4e0d\\u4e00\\u81f4]\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[expected_nodes-value1-\\u73fe spec/evidence]\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[injection_diff_sha256-0000000000000000000000000000000000000000000000000000000000000000-\\u73fe spec/evidence]\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[tool_sha256-0000000000000000000000000000000000000000000000000000000000000000-\\u73fe spec/evidence]\norchestrator/tests/test_mutation_harness.py::test_resume_rejects_minimal_forged_terminal_record\norchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[ABSENT-anchor count=0]\norchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[\"x\"-anchor count=2]\norchestrator/tests/test_mutation_harness.py::test_abnormal_rc_with_expected_failed_node_flushes_parse_error_and_stops\norchestrator/tests/test_mutation_harness.py::test_hang_risk_uses_short_timeout_records_evidence_and_restores\norchestrator/tests/test_mutation_harness.py::test_restore_verification_rejects_content_different_from_head\norchestrator/tests/test_mutation_harness.py::test_apply_mutation_calls_restore_at_the_production_callsite\norchestrator/tests/test_mutation_harness.py::test_flock_rejects_a_competing_harness_for_the_same_repo\norchestrator/tests/test_mutation_harness.py::test_atomic_writer_killed_before_replace_preserves_previous_ledger\norchestrator/tests/test_mutation_harness.py::test_signal_arriving_during_restore_is_deferred_until_all_targets_verified\norchestrator/tests/test_mutation_harness.py::test_completed_record_is_flushed_before_next_runner_sigkill\norchestrator/tests/test_mutation_harness.py::test_sigterm_handler_stops_child_and_restores_active_mutation\norchestrator/tests/test_mutation_harness.py::test_dispatch_reader_uses_receipt_bound_full_job_stdout\norchestrator/tests/test_mutation_harness.py::test_dispatch_run_calls_receipt_reader_instead_of_using_console_stdout\norchestrator/tests/test_mutation_harness.py::test_dispatch_collection_uses_compute_dispatcher_not_login_exempt_runner\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--q]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--qq]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local---quiet]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--v]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--vv]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local---verbose]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--q]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--qq]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch---quiet]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--v]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--vv]\norchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch---verbose]\norchestrator/tests/test_mutation_harness.py::test_dispatch_reader_rejects_console_rc_different_from_receipt_line\norchestrator/tests/test_mutation_harness.py::test_unknown_spec_schema_is_rejected\n\n60 tests collected in 2.10s\n",
+        "stdout_sha256": "3960dbeaa5111a2b4073b5e8a878770b5acac3065c0c29de653a218846c175ec"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line",
+        "orchestrator/tests/test_mutation_harness.py::test_cumulative_replacement_uses_the_result_of_the_previous_anchor",
+        "orchestrator/tests/test_mutation_harness.py::test_failed_node_parser_keeps_parameter_and_full_node",
+        "orchestrator/tests/test_mutation_harness.py::test_expected_spec_hash_mismatch_stops_before_runner_and_ledger",
+        "orchestrator/tests/test_mutation_harness.py::test_applied_diff_must_equal_registration_preflight",
+        "orchestrator/tests/test_mutation_harness.py::test_fake_runner_is_rejected_before_execution",
+        "orchestrator/tests/test_mutation_harness.py::test_expected_node_must_exist_in_pytest_collection",
+        "orchestrator/tests/test_mutation_harness.py::test_parameter_suffix_is_matched_exactly",
+        "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_superset_never_counts_as_killed",
+        "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_subset_never_counts_as_killed",
+        "orchestrator/tests/test_mutation_harness.py::test_same_test_part_from_different_path_never_counts_as_killed",
+        "orchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[2]",
+        "orchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[3]",
+        "orchestrator/tests/test_mutation_harness.py::test_abnormal_pytest_rc_never_counts_as_killed[5]",
+        "orchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[spec]",
+        "orchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[out]",
+        "orchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[temp]",
+        "orchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[False]",
+        "orchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[True]",
+        "orchestrator/tests/test_mutation_harness.py::test_startup_rejects_one_byte_head_mismatch_before_runner_or_ledger",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_head",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_spec_hash",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_reruns_parse_error_and_skips_terminal_record",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_incomplete_running_record_before_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_corrupt_json",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_duplicate_record_id",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_every_missing_terminal_and_baseline_field_before_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[rc-0-status /u304c rc/node/artifact evidence /u3068/u4e0d/u4e00/u81f4]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[expected_nodes-value1-/u73fe spec/evidence]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[injection_diff_sha256-0000000000000000000000000000000000000000000000000000000000000000-/u73fe spec/evidence]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[tool_sha256-0000000000000000000000000000000000000000000000000000000000000000-/u73fe spec/evidence]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_minimal_forged_terminal_record",
+        "orchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[ABSENT-anchor count=0]",
+        "orchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[\"x\"-anchor count=2]",
+        "orchestrator/tests/test_mutation_harness.py::test_abnormal_rc_with_expected_failed_node_flushes_parse_error_and_stops",
+        "orchestrator/tests/test_mutation_harness.py::test_hang_risk_uses_short_timeout_records_evidence_and_restores",
+        "orchestrator/tests/test_mutation_harness.py::test_restore_verification_rejects_content_different_from_head",
+        "orchestrator/tests/test_mutation_harness.py::test_apply_mutation_calls_restore_at_the_production_callsite",
+        "orchestrator/tests/test_mutation_harness.py::test_flock_rejects_a_competing_harness_for_the_same_repo",
+        "orchestrator/tests/test_mutation_harness.py::test_atomic_writer_killed_before_replace_preserves_previous_ledger",
+        "orchestrator/tests/test_mutation_harness.py::test_signal_arriving_during_restore_is_deferred_until_all_targets_verified",
+        "orchestrator/tests/test_mutation_harness.py::test_completed_record_is_flushed_before_next_runner_sigkill",
+        "orchestrator/tests/test_mutation_harness.py::test_sigterm_handler_stops_child_and_restores_active_mutation",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_reader_uses_receipt_bound_full_job_stdout",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_run_calls_receipt_reader_instead_of_using_console_stdout",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_collection_uses_compute_dispatcher_not_login_exempt_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--q]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--qq]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local---quiet]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--v]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local--vv]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[local---verbose]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--q]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--qq]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch---quiet]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--v]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch--vv]",
+        "orchestrator/tests/test_mutation_harness.py::test_collection_forces_one_quiet_flag_without_dropping_test_selection[dispatch---verbose]",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_reader_rejects_console_rc_different_from_receipt_line",
+        "orchestrator/tests/test_mutation_harness.py::test_unknown_spec_schema_is_rejected"
+      ],
+      "duration_s": 26.927,
+      "rc": 0,
+      "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+      "runner_sha256": "25a208c9b3f9d908005a94483674b91fd04eb78f9780cff8892e66e6bd0ab342",
+      "spec_sha256": "1b4bf915e4ec11718ec442ec99ddc602a2aa1e066b2cacaa70660809a2de8db4",
+      "status": "PASSED",
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MU-1-kill-accepts-expected-subset-of-failed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_superset_never_counts_as_killed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "83b2decab8dccedc36bccccf20a7f50333f4b015a92c5ae949a928c2b6c7a8d5",
+        "replacements": [
+          {
+            "file": "tools/mutation_harness.py",
+            "new": "    return \"KILLED\" if expected_keys <= failed_keys else \"MISMATCH\"",
+            "old": "    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\""
+          }
+        ]
+      },
+      "MU-3-kill-accepts-failed-subset-of-expected": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_subset_never_counts_as_killed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "56e336d5e0212093dc89d668414baa799ee5d295237120bcee4309fad8cbc4fc",
+        "replacements": [
+          {
+            "file": "tools/mutation_harness.py",
+            "new": "    return \"KILLED\" if failed_keys <= expected_keys else \"MISMATCH\"",
+            "old": "    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\""
+          }
+        ]
+      },
+      "MU-4-match-key-drops-path-component": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_harness.py::test_same_test_part_from_different_path_never_counts_as_killed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "91aa7ea976e321cc0df78ffa88b7bdda7db8ab652f4ae2f5743f5db73d5a1af5",
+        "replacements": [
+          {
+            "file": "tools/mutation_harness.py",
+            "new": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo).partition(\"::\")[2]",
+            "old": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "2cc518f80a4f284f29f4962094a9950962f57026d971bb2be29832d71af0b01e",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mutation_harness.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mutation_harness.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/tools/run_tests.py",
+    "entrypoint_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "dd9993c5140a394b2694b7df1edf7cb37f1dcf76",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "25a208c9b3f9d908005a94483674b91fd04eb78f9780cff8892e66e6bd0ab342",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "1b4bf915e4ec11718ec442ec99ddc602a2aa1e066b2cacaa70660809a2de8db4",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f",
+  "updated_at": "2026-08-06T01:36:56.668518+00:00"
+}
