@@ -97,7 +97,7 @@ _MISSING = object()
 
 # Literal ceiling is independently pinned at max/max+1 by V21.  Admission still
 # serializes every relevant real frame before allocating authority-sized tuples.
-_MAX_BATCH_CARDINALITY = 2248
+_MAX_BATCH_MEMBER_ROW_COUNT = 2248
 _JSON_SHA_MEMBER_BYTES = 67
 _MAX_CLASS_CARDINALITY = (_MAX_RECORD_BYTES - 1) // _JSON_SHA_MEMBER_BYTES
 
@@ -230,7 +230,8 @@ class BudgetPolicy:
     imax: int
     qmax: int
     kmax: int
-    batch_cardinality_min: int
+    batch_member_row_count_min: int
+    batch_distinct_candidate_count_min: int
     query_floor_constraints: tuple[QueryFloorConstraint, ...]
 
 
@@ -261,7 +262,8 @@ _MANIFEST_KEYS = frozenset({
 _WORKLOAD_KEYS = frozenset({"descriptor_sha256", "records", "threads"})
 _CANDIDATE_IR_KEYS = frozenset({"schema_ref", "canonical_emitter_sha256"})
 _BUDGET_KEYS = frozenset({
-    "imax", "qmax", "kmax", "batch_cardinality_min", "query_floor_constraints",
+    "imax", "qmax", "kmax", "batch_member_row_count_min",
+    "batch_distinct_candidate_count_min", "query_floor_constraints",
 })
 _FLOOR_KEYS = frozenset({
     "formula_id", "base_queries", "queries_per_round", "rounds", "evidence_min",
@@ -286,7 +288,12 @@ def _evidence_object(value: EvidenceReference, *, label: str) -> dict[str, objec
     }
 
 
-def _floor_from_object(value: object, *, batch_min: int, qmax: int) -> QueryFloorConstraint:
+def _floor_from_object(
+    value: object,
+    *,
+    member_row_min: int,
+    qmax: int,
+) -> QueryFloorConstraint:
     obj = _exact_object(value, _FLOOR_KEYS, label="query floor")
     floor = QueryFloorConstraint(
         formula_id=_string(obj["formula_id"], label="floor formula_id"),
@@ -300,7 +307,7 @@ def _floor_from_object(value: object, *, batch_min: int, qmax: int) -> QueryFloo
     if floor.formula_id != _FLOOR_FORMULA_ID:
         _fail("unknown query floor formula")
     required = floor.required_queries
-    if required < max(2, batch_min) or required > qmax:
+    if required < max(2, member_row_min) or required > qmax:
         _fail("query floor is outside authority budget")
     return floor
 
@@ -310,14 +317,26 @@ def _budget_from_object(value: object) -> BudgetPolicy:
     imax = _integer(obj["imax"], label="Imax", minimum=1)
     qmax = _integer(obj["qmax"], label="Qmax", minimum=1)
     kmax = _integer(obj["kmax"], label="Kmax")
-    batch_min = _integer(obj["batch_cardinality_min"], label="batch minimum", minimum=2)
-    if batch_min > _MAX_BATCH_CARDINALITY:
+    member_row_min = _integer(
+        obj["batch_member_row_count_min"],
+        label="batch member row minimum",
+        minimum=2,
+    )
+    candidate_min = _integer(
+        obj["batch_distinct_candidate_count_min"],
+        label="batch distinct candidate minimum",
+        minimum=1,
+    )
+    if candidate_min > member_row_min:
+        _fail("batch distinct candidate minimum exceeds member row minimum")
+    if member_row_min > _MAX_BATCH_MEMBER_ROW_COUNT:
         _fail("batch minimum exceeds codec feasibility")
     raw_floors = obj["query_floor_constraints"]
     if type(raw_floors) is not list or not raw_floors:
         _fail("query floor constraints must be non-empty")
     floors = tuple(
-        _floor_from_object(item, batch_min=batch_min, qmax=qmax) for item in raw_floors
+        _floor_from_object(item, member_row_min=member_row_min, qmax=qmax)
+        for item in raw_floors
     )
     canonical_order = tuple(
         sorted(
@@ -335,7 +354,14 @@ def _budget_from_object(value: object) -> BudgetPolicy:
         _fail("query floor constraints are not canonical")
     if len(set(floors)) != len(floors):
         _fail("duplicate query floor constraint")
-    policy = BudgetPolicy(imax, qmax, kmax, batch_min, floors)
+    policy = BudgetPolicy(
+        imax,
+        qmax,
+        kmax,
+        member_row_min,
+        candidate_min,
+        floors,
+    )
     _check_budget_codec_feasibility(policy)
     return policy
 
@@ -347,7 +373,10 @@ def _budget_object(value: BudgetPolicy) -> dict[str, object]:
         "imax": value.imax,
         "qmax": value.qmax,
         "kmax": value.kmax,
-        "batch_cardinality_min": value.batch_cardinality_min,
+        "batch_member_row_count_min": value.batch_member_row_count_min,
+        "batch_distinct_candidate_count_min": (
+            value.batch_distinct_candidate_count_min
+        ),
         "query_floor_constraints": [
             {
                 "formula_id": item.formula_id,
@@ -505,7 +534,7 @@ class SealedBatchMember:
 class BatchReserved:
     batch_id: str
     iteration_index: int
-    cardinality: int
+    member_row_count: int
     query_ordinal_start: int
 
 
@@ -572,9 +601,10 @@ class OriginSnapshot:
     tombstone_count: int
     terminal_status: str | None
     constraint_class_sha256s: tuple[str, ...]
+    origin_distinct_candidate_count: int
     reserved_batch_id: str | None
     reserved_iteration_index: int | None
-    reserved_cardinality: int | None
+    reserved_member_row_count: int | None
     reserved_query_ordinal_start: int | None
 
 
@@ -582,6 +612,9 @@ class OriginSnapshot:
 class SealedBatch:
     origin_id: str
     batch_id: str
+    member_row_count: int
+    distinct_candidate_count: int
+    sealed_distinct_candidate_count: int
     members: tuple[SealedBatchMember, ...]
 
 
@@ -756,7 +789,9 @@ def _event_payload(event: OriginEvent) -> tuple[str, dict[str, object]]:
             "iteration_index": _integer(
                 event.iteration_index, label="iteration index"
             ),
-            "cardinality": _integer(event.cardinality, label="cardinality"),
+            "member_row_count": _integer(
+                event.member_row_count, label="member row count"
+            ),
             "query_ordinal_start": _integer(
                 event.query_ordinal_start, label="query ordinal start"
             ),
@@ -776,7 +811,7 @@ def _event_payload(event: OriginEvent) -> tuple[str, dict[str, object]]:
         return "batch-committed", {
             "batch_id": batch_id,
             "iteration_index": iteration,
-            "cardinality": len(members),
+            "member_row_count": len(members),
             "members": list(members),
         }
     if type(event) is BatchResultsPrepared:
@@ -797,6 +832,15 @@ def _event_payload(event: OriginEvent) -> tuple[str, dict[str, object]]:
         )
         return "batch-sealed", {
             "batch_id": _string(event.batch_id, label="batch ID", token=True),
+            "member_row_count": len(members),
+            "distinct_candidate_count": len({
+                member["candidate_wire_b64"] for member in members
+            }),
+            "sealed_distinct_candidate_count": len({
+                member["candidate_wire_b64"]
+                for member in members
+                if member["outcome"] != "tombstoned"
+            }),
             "members": list(members),
         }
     if type(event) is OriginSealed:
@@ -843,7 +887,7 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
         obj = _exact_object(
             payload,
             frozenset({
-                "batch_id", "iteration_index", "cardinality",
+                "batch_id", "iteration_index", "member_row_count",
                 "query_ordinal_start",
             }),
             label="batch reserved payload",
@@ -853,7 +897,9 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
             iteration_index=_integer(
                 obj["iteration_index"], label="iteration index"
             ),
-            cardinality=_integer(obj["cardinality"], label="cardinality"),
+            member_row_count=_integer(
+                obj["member_row_count"], label="member row count"
+            ),
             query_ordinal_start=_integer(
                 obj["query_ordinal_start"], label="query ordinal start"
             ),
@@ -870,7 +916,9 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
     if event_type == "batch-committed":
         obj = _exact_object(
             payload,
-            frozenset({"batch_id", "iteration_index", "cardinality", "members"}),
+            frozenset({
+                "batch_id", "iteration_index", "member_row_count", "members",
+            }),
             label="batch committed payload",
         )
         raw = obj["members"]
@@ -891,8 +939,11 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
                     member["candidate_commitment"], label="candidate commitment"
                 ),
             ))
-        if _integer(obj["cardinality"], label="cardinality") != len(values):
-            _fail("candidate cardinality mismatch")
+        if (
+            _integer(obj["member_row_count"], label="member row count")
+            != len(values)
+        ):
+            _fail("committed member row count mismatch")
         return BatchCommitted(
             _string(obj["batch_id"], label="batch ID", token=True),
             _integer(obj["iteration_index"], label="iteration index"),
@@ -940,7 +991,10 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
     if event_type == "batch-sealed":
         obj = _exact_object(
             payload,
-            frozenset({"batch_id", "members"}),
+            frozenset({
+                "batch_id", "member_row_count", "distinct_candidate_count",
+                "sealed_distinct_candidate_count", "members",
+            }),
             label="batch sealed payload",
         )
         raw = obj["members"]
@@ -1000,6 +1054,29 @@ def _event_from_payload(event_type: object, payload: object) -> OriginEvent | No
                 ),
                 constraint_sha256=constraint,
             ))
+        member_row_count = _integer(
+            obj["member_row_count"], label="sealed member row count"
+        )
+        distinct_candidate_count = _integer(
+            obj["distinct_candidate_count"],
+            label="sealed batch distinct candidate count",
+        )
+        sealed_distinct_candidate_count = _integer(
+            obj["sealed_distinct_candidate_count"],
+            label="sealed batch executed distinct candidate count",
+        )
+        if member_row_count != len(members):
+            _fail("sealed member row count mismatch")
+        if distinct_candidate_count != len({
+            member.candidate_bytes for member in members
+        }):
+            _fail("sealed batch distinct candidate count mismatch")
+        if sealed_distinct_candidate_count != len({
+            member.candidate_bytes
+            for member in members
+            if member.outcome != "tombstoned"
+        }):
+            _fail("sealed batch executed distinct candidate count mismatch")
         return BatchSealed(
             _string(obj["batch_id"], label="batch ID", token=True),
             tuple(members),
@@ -1074,6 +1151,25 @@ class _SemanticState:
         if self.replicate_counts is None:
             self.replicate_counts = {}
 
+    @property
+    def sealed_member_row_count(self) -> int:
+        return sum(
+            batch.member_row_count for batch in self.sealed_batches.values()
+        )
+
+    @property
+    def origin_distinct_candidate_count(self) -> int:
+        return len(self.replicate_counts)
+
+    @property
+    def origin_sealed_distinct_candidate_count(self) -> int:
+        return len({
+            member.candidate_bytes
+            for batch in self.sealed_batches.values()
+            for member in batch.members
+            if member.outcome != "tombstoned"
+        })
+
 
 def _semantic_object(state: _SemanticState) -> dict[str, object]:
     open_batch: object = None
@@ -1082,7 +1178,7 @@ def _semantic_object(state: _SemanticState) -> dict[str, object]:
         open_batch = {
             "batch_id": state.open_batch["batch_id"],
             "iteration_index": state.open_batch["iteration_index"],
-            "cardinality": state.open_batch["cardinality"],
+            "member_row_count": state.open_batch["member_row_count"],
             "query_ordinal_start": state.open_batch["query_ordinal_start"],
             "members": None if raw_members is None else [
                 _committed_member_object(item)
@@ -1099,6 +1195,11 @@ def _semantic_object(state: _SemanticState) -> dict[str, object]:
         "tombstoned_queries": state.tombstoned_queries,
         "forfeited_iterations": state.forfeited_iterations,
         "forfeited_queries": state.forfeited_queries,
+        "sealed_member_row_count": state.sealed_member_row_count,
+        "origin_distinct_candidate_count": state.origin_distinct_candidate_count,
+        "origin_sealed_distinct_candidate_count": (
+            state.origin_sealed_distinct_candidate_count
+        ),
         "batch_count": state.batch_count,
         "tombstone_count": state.tombstone_count,
         "open_batch": open_batch,
@@ -1124,6 +1225,9 @@ def _preseal_semantic_sha(state: _SemanticState) -> str:
     projected.pop("sealed_queries")
     projected.pop("tombstoned_queries")
     projected.pop("tombstone_count")
+    projected.pop("sealed_member_row_count")
+    projected.pop("origin_distinct_candidate_count")
+    projected.pop("origin_sealed_distinct_candidate_count")
     return _sha256(_canonical_json(projected))
 
 
@@ -1133,17 +1237,18 @@ def _assert_query_partition(state: _SemanticState) -> None:
         _fail("origin open batch shape mismatch")
     pending = 0
     if state.open_batch is not None:
-        cardinality = _integer(
-            state.open_batch["cardinality"], label="open batch cardinality"
+        member_row_count = _integer(
+            state.open_batch["member_row_count"],
+            label="open batch member row count",
         )
         members = state.open_batch["members"]
         if state.phase == "BATCH_RESERVED":
             if members is not None:
                 _fail("reserved batch unexpectedly has committed members")
-            pending = cardinality
+            pending = member_row_count
         else:
-            if type(members) is not tuple or len(members) != cardinality:
-                _fail("open batch cardinality mismatch")
+            if type(members) is not tuple or len(members) != member_row_count:
+                _fail("open batch member row count mismatch")
             expected_type = (
                 CommittedBatchMember
                 if state.phase == "BATCH_COMMITTED"
@@ -1151,7 +1256,7 @@ def _assert_query_partition(state: _SemanticState) -> None:
             )
             if any(type(member) is not expected_type for member in members):
                 _fail("open batch member type mismatch")
-            pending = cardinality
+            pending = member_row_count
     if state.queries_used != (
         state.sealed_queries
         + state.tombstoned_queries
@@ -1211,7 +1316,9 @@ def _apply_event(
         iteration_index = _integer(
             event.iteration_index, label="iteration index"
         )
-        cardinality = _integer(event.cardinality, label="cardinality")
+        member_row_count = _integer(
+            event.member_row_count, label="member row count"
+        )
         query_ordinal_start = _integer(
             event.query_ordinal_start, label="query ordinal start"
         )
@@ -1221,21 +1328,21 @@ def _apply_event(
             _fail("iteration index is not contiguous")
         if query_ordinal_start != state.queries_used:
             _fail("query ordinal start is not contiguous")
-        if cardinality > _MAX_BATCH_CARDINALITY:
-            _fail("batch cardinality exceeds codec feasibility")
-        if cardinality < budget.batch_cardinality_min:
-            _fail("reservation cardinality is below batch minimum")
+        if member_row_count > _MAX_BATCH_MEMBER_ROW_COUNT:
+            _fail("batch member row count exceeds codec feasibility")
+        if member_row_count < budget.batch_member_row_count_min:
+            _fail("reservation member row count is below batch minimum")
         if state.iterations_used + 1 > budget.imax:
             _fail("Imax exceeded")
-        if state.queries_used + cardinality > budget.qmax:
+        if state.queries_used + member_row_count > budget.qmax:
             _fail("Qmax exceeded")
         state.iterations_used += 1
-        state.queries_used += cardinality
+        state.queries_used += member_row_count
         state.seen_batches.add(batch_id)
         state.open_batch = {
             "batch_id": batch_id,
             "iteration_index": iteration_index,
-            "cardinality": cardinality,
+            "member_row_count": member_row_count,
             "query_ordinal_start": query_ordinal_start,
             "members": None,
         }
@@ -1249,7 +1356,7 @@ def _apply_event(
         if batch_id != state.open_batch["batch_id"]:
             _fail("abandoned batch does not match reservation")
         state.forfeited_iterations += 1
-        state.forfeited_queries += int(state.open_batch["cardinality"])
+        state.forfeited_queries += int(state.open_batch["member_row_count"])
         state.open_batch = None
         state.phase = "IDLE"
         _assert_partitions(state)
@@ -1264,9 +1371,9 @@ def _apply_event(
         )
         if type(event.members) is not tuple:
             _fail("invalid committed members")
-        cardinality = len(event.members)
-        if cardinality > _MAX_BATCH_CARDINALITY:
-            _fail("batch cardinality exceeds codec feasibility")
+        member_row_count = len(event.members)
+        if member_row_count > _MAX_BATCH_MEMBER_ROW_COUNT:
+            _fail("batch member row count exceeds codec feasibility")
         members = tuple(
             CommittedBatchMember(
                 query_ordinal=_integer(
@@ -1280,18 +1387,18 @@ def _apply_event(
             else _fail("invalid committed member")
             for member in event.members
         )
-        if len({item.candidate_commitment for item in members}) != cardinality:
+        if len({item.candidate_commitment for item in members}) != member_row_count:
             _fail("invalid batch candidate commitments")
         expected_queries = tuple(range(
             int(reservation["query_ordinal_start"]),
-            int(reservation["query_ordinal_start"]) + cardinality,
+            int(reservation["query_ordinal_start"]) + member_row_count,
         ))
         if tuple(item.query_ordinal for item in members) != expected_queries:
             _fail("committed query ordinals do not match reservation")
         if (
             batch_id != reservation["batch_id"]
             or iteration_index != reservation["iteration_index"]
-            or cardinality != reservation["cardinality"]
+            or member_row_count != reservation["member_row_count"]
         ):
             _fail("committed batch does not match reservation")
         state.batch_count += 1
@@ -1303,7 +1410,7 @@ def _apply_event(
         if state.phase != "BATCH_COMMITTED" or state.open_batch is None:
             _fail("results preparation is not allowed in current phase")
         committed_members = state.open_batch["members"]
-        cardinality = len(committed_members)
+        member_row_count = len(committed_members)
         batch_id = _string(event.batch_id, label="batch ID", token=True)
         if type(event.members) is not tuple:
             _fail("invalid prepared members")
@@ -1341,7 +1448,7 @@ def _apply_event(
             or prepared_identity != committed_identity
         ):
             _fail("prepared results do not match committed batch")
-        if len(prepared_members) != cardinality:
+        if len(prepared_members) != member_row_count:
             _fail("partial prepared result set")
         state.open_batch["members"] = prepared_members
         state.phase = "RESULTS_PREPARED"
@@ -1352,11 +1459,14 @@ def _apply_event(
             _fail("batch seal is not allowed in current phase")
         batch = state.open_batch
         prepared_members = batch["members"]
-        cardinality = len(prepared_members)
+        member_row_count = len(prepared_members)
         batch_id = _string(event.batch_id, label="batch ID", token=True)
         if type(event.members) is not tuple:
             _fail("invalid opened members")
-        if batch_id != batch["batch_id"] or len(event.members) != cardinality:
+        if (
+            batch_id != batch["batch_id"]
+            or len(event.members) != member_row_count
+        ):
             _fail("partial or wrong batch opening")
         normalized: list[OpenedBatchMember] = []
         salts: list[str] = []
@@ -1437,6 +1547,15 @@ def _apply_event(
                 constraint_salt=constraint_salt,
                 constraint_sha256=constraint,
             ))
+        member_row_count = len(normalized)
+        distinct_candidate_count = len({
+            member.candidate_bytes for member in normalized
+        })
+        sealed_distinct_candidate_count = len({
+            member.candidate_bytes
+            for member in normalized
+            if member.outcome != "tombstoned"
+        })
         sealed_members = []
         sealed_count = tombstoned_count = 0
         for member in normalized:
@@ -1458,6 +1577,9 @@ def _apply_event(
         sealed = SealedBatch(
             origin_id=origin_id,
             batch_id=batch_id,
+            member_row_count=member_row_count,
+            distinct_candidate_count=distinct_candidate_count,
+            sealed_distinct_candidate_count=sealed_distinct_candidate_count,
             members=tuple(sealed_members),
         )
         if batch_id in state.sealed_batches:
@@ -1499,6 +1621,12 @@ def _apply_event(
                 for floor in budget.query_floor_constraints
             ):
                 _fail("query floor is not satisfied")
+            if any(
+                0 < batch.sealed_distinct_candidate_count
+                < budget.batch_distinct_candidate_count_min
+                for batch in state.sealed_batches.values()
+            ):
+                _fail("sealed batch distinct candidate count is below minimum")
             exact_class = tuple(sorted(state.rejected_constraints))
             if supplied != exact_class:
                 _fail("certifiable class is not the exact rejected set")
@@ -2056,11 +2184,11 @@ def _dummy_hashes(count: int, *, offset: int = 0) -> tuple[str, ...]:
 
 
 def _feasibility_batch_frames(
-    cardinality: int,
+    member_row_count: int,
     *,
     tombstoned: bool,
 ) -> tuple[bytes, bytes, bytes, bytes]:
-    hashes = _dummy_hashes(cardinality)
+    hashes = _dummy_hashes(member_row_count)
     committed = tuple(
         CommittedBatchMember(_MAX_INTEGER, digest) for digest in hashes
     )
@@ -2075,7 +2203,7 @@ def _feasibility_batch_frames(
             query_ordinal=_MAX_INTEGER,
             replicate_ordinal=_MAX_INTEGER,
             candidate_salt=f"{salt_base:032x}"[-32:],
-            candidate_bytes=b"11111",
+            candidate_bytes=f"{index % 32:05b}".encode("ascii"),
             result_evidence_salt=f"{salt_base + 1:032x}"[-32:],
             outcome="tombstoned" if tombstoned else "rejected",
             evidence_digest=None if tombstoned else EvidenceDigest(digest),
@@ -2084,7 +2212,7 @@ def _feasibility_batch_frames(
         ))
     return (
         _feasibility_event_frame(BatchReserved(
-            "x" * 128, _MAX_INTEGER, cardinality, _MAX_INTEGER
+            "x" * 128, _MAX_INTEGER, member_row_count, _MAX_INTEGER
         )),
         _feasibility_event_frame(BatchCommitted(
             "x" * 128, _MAX_INTEGER, committed
@@ -2098,10 +2226,12 @@ def _feasibility_batch_frames(
     )
 
 
-def _feasibility_abandoned_frames(cardinality: int) -> tuple[bytes, bytes]:
+def _feasibility_abandoned_frames(
+    member_row_count: int,
+) -> tuple[bytes, bytes]:
     return (
         _feasibility_event_frame(BatchReserved(
-            "x" * 128, _MAX_INTEGER, cardinality, _MAX_INTEGER
+            "x" * 128, _MAX_INTEGER, member_row_count, _MAX_INTEGER
         )),
         _feasibility_event_frame(BatchReservationAbandoned("x" * 128)),
     )
@@ -2117,16 +2247,18 @@ def _affine_batch_bytes(
     two = _feasibility_batch_frames(2, tombstoned=tombstoned)
     base = sum(map(len, one))
     increment = sum(map(len, two)) - base
-    # Reservation and commit both carry cardinality.  Frames for cardinalities
-    # 1 and 2 both have one digit, so reserve both maximum decimal expansions
-    # per batch.  This is conservative for every legal member partition.
-    cardinality_digit_reserve = 2 * (
-        len(str(_MAX_BATCH_CARDINALITY)) - 1
+    # Reservation, commit, and seal carry member row count.  The seal also
+    # carries two distinct-candidate counts with an upper bound of 32.  Frames
+    # for one and two rows have one-digit counts, so reserve every remaining
+    # decimal expansion per batch.
+    count_digit_reserve = (
+        3 * (len(str(_MAX_BATCH_MEMBER_ROW_COUNT)) - 1)
+        + 2 * (len(str(32)) - 1)
     )
     return (
         batches * base
         + (members - batches) * increment
-        + batches * cardinality_digit_reserve
+        + batches * count_digit_reserve
     )
 
 
@@ -2151,24 +2283,28 @@ def _feasibility_head_genesis_frame(origin_count: int) -> bytes:
 
 def _check_budget_codec_feasibility(policy: BudgetPolicy) -> tuple[int, int]:
     """Separate per-batch frame feasibility from origin-total capacity."""
-    batch_min = policy.batch_cardinality_min
-    if batch_min > _MAX_BATCH_CARDINALITY:
+    member_row_min = policy.batch_member_row_count_min
+    candidate_min = policy.batch_distinct_candidate_count_min
+    effective_row_min = max(member_row_min, candidate_min)
+    if member_row_min > _MAX_BATCH_MEMBER_ROW_COUNT:
         _fail("batch minimum exceeds codec feasibility")
     try:
-        _feasibility_batch_frames(batch_min, tombstoned=False)
-        _feasibility_batch_frames(batch_min, tombstoned=True)
-        _feasibility_abandoned_frames(batch_min)
+        _feasibility_batch_frames(effective_row_min, tombstoned=False)
+        _feasibility_batch_frames(effective_row_min, tombstoned=True)
+        _feasibility_abandoned_frames(effective_row_min)
     except RefluxOriginLedgerError:
         _fail("batch minimum exceeds codec feasibility")
-    if policy.qmax > policy.imax * _MAX_BATCH_CARDINALITY:
+    if policy.qmax > policy.imax * _MAX_BATCH_MEMBER_ROW_COUNT:
         _fail("Qmax cannot be partitioned into feasible batches")
     maximum_floor = max(
         floor.required_queries for floor in policy.query_floor_constraints
     )
     minimum_floor_batches = (
-        maximum_floor + _MAX_BATCH_CARDINALITY - 1
-    ) // _MAX_BATCH_CARDINALITY
-    maximum_budget_batches = min(policy.imax, policy.qmax // batch_min)
+        maximum_floor + _MAX_BATCH_MEMBER_ROW_COUNT - 1
+    ) // _MAX_BATCH_MEMBER_ROW_COUNT
+    maximum_budget_batches = min(
+        policy.imax, policy.qmax // effective_row_min
+    )
     if minimum_floor_batches > maximum_budget_batches:
         _fail("query floor cannot be partitioned into feasible batches")
     if policy.kmax > _MAX_CLASS_CARDINALITY:
@@ -2226,7 +2362,7 @@ def _check_budget_codec_feasibility(policy: BudgetPolicy) -> tuple[int, int]:
         },
     ))
     head_genesis = _feasibility_head_genesis_frame(1)
-    batch_count = min(policy.imax, policy.qmax // batch_min)
+    batch_count = min(policy.imax, policy.qmax // effective_row_min)
     normal_bytes = _affine_batch_bytes(
         batches=batch_count,
         members=policy.qmax,
@@ -3265,14 +3401,14 @@ def _read_origin_locked(
     state = replay.states[origin_id]
     reserved_batch_id: str | None = None
     reserved_iteration_index: int | None = None
-    reserved_cardinality: int | None = None
+    reserved_member_row_count: int | None = None
     reserved_query_ordinal_start: int | None = None
     if state.phase == "BATCH_RESERVED":
         if state.open_batch is None:
             _fail("reserved origin lacks reservation binding")
         reserved_batch_id = str(state.open_batch["batch_id"])
         reserved_iteration_index = int(state.open_batch["iteration_index"])
-        reserved_cardinality = int(state.open_batch["cardinality"])
+        reserved_member_row_count = int(state.open_batch["member_row_count"])
         reserved_query_ordinal_start = int(
             state.open_batch["query_ordinal_start"]
         )
@@ -3290,9 +3426,10 @@ def _read_origin_locked(
         tombstone_count=state.tombstone_count,
         terminal_status=state.terminal_status,
         constraint_class_sha256s=state.constraint_class,
+        origin_distinct_candidate_count=state.origin_distinct_candidate_count,
         reserved_batch_id=reserved_batch_id,
         reserved_iteration_index=reserved_iteration_index,
-        reserved_cardinality=reserved_cardinality,
+        reserved_member_row_count=reserved_member_row_count,
         reserved_query_ordinal_start=reserved_query_ordinal_start,
     )
 

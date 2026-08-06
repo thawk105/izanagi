@@ -39,7 +39,9 @@ def fixture_manifest() -> dict[str, object]:
         "verifier_policy_sha256": h("5"), "environment_contract_sha256": h("6"), "role_bundle_sha256": h("8"),
         "recipient_projection_schema_sha256": h("9"),
         "candidate_ir": {"schema_ref": "izanagi-trigger-gate-ir/v1", "canonical_emitter_sha256": h("7")},
-        "budget_policy": {"imax": 2, "qmax": 4, "kmax": 0, "batch_cardinality_min": 2,
+        "budget_policy": {"imax": 2, "qmax": 4, "kmax": 0,
+                          "batch_member_row_count_min": 2,
+                          "batch_distinct_candidate_count_min": 1,
                           "query_floor_constraints": [floor]},
         "stock_certification_ref": {"path": "placeholder/stock.json", "sha256": h("a")},
         "structural_zero_evidence_ref": {"path": "placeholder/zero.json", "sha256": h("b")},
@@ -175,7 +177,7 @@ def run_probe(wire_text: str, evidence: str) -> tuple[dict[str, bool], dict[str,
         and (
             after_reservation.reserved_batch_id,
             after_reservation.reserved_iteration_index,
-            after_reservation.reserved_cardinality,
+            after_reservation.reserved_member_row_count,
             after_reservation.reserved_query_ordinal_start,
         ) == ("liveness-negative-duplicate", 1, 2, 2)
     )

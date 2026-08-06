@@ -1,0 +1,180 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/bd84901052dd298b56426e487bcbc2df/izdw-bd84901052.o892474",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/bd84901052dd298b56426e487bcbc2df/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.                                                                        [100%]\n1 passed in 2.73s\n",
+      "stdout_sha256": "fb689de894e8a2af94a3ae47f251d8a2e230dd856f231a4fe2f54db478c943c3"
+    },
+    "artifact_error": null,
+    "collection_sha256": "d3ec5d11572b8bed922af887b9ff289919ad5b07f275833eb210a4475e51a0f3",
+    "duration_s": 26.842,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "b175b5b005d79e687817d8a16ba67ff07ad15e0d0b130e30ead1309509309e83",
+    "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+    "runner_sha256": "38a63efec73a135bdbe6a950e0af943b73e9870eadf8400e09bf2f27d3bc93c4",
+    "spec_sha256": "de8194ba6b3def47d9f6c7ba41253cc14ba9c7cf9852fd4a0d28dce041482531",
+    "status": "PASSED",
+    "test_output_sha256": "fb689de894e8a2af94a3ae47f251d8a2e230dd856f231a4fe2f54db478c943c3",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+  },
+  "date": "2026-08-06T01:41:57.224353+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/e86c5438d1bea56d0967df5b16455dec/izdw-e86c5438d1.o892475",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/e86c5438d1bea56d0967df5b16455dec/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n______ test_normal_run_uses_cumulative_replacements_and_full_failed_line _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_normal_run_uses_cumulativ0/repo')\n\n    def test_normal_run_uses_cumulative_replacements_and_full_failed_line(repo: Path) -> None:\n        spec, out, calls, mode = _paths(repo)\n        _write_spec(\n            spec,\n            [\n                _mutation(\n                    \"M1\",\n                    \"\",\n                    \"\",\n                    \"one\",\n                    replacements=[\n                        {\"file\": \"target.py\", \"old\": \"VALUE = 0\", \"new\": \"VALUE = 1\"},\n                        {\"file\": \"target.py\", \"old\": 'TOKEN = \"x\"', \"new\": 'TOKEN = \"y\"'},\n                    ],\n                )\n            ],\n        )\n    \n>       assert MH.main(_argv(repo, spec, out, calls, mode)) == 0\nE       AssertionError: assert 1 == 0\nE        +  where 1 = <function main at 0x1488d50c88b0>(['--repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_normal_run_uses_cumulativ0/repo', '--spec', '/tmp/pytest-of-t...mulativ0/spec.json', '--expected-spec-sha256', 'ef45d29828d028dff500ba74ffd0c6c30b2311568310dfe5f979b9fbc90d28f3', ...])\nE        +    where <function main at 0x1488d50c88b0> = MH.main\nE        +    and   ['--repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_normal_run_uses_cumulativ0/repo', '--spec', '/tmp/pytest-of-t...mulativ0/spec.json', '--expected-spec-sha256', 'ef45d29828d028dff500ba74ffd0c6c30b2311568310dfe5f979b9fbc90d28f3', ...] = _argv(PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_normal_run_uses_cumulativ0/repo'), PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_normal_run_uses_cumulativ0/spec.json'), PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_normal_run_uses_cumulativ0/ledger.json'), PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_normal_run_uses_cumulativ0/calls.txt'), PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_normal_run_uses_cumulativ0/mode.txt'))\n\norchestrator/tests/test_mutation_harness.py:223: AssertionError\n----------------------------- Captured stdout call -----------------------------\nmutation estimate: 1 mutation(s) x 0.010s, baseline=1 run(s), total=2 run(s)/0.020s; actual execution requires an outer-limit-free detached path\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line\n1 failed in 2.73s\n",
+        "stdout_sha256": "b5615a2140840e7a8403df7407c1f162cb513d892aeb9ed80556741b96b0d114"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "d3ec5d11572b8bed922af887b9ff289919ad5b07f275833eb210a4475e51a0f3",
+      "duration_s": 26.908,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line"
+      ],
+      "hang_risk": false,
+      "id": "MU-5-control-equal-sets-must-stay-killed",
+      "injection_diff_sha256": "146ced74fd289a8d4106cf15cd798fb37ab3c71e8720e89ae6e884cd93a7cd85",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4f66003fb0abf212ce2cb60ce8197a69d0ac3b3d38cc4f3a82ef0d32078178c2",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "new": "    return \"MISMATCH\"",
+          "old": "    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\""
+        }
+      ],
+      "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+      "runner_sha256": "38a63efec73a135bdbe6a950e0af943b73e9870eadf8400e09bf2f27d3bc93c4",
+      "spec_sha256": "de8194ba6b3def47d9f6c7ba41253cc14ba9c7cf9852fd4a0d28dce041482531",
+      "status": "KILLED",
+      "test_output_sha256": "b5615a2140840e7a8403df7407c1f162cb513d892aeb9ed80556741b96b0d114",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/72caa370113eee7e381458dd342cc9ea/izdw-72caa37011.o892473",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/output/pegasus-dispatch/72caa370113eee7e381458dd342cc9ea/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line\n\n1/60 tests collected (59 deselected) in 0.18s\n",
+        "stdout_sha256": "1e5a7e3d913f0bbb13f3163b4bac582d0f19f8672ee8b4aa2f700375e9c28c5d"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line"
+      ],
+      "duration_s": 21.794,
+      "rc": 0,
+      "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+      "runner_sha256": "38a63efec73a135bdbe6a950e0af943b73e9870eadf8400e09bf2f27d3bc93c4",
+      "spec_sha256": "de8194ba6b3def47d9f6c7ba41253cc14ba9c7cf9852fd4a0d28dce041482531",
+      "status": "PASSED",
+      "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MU-5-control-equal-sets-must-stay-killed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "146ced74fd289a8d4106cf15cd798fb37ab3c71e8720e89ae6e884cd93a7cd85",
+        "replacements": [
+          {
+            "file": "tools/mutation_harness.py",
+            "new": "    return \"MISMATCH\"",
+            "old": "    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\""
+          }
+        ]
+      }
+    },
+    "registration_sha256": "b175b5b005d79e687817d8a16ba67ff07ad15e0d0b130e30ead1309509309e83",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mutation_harness.py",
+      "-k",
+      "test_normal_run_uses_cumulative_replacements_and_full_failed_line",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "198b246d0a9f009f8c091d8e32c42942a8e9e6ac",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mutation_harness.py",
+      "-k",
+      "test_normal_run_uses_cumulative_replacements_and_full_failed_line",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/tools/run_tests.py",
+    "entrypoint_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "dd9993c5140a394b2694b7df1edf7cb37f1dcf76",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "38a63efec73a135bdbe6a950e0af943b73e9870eadf8400e09bf2f27d3bc93c4",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "de8194ba6b3def47d9f6c7ba41253cc14ba9c7cf9852fd4a0d28dce041482531",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t454-testification/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "c3016f88446e3ca9aa71bfd86e7b4f7b8e05c91f9ded4c6243d1db63a2650d6f",
+  "updated_at": "2026-08-06T01:42:53.143376+00:00"
+}
