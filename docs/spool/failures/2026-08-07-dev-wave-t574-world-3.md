@@ -30,6 +30,13 @@ seq: 3
 
 ## 再発
 
+### F75
+
+- **再発: 2026-08-07** — 別 wave が使い捨て解析スクリプト 2 本を `.py` のまま insights へ凍結し、
+  実装面 Codex `role=author` を欠いたまま main へ land した。本 wave の記録後 provenance 監査
+  (full history) で顕在化した。前回の再発時に判別条件を「親が実行可能ファイルを書くとき常に」へ
+  広げたが、`--message-file` preflight は当該 wave の commit 経路では発火していない。
+
 ### F138
 
 - **再発: 2026-08-07** — 過剰拒否検出用の正例変異の期待 node を、狙った新設正例 1 本だけで

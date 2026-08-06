@@ -39,8 +39,13 @@ title: [T-574] 残余を閉じた — 配線すべき consumer は 0 件で、�
 - **変異 run 1 は erratum として残した。** 過剰拒否検出の正例変異が非 Mapping 経路も巻き込み、
   事前登録外 2 node を落として MISMATCH になった。field 不在経路だけへ再照準した run 2 が採用値で、
   4/4 一致 (全 KILLED)。焦点再レビューが「結果への期待値合わせではない」と独立に判定した。
-- **provenance 監査は 5 違反だが、5 件すべて別セッション (`worktree-rulings-20260806-a`) の既存
-  merge commit**で、本 wave の commit は clean である。
+- **記録後の provenance 全史監査は 1592 件中 6 違反で、6 件すべて本 wave 以外のものである。**
+  5 件は `worktree-rulings-20260806-a` の trailer なし merge commit。残る 1 件は
+  main 取り込みで入ってきた別 wave の commit で、使い捨て解析スクリプト 2 本を `.py` のまま
+  insights へ凍結して実装面 Codex `role=author` を欠いている (F75 の再発として台帳へ送った)。
+  本 wave の 4 commit はいずれも clean である。
+  なお同監査は queue 滞留で 2 度 rc=16 (queue-wait-timeout) になった。dispatch の既定 grace
+  300s が QUE 中に尽きただけで、retry で完走した。赤ではない。
 - **裁定手順と実行手順が 1 点食い違った。** 段 4 は実装子を 2 単位 (所有素集合) へ分けると裁定したが、
   実際には**単一単位**で投入した。所有パス限定 patch の統合が過去に別 worktree を汚染した先例があり、
   A と B が合計 3 ファイル・小規模だったため、並列化の利得より統合事故の面を嫌った。
