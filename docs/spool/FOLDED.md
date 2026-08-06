@@ -428,3 +428,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"2fed40a8cd025b16b8c27395d814ee58e8922c18ce32ed731ba9bce7506b578b","seq":11,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"09856c7b6f40ac4a158d48b569e456948b23a562085ea2924d223ac8813e9b0a","seq":12,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:four-outcome-ledger":"[T-601]","T:login-build-namespace":"[T-599]","T:reclaim-credit-ruling":"[T-600]","T:scope-escape-containment":"[T-602]"},"authored":"2026-08-06","content_sha256":"65576c74de0ca7a6fcff44394e7405cf71ec4355d6599cb816aa651a4dba4b7c","seq":1,"wave":"dev-wave-t300-login-headroom"}
+- {"allocations":{"D:login-headroom-admission":"D209","D:no-arbitrary-argv-bounded-launcher":"D210"},"authored":"2026-08-06","content_sha256":"332df86f8b8c14ed49f564b671a558057b0105e2e5479a36de09a050bb147cb6","seq":1,"wave":"dev-wave-t300-login-headroom"}
+- {"allocations":{"F:clean-tree-precondition-kills-normal-work":"F148","F:new-behavior-broke-existing-tool-contract":"F149","F:refusal-path-side-effect":"F147"},"authored":"2026-08-06","content_sha256":"9df742a8c04f804e9403237f8910521e2040418f7dc31852f97d84000801477d","seq":1,"wave":"dev-wave-t300-login-headroom"}
