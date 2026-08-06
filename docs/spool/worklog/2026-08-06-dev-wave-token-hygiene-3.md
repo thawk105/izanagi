@@ -70,6 +70,16 @@ title: 開発ループの消費は claude 側が未計装だったので台帳�
   観測可能になったことまで。**トークン消費が減ったこと・effort の最適値・往復削減の効果・
   codex 側の計測改善・成果物 (certified 選択、材料レポート、試行台帳、proof chain) への
   影響は一切名乗らない** — 成果物の値と参照は不変である。
+- **段 8 自己改善 — 候補 3 件を裁定し、dev-wave reference を変更しない。**
+  (a) 段 1 で既存被覆検索 (DW-S01) を怠った件は、恒久対応が「既にある契約を守れ」以外に
+  ならず恒真になるため failures へ送らず本エントリの記録に留める。
+  (b) **テストを 1 本足すと、既存の変異期待 node 登録が陳腐化する**という知見は
+  `docs/dev-wave/mutation.md` へ統合するのが筋だが、4 文書の aggregate 予算余地が
+  13 bytes で追記できない。F87 再発記録に含め、{{T:dev-wave-reference-budget-exhausted}} へ紐づける。
+  **予算引き上げは提案しない。**
+  (c) 背景 job が待ちを張らず停止した件は dev-wave 固有でなく横断的なので、
+  memory (`never-end-turn-with-unawaited-child`) と {{F:bg-job-idled-without-a-wait}} で閉じ、
+  reference は触らない。
 - 逐語と変異台帳は `output/insights/2026-08-06_token-hygiene/`。
 
 ## 次の一手差分
