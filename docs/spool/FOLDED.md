@@ -441,3 +441,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:tautological-exception-type-pin":"F150"},"authored":"2026-08-07","content_sha256":"ce9622204c6e4e0fba251e58b29f2ab79f392880e6736703332d3ac711f64cbf","seq":3,"wave":"dev-wave-t574-world"}
 
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"4f5e6563a34b116e896df0c1d139b801e20dc6970cbf91bd2b6c659835d09d48","seq":4,"wave":"dev-wave-t574-world"}
+
+- {"allocations":{"T:certified-writer-prewrite-closure":"[T-609]"},"authored":"2026-08-07","content_sha256":"161a292b0f7f8943b8c28959ca5f93962989402505da25c2c8a3d7147540fbb3","seq":1,"wave":"dev-wave-t529-activation-impl"}
+- {"allocations":{"D:activation-authority-blocked-by-entry-surface":"D215"},"authored":"2026-08-07","content_sha256":"2b04a920cad5636f1415d98db96ee50aa7a7921a05daa3beca34a82b2c9ab446","seq":2,"wave":"dev-wave-t529-activation-impl"}
+- {"allocations":{"F:ruling-matched-by-topic-not-options":"F151"},"authored":"2026-08-07","content_sha256":"a5e24c7402e37d45d314c76e66760a5ab0e3afcea8906df74c5d3549de1aeaa4","seq":3,"wave":"dev-wave-t529-activation-impl"}
