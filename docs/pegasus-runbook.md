@@ -289,7 +289,9 @@ export IZANAGI_PEGASUS_THIRDPARTY_CACHE=/work/1/SFC/tanab/izanagi-thirdparty-cac
 ```
 
 取得・供給の手順は `tools/pegasus/README.md` §6 を正本とする。3 本の合計は 43 MB 程度で、
-既存の `~/github/{gflags,glog}` は **shallow clone** なので同じ管理単位として扱わない。
+certify が使う gflags / glog の pinned source はこの helper の管理単位ではない (所在の正本は
+policy.json の `gflags_source_path` / `glog_source_path`)。**2026-08-06 に home 配下から移した
+時点で 2 本とも非 shallow** (`rev-parse --is-shallow-repository=false` を実測)。
 
 **directory の create-only publish に `renameat2(RENAME_NOREPLACE)` は使えない** — `/home` だけで
 なく **`/work` でも EINVAL** である (2026-08-04 実測)。`os.link` は directory に EPERM なので
@@ -617,8 +619,10 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 - qstat -f の開始時刻 field は `Started Request Time = <日時>` (PBS 系の stime ではない)
 - **/scr 配下のパスに `:` を含めない** (CMake が PATH 型変数の `:` をリスト区切りとして `;` 化
   する)。ジョブ dir は `${PBS_JOBID//:/_}` 形で作る
-- 計算ノードに gflags / glog は無い。永続領域の pinned ソース (`~/github/gflags` v2.2.2、
-  `~/github/glog` v0.5.0) から /scr で使い捨て static build する (certify が自動実行)
+- 計算ノードに gflags / glog は無い。永続領域の pinned ソース (gflags v2.2.2、glog v0.5.0。
+  所在の正本は policy.json の `gflags_source_path` / `glog_source_path` で、現在は
+  `/work/SFC/<user>/github/` 配下。home 配下ではない) から /scr で使い捨て static build する
+  (certify が自動実行)
 - perf は dispatcher (/usr/bin/perf) がカーネル不一致で使えない。実体
   (/usr/lib/linux-tools/<版>/perf) を policy.json の候補から機能 smoke つきで選定し PATH 注入
   する (ノードにより導入版が異なる: 実測では bnode 側 5.15.0-100/135、ログイン側 101/136/173)
