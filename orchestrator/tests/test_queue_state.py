@@ -66,6 +66,17 @@ def test_real_qstat_output_reads_default_queue_counts_and_raw_line():
     command, kwargs = runner.calls[0]
     assert command == ["qstat", "-Q"]
     assert kwargs["timeout"] == QS.QSTAT_TIMEOUT_S
+    assert kwargs["text"] is False
+    assert kwargs["env"]["LC_ALL"] == "C"
+
+
+def test_qstat_uses_c_locale():
+    runner = _runner(QSTAT_OUTPUT)
+
+    assert QS.queue_state(runner=runner) is not None
+
+    _command, kwargs = runner.calls[0]
+    assert kwargs["env"]["LC_ALL"] == "C"
 
 
 def test_dis_act_is_unavailable():
@@ -132,6 +143,64 @@ QueueName SCH JSVs ENA STS PRI TOT ARR WAI QUE PRR RUN
 gen_S       1 148 ENA ACT 30 9 0 0 7 0 2
 """
     assert QS.queue_state(runner=_runner(output)) is None
+
+
+def test_duplicate_target_rows_are_unknown_instead_of_using_first():
+    target = next(line for line in QSTAT_OUTPUT.splitlines() if line.startswith("gen_S"))
+    output = QSTAT_OUTPUT.replace(target, target + "\n" + target)
+
+    assert QS.queue_state(runner=_runner(output)) is None
+    possible, reason = QS.dispatch_possible(runner=_runner(output))
+    assert possible is True
+    assert "観測不能" in reason
+
+
+def test_multiple_execution_tables_are_unknown_even_with_one_target_row():
+    second = """\
+[EXECUTION QUEUE] Batch Server Host: second
+QueueName SCH JSVs ENA STS PRI TOT ARR WAI QUE PRR RUN
+other       1 148 ENA ACT 30 0 0 0 0 0 0
+"""
+
+    assert QS.queue_state(runner=_runner(QSTAT_OUTPUT + second)) is None
+
+
+def test_shifted_target_columns_are_unknown():
+    shifted = QSTAT_OUTPUT.replace(
+        "gen_S             1  148 ENA ACT   30  163   0   0  95   0  68",
+        "gen_S             1      ENA ACT   30  163   0   0  95   0  68",
+    )
+
+    assert QS.queue_state(runner=_runner(shifted)) is None
+
+
+def test_different_header_name_is_unknown():
+    changed = QSTAT_OUTPUT.replace("QueueName", "Queue", 1)
+
+    assert QS.queue_state(runner=_runner(changed)) is None
+
+
+def test_oversized_stdout_or_stderr_is_unknown_and_treated_as_available():
+    huge = b"x" * (QS.QSTAT_OUTPUT_LIMIT_BYTES + 1)
+    runners = [
+        _runner(huge),
+        lambda command, **kwargs: subprocess.CompletedProcess(command, 0, b"", huge),
+    ]
+
+    for runner in runners:
+        assert QS.queue_state(runner=runner) is None
+        possible, reason = QS.dispatch_possible(runner=runner)
+        assert possible is True
+        assert "観測不能" in reason
+
+
+def test_production_reader_stops_at_byte_limit():
+    command = [sys.executable, "-c", "import sys; sys.stdout.write('x' * 4096)"]
+
+    with mock.patch.object(QS, "QSTAT_OUTPUT_LIMIT_BYTES", 32):
+        result = QS._run_qstat_bounded(command, timeout=1.0, env={})
+
+    assert result is None
 
 
 def test_total_and_separator_are_never_treated_as_queue_rows():

@@ -80,7 +80,6 @@ def _fake_cgroup(
     monkeypatch.setattr(LH, "_PROC_SELF_CGROUP", str(proc))
     monkeypatch.setattr(LH.os, "getuid", lambda: _UID)
     monkeypatch.setattr(LH, "_filesystem_magic", lambda _fd: LH._CGROUP2_SUPER_MAGIC)
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     return {"root": root, "user": user, "own": own, "proc": proc}
 
 
@@ -99,9 +98,71 @@ def _observation(*, ceiling: int, current: int, anon: int = 1) -> LH.LoginHeadro
     )
 
 
+def _ledger_base(tmp_path: Path) -> Path:
+    base = tmp_path / "runtime"
+    base.mkdir(mode=0o700, exist_ok=True)
+    base.chmod(0o700)
+    return base
+
+
 def _reservation_files(tmp_path: Path) -> list[Path]:
-    directory = tmp_path / "runtime" / LH.ADMISSION_DIRNAME
+    directory = _ledger_base(tmp_path) / LH.ADMISSION_DIRNAME
     return sorted(directory.glob("*.json")) if directory.exists() else []
+
+
+def _write_reservation_record(
+    tmp_path: Path,
+    *,
+    pid: int,
+    starttime: int,
+    estimate_bytes: int,
+    scope_cgroup: Path | None = None,
+    name: str = "fixture.json",
+) -> Path:
+    directory = _ledger_base(tmp_path) / LH.ADMISSION_DIRNAME
+    directory.mkdir(mode=0o700, exist_ok=True)
+    directory.chmod(0o700)
+    record = directory / name
+    record.write_text(
+        json.dumps(
+            {
+                "pid": pid,
+                "starttime": starttime,
+                "estimate_bytes": estimate_bytes,
+                "acquired_at": 1.0,
+                "scope_cgroup": str(scope_cgroup) if scope_cgroup is not None else None,
+            }
+        ),
+        encoding="utf-8",
+    )
+    record.chmod(0o600)
+    return record
+
+
+def _write_legacy_reservation_record(
+    tmp_path: Path,
+    *,
+    pid: int,
+    estimate_bytes: int,
+    acquired_at: float,
+    name: str = "legacy.json",
+) -> Path:
+    directory = _ledger_base(tmp_path) / LH.ADMISSION_DIRNAME
+    directory.mkdir(mode=0o700, exist_ok=True)
+    directory.chmod(0o700)
+    record = directory / name
+    record.write_text(
+        json.dumps(
+            {
+                "pid": pid,
+                "estimate_bytes": estimate_bytes,
+                "acquired_at": acquired_at,
+            }
+        ),
+        encoding="utf-8",
+    )
+    record.chmod(0o600)
+    return record
 
 
 def test_reads_exact_user_slice_and_returns_every_observation_field(
@@ -175,7 +236,7 @@ def test_uses_raw_memory_current_not_anon_for_occupancy_and_admission(
         anon=100,
     )
     monkeypatch.setattr(LH, "login_headroom", lambda: admission_observation)
-    assert LH.admit(101)[0] is LH.Admission.DISPATCH
+    assert LH.admit(101, _base_dir=_ledger_base(tmp_path))[0] is LH.Admission.DISPATCH
 
 
 @pytest.mark.parametrize(
@@ -244,6 +305,23 @@ def test_cgroup_walk_uses_directory_fds_with_directory_and_nofollow_flags(
     for flags, _dir_fd in directory_calls.values():
         assert flags & os.O_DIRECTORY
         assert flags & os.O_NOFOLLOW
+
+
+def test_filesystem_magic_is_checked_on_root_and_actual_user_slice_directory(
+    tmp_path,
+    monkeypatch,
+):
+    paths = _fake_cgroup(tmp_path, monkeypatch)
+    checked = []
+
+    def record_magic(fd):
+        checked.append(Path(os.readlink(f"/proc/self/fd/{fd}")))
+        return LH._CGROUP2_SUPER_MAGIC
+
+    monkeypatch.setattr(LH, "_filesystem_magic", record_magic)
+
+    assert LH.login_headroom() is not None
+    assert checked == [paths["root"], paths["own"]]
 
 
 def _missing_current(paths, _monkeypatch):
@@ -413,10 +491,14 @@ def test_every_observation_failure_is_none_and_dispatch(
     mutation(paths, monkeypatch)
 
     assert LH.login_headroom() is None
-    admission, reason = LH.admit(1)
+    admission, reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))
     assert admission is LH.Admission.DISPATCH
     assert isinstance(reason, str) and reason
-    assert LH.grant_budget(max_bytes=1, min_bytes=1)[0] is LH.Admission.DISPATCH
+    assert LH.grant_budget(
+        max_bytes=1,
+        min_bytes=1,
+        _base_dir=_ledger_base(tmp_path),
+    )[0] is LH.Admission.DISPATCH
 
 
 @pytest.mark.parametrize("estimate", [0, -1, True, "1"])
@@ -425,19 +507,17 @@ def test_nonpositive_or_noninteger_estimate_dispatches_without_observation(
     monkeypatch,
     estimate,
 ):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     monkeypatch.setattr(
         LH,
         "login_headroom",
         lambda: (_ for _ in ()).throw(AssertionError("must not observe")),
     )
-    assert LH.admit(estimate)[0] is LH.Admission.DISPATCH
-    with LH.reserve(estimate) as decision:
+    assert LH.admit(estimate, _base_dir=_ledger_base(tmp_path))[0] is LH.Admission.DISPATCH
+    with LH.reserve(estimate, _base_dir=_ledger_base(tmp_path)) as decision:
         assert decision[0] is LH.Admission.DISPATCH
 
 
 def test_admission_accepts_exact_ceiling_boundary(tmp_path, monkeypatch):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     monkeypatch.setattr(
         LH,
         "login_headroom",
@@ -447,7 +527,7 @@ def test_admission_accepts_exact_ceiling_boundary(tmp_path, monkeypatch):
         ),
     )
 
-    admission, reason = LH.admit(50)
+    admission, reason = LH.admit(50, _base_dir=_ledger_base(tmp_path))
 
     assert admission is LH.Admission.LOCAL
     assert isinstance(reason, str) and reason
@@ -457,7 +537,6 @@ def test_grant_budget_is_capped_at_maximum_and_records_diagnostics(
     tmp_path,
     monkeypatch,
 ):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     current = 12345
     ceiling = current + LH.RESERVE_BYTES + LH.MAX_LOCAL_BUDGET_BYTES + 999
     monkeypatch.setattr(
@@ -466,7 +545,8 @@ def test_grant_budget_is_capped_at_maximum_and_records_diagnostics(
         lambda: _observation(ceiling=ceiling, current=current),
     )
 
-    admission, budget, reason = LH.grant_budget()
+    grant = LH.grant_budget(_base_dir=_ledger_base(tmp_path))
+    admission, budget, reason = grant
 
     assert admission is LH.Admission.LOCAL
     assert budget == LH.MAX_LOCAL_BUDGET_BYTES
@@ -476,10 +556,11 @@ def test_grant_budget_is_capped_at_maximum_and_records_diagnostics(
     records = _reservation_files(tmp_path)
     assert len(records) == 1
     assert json.loads(records[0].read_text(encoding="utf-8"))["estimate_bytes"] == budget
+    assert "解放しました" in grant.release()
+    assert _reservation_files(tmp_path) == []
 
 
 def test_grant_budget_dispatches_below_minimum(tmp_path, monkeypatch):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     available = LH.MIN_LOCAL_BUDGET_BYTES - 1
     ceiling = LH.RESERVE_BYTES + available
     monkeypatch.setattr(
@@ -488,7 +569,7 @@ def test_grant_budget_dispatches_below_minimum(tmp_path, monkeypatch):
         lambda: _observation(ceiling=ceiling, current=0),
     )
 
-    admission, budget, reason = LH.grant_budget()
+    admission, budget, reason = LH.grant_budget(_base_dir=_ledger_base(tmp_path))
 
     assert admission is LH.Admission.DISPATCH
     assert budget is None
@@ -497,7 +578,6 @@ def test_grant_budget_dispatches_below_minimum(tmp_path, monkeypatch):
 
 
 def test_grant_budget_subtracts_live_reservations(tmp_path, monkeypatch):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     available = 1000
     monkeypatch.setattr(
         LH,
@@ -508,11 +588,12 @@ def test_grant_budget_subtracts_live_reservations(tmp_path, monkeypatch):
         ),
     )
 
-    with LH.reserve(250) as first:
+    with LH.reserve(250, _base_dir=_ledger_base(tmp_path)) as first:
         assert first[0] is LH.Admission.LOCAL
         admission, budget, reason = LH.grant_budget(
             max_bytes=available,
             min_bytes=1,
+            _base_dir=_ledger_base(tmp_path),
         )
 
     assert admission is LH.Admission.LOCAL
@@ -532,7 +613,7 @@ def test_grant_budget_decides_and_reserves_under_one_lock(monkeypatch):
             events.append("lock-exit")
             return False
 
-    monkeypatch.setattr(LH, "_locked_ledger", LockedLedger)
+    monkeypatch.setattr(LH, "_locked_ledger", lambda **_kwargs: LockedLedger())
     monkeypatch.setattr(
         LH,
         "login_headroom",
@@ -545,11 +626,12 @@ def test_grant_budget_decides_and_reserves_under_one_lock(monkeypatch):
     def collect(directory_fd):
         assert directory_fd == 99
         events.append("decide")
-        return 0
+        return 0, []
 
-    def create(directory_fd, budget):
+    def create(directory_fd, budget, *, scope_cgroup=None):
         assert directory_fd == 99
         assert budget == 100
+        assert scope_cgroup is None
         events.append("reserve")
         return "reservation.json"
 
@@ -563,35 +645,36 @@ def test_grant_budget_decides_and_reserves_under_one_lock(monkeypatch):
     assert events == ["lock-enter", "decide", "reserve", "lock-exit"]
 
 
-def test_admission_directory_uses_uid_default_and_environment_override(
+def test_environment_cannot_override_production_ledger_namespace_but_private_argument_can(
     tmp_path,
     monkeypatch,
 ):
-    monkeypatch.delenv(LH.ADMISSION_BASE_DIR_ENV, raising=False)
     monkeypatch.setattr(LH.os, "getuid", lambda: _UID)
     assert LH._admission_directory() == (
         Path("/run/user") / str(_UID) / LH.ADMISSION_DIRNAME
     )
 
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path))
-    assert LH._admission_directory() == tmp_path / LH.ADMISSION_DIRNAME
+    monkeypatch.setenv("IZANAGI_ADMISSION_BASE_DIR", str(tmp_path / "attacker"))
+    assert LH._admission_directory() == (
+        Path("/run/user") / str(_UID) / LH.ADMISSION_DIRNAME
+    )
+    assert LH._admission_directory(_base_dir=tmp_path) == tmp_path / LH.ADMISSION_DIRNAME
 
 
 def test_second_concurrent_reservation_dispatches_when_live_sum_exceeds_ceiling(
     tmp_path,
     monkeypatch,
 ):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     monkeypatch.setattr(
         LH,
         "login_headroom",
         lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
     )
 
-    with LH.reserve(40) as first:
+    with LH.reserve(40, _base_dir=_ledger_base(tmp_path)) as first:
         assert first[0] is LH.Admission.LOCAL
         assert len(_reservation_files(tmp_path)) == 1
-        with LH.reserve(61) as second:
+        with LH.reserve(61, _base_dir=_ledger_base(tmp_path)) as second:
             assert second[0] is LH.Admission.DISPATCH
             assert len(_reservation_files(tmp_path)) == 1
     assert _reservation_files(tmp_path) == []
@@ -601,32 +684,110 @@ def test_dead_pid_reservation_is_recovered_before_admission(
     tmp_path,
     monkeypatch,
 ):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     monkeypatch.setattr(
         LH,
         "login_headroom",
         lambda: _observation(ceiling=LH.RESERVE_BYTES + 10, current=0),
     )
-    directory = tmp_path / "runtime" / LH.ADMISSION_DIRNAME
-    directory.mkdir(parents=True)
+    directory = _ledger_base(tmp_path) / LH.ADMISSION_DIRNAME
+    directory.mkdir(mode=0o700)
     stale = directory / "stale.json"
     stale.write_text(
-        json.dumps({"pid": 99999999, "estimate_bytes": 1000, "acquired_at": 1.0}),
+        json.dumps(
+            {
+                "pid": 99999999,
+                "starttime": 1,
+                "estimate_bytes": 1000,
+                "acquired_at": 1.0,
+                "scope_cgroup": None,
+            }
+        ),
         encoding="utf-8",
     )
-    monkeypatch.setattr(LH, "_pid_is_alive", lambda pid: False)
+    stale.chmod(0o600)
+    monkeypatch.setattr(LH, "_process_starttime", lambda pid: None)
 
-    admission, _ = LH.admit(1)
+    admission, _ = LH.admit(1, _base_dir=_ledger_base(tmp_path))
 
     assert admission is LH.Admission.LOCAL
     assert not stale.exists()
+
+
+def test_legacy_schema_dead_pid_is_recovered_by_next_grant(
+    tmp_path,
+    monkeypatch,
+):
+    dead_pid = 99999999
+    stale = _write_legacy_reservation_record(
+        tmp_path,
+        pid=dead_pid,
+        estimate_bytes=90,
+        acquired_at=LH.time.time(),
+    )
+    real_process_starttime = LH._process_starttime
+    monkeypatch.setattr(
+        LH,
+        "_process_starttime",
+        lambda pid: None if pid == dead_pid else real_process_starttime(pid),
+    )
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+
+    grant = LH.grant_budget(
+        max_bytes=100,
+        min_bytes=1,
+        _base_dir=_ledger_base(tmp_path),
+    )
+
+    assert grant.admission is LH.Admission.LOCAL
+    assert grant.budget_bytes == 100
+    assert "生存中の予約=0 bytes" in grant.reason
+    assert "壊れた予約 record" not in grant.reason
+    assert not stale.exists()
+    grant.release()
+
+
+def test_legacy_schema_live_pid_is_kept_and_charged_safely(
+    tmp_path,
+    monkeypatch,
+):
+    legacy = _write_legacy_reservation_record(
+        tmp_path,
+        pid=os.getpid(),
+        estimate_bytes=90,
+        acquired_at=LH.time.time(),
+    )
+    monkeypatch.setattr(LH, "_process_starttime", lambda _pid: 12345)
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(
+            ceiling=LH.RESERVE_BYTES + LH.MAX_LOCAL_BUDGET_BYTES + 100,
+            current=0,
+        ),
+    )
+
+    grant = LH.grant_budget(
+        max_bytes=100,
+        min_bytes=1,
+        _base_dir=_ledger_base(tmp_path),
+    )
+
+    assert grant.admission is LH.Admission.LOCAL
+    assert grant.budget_bytes == 100
+    assert f"生存中の予約={LH.MAX_LOCAL_BUDGET_BYTES} bytes" in grant.reason
+    assert "壊れた予約 record legacy.json を最大予算分として算入" in grant.reason
+    assert legacy.exists()
+    grant.release()
 
 
 def test_reservation_context_releases_record_when_body_raises(
     tmp_path,
     monkeypatch,
 ):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     monkeypatch.setattr(
         LH,
         "login_headroom",
@@ -634,19 +795,23 @@ def test_reservation_context_releases_record_when_body_raises(
     )
 
     with pytest.raises(RuntimeError, match="body failed"):
-        with LH.reserve(1) as decision:
+        with LH.reserve(1, _base_dir=_ledger_base(tmp_path)) as decision:
             assert decision[0] is LH.Admission.LOCAL
             records = _reservation_files(tmp_path)
             assert len(records) == 1
             record = json.loads(records[0].read_text(encoding="utf-8"))
             assert set(record) == {
                 "pid",
+                "starttime",
                 "estimate_bytes",
                 "acquired_at",
+                "scope_cgroup",
             }
             assert record["pid"] == os.getpid()
+            assert isinstance(record["starttime"], int)
             assert record["estimate_bytes"] == 1
             assert isinstance(record["acquired_at"], float)
+            assert record["scope_cgroup"] is None
             raise RuntimeError("body failed")
     assert _reservation_files(tmp_path) == []
 
@@ -655,7 +820,6 @@ def test_reservation_context_releases_record_on_keyboard_interrupt(
     tmp_path,
     monkeypatch,
 ):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
     monkeypatch.setattr(
         LH,
         "login_headroom",
@@ -663,36 +827,395 @@ def test_reservation_context_releases_record_on_keyboard_interrupt(
     )
 
     with pytest.raises(KeyboardInterrupt):
-        with LH.reserve(1) as decision:
+        with LH.reserve(1, _base_dir=_ledger_base(tmp_path)) as decision:
             assert decision[0] is LH.Admission.LOCAL
             raise KeyboardInterrupt
     assert _reservation_files(tmp_path) == []
 
 
-def test_corrupt_reservation_and_ledger_acquisition_failure_dispatch(
+@pytest.mark.parametrize(
+    "violation",
+    ["owner", "mode"],
+    ids=["wrong-owner", "wrong-mode"],
+)
+def test_ledger_directory_wrong_owner_or_mode_dispatches(
     tmp_path,
     monkeypatch,
+    violation,
 ):
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(tmp_path / "runtime"))
+    base = _ledger_base(tmp_path)
     monkeypatch.setattr(
         LH,
         "login_headroom",
         lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
     )
-    directory = tmp_path / "runtime" / LH.ADMISSION_DIRNAME
-    directory.mkdir(parents=True)
-    (directory / "broken.json").write_text("not-json", encoding="utf-8")
-    assert LH.admit(1)[0] is LH.Admission.DISPATCH
-    assert LH.grant_budget(max_bytes=1, min_bytes=1)[0] is LH.Admission.DISPATCH
-    with LH.reserve(1) as decision:
+    if violation == "owner":
+        actual_euid = os.geteuid()
+        monkeypatch.setattr(LH.os, "geteuid", lambda: actual_euid + 1)
+    else:
+        base.chmod(0o755)
+
+    admission, budget, reason = LH.grant_budget(
+        max_bytes=100,
+        min_bytes=1,
+        _base_dir=base,
+    )
+
+    assert admission is LH.Admission.DISPATCH
+    assert budget is None
+    assert "予約台帳を安全に更新できない" in reason
+
+
+def test_ledger_directory_and_record_modes_are_private(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+
+    grant = LH.grant_budget(max_bytes=100, min_bytes=1, _base_dir=_ledger_base(tmp_path))
+
+    assert grant.admission is LH.Admission.LOCAL
+    directory = _ledger_base(tmp_path) / LH.ADMISSION_DIRNAME
+    assert directory.stat().st_mode & 0o777 == 0o700
+    assert (directory / ".lock").stat().st_mode & 0o777 == 0o600
+    assert _reservation_files(tmp_path)[0].stat().st_mode & 0o777 == 0o600
+    grant.release()
+
+
+def test_grant_handle_can_bind_scope_after_scope_path_is_known(tmp_path, monkeypatch):
+    paths = _fake_cgroup(tmp_path, monkeypatch)
+    scope = paths["root"] / "user.slice" / f"user-{_UID}.slice" / "late.scope"
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+    grant = LH.grant_budget(
+        max_bytes=100,
+        min_bytes=1,
+        _base_dir=_ledger_base(tmp_path),
+    )
+
+    reason = grant.bind_scope(scope)
+
+    assert "結び付けました" in reason
+    record = json.loads(_reservation_files(tmp_path)[0].read_text(encoding="utf-8"))
+    assert record["scope_cgroup"] == str(scope)
+    grant.release()
+
+
+def test_dead_pid_with_populated_scope_cgroup_keeps_reservation(
+    tmp_path,
+    monkeypatch,
+):
+    paths = _fake_cgroup(tmp_path, monkeypatch)
+    scope = paths["root"] / "user.slice" / f"user-{_UID}.slice" / "run.scope"
+    scope.mkdir()
+    _write(scope / "cgroup.events", "populated 1\nfrozen 0\n")
+    record = _write_reservation_record(
+        tmp_path,
+        pid=99999999,
+        starttime=1,
+        estimate_bytes=90,
+        scope_cgroup=scope,
+    )
+    monkeypatch.setattr(LH, "_process_starttime", lambda _pid: None)
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+
+    admission, reason = LH.admit(20, _base_dir=_ledger_base(tmp_path))
+
+    assert admission is LH.Admission.DISPATCH
+    assert "生存中の予約=90 bytes" in reason
+    assert record.exists()
+
+
+def test_dead_pid_and_missing_scope_cgroup_reclaims_reservation(
+    tmp_path,
+    monkeypatch,
+):
+    paths = _fake_cgroup(tmp_path, monkeypatch)
+    missing_scope = paths["root"] / "missing.scope"
+    record = _write_reservation_record(
+        tmp_path,
+        pid=99999999,
+        starttime=1,
+        estimate_bytes=90,
+        scope_cgroup=missing_scope,
+    )
+    monkeypatch.setattr(LH, "_process_starttime", lambda _pid: None)
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+
+    assert LH.admit(20, _base_dir=_ledger_base(tmp_path))[0] is LH.Admission.LOCAL
+    assert not record.exists()
+
+
+def test_pid_reuse_with_same_pid_and_different_starttime_reclaims_reservation(
+    tmp_path,
+    monkeypatch,
+):
+    record = _write_reservation_record(
+        tmp_path,
+        pid=os.getpid(),
+        starttime=111,
+        estimate_bytes=90,
+    )
+    monkeypatch.setattr(LH, "_process_starttime", lambda _pid: 222)
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+
+    assert LH.admit(20, _base_dir=_ledger_base(tmp_path))[0] is LH.Admission.LOCAL
+    assert not record.exists()
+
+
+def test_ledger_lock_deadline_dispatches_without_hanging(tmp_path, monkeypatch):
+    base = _ledger_base(tmp_path)
+    directory = base / LH.ADMISSION_DIRNAME
+    directory.mkdir(mode=0o700)
+    lock_path = directory / ".lock"
+    lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    os.chmod(lock_path, 0o600)
+    LH.fcntl.flock(lock_fd, LH.fcntl.LOCK_EX | LH.fcntl.LOCK_NB)
+    monkeypatch.setattr(LH, "LEDGER_LOCK_TIMEOUT_S", 0.02)
+    monkeypatch.setattr(LH, "LEDGER_LOCK_RETRY_S", 0.001)
+    started = LH.time.monotonic()
+    try:
+        admission, reason = LH.admit(1, _base_dir=base)
+    finally:
+        LH.fcntl.flock(lock_fd, LH.fcntl.LOCK_UN)
+        os.close(lock_fd)
+
+    assert admission is LH.Admission.DISPATCH
+    assert "台帳 lock を取得できなかった" in reason
+    assert LH.time.monotonic() - started < 0.5
+
+
+def test_remembered_peak_larger_than_available_dispatches_immediately(
+    tmp_path,
+    monkeypatch,
+):
+    base = _ledger_base(tmp_path)
+    LH.remember_peak("tests", LH.MAX_LOCAL_BUDGET_BYTES * 2, _base_dir=base)
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(
+            ceiling=LH.RESERVE_BYTES + LH.MAX_LOCAL_BUDGET_BYTES,
+            current=0,
+        ),
+    )
+
+    grant = LH.grant_budget(operation="tests", _base_dir=base)
+
+    assert grant.admission is LH.Admission.DISPATCH
+    assert grant.budget_bytes is None
+    assert f"前回ピーク {LH.MAX_LOCAL_BUDGET_BYTES * 2} bytes" in grant.reason
+    assert f"今の余裕 {LH.MAX_LOCAL_BUDGET_BYTES} bytes" in grant.reason
+
+
+def test_operation_without_remembered_peak_can_use_maximum_local_budget(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(
+            ceiling=LH.RESERVE_BYTES + LH.MAX_LOCAL_BUDGET_BYTES,
+            current=0,
+        ),
+    )
+
+    grant = LH.grant_budget(operation="first-probe", _base_dir=_ledger_base(tmp_path))
+
+    assert grant.admission is LH.Admission.LOCAL
+    assert grant.budget_bytes == LH.MAX_LOCAL_BUDGET_BYTES
+    grant.release()
+
+
+def test_remembered_peak_narrows_budget_to_estimate_instead_of_all_available(
+    tmp_path,
+    monkeypatch,
+):
+    base = _ledger_base(tmp_path)
+    peak = 2 * 1024**3
+    expected = int(peak * 1.25)
+    LH.remember_peak("tests", peak, _base_dir=base)
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(
+            ceiling=LH.RESERVE_BYTES + LH.MAX_LOCAL_BUDGET_BYTES,
+            current=0,
+        ),
+    )
+
+    grant = LH.grant_budget(operation="tests", _base_dir=base)
+
+    assert grant.admission is LH.Admission.LOCAL
+    assert grant.budget_bytes == expected
+    assert grant.budget_bytes < LH.MAX_LOCAL_BUDGET_BYTES
+    assert LH.recall_peak("tests", _base_dir=base) == peak
+    assert LH.estimate_for("tests", _base_dir=base) == expected
+    grant.release()
+
+
+def test_corrupt_peak_is_treated_as_no_record(tmp_path):
+    base = _ledger_base(tmp_path)
+    directory = base / LH.ADMISSION_DIRNAME
+    directory.mkdir(mode=0o700)
+    peak = directory / "peak-tests.peak"
+    peak.write_text("not-json", encoding="utf-8")
+    peak.chmod(0o600)
+
+    assert LH.recall_peak("tests", _base_dir=base) is None
+    assert LH.estimate_for("tests", _base_dir=base) is None
+
+
+def test_explicit_lease_release_failure_is_retained_in_reason(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+    grant = LH.grant_budget(max_bytes=100, min_bytes=1, _base_dir=_ledger_base(tmp_path))
+    real_unlink = LH.os.unlink
+
+    def fail_reservation_unlink(path, *args, **kwargs):
+        if os.fspath(path).endswith(".json"):
+            raise OSError("injected release failure")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(LH.os, "unlink", fail_reservation_unlink)
+
+    reason = grant.release()
+
+    assert "解放できなかった" in reason
+    assert grant.release_reason == reason
+    assert grant.lease is not None and grant.lease.released is False
+
+
+def test_corrupt_reservation_is_charged_safely_and_reported_without_crashing(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+    directory = _ledger_base(tmp_path) / LH.ADMISSION_DIRNAME
+    directory.mkdir(mode=0o700)
+    broken = directory / "broken.json"
+    broken.write_text("not-json", encoding="utf-8")
+    broken.chmod(0o600)
+
+    admission, reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))
+    assert admission is LH.Admission.DISPATCH
+    assert "壊れた予約 record" in reason
+    grant = LH.grant_budget(max_bytes=1, min_bytes=1, _base_dir=_ledger_base(tmp_path))
+    assert grant[0] is LH.Admission.DISPATCH
+    assert "生存中の予約=4294967296 bytes" in grant.reason
+    assert "壊れた予約 record" in grant.reason
+    assert broken.exists()
+    with LH.reserve(1, _base_dir=_ledger_base(tmp_path)) as decision:
         assert decision[0] is LH.Admission.DISPATCH
 
+
+def test_expired_corrupt_reservation_is_recovered_by_next_grant(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+    directory = _ledger_base(tmp_path) / LH.ADMISSION_DIRNAME
+    directory.mkdir(mode=0o700)
+    broken = directory / "expired.json"
+    broken.write_text("not-json", encoding="utf-8")
+    broken.chmod(0o600)
+    expired = LH.time.time() - LH.STALE_RECORD_MAX_AGE_S - 1
+    os.utime(broken, (expired, expired))
+
+    grant = LH.grant_budget(
+        max_bytes=100,
+        min_bytes=1,
+        _base_dir=_ledger_base(tmp_path),
+    )
+
+    assert grant.admission is LH.Admission.LOCAL
+    assert grant.budget_bytes == 100
+    assert "生存中の予約=0 bytes" in grant.reason
+    assert "壊れた予約 record" not in grant.reason
+    assert not broken.exists()
+    grant.release()
+
+
+def test_expired_corrupt_reservation_reclaim_failure_is_reported(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
+    directory = _ledger_base(tmp_path) / LH.ADMISSION_DIRNAME
+    directory.mkdir(mode=0o700)
+    broken = directory / "expired.json"
+    broken.write_text("not-json", encoding="utf-8")
+    broken.chmod(0o600)
+    expired = LH.time.time() - LH.STALE_RECORD_MAX_AGE_S - 1
+    os.utime(broken, (expired, expired))
+    real_unlink = LH.os.unlink
+
+    def fail_expired_unlink(path, *args, **kwargs):
+        if os.fspath(path) == broken.name:
+            raise OSError("injected reclaim failure")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(LH.os, "unlink", fail_expired_unlink)
+
+    grant = LH.grant_budget(
+        max_bytes=100,
+        min_bytes=1,
+        _base_dir=_ledger_base(tmp_path),
+    )
+
+    assert grant.admission is LH.Admission.DISPATCH
+    assert "失効した予約 record expired.json を回収できず算入" in grant.reason
+    assert "壊れた予約 record expired.json を最大予算分として算入" in grant.reason
+    assert broken.exists()
+
+
+def test_non_directory_private_ledger_base_dispatches(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        LH,
+        "login_headroom",
+        lambda: _observation(ceiling=LH.RESERVE_BYTES + 100, current=0),
+    )
     blocking_file = tmp_path / "not-a-directory"
     blocking_file.write_text("x", encoding="utf-8")
-    monkeypatch.setenv(LH.ADMISSION_BASE_DIR_ENV, str(blocking_file))
-    assert LH.admit(1)[0] is LH.Admission.DISPATCH
-    assert LH.grant_budget(max_bytes=1, min_bytes=1)[0] is LH.Admission.DISPATCH
-    with LH.reserve(1) as decision:
+    assert LH.admit(1, _base_dir=blocking_file)[0] is LH.Admission.DISPATCH
+    assert LH.grant_budget(
+        max_bytes=1,
+        min_bytes=1,
+        _base_dir=blocking_file,
+    )[0] is LH.Admission.DISPATCH
+    with LH.reserve(1, _base_dir=blocking_file) as decision:
         assert decision[0] is LH.Admission.DISPATCH
 
 
@@ -764,6 +1287,7 @@ def test_login_headroom_is_stdlib_only_and_defers_annotations():
         "os",
         "pathlib",
         "secrets",
+        "stat",
         "time",
         "typing",
     }

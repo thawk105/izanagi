@@ -52,6 +52,7 @@ def _clean_runner_env(monkeypatch):
         "GIT_OBJECT_DIRECTORY", "GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT",
         "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS", "IZANAGI_TEST_TRIGGER",
         "IZANAGI_TASK_RUN_ID", "PYTEST_ADDOPTS",
+        "IZANAGI_RUN_TESTS_SCOPE_UNIT", "IZANAGI_RUN_TESTS_SCOPE_CAP",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -847,7 +848,7 @@ def test_default_login_admission_calls_login_headroom_grant_budget(monkeypatch):
         site=RT.site_policy.PEGASUS_LOGIN,
         dispatch_fn=dispatch,
     ) == 7
-    grant.assert_called_once_with()
+    grant.assert_called_once_with(operation="tests-partial")
 
 
 def test_invalid_granted_budget_falls_back_to_dispatch(monkeypatch):
@@ -855,7 +856,7 @@ def test_invalid_granted_budget_falls_back_to_dispatch(monkeypatch):
     monkeypatch.setattr(
         LH,
         "grant_budget",
-        lambda: (LH.Admission.LOCAL, None, "test"),
+        lambda **kwargs: (LH.Admission.LOCAL, None, "test"),
     )
     monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
     monkeypatch.setattr(
@@ -930,9 +931,12 @@ def test_login_headroom_and_queue_four_quadrants(
     assert rc == (0 if expected == "local" else 7)
     assert len(queue_checks) == (0 if headroom_available else 1)
     expected_grants = (
-        [{}]
+        [{"operation": "tests-partial"}]
         if headroom_available or queue_available
-        else [{}, {"min_bytes": 0}]
+        else [
+            {"operation": "tests-partial"},
+            {"min_bytes": 0, "operation": "tests-partial"},
+        ]
     )
     assert grants == expected_grants
     assert caps == ([2000 if headroom_available else 500] if expected == "local" else [])
@@ -1016,7 +1020,7 @@ def test_queue_state_import_failure_is_treated_as_dispatch_available(
     monkeypatch.setattr(
         LH,
         "grant_budget",
-        lambda: (LH.Admission.DISPATCH, None, "観測余裕=0 bytes"),
+        lambda **kwargs: (LH.Admission.DISPATCH, None, "観測余裕=0 bytes"),
     )
     monkeypatch.setattr(RT.importlib, "import_module", fail_queue_state)
 
@@ -1209,7 +1213,7 @@ def test_scope_disappearance_after_sample_keeps_child_rc(
 
     def wait(*args, **kwargs):
         state["disappeared"] = True
-        return 3
+        return 1
 
     process.wait.side_effect = wait
     monkeypatch.setattr(RT.subprocess, "Popen", lambda *a, **kw: process)
@@ -1241,10 +1245,21 @@ def test_scope_disappearance_after_sample_keeps_child_rc(
         return 0, 0
 
     monkeypatch.setattr(RT, "_read_scope_events", events)
+    grant = mock.Mock()
+    remember = mock.Mock()
+    monkeypatch.setattr(LH, "remember_peak", remember)
+    token = RT._scope_accounting.set(
+        RT._ScopeAccounting(LH, "tests-partial", grant),
+    )
 
-    result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
-    assert result == RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 3)
+    try:
+        result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
+    finally:
+        RT._scope_accounting.reset(token)
+    assert result == RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 1)
     assert "bounded scope の観測ピーク: 424242 bytes" in capsys.readouterr().err
+    grant.bind_scope.assert_called_once_with(tmp_path)
+    remember.assert_called_once_with("tests-partial", 424242)
 
 
 def test_scope_without_any_successful_event_sample_is_dispatch_infra(
@@ -1322,7 +1337,7 @@ def test_continuing_samples_retain_cap_oom_and_highest_peak(
 
     def events(path):
         if state["disappeared"]:
-            raise OSError("scope disappeared")
+            return 1, 1
         state["event_reads"] += 1
         if state["event_reads"] == 1:
             return 0, 0
@@ -1331,17 +1346,59 @@ def test_continuing_samples_retain_cap_oom_and_highest_peak(
 
     monkeypatch.setattr(RT, "_read_scope_current", current)
     monkeypatch.setattr(RT, "_read_scope_events", events)
+    grant = mock.Mock()
+    remember = mock.Mock()
+    monkeypatch.setattr(LH, "remember_peak", remember)
+    token = RT._scope_accounting.set(
+        RT._ScopeAccounting(LH, "tests-full", grant),
+    )
 
-    result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
+    cap = LH.RESERVE_BYTES // 2
+    try:
+        result = RT._run_bounded_scope(["test_target.py"], cap)
+    finally:
+        RT._scope_accounting.reset(token)
     assert result == RT._ScopeResult(RT._ScopeOutcome.CAP_OOM)
     assert "bounded scope の観測ピーク: 900 bytes" in capsys.readouterr().err
+    grant.bind_scope.assert_called_once_with(tmp_path)
+    remember.assert_called_once_with("tests-full", cap)
+
+
+@pytest.mark.parametrize("returncode", [137, -9], ids=["rc137", "sigkill"])
+def test_signal_exit_without_final_cap_proof_is_dispatch_infra(
+    monkeypatch, tmp_path, returncode,
+):
+    state = {"disappeared": False}
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+
+    def wait(*args, **kwargs):
+        state["disappeared"] = True
+        return returncode
+
+    process.wait.side_effect = wait
+    monkeypatch.setattr(RT.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(RT, "_scope_cgroup_path", lambda path, unit: tmp_path)
+    monkeypatch.setattr(RT, "_attest_scope_oom_group", lambda path: True)
+    monkeypatch.setattr(RT, "_scope_properties_are_enforced", lambda path, cap: True)
+    monkeypatch.setattr(RT, "_read_scope_current", lambda path: 1)
+
+    def events(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared before final events")
+        return 0, 0
+
+    monkeypatch.setattr(RT, "_read_scope_events", events)
+
+    result = RT._run_bounded_scope(["test_target.py"], LH.RESERVE_BYTES // 2)
+    assert result == RT._ScopeResult(RT._ScopeOutcome.DISPATCH_INFRA)
 
 
 @pytest.mark.parametrize(
     ("events", "expected"),
     [
-        ((1, 0), RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 137)),
-        ((0, 1), RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 137)),
+        ((1, 0), RT._ScopeResult(RT._ScopeOutcome.DISPATCH_INFRA)),
+        ((0, 1), RT._ScopeResult(RT._ScopeOutcome.DISPATCH_INFRA)),
         ((1, 1), RT._ScopeResult(RT._ScopeOutcome.CAP_OOM)),
     ],
 )
@@ -1368,8 +1425,6 @@ def test_cap_oom_requires_both_max_and_oom_events(
         return 1
 
     def read_events(path):
-        if state["disappeared"]:
-            raise OSError("scope disappeared")
         return events
 
     monkeypatch.setattr(RT, "_read_scope_current", current)
@@ -1406,20 +1461,100 @@ def test_login_dispatch_exemption_is_exact_closed_set(monkeypatch, flag):
     assert RT._PEGASUS_DISPATCH_EXEMPT_FLAGS == (
         _EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS
     )
-    dispatch = mock.Mock(side_effect=AssertionError("must be exempt"))
-    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
-    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
-    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
-    monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
-    monkeypatch.setattr(RT.subprocess, "call", lambda *a, **kw: 0)
+    assert RT._has_dispatch_exempt_flag([flag]) is True
+
+
+@pytest.mark.parametrize(
+    "flag",
+    sorted(_EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS - {"--help", "--version"}),
+)
+def test_login_non_immediate_dispatch_exempt_flags_enter_bounded_scope(
+    monkeypatch, flag,
+):
+    scope = mock.Mock(
+        return_value=RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
+    )
+    dispatch = mock.Mock(side_effect=AssertionError("local budget was granted"))
+    monkeypatch.setattr(RT, "_run_bounded_scope", scope)
 
     assert RT.main(
         [flag],
         site=RT.site_policy.PEGASUS_LOGIN,
         dispatch_fn=dispatch,
-        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
     ) == 0
+    scope.assert_called_once_with([flag], LH.MAX_LOCAL_BUDGET_BYTES)
     dispatch.assert_not_called()
+
+
+def test_login_collect_only_from_pytest_addopts_enters_bounded_scope(
+    monkeypatch,
+):
+    scope = mock.Mock(
+        return_value=RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
+    )
+    monkeypatch.setenv("PYTEST_ADDOPTS", "--collect-only")
+    monkeypatch.setattr(RT, "_run_bounded_scope", scope)
+
+    assert RT.main(
+        [],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == 0
+    scope.assert_called_once_with([], LH.MAX_LOCAL_BUDGET_BYTES)
+
+
+def test_login_collect_only_dispatches_when_bounded_budget_is_denied(
+    monkeypatch,
+):
+    dispatch = mock.Mock(return_value=9)
+    scope = mock.Mock(side_effect=AssertionError("denied budget must not run local"))
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+    monkeypatch.setattr(RT, "_run_bounded_scope", scope)
+
+    assert RT.main(
+        ["--collect-only"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
+    ) == 9
+    scope.assert_not_called()
+    dispatch.assert_called_once()
+
+
+def test_login_help_bypasses_bounded_scope_and_dispatch(monkeypatch):
+    scope = mock.Mock(side_effect=AssertionError("help must not enter scope"))
+    dispatch = mock.Mock(side_effect=AssertionError("help must not dispatch"))
+    admission = mock.Mock(side_effect=AssertionError("help needs no budget"))
+    monkeypatch.setattr(RT, "_bounded_scope_membership", lambda: None)
+    monkeypatch.setattr(RT, "_run_bounded_scope", scope)
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
+    call = mock.Mock(return_value=0)
+    monkeypatch.setattr(RT.subprocess, "call", call)
+
+    assert RT.main(
+        ["--help"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=admission,
+    ) == 0
+    scope.assert_not_called()
+    dispatch.assert_not_called()
+    admission.assert_not_called()
+    assert "--help" in call.call_args.args[0]
+
+
+def test_bounded_scope_exemption_is_only_help_and_version(monkeypatch):
+    monkeypatch.delenv("PYTEST_ADDOPTS", raising=False)
+    assert RT._PEGASUS_BOUNDED_SCOPE_EXEMPT_FLAGS == {"--help", "--version"}
+    assert RT._has_bounded_scope_exempt_flag(["--help"])
+    assert RT._has_bounded_scope_exempt_flag(["--version"])
+    for flag in ("--collect-only", "--fixtures", "--markers", "--help=extra"):
+        assert not RT._has_bounded_scope_exempt_flag([flag])
 
 
 @pytest.mark.parametrize("flag", ["--setup-only", "--setup-show"])
@@ -1437,6 +1572,98 @@ def test_login_setup_execution_shapes_are_not_dispatch_exempt(
         admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
     ) == 3
     dispatch.assert_called_once()
+
+
+def test_previous_full_cap_estimate_dispatches_without_local_scope(monkeypatch):
+    grants = []
+    dispatch = mock.Mock(return_value=9)
+    scope = mock.Mock(side_effect=AssertionError("estimated full run must dispatch"))
+
+    def grant_budget(**kwargs):
+        grants.append(kwargs)
+        return LH.Admission.DISPATCH, None, "前回の全走は cap 到達"
+
+    monkeypatch.setattr(LH, "grant_budget", grant_budget)
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+    monkeypatch.setattr(RT, "_run_bounded_scope", scope)
+
+    assert RT.main(
+        [], site=RT.site_policy.PEGASUS_LOGIN, dispatch_fn=dispatch,
+    ) == 9
+    assert grants == [{"operation": "tests-full"}]
+    scope.assert_not_called()
+    dispatch.assert_called_once()
+
+
+def test_small_partial_estimate_still_tries_local_scope(monkeypatch):
+    grants = []
+    scope = mock.Mock(
+        return_value=RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
+    )
+
+    def grant_budget(**kwargs):
+        grants.append(kwargs)
+        return LH.Admission.LOCAL, 1234, "小さい前回ピーク"
+
+    monkeypatch.setattr(LH, "grant_budget", grant_budget)
+    monkeypatch.setattr(RT, "_run_bounded_scope", scope)
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
+    ) == 0
+    assert grants == [{"operation": "tests-partial"}]
+    scope.assert_called_once_with(["test_target.py"], 1234)
+
+
+def test_login_local_scope_releases_budget_lease_on_infra(monkeypatch):
+    lease = mock.Mock()
+    grant = LH.BudgetGrant(LH.Admission.LOCAL, 1234, "test", lease)
+    monkeypatch.setattr(LH, "grant_budget", lambda **kwargs: grant)
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.DISPATCH_INFRA),
+    )
+
+    assert RT.main(
+        ["test_target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("infra must stop")),
+    ) == RT._PEGASUS_DISPATCH_RC
+    lease.release.assert_called_once_with()
+
+
+def test_login_local_scope_releases_budget_lease_on_interrupt(monkeypatch):
+    lease = mock.Mock()
+    grant = LH.BudgetGrant(LH.Admission.LOCAL, 1234, "test", lease)
+    monkeypatch.setattr(LH, "grant_budget", lambda **kwargs: grant)
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        mock.Mock(side_effect=KeyboardInterrupt),
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        RT.main(
+            ["test_target.py"],
+            site=RT.site_policy.PEGASUS_LOGIN,
+            dispatch_fn=mock.Mock(side_effect=AssertionError("must not dispatch")),
+        )
+    lease.release.assert_called_once_with()
+
+
+def test_peak_and_lease_bookkeeping_failures_are_best_effort():
+    broken = mock.Mock()
+    broken.bind_scope.side_effect = RuntimeError("bind failed")
+    broken.release.side_effect = RuntimeError("release failed")
+    module = mock.Mock()
+    module.remember_peak.side_effect = RuntimeError("write failed")
+
+    RT._safe_bind_scope(broken, Path("/sys/fs/cgroup/test.scope"))
+    RT._safe_release_grant(broken)
+    RT._safe_remember_peak(module, "tests-partial", 1)
 
 
 def test_suspect_execution_refuses_without_dispatch_or_xdist(

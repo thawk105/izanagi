@@ -44,6 +44,7 @@ def _clean_stats_state(monkeypatch):
         "IZANAGI_TASK_RUN_ID", "IZANAGI_TASK_RUNS_ROOT",
         "IZANAGI_TASK_RUN_SIDECAR", "IZANAGI_TEST_TRIGGER",
         "IZANAGI_TEST_SUITE_ID", "PYTEST_ADDOPTS",
+        "IZANAGI_RUN_TESTS_SCOPE_UNIT", "IZANAGI_RUN_TESTS_SCOPE_CAP",
     ):
         monkeypatch.delenv(name, raising=False)
 

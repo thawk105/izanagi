@@ -13,6 +13,7 @@ import importlib
 import os
 import re
 import secrets
+import signal
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,7 @@ import threading
 import time
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -1063,8 +1065,21 @@ class _ScopeSamples:
         self.ready = threading.Event()
         self.stop = threading.Event()
         self.attested = False
+        self.cgroup: Path | None = None
         self.last_events: tuple[int, int] | None = None
         self.peak_current: int | None = None
+
+
+@dataclass(frozen=True)
+class _ScopeAccounting:
+    module: object
+    operation: str
+    grant: object
+
+
+_scope_accounting: ContextVar[_ScopeAccounting | None] = ContextVar(
+    "provenance_scope_accounting", default=None,
+)
 
 
 def _load_login_headroom():
@@ -1083,7 +1098,7 @@ def _load_login_headroom():
     return module
 
 
-def _evaluate_login_admission(admit_fn, *, min_bytes=None):
+def _evaluate_login_admission(admit_fn, *, min_bytes=None, operation=None):
     loaded = _load_login_headroom()
     if loaded is None:
         return (
@@ -1091,11 +1106,14 @@ def _evaluate_login_admission(admit_fn, *, min_bytes=None):
             None,
             _HEADROOM_SHORT,
             "ログインノードの観測余裕=不明 bytes です。",
+            None,
         )
     module = loaded
     try:
         if admit_fn is None:
             kwargs = {} if min_bytes is None else {"min_bytes": min_bytes}
+            if operation is not None:
+                kwargs["operation"] = operation
             decision = module.grant_budget(**kwargs)
         else:
             # 未 land テスト用の旧 admission seam。実運用は grant_budget だけを通る。
@@ -1112,6 +1130,7 @@ def _evaluate_login_admission(admit_fn, *, min_bytes=None):
             None,
             _HEADROOM_SHORT,
             "ログインノードの観測余裕=不明 bytes です。",
+            None,
         )
 
     if admit_fn is not None and isinstance(decision, tuple) and len(decision) == 2:
@@ -1130,7 +1149,39 @@ def _evaluate_login_admission(admit_fn, *, min_bytes=None):
         budget,
         None if is_local else _HEADROOM_SHORT,
         reason if isinstance(reason, str) else "予算の理由を取得できませんでした。",
+        decision,
     )
+
+
+def _safe_bind_scope(grant, cgroup: Path | None) -> None:
+    if grant is None or cgroup is None:
+        return
+    try:
+        bind_scope = getattr(grant, "bind_scope", None)
+        if callable(bind_scope):
+            bind_scope(cgroup)
+    except (Exception, KeyboardInterrupt):
+        pass
+
+
+def _safe_release_grant(grant) -> None:
+    if grant is None:
+        return
+    try:
+        release = getattr(grant, "release", None)
+        if callable(release):
+            release()
+    except (Exception, KeyboardInterrupt):
+        pass
+
+
+def _safe_remember_peak(module, operation: str | None, peak: int | None) -> None:
+    if module is None or operation is None or peak is None:
+        return
+    try:
+        module.remember_peak(operation, peak)
+    except (Exception, KeyboardInterrupt):
+        pass
 
 
 def _queue_dispatch_possible() -> tuple[bool, str]:
@@ -1293,6 +1344,7 @@ def _sample_scope(process, unit: str, cap: int, samples: _ScopeSamples) -> None:
             return
         if not _scope_properties_are_enforced(cgroup, cap):
             return
+        samples.cgroup = cgroup
         samples.attested = True
 
         first_sample = True
@@ -1396,6 +1448,10 @@ def _run_bounded_scope(argv: Sequence[str], cap: int) -> _ScopeResult:
         )
         return _ScopeResult("dispatch_infra")
 
+    accounting = _scope_accounting.get()
+    if accounting is not None:
+        _safe_bind_scope(accounting.grant, samples.cgroup)
+
     try:
         rc = process.wait()
     except (OSError, ValueError) as exc:
@@ -1408,6 +1464,13 @@ def _run_bounded_scope(argv: Sequence[str], cap: int) -> _ScopeResult:
             flush=True,
         )
         return _ScopeResult("dispatch_infra")
+
+    final_events = None
+    if _termination_signal(rc) is not None and samples.cgroup is not None:
+        try:
+            final_events = _read_scope_events(samples.cgroup)
+        except (OSError, UnicodeError, ValueError, KeyError):
+            pass
 
     # 正常終了では sampler 自身が cgroup の消滅を観測するまで待つ。ここで stop を
     # 立てると、最後の memory.events を読む直前に観測を打ち切り得る。
@@ -1426,15 +1489,65 @@ def _run_bounded_scope(argv: Sequence[str], cap: int) -> _ScopeResult:
             flush=True,
         )
         return _ScopeResult("dispatch_infra")
-    # 一意な新設 scope の counter は生成時 0。最終値がこの attempt の delta。
-    max_delta, oom_delta = samples.last_events
-    if max_delta > 0 and oom_delta > 0:
-        return _ScopeResult("cap_oom")
+    if _termination_signal(rc) is not None:
+        if final_events is None:
+            print(
+                "bounded scope は signal で終了しましたが、終了後の "
+                "memory.events で cap 到達を証明できないため dispatcher "
+                "infrastructure failure とします。",
+                file=sys.stderr,
+                flush=True,
+            )
+            return _ScopeResult("dispatch_infra")
+        max_delta, oom_delta = final_events
+        if max_delta > 0 and oom_delta > 0:
+            if accounting is not None:
+                _safe_remember_peak(
+                    accounting.module,
+                    accounting.operation,
+                    max(cap, samples.peak_current or 0),
+                )
+            return _ScopeResult("cap_oom")
+        print(
+            "bounded scope は signal で終了しましたが、終了後の "
+            "memory.events は cap 到達を示さないため dispatcher "
+            "infrastructure failure とします。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _ScopeResult("dispatch_infra")
+    if accounting is not None:
+        _safe_remember_peak(
+            accounting.module,
+            accounting.operation,
+            samples.peak_current,
+        )
     return _ScopeResult("child_rc", int(rc))
 
 
-def _launch_local_scope(argv: Sequence[str], cap: int):
-    return _run_bounded_scope(argv, cap)
+def _termination_signal(returncode: int) -> int | None:
+    signum = -returncode if returncode < 0 else returncode - 128
+    if signum <= 0:
+        return None
+    try:
+        return signum if signum in signal.valid_signals() else None
+    except (AttributeError, OSError, ValueError):
+        return signum if signum == signal.SIGKILL else None
+
+
+def _launch_local_scope(
+    argv: Sequence[str], cap: int, *, module=None, operation=None, grant=None,
+):
+    accounting = (
+        _ScopeAccounting(module, operation, grant)
+        if module is not None and operation is not None
+        else None
+    )
+    token = _scope_accounting.set(accounting)
+    try:
+        return _run_bounded_scope(argv, cap)
+    finally:
+        _scope_accounting.reset(token)
 
 
 def main(
@@ -1453,6 +1566,7 @@ def main(
         help="commit 前の message ファイルを検査する。標準入力は -",
     )
     args = parser.parse_args(values)
+    operation = "provenance-range" if args.rev_range is not None else "provenance"
 
     # site gate は parse_args の後に置き、免除は args.message_file だけで判定する。
     # raw token allowlist を移植すると --message-f のような接頭辞省略形が免除から
@@ -1493,28 +1607,43 @@ def main(
             return PEGASUS_DISPATCH_RC
         if site_policy.is_pegasus_login(resolved_site):
             if bounded_membership is None:
-                module, cap, admission_outcome, headroom_reason = (
-                    _evaluate_login_admission(admit_fn)
+                module, cap, admission_outcome, headroom_reason, grant = (
+                    _evaluate_login_admission(admit_fn, operation=operation)
                 )
                 queue_unavailable = False
                 queue_reason = ""
                 if admission_outcome == _HEADROOM_SHORT:
                     queue_possible, queue_reason = _queue_dispatch_possible()
                     if queue_possible:
+                        _safe_release_grant(grant)
                         return _invoke_dispatch(dispatch_fn, values)
                     queue_unavailable = True
                     if module is None:
                         return _no_execution_capacity(headroom_reason, queue_reason)
-                    module, cap, admission_outcome, headroom_reason = (
-                        _evaluate_login_admission(admit_fn, min_bytes=0)
+                    _safe_release_grant(grant)
+                    module, cap, admission_outcome, headroom_reason, grant = (
+                        _evaluate_login_admission(
+                            admit_fn, min_bytes=0, operation=operation,
+                        )
                     )
                     if admission_outcome == _HEADROOM_SHORT or cap is None:
+                        _safe_release_grant(grant)
                         return _no_execution_capacity(headroom_reason, queue_reason)
 
                 if cap is None:
+                    _safe_release_grant(grant)
                     return PEGASUS_DISPATCH_RC
                 _print_granted_budget(cap, headroom_reason)
-                scope_result = _launch_local_scope(values, cap)
+                try:
+                    scope_result = _launch_local_scope(
+                        values,
+                        cap,
+                        module=module,
+                        operation=operation,
+                        grant=grant,
+                    )
+                finally:
+                    _safe_release_grant(grant)
                 if scope_result.outcome == "child_rc":
                     if scope_result.child_rc is None:
                         return PEGASUS_DISPATCH_RC

@@ -2770,7 +2770,86 @@ def test_default_login_admission_uses_login_headroom_grant_budget(
         site=site_policy.PEGASUS_LOGIN,
         dispatch_fn=lambda argv: 7,
     ) == 7
-    grant.assert_called_once_with()
+    grant.assert_called_once_with(operation="provenance-range")
+
+
+def test_provenance_without_range_uses_operation_and_releases_lease(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    lease = mock.Mock()
+    grant = LH.BudgetGrant(LH.Admission.LOCAL, 1234, "小さい前回ピーク", lease)
+    budget = mock.Mock(return_value=grant)
+    monkeypatch.setattr(LH, "grant_budget", budget)
+    monkeypatch.setattr(
+        provenance,
+        "_run_bounded_scope",
+        lambda argv, cap: provenance._ScopeResult("child_rc", 0),
+    )
+
+    assert provenance.main(
+        [],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
+    ) == 0
+    budget.assert_called_once_with(operation="provenance")
+    lease.release.assert_called_once_with()
+
+
+def test_provenance_releases_budget_lease_on_interrupt(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    lease = mock.Mock()
+    grant = LH.BudgetGrant(LH.Admission.LOCAL, 1234, "test", lease)
+    monkeypatch.setattr(LH, "grant_budget", lambda **kwargs: grant)
+    monkeypatch.setattr(
+        provenance,
+        "_run_bounded_scope",
+        mock.Mock(side_effect=KeyboardInterrupt),
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        provenance.main(
+            [],
+            site=site_policy.PEGASUS_LOGIN,
+            dispatch_fn=mock.Mock(side_effect=AssertionError("must not dispatch")),
+        )
+    lease.release.assert_called_once_with()
+
+
+def test_provenance_peak_and_lease_failures_are_best_effort():
+    broken = mock.Mock()
+    broken.bind_scope.side_effect = RuntimeError("bind failed")
+    broken.release.side_effect = RuntimeError("release failed")
+    module = mock.Mock()
+    module.remember_peak.side_effect = RuntimeError("write failed")
+
+    provenance._safe_bind_scope(broken, Path("/sys/fs/cgroup/test.scope"))
+    provenance._safe_release_grant(broken)
+    provenance._safe_remember_peak(module, "provenance", 1)
+
+
+def test_previous_provenance_cap_estimate_dispatches_without_local_scope(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    budget = mock.Mock(
+        return_value=(LH.Admission.DISPATCH, None, "前回の監査は cap 到達"),
+    )
+    dispatch = mock.Mock(return_value=9)
+    scope = mock.Mock(side_effect=AssertionError("estimated audit must dispatch"))
+    monkeypatch.setattr(LH, "grant_budget", budget)
+    monkeypatch.setattr(
+        provenance, "_queue_dispatch_possible", lambda: (True, "queue"),
+    )
+    monkeypatch.setattr(provenance, "_run_bounded_scope", scope)
+
+    assert provenance.main(
+        ["--range", "aaa..bbb"],
+        site=site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+    ) == 9
+    budget.assert_called_once_with(operation="provenance-range")
+    scope.assert_not_called()
+    dispatch.assert_called_once_with(["--range", "aaa..bbb"])
 
 
 @pytest.mark.parametrize(
@@ -2826,9 +2905,12 @@ def test_provenance_headroom_and_queue_four_quadrants(
     assert rc == (0 if expected == "local" else 7)
     assert len(queue_checks) == (0 if headroom_available else 1)
     expected_grants = (
-        [{}]
+        [{"operation": "provenance-range"}]
         if headroom_available or queue_available
-        else [{}, {"min_bytes": 0}]
+        else [
+            {"operation": "provenance-range"},
+            {"min_bytes": 0, "operation": "provenance-range"},
+        ]
     )
     assert grants == expected_grants
     assert caps == ([2000 if headroom_available else 500] if expected == "local" else [])
@@ -3072,7 +3154,7 @@ def test_provenance_scope_disappearance_after_sample_keeps_child_rc(
 
     def wait(*args, **kwargs):
         state["disappeared"] = True
-        return 3
+        return 1
 
     process.wait.side_effect = wait
     monkeypatch.setattr(provenance.subprocess, "Popen", lambda *a, **kw: process)
@@ -3103,12 +3185,23 @@ def test_provenance_scope_disappearance_after_sample_keeps_child_rc(
         return 0, 0
 
     monkeypatch.setattr(provenance, "_read_scope_events", events)
-
-    result = provenance._run_bounded_scope(
-        ["--range", "aaa..bbb"], LH.RESERVE_BYTES // 2,
+    grant = mock.Mock()
+    remember = mock.Mock()
+    monkeypatch.setattr(LH, "remember_peak", remember)
+    token = provenance._scope_accounting.set(
+        provenance._ScopeAccounting(LH, "provenance-range", grant),
     )
-    assert result == provenance._ScopeResult("child_rc", 3)
+
+    try:
+        result = provenance._run_bounded_scope(
+            ["--range", "aaa..bbb"], LH.RESERVE_BYTES // 2,
+        )
+    finally:
+        provenance._scope_accounting.reset(token)
+    assert result == provenance._ScopeResult("child_rc", 1)
     assert "bounded scope の観測ピーク: 424242 bytes" in capsys.readouterr().err
+    grant.bind_scope.assert_called_once_with(tmp_path)
+    remember.assert_called_once_with("provenance-range", 424242)
 
 
 def test_provenance_scope_without_event_sample_is_dispatch_infra(
@@ -3214,7 +3307,7 @@ def test_provenance_continuing_samples_retain_cap_oom_and_highest_peak(
 
     def events(path):
         if state["disappeared"]:
-            raise OSError("scope disappeared")
+            return 1, 1
         state["event_reads"] += 1
         if state["event_reads"] == 1:
             return 0, 0
@@ -3223,19 +3316,69 @@ def test_provenance_continuing_samples_retain_cap_oom_and_highest_peak(
 
     monkeypatch.setattr(provenance, "_read_scope_current", current)
     monkeypatch.setattr(provenance, "_read_scope_events", events)
+    grant = mock.Mock()
+    remember = mock.Mock()
+    monkeypatch.setattr(LH, "remember_peak", remember)
+    token = provenance._scope_accounting.set(
+        provenance._ScopeAccounting(LH, "provenance-range", grant),
+    )
+
+    cap = LH.RESERVE_BYTES // 2
+    try:
+        result = provenance._run_bounded_scope(
+            ["--range", "aaa..bbb"], cap,
+        )
+    finally:
+        provenance._scope_accounting.reset(token)
+    assert result == provenance._ScopeResult("cap_oom")
+    assert "bounded scope の観測ピーク: 900 bytes" in capsys.readouterr().err
+    grant.bind_scope.assert_called_once_with(tmp_path)
+    remember.assert_called_once_with("provenance-range", cap)
+
+
+@pytest.mark.parametrize("returncode", [137, -9], ids=["rc137", "sigkill"])
+def test_provenance_signal_without_final_cap_proof_is_dispatch_infra(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    returncode: int,
+):
+    state = {"disappeared": False}
+    process = mock.Mock(pid=4242)
+    process.poll.return_value = None
+
+    def wait(*args, **kwargs):
+        state["disappeared"] = True
+        return returncode
+
+    process.wait.side_effect = wait
+    monkeypatch.setattr(provenance.subprocess, "Popen", lambda *a, **kw: process)
+    monkeypatch.setattr(
+        provenance, "_scope_cgroup_path", lambda path, unit: tmp_path,
+    )
+    monkeypatch.setattr(provenance, "_attest_scope_oom_group", lambda path: True)
+    monkeypatch.setattr(
+        provenance, "_scope_properties_are_enforced", lambda path, cap: True,
+    )
+    monkeypatch.setattr(provenance, "_read_scope_current", lambda path: 1)
+
+    def events(path):
+        if state["disappeared"]:
+            raise OSError("scope disappeared before final events")
+        return 0, 0
+
+    monkeypatch.setattr(provenance, "_read_scope_events", events)
 
     result = provenance._run_bounded_scope(
         ["--range", "aaa..bbb"], LH.RESERVE_BYTES // 2,
     )
-    assert result == provenance._ScopeResult("cap_oom")
-    assert "bounded scope の観測ピーク: 900 bytes" in capsys.readouterr().err
+    assert result == provenance._ScopeResult("dispatch_infra")
 
 
 @pytest.mark.parametrize(
     ("events", "expected"),
     [
-        ((1, 0), provenance._ScopeResult("child_rc", 137)),
-        ((0, 1), provenance._ScopeResult("child_rc", 137)),
+        ((1, 0), provenance._ScopeResult("dispatch_infra")),
+        ((0, 1), provenance._ScopeResult("dispatch_infra")),
         ((1, 1), provenance._ScopeResult("cap_oom")),
     ],
 )
@@ -3271,8 +3414,6 @@ def test_provenance_cap_oom_requires_both_max_and_oom_events(
         return 1
 
     def read_events(path):
-        if state["disappeared"]:
-            raise OSError("scope disappeared")
         return events
 
     monkeypatch.setattr(provenance, "_read_scope_current", current)
@@ -3318,7 +3459,7 @@ def test_provenance_queue_state_import_failure_is_dispatch_available(
     monkeypatch.setattr(
         LH,
         "grant_budget",
-        lambda: (LH.Admission.DISPATCH, None, "観測余裕=0 bytes"),
+        lambda **kwargs: (LH.Admission.DISPATCH, None, "観測余裕=0 bytes"),
     )
     monkeypatch.setattr(provenance.importlib, "import_module", fail_queue_state)
 
