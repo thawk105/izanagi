@@ -28,14 +28,20 @@ worklog 追記・完了検査を省く。クラス 2 / 3 では `CLAUDE.md`「�
   commit を作った後は `python3 tools/check_ai_provenance.py` で導入時点から `HEAD` までを監査する。
   Pegasus ログインノードでは同 checker が計算ノードへ自動 dispatch するので、この行を打つこと自体は
   禁止されない (`rc=16` は dispatch の失敗であって監査結果ではない)。
-- **`hostname` が Pegasus ログインノード (`pegasus0N`) のときは、重い処理を自分で走らせない。**
-  テスト (pytest の全走・部分走)・ビルド (`cmake --build` / `make -j` / `ninja`)・ベンチ・計測・
-  provenance 履歴監査は計算ノードで行う規律であり (`docs/pegasus-runbook.md` §7)、**Codex には
-  hook が未配線なので機械的に止まらない**。許されるのは静的読み取りと `python3 -m py_compile` まで
-  (`check_ai_provenance.py` の履歴監査は git subprocess 約 3000 本であり静的読み取りではない) で、
-  **pytest はログインノードで一切走らせない (単一ファイル・単一 nodeid も含む)**。
-  テスト実測は親が `tools/run_tests.py` 経由で計算ノードへ dispatch する。
-  走らせていないものを緑と報告しない。
-  **上の列挙は閉じた一覧ではない — 判定は場所でなく量で行う。** 同時に生きる全子孫を含む cgroup
-  charged memory のピークが規範値以上、または未計測・入力依存で分からないなら、
-  ログインノードで走らせない。基準と分類は `tools/README.md` と `docs/pegasus-runbook.md` §7.0。
+- **`hostname` が Pegasus ログインノード (`pegasus0N`) のときは、重い処理を自分で直接起動しない。**
+  ベンチ・計測・floor / oracle の本走は**性能測定**であり、余裕の有無にかかわらず計算ノードで行う。
+  それ以外 (テスト・ビルド・provenance 履歴監査) は、**ログインノードの空きメモリが足りれば
+  ログインノードで実行してよい** (2026-08-06 ユーザー裁定。2026-07-30 の「一切走らせない」を
+  非計測面について supersede。正本は `docs/pegasus-runbook.md` §7)。
+  **実行場所の判定は `tools/run_tests.py` / `tools/check_ai_provenance.py` が自分で行う** —
+  空きが足りれば上限付き cgroup scope で local 実行し、足りなければ計算ノードへ dispatch する。
+  **Codex には hook が未配線なので機械的には止まらない**。次を規律として守る。
+  - **pytest・build を自分で直接起動しない。** 必ず `tools/run_tests.py` を通す
+    (単一ファイル・単一 nodeid も同じ)。走らせていないものを緑と報告しない。
+  - **判定は場所でなく量で行う。** 同時に生きる全子孫を含む cgroup charged memory が
+    天井 (per-user 上限 16 GiB に対し 14 GiB) に収まらないものは、上のツールが計算ノードへ回す。
+    基準は `tools/README.md` と `docs/pegasus-runbook.md` §7.0。
+  - **キューが停止していれば計算ノードへ投げても実行されない。** その場合はログインノードで実行し、
+    余裕も無ければ「いまは実行できない」として止める。性能測定なら「いまは測定できない」と判断する。
+    確認は `python3 -m orchestrator.campaign.queue_state`。
+  - 実行場所を確定させたいときは `--force-dispatch` を明示する。
