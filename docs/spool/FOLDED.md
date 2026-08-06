@@ -394,3 +394,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"D:no-issuerless-capability-freeze":"D199"},"authored":"2026-08-06","content_sha256":"2e786592053092bc63c27f4d641e56462817985458520aadb207112a4de6ebea","seq":1,"wave":"dev-wave-t503-restore-durability"}
 - {"allocations":{"T:clean-tracked-ignored-blindness":"[T-581]","T:proof-receipt-code-closure":"[T-580]"},"authored":"2026-08-06","content_sha256":"011aaa2a8a3308b6242e450a8856a2a2474e5ea22a3ff5fb2349d5e96208e9b6","seq":2,"wave":"dev-wave-t503-restore-durability"}
+
+- {"allocations":{"T:dependency-source-hydrate":"[T-585]","T:production-current-history-binding-test":"[T-582]","T:submit-certify-repo-root-binding":"[T-584]","T:submit-certify-scheduler-output":"[T-583]"},"authored":"2026-08-06","content_sha256":"4e6add24354bb3597f5390e44b7fde9c400f6d0065acf751b6d454483bba77e2","seq":1,"wave":"dev-wave-t564-dependency-source"}
+- {"allocations":{"D:dependency-source-out-of-home":"D200"},"authored":"2026-08-06","content_sha256":"4c04b1059ec7db2291567d4a982d7d51aebe2aaf46e5b32ceeed764c30248c32","seq":1,"wave":"dev-wave-t564-dependency-source"}
+- {"allocations":{"F:artifact-ingest-breaks-corpus-completeness":"F140","F:second-artifact-turns-single-element-pick-nondeterministic":"F141"},"authored":"2026-08-06","content_sha256":"64950e701e3cb80c869d6aad9b128cc7f14944a048455a595cc5a328978e5356","seq":1,"wave":"dev-wave-t564-dependency-source"}
