@@ -9928,3 +9928,134 @@ dev-wave の入口・reference へ書かない。消費に関する規律は、�
 - 計測値を入口へ転記して規律にする — 上記のとおり stale 化と過剰束ねを招く。
 - reference へ節を新設する — dev-wave 4 文書の aggregate 予算は余地 13 bytes しかなく、
   削除先を特定しないまま追記できない。予算引き上げは提案しない。
+
+## D209. ログインノードの実行可否を空きメモリとキュー可用性で決める (2026-08-07)
+
+**決定 (2026-08-06 ユーザー裁定、[T-300])。**
+
+1. **性能測定** (ベンチ・calibration・noise floor・floor / oracle の本走) は、余裕の有無に
+   かかわらず計算ノードで行う。この面は不変である (絶対規律 1)。
+2. **それ以外** (テスト・ビルド・provenance 履歴監査) は、ログインノードの空きメモリが足りれば
+   **ログインノードで実行する**。足りなければ計算ノードへ dispatch する。
+   これは 2026-07-30 裁定「重い処理はログインノードで走らせない」(D103 決定 2 / 決定 4、
+   D105 決定 2) を**非計測面について supersede** する。計測面の射程は変えない。
+3. **判定量はユーザーが指した「合計メモリ使用量」** = user slice の raw `memory.current`。
+   per-user 上限 16 GiB に対し**天井 14 GiB**。**reclaim 可能な file cache を差し引く案は採らない** —
+   ユーザーが指した量の再定義になるため。差し引けば実効許容量はほぼ倍になるが別裁定が要る。
+4. **キューが使えない (`qstat -Q` で対象 queue が `DIS` または `INA`) なら投げない。**
+   投げても実行されないためである。その場合はログインノードで実行し、余裕も無ければ
+   「いまは実行できない」として止める。**性能測定なら「いまは測定できない」と判断する** —
+   ログインノードで測ることは選択肢にしない。
+5. **観測不能は「キュー可用」へ倒す。** `qstat` が読めない・解釈できないことを理由に
+   ログインノードへ重い処理を流し込まない (現行挙動と一致し、受理集合は単調)。
+6. **1 コマンドへ渡す予算** = `min(4 GiB, 天井 − 現在使用量 − 生存中の予約 − 予備 2 GiB)`。
+   予備 2 GiB と上限 4 GiB は**暫定値であり実測根拠が無い**。
+   **並行セッション数に予備枠を比例させる案は棄却した** (2026-08-06 ユーザー是正) —
+   各セッションの使用量は既に `memory.current` に含まれており二重計上になる。
+   10 セッション運用では予備だけで天井を食い潰す。
+7. **見積もりは前回の観測ピークを使う。** 操作ごとに記録し、前回 cap に当たった操作は
+   次回 local を試さず即 dispatch する。記録の置き場は予約台帳と同じ repo 外 tmpfs とし、
+   **repo へ実行状態を書かない** (git 差分衝突を作らないため)。
+8. **実行は上限付き cgroup scope で囲う。** 見積もりが外れても被害はその scope に閉じる。
+   `MemoryOOMGroup` は systemd 249 では transient property として受理されないので、
+   child が自分の `memory.oom.group` へ 1 を書いて読み返す (2026-08-06 実測)。
+9. **cap 到達後の自動 fallback は、local 試行の前後で tree と submodule の指紋が
+   変わっていないときだけ**行う。「tree が clean か」で判定してはならない —
+   開発中の tree はほぼ常に dirty であり、それでは通常の開発が止まる (実測)。
+10. **実行場所を確定させる `--force-dispatch` を設ける。** 判定を迂回して従来の dispatch 経路を
+    通る。変異 harness の dispatch mode がこれを要求する (本 wave が壊した契約の回復) ほか、
+    正確な性能比較のように場所を固定したい場面でも使う。
+
+**射程外 (実装しない)。** ログインノードでの build 解禁 (計測 build cache への流入を断つ
+namespace 分離が前提)、AI の子プロセスを予約 API へ接続すること ([T-300] の本丸)、
+CPU / I/O の市民性、4 値 outcome の台帳 schema 化。
+
+## D210. 上限付き実行は entry point の内側に閉じ、汎用 launcher を作らない (2026-08-07)
+
+段 2 のプランは `tools/pegasus/local_run.py` として**任意 argv を受け取る bounded launcher**を
+提案したが、段 3 の敵対レンズ 2 本が独立に blocker を積み上げたため**設計ごと取り下げた**。
+
+取り下げの根拠 (いずれも具体的な綴り・コードパス付きで示された):
+
+- 内側の `tools/pegasus/` 実行体が `dispatch-required` でも、名前が性能語に一致しなければ通る
+  (registry class の trampoline)
+- `BASH_ENV` / `LD_PRELOAD` / `sitecustomize` / script 内部の `subprocess` は argv 検査で見えない
+- `systemctl --user` / D-Bus の `StartTransientUnit` で sibling cgroup へ逃げられる
+- `local-ok` は「certified peak 512 MiB 未満の実測済み」または grandfather 4 本の意味であり、
+  最大 4 GiB を運ぶ launcher をそこへ置くと class の意味が壊れる (D175 / D188 の射程)
+
+**代わりに、上限付き実行は `tools/run_tests.py` / `tools/check_ai_provenance.py` の内側に閉じる。**
+hook は subprocess の内側を見ないので、raw `systemd-run` を許可する必要がない。むしろ
+**LOGIN / SUSPECT では raw `systemd-run` を拒否する**。`_WRAPPERS` へは追加しない —
+wrapper 化すると head の解釈が変わり、**これまで拒否されていた綴りが許可側へ移る回帰**が生じる
+(段 3 レンズが `systemd-run -- python3 writer.py <build-variants 配下>` を具体例として示した)。
+
+**帰結として、ユーザー依頼のうち「コンパイル」はまだログインノードへ移っていない。**
+`cmake` / `make` / `g++-12` はログインノードに実在するので技術的には可能だが、
+計測 build cache への流入を構造的に断つ設計が前提であり、それ自体が独立した作業になる。
+
+## D211. ever-issued cell 台帳は実装しない — repo 内の台帳は単調にならず、批准済みの予算 root trust model と両立しない (2026-08-07)
+
+**背景:** P3 の設計裁定パッケージ §9 の択一 U-3 は「世代を跨ぐ同一 cell の再発行をどう禁じるか」を
+問い、(a)「ever-issued cell」台帳を series 全体で持ち全世代で重複拒否する案が推奨・批准された
+(意味等価性の判定は人間 gate に残す)。本 D はその実装 wave の判断である。逐語と裁定パッケージの
+正本 = `output/insights/2026-08-07_t244-p3-u3-ever-issued-cell/`。
+
+**決定 (1): 実装しない。** 段 2 のプランは file:line 粒度で成立していたが、段 3 の敵対 2 レンズが
+**独立に同一の迂回路**を構成した。台帳を repo 内の commit 済み artifact に置き authority と同じ
+捕捉 commit から読む形では、新しい authority document を書く主体が同じ commit で台帳の該当 entry を
+`(series, cell) → 旧 origin` から `→ 新 origin` へ**置換**できる。置換後は「台帳に載っている」
+「origin が一致する」の両方を満たすため gate を通る。したがって実装できるのは
+**1 commit 内の 2 ファイルの整合**であって「ever-issued」ではない。
+
+**決定 (2): 単調性を与える 2 手段が現状どちらも塞がっていることを固定する。** (i) 外部の
+append-only anchor は、予算 root の同一性に関する択一で明示的に却下され、「同一 clone 内の
+honest caller に対する保証と明示的に弱めて名乗る」案が批准済みである。(ii) 検証可能な
+predecessor chain (epoch router) は D179 決定 3 が推奨形として起草したが未実装で、設計 wave 送りが
+確定している。よって**批准済みの 2 つの択一 (予算 root の弱い trust model と、全世代重複拒否) は
+現状の実装面で両立しない。** これは裁定時点で未見の新事実であり、親が不採用にせず
+ユーザー再裁定へ返す。
+
+**決定 (3): 「世代」が実装のどこにも存在しないことを実測として固定する。** authority document の
+root key は `authority_schema` と `origins` の exact 2 つで、generation / supersedes / active pointer に
+相当する field を持たない。origin ledger 本体に `epoch` / `generation` の綴りは 0 件で、
+`series` の綴りは manifest field の定義・parse・canonical 化にしか現れない。production runtime の
+初期化は明示禁止のままで、genesis は origin 集合を一度に焼き込み、後から足す event 型が無い。
+したがって「同一 series の連続する authority document」を「世代」の代理と読み替える案は
+continuity を表現できず、採らない。
+
+**決定 (4): 台帳を書く主体 (issuer) が無い状態で gate だけを立てない。** 最初の entry を誰がいつ
+載せるかは、本番 authority への entry 発行が「evidence 正本 + producer topology + 許可された
+実行経路」の 3 条件成立後の人間承認 provisioning と定められた時点でそこに属する。3 条件は
+いずれも未成立である。issuer 不在のまま入れると、受理集合に「存在しないファイルを要求する」条件が
+増えるだけで、防げるものは増えない。
+
+**決定 (5): DW-G04 の発火 gate を満たさないと判定する。** 現行の production 入力は authority が
+entry 0 件、台帳が空で、coverage の走査は 0 回、absent / conflict の分岐は発火しない。既存の
+単一 authority blob 内の cell 重複拒否は別条件であり、新 gate の発火 artifact path ではない。
+発火条件を満たす既存 artifact path も計測 ID も brief に書けないため、設計メモへ留める。
+
+**決定 (6): 名乗りの上限。** 本 wave が名乗ってよいのは「実装可否を検証し、実装しないと裁定して
+択一を返した」までである。P3 充足・部分 P3・provisioning 解禁・多世代開放・cap-lift・
+certified 選択は名乗らない。「意味等価な再発行を防いだ」「全世代重複拒否を実装した」とも
+名乗らない。D114 の承認上限 1、D166 の P4 FAIL、P3 の FAIL はいずれも不変である。
+
+**理由:** 実装しても防げるものが増えず、名乗り (全世代重複拒否) と実装 (同一 commit の整合) が
+食い違う。ここで部分実装すると、D164 が却下した「発火しない検査を防壁として記録する」と、
+D147 が却下した「未結線のまま leaf だけ land する」の両方を同時に踏む。加えて、過去 wave の
+使い捨て probe を subprocess 実行して終了コードを検査する受入テストが現役で存在するため、
+実装すれば受入全走が赤になる。プランはこの probe を「歴史 artifact」と誤認していた。
+
+**却下した選択肢:**
+- 台帳の Git 履歴単調性 (parent commit の台帳との包含) を本 wave で検査する — merge・初回導入・
+  shallow clone・履歴書換えの扱いを決めずに first-parent だけを正本にすると、批准された trust model
+  とは別の履歴 trust model を発明することになる。
+- 同一 commit の authority ↔ registry 整合だけを別名の防御部品として入れる — 発火経路が無く、
+  現役 consumer を壊し、防げるものが増えない。研究前進に直接効かない防御的堅牢化を既定で
+  見送るという裁定 (D205) にも当たる。
+- 親の裁量で「弱い保証」として実装し完了と記録する — 未裁定設計の既成事実化であり、
+  D121 却下案 (b) と同型である。
+
+**研究状態への影響:** なし。本 wave は docs と逐語のみで、production 挙動・受理集合・
+certified 選択・材料レポート・試行台帳・proof chain・凍結 bytes はいずれも不変である。
+実装差分が無いため変異 matrix と実装後の受入全走は対象外。

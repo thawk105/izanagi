@@ -1101,6 +1101,131 @@ def test_bash_suspect_blocks_but_compute_allows_heavy_forms():
         assert ok, f"COMPUTE site の重い処理を第二防壁が拒否した: {cmd!r} ({why})"
 
 
+@pytest.mark.parametrize("site", ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"))
+def test_bash_refusing_sites_block_raw_systemd_run(site):
+    assert "systemd-run" not in GB._WRAPPERS
+    command = "systemd-run --user --scope -- /bin/true"
+    ok, why = GB.decide(command, site=site)
+    assert not ok, f"{site} で raw systemd-run が通った"
+    assert "systemd-run" in why
+
+
+def test_bash_refusing_sites_block_command_p_systemd_run():
+    command = "command -p systemd-run --user --scope -- /bin/true"
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        ok, why = GB.decide(command, site=site)
+        assert not ok, f"{site} で command -p の systemd-run が通った"
+        assert "systemd-run" in why
+
+
+def test_bash_refusing_sites_allow_command_v_systemd_run():
+    command = "command -v systemd-run"
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        ok, why = GB.decide(command, site=site)
+        assert ok, f"{site} で command -v の問い合わせが拒否された: {why}"
+
+
+def test_bash_refusing_sites_allow_command_capital_v_systemd_run():
+    command = "command -V systemd-run"
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        ok, why = GB.decide(command, site=site)
+        assert ok, f"{site} で command -V の問い合わせが拒否された: {why}"
+
+
+def test_bash_refusing_sites_reveal_systemd_run_behind_wrappers():
+    commands = (
+        "sudo systemd-run --user --scope -- /bin/true",
+        "env FOO=bar systemd-run --user --scope -- /bin/true",
+        "nohup systemd-run --user --scope -- /bin/true",
+        "timeout 60 systemd-run --user --scope -- /bin/true",
+        "nice systemd-run --user --scope -- /bin/true",
+    )
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        for command in commands:
+            ok, _ = GB.decide(command, site=site)
+            assert not ok, f"{site} で wrapper 内の systemd-run が通った: {command!r}"
+
+
+def test_bash_other_allows_systemd_run():
+    command = "systemd-run --user --scope -- /bin/true"
+    ok, why = GB.decide(command, site="OTHER")
+    assert ok, f"OTHER の systemd-run 受理 bit が変化した: {why}"
+
+
+def test_bash_systemd_run_change_never_expands_acceptance_corpus():
+    """G6 前の代表 bit と比較し、拒否から許可への反転が 0 件であることを固定する。"""
+    pre_g6_bits = {
+        "git status --short": True,
+        "qstat 12345": True,
+        "pytest --collect-only": True,
+        "pytest -q": False,
+        "env FOO=bar pytest -q": False,
+        "python3 tools/pegasus/exec_calibrate.py argv.json": False,
+        "systemd-run --user --scope -- /bin/true": True,
+        "command -v systemd-run": True,
+        "command -V systemd-run": True,
+        "env command -v systemd-run": True,
+        "command -pv systemd-run": True,
+        "command -p -V systemd-run": True,
+        "command systemd-run --user --scope -- /bin/true": True,
+        "command -p systemd-run --user --scope -- /bin/true": True,
+        "command -- systemd-run --user --scope -- /bin/true": True,
+        "command -v pytest": False,
+        "command -V pytest": False,
+        "command -v systemd-run; pytest -q": False,
+        "sudo systemd-run --user --scope -- /bin/true": True,
+        "env FOO=bar systemd-run --user --scope -- /bin/true": True,
+        "nohup systemd-run --user --scope -- /bin/true": True,
+        "timeout 60 systemd-run --user --scope -- /bin/true": True,
+        "nice systemd-run --user --scope -- /bin/true": True,
+    }
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        newly_allowed = [
+            command
+            for command, was_allowed in pre_g6_bits.items()
+            if GB.decide(command, site=site)[0] and not was_allowed
+        ]
+        assert newly_allowed == [], \
+            f"{site} で G6 が受理集合を拡大した: {newly_allowed}"
+
+
+def test_bash_command_reader_fix_only_reopens_pre_a12_corpus():
+    """A#12 直前の代表 bit から問い合わせ形以外を新規許可しない。"""
+    pre_a12_bits = {
+        "git status --short": True,
+        "pytest --collect-only": True,
+        "command -v systemd-run": False,
+        "command -V systemd-run": False,
+        "env command -v systemd-run": False,
+        "command -pv systemd-run": False,
+        "command -p -V systemd-run": False,
+        "command systemd-run --user --scope -- /bin/true": False,
+        "command -p systemd-run --user --scope -- /bin/true": False,
+        "command -- systemd-run --user --scope -- /bin/true": False,
+        "command -v pytest": False,
+        "command -V pytest": False,
+        "command -v systemd-run; pytest -q": False,
+        "command -v systemd-run && systemd-run --user --scope -- /bin/true": False,
+        "systemd-run --user --scope -- /bin/true": False,
+        "sudo systemd-run --user --scope -- /bin/true": False,
+    }
+    expected_newly_allowed = [
+        "command -v systemd-run",
+        "command -V systemd-run",
+        "env command -v systemd-run",
+        "command -pv systemd-run",
+        "command -p -V systemd-run",
+    ]
+    for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+        newly_allowed = [
+            command
+            for command, was_allowed in pre_a12_bits.items()
+            if GB.decide(command, site=site)[0] and not was_allowed
+        ]
+        assert newly_allowed == expected_newly_allowed, \
+            f"{site} で A#12 の受理集合差分が逸脱した: {newly_allowed}"
+
+
 def test_bash_login_nonexecuting_forms_allowed():
     # M14: introspection / dry-run まで拒否する過剰縮小変異を kill する。
     for cmd in (

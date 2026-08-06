@@ -3324,3 +3324,63 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: ユーザーが概ね 1 時間おきに確認する運用とし、
   **5 時間以上まったく変化がない job は死んでいるとみなして止め、状態と再開コマンドを報告する**
   (2026-08-06 ユーザー指示)。
+
+### F146. 規範記述の fix が新しい不整合を生み、焦点再レビュー 1 巡では閉じなかった [手順漏れ] [恒真ゲート]
+
+- 事象: docs-only wave の段 6 で、レビュー所見への fix が**新しい内部矛盾を 3 回連続で生んだ**。
+  焦点再レビューは 4 巡を要した。(1) 択一を分類したが批准方法の記述と割当てが食い違った。
+  (2) 発行の分岐を 1 条件で書いたが既裁定は 2 条件の一体だった。(3) 同一節の手順 1 と 4 で
+  provisioning の順序が矛盾した。いずれも**前巡では存在しなかった誤り**である。
+- 影響: 最も危険だったのは (2) で、ユーザーが決めた手順 (批准で発行) を親の推奨 (発行の延期) が
+  黙って置き換えた形の記述になっていた。1 巡で打ち切っていればそのまま提出していた。
+- 根本原因: `DW-S06-C` の「焦点再レビューは全体へ 1 本でよい」を、規範記述 (誰が何を決めるか、
+  どの条件で何が起きるか) の fix にもそのまま適用した。コードの fix と違い、規範記述の fix は
+  **他の箇所の前提を変える**ため、局所の修正が離れた節と矛盾する。テストが無いので
+  機械検査では捕まらない。
+- 恒久対応: 段 6 の焦点再レビューは `regressed` が 0 になるまで回す。
+  `DW-S06-C` への明文化は **docs/dev-wave/** の byte hard ceiling (25,200) に 13 bytes しか
+  空きがなく入らないため、[T-577] の既裁定 (予算上限は上げない、入らない分は台帳が担う) に従い
+  本エントリを恒久対応の所在とする。次に `docs/dev-wave/**` へ空きが出たとき
+  `DW-S06-C` へ 1 文で統合する。
+- 再発検知: 焦点再レビューの closed / partial / regressed 表 (`DW-S06-C` が既に要求している) で
+  `regressed` 行が出たら、その巡を最終とせず次巡を回す。
+
+### F147. 拒否メッセージの生成が subprocess を起動した [恒真ゲート]
+
+- 事象: `site_policy.heavy_work_refusal()` へキュー状態の診断を織り込んだ結果、拒否文を作る
+  過程で `subprocess.run(["qstat", "-Q"])` が走った。`test_build_site_gate.py` の 4 node が
+  固定していた「gate は subprocess を 1 つも起動する前に拒否する」を破り、受入全走で赤になった。
+- 根本原因: 診断を「拒否を報告する場所」ではなく「拒否を判定する場所」へ入れた。深い gate
+  (`buildcache._run` 等) から呼ばれる純関数に I/O を足したため、gate の副作用ゼロ性が壊れた。
+- 恒久対応: `heavy_work_refusal()` は純粋に戻し、キュー診断は呼び出し側の最上位
+  (`run_tests.py` / `check_ai_provenance.py`) と `python3 -m orchestrator.campaign.queue_state`
+  でだけ合成する (D209 決定 4)。
+- 再発検知: `heavy_work_refusal()` が `subprocess` を一切起動しないことを固定するテスト
+  (`subprocess.run` を例外送出でパッチして到達しないことを assert する)。
+
+### F148. 「tree が clean なら」の条件が開発の通常状態を殺した [手順漏れ]
+
+- 事象: 「cap 到達後の自動 fallback は working tree と submodule が clean のときだけ」という
+  裁定をそのまま実装した結果、**未コミットの変更がある通常の開発状態で必ず fallback が止まり**、
+  rc=16 で終了するようになった。変異 harness の本走が M1 で停止して顕在化した。
+- 根本原因: 裁定の意図は「local 試行が書き散らした状態のまま計算ノードで再実行しない」で
+  あったのに、実装条件を「tree が clean か」という**絶対状態**にした。守りたかったのは
+  **相対変化**である。開発中の tree はほぼ常に dirty なので、絶対状態の条件は常に偽になる。
+- 恒久対応: local 試行の**前後で tree と submodule の指紋を比較**し、変化していなければ
+  fallback する (D209 決定 9)。指紋取得に失敗したら安全側へ倒す。
+- 再発検知: 「最初から dirty な tree で、local 試行が何も変えなければ fallback する」を固定する
+  回帰テスト。
+
+### F149. 実行場所を可変にして既存 tool の前提を壊した [ドリフト]
+
+- 事象: `tools/mutation_harness.py --runner-mode dispatch` は runner の stdout に
+  `[Pegasus dispatch] receipt を … へ保存しました (child rc=…)` が現れる前提で計算ノード側の
+  stdout を集める。`run_tests.py` が余裕のあるときに local 実行するようになったため、この行が
+  出なくなり、変異 matrix が baseline から `PARSE_ERROR` になった。
+- 根本原因: 「常に dispatch する」という**暗黙の契約に依存した consumer** を棚卸ししないまま、
+  entry point の挙動を条件付きへ変えた。契約は runner の stdout 形式として存在していたが、
+  どの docs にも「dispatch されることに依存する consumer」として記録されていなかった。
+- 恒久対応: 実行場所を確定させる `--force-dispatch` を設け、harness 側がこれを明示する
+  (D209 決定 10)。
+- 再発検知: 強制指定時に `grant_budget` / `dispatch_possible` が呼ばれないことと、
+  preflight 順序・task_run の exactly-once が保たれることを固定するテスト。

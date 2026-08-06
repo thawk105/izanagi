@@ -434,6 +434,39 @@ def _skip_wrapper_options(wrapper: str, seg, i: int) -> int:
     return i
 
 
+def _has_terminal_command_reader(seg) -> bool:
+    """wrapper 列に実行しない ``command -v/-V`` があれば True を返す。
+
+    ``command`` の valid な短 option は ``-pVv`` なので bundle と分離形を扱う。
+    ``-p`` 単独と ``--`` 後は実 command の探索を続け、未知 option は問い合わせと
+    みなさない。呼び手は A#12 で追加された raw systemd-run 拒否だけを除外し、
+    wave 前からの他の拒否 bit は変えない。
+    """
+    i = 0
+    while i < len(seg):
+        token = seg[i]
+        if re.match(r"^\w+=", token):
+            i += 1
+            continue
+        base = os.path.basename(token)
+        if base in _SHELL_WORDS or token == "in":
+            i += 1
+            continue
+        if base not in _WRAPPERS:
+            return False
+        if base == "command":
+            j = i + 1
+            while j < len(seg):
+                option = seg[j]
+                if option == "--" or not option.startswith("-"):
+                    break
+                if re.fullmatch(r"-[pVv]*[Vv][pVv]*", option):
+                    return True
+                j += 1
+        i = _skip_wrapper_options(base, seg, i + 1)
+    return False
+
+
 def _expand_env_split_strings(seg):
     """wrapper prefix の ``env -S`` 値を argv token へ展開する。
 
@@ -1101,6 +1134,10 @@ def _heavy_segment_violation(seg, repo_root: str, depth: int):
     raw_head, head, args = _heavy_head_and_args(seg)
     if not head:
         return None
+    if head == "systemd-run":
+        if _has_terminal_command_reader(seg):
+            return None
+        return "systemd-run"
     # sanctioned 早期許可より前に評価する。後ろに置くと、script 引数から借りた
     # sanctioned 判定がこの分岐に到達させない。
     provenance = _provenance_violation(raw_head, head, args, repo_root)

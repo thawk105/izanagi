@@ -43,6 +43,8 @@ from .build_admission import (  # noqa: E402
     derive_build_admission,
     require_build_admission,
 )
+from .buildcache import (_resolve_site as _buildcache_resolve_site,  # noqa: E402
+                         require_heavy_work_site)
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
 from .env_contract import ExecutionEnvironmentContract          # noqa: E402
@@ -244,6 +246,16 @@ def _exc_summary(e: BaseException, limit: int = 1000) -> str:
     return s[:200] + " …[中略]… " + s[-(limit - 200):]
 
 
+def _resolve_site(site: Optional[str]) -> str:
+    """buildcache と同じ site seam。テストはこの関数だけを差し替える。"""
+    return _buildcache_resolve_site(site)
+
+
+def _require_measurement_site(what: str) -> str:
+    """計測 producer/COMMIT を login と suspect で拒否する。"""
+    return require_heavy_work_site(_resolve_site(None), what)
+
+
 def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
                clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S,
                numactl: Optional[Sequence[str]] = None):
@@ -255,6 +267,7 @@ def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
     材料, phase3.md)。パース不能なら None — 呼び手が reject する (空振り認証の検査可能性を
     落としたまま緑を出さない)。numactl (D36 決定4-4): S2 相当の全規模 run はメモリ配置を
     bench と揃える (既定 legacy はメモリ配置に鈍感な小規模ゆえ None のまま)。"""
+    _require_measurement_site("campaign trace 実行")
     args = (list(numactl) if numactl else []) + [binary] \
         + [f"-{k}={v}" for k, v in flags.items()] \
         + [f"-clocks_per_us={clocks_per_us}"]
@@ -305,6 +318,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                emit: Optional[Callable[[object, str, str, str, Dict], None]] = None,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
+    _require_measurement_site("campaign throughput 測定")
     # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
     # (入れると gflags last-wins で calibration の records を無言上書きする)。
     if "ycsb_tuple_num" in perf.workload:
@@ -812,6 +826,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                  "actual": pf.bin_sha256,
                  "path": pf.binary})
 
+    # build の site gate は fresh build でしか発火しない。legacy/v2 cache hit 後も、
+    # 実際に trace/throughput を作る producer へ進む直前に現在 site を再検査する。
+    _require_measurement_site("campaign trace/throughput producer")
+
     # --- verify (正しさゲート, 絶対規律2)。legacy (既定・軽量) + extra_correctness
     #     (S2 等・bench 並みの負荷) を順に全て通す (verify 2 本立て, D36 決定2/4) ---
     def _run_one_pass(tag: str, workload: CorrectnessWorkload,
@@ -994,6 +1012,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     if res.certified:
         if not do_bench:
             # 配線テストでベンチを省くとき: certified だけで commit (fitness なし)。
+            _require_measurement_site("campaign COMMIT 記録")
             if qualification_policy is None:
                 wal.log(layout, v, STAGE_COMMIT, env_tag, {
                     "fitness_tps": None,
@@ -1051,6 +1070,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         }
         if active_screening is not None:
             commit_payload["screened"] = True
+        _require_measurement_site("campaign COMMIT 記録")
         if qualification_policy is None:
             wal.log(layout, v, STAGE_COMMIT, env_tag, commit_payload)
         else:
