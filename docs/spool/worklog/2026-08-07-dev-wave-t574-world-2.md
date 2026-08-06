@@ -58,7 +58,8 @@ title: [T-574] 残余を閉じた — 配線すべき consumer は 0 件で、�
   **残り 13 bytes** しかない。[T-577] の裁定 (予算上限は上げない、入らない分の再発防止は failures
   台帳が担う) に従い {{F:tautological-exception-type-pin}} の恒久対応で閉じた。
   (2) worktree 隔離背景 job の codex 起動を launcher script 経由にする作法は、同じ予算理由で
-  **見送り 4 例目**。(3) carry 鎖を遡って base digest を出す helper が repo に無く、
+  **見送り 4 例目**。ただし取り込み時点で同じ現象が [T-594] へ 2 例目として起票済みだったため、
+  本 wave では重ねて起票せず、そちらへ寄せる (本 wave で 3 例目に当たる実測)。(3) carry 鎖を遡って base digest を出す helper が repo に無く、
   worklog ローテーション後は archive 走査が要るため wave ごとに書き捨てている。実装面の新規 tool に
   なるため段 8 では実装せず、記録に留める (プロトタイプ基準 D205)。
 
