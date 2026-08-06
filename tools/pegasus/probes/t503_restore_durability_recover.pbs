@@ -1,0 +1,120 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=00:10:00
+#PBS -b 1
+
+# この script は process SIGKILL または allocation 終了 proxy を検査する。
+# 物理ノード死、client eviction、OST/MDT failover、fresh-client recovery は証明しない。
+if [[ -z "${T503_ROOT:-}" || -z "${T503_LEG:-}" || -z "${PBS_JOBID:-}" \
+      || -z "${PBS_O_WORKDIR:-}" ]]; then
+  exit 2
+fi
+[[ "$T503_ROOT" == /* ]] || exit 2
+[[ "$T503_LEG" == L-A || "$T503_LEG" == L-C || "$T503_LEG" == L-B2 ]] || exit 2
+
+check_no_symlink_components() {
+  local path=$1 component current=/
+  local -a components
+  [[ "$path" == /* ]] || return 1
+  IFS=/ read -r -a components <<< "$path"
+  for component in "${components[@]}"; do
+    [[ -z "$component" ]] && continue
+    if [[ "$current" == / ]]; then current="/$component"; else current="$current/$component"; fi
+    [[ ! -L "$current" ]] || return 1
+  done
+}
+
+write_summary() {
+  local inspect_rc=$1 repair_rc=$2 verify_rc=$3
+  (
+    set -o noclobber
+    printf '{"inspect_rc":%s,"leg":"%s","repair_rc":%s,"verify_rc":%s}\n' \
+      "$inspect_rc" "$T503_LEG" "$repair_rc" "$verify_rc" > "$REAL_ROOT/leg-summary.json"
+  ) || return 2
+  sync -d "$REAL_ROOT/leg-summary.json" || return 2
+}
+
+umask 077
+set -o noclobber
+REAL_WORKDIR=$(realpath -e -- "$PBS_O_WORKDIR") || exit 2
+ROOT_WAITED=0
+while [[ ! -d "$T503_ROOT" && "$ROOT_WAITED" -lt 300 ]]; do
+  sleep 1
+  ROOT_WAITED=$((ROOT_WAITED + 1))
+done
+[[ -d "$T503_ROOT" ]] || exit 6
+REAL_ROOT=$(realpath -e -- "$T503_ROOT") || exit 2
+[[ "$REAL_WORKDIR" == "$PBS_O_WORKDIR" && "$REAL_ROOT" == "$T503_ROOT" ]] || exit 2
+check_no_symlink_components "$REAL_WORKDIR" || exit 2
+check_no_symlink_components "$REAL_ROOT" || exit 2
+PROBE="$REAL_WORKDIR/tools/pegasus/probes/t503_restore_durability_probe.py"
+WRITER_PBS="$REAL_WORKDIR/tools/pegasus/probes/t503_restore_durability_probe.pbs"
+RECOVERY_PBS="$REAL_WORKDIR/tools/pegasus/probes/t503_restore_durability_recover.pbs"
+for source in "$PROBE" "$WRITER_PBS" "$RECOVERY_PBS"; do
+  [[ -f "$source" && ! -L "$source" ]] || exit 2
+  check_no_symlink_components "$source" || exit 2
+done
+PY=$(command -v python3.10) || exit 2
+PROBE_SHA256=$(sha256sum -- "$PROBE" | awk '{print $1}') || exit 2
+WRITER_PBS_SHA256=$(sha256sum -- "$WRITER_PBS" | awk '{print $1}') || exit 2
+RECOVERY_PBS_SHA256=$(sha256sum -- "$RECOVERY_PBS" | awk '{print $1}') || exit 2
+
+for name in inspect.json inspect-receipt go-kill crash-receipt repair.json verify.json leg-summary.json; do
+  [[ ! -e "$REAL_ROOT/$name" && ! -L "$REAL_ROOT/$name" ]] || exit 2
+done
+
+READY_WAITED=0
+while [[ ! -e "$REAL_ROOT/ready" && "$READY_WAITED" -lt 300 ]]; do
+  sleep 1
+  READY_WAITED=$((READY_WAITED + 1))
+done
+[[ -e "$REAL_ROOT/ready" ]] || exit 6
+[[ -f "$REAL_ROOT/writer-info" && ! -L "$REAL_ROOT/writer-info" ]] || exit 6
+WRITER_HOST=$(sed -n 's/.*"hostname":"\([^"]*\)".*/\1/p' "$REAL_ROOT/writer-info")
+RECOVERY_HOST=$(hostname) || exit 2
+[[ -n "$WRITER_HOST" ]] || exit 6
+[[ "$RECOVERY_HOST" != "$WRITER_HOST" ]] || exit 7
+
+INSPECT_EXTRA=()
+if [[ "$T503_LEG" == L-C ]]; then INSPECT_EXTRA+=(--expect-partial-prefix); fi
+"$PY" -I -B "$PROBE" inspect --root "$REAL_ROOT" \
+  --output "$REAL_ROOT/inspect.json" --receipt "$REAL_ROOT/inspect-receipt" \
+  --pbs-jobid "$PBS_JOBID" --require-fstype lustre \
+  --expect-writer-pbs-sha256 "$WRITER_PBS_SHA256" \
+  --recovery-pbs-sha256 "$RECOVERY_PBS_SHA256" "${INSPECT_EXTRA[@]}"
+INSPECT_RC=$?
+if [[ "$INSPECT_RC" -ne 0 ]]; then
+  write_summary "$INSPECT_RC" -1 -1 || exit 2
+  exit "$INSPECT_RC"
+fi
+
+if [[ "$T503_LEG" == L-B2 ]]; then
+  [[ -f "$REAL_ROOT/scheduler-terminal.txt" && ! -L "$REAL_ROOT/scheduler-terminal.txt" ]] || {
+    write_summary "$INSPECT_RC" 6 -1 || exit 2
+    exit 6
+  }
+  CRASH_KIND=scheduler
+else
+  "$PY" -I -B "$PROBE" request-kill --root "$REAL_ROOT" --pbs-jobid "$PBS_JOBID" || exit $?
+  CRASH_WAITED=0
+  while [[ ! -e "$REAL_ROOT/crash-receipt" && "$CRASH_WAITED" -lt 300 ]]; do
+    sleep 1
+    CRASH_WAITED=$((CRASH_WAITED + 1))
+  done
+  [[ -e "$REAL_ROOT/crash-receipt" ]] || {
+    write_summary "$INSPECT_RC" 6 -1 || exit 2
+    exit 6
+  }
+  CRASH_KIND=receipt
+fi
+
+"$PY" -I -B "$PROBE" repair --root "$REAL_ROOT" \
+  --output "$REAL_ROOT/repair.json" --crash-evidence "$CRASH_KIND" --require-fstype lustre
+REPAIR_RC=$?
+# verify は repair と別 process で再 open する。
+"$PY" -I -B "$PROBE" verify --root "$REAL_ROOT" --output "$REAL_ROOT/verify.json"
+VERIFY_RC=$?
+write_summary "$INSPECT_RC" "$REPAIR_RC" "$VERIFY_RC" || exit 2
+if [[ "$REPAIR_RC" -ne 0 ]]; then exit "$REPAIR_RC"; fi
+exit "$VERIFY_RC"
