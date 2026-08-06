@@ -27,10 +27,12 @@ title: [T-503] 変異本走を使い捨て専有 worktree へ隔離する第一 
 - **変異 matrix は 14 件記録 / KILLED 9 / MISMATCH 5 / SURVIVED 0。全 14 件で事前登録した
   test node が赤**になり帰属は成立している。MISMATCH は登録 node に加えて他 node も赤くなったもので、
   **親の事前登録が影響範囲を過小に書いていた**。`DW-M02` に従い結果は書き換えず erratum とした。
-- **計算機の queue 混雑 (gen_S 待ち 137〜145) で変異 matrix が 2 度止まった。** dispatch が
-  `INFRA_RC=16` を返し、harness が F71 どおり fail-closed 停止 (`PARSE_ERROR`) にした。
-  `tools/run_tests.py` に overall grace を外から伸ばす口が無いため、**待ち行列が空くまで
-  投げない再開ループ**で通した。初回台帳は erratum として insight へ凍結した。
+- **変異 matrix の本走が 2 度止まった。親は当初これを計算機の queue 混雑と誤診断し、
+  待ち行列を見て投げ直す運用で凌いだが、一次資料を読み直して F148 / F149 の再発と判明した。**
+  停止は rc=16・stdout 0 byte で、変異適用中の tree が必ず dirty なため local 試行から
+  dispatch への fallback が拒否され、receipt 行が出ないまま harness が F71 どおり
+  fail-closed 停止 (`PARSE_ERROR`) したものである。**混雑は相関であって原因ではない** —
+  待ち 142 件のままでも完走した走行がある。初回台帳は erratum として insight へ凍結した。
 - **`DW-M05` は変更しなかった。** `docs/dev-wave/**` の hard ceiling に対し残りが 13 bytes で、
   追記すると安全義務を削る圧力がかかる。wrapper は必須ではないので運用規約は設計 §9.3 に置いた。
   必須化する slice で `DW-M05` の圧縮と同時に行う。
@@ -58,6 +60,7 @@ title: [T-503] 変異本走を使い捨て専有 worktree へ隔離する第一 
   分類の実測は AI ではなくユーザー端末の手番である。測るまでは計算ノード確保で運用する
 - {{T:mutation-worktree-stale-gc}} **P3・裁定待ち**: 未完了 container の自動回収 (V-9)。
   現状は手動削除か `--resume` のみ。`DW-G04` により実残骸 path を観測してから設計する
-- {{T:mutation-matrix-under-queue-congestion}} **P3・新規**: 計算機混雑時に変異 matrix を通す手段。
-  `tools/run_tests.py` は dispatch の overall grace を外から受け取らないため、混雑時は
-  `INFRA_RC=16` で必ず止まる。待ち行列を見て投げる運用で凌いだが、恒久策は未設計
+- {{T:mutation-harness-force-dispatch}} **P2・新規**: `tools/mutation_harness.py` が
+  `run_tests.py` へ D209 決定 10 の `--force-dispatch` を渡すようにする。変異適用中の tree は
+  必ず dirty なので、local 試行からの fallback が拒否されて rc=16・stdout 0 byte で止まる
+  (F148 / F149 の再発、{{F:stage1-rc-read-through-pipe}} とは別件)。本 wave は投げ直しで凌いだ

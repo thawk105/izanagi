@@ -65,10 +65,16 @@ clean gate に 1 行として映り、不採用とした。代わりに完走時
 通る他のテストも落ちるためで、**親の事前登録が影響範囲を過小に書いていた**。
 `DW-M02` に従い結果は書き換えず、この記述を erratum とする。
 
-`mutation-ledger-run1-erratum.json` は第 1 走の台帳である。MW-06 で計算機の queue 混雑により
-dispatch が `INFRA_RC=16` を返し、harness が F71 どおり「rc≠0 で failed node 0 件」を
-fail-closed 停止 (`PARSE_ERROR`) にした。実装差分の赤ではない。`tools/run_tests.py` には
-overall grace を外から伸ばす口が無いため、**待ち行列が空くまで投げない**再開ループで通した。
+`mutation-ledger-run1-erratum.json` は第 1 走の台帳である。MW-06 が **rc=16・stdout 0 byte** で
+止まり、harness が F71 どおり「rc≠0 で failed node 0 件」を fail-closed 停止 (`PARSE_ERROR`) にした。
+実装差分の赤ではない。
+
+**親は当初これを計算機の queue 混雑と誤診断した。** 待ち行列を見て投げ直す運用で完走させたが、
+一次資料を読み直すと **F148 / F149 の再発**である。変異適用中の tree は必ず dirty なので、
+`run_tests.py` の local 試行から dispatch への fallback が「tree が clean なら」の条件で拒否され、
+receipt 行が出ないまま止まる。**混雑は相関であって原因ではない** — 待ち 142 件のままでも
+完走した走行がある。恒久策は `mutation_harness` が D209 決定 10 の `--force-dispatch` を
+渡すことで、本 wave の scope 外として新規 task に起票した。
 
 ## 段 3 / 段 6 の所見の扱い
 
