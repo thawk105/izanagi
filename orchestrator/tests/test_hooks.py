@@ -1166,6 +1166,10 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t293_perf_site_probe.py": "unknown",
     "tools/pegasus/probes/t419_probe_causality.pbs": "unknown",
     "tools/pegasus/probes/t419_probe_causality.py": "unknown",
+    "tools/pegasus/probes/t503_restore_durability_probe.pbs": "unknown",
+    "tools/pegasus/probes/t503_restore_durability_probe.py": "unknown",
+    "tools/pegasus/probes/t503_restore_durability_recover.pbs": "unknown",
+    "tools/pegasus/probes/t503_restore_durability_verdict.pbs": "unknown",
     "tools/pegasus/run_probe.py": "dispatch-required",
     "tools/pegasus/silo_ladder_rung1.sh": "dispatch-required",
     "tools/pegasus/smoke_probe.sh": "dispatch-required",
@@ -1262,6 +1266,30 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "evidence": "unmeasured probe artifact"
     },
     "tools/pegasus/probes/t419_probe_causality.py": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t503_restore_durability_probe.pbs": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t503_restore_durability_probe.py": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t503_restore_durability_recover.pbs": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t503_restore_durability_verdict.pbs": {
         "class": "unknown",
         "reason": "probe artifact has no login admission ruling",
         "primary_gate": "hook deny pending admission evidence",
