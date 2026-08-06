@@ -49,6 +49,18 @@ title: P3 の ever-issued cell 台帳 (U-3) は実装しないと裁定した �
 
 ### 更新
 
+- [T-594] **P2・新規 (2026-08-06 /rulings、防壁変更)**: worktree
+  隔離 guard が redirect / pipe 付き複合命令を「検証不能」で一律拒否する挙動を、解析強化で
+  改善する。許可範囲は広げない — 安全に worktree 内と判定できる複合命令を正しく判定する方向のみ。
+  `hooks/README.md` の契約とテストに従い、敵対レビューを付ける。
+  **2026-08-07 に 2 例目を実測した** — `DW-O01` が規定する子 process の起動形
+  (`nohup setsid bash -c '<cmd>; echo $? > <log>.done'`) そのものが、`DW-O20` が想定する
+  背景 job + worktree 隔離の構成では拒否される。launcher script を wave 専用 subdirectory へ
+  書いてから起動する形で迂回できるが、**reference の記載と実挙動が食い違ったままである。**
+  `docs/dev-wave/` は集約予算の残余が 13 bytes しかなく、意味等価な縮約なしには
+  この逃がしを追記できない。guard 側を直すか reference 側を直すかは本項の裁定に含める。
+  base: 28d5fbf0e8ff46fff47a9ba61b6b54bc6e1a914dbf24ce59d2e9fdec34e9baca
+
 - [T-244] **P3 の 8c 結線は実装不能 (D201)、U-3 の ever-issued cell 台帳も実装しないと裁定 ({{D:u3-ever-issued-not-monotone}})。U-10 は批准済み (値確定、発行は 3 条件成立後)。P2 は critic 境界の pseudonymization まで。P4 は ledger 側適合、P5 残余は U-2、未着手は P7・P9**:
   **U-3 (ever-issued cell 台帳): 2026-08-07 に実装しないと裁定し、択一 3 件を再裁定へ返した。**
   repo 内に置く台帳は authority と同じ捕捉 commit から読むため、新 authority を書く主体が
