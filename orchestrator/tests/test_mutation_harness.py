@@ -349,6 +349,19 @@ def test_parameter_suffix_is_matched_exactly(repo: Path) -> None:
     assert record["failed_nodes"] == ["tests/test_gate.py::test_gate[two]"]
 
 
+def test_failed_nodes_strict_superset_never_counts_as_killed(repo: Path) -> None:
+    expected = ["tests/test_gate.py::test_gate[one]"]
+    failed = [*expected, "tests/test_gate.py::test_gate[two]"]
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=failed,
+        expected=expected,
+        repo=repo,
+    )
+
+    assert status == "MISMATCH"
+
+
 @pytest.mark.parametrize("rc", [2, 3, 5])
 def test_abnormal_pytest_rc_never_counts_as_killed(repo: Path, rc: int) -> None:
     expected = ["tests/test_gate.py::test_gate[one]"]
