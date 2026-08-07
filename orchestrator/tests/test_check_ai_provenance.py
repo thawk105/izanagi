@@ -1320,40 +1320,55 @@ def test_message_file_accepts_contiguous_cab_without_policy_history(
     assert "違反なし" in capsys.readouterr().out
 
 
-def test_known_violation_ledger_is_exactly_six_literal_entries():
+def test_known_violation_ledger_is_exactly_seven_literal_entries():
     expected = (
         provenance.KnownViolationSpec(
             "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
             "missing-ai-agent",
             "worklog(284) 2026-08-07 /rulings",
+            note="",
         ),
         provenance.KnownViolationSpec(
             "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
             "missing-ai-agent",
             "worklog(284) 2026-08-07 /rulings",
+            note="",
         ),
         provenance.KnownViolationSpec(
             "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
             "missing-ai-agent",
             "worklog(284) 2026-08-07 /rulings",
+            note="",
         ),
         provenance.KnownViolationSpec(
             "16affe169185040b33f8c6cbdd452260bddc4089",
             "missing-ai-agent",
             "worklog(284) 2026-08-07 /rulings",
+            note="",
         ),
         provenance.KnownViolationSpec(
             "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
             "missing-ai-agent",
             "worklog(284) 2026-08-07 /rulings",
+            note="",
         ),
         provenance.KnownViolationSpec(
             "b0a07672737cf03424ec1790cc25a06e4c85b737",
             "missing-codex-author",
             "worklog(284) 2026-08-07 /rulings",
+            note="",
+        ),
+        provenance.KnownViolationSpec(
+            "3f2c43d7580b8c26724d90278589862057508965",
+            "missing-ai-agent",
+            "worklog(293) 2026-08-07 /rulings",
+            note=(
+                "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の"
+                "空行で trailer block 不成立"
+            ),
         ),
     )
-    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 6
+    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 7
     assert provenance.KNOWN_PROVENANCE_VIOLATIONS == expected
     commits = {spec.commit for spec in expected}
     assert commits == {
@@ -1363,8 +1378,8 @@ def test_known_violation_ledger_is_exactly_six_literal_entries():
         "16affe169185040b33f8c6cbdd452260bddc4089",
         "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
         "b0a07672737cf03424ec1790cc25a06e4c85b737",
+        "3f2c43d7580b8c26724d90278589862057508965",
     }
-    assert "3f2c43d7580b8c26724d90278589862057508965" not in commits
 
 
 def test_known_violation_ledger_matches_real_commit_findings():
@@ -1375,6 +1390,7 @@ def test_known_violation_ledger_matches_real_commit_findings():
         "16affe169185040b33f8c6cbdd452260bddc4089",
         "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
         "b0a07672737cf03424ec1790cc25a06e4c85b737",
+        "3f2c43d7580b8c26724d90278589862057508965",
     ]
     audit = provenance._audit_history(commits)
     assert audit.findings == []
@@ -1387,6 +1403,7 @@ def test_known_violation_ledger_matches_real_commit_findings():
         ("16affe169185040b33f8c6cbdd452260bddc4089", "missing-ai-agent"),
         ("905c867a7b2342ff250a1bcf28a3ce74abdacc06", "missing-ai-agent"),
         ("b0a07672737cf03424ec1790cc25a06e4c85b737", "missing-codex-author"),
+        ("3f2c43d7580b8c26724d90278589862057508965", "missing-ai-agent"),
     ]
 
 
@@ -1526,6 +1543,64 @@ def test_broken_registry_types_are_rc2(
     ) == 2
     captured = capsys.readouterr()
     assert error in captured.err
+    assert captured.out == ""
+
+
+@pytest.mark.parametrize(
+    ("bad_note", "error"),
+    [
+        (None, "invalid note type: NoneType"),
+        ("first\nsecond", "line break in note"),
+        ("first\rsecond", "line break in note"),
+        ("first\r\nsecond", "line break in note"),
+        ("first\u2028second", "line break in note"),
+    ],
+    ids=["non-str", "lf", "cr", "crlf", "ls"],
+)
+def test_broken_registry_note_is_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    bad_note: object,
+    error: str,
+):
+    _init_repo(tmp_path)
+    _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    commit = _commit(
+        tmp_path,
+        {"docs/known.md": "known\n"},
+        "known\n",
+    )
+    matching_spec = provenance.KnownViolationSpec(
+        commit=commit,
+        expected_finding_kind="missing-ai-agent",
+        ruling="matching synthetic ruling",
+        note=bad_note,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (matching_spec,),
+    )
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    expected_diagnostic = (
+        "check_ai_provenance: 実行不能: "
+        "known provenance violation registry has "
+        + (
+            error
+            if bad_note is None
+            else f"{error}: {commit}"
+        )
+        + "\n"
+    )
+    assert captured.err == expected_diagnostic
     assert captured.out == ""
 
 
@@ -1806,7 +1881,48 @@ def test_known_violation_stdout_is_public_on_rc0_and_rc1(
     assert "2 件中 1 新規違反" in captured.err
 
 
-def test_empty_registry_restores_all_six_real_findings(
+def test_known_violation_nonempty_note_is_public_on_rc1(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    base = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    known = _commit(tmp_path, {"docs/known.md": "known\n"}, "known\n")
+    new = _commit(tmp_path, {"docs/new.md": "new\n"}, "new\n")
+    note = "synthetic single-line note"
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (
+            provenance.KnownViolationSpec(
+                commit=known,
+                expected_finding_kind="missing-ai-agent",
+                ruling="matching synthetic ruling",
+                note=note,
+            ),
+        ),
+    )
+
+    assert provenance.main(
+        ["--range", f"{base}..{new}"], site=site_policy.OTHER,
+    ) == 1
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "check_ai_provenance: known-violation "
+        f"sha={known} finding=missing-ai-agent note={note}\n"
+        "check_ai_provenance: known-violations=1\n"
+    )
+    assert f"{new[:12]} new: AI-Agent trailer がない" in captured.err
+    assert "2 件中 1 新規違反" in captured.err
+
+
+def test_empty_registry_restores_all_seven_real_findings(
     monkeypatch: pytest.MonkeyPatch,
 ):
     commits = [
@@ -1816,31 +1932,37 @@ def test_empty_registry_restores_all_six_real_findings(
         "16affe169185040b33f8c6cbdd452260bddc4089",
         "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
         "b0a07672737cf03424ec1790cc25a06e4c85b737",
+        "3f2c43d7580b8c26724d90278589862057508965",
     ]
     production = provenance._audit_history(commits)
     assert production.findings == []
-    assert len(production.known_violations) == 6
+    assert len(production.known_violations) == 7
 
     monkeypatch.setattr(provenance, "KNOWN_PROVENANCE_VIOLATIONS", ())
     audit = provenance._audit_history(commits)
-    assert len(audit.findings) == 6
-    assert sum("AI-Agent trailer がない" in finding for finding in audit.findings) == 5
+    assert len(audit.findings) == 7
+    assert sum("AI-Agent trailer がない" in finding for finding in audit.findings) == 6
     assert sum("実装面に Codex role=author がない" in finding for finding in audit.findings) == 1
     assert audit.known_violations == ()
 
 
-def test_unledgered_3f2c43d7580b_remains_new_and_rc1(
+def test_ledgered_3f2c43d7580b_is_known_and_rc0(
     capsys: pytest.CaptureFixture[str],
 ):
     commit = "3f2c43d7580b8c26724d90278589862057508965"
     assert provenance.main(
         ["--range", f"{commit}^!"], site=site_policy.OTHER,
-    ) == 1
+    ) == 0
     captured = capsys.readouterr()
-    assert "known-violation" not in captured.out
-    assert f"{commit[:12]} " in captured.err
-    assert "AI-Agent trailer がない" in captured.err
-    assert "1 件中 1 違反" in captured.err
+    assert captured.out == (
+        "check_ai_provenance: known-violation "
+        f"sha={commit} finding=missing-ai-agent "
+        "note=trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の"
+        "空行で trailer block 不成立\n"
+        "check_ai_provenance: known-violations=1\n"
+        "check_ai_provenance: 1 件、新規違反なし\n"
+    )
+    assert captured.err == ""
 
 
 def test_forward_correction_production_literal_and_target_object_are_pinned():
