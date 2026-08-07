@@ -1,0 +1,78 @@
+あなたは izanagi の開発 wave 段 3 の敵対検証者である。sandbox は read-only。出力は日本語。
+
+これは**防御目的の設計レビュー**である。目的は、まだ実装していない設計を land する前に、
+既存の規約・凍結・予算・権限境界と衝突する箇所を洗い出して止めることである。
+あなたの役割は攻撃者ではなく、規約違反と scope 肥大を見つける査読者である。
+プランを守る側に回ってはならない。
+
+## 最初に読むもの (読めなければ即停止し、その旨だけを出力せよ)
+
+- `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t598-ledger-consumer/brief.md` — 親の段 1 brief。
+- `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t598-ledger-consumer/s2-plan-out.md` — 段 2 のプラン。
+  推奨は (d-v2) = 新しい `task-run/v2` schema と sibling root を作り、task-level
+  `claude_session_usage` event を追加する案。概算で新規/変更 約 350〜500 行。
+
+両方とも出力へ複製するな。行番号は必ず実ファイルを読んで書け。
+
+## レンズ B — 規約・凍結・予算・境界との衝突、および scope 肥大
+
+1. **D205 (プロトタイプ基準) との整合。** 2026-08-06 のユーザー裁定で、本プロジェクトは
+   production 級の完璧な堅牢性を目標にせず、**最小で研究が進む選択肢を既定にする**と決まっている
+   (`docs/decisions.md` の D205 本文を読め)。
+   段 2 の推奨は新 schema (v2, 約 330〜370 行の JSON schema)、新 root、writer/validator/report の
+   改修、専用 test 9 本を要求する。
+   **これは「消費の観測値を系列として残す」という目的に対して過大ではないか。**
+   同じ目的を達する、より小さい設計 (例: repo 外の append-only な観測ファイル、
+   既存 report の外側での集計、CLI を運用手順として文書化するだけ) を列挙し、
+   それぞれが何を失うかを書け。**過大と判定するなら、そう明言せよ。**
+2. **D66 の非証拠境界。** `output/task-runs/` は
+   `authority: development-observation-not-evidence` を必須とし、proof chain・campaign WAL・
+   凍結 spec と接続しない。プランの結線がこの境界を侵す経路があるか、実コードで確認せよ
+   (`tools/task_runs/ledger.py` の root realpath 拒否、`output/README.md` の namespace 地図)。
+3. **凍結された受理集合。** `task-run/v1` は pilot 最終 report で凍結された。
+   - 凍結後に v1 の受理集合を変える案 (段 2 の選択肢 B) は、既存 tracked 記録の再検証に何を起こすか。
+   - sibling root を作り既定 path を切り替える案 (選択肢 A) は、
+     `tools/task_runs/cli.py`、`tools/run_tests.py`、`tools/task_run_check.py`、
+     `tools/dev_waves/daemon.py`、`tools/dev_waves/checker.py` の既定 path 前提を何箇所壊すか。
+     実際に grep して**件数と file:line を挙げよ**。
+   - 段 2 は「新 sibling root なら現行 CLI だけで v1 root を作れる」と書いた。これは正しいか実コードで検算せよ。
+4. **consumer が gate 化しない保証。** 絶対規律 2/3 により、消費削減は最適化圧力であり、
+   正しさ側を攻撃しに来る前提で扱う。プランは「観測のみ、欠測は完了条件にしない」と書くが、
+   **その保証が実際に発火するか** (恒真な保証になっていないか) を確認せよ。
+   `tools/dev_waves/checker.py` の task-run 完了 gate と `validate_run()` の実装を読み、
+   将来 usage 欠測が赤になる経路が残っていないかを判定せよ。
+5. **実行場所と admission。** 台帳は最大 512 MB / 1000 file を走査しうる。
+   `finish_run()` から自動で走るなら、それは**無人でログインノードを走る処理**になる。
+   `tools/README.md` と `docs/pegasus-runbook.md` §7.0 の 3 値分類 (`local-ok` /
+   `dispatch-required` / `unknown`) の規範を読み、この consumer がどう分類されるべきか、
+   分類手順を踏まずに結線してよいかを判定せよ。「測っていないものを軽い側へ倒さない」が規範である。
+6. **privacy 契約。** `output/task-runs/README.md` の privacy 制約を読み、
+   段 2 が提案する population payload (project/cwd の SHA-256 binding、走査件数、時間窓) が
+   **git 追跡される記録**として許されるかを判定せよ。
+   「git 履歴に入った記録は事実上削除できない」ことを前提に、後から取り消せない情報が入らないかを見よ。
+7. **予算。** `docs/dev-wave/*` は残 13 bytes (brief の M10)。
+   `tools/README.md` は 2989/3000 = 残 11 bytes。`docs/README.md` は上限対象外。
+   プランの文書変更がどの予算に当たるかを `tools/check_docs.py` の TextLimit で確認し、
+   **land 不能な文書変更を含んでいないか**を判定せよ。
+8. **親 brief 自身への攻撃。** 親は (P2)(P3)(P4) で候補 (a)(b)(c) を却下した。
+   却下理由が事実に基づくかを実コード・実文書で検算せよ。
+   特に (c) の却下理由「claude 側に paired 装置が無い」は、
+   `tools/codex_reasoning_ab.py` の実装を読んだ上で正しいか。
+   **却下が誤りなら、却下した候補の方が小さく目的を達する可能性を指摘せよ。**
+
+## 制約
+
+- 削減施策そのものを提案するな。effort・段・出力量の削減は本 wave の scope 外である。
+- 所見には必ず「放置した場合に成果物 (certified 選択、レポート、試行台帳) の
+  どの値・受理集合・参照がどう変わるか」を 1 行で書け。書けない所見は nit / backlog に落とせ。
+- sandbox は read-only で書込可能 tmp が無い。pytest 緑は要求されていない。静的検査でよい。
+  走らせていないものを「確認済み」と書くな。
+
+## 出力形式
+
+最後の節は必ず `## 総括` とする。
+
+- `## 所見` — 各所見に severity (blocker / must-fix / nit)、根拠の file:line、放置時の壊れ方。
+- `## scope 肥大の判定` — 段 2 推奨が D205 に照らして過大か否か。過大なら最小代替案を 1 つ名指し。
+- `## 親 brief の却下理由の検算` — (P2)(P3)(P4) ごとに real / refuted。
+- `## 総括` — 3〜8 行。最も重い 1 件を名指しする。

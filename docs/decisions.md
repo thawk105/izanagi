@@ -10311,3 +10311,108 @@ admission decision の欠落をそれぞれ止める fail-closed 検査を置い
   述語が 2 つになれば受理集合が静かに分岐する。
 - loader 側にも同じ self-pass を課す — 現行の登録済み較正が読めなくなり、承認外の受理縮小になる
   (D191 が既に却下済み)。
+
+## D219. 8c 結線の前提 5 点を exact contract として設計し、発行 3 条件は 0/3 のままと確定する (2026-08-07)
+
+**決定:** U-10 批准後に唯一起票できる設計 wave として、8c 自律 trial への origin ledger 結線の
+前提 5 点 — source closure / result-evidence の exact 化 / 32 mask producer topology /
+launch admission が発行する origin binding capability / 失敗・crash の event 対応 — を
+`docs/phase3-8c-wiring-design.md` に設計する。実装は行わない。
+
+設計の中核は次の 5 点である。
+
+1. **cell 同一性の閉包は「同一 authority blob 内」までしか保証できない。** 現 loader が拒否できるのは
+   その範囲の 4-tuple 重複だけで、series 横断の一意性は実装に存在せず、repo 内台帳で作ることは
+   D211 が拒否済みである。したがって下流 consumer に
+   `(authority_blob_sha256, origin_id, cell_key)` の 3 つ組 scope を義務づける。
+   `cell_key` 単独での集約は同じ cell の二重計上を招く。
+2. **物理実行と台帳を結ぶのは ledger ではない。** ledger は evidence digest を dereference しない。
+   結ぶのは物理実行点で発行する create-only の result-evidence record と、それを読む formal
+   consumer である。consumer は member→record の全域性だけでなく **record→物理 attempt の単射**
+   (attempt id 相異・WAL 区間非重複・WAL の trigger binding 一致) を必須とする。
+3. **validation 32 行は 1 batch に強制される。** P6 の一括 commit 条件と 1-open-batch FSM により
+   分割できず、source 行を別 batch にすると行数下限 2 を満たせない。よって
+   fresh origin・exact 1 batch・33 member (source 1 + mask 0..31) が唯一の成功 topology である。
+4. **既存 6 event で意味は閉じるが、durable な recovery material が要る。** 足りないのは crash event
+   ではなく、再送 payload を byte-for-byte 復元する run plan / recovery envelope である。
+   state commitment は authority 全体の global CAS なので、次 event の base に直前 receipt の
+   `resulting_state_commitment` を連鎖させてはならない (`current_state_commitment` を使う)。
+5. **発行 3 条件はいずれも成立しない。** V-2 は artifact と consumer が未存在、topology は 33 物理
+   attempt を生む producer が未存在、許可経路は **production runtime の初期化経路そのものが
+   存在しない** (初期化は fixture 専用で、production は明示拒否されている)。
+   本設計を land しても本番 authority の provisioning は行わない。
+
+**理由:**
+
+- U-10 批准パッケージ §7 が「次に起票できるのは実装 wave ではなく設計 wave」と定め、
+  閉じるべき 5 点を名指ししている。本決定はその履行である。
+- 敵対 2 レンズが独立に NO-GO を返し、blocker 8 件・must-fix 8 件を挙げた。親は主要 5 件を
+  現物で裏取りし、すべて real と裁定した。特に「末尾の全 tombstone batch が certifiable seal を
+  通る」「同一 mask の重複行は campaign ループが物理実行しない」「production runtime を初期化する
+  経路が無い」の 3 件は、設計を書かなければ実装 wave の途中まで露見しなかった。
+- 設計だけを先に確定させることで、実装 wave の受入条件 (前 wave の再起票要件 8 件のうち残り 5 件と、
+  未着手の completeness / 材料レポート renderer の 2 層) を事前に固定できる。
+
+**却下した選択肢:**
+
+- **設計を書かずに実装 wave へ進む** — 発火経路が無いことは既に実測済みで、`DW-G04` に反する。
+- **validation を複数 batch へ割る / 行数下限を 1 へ下げる / source の 2 行目を tombstone で埋める** —
+  順に FSM 違反、正しさゲートの緩和、下限を実行せずに満たす恒真化である。
+- **create-only を writer 認証とみなす** — `O_EXCL` は上書きを防ぐだけで最初の書き手を認証しない。
+  保証限界として明記し、権限分離の是非は裁定へ返す。
+- **ledger の terminal `certifiable` を certified 選択への昇格根拠にする** — launch admission の
+  `certifying` は False のままであり、2 語は同義ではない。
+- **repo 内で series 横断の重複を調べる** — D211 と矛盾する。
+
+## D220. claude 消費台帳の結線先は wave 単位の前向き収集とし、既存の観測台帳・定期実行・A/B へは結線しない (2026-08-07)
+
+**決定 (1): 4 候補のうち 3 つを不採用にする。**
+
+- **開発観測台帳 (`output/task-runs/`) の次世代へ task 単位の消費 event を足す案 — 不採用。**
+  現行 schema の token 4 区分は agent 実行 event 専用であり、task 単位の欄は存在しない。
+  task 単位へ足すには新 schema 世代・新 root・writer/validator/report の改修が要り、
+  実見積りで production 差分 645〜816 行。D205 のプロトタイプ基準に照らして過大である。
+  **再訪条件**: この台帳が次世代 pilot として再開されるとき、その設計の一部として扱う。
+- **定期実行による観測 — 不採用。** 定期実行の基盤が repo に無く、台帳は最大 512 MiB を走査しうる
+  未計測処理である。実行場所の分類規範では未計測は重い側 (`unknown`) に倒すため、
+  分類手順を踏まずに無人結線できない。加えて観測値は作業量と交絡し、単独では前後比較を支えない。
+- **claude 側 A/B の endpoint — 不採用。** 既存 A/B 装置は codex の binary・model・effort・
+  codex 側台帳を固定した専用 harness で、provider を差し替える seam が無い。
+  claude 側の arm を新設するのは本 phase では過大である。
+  **因果主張は paired A/B だけが支える**という D207 の原則は本決定でも維持し、
+  本決定が定める観測値を因果証拠と呼ばない。
+
+**決定 (2): 結線先は wave 単位の前向き収集とする。** canonical CLI の JSON 出力を wave ごとに
+1 件、typed artifact として保存する。台帳を再解釈する第 2 の parser を作らないので D206 に抵触しない。
+
+**決定 (3): 作業ディレクトリから claude の保存先識別子を導出しない。** 導出は claude 本体の
+内部実装の複製であり、識別子の符号化が変わっても古い保存先が残っていれば「不在」にならず、
+欠測ではなく**偽のゼロ**を記録する。呼び出し側が保存先を明示し、該当 0 件は観測値 0 ではなく
+欠測として記録する。
+
+**決定 (4): この consumer を開発フローの gate にしない。** 収集の失敗・欠測は作業の完了条件に
+しない。消費削減は最適化圧力であり、最適化圧力は正しさ側を攻撃しに来るという前提 (規律 2/3) で扱う。
+
+**決定 (5): 結線を決めても「削減施策を起票してよい」条件は満たされない。** 前後比較の成立には
+(a) 施策より前に前向き baseline を貯め終えること、(b) run ごとの介入 exposure と比較可能な層別を
+固定すること、(c) 効果量と分散から標本数を事前に決めること、(d) 欠測が施策の効きと相関しないこと、
+が要る。**遡及して baseline を作ることはできない。**
+
+**理由:**
+- 独立した 2 本の敵対検証が、測定妥当性 (正規化子の不在、介入 exposure の不在、標本数、
+  帰属の不健全、欠測と施策の相関) と規約適合 (実行場所の未分類、恒久記録の privacy、
+  凍結済み受理集合の拡張、既定経路の切替漏れ) の両面から独立に NO-GO を返した。
+- 作業ディレクトリと claude の保存先は一対一ではない。実 transcript 305 件の集計で、
+  145 件が別の保存先の下に当該作業の記録を持ち、37 件が 1 ファイル内で作業場所を混在させ、
+  3 件が作業場所を移動していた。帰属を厳密と仮定した設計は成立しない。
+- 観測台帳の token 欄は最初から agent 実行 event 専用であり、「空いている欄を埋める」という
+  最小結線は存在しなかった。存在しない最小性を根拠に大きな機構を通してはならない。
+
+**却下した選択肢:**
+- 凍結済み世代の受理集合へ event を足す — 同じ version 文字列が二つの受理集合を表すことになり、
+  過去記録の再検証結果が検証器の版に依存する。
+- 既存の agent 実行 event へ task 単位の合算を書く — 実行 model・役割・所要時間を捏造することになり、
+  既存 report の agent 集計と model 別集計を汚す。
+- 観測の母集団を保存せず値だけ残す — 母集団を必ず報告に出す既定 (D206) と両立しない。
+- 保存先の識別子を平文で恒久記録へ書く — 撤回不能な記録に作業時刻と作業量の相関を残す。
+  可否はユーザー裁定へ返す。

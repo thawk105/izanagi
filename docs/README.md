@@ -44,7 +44,7 @@
 - `related-work/` — 関連研究 (README.md が本体 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート)
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
-- `phase3-s*.md`・`phase3-8b-*.md` — 現行 phase doc の従属文書 (段の設計書・手順書)。段ごとの内訳は phase3.md から辿る (段番号をここに列挙しない — 段の追加で腐るため)
+- `phase3-s*.md`・`phase3-8b-*.md`・`phase3-8c-*.md` — 現行 phase doc の従属文書 (段の設計書・手順書)。段ごとの内訳は phase3.md から辿る (段番号をここに列挙しない — 段の追加で腐るため)
 - `freeze-permanent-design.md` — freeze 族の恒久設計の正本 ([T-080]、R1..R16 承認済み 2026-07-22)
 - `freeze-permanent-design-s2.md` — 第 2 設計段パッケージ (§13 の exact 化 + 変異事前登録候補。段完了で凍結する design 族。未了事項は同書冒頭の状態行が正本)
 - `mutation-restore-durability-design.md` — 変異復元を grace 予算依存から journal + fsync + 再開時修復へ転換する設計 ([T-487] 起草。第一 slice = 使い捨て専有 worktree (`tools/mutation_worktree.py`) だけ実装済みで §9.1 の充足は 0/6。状態は同書冒頭、裁定軸は §9、着手範囲は §9.3 が正本)
@@ -64,6 +64,9 @@
   Codex adapter の本文・metadata・schema・policy parity、実行可否・発見可能性の fail-closed 検査 /
   `check_ai_provenance.py` = commit trailer 監査 / `codex_worker_ledger.py` = codex rollout ログから
   worker の session/stage/token/終了分類/retry を決定的に集計する read-only 台帳 (T-179) /
+  `claude_session_ledger.py` = claude session transcript から model call と raw token 交通量を
+  母集団付きで集計する read-only 台帳 (D206。費用・課金・利用枠ではない。
+  production consumer は未結線 — 結線先の裁定は T-598) /
   `plotting/` = campaign の論文品質作図、規約は `tools/plotting/FIGURE_CONVENTIONS.md`)
 - `hooks/` — 正しさの最小第二防壁 (guard_write / guard_bash) + 別系統のコンテキスト衛生
   (guard_read)。詳細は同 README
