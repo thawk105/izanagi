@@ -590,6 +590,19 @@
   「role 名を key に張る pin は key 側でも検索し、path の hit 0 件を pin なしと結論しない」と
   既に明記しており、**本文を読んだうえで path 検索だけで結論した**。段 3 のレンズが訂正した。
   今回は当該 module を変更しなかったため実害はない。恒久対応は `DW-O09` から変更なし
+
+- **再発: 2026-08-07** — 四度目。前回 (三度目) と同じ role 名 key の pin を、同じ module
+  (`orchestrator/campaign/env_contract.py`) について再び数え落とした。今回は原因が 2 つ重なる。
+  (i) 段 1 で `grep -rln "env_contract" --include=*.json output/` を走らせたが、**出力を `| head` で
+  10 件に切って**全件を見なかった。silo evidence の
+  `output/env/pegasus/silo_ladder_rung1/silo_ladder_rung1.json` は path 文字列を持つので
+  検索自体には掛かっていたが、切られた側にいた。(ii) t419 probe manifest の
+  `env_contract_sha256` は role 名 key であり path 検索に掛からない — `DW-O09` が三度目の
+  恒久対応として明記した経路をそのまま踏んだ。結果、brief へ「bytes を literal で pin する
+  台帳・test は 0 件」と誤って記録した (正しくは歴史 pin 2 件・live pin 0 件)。
+  段 3 の 2 レンズが独立に検出し、親が実測で裏を取った。本 wave は当該 module を変更せず
+  終端したため実害はない。恒久対応は `DW-O09` から変更せず、**検索出力を件数で切らない**ことを
+  同節の既存義務の運用として守る (新しい節は作らない)。
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
