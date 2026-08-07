@@ -4492,7 +4492,8 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
     def fake_eval(g, layout, env_tag, ccbench_commit, perf, clocks_per_us,
                   numactl=None, correctness=None, extra_correctness=None,
                   do_bench=True, do_settle=True, src_token=None, log=print,
-                  ccbench_dir="", cache_root="", *, build_context,
+                  ccbench_dir="", cache_root="", *, authorization_contract,
+                  build_context,
                   capability_resolver=None, source_evidence=None):
         assert build_context is _BUILD_CONTEXT
         captured["extra_correctness"] = extra_correctness
@@ -4533,7 +4534,8 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
     def fake_eval(g, layout, env_tag, ccbench_commit, perf, clocks_per_us,
                   numactl=None, correctness=None, extra_correctness=None,
                   do_bench=True, do_settle=True, src_token=None, log=print,
-                  ccbench_dir="", cache_root="", *, build_context,
+                  ccbench_dir="", cache_root="", *, authorization_contract,
+                  build_context,
                   capability_resolver=None, source_evidence=None):
         assert build_context is _BUILD_CONTEXT
         captured["extra_correctness"] = extra_correctness

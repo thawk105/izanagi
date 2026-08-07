@@ -29,6 +29,7 @@ fsync を呼ぶコード経路は変えていない (検査は弱めない) — 
 """
 import os
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -43,8 +44,9 @@ def _declare_default_test_site(request, monkeypatch):
     """Make ambient machine identity irrelevant unless a test declares a site.
 
     Test modules are imported before fixture setup, so patch both supported import
-    names when present.  A test's own monkeypatch/direct replacement runs later and
-    therefore wins for explicit login/compute/suspect cases.
+    names when present.  Keep ``current_site`` itself intact and neutralize only its
+    inputs.  A test's own monkeypatch/direct replacement runs later and therefore
+    wins for explicit login/compute/suspect cases.
     """
     if "_detect_site_under_test" in request.fixturenames:
         return
@@ -54,7 +56,10 @@ def _declare_default_test_site(request, monkeypatch):
     ):
         module = sys.modules.get(module_name)
         if module is not None:
-            monkeypatch.setattr(module, "current_site", lambda m=module: m.OTHER)
+            monkeypatch.setattr(
+                module, "socket", SimpleNamespace(gethostname=lambda: "test-host")
+            )
+            monkeypatch.setattr(module, "_has_nqsv", lambda: False)
 
 
 # 単一 pytest runner invocation 内で、親 repo status と共有 ccbench worktree の

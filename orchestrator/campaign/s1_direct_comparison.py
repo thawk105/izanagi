@@ -807,14 +807,15 @@ def run_role(
                         src_token=prepared.src_token, log=log,
                         ccbench_dir=prepared.ccbench_dir, cache_root=prepared.cache_root,
                         screening=None, bench_max_rounds=1,
-                        authorization_contract=authorization_contract,
                         build_context=build_context,
                         capability_resolver=review_capability,
                     )
                     try:
                         result = evaluate_fn(
                             prepared.genome, layout, ENV_TAG, cfg.ccbench_commit, perf,
-                            CLOCKS_PER_US, **kwargs)
+                            CLOCKS_PER_US,
+                            authorization_contract=authorization_contract,
+                            **kwargs)
                     except (wal.WalAppendError, wal.WalFramingError):
                         # 不確かな同一 WAL に retry/session-result を重ねない。
                         raise
