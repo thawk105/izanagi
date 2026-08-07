@@ -483,3 +483,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:d-transition-rule-wording-hole":"[T-624]","T:floor-protocol-invalid-return-single-reason":"[T-623]"},"authored":"2026-08-07","content_sha256":"c2bcbd3e9c2adf503290a6cadc1adb50a6b7032b1a23b62646e215e5d8daeb23","seq":1,"wave":"dev-wave-t529-impl-reraise"}
 - {"allocations":{"D:floor-protocol-two-lane":"D226","D:g04-firing-material-exists":"D225"},"authored":"2026-08-07","content_sha256":"4822c9b7bedcd541d3dfb2e6f2429904d6c672704544fc9b813f390da474228a","seq":2,"wave":"dev-wave-t529-impl-reraise"}
 - {"allocations":{"F:mutation-collection-preflight":"F155","F:stale-done-file-short-circuits-waiter":"F156"},"authored":"2026-08-07","content_sha256":"402f6b6c6ff8d5429c7cf4b082ee9ee2f27390ad9c4c80f2e25ca6b656f92abb","seq":3,"wave":"dev-wave-t529-impl-reraise"}
+
+- {"allocations":{"T:mutation-rf-effective-option":"[T-626]","T:waiter-rule-dispatch-strength":"[T-625]"},"authored":"2026-08-07","content_sha256":"e1be0ff35c071ced649fecca907f5c3a576094f255be1b200577c897d730899f","seq":1,"wave":"dev-wave-t597-budget"}
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"2875c9b4562792418bf9de16c7d0d21d1918dd57aca792fba975f5d4a24d2b27","seq":2,"wave":"dev-wave-t597-budget"}
+- {"allocations":{"D:budget-reduction-by-duplication":"D227"},"authored":"2026-08-07","content_sha256":"0e9874b88434bac9152df6858cb2c4ef17d6b71c3d0b3b09e209c57ed9faf6a9","seq":3,"wave":"dev-wave-t597-budget"}
