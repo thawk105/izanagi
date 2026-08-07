@@ -9,13 +9,20 @@ hook には配線しない。Izanagi の hook 2 本限定を維持しつつ、�
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib
 import os
 import re
+import secrets
+import signal
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,6 +35,15 @@ from orchestrator.campaign import site_policy  # noqa: E402
 POLICY_PATH = "docs/ai-provenance.md"
 # tools/run_tests.py:110 の _PEGASUS_DISPATCH_RC と同値 (meta-test で照合する)。
 PEGASUS_DISPATCH_RC = 16
+_BOUNDED_SCOPE_UNIT_ENV = "IZANAGI_PROVENANCE_SCOPE_UNIT"
+_BOUNDED_SCOPE_CAP_ENV = "IZANAGI_PROVENANCE_SCOPE_CAP"
+_BOUNDED_SCOPE_UNIT_PREFIX = "izanagi-provenance-"
+_CGROUP_ROOT = Path("/sys/fs/cgroup")
+_PROC_SELF_CGROUP = Path("/proc/self/cgroup")
+_SCOPE_POLL_SECONDS = 0.005
+_SCOPE_ATTEST_SECONDS = 1.0
+_SCOPE_DRAIN_SECONDS = 0.1
+_HEADROOM_SHORT = "headroom_short"
 # insight §11 で 32→48 は改善ゼロ。git subprocess の fork/exec が律速なので開けない。
 AUDIT_WORKERS_CAP = 32
 ROLES = ("author", "reviewer", "researcher", "manager", "integrator")
@@ -1039,9 +1055,623 @@ def _invoke_dispatch(dispatch_fn, argv: Sequence[str]) -> int:
         return PEGASUS_DISPATCH_RC
 
 
-def main(argv: Sequence[str] | None = None, *, site=None, dispatch_fn=None) -> int:
+@dataclass(frozen=True)
+class _TreeFingerprint:
+    digest: str
+    summary: tuple[int, ...]
+
+
+def _tree_and_submodules_fingerprint(repo: Path) -> _TreeFingerprint | None:
+    """Hash worktree/index and recursive submodule state; fail closed."""
+
+    repo_path = repo.resolve()
+    commands = (
+        (
+            "status",
+            [
+                "git", "-C", str(repo_path), "status", "--porcelain=v1", "-z",
+                "--untracked-files=all", "--ignore-submodules=none",
+            ],
+        ),
+        (
+            "diff",
+            [
+                "git", "-C", str(repo_path), "diff", "--binary",
+                "--no-ext-diff", "HEAD", "--",
+            ],
+        ),
+        (
+            "submodule-heads",
+            [
+                "git", "-C", str(repo_path), "submodule", "status",
+                "--recursive",
+            ],
+        ),
+        (
+            "submodule-status",
+            [
+                "git", "-C", str(repo_path), "submodule", "foreach",
+                "--recursive", "--quiet",
+                "git status --porcelain=v1 -z --untracked-files=all",
+            ],
+        ),
+        (
+            "submodule-diff",
+            [
+                "git", "-C", str(repo_path), "submodule", "foreach",
+                "--recursive", "--quiet",
+                "git diff --binary --no-ext-diff HEAD --",
+            ],
+        ),
+    )
+    env = {
+        key: value for key, value in os.environ.items()
+        if not key.startswith("GIT_")
+    }
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    fingerprint = hashlib.sha256()
+    summary: list[int] = []
+    for label, command in commands:
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                env=env,
+                timeout=120,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if result.returncode != 0 or not isinstance(result.stdout, bytes):
+            return None
+        label_bytes = label.encode("ascii")
+        fingerprint.update(len(label_bytes).to_bytes(2, "big"))
+        fingerprint.update(label_bytes)
+        fingerprint.update(len(result.stdout).to_bytes(8, "big"))
+        fingerprint.update(result.stdout)
+        summary.append(len(result.stdout))
+    return _TreeFingerprint(fingerprint.hexdigest(), tuple(summary))
+
+
+def _cap_oom_fingerprint_refusal(
+    before: _TreeFingerprint | None,
+    after: _TreeFingerprint | None,
+) -> int:
+    if before is None or after is None:
+        detail = (
+            "local 試行前後の tree / submodule 指紋を安全に取得できませんでした"
+            f"（before={'ok' if before is not None else 'failed'}、"
+            f"after={'ok' if after is not None else 'failed'}）"
+        )
+    else:
+        detail = (
+            "local 試行の前後で tree / submodule 状態が変化しました"
+            f"（digest {before.digest[:12]} -> {after.digest[:12]}、"
+            f"各状態出力 bytes {before.summary} -> {after.summary}）"
+        )
+    print(
+        "bounded scope が MemoryMax に達しましたが、"
+        f"{detail}。自動 fallback せず停止します。git status と "
+        "git submodule status --recursive で差分を確認してください。",
+        file=sys.stderr,
+        flush=True,
+    )
+    return PEGASUS_DISPATCH_RC
+
+
+@dataclass(frozen=True)
+class _ScopeResult:
+    outcome: str
+    child_rc: int | None = None
+
+
+class _ScopeSamples:
+    def __init__(self) -> None:
+        self.ready = threading.Event()
+        self.stop = threading.Event()
+        self.attested = False
+        self.cgroup: Path | None = None
+        self.last_events: tuple[int, int] | None = None
+        self.peak_current: int | None = None
+
+
+@dataclass(frozen=True)
+class _ScopeAccounting:
+    module: object
+    operation: str
+    grant: object
+
+
+_scope_accounting: ContextVar[_ScopeAccounting | None] = ContextVar(
+    "provenance_scope_accounting", default=None,
+)
+
+
+def _load_login_headroom():
+    """予算 leaf を遅延 import する。"""
+
+    try:
+        module = importlib.import_module("orchestrator.campaign.login_headroom")
+    except Exception as exc:
+        print(
+            "login headroom admission を読み込めないため、"
+            f"計算ノードへ dispatch します: {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return None
+    return module
+
+
+def _evaluate_login_admission(admit_fn, *, min_bytes=None, operation=None):
+    loaded = _load_login_headroom()
+    if loaded is None:
+        return (
+            None,
+            None,
+            _HEADROOM_SHORT,
+            "ログインノードの観測余裕=不明 bytes です。",
+            None,
+        )
+    module = loaded
+    try:
+        if admit_fn is None:
+            kwargs = {} if min_bytes is None else {"min_bytes": min_bytes}
+            if operation is not None:
+                kwargs["operation"] = operation
+            decision = module.grant_budget(**kwargs)
+        else:
+            # 未 land テスト用の旧 admission seam。実運用は grant_budget だけを通る。
+            decision = admit_fn(module.MAX_LOCAL_BUDGET_BYTES)
+    except (Exception, KeyboardInterrupt) as exc:
+        print(
+            "login headroom admission を完了できないため、"
+            f"計算ノードへ dispatch します: {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return (
+            module,
+            None,
+            _HEADROOM_SHORT,
+            "ログインノードの観測余裕=不明 bytes です。",
+            None,
+        )
+
+    if admit_fn is not None and isinstance(decision, tuple) and len(decision) == 2:
+        admission, reason = decision
+        budget = module.MAX_LOCAL_BUDGET_BYTES if admission is module.Admission.LOCAL else None
+    elif isinstance(decision, tuple) and len(decision) == 3:
+        admission, budget, reason = decision
+    else:
+        admission, budget, reason = None, None, "予算 API が不正な結果を返しました。"
+    is_local = admission is module.Admission.LOCAL
+    if is_local and (type(budget) is not int or budget <= 0):
+        is_local = False
+        budget = None
+    return (
+        module,
+        budget,
+        None if is_local else _HEADROOM_SHORT,
+        reason if isinstance(reason, str) else "予算の理由を取得できませんでした。",
+        decision,
+    )
+
+
+def _safe_bind_scope(grant, cgroup: Path | None) -> None:
+    if grant is None or cgroup is None:
+        return
+    try:
+        bind_scope = getattr(grant, "bind_scope", None)
+        if callable(bind_scope):
+            bind_scope(cgroup)
+    except (Exception, KeyboardInterrupt):
+        pass
+
+
+def _safe_release_grant(grant) -> None:
+    if grant is None:
+        return
+    try:
+        release = getattr(grant, "release", None)
+        if callable(release):
+            release()
+    except (Exception, KeyboardInterrupt):
+        pass
+
+
+def _safe_remember_peak(module, operation: str | None, peak: int | None) -> None:
+    if module is None or operation is None or peak is None:
+        return
+    try:
+        module.remember_peak(operation, peak)
+    except (Exception, KeyboardInterrupt):
+        pass
+
+
+def _queue_dispatch_possible() -> tuple[bool, str]:
+    """キュー観測不能は現行どおり dispatch 可へ倒す。"""
+
+    try:
+        module = importlib.import_module("orchestrator.campaign.queue_state")
+        possible, reason = module.dispatch_possible()
+        if type(possible) is not bool or not isinstance(reason, str):
+            raise ValueError("invalid queue availability result")
+        if not possible and ("ENA=" not in reason or "STS=" not in reason):
+            raise ValueError("queue refusal lacks ENA/STS diagnostics")
+        return possible, reason
+    except (Exception, KeyboardInterrupt):
+        return (
+            True,
+            "キューは ENA=不明、STS=不明です（観測不能のため可用扱い）。",
+        )
+
+
+def _print_granted_budget(cap: int, reason: str) -> None:
+    print(
+        f"bounded local に与えた予算: {cap} bytes。{reason}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
+def _no_execution_capacity(headroom_reason: str, queue_reason: str) -> int:
+    print(
+        "ログインの余裕もキューも無いため、いまは実行できません。"
+        f"観測した余裕: {headroom_reason} {queue_reason}",
+        file=sys.stderr,
+        flush=True,
+    )
+    return PEGASUS_DISPATCH_RC
+
+
+def _parse_unified_cgroup(text: str) -> str:
+    matches = []
+    for line in text.splitlines():
+        parts = line.split(":", 2)
+        if len(parts) == 3 and parts[:2] == ["0", ""]:
+            matches.append(parts[2])
+    if len(matches) != 1:
+        raise ValueError("unified cgroup entry is not unique")
+    path = matches[0]
+    components = path.removeprefix("/").split("/")
+    if not path.startswith("/") or any(
+        component in {"", ".", ".."} for component in components
+    ):
+        raise ValueError("unified cgroup path is not normalized")
+    return path
+
+
+def _scope_cgroup_path(proc_cgroup: Path, unit: str) -> Path | None:
+    try:
+        path = _parse_unified_cgroup(proc_cgroup.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return None
+    if Path(path).name != unit:
+        return None
+    return _CGROUP_ROOT / path.removeprefix("/")
+
+
+def _scope_properties_are_enforced(cgroup: Path, cap: int) -> bool:
+    try:
+        memory_max = (cgroup / "memory.max").read_text(encoding="utf-8").strip()
+        oom_group = (cgroup / "memory.oom.group").read_text(
+            encoding="utf-8",
+        ).strip()
+    except (OSError, UnicodeError):
+        return False
+    return memory_max == str(cap) and oom_group == "1"
+
+
+def _attest_scope_oom_group(cgroup: Path) -> bool:
+    oom_group = cgroup / "memory.oom.group"
+    try:
+        oom_group.write_text("1\n", encoding="utf-8")
+        attested = oom_group.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError):
+        return False
+    return attested == "1"
+
+
+def _read_scope_events(cgroup: Path) -> tuple[int, int]:
+    parsed = {}
+    for line in (cgroup / "memory.events").read_text(encoding="utf-8").splitlines():
+        fields = line.split()
+        if len(fields) != 2 or not fields[1].isascii() or not fields[1].isdecimal():
+            raise ValueError("malformed memory.events")
+        if fields[0] in parsed:
+            raise ValueError("duplicate memory.events field")
+        parsed[fields[0]] = int(fields[1], 10)
+    return parsed["max"], parsed["oom"]
+
+
+def _read_scope_current(cgroup: Path) -> int:
+    raw = (cgroup / "memory.current").read_text(encoding="utf-8").strip()
+    if not raw.isascii() or not raw.isdecimal():
+        raise ValueError("malformed memory.current")
+    return int(raw, 10)
+
+
+def _bounded_scope_membership() -> bool | None:
+    unit = os.environ.get(_BOUNDED_SCOPE_UNIT_ENV)
+    raw_cap = os.environ.get(_BOUNDED_SCOPE_CAP_ENV)
+    if unit is None and raw_cap is None:
+        return None
+    if unit is None or raw_cap is None:
+        return False
+    if re.fullmatch(rf"{re.escape(_BOUNDED_SCOPE_UNIT_PREFIX)}[0-9]+-[0-9a-f]+\.scope", unit) is None:
+        return False
+    if not raw_cap.isascii() or not raw_cap.isdecimal():
+        return False
+    cap = int(raw_cap, 10)
+    if cap <= 0:
+        return False
+    cgroup = _scope_cgroup_path(_PROC_SELF_CGROUP, unit)
+    return (
+        cgroup is not None
+        and _attest_scope_oom_group(cgroup)
+        and _scope_properties_are_enforced(cgroup, cap)
+    )
+
+
+def _new_scope_unit() -> str:
+    return f"{_BOUNDED_SCOPE_UNIT_PREFIX}{os.getpid()}-{secrets.token_hex(8)}.scope"
+
+
+def _scope_command(argv: Sequence[str], cap: int, unit: str) -> list[str]:
+    return [
+        "systemd-run", "--user", "--scope", "-q", f"--unit={unit}",
+        "-p", "MemoryAccounting=yes",
+        "-p", f"MemoryMax={cap}",
+        "-p", "MemorySwapMax=0",
+        "--", sys.executable, str(Path(__file__).resolve()), *argv,
+    ]
+
+
+def _sample_scope(process, unit: str, cap: int, samples: _ScopeSamples) -> None:
+    """走行中だけ cgroup を読み、消滅前の最後の観測を保持する。"""
+
+    deadline = time.monotonic() + _SCOPE_ATTEST_SECONDS
+    cgroup = None
+    try:
+        while not samples.stop.is_set():
+            cgroup = _scope_cgroup_path(
+                Path("/proc") / str(process.pid) / "cgroup",
+                unit,
+            )
+            if cgroup is not None:
+                break
+            if process.poll() is not None or time.monotonic() >= deadline:
+                return
+            time.sleep(_SCOPE_POLL_SECONDS)
+
+        if cgroup is None or not _attest_scope_oom_group(cgroup):
+            return
+        if not _scope_properties_are_enforced(cgroup, cap):
+            return
+        samples.cgroup = cgroup
+        samples.attested = True
+
+        first_sample = True
+        while not samples.stop.is_set():
+            current = None
+            events = None
+            try:
+                current = _read_scope_current(cgroup)
+            except (OSError, UnicodeError, ValueError):
+                pass
+            try:
+                events = _read_scope_events(cgroup)
+            except (OSError, UnicodeError, ValueError, KeyError):
+                pass
+
+            if current is not None:
+                samples.peak_current = max(
+                    current,
+                    samples.peak_current if samples.peak_current is not None else 0,
+                )
+            if events is not None:
+                samples.last_events = events
+            if first_sample:
+                samples.ready.set()
+                first_sample = False
+            if current is None or events is None:
+                return
+            time.sleep(_SCOPE_POLL_SECONDS)
+    finally:
+        samples.ready.set()
+
+
+def _start_scope_sampler(process, unit: str, cap: int):
+    samples = _ScopeSamples()
+    thread = threading.Thread(
+        target=_sample_scope,
+        args=(process, unit, cap, samples),
+        name=f"{unit}-sampler",
+        daemon=True,
+    )
+    thread.start()
+    return samples, thread
+
+
+def _stop_bounded_scope(process, unit: str) -> None:
+    """attestation 失敗時に scope 全体の停止を試み、runner も回収する。"""
+
+    try:
+        subprocess.run(
+            ["systemctl", "--user", "stop", unit],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    try:
+        if process.poll() is None:
+            process.terminate()
+        process.wait(timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            process.kill()
+            process.wait(timeout=5)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+
+def _run_bounded_scope(argv: Sequence[str], cap: int) -> _ScopeResult:
+    unit = _new_scope_unit()
+    child_env = os.environ.copy()
+    child_env[_BOUNDED_SCOPE_UNIT_ENV] = unit
+    child_env[_BOUNDED_SCOPE_CAP_ENV] = str(cap)
+    try:
+        process = subprocess.Popen(
+            _scope_command(argv, cap, unit),
+            cwd=REPO,
+            env=child_env,
+        )
+    except (OSError, ValueError) as exc:
+        print(
+            f"bounded scope を起動できませんでした: {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _ScopeResult("dispatch_infra")
+
+    samples, sampler = _start_scope_sampler(process, unit, cap)
+    samples.ready.wait(_SCOPE_ATTEST_SECONDS + _SCOPE_POLL_SECONDS)
+    if not samples.attested:
+        samples.stop.set()
+        _stop_bounded_scope(process, unit)
+        sampler.join(_SCOPE_DRAIN_SECONDS)
+        print(
+            "bounded scope の memory.max / memory.oom.group を走行中に"
+            "attest できないため、scope を停止して dispatcher infrastructure "
+            "failure とします。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _ScopeResult("dispatch_infra")
+
+    accounting = _scope_accounting.get()
+    if accounting is not None:
+        _safe_bind_scope(accounting.grant, samples.cgroup)
+
+    try:
+        rc = process.wait()
+    except (OSError, ValueError) as exc:
+        samples.stop.set()
+        _stop_bounded_scope(process, unit)
+        sampler.join(_SCOPE_DRAIN_SECONDS)
+        print(
+            f"bounded scope の終了を確認できませんでした: {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _ScopeResult("dispatch_infra")
+
+    final_events = None
+    if _termination_signal(rc) is not None and samples.cgroup is not None:
+        try:
+            final_events = _read_scope_events(samples.cgroup)
+        except (OSError, UnicodeError, ValueError, KeyError):
+            pass
+
+    # 正常終了では sampler 自身が cgroup の消滅を観測するまで待つ。ここで stop を
+    # 立てると、最後の memory.events を読む直前に観測を打ち切り得る。
+    sampler.join()
+    if samples.peak_current is not None:
+        print(
+            f"bounded scope の観測ピーク: {samples.peak_current} bytes",
+            file=sys.stderr,
+            flush=True,
+        )
+    if samples.last_events is None:
+        print(
+            "bounded scope の memory.events を走行中に一度も読めないため、"
+            "dispatcher infrastructure failure として停止します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _ScopeResult("dispatch_infra")
+    if _termination_signal(rc) is not None:
+        if final_events is None:
+            print(
+                "bounded scope は signal で終了しましたが、終了後の "
+                "memory.events で cap 到達を証明できないため dispatcher "
+                "infrastructure failure とします。",
+                file=sys.stderr,
+                flush=True,
+            )
+            return _ScopeResult("dispatch_infra")
+        max_delta, oom_delta = final_events
+        if max_delta > 0 and oom_delta > 0:
+            if accounting is not None:
+                _safe_remember_peak(
+                    accounting.module,
+                    accounting.operation,
+                    max(cap, samples.peak_current or 0),
+                )
+            return _ScopeResult("cap_oom")
+        print(
+            "bounded scope は signal で終了しましたが、終了後の "
+            "memory.events は cap 到達を示さないため dispatcher "
+            "infrastructure failure とします。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _ScopeResult("dispatch_infra")
+    if accounting is not None:
+        _safe_remember_peak(
+            accounting.module,
+            accounting.operation,
+            samples.peak_current,
+        )
+    return _ScopeResult("child_rc", int(rc))
+
+
+def _termination_signal(returncode: int) -> int | None:
+    signum = -returncode if returncode < 0 else returncode - 128
+    if signum <= 0:
+        return None
+    try:
+        return signum if signum in signal.valid_signals() else None
+    except (AttributeError, OSError, ValueError):
+        return signum if signum == signal.SIGKILL else None
+
+
+def _launch_local_scope(
+    argv: Sequence[str], cap: int, *, module=None, operation=None, grant=None,
+):
+    accounting = (
+        _ScopeAccounting(module, operation, grant)
+        if module is not None and operation is not None
+        else None
+    )
+    token = _scope_accounting.set(accounting)
+    try:
+        return _run_bounded_scope(argv, cap)
+    finally:
+        _scope_accounting.reset(token)
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    site=None,
+    dispatch_fn=None,
+    admit_fn=None,
+) -> int:
     values = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--force-dispatch",
+        action="store_true",
+        help=(
+            "Pegasus LOGIN で headroom/queue 判定を行わず必ず"
+            "計算ノードへ dispatch する"
+        ),
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--range", dest="rev_range", help="検査する git revision range")
     group.add_argument(
@@ -1049,23 +1679,113 @@ def main(argv: Sequence[str] | None = None, *, site=None, dispatch_fn=None) -> i
         help="commit 前の message ファイルを検査する。標準入力は -",
     )
     args = parser.parse_args(values)
+    dispatch_values = [value for value in values if value != "--force-dispatch"]
+    operation = "provenance-range" if args.rev_range is not None else "provenance"
 
-    # site gate は parse_args の後に置き、免除は args.message_file だけで判定する。
+    # site gate は parse_args の後に置き、通常の免除は args.message_file だけで
+    # 判定する。明示された force_dispatch はその免除も上書きする。
     # raw token allowlist を移植すると --message-f のような接頭辞省略形が免除から
     # 外れ、commit 直前の preflight が queue 待ちに依存する。
-    if args.message_file is None:
+    if args.message_file is None or args.force_dispatch:
         resolved_site = site_policy.current_site() if site is None else site
+        if resolved_site not in {
+            site_policy.OTHER,
+            site_policy.PEGASUS_LOGIN,
+            site_policy.PEGASUS_COMPUTE,
+            site_policy.PEGASUS_SUSPECT,
+        }:
+            print(
+                "実行 site を安全に分類できないため、provenance 履歴監査を拒否します。",
+                file=sys.stderr,
+                flush=True,
+            )
+            return PEGASUS_DISPATCH_RC
+        bounded_membership = _bounded_scope_membership()
+        if bounded_membership is False:
+            print(
+                "bounded scope marker と cgroup の memory.max / memory.oom.group が"
+                "一致しないため、provenance 履歴監査を拒否します。",
+                file=sys.stderr,
+                flush=True,
+            )
+            return PEGASUS_DISPATCH_RC
         if resolved_site == site_policy.PEGASUS_SUSPECT:
+            queue_hint = _queue_dispatch_possible()
             print(
                 site_policy.heavy_work_refusal(
                     resolved_site, "provenance 履歴監査",
+                    queue_hint=queue_hint,
                 ),
                 file=sys.stderr,
                 flush=True,
             )
             return PEGASUS_DISPATCH_RC
         if site_policy.is_pegasus_login(resolved_site):
-            return _invoke_dispatch(dispatch_fn, values)
+            if args.force_dispatch:
+                return _invoke_dispatch(dispatch_fn, dispatch_values)
+            if bounded_membership is None:
+                module, cap, admission_outcome, headroom_reason, grant = (
+                    _evaluate_login_admission(admit_fn, operation=operation)
+                )
+                queue_unavailable = False
+                queue_reason = ""
+                if admission_outcome == _HEADROOM_SHORT:
+                    queue_possible, queue_reason = _queue_dispatch_possible()
+                    if queue_possible:
+                        _safe_release_grant(grant)
+                        return _invoke_dispatch(dispatch_fn, dispatch_values)
+                    queue_unavailable = True
+                    if module is None:
+                        return _no_execution_capacity(headroom_reason, queue_reason)
+                    _safe_release_grant(grant)
+                    module, cap, admission_outcome, headroom_reason, grant = (
+                        _evaluate_login_admission(
+                            admit_fn, min_bytes=0, operation=operation,
+                        )
+                    )
+                    if admission_outcome == _HEADROOM_SHORT or cap is None:
+                        _safe_release_grant(grant)
+                        return _no_execution_capacity(headroom_reason, queue_reason)
+
+                if cap is None:
+                    _safe_release_grant(grant)
+                    return PEGASUS_DISPATCH_RC
+                _print_granted_budget(cap, headroom_reason)
+                tree_before = _tree_and_submodules_fingerprint(REPO)
+                try:
+                    scope_result = _launch_local_scope(
+                        values,
+                        cap,
+                        module=module,
+                        operation=operation,
+                        grant=grant,
+                    )
+                finally:
+                    _safe_release_grant(grant)
+                if scope_result.outcome == "child_rc":
+                    if scope_result.child_rc is None:
+                        return PEGASUS_DISPATCH_RC
+                    return scope_result.child_rc
+                if scope_result.outcome == "dispatch_infra":
+                    return PEGASUS_DISPATCH_RC
+                if scope_result.outcome == "cap_oom":
+                    tree_after = _tree_and_submodules_fingerprint(REPO)
+                    if (
+                        tree_before is None
+                        or tree_after is None
+                        or tree_before != tree_after
+                    ):
+                        return _cap_oom_fingerprint_refusal(
+                            tree_before,
+                            tree_after,
+                        )
+                    if queue_unavailable:
+                        return _no_execution_capacity(
+                            headroom_reason,
+                            queue_reason,
+                        )
+                    return _invoke_dispatch(dispatch_fn, dispatch_values)
+                return PEGASUS_DISPATCH_RC
 
     try:
         corrected: list[ForwardCorrected] = []

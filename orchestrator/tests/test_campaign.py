@@ -26,13 +26,14 @@ import tempfile
 import threading
 import time
 import types
+from unittest import mock as unittest_mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import (buildcache, genome, ident, pin, pipeline,  # noqa: E402
-                      source_digest, trigger_gate_binding, wal)
+                      site_policy, source_digest, trigger_gate_binding, wal)
 from campaign import env_contract as ec                          # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     BuildAdmission,
@@ -2193,7 +2194,9 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    high_variance=False, unstable=False, competing=None,
                    trace_timeout=False, probe_raises=None,
                    bench_rounds=None, round_binding="unique",
-                   trace_content=None, site_compilers=None, source_raises=False):
+                   trace_content=None, site_compilers=None, source_raises=False,
+                   build_cached=False,
+                   measurement_site=site_policy.PEGASUS_COMPUTE):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。
@@ -2204,6 +2207,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             self.trace = []
             self.events = []
             self.builds = []
+            self.cache_hits = []
             self.build_roots = []
             self.build_options = []
             self.source_resolve_calls = []
@@ -2264,11 +2268,12 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         assert build_context is _BUILD_CONTEXT
         assert admission.as_wal_receipt()["source"] == source_evidence.as_receipt()
         bench_calls.builds.append(("legacy", trace, None))
+        bench_calls.cache_hits.append(build_cached)
         if build_raises:
             raise RuntimeError("build boom")
         bin_sha256 = ("da" if trace else "db") * 32  # 64 hex (WAL 新キー用)
         return types.SimpleNamespace(bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
-                                     binary="/nonexistent/ycsb.exe", cached=False,
+                                     binary="/nonexistent/ycsb.exe", cached=build_cached,
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
     def fake_build_v2(genome, *, admission, build_context, source_evidence,
@@ -2278,6 +2283,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         assert build_context is _BUILD_CONTEXT
         assert admission.as_wal_receipt()["source"] == source_evidence.as_receipt()
         bench_calls.builds.append(("v2", trace, contract.contract_sha256))
+        bench_calls.cache_hits.append(build_cached)
         bench_calls.build_roots.append(ccbench_dir)
         bench_calls.build_options.append({
             "cc": cc, "cxx": cxx, "dependency_prefix": dependency_prefix,
@@ -2287,7 +2293,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         bin_sha256 = ("da" if trace else "db") * 32
         return types.SimpleNamespace(
             bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
-            binary="/nonexistent/ycsb.exe", cached=False,
+            binary="/nonexistent/ycsb.exe", cached=build_cached,
             configure_cmd="<cfg-v2>", build_cmd="<build-v2>",
             contract_sha256=contract.contract_sha256,
         )
@@ -2305,6 +2311,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         "_compilers_for_current_site",
         lambda: site_compilers or (buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX),
     )
+    patch("_resolve_site", lambda _site=None: measurement_site)
     # source_digest は identity 核 (実 git/g++ 依存)。pipeline の段階遷移テストでは
     # mock し stock 固定 (source_digest 自体は専用テストで実機検証する)。
     def fake_source_resolve(genome_value, commit, *, ccbench_dir="", cxx="g++-13"):
@@ -2918,6 +2925,186 @@ def test_pipeline_no_gate_by_default_is_unchanged():
         rec.payload.get("reason") for rec in wal.read_records(lay)}
 
 
+def _assert_legacy_cache_hit_site_refusal(site):
+    """legacy build 2 本が cache hit した後でも producer 前で拒否する。"""
+    lay = _tmp_layout()
+    subprocess_calls = []
+
+    def forbidden_subprocess(*args, **kwargs):
+        subprocess_calls.append((args, kwargs))
+        raise AssertionError("拒否理由の生成で subprocess を起動してはならない")
+
+    with _mock_pipeline(
+            certified=True, build_cached=True, measurement_site=site) as calls:
+        with unittest_mock.patch.object(
+                pipeline.subprocess, "run", forbidden_subprocess):
+            try:
+                pipeline.evaluate(
+                    Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                    PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                    log=lambda *a: None, build_context=_BUILD_CONTEXT,
+                )
+            except buildcache.BuildError as exc:
+                assert "計算ノード" in str(exc)
+            else:
+                raise AssertionError(f"{site} の cache hit 後に producer が拒否されなかった")
+
+    assert calls.builds == [("legacy", True, None), ("legacy", False, None)]
+    assert calls.cache_hits == [True, True]
+    assert calls.trace == [] and len(calls) == 0
+    assert subprocess_calls == []
+    records = list(wal.read_records(lay))
+    build_done = [record for record in records if record.stage == STAGE_BUILD_DONE]
+    assert len(build_done) == 1
+    assert build_done[0].payload["trace_cached"] is True
+    assert build_done[0].payload["perf_cached"] is True
+    assert STAGE_VERIFY_DONE not in {record.stage for record in records}
+    assert STAGE_BENCH_DONE not in {record.stage for record in records}
+    assert STAGE_COMMIT not in {record.stage for record in records}
+
+
+def test_m18_legacy_cache_hit_login_refuses_measurement_and_commit():
+    """禁止署名: LOGIN では legacy cache hit 後も producer/COMMIT を通さない。"""
+    _assert_legacy_cache_hit_site_refusal(site_policy.PEGASUS_LOGIN)
+
+
+def test_m18_legacy_cache_hit_suspect_refuses_measurement_and_commit():
+    """禁止署名: SUSPECT も LOGIN と同じく fail-closed に拒否する。"""
+    _assert_legacy_cache_hit_site_refusal(site_policy.PEGASUS_SUSPECT)
+
+
+def test_m18_legacy_cache_hit_compute_measures_and_commits():
+    """正例: COMPUTE の legacy cache hit は従来どおり verify/bench/COMMIT する。"""
+    lay = _tmp_layout()
+    result, calls = _eval(
+        lay, certified=True, build_cached=True,
+        measurement_site=site_policy.PEGASUS_COMPUTE,
+    )
+    assert result.certified and not result.aborted
+    assert result.fitness_tps == 12345.0
+    assert calls.cache_hits == [True, True]
+    assert len(calls.trace) == 1 and len(calls) == 1
+    commits = [record for record in wal.read_records(lay)
+               if record.stage == STAGE_COMMIT]
+    assert len(commits) == 1
+    assert commits[0].payload["fitness_tps"] == 12345.0
+
+
+def test_m18_legacy_cache_hit_other_remains_accepted():
+    """受理集合を LOGIN/SUSPECT 以外へ狭めず、OTHER の従来挙動を保つ。"""
+    lay = _tmp_layout()
+    result, calls = _eval(
+        lay, certified=True, build_cached=True,
+        measurement_site=site_policy.OTHER,
+    )
+    assert result.certified and result.fitness_tps == 12345.0
+    assert calls.cache_hits == [True, True]
+    assert len(calls.trace) == 1 and len(calls) == 1
+    assert any(record.stage == STAGE_COMMIT for record in wal.read_records(lay))
+
+
+def test_m18_trace_producer_refuses_before_subprocess():
+    """_run_trace 自身の gate を削る変異を subprocess spy で kill する。"""
+    trace_root = _tmpdir("izanagi_login_trace_producer_")
+    calls = []
+
+    def forbidden_subprocess(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("LOGIN で trace subprocess を起動してはならない")
+
+    saved_resolve = pipeline._resolve_site
+    try:
+        pipeline._resolve_site = lambda _site=None: site_policy.PEGASUS_LOGIN
+        with unittest_mock.patch.object(
+                pipeline.subprocess, "run", forbidden_subprocess):
+            try:
+                pipeline._run_trace(
+                    "/not/executed/ycsb.exe", trace_root, {}, clocks_per_us=1800,
+                )
+            except buildcache.BuildError:
+                pass
+            else:
+                raise AssertionError("LOGIN の trace producer が拒否されなかった")
+    finally:
+        pipeline._resolve_site = saved_resolve
+    assert calls == []
+    assert not os.path.exists(os.path.join(trace_root, "log"))
+
+
+def test_m18_throughput_producer_refuses_before_measure_point():
+    """_run_bench 自身の gate を削る変異を measure_point spy で kill する。"""
+    lay = _tmp_layout()
+    calls = []
+    saved_resolve = pipeline._resolve_site
+    saved_measure = pipeline.measure_point
+    try:
+        pipeline._resolve_site = lambda _site=None: site_policy.PEGASUS_SUSPECT
+        pipeline.measure_point = lambda *args, **kwargs: calls.append((args, kwargs))
+        try:
+            pipeline._run_bench(
+                "/not/executed/ycsb.exe",
+                PerfConfig(records=1000, threads=2),
+                1800, None, False, lay, "variant", "test-env",
+                lambda *args, **kwargs: None,
+            )
+        except buildcache.BuildError:
+            pass
+        else:
+            raise AssertionError("SUSPECT の throughput producer が拒否されなかった")
+    finally:
+        pipeline._resolve_site = saved_resolve
+        pipeline.measure_point = saved_measure
+    assert calls == []
+
+
+def test_m18_commit_rechecks_site_immediately_before_write():
+    """計測後に site が拒否側なら fitness_tps を COMMIT しない。"""
+    lay = _tmp_layout()
+    sites = iter((
+        site_policy.PEGASUS_COMPUTE,  # cache hit 後 producer 前
+        site_policy.PEGASUS_COMPUTE,  # _run_bench 入口
+        site_policy.PEGASUS_LOGIN,    # COMMIT 直前
+    ))
+    with _mock_pipeline(certified=True, build_cached=True) as calls:
+        pipeline._resolve_site = lambda _site=None: next(sites)
+        try:
+            pipeline.evaluate(
+                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                log=lambda *a: None, build_context=_BUILD_CONTEXT,
+            )
+        except buildcache.BuildError:
+            pass
+        else:
+            raise AssertionError("LOGIN で COMMIT が拒否されなかった")
+    assert len(calls.trace) == 1 and len(calls) == 1
+    assert not any(record.stage == STAGE_COMMIT for record in wal.read_records(lay))
+
+
+def test_m18_no_bench_commit_rechecks_site_immediately_before_write():
+    """fitness 無しの配線用 COMMIT も拒否 site では書かない。"""
+    lay = _tmp_layout()
+    sites = iter((
+        site_policy.PEGASUS_COMPUTE,  # cache hit 後 producer 前
+        site_policy.PEGASUS_SUSPECT,  # no-bench COMMIT 直前
+    ))
+    with _mock_pipeline(certified=True, build_cached=True) as calls:
+        pipeline._resolve_site = lambda _site=None: next(sites)
+        try:
+            pipeline.evaluate(
+                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                do_bench=False, log=lambda *a: None,
+                build_context=_BUILD_CONTEXT,
+            )
+        except buildcache.BuildError:
+            pass
+        else:
+            raise AssertionError("SUSPECT で no-bench COMMIT が拒否されなかった")
+    assert len(calls.trace) == 1 and len(calls) == 0
+    assert not any(record.stage == STAGE_COMMIT for record in wal.read_records(lay))
+
+
 def test_pipeline_red_aborts_without_fitness_or_bench():
     """規律2: verifier が non-certified なら abort。fitness を付けず、bench も走らせない。"""
     lay = _tmp_layout()
@@ -3520,6 +3707,7 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         "_compilers_for_current_site",
         lambda: (buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX),
     )
+    patch("_resolve_site", lambda _site=None: site_policy.PEGASUS_COMPUTE)
     patch("source_digest", types.SimpleNamespace(
         STOCK="stock", assert_worktree_within_allowlist=lambda *a, **k: None,
         resolve_evidence=lambda genome_value, commit, **kwargs: _source_evidence(

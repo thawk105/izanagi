@@ -428,3 +428,33 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"2fed40a8cd025b16b8c27395d814ee58e8922c18ce32ed731ba9bce7506b578b","seq":11,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-06","content_sha256":"09856c7b6f40ac4a158d48b569e456948b23a562085ea2924d223ac8813e9b0a","seq":12,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:four-outcome-ledger":"[T-601]","T:login-build-namespace":"[T-599]","T:reclaim-credit-ruling":"[T-600]","T:scope-escape-containment":"[T-602]"},"authored":"2026-08-06","content_sha256":"65576c74de0ca7a6fcff44394e7405cf71ec4355d6599cb816aa651a4dba4b7c","seq":1,"wave":"dev-wave-t300-login-headroom"}
+- {"allocations":{"D:login-headroom-admission":"D209","D:no-arbitrary-argv-bounded-launcher":"D210"},"authored":"2026-08-06","content_sha256":"332df86f8b8c14ed49f564b671a558057b0105e2e5479a36de09a050bb147cb6","seq":1,"wave":"dev-wave-t300-login-headroom"}
+- {"allocations":{"F:clean-tree-precondition-kills-normal-work":"F148","F:new-behavior-broke-existing-tool-contract":"F149","F:refusal-path-side-effect":"F147"},"authored":"2026-08-06","content_sha256":"9df742a8c04f804e9403237f8910521e2040418f7dc31852f97d84000801477d","seq":1,"wave":"dev-wave-t300-login-headroom"}
+
+- {"allocations":{"T:check-docs-positive-control-flake":"[T-603]","T:login-bounded-scope-attest-failure":"[T-604]"},"authored":"2026-08-07","content_sha256":"db204c2fed1513e2d4dc3b235f8b9737624264ef6d968744cbc8519410ae62ed","seq":1,"wave":"dev-wave-t244-p3-u3-ever-issued"}
+- {"allocations":{"D:u3-ever-issued-not-monotone":"D211"},"authored":"2026-08-07","content_sha256":"03d334d975b287ea90141ea67256e4c66331d5be96afb02fd9eeea680c8194d3","seq":2,"wave":"dev-wave-t244-p3-u3-ever-issued"}
+
+- {"allocations":{"D:current-only-resume-spec":"D213","D:receipt-expectation-scope":"D212","D:silo-verify-result-current-compat":"D214"},"authored":"2026-08-07","content_sha256":"a5bed81b172ef1db3a2816f165e9158c8498b717400db3b449cea36671e96257","seq":1,"wave":"dev-wave-t574-world"}
+- {"allocations":{"T:generator-hash-rollover":"[T-608]","T:receipt-diagnostic-reach":"[T-605]","T:reverify-reachability":"[T-607]","T:v2-manifest-producer":"[T-606]"},"authored":"2026-08-07","content_sha256":"0a10a56268ef2bd96058d4383d307f4e07dc206e90496d42dab9d0511ff3bd5b","seq":2,"wave":"dev-wave-t574-world"}
+- {"allocations":{"F:tautological-exception-type-pin":"F150"},"authored":"2026-08-07","content_sha256":"ce9622204c6e4e0fba251e58b29f2ab79f392880e6736703332d3ac711f64cbf","seq":3,"wave":"dev-wave-t574-world"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"4f5e6563a34b116e896df0c1d139b801e20dc6970cbf91bd2b6c659835d09d48","seq":4,"wave":"dev-wave-t574-world"}
+
+- {"allocations":{"T:certified-writer-prewrite-closure":"[T-609]"},"authored":"2026-08-07","content_sha256":"161a292b0f7f8943b8c28959ca5f93962989402505da25c2c8a3d7147540fbb3","seq":1,"wave":"dev-wave-t529-activation-impl"}
+- {"allocations":{"D:activation-authority-blocked-by-entry-surface":"D215"},"authored":"2026-08-07","content_sha256":"2b04a920cad5636f1415d98db96ee50aa7a7921a05daa3beca34a82b2c9ab446","seq":2,"wave":"dev-wave-t529-activation-impl"}
+- {"allocations":{"F:ruling-matched-by-topic-not-options":"F151"},"authored":"2026-08-07","content_sha256":"a5e24c7402e37d45d314c76e66760a5ab0e3afcea8906df74c5d3549de1aeaa4","seq":3,"wave":"dev-wave-t529-activation-impl"}
+
+- {"allocations":{"T:mutation-harness-force-dispatch":"[T-613]","T:mutation-worktree-activation-package":"[T-610]","T:mutation-worktree-run-location-class":"[T-611]","T:mutation-worktree-stale-gc":"[T-612]"},"authored":"2026-08-07","content_sha256":"80fb55d138d0a5a8b95022cb8e56e9108e10fef8735c00e4db0b136609d02c63","seq":1,"wave":"dev-wave-t503-disposable-worktree"}
+- {"allocations":{"D:disposable-mutation-worktree":"D216"},"authored":"2026-08-07","content_sha256":"eb01dae4bf11347f62ff0138d0a91f3d1e5d6b04f290db02717abb74734fccc1","seq":2,"wave":"dev-wave-t503-disposable-worktree"}
+- {"allocations":{"F:stage1-rc-read-through-pipe":"F152"},"authored":"2026-08-07","content_sha256":"e551b551c0c8d0d1d0fd62a236f177143fc878f9ebc69215b28a1ce53f925b4a","seq":3,"wave":"dev-wave-t503-disposable-worktree"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"0e073239598ee6e40bb4e941da1bc914ac4df941774ba0f4ee8b0b1d0fa4bc92","seq":1,"wave":"dev-wave-t244-p3-u8-critic"}
+- {"allocations":{"D:critic-after-cell-admission":"D217"},"authored":"2026-08-07","content_sha256":"93bf2c3a7cac88e9e8a0c9c803530632879a13fee4d569839a786fe4eb3c4fb2","seq":2,"wave":"dev-wave-t244-p3-u8-critic"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"ca68583974ccc672dcee0edf0329f325f8eb4b4707d45e58287969f2980c1e2c","seq":13,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:provenance-red-repair":"[T-614]"},"authored":"2026-08-07","content_sha256":"1b24451e3995312995f2bd569a05a2e0ccbe9055e4e9e779bc60c8271220f06f","seq":1,"wave":"dev-wave-red-tests"}
+- {"allocations":{"F:acceptance-shape-silent-gate-skip":"F153"},"authored":"2026-08-07","content_sha256":"251f36bb9244e3d834568a97d4bdce4a1a0e8b0ee5b832ece814790850731bdf","seq":1,"wave":"dev-wave-red-tests"}
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"a76c40a428963e3cde88154b972635a0baedca1dae525ffa309b493443e5d43b","seq":2,"wave":"dev-wave-red-tests"}

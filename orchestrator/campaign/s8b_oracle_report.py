@@ -5,11 +5,15 @@
 ``"oracle-session"`` を使うため、正規 producer は session identity 検査に抵触しない。
 この検査は正規だがバグりうる、または内容を変更されうる WAL に対する構造検査であり、
 対象は session record の identity だけである。性能証拠である pipeline record の env は
-検査しない。manifest が ``run_contract.env_tag`` を非空文字列で宣言する場合に限り、
-session env とその未検証の宣言値との一致を課す。legacy manifest、または env_tag が
-欠落・空・非文字列の場合は campaign 内一貫性だけを課す。完全な manifest env authority
-は P-A1(a)/[T-002] の責務である。WAL 各行の duplicate key と record の基本形も検査し、
-campaign-terminal が物理的な最終 record であることを要求する。hash chain や外部
+検査しない。session identity 層では、manifest が ``run_contract.env_tag`` を非空文字列で
+宣言する場合に限り session env とその未検証の宣言値との一致を課す。legacy manifest、
+または env_tag が欠落・空・非文字列の場合、この層は campaign 内一貫性だけを課す。
+receipt expectation 層では、``run_contract`` を Mapping として宣言するなら ``env_tag`` と
+``contract_sha256`` はともに非空 str を要し、欠落・空・非 str は resolver より前に拒否する。
+ただしこの診断が行へ載るのは、campaign-start が一意で schedule row を持つ campaign の
+観測経路だけであり、早期 return や 0-row campaign では載らない。完全な manifest env
+authority は P-A1(a)/[T-002] の責務である。WAL 各行の duplicate key と record の基本形も
+検査し、campaign-terminal が物理的な最終 record であることを要求する。hash chain や外部
 anchor はなく、任意改変に対する真正性の保証ではない。
 """
 from __future__ import annotations
@@ -1193,35 +1197,42 @@ def _receipt_expectations(
     """manifest run_contract から env contract と verified calibration を導出する。
 
     run_contract を持たない (legacy) manifest では None を返し receipt 検査を課さない。
-    v2 (env_tag + contract_sha256 が揃う) manifest でのみ receipt 照合を発火させる。"""
+    run_contract を Mapping として宣言するなら env_tag と contract_sha256 はともに
+    非空 str を要し、欠落・空・非 str は resolver より前に拒否する。この診断が行へ
+    載るのは campaign-start が一意で schedule row を持つ campaign の observation
+    経路だけである。directory 欠落、WAL read error、terminal issue の早期 return、
+    および 0-row campaign ではこの診断は載らない。"""
     run_contract = manifest.get("run_contract") if isinstance(manifest, Mapping) else None
     if not isinstance(run_contract, Mapping):
         return None
     env_tag = run_contract.get("env_tag")
     contract_sha256 = run_contract.get("contract_sha256")
-    if (isinstance(env_tag, str) and env_tag
-            and isinstance(contract_sha256, str) and contract_sha256):
-        try:
-            entry = contract_resolver(
-                contract_sha256, expected_env_tag=env_tag,
+    if not isinstance(env_tag, str) or not env_tag:
+        raise ReportError("manifest.run_contract.env_tag が非空 str でない")
+    if not isinstance(contract_sha256, str) or not contract_sha256:
+        raise ReportError(
+            "manifest.run_contract.contract_sha256 が非空 str でない"
+        )
+    try:
+        entry = contract_resolver(
+            contract_sha256, expected_env_tag=env_tag,
+        )
+        if type(entry) is not env_contract.GenerationEntry:
+            raise ReportError(
+                "manifest contract resolver が exact GenerationEntry を返さなかった"
             )
-            if type(entry) is not env_contract.GenerationEntry:
-                raise ReportError(
-                    "manifest contract resolver が exact GenerationEntry を返さなかった"
-                )
-            contract = entry.contract
-            if (contract.env_tag != env_tag
-                    or contract.contract_sha256 != contract_sha256):
-                raise ReportError(
-                    "manifest contract resolver の返却 entry が記録 env/hash と不一致"
-                )
-            verified = env_attestation.load_verified_calibration(contract, ROOT)
-        except ReportError:
-            raise
-        except (env_contract.EnvContractError, env_attestation.AttestationError) as exc:
-            raise ReportError(f"manifest env contract を検証できない: {exc}") from exc
-        return contract, verified
-    return None
+        contract = entry.contract
+        if (contract.env_tag != env_tag
+                or contract.contract_sha256 != contract_sha256):
+            raise ReportError(
+                "manifest contract resolver の返却 entry が記録 env/hash と不一致"
+            )
+        verified = env_attestation.load_verified_calibration(contract, ROOT)
+    except ReportError:
+        raise
+    except (env_contract.EnvContractError, env_attestation.AttestationError) as exc:
+        raise ReportError(f"manifest env contract を検証できない: {exc}") from exc
+    return contract, verified
 
 
 def _campaign_terminal_issue(records: Sequence[object], rows: Sequence[Mapping]) -> Optional[str]:
