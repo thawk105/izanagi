@@ -487,3 +487,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:mutation-rf-effective-option":"[T-626]","T:waiter-rule-dispatch-strength":"[T-625]"},"authored":"2026-08-07","content_sha256":"e1be0ff35c071ced649fecca907f5c3a576094f255be1b200577c897d730899f","seq":1,"wave":"dev-wave-t597-budget"}
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"2875c9b4562792418bf9de16c7d0d21d1918dd57aca792fba975f5d4a24d2b27","seq":2,"wave":"dev-wave-t597-budget"}
 - {"allocations":{"D:budget-reduction-by-duplication":"D227"},"authored":"2026-08-07","content_sha256":"0e9874b88434bac9152df6858cb2c4ef17d6b71c3d0b3b09e209c57ed9faf6a9","seq":3,"wave":"dev-wave-t597-budget"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"928d5e90d871004c5cf05e7e37906fae4bcdf670636959d507d0be03bb19bdc1","seq":16,"wave":"rulings-20260806-a"}
