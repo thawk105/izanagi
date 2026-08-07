@@ -3997,6 +3997,8 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
             prepared.genome, layout, contract.env_tag, pin,
             pipeline.PerfConfig(records=1000, threads=2),
             contract.clocks_per_us, do_bench=False,
+            numactl=contract.numactl,
+            authorization_contract=contract,
             src_token=prepared.src_token, ccbench_dir=prepared.ccbench_dir,
             cache_root=str(tmp_path / "cache"), env_contract=contract,
             log=lambda _message: None, build_context=build_context,

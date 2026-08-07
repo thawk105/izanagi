@@ -121,6 +121,7 @@ def test_all_five_drivers_issue_opaque_authority():
 
 
 def _pipeline_admission(source, context, *, capability_resolver=None):
+    contract = env_contract.lookup("linux-baremetal")
     genome = Genome("silo", {"BACK_OFF": 1})
     source = replace(
         source,
@@ -143,9 +144,11 @@ def _pipeline_admission(source, context, *, capability_resolver=None):
                 lambda *_args, **_kwargs: source), mock.patch.object(
                     pipeline.buildcache, "build", stop_at_build):
             result = pipeline.evaluate(
-                genome, layout, "test-env", source.ccbench_commit,
-                pipeline.PerfConfig(records=1, threads=1), 1800,
+                genome, layout, contract.env_tag, source.ccbench_commit,
+                pipeline.PerfConfig(records=1, threads=1), contract.clocks_per_us,
+                numactl=contract.numactl,
                 do_bench=False, log=lambda *_args: None,
+                authorization_contract=contract,
                 build_context=context,
                 capability_resolver=capability_resolver,
                 src_token=source.src_token,
@@ -196,6 +199,8 @@ def _public_s6_machine_admission():
         result = pipeline.evaluate(
             genomes[0], layout, env_tag, cfg.ccbench_commit, perf,
             clocks_per_us, do_bench=False, log=lambda *_args: None,
+            numactl=kwargs["numactl"],
+            authorization_contract=kwargs["authorization_contract"],
             ccbench_dir=kwargs["ccbench_dir"],
             cache_root=kwargs["cache_root"],
             build_context=kwargs["build_context"],
@@ -284,6 +289,8 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
         result = pipeline.evaluate(
             genomes[0], layout, env_tag, cfg.ccbench_commit, perf,
             clocks_per_us, do_bench=False, log=lambda *_args: None,
+            numactl=kwargs["numactl"],
+            authorization_contract=kwargs["authorization_contract"],
             ccbench_dir=kwargs["ccbench_dir"],
             cache_root=kwargs["cache_root"],
             build_context=kwargs["build_context"],

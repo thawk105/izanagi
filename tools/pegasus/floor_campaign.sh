@@ -26,6 +26,74 @@ fi
 
 unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
 
+# Static admission must complete before this job body mutates either scratch or
+# durable output.  Resolve the adapter from the submitted source commit so a
+# queued job remains bound to the source generation that produced its receipt.
+if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" \
+    || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[0-9a-f]{32}$ ]]; then
+  echo '{"gate":"bootstrap","reason":"IZANAGI_SUBMISSION_NONCE must be 32 lowercase hex"}' >&2
+  exit 4
+fi
+REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || exit 4
+PREFLIGHT_PY=""
+for py_name in python3 python3.10 python3.11 python3.12; do
+  py_cmd=$(command -v -- "$py_name") || continue
+  py_resolved=$(realpath -e -- "$py_cmd") || continue
+  [[ -x "$py_resolved" ]] || continue
+  if "$py_resolved" -I -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \
+      >/dev/null 2>&1; then
+    PREFLIGHT_PY="$py_resolved"
+    break
+  fi
+done
+if [[ -z "$PREFLIGHT_PY" ]]; then
+  echo '{"gate":"bootstrap","reason":"no python3 >= 3.10 for static admission"}' >&2
+  exit 4
+fi
+PREFLIGHT_RECEIPT="$REPO_ROOT/output/env/pegasus/floor/attempts/submissions/$IZANAGI_SUBMISSION_NONCE/submit-receipt.json"
+PREFLIGHT_SOURCE_COMMIT=$(
+  "$PREFLIGHT_PY" -I -B - "$PREFLIGHT_RECEIPT" <<'PY'
+import json
+import re
+import sys
+
+def no_duplicates(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON key")
+        value[key] = item
+    return value
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        document = json.load(handle, object_pairs_hook=no_duplicates)
+    source_commit = document["source_commit"]
+except (KeyError, OSError, UnicodeError, ValueError, json.JSONDecodeError):
+    raise SystemExit(4)
+if type(source_commit) is not str or re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+    raise SystemExit(4)
+print(source_commit)
+PY
+) || {
+  echo '{"gate":"bootstrap","reason":"cannot read a unique source_commit from floor receipt"}' >&2
+  exit 4
+}
+PREFLIGHT_HELPER_PATH="orchestrator/campaign/certified_writer_preflight.py"
+PREFLIGHT_HELPER_SPEC="$PREFLIGHT_SOURCE_COMMIT:$PREFLIGHT_HELPER_PATH"
+if ! git -C "$REPO_ROOT" cat-file -e "$PREFLIGHT_HELPER_SPEC" 2>/dev/null; then
+  echo '{"gate":"bootstrap","reason":"static admission helper blob is unavailable"}' >&2
+  exit 4
+fi
+preflight_rc=0
+git -C "$REPO_ROOT" cat-file blob "$PREFLIGHT_HELPER_SPEC" \
+  | "$PREFLIGHT_PY" -I -B - floor --repo-root "$REPO_ROOT" \
+      --receipt "$PREFLIGHT_RECEIPT" || preflight_rc=$?
+if [[ "$preflight_rc" -ne 0 ]]; then
+  exit "$preflight_rc"
+fi
+
 export TMPDIR="/scr/${PBS_JOBID//:/_}"
 if ! mkdir "$TMPDIR"; then
   echo "TMPDIR already exists or cannot be created (create-only): $TMPDIR" >&2
@@ -33,7 +101,6 @@ if ! mkdir "$TMPDIR"; then
 fi
 
 # 出典: certify_calibration.sh:33-44 @ e9b6f69
-REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || exit 2
 TOOLS="$REPO_ROOT/tools/pegasus"
 POLICY="$TOOLS/policy.json"
 FLOOR_POLICY="$TOOLS/policies/floor_v1.json"

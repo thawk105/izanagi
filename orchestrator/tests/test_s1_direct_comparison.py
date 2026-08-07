@@ -23,7 +23,7 @@ ORCH = TESTS.parent
 sys.path.insert(0, str(TESTS))
 sys.path.insert(0, str(ORCH))
 
-from campaign import axis_trigger_gating, pipeline, wal  # noqa: E402
+from campaign import axis_trigger_gating, env_contract, pipeline, wal  # noqa: E402
 from campaign.build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
@@ -1244,6 +1244,7 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
         ).coder_build_authority,
     )
     evidence = _evidence(stock=False, commit="deadbeef")
+    authorization = env_contract.lookup("linux-baremetal")
     monkeypatch.setattr(
         pipeline.source_digest, "resolve_evidence", lambda *a, **k: evidence,
     )
@@ -1252,8 +1253,10 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
         layout = CampaignLayout(str(tmp_path / f"c-{max_rounds}")).ensure()
         kwargs = {} if max_rounds is None else {"bench_max_rounds": max_rounds}
         result = pipeline.evaluate(
-            genome, layout, "test-env", "deadbeef", perf, 1800,
+            genome, layout, authorization.env_tag, "deadbeef", perf,
+            authorization.clocks_per_us, numactl=authorization.numactl,
             log=lambda msg: None, build_context=context,
+            authorization_contract=authorization,
             source_evidence=evidence, **kwargs)
         assert result.certified
     assert captured == [3, 1]

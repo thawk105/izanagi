@@ -51,7 +51,7 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, trigger_gate_binding, wal              # noqa: E402
+from campaign import env_contract, ident, trigger_gate_binding, wal  # noqa: E402
 from campaign.axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
@@ -904,6 +904,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                               ccbench_dir=sub, cache_root=cache_root,
+                              authorization_contract=env_contract.lookup(ENV_TAG),
                               build_context=build_context,
                               campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)

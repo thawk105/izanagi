@@ -33,7 +33,8 @@ from calibrator.stability import remeasure_until_stable         # noqa: E402
 from verifier import result_to_dict, verify_trace_dir          # noqa: E402
 from verifier.parse import ParseError                           # noqa: E402
 
-from . import buildcache, env_contract as _env_contract, ident, source_digest, wal  # noqa: E402
+from . import (buildcache, env_contract as _env_contract, execution_guard, ident,
+               source_digest, wal)  # noqa: E402
 from .build_admission import (  # noqa: E402
     BuildAdmission,
     BuildAdmissionError,
@@ -487,6 +488,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              record_rep_returncodes: bool = False,
              qualification_policy: Optional[QualificationPipelinePolicy] = None,
              dependency_prefix: str = "", *,
+             authorization_contract: ExecutionEnvironmentContract,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
              source_evidence: Optional[SourceEvidence] = None,
@@ -534,6 +536,13 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
     bench_lock + numactl 下で回す (決定4-4)。既定 legacy は軽量ゆえ従来どおり
     並列可 (lock.py の設計方針)。"""
+    execution_guard.require_certified_writer_authorization(
+        authorization_contract,
+        env_tag=env_tag,
+        clocks_per_us=clocks_per_us,
+        numactl=numactl,
+        env_contract=env_contract,
+    )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if trigger_gate_binding is not None and type(trigger_gate_binding) is not TriggerGateBinding:

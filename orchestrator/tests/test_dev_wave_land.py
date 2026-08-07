@@ -2699,7 +2699,7 @@ def test_exploration_external_root_keeps_wave_clean() -> None:
     """F98 正例: fake evaluator の exploration campaign は wave 外だけを汚す。"""
     with _campaign_import_scope():
         from types import SimpleNamespace
-        from campaign import layout as layout_module, loop, pipeline, wal
+        from campaign import env_contract, layout as layout_module, loop, pipeline, wal
         from campaign.build_admission import GeneratorId, build_run_context
         from campaign.model import (
             CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START,
@@ -2759,10 +2759,13 @@ def test_exploration_external_root_keeps_wave_clean() -> None:
                 ccbench_commit="deadbeef",
             )
             context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+            authorization = env_contract.lookup("linux-baremetal")
             summary = loop.run_campaign(
                 cfg, [Genome("silo", {"BACK_OFF": 1})],
-                PerfConfig(records=1, threads=1), "test-env", 1800,
+                PerfConfig(records=1, threads=1), authorization.env_tag,
+                authorization.clocks_per_us, numactl=authorization.numactl,
                 do_bench=False, log=lambda *_args: None,
+                authorization_contract=authorization,
                 build_context=context, campaign_namespace="exploration",
             )
             campaign_root = Path(summary.layout_root)

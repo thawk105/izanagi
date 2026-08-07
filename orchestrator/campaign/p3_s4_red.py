@@ -37,7 +37,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, pipeline, wal                          # noqa: E402
+from campaign import env_contract, ident, pipeline, wal            # noqa: E402
 from campaign.artifact_admission import require_admitted_campaign # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
@@ -149,6 +149,7 @@ def main(argv=None) -> int:
     print(f"  期待: build → trace run が {pipeline.TRACE_TIMEOUT_S:.0f}s timeout → abort")
     with applied(os.path.join(root, RED_PATCH), PIN, sub):
         s1 = run_campaign(cfg, [RED_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          authorization_contract=env_contract.lookup(ENV_TAG),
                           build_context=build_context,
                           campaign_namespace="exploration")
     v1 = next((r.variant for r in s1.results), None)
@@ -158,6 +159,7 @@ def main(argv=None) -> int:
     pipeline._run_trace = _fixture_run_trace
     try:
         s2 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
+                          authorization_contract=env_contract.lookup(ENV_TAG),
                           build_context=build_context,
                           campaign_namespace="exploration")
     finally:

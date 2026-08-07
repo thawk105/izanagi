@@ -117,7 +117,8 @@ def test_qualification_policy_rejects_unadmitted_coder_before_build_spy(tmp_path
             ],
             do_bench=True, do_settle=True, src_token=dirty.src_token,
             cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
-            env_contract=pegasus, record_rep_returncodes=True,
+            env_contract=pegasus, authorization_contract=pegasus,
+            record_rep_returncodes=True,
             qualification_policy=policy, log=lambda *_: None,
             build_context=context,
         )
@@ -157,6 +158,7 @@ def test_qualification_policy_missing_context_is_separate_signature_error(tmp_pa
         pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), layout, "pegasus", "deadbeef",
             perf, 2100, numactl=(), env_contract=pegasus,
+            authorization_contract=pegasus,
             qualification_policy=policy, build_context=None,
         )
     assert not (
@@ -203,7 +205,8 @@ def test_qualification_stock_source_reaches_build_with_exact_class(
         ],
         do_bench=True, do_settle=True, src_token=stock.src_token,
         cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
-        env_contract=pegasus, record_rep_returncodes=True,
+        env_contract=pegasus, authorization_contract=pegasus,
+        record_rep_returncodes=True,
         qualification_policy=policy, log=lambda *_: None,
         build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
     )
@@ -391,7 +394,8 @@ def test_exact_pegasus_empty_numactl_opt_in_emits_nonformal_evidence(tmp_path):
             ],
             do_bench=True, do_settle=True, src_token="stock",
             cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
-            env_contract=pegasus, record_rep_returncodes=True,
+            env_contract=pegasus, authorization_contract=pegasus,
+            record_rep_returncodes=True,
             qualification_policy=policy, log=lambda *_: None,
             build_context=campaign_fixtures._BUILD_CONTEXT,
         )
@@ -430,7 +434,8 @@ def test_m4a_producer_settled_gate_rejects_before_terminal_commit(
             ],
             do_bench=True, do_settle=True, src_token="stock",
             cache_root=str(tmp_path / "cache"), bench_max_rounds=1,
-            env_contract=pegasus, record_rep_returncodes=True,
+            env_contract=pegasus, authorization_contract=pegasus,
+            record_rep_returncodes=True,
             qualification_policy=policy, log=lambda *_: None,
             build_context=campaign_fixtures._BUILD_CONTEXT,
         )
@@ -470,6 +475,7 @@ def test_qualification_opt_in_rejects_nonexact_numactl_before_writes(
                 (pipeline.S2_TAG, pipeline.s2_correctness_workload())
             ],
             src_token="stock", bench_max_rounds=1, env_contract=pegasus,
+            authorization_contract=pegasus,
             record_rep_returncodes=True, qualification_policy=policy,
             build_context=campaign_fixtures._BUILD_CONTEXT,
         )
@@ -519,6 +525,7 @@ def test_exact_sink_layout_capability_chain_rejects_laundering_before_write(
             ],
             do_bench=True, do_settle=True, src_token="stock",
             bench_max_rounds=1, env_contract=pegasus,
+            authorization_contract=pegasus,
             record_rep_returncodes=True, qualification_policy=policy,
             build_context=campaign_fixtures._BUILD_CONTEXT,
         )

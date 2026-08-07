@@ -538,6 +538,7 @@ class ForkedMemberRunner:
                     cache_root=str(self.cache_root),
                     bench_max_rounds=self.protocol["workload"]["bench_max_rounds"],
                     env_contract=contract,
+                    authorization_contract=contract,
                     record_rep_returncodes=True,
                     qualification_policy=policy,
                     build_context=build_context,

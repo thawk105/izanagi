@@ -63,7 +63,7 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, pin, wal                              # noqa: E402
+from campaign import env_contract, ident, pin, wal                # noqa: E402
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign.artifact_admission import require_admitted_campaign # noqa: E402
 from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
@@ -248,6 +248,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             return {"outcome": "dry-pass", "variant": None}
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                               ccbench_dir=sub, cache_root=cache_root,
+                              authorization_contract=env_contract.lookup(ENV_TAG),
                               build_context=build_context,
                               campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)

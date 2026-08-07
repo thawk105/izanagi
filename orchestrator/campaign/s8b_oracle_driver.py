@@ -1379,6 +1379,7 @@ def run_block(
                                 ),
                                 bench_max_rounds=run_contract["bench_max_rounds"],
                                 env_contract=plan.contract,
+                                authorization_contract=plan.contract,
                                 # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を
                                 # pipeline 照合 (第二防壁・TOCTOU) へ渡す。
                                 expected_perf_sha256=plan.perf_sha_by_cell[

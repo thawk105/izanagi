@@ -28,6 +28,9 @@ SHARED_POLICY = TOOL_DIR / "policy.json"
 FLOOR_POLICY = TOOL_DIR / "policies" / "floor_v1.json"
 PROTOCOL = REPO / "output" / "s8b-freeze" / "floor_protocol.json"
 FREEZE = REPO / "output" / "s8b-freeze" / "holdout_freeze.json"
+PREFLIGHT_HELPER_RELATIVE = (
+    "orchestrator/campaign/certified_writer_preflight.py"
+)
 
 PRE_KEYS = {
     "schema_version",
@@ -194,6 +197,134 @@ def _fixture_repo(tmp_path: Path) -> Path:
     return repo
 
 
+def _fixture_preflight_source() -> str:
+    return (
+        "import argparse,json,os,sys\n"
+        "parser=argparse.ArgumentParser()\n"
+        "parser.add_argument('mode',choices=('floor','t126'))\n"
+        "parser.add_argument('--repo-root',required=True)\n"
+        "parser.add_argument('--receipt',required=True)\n"
+        "args=parser.parse_args()\n"
+        "expected=os.path.join(args.repo_root,'output','env','pegasus',"
+        "'floor','attempts','submissions',os.environ["
+        "'IZANAGI_SUBMISSION_NONCE'],'submit-receipt.json')\n"
+        "if args.mode!='floor' or args.receipt!=expected:\n"
+        "    raise SystemExit(4)\n"
+        "rc=int(os.environ.get('IZANAGI_TEST_PREFLIGHT_RC','0'))\n"
+        "if rc not in (0,3,4): raise SystemExit(4)\n"
+        "if rc:\n"
+        "    print(json.dumps({'gate':'fixture','reason':'rejected'},"
+        "sort_keys=True,separators=(',',':')),file=sys.stderr)\n"
+        "raise SystemExit(rc)\n"
+    )
+
+
+def _install_fixture_preflight(repo: Path) -> str:
+    helper = repo / PREFLIGHT_HELPER_RELATIVE
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text(_fixture_preflight_source(), encoding="utf-8")
+    _git(repo, "add", PREFLIGHT_HELPER_RELATIVE)
+    _git(repo, "commit", "-qm", "fixture committed admission helper")
+    return _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+
+def _path_tree_snapshot(root: Path) -> object:
+    if not os.path.lexists(root):
+        return None
+    paths = [root]
+    if root.is_dir() and not root.is_symlink():
+        paths.extend(sorted(root.rglob("*")))
+    snapshot = []
+    for path in paths:
+        info = path.lstat()
+        relative = "." if path == root else path.relative_to(root).as_posix()
+        if path.is_symlink():
+            payload = ("symlink", os.readlink(path))
+        elif path.is_file():
+            payload = ("file", path.read_bytes())
+        elif path.is_dir():
+            payload = ("directory", None)
+        else:
+            payload = ("other", None)
+        snapshot.append((relative, stat.S_IMODE(info.st_mode), payload))
+    return tuple(snapshot)
+
+
+def _run_floor_admission_fixture(
+    tmp_path: Path, *, preflight_rc: int
+) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path, Path, object, object]:
+    repo = _fixture_repo(tmp_path)
+    source_commit = _install_fixture_preflight(repo)
+    # The current checkout may advance while the queued receipt remains bound
+    # to the submitted commit.  The wrapper must still execute the old helper.
+    (repo / "queue-drift.txt").write_text("later checkout\n", encoding="utf-8")
+    _git(repo, "add", "queue-drift.txt")
+    _git(repo, "commit", "-qm", "advance fixture checkout")
+    nonce = "a" * 32
+    receipt = (
+        repo / "output/env/pegasus/floor/attempts/submissions"
+        / nonce / "submit-receipt.json"
+    )
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text(
+        json.dumps({"source_commit": source_commit}) + "\n", encoding="utf-8"
+    )
+    bin_dir = tmp_path / "job-bin"
+    bin_dir.mkdir()
+    mkdir_marker = tmp_path / "mkdir-invoked"
+    driver_marker = tmp_path / "driver-invoked"
+    (bin_dir / "mkdir").write_text(
+        "#!/bin/sh\n"
+        f": > {shlex.quote(str(mkdir_marker))}\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    (bin_dir / "mkdir").chmod(0o755)
+    real_python = str(Path(sys.executable).resolve(strict=True))
+    (bin_dir / "python3").write_text(
+        "#!/bin/sh\n"
+        "case \" $* \" in\n"
+        f"  *s8b_floor_campaign.py*) : > {shlex.quote(str(driver_marker))} ;;\n"
+        "esac\n"
+        f"exec {shlex.quote(real_python)} \"$@\"\n",
+        encoding="utf-8",
+    )
+    (bin_dir / "python3").chmod(0o755)
+    job_id = "floor-preflight-" + hashlib.sha256(
+        str(tmp_path).encode("utf-8")
+    ).hexdigest()[:12]
+    scratch = Path("/scr") / job_id
+    output_before = _path_tree_snapshot(repo / "output")
+    scratch_before = _path_tree_snapshot(scratch)
+    env = _git_env(repo)
+    env.update(
+        {
+            "PATH": str(bin_dir) + os.pathsep + env["PATH"],
+            "PBS_JOBID": job_id,
+            "PBS_O_WORKDIR": str(repo),
+            "IZANAGI_SUBMISSION_NONCE": nonce,
+            "IZANAGI_TEST_PREFLIGHT_RC": str(preflight_rc),
+        }
+    )
+    completed = subprocess.run(
+        ["bash", str(repo / "tools/pegasus/floor_campaign.sh")],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    return (
+        completed,
+        repo,
+        scratch,
+        mkdir_marker,
+        driver_marker,
+        output_before,
+        scratch_before,
+    )
+
+
 def _sentinel_bin(tmp_path: Path, *, failures: dict[str, int] | None = None) -> tuple[Path, Path]:
     failures = failures or {}
     bin_dir = tmp_path / "sentinel-bin"
@@ -282,6 +413,69 @@ def test_floor_shell_syntax(script: Path) -> None:
         ["bash", "-n", str(script)], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_floor_wrapper_preflight_rejection_is_nonmutating_and_starts_no_driver(
+    tmp_path: Path,
+) -> None:
+    (
+        completed,
+        repo,
+        scratch,
+        mkdir_marker,
+        driver_marker,
+        output_before,
+        scratch_before,
+    ) = _run_floor_admission_fixture(tmp_path, preflight_rc=3)
+
+    assert completed.returncode == 3
+    assert completed.stdout == ""
+    assert completed.stderr == '{"gate":"fixture","reason":"rejected"}\n'
+    assert _path_tree_snapshot(repo / "output") == output_before
+    assert _path_tree_snapshot(scratch) == scratch_before
+    assert not mkdir_marker.exists()
+    assert not driver_marker.exists()
+    assert not list((repo / "output").rglob("failure.json"))
+    assert not list((repo / "output").rglob("failure-interpreter.txt"))
+    assert not list((repo / "output").rglob("floor-driver.launch-attempted"))
+
+
+def test_floor_wrapper_accepting_source_commit_preflight_reaches_first_write(
+    tmp_path: Path,
+) -> None:
+    (
+        completed,
+        repo,
+        scratch,
+        mkdir_marker,
+        driver_marker,
+        output_before,
+        scratch_before,
+    ) = _run_floor_admission_fixture(tmp_path, preflight_rc=0)
+
+    # The mkdir sentinel is the first wrapper-owned mutation attempt.  It
+    # deliberately fails so the test does not create real /scr state.
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert "TMPDIR already exists or cannot be created" in completed.stderr
+    assert mkdir_marker.is_file()
+    assert not driver_marker.exists()
+    assert _path_tree_snapshot(repo / "output") == output_before
+    assert _path_tree_snapshot(scratch) == scratch_before
+
+
+def test_floor_wrapper_streams_helper_blob_without_hash_literal() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert (
+        'git -C "$REPO_ROOT" cat-file blob "$PREFLIGHT_HELPER_SPEC"'
+        in source
+    )
+    assert (
+        '| "$PREFLIGHT_PY" -I -B - floor --repo-root "$REPO_ROOT"'
+        in source
+    )
+    preflight = source[:source.index('export TMPDIR="/scr/')]
+    assert not re.search(r"[0-9a-f]{64}", preflight)
 
 
 def test_fixture_git_environment_ignores_external_config_and_hooks(

@@ -22,6 +22,7 @@ from calibrator import schema_v2 as _schema_v2
 from calibrator import effective_clock_policy
 from campaign import env_contract as _env_contract
 from campaign import env_attestation as _env_attestation
+from campaign import site_policy as _site_policy
 
 RECEIPT_SCHEMA = "s8b-execution-receipt/v1"
 RECEIPT_SCHEMA_V2 = "s8b-execution-receipt/v2"
@@ -32,6 +33,66 @@ _SLUG_RE = re.compile(r"[a-z0-9][a-z0-9._-]*")
 
 class ExecutionGuardError(RuntimeError):
     """machine-pin 不一致・attestation 取得不能などの fail-closed 拒否。"""
+
+
+class CertifiedWriterAuthorizationError(ExecutionGuardError, ValueError):
+    """Certified-writer authorization input is inconsistent or unregistered."""
+
+
+def require_certified_writer_authorization(
+        authorization_contract: "_env_contract.ExecutionEnvironmentContract", *,
+        env_tag: str, clocks_per_us: int, numactl,
+        env_contract: Optional[
+            "_env_contract.ExecutionEnvironmentContract"
+        ] = None,
+) -> "_env_contract.ExecutionEnvironmentContract":
+    """Require the registered runtime contract before a certified sink writes.
+
+    ``env_contract`` remains the optional build-v2 selector.  Every certified
+    evaluation, including the legacy-build path, must present the separate
+    ``authorization_contract``.
+    """
+    if type(authorization_contract) is not _env_contract.ExecutionEnvironmentContract:
+        raise TypeError(
+            "authorization_contract は exact ExecutionEnvironmentContract が必要"
+        )
+    try:
+        registered = _env_contract.lookup(authorization_contract.env_tag)
+    except _env_contract.EnvContractError as exc:
+        raise CertifiedWriterAuthorizationError(
+            f"authorization_contract の env_tag が未登録: {exc}"
+        ) from exc
+    if authorization_contract != registered:
+        raise CertifiedWriterAuthorizationError(
+            "authorization_contract が current registry contract と一致しない"
+        )
+    if numactl is None:
+        raise CertifiedWriterAuthorizationError(
+            "campaign numactl does not exactly match authorization_contract: "
+            "unresolved None"
+        )
+    if type(numactl) not in {list, tuple} or any(type(part) is not str for part in numactl):
+        raise CertifiedWriterAuthorizationError(
+            "campaign 実行値 numactl は str の list/tuple でなければならない"
+        )
+    if (env_tag != registered.env_tag
+            or clocks_per_us != registered.clocks_per_us
+            or tuple(numactl) != registered.numactl):
+        raise CertifiedWriterAuthorizationError(
+            "campaign execution values do not exactly match "
+            "authorization_contract"
+        )
+    if (_site_policy.current_site() == _site_policy.PEGASUS_COMPUTE
+            and registered != _env_contract.lookup("pegasus")):
+        raise CertifiedWriterAuthorizationError(
+            "Pegasus compute では登録済み pegasus authorization_contract "
+            "だけを受理する"
+        )
+    if env_contract is not None and env_contract != registered:
+        raise CertifiedWriterAuthorizationError(
+            "build selector env_contract が authorization_contract と一致しない"
+        )
+    return registered
 
 
 def _boot_id() -> Optional[str]:

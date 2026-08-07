@@ -71,7 +71,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign import axis_trigger_gating as T                     # noqa: E402
-from campaign import (ident, pipeline, screening_driver,          # noqa: E402
+from campaign import (env_contract, ident, pipeline, screening_driver,  # noqa: E402
                       source_digest, wal)
 from campaign import p3_s4_loop as L                              # noqa: E402
 from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
@@ -456,12 +456,14 @@ def _eval_one(name: str, effective: Sequence[str], cfg: CampaignConfig,
         if screening is None and not force:
             summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA,
                                    log=log, ccbench_dir=sub, cache_root=cache_root,
+                                   authorization_contract=env_contract.lookup(ENV_TAG),
                                    build_context=build_context,
                                    capability_resolver=capability_resolver)
             r = summary.results[0] if summary.results else None
         else:
             r = screening_driver.evaluate_candidate(
                 cfg, layout, genome, perf, ENV_TAG, CLK, screening=screening,
+                authorization_contract=env_contract.lookup(ENV_TAG),
                 build_context=build_context,
                 capability_resolver=capability_resolver,
                 numactl=NUMA, src_token=src_tok, force=force, log=log,

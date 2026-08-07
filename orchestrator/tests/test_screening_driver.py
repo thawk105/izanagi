@@ -13,7 +13,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import ident, screening_driver, wal               # noqa: E402
+from campaign import env_contract, ident, screening_driver, wal  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     GeneratorId,
     attest_generator_output,
@@ -34,6 +34,7 @@ from campaign.source_digest import (  # noqa: E402
 
 WORKLOAD = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
 _BUILD_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+_AUTHORIZATION = env_contract.lookup("linux-baremetal")
 
 
 def _source_evidence(genome: Genome, *, root: str = "/fixture/ccbench"):
@@ -218,7 +219,10 @@ def test_evaluate_candidate_repairs_tail_before_replay_and_evaluate(
         lambda *_args, **_kwargs: _source_evidence(genome),
     )
     result = screening_driver.evaluate_candidate(
-        cfg, layout, genome, PerfConfig(records=1, threads=1), "test", 1800,
+        cfg, layout, genome, PerfConfig(records=1, threads=1),
+        _AUTHORIZATION.env_tag, _AUTHORIZATION.clocks_per_us,
+        numactl=_AUTHORIZATION.numactl,
+        authorization_contract=_AUTHORIZATION,
         build_context=_BUILD_CONTEXT,
         screening=None, src_token="stock", log=lambda message: None)
     assert result is not None and result.certified and calls == [genome]
@@ -247,7 +251,10 @@ def test_evaluate_candidate_does_not_append_abort_after_wal_io_error(
     )
     with pytest.raises(type(failure)) as caught:
         screening_driver.evaluate_candidate(
-            cfg, layout, genome, PerfConfig(records=1, threads=1), "test", 1800,
+            cfg, layout, genome, PerfConfig(records=1, threads=1),
+            _AUTHORIZATION.env_tag, _AUTHORIZATION.clocks_per_us,
+            numactl=_AUTHORIZATION.numactl,
+            authorization_contract=_AUTHORIZATION,
             build_context=_BUILD_CONTEXT,
             screening=None, src_token="stock", log=lambda message: None)
     assert caught.value is failure

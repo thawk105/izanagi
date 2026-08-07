@@ -17,8 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Sequence
 
-from . import (buildcache, env_attestation, env_contract as env_contract_registry,
-               execution_guard, ident, site_policy, source_digest, wal)
+from . import buildcache, env_attestation, execution_guard, ident, source_digest, wal
 from .build_admission import BuildRunContext
 from .env_contract import ExecutionEnvironmentContract
 from .layout import campaign_layout, exploration_campaign_layout
@@ -60,36 +59,28 @@ def _repo_root() -> Path:
 
 
 def _authorize_measurement(
-        env_contract: Optional[ExecutionEnvironmentContract], *,
+        authorization_contract: ExecutionEnvironmentContract, *,
         env_tag: str, clocks_per_us: int,
         numactl: Optional[Sequence[str]],
+        env_contract: Optional[ExecutionEnvironmentContract] = None,
 ) -> Optional[dict]:
     """明示 contract と required attestation を最初の書込みより前に検査する。"""
-    actual_site = site_policy.current_site()
-    if env_contract is None:
+    contract = execution_guard.require_certified_writer_authorization(
+        authorization_contract,
+        env_tag=env_tag,
+        clocks_per_us=clocks_per_us,
+        numactl=numactl,
+        env_contract=env_contract,
+    )
+    if contract.attestation_mode != "required":
         return None
-    if (actual_site == site_policy.PEGASUS_COMPUTE
-            and env_contract != env_contract_registry.lookup("pegasus")):
-        raise execution_guard.ExecutionGuardError(
-            "Pegasus compute では登録済み pegasus env_contract だけを受理する"
-        )
-    if type(env_contract) is not ExecutionEnvironmentContract:
-        raise TypeError("env_contract は exact ExecutionEnvironmentContract が必要")
-    if (env_tag != env_contract.env_tag
-            or clocks_per_us != env_contract.clocks_per_us
-            or tuple(numactl or ()) != env_contract.numactl):
-        raise execution_guard.ExecutionGuardError(
-            "campaign 実行値が env_contract と完全一致しない"
-        )
-    if env_contract.attestation_mode != "required":
-        return None
-    verified = env_attestation.load_verified_calibration(env_contract, _repo_root())
-    receipt = execution_guard.attest_and_build_receipt(env_contract, verified)
+    verified = env_attestation.load_verified_calibration(contract, _repo_root())
+    receipt = execution_guard.attest_and_build_receipt(contract, verified)
     if not execution_guard.receipt_matches_contract(
         receipt,
-        env_tag=env_contract.env_tag,
-        contract_sha256=env_contract.contract_sha256,
-        attestation_mode=env_contract.attestation_mode,
+        env_tag=contract.env_tag,
+        contract_sha256=contract.contract_sha256,
+        attestation_mode=contract.attestation_mode,
         verified_calibration=verified,
     ):
         raise execution_guard.ExecutionGuardError(
@@ -104,6 +95,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  do_bench: bool = True, output_root: str = "",
                  log=print, ccbench_dir: str = "", cache_root: str = "",
                  env_contract=None, dependency_prefix: str = "", *,
+                 authorization_contract: ExecutionEnvironmentContract,
                  build_context: BuildRunContext,
                  capability_resolver: Optional[AdmissionCapabilityResolver] = None,
                  campaign_namespace: str = "official",
@@ -137,8 +129,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         raise ValueError(f"未知の campaign namespace: {campaign_namespace!r}")
 
     execution_receipt = _authorize_measurement(
-        env_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
-        numactl=numactl,
+        authorization_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
+        numactl=numactl, env_contract=env_contract,
     )
     cid = ident.campaign_id(cfg)
     layout = layout_constructor(str(cid), output_root).ensure()
@@ -265,6 +257,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                          do_settle=(do_bench and first_bench),
                          src_token=src_tok, extra_correctness=extra_correctness,
                          log=log, ccbench_dir=ccbench_dir, cache_root=cache_root,
+                         authorization_contract=authorization_contract,
                          build_context=build_context,
                          capability_resolver=capability_resolver,
                          source_evidence=source_evidence,

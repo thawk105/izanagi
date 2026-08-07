@@ -290,6 +290,23 @@ def load_protocol(path: Path | str = DEFAULT_PROTOCOL_PATH) -> dict[str, Any]:
     return validate_protocol(document)
 
 
+def load_protocol_bytes(raw: bytes) -> dict[str, Any]:
+    """Strictly parse an immutable protocol blob without materializing a file."""
+    if type(raw) is not bytes:
+        raise ProtocolError("protocol blob must be exact bytes")
+    try:
+        document = json.loads(
+            raw.decode("utf-8", errors="strict"),
+            object_pairs_hook=_duplicate_rejector,
+            parse_constant=lambda token: (_ for _ in ()).throw(
+                ProtocolError(f"non-finite protocol constant: {token}")
+            ),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProtocolError(f"cannot load protocol blob: {exc}") from exc
+    return validate_protocol(document)
+
+
 def protocol_sha256(protocol: Mapping[str, Any]) -> str:
     return hashlib.sha256(canonical_json_bytes(validate_protocol(dict(protocol)))).hexdigest()
 

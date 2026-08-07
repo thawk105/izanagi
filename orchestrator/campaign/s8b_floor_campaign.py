@@ -390,6 +390,13 @@ def _validate_protocol_against_current(
     )
 
 
+def validate_protocol_against_current(
+        document: Mapping,
+) -> tuple[dict, _env_contract.ExecutionEnvironmentContract]:
+    """Public read-only live-admission leaf for the wrapper preflight."""
+    return _validate_protocol_against_current(document)
+
+
 def validate_protocol(document: Mapping) -> dict:
     """凍結済み protocol を記録時の歴史 contract で read-only 検証する。"""
     normalized, _contract = _validate_protocol_with_resolver(

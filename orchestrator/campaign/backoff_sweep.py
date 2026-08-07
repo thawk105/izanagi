@@ -34,7 +34,8 @@ from campaign.model import CampaignConfig, Genome               # noqa: E402
 from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,  # noqa: E402
                            REPS, THREADS, _assert_single_tenant)
 from campaign.pipeline import PerfConfig                        # noqa: E402
-from campaign import ident, pin, screening_driver, source_digest, wal  # noqa: E402
+from campaign import (env_contract, ident, pin, screening_driver,
+                      source_digest, wal)  # noqa: E402
 from campaign.loop import CampaignSummary                       # noqa: E402
 from campaign.pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
 
@@ -93,6 +94,7 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
     def measure_baseline(screen_cfg, layout):
         measured.append(screening_driver.evaluate_candidate(
             screen_cfg, layout, baseline, perf, ENV_TAG, CLK,
+            authorization_contract=env_contract.lookup(ENV_TAG),
             build_context=build_context,
             capability_resolver=capability_resolver,
             screening=None, numactl=NUMA, force=True, do_settle=True, log=log))
@@ -109,6 +111,7 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
         _assert_single_tenant()
         results.append(screening_driver.evaluate_candidate(
             prepared.cfg, prepared.layout, genome, perf, ENV_TAG, CLK,
+            authorization_contract=env_contract.lookup(ENV_TAG),
             build_context=build_context,
             capability_resolver=capability_resolver,
             screening=prepared.screening, numactl=NUMA, log=log))
@@ -161,6 +164,7 @@ def run_workload(tag: str, workload: dict, log=print, *,
             confirm_each_candidate=confirm_each_candidate)
     else:
         s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
+                         authorization_contract=env_contract.lookup(ENV_TAG),
                          build_context=build_context,
                          capability_resolver=capability_resolver)
 

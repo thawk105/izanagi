@@ -17,6 +17,7 @@ import fcntl
 import hashlib
 import importlib
 import inspect
+import io
 import json
 import os
 import shutil
@@ -26,6 +27,7 @@ import tempfile
 import threading
 import time
 import types
+from pathlib import Path
 from unittest import mock as unittest_mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -70,6 +72,7 @@ _BUILD_CONTEXT = build_run_context(
         ["--allow-coder-derived-build"]
     ).coder_build_authority,
 )
+_AUTH_CONTRACT = ec.lookup("linux-baremetal")
 def _source_evidence(
         genome_value: Genome, commit: str, *, src_token: str = "stock",
         source_root: str = "/tmp/izanagi-test-ccbench",
@@ -2145,7 +2148,10 @@ def test_trigger_campaign_epoch_never_writes_pre_t428_paths():
     )
     output_root = _tmpdir("izanagi_trigger_epoch_")
     summary = campaign_loop.run_campaign(
-        cfg, [], PerfConfig(records=1000, threads=2), "test-env", 1800,
+        cfg, [], PerfConfig(records=1000, threads=2),
+        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+        numactl=list(_AUTH_CONTRACT.numactl),
+        authorization_contract=_AUTH_CONTRACT,
         do_bench=False, output_root=output_root, log=lambda *_args: None,
         build_context=context, campaign_namespace="exploration",
         trigger_gate_binding=candidate,
@@ -2167,6 +2173,279 @@ def test_trigger_campaign_epoch_never_writes_pre_t428_paths():
 def _tmp_layout():
     root = _tmpdir("izanagi_pipe_")
     return CampaignLayout(root=os.path.join(root, "campaigns", "test")).ensure()
+
+
+def _uncreated_authorization_layout():
+    root = _tmpdir("izanagi_authorization_")
+    return CampaignLayout(root=os.path.join(root, "campaign")), root
+
+
+def _assert_authorization_rejects_without_writes(
+        authorization_contract, *, env_tag, clocks_per_us, numactl,
+        env_contract=None, expected_type=Exception):
+    lay, root = _uncreated_authorization_layout()
+    try:
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay, env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us,
+            numactl=numactl, env_contract=env_contract,
+            authorization_contract=authorization_contract,
+            build_context=_BUILD_CONTEXT, log=lambda *_args: None,
+        )
+        assert False, "authorization input must be rejected"
+    except expected_type:
+        pass
+    assert os.listdir(root) == []
+
+
+def test_m1_pipeline_requires_authorization_before_any_sink_write():
+    lay, root = _uncreated_authorization_layout()
+    try:
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef", PerfConfig(records=1000, threads=2),
+            _AUTH_CONTRACT.clocks_per_us, numactl=list(_AUTH_CONTRACT.numactl),
+            build_context=_BUILD_CONTEXT,
+        )
+        assert False, "authorization_contract must be a required keyword-only argument"
+    except TypeError as exc:
+        assert "authorization_contract" in str(exc)
+    assert os.listdir(root) == []
+    _assert_authorization_rejects_without_writes(
+        None,
+        env_tag=_AUTH_CONTRACT.env_tag,
+        clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+        numactl=list(_AUTH_CONTRACT.numactl),
+        expected_type=TypeError,
+    )
+
+    class ContractSubclass(ec.ExecutionEnvironmentContract):
+        pass
+
+    subclass = ContractSubclass(
+        env_tag=_AUTH_CONTRACT.env_tag,
+        clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+        numactl=_AUTH_CONTRACT.numactl,
+        attestation_mode=_AUTH_CONTRACT.attestation_mode,
+        isolation_policy=_AUTH_CONTRACT.isolation_policy,
+        calibration_ref=_AUTH_CONTRACT.calibration_ref,
+    )
+    _assert_authorization_rejects_without_writes(
+        subclass,
+        env_tag=subclass.env_tag,
+        clocks_per_us=subclass.clocks_per_us,
+        numactl=list(subclass.numactl),
+        expected_type=TypeError,
+    )
+
+
+def test_m2_pipeline_rejects_forged_contract_even_when_runtime_matches_it():
+    import dataclasses
+
+    forged = dataclasses.replace(
+        _AUTH_CONTRACT, clocks_per_us=_AUTH_CONTRACT.clocks_per_us + 1,
+    )
+    _assert_authorization_rejects_without_writes(
+        forged,
+        env_tag=forged.env_tag,
+        clocks_per_us=forged.clocks_per_us,
+        numactl=list(forged.numactl),
+        expected_type=pipeline.execution_guard.ExecutionGuardError,
+    )
+
+
+def test_m3_pipeline_rejects_authorization_selector_mismatch():
+    _assert_authorization_rejects_without_writes(
+        _AUTH_CONTRACT,
+        env_tag=_AUTH_CONTRACT.env_tag,
+        clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+        numactl=list(_AUTH_CONTRACT.numactl),
+        env_contract=ec.lookup("pegasus"),
+        expected_type=pipeline.execution_guard.ExecutionGuardError,
+    )
+
+
+def test_m4_pipeline_rejects_unresolved_none_numactl_for_pegasus():
+    pegasus = ec.lookup("pegasus")
+    _assert_authorization_rejects_without_writes(
+        pegasus,
+        env_tag=pegasus.env_tag,
+        clocks_per_us=pegasus.clocks_per_us,
+        numactl=None,
+        expected_type=pipeline.execution_guard.ExecutionGuardError,
+    )
+
+
+def test_m5_pipeline_compute_rejects_registered_linux_contract():
+    saved = pipeline.execution_guard._site_policy.current_site
+    pipeline.execution_guard._site_policy.current_site = (
+        lambda: site_policy.PEGASUS_COMPUTE
+    )
+    try:
+        _assert_authorization_rejects_without_writes(
+            _AUTH_CONTRACT,
+            env_tag=_AUTH_CONTRACT.env_tag,
+            clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            expected_type=pipeline.execution_guard.ExecutionGuardError,
+        )
+    finally:
+        pipeline.execution_guard._site_policy.current_site = saved
+
+
+def test_p1_pipeline_accepts_registered_contract_without_enabling_v2_build():
+    lay = _tmp_layout()
+    with _mock_pipeline(certified=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef", PerfConfig(records=1000, threads=2),
+            _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTH_CONTRACT,
+            do_bench=False, build_context=_BUILD_CONTEXT,
+            log=lambda *_args: None,
+        )
+    assert result.certified and not result.aborted
+    assert calls.builds == [("legacy", True, None), ("legacy", False, None)]
+
+
+def test_p1_run_campaign_accepts_registered_contract():
+    from campaign import loop as campaign_loop
+
+    cfg = CampaignConfig(
+        spec_slug="authorization-positive",
+        search_tag="registered-contract",
+        spec_content="registered authorization positive control",
+        ccbench_commit="deadbeef",
+    )
+    summary = campaign_loop.run_campaign(
+        cfg, [], PerfConfig(records=1, threads=1),
+        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+        numactl=list(_AUTH_CONTRACT.numactl), do_bench=False,
+        output_root=_tmpdir("izanagi_authorization_run_"),
+        authorization_contract=_AUTH_CONTRACT,
+        build_context=_BUILD_CONTEXT, log=lambda *_args: None,
+    )
+    assert summary.total == 0 and summary.results == []
+
+
+def test_certified_writer_authorization_caller_inventory_is_closed():
+    campaign_dir = Path(_ORCH) / "campaign"
+    expected_run_calls = {
+        "backoff_repro.py": 1, "backoff_sweep.py": 1, "demo.py": 2,
+        "p2_2.py": 1, "p3_kickoff.py": 2, "p3_s4_loop.py": 1,
+        "p3_s4_loop_sort.py": 1, "p3_s4_loop_trigger_gating.py": 1,
+        "p3_s4_red.py": 2, "s6_sort_sweep.py": 1,
+        "s8a_trigger_sweep.py": 1, "sanity_silo.py": 1,
+    }
+    for name, expected_count in expected_run_calls.items():
+        tree = ast.parse((campaign_dir / name).read_text(encoding="utf-8"))
+        calls = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "run_campaign"
+        ]
+        assert len(calls) == expected_count, name
+        assert all(
+            any(keyword.arg == "authorization_contract"
+                for keyword in call.keywords)
+            for call in calls
+        ), name
+    assert sum(expected_run_calls.values()) == 15
+
+    direct_sinks = {
+        "loop.py": ("evaluate",),
+        "screening_driver.py": ("evaluate",),
+        "s1_direct_comparison.py": ("evaluate_fn",),
+        "s8b_oracle_driver.py": ("evaluate_fn",),
+    }
+    for name, callable_names in direct_sinks.items():
+        tree = ast.parse((campaign_dir / name).read_text(encoding="utf-8"))
+        calls = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in callable_names
+        ]
+        assert calls, name
+        assert any(
+            any(keyword.arg == "authorization_contract"
+                for keyword in call.keywords)
+            for call in calls
+        ), name
+    qualification_tree = ast.parse(
+        (Path(_ORCH) / "qualification/t126_driver.py").read_text(encoding="utf-8")
+    )
+    t126_calls = [
+        node for node in ast.walk(qualification_tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "evaluate"
+    ]
+    assert len(t126_calls) == 1
+    assert any(
+        keyword.arg == "authorization_contract"
+        for keyword in t126_calls[0].keywords
+    )
+
+
+def test_certified_writer_preflight_stdin_cli_rejects_with_json_only():
+    helper = Path(_ORCH) / "campaign/certified_writer_preflight.py"
+    scratch = Path(_tmpdir("izanagi_preflight_cli_"))
+    receipt = scratch / "receipt.json"
+    receipt.write_bytes(b"{}\n")
+    before = {path.relative_to(scratch): path.read_bytes()
+              for path in scratch.rglob("*") if path.is_file()}
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B", "-", "floor", "--repo-root",
+         str(Path(_ORCH).parent), "--receipt", str(receipt)],
+        input=helper.read_text(encoding="utf-8"), text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    after = {path.relative_to(scratch): path.read_bytes()
+             for path in scratch.rglob("*") if path.is_file()}
+    assert completed.returncode == 3
+    assert completed.stdout == ""
+    assert completed.stderr.count("\n") == 1
+    diagnostic = json.loads(completed.stderr)
+    assert set(diagnostic) == {"gate", "reason"}
+    assert diagnostic["gate"] == "admission"
+    assert type(diagnostic["reason"]) is str and diagnostic["reason"]
+    assert after == before
+
+
+def test_certified_writer_preflight_cli_input_error_is_exit_four():
+    helper = Path(_ORCH) / "campaign/certified_writer_preflight.py"
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B", "-", "floor"],
+        input=helper.read_text(encoding="utf-8"), text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    assert completed.returncode == 4 and completed.stdout == ""
+    lines = completed.stderr.splitlines()
+    assert len(lines) == 1
+    assert set(json.loads(lines[0])) == {"gate", "reason"}
+
+
+def test_certified_writer_preflight_cli_acceptance_is_silent_and_read_only():
+    from campaign import certified_writer_admission as admission
+    from campaign import certified_writer_preflight as helper
+
+    scratch = Path(_tmpdir("izanagi_preflight_accept_"))
+    receipt = scratch / "receipt.json"
+    receipt.write_bytes(b"{}\n")
+    before = receipt.read_bytes()
+    stdout, stderr = io.StringIO(), io.StringIO()
+    with unittest_mock.patch.object(admission, "admit") as admit, \
+            contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        rc = helper.main([
+            "floor", "--repo-root", str(Path(_ORCH).parent),
+            "--receipt", str(receipt),
+        ])
+    assert rc == 0 and stdout.getvalue() == "" and stderr.getvalue() == ""
+    assert receipt.read_bytes() == before
+    admit.assert_called_once()
 
 
 def _green_vr():
@@ -2399,11 +2678,13 @@ def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
         wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
     with _mock_pipeline(**mock_kw) as calls:
         r = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
             do_bench=do_bench, screening=screening,
             expected_perf_sha256=expected_perf_sha256,
             record_rep_returncodes=record_rep_returncodes,
+            authorization_contract=_AUTH_CONTRACT,
             log=lambda *a: None, build_context=_BUILD_CONTEXT)
     return r, calls
 
@@ -2415,8 +2696,10 @@ def test_build_admission_coder_default_rejects_before_pipeline_build_spy():
     with _mock_pipeline(certified=True) as calls:
         try:
             pipeline.evaluate(
-                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                numactl=_AUTH_CONTRACT.numactl,
+                authorization_contract=_AUTH_CONTRACT,
                 do_bench=False, build_context=object(),
                 log=lambda *_args: None,
             )
@@ -2439,8 +2722,10 @@ def test_build_admission_explicit_coder_opt_in_reaches_build_and_records_receipt
     lay = _tmp_layout()
     with _mock_pipeline(certified=True) as calls:
         result = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTH_CONTRACT,
             do_bench=False, build_context=_BUILD_CONTEXT, log=lambda *_args: None,
         )
     assert result.certified and len(calls.builds) == 2
@@ -2479,8 +2764,10 @@ def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_bui
     )
     with _mock_pipeline(certified=True) as calls:
         result = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTH_CONTRACT,
             do_bench=False, build_context=_BUILD_CONTEXT,
             trigger_gate_binding=candidate, ccbench_dir=source_root,
             log=lambda *_args: None,
@@ -2530,8 +2817,10 @@ def test_trigger_binding_rejects_crossed_materialized_predicate_and_mask():
     )
     with _mock_pipeline(certified=True) as calls:
         result = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTH_CONTRACT,
             do_bench=False, build_context=_BUILD_CONTEXT,
             trigger_gate_binding=binding_b, ccbench_dir=source_root,
             log=lambda *_args: None,
@@ -2559,8 +2848,10 @@ def test_trigger_prebuild_abort_records_source_null_binding_before_start():
     )
     with _mock_pipeline(source_raises=True) as calls:
         result = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTH_CONTRACT,
             do_bench=False, build_context=_BUILD_CONTEXT,
             trigger_gate_binding=candidate, log=lambda *_args: None,
         )
@@ -2582,8 +2873,10 @@ def test_build_admission_stock_positive_reaches_build_without_coder_opt_in():
     lay = _tmp_layout()
     with _mock_pipeline(certified=True) as calls:
         result = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", pin.CURRENT_PIN,
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, pin.CURRENT_PIN,
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTH_CONTRACT,
             do_bench=False, build_context=_BUILD_CONTEXT, log=lambda *_args: None,
         )
     assert result.certified and len(calls.builds) == 2
@@ -2625,6 +2918,7 @@ def test_build_admission_loop_and_screening_revalidate_before_build_entry_spy():
         try:
             L.run_campaign(
                 cfg, [genome], PerfConfig(records=1, threads=1), "test", 1800,
+                authorization_contract=_AUTH_CONTRACT,
                 do_bench=False, output_root=_tmpdir("t316_loop_"),
                 build_context=bad, log=lambda *_args: None,
             )
@@ -2641,7 +2935,10 @@ def test_build_admission_loop_and_screening_revalidate_before_build_entry_spy():
     try:
         try:
             SD.evaluate_candidate(
-                cfg, layout, genome, PerfConfig(records=1, threads=1), "test", 1800,
+                cfg, layout, genome, PerfConfig(records=1, threads=1),
+                _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+                numactl=_AUTH_CONTRACT.numactl,
+                authorization_contract=_AUTH_CONTRACT,
                 build_context=bad, screening=None, src_token="stock",
                 log=lambda *_args: None,
             )
@@ -2708,8 +3005,9 @@ def test_pipeline_env_contract_opt_in_uses_v2_for_trace_and_perf_only():
     contract = ec.lookup("linux-baremetal")
     with _mock_pipeline(certified=True) as calls:
         result = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, contract.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=contract.numactl, authorization_contract=contract,
             do_bench=False, env_contract=contract, log=lambda *a: None,
         build_context=_BUILD_CONTEXT,
         )
@@ -2733,6 +3031,7 @@ def test_m12_pipeline_compute_uses_gxx_for_source_digest_and_v2_builds():
         result = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, "pegasus", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=2100,
+            authorization_contract=contract, numactl=contract.numactl,
             do_bench=False, env_contract=contract, dependency_prefix=prefix,
             log=lambda *a: None, build_context=_BUILD_CONTEXT,
         )
@@ -2752,8 +3051,9 @@ def test_pipeline_v2_passes_nondefault_prepared_ccbench_tree_to_both_builds():
     prepared_tree = "/approved/prepared-cell-tree"
     with _mock_pipeline(certified=True) as calls:
         result = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, contract.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=contract.numactl, authorization_contract=contract,
             do_bench=False, env_contract=contract, ccbench_dir=prepared_tree,
             log=lambda *a: None,
         build_context=_BUILD_CONTEXT,
@@ -2940,8 +3240,11 @@ def _assert_legacy_cache_hit_site_refusal(site):
                 pipeline.subprocess, "run", forbidden_subprocess):
             try:
                 pipeline.evaluate(
-                    Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                    Genome("silo", {"BACK_OFF": 1}), lay,
+                    _AUTH_CONTRACT.env_tag, "deadbeef",
                     PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                    numactl=_AUTH_CONTRACT.numactl,
+                    authorization_contract=_AUTH_CONTRACT,
                     log=lambda *a: None, build_context=_BUILD_CONTEXT,
                 )
             except buildcache.BuildError as exc:
@@ -3069,8 +3372,11 @@ def test_m18_commit_rechecks_site_immediately_before_write():
         pipeline._resolve_site = lambda _site=None: next(sites)
         try:
             pipeline.evaluate(
-                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                Genome("silo", {"BACK_OFF": 1}), lay,
+                _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                numactl=_AUTH_CONTRACT.numactl,
+                authorization_contract=_AUTH_CONTRACT,
                 log=lambda *a: None, build_context=_BUILD_CONTEXT,
             )
         except buildcache.BuildError:
@@ -3092,8 +3398,11 @@ def test_m18_no_bench_commit_rechecks_site_immediately_before_write():
         pipeline._resolve_site = lambda _site=None: next(sites)
         try:
             pipeline.evaluate(
-                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                Genome("silo", {"BACK_OFF": 1}), lay,
+                _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                numactl=_AUTH_CONTRACT.numactl,
+                authorization_contract=_AUTH_CONTRACT,
                 do_bench=False, log=lambda *a: None,
                 build_context=_BUILD_CONTEXT,
             )
@@ -3529,8 +3838,11 @@ def test_pipeline_screening_with_no_bench_is_immediate_value_error():
     with _mock_pipeline() as calls:
         try:
             pipeline.evaluate(
-                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                Genome("silo", {"BACK_OFF": 1}), lay,
+                _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                numactl=_AUTH_CONTRACT.numactl,
+                authorization_contract=_AUTH_CONTRACT,
                 do_bench=False, screening=_screening(), log=lambda *a: None, build_context=_BUILD_CONTEXT)
             assert False, "should raise ValueError"
         except ValueError as e:
@@ -3550,8 +3862,11 @@ def test_pipeline_rejects_runtime_screening_mixed_into_legacy_campaign():
     with _mock_pipeline() as calls:
         try:
             pipeline.evaluate(
-                Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                Genome("silo", {"BACK_OFF": 1}), lay,
+                _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                numactl=_AUTH_CONTRACT.numactl,
+                authorization_contract=_AUTH_CONTRACT,
                 screening=_screening(), log=lambda *a: None, build_context=_BUILD_CONTEXT)
             assert False, "legacy campaign への runtime screening 混在は拒否すべき"
         except ValueError as exc:
@@ -3571,8 +3886,11 @@ def test_pipeline_rejects_screening_policy_drift_from_campaign_lock():
         with _mock_pipeline() as calls:
             try:
                 pipeline.evaluate(
-                    Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+                    Genome("silo", {"BACK_OFF": 1}), lay,
+                    _AUTH_CONTRACT.env_tag, "deadbeef",
                     PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                    numactl=_AUTH_CONTRACT.numactl,
+                    authorization_contract=_AUTH_CONTRACT,
                     screening=runtime, log=lambda *a: None, build_context=_BUILD_CONTEXT)
                 assert False, f"screening policy drift {changed} must be rejected"
             except ValueError as exc:
@@ -3623,8 +3941,11 @@ def test_pipeline_self_compute_identity_error_aborts_under_stock_id():
     saved = pipeline.source_digest
     pipeline.source_digest = _sd_mock(RuntimeError("g++ 不在"))
     try:
-        r = pipeline.evaluate(g, lay, "test-env", "deadbeef",
-                              PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+        r = pipeline.evaluate(g, lay, _AUTH_CONTRACT.env_tag, "deadbeef",
+                              PerfConfig(records=1000, threads=2),
+                              clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+                              numactl=list(_AUTH_CONTRACT.numactl),
+                              authorization_contract=_AUTH_CONTRACT,
                               do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         pipeline.source_digest = saved
@@ -3741,8 +4062,9 @@ def test_pipeline_extra_correctness_both_pass_tags_commit_and_uses_numactl_lock(
     numa = ["numactl", "--interleave=all"]
     with _mock_pipeline_multipass([(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
         r = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
+            authorization_contract=_AUTH_CONTRACT,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.certified and not r.aborted
@@ -3763,9 +4085,10 @@ def test_pipeline_extra_correctness_second_pass_red_aborts_with_workload_tag():
     lay = _tmp_layout()
     with _mock_pipeline_multipass([(100, 0, 5, True), (900000, 0, 50000, False)]):
         r = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=["numactl", "--interleave=all"],
+            authorization_contract=_AUTH_CONTRACT,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.aborted and not r.certified
@@ -3787,8 +4110,10 @@ def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
     lay = _tmp_layout()
     with _mock_pipeline_multipass([(100, 0, 5, True)]) as calls:
         r = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTH_CONTRACT,
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.certified and calls["bench_lock_enters"] == 0
     verify_recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
@@ -3805,8 +4130,10 @@ def test_pipeline_extra_correctness_requires_numactl():
     lay = _tmp_layout()
     try:
         pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            authorization_contract=_AUTH_CONTRACT,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
         assert False, "should raise ValueError"
@@ -3823,8 +4150,9 @@ def test_pipeline_extra_correctness_second_pass_competing_tenant_aborts():
     with _mock_pipeline_multipass(
             [(100, 0, 5, True)], competing=["999 /x/ycsb_silo.exe -t=48"]) as calls:
         r = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
+            authorization_contract=_AUTH_CONTRACT,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.aborted and not r.certified
@@ -3846,8 +4174,9 @@ def test_pipeline_extra_correctness_second_pass_early_reject_clears_stale_verdic
     # 2 パス目の rc=139 (segfault 相当) → verify_trace_dir に到達せず trace-run-nonzero-exit
     with _mock_pipeline_multipass([(100, 0, 5, True), (0, 139, None, True)]):
         r = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
+            authorization_contract=_AUTH_CONTRACT,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.aborted and not r.certified
@@ -3890,8 +4219,9 @@ def test_pipeline_verify_probe_error_aborts_and_clears_verdict():
         "exec-failure", ["pgrep", "-af", "x"], errno=2, stderr="not found")
     with _mock_pipeline_multipass([(100, 0, 5, True)], probe_raises=probe_err) as calls:
         r = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, "test-env", "deadbeef",
+            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
+            authorization_contract=_AUTH_CONTRACT,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.aborted and not r.certified
@@ -3937,8 +4267,12 @@ def test_loop_probe_error_is_retryable_after_recovery():
         L.evaluate = fake_eval
         L.source_digest = _sd_mock("stock")
         try:
-            s = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
-                               1800, do_bench=False, output_root=out_root,
+            s = L.run_campaign(
+                cfg, [g], PerfConfig(records=1, threads=1),
+                _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+                numactl=list(_AUTH_CONTRACT.numactl),
+                authorization_contract=_AUTH_CONTRACT,
+                do_bench=False, output_root=out_root,
                                log=lambda *a: None, build_context=_BUILD_CONTEXT)
         finally:
             L.evaluate, L.source_digest = saved, saved_sd
@@ -3986,8 +4320,12 @@ def test_screening_driver_probe_error_is_retryable_after_recovery():
         SD.source_digest = _sd_mock("stock")
         try:
             res = SD.evaluate_candidate(
-                cfg, lay, g, PerfConfig(records=1, threads=1), "test-env", 1800,
-                screening=None, src_token="stock", log=lambda *a: None, build_context=_BUILD_CONTEXT)
+                cfg, lay, g, PerfConfig(records=1, threads=1),
+                _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+                numactl=_AUTH_CONTRACT.numactl,
+                authorization_contract=_AUTH_CONTRACT,
+                screening=None, src_token="stock", log=lambda *a: None,
+                build_context=_BUILD_CONTEXT)
         finally:
             SD.evaluate, SD.source_digest = saved, saved_sd
         if reason in retryable:
@@ -4026,7 +4364,10 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
     L.source_digest = _sd_mock("stock")
     try:
         L.run_campaign(cfg, [Genome("silo", {"BACK_OFF": 1})],
-                       PerfConfig(records=1, threads=1), "test-env", 1800,
+                       PerfConfig(records=1, threads=1),
+                       _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+                       numactl=list(_AUTH_CONTRACT.numactl),
+                       authorization_contract=_AUTH_CONTRACT,
                        output_root=out_root, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
@@ -4062,7 +4403,10 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
     L.source_digest = _sd_mock("stock")
     try:
         L.run_campaign(cfg, [Genome("silo", {"BACK_OFF": 1})],
-                       PerfConfig(records=1, threads=1), "test-env", 1800,
+                       PerfConfig(records=1, threads=1),
+                       _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+                       numactl=list(_AUTH_CONTRACT.numactl),
+                       authorization_contract=_AUTH_CONTRACT,
                        output_root=out_root, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
@@ -4109,6 +4453,7 @@ def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
             do_bench=False, output_root=out_root, log=lambda *a: None,
             env_contract=contract, dependency_prefix=prefix,
             numactl=contract.numactl,
+            authorization_contract=contract,
             build_context=_BUILD_CONTEXT,
         )
     finally:
@@ -4169,7 +4514,8 @@ def test_required_contract_is_attested_once_at_run_campaign_sink():
             PerfConfig(records=1, threads=1), contract.env_tag,
             contract.clocks_per_us, numactl=contract.numactl,
             do_bench=False, output_root=out_root, log=lambda *a: None,
-            env_contract=contract, build_context=_BUILD_CONTEXT,
+            env_contract=contract, authorization_contract=contract,
+            build_context=_BUILD_CONTEXT,
         )
     finally:
         L.env_attestation.load_verified_calibration = saved["load"]
@@ -4218,8 +4564,11 @@ def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False,
     L.evaluate = fake_eval
     L.source_digest = _sd_mock(src_token)
     try:
-        s = L.run_campaign(cfg, genomes, PerfConfig(records=1, threads=1),
-                           "test-env", 1800, do_bench=do_bench,
+        s = L.run_campaign(
+            cfg, genomes, PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTH_CONTRACT, do_bench=do_bench,
                            output_root=out_root, log=lambda *a: None,
                            build_context=_BUILD_CONTEXT)
     finally:
@@ -4237,7 +4586,10 @@ def test_run_campaign_default_namespace_remains_official():
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content="namespace-default", ccbench_commit="deadbeef")
     summary = L.run_campaign(
-        cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800,
+        cfg, [], PerfConfig(records=1, threads=1),
+        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+        numactl=list(_AUTH_CONTRACT.numactl),
+        authorization_contract=_AUTH_CONTRACT,
         do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
     )
     expected = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root)
@@ -4270,7 +4622,10 @@ def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
     L.source_digest = _sd_mock("stock")
     try:
         summary = L.run_campaign(
-            cfg, [genome], PerfConfig(records=1, threads=1), "test-env", 1800,
+            cfg, [genome], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTH_CONTRACT,
             do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
             campaign_namespace="exploration",
         )
@@ -4301,6 +4656,7 @@ def test_run_campaign_rejects_unknown_namespace_before_output_creation():
     try:
         L.run_campaign(
             cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800,
+            authorization_contract=_AUTH_CONTRACT,
             do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
             campaign_namespace="typo",
         )
@@ -4317,12 +4673,19 @@ def test_run_campaign_namespace_does_not_change_campaign_id():
     out_root = _tmpdir("izanagi_loop_namespace_identity_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content="namespace-identity", ccbench_commit="deadbeef")
-    common = (cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800)
+    common = (
+        cfg, [], PerfConfig(records=1, threads=1),
+        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+    )
     official = L.run_campaign(
-        *common, do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
+        *common, numactl=list(_AUTH_CONTRACT.numactl),
+        authorization_contract=_AUTH_CONTRACT, do_bench=False,
+        output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
     )
     exploration = L.run_campaign(
-        *common, do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
+        *common, numactl=list(_AUTH_CONTRACT.numactl),
+        authorization_contract=_AUTH_CONTRACT, do_bench=False,
+        output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
         campaign_namespace="exploration",
     )
     assert official.campaign_id == exploration.campaign_id == str(ident.campaign_id(_bound(cfg)))
@@ -4414,8 +4777,13 @@ def test_loop_recovery_skips_committed_src_token_variant():
     L.evaluate = fake_eval
     L.source_digest = _sd_mock("codediff")
     try:
-        s = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
-                           1800, do_bench=False, output_root=out_root, log=lambda *a: None, build_context=_BUILD_CONTEXT)
+        s = L.run_campaign(
+            cfg, [g], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTH_CONTRACT,
+            do_bench=False, output_root=out_root, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 0 and s.skipped == 1            # src_token id terminal → 再評価しない
@@ -4458,13 +4826,23 @@ def test_loop_identity_error_is_retryable_after_repair():
     try:
         # run1: resolve が RuntimeError (g++ 一時不在) → identity-error abort (evaluate 呼ばれず)
         L.source_digest = _sd_mock(RuntimeError("g++ 一時不在"))
-        s1 = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
-                            1800, do_bench=False, output_root=out_root, log=lambda *a: None, build_context=_BUILD_CONTEXT)
+        s1 = L.run_campaign(
+            cfg, [g], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTH_CONTRACT,
+            do_bench=False, output_root=out_root, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
         assert s1.aborted == 1 and len(calls) == 0
         # run2: 環境修復 (resolve 成功 → stock) → 永久 skip でなく再評価・commit
         L.source_digest = _sd_mock("stock")
-        s2 = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
-                            1800, do_bench=False, output_root=out_root, log=lambda *a: None, build_context=_BUILD_CONTEXT)
+        s2 = L.run_campaign(
+            cfg, [g], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTH_CONTRACT,
+            do_bench=False, output_root=out_root, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 1 and s2.committed == 1 and s2.skipped == 0   # 修復後に再評価
@@ -4508,8 +4886,12 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
     try:
         # run3: 環境修復済み → retryable 判定は last_terminal (identity-error abort) 基準
         # なので再評価される (旧実装は evaluated=0 / skipped=1 で永久 skip)
-        s3 = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
-                            1800, do_bench=False, output_root=out_root,
+        s3 = L.run_campaign(
+            cfg, [g], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTH_CONTRACT,
+            do_bench=False, output_root=out_root,
                             log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
@@ -4544,7 +4926,9 @@ def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
                 try:
                     L.run_campaign(
                         cfg, [genome_value], PerfConfig(records=1, threads=1),
-                        "test-env", 1800, do_bench=False,
+                        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+                        numactl=list(_AUTH_CONTRACT.numactl),
+                        authorization_contract=_AUTH_CONTRACT, do_bench=False,
                         output_root=out_root, log=lambda *_args: None,
                         build_context=_BUILD_CONTEXT,
                     )
@@ -4563,7 +4947,9 @@ def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
 
             summary = L.run_campaign(
                 cfg, [genome_value], PerfConfig(records=1, threads=1),
-                "test-env", 1800, do_bench=False,
+                _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+                numactl=list(_AUTH_CONTRACT.numactl),
+                authorization_contract=_AUTH_CONTRACT, do_bench=False,
                 output_root=out_root, log=lambda *_args: None,
                 build_context=_BUILD_CONTEXT,
             )
@@ -4613,8 +4999,12 @@ def test_loop_identity_skip_is_visible_when_stock_id_terminal():
     saved_sd = L.source_digest
     L.source_digest = _sd_mock(RuntimeError("git 一時故障"))
     try:
-        s = L.run_campaign(cfg, [g], PerfConfig(records=1, threads=1), "test-env",
-                           1800, do_bench=False, output_root=out_root,
+        s = L.run_campaign(
+            cfg, [g], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTH_CONTRACT,
+            do_bench=False, output_root=out_root,
                            log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         L.source_digest = saved_sd
@@ -6843,7 +7233,10 @@ def test_loop_resume_repairs_tail_before_replay_and_surfaces_receipt():
     L.source_digest = _sd_mock("stock")
     try:
         summary = L.run_campaign(
-            cfg, [genome], PerfConfig(records=1, threads=1), "test-env", 1800,
+            cfg, [genome], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTH_CONTRACT,
             do_bench=False, output_root=out_root, log=messages.append, build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
@@ -6887,7 +7280,10 @@ def test_loop_does_not_append_abort_after_wal_io_error():
             try:
                 L.run_campaign(
                     cfg, [genome], PerfConfig(records=1, threads=1),
-                    "test-env", 1800, do_bench=False, output_root=out_root,
+                    _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+                    numactl=list(_AUTH_CONTRACT.numactl),
+                    authorization_contract=_AUTH_CONTRACT,
+                    do_bench=False, output_root=out_root,
                     log=lambda message: None, build_context=_BUILD_CONTEXT)
             except (wal.WalAppendError, wal.WalFramingError) as exc:
                 caught = exc

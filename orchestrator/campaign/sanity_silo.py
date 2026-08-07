@@ -18,6 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.genome import SILO_SPACE                          # noqa: E402
+from campaign import env_contract                              # noqa: E402
 from campaign.build_admission import GeneratorId, build_run_context  # noqa: E402
 from campaign.loop import run_campaign                          # noqa: E402
 from campaign.model import CampaignConfig                       # noqa: E402
@@ -49,8 +50,10 @@ def main() -> int:
     print(f"=== P2-0: silo {len(genomes)} genome verifier sanity (do_bench=False) ===")
     for g in genomes:
         print(f"  - {g.canonical()}")
+    contract = env_contract.lookup(ENV_TAG)
     s = run_campaign(
-        cfg, genomes, perf, ENV_TAG, CLK, do_bench=False,
+        cfg, genomes, perf, ENV_TAG, CLK, numactl=list(contract.numactl),
+        do_bench=False, authorization_contract=contract,
         build_context=build_context,
     )
 

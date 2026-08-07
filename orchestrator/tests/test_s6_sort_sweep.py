@@ -390,6 +390,8 @@ def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
         result = pipeline.evaluate(
             genomes[0], layout, env_tag, cfg.ccbench_commit, perf,
             clocks_per_us, do_bench=False, log=lambda _line: None,
+            numactl=kwargs["numactl"],
+            authorization_contract=kwargs["authorization_contract"],
             ccbench_dir=kwargs["ccbench_dir"],
             cache_root=kwargs["cache_root"],
             build_context=kwargs["build_context"],

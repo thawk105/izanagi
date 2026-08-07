@@ -11,8 +11,9 @@ import os
 from dataclasses import dataclass, replace
 from typing import Callable, Dict, Optional, Sequence
 
-from . import buildcache, ident, source_digest, wal
+from . import buildcache, execution_guard, ident, source_digest, wal
 from .build_admission import BuildRunContext
+from .env_contract import ExecutionEnvironmentContract
 from .layout import CampaignLayout, campaign_layout, repo_output_root
 from .model import (STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT,
                     CampaignConfig, Genome)
@@ -134,6 +135,7 @@ def prepare_screening_campaign(
 def evaluate_candidate(
         cfg: CampaignConfig, layout: CampaignLayout, genome: Genome,
         perf: PerfConfig, env_tag: str, clocks_per_us: int, *,
+        authorization_contract: ExecutionEnvironmentContract,
         build_context: BuildRunContext,
         screening: Optional[ScreeningConfig],
         capability_resolver: Optional[AdmissionCapabilityResolver] = None,
@@ -143,6 +145,12 @@ def evaluate_candidate(
     """sweep候補を1点評価する。forceはbaseline再アンカー専用。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    execution_guard.require_certified_writer_authorization(
+        authorization_contract,
+        env_tag=env_tag,
+        clocks_per_us=clocks_per_us,
+        numactl=numactl,
+    )
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     _surface_repair(ident.ensure_resumable_wal(
         cfg, layout, admission_policy=build_context.policy,
@@ -173,6 +181,7 @@ def evaluate_candidate(
             numactl=numactl, do_settle=do_settle, src_token=src_tok,
             extra_correctness=extra_correctness, screening=screening, log=log,
             ccbench_dir=ccbench_dir, cache_root=cache_root,
+            authorization_contract=authorization_contract,
             build_context=build_context,
             capability_resolver=capability_resolver,
             source_evidence=evidence)

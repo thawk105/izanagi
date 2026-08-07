@@ -59,6 +59,59 @@ QUAL_ROOT="$REPO_ROOT/output/env/pegasus/qualification/t126"
 SUBMISSION_RECEIPT="$QUAL_ROOT/submissions/$IZANAGI_SUBMISSION_NONCE/submit-receipt.json"
 CANONICAL_JOB_ID=${PBS_JOBID#0:}
 JOB_STAGING="$QUAL_ROOT/job-staging/$CANONICAL_JOB_ID.$IZANAGI_SUBMISSION_NONCE"
+
+# The submitter publishes the receipt after qsub returns.  Waiting and static
+# admission are read-only and therefore precede job-staging creation and traps.
+for _ in $(seq 1 600); do
+  [[ -f "$SUBMISSION_RECEIPT" && ! -L "$SUBMISSION_RECEIPT" ]] && break
+  sleep 0.1
+done
+if [[ ! -f "$SUBMISSION_RECEIPT" || -L "$SUBMISSION_RECEIPT" ]]; then
+  echo '{"gate":"bootstrap","reason":"T126 submission receipt is unavailable"}' >&2
+  exit 4
+fi
+PREFLIGHT_SOURCE_COMMIT=$(
+  "$PY" -I -S -B - "$SUBMISSION_RECEIPT" <<'PY'
+import json
+import re
+import sys
+
+def no_duplicates(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON key")
+        value[key] = item
+    return value
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        document = json.load(handle, object_pairs_hook=no_duplicates)
+    source_commit = document["source_commit"]
+except (KeyError, OSError, UnicodeError, ValueError, json.JSONDecodeError):
+    raise SystemExit(4)
+if type(source_commit) is not str or re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+    raise SystemExit(4)
+print(source_commit)
+PY
+) || {
+  echo '{"gate":"bootstrap","reason":"cannot read a unique source_commit from T126 receipt"}' >&2
+  exit 4
+}
+PREFLIGHT_HELPER_PATH="orchestrator/campaign/certified_writer_preflight.py"
+PREFLIGHT_HELPER_SPEC="$PREFLIGHT_SOURCE_COMMIT:$PREFLIGHT_HELPER_PATH"
+if ! git -C "$REPO_ROOT" cat-file -e "$PREFLIGHT_HELPER_SPEC" 2>/dev/null; then
+  echo '{"gate":"bootstrap","reason":"static admission helper blob is unavailable"}' >&2
+  exit 4
+fi
+preflight_rc=0
+git -C "$REPO_ROOT" cat-file blob "$PREFLIGHT_HELPER_SPEC" \
+  | "$PY" -I -B - t126 --repo-root "$REPO_ROOT" \
+      --receipt "$SUBMISSION_RECEIPT" || preflight_rc=$?
+if [[ "$preflight_rc" -ne 0 ]]; then
+  exit "$preflight_rc"
+fi
+
 safe_namespace() {
   local target=$1 current="$REPO_ROOT" part
   local -a components

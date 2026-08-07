@@ -23,7 +23,7 @@ from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from campaign import ident, source_digest, wal                   # noqa: E402
+from campaign import env_contract, ident, source_digest, wal     # noqa: E402
 from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context)
 from campaign.backoff_sweep import _BASE                         # noqa: E402
@@ -106,6 +106,7 @@ def run_workload(tag: str, log=print) -> dict:
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff repro  workload={tag}  逆順 {[g.flags['BACKOFF_FIXED'] for g in gs]} ===")
     s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
+                     authorization_contract=env_contract.lookup(ENV_TAG),
                      build_context=build_context,
                      capability_resolver=capability_resolver)
 

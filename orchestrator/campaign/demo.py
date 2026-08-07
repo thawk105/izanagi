@@ -19,6 +19,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from campaign.loop import run_campaign                          # noqa: E402
+from campaign import env_contract                              # noqa: E402
 from campaign.build_admission import (GeneratorId, build_run_context)  # noqa: E402
 from campaign.model import CampaignConfig, Genome               # noqa: E402
 from campaign.pipeline import PerfConfig                        # noqa: E402
@@ -50,6 +51,7 @@ def main() -> int:
 
     print("=== run 1 (cold: build → verify → bench → commit) ===")
     s1 = run_campaign(cfg, GENOMES, perf, ENV_TAG, CLK, numactl=NUMA,
+                      authorization_contract=env_contract.lookup(ENV_TAG),
                       build_context=build_context)
     print(f"  committed={s1.committed} aborted={s1.aborted} skipped={s1.skipped}")
     for r in s1.results:
@@ -58,6 +60,7 @@ def main() -> int:
 
     print("\n=== run 2 (recovery: 評価済みは WAL から skip) ===")
     s2 = run_campaign(cfg, GENOMES, perf, ENV_TAG, CLK, numactl=NUMA,
+                      authorization_contract=env_contract.lookup(ENV_TAG),
                       build_context=build_context)
     print(f"  evaluated={s2.evaluated} skipped={s2.skipped}")
 

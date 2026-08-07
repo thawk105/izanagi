@@ -27,7 +27,7 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import ident, source_digest, trigger_gate_binding, wal  # noqa: E402
+from campaign import env_contract, ident, source_digest, trigger_gate_binding, wal  # noqa: E402
 from campaign.layout import CampaignLayout, campaign_layout, repo_output_root  # noqa: E402
 from campaign.model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
 from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
@@ -641,6 +641,13 @@ def run_role(
     workload_flags = _workload_flags(document)
     schedule = schedule_for_role(document, role)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    authorization_contract = env_contract.lookup(ENV_TAG)
+    pipeline.execution_guard.require_certified_writer_authorization(
+        authorization_contract,
+        env_tag=ENV_TAG,
+        clocks_per_us=CLOCKS_PER_US,
+        numactl=NUMACTL,
+    )
     cfg = ident.bind_admission_policy(config_for(document, role), build_context.policy)
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root=output_root)
 
@@ -800,6 +807,7 @@ def run_role(
                         src_token=prepared.src_token, log=log,
                         ccbench_dir=prepared.ccbench_dir, cache_root=prepared.cache_root,
                         screening=None, bench_max_rounds=1,
+                        authorization_contract=authorization_contract,
                         build_context=build_context,
                         capability_resolver=review_capability,
                     )
