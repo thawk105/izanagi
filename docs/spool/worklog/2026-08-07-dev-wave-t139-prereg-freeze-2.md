@@ -53,8 +53,15 @@ title: [T-139] 本走前置 — paired 例外を roadmap へ限定記録し、�
   byte 数を `output/insights/2026-08-07_t139-prereg-freeze/README.md` の erratum 表に記録した。
 - **親の実測 (すべて本 wave の worktree、login node)。** `tools/check_docs.py` rc=0、
   `tools/spool_fold.py --dry-run` rc=0 (`status: planned`)、`tools/check_ai_provenance.py` rc=0
-  (1722 件、新規違反なし)、受入全走 `tools/run_tests.py` **rc=0 (7177 passed / 20 skipped、
-  1474.09s、Pegasus request `895369.nqsv`)**。実装差分がゼロのため変異 matrix は射程外である。
+  (1723 件、新規違反なし)、受入全走 `tools/run_tests.py` **rc=0 (7177 passed / 20 skipped、
+  1081.53s、Pegasus request `895477.nqsv`)**。実装差分がゼロのため変異 matrix は射程外である。
+- **受入 rc の誤報と訂正 (F152 の再発)。** 先行の 2 走では `tools/run_tests.py` の出力を
+  `| tail` へ通しており、親が「rc=0」と報告・記録したのは **`tail` の rc** だった。
+  `run_tests.py` 自身の rc は検証されていなかった。**同じ wave の段 8 で F157 の再発を制度化した
+  直後に、別の既知失敗型を親が再発させた。**pipe を通さず rc をファイルへ書き出す走行で
+  取り直し、上記が実測値である。段 8 の core.md 変更後の走行として有効なのはこの 1 走だけであり、
+  先行 2 走の rc は記録から落とす (テスト結果 7177 passed は 3 走とも同じだが、
+  run_tests の事前・事後検査を含む rc は検証されていなかった)。
 
 - **段 8 (自己改善)。** 候補 2 件。(1) 親の base digest 誤計算は **F157 と同型の再発**であり、
   これで独立 2 例が揃ったため `DW-G03` に従い族の制度化へ上げ、`DW-S01` の一次資料規律へ
