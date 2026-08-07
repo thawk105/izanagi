@@ -63,13 +63,25 @@ def _has_nqsv(marker_path=None) -> bool:
         return False
 
 
-def current_site() -> str:
-    """実 hostname と PATH / directory の NQSV 証拠から現在の site を解決する。"""
+def current_site(*, require_evidence: bool = False) -> str:
+    """実 hostname と PATH / directory の NQSV 証拠から現在の site を解決する。
+
+    ``require_evidence`` は、ログインノードでないと確証できない入力を
+    ``PEGASUS_SUSPECT`` へ倒す必要がある caller 向けである。
+    """
     try:
         hostname = socket.gethostname()
     except Exception:  # hostname 解決不能は証拠の有無に応じて安全側へ分類する
         hostname = None
-    return classify_site(hostname, os.environ, _has_nqsv())
+    has_nqsv = _has_nqsv()
+    site = classify_site(hostname, os.environ, has_nqsv)
+    if not require_evidence:
+        return site
+
+    label = _first_label(hostname)
+    if label is None or (label.startswith("pegasus") and not has_nqsv):
+        return PEGASUS_SUSPECT
+    return site
 
 
 def is_pegasus_login(site: str) -> bool:

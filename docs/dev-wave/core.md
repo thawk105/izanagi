@@ -39,8 +39,8 @@ brief 前に承認済み裁定の前提を実測する。覆す新事実は brie
 build・環境変数・外部 command と注入 seam の実在を棚卸しする。
 
 裁定要約が指す decision 本文を開き、食い違いは本文を優先する（F31）。人間手番待ちは git と成果物で
-未実行を照合し、済なら stale として依存項目を繰り上げる（F35）。日付・hash・件数は commit / 成果物 field と値の定義元 tool から取り、手計算で代用しない。
-既存 docs は一次資料と一致するまで根拠にしない（F1、F157）。
+未実行を照合し、済なら stale として依存項目を繰り上げる（F35）。日付・hash・件数は commit / 成果物
+field から取り、既存 docs は一次資料と一致するまで根拠にしない（F1）。
 
 ## DW-G01 — 生死実験先行
 
@@ -109,6 +109,7 @@ hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界�
 全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して `DW-O23` を行う。
 `tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路である。
 `DW-O23` の成功結果以外は `DW-STOP` に従い、main HEAD と既存 branch を報告する。
+段 9 後に `tools/collect_wave_usage.py` を実行する。
 
 ## DW-CTX — fresh context と外部 supervisor
 

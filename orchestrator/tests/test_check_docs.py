@@ -4325,6 +4325,13 @@ def _mutate_command_guard(root: str, case: str) -> None:
             lambda line: line.startswith("| 23 |"),
             lambda line: "",
         )
+    elif case == "condition_waiter_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 24 |"),
+            lambda line: "",
+        )
     elif case == "self_heading_deleted":
         rel = "docs/skill-self-improvement.md"
         _write(root, rel, _read(root, rel).replace(
@@ -4586,6 +4593,7 @@ _COMMAND_GUARD_CASES = [
     "condition_all_operations_deleted",
     "condition_supervisor_deleted",
     "condition_land_operation_deleted",
+    "condition_waiter_deleted",
     "self_heading_deleted",
     "self_h3_deleted",
     "self_long_line",
@@ -4656,6 +4664,7 @@ _COMMAND_GUARD_NEEDLES = {
     "condition_all_operations_deleted": "条件 dispatch '01' が契約と不一致",
     "condition_supervisor_deleted": "条件 dispatch '22' が契約と不一致",
     "condition_land_operation_deleted": "条件 dispatch '23' が契約と不一致",
+    "condition_waiter_deleted": "条件 dispatch '24' が契約と不一致",
     "self_heading_deleted": "H2 見出し 'routing' が 0 件",
     "self_h3_deleted": "H3 見出し 'cleanup-branches' が 0 件",
     "self_long_line": "最長行予算",
@@ -4706,6 +4715,18 @@ _COMMAND_GUARD_EXPECTED_COUNTS = {
 _COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = len(
     _OPERATION_CONDITION_KEYS
 )
+
+
+def test_command_guard_case_registration_is_complete():
+    """条件 24 の case 実在と guard 登録表の key 一致を固定する。"""
+
+    case_keys = set(_COMMAND_GUARD_CASES)
+    assert "condition_waiter_deleted" in case_keys
+    assert (
+        case_keys
+        == set(_COMMAND_GUARD_NEEDLES)
+        == set(_COMMAND_GUARD_EXPECTED_COUNTS)
+    )
 
 
 def test_operation_contract_pins_exact_section_set():
@@ -4761,6 +4782,15 @@ def test_operation_contract_pins_exact_section_set():
         "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
         "Codex 固有の取り込み手順を重ねない。"
     )
+
+
+def test_condition_24_contract_pins_exact_target():
+    """条件 24 の参照先と operations 非所属だけを固定する。"""
+
+    assert check_docs.CONDITION_DISPATCH_CONTRACT["24"] == {
+        ("docs/dev-wave/core.md", "DW-C00")
+    }
+    assert "24" not in _OPERATION_CONDITION_KEYS
 
 
 def _replace_workers_section_literal(text, section_id, replacement):
