@@ -287,6 +287,30 @@ def test_expected_spec_hash_mismatch_stops_before_runner_and_ledger(repo: Path) 
     assert not out.exists()
 
 
+def test_missing_rf_is_rejected_before_runner_or_ledger(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    argv = _argv(repo, spec, out, calls, mode)
+    argv.remove("-rf")
+    runner_starts = 0
+
+    def runner_forbidden(*args: object, **kwargs: object) -> dict[str, object]:
+        nonlocal runner_starts
+        runner_starts += 1
+        raise AssertionError("missing -rf reached the runner")
+
+    monkeypatch.setattr(MH, "_run_tests", runner_forbidden)
+
+    with pytest.raises(MH.HarnessError, match=r"DW-M08.*-rf"):
+        MH.main(argv)
+
+    assert runner_starts == 0
+    assert not calls.exists()
+    assert not out.exists()
+
+
 def test_applied_diff_must_equal_registration_preflight(
     repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -438,6 +462,56 @@ def test_abnormal_pytest_rc_never_counts_as_killed(repo: Path, rc: int) -> None:
     )
 
     assert status == "PARSE_ERROR"
+
+
+def test_mutation_nonzero_normal_rc_without_failed_nodes_is_parse_error(
+    repo: Path,
+) -> None:
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=[],
+        expected=["tests/test_gate.py::test_gate[one]"],
+        repo=repo,
+    )
+
+    assert status == "PARSE_ERROR"
+
+
+def test_baseline_nonzero_normal_rc_without_failed_nodes_is_parse_error(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec_path, _out, _calls_path, _mode = _paths(repo)
+    _single_spec(spec_path)
+    spec, _spec_sha256 = MH._load_spec(spec_path)
+
+    monkeypatch.setattr(
+        MH,
+        "_run_tests",
+        lambda *args, **kwargs: {
+            "rc": 1,
+            "timed_out": False,
+            "job_stdout": "1 failed in 0.01s\n",
+            "duration_s": 0.01,
+            "artifact_error": None,
+        },
+    )
+
+    baseline = MH._baseline(
+        repo,
+        spec,
+        [sys.executable, "-m", "pytest"],
+        "local",
+        head=MH._repo_head(repo),
+        spec_sha256="spec",
+        registration_sha256="registration",
+        runner_sha256="runner",
+        tool_sha256="tool",
+        collection_sha256="collection",
+    )
+
+    assert baseline["status"] == "PARSE_ERROR"
+    assert baseline["rc"] == 1
+    assert baseline["failed_nodes"] == []
 
 
 @pytest.mark.parametrize("artifact", ["spec", "out", "temp"])

@@ -6,7 +6,7 @@
 ## DW-O01 — codex subprocess 起動
 
 `codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach する。
-投入前に prompt の非空を検査し、完了は `.done` と exit code だけで判定する。
+投入前に prompt の非空を検査し、既存 `.done` は消さず再利用せず再投入を止め、完了は `.done` と exit code だけで判定する。
 ログの grep も完了通知も判定にしてはならず（通知は子より先行しうる）、
 成果物は `-o` の最終メッセージから読む（F23/F24）。
 採用条件 = `tools/check_codex_output.py <出力>.md` の rc=0（prompt に `## 総括` を義務付ける。F43）。
@@ -109,7 +109,6 @@ cwd を必ず repo root にする。nested subprocess の import path による�
 意図した単一変異だけ (単一 entry が複数行ならその範囲) であることを確認して復元する。
 復元 bytes は commit と照合する。phase 完了は実装と同じ anchor commit へ含め、本走後の raw 台帳は
 後続の記録 commit へ置く。anchor を amend して自己 hash 循環を作らない。
-段 1 前提実測は本走でないが、この復元規律に従う。
 
 ## DW-O20 — clean-tree gate
 

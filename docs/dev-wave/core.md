@@ -14,6 +14,9 @@ L0=入口、L1=段 dispatch の無条件節、L2=条件成立時だけ読む節�
 省略不可で、親は直接編集しない。docs-only は子ゼロでよい。実測は省かず、全 9 段は
 ユーザー明示時に使う。
 
+待ち手は 1 条件 1 本とし、通知ごとに作り直さず状態を読む。生産者を止めるときは待ち手も落とし、
+生産者の死も待ち条件に含める。
+
 ## DW-STOP — fail-closed 停止条件
 
 指定 reference が不在・読めない、指定節が一意でない、期限までに読了していない、検査が赤、
@@ -104,9 +107,7 @@ hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界�
 ## DW-S09 — 段 9 終端と local main
 
 全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して `DW-O23` を行う。
-`tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路である。成功は
-`landed` / `already-landed` だけとし、他結果は `DW-STOP` に従う。stale / lock busy は
-同じ wave 内へ巻き戻さず、main HEAD と既存 branch、条件再評価を含む fresh-context 再開を報告する。
+`tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路である。
 
 ## DW-CTX — fresh context と外部 supervisor
 
