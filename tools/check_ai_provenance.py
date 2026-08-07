@@ -129,6 +129,104 @@ INCIDENT_6B64D21_FORWARD_CORRECTION = ForwardCorrectionSpec(
 )
 
 
+MISSING_AI_AGENT = "missing-ai-agent"
+MISSING_CODEX_AUTHOR = "missing-codex-author"
+_LEDGER_FINDING_KINDS = frozenset({MISSING_AI_AGENT, MISSING_CODEX_AUTHOR})
+
+
+@dataclass(frozen=True)
+class KnownViolationSpec:
+    """ユーザー裁定済みの既知 provenance 違反。"""
+
+    commit: str
+    expected_finding_kind: str
+    ruling: str
+
+
+_KNOWN_VIOLATION_RULING = "worklog(284) 2026-08-07 /rulings"
+KNOWN_PROVENANCE_VIOLATIONS = (
+    KnownViolationSpec(
+        "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
+        MISSING_AI_AGENT,
+        _KNOWN_VIOLATION_RULING,
+    ),
+    KnownViolationSpec(
+        "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
+        MISSING_AI_AGENT,
+        _KNOWN_VIOLATION_RULING,
+    ),
+    KnownViolationSpec(
+        "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
+        MISSING_AI_AGENT,
+        _KNOWN_VIOLATION_RULING,
+    ),
+    KnownViolationSpec(
+        "16affe169185040b33f8c6cbdd452260bddc4089",
+        MISSING_AI_AGENT,
+        _KNOWN_VIOLATION_RULING,
+    ),
+    KnownViolationSpec(
+        "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
+        MISSING_AI_AGENT,
+        _KNOWN_VIOLATION_RULING,
+    ),
+    KnownViolationSpec(
+        "b0a07672737cf03424ec1790cc25a06e4c85b737",
+        MISSING_CODEX_AUTHOR,
+        _KNOWN_VIOLATION_RULING,
+    ),
+)
+
+
+def _known_violation_registry() -> dict[str, KnownViolationSpec]:
+    """固定台帳を history 監査時にだけ検証して full SHA map にする。"""
+
+    if not isinstance(KNOWN_PROVENANCE_VIOLATIONS, tuple):
+        raise RuntimeError(
+            "known provenance violation registry has invalid container: "
+            f"{type(KNOWN_PROVENANCE_VIOLATIONS).__name__}"
+        )
+    registry: dict[str, KnownViolationSpec] = {}
+    for spec in KNOWN_PROVENANCE_VIOLATIONS:
+        if not isinstance(spec, KnownViolationSpec):
+            raise RuntimeError(
+                "known provenance violation registry has invalid entry: "
+                f"{spec!r}"
+            )
+        if not isinstance(spec.commit, str):
+            raise RuntimeError(
+                "known provenance violation registry has invalid SHA type: "
+                f"{type(spec.commit).__name__}"
+            )
+        if re.fullmatch(r"[0-9a-f]{40}", spec.commit) is None:
+            raise RuntimeError(
+                "known provenance violation registry has invalid full SHA: "
+                f"{spec.commit!r}"
+            )
+        if spec.commit in registry:
+            raise RuntimeError(
+                "known provenance violation registry has duplicate SHA: "
+                f"{spec.commit}"
+            )
+        if not isinstance(spec.expected_finding_kind, str):
+            raise RuntimeError(
+                "known provenance violation registry has invalid finding kind type: "
+                f"{type(spec.expected_finding_kind).__name__}"
+            )
+        if spec.expected_finding_kind not in _LEDGER_FINDING_KINDS:
+            raise RuntimeError(
+                "known provenance violation registry has invalid finding kind: "
+                f"{spec.expected_finding_kind!r}"
+            )
+        if not isinstance(spec.ruling, str) or not spec.ruling.strip():
+            raise RuntimeError(
+                "known provenance violation registry has empty ruling: "
+                f"{spec.commit}"
+            )
+        registry[spec.commit] = spec
+    return registry
+
+
 @dataclass(frozen=True)
 class CorrectionAudit:
     raw_values: tuple[str, ...]
@@ -174,10 +272,16 @@ EMPTY_WAIVER = WaiverAudit((), (), (), None, None, ())
 
 
 @dataclass(frozen=True)
+class NormalFinding:
+    text: str
+    ledger_kind: str | None
+
+
+@dataclass(frozen=True)
 class CommitAudit:
     commit: str
     label: str
-    normal_findings: tuple[str, ...]
+    normal_findings: tuple[NormalFinding, ...]
     correction: CorrectionAudit
     waiver: WaiverAudit = EMPTY_WAIVER
     waived_applied: bool = False
@@ -204,9 +308,19 @@ class ImplementationWaived:
 
 @dataclass(frozen=True)
 class HistoryAudit:
+    """History findings are new violations only; known entries are separate."""
+
     findings: list[str]
     corrected: list[ForwardCorrected]
     waived: list[ImplementationWaived]
+    known_violations: tuple[KnownViolationSpec, ...] = ()
+
+
+@dataclass(frozen=True)
+class KnownViolationAudit:
+    findings: tuple[str, ...]
+    known_violations: tuple[KnownViolationSpec, ...]
+    stale: tuple[KnownViolationSpec, ...]
 
 
 def _git(*args: str, input_text: str | None = None) -> str:
@@ -816,14 +930,22 @@ def _normal_commit_audit(
     base, scoped, cab = validate_message(
         label, message, check_cab=cab_policy_applies,
     )
-    findings = list(base)
+    findings = [
+        NormalFinding(
+            finding,
+            MISSING_AI_AGENT
+            if finding == f"{label}: AI-Agent trailer がない"
+            else None,
+        )
+        for finding in base
+    ]
     if (
         scoped
         and scope_epoch is not None
         and descends(scope_epoch)
     ):
-        findings.extend(scoped)
-    findings.extend(cab)
+        findings.extend(NormalFinding(finding, None) for finding in scoped)
+    findings.extend(NormalFinding(finding, None) for finding in cab)
     waiver = EMPTY_WAIVER
     waived_applied = False
     if (
@@ -831,11 +953,16 @@ def _normal_commit_audit(
         and descends(implementation_epoch)
     ):
         waiver = _waiver_audit(label, message)
-        findings.extend(waiver.findings)
+        findings.extend(
+            NormalFinding(finding, None) for finding in waiver.findings
+        )
         implementation, waived_applied = validate_implementation_author(
             label, message, _commit_paths(commit), waived=waiver.exact,
         )
-        findings.extend(implementation)
+        findings.extend(
+            NormalFinding(finding, MISSING_CODEX_AUTHOR)
+            for finding in implementation
+        )
     return CommitAudit(
         commit=commit,
         label=label,
@@ -846,8 +973,73 @@ def _normal_commit_audit(
     )
 
 
+def _known_violation_audit(
+    audits: list[CommitAudit],
+    *,
+    registry: dict[str, KnownViolationSpec],
+    suppressed_missing: tuple[str, str] | None,
+    stale_eligible_commits: set[str],
+) -> KnownViolationAudit:
+    """correction / waiver 適用後の finding を固定台帳と照合する。"""
+
+    findings: list[str] = []
+    known_violations: list[KnownViolationSpec] = []
+    expected_kind_counts = {
+        commit: 0
+        for commit in registry
+        if commit in stale_eligible_commits
+    }
+    consumed_registry_entries: set[str] = set()
+    for audit in audits:
+        for finding in audit.normal_findings:
+            if suppressed_missing == (audit.commit, finding.text):
+                continue
+            spec_for_commit = registry.get(audit.commit)
+            if (
+                spec_for_commit is not None
+                and finding.ledger_kind == spec_for_commit.expected_finding_kind
+            ):
+                if audit.commit in expected_kind_counts:
+                    expected_kind_counts[audit.commit] += 1
+                if audit.commit not in consumed_registry_entries:
+                    known_violations.append(spec_for_commit)
+                    consumed_registry_entries.add(audit.commit)
+                    continue
+            findings.append(finding.text)
+    stale = tuple(
+        registry[commit]
+        for commit, count in expected_kind_counts.items()
+        if count == 0
+    )
+    return KnownViolationAudit(
+        tuple(findings), tuple(known_violations), stale,
+    )
+
+
+def _ledger_policy_is_visible(
+    spec: KnownViolationSpec,
+    *,
+    implementation_epoch: str | None,
+    ancestry: _Ancestry,
+) -> bool:
+    """期待 finding の policy epoch を current HEAD から検証できるか。"""
+
+    if spec.expected_finding_kind == MISSING_AI_AGENT:
+        return True
+    if spec.expected_finding_kind == MISSING_CODEX_AUTHOR:
+        return (
+            implementation_epoch is not None
+            and ancestry.is_descendant(implementation_epoch, spec.commit)
+        )
+    raise RuntimeError(
+        "known provenance violation registry has invalid finding kind: "
+        f"{spec.expected_finding_kind!r}"
+    )
+
+
 def _audit_history(commits: list[str]) -> HistoryAudit:
     """selected revision set を順序非依存の membership/lineage 条件で監査する。"""
+    registry = _known_violation_registry()
     if not commits:
         return HistoryAudit([], [], [])
     scope_epoch = _scope_policy_commit()
@@ -912,7 +1104,12 @@ def _audit_history(commits: list[str]) -> HistoryAudit:
                 f"{correction.label}: AI-Agent-Correction commit が "
                 "target の strict descendant でない"
             )
-        if target is not None and target_missing not in target.normal_findings:
+        if (
+            target is not None
+            and target_missing not in {
+                finding.text for finding in target.normal_findings
+            }
+        ):
             correction_findings.append(
                 f"{correction.label}: AI-Agent-Correction target に "
                 "AI-Agent trailer の実欠落がない"
@@ -923,7 +1120,9 @@ def _audit_history(commits: list[str]) -> HistoryAudit:
             and target_selected
             and strict_descendant
             and target is not None
-            and target_missing in target.normal_findings
+            and target_missing in {
+                finding.text for finding in target.normal_findings
+            }
             and not correction.normal_findings
         )
         if (
@@ -944,19 +1143,40 @@ def _audit_history(commits: list[str]) -> HistoryAudit:
                 "AI-Agent-Waiver 行を持つため前方訂正の担い手になれない"
             )
 
-    findings: list[str] = []
-    for audit in audits:
-        for finding in audit.normal_findings:
-            if suppressed_missing == (audit.commit, finding):
-                continue
-            findings.append(finding)
+    selected = set(commits)
+    stale_eligible_commits = selected.intersection(registry)
+    ledger_audit = _known_violation_audit(
+        audits,
+        registry=registry,
+        suppressed_missing=suppressed_missing,
+        stale_eligible_commits=stale_eligible_commits,
+    )
+    if ledger_audit.stale:
+        details = ", ".join(
+            f"sha={spec.commit} finding={spec.expected_finding_kind} "
+            "reason="
+            + (
+                "expected-finding-missing checker-regression-suspected"
+                if _ledger_policy_is_visible(
+                    spec,
+                    implementation_epoch=implementation_epoch,
+                    ancestry=ancestry,
+                )
+                else "policy-epoch-not-visible non-authoritative-invocation"
+            )
+            for spec in ledger_audit.stale
+        )
+        raise RuntimeError(f"known-violation-stale: {details}")
+    findings = list(ledger_audit.findings)
     findings.extend(correction_findings)
     waived = [
         ImplementationWaived(audit.commit, audit.waiver.reason, audit.waiver.ratified)
         for audit in audits
         if audit.waived_applied
     ]
-    return HistoryAudit(findings, corrected, waived)
+    return HistoryAudit(
+        findings, corrected, waived, ledger_audit.known_violations,
+    )
 
 
 def _commit_exists(commit: str) -> bool:
@@ -1790,6 +2010,7 @@ def main(
     try:
         corrected: list[ForwardCorrected] = []
         waived: list[ImplementationWaived] = []
+        known_violations: tuple[KnownViolationSpec, ...] = ()
         correction_preflight = False
         merge_preflight = False
         if args.message_file is not None:
@@ -1824,6 +2045,7 @@ def main(
             findings = history.findings
             corrected = history.corrected
             waived = history.waived
+            known_violations = history.known_violations
             checked = len(commits)
     except (OSError, RuntimeError, UnicodeError) as exc:
         print(f"check_ai_provenance: 実行不能: {exc}", file=sys.stderr)
@@ -1845,10 +2067,22 @@ def main(
     if findings:
         for finding in findings:
             print(finding, file=sys.stderr)
+        qualifier = "新規" if known_violations else ""
         print(
-            f"check_ai_provenance: {checked} 件中 {len(findings)} 違反",
+            f"check_ai_provenance: {checked} 件中 {len(findings)} "
+            f"{qualifier}違反",
             file=sys.stderr,
         )
+        for spec in known_violations:
+            print(
+                "check_ai_provenance: known-violation "
+                f"sha={spec.commit} finding={spec.expected_finding_kind}"
+            )
+        if known_violations:
+            print(
+                "check_ai_provenance: known-violations="
+                f"{len(known_violations)}"
+            )
         return 1
 
     for record in corrected:
@@ -1868,7 +2102,18 @@ def main(
             f"（{assumption}を仮定）。commit後 history監査が必須 "
             f"target={spec.target}"
         )
-    print(f"check_ai_provenance: {checked} 件、違反なし")
+    for spec in known_violations:
+        print(
+            "check_ai_provenance: known-violation "
+            f"sha={spec.commit} finding={spec.expected_finding_kind}"
+        )
+    if known_violations:
+        print(
+            "check_ai_provenance: known-violations="
+            f"{len(known_violations)}"
+        )
+    qualifier = "新規" if known_violations else ""
+    print(f"check_ai_provenance: {checked} 件、{qualifier}違反なし")
     return 0
 
 
