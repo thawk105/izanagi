@@ -6,30 +6,6 @@ wave: dev-wave-t597-budget
 seq: 2
 ---
 
-## 新規
-
-### {{F:mutation-harness-self-reference}}. 変異対象が変異 harness 自身のとき、全ファイル走行の赤が単一理由でなくなる [計測汚染] [誤前提]
-
-- 事象: [T-597] wave の変異 matrix で、`tools/mutation_harness.py` の fail-closed 分岐
-  (`rc != 0 and not failed` → `PARSE_ERROR`) を消す変異 M2 が、`PARSE_ERROR` / rc=16
-  (dispatcher infrastructure failure) を返して harness 全体を停止させた。M1 は正常に KILLED していた。
-- 誤判定: 親は最初これを共有ログインノードの外乱と判断した (実際に別 wave 2 本が同時に
-  `run_tests.py` を走らせており、artifact の「生存中の予約」も非 0 だった)。**これは誤りである。**
-  生存中の予約 0 の静穏窓で再現し、harness を介さず手で変異を当てても再現した。
-- 根本原因: 変異対象が変異 harness 自身であるため、fail-closed 分岐を消すと**テスト内で動く
-  harness が abort しなくなり**、入れ子の pytest 実行が増えて外側 bounded scope が倒れる。
-  したがって全ファイル走行の赤は「テストが検出した赤」と「暴走で実行枠が倒れた赤」の混合であり、
-  `DW-M03` が要求する単一理由性を満たさない。過剰決定された fixture の一種である。
-- 影響: この赤を KILLED と数えれば偽の検出力を、外乱と数えれば偽の無害を記録する。
-  どちらも変異台帳の値を汚す。
-- 恒久対応: `DW-M02` の「実効 gate へ再照準」を適用し、対象 nodeid だけの narrow 走行で測り直す。
-  初回結果は消さず erratum として台帳に残す (本 wave は `mutation-ledger.json` に残置し、
-  再照準後の実測を `mutation-narrow.json` へ分離した)。再照準走行も `DW-O19` の復元規律
-  (clean 確認 → 単一変異の `git diff --stat` 確認 → 復元 bytes 照合 → clean 確認) に従う。
-- 再発検知: 変異走行で `rc=16` など runner の infrastructure 系 rc が出たとき、
-  静穏窓での再走と harness 非経由の手動再現の**両方**で切り分ける。片方だけで外乱と結論しない。
-- 近縁: F71 (抽出 0 件を SURVIVED に倒す恒真ゲート)、F41 (測定値は測った checkout を併記する)
-
 ## 再発
 
 ### F146
@@ -42,3 +18,33 @@ seq: 2
   担い手として指す `DW-S06-C` が **stale になった**。現在の担い手は `DW-O16` である
   (条件 16 = 焦点再レビュー直前に必読、かつ「表なしで root cause が閉じたと判定しない」まで持つ)。
   canonical の既存 bytes は通常 fold では置換できないため、本追記で現担い手を明示する。
+
+### F155
+
+- **再発: 2026-08-07** ([T-597] wave)。変異本走を `--runner-mode local` +
+  `python3 tools/run_tests.py <対象 module> -rf` で組み、M2 が rc=16
+  (`bounded scope の memory.max / memory.oom.group を走行中に attest できない`) で 3 度止まった。
+  **本 F の恒久対応 (`--runner-mode dispatch` + `--force-dispatch` の既定 recipe) を知らずに
+  runner argv を自分で組んだ**ためで、原因も対処も本 F がすでに書いていた。
+- **親の根本原因の誤帰属を訂正する (2 段階の誤り)。** まず「共有ログインノードの外乱」と判断し、
+  静穏窓 (生存中の予約 0) でも再現したので撤回した。次に「変異対象が変異 harness 自身なので
+  fail-closed 分岐を消すと入れ子実行が増えて外側 scope が倒れる」という自己参照仮説を立て、
+  これを一次資料へ根本原因として書いた。**この仮説は検証していない。**
+  本 F が `_SCOPE_ATTEST_SECONDS = 1.0` の race として原因を特定済みで、
+  親は既定 recipe を試さないまま独自仮説を root cause として記録していた。
+  **「既存 F の恒久対応を試す前に新しい根本原因を立てない」** を実運用の教訓として残す。
+- 検出力の実測自体は有効である。narrow 走行 (対象 nodeid のみ、`DW-O19` の復元規律に従う) で
+  M1/M2/M3 とも kill node ちょうど 1 件、変更前テストでは M2/M3 とも素通りを確認した。
+  その後、本 F の既定 recipe で本走をやり直した結果を変異台帳の正本とする。
+
+### F156
+
+- **再発: 2026-08-07** ([T-597] wave、独立 2 例)。(1) 静穏窓待ちの launcher が `.done` を
+  投入直前でなく**静穏窓到達後**に消す作りだったため、待ちが前回投入の残骸を掴んで即座に返り、
+  変異本走が完走したと誤って報告した。(2) 受入全走の launcher では、投入直後に
+  `pgrep -f <script 名>` で PID を採ったところ、**自分の起動ラッパー**の PID を掴んでいた
+  (コマンド行に script 名が含まれるため)。ラッパーは即終了するので待ちが即座に返り、
+  再び「完走した」と誤報した。
+- 追加の恒久対応: PID は待ち手側が `pgrep` で推測せず、**生産者 script 自身が `echo $$` で
+  書き出したファイル**から読む。`.done` の除去は script 冒頭 (投入経路に入った直後) に置き、
+  条件待ちの後ろへ回さない。

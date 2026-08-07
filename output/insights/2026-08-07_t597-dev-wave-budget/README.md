@@ -89,19 +89,31 @@ D186 が `DW-O11` の未機械化 3 経路と回収可能量 0 bytes を明記�
 
 変異なしの対照は新旧どちらの選択でも rc=0。3 件とも kill node はちょうど 1 件で単一理由性を満たす。
 
-### erratum — 初回結果を消さずに残す (DW-M02)
+### erratum — 初回結果を消さず、根本原因の誤帰属も残す (DW-M02)
 
 M2 の初回結果は `PARSE_ERROR` / rc=16 だった (`mutation-ledger.json` に残置)。
-最初これを共有ノードの外乱と判断したが**誤りだった** — 静穏窓 (生存中の予約 0) でも再現し、
-harness を介さず手で変異を当てても再現した。
+親はここで **root cause を 2 度続けて誤った**。記録として両方残す。
 
-**根本原因は自己参照である。** 変異対象が変異 harness 自身なので、その fail-closed 分岐を消すと
-テスト内で動く harness が abort しなくなり、入れ子の pytest 実行が増えて外側の bounded scope が倒れ、
-`run_tests.py` が rc=16 (dispatcher infrastructure failure) を返す。つまり全ファイル走行の赤は
-「テストが検出した赤」と「暴走で枠が倒れた赤」の混合であり、`DW-M03` の単一理由性を満たさない。
-実効 gate へ再照準し、対象 nodeid だけの narrow 走行で測り直した (上表)。
-narrow 走行は `probe_nodes.py` (repo 外) で行い、`DW-O19` の復元規律
-(clean 確認 → 単一変異の `git diff --stat` 確認 → 復元 bytes 照合 → clean 確認) をすべて満たしている。
+1. **誤り 1: 共有ノードの外乱。** 実際に別 wave 2 本が同時に `run_tests.py` を走らせており、
+   artifact の「生存中の予約」も非 0 だった。しかし静穏窓 (予約 0) で再現したため撤回。
+2. **誤り 2: 自己参照仮説。** 「変異対象が変異 harness 自身なので、fail-closed 分岐を消すと
+   harness が abort せず入れ子実行が増え、外側 bounded scope が倒れる」と考え、
+   **検証しないまま root cause として本文へ書いた**。
+
+**正しい正本は F155 である** (land 再試行の直前に main を読み直して判明)。同じ rc=16
+(`bounded scope の memory.max / memory.oom.group を走行中に attest できない`) を
+`_SCOPE_ATTEST_SECONDS = 1.0` の race として特定済みで、恒久対応は変異本走の runner を
+`--runner-mode dispatch` + `python3 tools/run_tests.py --force-dispatch -rf <対象 module> -p no:cacheprovider`
+にすることだった。`--runner-mode local` を指定しても `run_tests.py` は headroom 次第で
+内部 dispatch へ倒れるため、mode と実態が食い違う。
+**親は既存 F の恒久対応を試す前に、独自の根本原因を立てていた。**
+
+教訓: **既存 F の恒久対応を試す前に新しい根本原因を立てない。** 本 wave では F155 の
+再発として記録し、既定 recipe で本走をやり直した結果を変異台帳の正本に差し替えた。
+
+再照準した narrow 走行 (`probe_nodes.py`、repo 外) の結果は有効で、`DW-O19` の復元規律
+(clean 確認 → 単一変異の `git diff --stat` 確認 → 復元 bytes 照合 → clean 確認) をすべて満たす。
+既定 recipe による本走と併記する。
 
 ## 7. 受入・検査の実測
 
