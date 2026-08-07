@@ -274,7 +274,10 @@ DEV_WAVE_DW_S03_REASONING_MAX_FINDING = (
     "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
 )
 DEV_WAVE_REASONING_EFFORT_RE = re.compile(
-    r"(?<![A-Za-z0-9_-])reasoning=([A-Za-z0-9][A-Za-z0-9_-]*)"
+    r"(?<![A-Za-z0-9_-])"
+    r"(?:reasoning|reasoning_effort|model_reasoning_effort)="
+    r"(?P<quote>[\"']?)(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)"
+    r"(?P=quote)"
     r"(?![A-Za-z0-9_-])"
 )
 CODEX_DEV_WAVE_SKILL_LITERALS = (
@@ -3396,12 +3399,10 @@ def _check_dev_wave_reasoning_effort_pins(
             findings.append(finding)
             continue
         visible_section = _visible_markdown_text(sections[0])
-        visible_section = re.sub(
-            r"(?m)^[ \t]{0,3}>[^\r\n]*(?:\r?\n|\Z)",
-            "\n",
-            visible_section,
-        )
-        values = DEV_WAVE_REASONING_EFFORT_RE.findall(visible_section)
+        values = [
+            match.group("value")
+            for match in DEV_WAVE_REASONING_EFFORT_RE.finditer(visible_section)
+        ]
         if values != ["max"]:
             findings.append(finding)
 
