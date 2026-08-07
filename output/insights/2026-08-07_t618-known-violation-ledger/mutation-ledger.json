@@ -1,0 +1,690 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/ff3dc49d27fb89aa62c7b30edb2044e0/izdw-ff3dc49d27.o895222",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/ff3dc49d27fb89aa62c7b30edb2044e0/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [238 items]\n\n........................................................................ [ 30%]\n........................................................................ [ 60%]\n........................................................................ [ 90%]\n......................                                                   [100%]\n============================= 238 passed in 7.19s ==============================\n",
+      "stdout_sha256": "1cfa812f5792af4e96d2f6b2778d6706af2d0108c5fc63e6f03eca9eeecc1837"
+    },
+    "artifact_error": null,
+    "collection_sha256": "79374035dbebb3338593809e09fe3cf448f4cafa8e57835646c64de8c077cd1c",
+    "duration_s": 26.932,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "80a7e08ba6e3774fba5f014e42103b7b6a95f74f227a11d35102fb83830b37fe",
+    "repo_head": "2327210ad2e33ba0b05477be31a3f69504f9c966",
+    "runner_sha256": "36d761971a27f76b3b3671eb3064d5674014d7b433350be3b3d368b37f5c63cc",
+    "spec_sha256": "c193292fa843432821c20c59aaa2a7fab0353184a8fb117f710838e60e0d5d02",
+    "status": "PASSED",
+    "test_output_sha256": "1cfa812f5792af4e96d2f6b2778d6706af2d0108c5fc63e6f03eca9eeecc1837",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "bec56ab8882ea6a40d5f7bd18de107140a7c8cdf989e250dc7e2ce57c54546c3"
+  },
+  "date": "2026-08-07T10:57:03.684411+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/684df9456c79e3161ec07d54f6c0f582/izdw-684df9456c.o895225",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/684df9456c79e3161ec07d54f6c0f582/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [238 items]\n\n........................................................................ [ 30%]\n........................................F............................... [ 60%]\n........................................................................ [ 90%]\n............F.FF......                                                   [100%]\n=================================== FAILURES ===================================\n_________ test_known_violation_ledger_is_exactly_seven_literal_entries _________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_known_violation_ledger_is_exactly_seven_literal_entries():\n        expected = (\n            provenance.KnownViolationSpec(\n                \"88f0f9f081f7c76c8ab5fc4a94e2640f70af129b\",\n                \"missing-ai-agent\",\n                \"worklog(284) 2026-08-07 /rulings\",\n                note=\"\",\n            ),\n            provenance.KnownViolationSpec(\n                \"85dacc27054db0bd3db55d73cab4f8ca3b4843e5\",\n                \"missing-ai-agent\",\n                \"worklog(284) 2026-08-07 /rulings\",\n                note=\"\",\n            ),\n            provenance.KnownViolationSpec(\n                \"6e69ca5c2bc2df403e1cda595aeffcba3a97c248\",\n                \"missing-ai-agent\",\n                \"worklog(284) 2026-08-07 /rulings\",\n                note=\"\",\n            ),\n            provenance.KnownViolationSpec(\n                \"16affe169185040b33f8c6cbdd452260bddc4089\",\n                \"missing-ai-agent\",\n                \"worklog(284) 2026-08-07 /rulings\",\n                note=\"\",\n            ),\n            provenance.KnownViolationSpec(\n                \"905c867a7b2342ff250a1bcf28a3ce74abdacc06\",\n                \"missing-ai-agent\",\n                \"worklog(284) 2026-08-07 /rulings\",\n                note=\"\",\n            ),\n            provenance.KnownViolationSpec(\n                \"b0a07672737cf03424ec1790cc25a06e4c85b737\",\n                \"missing-codex-author\",\n                \"worklog(284) 2026-08-07 /rulings\",\n                note=\"\",\n            ),\n            provenance.KnownViolationSpec(\n                \"3f2c43d7580b8c26724d90278589862057508965\",\n                \"missing-ai-agent\",\n                \"worklog(293) 2026-08-07 /rulings\",\n                note=(\n                    \"trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の\"\n                    \"空行で trailer block 不成立\"\n                ),\n            ),\n        )\n>       assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 7\nE       AssertionError: assert 6 == 7\nE        +  where 6 = len((KnownViolationSpec(commit='88f0f9f081f7c76c8ab5fc4a94e2640f70af129b', expected_finding_kind='missing-ai-agent', rulin...90cc25a06e4c85b737', expected_finding_kind='missing-codex-author', ruling='worklog(284) 2026-08-07 /rulings', note='')))\nE        +    where (KnownViolationSpec(commit='88f0f9f081f7c76c8ab5fc4a94e2640f70af129b', expected_finding_kind='missing-ai-agent', rulin...90cc25a06e4c85b737', expected_finding_kind='missing-codex-author', ruling='worklog(284) 2026-08-07 /rulings', note='')) = provenance.KNOWN_PROVENANCE_VIOLATIONS\n\norchestrator/tests/test_check_ai_provenance.py:1371: AssertionError\n_________________ test_ledgered_3f2c43d7580b_is_known_and_rc0 __________________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ncapsys = <_pytest.capture.CaptureFixture object at 0x14abc7c513f0>\n\n    def test_ledgered_3f2c43d7580b_is_known_and_rc0(\n        capsys: pytest.CaptureFixture[str],\n    ):\n        commit = \"3f2c43d7580b8c26724d90278589862057508965\"\n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 0\nE       AssertionError: assert 1 == 0\nE        +  where 1 = <function main at 0x14abc7d12cb0>(['--range', '3f2c43d7580b8c26724d90278589862057508965^!'], site='OTHER')\nE        +    where <function main at 0x14abc7d12cb0> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1953: AssertionError\n----------------------------- Captured stderr call -----------------------------\n3f2c43d7580b docs(t503): 変異本走の停止原因の誤診断を訂正し、F148/F149 の再発として記録する: AI-Agent trailer がない\ncheck_ai_provenance: 1 件中 1 違反\n___________ test_known_violation_ledger_matches_real_commit_findings ___________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_known_violation_ledger_matches_real_commit_findings():\n        commits = [\n            \"88f0f9f081f7c76c8ab5fc4a94e2640f70af129b\",\n            \"85dacc27054db0bd3db55d73cab4f8ca3b4843e5\",\n            \"6e69ca5c2bc2df403e1cda595aeffcba3a97c248\",\n            \"16affe169185040b33f8c6cbdd452260bddc4089\",\n            \"905c867a7b2342ff250a1bcf28a3ce74abdacc06\",\n            \"b0a07672737cf03424ec1790cc25a06e4c85b737\",\n            \"3f2c43d7580b8c26724d90278589862057508965\",\n        ]\n        audit = provenance._audit_history(commits)\n>       assert audit.findings == []\nE       AssertionError: assert ['3f2c43d7580... trailer がない'] == []\nE         \nE         Left contains one more item: '3f2c43d7580b docs(t503): 変異本走の停止原因の誤診断を訂正し、F148/F149 の再発として記録する: AI-Agent trailer がない'\nE         Use -v to get more diff\n\norchestrator/tests/test_check_ai_provenance.py:1396: AssertionError\n_____________ test_empty_registry_restores_all_seven_real_findings _____________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146969bd7130>\n\n    def test_empty_registry_restores_all_seven_real_findings(\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        commits = [\n            \"88f0f9f081f7c76c8ab5fc4a94e2640f70af129b\",\n            \"85dacc27054db0bd3db55d73cab4f8ca3b4843e5\",\n            \"6e69ca5c2bc2df403e1cda595aeffcba3a97c248\",\n            \"16affe169185040b33f8c6cbdd452260bddc4089\",\n            \"905c867a7b2342ff250a1bcf28a3ce74abdacc06\",\n            \"b0a07672737cf03424ec1790cc25a06e4c85b737\",\n            \"3f2c43d7580b8c26724d90278589862057508965\",\n        ]\n        production = provenance._audit_history(commits)\n>       assert production.findings == []\nE       AssertionError: assert ['3f2c43d7580... trailer がない'] == []\nE         \nE         Left contains one more item: '3f2c43d7580b docs(t503): 変異本走の停止原因の誤診断を訂正し、F148/F149 の再発として記録する: AI-Agent trailer がない'\nE         Use -v to get more diff\n\norchestrator/tests/test_check_ai_provenance.py:1938: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_is_exactly_seven_literal_entries\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_seven_real_findings\n======================== 4 failed, 234 passed in 7.61s =========================\n",
+        "stdout_sha256": "0f696e6bb18b50f07ff3c65c191eff2d43a450743170295bffdf8fea1f249431"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "79374035dbebb3338593809e09fe3cf448f4cafa8e57835646c64de8c077cd1c",
+      "duration_s": 31.859,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_is_exactly_seven_literal_entries",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings",
+        "orchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_seven_real_findings",
+        "orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_is_exactly_seven_literal_entries",
+        "orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings",
+        "orchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_seven_real_findings"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "f7d7ce9f3a6e1dd9bdd634e621dac577bd1f6e020c161a6de62af9bd89f86759",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "50e791f8aabee8a6a68b40ec89cc32808dee510e117d184439328f9e776bb6d0",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "",
+          "old": "    KnownViolationSpec(\n        \"3f2c43d7580b8c26724d90278589862057508965\",\n        MISSING_AI_AGENT,\n        \"worklog(293) 2026-08-07 /rulings\",\n        note=(\n            \"trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の\"\n            \"空行で trailer block 不成立\"\n        ),\n    ),\n"
+        }
+      ],
+      "repo_head": "2327210ad2e33ba0b05477be31a3f69504f9c966",
+      "runner_sha256": "36d761971a27f76b3b3671eb3064d5674014d7b433350be3b3d368b37f5c63cc",
+      "spec_sha256": "c193292fa843432821c20c59aaa2a7fab0353184a8fb117f710838e60e0d5d02",
+      "status": "KILLED",
+      "test_output_sha256": "0f696e6bb18b50f07ff3c65c191eff2d43a450743170295bffdf8fea1f249431",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bec56ab8882ea6a40d5f7bd18de107140a7c8cdf989e250dc7e2ce57c54546c3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/847132afa2127a254efbb650cf951d1d/izdw-847132afa2.o895227",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/847132afa2127a254efbb650cf951d1d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [238 items]\n\n........................................................................ [ 30%]\n........................................................................ [ 60%]\n...........F............................................................ [ 90%]\n.............F........                                                   [100%]\n=================================== FAILURES ===================================\n_____________ test_known_violation_nonempty_note_is_public_on_rc1 ______________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_known_violation_nonempty_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14aed7ae7e80>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14aed78e6710>\n\n    def test_known_violation_nonempty_note_is_public_on_rc1(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n    ):\n        _init_repo(tmp_path)\n        base = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        known = _commit(tmp_path, {\"docs/known.md\": \"known\\n\"}, \"known\\n\")\n        new = _commit(tmp_path, {\"docs/new.md\": \"new\\n\"}, \"new\\n\")\n        note = \"synthetic single-line note\"\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                provenance.KnownViolationSpec(\n                    commit=known,\n                    expected_finding_kind=\"missing-ai-agent\",\n                    ruling=\"matching synthetic ruling\",\n                    note=note,\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{base}..{new}\"], site=site_policy.OTHER,\n        ) == 1\n        captured = capsys.readouterr()\n>       assert captured.out == (\n            \"check_ai_provenance: known-violation \"\n            f\"sha={known} finding=missing-ai-agent note={note}\\n\"\n            \"check_ai_provenance: known-violations=1\\n\"\n        )\nE       AssertionError: assert 'check_ai_pro...iolations=1\\n' == 'check_ai_pro...iolations=1\\n'\nE         \nE         Skipping 96 identical leading characters in diff, use -v to show\nE         - g-ai-agent note=synthetic single-line note\nE         + g-ai-agent\nE           check_ai_provenance: known-violations=1\n\norchestrator/tests/test_check_ai_provenance.py:1916: AssertionError\n_________________ test_ledgered_3f2c43d7580b_is_known_and_rc0 __________________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ncapsys = <_pytest.capture.CaptureFixture object at 0x14b86bf06ef0>\n\n    def test_ledgered_3f2c43d7580b_is_known_and_rc0(\n        capsys: pytest.CaptureFixture[str],\n    ):\n        commit = \"3f2c43d7580b8c26724d90278589862057508965\"\n        assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 0\n        captured = capsys.readouterr()\n>       assert captured.out == (\n            \"check_ai_provenance: known-violation \"\n            f\"sha={commit} finding=missing-ai-agent \"\n            \"note=trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の\"\n            \"空行で trailer block 不成立\\n\"\n            \"check_ai_provenance: known-violations=1\\n\"\n            \"check_ai_provenance: 1 件、新規違反なし\\n\"\n        )\nE       AssertionError: assert 'check_ai_pro... 1 件、新規違反なし\\n' == 'check_ai_pro... 1 件、新規違反なし\\n'\nE         \nE         Skipping 96 identical leading characters in diff, use -v to show\nE         - g-ai-agent note=trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の空行で trailer block 不成立\nE         + g-ai-agent\nE           check_ai_provenance: known-violations=1\nE           check_ai_provenance: 1 件、新規違反なし\n\norchestrator/tests/test_check_ai_provenance.py:1957: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0\n======================== 2 failed, 236 passed in 7.14s =========================\n",
+        "stdout_sha256": "b3e5af6975f6b8ee0b2356c3a52ca806feb858fea10e1bb03778ea1d05bece7e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "79374035dbebb3338593809e09fe3cf448f4cafa8e57835646c64de8c077cd1c",
+      "duration_s": 26.874,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1",
+        "orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "7aec76246052ca94acdfb0ccfab0d3b30e0281ca21d35f9be78de7e11851d0ee",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "74df09d36a975c5fd594c76541fc1836f5cdbcd71418be49b04c5477b514e8e1",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "    if False:\n        line += f\" note={spec.note}\"\n",
+          "old": "    if spec.note != \"\":\n        line += f\" note={spec.note}\"\n"
+        }
+      ],
+      "repo_head": "2327210ad2e33ba0b05477be31a3f69504f9c966",
+      "runner_sha256": "36d761971a27f76b3b3671eb3064d5674014d7b433350be3b3d368b37f5c63cc",
+      "spec_sha256": "c193292fa843432821c20c59aaa2a7fab0353184a8fb117f710838e60e0d5d02",
+      "status": "KILLED",
+      "test_output_sha256": "b3e5af6975f6b8ee0b2356c3a52ca806feb858fea10e1bb03778ea1d05bece7e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bec56ab8882ea6a40d5f7bd18de107140a7c8cdf989e250dc7e2ce57c54546c3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/2abdf45c66615dde8382effdf95fd38e/izdw-2abdf45c66.o895229",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/2abdf45c66615dde8382effdf95fd38e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [238 items]\n\n........................................................................ [ 30%]\n........................................................................ [ 60%]\n....F................................................................... [ 90%]\n......................                                                   [100%]\n=================================== FAILURES ===================================\n_____________ test_known_violation_nonempty_note_is_public_on_rc1 ______________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_known_violation_nonempty_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14623278f3a0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14623278d480>\n\n    def test_known_violation_nonempty_note_is_public_on_rc1(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n    ):\n        _init_repo(tmp_path)\n        base = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        known = _commit(tmp_path, {\"docs/known.md\": \"known\\n\"}, \"known\\n\")\n        new = _commit(tmp_path, {\"docs/new.md\": \"new\\n\"}, \"new\\n\")\n        note = \"synthetic single-line note\"\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                provenance.KnownViolationSpec(\n                    commit=known,\n                    expected_finding_kind=\"missing-ai-agent\",\n                    ruling=\"matching synthetic ruling\",\n                    note=note,\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{base}..{new}\"], site=site_policy.OTHER,\n        ) == 1\n        captured = capsys.readouterr()\n>       assert captured.out == (\n            \"check_ai_provenance: known-violation \"\n            f\"sha={known} finding=missing-ai-agent note={note}\\n\"\n            \"check_ai_provenance: known-violations=1\\n\"\n        )\nE       AssertionError: assert 'check_ai_pro...iolations=1\\n' == 'check_ai_pro...iolations=1\\n'\nE         \nE         Skipping 96 identical leading characters in diff, use -v to show\nE         - g-ai-agent note=synthetic single-line note\nE         + g-ai-agent\nE           check_ai_provenance: known-violations=1\n\norchestrator/tests/test_check_ai_provenance.py:1916: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1\n======================== 1 failed, 237 passed in 8.33s =========================\n",
+        "stdout_sha256": "3fb896f8254d8166718a775fdc8a3371af3e4373d29e57378a8a9a66889ecdf6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "79374035dbebb3338593809e09fe3cf448f4cafa8e57835646c64de8c077cd1c",
+      "duration_s": 31.968,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "1b5311b42eb0fd26f5261f76a886b1cd7a1e4bf6f012774fb9e92aa20b3548bb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "67daff07f6aee3500650e6fbeb4512173a428733cfc21b41e4a8542cac6a502b",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "        for spec in known_violations:\n            print(\n                \"check_ai_provenance: known-violation \"\n                f\"sha={spec.commit} finding={spec.expected_finding_kind}\"\n            )\n",
+          "old": "        for spec in known_violations:\n            print(_known_violation_line(spec))\n"
+        }
+      ],
+      "repo_head": "2327210ad2e33ba0b05477be31a3f69504f9c966",
+      "runner_sha256": "36d761971a27f76b3b3671eb3064d5674014d7b433350be3b3d368b37f5c63cc",
+      "spec_sha256": "c193292fa843432821c20c59aaa2a7fab0353184a8fb117f710838e60e0d5d02",
+      "status": "KILLED",
+      "test_output_sha256": "3fb896f8254d8166718a775fdc8a3371af3e4373d29e57378a8a9a66889ecdf6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bec56ab8882ea6a40d5f7bd18de107140a7c8cdf989e250dc7e2ce57c54546c3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/367f1069fd8f564d69cbd40720e7b933/izdw-367f1069fd.o895256",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/367f1069fd8f564d69cbd40720e7b933/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [238 items]\n\n........................................................................ [ 30%]\n..........................................................F...........F. [ 60%]\n......F...FF............................................................ [ 90%]\n......................                                                   [100%]\n=================================== FAILURES ===================================\n_____________________ test_broken_registry_note_is_rc2[cr] _____________________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_broken_registry_note_is_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bba7367ca0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14bba73828f0>\nbad_note = 'first\\rsecond', error = 'line break in note'\n\n    @pytest.mark.parametrize(\n        (\"bad_note\", \"error\"),\n        [\n            (None, \"invalid note type: NoneType\"),\n            (\"first\\nsecond\", \"line break in note\"),\n            (\"first\\rsecond\", \"line break in note\"),\n            (\"first\\r\\nsecond\", \"line break in note\"),\n            (\"first\\u2028second\", \"line break in note\"),\n        ],\n        ids=[\"non-str\", \"lf\", \"cr\", \"crlf\", \"ls\"],\n    )\n    def test_broken_registry_note_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        bad_note: object,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        commit = _commit(\n            tmp_path,\n            {\"docs/known.md\": \"known\\n\"},\n            \"known\\n\",\n        )\n        matching_spec = provenance.KnownViolationSpec(\n            commit=commit,\n            expected_finding_kind=\"missing-ai-agent\",\n            ruling=\"matching synthetic ruling\",\n            note=bad_note,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (matching_spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x14bba7432d40>(['--range', 'a24112773b5446e758420accf57920a881e13e23^!'], site='OTHER')\nE        +    where <function main at 0x14bba7432d40> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1589: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=a24112773b5446e758420accf57920a881e13e23 finding=missing-ai-agent note=first\nsecond\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n____________________ test_broken_registry_note_is_rc2[crlf] ____________________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_broken_registry_note_is_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f18c55fb50>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14f18c55d5d0>\nbad_note = 'first\\r\\nsecond', error = 'line break in note'\n\n    @pytest.mark.parametrize(\n        (\"bad_note\", \"error\"),\n        [\n            (None, \"invalid note type: NoneType\"),\n            (\"first\\nsecond\", \"line break in note\"),\n            (\"first\\rsecond\", \"line break in note\"),\n            (\"first\\r\\nsecond\", \"line break in note\"),\n            (\"first\\u2028second\", \"line break in note\"),\n        ],\n        ids=[\"non-str\", \"lf\", \"cr\", \"crlf\", \"ls\"],\n    )\n    def test_broken_registry_note_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        bad_note: object,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        commit = _commit(\n            tmp_path,\n            {\"docs/known.md\": \"known\\n\"},\n            \"known\\n\",\n        )\n        matching_spec = provenance.KnownViolationSpec(\n            commit=commit,\n            expected_finding_kind=\"missing-ai-agent\",\n            ruling=\"matching synthetic ruling\",\n            note=bad_note,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (matching_spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x14f18c83ad40>(['--range', 'a24112773b5446e758420accf57920a881e13e23^!'], site='OTHER')\nE        +    where <function main at 0x14f18c83ad40> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1589: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=a24112773b5446e758420accf57920a881e13e23 finding=missing-ai-agent note=first\nsecond\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n_____________________ test_broken_registry_note_is_rc2[ls] _____________________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_broken_registry_note_is_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14abacef0850>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14abacef1690>\nbad_note = 'first\\u2028second', error = 'line break in note'\n\n    @pytest.mark.parametrize(\n        (\"bad_note\", \"error\"),\n        [\n            (None, \"invalid note type: NoneType\"),\n            (\"first\\nsecond\", \"line break in note\"),\n            (\"first\\rsecond\", \"line break in note\"),\n            (\"first\\r\\nsecond\", \"line break in note\"),\n            (\"first\\u2028second\", \"line break in note\"),\n        ],\n        ids=[\"non-str\", \"lf\", \"cr\", \"crlf\", \"ls\"],\n    )\n    def test_broken_registry_note_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        bad_note: object,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        commit = _commit(\n            tmp_path,\n            {\"docs/known.md\": \"known\\n\"},\n            \"known\\n\",\n        )\n        matching_spec = provenance.KnownViolationSpec(\n            commit=commit,\n            expected_finding_kind=\"missing-ai-agent\",\n            ruling=\"matching synthetic ruling\",\n            note=bad_note,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (matching_spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x14abad1ced40>(['--range', 'a24112773b5446e758420accf57920a881e13e23^!'], site='OTHER')\nE        +    where <function main at 0x14abad1ced40> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1589: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=a24112773b5446e758420accf57920a881e13e23 finding=missing-ai-agent note=first second\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n_____________________ test_broken_registry_note_is_rc2[lf] _____________________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_broken_registry_note_is_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1533448b2fb0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1533448b2f80>\nbad_note = 'first\\nsecond', error = 'line break in note'\n\n    @pytest.mark.parametrize(\n        (\"bad_note\", \"error\"),\n        [\n            (None, \"invalid note type: NoneType\"),\n            (\"first\\nsecond\", \"line break in note\"),\n            (\"first\\rsecond\", \"line break in note\"),\n            (\"first\\r\\nsecond\", \"line break in note\"),\n            (\"first\\u2028second\", \"line break in note\"),\n        ],\n        ids=[\"non-str\", \"lf\", \"cr\", \"crlf\", \"ls\"],\n    )\n    def test_broken_registry_note_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        bad_note: object,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        commit = _commit(\n            tmp_path,\n            {\"docs/known.md\": \"known\\n\"},\n            \"known\\n\",\n        )\n        matching_spec = provenance.KnownViolationSpec(\n            commit=commit,\n            expected_finding_kind=\"missing-ai-agent\",\n            ruling=\"matching synthetic ruling\",\n            note=bad_note,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (matching_spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x153344972d40>(['--range', 'a24112773b5446e758420accf57920a881e13e23^!'], site='OTHER')\nE        +    where <function main at 0x153344972d40> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1589: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=a24112773b5446e758420accf57920a881e13e23 finding=missing-ai-agent note=first\nsecond\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n__________________ test_broken_registry_note_is_rc2[non-str] ___________________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_broken_registry_note_is_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e36c2e3940>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14e36c2e15a0>\nbad_note = None, error = 'invalid note type: NoneType'\n\n    @pytest.mark.parametrize(\n        (\"bad_note\", \"error\"),\n        [\n            (None, \"invalid note type: NoneType\"),\n            (\"first\\nsecond\", \"line break in note\"),\n            (\"first\\rsecond\", \"line break in note\"),\n            (\"first\\r\\nsecond\", \"line break in note\"),\n            (\"first\\u2028second\", \"line break in note\"),\n        ],\n        ids=[\"non-str\", \"lf\", \"cr\", \"crlf\", \"ls\"],\n    )\n    def test_broken_registry_note_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        bad_note: object,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        commit = _commit(\n            tmp_path,\n            {\"docs/known.md\": \"known\\n\"},\n            \"known\\n\",\n        )\n        matching_spec = provenance.KnownViolationSpec(\n            commit=commit,\n            expected_finding_kind=\"missing-ai-agent\",\n            ruling=\"matching synthetic ruling\",\n            note=bad_note,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (matching_spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x14e36c5bad40>(['--range', 'a24112773b5446e758420accf57920a881e13e23^!'], site='OTHER')\nE        +    where <function main at 0x14e36c5bad40> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1589: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=a24112773b5446e758420accf57920a881e13e23 finding=missing-ai-agent note=None\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[non-str]\n======================== 5 failed, 233 passed in 7.02s =========================\n",
+        "stdout_sha256": "b86b8f59fc9635b49edd953f6aa3e4dcef953576aff003f948090b411aef6c99"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "79374035dbebb3338593809e09fe3cf448f4cafa8e57835646c64de8c077cd1c",
+      "duration_s": 31.991,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[non-str]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[non-str]"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "3f804cfca07d9e993493b677d77d69c1486675997c0735a41bf9581841e96ac2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e794e293e76f2146f1640a73636201e7f265b1b111084d9785a2ec881ae3305b",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "",
+          "old": "        if not isinstance(spec.note, str):\n            raise RuntimeError(\n                \"known provenance violation registry has invalid note type: \"\n                f\"{type(spec.note).__name__}\"\n            )\n        if spec.note != \"\" and spec.note.splitlines() != [spec.note]:\n            raise RuntimeError(\n                \"known provenance violation registry has line break in note: \"\n                f\"{spec.commit}\"\n            )\n"
+        }
+      ],
+      "repo_head": "2327210ad2e33ba0b05477be31a3f69504f9c966",
+      "runner_sha256": "36d761971a27f76b3b3671eb3064d5674014d7b433350be3b3d368b37f5c63cc",
+      "spec_sha256": "c193292fa843432821c20c59aaa2a7fab0353184a8fb117f710838e60e0d5d02",
+      "status": "KILLED",
+      "test_output_sha256": "b86b8f59fc9635b49edd953f6aa3e4dcef953576aff003f948090b411aef6c99",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bec56ab8882ea6a40d5f7bd18de107140a7c8cdf989e250dc7e2ce57c54546c3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/4d93f86ef3c7009d814b64848d830f73/izdw-4d93f86ef3.o895257",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/4d93f86ef3c7009d814b64848d830f73/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [238 items]\n\n........................................................................ [ 30%]\n................................................................F....... [ 60%]\n..........F....F..F..................................................... [ 90%]\n......................                                                   [100%]\n=================================== FAILURES ===================================\n_____________________ test_broken_registry_note_is_rc2[ls] _____________________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_broken_registry_note_is_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b36f264850>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14b36f265690>\nbad_note = 'first\\u2028second', error = 'line break in note'\n\n    @pytest.mark.parametrize(\n        (\"bad_note\", \"error\"),\n        [\n            (None, \"invalid note type: NoneType\"),\n            (\"first\\nsecond\", \"line break in note\"),\n            (\"first\\rsecond\", \"line break in note\"),\n            (\"first\\r\\nsecond\", \"line break in note\"),\n            (\"first\\u2028second\", \"line break in note\"),\n        ],\n        ids=[\"non-str\", \"lf\", \"cr\", \"crlf\", \"ls\"],\n    )\n    def test_broken_registry_note_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        bad_note: object,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        commit = _commit(\n            tmp_path,\n            {\"docs/known.md\": \"known\\n\"},\n            \"known\\n\",\n        )\n        matching_spec = provenance.KnownViolationSpec(\n            commit=commit,\n            expected_finding_kind=\"missing-ai-agent\",\n            ruling=\"matching synthetic ruling\",\n            note=bad_note,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (matching_spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x14b36f326d40>(['--range', 'c44526660cdc023a72b6a855a5244d525a29560e^!'], site='OTHER')\nE        +    where <function main at 0x14b36f326d40> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1589: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=c44526660cdc023a72b6a855a5244d525a29560e finding=missing-ai-agent note=first second\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n_____________________ test_broken_registry_note_is_rc2[lf] _____________________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_broken_registry_note_is_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150618047310>\ncapsys = <_pytest.capture.CaptureFixture object at 0x150618046ec0>\nbad_note = 'first\\nsecond', error = 'line break in note'\n\n    @pytest.mark.parametrize(\n        (\"bad_note\", \"error\"),\n        [\n            (None, \"invalid note type: NoneType\"),\n            (\"first\\nsecond\", \"line break in note\"),\n            (\"first\\rsecond\", \"line break in note\"),\n            (\"first\\r\\nsecond\", \"line break in note\"),\n            (\"first\\u2028second\", \"line break in note\"),\n        ],\n        ids=[\"non-str\", \"lf\", \"cr\", \"crlf\", \"ls\"],\n    )\n    def test_broken_registry_note_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        bad_note: object,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        commit = _commit(\n            tmp_path,\n            {\"docs/known.md\": \"known\\n\"},\n            \"known\\n\",\n        )\n        matching_spec = provenance.KnownViolationSpec(\n            commit=commit,\n            expected_finding_kind=\"missing-ai-agent\",\n            ruling=\"matching synthetic ruling\",\n            note=bad_note,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (matching_spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x150618326d40>(['--range', 'c44526660cdc023a72b6a855a5244d525a29560e^!'], site='OTHER')\nE        +    where <function main at 0x150618326d40> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1589: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=c44526660cdc023a72b6a855a5244d525a29560e finding=missing-ai-agent note=first\nsecond\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n_____________________ test_broken_registry_note_is_rc2[cr] _____________________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_broken_registry_note_is_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145b9423b010>\ncapsys = <_pytest.capture.CaptureFixture object at 0x145b9423afb0>\nbad_note = 'first\\rsecond', error = 'line break in note'\n\n    @pytest.mark.parametrize(\n        (\"bad_note\", \"error\"),\n        [\n            (None, \"invalid note type: NoneType\"),\n            (\"first\\nsecond\", \"line break in note\"),\n            (\"first\\rsecond\", \"line break in note\"),\n            (\"first\\r\\nsecond\", \"line break in note\"),\n            (\"first\\u2028second\", \"line break in note\"),\n        ],\n        ids=[\"non-str\", \"lf\", \"cr\", \"crlf\", \"ls\"],\n    )\n    def test_broken_registry_note_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        bad_note: object,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        commit = _commit(\n            tmp_path,\n            {\"docs/known.md\": \"known\\n\"},\n            \"known\\n\",\n        )\n        matching_spec = provenance.KnownViolationSpec(\n            commit=commit,\n            expected_finding_kind=\"missing-ai-agent\",\n            ruling=\"matching synthetic ruling\",\n            note=bad_note,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (matching_spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x145b9451ad40>(['--range', 'c44526660cdc023a72b6a855a5244d525a29560e^!'], site='OTHER')\nE        +    where <function main at 0x145b9451ad40> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1589: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=c44526660cdc023a72b6a855a5244d525a29560e finding=missing-ai-agent note=first\nsecond\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n____________________ test_broken_registry_note_is_rc2[crlf] ____________________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_broken_registry_note_is_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a54cd37b50>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14a54cd355d0>\nbad_note = 'first\\r\\nsecond', error = 'line break in note'\n\n    @pytest.mark.parametrize(\n        (\"bad_note\", \"error\"),\n        [\n            (None, \"invalid note type: NoneType\"),\n            (\"first\\nsecond\", \"line break in note\"),\n            (\"first\\rsecond\", \"line break in note\"),\n            (\"first\\r\\nsecond\", \"line break in note\"),\n            (\"first\\u2028second\", \"line break in note\"),\n        ],\n        ids=[\"non-str\", \"lf\", \"cr\", \"crlf\", \"ls\"],\n    )\n    def test_broken_registry_note_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        bad_note: object,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        commit = _commit(\n            tmp_path,\n            {\"docs/known.md\": \"known\\n\"},\n            \"known\\n\",\n        )\n        matching_spec = provenance.KnownViolationSpec(\n            commit=commit,\n            expected_finding_kind=\"missing-ai-agent\",\n            ruling=\"matching synthetic ruling\",\n            note=bad_note,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (matching_spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x14a54d012d40>(['--range', 'c44526660cdc023a72b6a855a5244d525a29560e^!'], site='OTHER')\nE        +    where <function main at 0x14a54d012d40> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1589: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=c44526660cdc023a72b6a855a5244d525a29560e finding=missing-ai-agent note=first\nsecond\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]\n======================== 4 failed, 234 passed in 7.01s =========================\n",
+        "stdout_sha256": "825fc04cef9700521e7d7058a870778c5fa6aa7de8db290753052e3a894b90b2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "79374035dbebb3338593809e09fe3cf448f4cafa8e57835646c64de8c077cd1c",
+      "duration_s": 31.96,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "a7c7f4e284788667be27ff5139052537b2cb7dfd89d9a23f573f577c349de72b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "859f516f57eaf8920d1aa71427bd0ad0294f5a6f54c355c8ec9526960026ccfc",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "",
+          "old": "        if spec.note != \"\" and spec.note.splitlines() != [spec.note]:\n            raise RuntimeError(\n                \"known provenance violation registry has line break in note: \"\n                f\"{spec.commit}\"\n            )\n"
+        }
+      ],
+      "repo_head": "2327210ad2e33ba0b05477be31a3f69504f9c966",
+      "runner_sha256": "36d761971a27f76b3b3671eb3064d5674014d7b433350be3b3d368b37f5c63cc",
+      "spec_sha256": "c193292fa843432821c20c59aaa2a7fab0353184a8fb117f710838e60e0d5d02",
+      "status": "KILLED",
+      "test_output_sha256": "825fc04cef9700521e7d7058a870778c5fa6aa7de8db290753052e3a894b90b2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bec56ab8882ea6a40d5f7bd18de107140a7c8cdf989e250dc7e2ce57c54546c3"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/6f80424cf8c7dd8576bb4bb26e0341c8/izdw-6f80424cf8.o895220",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/output/pegasus-dispatch/6f80424cf8c7dd8576bb4bb26e0341c8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[cab-absent]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[cab-before-ai]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[ai-before-cab]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[case-and-colon-whitespace]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[continuation]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[crlf]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[exact-duplicate]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[bullet-and-quote-body]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[not-an-email]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[leading-space-indent]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[leading-tab-indent]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[cab-then-blank-then-ai]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[ai-then-blank-then-cab]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[cab-looking-continuation]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[body-and-final-same-value]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[trailers-before-divider-body]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[backtick-fence-column-zero]\norchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[tilde-fence-column-zero]\norchestrator/tests/test_check_ai_provenance.py::test_cab_finding_coexists_with_ai_format_and_scope_findings\norchestrator/tests/test_check_ai_provenance.py::test_legacy_ai_parser_keeps_repo_cwd_alias_and_default_divider\norchestrator/tests/test_check_ai_provenance.py::test_m1_no_divider_changes_only_cab_finding\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_uses_fresh_ceiling_below_hostile_local_repo\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_ignores_valid_system_global_and_env_aliases\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[bare-cr-\\r]\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[vertical-tab-\\x0b]\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[form-feed-\\x0c]\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[nel-\\x85]\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[line-separator-\\u2028]\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[paragraph-separator-\\u2029]\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_fails_closed_on_invalid_bytes_or_record[\\xff\\n-UnicodeDecodeError]\norchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_fails_closed_on_invalid_bytes_or_record[AI-Agent: none\\nunexpected\\n-RuntimeError]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[orchestrator/campaign/loop.py-True]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[orchestrator/schema/receipt.json-True]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[orchestrator/README.md-False]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[output/env/probe/run.sh-True]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[output/insights/result.json-False]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[patches/rung.patch-True]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[patches/README.md-False]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[docs/worklog.md-False]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[CMakeLists.txt-True]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[pytest.ini-True]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[./pytest.ini-True]\norchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[docs/notes.ini-False]\norchestrator/tests/test_check_ai_provenance.py::test_repo_root_pytest_ini_requires_codex_author\norchestrator/tests/test_check_ai_provenance.py::test_repo_ships_the_pytest_ini_that_the_classifier_now_covers\norchestrator/tests/test_check_ai_provenance.py::test_claude_only_author_is_rejected_for_implementation_positive_control\norchestrator/tests/test_check_ai_provenance.py::test_codex_author_and_nonimplementation_changes_are_accepted\norchestrator/tests/test_check_ai_provenance.py::test_human_only_implementation_is_not_misattributed_to_codex\norchestrator/tests/test_check_ai_provenance.py::test_history_gate_starts_at_policy_epoch_and_rejects_followup\norchestrator/tests/test_check_ai_provenance.py::test_policy_needle_literal_matches_production_and_repo_policy_exactly_once\norchestrator/tests/test_check_ai_provenance.py::test_cab_default_history_is_nonretroactive_and_rejects_post_policy\norchestrator/tests/test_check_ai_provenance.py::test_cab_explicit_ranges_accept_pre_policy_and_reject_post_policy\norchestrator/tests/test_check_ai_provenance.py::test_cab_pre_policy_range_does_not_call_canonical_parser\norchestrator/tests/test_check_ai_provenance.py::test_cab_post_policy_parser_failure_fails_closed_with_rc2\norchestrator/tests/test_check_ai_provenance.py::test_cab_policy_introduction_commit_itself_rejects_split_cab\norchestrator/tests/test_check_ai_provenance.py::test_cab_policy_is_detected_on_range_from_separate_lineage\norchestrator/tests/test_check_ai_provenance.py::test_cab_policy_remains_effective_after_policy_text_is_deleted\norchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_rename_in_and_out_with_ambient_renames[true]\norchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_rename_in_and_out_with_ambient_renames[false]\norchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_full_history_merge_that_keeps_or_drops_policy[True]\norchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_full_history_merge_that_keeps_or_drops_policy[False]\norchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_needle_count_changes_zero_two_one\norchestrator/tests/test_check_ai_provenance.py::test_cab_policy_git_error_fails_closed_with_rc2\norchestrator/tests/test_check_ai_provenance.py::test_message_file_gate_uses_staged_paths\norchestrator/tests/test_check_ai_provenance.py::test_merge_preflight_and_history_ignore_side_only_implementation_path\norchestrator/tests/test_check_ai_provenance.py::test_merge_preflight_and_history_count_all_parent_different_resolution\norchestrator/tests/test_check_ai_provenance.py::test_message_file_malformed_merge_head_fails_closed\norchestrator/tests/test_check_ai_provenance.py::test_message_file_merge_head_read_error_fails_closed\norchestrator/tests/test_check_ai_provenance.py::test_message_file_always_rejects_split_cab_without_policy_history\norchestrator/tests/test_check_ai_provenance.py::test_message_file_parser_failure_fails_closed_with_rc2\norchestrator/tests/test_check_ai_provenance.py::test_message_file_accepts_contiguous_cab_without_policy_history\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_is_exactly_seven_literal_entries\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_requires_exact_full_sha_positive_and_negative_pair\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_exact_sha_with_shared_eight_digit_prefix\norchestrator/tests/test_check_ai_provenance.py::test_broken_short_sha_registry_is_rc2_but_message_file_is_unchanged\norchestrator/tests/test_check_ai_provenance.py::test_broken_registry_types_are_rc2[container-invalid container]\norchestrator/tests/test_check_ai_provenance.py::test_broken_registry_types_are_rc2[commit-invalid SHA type]\norchestrator/tests/test_check_ai_provenance.py::test_broken_registry_types_are_rc2[kind-invalid finding kind type]\norchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[non-str]\norchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]\norchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]\norchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]\norchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_expected_kind_coexists_with_other_new_finding\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_suppresses_only_one_expected_finding\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_selected_clean_entry_is_stale_rc2\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_missing_expected_finding_diagnoses_regression\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_other_kind_does_not_hide_selected_stale\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_outside_range_is_not_stale_end_to_end\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_off_head_policy_guard_is_stale_rc2\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_stdout_is_public_on_rc0_and_rc1\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1\norchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_seven_real_findings\norchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_production_literal_and_target_object_are_pinned\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_exact_raw_and_canonical_value_is_accepted\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_canonical_parser_is_lazy_without_raw_candidate\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_continuation_fails_raw_exactness\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_body_candidate_plus_valid_trailer_is_rejected\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_body_only_candidate_fails_canonical_presence\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_ai_agent_across_divider\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[no-space]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[tab-after-colon]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[double-space]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[trailing-space]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[indented-key]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_canonical_parser_failure_is_not_accepted\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[scope-added]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[product-drift]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[model-drift]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[reasoning-drift]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[role-drift]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[field-order]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[unknown-field]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[target-drift]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_parser_ignores_ambient_aliases\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_acceptance_is_commit_order_invariant\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_forward_correction\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_multiple_tip_selected_set_is_accepted\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_split_trailer_blocks_do_not_suppress_target\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_sibling_is_not_rehabilitated_by_later_merge\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_duplicate_in_selected_set_is_rejected\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_merge_side_missing_finding\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_suppresses_only_target_missing_not_target_cab\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[missing]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[format]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[scope]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[cab]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[codex-author]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[missing]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[format]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[scope]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[cab]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[codex-author]\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_target_without_actual_missing\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_success_is_preflight_only\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_rejects_second_candidate\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_finds_candidate_on_merge_side\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_rejects_target_outside_parent_ancestry\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_rejects_missing_target_object\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_git_object_backend_failure_is_rc2\norchestrator/tests/test_check_ai_provenance.py::test_regular_message_file_acceptance_does_not_require_correction_target\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_unrelated_history_remains_native_valid\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_merge_base_rc128_fails_closed_with_rc2\norchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_waiver\norchestrator/tests/test_check_ai_provenance.py::test_policy_anchor_literals_exist_only_in_entry_with_hard_coded_oracle\norchestrator/tests/test_check_ai_provenance.py::test_scope_epoch_anchor_occurs_exactly_once_in_entry\norchestrator/tests/test_check_ai_provenance.py::test_provenance_policy_path_is_shared_and_hard_coded\norchestrator/tests/test_check_ai_provenance.py::test_implementation_policy_epoch_is_pinned_in_this_repo\norchestrator/tests/test_check_ai_provenance.py::test_waiver_exact_line_exempts_implementation_author_gate\norchestrator/tests/test_check_ai_provenance.py::test_waiver_requires_own_role_author_ai_agent_line\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[two-lines]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[continuation]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[body-plus-valid]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[uppercase-reason]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[unpadded-date]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[missing-ratified]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[missing-separator-space]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[body-only]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[across-divider]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[split-blocks]\norchestrator/tests/test_check_ai_provenance.py::test_waiver_parser_is_lazy_without_raw_candidate\norchestrator/tests/test_check_ai_provenance.py::test_waiver_does_not_widen_forward_correction_acceptance\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_without_waiver_is_still_accepted\norchestrator/tests/test_check_ai_provenance.py::test_waiver_disqualified_correction_carrier_explains_the_reason\norchestrator/tests/test_check_ai_provenance.py::test_waived_count_excludes_docs_only_commits\norchestrator/tests/test_check_ai_provenance.py::test_waived_count_is_reported_on_stdout_on_both_green_and_red\norchestrator/tests/test_check_ai_provenance.py::test_waiver_is_nonretroactive_before_implementation_policy_epoch\norchestrator/tests/test_check_ai_provenance.py::test_waiver_message_file_gate_exempts_staged_implementation_paths\norchestrator/tests/test_check_ai_provenance.py::test_waiver_message_file_docs_only_change_is_not_counted\norchestrator/tests/test_check_ai_provenance.py::test_login_history_audit_dispatches_to_compute_and_returns_child_rc\norchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_login_bypasses_provenance_headroom_and_queue\norchestrator/tests/test_check_ai_provenance.py::test_without_force_dispatch_provenance_login_with_headroom_runs_local\norchestrator/tests/test_check_ai_provenance.py::test_default_login_admission_uses_login_headroom_grant_budget\norchestrator/tests/test_check_ai_provenance.py::test_provenance_without_range_uses_operation_and_releases_lease\norchestrator/tests/test_check_ai_provenance.py::test_provenance_releases_budget_lease_on_interrupt\norchestrator/tests/test_check_ai_provenance.py::test_provenance_peak_and_lease_failures_are_best_effort\norchestrator/tests/test_check_ai_provenance.py::test_previous_provenance_cap_estimate_dispatches_without_local_scope\norchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_and_queue_four_quadrants[True-True-local]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_and_queue_four_quadrants[True-False-local]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_and_queue_four_quadrants[False-True-dispatch]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_and_queue_four_quadrants[False-False-local]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops\norchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_zero_budget_stops\norchestrator/tests/test_check_ai_provenance.py::test_login_local_scope_returns_child_rc_without_dispatch\norchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_dirty_before_unchanged_after_dispatches_once\norchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_changed_tree_does_not_dispatch\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_infra_does_not_become_audit_failure\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_argv_uses_only_supported_memory_properties\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_marker_writes_oom_group_then_requires_cap_and_group\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_oom_group_write_and_readback_fail_closed[write-1\\n-expected_events0]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_oom_group_write_and_readback_fail_closed[read-1\\n-expected_events1]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_oom_group_write_and_readback_fail_closed[None-0\\n-expected_events2]\norchestrator/tests/test_check_ai_provenance.py::test_failed_provenance_scope_oom_attestation_refuses_with_infra_rc\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_disappearance_after_sample_keeps_child_rc\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_without_event_sample_is_dispatch_infra\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_attestation_failure_stops_scope[False-True]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_attestation_failure_stops_scope[True-False]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_continuing_samples_retain_cap_oom_and_highest_peak\norchestrator/tests/test_check_ai_provenance.py::test_provenance_signal_without_final_cap_proof_is_dispatch_infra[rc137]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_signal_without_final_cap_proof_is_dispatch_infra[sigkill]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_requires_both_max_and_oom_events[events0-expected0]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_requires_both_max_and_oom_events[events1-expected1]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_requires_both_max_and_oom_events[events2-expected2]\norchestrator/tests/test_check_ai_provenance.py::test_provenance_login_headroom_import_failure_dispatches\norchestrator/tests/test_check_ai_provenance.py::test_provenance_queue_state_import_failure_is_dispatch_available\norchestrator/tests/test_check_ai_provenance.py::test_login_message_file_is_dispatch_exempt[--message-file]\norchestrator/tests/test_check_ai_provenance.py::test_login_message_file_is_dispatch_exempt[--message-f]\norchestrator/tests/test_check_ai_provenance.py::test_login_message_file_returns_before_admission_gate[--message-file]\norchestrator/tests/test_check_ai_provenance.py::test_login_message_file_returns_before_admission_gate[--message-f]\norchestrator/tests/test_check_ai_provenance.py::test_suspect_history_audit_refuses_with_infra_rc_without_dispatch\norchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_suspect_still_returns_infra_rc\norchestrator/tests/test_check_ai_provenance.py::test_suspect_history_refusal_observes_queue_once_and_includes_hint\norchestrator/tests/test_check_ai_provenance.py::test_suspect_history_audit_never_enters_local_admission\norchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[PEGASUS_COMPUTE]\norchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[OTHER]\norchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[PEGASUS_COMPUTE]\norchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[OTHER]\norchestrator/tests/test_check_ai_provenance.py::test_range_helper_pins_site_and_never_reads_the_ambient_site\norchestrator/tests/test_check_ai_provenance.py::test_every_checker_main_call_in_this_suite_pins_the_site\norchestrator/tests/test_check_ai_provenance.py::test_dispatch_exception_is_folded_into_infra_rc\norchestrator/tests/test_check_ai_provenance.py::test_provenance_dispatch_rc_matches_run_tests_contract\norchestrator/tests/test_check_ai_provenance.py::test_default_dispatch_requests_the_provenance_task\norchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[0-1]\norchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[1-1]\norchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[3-3]\norchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[32-32]\norchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[48-32]\norchestrator/tests/test_check_ai_provenance.py::test_audit_history_concurrency_high_water_follows_audit_workers\norchestrator/tests/test_check_ai_provenance.py::test_audit_history_is_identical_across_worker_counts_and_ancestry\norchestrator/tests/test_check_ai_provenance.py::test_audit_history_findings_follow_input_order_under_skewed_latency\norchestrator/tests/test_check_ai_provenance.py::test_ancestry_bitset_matches_merge_base_oracle_for_every_pair\norchestrator/tests/test_check_ai_provenance.py::test_ancestry_pickaxe_mask_matches_per_commit_oracle\norchestrator/tests/test_check_ai_provenance.py::test_audit_history_empty_range_returns_zero_findings\norchestrator/tests/test_check_ai_provenance.py::test_audit_history_propagates_first_exception_in_input_order\norchestrator/tests/test_check_ai_provenance.py::test_forward_correction_ancestry_still_uses_merge_base\n\n238 tests collected in 0.25s\n",
+        "stdout_sha256": "cc52ee51fd62fb44f9e0e52513236d6a414d031097f0114eaaf8996f4c1889e7"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[cab-absent]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[cab-before-ai]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[ai-before-cab]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[case-and-colon-whitespace]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[continuation]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[crlf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[exact-duplicate]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[bullet-and-quote-body]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_accepted_boundary[not-an-email]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[leading-space-indent]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[leading-tab-indent]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[cab-then-blank-then-ai]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[ai-then-blank-then-cab]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[cab-looking-continuation]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[body-and-final-same-value]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[trailers-before-divider-body]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[backtick-fence-column-zero]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_co_authored_by_rejected_boundary[tilde-fence-column-zero]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_finding_coexists_with_ai_format_and_scope_findings",
+        "orchestrator/tests/test_check_ai_provenance.py::test_legacy_ai_parser_keeps_repo_cwd_alias_and_default_divider",
+        "orchestrator/tests/test_check_ai_provenance.py::test_m1_no_divider_changes_only_cab_finding",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_uses_fresh_ceiling_below_hostile_local_repo",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_ignores_valid_system_global_and_env_aliases",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[bare-cr-/r]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[vertical-tab-/x0b]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[form-feed-/x0c]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[nel-/x85]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[line-separator-/u2028]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_splits_stdout_on_lf_bytes_only[paragraph-separator-/u2029]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_fails_closed_on_invalid_bytes_or_record[/xff/n-UnicodeDecodeError]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_canonical_parser_fails_closed_on_invalid_bytes_or_record[AI-Agent: none/nunexpected/n-RuntimeError]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[orchestrator/campaign/loop.py-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[orchestrator/schema/receipt.json-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[orchestrator/README.md-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[output/env/probe/run.sh-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[output/insights/result.json-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[patches/rung.patch-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[patches/README.md-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[docs/worklog.md-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[CMakeLists.txt-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[pytest.ini-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[./pytest.ini-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_path_contract[docs/notes.ini-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_repo_root_pytest_ini_requires_codex_author",
+        "orchestrator/tests/test_check_ai_provenance.py::test_repo_ships_the_pytest_ini_that_the_classifier_now_covers",
+        "orchestrator/tests/test_check_ai_provenance.py::test_claude_only_author_is_rejected_for_implementation_positive_control",
+        "orchestrator/tests/test_check_ai_provenance.py::test_codex_author_and_nonimplementation_changes_are_accepted",
+        "orchestrator/tests/test_check_ai_provenance.py::test_human_only_implementation_is_not_misattributed_to_codex",
+        "orchestrator/tests/test_check_ai_provenance.py::test_history_gate_starts_at_policy_epoch_and_rejects_followup",
+        "orchestrator/tests/test_check_ai_provenance.py::test_policy_needle_literal_matches_production_and_repo_policy_exactly_once",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_default_history_is_nonretroactive_and_rejects_post_policy",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_explicit_ranges_accept_pre_policy_and_reject_post_policy",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_pre_policy_range_does_not_call_canonical_parser",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_post_policy_parser_failure_fails_closed_with_rc2",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_introduction_commit_itself_rejects_split_cab",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_is_detected_on_range_from_separate_lineage",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_remains_effective_after_policy_text_is_deleted",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_rename_in_and_out_with_ambient_renames[true]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_rename_in_and_out_with_ambient_renames[false]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_full_history_merge_that_keeps_or_drops_policy[True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_full_history_merge_that_keeps_or_drops_policy[False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_detects_needle_count_changes_zero_two_one",
+        "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_git_error_fails_closed_with_rc2",
+        "orchestrator/tests/test_check_ai_provenance.py::test_message_file_gate_uses_staged_paths",
+        "orchestrator/tests/test_check_ai_provenance.py::test_merge_preflight_and_history_ignore_side_only_implementation_path",
+        "orchestrator/tests/test_check_ai_provenance.py::test_merge_preflight_and_history_count_all_parent_different_resolution",
+        "orchestrator/tests/test_check_ai_provenance.py::test_message_file_malformed_merge_head_fails_closed",
+        "orchestrator/tests/test_check_ai_provenance.py::test_message_file_merge_head_read_error_fails_closed",
+        "orchestrator/tests/test_check_ai_provenance.py::test_message_file_always_rejects_split_cab_without_policy_history",
+        "orchestrator/tests/test_check_ai_provenance.py::test_message_file_parser_failure_fails_closed_with_rc2",
+        "orchestrator/tests/test_check_ai_provenance.py::test_message_file_accepts_contiguous_cab_without_policy_history",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_is_exactly_seven_literal_entries",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_requires_exact_full_sha_positive_and_negative_pair",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_exact_sha_with_shared_eight_digit_prefix",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_short_sha_registry_is_rc2_but_message_file_is_unchanged",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_types_are_rc2[container-invalid container]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_types_are_rc2[commit-invalid SHA type]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_types_are_rc2[kind-invalid finding kind type]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[non-str]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_expected_kind_coexists_with_other_new_finding",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_suppresses_only_one_expected_finding",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_selected_clean_entry_is_stale_rc2",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_missing_expected_finding_diagnoses_regression",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_other_kind_does_not_hide_selected_stale",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_outside_range_is_not_stale_end_to_end",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_off_head_policy_guard_is_stale_rc2",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_stdout_is_public_on_rc0_and_rc1",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1",
+        "orchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_seven_real_findings",
+        "orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_production_literal_and_target_object_are_pinned",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_exact_raw_and_canonical_value_is_accepted",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_canonical_parser_is_lazy_without_raw_candidate",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_continuation_fails_raw_exactness",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_body_candidate_plus_valid_trailer_is_rejected",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_body_only_candidate_fails_canonical_presence",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_ai_agent_across_divider",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[no-space]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[tab-after-colon]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[double-space]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[trailing-space]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_representative_raw_whitespace[indented-key]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_canonical_parser_failure_is_not_accepted",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[scope-added]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[product-drift]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[model-drift]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[reasoning-drift]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[role-drift]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[field-order]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[unknown-field]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_each_payload_drift_is_rejected[target-drift]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_parser_ignores_ambient_aliases",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_acceptance_is_commit_order_invariant",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_forward_correction",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_multiple_tip_selected_set_is_accepted",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_split_trailer_blocks_do_not_suppress_target",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_sibling_is_not_rehabilitated_by_later_merge",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_duplicate_in_selected_set_is_rejected",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_merge_side_missing_finding",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_suppresses_only_target_missing_not_target_cab",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[missing]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[format]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[scope]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[cab]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[codex-author]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[missing]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[format]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[scope]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[cab]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[codex-author]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_target_without_actual_missing",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_success_is_preflight_only",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_rejects_second_candidate",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_finds_candidate_on_merge_side",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_rejects_target_outside_parent_ancestry",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_message_file_rejects_missing_target_object",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_git_object_backend_failure_is_rc2",
+        "orchestrator/tests/test_check_ai_provenance.py::test_regular_message_file_acceptance_does_not_require_correction_target",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_unrelated_history_remains_native_valid",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_merge_base_rc128_fails_closed_with_rc2",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_waiver",
+        "orchestrator/tests/test_check_ai_provenance.py::test_policy_anchor_literals_exist_only_in_entry_with_hard_coded_oracle",
+        "orchestrator/tests/test_check_ai_provenance.py::test_scope_epoch_anchor_occurs_exactly_once_in_entry",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_policy_path_is_shared_and_hard_coded",
+        "orchestrator/tests/test_check_ai_provenance.py::test_implementation_policy_epoch_is_pinned_in_this_repo",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_exact_line_exempts_implementation_author_gate",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_requires_own_role_author_ai_agent_line",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[two-lines]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[continuation]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[body-plus-valid]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[uppercase-reason]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[unpadded-date]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[missing-ratified]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[missing-separator-space]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[body-only]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[across-divider]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_boundary_rejects_malformed_and_out_of_block[split-blocks]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_parser_is_lazy_without_raw_candidate",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_does_not_widen_forward_correction_acceptance",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_without_waiver_is_still_accepted",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_disqualified_correction_carrier_explains_the_reason",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waived_count_excludes_docs_only_commits",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waived_count_is_reported_on_stdout_on_both_green_and_red",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_is_nonretroactive_before_implementation_policy_epoch",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_message_file_gate_exempts_staged_implementation_paths",
+        "orchestrator/tests/test_check_ai_provenance.py::test_waiver_message_file_docs_only_change_is_not_counted",
+        "orchestrator/tests/test_check_ai_provenance.py::test_login_history_audit_dispatches_to_compute_and_returns_child_rc",
+        "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_login_bypasses_provenance_headroom_and_queue",
+        "orchestrator/tests/test_check_ai_provenance.py::test_without_force_dispatch_provenance_login_with_headroom_runs_local",
+        "orchestrator/tests/test_check_ai_provenance.py::test_default_login_admission_uses_login_headroom_grant_budget",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_without_range_uses_operation_and_releases_lease",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_releases_budget_lease_on_interrupt",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_peak_and_lease_failures_are_best_effort",
+        "orchestrator/tests/test_check_ai_provenance.py::test_previous_provenance_cap_estimate_dispatches_without_local_scope",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_and_queue_four_quadrants[True-True-local]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_and_queue_four_quadrants[True-False-local]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_and_queue_four_quadrants[False-True-dispatch]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_and_queue_four_quadrants[False-False-local]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_zero_budget_stops",
+        "orchestrator/tests/test_check_ai_provenance.py::test_login_local_scope_returns_child_rc_without_dispatch",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_dirty_before_unchanged_after_dispatches_once",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_changed_tree_does_not_dispatch",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_infra_does_not_become_audit_failure",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_argv_uses_only_supported_memory_properties",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_marker_writes_oom_group_then_requires_cap_and_group",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_oom_group_write_and_readback_fail_closed[write-1/n-expected_events0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_oom_group_write_and_readback_fail_closed[read-1/n-expected_events1]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_oom_group_write_and_readback_fail_closed[None-0/n-expected_events2]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_failed_provenance_scope_oom_attestation_refuses_with_infra_rc",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_disappearance_after_sample_keeps_child_rc",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_without_event_sample_is_dispatch_infra",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_attestation_failure_stops_scope[False-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_scope_attestation_failure_stops_scope[True-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_continuing_samples_retain_cap_oom_and_highest_peak",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_signal_without_final_cap_proof_is_dispatch_infra[rc137]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_signal_without_final_cap_proof_is_dispatch_infra[sigkill]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_requires_both_max_and_oom_events[events0-expected0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_requires_both_max_and_oom_events[events1-expected1]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_cap_oom_requires_both_max_and_oom_events[events2-expected2]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_login_headroom_import_failure_dispatches",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_queue_state_import_failure_is_dispatch_available",
+        "orchestrator/tests/test_check_ai_provenance.py::test_login_message_file_is_dispatch_exempt[--message-file]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_login_message_file_is_dispatch_exempt[--message-f]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_login_message_file_returns_before_admission_gate[--message-file]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_login_message_file_returns_before_admission_gate[--message-f]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_suspect_history_audit_refuses_with_infra_rc_without_dispatch",
+        "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_suspect_still_returns_infra_rc",
+        "orchestrator/tests/test_check_ai_provenance.py::test_suspect_history_refusal_observes_queue_once_and_includes_hint",
+        "orchestrator/tests/test_check_ai_provenance.py::test_suspect_history_audit_never_enters_local_admission",
+        "orchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[PEGASUS_COMPUTE]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[OTHER]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[PEGASUS_COMPUTE]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[OTHER]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_range_helper_pins_site_and_never_reads_the_ambient_site",
+        "orchestrator/tests/test_check_ai_provenance.py::test_every_checker_main_call_in_this_suite_pins_the_site",
+        "orchestrator/tests/test_check_ai_provenance.py::test_dispatch_exception_is_folded_into_infra_rc",
+        "orchestrator/tests/test_check_ai_provenance.py::test_provenance_dispatch_rc_matches_run_tests_contract",
+        "orchestrator/tests/test_check_ai_provenance.py::test_default_dispatch_requests_the_provenance_task",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[0-1]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[1-1]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[3-3]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[32-32]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_workers_default_is_site_derived_and_capped[48-32]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_concurrency_high_water_follows_audit_workers",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_is_identical_across_worker_counts_and_ancestry",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_findings_follow_input_order_under_skewed_latency",
+        "orchestrator/tests/test_check_ai_provenance.py::test_ancestry_bitset_matches_merge_base_oracle_for_every_pair",
+        "orchestrator/tests/test_check_ai_provenance.py::test_ancestry_pickaxe_mask_matches_per_commit_oracle",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_empty_range_returns_zero_findings",
+        "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_propagates_first_exception_in_input_order",
+        "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_ancestry_still_uses_merge_base"
+      ],
+      "duration_s": 21.77,
+      "rc": 0,
+      "repo_head": "2327210ad2e33ba0b05477be31a3f69504f9c966",
+      "runner_sha256": "36d761971a27f76b3b3671eb3064d5674014d7b433350be3b3d368b37f5c63cc",
+      "spec_sha256": "c193292fa843432821c20c59aaa2a7fab0353184a8fb117f710838e60e0d5d02",
+      "status": "PASSED",
+      "tool_sha256": "bec56ab8882ea6a40d5f7bd18de107140a7c8cdf989e250dc7e2ce57c54546c3"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_is_exactly_seven_literal_entries",
+          "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings",
+          "orchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_seven_real_findings",
+          "orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f7d7ce9f3a6e1dd9bdd634e621dac577bd1f6e020c161a6de62af9bd89f86759",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "",
+            "old": "    KnownViolationSpec(\n        \"3f2c43d7580b8c26724d90278589862057508965\",\n        MISSING_AI_AGENT,\n        \"worklog(293) 2026-08-07 /rulings\",\n        note=(\n            \"trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の\"\n            \"空行で trailer block 不成立\"\n        ),\n    ),\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0",
+          "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7aec76246052ca94acdfb0ccfab0d3b30e0281ca21d35f9be78de7e11851d0ee",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "    if False:\n        line += f\" note={spec.note}\"\n",
+            "old": "    if spec.note != \"\":\n        line += f\" note={spec.note}\"\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_nonempty_note_is_public_on_rc1"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1b5311b42eb0fd26f5261f76a886b1cd7a1e4bf6f012774fb9e92aa20b3548bb",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "        for spec in known_violations:\n            print(\n                \"check_ai_provenance: known-violation \"\n                f\"sha={spec.commit} finding={spec.expected_finding_kind}\"\n            )\n",
+            "old": "        for spec in known_violations:\n            print(_known_violation_line(spec))\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[non-str]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3f804cfca07d9e993493b677d77d69c1486675997c0735a41bf9581841e96ac2",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "",
+            "old": "        if not isinstance(spec.note, str):\n            raise RuntimeError(\n                \"known provenance violation registry has invalid note type: \"\n                f\"{type(spec.note).__name__}\"\n            )\n        if spec.note != \"\" and spec.note.splitlines() != [spec.note]:\n            raise RuntimeError(\n                \"known provenance violation registry has line break in note: \"\n                f\"{spec.commit}\"\n            )\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[lf]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[cr]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[crlf]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_broken_registry_note_is_rc2[ls]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a7c7f4e284788667be27ff5139052537b2cb7dfd89d9a23f573f577c349de72b",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "",
+            "old": "        if spec.note != \"\" and spec.note.splitlines() != [spec.note]:\n            raise RuntimeError(\n                \"known provenance violation registry has line break in note: \"\n                f\"{spec.commit}\"\n            )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "80a7e08ba6e3774fba5f014e42103b7b6a95f74f227a11d35102fb83830b37fe",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_check_ai_provenance.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "2327210ad2e33ba0b05477be31a3f69504f9c966",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_check_ai_provenance.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "65561c32698002698390c413aba18661a01679f2",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "36d761971a27f76b3b3671eb3064d5674014d7b433350be3b3d368b37f5c63cc",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "c193292fa843432821c20c59aaa2a7fab0353184a8fb117f710838e60e0d5d02",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t618-provenance-known-ledger/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "bec56ab8882ea6a40d5f7bd18de107140a7c8cdf989e250dc7e2ce57c54546c3",
+  "updated_at": "2026-08-07T11:00:14.259091+00:00"
+}
