@@ -81,13 +81,20 @@ D186 が `DW-O11` の未機械化 3 経路と回収可能量 0 bytes を明記�
 事前登録は段 4 (`s4-adjudication.md`)。本 wave は**テスト強化だけの wave** なので
 `DW-M08` に従い新旧両走を登録した。
 
-| ID | 変異 | 新テスト | 変更前テスト | 判定 |
-|---|---|---|---|---|
-| M1 | `-rf` 必須検査を削除 | rc=1、kill node 1 件 (`test_missing_rf_is_rejected_before_runner_or_ledger`) | — | **KILLED** |
-| M2 | `_observed_status` の `rc != 0 and not failed` を削除 | rc=1、kill node 1 件 (`test_mutation_nonzero_normal_rc_without_failed_nodes_is_parse_error`) | **rc=0 (素通り)** | **KILLED** |
-| M3 | baseline 側の同条件を削除 | rc=1、kill node 1 件 (`test_baseline_nonzero_normal_rc_without_failed_nodes_is_parse_error`) | **rc=0 (素通り)** | **KILLED** |
+**正本 = `mutation-ledger2.json`** (F155 の既定 recipe `--runner-mode dispatch` +
+`python3 tools/run_tests.py --force-dispatch -rf orchestrator/tests/test_mutation_harness.py -p no:cacheprovider`
+で harness 完走、rc=0)。baseline = PASSED。
 
-変異なしの対照は新旧どちらの選択でも rc=0。3 件とも kill node はちょうど 1 件で単一理由性を満たす。
+| ID | 変異 | 新テスト (M1〜M3) | 変更前テスト (M1-old〜M3-old) |
+|---|---|---|---|
+| M1 | `-rf` 必須検査を削除 | **KILLED** — `test_missing_rf_is_rejected_before_runner_or_ledger` | **SURVIVED** (rc=0) |
+| M2 | `_observed_status` の `rc != 0 and not failed` を削除 | **KILLED** — `test_mutation_nonzero_normal_rc_without_failed_nodes_is_parse_error` | **SURVIVED** (rc=0) |
+| M3 | baseline 側の同条件を削除 | **KILLED** — `test_baseline_nonzero_normal_rc_without_failed_nodes_is_parse_error` | **SURVIVED** (rc=0) |
+
+3 件とも kill node はちょうど 1 件で単一理由性を満たし、`-old` 側は 3 件とも素通りする。
+**これが本 wave の純増検出力である。**
+
+親が手で測った narrow 走行 (`mutation-narrow.json`) も同じ結論を出しており、独立に一致する。
 
 ### erratum — 初回結果を消さず、根本原因の誤帰属も残す (DW-M02)
 
@@ -110,6 +117,10 @@ M2 の初回結果は `PARSE_ERROR` / rc=16 だった (`mutation-ledger.json` �
 
 教訓: **既存 F の恒久対応を試す前に新しい根本原因を立てない。** 本 wave では F155 の
 再発として記録し、既定 recipe で本走をやり直した結果を変異台帳の正本に差し替えた。
+
+**やり直しは自己参照仮説を決定的に否定した。** 同じ M2 変異が、runner を既定 recipe へ
+変えただけで rc=1 / kill node 1 件の KILLED になった。変異内容は 1 byte も変えていない。
+仮説が正しければ dispatch mode でも入れ子実行の暴走が起きるはずで、起きなかった。
 
 再照準した narrow 走行 (`probe_nodes.py`、repo 外) の結果は有効で、`DW-O19` の復元規律
 (clean 確認 → 単一変異の `git diff --stat` 確認 → 復元 bytes 照合 → clean 確認) をすべて満たす。
