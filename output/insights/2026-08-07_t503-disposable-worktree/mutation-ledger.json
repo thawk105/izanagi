@@ -1,0 +1,1493 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/7e8ff75ed1b44bdd2fbef846c2baaaea/izdw-7e8ff75ed1.o893832",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/7e8ff75ed1b44bdd2fbef846c2baaaea/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n....................                                                     [100%]\n============================== 20 passed in 3.02s ==============================\n",
+      "stdout_sha256": "4c2c7de8802c24b689b50886485dc8b3db4e922f7d8f685fcd9ba2d94273d855"
+    },
+    "artifact_error": null,
+    "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+    "duration_s": 26.841,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "94f320902125b9624ba6486f0b25973205f47b54b74eb13de9e0afe8514948c5",
+    "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+    "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+    "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+    "status": "PASSED",
+    "test_output_sha256": "4c2c7de8802c24b689b50886485dc8b3db4e922f7d8f685fcd9ba2d94273d855",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+  },
+  "date": "2026-08-06T15:11:48.986573+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/3601fc1abf827f6c70aaf6c6009f0b30/izdw-3601fc1abf.o893833",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/3601fc1abf827f6c70aaf6c6009f0b30/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n......F.............                                                     [100%]\n=================================== FAILURES ===================================\n____ test_source_must_be_the_exact_worktree_root_between_observation_points ____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_source_must_be_the_exact_0')\n\n    @_limited\n    def test_source_must_be_the_exact_worktree_root_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        repo = _plain_repo(tmp_path / \"repo\")\n        nested = repo / \"nested\"\n        nested.mkdir()\n>       with pytest.raises(MW.MutationWorktreeError, match=\"root そのもの\"):\nE       Failed: DID NOT RAISE MutationWorktreeError\n\norchestrator/tests/test_mutation_worktree.py:362: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_source_must_be_the_exact_worktree_root_between_observation_points\n========================= 1 failed, 19 passed in 2.99s =========================\n",
+        "stdout_sha256": "73d8e7aa16cf1b3fe3ac4f1fd4849ae3b2d9e6839724b203f69b1398b1468d00"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 26.869,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_source_must_be_the_exact_worktree_root_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_source_must_be_the_exact_worktree_root_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-01",
+      "injection_diff_sha256": "92fb21a352b08a599754bba4d27bcb587db03946850c068907a683218315e3dc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ef63055bb2bb92e8d0d054f01f52b71f90dbeca0b7b8af9a7737a83a5056c609",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "    if top_path != source and False:\n",
+          "old": "    if top_path != source:\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "KILLED",
+      "test_output_sha256": "73d8e7aa16cf1b3fe3ac4f1fd4849ae3b2d9e6839724b203f69b1398b1468d00",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/6d16484b60984d776c027293698239d3/izdw-6d16484b60.o893834",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/6d16484b60984d776c027293698239d3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n......F.............                                                     [100%]\n=================================== FAILURES ===================================\n_ test_scratch_inside_any_registered_worktree_is_rejected_between_observation_points _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_scratch_inside_any_regist0')\n\n    @_limited\n    def test_scratch_inside_any_registered_worktree_is_rejected_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        repo = _plain_repo(tmp_path / \"repo\")\n        scratch = repo / \"scratch\"\n        scratch.mkdir()\n>       with pytest.raises(MW.MutationWorktreeError, match=\"registered worktree の外\"):\nE       Failed: DID NOT RAISE MutationWorktreeError\n\norchestrator/tests/test_mutation_worktree.py:373: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_scratch_inside_any_registered_worktree_is_rejected_between_observation_points\n========================= 1 failed, 19 passed in 3.00s =========================\n",
+        "stdout_sha256": "742463cd16eca14244747758bc7db2e10bbeb90537453e16f5877a1ef6b84a8c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 26.892,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_scratch_inside_any_registered_worktree_is_rejected_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_scratch_inside_any_registered_worktree_is_rejected_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-02",
+      "injection_diff_sha256": "a1d420c5adc933ca73dee996efacf9731fb1d63720642cad117d666fb8c1efc1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "28a31d00267ef6afe0a1ba58af3ff56d2c1c55891afae108781b3f3a5416e23a",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "    if False and any(_path_within(scratch, root) for root in registered):\n",
+          "old": "    if any(_path_within(scratch, root) for root in registered):\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "KILLED",
+      "test_output_sha256": "742463cd16eca14244747758bc7db2e10bbeb90537453e16f5877a1ef6b84a8c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/7b38b43ea122bbbf6020d5d29ca28482/izdw-7b38b43ea1.o893836",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/7b38b43ea122bbbf6020d5d29ca28482/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n......F.............                                                     [100%]\n=================================== FAILURES ===================================\n_________ test_scratch_symlink_is_rejected_between_observation_points __________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_scratch_symlink_is_reject0')\n\n    @_limited\n    def test_scratch_symlink_is_rejected_between_observation_points(tmp_path: Path) -> None:\n        target = tmp_path / \"target\"\n        target.mkdir()\n        link = tmp_path / \"scratch\"\n        link.symlink_to(target, target_is_directory=True)\n>       with pytest.raises(MW.MutationWorktreeError, match=\"symlink\"):\nE       Failed: DID NOT RAISE MutationWorktreeError\n\norchestrator/tests/test_mutation_worktree.py:383: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_scratch_symlink_is_rejected_between_observation_points\n========================= 1 failed, 19 passed in 3.34s =========================\n",
+        "stdout_sha256": "5ef383b983963846f5b71d76e237ff1eeb45022b2cbe9cce9266f48cfe8d09c6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 32.07,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_scratch_symlink_is_rejected_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_scratch_symlink_is_rejected_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-03",
+      "injection_diff_sha256": "de12a7327ca3644ceece706ee16a2731d9216fbf62541fb81d1bd0ac052d3614",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "281bfe231e25494688e0c8061fc8bd4d28ae7fbc93a67225c71d77ea95c31e3b",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "    if False and stat.S_ISLNK(metadata.st_mode):\n        raise MutationWorktreeError(\"--scratch-root は symlink であってはならない\")\n",
+          "old": "    if stat.S_ISLNK(metadata.st_mode):\n        raise MutationWorktreeError(\"--scratch-root は symlink であってはならない\")\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "KILLED",
+      "test_output_sha256": "5ef383b983963846f5b71d76e237ff1eeb45022b2cbe9cce9266f48cfe8d09c6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/27862064fab3b4f387704b47dc6a65a0/izdw-27862064fa.o893837",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/27862064fab3b4f387704b47dc6a65a0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n............F.......                                                     [100%]\n=================================== FAILURES ===================================\n_ test_existing_container_is_preserved_and_never_claimed_between_observation_points _\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_existing_container_is_pre0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152485a0e8c0>\n\n    @_limited\n    def test_existing_container_is_preserved_and_never_claimed_between_observation_points(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        container = fixture.scratch / MW.CONTAINER_NAME\n        container.mkdir()\n        sentinel = container / \"sentinel\"\n        sentinel.write_text(\"owned elsewhere\\n\", encoding=\"utf-8\")\n        monkeypatch.setenv(\"IZANAGI_FAKE_HARNESS_RC\", \"0\")\n>       assert MW.main(_wrapper_argv(fixture, plan_only=True)) == 125\nE       AssertionError: assert 0 == 125\nE        +  where 0 = <function main at 0x152485a17e20>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_existing_container_is_pre0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_existing_container_is_pre0/artifacts/spec.json', ...])\nE        +    where <function main at 0x152485a17e20> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_existing_container_is_pre0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_existing_container_is_pre0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_existing_container_is_pre0/main'), source=Posix...0/popen-gw3/test_existing_container_is_pre0/artifacts/ledger.json'), commit='e17a64987caedd5438086cfef839f998e98ce26d'), plan_only=True)\n\norchestrator/tests/test_mutation_worktree.py:397: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_existing_container_is_preserved_and_never_claimed_between_observation_points\n========================= 1 failed, 19 passed in 3.03s =========================\n",
+        "stdout_sha256": "b736234d6a2fd1d0d6fd24dd8486702ee1ea6f919ac237de0f25a7a0c423e48e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 26.964,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_existing_container_is_preserved_and_never_claimed_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_existing_container_is_preserved_and_never_claimed_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-04",
+      "injection_diff_sha256": "893ebed39e0d13f4de834683a530c3aff755c78639640a304f3eccead6646007",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a5362e05f2cf4adec66a9809c687cb6468372a78d6e89e6cad6bb21f566bb62f",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "        preflight.container.mkdir(mode=0o700, exist_ok=True)\n",
+          "old": "        preflight.container.mkdir(mode=0o700, exist_ok=False)\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "KILLED",
+      "test_output_sha256": "b736234d6a2fd1d0d6fd24dd8486702ee1ea6f919ac237de0f25a7a0c423e48e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/80aefd8caf77378b06ad79c026c743c5/izdw-80aefd8caf.o893838",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/80aefd8caf77378b06ad79c026c743c5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n.................F..                                                     [100%]\n=================================== FAILURES ===================================\n_ test_same_out_from_different_scratch_is_rejected_between_observation_points __\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_same_out_from_different_s0')\n\n    @_limited\n    def test_same_out_from_different_scratch_is_rejected_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        scratch_b = tmp_path / \"scratch-b\"\n        scratch_b.mkdir()\n        second_fixture = SimpleNamespace(**vars(fixture))\n        second_fixture.scratch = scratch_b\n        ready = tmp_path / \"first-ready\"\n        release = tmp_path / \"first-release\"\n        environment = os.environ.copy()\n        environment.update(\n            {\n                \"IZANAGI_READY\": str(ready),\n                \"IZANAGI_RELEASE\": str(release),\n                \"IZANAGI_FAKE_HARNESS_RC\": \"0\",\n            }\n        )\n        first = subprocess.Popen(\n            [sys.executable, str(_TOOL), *_wrapper_argv(fixture, plan_only=True)],\n            env=environment,\n            text=True,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n        )\n        try:\n            deadline = time.monotonic() + 10\n            while not ready.exists() and time.monotonic() < deadline:\n                time.sleep(0.02)\n            assert ready.is_file()\n            second = subprocess.run(\n                [\n                    sys.executable,\n                    str(_TOOL),\n                    *_wrapper_argv(second_fixture, plan_only=True),\n                ],\n                check=False,\n                text=True,\n                stdout=subprocess.PIPE,\n                stderr=subprocess.PIPE,\n                timeout=10,\n            )\n>           assert second.returncode == 125\nE           AssertionError: assert 0 == 125\nE            +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktr...est', 'tests/test_gate.py', '-q', '-rf'], returncode=0, stdout='fake-harness-stdout\\n', stderr='fake-harness-stderr\\n').returncode\n\norchestrator/tests/test_mutation_worktree.py:444: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points\n========================= 1 failed, 19 passed in 3.02s =========================\n",
+        "stdout_sha256": "a305278383d95288e9652e7a316bcd94d25f5bde4bc8977be2313252e46148d0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 73.046,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-05",
+      "injection_diff_sha256": "3454c9517643e645647d19dda41ef61e73a0d0d477b6b16531d3b1ff78bb3a7c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "553c3532dc2e859793afea28b154bf34f1ff27bfc5d18b3b6f795c5e69edca5d",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "            fcntl.flock(stream.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)\n",
+          "old": "            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "KILLED",
+      "test_output_sha256": "a305278383d95288e9652e7a316bcd94d25f5bde4bc8977be2313252e46148d0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/cefb4f2aea60639cc32c85cb35fb4fcf/izdw-cefb4f2aea.o893925",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/cefb4f2aea60639cc32c85cb35fb4fcf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n.......F............                                                     [100%]\n=================================== FAILURES ===================================\n_____ test_post_provision_rejects_head_mismatch_between_observation_points _____\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_post_provision_rejects_he0')\n\n    @_limited\n    def test_post_provision_rejects_head_mismatch_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        preflight = SimpleNamespace(checkout=fixture.main, commit=\"0\" * 40)\n>       with pytest.raises(MW.MutationWorktreeError):\nE       Failed: DID NOT RAISE MutationWorktreeError\n\norchestrator/tests/test_mutation_worktree.py:458: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points\n========================= 1 failed, 19 passed in 3.02s =========================\n",
+        "stdout_sha256": "928a08d5cced2a3aaac5aecb630518ceb9682bf1d81d139f6514b639fc9bbeb7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 27.028,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-06",
+      "injection_diff_sha256": "4cb788c10cefc6881e1cf2724a9446e0fc51849d24664e24c8cd85391a991dea",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "12fda2a86e8b0e05c1f427a0049af54323a754e00f75d94e48f49770294e837b",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "    if head != preflight.commit and False:\n",
+          "old": "    if head != preflight.commit:\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "KILLED",
+      "test_output_sha256": "928a08d5cced2a3aaac5aecb630518ceb9682bf1d81d139f6514b639fc9bbeb7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/a931e2a4ce9ff6d740f5d827e86b3270/izdw-a931e2a4ce.o893926",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/a931e2a4ce9ff6d740f5d827e86b3270/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n.....FF.....FF..FFFF                                                     [100%]\n=================================== FAILURES ===================================\n_ test_dispatch_evidence_is_relocated_before_delete_between_observation_points _\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cc508ad9c0>\n\n    @_limited\n    def test_dispatch_evidence_is_relocated_before_delete_between_observation_points(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        preflight, binding, _foreign = _fake_preflight(tmp_path)\n        dispatch = preflight.checkout / \"output\" / \"pegasus-dispatch\"\n        dispatch.mkdir(parents=True)\n        (dispatch / \"receipt.json\").write_text(\"evidence\\n\", encoding=\"utf-8\")\n        real_rmtree = shutil.rmtree\n        observed: list[Path] = []\n    \n        def checking_rmtree(path: Path) -> None:\n            observed.append(Path(path))\n            if Path(path) == preflight.container:\n                assert preflight.evidence.is_dir()\n                assert not dispatch.exists()\n            real_rmtree(path)\n    \n        monkeypatch.setattr(MW.shutil, \"rmtree\", checking_rmtree)\n        assert MW._teardown(\n            preflight, binding, runner_mode=\"dispatch\", evidence_required=True\n        ) is True\n>       assert observed == [preflight.container, binding.admin_dir]\nE       AssertionError: assert [PosixPath('/...n/worktrees')] == [PosixPath('/...rktrees/own')]\nE         \nE         At index 1 diff: PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/common/worktrees') != PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/common/worktrees/own')\nE         Use -v to get more diff\n\norchestrator/tests/test_mutation_worktree.py:497: AssertionError\n_____ test_teardown_removes_only_own_admin_dir_between_observation_points ______\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_teardown_removes_only_own0')\n\n    @_limited\n    def test_teardown_removes_only_own_admin_dir_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        preflight, binding, foreign = _fake_preflight(tmp_path)\n        assert MW._teardown(\n            preflight, binding, runner_mode=\"local\", evidence_required=False\n        ) is False\n        assert not preflight.container.exists()\n        assert not binding.admin_dir.exists()\n>       assert (foreign / \"sentinel\").read_text(encoding=\"utf-8\") == \"foreign\\n\"\n\norchestrator/tests/test_mutation_worktree.py:472: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/pathlib.py:1134: in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_teardown_removes_only_own0/common/worktrees/foreign/sentinel')\nmode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None\n\n    def open(self, mode='r', buffering=-1, encoding=None,\n             errors=None, newline=None):\n        \"\"\"\n        Open the file pointed by this path and return a file object, as\n        the built-in open() function does.\n        \"\"\"\n        if \"b\" not in mode:\n            encoding = io.text_encoding(encoding)\n>       return self._accessor.open(self, mode, buffering, encoding, errors,\n                                   newline)\nE       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_teardown_removes_only_own0/common/worktrees/foreign/sentinel'\n\n/usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n_______ test_checkout_git_calls_disable_hooks_between_observation_points _______\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_checkout_git_calls_disabl0')\n\n    @_limited\n    def test_checkout_git_calls_disable_hooks_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        hook_record = tmp_path / \"post-checkout-ran\"\n        hook = fixture.main / \".git\" / \"hooks\" / \"post-checkout\"\n        hook.write_text(\n            \"#!/bin/sh\\n\" f\"touch {shlex.quote(str(hook_record))}\\n\",\n            encoding=\"utf-8\",\n        )\n        hook.chmod(0o755)\n>       assert MW.main(_wrapper_argv(fixture, plan_only=True)) == 0\nE       AssertionError: assert 125 == 0\nE        +  where 125 = <function main at 0x14a1794cbe20>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_checkout_git_calls_disabl0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_checkout_git_calls_disabl0/artifacts/spec.json', ...])\nE        +    where <function main at 0x14a1794cbe20> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_checkout_git_calls_disabl0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_checkout_git_calls_disabl0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_checkout_git_calls_disabl0/main'), source=Posi.../popen-gw15/test_checkout_git_calls_disabl0/artifacts/ledger.json'), commit='976239a18b251fe02098aa045298a19c40771020'), plan_only=True)\n\norchestrator/tests/test_mutation_worktree.py:674: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\nmutation worktree aborted: 共有木の事後検査に失敗: /tmp/pytest-of-tanab/pytest-0/popen-gw15/test_checkout_git_calls_disabl0/source status snapshot に失敗 (git rc=128): fatal: not a git repository: /tmp/pytest-of-tanab/pytest-0/popen-gw15/test_checkout_git_calls_disabl0/main/.git/worktrees/source\n_ test_fake_harness_wrapper_is_exactly_transparent_between_observation_points __\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152772512cb0>\ncapfd = <_pytest.capture.CaptureFixture object at 0x15277239c190>\n\n    @_limited\n    def test_fake_harness_wrapper_is_exactly_transparent_between_observation_points(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capfd: pytest.CaptureFixture[str],\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        monkeypatch.setenv(\"IZANAGI_CAPTURE\", \"1\")\n        monkeypatch.setenv(\"IZANAGI_FAKE_HARNESS_RC\", \"17\")\n        monkeypatch.setenv(\"GIT_DIR\", \"/poison/git-dir\")\n        monkeypatch.setenv(\"GIT_WORK_TREE\", \"/poison/work-tree\")\n        monkeypatch.setenv(\"GIT_INDEX_FILE\", \"/poison/index\")\n        monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")\n        argv = _wrapper_argv(fixture, plan_only=True)\n    \n>       assert MW.main(argv) == 17\nE       AssertionError: assert 125 == 17\nE        +  where 125 = <function main at 0x152772357e20>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0/artifacts/spec.json', ...])\nE        +    where <function main at 0x152772357e20> = MW.main\n\norchestrator/tests/test_mutation_worktree.py:719: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\nmutation worktree aborted: 共有木の事後検査に失敗: /tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0/source status snapshot に失敗 (git rc=128): fatal: not a git repository: /tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0/main/.git/worktrees/source\n__ test_incomplete_run_keeps_container_for_resume_between_observation_points ___\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1473c37c1ae0>\ncapfd = <_pytest.capture.CaptureFixture object at 0x1473c37c1db0>\n\n    @_limited\n    def test_incomplete_run_keeps_container_for_resume_between_observation_points(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capfd: pytest.CaptureFixture[str],\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"partial\")\n        monkeypatch.setenv(\"IZANAGI_FAKE_HARNESS_RC\", \"0\")\n        assert MW.main(_wrapper_argv(fixture)) == 125\n        assert (fixture.scratch / MW.CONTAINER_NAME).is_dir()\n        receipt = json.loads(\n            Path(f\"{fixture.out}.wrapper-receipt.json\").read_text(encoding=\"utf-8\")\n        )\n        assert receipt[\"terminal_ledger\"] is False\n        assert receipt[\"container_preserved\"] is True\n        preserved_streams = capfd.readouterr()\n        assert str(_TOOL) in preserved_streams.err\n        assert \"--resume\" in preserved_streams.err\n        assert str(fixture.scratch / MW.CONTAINER_NAME / \"repo\" / \"tools\") not in (\n            preserved_streams.err.split(\"resume command:\", 1)[-1]\n        )\n    \n        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"terminal\")\n>       assert MW.main(_wrapper_argv(fixture, resume=True)) == 0\nE       AssertionError: assert 125 == 0\nE        +  where 125 = <function main at 0x1473c3793e20>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/spec.json', ...])\nE        +    where <function main at 0x1473c3793e20> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/main'), source=Posix...0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/ledger.json'), commit='ba180220e47be2081756ef606e896eeff60a6f23'), resume=True)\n\norchestrator/tests/test_mutation_worktree.py:525: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\nmutation worktree aborted: 共有木の事後検査に失敗: /tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source status snapshot に失敗 (git rc=128): fatal: not a git repository: /tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/main/.git/worktrees/source\n_ test_same_out_from_different_scratch_is_rejected_between_observation_points __\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_same_out_from_different_s0')\n\n    @_limited\n    def test_same_out_from_different_scratch_is_rejected_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        scratch_b = tmp_path / \"scratch-b\"\n        scratch_b.mkdir()\n        second_fixture = SimpleNamespace(**vars(fixture))\n        second_fixture.scratch = scratch_b\n        ready = tmp_path / \"first-ready\"\n        release = tmp_path / \"first-release\"\n        environment = os.environ.copy()\n        environment.update(\n            {\n                \"IZANAGI_READY\": str(ready),\n                \"IZANAGI_RELEASE\": str(release),\n                \"IZANAGI_FAKE_HARNESS_RC\": \"0\",\n            }\n        )\n        first = subprocess.Popen(\n            [sys.executable, str(_TOOL), *_wrapper_argv(fixture, plan_only=True)],\n            env=environment,\n            text=True,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n        )\n        try:\n            deadline = time.monotonic() + 10\n            while not ready.exists() and time.monotonic() < deadline:\n                time.sleep(0.02)\n            assert ready.is_file()\n            second = subprocess.run(\n                [\n                    sys.executable,\n                    str(_TOOL),\n                    *_wrapper_argv(second_fixture, plan_only=True),\n                ],\n                check=False,\n                text=True,\n                stdout=subprocess.PIPE,\n                stderr=subprocess.PIPE,\n                timeout=10,\n            )\n            assert second.returncode == 125\n            assert not (scratch_b / MW.CONTAINER_NAME).exists()\n        finally:\n            release.write_text(\"release\\n\", encoding=\"utf-8\")\n            stdout, stderr = first.communicate(timeout=10)\n>           assert first.returncode == 0, (stdout, stderr)\nE           AssertionError: ('fake-harness-stdout\nE             ', 'fake-harness-stderr\nE             mutation worktree aborted: 共有木の事後検査に失敗: /tmp/pytest-of-tanab/pytest-0/... git repository: /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_same_out_from_different_s0/main/.git/worktrees/source\nE             ')\nE           assert 125 == 0\nE            +  where 125 = <Popen: returncode: 125 args: ['/bin/python3.10', '/work/1/SFC/tanab/izanagi...>.returncode\n\norchestrator/tests/test_mutation_worktree.py:449: AssertionError\n_ test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points _\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0')\n\n    @_limited\n    def test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        fixture = _make_repository(\n            tmp_path,\n            harness_source=_HARNESS.read_text(encoding=\"utf-8\"),\n            fake_dispatch=True,\n        )\n        evidence = Path(f\"{fixture.out}.dispatch-evidence\")\n    \n>       assert MW.main(_wrapper_argv(fixture, runner_mode=\"dispatch\")) == 0\nE       AssertionError: assert 125 == 0\nE        +  where 125 = <function main at 0x1476b1aabe20>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/artifacts/spec.json', ...])\nE        +    where <function main at 0x1476b1aabe20> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/main'), source=Posi.../popen-gw19/test_relocated_evidence_is_rev0/artifacts/ledger.json'), commit='8db68111a359d9fc4d04716f0f0a27a2728ddf96'), runner_mode='dispatch')\n\norchestrator/tests/test_mutation_worktree.py:790: AssertionError\n----------------------------- Captured stdout call -----------------------------\nmutation estimate: 1 mutation(s) x 0.010s, baseline=1 run(s), total=2 run(s)/0.020s; actual execution requires an outer-limit-free detached path\n----------------------------- Captured stderr call -----------------------------\nmutation worktree aborted: 共有木の事後検査に失敗: /tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/source status snapshot に失敗 (git rc=128): fatal: not a git repository: /tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/main/.git/worktrees/source\n_ test_real_harness_local_e2e_uses_disposable_tree_between_observation_points __\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0')\n\n    @_limited\n    def test_real_harness_local_e2e_uses_disposable_tree_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_HARNESS.read_text(encoding=\"utf-8\"))\n        source_before = (fixture.source / \"target.py\").read_bytes()\n        main_before = (fixture.main / \"target.py\").read_bytes()\n    \n>       assert MW.main(_wrapper_argv(fixture)) == 0\nE       AssertionError: assert 125 == 0\nE        +  where 125 = <function main at 0x1463498d7e20>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/artifacts/spec.json', ...])\nE        +    where <function main at 0x1463498d7e20> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/main'), source=Posi.../popen-gw18/test_real_harness_local_e2e_us0/artifacts/ledger.json'), commit='08c64f0d183917d08656c89b4369d0e83be08a07'))\n\norchestrator/tests/test_mutation_worktree.py:768: AssertionError\n----------------------------- Captured stdout call -----------------------------\nmutation estimate: 1 mutation(s) x 0.010s, baseline=1 run(s), total=2 run(s)/0.020s; actual execution requires an outer-limit-free detached path\n----------------------------- Captured stderr call -----------------------------\nmutation worktree aborted: 共有木の事後検査に失敗: /tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/source status snapshot に失敗 (git rc=128): fatal: not a git repository: /tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/main/.git/worktrees/source\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_teardown_removes_only_own_admin_dir_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_checkout_git_calls_disable_hooks_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_fake_harness_wrapper_is_exactly_transparent_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_real_harness_local_e2e_uses_disposable_tree_between_observation_points\n========================= 8 failed, 12 passed in 2.99s =========================\n",
+        "stdout_sha256": "16a2f049e9c4ea357073fa83d85747bea6d25c8c1a779942ba22104bb9a2feaa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 26.986,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_teardown_removes_only_own_admin_dir_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_teardown_removes_only_own_admin_dir_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_checkout_git_calls_disable_hooks_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_fake_harness_wrapper_is_exactly_transparent_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_real_harness_local_e2e_uses_disposable_tree_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-07",
+      "injection_diff_sha256": "e8701b8f09fe87be08e69e2f3fada00e9fa2c37390bb12d296cd4993c18cb01e",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "ddb198a6920c9b7fadfc96d730fbf3e71d42c04d3707b4137b926508301370a9",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "        shutil.rmtree(binding.admin_dir.parent)\n",
+          "old": "        shutil.rmtree(binding.admin_dir)\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "MISMATCH",
+      "test_output_sha256": "16a2f049e9c4ea357073fa83d85747bea6d25c8c1a779942ba22104bb9a2feaa",
+      "test_output_tail": [
+        "                text=True,",
+        "                stdout=subprocess.PIPE,",
+        "                stderr=subprocess.PIPE,",
+        "                timeout=10,",
+        "            )",
+        "            assert second.returncode == 125",
+        "            assert not (scratch_b / MW.CONTAINER_NAME).exists()",
+        "        finally:",
+        "            release.write_text(\"release\\n\", encoding=\"utf-8\")",
+        "            stdout, stderr = first.communicate(timeout=10)",
+        ">           assert first.returncode == 0, (stdout, stderr)",
+        "E           AssertionError: ('fake-harness-stdout",
+        "E             ', 'fake-harness-stderr",
+        "E             mutation worktree aborted: 共有木の事後検査に失敗: /tmp/pytest-of-tanab/pytest-0/... git repository: /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_same_out_from_different_s0/main/.git/worktrees/source",
+        "E             ')",
+        "E           assert 125 == 0",
+        "E            +  where 125 = <Popen: returncode: 125 args: ['/bin/python3.10', '/work/1/SFC/tanab/izanagi...>.returncode",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:449: AssertionError",
+        "_ test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points _",
+        "[gw19] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0')",
+        "",
+        "    @_limited",
+        "    def test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points(",
+        "        tmp_path: Path,",
+        "    ) -> None:",
+        "        fixture = _make_repository(",
+        "            tmp_path,",
+        "            harness_source=_HARNESS.read_text(encoding=\"utf-8\"),",
+        "            fake_dispatch=True,",
+        "        )",
+        "        evidence = Path(f\"{fixture.out}.dispatch-evidence\")",
+        "    ",
+        ">       assert MW.main(_wrapper_argv(fixture, runner_mode=\"dispatch\")) == 0",
+        "E       AssertionError: assert 125 == 0",
+        "E        +  where 125 = <function main at 0x1476b1aabe20>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/artifacts/spec.json', ...])",
+        "E        +    where <function main at 0x1476b1aabe20> = MW.main",
+        "E        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/main'), source=Posi.../popen-gw19/test_relocated_evidence_is_rev0/artifacts/ledger.json'), commit='8db68111a359d9fc4d04716f0f0a27a2728ddf96'), runner_mode='dispatch')",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:790: AssertionError",
+        "----------------------------- Captured stdout call -----------------------------",
+        "mutation estimate: 1 mutation(s) x 0.010s, baseline=1 run(s), total=2 run(s)/0.020s; actual execution requires an outer-limit-free detached path",
+        "----------------------------- Captured stderr call -----------------------------",
+        "mutation worktree aborted: 共有木の事後検査に失敗: /tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/source status snapshot に失敗 (git rc=128): fatal: not a git repository: /tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/main/.git/worktrees/source",
+        "_ test_real_harness_local_e2e_uses_disposable_tree_between_observation_points __",
+        "[gw18] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0')",
+        "",
+        "    @_limited",
+        "    def test_real_harness_local_e2e_uses_disposable_tree_between_observation_points(",
+        "        tmp_path: Path,",
+        "    ) -> None:",
+        "        fixture = _make_repository(tmp_path, harness_source=_HARNESS.read_text(encoding=\"utf-8\"))",
+        "        source_before = (fixture.source / \"target.py\").read_bytes()",
+        "        main_before = (fixture.main / \"target.py\").read_bytes()",
+        "    ",
+        ">       assert MW.main(_wrapper_argv(fixture)) == 0",
+        "E       AssertionError: assert 125 == 0",
+        "E        +  where 125 = <function main at 0x1463498d7e20>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/artifacts/spec.json', ...])",
+        "E        +    where <function main at 0x1463498d7e20> = MW.main",
+        "E        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/main'), source=Posi.../popen-gw18/test_real_harness_local_e2e_us0/artifacts/ledger.json'), commit='08c64f0d183917d08656c89b4369d0e83be08a07'))",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:768: AssertionError",
+        "----------------------------- Captured stdout call -----------------------------",
+        "mutation estimate: 1 mutation(s) x 0.010s, baseline=1 run(s), total=2 run(s)/0.020s; actual execution requires an outer-limit-free detached path",
+        "----------------------------- Captured stderr call -----------------------------",
+        "mutation worktree aborted: 共有木の事後検査に失敗: /tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/source status snapshot に失敗 (git rc=128): fatal: not a git repository: /tmp/pytest-of-tanab/pytest-0/popen-gw18/test_real_harness_local_e2e_us0/main/.git/worktrees/source",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_teardown_removes_only_own_admin_dir_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_checkout_git_calls_disable_hooks_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_fake_harness_wrapper_is_exactly_transparent_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_real_harness_local_e2e_uses_disposable_tree_between_observation_points",
+        "========================= 8 failed, 12 passed in 2.99s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/1ef67264758383a18fd0a2879b8dce36/izdw-1ef6726475.o893928",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/1ef67264758383a18fd0a2879b8dce36/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n......F.....F.....F.                                                     [100%]\n=================================== FAILURES ===================================\n_ test_dispatch_evidence_is_relocated_before_delete_between_observation_points _\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14581c501ab0>\n\n    @_limited\n    def test_dispatch_evidence_is_relocated_before_delete_between_observation_points(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        preflight, binding, _foreign = _fake_preflight(tmp_path)\n        dispatch = preflight.checkout / \"output\" / \"pegasus-dispatch\"\n        dispatch.mkdir(parents=True)\n        (dispatch / \"receipt.json\").write_text(\"evidence\\n\", encoding=\"utf-8\")\n        real_rmtree = shutil.rmtree\n        observed: list[Path] = []\n    \n        def checking_rmtree(path: Path) -> None:\n            observed.append(Path(path))\n            if Path(path) == preflight.container:\n                assert preflight.evidence.is_dir()\n                assert not dispatch.exists()\n            real_rmtree(path)\n    \n        monkeypatch.setattr(MW.shutil, \"rmtree\", checking_rmtree)\n>       assert MW._teardown(\n            preflight, binding, runner_mode=\"dispatch\", evidence_required=True\n        ) is True\n\norchestrator/tests/test_mutation_worktree.py:494: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/mutation_worktree.py:886: in _teardown\n    shutil.rmtree(preflight.container)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npath = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/container')\n\n    def checking_rmtree(path: Path) -> None:\n        observed.append(Path(path))\n        if Path(path) == preflight.container:\n>           assert preflight.evidence.is_dir()\nE           AssertionError: assert False\nE            +  where False = is_dir()\nE            +    where is_dir = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/ledger.json.dispatch-evidence').is_dir\nE            +      where PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/ledger.json.dispatch-evidence') = namespace(container=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/container'), ch...nce=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/ledger.json.dispatch-evidence')).evidence\n\norchestrator/tests/test_mutation_worktree.py:489: AssertionError\n_____ test_teardown_failure_overrides_child_rc_between_observation_points ______\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cbc5dcdc90>\n\n    @_limited\n    def test_teardown_failure_overrides_child_rc_between_observation_points(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"terminal\")\n        monkeypatch.setenv(\"IZANAGI_DISPATCH_EVIDENCE\", \"1\")\n    \n        real_rmtree = shutil.rmtree\n    \n        def failing_rmtree(path: Path) -> None:\n            if Path(path) == fixture.scratch / MW.CONTAINER_NAME:\n                raise OSError(\"injected teardown failure\")\n            real_rmtree(path)\n    \n        monkeypatch.setattr(MW.shutil, \"rmtree\", failing_rmtree)\n        assert MW.main(_wrapper_argv(fixture, runner_mode=\"dispatch\")) == 125\n        receipt = json.loads(\n            Path(f\"{fixture.out}.wrapper-receipt.json\").read_text(encoding=\"utf-8\")\n        )\n        assert receipt[\"child_rc\"] == 0\n>       assert receipt[\"dispatch_evidence\"][\"relocated\"] is True\nE       assert False is True\n\norchestrator/tests/test_mutation_worktree.py:560: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\nmutation worktree aborted: 所有 container を再帰削除できない: injected teardown failure\n未完了 run の container を保持しました: /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/scratch/.izanagi-mutation-worktree\nresume command: /bin/python3.10 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/mutation_worktree.py --source-repo /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/source --commit 61ba52da38cbdd76fd4890790610efe965c066b8 --scratch-root /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/scratch --spec /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/spec.json --expected-spec-sha256 14e480ebd036396278cf3b371f96edf38bc7eb67c349992df0b4f2eaf6a9bfa4 --out /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/ledger.json --runner-mode dispatch --resume --detached -- /bin/python3.10 tools/run_tests.py tests/test_gate.py -rf\n_ test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points _\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0')\n\n    @_limited\n    def test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        fixture = _make_repository(\n            tmp_path,\n            harness_source=_HARNESS.read_text(encoding=\"utf-8\"),\n            fake_dispatch=True,\n        )\n        evidence = Path(f\"{fixture.out}.dispatch-evidence\")\n    \n        assert MW.main(_wrapper_argv(fixture, runner_mode=\"dispatch\")) == 0\n>       assert evidence.is_dir()\nE       AssertionError: assert False\nE        +  where False = is_dir()\nE        +    where is_dir = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/artifacts/ledger.json.dispatch-evidence').is_dir\n\norchestrator/tests/test_mutation_worktree.py:791: AssertionError\n----------------------------- Captured stdout call -----------------------------\nmutation estimate: 1 mutation(s) x 0.010s, baseline=1 run(s), total=2 run(s)/0.020s; actual execution requires an outer-limit-free detached path\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points\n========================= 3 failed, 17 passed in 2.99s =========================\n",
+        "stdout_sha256": "5c91b5616c28ac7c62c4adda7e78bcc231673368d7135b8b4fc3979d051ffff0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 27.025,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-08",
+      "injection_diff_sha256": "14e613fcc198519cb06334a68bb76654f71c938231add9db5b6a12c11b554444",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "5ffcf80dcd550ab14c9aa45def0c711bbd63d50925a0a5991aeda5045b5ee755",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "            relocated = False\n",
+          "old": "            relocated = _stash_dispatch_evidence(preflight, required=evidence_required)\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "MISMATCH",
+      "test_output_sha256": "5c91b5616c28ac7c62c4adda7e78bcc231673368d7135b8b4fc3979d051ffff0",
+      "test_output_tail": [
+        "path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/container')",
+        "",
+        "    def checking_rmtree(path: Path) -> None:",
+        "        observed.append(Path(path))",
+        "        if Path(path) == preflight.container:",
+        ">           assert preflight.evidence.is_dir()",
+        "E           AssertionError: assert False",
+        "E            +  where False = is_dir()",
+        "E            +    where is_dir = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/ledger.json.dispatch-evidence').is_dir",
+        "E            +      where PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/ledger.json.dispatch-evidence') = namespace(container=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/container'), ch...nce=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_dispatch_evidence_is_relo0/ledger.json.dispatch-evidence')).evidence",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:489: AssertionError",
+        "_____ test_teardown_failure_overrides_child_rc_between_observation_points ______",
+        "[gw10] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cbc5dcdc90>",
+        "",
+        "    @_limited",
+        "    def test_teardown_failure_overrides_child_rc_between_observation_points(",
+        "        tmp_path: Path, monkeypatch: pytest.MonkeyPatch",
+        "    ) -> None:",
+        "        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())",
+        "        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"terminal\")",
+        "        monkeypatch.setenv(\"IZANAGI_DISPATCH_EVIDENCE\", \"1\")",
+        "    ",
+        "        real_rmtree = shutil.rmtree",
+        "    ",
+        "        def failing_rmtree(path: Path) -> None:",
+        "            if Path(path) == fixture.scratch / MW.CONTAINER_NAME:",
+        "                raise OSError(\"injected teardown failure\")",
+        "            real_rmtree(path)",
+        "    ",
+        "        monkeypatch.setattr(MW.shutil, \"rmtree\", failing_rmtree)",
+        "        assert MW.main(_wrapper_argv(fixture, runner_mode=\"dispatch\")) == 125",
+        "        receipt = json.loads(",
+        "            Path(f\"{fixture.out}.wrapper-receipt.json\").read_text(encoding=\"utf-8\")",
+        "        )",
+        "        assert receipt[\"child_rc\"] == 0",
+        ">       assert receipt[\"dispatch_evidence\"][\"relocated\"] is True",
+        "E       assert False is True",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:560: AssertionError",
+        "----------------------------- Captured stdout call -----------------------------",
+        "fake-harness-stdout",
+        "----------------------------- Captured stderr call -----------------------------",
+        "fake-harness-stderr",
+        "mutation worktree aborted: 所有 container を再帰削除できない: injected teardown failure",
+        "未完了 run の container を保持しました: /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/scratch/.izanagi-mutation-worktree",
+        "resume command: /bin/python3.10 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/mutation_worktree.py --source-repo /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/source --commit 61ba52da38cbdd76fd4890790610efe965c066b8 --scratch-root /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/scratch --spec /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/spec.json --expected-spec-sha256 14e480ebd036396278cf3b371f96edf38bc7eb67c349992df0b4f2eaf6a9bfa4 --out /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/ledger.json --runner-mode dispatch --resume --detached -- /bin/python3.10 tools/run_tests.py tests/test_gate.py -rf",
+        "_ test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points _",
+        "[gw19] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0')",
+        "",
+        "    @_limited",
+        "    def test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points(",
+        "        tmp_path: Path,",
+        "    ) -> None:",
+        "        fixture = _make_repository(",
+        "            tmp_path,",
+        "            harness_source=_HARNESS.read_text(encoding=\"utf-8\"),",
+        "            fake_dispatch=True,",
+        "        )",
+        "        evidence = Path(f\"{fixture.out}.dispatch-evidence\")",
+        "    ",
+        "        assert MW.main(_wrapper_argv(fixture, runner_mode=\"dispatch\")) == 0",
+        ">       assert evidence.is_dir()",
+        "E       AssertionError: assert False",
+        "E        +  where False = is_dir()",
+        "E        +    where is_dir = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_relocated_evidence_is_rev0/artifacts/ledger.json.dispatch-evidence').is_dir",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:791: AssertionError",
+        "----------------------------- Captured stdout call -----------------------------",
+        "mutation estimate: 1 mutation(s) x 0.010s, baseline=1 run(s), total=2 run(s)/0.020s; actual execution requires an outer-limit-free detached path",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points",
+        "========================= 3 failed, 17 passed in 2.99s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/10a0a3e2190ebc9bc3ad6e0a28a5955b/izdw-10a0a3e219.o893929",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/10a0a3e2190ebc9bc3ad6e0a28a5955b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n............FF......                                                     [100%]\n=================================== FAILURES ===================================\n____ test_terminal_ledger_rejects_boolean_counts_between_observation_points ____\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148782099b10>\n\n    @_limited\n    def test_terminal_ledger_rejects_boolean_counts_between_observation_points(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"boolean-recorded\")\n>       assert MW.main(_wrapper_argv(fixture)) == 125\nE       AssertionError: assert 0 == 125\nE        +  where 0 = <function main at 0x14878206bd90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/spec.json', ...])\nE        +    where <function main at 0x14878206bd90> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/main'), source=Posi.../popen-gw14/test_terminal_ledger_rejects_b0/artifacts/ledger.json'), commit='ec6cd8f50b5b046d3ee9c49bc9ae5ca758cf63b9'))\n\norchestrator/tests/test_mutation_worktree.py:654: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\n__ test_incomplete_run_keeps_container_for_resume_between_observation_points ___\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ec35d29c90>\ncapfd = <_pytest.capture.CaptureFixture object at 0x14ec35d29f60>\n\n    @_limited\n    def test_incomplete_run_keeps_container_for_resume_between_observation_points(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capfd: pytest.CaptureFixture[str],\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"partial\")\n        monkeypatch.setenv(\"IZANAGI_FAKE_HARNESS_RC\", \"0\")\n>       assert MW.main(_wrapper_argv(fixture)) == 125\nE       AssertionError: assert 0 == 125\nE        +  where 0 = <function main at 0x14ec35cfbd90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/spec.json', ...])\nE        +    where <function main at 0x14ec35cfbd90> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/main'), source=Posix...0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/ledger.json'), commit='e2f4e2229ee01ca07b63d7edd7d007fd03df27db'))\n\norchestrator/tests/test_mutation_worktree.py:510: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_terminal_ledger_rejects_boolean_counts_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points\n========================= 2 failed, 18 passed in 2.98s =========================\n",
+        "stdout_sha256": "9a17c2998ece9d6342c277d05c187a4a4782360dcca57f02878266ee66a00802"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 26.953,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_terminal_ledger_rejects_boolean_counts_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-09",
+      "injection_diff_sha256": "f274870eb4ac671e4318d76ca26a12f6a8247731d1ba294378fbdc78bb533433",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "cb07eda05997ebfc78a00280c35322ecd479ef37bdf494102282b62f0fbd4d51",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "                            else True\n",
+          "old": "                            else _ledger_is_terminal(\n                                preflight, args.expected_spec_sha256\n                            )\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "MISMATCH",
+      "test_output_sha256": "9a17c2998ece9d6342c277d05c187a4a4782360dcca57f02878266ee66a00802",
+      "test_output_tail": [
+        "============================= test session starts ==============================",
+        "platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0",
+        "rootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree",
+        "configfile: pytest.ini",
+        "plugins: xdist-3.8.0, cov-7.1.0",
+        "created: 48/48 workers",
+        "48 workers [20 items]",
+        "",
+        "............FF......                                                     [100%]",
+        "=================================== FAILURES ===================================",
+        "____ test_terminal_ledger_rejects_boolean_counts_between_observation_points ____",
+        "[gw14] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148782099b10>",
+        "",
+        "    @_limited",
+        "    def test_terminal_ledger_rejects_boolean_counts_between_observation_points(",
+        "        tmp_path: Path, monkeypatch: pytest.MonkeyPatch",
+        "    ) -> None:",
+        "        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())",
+        "        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"boolean-recorded\")",
+        ">       assert MW.main(_wrapper_argv(fixture)) == 125",
+        "E       AssertionError: assert 0 == 125",
+        "E        +  where 0 = <function main at 0x14878206bd90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/spec.json', ...])",
+        "E        +    where <function main at 0x14878206bd90> = MW.main",
+        "E        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/main'), source=Posi.../popen-gw14/test_terminal_ledger_rejects_b0/artifacts/ledger.json'), commit='ec6cd8f50b5b046d3ee9c49bc9ae5ca758cf63b9'))",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:654: AssertionError",
+        "----------------------------- Captured stdout call -----------------------------",
+        "fake-harness-stdout",
+        "----------------------------- Captured stderr call -----------------------------",
+        "fake-harness-stderr",
+        "__ test_incomplete_run_keeps_container_for_resume_between_observation_points ___",
+        "[gw8] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ec35d29c90>",
+        "capfd = <_pytest.capture.CaptureFixture object at 0x14ec35d29f60>",
+        "",
+        "    @_limited",
+        "    def test_incomplete_run_keeps_container_for_resume_between_observation_points(",
+        "        tmp_path: Path,",
+        "        monkeypatch: pytest.MonkeyPatch,",
+        "        capfd: pytest.CaptureFixture[str],",
+        "    ) -> None:",
+        "        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())",
+        "        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"partial\")",
+        "        monkeypatch.setenv(\"IZANAGI_FAKE_HARNESS_RC\", \"0\")",
+        ">       assert MW.main(_wrapper_argv(fixture)) == 125",
+        "E       AssertionError: assert 0 == 125",
+        "E        +  where 0 = <function main at 0x14ec35cfbd90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/spec.json', ...])",
+        "E        +    where <function main at 0x14ec35cfbd90> = MW.main",
+        "E        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/main'), source=Posix...0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/ledger.json'), commit='e2f4e2229ee01ca07b63d7edd7d007fd03df27db'))",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:510: AssertionError",
+        "----------------------------- Captured stdout call -----------------------------",
+        "fake-harness-stdout",
+        "----------------------------- Captured stderr call -----------------------------",
+        "fake-harness-stderr",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_terminal_ledger_rejects_boolean_counts_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points",
+        "========================= 2 failed, 18 passed in 2.98s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/0c3e50f189c8d070bdf79b29bd7fa2a4/izdw-0c3e50f189.o893930",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/0c3e50f189c8d070bdf79b29bd7fa2a4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n......F......F......                                                     [100%]\n=================================== FAILURES ===================================\n_______ test_child_return_code_is_propagated_between_observation_points ________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    @_limited\n    def test_child_return_code_is_propagated_between_observation_points() -> None:\n>       assert MW._select_return_code(child_rc=37, signum=None, wrapper_failed=False) == 37\nE       assert 0 == 37\nE        +  where 0 = <function _select_return_code at 0x14c9d2377ac0>(child_rc=37, signum=None, wrapper_failed=False)\nE        +    where <function _select_return_code at 0x14c9d2377ac0> = MW._select_return_code\n\norchestrator/tests/test_mutation_worktree.py:536: AssertionError\n_ test_fake_harness_wrapper_is_exactly_transparent_between_observation_points __\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1519a3e1dae0>\ncapfd = <_pytest.capture.CaptureFixture object at 0x1519a3e1ddb0>\n\n    @_limited\n    def test_fake_harness_wrapper_is_exactly_transparent_between_observation_points(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capfd: pytest.CaptureFixture[str],\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        monkeypatch.setenv(\"IZANAGI_CAPTURE\", \"1\")\n        monkeypatch.setenv(\"IZANAGI_FAKE_HARNESS_RC\", \"17\")\n        monkeypatch.setenv(\"GIT_DIR\", \"/poison/git-dir\")\n        monkeypatch.setenv(\"GIT_WORK_TREE\", \"/poison/work-tree\")\n        monkeypatch.setenv(\"GIT_INDEX_FILE\", \"/poison/index\")\n        monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")\n        argv = _wrapper_argv(fixture, plan_only=True)\n    \n>       assert MW.main(argv) == 17\nE       AssertionError: assert 0 == 17\nE        +  where 0 = <function main at 0x1519a3defd90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0/artifacts/spec.json', ...])\nE        +    where <function main at 0x1519a3defd90> = MW.main\n\norchestrator/tests/test_mutation_worktree.py:719: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_child_return_code_is_propagated_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_fake_harness_wrapper_is_exactly_transparent_between_observation_points\n========================= 2 failed, 18 passed in 3.00s =========================\n",
+        "stdout_sha256": "ac744e6e448d69292891c4f76ce92aecd219cdaea7ad07cf48e308f0a2ed30e7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 26.929,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_child_return_code_is_propagated_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_child_return_code_is_propagated_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_fake_harness_wrapper_is_exactly_transparent_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-10",
+      "injection_diff_sha256": "d0f422f8efad3b8e57639554586a3db69be4cd1b6cd51e0b7b5419481538ae30",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "9736f0bb6e09c21d8d8bd5ad1b4fd47065073c01552eb6edb8e0d75c352b0295",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "    return 0 if child_rc is None else 0\n",
+          "old": "    return WRAPPER_FAILURE_RC if child_rc is None else child_rc\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "MISMATCH",
+      "test_output_sha256": "ac744e6e448d69292891c4f76ce92aecd219cdaea7ad07cf48e308f0a2ed30e7",
+      "test_output_tail": [
+        "============================= test session starts ==============================",
+        "platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0",
+        "rootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree",
+        "configfile: pytest.ini",
+        "plugins: xdist-3.8.0, cov-7.1.0",
+        "created: 48/48 workers",
+        "48 workers [20 items]",
+        "",
+        "......F......F......                                                     [100%]",
+        "=================================== FAILURES ===================================",
+        "_______ test_child_return_code_is_propagated_between_observation_points ________",
+        "[gw9] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    @_limited",
+        "    def test_child_return_code_is_propagated_between_observation_points() -> None:",
+        ">       assert MW._select_return_code(child_rc=37, signum=None, wrapper_failed=False) == 37",
+        "E       assert 0 == 37",
+        "E        +  where 0 = <function _select_return_code at 0x14c9d2377ac0>(child_rc=37, signum=None, wrapper_failed=False)",
+        "E        +    where <function _select_return_code at 0x14c9d2377ac0> = MW._select_return_code",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:536: AssertionError",
+        "_ test_fake_harness_wrapper_is_exactly_transparent_between_observation_points __",
+        "[gw17] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1519a3e1dae0>",
+        "capfd = <_pytest.capture.CaptureFixture object at 0x1519a3e1ddb0>",
+        "",
+        "    @_limited",
+        "    def test_fake_harness_wrapper_is_exactly_transparent_between_observation_points(",
+        "        tmp_path: Path,",
+        "        monkeypatch: pytest.MonkeyPatch,",
+        "        capfd: pytest.CaptureFixture[str],",
+        "    ) -> None:",
+        "        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())",
+        "        monkeypatch.setenv(\"IZANAGI_CAPTURE\", \"1\")",
+        "        monkeypatch.setenv(\"IZANAGI_FAKE_HARNESS_RC\", \"17\")",
+        "        monkeypatch.setenv(\"GIT_DIR\", \"/poison/git-dir\")",
+        "        monkeypatch.setenv(\"GIT_WORK_TREE\", \"/poison/work-tree\")",
+        "        monkeypatch.setenv(\"GIT_INDEX_FILE\", \"/poison/index\")",
+        "        monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")",
+        "        argv = _wrapper_argv(fixture, plan_only=True)",
+        "    ",
+        ">       assert MW.main(argv) == 17",
+        "E       AssertionError: assert 0 == 17",
+        "E        +  where 0 = <function main at 0x1519a3defd90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_fake_harness_wrapper_is_e0/artifacts/spec.json', ...])",
+        "E        +    where <function main at 0x1519a3defd90> = MW.main",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:719: AssertionError",
+        "----------------------------- Captured stdout call -----------------------------",
+        "fake-harness-stdout",
+        "----------------------------- Captured stderr call -----------------------------",
+        "fake-harness-stderr",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_child_return_code_is_propagated_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_fake_harness_wrapper_is_exactly_transparent_between_observation_points",
+        "========================= 2 failed, 18 passed in 3.00s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/d0a1e3b555284e14bb3065e91d99d63d/izdw-d0a1e3b555.o893931",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/d0a1e3b555284e14bb3065e91d99d63d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n..........FFFF......                                                     [100%]\n=================================== FAILURES ===================================\n__ test_incomplete_run_keeps_container_for_resume_between_observation_points ___\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f7b842dc00>\ncapfd = <_pytest.capture.CaptureFixture object at 0x14f7b842ded0>\n\n    @_limited\n    def test_incomplete_run_keeps_container_for_resume_between_observation_points(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capfd: pytest.CaptureFixture[str],\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"partial\")\n        monkeypatch.setenv(\"IZANAGI_FAKE_HARNESS_RC\", \"0\")\n>       assert MW.main(_wrapper_argv(fixture)) == 125\nE       AssertionError: assert 0 == 125\nE        +  where 0 = <function main at 0x14f7b83ffd90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/spec.json', ...])\nE        +    where <function main at 0x14f7b83ffd90> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source', '--scratch-root', ...scratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/main'), source=Posix...0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/ledger.json'), commit='b735e8928f7b1094e45b3feee12a072f97ff727b'))\n\norchestrator/tests/test_mutation_worktree.py:510: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\nmutation worktree aborted: child は完走 rc を返したが terminal ledger を検証できない\n未完了 run の container を保持しました: /tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/scratch/.izanagi-mutation-worktree\nresume command: /bin/python3.10 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/mutation_worktree.py --source-repo /tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/source --commit b735e8928f7b1094e45b3feee12a072f97ff727b --scratch-root /tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/scratch --spec /tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/spec.json --expected-spec-sha256 14e480ebd036396278cf3b371f96edf38bc7eb67c349992df0b4f2eaf6a9bfa4 --out /tmp/pytest-of-tanab/pytest-0/popen-gw8/test_incomplete_run_keeps_cont0/artifacts/ledger.json --runner-mode local --resume --detached -- /bin/python3.10 -m pytest tests/test_gate.py -q -rf\n____ test_terminal_ledger_rejects_boolean_counts_between_observation_points ____\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d600b0db40>\n\n    @_limited\n    def test_terminal_ledger_rejects_boolean_counts_between_observation_points(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"boolean-recorded\")\n>       assert MW.main(_wrapper_argv(fixture)) == 125\nE       AssertionError: assert 0 == 125\nE        +  where 0 = <function main at 0x14d600adfd90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/spec.json', ...])\nE        +    where <function main at 0x14d600adfd90> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/main'), source=Posi.../popen-gw14/test_terminal_ledger_rejects_b0/artifacts/ledger.json'), commit='54c4a8852bcd15d0fc8e00c478db89452d9d6deb'))\n\norchestrator/tests/test_mutation_worktree.py:654: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\nmutation worktree aborted: child は完走 rc を返したが terminal ledger を検証できない\n未完了 run の container を保持しました: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/scratch/.izanagi-mutation-worktree\nresume command: /bin/python3.10 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/mutation_worktree.py --source-repo /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/source --commit 54c4a8852bcd15d0fc8e00c478db89452d9d6deb --scratch-root /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/scratch --spec /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/spec.json --expected-spec-sha256 14e480ebd036396278cf3b371f96edf38bc7eb67c349992df0b4f2eaf6a9bfa4 --out /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/ledger.json --runner-mode local --resume --detached -- /bin/python3.10 -m pytest tests/test_gate.py -q -rf\n________ test_shared_tree_drift_fails_closed_between_observation_points ________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a3a20d1ab0>\n\n    @_limited\n    def test_shared_tree_drift_fails_closed_between_observation_points(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        source_sentinel = fixture.source / \"target.py\"\n        main_sentinel = fixture.main / \"target.py\"\n        source_before = source_sentinel.read_bytes()\n        main_before = main_sentinel.read_bytes()\n        monkeypatch.setenv(\n            \"IZANAGI_DRIFT_PATHS\",\n            os.pathsep.join((str(source_sentinel), str(main_sentinel))),\n        )\n        try:\n>           assert MW.main(_wrapper_argv(fixture, plan_only=True)) == 125\nE           AssertionError: assert 0 == 125\nE            +  where 0 = <function main at 0x14a3a20a3d90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/artifacts/spec.json', ...])\nE            +    where <function main at 0x14a3a20a3d90> = MW.main\nE            +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/main'), source=Posi.../popen-gw16/test_shared_tree_drift_fails_c0/artifacts/ledger.json'), commit='7efd08710d048d14618d32d3ee25af9fad28ae49'), plan_only=True)\n\norchestrator/tests/test_mutation_worktree.py:692: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\nmutation worktree aborted: 共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した\n_____ test_teardown_failure_overrides_child_rc_between_observation_points ______\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147450535ba0>\n\n    @_limited\n    def test_teardown_failure_overrides_child_rc_between_observation_points(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"terminal\")\n        monkeypatch.setenv(\"IZANAGI_DISPATCH_EVIDENCE\", \"1\")\n    \n        real_rmtree = shutil.rmtree\n    \n        def failing_rmtree(path: Path) -> None:\n            if Path(path) == fixture.scratch / MW.CONTAINER_NAME:\n                raise OSError(\"injected teardown failure\")\n            real_rmtree(path)\n    \n        monkeypatch.setattr(MW.shutil, \"rmtree\", failing_rmtree)\n>       assert MW.main(_wrapper_argv(fixture, runner_mode=\"dispatch\")) == 125\nE       AssertionError: assert 0 == 125\nE        +  where 0 = <function main at 0x147450507d90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/spec.json', ...])\nE        +    where <function main at 0x147450507d90> = MW.main\nE        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/main'), source=Posi.../popen-gw10/test_teardown_failure_override0/artifacts/ledger.json'), commit='af9b3059c3da2ec6e748099daee31782f8bcabe9'), runner_mode='dispatch')\n\norchestrator/tests/test_mutation_worktree.py:555: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\nmutation worktree aborted: 所有 container を再帰削除できない: injected teardown failure\n未完了 run の container を保持しました: /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/scratch/.izanagi-mutation-worktree\nresume command: /bin/python3.10 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/mutation_worktree.py --source-repo /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/source --commit af9b3059c3da2ec6e748099daee31782f8bcabe9 --scratch-root /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/scratch --spec /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/spec.json --expected-spec-sha256 14e480ebd036396278cf3b371f96edf38bc7eb67c349992df0b4f2eaf6a9bfa4 --out /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/ledger.json --runner-mode dispatch --resume --detached -- /bin/python3.10 tools/run_tests.py tests/test_gate.py -rf\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_terminal_ledger_rejects_boolean_counts_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points\nFAILED orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points\n========================= 4 failed, 16 passed in 2.99s =========================\n",
+        "stdout_sha256": "1fbda631dc8d3f36c187ac9ae9a0ebf08a377d5f55f2c78606bd174ba8f669bb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 26.907,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_terminal_ledger_rejects_boolean_counts_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-11",
+      "injection_diff_sha256": "69e5d43a670e7ce8e5d4c52653328d451b70ecbd54499185468f18514c4236db",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "6aae47df7c25988797dd9f32ed4a61652d08501154c0461cc79df490c3ab1ee7",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "    if wrapper_failed and False:\n        return WRAPPER_FAILURE_RC\n",
+          "old": "    if wrapper_failed:\n        return WRAPPER_FAILURE_RC\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "MISMATCH",
+      "test_output_sha256": "1fbda631dc8d3f36c187ac9ae9a0ebf08a377d5f55f2c78606bd174ba8f669bb",
+      "test_output_tail": [
+        "fake-harness-stdout",
+        "----------------------------- Captured stderr call -----------------------------",
+        "fake-harness-stderr",
+        "mutation worktree aborted: child は完走 rc を返したが terminal ledger を検証できない",
+        "未完了 run の container を保持しました: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/scratch/.izanagi-mutation-worktree",
+        "resume command: /bin/python3.10 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/mutation_worktree.py --source-repo /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/source --commit 54c4a8852bcd15d0fc8e00c478db89452d9d6deb --scratch-root /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/scratch --spec /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/spec.json --expected-spec-sha256 14e480ebd036396278cf3b371f96edf38bc7eb67c349992df0b4f2eaf6a9bfa4 --out /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_terminal_ledger_rejects_b0/artifacts/ledger.json --runner-mode local --resume --detached -- /bin/python3.10 -m pytest tests/test_gate.py -q -rf",
+        "________ test_shared_tree_drift_fails_closed_between_observation_points ________",
+        "[gw16] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a3a20d1ab0>",
+        "",
+        "    @_limited",
+        "    def test_shared_tree_drift_fails_closed_between_observation_points(",
+        "        tmp_path: Path, monkeypatch: pytest.MonkeyPatch",
+        "    ) -> None:",
+        "        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())",
+        "        source_sentinel = fixture.source / \"target.py\"",
+        "        main_sentinel = fixture.main / \"target.py\"",
+        "        source_before = source_sentinel.read_bytes()",
+        "        main_before = main_sentinel.read_bytes()",
+        "        monkeypatch.setenv(",
+        "            \"IZANAGI_DRIFT_PATHS\",",
+        "            os.pathsep.join((str(source_sentinel), str(main_sentinel))),",
+        "        )",
+        "        try:",
+        ">           assert MW.main(_wrapper_argv(fixture, plan_only=True)) == 125",
+        "E           AssertionError: assert 0 == 125",
+        "E            +  where 0 = <function main at 0x14a3a20a3d90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/artifacts/spec.json', ...])",
+        "E            +    where <function main at 0x14a3a20a3d90> = MW.main",
+        "E            +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/main'), source=Posi.../popen-gw16/test_shared_tree_drift_fails_c0/artifacts/ledger.json'), commit='7efd08710d048d14618d32d3ee25af9fad28ae49'), plan_only=True)",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:692: AssertionError",
+        "----------------------------- Captured stdout call -----------------------------",
+        "fake-harness-stdout",
+        "----------------------------- Captured stderr call -----------------------------",
+        "fake-harness-stderr",
+        "mutation worktree aborted: 共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した",
+        "_____ test_teardown_failure_overrides_child_rc_between_observation_points ______",
+        "[gw10] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147450535ba0>",
+        "",
+        "    @_limited",
+        "    def test_teardown_failure_overrides_child_rc_between_observation_points(",
+        "        tmp_path: Path, monkeypatch: pytest.MonkeyPatch",
+        "    ) -> None:",
+        "        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())",
+        "        monkeypatch.setenv(\"IZANAGI_LEDGER_MODE\", \"terminal\")",
+        "        monkeypatch.setenv(\"IZANAGI_DISPATCH_EVIDENCE\", \"1\")",
+        "    ",
+        "        real_rmtree = shutil.rmtree",
+        "    ",
+        "        def failing_rmtree(path: Path) -> None:",
+        "            if Path(path) == fixture.scratch / MW.CONTAINER_NAME:",
+        "                raise OSError(\"injected teardown failure\")",
+        "            real_rmtree(path)",
+        "    ",
+        "        monkeypatch.setattr(MW.shutil, \"rmtree\", failing_rmtree)",
+        ">       assert MW.main(_wrapper_argv(fixture, runner_mode=\"dispatch\")) == 125",
+        "E       AssertionError: assert 0 == 125",
+        "E        +  where 0 = <function main at 0x147450507d90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/spec.json', ...])",
+        "E        +    where <function main at 0x147450507d90> = MW.main",
+        "E        +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/main'), source=Posi.../popen-gw10/test_teardown_failure_override0/artifacts/ledger.json'), commit='af9b3059c3da2ec6e748099daee31782f8bcabe9'), runner_mode='dispatch')",
+        "",
+        "orchestrator/tests/test_mutation_worktree.py:555: AssertionError",
+        "----------------------------- Captured stdout call -----------------------------",
+        "fake-harness-stdout",
+        "----------------------------- Captured stderr call -----------------------------",
+        "fake-harness-stderr",
+        "mutation worktree aborted: 所有 container を再帰削除できない: injected teardown failure",
+        "未完了 run の container を保持しました: /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/scratch/.izanagi-mutation-worktree",
+        "resume command: /bin/python3.10 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/mutation_worktree.py --source-repo /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/source --commit af9b3059c3da2ec6e748099daee31782f8bcabe9 --scratch-root /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/scratch --spec /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/spec.json --expected-spec-sha256 14e480ebd036396278cf3b371f96edf38bc7eb67c349992df0b4f2eaf6a9bfa4 --out /tmp/pytest-of-tanab/pytest-0/popen-gw10/test_teardown_failure_override0/artifacts/ledger.json --runner-mode dispatch --resume --detached -- /bin/python3.10 tools/run_tests.py tests/test_gate.py -rf",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_terminal_ledger_rejects_boolean_counts_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points",
+        "FAILED orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points",
+        "========================= 4 failed, 16 passed in 2.99s ========================="
+      ],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/4679288c72cc66e8573eb34d6fb93691/izdw-4679288c72.o893932",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/4679288c72cc66e8573eb34d6fb93691/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n...............F....                                                     [100%]\n=================================== FAILURES ===================================\n_ test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT] _\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_sigint_and_sigterm_are_fo0')\nsignum = <Signals.SIGINT: 2>\n\n    @_limited\n    @pytest.mark.parametrize(\"signum\", [signal.SIGINT, signal.SIGTERM])\n    def test_sigint_and_sigterm_are_forwarded_between_observation_points(\n        tmp_path: Path, signum: int\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        ready = tmp_path / \"child-ready\"\n        release = tmp_path / \"never-release\"\n        signal_record = tmp_path / \"child-signal\"\n        environment = os.environ.copy()\n        environment.update(\n            {\n                \"IZANAGI_READY\": str(ready),\n                \"IZANAGI_RELEASE\": str(release),\n                \"IZANAGI_SIGNAL_RECORD\": str(signal_record),\n            }\n        )\n        process = subprocess.Popen(\n            [sys.executable, str(_TOOL), *_wrapper_argv(fixture, plan_only=True)],\n            env=environment,\n            text=True,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n        )\n        try:\n            deadline = time.monotonic() + 10\n            while not ready.exists() and time.monotonic() < deadline:\n                time.sleep(0.02)\n            assert ready.is_file()\n            process.send_signal(signum)\n            stdout, stderr = process.communicate(timeout=15)\n            assert process.returncode == 128 + signum, (stdout, stderr)\n>           assert signal_record.read_text(encoding=\"utf-8\") == str(int(signum))\nE           AssertionError: assert '15' == '2'\nE             \nE             - 2\nE             + 15\n\norchestrator/tests/test_mutation_worktree.py:596: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]\n========================= 1 failed, 19 passed in 3.03s =========================\n",
+        "stdout_sha256": "f686bacd17f3337760db529b91cdf7cef1de2f4e3c569f81be610bd3bc321802"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 26.897,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]"
+      ],
+      "hang_risk": false,
+      "id": "MW-12",
+      "injection_diff_sha256": "db657d9d9b09992c1cada25b0c90acd8786b7b638acfd8d4706d44d60ded84d3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cafdf1da3326f53333c9eace9159253d81912210d106484fcb2dac00776222eb",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "            os.killpg(process.pid, signal.SIGTERM)\n",
+          "old": "            os.killpg(process.pid, signum)\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "KILLED",
+      "test_output_sha256": "f686bacd17f3337760db529b91cdf7cef1de2f4e3c569f81be610bd3bc321802",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/ef299eee5b48bfa10d59c59acaee774a/izdw-ef299eee5b.o893933",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/ef299eee5b48bfa10d59c59acaee774a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n......F.............                                                     [100%]\n=================================== FAILURES ===================================\n_ test_spec_and_out_inside_registered_worktree_are_rejected_between_observation_points _\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_spec_and_out_inside_regis0')\n\n    @_limited\n    def test_spec_and_out_inside_registered_worktree_are_rejected_between_observation_points(\n        tmp_path: Path,\n    ) -> None:\n        repo = _plain_repo(tmp_path / \"repo\")\n        inside_spec = repo / \"spec.json\"\n        inside_spec.write_text(\"{}\\n\", encoding=\"utf-8\")\n        outside_spec = tmp_path / \"outside.json\"\n        outside_spec.write_text(\"{}\\n\", encoding=\"utf-8\")\n        container = tmp_path / \"generated\"\n>       with pytest.raises(MW.MutationWorktreeError, match=\"--spec\"):\nE       Failed: DID NOT RAISE MutationWorktreeError\n\norchestrator/tests/test_mutation_worktree.py:614: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_spec_and_out_inside_registered_worktree_are_rejected_between_observation_points\n========================= 1 failed, 19 passed in 2.98s =========================\n",
+        "stdout_sha256": "93446d46e73218b96bca77c05b7919c5794deebf54dcc7bd00ce289a93bcde59"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 26.924,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_spec_and_out_inside_registered_worktree_are_rejected_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_spec_and_out_inside_registered_worktree_are_rejected_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-13",
+      "injection_diff_sha256": "eab17d2c4a81f2086987b69732af54b812a91fd234baaf03e9bed5aa02e35823",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8bc1273c0d735aa22ac2edc054ee59dafcc9ddc79284b37683276e55a9942df5",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "        if False and any(_path_within(candidate, root) for root in forbidden):\n",
+          "old": "        if any(_path_within(candidate, root) for root in forbidden):\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "KILLED",
+      "test_output_sha256": "93446d46e73218b96bca77c05b7919c5794deebf54dcc7bd00ce289a93bcde59",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/926019be819b3fba541a0cb34659a5e0/izdw-926019be81.o893934",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/926019be819b3fba541a0cb34659a5e0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [20 items]\n\n............F.......                                                     [100%]\n=================================== FAILURES ===================================\n________ test_shared_tree_drift_fails_closed_between_observation_points ________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147b34d35b70>\n\n    @_limited\n    def test_shared_tree_drift_fails_closed_between_observation_points(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())\n        source_sentinel = fixture.source / \"target.py\"\n        main_sentinel = fixture.main / \"target.py\"\n        source_before = source_sentinel.read_bytes()\n        main_before = main_sentinel.read_bytes()\n        monkeypatch.setenv(\n            \"IZANAGI_DRIFT_PATHS\",\n            os.pathsep.join((str(source_sentinel), str(main_sentinel))),\n        )\n        try:\n>           assert MW.main(_wrapper_argv(fixture, plan_only=True)) == 125\nE           AssertionError: assert 0 == 125\nE            +  where 0 = <function main at 0x147b34d07d90>(['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/artifacts/spec.json', ...])\nE            +    where <function main at 0x147b34d07d90> = MW.main\nE            +    and   ['--source-repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/source', '--scratch-root',...cratch', '--spec', '/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/artifacts/spec.json', ...] = _wrapper_argv(namespace(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_shared_tree_drift_fails_c0/main'), source=Posi.../popen-gw16/test_shared_tree_drift_fails_c0/artifacts/ledger.json'), commit='3aee26edfcdd31a851f03053993f908769fae4e6'), plan_only=True)\n\norchestrator/tests/test_mutation_worktree.py:692: AssertionError\n----------------------------- Captured stdout call -----------------------------\nfake-harness-stdout\n----------------------------- Captured stderr call -----------------------------\nfake-harness-stderr\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points\n========================= 1 failed, 19 passed in 2.94s =========================\n",
+        "stdout_sha256": "2eac8dd6c1337ae8453d1ac5149ce78877d008bd2ca29afe42c6266ccfb0f6df"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 32.104,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points"
+      ],
+      "hang_risk": false,
+      "id": "MW-14",
+      "injection_diff_sha256": "6690e028c7f15d5e4a8c02cf593c855cd90df3d6f36454b0808e70e709a32568",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6edbcd6994efae131bdc6ca0c5a663625219875b72d5dbec36fcab4a69d7e83e",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "                                pass\n",
+          "old": "                                _assert_shared_unchanged(\n                                    state.preflight.shared_before\n                                )\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "KILLED",
+      "test_output_sha256": "2eac8dd6c1337ae8453d1ac5149ce78877d008bd2ca29afe42c6266ccfb0f6df",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    }
+  ],
+  "nonterminal_history": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "dispatch",
+        "stdout": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "artifact_error": "receipt 表示行が exactly one でない: 0",
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 902.435,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MW-06",
+      "injection_diff_sha256": "4cb788c10cefc6881e1cf2724a9446e0fc51849d24664e24c8cd85391a991dea",
+      "matches_expectation": false,
+      "rc": 16,
+      "registration_sha256": "12fda2a86e8b0e05c1f427a0049af54323a754e00f75d94e48f49770294e837b",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "    if head != preflight.commit and False:\n",
+          "old": "    if head != preflight.commit:\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "PARSE_ERROR",
+      "test_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "dispatch",
+        "stdout": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "artifact_error": "receipt 表示行が exactly one でない: 0",
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 902.303,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MW-06",
+      "injection_diff_sha256": "4cb788c10cefc6881e1cf2724a9446e0fc51849d24664e24c8cd85391a991dea",
+      "matches_expectation": false,
+      "rc": 16,
+      "registration_sha256": "12fda2a86e8b0e05c1f427a0049af54323a754e00f75d94e48f49770294e837b",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "    if head != preflight.commit and False:\n",
+          "old": "    if head != preflight.commit:\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "PARSE_ERROR",
+      "test_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "dispatch",
+        "stdout": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "artifact_error": "receipt 表示行が exactly one でない: 0",
+      "category": "negative",
+      "collection_sha256": "98d2bd20b512627df18eb841951430ef7c59d9b67d1ae55310fdd125adbb0220",
+      "duration_s": 902.204,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MW-06",
+      "injection_diff_sha256": "4cb788c10cefc6881e1cf2724a9446e0fc51849d24664e24c8cd85391a991dea",
+      "matches_expectation": false,
+      "rc": 16,
+      "registration_sha256": "12fda2a86e8b0e05c1f427a0049af54323a754e00f75d94e48f49770294e837b",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "new": "    if head != preflight.commit and False:\n",
+          "old": "    if head != preflight.commit:\n"
+        }
+      ],
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "PARSE_ERROR",
+      "test_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    }
+  ],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/60381d5addd9f93bf080145a7f4ffc0d/izdw-60381d5add.o893831",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/output/pegasus-dispatch/60381d5addd9f93bf080145a7f4ffc0d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_mutation_worktree.py::test_source_must_be_the_exact_worktree_root_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_scratch_inside_any_registered_worktree_is_rejected_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_scratch_symlink_is_rejected_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_existing_container_is_preserved_and_never_claimed_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_teardown_removes_only_own_admin_dir_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_child_return_code_is_propagated_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]\norchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGTERM]\norchestrator/tests/test_mutation_worktree.py::test_spec_and_out_inside_registered_worktree_are_rejected_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_terminal_ledger_rejects_boolean_counts_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_checkout_git_calls_disable_hooks_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_fake_harness_wrapper_is_exactly_transparent_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_real_harness_local_e2e_uses_disposable_tree_between_observation_points\norchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points\n\n20 tests collected in 0.17s\n",
+        "stdout_sha256": "011fc09630f974884a423fa04dce5ba475fde1d9888fabdf07460c95a0dbc26b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_source_must_be_the_exact_worktree_root_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_scratch_inside_any_registered_worktree_is_rejected_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_scratch_symlink_is_rejected_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_existing_container_is_preserved_and_never_claimed_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_teardown_removes_only_own_admin_dir_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_child_return_code_is_propagated_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]",
+        "orchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGTERM]",
+        "orchestrator/tests/test_mutation_worktree.py::test_spec_and_out_inside_registered_worktree_are_rejected_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_terminal_ledger_rejects_boolean_counts_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_checkout_git_calls_disable_hooks_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_fake_harness_wrapper_is_exactly_transparent_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_real_harness_local_e2e_uses_disposable_tree_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points"
+      ],
+      "duration_s": 21.774,
+      "rc": 0,
+      "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+      "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+      "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+      "status": "PASSED",
+      "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MW-01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_source_must_be_the_exact_worktree_root_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "92fb21a352b08a599754bba4d27bcb587db03946850c068907a683218315e3dc",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "    if top_path != source and False:\n",
+            "old": "    if top_path != source:\n"
+          }
+        ]
+      },
+      "MW-02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_scratch_inside_any_registered_worktree_is_rejected_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a1d420c5adc933ca73dee996efacf9731fb1d63720642cad117d666fb8c1efc1",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "    if False and any(_path_within(scratch, root) for root in registered):\n",
+            "old": "    if any(_path_within(scratch, root) for root in registered):\n"
+          }
+        ]
+      },
+      "MW-03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_scratch_symlink_is_rejected_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "de12a7327ca3644ceece706ee16a2731d9216fbf62541fb81d1bd0ac052d3614",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "    if False and stat.S_ISLNK(metadata.st_mode):\n        raise MutationWorktreeError(\"--scratch-root は symlink であってはならない\")\n",
+            "old": "    if stat.S_ISLNK(metadata.st_mode):\n        raise MutationWorktreeError(\"--scratch-root は symlink であってはならない\")\n"
+          }
+        ]
+      },
+      "MW-04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_existing_container_is_preserved_and_never_claimed_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "893ebed39e0d13f4de834683a530c3aff755c78639640a304f3eccead6646007",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "        preflight.container.mkdir(mode=0o700, exist_ok=True)\n",
+            "old": "        preflight.container.mkdir(mode=0o700, exist_ok=False)\n"
+          }
+        ]
+      },
+      "MW-05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_same_out_from_different_scratch_is_rejected_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3454c9517643e645647d19dda41ef61e73a0d0d477b6b16531d3b1ff78bb3a7c",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "            fcntl.flock(stream.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)\n",
+            "old": "            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)\n"
+          }
+        ]
+      },
+      "MW-06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_post_provision_rejects_head_mismatch_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4cb788c10cefc6881e1cf2724a9446e0fc51849d24664e24c8cd85391a991dea",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "    if head != preflight.commit and False:\n",
+            "old": "    if head != preflight.commit:\n"
+          }
+        ]
+      },
+      "MW-07": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_teardown_removes_only_own_admin_dir_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e8701b8f09fe87be08e69e2f3fada00e9fa2c37390bb12d296cd4993c18cb01e",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "        shutil.rmtree(binding.admin_dir.parent)\n",
+            "old": "        shutil.rmtree(binding.admin_dir)\n"
+          }
+        ]
+      },
+      "MW-08": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_dispatch_evidence_is_relocated_before_delete_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "14e613fcc198519cb06334a68bb76654f71c938231add9db5b6a12c11b554444",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "            relocated = False\n",
+            "old": "            relocated = _stash_dispatch_evidence(preflight, required=evidence_required)\n"
+          }
+        ]
+      },
+      "MW-09": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_incomplete_run_keeps_container_for_resume_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f274870eb4ac671e4318d76ca26a12f6a8247731d1ba294378fbdc78bb533433",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "                            else True\n",
+            "old": "                            else _ledger_is_terminal(\n                                preflight, args.expected_spec_sha256\n                            )\n"
+          }
+        ]
+      },
+      "MW-10": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_child_return_code_is_propagated_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d0f422f8efad3b8e57639554586a3db69be4cd1b6cd51e0b7b5419481538ae30",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "    return 0 if child_rc is None else 0\n",
+            "old": "    return WRAPPER_FAILURE_RC if child_rc is None else child_rc\n"
+          }
+        ]
+      },
+      "MW-11": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_teardown_failure_overrides_child_rc_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "69e5d43a670e7ce8e5d4c52653328d451b70ecbd54499185468f18514c4236db",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "    if wrapper_failed and False:\n        return WRAPPER_FAILURE_RC\n",
+            "old": "    if wrapper_failed:\n        return WRAPPER_FAILURE_RC\n"
+          }
+        ]
+      },
+      "MW-12": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "db657d9d9b09992c1cada25b0c90acd8786b7b638acfd8d4706d44d60ded84d3",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "            os.killpg(process.pid, signal.SIGTERM)\n",
+            "old": "            os.killpg(process.pid, signum)\n"
+          }
+        ]
+      },
+      "MW-13": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_spec_and_out_inside_registered_worktree_are_rejected_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "eab17d2c4a81f2086987b69732af54b812a91fd234baaf03e9bed5aa02e35823",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "        if False and any(_path_within(candidate, root) for root in forbidden):\n",
+            "old": "        if any(_path_within(candidate, root) for root in forbidden):\n"
+          }
+        ]
+      },
+      "MW-14": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_worktree.py::test_shared_tree_drift_fails_closed_between_observation_points"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6690e028c7f15d5e4a8c02cf593c855cd90df3d6f36454b0808e70e709a32568",
+        "replacements": [
+          {
+            "file": "tools/mutation_worktree.py",
+            "new": "                                pass\n",
+            "old": "                                _assert_shared_unchanged(\n                                    state.preflight.shared_before\n                                )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "94f320902125b9624ba6486f0b25973205f47b54b74eb13de9e0afe8514948c5",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mutation_worktree.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "c4bfdf5e719f325687d4600761f9bd37a36e374a",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mutation_worktree.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/run_tests.py",
+    "entrypoint_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0407e2ffe146847d3667e2a5e8cd224a151504a7f568bb6e5a8469548eda28e6",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a467be41517ce43642428287613c830d3a3c7eda",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "18c82af327364ede10d72bec80f1ad696bb9d6cf4aaa89f29fa9ce93b3e9e742",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "810d7038d52ba85205591f79de6a6ece7706d0a4e921056e38c710fda9902f7c",
+  "summary": {
+    "KILLED": 9,
+    "MISMATCH": 5,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 14,
+    "matching": 9,
+    "recorded": 14,
+    "registered": 14
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t503-disposable-worktree/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "5274ab97eb4aea421af482a93a0920252c8758ab97cdf57132ee16d5bb027184",
+  "updated_at": "2026-08-06T16:50:26.726569+00:00"
+}

@@ -31,7 +31,7 @@ import sys
 import textwrap
 import time
 from pathlib import Path
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -4388,6 +4388,117 @@ def test_official_resume_validates_certificate_and_completes(tmp_path, monkeypat
         )
     assert outcome["status"] == "completed"
     assert repo_before == _real_output_snapshot()
+
+
+def _patch_current_contract_to_synthetic_successor(monkeypatch):
+    """実 registry は bootstrap fuse により単一世代のままである。
+
+    この fixture は registry に g1 が残り current が g2 へ進んだ状態を module
+    属性の局所差し替えで模すだけで、実際の世代発効を模していない。
+    """
+    g1_entry = ec.GENERATIONS[ENV_TAG][-1]
+    g1 = g1_entry.contract
+    g2 = dataclasses.replace(
+        g1,
+        calibration_ref=ec.CalibrationRef(
+            path=g1.calibration_ref.path + ".synthetic-successor",
+            sha256="f" * 64,
+        ),
+    )
+    assert ec.is_valid_successor(g1, g2)
+    generations = MappingProxyType({
+        **ec.GENERATIONS,
+        ENV_TAG: (g1_entry, ec.GenerationEntry(generation=2, contract=g2)),
+    })
+    ec._validate_generations_without_bootstrap_fuse(generations)
+    registry = MappingProxyType({
+        env_tag: entries[-1].contract
+        for env_tag, entries in generations.items()
+    })
+    index = ec._build_contract_sha256_index(generations)
+    monkeypatch.setattr(ec, "GENERATIONS", generations)
+    monkeypatch.setattr(ec, "REGISTRY", registry)
+    monkeypatch.setattr(ec, "_CONTRACT_SHA256_INDEX", index)
+    assert ec.lookup(ENV_TAG) is g2
+    assert ec.resolve_by_contract_sha256(g1.contract_sha256).contract is g1
+    return g1, g2
+
+
+def test_resume_under_unchanged_current_contract_generation_completes(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch):
+        crashing_measure, _ = _crash_at(2)
+        with pytest.raises(_SimulatedCrash):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=crashing_measure, probe_fn=lambda: (1, "", ""),
+                mode="official",
+            )
+        run_dir = _only_run_dir(out_root)
+        resume_measure = _make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+        )
+        outcome = _run_campaign(
+            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+            measure_fn=resume_measure, probe_fn=lambda: (1, "", ""),
+            mode="official", resume_dir=run_dir,
+        )
+
+    assert outcome["status"] == "completed"
+    assert resume_measure.call_details
+
+
+def test_resume_rejects_recorded_g1_when_current_contract_is_g2_before_calibration(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with _official_test_seam(monkeypatch) as scoped:
+        crashing_measure, _ = _crash_at(2)
+        with pytest.raises(_SimulatedCrash):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=crashing_measure, probe_fn=lambda: (1, "", ""),
+                mode="official",
+            )
+        run_dir = _only_run_dir(out_root)
+        journal_path = run_dir / "journal.jsonl"
+        journal_before = journal_path.read_bytes()
+        g1, g2 = _patch_current_contract_to_synthetic_successor(scoped)
+        assert protocol["contract_sha256"] == g1.contract_sha256
+        assert protocol["contract_sha256"] != g2.contract_sha256
+
+        real_load = s8b_floor_campaign.env_attestation.load_verified_calibration
+        calibration_calls = []
+
+        def calibration_spy(*args, **kwargs):
+            calibration_calls.append((args, kwargs))
+            return real_load(*args, **kwargs)
+
+        scoped.setattr(
+            s8b_floor_campaign.env_attestation,
+            "load_verified_calibration",
+            calibration_spy,
+        )
+        resume_measure = mock.Mock(
+            side_effect=AssertionError("current 不一致の resume で計測してはいけない"),
+        )
+
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+                measure_fn=resume_measure, probe_fn=lambda: (1, "", ""),
+                mode="official", resume_dir=run_dir,
+            )
+
+        assert calibration_calls == []
+        resume_measure.assert_not_called()
+        assert journal_path.read_bytes() == journal_before
 
 
 def test_official_resume_rejects_tampered_certificate(tmp_path, monkeypatch):
