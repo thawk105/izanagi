@@ -2581,6 +2581,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   進めた**こと。本 wave の親は変異本走では規律を守れたのに、受入では同じ罠を踏んだ。
   訂正の緊急性を感じたことが「走行中でも短い docs commit なら」という判断を通した。
   恒久対応は F106 のまま。**訂正であっても走行中は repo 外に控え、結果取得後に commit する。**
+
+- **再発: 2026-08-07** — dev-wave-red-tests。**4 度目**で、今回は変異本走ではなく
+  **受入全走の走行中**に親が段 7 の記録 (insights 2 本 + spool fragment 2 本) を worktree へ書いた。
+  `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  が赤になり、`1 failed / 6836 passed / 20 skipped` で終わった。このテストは対象ツールの実行前後で
+  `git status --porcelain=v1 -z` が一致することを検査するもので、差分の中身とは無関係に
+  **走行中に増えた untracked file だけで落ちる**。harness の preflight のように fail-closed で
+  止まるのではなく**偽の赤として現れる**点が、2026-08-05 / 08-06 の再発と異なる新しい情報である。
+  17 分の走行 1 回が無駄になった。commit 後の再走で緑を確認した。
+  親は本 wave の handoff に「走行中は tree を触らない」と自分で書いたうえで踏んでおり、
+  **注意書きでは誘因が消えない**という 2026-08-06 の観察を 1 例強めた。
+  恒久対応は F106 のまま (投入から結果取得までは commit・stage・tracked file 編集を行わず、
+  待ち時間には repo 外の作業だけを置く)。本再発は memory
+  `no-tree-writes-during-mutation-run` の射程を受入全走へ広げる根拠として記録する。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -3476,3 +3490,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同 `s3-lensB.md` B-13、再測定手順 = 同 README の実測表)。
 - 再発検知: 段 3 のレンズ prompt に「親自身の実測値とその一般化も攻撃対象」を入れておくこと
   (`DW-S03` の既存義務)。本件はその義務が実際に発火して検出された事例である。
+
+### F153. 受入全走に `-rf` を足したら事前検査 2 件が黙って発火しなくなった [恒真ゲート] [手順漏れ]
+
+- 事象: 親が `python3 tools/run_tests.py -rf` を「受入全走」として走らせ、
+  6837 passed / 20 skipped を台帳へ書こうとした。実際にはこの形は `_is_acceptance_run()` が
+  False を返す形であり、**未 stage 削除検査と RuleOps 台帳検査の 2 つの事前検査が発火していない**。
+  テスト node は同じ数だけ走り、警告も出ないため出力からは区別できない。
+  段 3 の敵対検証子が file:line で指摘して露見した。
+- 実測: `tools/run_tests.py` を直接 import して分類器を呼ぶと
+  `[]` → acceptance=True、`['-rf']` → acceptance=False、`['-q']` → acceptance=True、
+  `['orchestrator/tests']` → acceptance=True / full=False。
+  許される compact option は `q` と `v` だけである。
+- 根本原因: report flag は「出力を増やすだけの無害な追加」に見えるが、受入形の判定は
+  引数列全体の形で決まる。**gate を失っても静かに成功する**ため、気づく手がかりが出力に無い。
+- 同時刻に **別 wave も `run_tests.py -rf` を受入として走らせていた** (独立 2 例)。
+  単発の不注意ではなく、この形が自然に選ばれることを示す。
+- 恒久対応: memory `acceptance-run-takes-no-extra-flags` (受入として記録する走行は引数なし、
+  逐語や skip ラベルが要るなら受入形とは別の走行を立てる)。
+  **`run_tests.py` が受入形でない走行に 1 行警告を出す改修**は
+  `output/insights/2026-08-07_red-test-audit/README.md` の裁定パッケージでユーザーへ諮っている。
+- 再発検知: 上記分類器を引数列に対して直接呼べば真偽が出る。
+  受入結果を台帳へ書く前に、走らせた引数列そのものを記録に残す。
+- 近縁: F37 (検査 rc をパイプで握り潰す — 「検査が実は走っていないのに緑と読む」同じ根)。

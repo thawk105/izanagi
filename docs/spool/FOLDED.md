@@ -454,3 +454,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:critic-after-cell-admission":"D217"},"authored":"2026-08-07","content_sha256":"93bf2c3a7cac88e9e8a0c9c803530632879a13fee4d569839a786fe4eb3c4fb2","seq":2,"wave":"dev-wave-t244-p3-u8-critic"}
 
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"ca68583974ccc672dcee0edf0329f325f8eb4b4707d45e58287969f2980c1e2c","seq":13,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:provenance-red-repair":"[T-614]"},"authored":"2026-08-07","content_sha256":"1b24451e3995312995f2bd569a05a2e0ccbe9055e4e9e779bc60c8271220f06f","seq":1,"wave":"dev-wave-red-tests"}
+- {"allocations":{"F:acceptance-shape-silent-gate-skip":"F153"},"authored":"2026-08-07","content_sha256":"251f36bb9244e3d834568a97d4bdce4a1a0e8b0ee5b832ece814790850731bdf","seq":1,"wave":"dev-wave-red-tests"}
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"a76c40a428963e3cde88154b972635a0baedca1dae525ffa309b493443e5d43b","seq":2,"wave":"dev-wave-red-tests"}
