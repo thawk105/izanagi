@@ -3494,6 +3494,7 @@ def _submission_binding(
         calibration_relative,
         "orchestrator/campaign/env_contract.py",
         "orchestrator/campaign/env_attestation.py",
+        "orchestrator/campaign/calibration_verify.py",
     ]
     dirty = subprocess.run(
         ["git", "-C", str(repo_root), "status", "--porcelain", "--", *related],
@@ -3533,6 +3534,9 @@ def _submission_binding(
             repo_root / "orchestrator/campaign/env_contract.py"
         ),
         "env_attestation_sha256": observed_env_attestation,
+        "calibration_verify_sha256": _sha256_path(
+            repo_root / "orchestrator/campaign/calibration_verify.py"
+        ),
         "related_paths": related,
         "related_dirty_entries": dirty,
     }

@@ -932,6 +932,7 @@ def test_runtime_binding_covers_all_execution_semantics_modules():
         "orchestrator/campaign/silo_ladder_rung1_contract.py",
         "orchestrator/campaign/env_contract.py",
         "orchestrator/campaign/env_attestation.py",
+        "orchestrator/campaign/calibration_verify.py",
         "orchestrator/campaign/execution_guard.py",
         "orchestrator/calibrator/__init__.py",
         "orchestrator/calibrator/effective_clock_policy.py",

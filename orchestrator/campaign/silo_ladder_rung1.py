@@ -259,6 +259,7 @@ def _runtime_module_paths(repo: Path) -> list[Path]:
         repo / "orchestrator/campaign/silo_ladder_rung1_contract.py",
         repo / "orchestrator/campaign/env_contract.py",
         repo / "orchestrator/campaign/env_attestation.py",
+        repo / "orchestrator/campaign/calibration_verify.py",
         repo / "orchestrator/campaign/execution_guard.py",
         repo / "orchestrator/calibrator/__init__.py",
         repo / "orchestrator/calibrator/effective_clock_policy.py",

@@ -83,6 +83,7 @@ V2_ENV_NEUTRAL_MODULES = [
     ("orchestrator/campaign/env_contract.py", "_build_registry"),
     ("orchestrator/campaign/execution_guard.py", None),
     ("orchestrator/campaign/env_attestation.py", None),
+    ("orchestrator/campaign/calibration_verify.py", None),
     ("orchestrator/campaign/reservation.py", None),
     ("orchestrator/campaign/durable_root.py", None),
     ("orchestrator/campaign/campaign_claim.py", None),
@@ -1187,6 +1188,12 @@ def test_v2_modules_have_no_env_literals_outside_registry():
             continue
         hits = ec.find_env_literals(source, ENV_LITERAL_VALUES, region)
         assert hits == [], f"{rel_path}: env literal outside allowed region: {hits}"
+
+
+def test_calibration_verify_is_in_v2_env_neutral_module_closure():
+    assert ("orchestrator/campaign/calibration_verify.py", None) in (
+        V2_ENV_NEUTRAL_MODULES
+    )
 
 
 def test_ast_check_is_not_vacuous_env_contract_has_literals():

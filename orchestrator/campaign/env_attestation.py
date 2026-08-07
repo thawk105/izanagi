@@ -22,17 +22,16 @@ from typing import Callable, Mapping, Optional, Protocol, Sequence
 from calibrator import schema_v2 as _schema_v2
 from calibrator import effective_clock_policy
 from calibrator import tsc as _tsc
+from campaign import calibration_verify as _calibration_verify
 from campaign import env_contract as _env_contract
 
 
-GRANDFATHERED_V1_SHA256 = (
-    "751304772367418806eb6e63c9715cd430315066420e9e3e4c91bf356195eef5"
-)
+GRANDFATHERED_V1_SHA256 = _calibration_verify.GRANDFATHERED_V1_SHA256
 PROBE_METHOD = "strict-sysfs-procfs"
 PROBE_VERSION = "1"
 PEGASUS_PROBE_OUTPUT_V1 = "pegasus-probe-output/v1"
 PEGASUS_PROBE_OUTPUT_V2 = "pegasus-probe-output/v2"
-LEGACY_SCHEMA_VERSION = "calibration/v1"
+LEGACY_SCHEMA_VERSION = _calibration_verify.LEGACY_SCHEMA_VERSION
 EFFECTIVE_CLOCK_ALPHA_K = 5
 EFFECTIVE_CLOCK_ALPHA_INTERVAL_NS = 50_000_000
 EFFECTIVE_CLOCK_ALPHA_RULE_ID = "sysfs-affinity-intersection-evenly-spaced-v1"
@@ -46,14 +45,12 @@ _CPU_DIR_RE = re.compile(r"cpu([0-9]+)")
 _INDEX_DIR_RE = re.compile(r"index([0-9]+)")
 _NODE_DIR_RE = re.compile(r"node([0-9]+)")
 _SIZE_RE = re.compile(r"([0-9]+)([KMGT]?)", re.IGNORECASE)
-_HEX64_RE = re.compile(r"[0-9a-f]{64}")
 _FREQUENCY_SUFFIX_RE = re.compile(
     r"(?:\s*@?\s*[0-9]+(?:\.[0-9]+)?\s*[KMGT]?Hz)\s*$", re.IGNORECASE,
 )
 
 
-class AttestationError(RuntimeError):
-    """probe・比較・calibration admission の fail-closed 拒否。"""
+AttestationError = _calibration_verify.AttestationError
 
 
 class HardwareProbe(Protocol):
@@ -107,35 +104,8 @@ class ParsedProbeOutput:
     error: Optional[dict[str, str]]
 
 
-@dataclass(frozen=True)
-class VerifiedCalibration:
-    """一つの contract mode に admission 済みの hash-bound calibration artifact。"""
-
-    schema_version: str
-    sha256: str
-    calibration: Optional[_schema_v2.CalibrationV2]
-    attestation_profile_sha256: Optional[str]
-
-    def __post_init__(self) -> None:
-        if type(self.sha256) is not str or _HEX64_RE.fullmatch(self.sha256) is None:
-            raise AttestationError("verified calibration sha256 が 64 lower-hex でない")
-        if self.schema_version == _schema_v2.SCHEMA_VERSION:
-            if not isinstance(self.calibration, _schema_v2.CalibrationV2):
-                raise AttestationError("calibration/v2 marker に CalibrationV2 値がない")
-            actual_profile_sha = profile_sha256(self.calibration.attestation_profile)
-            if self.attestation_profile_sha256 != actual_profile_sha:
-                raise AttestationError("verified calibration profile sha256 が自己矛盾")
-        elif self.schema_version == LEGACY_SCHEMA_VERSION:
-            if self.calibration is not None or self.attestation_profile_sha256 is not None:
-                raise AttestationError("legacy calibration marker に v2 profile が混入")
-        else:
-            raise AttestationError(f"未知の verified calibration schema: {self.schema_version!r}")
-
-    @property
-    def attestation_profile(self) -> _schema_v2.AttestationProfile:
-        if self.calibration is None:
-            raise AttestationError("legacy calibration に attestation profile はない")
-        return self.calibration.attestation_profile
+VerifiedCalibration = _calibration_verify.VerifiedCalibration
+profile_sha256 = _calibration_verify.profile_sha256
 
 
 def normalize_cpu_model_name(value: str) -> str:
@@ -874,13 +844,6 @@ def profile_to_dict(profile: _schema_v2.AttestationProfile) -> dict:
     return dataclasses.asdict(profile)
 
 
-def profile_sha256(profile: _schema_v2.AttestationProfile) -> str:
-    raw = json.dumps(
-        profile_to_dict(profile), sort_keys=True, separators=(",", ":"), ensure_ascii=True,
-    ).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
-
-
 def observed_profile_to_dict(profile: _schema_v2.ObservedAttestationProfile) -> dict:
     if not isinstance(profile, _schema_v2.ObservedAttestationProfile):
         raise AttestationError("profile が ObservedAttestationProfile でない")
@@ -1060,75 +1023,14 @@ def _duplicate_object(pairs: list[tuple[str, object]]) -> dict:
 def load_verified_calibration(
     contract: _env_contract.ExecutionEnvironmentContract, repo_root: Path,
 ) -> VerifiedCalibration:
-    """1 回だけ読み、同じ bytes を hash 束縛・parse して cross-field を検証する。"""
+    """契約型を確認し、素の値を calibration admission leaf へ委譲する。"""
     if not isinstance(contract, _env_contract.ExecutionEnvironmentContract):
         raise AttestationError("contract の型が不正")
-    if not isinstance(repo_root, Path):
-        raise AttestationError("repo_root は Path でなければならない")
-    try:
-        root = repo_root.resolve(strict=True)
-    except OSError as exc:
-        raise AttestationError(f"repo_root を解決できない: {exc}") from exc
-    relative = Path(contract.calibration_ref.path)
-    if relative.is_absolute():
-        raise AttestationError("calibration_ref.path は repository-relative でなければならない")
-    try:
-        artifact = (root / relative).resolve(strict=True)
-        artifact.relative_to(root)
-    except (OSError, ValueError) as exc:
-        raise AttestationError("calibration_ref.path が repo_root 外または存在しない") from exc
-    try:
-        raw = artifact.read_bytes()
-    except OSError as exc:
-        raise AttestationError(f"calibration artifact を読めない: {exc}") from exc
-    actual_sha = hashlib.sha256(raw).hexdigest()
-    if actual_sha != contract.calibration_ref.sha256:
-        raise AttestationError(
-            f"calibration sha256 不一致: expected={contract.calibration_ref.sha256} "
-            f"observed={actual_sha}"
-        )
-
-    if contract.attestation_mode == "required":
-        try:
-            calibration = _schema_v2.validate_calibration_v2(raw)
-        except _schema_v2.CalibrationSchemaError as exc:
-            raise AttestationError(f"calibration/v2 検証失敗: {exc}") from exc
-        if calibration.env_tag != contract.env_tag:
-            raise AttestationError(
-                f"calibration env_tag 不一致: {calibration.env_tag!r} != {contract.env_tag!r}"
-            )
-        if calibration.clocks_per_us != contract.clocks_per_us:
-            raise AttestationError(
-                "calibration clocks_per_us 不一致: "
-                f"{calibration.clocks_per_us} != {contract.clocks_per_us}"
-            )
-        tolerance = calibration.attestation_profile.effective_clock.tolerance_pct
-        if tolerance != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT:
-            raise AttestationError(
-                "calibration effective clock tolerance が current policy と不一致: "
-                f"{tolerance!r} != "
-                f"{effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT!r}"
-            )
-        return VerifiedCalibration(
-            schema_version=_schema_v2.SCHEMA_VERSION,
-            sha256=actual_sha,
-            calibration=calibration,
-            attestation_profile_sha256=profile_sha256(calibration.attestation_profile),
-        )
-
-    if contract.attestation_mode == "none":
-        if actual_sha != GRANDFATHERED_V1_SHA256:
-            raise AttestationError("mode=none は grandfathered v1 artifact bytes だけを受理する")
-        try:
-            parsed = json.loads(raw, object_pairs_hook=_duplicate_object)
-        except (json.JSONDecodeError, UnicodeError) as exc:
-            raise AttestationError(f"legacy calibration JSON を parse できない: {exc}") from exc
-        if type(parsed) is not dict:
-            raise AttestationError("legacy calibration JSON top-level が object でない")
-        return VerifiedCalibration(
-            schema_version=LEGACY_SCHEMA_VERSION,
-            sha256=actual_sha,
-            calibration=None,
-            attestation_profile_sha256=None,
-        )
-    raise AttestationError(f"未対応 attestation_mode: {contract.attestation_mode!r}")
+    return _calibration_verify.load_verified_calibration(
+        env_tag=contract.env_tag,
+        clocks_per_us=contract.clocks_per_us,
+        attestation_mode=contract.attestation_mode,
+        calibration_path=contract.calibration_ref.path,
+        calibration_sha256=contract.calibration_ref.sha256,
+        repo_root=repo_root,
+    )

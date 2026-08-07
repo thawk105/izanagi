@@ -1528,6 +1528,42 @@ def test_scheduler_binding_mismatch_is_explicit(monkeypatch):
     assert T419._scheduler_environment_binding("gen_S", "SFC")["status"] == "mismatch"
 
 
+def test_submission_binding_rejects_dirty_calibration_verify(monkeypatch):
+    leaf_path = "orchestrator/campaign/calibration_verify.py"
+    observed_sha256 = "a" * 64
+    expected_head = "b" * 40
+
+    def fake_run(command, **_kwargs):
+        if "rev-parse" in command:
+            stdout = f"{expected_head}\n"
+        elif "status" in command:
+            stdout = f" M {leaf_path}\n" if leaf_path in command else ""
+        else:
+            raise AssertionError(f"unexpected command: {command!r}")
+        return T419.subprocess.CompletedProcess(command, 0, stdout=stdout)
+
+    monkeypatch.setattr(T419.subprocess, "run", fake_run)
+    monkeypatch.setattr(T419, "_sha256_path", lambda _path: observed_sha256)
+
+    binding = T419._submission_binding(
+        _ROOT,
+        {
+            "path": "fixture/calibration.json",
+            "pin_verified": True,
+            "submission_expected_sha256": "c" * 64,
+            "actual_sha256": "c" * 64,
+        },
+        expect_head=expected_head,
+        expect_driver_sha256=observed_sha256,
+        expect_pbs_sha256=observed_sha256,
+        expect_env_attestation_sha256=observed_sha256,
+    )
+
+    assert binding["matched"] is False
+    assert binding["calibration_verify_sha256"] == observed_sha256
+    assert binding["related_dirty_entries"] == [f" M {leaf_path}"]
+
+
 def test_final_binding_mismatch_returns_nonzero_and_has_no_done_marker(
     tmp_path, monkeypatch
 ):
