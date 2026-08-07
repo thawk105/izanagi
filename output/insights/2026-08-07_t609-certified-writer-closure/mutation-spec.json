@@ -1,0 +1,120 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 900,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/execution_guard.py",
+     "old": "    if authorization_contract != registered:\n        raise CertifiedWriterAuthorizationError(\n            \"authorization_contract が current registry contract と一致しない\"\n        )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_m2_pipeline_rejects_forged_contract_even_when_runtime_matches_it"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/execution_guard.py",
+     "old": "        if env_contract != registered:\n            raise CertifiedWriterAuthorizationError(\n                \"build selector env_contract が authorization_contract と一致しない\"\n            )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_m3_pipeline_rejects_authorization_selector_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/execution_guard.py",
+     "old": "    if type(numactl) not in {list, tuple} or any(type(part) is not str for part in numactl):\n        raise CertifiedWriterAuthorizationError(\n            \"campaign 実行値 numactl は str の list/tuple でなければならない\"\n        )\n    if (env_tag != registered.env_tag\n            or clocks_per_us != registered.clocks_per_us\n            or tuple(numactl) != registered.numactl):",
+     "new": "    if (env_tag != registered.env_tag\n            or clocks_per_us != registered.clocks_per_us\n            or tuple(numactl or ()) != registered.numactl):"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_m4_pipeline_rejects_unresolved_none_numactl_for_pegasus"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/execution_guard.py",
+     "old": "    if (\n        _site_policy.current_site() == _site_policy.PEGASUS_COMPUTE\n        and registered != _env_contract.lookup_required_attestation_contract()\n    ):\n        raise CertifiedWriterAuthorizationError(\n            \"Pegasus compute では登録済み pegasus authorization_contract \"\n            \"だけを受理する\"\n        )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_m5_pipeline_compute_rejects_registered_linux_contract"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/execution_guard.py",
+     "old": "    if type(env_tag) is not str:\n        raise TypeError(\"campaign env_tag は exact str でなければならない\")\n    if type(clocks_per_us) is not int:\n        raise TypeError(\"campaign clocks_per_us は exact int でなければならない\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_runtime_authorization_rejects_equality_spoof_and_float_clock"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/certified_writer_preflight.py",
+     "old": "        if raw != _committed_blob(root, commit, relative):\n            raise _SourceBindingRejected(\n                f\"imported module differs from source commit: {relative}\"\n            )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_m8_preflight_rejects_fail_open_domain_module_drift"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/floor_campaign.sh",
+     "old": "if [[ \"$preflight_rc\" -ne 0 ]]; then\n  exit \"$preflight_rc\"\nfi\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_wrapper_preflight_rejection_is_nonmutating_and_starts_no_driver"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
