@@ -460,3 +460,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"a76c40a428963e3cde88154b972635a0baedca1dae525ffa309b493443e5d43b","seq":2,"wave":"dev-wave-red-tests"}
 
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"d46c9ffbf4670c29d77fbf712a63b630125ec1272ee90487d0db50f22e73dbb8","seq":14,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:calibration-activation-frozen-protocol":"[T-615]","T:registered-glob-nondeterminism":"[T-617]","T:withdrawn-ruling-not-propagated-policy":"[T-616]"},"authored":"2026-08-07","content_sha256":"e8276b2cc09b2f4f5c78f0b31a22af87aa0a48f0a107a85f5dc46feddbc6c147","seq":1,"wave":"dev-wave-t419-iii"}
+- {"allocations":{"D:independent-verification-satisfied-form":"D218"},"authored":"2026-08-07","content_sha256":"e39931e498fc5c77059ec15946408fd0bfd64769ab4a78c1fca85358f095aa77","seq":2,"wave":"dev-wave-t419-iii"}
+- {"allocations":{"F:withdrawn-ruling-not-propagated":"F154"},"authored":"2026-08-07","content_sha256":"4fefaf164e1b6f8cee8d3ca6c90527b49718d69b0e7fe1d0ededf839cc55f7dd","seq":3,"wave":"dev-wave-t419-iii"}

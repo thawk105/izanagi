@@ -10274,3 +10274,40 @@ admission decision の欠落をそれぞれ止める fail-closed 検査を置い
   既存の正常系が赤くなる。workload ごとの二相処理が正しい。
 - **後始末で「admission が無い cell は未処理」と推測して再確定する** — admission decision を消す変異が
   推測経路で復元されて生存する。cell ごとに 1 回だけ処理し、欠落は検査で止める形へ改めた。
+
+## D218. 較正 publish 済み bytes の独立検証は、同一 process 内の再読を充足形とする (2026-08-07)
+
+**決定:**
+
+1. 較正取得経路における「publish 済み bytes の独立検証」の充足形は、D191 が実装した
+   benchmark 前後の二重 gate と、publish 直後に process 内部の profile を参照せず
+   publish 先 bytes を読み直す同一 process 内再読までとする。
+2. **別 process の verifier と、その判定を最終 receipt へ束縛する完全形は実装しない。**
+   これは 2026-08-06 のユーザー委任裁定 (D205 のプロトタイプ基準) が見送りへ倒した項であり、
+   本決定はその適用範囲を較正取得経路について明示するものである。
+3. 較正再取得チェーンの着手条件から「別 process の完全独立検証」を落とす。
+   残る条件は既知の自己不整合較正の例外集合を空にすることだけとし、それは登録と活性化権限に従属する。
+
+**理由:**
+
+- 別 process 化で実際に得られるのは process-local state (monkeypatch・module global・
+  policy 再束縛) からの分離だけである。同一 checkout・同一 canonical 述語・同一 schema・
+  同一 policy 定数・同一 host / filesystem / UID・同一親 shell を共有する以上、
+  独立実装でも別 trust domain でもない。「完全独立」を名乗れば名乗り過剰になる。
+- 敵対検証 2 レンズが独立に、この機構が変える成果物の値は「将来の取得 job の成功集合」だけで、
+  published 集合・registry / loader の受理集合・現行の certified 選択結果・レポート参照は
+  1 つも変わらないと結論した。正しさ防壁として払う複雑さに見合わない。
+- 検証対象を選ぶ locator を被検証側の producer が書く構造では、
+  「被検証者が検証者を選ばない」も成立しない。静的に確認できる迂回だけで 9 系統ある。
+- 判定 artifact に対象 bytes を内包する自己完結案は、複製と checks を一緒に作り直せば
+  常に自己整合するため、実ファイルの差し替えを検出しない。自己成就 pin になる。
+
+**却下した選択肢:**
+
+- 独立 verifier module + 薄い entry + 取得 job の shell からの別 process 起動 +
+  判定 artifact の中央 namespace — 上記の理由に加え、実 job を通した検証も最終 receipt への
+  意味的束縛も伴わないため、実装しても条件は閉じない。設計と敵対所見は insights に凍結した。
+- 帯計算を verifier 側で再実装して真に独立な第二実装にする — D191 決定 1 が禁じている。
+  述語が 2 つになれば受理集合が静かに分岐する。
+- loader 側にも同じ self-pass を課す — 現行の登録済み較正が読めなくなり、承認外の受理縮小になる
+  (D191 が既に却下済み)。
