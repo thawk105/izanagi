@@ -529,3 +529,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:floor-protocol-source-commit-binding":"[T-646]","T:no-bench-certified-contract-scope":"[T-647]","T:site-policy-evidence-hardening":"[T-645]","T:write-free-attestation-before-first-write":"[T-644]"},"authored":"2026-08-07","content_sha256":"fc6a5a7bda31b9bdabc8af09c1ea155dd3d4f4b38c68d2bf01573e3ae4f0e834","seq":1,"wave":"dev-wave-t609-certified-writer-closure"}
 - {"allocations":{"D:certified-writer-sink-authorization":"D235","D:tests-declare-site-not-inherit":"D236"},"authored":"2026-08-07","content_sha256":"496a388d537b273f9a4bf9b0f7d3d055aa478021397047baf6d8207685165468","seq":2,"wave":"dev-wave-t609-certified-writer-closure"}
 - {"allocations":{"F:fix-child-fail-open-to-green":"F162","F:stale-base-worktree-integration":"F163"},"authored":"2026-08-07","content_sha256":"4789bc6395c9ed437f15617667bfef5c3fef220f33e2903e152337a9c65ba8d8","seq":3,"wave":"dev-wave-t609-certified-writer-closure"}
+
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"2e23688d1f7c88e1d28bc73595227c8a6566506873019fc0f386a31fcbc1a6ab","seq":22,"wave":"rulings-20260806-a"}
