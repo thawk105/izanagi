@@ -390,6 +390,26 @@ def lookup(env_tag: str) -> ExecutionEnvironmentContract:
         )
 
 
+def lookup_required_attestation_contract() -> ExecutionEnvironmentContract:
+    """Return the unique registered contract that requires attestation.
+
+    The compute-site authorization rule consumes this registry property instead
+    of duplicating an environment tag literal in an otherwise neutral module.
+    Missing or ambiguous registry state fails closed.
+    """
+    candidates = tuple(
+        contract
+        for contract in REGISTRY.values()
+        if contract.attestation_mode == "required"
+    )
+    if len(candidates) != 1:
+        raise EnvContractError(
+            "required attestation contract を一意に解決できない: "
+            f"candidates={len(candidates)}"
+        )
+    return candidates[0]
+
+
 # --------------------------------------------------------------------------- #
 # env-literal AST 検査 (γ-16) — v2 モジュール閉包に env 固有 literal を禁止する。   #
 # 検査「機構」だけをここに置く。禁止 literal 集合・対象モジュール一覧は test 側が    #

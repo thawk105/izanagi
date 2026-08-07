@@ -536,13 +536,6 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
     bench_lock + numactl 下で回す (決定4-4)。既定 legacy は軽量ゆえ従来どおり
     並列可 (lock.py の設計方針)。"""
-    execution_guard.require_certified_writer_authorization(
-        authorization_contract,
-        env_tag=env_tag,
-        clocks_per_us=clocks_per_us,
-        numactl=numactl,
-        env_contract=env_contract,
-    )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if trigger_gate_binding is not None and type(trigger_gate_binding) is not TriggerGateBinding:
@@ -599,6 +592,13 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         raise ValueError(
             "extra_correctness に numactl 必須の構成があるが numactl 未指定 "
             "(D36 決定4-4: S2 相当は bench と同じメモリ配置 numactl interleave=all で回す)")
+    execution_guard.require_certified_writer_authorization(
+        authorization_contract,
+        env_tag=env_tag,
+        clocks_per_us=clocks_per_us,
+        numactl=numactl,
+        env_contract=env_contract,
+    )
     # identity (D23): coder のコード差まで覆う src_token を build 前に確定し、variant_id
     # (WAL キー) と build (cache_key) で共有する (TOCTOU 偽 hit を防ぐ)。loop は skip/abort
     # キーを同じ id に揃えるため src_token を確定済みで渡す (id 確定点の単一化, D24)。直接

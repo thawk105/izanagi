@@ -83,12 +83,6 @@ def prepare_screening_campaign(
         reanchor_threshold_s: float = 1800.0, log=print,
         build_context: BuildRunContext) -> PreparedScreening:
     """identity焼き込み→同一campaign baseline実測→runtime config生成を一括実行する。"""
-    execution_guard.require_certified_writer_authorization(
-        authorization_contract,
-        env_tag=env_tag,
-        clocks_per_us=clocks_per_us,
-        numactl=numactl,
-    )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if not baseline_ref:
@@ -106,6 +100,12 @@ def prepare_screening_campaign(
         baseline_ref, floor, k, high_abort_factor)
     cfg = replace(base_cfg, search_config={**base_cfg.search_config, **policy})
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    execution_guard.require_certified_writer_authorization(
+        authorization_contract,
+        env_tag=env_tag,
+        clocks_per_us=clocks_per_us,
+        numactl=numactl,
+    )
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root).ensure()
     _surface_repair(ident.ensure_resumable_wal(
         cfg, layout, admission_policy=build_context.policy,

@@ -11,11 +11,16 @@ import sys
 import tempfile
 from unittest import mock
 
+import pytest
+
 
 _REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO))
 
 from orchestrator.campaign import site_policy as SP  # noqa: E402
+
+
+pytestmark = pytest.mark.usefixtures("_detect_site_under_test")
 
 
 def test_public_states_are_four_distinct_strings():

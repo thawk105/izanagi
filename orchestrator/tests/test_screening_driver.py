@@ -149,6 +149,8 @@ def test_prepare_screening_fails_closed_when_floor_json_missing(tmp_path):
 
 def test_prepare_screening_rejects_authorization_before_layout_or_wal(tmp_path):
     output = tmp_path / "output"
+    calibration = tmp_path / "calibration"
+    _write_floor(str(calibration))
     called = False
 
     def measure(_cfg, _layout):
@@ -162,7 +164,7 @@ def test_prepare_screening_rejects_authorization_before_layout_or_wal(tmp_path):
             env_tag=_AUTHORIZATION.env_tag,
             clocks_per_us=_AUTHORIZATION.clocks_per_us,
             numactl=_AUTHORIZATION.numactl,
-            calibration_dir=str(tmp_path / "missing"), output_root=str(output),
+            calibration_dir=str(calibration), output_root=str(output),
             build_context=_BUILD_CONTEXT,
         )
     assert called is False

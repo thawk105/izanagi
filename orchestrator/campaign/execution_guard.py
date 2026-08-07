@@ -81,8 +81,10 @@ def require_certified_writer_authorization(
             "campaign execution values do not exactly match "
             "authorization_contract"
         )
-    if (_site_policy.current_site() == _site_policy.PEGASUS_COMPUTE
-            and registered != _env_contract.lookup("pegasus")):
+    if (
+        _site_policy.current_site() == _site_policy.PEGASUS_COMPUTE
+        and registered != _env_contract.lookup_required_attestation_contract()
+    ):
         raise CertifiedWriterAuthorizationError(
             "Pegasus compute では登録済み pegasus authorization_contract "
             "だけを受理する"

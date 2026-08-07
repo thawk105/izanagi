@@ -33,6 +33,30 @@ import sys
 import pytest
 
 
+@pytest.fixture
+def _detect_site_under_test():
+    """Allow site-policy unit tests to exercise the real detector explicitly."""
+
+
+@pytest.fixture(autouse=True)
+def _declare_default_test_site(request, monkeypatch):
+    """Make ambient machine identity irrelevant unless a test declares a site.
+
+    Test modules are imported before fixture setup, so patch both supported import
+    names when present.  A test's own monkeypatch/direct replacement runs later and
+    therefore wins for explicit login/compute/suspect cases.
+    """
+    if "_detect_site_under_test" in request.fixturenames:
+        return
+    for module_name in (
+        "campaign.site_policy",
+        "orchestrator.campaign.site_policy",
+    ):
+        module = sys.modules.get(module_name)
+        if module is not None:
+            monkeypatch.setattr(module, "current_site", lambda m=module: m.OTHER)
+
+
 # 単一 pytest runner invocation 内で、親 repo status と共有 ccbench worktree の
 # reader/writer を同じ xdist loadgroup に閉じ込める正本。値は
 # ``test_file.py::test_function``（parametrize suffix なし）で固定する。
