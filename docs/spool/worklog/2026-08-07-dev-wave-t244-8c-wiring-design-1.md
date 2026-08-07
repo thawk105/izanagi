@@ -42,6 +42,11 @@ title: [T-244] 8c 結線の前提 5 点を設計した — 敵対 2 レンズの
   同じ手続で人間が一回だけ実行) / V-8 物理実行を 1 query = 1 campaign run にするか (推奨 = する。
   費用 33 倍) / V-9 `imax` `qmax` の再批准 (推奨 = 内訳を差し替えて `4/68` を維持) /
   V-10 evidence writer の権限分離 (推奨 = 作らず保証限界として明記)。
+- **段 8 の改善候補 1 件は reference へ入らなかった。** 「段 1 の前提実測 probe を repo へ commit すると
+  実装面契約 (Codex `role=author` 必須) に掛かる」を `DW-S01` へ足そうとしたが、dev-wave 4 文書の
+  aggregate 予算は 25,187 / 25,200 bytes で余地 13 bytes ((285) 時点と同値、本 wave で再実測)。
+  予算引き上げは提案せず [T-597] へ従属させ、新しい T / F を作らない。
+  実害は preflight が機械的に止めた 1 往復だけで、恒久防壁は `DW-O17` の commit preflight が既に担う。
 - 一次資料 = `output/insights/2026-08-07_t244-8c-wiring-design/`
   (段 2 プラン + 敵対 2 本 + 段 4 裁定を全文凍結)。
 
