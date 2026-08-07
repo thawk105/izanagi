@@ -1,0 +1,148 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "MF-01",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        _check_dev_wave_reasoning_effort_pins(workers_text, findings)\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_real_key",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key"
+      ]
+    },
+    {
+      "id": "MF-02",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if values != [\"max\"]:\n            findings.append(finding)\n",
+          "new": "        if not values:\n            findings.append(finding)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_decoys_and_duplicates",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_real_key",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key"
+      ]
+    },
+    {
+      "id": "MF-03",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        (\n            \"DW-S03\",\n            DEV_WAVE_DW_S03_REASONING_MAX_FINDING,\n        ),\n    ):\n",
+          "new": "    ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_missing_dw_s03_value",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key"
+      ]
+    },
+    {
+      "id": "MF-04",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        visible_section = _visible_markdown_text(sections[0])\n",
+          "new": "        visible_section = sections[0]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pins_ignore_comment_and_fence_examples"
+      ]
+    },
+    {
+      "id": "MF-05",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    r\"(?:reasoning|reasoning_effort|model_reasoning_effort)=\"\n",
+          "new": "    r\"reasoning=\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_real_key",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key"
+      ]
+    },
+    {
+      "id": "MF-06",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if values != [\"max\"]:\n            findings.append(finding)\n",
+          "new": "        if \"max\" not in values:\n            findings.append(finding)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_decoys_and_duplicates",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_real_key",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key"
+      ]
+    },
+    {
+      "id": "MF-07",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    r\"(?P<quote>[\\\"']?)(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)\"\n    r\"(?P=quote)\"\n",
+          "new": "    r\"(?P<quote>)(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)\"\n    r\"(?P=quote)\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_real_key",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key"
+      ]
+    }
+  ]
+}
