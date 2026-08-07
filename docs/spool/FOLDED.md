@@ -469,3 +469,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"ba8987c6ad480f21463130ea5c6fd2d0a087df2fe7e717e606940d6f8cbe1e44","seq":1,"wave":"dev-wave-t244-8c-wiring-design"}
 - {"allocations":{"D:wiring-preconditions-8c":"D219"},"authored":"2026-08-07","content_sha256":"2fee6cc5f15e0ec6a1e2973a18229d1401f52ba21fa79ce15a9eb879267a700e","seq":2,"wave":"dev-wave-t244-8c-wiring-design"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"50e59a860021b61b20b6beaa3de6dc13d39543975b0ba53eb83563030bd07abf","seq":1,"wave":"dev-wave-t598-ledger-consumer"}
+- {"allocations":{"D:claude-ledger-consumer-wiring":"D220"},"authored":"2026-08-07","content_sha256":"17fcf6f8ef6163b1fdee827b4961b4018b422657798e690603dfd97455ae3446","seq":2,"wave":"dev-wave-t598-ledger-consumer"}
