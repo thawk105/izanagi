@@ -67,8 +67,16 @@ title: [T-529] 実装を再起票し、裁定 E の共有 leaf 抽出と [T-615]
   (c) parametrize 済み test を素の関数名で登録した。いずれも harness の事前検査が
   正しく止めたものである。解は先例 ((281) の U-8 wave) と同じ
   `--runner-mode dispatch` + `--force-dispatch` + `-p no:cacheprovider` だった。{{F:mutation-collection-preflight}}
+- **段 8 の改善候補 3 件のうち 2 件は failures へ、1 件は入らなかった。**
+  変異 runner の recipe と `.done` 残骸は F へ送り、恒久対応は memory
+  `mutation-runner-dispatch-recipe` と launcher の `rm -f` が担う。
+  入らなかったのは「`DW-S01` の前提実測に、保留裁定 (D) の**解除条件を条文単位で棚卸しし、
+  今回の裁定が各条件へ効くかを対応づける**義務を足す」で、本 wave の scope 判断そのものが
+  これだった。dev-wave 4 文書の aggregate は 25,187 / 25,200 bytes で余地 13 bytes
+  (2026-08-07 再実測、(285) と同値)。予算引き上げは提案せず [T-597] へ従属させ、
+  新しい T / F を作らない。
 - 一次資料 = `output/insights/2026-08-07_t529-impl-reraise/`
-  (段 1 brief、段 4 裁定、段 4 追補、段 2/3/6 の逐語、変異台帳 4 本)
+  (段 1 brief、段 4 裁定、段 4 追補、段 2/3/6 の逐語、変異台帳 5 本)
 
 ## 次の一手差分
 
