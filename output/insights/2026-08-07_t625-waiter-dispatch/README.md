@@ -70,13 +70,16 @@ M4 と M5 の失敗 node はそれぞれ新テスト 1 件だけで、既存テ�
 
 ## 受入・検査
 
-- 受入全走: **7174 passed / 20 skipped** (計算ノード、17 分 58 秒、受入形の警告なし)。
+- 受入全走: **7180 passed / 20 skipped** (計算ノード、17 分 06 秒、受入形の警告なし)。
+  最終 tip での再走値である。記録用の 1 走目 (main 取り込み前、tip `50cc3db6`) は
+  7174 passed / 20 skipped だった。
 - 焦点走行: `orchestrator/tests/test_check_docs.py` 307 passed。
 - `python3 tools/check_docs.py`: 違反なし。
 - 変異 matrix: 5/5 KILLED、SURVIVED 0。
 - provenance: 本 wave の commit 範囲 (`7d705709..HEAD`) は 1 件・違反なし。
-  全履歴監査は rc=1 だが、新規違反は既存 commit `3f2c43d7` ([T-618] で台帳追加が裁定済み) の
-  1 件だけで、本 wave 由来ではない。
+  全履歴監査は wave 途中では rc=1 だったが、新規違反は既存 commit `3f2c43d7` の 1 件だけで
+  本 wave 由来ではない。land 直前に [T-618] (同 SHA の既知違反台帳追加) を取り込んだ結果、
+  最終 tip では 1720 件・新規違反なし (rc=0) になった。
 - 入口予算: 9035 bytes / 上限 9500、最長 137 文字 / 上限 140。引き上げなし。
 
 ## 段構成

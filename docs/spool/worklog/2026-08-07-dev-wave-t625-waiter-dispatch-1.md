@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-07
 wave: dev-wave-t625-waiter-dispatch
 seq: 1
-title: [T-625] 待ち手規約を条件 dispatch へ載せた — 裁定の 4 要素目は本文にしかなく実装せず返す (コード + docs、受入 7174 passed / 20 skipped、変異 5/5 KILLED、branch worktree-dev-wave-t625-waiter-dispatch)
+title: [T-625] 待ち手規約を条件 dispatch へ載せた — 裁定の 4 要素目は本文にしかなく実装せず返す (コード + docs、受入 7180 passed / 20 skipped、変異 5/5 KILLED、branch worktree-dev-wave-t625-waiter-dispatch)
 ---
 
 ## 本文
@@ -43,9 +43,10 @@ title: [T-625] 待ち手規約を条件 dispatch へ載せた — 裁定の 4 �
 - **効果を後から確認する field がない。** 条件 24 が読まれ 3 条が守られたことを、worklog・handoff・
   task-run・supervisor receipt のどの field からも確認できない。段 6 のレンズ B が指摘した。
   恒久義務化は本 wave の 3 ファイル外なので {{T:waiter-dispatch-observability}} として返す。
-- **provenance 全履歴監査は rc=1 だが本 wave 由来ではない。** 新規違反 1 件は既存 commit
-  `3f2c43d7` (main の祖先、[T-618] で台帳追加が裁定済み) で、本 wave の commit 範囲
-  (`7d705709..HEAD`) は 1 件・違反なしだった。
+- **provenance 全履歴監査は wave 途中では rc=1 だったが、本 wave 由来ではなかった。**
+  新規違反 1 件は既存 commit `3f2c43d7` (main の祖先) で、本 wave の commit 範囲は
+  一貫して違反なしだった。land 直前に [T-618] (既知違反台帳への同 SHA 追加) を取り込んだ結果、
+  最終 tip では **1720 件・新規違反なし (rc=0)** になった。
 - **段 5 / 段 6 fix の子は sandbox で pytest を走らせられず (dispatch preflight が rc=16)、
   実走はすべて親が計算ノードで行った。** 子は「実装済み・未実走」と正しく申告した。
 - **軽量版を採らなかった。** `check_docs` の受理集合が変わるため `DW-C00` の除外条件に当たる。
