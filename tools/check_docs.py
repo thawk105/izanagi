@@ -261,6 +261,25 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
     "Codex 固有の取り込み手順を重ねない。"
 )
+DEV_WAVE_DW_S02_REASONING_MAX_LITERAL = "`reasoning=max`"
+DEV_WAVE_DW_S03_REASONING_MAX_LITERAL = "`reasoning=max`"
+DEV_WAVE_DW_S02_REASONING_MAX_FINDING = (
+    "docs/dev-wave/workers.md: DW-S02 の `reasoning=max` は D207 に基づく"
+    "現行 adoption pin と不一致 — "
+    "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
+)
+DEV_WAVE_DW_S03_REASONING_MAX_FINDING = (
+    "docs/dev-wave/workers.md: DW-S03 の `reasoning=max` は D207 に基づく"
+    "現行 adoption pin と不一致 — "
+    "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
+)
+DEV_WAVE_REASONING_EFFORT_RE = re.compile(
+    r"(?<![A-Za-z0-9_-])"
+    r"(?:reasoning|reasoning_effort|model_reasoning_effort)="
+    r"(?P<quote>[\"']?)(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)"
+    r"(?P=quote)"
+    r"(?![A-Za-z0-9_-])"
+)
 CODEX_DEV_WAVE_SKILL_LITERALS = (
     ".claude/commands/dev-wave.md",
     "docs/skill-self-improvement.md",
@@ -3359,6 +3378,35 @@ def _check_dev_wave_reference_cap_sum(
         )
 
 
+def _check_dev_wave_reasoning_effort_pins(
+    workers_text: str,
+    findings: list[str],
+) -> None:
+    """D207 が固定した段 2/3 の reasoning=max を節ごとに exact pin する。"""
+
+    for section_id, finding in (
+        (
+            "DW-S02",
+            DEV_WAVE_DW_S02_REASONING_MAX_FINDING,
+        ),
+        (
+            "DW-S03",
+            DEV_WAVE_DW_S03_REASONING_MAX_FINDING,
+        ),
+    ):
+        sections = _reference_id_sections(workers_text, section_id)
+        if len(sections) != 1:
+            findings.append(finding)
+            continue
+        visible_section = _visible_markdown_text(sections[0])
+        values = [
+            match.group("value")
+            for match in DEV_WAVE_REASONING_EFFORT_RE.finditer(visible_section)
+        ]
+        if values != ["max"]:
+            findings.append(finding)
+
+
 def _check_command_docs_guard(findings: list[str]) -> set[Path]:
     """command/reference の閉包・予算・interface・dispatch を fail-closed 検査する。"""
 
@@ -3523,6 +3571,10 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 f"合計 {provenance_size} bytes > hard ceiling "
                 f"{PROVENANCE_FAMILY_BYTES} bytes"
             )
+
+    workers_text = decoded.get(_WORKERS)
+    if workers_text is not None:
+        _check_dev_wave_reasoning_effort_pins(workers_text, findings)
 
     ambiguous_provenance: set[str] = set()
     for rel in sorted(PROVENANCE_FAMILY_FILES):

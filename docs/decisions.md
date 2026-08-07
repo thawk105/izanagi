@@ -10416,3 +10416,199 @@ launch admission が発行する origin binding capability / 失敗・crash の 
 - 観測の母集団を保存せず値だけ残す — 母集団を必ず報告に出す既定 (D206) と両立しない。
 - 保存先の識別子を平文で恒久記録へ書く — 撤回不能な記録に作業時刻と作業量の相関を残す。
   可否はユーザー裁定へ返す。
+
+## D221. provenance の既知違反を固定台帳で分離し、rc は新規だけで決める (2026-08-07)
+
+**決定:** 共有済み履歴に残り規約内で緑に戻せない provenance 違反を、`check_ai_provenance.py` 内の
+frozen 定数 `KNOWN_PROVENANCE_VIOLATIONS` に置く。各 entry は
+`(full 40-hex SHA, expected_finding_kind, ruling)` の 3 つ組で、`ruling` はユーザー裁定の出典を指す。
+監査は次の連言だけで既知へ移す — **full SHA の完全一致**、**finding 種別の一致**、**entry あたり 1 件**。
+同種の 2 件目以降、別種 finding、別 SHA、短縮 SHA は新規に残す。
+
+- **正常完了時の rc は新規違反だけで決める。** 新規 0 なら既知があっても rc=0。
+- **既知は rc に関わらず stdout の末尾側へ公開する。** 公開が唯一の抑止であるため沈黙させない。
+  既知 0 件のときの逐語出力は完全に不変とし、既存の消費者を壊さない。
+- **台帳の破損と stale は rc=2 とする。** stale = 台帳 SHA が監査範囲内にあるのに期待種別の
+  finding が 0 件。これは provenance 違反ではなく監査機構自身の破綻なので、新規違反には数えない。
+  診断は `expected-finding-missing` (checker の退行疑い) と `policy-epoch-not-visible`
+  (非権威な invocation) に分ける。
+- **台帳の妥当性検査は import 時ではなく history 分岐内の既存 `try` の内側**で lazy に行う。
+- **code は docs を parse しない。** 台帳の実体はコードだけに置く。
+- `--message-file`、forward correction、waiver の判定は変えない。
+
+**理由:**
+- 赤が常態化すると新しい違反が既存分に紛れる。実際に既存 6 件の隣へ 7 件目が入り、
+  「手で帰属して赤を跨ぐ」運用で見逃されかけた。既知と新規を機械的に分離すれば、
+  新規 1 件は 1 件として見える。
+- 抑止条件を SHA と種別の連言に限り、entry あたり 1 件に絞ることで、台帳が「その commit の
+  すべての finding を飲む緩衝材」になる経路を塞ぐ。
+- stale を rc=2 にすると、gate を弱める改変 (期待 finding を生む検査を壊す変更) が台帳側から
+  検出できる。rc=1 に混ぜないのは、rc semantics を「新規のみ」と定めた裁定を超えないためである。
+- 台帳の内容を docs でなくコードに置くのは、新しい信頼経路 (docs を parse する) を作らないため。
+  entry の `ruling` field は「どの裁定で 1 件増えたか」を可視化するが、**これは片側 drift を
+  検出する tripwire であって、ユーザー裁定を機械的に強制する機構ではない**。
+
+**却下した選択肢:**
+- **finding と種別を平行 tuple で持つ** — 長さ不一致で新規違反が黙って落ちる。単一構造にした。
+- **epoch が見えない entry を stale 判定から外す** — 偽赤は消えるが、期待 finding の生成が壊れた
+  ときに rc=0 で通る fail-open になる。規律 2 に反するので、非権威な invocation での過剰拒否
+  (rc=2) を受け入れる側へ倒した。権威ある範囲の定義は既存の forward correction 契約が既に
+  「既定 full 監査か両 commit を含む range」に限定している。
+- **未裁定の違反を台帳へ足して緑にする** — 台帳追加は防壁の恒久的な緩和であり、ユーザー裁定の
+  領分である。既定監査が赤のまま残ることを受け入れ、処置は裁定へ返す。
+- **既定監査の範囲計算 (`--ancestry-path`) を同時に直す** — 実測では現に no-op で、裁定外の
+  scope 拡張になる。所見として裁定へ返す。
+
+## D222. 受入形でない走行の警告は親側で出し、正規 marker のある子だけ抑止する (2026-08-07)
+
+**決定:** `tools/run_tests.py` の `main()` の最初期 — site 判定・dispatch・bounded 再実行・
+3 つの acceptance-only preflight のいずれよりも前 — で、受入形でなければ stderr へ 1 行警告を出す。
+bounded 子では、親が生成した**正規形式**の marker pair (正の PID・16 桁 lower-hex・正の
+canonical decimal cap) を確認したときだけ抑止する。空・malformed・形式不一致では警告を維持する。
+一意な marker を持たない dispatch 子では抑止せず、親と子の各 1 行を許容する。
+`_is_acceptance_run()` の判定、pytest argv、3 gate の順序と rc、終了 rc、suite fingerprint は変えない。
+
+**理由:**
+- 受入全走のつもりで受入形でない走行を行い、事前検査が黙って不発のまま結果を記録した事故が
+  独立 2 例あった。警告は受理集合を変えずにその誤記録だけを塞ぐ。
+- **実行子側に置くと dispatch 成功時に手元から消える** — 親へ戻る子 stderr は末尾 4 KiB だけなので、
+  pytest の出力に押し出される。警告の目的は人間が打った端末に出ることなので親側に置く。
+- marker の存在だけで抑止すると、環境変数がたまたま在る直接走行で警告が消える。形式まで見る。
+- 二重表示は不可視より害が小さい。dispatch 子を一意に識別する共通 marker が無い以上、
+  1 行の重複を許して不可視を避ける。
+
+**却下した選択肢:**
+- **実行子側 (`use_xdist` 直前) に置く** — 上記のとおり dispatch 成功時に消える。
+- **警告を receipt へ構造化して収集後に親が表示する** — 受理集合を変えない 1 行の目的に対して
+  機構が重い。dispatch receipt の stderr tail が変わることは影響として記録すれば足りる。
+- **marker の名前だけを見る** — 偽装・偶発一致で警告が消える。
+
+## D223. reasoning effort の既定は A/B が済むまで機械 pin で守る (2026-08-07)
+
+**決定:** `docs/dev-wave/workers.md` の `DW-S02` / `DW-S03` が規定する `reasoning=max` を
+`tools/check_docs.py` が節ごとに exact pin する。節から HTML comment と code fence を除いた
+可視本文の effort 表記 (`reasoning=` / `reasoning_effort=` / `model_reasoning_effort=`、
+引用符付きの値を含む) をすべて抽出し、値の列が厳密に `["max"]` のときだけ受理する。
+引用行は可視として数える。段 5 の `reasoning=high` は pin しない。
+
+解除は自動化しない。次の 3 段だけが解除経路である。
+
+1. paired・blind・非劣性 A/B を完了し、対象段と採用値を明記した後継裁定を記録する。
+2. 同一変更で `workers.md`、節別 pin、finding 文言、独立テスト、変異 spec を裁定どおり更新する。
+3. 統合負例・関連テスト・`check_docs`・provenance を再走し、契約と latch を原子的に land する。
+
+**理由:**
+- D207 は「引き下げの可否は paired・blind・非劣性の評価だけが決める」と規定していたが、
+  実測すると `check_docs.py` に `reasoning` の出現は 0 件で、規定は prose だけだった。
+  誰かが `workers.md` の記述を書き換えても全検査が緑のまま通る状態であり、
+  D207 の実効性は書き手の規律だけに依存していた。
+- 検出力を下げる変更は規律 2 (正しさゲートを緩める変異を許さない) の対象である。
+  A/B が未完了である以上、既定を動かせない状態を機械で保つのが fail-closed である。
+- finding 文言は時系列の事実を断定しない。検査が読むのは `workers.md` だけで A/B 台帳ではないため、
+  「A/B 未充足」と書くと採用後に誤報になる。「現行 adoption pin と不一致」に留める。
+
+**却下した選択肢:**
+- 値の出現数だけを数える — 可視の命令を `high` にしたうえで comment / fence 内へ `max` を
+  1 個置くと通り抜ける。実測で再現した。
+- prose 表記 `reasoning=` だけを認識する — 実際の起動キーは `model_reasoning_effort=` であり、
+  実キー表記で `high` に下げたうえで `max` を例示として残すと通り抜ける。実測で再現した。
+- 引用行を可視から除く — 引用は例示にも規範指示にも使えるため、規範の `high` を隠せる。
+  除かない側が fail-closed である。引用内の effort 例示は拒否されるが、
+  comment / code fence 内の例示は引き続き受理する。
+- 段 5 の `high` も pin する — D207 が固定しているのは段 2/3 の `max` だけであり、
+  scope 外の受理集合縮小になる。
+
+## D224. D207 の endpoint をそのまま満たす A/B は完全 dev-wave 規模の campaign になる (2026-08-07)
+
+**決定:** D207 が必須とした endpoint (後段の must-fix 件数と fix 巡回数) は段 2/3 の下流量であり、
+1 replicate = 1 本の完全な dev-wave になる。したがって A/B の実走は単一 wave の作業ではなく、
+予算と時間を伴う独立 campaign として扱い、着手可否をユーザー裁定に返す。
+代理 endpoint は置かない。
+
+**理由:**
+- 代理 (例: 段 2 の plan へ固定 effort のレビュアを当てて件数を数える) は実装・fix 巡回・retry を
+  通らないため、D207 が排除しようとした「弱い起草が巡回を増やし総消費が上がる」経路を
+  排除できない。置けば endpoint を落としたまま引き下げが通る経路になる。
+- 歴史成果物から endpoint を復元する案は成立しない。`s6-fix*.md` の素朴な計数には
+  fix worker 出力でない裁定文書が混入し、実装を伴う wave の同定も命名揺れに依存する。
+  この分布を検出力の根拠にしてはならない。
+- 必要規模は margin と分散に依存するが、片側 5% / 検出力 80% の正規近似だけでも
+  10 pair 台後半に達し、有限標本・co-primary の joint power・欠測を入れればさらに増える。
+  paired 差の分散も、引き下げ側 arm の分散も相関も未観測である。
+
+**却下した選択肢:**
+- 装置を case family へ一般化して full-wave endpoint 台帳と protocol 凍結まで実装する —
+  endpoint を偽装不能にするには wave の全 worker を実際に起動する trusted supervisor と、
+  外部 custodian の独立 trust root が要る。いずれも装置ファイルの外にあり、
+  producer 契約の追記先である dev-wave reference は予算余地が 13 bytes しかない。
+  閉じないまま実装すると「schema 試作」を「判断可能な装置」として台帳に記録することになる。
+- n=2 の pilot を走らせる — 非劣性も分散も判断できず、case と margin を pilot 結果へ
+  合わせる余地を作る。
+
+## D225. 活性化権限の保留根拠から「発火正例を書けない」を外す (2026-08-07)
+
+**決定:** D196 の理由 (b) と D215 の同一条文 (「`DW-G04` が要求する artifact path も計測 ID も
+書けない」) は**事実認定が古い**ものとして supersede する。発火素材は実在する。
+ただし保留自体は継続する — 残る根拠は入口面が Python 層に閉じていないこと 1 本だけになる。
+
+素材は次のとおりで、いずれも repo 内の tracked artifact と実測値である。
+
+- `output/env/pegasus/calibration/registered/calibration-94a4b79fa31bba3c.json`
+  — `env_tag=pegasus`、`schema_version=calibration/v2`、`quality.status=accepted`、
+  file sha256 が content-address と一致する。
+- 計測 ID `892707.nqsv` — `job-result.json` の `calibrate_rc = 0`。
+- この較正を指す prospective 後継世代は `is_valid_successor` を True で通り
+  (`contract_sha256 = 1346c20b5519be4b…`)、`load_verified_calibration` は
+  現行世代と prospective 後継世代の双方を ACCEPT する。
+
+**理由:**
+- `DW-G04` が求めるのは「発火条件を満たす既存 artifact path か計測 ID を brief に書けること」で
+  あって、その機構が既に land していることではない。上記はどちらも書ける。
+- 素材の不在を理由に挙げ続けると、実際には入口面が唯一の blocker であることが台帳から読めなくなる。
+  保留の理由を実態より広く書くのは、解除条件を過大に見せる点で「実装したふりをしない」規律の裏返しの
+  失敗である。
+- 一方で、この較正を「正規 g2」と呼んではならない。runtime loader が外部検証するのは
+  path 封じ込め・bytes SHA・schema・env・clock・policy までで、publish 記録・job-result・
+  self-comparison・final receipt は読まない。schema は `quality.status=rejected` 自体を許し、
+  production loader に `accepted` の明示検査はない。よって「loader が通る = 正規 publisher を
+  通った」は成立しない。正確な呼称は「レビュー済み commit が束縛する publish 済み較正であり、
+  後継世代の実在素材」である。
+
+**却下した選択肢:**
+- 素材が実在するのだから保留を全面解除する — 入口面 (Python 層より前に書く shell wrapper) は
+  裁定で別タスクへ外出ししただけで閉じていない。部分実装は入口被覆率の過大報告になる。
+- 従来どおり「素材なし」と書き続ける — 実測と食い違う記述を台帳に残すことになる。
+
+## D226. floor protocol の検証を historical 再検証と current admission へ分ける (2026-08-07)
+
+**決定:** `s8b_floor_campaign` の protocol 検証を resolver 必須の共有 core と 2 lane に分ける。
+
+- **historical lane** — 記録 `contract_sha256` を `resolve_by_contract_sha256` で一度だけ解決する。
+  unknown / ambiguous / cross-env / 不正返却のいずれでも current lookup へ fallback しない。
+  公開 `validate_protocol` はこの lane に束縛し、公開面に切替引数を足さない。
+- **current lane** — `lookup(env_tag)` と記録 hash の一致を要求し、解決した contract object を
+  返す。protocol builder、発行直後の read-back、fresh run と resume の live admission はこちら。
+  admission 後の二度目の lookup は削除し、同一 object を calibration・execution receipt・build・
+  計測 command receipt へ渡す。
+- **historical 検証を通した document を実行権限 token にしない。** CLI は load 後に historical で
+  artifact を検証し、`run_campaign` が current admission を必ず再実行する。
+- 記録 `contract_sha256` の exact 型検査は共有 core に 1 か所だけ置き、両 lane の受理集合を
+  一致させる。
+
+**理由:**
+- 凍結済み floor protocol は旧 contract hash を pin し、その bytes は凍結されている。
+  検証を current 比較に固定したままだと、後継世代を活性化した瞬間に凍結済み protocol の
+  受理集合が空になる。歴史世代解決はこれを解く。
+- 一方で同じ入口は producer と live admission を兼ねている。全体を historical へ倒すと
+  「現在 active でない較正で新しい実測を走らせる」ことを許し、D202 が履歴解決を read-only 入口へ
+  限定した理由と、D213 が resume を current に固定した理由の両方に反する。
+- 型検査を共有 core へ寄せたのは、敵対レビューが実測で受理集合の食い違いを示したためである。
+  記録 hash に `str` の派生型を入れると current lane は受理し historical lane は拒否していた。
+  実 artifact は JSON parse 由来で必ず exact `str` なので、凍結 bytes 由来の受理集合は変わらない。
+
+**却下した選択肢:**
+- 公開関数に `historical=True` のような切替引数を足す — 呼び手が既定で弱い方を選べる面を
+  新設することになる。用途が明白な private 関数へ分ける方が狭い。
+- 凍結済み protocol を新 contract 用に再発行する — 凍結 bytes の書き換えを伴い、
+  proof chain の参照を切る。
+- 活性化を保留したまま何もしない — 保留が解けた瞬間に同じ壁へ戻る。

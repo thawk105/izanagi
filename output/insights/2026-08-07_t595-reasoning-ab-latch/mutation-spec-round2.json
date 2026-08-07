@@ -1,0 +1,52 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "MR-07",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        visible_section = _visible_markdown_text(sections[0])\n",
+          "new": "        visible_section = sections[0]\n"
+        },
+        {
+          "file": "tools/check_docs.py",
+          "old": "        values = DEV_WAVE_REASONING_EFFORT_RE.findall(visible_section)\n        if values != [\"max\"]:\n",
+          "new": "        values = DEV_WAVE_REASONING_EFFORT_RE.findall(visible_section)\n        if \"max\" not in values:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_decoys_and_duplicates",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates"
+      ]
+    },
+    {
+      "id": "MR-08",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        visible_section = re.sub(\n            r\"(?m)^[ \\t]{0,3}>[^\\r\\n]*(?:\\r?\\n|\\Z)\",\n            \"\\n\",\n            visible_section,\n        )\n",
+          "new": ""
+        },
+        {
+          "file": "tools/check_docs.py",
+          "old": "        values = DEV_WAVE_REASONING_EFFORT_RE.findall(visible_section)\n        if values != [\"max\"]:\n",
+          "new": "        values = DEV_WAVE_REASONING_EFFORT_RE.findall(visible_section)\n        if \"max\" not in values:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_decoys_and_duplicates",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates"
+      ]
+    }
+  ]
+}

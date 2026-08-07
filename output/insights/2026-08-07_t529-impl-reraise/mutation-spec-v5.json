@@ -1,0 +1,29 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 600,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "    if type(entry) is not _env_contract.GenerationEntry:\n        raise _floor_contract.FloorContractError(\n            \"protocol の歴史 env 契約 resolver が exact GenerationEntry を返さなかった\"\n        )",
+     "new": "    if False:\n        raise _floor_contract.FloorContractError(\n            \"protocol の歴史 env 契約 resolver が exact GenerationEntry を返さなかった\"\n        )"
+    },
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "        if type(contract) is not _env_contract.ExecutionEnvironmentContract:\n            raise _floor_contract.FloorContractError(\n                \"protocol env 契約 resolver が exact ExecutionEnvironmentContract \"\n                \"を返さなかった\"\n            )",
+     "new": "        if False:\n            raise _floor_contract.FloorContractError(\n                \"protocol env 契約 resolver が exact ExecutionEnvironmentContract \"\n                \"を返さなかった\"\n            )"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_public_validate_protocol_historical_failures_never_fallback_to_current[invalid-return]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

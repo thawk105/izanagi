@@ -1,0 +1,152 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_verify.py",
+     "old": "    if actual_sha != calibration_sha256:",
+     "new": "    if False and actual_sha != calibration_sha256:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_attestation.py::test_leaf_rejects_sha_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_verify.py",
+     "old": "        artifact.relative_to(root)",
+     "new": "        pass"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_attestation.py::test_leaf_rejects_repo_escape"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_verify.py",
+     "old": "        if calibration.env_tag != env_tag:",
+     "new": "        if False and calibration.env_tag != env_tag:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_attestation.py::test_leaf_rejects_contract_cross_field[env_tag-other-env]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_verify.py",
+     "old": "        if calibration.clocks_per_us != clocks_per_us:",
+     "new": "        if False and calibration.clocks_per_us != clocks_per_us:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_attestation.py::test_leaf_rejects_contract_cross_field[clocks_per_us-1801]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_verify.py",
+     "old": "        if tolerance != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT:",
+     "new": "        if False and tolerance != effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_attestation.py::test_leaf_rejects_effective_clock_policy_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_ladder_rung1.py",
+     "old": "        repo / \"orchestrator/campaign/calibration_verify.py\",",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_ladder_rung1_driver.py::test_runtime_binding_covers_all_execution_semantics_modules"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t419_probe_causality.py",
+     "old": "        \"orchestrator/campaign/calibration_verify.py\",",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t419_probe_causality.py::test_submission_binding_rejects_dirty_calibration_verify"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_attestation.py",
+     "old": "        calibration_sha256=contract.calibration_ref.sha256,",
+     "new": "        calibration_sha256=contract.calibration_ref.sha256.upper(),"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_attestation.py::test_load_verified_calibration_delegates_raw_values_to_leaf"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_attestation.py",
+     "old": "profile_sha256 = _calibration_verify.profile_sha256",
+     "new": "def profile_sha256(profile):\n    return _calibration_verify.profile_sha256(profile)"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_attestation.py::test_profile_sha256_uses_leaf_canonical_implementation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

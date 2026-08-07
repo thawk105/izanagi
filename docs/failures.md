@@ -1435,6 +1435,20 @@
   (b) 変異の期待 node は、対象 gate を実行するテストであることをコードで確認してから pin する。
   SURVIVED は mask を疑う前に「そもそも対応テストが在るか」を先に確認する
 
+
+- **再発: 2026-08-07** — `dev-wave-t595-reasoning-ab` で、単層変異 2 件 (可視化フィルタ除去・
+  引用除去) が SURVIVED した。親は DW-M04 に従って両層同時変異を追加登録し、2/2 KILLED を得たので
+  「単層の生存は冗長層ゆえ」と結論しかけた。焦点再レビューがこれを反証した — その KILLED は
+  既存の**裸表記 `reasoning=high`** fixture に対する結果にすぎず、単独 SURVIVED を冗長と判定する
+  根拠にならない。実際には検査が現実の起動キー表記 `model_reasoning_effort=` を認識しておらず、
+  単層変異のそれぞれが単独で fail-open 反例を構成できた。親が書き込みなし probe で裏取りした。
+  今回は F60 と違い期待 node の割当ては正しく、**負例 fixture の表記が現実の攻撃表記を
+  覆っていなかった**点が原因である。恒久対応として (a) 過剰拒否を検出する正例 control
+  (`orchestrator/tests/test_check_docs.py` の
+  `test_dev_wave_reasoning_effort_pins_ignore_comment_and_fence_examples`) を足し、
+  可視化フィルタ層を単独で kill 可能にした。(b) 負例 fixture に実運用の表記
+  (`reasoning_effort=` / `model_reasoning_effort=`、引用符付き) を加えた。
+  再照準後の変異は 7/7 KILLED。**両層同時変異の KILLED を単独 SURVIVED の冗長性根拠に使わない。**
 ### F61. 実走後の装置修正が、凍結成果物の replay 認証を失わせた [順序]
 - 事象: [T-181] wave で 10 run の実走後に oracle を 2 度修正した (上流 token 異常の分類、
   stale commit-graph の除去)。その結果 `aggregate` / `verify` が全 10 run で
@@ -3530,3 +3544,35 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   機械化の可否は裁定へ返した (プロトタイプ基準の下では prompt 規律に留まりうるため親が決めない)。
 - 再発検知: 段 3 の敵対レンズに「対象が既に見送り裁定済みでないか台帳の一次資料で確かめる」を
   含める。本件はこの経路で実際に検出された (段 4 裁定の根拠になった唯一の所見)。
+
+### F155. 変異 harness の collection 事前検査で 3 度 fail-closed した [手順漏れ]
+
+- 事象: 変異本走を 3 度連続で開始前に止めた。(a) runner に全走を渡したところ collection が
+  計算ノードへ dispatch され、端末側の中継出力が切り詰められて、登録した期待 node 9 件が
+  「pytest collection に実在しない」と判定された。(b) 対象を 4 test module へ絞ると
+  `--collect-only` が 1 秒未満で終わり、`run_tests.py` の bounded scope が cgroup を
+  attest できず rc=16 (`_SCOPE_ATTEST_SECONDS = 1.0` の race) になった。
+  (c) parametrize 済み test を素の関数名で登録したため実在しないと判定された。
+- 根本原因: runner argv と `--runner-mode` の組み合わせを、先例の台帳に当たらず自分で組んだ。
+  `--runner-mode local` を指定しても `run_tests.py` は login node の headroom 次第で
+  内部 dispatch へ倒れるため、mode と実態が食い違う。harness は dispatch mode では
+  job stdout ファイルを直接読むので切り詰めの影響を受けないが、local mode では中継出力を読む。
+- 恒久対応: 変異本走の runner は先例と同じ
+  `--runner-mode dispatch` + `python3 tools/run_tests.py --force-dispatch -rf <対象 module> -p no:cacheprovider`
+  を既定とする。memory `mutation-runner-dispatch-recipe` に控え、
+  投入前に直近の `mutation-ledger.json` の `runner_identity.command` を読んで合わせる。
+- 再発検知: harness の事前検査そのもの (期待 node の実在検査と collection rc 検査) が
+  fail-closed で止める。3 度とも実装差分は 1 byte も汚さずに止まった。
+
+### F156. 前回投入の `.done` 残骸で待ちが即座に返った [手順漏れ]
+
+- 事象: 変異本走を投入し直した直後に完了待ちを張ったところ、待ちが即座に返った。
+  掴んだのは前回投入 (期待 node 不備で abort した回) が残した `.done` で、
+  実際の走行は継続中だった。結果ファイルが無いことに気づいて初めて誤りが判明した。
+- 根本原因: launcher が `.done` を投入前に消していなかった。`.done` は「今回の走行が終わった」
+  ではなく「同名ファイルが存在する」しか意味していなかった。
+- 恒久対応: 背景 job の launcher script は投入直前に `rm -f <job>/<name>.done` を必ず実行する
+  (`run-mutation6.sh` / `run-mutation7.sh` で実装済み)。待ち側は `.done` を掴んだあと
+  必ず結果ファイルの実在も確認する。
+- 再発検知: 待ちが想定より極端に早く返ったら、まず `.done` の mtime と log の mtime を比べる。
+  結果ファイルの不在は即座に stale を疑う。

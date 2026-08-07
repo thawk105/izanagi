@@ -253,6 +253,254 @@ def test_nonempty_pytest_addopts_is_not_acceptance(monkeypatch, addopts):
     assert not RT._is_acceptance_run([])
 
 
+def test_nonacceptance_main_warns_once_on_stderr_and_preserves_rc(
+    monkeypatch, capsys,
+):
+    events = []
+
+    def preflight(name):
+        return lambda args, repo: events.append(name) or 0
+
+    monkeypatch.setattr(
+        RT, "_preflight_unstaged_deletions", preflight("deletion"),
+    )
+    monkeypatch.setattr(RT, "_preflight_ruleops", preflight("ruleops"))
+    monkeypatch.setattr(
+        RT, "_preflight_submodule", preflight("submodule"),
+    )
+    monkeypatch.setattr(RT, "_ensure_xdist", lambda: True)
+    monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
+    monkeypatch.setattr(
+        RT.subprocess,
+        "call",
+        lambda command, **kwargs: events.append("pytest") or 7,
+    )
+
+    assert RT.main(["/tmp/target.py"], site=RT.site_policy.OTHER) == 7
+    assert events == ["deletion", "ruleops", "submodule", "pytest"]
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        "警告: 受入形でない走行です。"
+        "この結果を受入全走として扱わないでください。\n"
+    )
+
+
+def test_acceptance_main_does_not_emit_nonacceptance_warning(monkeypatch, capsys):
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_ensure_xdist", lambda: True)
+    monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
+    monkeypatch.setattr(RT.subprocess, "call", lambda command, **kwargs: 7)
+
+    assert RT.main([], site=RT.site_policy.OTHER) == 7
+    assert capsys.readouterr() == ("", "")
+
+
+def test_nonacceptance_reexecution_warns_in_parent_and_child_without_marker(
+    monkeypatch, capsys,
+):
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
+    monkeypatch.setattr(RT, "_xdist_runtime_importable", lambda: True)
+    monkeypatch.setattr(RT.subprocess, "call", lambda command, **kwargs: 9)
+
+    def dispatch(args, *, environ):
+        return RT.main(args, site=RT.site_policy.PEGASUS_COMPUTE)
+
+    assert RT.main(
+        ["/tmp/target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.DISPATCH, "test"),
+    ) == 9
+    captured = capsys.readouterr()
+    warning = (
+        "警告: 受入形でない走行です。"
+        "この結果を受入全走として扱わないでください。\n"
+    )
+    assert captured.out == ""
+    assert captured.err == warning * 2
+
+
+def test_nonacceptance_bounded_child_marker_warns_exactly_once_in_parent(
+    monkeypatch, capsys,
+):
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_ensure_xdist", lambda: True)
+    monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
+    monkeypatch.setattr(RT.subprocess, "call", lambda command, **kwargs: 9)
+    monkeypatch.setattr(RT, "_print_granted_budget", lambda cap, reason: None)
+
+    def run_bounded_child(args, cap):
+        with monkeypatch.context() as child:
+            child.setenv(
+                RT._BOUNDED_SCOPE_UNIT_ENV,
+                "izanagi-run-tests-1234-deadbeefdeadbeef.scope",
+            )
+            child.setenv(RT._BOUNDED_SCOPE_CAP_ENV, str(cap))
+            child.setattr(RT, "_bounded_scope_membership", lambda: True)
+            rc = RT.main(args, site=RT.site_policy.PEGASUS_LOGIN)
+        return RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, rc)
+
+    monkeypatch.setattr(RT, "_run_bounded_scope", run_bounded_child)
+
+    assert RT.main(
+        ["/tmp/target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == 9
+    warning = (
+        "警告: 受入形でない走行です。"
+        "この結果を受入全走として扱わないでください。\n"
+    )
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == warning
+
+
+@pytest.mark.parametrize(
+    ("unit", "cap"),
+    [
+        ("", ""),
+        ("izanagi-run-tests-1234-deadbeef.scope", "1234"),
+        ("izanagi-run-tests-1234-deadbeefdeadbeef.scope", "01234"),
+        ("izanagi-run-tests-1234-deadbeefdeadbeef.scope", "not-a-cap"),
+    ],
+    ids=["empty", "short-token", "noncanonical-cap", "nonnumeric-cap"],
+)
+def test_nonacceptance_malformed_bounded_marker_keeps_warning_before_refusal(
+    monkeypatch, capsys, unit, cap,
+):
+    monkeypatch.setenv(RT._BOUNDED_SCOPE_UNIT_ENV, unit)
+    monkeypatch.setenv(RT._BOUNDED_SCOPE_CAP_ENV, cap)
+    monkeypatch.setattr(RT, "_bounded_scope_membership", lambda: False)
+
+    assert RT.main(
+        ["/tmp/target.py"], site=RT.site_policy.OTHER,
+    ) == RT._PEGASUS_DISPATCH_RC
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        "警告: 受入形でない走行です。"
+        "この結果を受入全走として扱わないでください。\n"
+        "bounded scope marker と cgroup の memory.max / memory.oom.group が"
+        "一致しないため、テスト実行を拒否します。\n"
+    )
+
+
+def test_nonacceptance_bounded_then_dispatch_warns_in_parent_and_compute_child(
+    monkeypatch, capsys,
+):
+    monkeypatch.delenv(RT._BOUNDED_SCOPE_UNIT_ENV, raising=False)
+    monkeypatch.delenv(RT._BOUNDED_SCOPE_CAP_ENV, raising=False)
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
+    monkeypatch.setattr(RT, "_xdist_runtime_importable", lambda: True)
+    monkeypatch.setattr(RT.subprocess, "call", lambda command, **kwargs: 9)
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+    )
+    fingerprint = RT._TreeFingerprint("a" * 64, (1, 2, 3, 4, 5))
+    monkeypatch.setattr(
+        RT, "_tree_and_submodules_fingerprint", lambda repo: fingerprint,
+    )
+
+    def dispatch(args, *, environ):
+        assert RT._BOUNDED_SCOPE_UNIT_ENV not in environ
+        assert RT._BOUNDED_SCOPE_CAP_ENV not in environ
+        with mock.patch.dict(os.environ, environ, clear=True):
+            return RT.main(args, site=RT.site_policy.PEGASUS_COMPUTE)
+
+    assert RT.main(
+        ["/tmp/target.py"],
+        site=RT.site_policy.PEGASUS_LOGIN,
+        dispatch_fn=dispatch,
+        admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
+    ) == 9
+    warning = (
+        "警告: 受入形でない走行です。"
+        "この結果を受入全走として扱わないでください。\n"
+    )
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        warning
+        + f"bounded local に与えた予算: {LH.MAX_LOCAL_BUDGET_BYTES} bytes。test\n"
+        + warning
+    )
+
+
+@pytest.mark.parametrize(
+    ("failed_preflight", "failure_rc", "expected_events"),
+    [
+        ("deletion", 13, ["deletion"]),
+        ("ruleops", 15, ["deletion", "ruleops"]),
+        ("submodule", 14, ["deletion", "ruleops", "submodule"]),
+    ],
+)
+def test_nonacceptance_warning_precedes_preflight_error_and_preserves_rc(
+    monkeypatch,
+    capsys,
+    failed_preflight,
+    failure_rc,
+    expected_events,
+):
+    events = []
+
+    def preflight(name):
+        def run(args, repo):
+            events.append(name)
+            if name == failed_preflight:
+                print(f"{name} preflight error", file=RT.sys.stderr)
+                return failure_rc
+            return 0
+
+        return run
+
+    monkeypatch.setattr(
+        RT, "_preflight_unstaged_deletions", preflight("deletion"),
+    )
+    monkeypatch.setattr(RT, "_preflight_ruleops", preflight("ruleops"))
+    monkeypatch.setattr(
+        RT, "_preflight_submodule", preflight("submodule"),
+    )
+
+    assert RT.main(["/tmp/target.py"], site=RT.site_policy.OTHER) == failure_rc
+    assert events == expected_events
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        "警告: 受入形でない走行です。"
+        "この結果を受入全走として扱わないでください。\n"
+        f"{failed_preflight} preflight error\n"
+    )
+
+
+def test_nonacceptance_collect_only_main_warns(monkeypatch, capsys):
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda a, r: 0)
+    monkeypatch.setattr(RT, "_ensure_xdist", lambda: True)
+    monkeypatch.setattr(RT, "_xdist_version", lambda: "3.8.0")
+    monkeypatch.setattr(RT.subprocess, "call", lambda command, **kwargs: 0)
+
+    assert RT.main(["--collect-only"], site=RT.site_policy.OTHER) == 0
+    assert capsys.readouterr().err == (
+        "警告: 受入形でない走行です。"
+        "この結果を受入全走として扱わないでください。\n"
+    )
+
+
 def test_v14_whitespace_only_addopts_keeps_default_deletion_gate(
     tmp_path, monkeypatch,
 ):

@@ -9,6 +9,7 @@ import hashlib
 import json
 import math
 import statistics
+import subprocess
 import sys
 from pathlib import Path
 
@@ -22,6 +23,7 @@ if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
 from calibrator import schema_v2 as sv2  # noqa: E402
+from campaign import calibration_verify as cv  # noqa: E402
 from campaign import env_attestation as ea  # noqa: E402
 from campaign import env_contract as ec  # noqa: E402
 from campaign import execution_guard as eg  # noqa: E402
@@ -1054,6 +1056,62 @@ def _required_artifact(tmp_path: Path, doc: dict | None = None, *, raw: bytes | 
     return artifact, contract
 
 
+def _load_leaf(
+    contract: ec.ExecutionEnvironmentContract, repo_root: Path,
+) -> cv.VerifiedCalibration:
+    return cv.load_verified_calibration(
+        env_tag=contract.env_tag,
+        clocks_per_us=contract.clocks_per_us,
+        attestation_mode=contract.attestation_mode,
+        calibration_path=contract.calibration_ref.path,
+        calibration_sha256=contract.calibration_ref.sha256,
+        repo_root=repo_root,
+    )
+
+
+def test_load_verified_calibration_delegates_raw_values_to_leaf(tmp_path, monkeypatch):
+    _, contract = _required_artifact(tmp_path)
+    sentinel = object()
+    calls = []
+
+    def leaf_spy(**kwargs):
+        calls.append(kwargs)
+        return sentinel
+
+    monkeypatch.setattr(cv, "load_verified_calibration", leaf_spy)
+    assert ea.load_verified_calibration(contract, tmp_path) is sentinel
+    assert calls == [{
+        "env_tag": contract.env_tag,
+        "clocks_per_us": contract.clocks_per_us,
+        "attestation_mode": contract.attestation_mode,
+        "calibration_path": contract.calibration_ref.path,
+        "calibration_sha256": contract.calibration_ref.sha256,
+        "repo_root": tmp_path,
+    }]
+
+
+def test_calibration_verify_import_closure_excludes_env_contract():
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; from campaign import calibration_verify; "
+                "print('campaign.env_contract' in sys.modules)"
+            ),
+        ],
+        cwd=_ORCH,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.stdout == "False\n"
+
+
+def test_profile_sha256_uses_leaf_canonical_implementation():
+    assert ea.profile_sha256 is cv.profile_sha256
+
+
 def test_load_verified_calibration_accepts_result_to_dict_derived_v2(tmp_path):
     _, contract = _required_artifact(tmp_path)
     verified = ea.load_verified_calibration(contract, tmp_path)
@@ -1114,6 +1172,16 @@ def test_load_verified_calibration_rejects_sha_mismatch(tmp_path):
         ea.load_verified_calibration(bad, tmp_path)
 
 
+def test_leaf_rejects_sha_mismatch(tmp_path):
+    _, contract = _required_artifact(tmp_path)
+    bad = dataclasses.replace(
+        contract,
+        calibration_ref=dataclasses.replace(contract.calibration_ref, sha256="0" * 64),
+    )
+    with pytest.raises(cv.AttestationError, match="sha256 不一致"):
+        _load_leaf(bad, tmp_path)
+
+
 def test_load_verified_calibration_hashes_and_parses_one_read(tmp_path, monkeypatch):
     artifact, contract = _required_artifact(tmp_path)
     original_read_bytes = Path.read_bytes
@@ -1141,12 +1209,28 @@ def test_load_verified_calibration_rejects_duplicate_key(tmp_path):
         ea.load_verified_calibration(contract, tmp_path)
 
 
+def test_leaf_rejects_duplicate_key(tmp_path):
+    raw = json.dumps(_valid_document(), ensure_ascii=False, separators=(",", ":"))
+    duplicate = ('{"schema_version":"calibration/v2",' + raw[1:]).encode("utf-8")
+    _, contract = _required_artifact(tmp_path, raw=duplicate)
+    with pytest.raises(cv.AttestationError, match="duplicate key"):
+        _load_leaf(contract, tmp_path)
+
+
 @pytest.mark.parametrize("field,value", [("env_tag", "other-env"), ("clocks_per_us", 1801)])
 def test_load_verified_calibration_rejects_contract_cross_field(tmp_path, field, value):
     _, contract = _required_artifact(tmp_path)
     bad = dataclasses.replace(contract, **{field: value})
     with pytest.raises(ea.AttestationError, match=field):
         ea.load_verified_calibration(bad, tmp_path)
+
+
+@pytest.mark.parametrize("field,value", [("env_tag", "other-env"), ("clocks_per_us", 1801)])
+def test_leaf_rejects_contract_cross_field(tmp_path, field, value):
+    _, contract = _required_artifact(tmp_path)
+    bad = dataclasses.replace(contract, **{field: value})
+    with pytest.raises(cv.AttestationError, match=field):
+        _load_leaf(bad, tmp_path)
 
 
 def test_load_verified_calibration_rejects_repo_escape(tmp_path):
@@ -1163,6 +1247,55 @@ def test_load_verified_calibration_rejects_repo_escape(tmp_path):
     )
     with pytest.raises(ea.AttestationError, match="repo_root 外"):
         ea.load_verified_calibration(contract, tmp_path)
+
+
+def test_leaf_rejects_repo_escape(tmp_path):
+    outside = tmp_path.parent / "outside-leaf-calibration.json"
+    outside.write_text("{}", encoding="utf-8")
+    contract = ec.ExecutionEnvironmentContract(
+        env_tag="test-env", clocks_per_us=1800, numactl=(),
+        attestation_mode="required",
+        isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=False),
+        calibration_ref=ec.CalibrationRef(
+            path="../outside-leaf-calibration.json",
+            sha256=hashlib.sha256(b"{}").hexdigest(),
+        ),
+    )
+    with pytest.raises(cv.AttestationError, match="repo_root 外"):
+        _load_leaf(contract, tmp_path)
+
+
+def test_leaf_rejects_effective_clock_policy_mismatch(tmp_path):
+    document = _valid_document()
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = 2.5
+    _, contract = _required_artifact(tmp_path, document)
+    with pytest.raises(cv.AttestationError, match="current policy"):
+        _load_leaf(contract, tmp_path)
+
+
+@pytest.mark.parametrize(("calibration_path", "calibration_sha256"), [
+    (
+        "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
+        "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+    ),
+    (
+        "output/env/pegasus/calibration/registered/calibration-94a4b79fa31bba3c.json",
+        "94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9",
+    ),
+])
+def test_leaf_accepts_both_registered_pegasus_calibrations(
+    calibration_path, calibration_sha256,
+):
+    verified = cv.load_verified_calibration(
+        env_tag="pegasus",
+        clocks_per_us=2100,
+        attestation_mode="required",
+        calibration_path=calibration_path,
+        calibration_sha256=calibration_sha256,
+        repo_root=_ORCH.parent,
+    )
+    assert verified.schema_version == sv2.SCHEMA_VERSION
+    assert verified.sha256 == calibration_sha256
 
 
 def test_load_verified_calibration_accepts_exact_grandfathered_v1():

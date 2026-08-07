@@ -472,3 +472,14 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"50e59a860021b61b20b6beaa3de6dc13d39543975b0ba53eb83563030bd07abf","seq":1,"wave":"dev-wave-t598-ledger-consumer"}
 - {"allocations":{"D:claude-ledger-consumer-wiring":"D220"},"authored":"2026-08-07","content_sha256":"17fcf6f8ef6163b1fdee827b4961b4018b422657798e690603dfd97455ae3446","seq":2,"wave":"dev-wave-t598-ledger-consumer"}
+
+- {"allocations":{"T:dev-wave-mutation-runner-mode-doc":"[T-620]","T:provenance-audit-consumer-gap":"[T-621]","T:provenance-default-range-blind-spot":"[T-619]","T:provenance-known-violation-residual":"[T-618]"},"authored":"2026-08-07","content_sha256":"874eeedc965c838b9169081927f21dc2940132086681f1633832bf8cac0a3144","seq":1,"wave":"dev-wave-t614-provenance-ledger"}
+- {"allocations":{"D:known-violation-ledger":"D221","D:nonacceptance-run-warning":"D222"},"authored":"2026-08-07","content_sha256":"4db9d4ef06fbf4fb59e520cf05ee5d01788e7d80d0e00c127bfc6adcd0c049d4","seq":2,"wave":"dev-wave-t614-provenance-ledger"}
+
+- {"allocations":{"T:reasoning-ab-apparatus-generalization":"[T-622]"},"authored":"2026-08-07","content_sha256":"fc00a7b98cc7b5b2be05c8d0ea04df51589a1258f2d27a227e89ddbf0a5fd68f","seq":1,"wave":"dev-wave-t595-reasoning-ab"}
+- {"allocations":{"D:reasoning-ab-endpoint-requires-full-waves":"D224","D:reasoning-effort-adoption-latch":"D223"},"authored":"2026-08-07","content_sha256":"9f32d4b29d769b694b9eb65ff8a2ee625c968ee96ca730ea096ee4eedbdfba5e","seq":2,"wave":"dev-wave-t595-reasoning-ab"}
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"bdf02f11e5842e493bf419ecb25fd0530aa27733e240fde84ccf26c49fedfaa2","seq":3,"wave":"dev-wave-t595-reasoning-ab"}
+
+- {"allocations":{"T:d-transition-rule-wording-hole":"[T-624]","T:floor-protocol-invalid-return-single-reason":"[T-623]"},"authored":"2026-08-07","content_sha256":"c2bcbd3e9c2adf503290a6cadc1adb50a6b7032b1a23b62646e215e5d8daeb23","seq":1,"wave":"dev-wave-t529-impl-reraise"}
+- {"allocations":{"D:floor-protocol-two-lane":"D226","D:g04-firing-material-exists":"D225"},"authored":"2026-08-07","content_sha256":"4822c9b7bedcd541d3dfb2e6f2429904d6c672704544fc9b813f390da474228a","seq":2,"wave":"dev-wave-t529-impl-reraise"}
+- {"allocations":{"F:mutation-collection-preflight":"F155","F:stale-done-file-short-circuits-waiter":"F156"},"authored":"2026-08-07","content_sha256":"402f6b6c6ff8d5429c7cf4b082ee9ee2f27390ad9c4c80f2e25ca6b656f92abb","seq":3,"wave":"dev-wave-t529-impl-reraise"}
