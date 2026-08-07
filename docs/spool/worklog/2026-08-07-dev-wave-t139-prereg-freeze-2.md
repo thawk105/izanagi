@@ -56,6 +56,13 @@ title: [T-139] 本走前置 — paired 例外を roadmap へ限定記録し、�
   (1722 件、新規違反なし)、受入全走 `tools/run_tests.py` **rc=0 (7177 passed / 20 skipped、
   1474.09s、Pegasus request `895369.nqsv`)**。実装差分がゼロのため変異 matrix は射程外である。
 
+- **段 8 (自己改善)。** 候補 2 件。(1) 親の base digest 誤計算は **F157 と同型の再発**であり、
+  これで独立 2 例が揃ったため `DW-G03` に従い族の制度化へ上げ、`DW-S01` の一次資料規律へ
+  「値の定義元 tool から取り、手計算で代用しない」を統合した (+62 bytes)。**`docs/dev-wave/**` の
+  合計は 25196 / 上限 25200 となり、残余は 4 bytes である。**次の自己改善は縮約か予算の独立審査なしに
+  入らない。(2) 実装差分ゼロ wave における受入全走の射程は裁定境界の変更なので実装せず、
+  次の一手へ裁定候補として起票した。
+
 ## 次の一手差分
 
 ### 更新
@@ -84,6 +91,12 @@ title: [T-139] 本走前置 — paired 例外を roadmap へ限定記録し、�
   本 wave は同一 wave commit + fold 後発効で無害化したが、要求そのものを緩めたと読むこともできる。
   (α) fragment が wave commit 時点の署名決定であり fold は採番だけ、と認めるか、
   (β) 認めないなら別の充足形を定めるか、を裁定する。
+- {{T:devwave-zero-diff-acceptance-scope}} **P3・ユーザー裁定待ち (dev-wave 契約)**:
+  `DW-S04` は実装差分ゼロの wave について「変異 matrix と**受入全走**が対象外だと射程を明記する」と
+  定めるが、docs のみの wave でも `test_check_docs` / `test_spool_fold` は実 repo を読むため
+  受入全走に実質的な検出力がある (本 wave も実走して rc=0 を得た)。契約どおり省くと docs 起因の
+  赤を見逃し、走らせると契約と食い違う。射程を「変異 matrix だけ対象外。実 repo を読むテストが
+  あるなら受入全走は走らせる」に改めるかを裁定する。裁定境界の変更なので本 wave では実装しない。
 - {{T:t139-producer-preconditions}} **P1・ユーザー裁定待ち (producer 実装 wave の前提)**:
   (i) producer と投入 script のどちらを第一の admission boundary にするか。
   (ii) 測定 checkout の trust root — 解決器が実 checkout から導出することを、どこまで機械保証にするか
