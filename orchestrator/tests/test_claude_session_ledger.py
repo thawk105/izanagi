@@ -1344,5 +1344,44 @@ def test_read_only_run_preserves_entire_isolated_tree_and_makes_no_bytecode(
     assert not (copied_tools / "__pycache__").exists()
 
 
+def test_public_collect_report_matches_cli_json_schema_v2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    _write_jsonl(
+        projects,
+        "synthetic-project",
+        "session.jsonl",
+        [
+            _assistant(
+                request_id="public-report",
+                message_id="public-report-message",
+                cwd="/synthetic/izanagi",
+                usage=_usage(
+                    cache_read=1, cache_creation=2, input_tokens=3, output=4
+                ),
+            )
+        ],
+    )
+    argv = [
+        "--projects-root",
+        str(projects),
+        "--project",
+        "synthetic-project",
+        "--cwd-under",
+        "/synthetic/izanagi",
+        "--include-sidechains",
+    ]
+
+    collected = LEDGER.collect_report(argv)
+    rc = LEDGER.main([*argv, "--json"])
+    captured = capsys.readouterr()
+
+    assert rc == collected.exit_code == 0
+    assert captured.err == ""
+    assert json.loads(captured.out) == collected.report
+    assert collected.report["schema_version"] == 2
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-x"]))
