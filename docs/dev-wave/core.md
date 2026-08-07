@@ -108,6 +108,7 @@ hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界�
 
 全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して `DW-O23` を行う。
 `tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路である。
+`landed` / `already-landed` 以外は `DW-STOP` に従い、main HEAD と既存 branch を報告する。
 
 ## DW-CTX — fresh context と外部 supervisor
 
