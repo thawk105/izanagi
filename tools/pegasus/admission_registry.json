@@ -1,6 +1,12 @@
 {
   "schema_version": "pegasus-admission-registry/v1",
   "entries": {
+    "tools/claude_session_ledger.py": {
+      "class": "unknown",
+      "reason": "input caps and capped-input measurement are incomplete",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured; unbounded input surfaces remain"
+    },
     "tools/pegasus/certify_calibration.sh": {
       "class": "dispatch-required",
       "reason": "PBS calibration job body",

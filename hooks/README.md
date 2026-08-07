@@ -76,13 +76,18 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 - tar/rsync は read (backup) / write (展開・mirror INTO) を判別 (backup を巻き込まない)。
 
 **Pegasus の重い処理層 (正しさ防壁ではない)。** 同 hook は Pegasus ログインノードでの重量コマンドも
-拒否する。`tools/pegasus/` 配下の admission は **`tools/pegasus/admission_registry.json` が正本**で、
+拒否する。admission は **`tools/pegasus/admission_registry.json` が正本**で、
 `hooks/guard_bash.py` は共有 validator (`tools/pegasus_admission_registry.py`) を通した投影である
-([T-522])。正本が読めない・schema に反するときは空 registry へ縮退し、`tools/pegasus/` 配下を
-すべて拒否する (fail-closed)。一覧はここへ写さない (二重管理はドリフト源になる)。
-射程と限界 — 一次強制は各 entry point 自身の fail-closed であり、hook が
-新規に閉じるのは非 sanctioned な綴りだけで、Codex 子・script file 越し・`python3 -c`・ユーザー端末は
-原理的に見えない — は `docs/pegasus-runbook.md` §7 と D103 / D105 を正本とする。
+([T-522])。**registry が exact 登録した path は配置場所を問わず対象になるが、未登録 = 拒否の閉包は
+`tools/pegasus/` 配下だけに残り、`tools/pegasus/` 外に登録できるのは deny 側 class だけである**
+([T-639])。正本が読めない・schema に反するときは空 registry へ縮退し、`tools/pegasus/` 配下と
+hook が静的に持つ非 `tools/pegasus/` 登録 path をすべて拒否する (fail-closed)。
+一覧はここへ写さない (二重管理はドリフト源になる)。
+射程と限界 — 一次強制は各 entry point 自身の fail-closed だが、**site gate を持たない実行体では
+この hook が現行唯一の機械面である** ([T-639] で登録した `tools/claude_session_ledger.py` が該当)。
+hook が新規に閉じるのは非 sanctioned な綴りだけで、Codex 子・script file 越し・`python3 -c`・
+cwd 相対・変数展開・未解析 launcher・ユーザー端末・cron・subprocess の内側は原理的に見えない —
+は `docs/pegasus-runbook.md` §7 と D103 / D105 を正本とする。
 
 **raw `systemd-run` の拒否 ([T-300])。** LOGIN / SUSPECT では head が `systemd-run` の呼び出しを
 拒否する。上限付き scope は `tools/run_tests.py` などが**内部で**作るものであり、hook は
