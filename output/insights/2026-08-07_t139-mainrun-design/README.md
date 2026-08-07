@@ -32,7 +32,8 @@ worklog 末尾、採用済み判断の正本は decisions であり、ここに�
 | `s3-lensB.md` | 段 3 敵対レンズ B = 手続き整合と実行可能性 — NO-GO、blocker 11 件 + nit 1 件 |
 | `s4-adjudication.md` | 段 4 裁定 (real/refuted、親の誤り、プラン v2 の骨子) |
 | `package.md` | **ユーザー裁定パッケージ (11 件)** |
-| `preregistration-draft.md` | **事前登録の草案** (未確定箇所は `【U#】` で明示。事前登録ではない) |
+| `preregistration-draft.md` | **事前登録の草案** (未確定箇所は `【U#】` で明示。事前登録ではない。凍結記録として書き換えない) |
+| `preregistration.md` | **事前登録 core (2026-08-07 凍結)** — 11 件全件の裁定確定を反映し `【U#】` を残さない。後続 wave が参照する正本はこちらであり、草案ではない |
 
 ## 1. 実測 (親が本 wave で取ったもの)
 
