@@ -464,3 +464,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:calibration-activation-frozen-protocol":"[T-615]","T:registered-glob-nondeterminism":"[T-617]","T:withdrawn-ruling-not-propagated-policy":"[T-616]"},"authored":"2026-08-07","content_sha256":"e8276b2cc09b2f4f5c78f0b31a22af87aa0a48f0a107a85f5dc46feddbc6c147","seq":1,"wave":"dev-wave-t419-iii"}
 - {"allocations":{"D:independent-verification-satisfied-form":"D218"},"authored":"2026-08-07","content_sha256":"e39931e498fc5c77059ec15946408fd0bfd64769ab4a78c1fca85358f095aa77","seq":2,"wave":"dev-wave-t419-iii"}
 - {"allocations":{"F:withdrawn-ruling-not-propagated":"F154"},"authored":"2026-08-07","content_sha256":"4fefaf164e1b6f8cee8d3ca6c90527b49718d69b0e7fe1d0ededf839cc55f7dd","seq":3,"wave":"dev-wave-t419-iii"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"dd54e8b6829e8c0a51032277ac10736338a0dbd48c874cec50264848e6eeec89","seq":15,"wave":"rulings-20260806-a"}
