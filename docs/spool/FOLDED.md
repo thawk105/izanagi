@@ -479,3 +479,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:reasoning-ab-apparatus-generalization":"[T-622]"},"authored":"2026-08-07","content_sha256":"fc00a7b98cc7b5b2be05c8d0ea04df51589a1258f2d27a227e89ddbf0a5fd68f","seq":1,"wave":"dev-wave-t595-reasoning-ab"}
 - {"allocations":{"D:reasoning-ab-endpoint-requires-full-waves":"D224","D:reasoning-effort-adoption-latch":"D223"},"authored":"2026-08-07","content_sha256":"9f32d4b29d769b694b9eb65ff8a2ee625c968ee96ca730ea096ee4eedbdfba5e","seq":2,"wave":"dev-wave-t595-reasoning-ab"}
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"bdf02f11e5842e493bf419ecb25fd0530aa27733e240fde84ccf26c49fedfaa2","seq":3,"wave":"dev-wave-t595-reasoning-ab"}
+
+- {"allocations":{"T:d-transition-rule-wording-hole":"[T-624]","T:floor-protocol-invalid-return-single-reason":"[T-623]"},"authored":"2026-08-07","content_sha256":"c2bcbd3e9c2adf503290a6cadc1adb50a6b7032b1a23b62646e215e5d8daeb23","seq":1,"wave":"dev-wave-t529-impl-reraise"}
+- {"allocations":{"D:floor-protocol-two-lane":"D226","D:g04-firing-material-exists":"D225"},"authored":"2026-08-07","content_sha256":"4822c9b7bedcd541d3dfb2e6f2429904d6c672704544fc9b813f390da474228a","seq":2,"wave":"dev-wave-t529-impl-reraise"}
+- {"allocations":{"F:mutation-collection-preflight":"F155","F:stale-done-file-short-circuits-waiter":"F156"},"authored":"2026-08-07","content_sha256":"402f6b6c6ff8d5429c7cf4b082ee9ee2f27390ad9c4c80f2e25ca6b656f92abb","seq":3,"wave":"dev-wave-t529-impl-reraise"}
