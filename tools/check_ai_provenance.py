@@ -141,6 +141,7 @@ class KnownViolationSpec:
     commit: str
     expected_finding_kind: str
     ruling: str
+    note: str = ""
 
 
 _KNOWN_VIOLATION_RULING = "worklog(284) 2026-08-07 /rulings"
@@ -174,6 +175,15 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         "b0a07672737cf03424ec1790cc25a06e4c85b737",
         MISSING_CODEX_AUTHOR,
         _KNOWN_VIOLATION_RULING,
+    ),
+    KnownViolationSpec(
+        "3f2c43d7580b8c26724d90278589862057508965",
+        MISSING_AI_AGENT,
+        "worklog(293) 2026-08-07 /rulings",
+        note=(
+            "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の"
+            "空行で trailer block 不成立"
+        ),
     ),
 )
 
@@ -223,8 +233,28 @@ def _known_violation_registry() -> dict[str, KnownViolationSpec]:
                 "known provenance violation registry has empty ruling: "
                 f"{spec.commit}"
             )
+        if not isinstance(spec.note, str):
+            raise RuntimeError(
+                "known provenance violation registry has invalid note type: "
+                f"{type(spec.note).__name__}"
+            )
+        if spec.note != "" and spec.note.splitlines() != [spec.note]:
+            raise RuntimeError(
+                "known provenance violation registry has line break in note: "
+                f"{spec.commit}"
+            )
         registry[spec.commit] = spec
     return registry
+
+
+def _known_violation_line(spec: KnownViolationSpec) -> str:
+    line = (
+        "check_ai_provenance: known-violation "
+        f"sha={spec.commit} finding={spec.expected_finding_kind}"
+    )
+    if spec.note != "":
+        line += f" note={spec.note}"
+    return line
 
 
 @dataclass(frozen=True)
@@ -2074,10 +2104,7 @@ def main(
             file=sys.stderr,
         )
         for spec in known_violations:
-            print(
-                "check_ai_provenance: known-violation "
-                f"sha={spec.commit} finding={spec.expected_finding_kind}"
-            )
+            print(_known_violation_line(spec))
         if known_violations:
             print(
                 "check_ai_provenance: known-violations="
@@ -2103,10 +2130,7 @@ def main(
             f"target={spec.target}"
         )
     for spec in known_violations:
-        print(
-            "check_ai_provenance: known-violation "
-            f"sha={spec.commit} finding={spec.expected_finding_kind}"
-        )
+        print(_known_violation_line(spec))
     if known_violations:
         print(
             "check_ai_provenance: known-violations="

@@ -590,6 +590,19 @@
   「role 名を key に張る pin は key 側でも検索し、path の hit 0 件を pin なしと結論しない」と
   既に明記しており、**本文を読んだうえで path 検索だけで結論した**。段 3 のレンズが訂正した。
   今回は当該 module を変更しなかったため実害はない。恒久対応は `DW-O09` から変更なし
+
+- **再発: 2026-08-07** — 四度目。前回 (三度目) と同じ role 名 key の pin を、同じ module
+  (`orchestrator/campaign/env_contract.py`) について再び数え落とした。今回は原因が 2 つ重なる。
+  (i) 段 1 で `grep -rln "env_contract" --include=*.json output/` を走らせたが、**出力を `| head` で
+  10 件に切って**全件を見なかった。silo evidence の
+  `output/env/pegasus/silo_ladder_rung1/silo_ladder_rung1.json` は path 文字列を持つので
+  検索自体には掛かっていたが、切られた側にいた。(ii) t419 probe manifest の
+  `env_contract_sha256` は role 名 key であり path 検索に掛からない — `DW-O09` が三度目の
+  恒久対応として明記した経路をそのまま踏んだ。結果、brief へ「bytes を literal で pin する
+  台帳・test は 0 件」と誤って記録した (正しくは歴史 pin 2 件・live pin 0 件)。
+  段 3 の 2 レンズが独立に検出し、親が実測で裏を取った。本 wave は当該 module を変更せず
+  終端したため実害はない。恒久対応は `DW-O09` から変更せず、**検索出力を件数で切らない**ことを
+  同節の既存義務の運用として守る (新しい節は作らない)。
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
@@ -3590,6 +3603,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   rc=1 / kill node 1 件の KILLED になり、harness も rc=0 で完走した (`mutation-ledger2.json`)。
   変異内容は 1 byte も変えていない。仮説が正しければ dispatch mode でも暴走するはずだった。
   親が手で測った narrow 走行の結論とも独立に一致する。
+
+- **再発: 2026-08-07** ([T-618] wave)。**変異 harness を通さない素の targeted 走行でも同じ rc=16 が
+  出た。** `python3 tools/run_tests.py orchestrator/tests/test_check_ai_provenance.py` (追加 flag なし、
+  harness 非関与) が `bounded scope の memory.max / memory.oom.group を走行中に attest できない` で
+  止まった。対象 238 test は計算ノードで 8 秒台に終わる規模で、`_SCOPE_ATTEST_SECONDS = 1.0` の
+  race に入る。**本 F の (b) が harness 固有ではなく「login ノードで短時間に終わる走行」一般の
+  条件であることが判明した。** `--force-dispatch` を足して計算ノードへ回すと同じ走行が
+  rc=0 / 238 passed になり、実装差分は 1 byte も汚さずに止まっていた。
+- **恒久対応の射程を広げる。** 本 F の既定 recipe (`--force-dispatch`) は変異本走だけでなく、
+  **login ノードから投げる短時間の targeted 走行**にも適用する。受入全走は所要が長く race に入らない
+  ため既定形 (追加 flag なし) のままとする — 受入形へ余計な flag を足すと事前検査が黙って
+  発火しなくなる (F153) ので、この 2 つを混同しない。
 ### F156. 前回投入の `.done` 残骸で待ちが即座に返った [手順漏れ]
 
 - 事象: 変異本走を投入し直した直後に完了待ちを張ったところ、待ちが即座に返った。
@@ -3612,3 +3637,29 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 追加の恒久対応: PID は待ち手側が `pgrep` で推測せず、**生産者 script 自身が `echo $$` で
   書き出したファイル**から読む。`.done` の除去は script 冒頭 (投入経路に入った直後) に置き、
   条件待ちの後ろへ回さない。
+
+### F157. 裁定条文の連言条件を項目単位で artifact に照合せず「実測で成立」と宣言した [誤前提] [手順漏れ]
+
+- 事象: [T-139] 本走設計 wave の段 1 で、親は D162 決定 (10) の機械化発火条件について
+  「3 点のうち (i)(ii) は request `892042` で成立、残るは (iii) consumer だけ」と handoff・brief・
+  ユーザーへの中間報告に書いた。**(ii) は「環境タグ・測定 checkout・pin・attestation」の 4 項の
+  連言**であり、実際に artifact を全文検索すると **`env_tag` も `attestation` も hit 0 件**だった。
+  成立していたのは (i) だけである。
+- 検出: 段 3 レンズ B が独立に指摘し、親が `grep -rn "env_tag\|attestation" <artifact dir>` で
+  hit 0 件を確認して撤回した。
+- 根本原因: 親は「probe が 3 arm で、事前登録を実走前に commit し、pin と checkout を持つ」
+  という**全体の印象**から (ii) を成立と判断した。連言の各項について、
+  **その項を証拠立てる artifact の field を名指しで照合していない**。
+  `DW-S01` は「承認済み裁定の前提を実測する」と定めているが、
+  親はその実測を「計測が存在するか」までしか下ろさず、
+  「裁定文が列挙した各項が artifact のどの field に実在するか」まで下ろさなかった。
+  D162 が書かれた時点 (2026-08-05) の事実認定が翌日の計測で古くなったことは正しく検出できたのに、
+  **更新後の事実認定を同じ粒度で検証しなかった**。
+- 恒久対応: 局所修復とする (`DW-G03` — 単発事故を族へ一般化しない)。本 wave の裁定パッケージ・
+  worklog・段 4 裁定で事実認定を (i) のみ成立へ訂正し、事前登録草案の記録項目節に
+  「request `892042` はこの 2 つを持たない。発火条件 (ii) はここで初めて成立する」と明記した。
+  **機械的防壁は新設しない。**既存の `DW-S03`「親自身の実測値とその一般化も明示的にレンズへ入れる」が
+  本件で実際に発火し、投入前に止めている。
+- 再発検知: 同型 (裁定条文の連言条件を項目単位で照合せず成立と宣言する) が異なる wave で
+  独立に再現したら、`DW-G03` の独立 2 例が揃うので `DW-S01` への義務追加を裁定へ返す。
+  それまでは本 F を再発の観測点として使う。
