@@ -1,0 +1,156 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "            spec_for_commit = registry.get(audit.commit)\n",
+          "new": "            spec_for_commit = next(\n                (\n                    candidate\n                    for key, candidate in registry.items()\n                    if audit.commit[:8] == key[:8]\n                ),\n                None,\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_exact_sha_with_shared_eight_digit_prefix"
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "                and finding.ledger_kind == spec_for_commit.expected_finding_kind\n",
+          "new": "                and True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_expected_kind_coexists_with_other_new_finding"
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "                if audit.commit not in consumed_registry_entries:\n",
+          "new": "                if True:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_suppresses_only_one_expected_finding"
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    for spec in KNOWN_PROVENANCE_VIOLATIONS:\n",
+          "new": "    for spec in ():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_six_real_findings",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings"
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if findings:\n",
+          "new": "    if findings or known_violations:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_stdout_is_public_on_rc0_and_rc1"
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        for spec in known_violations:\n",
+          "new": "        for spec in ():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_stdout_is_public_on_rc0_and_rc1"
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if ledger_audit.stale:\n",
+          "new": "    if False and ledger_audit.stale:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_selected_clean_entry_is_stale_rc2",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_missing_expected_finding_diagnoses_regression",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_other_kind_does_not_hide_selected_stale",
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_off_head_policy_guard_is_stale_rc2"
+      ]
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    if not _is_acceptance_run(args) and not _has_valid_bounded_scope_marker():\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_preflight.py::test_nonacceptance_main_warns_once_on_stderr_and_preserves_rc"
+      ]
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    if not _is_acceptance_run(args) and not _has_valid_bounded_scope_marker():\n",
+          "new": "    if True:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_preflight.py::test_acceptance_main_does_not_emit_nonacceptance_warning"
+      ]
+    }
+  ]
+}
