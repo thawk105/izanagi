@@ -491,3 +491,24 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"928d5e90d871004c5cf05e7e37906fae4bcdf670636959d507d0be03bb19bdc1","seq":16,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"fb8206725c5a66ef8758c49ea4bcde060ccd05c65fb146e68786a55a3eae889a","seq":17,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"D:activation-transition-rejects-no-op":"D228"},"authored":"2026-08-07","content_sha256":"17e8510b0d231585e706772ec05b00564e5a3eb65947b433aac631995523e64e","seq":1,"wave":"dev-wave-t624-activation-noop"}
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"3b063eef33933bfa27b54a8b6d8826314447dad577caa152c8700cf172a13e1a","seq":2,"wave":"dev-wave-t624-activation-noop"}
+- {"allocations":{"T:activation-env-membership-migration":"[T-628]","T:activation-transition-predicate-form":"[T-627]"},"authored":"2026-08-07","content_sha256":"f7e01790413c3880f3e360d4a8c1077f297cbad3b2ae7441a6ef92311e59773a","seq":3,"wave":"dev-wave-t624-activation-noop"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"3af261ecabb40ddbdc4e9947d5f2ee768d6908963fd04bf0da59ca0c6e461982","seq":1,"wave":"dev-wave-t139-mainrun-design"}
+- {"allocations":{"D:t139-mainrun-design":"D229"},"authored":"2026-08-07","content_sha256":"aaca7271dedd7d7c92d764e4c8496607e084dacb27c518614384263f2ca6781f","seq":2,"wave":"dev-wave-t139-mainrun-design"}
+- {"allocations":{"F:ruling-fact-finding-staleness":"F157"},"authored":"2026-08-07","content_sha256":"d8e13afc693db9889fc5ad4ea217e57986c755f5fd313d8a9a724fd0bfb28972","seq":3,"wave":"dev-wave-t139-mainrun-design"}
+
+- {"allocations":{"T:provenance-audit-argmax-scale":"[T-630]","T:provenance-scope-needle-ambiguity":"[T-629]"},"authored":"2026-08-07","content_sha256":"84638133123820959ded2a3c63562da9f69008c3d9cf03c794e1eb903cbda69e","seq":1,"wave":"dev-wave-t619-provenance-range"}
+- {"allocations":{"D:provenance-uniform-epoch-predicate":"D230"},"authored":"2026-08-07","content_sha256":"4e5b61426fca35672867997d20eb107975c844b2e6c65bb8ef54f26659240b97","seq":1,"wave":"dev-wave-t619-provenance-range"}
+
+- {"allocations":{"T:mutation-single-reason-vs-single-node":"[T-631]"},"authored":"2026-08-07","content_sha256":"e74612c654601a5fd0df92f1ac0445b4e6a264c524ac538a31aff7b252b854cd","seq":1,"wave":"dev-wave-t618-provenance-known-ledger"}
+- {"allocations":{"D:known-violation-note-field":"D231"},"authored":"2026-08-07","content_sha256":"cad60e19e32075454398f7750daa0ccd6e7e4a3fc6d0be8028812a6068507dc9","seq":2,"wave":"dev-wave-t618-provenance-known-ledger"}
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"a49998b178ba25710f2d847a98a75062561c0f765de36cf5266e2d2f6dde6478","seq":3,"wave":"dev-wave-t618-provenance-known-ledger"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"2ee1a230c356ad01d0af5abc7b65f1c7550140c81982422bbbd70dc0797e566a","seq":18,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"a543f49cce38e1e7b18146f096f54122424bba1c2007177ec5abd28bc69de8dc","seq":19,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"16fe70df71d0219d036d5964abee12cee12c8114e5782836d7163d7001ecfa63","seq":20,"wave":"rulings-20260806-a"}
