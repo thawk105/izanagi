@@ -1,0 +1,36 @@
+[
+ {
+  "id": "control-new",
+  "rc": 0,
+  "failed_nodes": []
+ },
+ {
+  "id": "control-old",
+  "rc": 0,
+  "failed_nodes": []
+ },
+ {
+  "id": "M2-new",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_mutation_harness.py::test_mutation_nonzero_normal_rc_without_failed_nodes_is_parse_error"
+  ]
+ },
+ {
+  "id": "M2-old",
+  "rc": 0,
+  "failed_nodes": []
+ },
+ {
+  "id": "M3-new",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_mutation_harness.py::test_baseline_nonzero_normal_rc_without_failed_nodes_is_parse_error"
+  ]
+ },
+ {
+  "id": "M3-old",
+  "rc": 0,
+  "failed_nodes": []
+ }
+]
