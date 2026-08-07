@@ -225,19 +225,21 @@ Jitskit では、スカラーの throughput だけより leading indicators を�
 - なお fresh な back-to-back セッションは cold-boot/温度/数時間ドリフトを含まない**下限**なので、確定する between-run floor は fresh 実測と cross-campaign の genuine データ (別時間窓の同一 genome 反復) を突き合わせ保守側 (最大) に採る。
 - high-abort genome ほど run 間ドリフトが大きい (abort 率が分散源)。
 
-**(3'') 限定例外 — [T-139] の RF 3-arm paired cluster study だけ (協議改訂、2026-08-07).** D134 決定 (3) は、paired 設計を採るなら D19 と本節 (3') の例外新設として扱い、限定を同じ変更単位で行うことを要求している。その履行として、**[T-139] の回復率 (RF) study に限り**、元の版・劣化版・候補の 3 arm を**同一割当て (cluster) の中で**測り、cluster 内 contrast を構成してよい。この例外は他の study へも通常の campaign compare へも自動的に一般化しない (族一般化には独立 2 例が要る)。
+**(3'') 限定例外 — [T-139] の RF 3-arm paired cluster study だけ (協議改訂、2026-08-07).** D134 決定 (3) は、paired 設計を採るなら D19 と本節 (3') の例外新設として扱い、限定を同じ変更単位で行うことを要求している。本例外と、それを定める決定・凍結した事前登録は同一の変更単位に置いた。ただし台帳 fragment の採番と canonical 化は land が行うため、**canonical 台帳と本節が同一 commit に載る最厳格解釈は満たしていない。その差はユーザー裁定へ返してある。**その上で、**[T-139] の回復率 (RF) study に限り**、元の版・劣化版・候補の 3 arm を**同一割当て (cluster) の中で**測り、cluster 内 contrast を構成してよい。この例外は他の study へも通常の campaign compare へも自動的に一般化しない (族一般化には独立 2 例が要る)。
 
 この例外は次をすべて満たす場合にだけ適用し、一つでも欠ければ結論は「判定不能」とする。
 
 - **発効条件.** 本例外を定める決定が canonical 台帳へ fold された land 以後にのみ効力を持つ。fold 前の中間状態では発効しない。
-- **事前登録.** 最初の pilot より前に、推論内容を固定した core 事前登録 (`output/insights/2026-08-07_t139-mainrun-design/preregistration.md`) が commit され、結果の記録がその `commit:path` と blob digest を参照し、当該 commit が測定 checkout の祖先である。core の canonical path は producer が選べない。
+- **事前登録.** 最初の pilot より前に、推論の構造を固定した core 事前登録 (`output/insights/2026-08-07_t139-mainrun-design/preregistration.md`) と、数値パラメータを確定する**追補 A** が commit され、結果の記録がそれぞれの `commit:path` と blob digest を参照し、当該 commit が測定 checkout の祖先である。core の canonical path は producer が選べず、その bytes は本例外を発効させた fold commit 時点のものと同一でなければならない。本走の投入にはさらに**追補 B** を要する。この事前登録は core と追補の組で完結するものであり、core 単独では完結しない。
 - **cluster level 推論.** 1 割当てを 1 cluster とする。cluster 内の反復は arm ごとに 1 個の代表値へ縮約し、推定量・検定・区間は cluster 間の標本平均と標本共分散だけから構成する。cluster 内の反復・block・個々の測定値を独立標本や追加の自由度として数えない。
-- **順序均衡.** 各適格 cluster は 3 arm の全 6 順列をちょうど 1 回ずつ含み、arm 位置と直前 arm の組を厳密に均衡させる。結果を見た後の cluster 選別・順序変更をしない。
+- **順序均衡.** 各適格 cluster は 3 arm の全 6 順列をちょうど 1 回ずつ含み、arm 位置と直前 arm の組を厳密に均衡させる。block の実行順は事前 seed で許容集合から選び、runtime 乱数を使わない。workload の block 順は cluster 間で差 1 以内に均衡させる。結果を見た後の cluster 選別・順序変更をしない。
 - **観測者効果の分離 (絶対規律 1 は不変).** 性能を測る 3 arm はすべて trace-disabled ビルドで揃える。correctness 検証は trace-enabled の別ビルド・別 run で行い、同一割当ての中で性能測定と混ぜない。
-- **fail-closed.** pairing・順序均衡・cluster の受領証のいずれかが成立しなければ「判定不能」とし、unpaired 推定へも通常の campaign compare へも自動 fallback しない (D134 決定 (4))。correctness anomaly は当該 cluster の終端 reject とし、性能測定の開始後の失敗を予備割当てで置き換えない。
+- **fail-closed.** pairing・順序均衡・cluster の受領証のいずれかが成立しなければ「判定不能」とし、unpaired 推定へも通常の campaign compare へも自動 fallback しない (D134 決定 (4))。correctness anomaly は**候補の終端 reject** とし (D134 決定 (6) と同じ単位。1 cluster の失敗に留めない)、性能測定の開始後の失敗を予備割当てで置き換えない。
 - **権威.** 適格性は producer の自己申告では決まらず、保存した生の受領証から独立 validator が再計算した結果だけを権威とする (D162)。
 
 **この例外は D19 の within-run / between-run の区別、`BETWEEN_RUN_CV` の値、本節 (2) の品質ゲート、本節 (4) の floor 丸めを一切変更しない。** 別セッション・別 campaign 間の判定には従来どおり between-run floor を使い、paired cluster の反復や cluster 内 contrast を通常の campaign compare の独立 run 列へ流用しない。
+
+**本例外の機械執行はまだ無い。** 上の条件は本節と当該決定・事前登録が定める**文書上の契約**であり、投入 script・producer・受領証 schema・validator・消費側のいずれにも配線されていない。本節だけを根拠に「投入は機械的に阻止されている」と記録してはならない。配線は producer 実装 wave の責務である。
 
 **(4) 採否は点比較でなく分布比較.** variant vs baseline の優劣判定は単一値の大小でなく**分布の比較**で行う:
 - 差が noise floor 以下なら「**差なし**」に丸める。層3 narrative の「3%悪化だから不採用」のような **noise floor 以下の差を採否根拠にしてはいけない** (3% はラップトップ/devcontainer ではほぼノイズ)

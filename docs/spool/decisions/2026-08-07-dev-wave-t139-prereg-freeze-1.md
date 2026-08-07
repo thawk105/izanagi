@@ -35,20 +35,33 @@ pairing 不成立時の自動 unpaired fallback を禁じた。この履行が�
 構成し、cluster 内の反復・block・個々の測定値を独立標本や追加の自由度として数えない。
 
 **決定 (4): 適格条件と fail-closed。** 各適格 cluster は 3 arm の全 6 順列をちょうど 1 回ずつ含み、
-arm 位置と直前 arm を厳密に均衡させる。結果を見た後の cluster 選別・順序変更をしない。性能を測る
-3 arm はすべて trace-disabled ビルドで揃え、correctness 検証は trace-enabled の別ビルド・別 run で
-行う (絶対規律 1 は不変)。pairing・順序均衡・受領証のいずれかが成立しなければ結論は「判定不能」とし、
-unpaired 推定へも通常 compare へも自動 fallback しない。correctness anomaly は当該 cluster の
-終端 reject とし、性能測定の開始後の失敗を予備割当てで置き換えない。適格性は producer の自己申告では
-決まらず、保存した生の受領証から独立 validator が再計算した結果だけを権威とする (D162)。
+arm 位置と直前 arm を厳密に均衡させる。block の実行順は事前 seed で許容集合から選び runtime 乱数を
+使わない。workload の block 順は cluster 間で差 1 以内に均衡させる。結果を見た後の cluster 選別・順序変更を
+しない。性能を測る 3 arm はすべて trace-disabled ビルドで揃え、correctness 検証は trace-enabled の
+別ビルド・別 run で行う (絶対規律 1 は不変)。pairing・順序均衡・受領証のいずれかが成立しなければ
+結論は「判定不能」とし、unpaired 推定へも通常 compare へも自動 fallback しない。correctness anomaly は
+**候補の終端 reject** とし (D134 決定 (6) と同じ単位。1 cluster の失敗に留めない)、性能測定の開始後の
+失敗を予備割当てで置き換えない。適格性は producer の自己申告では決まらず、保存した生の受領証から
+独立 validator が再計算した結果だけを権威とする (D162)。消費側は producer の申告値を読まず、
+信頼された validator の再計算結果だけを受理判定の入力にする。
 
-**決定 (5): 事前登録は core 1 本 + 閉集合の追補とする。** 推論内容を固定した core を
-`output/insights/2026-08-07_t139-mainrun-design/preregistration.md` に凍結する。未確定として残る量
-(1 割当ての時間予算表・待機秒数・環境復帰の指標と許容範囲・復帰しない場合の失敗の写像先・割当て外
-build の binary 束縛・予備経路の要求 walltime / 候補数上限・累積 spending の数値割当て) は、
-core が閉集合として列挙する **schedule 追補**と **alpha 追補**でだけ確定する。**追補は core の
-推論内容を変更できない。**変更が必要になったらそれは別 study であり、新しい core を起こして
-ユーザー裁定へ戻す。これにより「第 2 の完結版が κ・受理条件・状態表・有意水準を書き換える」経路を塞ぐ。
+**決定 (5): 事前登録は 2 段階とし、core 1 本 + exact-key の追補で構成する。** 推論の**構造**
+(問い・estimand・受理条件・状態空間・設計・失敗規則) を固定した core を
+`output/insights/2026-08-07_t139-mainrun-design/preregistration.md` に凍結する。**core 単独では
+完結した事前登録ではない** — 数値パラメータは、core が閉集合として列挙する **追補 A**
+(本 study のデータを 1 点も見る前、すなわち pilot 投入より前に commit する) と **追補 B**
+(本走の投入より前に commit する。verdict の直前ではない) で確定し、完結するのは core と追補の組である。
+追補 A は時間予算表・待機秒数・環境復帰の指標と許容範囲・失敗の写像先・割当て外 build の binary 束縛・
+要求 walltime に加え、**workload の driver 引数一式、3 arm の build identity、実行順の事前 seed と
+許容 schedule 集合、`J_max` と割当て内訳と `J` の導出手続き、同時信頼領域と臨界値 `q` の構成、
+weak null 較正 simulation の仕様、primary 系列の有意水準**を含む。追補 B は候補数上限、
+個別公表系列の spending、累積台帳を束縛する正規の根の同定方法だけを持ち、**`q` に影響する量を
+一切持たない** — これにより primary の判定基準は pilot より前に完全に固定される。
+**追補は core の文章を変更できない。**追補は閉集合を **exact-key** で満たさなければならず、
+欠落も余剰も解決失敗とする。追補は環境復帰の判定を恒真化してはならず、性能測定の開始後の失敗を
+開始前の infra failure へ写してはならない。変更が必要になったらそれは別 study であり、
+新しい core を起こしてユーザー裁定へ戻す。これにより「第 2 の完結版が κ・受理条件・状態表・
+有意水準を書き換える」経路と、pilot の結果を見てから `q` や有意水準を選ぶ経路を塞ぐ。
 
 **決定 (6): 凍結の実装は commit/blob 参照束縛だけとする。** 結果の記録が core と追補の
 `<commit>` / `<path>` / blob SHA-256 を参照し、検証側が指定 commit の tree から blob を読んで digest を
@@ -62,12 +75,13 @@ core が閉集合として列挙する **schedule 追補**と **alpha 追補**�
 ```text
 resolve_effective_preregistration(
     repository_root, *,
-    core_ref     = (commit, path, sha256),
-    schedule_ref = (commit, path, sha256),
-    alpha_ref    = (commit, path, sha256) | None,
-) -> PreregBinding
+    core_ref   = (commit, path, sha256),
+    addendum_a = (commit, path, sha256),
+    addendum_b = (commit, path, sha256) | None,
+) -> PreregBinding   # measurement_head は repository_root の実 checkout から導出し binding に含める
 
-submit_pilot(*, binding: PreregBinding, measurement_head) -> submission_id
+submit_pilot(*, binding: PreregBinding) -> submission_id
+submit_main(*, binding: PreregBinding) -> submission_id
 
 verify_receipt(*, binding: PreregBinding, receipt) -> None
 ```
@@ -75,18 +89,27 @@ verify_receipt(*, binding: PreregBinding, receipt) -> None
 `submit_pilot` は、次をすべて満たす `binding` が `resolve_effective_preregistration` から返っていない
 限り実行してはならない。(i) `core_ref.path` が本決定の定める canonical core path と byte 一致する
 (producer は core を自由選択できない)。(ii) `core_ref.commit` の tree に当該 blob が実在し SHA-256 が
-一致する。(iii) `schedule_ref` も同型に解決でき、その追補が従属先として記す core path が
-`core_ref.path` と一致する。(iv) 両 commit が、投入時の実 checkout から導出した `measurement_head` の
-祖先である (`orchestrator/campaign/trial_registry.py` の `assert_prereg_ancestor` と同型)。
-`measurement_head` は caller の申告値ではなく実 checkout から導出する。(v) core の `pilot_admission`
-が要求する追補が (iii) ですべて解決済みである。本走の formal verdict はさらに alpha 追補を要する。
+一致し、かつその digest が**承認済み core** — 本決定を fold した commit `F` における同 path の blob —
+の digest と一致する (caller が渡した digest との自己整合だけでは、`F` の子孫で同 path を
+書き換えた blob を core と申告できてしまう)。(iii) `core_ref.commit` が、本決定を canonical 台帳へ fold した commit の子孫である
+(決定 (2) の発効点。fold 前の branch 上の core を根拠にできない)。(iv) `addendum_a` も同型に解決でき、
+その追補が従属先として記す core の **path・commit・blob digest の三つ組**が `core_ref` と一致する
+(path だけでは同じ path の別 blob へ従属を付け替えられる)。(v) `addendum_a` が core の列挙する閉集合を
+**exact-key で満たす** — 全件が存在し、その外の field を持たない (欠落も余剰も解決失敗)。(vi) `core_ref.commit` と `addendum_a.commit` が
+`measurement_head` の祖先である (`orchestrator/campaign/trial_registry.py` の
+`assert_prereg_ancestor` と同型)。**`measurement_head` は caller の引数ではなく、`repository_root` の
+実 checkout から resolver が導出する。**(vii) core の `pilot_admission` が要求する追補が
+(iv)(v) ですべて解決済みである。`submit_main` はこれに加えて `addendum_b` を同型に要求する。
 
-**通る正例:** core が commit `C` の path `P` に blob `B` として存在し `h = SHA-256(B)`、schedule 追補が
-commit `C2` の path `P2` に blob `B2` として存在し `h2 = SHA-256(B2)`、`B2` が従属先 core として `P` を
-記し、`C` と `C2` がともに測定 checkout `M` の祖先であるとき、
-`resolve_effective_preregistration(repo, core_ref=(C,P,h), schedule_ref=(C2,P2,h2))` は成功し、
-他の admission 条件を満たせば `submit_pilot` へ進める。この正例は schedule 追補が land した時点で
+**通る正例:** 本決定を fold した commit を `F` とする。core が `F` の子孫 `C` の path `P` に blob `B` と
+して存在し `h = SHA-256(B)`、追補 A が commit `C2` の path `P2` に blob `B2` として存在し
+`h2 = SHA-256(B2)`、`B2` が従属先として `(P, C, h)` を記し閉集合の field だけを設定しており、
+`C` と `C2` がともに実 checkout の HEAD の祖先であるとき、
+`resolve_effective_preregistration(repo, core_ref=(C,P,h), addendum_a=(C2,P2,h2))` は成功し、
+他の admission 条件を満たせば `submit_pilot` へ進める。この正例は追補 A が land した時点で
 到達可能になる (現時点では追補が無いので不成立)。gate は恒真な deny ではない。
+ただし**追補 A が land しただけでは pilot は走らない** — 本 gate を実行する resolver と producer が
+まだ実装されていないからである (下記の実装境界)。
 
 **実装境界:** 本決定は文書上の契約だけを定める。gate の機械配線 (producer の投入前検査、受領証への
 三つ組の必須記録、validator の独立再計算、consumer の受理判定、投入 script) は producer 実装 wave の
