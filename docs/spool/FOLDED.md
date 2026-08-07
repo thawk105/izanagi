@@ -502,3 +502,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:provenance-audit-argmax-scale":"[T-630]","T:provenance-scope-needle-ambiguity":"[T-629]"},"authored":"2026-08-07","content_sha256":"84638133123820959ded2a3c63562da9f69008c3d9cf03c794e1eb903cbda69e","seq":1,"wave":"dev-wave-t619-provenance-range"}
 - {"allocations":{"D:provenance-uniform-epoch-predicate":"D230"},"authored":"2026-08-07","content_sha256":"4e5b61426fca35672867997d20eb107975c844b2e6c65bb8ef54f26659240b97","seq":1,"wave":"dev-wave-t619-provenance-range"}
+
+- {"allocations":{"T:mutation-single-reason-vs-single-node":"[T-631]"},"authored":"2026-08-07","content_sha256":"e74612c654601a5fd0df92f1ac0445b4e6a264c524ac538a31aff7b252b854cd","seq":1,"wave":"dev-wave-t618-provenance-known-ledger"}
+- {"allocations":{"D:known-violation-note-field":"D231"},"authored":"2026-08-07","content_sha256":"cad60e19e32075454398f7750daa0ccd6e7e4a3fc6d0be8028812a6068507dc9","seq":2,"wave":"dev-wave-t618-provenance-known-ledger"}
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"a49998b178ba25710f2d847a98a75062561c0f765de36cf5266e2d2f6dde6478","seq":3,"wave":"dev-wave-t618-provenance-known-ledger"}
