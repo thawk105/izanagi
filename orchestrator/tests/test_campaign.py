@@ -63,6 +63,10 @@ from campaign.source_digest import SourceEvidence                # noqa: E402
 from skiputil import Skip, skip                                  # noqa: E402
 from verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
                             Integrity, RW, VerifyResult)
+from certified_writer_fixtures import (                          # noqa: E402
+    build_admission_fixture,
+    build_source_drift_fixture,
+)
 
 _AUTHORITY_PARSER = argparse.ArgumentParser(add_help=False)
 add_coder_build_authority_argument(_AUTHORITY_PARSER)
@@ -2243,7 +2247,11 @@ def test_m2_pipeline_rejects_forged_contract_even_when_runtime_matches_it():
     import dataclasses
 
     forged = dataclasses.replace(
-        _AUTH_CONTRACT, clocks_per_us=_AUTH_CONTRACT.clocks_per_us + 1,
+        _AUTH_CONTRACT,
+        isolation_policy=dataclasses.replace(
+            _AUTH_CONTRACT.isolation_policy,
+            single_process=not _AUTH_CONTRACT.isolation_policy.single_process,
+        ),
     )
     _assert_authorization_rejects_without_writes(
         forged,
@@ -2251,6 +2259,33 @@ def test_m2_pipeline_rejects_forged_contract_even_when_runtime_matches_it():
         clocks_per_us=forged.clocks_per_us,
         numactl=list(forged.numactl),
         expected_type=pipeline.execution_guard.ExecutionGuardError,
+    )
+
+
+def test_runtime_authorization_rejects_equality_spoof_and_float_clock():
+    class EqualitySpoof:
+        def __eq__(self, _other):
+            return True
+
+        def __ne__(self, _other):
+            return False
+
+        def __str__(self):
+            return "forged-runtime-value"
+
+    _assert_authorization_rejects_without_writes(
+        _AUTH_CONTRACT,
+        env_tag=EqualitySpoof(),
+        clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+        numactl=list(_AUTH_CONTRACT.numactl),
+        expected_type=TypeError,
+    )
+    _assert_authorization_rejects_without_writes(
+        _AUTH_CONTRACT,
+        env_tag=_AUTH_CONTRACT.env_tag,
+        clocks_per_us=1800.0,
+        numactl=list(_AUTH_CONTRACT.numactl),
+        expected_type=TypeError,
     )
 
 
@@ -2262,6 +2297,32 @@ def test_m3_pipeline_rejects_authorization_selector_mismatch():
         numactl=list(_AUTH_CONTRACT.numactl),
         env_contract=ec.lookup("pegasus"),
         expected_type=pipeline.execution_guard.ExecutionGuardError,
+    )
+
+
+def test_build_selector_rejects_custom_equality_subclass():
+    class SelectorSubclass(ec.ExecutionEnvironmentContract):
+        def __eq__(self, _other):
+            return True
+
+        def __ne__(self, _other):
+            return False
+
+    selector = SelectorSubclass(
+        env_tag="forged-selector",
+        clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+        numactl=_AUTH_CONTRACT.numactl,
+        attestation_mode=_AUTH_CONTRACT.attestation_mode,
+        isolation_policy=_AUTH_CONTRACT.isolation_policy,
+        calibration_ref=_AUTH_CONTRACT.calibration_ref,
+    )
+    _assert_authorization_rejects_without_writes(
+        _AUTH_CONTRACT,
+        env_tag=_AUTH_CONTRACT.env_tag,
+        clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+        numactl=list(_AUTH_CONTRACT.numactl),
+        env_contract=selector,
+        expected_type=TypeError,
     )
 
 
@@ -2433,19 +2494,106 @@ def test_certified_writer_preflight_cli_acceptance_is_silent_and_read_only():
     from campaign import certified_writer_preflight as helper
 
     scratch = Path(_tmpdir("izanagi_preflight_accept_"))
+    repo = scratch / "repo"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "-c", "core.hooksPath=", "init", "-q", str(repo)],
+        check=True,
+    )
+    (repo / "fixture.txt").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-c", "core.hooksPath=", "-C", str(repo),
+         "-c", "user.email=fixture@example.invalid",
+         "-c", "user.name=Fixture", "add", "."],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-c", "core.hooksPath=", "-C", str(repo),
+         "-c", "user.email=fixture@example.invalid",
+         "-c", "user.name=Fixture", "commit", "-qm", "fixture"],
+        check=True,
+    )
+    source_commit = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True,
+    ).strip()
     receipt = scratch / "receipt.json"
-    receipt.write_bytes(b"{}\n")
+    receipt.write_text(
+        json.dumps({"source_commit": source_commit}) + "\n", encoding="utf-8"
+    )
     before = receipt.read_bytes()
     stdout, stderr = io.StringIO(), io.StringIO()
     with unittest_mock.patch.object(admission, "admit") as admit, \
             contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
         rc = helper.main([
-            "floor", "--repo-root", str(Path(_ORCH).parent),
+            "floor", "--repo-root", str(repo),
             "--receipt", str(receipt),
         ])
     assert rc == 0 and stdout.getvalue() == "" and stderr.getvalue() == ""
     assert receipt.read_bytes() == before
     admit.assert_called_once()
+
+
+def test_p2_actual_floor_and_t126_admission_accept_valid_evidence(tmp_path=None):
+    from campaign import certified_writer_admission as admission
+    from campaign import certified_writer_preflight as helper
+
+    root = Path(tmp_path) if tmp_path is not None else Path(
+        _tmpdir("izanagi_actual_admission_")
+    )
+    fixture = build_admission_fixture(root)
+    assert fixture.shared_floor_walltime_s != fixture.t126_walltime_s
+
+    saved_site = admission.site_policy.current_site
+    saved_calibration = admission.env_attestation.load_verified_calibration
+    admission.site_policy.current_site = lambda: site_policy.PEGASUS_COMPUTE
+    admission.env_attestation.load_verified_calibration = lambda *_args: object()
+    try:
+        for mode in ("floor", "t126"):
+            receipt = fixture.receipts[mode]
+            before = receipt.read_bytes()
+            admission.admit(
+                mode,
+                repo_root=fixture.repo_root,
+                receipt_path=receipt,
+                environ=fixture.environments[mode],
+            )
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with unittest_mock.patch.dict(
+                    os.environ, fixture.environments[mode], clear=False), \
+                    contextlib.redirect_stdout(stdout), \
+                    contextlib.redirect_stderr(stderr):
+                rc = helper.main([
+                    mode, "--repo-root", str(fixture.repo_root),
+                    "--receipt", str(receipt),
+                ])
+            assert rc == 0 and stdout.getvalue() == "" and stderr.getvalue() == ""
+            assert receipt.read_bytes() == before
+    finally:
+        admission.site_policy.current_site = saved_site
+        admission.env_attestation.load_verified_calibration = saved_calibration
+
+
+def test_m8_preflight_rejects_fail_open_domain_module_drift(tmp_path=None):
+    root = Path(tmp_path) if tmp_path is not None else Path(
+        _tmpdir("izanagi_source_drift_")
+    )
+    repo, receipt, helper_source = build_source_drift_fixture(root)
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B", "-", "floor", "--repo-root",
+         str(repo), "--receipt", str(receipt)],
+        input=helper_source, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    assert completed.returncode == 3
+    assert completed.stdout == ""
+    assert completed.stderr.count("\n") == 1
+    diagnostic = json.loads(completed.stderr)
+    assert diagnostic["gate"] == "admission"
+    assert (
+        "imported module differs from source commit: "
+        "orchestrator/campaign/certified_writer_admission.py"
+        in diagnostic["reason"]
+    )
 
 
 def _green_vr():

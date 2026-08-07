@@ -255,11 +255,9 @@ def _run_floor_admission_fixture(
 ) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path, Path, object, object]:
     repo = _fixture_repo(tmp_path)
     source_commit = _install_fixture_preflight(repo)
-    # The current checkout may advance while the queued receipt remains bound
-    # to the submitted commit.  The wrapper must still execute the old helper.
-    (repo / "queue-drift.txt").write_text("later checkout\n", encoding="utf-8")
-    _git(repo, "add", "queue-drift.txt")
-    _git(repo, "commit", "-qm", "advance fixture checkout")
+    # The floor wrapper's existing source-identity gate requires current HEAD
+    # to equal the commit recorded by the submission receipt.
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == source_commit
     nonce = "a" * 32
     receipt = (
         repo / "output/env/pegasus/floor/attempts/submissions"

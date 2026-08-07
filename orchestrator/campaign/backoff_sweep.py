@@ -101,6 +101,8 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
 
     prepared = screening_driver.prepare_screening_campaign(
         cfg, workload, baseline_ref, measure_baseline,
+        authorization_contract=env_contract.lookup(ENV_TAG),
+        env_tag=ENV_TAG, clocks_per_us=CLK, numactl=NUMA,
         calibration_dir=calibration_dir, build_context=build_context)
     s = CampaignSummary(campaign_id=str(ident.campaign_id(prepared.cfg)),
                         layout_root=prepared.layout.root, total=len(gs))

@@ -7,6 +7,7 @@ not issue an execution receipt, probe hardware, or create an artifact.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -88,15 +89,17 @@ def _policy(repo_root: Path) -> dict:
         raise AdmissionInputError("Pegasus policy is unavailable") from exc
 
 
-def _validate_request(value: object, policy: Mapping) -> None:
+def _validate_request(
+        value: object, policy: Mapping, *, walltime_s: object,
+) -> None:
     request = _exact(value, {"project", "queue", "nodes", "elapstim_req_s"}, "request")
     if request != {
         "project": policy.get("project"),
         "queue": policy.get("queue"),
         "nodes": policy.get("nodes"),
-        "elapstim_req_s": policy.get("floor_walltime_s"),
+        "elapstim_req_s": walltime_s,
     }:
-        raise AdmissionRejected("request differs from current Pegasus policy")
+        raise AdmissionRejected("request differs from mode-specific Pegasus policy")
 
 
 def _git(repo_root: Path, *args: str) -> bytes:
@@ -123,6 +126,41 @@ def _validate_source_blob(
     if hashlib.sha256(raw).hexdigest() != expected_sha256:
         raise AdmissionRejected(f"source blob hash mismatch: {relative}")
     return raw
+
+
+def _t126_walltime_s(repo_root: Path, commit: str) -> int:
+    raw = _blob(repo_root, commit, contract.RESERVATION_POLICY_RELATIVE_PATH)
+
+    def reject_duplicates(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise AdmissionRejected(
+                    f"duplicate T126 reservation policy key: {key}"
+                )
+            value[key] = item
+        return value
+
+    try:
+        policy = json.loads(
+            raw.decode("utf-8", errors="strict"),
+            object_pairs_hook=reject_duplicates,
+            parse_constant=lambda token: (_ for _ in ()).throw(
+                AdmissionRejected(
+                    f"non-finite T126 reservation policy constant: {token}"
+                )
+            ),
+        )
+    except AdmissionRejected:
+        raise
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AdmissionRejected("T126 reservation policy cannot be decoded") from exc
+    if type(policy) is not dict:
+        raise AdmissionRejected("T126 reservation policy must be an object")
+    walltime = policy.get("t126_qualification_walltime_s")
+    if type(walltime) is not int or walltime <= 0:
+        raise AdmissionRejected("T126 reservation walltime is invalid")
+    return walltime
 
 
 def _require_compute_and_calibration(
@@ -158,7 +196,10 @@ def _admit_floor(
     commit = _require_hash(row["source_commit"], _HEX40, "source commit")
     script_sha = _require_hash(row["job_script_sha256"], _HEX64, "job script hash")
     _require_hash(row["nonce"], _HEX32, "nonce")
-    _validate_request(row["request"], _policy(repo_root))
+    policy = _policy(repo_root)
+    _validate_request(
+        row["request"], policy, walltime_s=policy.get("floor_walltime_s"),
+    )
     _validate_captures(row["preflight"])
     _validate_source_blob(repo_root, commit, row["job_script_path"], script_sha)
     try:
@@ -285,7 +326,11 @@ def _admit_t126(
     _require_hash(row["nonce"], _HEX32, "nonce")
     if type(row["retry_index"]) is not int or row["retry_index"] not in (0, 1):
         raise AdmissionRejected("retry index is invalid")
-    _validate_request(row["request"], _policy(repo_root))
+    policy = _policy(repo_root)
+    _validate_request(
+        row["request"], policy,
+        walltime_s=_t126_walltime_s(repo_root, commit),
+    )
     _validate_captures(row["preflight"])
     job_raw = _validate_source_blob(
         repo_root, commit, "tools/pegasus/t126_qualification.sh",

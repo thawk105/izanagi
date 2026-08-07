@@ -56,6 +56,10 @@ def require_certified_writer_authorization(
         raise TypeError(
             "authorization_contract は exact ExecutionEnvironmentContract が必要"
         )
+    if type(env_tag) is not str:
+        raise TypeError("campaign env_tag は exact str でなければならない")
+    if type(clocks_per_us) is not int:
+        raise TypeError("campaign clocks_per_us は exact int でなければならない")
     try:
         registered = _env_contract.lookup(authorization_contract.env_tag)
     except _env_contract.EnvContractError as exc:
@@ -65,11 +69,6 @@ def require_certified_writer_authorization(
     if authorization_contract != registered:
         raise CertifiedWriterAuthorizationError(
             "authorization_contract が current registry contract と一致しない"
-        )
-    if numactl is None:
-        raise CertifiedWriterAuthorizationError(
-            "campaign numactl does not exactly match authorization_contract: "
-            "unresolved None"
         )
     if type(numactl) not in {list, tuple} or any(type(part) is not str for part in numactl):
         raise CertifiedWriterAuthorizationError(
@@ -88,10 +87,16 @@ def require_certified_writer_authorization(
             "Pegasus compute では登録済み pegasus authorization_contract "
             "だけを受理する"
         )
-    if env_contract is not None and env_contract != registered:
-        raise CertifiedWriterAuthorizationError(
-            "build selector env_contract が authorization_contract と一致しない"
-        )
+    if env_contract is not None:
+        if type(env_contract) is not _env_contract.ExecutionEnvironmentContract:
+            raise TypeError(
+                "build selector env_contract は exact "
+                "ExecutionEnvironmentContract でなければならない"
+            )
+        if env_contract != registered:
+            raise CertifiedWriterAuthorizationError(
+                "build selector env_contract が authorization_contract と一致しない"
+            )
     return registered
 
 

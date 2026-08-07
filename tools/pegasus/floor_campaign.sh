@@ -36,8 +36,8 @@ if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" \
 fi
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || exit 4
 PREFLIGHT_PY=""
-for py_name in python3 python3.10 python3.11 python3.12; do
-  py_cmd=$(command -v -- "$py_name") || continue
+for preflight_py_name in python3 python3.10 python3.11 python3.12; do
+  py_cmd=$(command -v -- "$preflight_py_name") || continue
   py_resolved=$(realpath -e -- "$py_cmd") || continue
   [[ -x "$py_resolved" ]] || continue
   if "$py_resolved" -I -B -c \

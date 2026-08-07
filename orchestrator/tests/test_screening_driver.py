@@ -113,6 +113,10 @@ def test_prepare_screening_bakes_identity_and_uses_new_same_campaign_baseline(tm
 
     prepared = screening_driver.prepare_screening_campaign(
         _cfg(), WORKLOAD, "baseline-v1", measure,
+        authorization_contract=_AUTHORIZATION,
+        env_tag=_AUTHORIZATION.env_tag,
+        clocks_per_us=_AUTHORIZATION.clocks_per_us,
+        numactl=_AUTHORIZATION.numactl,
         calibration_dir=calibration, output_root=output,
         build_context=_BUILD_CONTEXT)
     assert prepared.cfg is seen["cfg"] and prepared.layout is seen["layout"]
@@ -134,9 +138,35 @@ def test_prepare_screening_fails_closed_when_floor_json_missing(tmp_path):
     with pytest.raises(ValueError, match="floor JSON"):
         screening_driver.prepare_screening_campaign(
             _cfg(), WORKLOAD, "baseline-v1", measure,
+            authorization_contract=_AUTHORIZATION,
+            env_tag=_AUTHORIZATION.env_tag,
+            clocks_per_us=_AUTHORIZATION.clocks_per_us,
+            numactl=_AUTHORIZATION.numactl,
             calibration_dir=str(tmp_path / "missing"), output_root=str(tmp_path / "out"),
             build_context=_BUILD_CONTEXT)
     assert called is False
+
+
+def test_prepare_screening_rejects_authorization_before_layout_or_wal(tmp_path):
+    output = tmp_path / "output"
+    called = False
+
+    def measure(_cfg, _layout):
+        nonlocal called
+        called = True
+
+    with pytest.raises(TypeError, match="authorization_contract"):
+        screening_driver.prepare_screening_campaign(
+            _cfg(), WORKLOAD, "baseline-v1", measure,
+            authorization_contract=None,
+            env_tag=_AUTHORIZATION.env_tag,
+            clocks_per_us=_AUTHORIZATION.clocks_per_us,
+            numactl=_AUTHORIZATION.numactl,
+            calibration_dir=str(tmp_path / "missing"), output_root=str(output),
+            build_context=_BUILD_CONTEXT,
+        )
+    assert called is False
+    assert not output.exists()
 
 
 @pytest.mark.parametrize("missing", ["median", "abort_rate", "commit"])
@@ -158,6 +188,10 @@ def test_prepare_screening_requires_complete_baseline_evidence(tmp_path, missing
     with pytest.raises(ValueError):
         screening_driver.prepare_screening_campaign(
             _cfg(), WORKLOAD, "baseline-v1", measure,
+            authorization_contract=_AUTHORIZATION,
+            env_tag=_AUTHORIZATION.env_tag,
+            clocks_per_us=_AUTHORIZATION.clocks_per_us,
+            numactl=_AUTHORIZATION.numactl,
             calibration_dir=calibration, output_root=str(tmp_path / f"out-{missing}"),
             build_context=_BUILD_CONTEXT)
 
@@ -188,6 +222,10 @@ def test_prepare_repairs_tail_before_baseline_callback(tmp_path):
 
     screening_driver.prepare_screening_campaign(
         _cfg(), WORKLOAD, "baseline-v1", measure,
+        authorization_contract=_AUTHORIZATION,
+        env_tag=_AUTHORIZATION.env_tag,
+        clocks_per_us=_AUTHORIZATION.clocks_per_us,
+        numactl=_AUTHORIZATION.numactl,
         calibration_dir=calibration, output_root=output, log=surfaced.append,
         build_context=_BUILD_CONTEXT)
     assert len(surfaced) == 1 and '"status": "repaired"' in surfaced[0]

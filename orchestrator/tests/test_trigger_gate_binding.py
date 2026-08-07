@@ -403,12 +403,12 @@ def test_signature_stubs_keep_legacy_calls_valid_with_none_default():
         (
             loop.run_campaign,
             (object(), [], object(), "env", 1),
-            {"build_context": object()},
+            {"build_context": object(), "authorization_contract": object()},
         ),
         (
             pipeline.evaluate,
             (object(), object(), "env", "commit", object(), 1),
-            {"build_context": object()},
+            {"build_context": object(), "authorization_contract": object()},
         ),
         (
             p3_s4_loop.record_diff_reject,

@@ -76,11 +76,19 @@ def _surface_repair(result: wal.WalTailRepairResult, log) -> None:
 def prepare_screening_campaign(
         base_cfg: CampaignConfig, workload: Dict[str, str], baseline_ref: str,
         measure_baseline: Callable[[CampaignConfig, CampaignLayout], None], *,
+        authorization_contract: ExecutionEnvironmentContract,
+        env_tag: str, clocks_per_us: int, numactl: Sequence[str],
         calibration_dir: str = "", output_root: str = "", k: float = 1.5,
         high_abort_factor: float = 2.0,
         reanchor_threshold_s: float = 1800.0, log=print,
         build_context: BuildRunContext) -> PreparedScreening:
     """identity焼き込み→同一campaign baseline実測→runtime config生成を一括実行する。"""
+    execution_guard.require_certified_writer_authorization(
+        authorization_contract,
+        env_tag=env_tag,
+        clocks_per_us=clocks_per_us,
+        numactl=numactl,
+    )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if not baseline_ref:
