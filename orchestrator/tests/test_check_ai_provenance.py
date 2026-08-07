@@ -263,6 +263,17 @@ def _run_range(
     return provenance.main(site=site_policy.OTHER)
 
 
+def _known_spec(
+    commit: str,
+    finding_kind: str = "missing-ai-agent",
+) -> provenance.KnownViolationSpec:
+    return provenance.KnownViolationSpec(
+        commit=commit,
+        expected_finding_kind=finding_kind,
+        ruling="worklog(284) 2026-08-07 /rulings",
+    )
+
+
 @pytest.mark.parametrize(
     ("case", "message"),
     [
@@ -1186,8 +1197,11 @@ def test_merge_preflight_and_history_count_all_parent_different_resolution(
         implementation_epoch=base,
     )
     assert audit.normal_findings == (
-        f"{audit.label}: 実装面に Codex role=author がない — "
-        "paths=tools/resolution.py",
+        provenance.NormalFinding(
+            f"{audit.label}: 実装面に Codex role=author がない — "
+            "paths=tools/resolution.py",
+            "missing-codex-author",
+        ),
     )
 
 
@@ -1306,6 +1320,529 @@ def test_message_file_accepts_contiguous_cab_without_policy_history(
     assert "違反なし" in capsys.readouterr().out
 
 
+def test_known_violation_ledger_is_exactly_six_literal_entries():
+    expected = (
+        provenance.KnownViolationSpec(
+            "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
+            "missing-ai-agent",
+            "worklog(284) 2026-08-07 /rulings",
+        ),
+        provenance.KnownViolationSpec(
+            "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
+            "missing-ai-agent",
+            "worklog(284) 2026-08-07 /rulings",
+        ),
+        provenance.KnownViolationSpec(
+            "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
+            "missing-ai-agent",
+            "worklog(284) 2026-08-07 /rulings",
+        ),
+        provenance.KnownViolationSpec(
+            "16affe169185040b33f8c6cbdd452260bddc4089",
+            "missing-ai-agent",
+            "worklog(284) 2026-08-07 /rulings",
+        ),
+        provenance.KnownViolationSpec(
+            "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
+            "missing-ai-agent",
+            "worklog(284) 2026-08-07 /rulings",
+        ),
+        provenance.KnownViolationSpec(
+            "b0a07672737cf03424ec1790cc25a06e4c85b737",
+            "missing-codex-author",
+            "worklog(284) 2026-08-07 /rulings",
+        ),
+    )
+    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 6
+    assert provenance.KNOWN_PROVENANCE_VIOLATIONS == expected
+    commits = {spec.commit for spec in expected}
+    assert commits == {
+        "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
+        "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
+        "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
+        "16affe169185040b33f8c6cbdd452260bddc4089",
+        "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
+        "b0a07672737cf03424ec1790cc25a06e4c85b737",
+    }
+    assert "3f2c43d7580b8c26724d90278589862057508965" not in commits
+
+
+def test_known_violation_ledger_matches_real_commit_findings():
+    commits = [
+        "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
+        "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
+        "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
+        "16affe169185040b33f8c6cbdd452260bddc4089",
+        "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
+        "b0a07672737cf03424ec1790cc25a06e4c85b737",
+    ]
+    audit = provenance._audit_history(commits)
+    assert audit.findings == []
+    assert audit.corrected == []
+    assert audit.waived == []
+    assert [(spec.commit, spec.expected_finding_kind) for spec in audit.known_violations] == [
+        ("88f0f9f081f7c76c8ab5fc4a94e2640f70af129b", "missing-ai-agent"),
+        ("85dacc27054db0bd3db55d73cab4f8ca3b4843e5", "missing-ai-agent"),
+        ("6e69ca5c2bc2df403e1cda595aeffcba3a97c248", "missing-ai-agent"),
+        ("16affe169185040b33f8c6cbdd452260bddc4089", "missing-ai-agent"),
+        ("905c867a7b2342ff250a1bcf28a3ce74abdacc06", "missing-ai-agent"),
+        ("b0a07672737cf03424ec1790cc25a06e4c85b737", "missing-codex-author"),
+    ]
+
+
+def test_known_violation_requires_exact_full_sha_positive_and_negative_pair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _init_repo(tmp_path)
+    base = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    known = _commit(tmp_path, {"docs/known.md": "known\n"}, "known\n")
+    other = _commit(tmp_path, {"docs/other.md": "other\n"}, "other\n")
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (_known_spec(known),),
+    )
+
+    audit = provenance._audit_history([known, other])
+    assert [spec.commit for spec in audit.known_violations] == [known]
+    assert audit.findings == [f"{other[:12]} other: AI-Agent trailer がない"]
+    assert base != known != other
+
+
+def test_known_violation_exact_sha_with_shared_eight_digit_prefix():
+    shared_prefix = "1234abcd"
+    known = shared_prefix + "a" * 32
+    other = shared_prefix + "b" * 32
+    shared_subject = "same subject"
+    shared_path = "docs/same-path.md"
+
+    def audit(commit: str) -> provenance.CommitAudit:
+        label = f"{commit[:12]} {shared_subject}"
+        return provenance.CommitAudit(
+            commit=commit,
+            label=label,
+            normal_findings=(
+                provenance.NormalFinding(
+                    f"{label}: AI-Agent trailer がない ({shared_path})",
+                    provenance.MISSING_AI_AGENT,
+                ),
+            ),
+            correction=provenance.CorrectionAudit((), (), (), (), ()),
+        )
+
+    spec = _known_spec(known)
+    result = provenance._known_violation_audit(
+        [audit(known), audit(other)],
+        registry={known: spec},
+        suppressed_missing=None,
+        stale_eligible_commits={known},
+    )
+    assert result == provenance.KnownViolationAudit(
+        findings=(
+            f"{other[:12]} {shared_subject}: "
+            f"AI-Agent trailer がない ({shared_path})",
+        ),
+        known_violations=(spec,),
+        stale=(),
+    )
+
+
+def test_broken_short_sha_registry_is_rc2_but_message_file_is_unchanged(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    message = tmp_path / "message.txt"
+    message.write_text("change\n\nAI-Agent: none\n", encoding="utf-8")
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (_known_spec(commit[:12]),),
+    )
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert "invalid full SHA" in captured.err
+    assert "known-violation" not in captured.out
+
+    assert provenance.main(
+        ["--message-file", str(message)], site=site_policy.OTHER,
+    ) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "check_ai_provenance: 1 件、違反なし\n"
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize(
+    ("case", "error"),
+    [
+        ("container", "invalid container"),
+        ("commit", "invalid SHA type"),
+        ("kind", "invalid finding kind type"),
+    ],
+)
+def test_broken_registry_types_are_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    case: str,
+    error: str,
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    if case == "container":
+        registry: object = object()
+    elif case == "commit":
+        registry = (
+            provenance.KnownViolationSpec(
+                7, provenance.MISSING_AI_AGENT, "ruling",
+            ),
+        )
+    else:
+        registry = (
+            provenance.KnownViolationSpec(commit, [], "ruling"),
+        )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(provenance, "KNOWN_PROVENANCE_VIOLATIONS", registry)
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert error in captured.err
+    assert captured.out == ""
+
+
+def test_known_violation_expected_kind_coexists_with_other_new_finding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _init_repo(tmp_path)
+    base = _commit(
+        tmp_path,
+        {
+            provenance.POLICY_PATH: (
+                "scope=\n"
+                f"{provenance.IMPLEMENTATION_POLICY_NEEDLE}\n"
+                f"{POLICY_NEEDLE_LITERAL}\n"
+            ),
+        },
+        CODEX_AUTHOR,
+    )
+    mixed = _commit(
+        tmp_path,
+        {"tools/mixed.py": "MIXED = True\n"},
+        "mixed\n\nCo-Authored-By: body\n\n"
+        "AI-Agent: product=claude; model=fable-5; reasoning=xhigh; "
+        "role=author\n",
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (_known_spec(mixed, "missing-codex-author"),),
+    )
+
+    audit = provenance._audit_history([mixed])
+    assert [spec.commit for spec in audit.known_violations] == [mixed]
+    assert audit.findings == [
+        f"{mixed[:12]} mixed: Co-Authored-By trailer 配置違反: raw=1, parsed=0"
+    ]
+    assert base != mixed
+
+
+def test_known_violation_suppresses_only_one_expected_finding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _init_repo(tmp_path)
+    base = _commit(
+        tmp_path,
+        {
+            provenance.POLICY_PATH: (
+                f"{provenance.IMPLEMENTATION_POLICY_NEEDLE}\n"
+            ),
+        },
+        CODEX_AUTHOR,
+    )
+    commit = _commit(
+        tmp_path,
+        {"tools/duplicate.py": "DUPLICATE = True\n"},
+        CLAUDE_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (_known_spec(commit, "missing-codex-author"),),
+    )
+    monkeypatch.setattr(
+        provenance,
+        "validate_implementation_author",
+        lambda *args, **kwargs: (["duplicate-kind", "duplicate-kind"], False),
+    )
+
+    audit = provenance._audit_history([commit])
+    assert [spec.commit for spec in audit.known_violations] == [commit]
+    assert audit.findings == ["duplicate-kind"]
+    assert base != commit
+
+
+def test_known_violation_selected_clean_entry_is_stale_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    clean = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# clean\n"},
+        CODEX_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (_known_spec(clean),),
+    )
+
+    assert provenance.main(
+        ["--range", f"{clean}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert f"known-violation-stale: sha={clean} finding=missing-ai-agent" in captured.err
+    assert captured.out == ""
+
+
+def test_known_violation_missing_expected_finding_diagnoses_regression(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    clean = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# clean\n"},
+        CODEX_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (_known_spec(clean),),
+    )
+
+    assert provenance.main(
+        ["--range", f"{clean}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert (
+        f"known-violation-stale: sha={clean} finding=missing-ai-agent "
+        "reason=expected-finding-missing checker-regression-suspected"
+        in captured.err
+    )
+    assert "policy-epoch-not-visible" not in captured.err
+    assert captured.out == ""
+
+
+def test_known_violation_other_kind_does_not_hide_selected_stale(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    base = _commit(
+        tmp_path,
+        {
+            provenance.POLICY_PATH: f"{POLICY_NEEDLE_LITERAL}\n",
+        },
+        CODEX_AUTHOR,
+    )
+    selected = _commit(
+        tmp_path,
+        {"docs/selected.md": "selected\n"},
+        "selected\n\nCo-Authored-By: body\n\nAI-Agent: none\n",
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (_known_spec(selected),),
+    )
+
+    assert provenance.main(
+        ["--range", f"{selected}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert f"known-violation-stale: sha={selected} finding=missing-ai-agent" in captured.err
+    assert "Co-Authored-By trailer 配置違反" not in captured.err
+    assert captured.out == ""
+    assert base != selected
+
+
+def test_known_violation_outside_range_is_not_stale_end_to_end(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    outside = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    selected = _commit(tmp_path, {"docs/selected.md": "ok\n"}, CODEX_AUTHOR)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (_known_spec(outside),),
+    )
+
+    assert provenance.main(
+        ["--range", f"{selected}^!"], site=site_policy.OTHER,
+    ) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "check_ai_provenance: 1 件、違反なし\n"
+    assert captured.err == ""
+
+
+def test_known_violation_off_head_policy_guard_is_stale_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    epoch = _commit(
+        tmp_path,
+        {
+            provenance.POLICY_PATH: (
+                f"{provenance.IMPLEMENTATION_POLICY_NEEDLE}\n"
+            ),
+        },
+        CODEX_AUTHOR,
+    )
+    target = _commit(
+        tmp_path,
+        {"tools/target.py": "TARGET = True\n"},
+        CLAUDE_AUTHOR,
+    )
+    _git(tmp_path, "switch", "-q", "--orphan", "unrelated-head")
+    unrelated = _commit(
+        tmp_path,
+        {"docs/unrelated.md": "unrelated\n"},
+        CODEX_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (_known_spec(target, provenance.MISSING_CODEX_AUTHOR),),
+    )
+
+    assert provenance._implementation_policy_commit() is None
+    assert provenance._is_descendant(epoch, target)
+    assert not provenance._is_descendant(epoch, unrelated)
+    assert provenance.main(
+        ["--range", f"{target}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert (
+        f"known-violation-stale: sha={target} "
+        "finding=missing-codex-author "
+        "reason=policy-epoch-not-visible non-authoritative-invocation"
+        in captured.err
+    )
+    assert "expected-finding-missing" not in captured.err
+    assert captured.out == ""
+
+
+def test_known_violation_stdout_is_public_on_rc0_and_rc1(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    base = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    known = _commit(tmp_path, {"docs/known.md": "known\n"}, "known\n")
+    new = _commit(tmp_path, {"docs/new.md": "new\n"}, "new\n")
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (_known_spec(known),),
+    )
+
+    assert provenance.main(
+        ["--range", f"{known}^!"], site=site_policy.OTHER,
+    ) == 0
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "check_ai_provenance: known-violation "
+        f"sha={known} finding=missing-ai-agent\n"
+        "check_ai_provenance: known-violations=1\n"
+        "check_ai_provenance: 1 件、新規違反なし\n"
+    )
+    assert captured.err == ""
+
+    assert provenance.main(
+        ["--range", f"{base}..{new}"], site=site_policy.OTHER,
+    ) == 1
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "check_ai_provenance: known-violation "
+        f"sha={known} finding=missing-ai-agent\n"
+        "check_ai_provenance: known-violations=1\n"
+    )
+    assert f"{new[:12]} new: AI-Agent trailer がない" in captured.err
+    assert "2 件中 1 新規違反" in captured.err
+
+
+def test_empty_registry_restores_all_six_real_findings(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    commits = [
+        "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
+        "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
+        "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
+        "16affe169185040b33f8c6cbdd452260bddc4089",
+        "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
+        "b0a07672737cf03424ec1790cc25a06e4c85b737",
+    ]
+    production = provenance._audit_history(commits)
+    assert production.findings == []
+    assert len(production.known_violations) == 6
+
+    monkeypatch.setattr(provenance, "KNOWN_PROVENANCE_VIOLATIONS", ())
+    audit = provenance._audit_history(commits)
+    assert len(audit.findings) == 6
+    assert sum("AI-Agent trailer がない" in finding for finding in audit.findings) == 5
+    assert sum("実装面に Codex role=author がない" in finding for finding in audit.findings) == 1
+    assert audit.known_violations == ()
+
+
+def test_unledgered_3f2c43d7580b_remains_new_and_rc1(
+    capsys: pytest.CaptureFixture[str],
+):
+    commit = "3f2c43d7580b8c26724d90278589862057508965"
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 1
+    captured = capsys.readouterr()
+    assert "known-violation" not in captured.out
+    assert f"{commit[:12]} " in captured.err
+    assert "AI-Agent trailer がない" in captured.err
+    assert "1 件中 1 違反" in captured.err
+
+
 def test_forward_correction_production_literal_and_target_object_are_pinned():
     spec = provenance.INCIDENT_6B64D21_FORWARD_CORRECTION
     assert spec == provenance.ForwardCorrectionSpec(
@@ -1331,7 +1868,10 @@ def test_forward_correction_production_literal_and_target_object_are_pinned():
         implementation_epoch=provenance._implementation_policy_commit(),
     )
     assert audit.normal_findings == (
-        f"{audit.label}: AI-Agent trailer がない",
+        provenance.NormalFinding(
+            f"{audit.label}: AI-Agent trailer がない",
+            "missing-ai-agent",
+        ),
     )
     assert audit.correction.candidate_count == 0
 
@@ -1643,6 +2183,59 @@ def test_forward_correction_acceptance_is_commit_order_invariant(
     assert forward_order.findings == reverse_order.findings == []
     assert forward_order.corrected == reverse_order.corrected == [forward]
     assert forward_order.waived == reverse_order.waived == []
+    assert forward_order.known_violations == reverse_order.known_violations == ()
+
+
+def test_known_violation_composes_with_forward_correction(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    history = _make_correction_history(
+        tmp_path,
+        monkeypatch,
+        intermediate=(
+            {"docs/other.md": "other\n"},
+            "other missing\n",
+        ),
+    )
+    commits = _git(
+        tmp_path,
+        "rev-list",
+        "--reverse",
+        f"{history.target}^1..{history.correction}",
+    ).splitlines()
+    other = commits[-2]
+    spec = _known_spec(history.target)
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (spec,),
+    )
+    real_audit = provenance._known_violation_audit
+    ledger_results: list[provenance.KnownViolationAudit] = []
+
+    def capture_ledger(*args, **kwargs):
+        result = real_audit(*args, **kwargs)
+        ledger_results.append(result)
+        return result
+
+    monkeypatch.setattr(provenance, "_known_violation_audit", capture_ledger)
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "known-violation-stale: "
+            f"sha={history.target} finding=missing-ai-agent"
+        ),
+    ):
+        provenance._audit_history(commits)
+    assert ledger_results == [
+        provenance.KnownViolationAudit(
+            findings=(
+                f"{other[:12]} other missing: AI-Agent trailer がない",
+            ),
+            known_violations=(),
+            stale=(spec,),
+        ),
+    ]
 
 
 def test_forward_correction_multiple_tip_selected_set_is_accepted(
@@ -2264,6 +2857,54 @@ def _waiver_history(root: Path) -> dict[str, str]:
         "waived_docs": waived_docs,
         "violating": violating,
     }
+
+
+def test_known_violation_composes_with_waiver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    history = _waiver_history(tmp_path)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    spec = _known_spec(
+        history["waived_implementation"],
+        provenance.MISSING_CODEX_AUTHOR,
+    )
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (spec,),
+    )
+    real_audit = provenance._known_violation_audit
+    ledger_results: list[provenance.KnownViolationAudit] = []
+
+    def capture_ledger(*args, **kwargs):
+        result = real_audit(*args, **kwargs)
+        ledger_results.append(result)
+        return result
+
+    monkeypatch.setattr(provenance, "_known_violation_audit", capture_ledger)
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "known-violation-stale: "
+            f"sha={history['waived_implementation']} "
+            "finding=missing-codex-author"
+        ),
+    ):
+        provenance._audit_history([
+            history["waived_implementation"],
+            history["violating"],
+        ])
+    assert ledger_results == [
+        provenance.KnownViolationAudit(
+            findings=(
+                f"{history['violating'][:12]} change: "
+                "実装面に Codex role=author がない — "
+                "paths=tools/violating.py",
+            ),
+            known_violations=(),
+            stale=(spec,),
+        ),
+    ]
 
 
 def _mixed_history(
@@ -3911,6 +4552,7 @@ def test_audit_history_is_identical_across_worker_counts_and_ancestry(
         assert audit.findings == baseline.findings, name
         assert audit.corrected == baseline.corrected, name
         assert audit.waived == baseline.waived, name
+        assert audit.known_violations == baseline.known_violations, name
 
 
 def test_audit_history_findings_follow_input_order_under_skewed_latency(

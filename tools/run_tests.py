@@ -123,6 +123,7 @@ _PEGASUS_BOUNDED_SCOPE_EXEMPT_FLAGS = frozenset({"--help", "--version"})
 _BOUNDED_SCOPE_UNIT_ENV = "IZANAGI_RUN_TESTS_SCOPE_UNIT"
 _BOUNDED_SCOPE_CAP_ENV = "IZANAGI_RUN_TESTS_SCOPE_CAP"
 _BOUNDED_SCOPE_UNIT_PREFIX = "izanagi-run-tests-"
+_BOUNDED_SCOPE_TOKEN_BYTES = 8
 _CGROUP_ROOT = Path("/sys/fs/cgroup")
 _PROC_SELF_CGROUP = Path("/proc/self/cgroup")
 _SCOPE_POLL_SECONDS = 0.005
@@ -1225,8 +1226,29 @@ def _bounded_scope_membership() -> Optional[bool]:
     )
 
 
+def _has_valid_bounded_scope_marker() -> bool:
+    """実 bounded 親の形式に一致する marker pair だけを警告抑止に使う。"""
+
+    unit = os.environ.get(_BOUNDED_SCOPE_UNIT_ENV)
+    raw_cap = os.environ.get(_BOUNDED_SCOPE_CAP_ENV)
+    if unit is None or raw_cap is None:
+        return False
+    token_length = _BOUNDED_SCOPE_TOKEN_BYTES * 2
+    if re.fullmatch(
+        rf"{re.escape(_BOUNDED_SCOPE_UNIT_PREFIX)}[1-9][0-9]*-"
+        rf"[0-9a-f]{{{token_length}}}\.scope",
+        unit,
+    ) is None:
+        return False
+    if not raw_cap.isascii() or not raw_cap.isdecimal():
+        return False
+    cap = int(raw_cap, 10)
+    return cap > 0 and raw_cap == str(cap)
+
+
 def _new_scope_unit() -> str:
-    return f"{_BOUNDED_SCOPE_UNIT_PREFIX}{os.getpid()}-{secrets.token_hex(8)}.scope"
+    token = secrets.token_hex(_BOUNDED_SCOPE_TOKEN_BYTES)
+    return f"{_BOUNDED_SCOPE_UNIT_PREFIX}{os.getpid()}-{token}.scope"
 
 
 def _scope_command(
@@ -1652,6 +1674,12 @@ def main(
     raw_args = list(sys.argv[1:] if argv is None else argv)
     pytest_args, force_dispatch = _consume_runner_options(raw_args)
     args = _normalize_args(pytest_args)
+    if not _is_acceptance_run(args) and not _has_valid_bounded_scope_marker():
+        print(
+            "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。",
+            file=sys.stderr,
+            flush=True,
+        )
     _print_runner_help(args)
     operation = _test_operation(args)
     resolved_site = site_policy.current_site() if site is None else site
