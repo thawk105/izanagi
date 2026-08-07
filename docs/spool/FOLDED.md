@@ -475,3 +475,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dev-wave-mutation-runner-mode-doc":"[T-620]","T:provenance-audit-consumer-gap":"[T-621]","T:provenance-default-range-blind-spot":"[T-619]","T:provenance-known-violation-residual":"[T-618]"},"authored":"2026-08-07","content_sha256":"874eeedc965c838b9169081927f21dc2940132086681f1633832bf8cac0a3144","seq":1,"wave":"dev-wave-t614-provenance-ledger"}
 - {"allocations":{"D:known-violation-ledger":"D221","D:nonacceptance-run-warning":"D222"},"authored":"2026-08-07","content_sha256":"4db9d4ef06fbf4fb59e520cf05ee5d01788e7d80d0e00c127bfc6adcd0c049d4","seq":2,"wave":"dev-wave-t614-provenance-ledger"}
+
+- {"allocations":{"T:reasoning-ab-apparatus-generalization":"[T-622]"},"authored":"2026-08-07","content_sha256":"fc00a7b98cc7b5b2be05c8d0ea04df51589a1258f2d27a227e89ddbf0a5fd68f","seq":1,"wave":"dev-wave-t595-reasoning-ab"}
+- {"allocations":{"D:reasoning-ab-endpoint-requires-full-waves":"D224","D:reasoning-effort-adoption-latch":"D223"},"authored":"2026-08-07","content_sha256":"9f32d4b29d769b694b9eb65ff8a2ee625c968ee96ca730ea096ee4eedbdfba5e","seq":2,"wave":"dev-wave-t595-reasoning-ab"}
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"bdf02f11e5842e493bf419ecb25fd0530aa27733e240fde84ccf26c49fedfaa2","seq":3,"wave":"dev-wave-t595-reasoning-ab"}
