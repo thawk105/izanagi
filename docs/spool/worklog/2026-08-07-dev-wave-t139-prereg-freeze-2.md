@@ -51,10 +51,11 @@ title: [T-139] 本走前置 — paired 例外を roadmap へ限定記録し、�
 - **逐語の可逆最小正規化。** codex 出力 3 本が markdown の hard-break (行末 2 空白) を含み
   `git diff --check` に抵触した。可視文字を変えずに行末空白だけを除去し、除去前後の sha256 と
   byte 数を `output/insights/2026-08-07_t139-prereg-freeze/README.md` の erratum 表に記録した。
-- **親の実測 (すべて本 wave の worktree、login node)。** `tools/check_docs.py` rc=0、
-  `tools/spool_fold.py --dry-run` rc=0 (`status: planned`)、`tools/check_ai_provenance.py` rc=0
-  (1723 件、新規違反なし)、受入全走 `tools/run_tests.py` **rc=0 (7177 passed / 20 skipped、
-  1081.53s、Pegasus request `895477.nqsv`)**。実装差分がゼロのため変異 matrix は射程外である。
+- **親の実測 (最終 tip = local main `94d592a3` 取り込み後。本 wave の worktree、login node)。**
+  `tools/check_docs.py` rc=0、`tools/spool_fold.py --dry-run` rc=0 (`status: planned`)、
+  `tools/check_ai_provenance.py` rc=0 (1747 件、新規違反なし)、受入全走 `tools/run_tests.py`
+  **rc=0 (7207 passed / 20 skipped、1055.40s、Pegasus request `895517.nqsv`)**。
+  実装差分がゼロのため変異 matrix は射程外である。
 - **受入 rc の誤報と訂正 (F152 の再発)。** 先行の 2 走では `tools/run_tests.py` の出力を
   `| tail` へ通しており、親が「rc=0」と報告・記録したのは **`tail` の rc** だった。
   `run_tests.py` 自身の rc は検証されていなかった。**同じ wave の段 8 で F157 の再発を制度化した
