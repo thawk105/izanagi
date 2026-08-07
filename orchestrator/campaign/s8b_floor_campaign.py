@@ -305,23 +305,97 @@ def _pinned(value, expected, *, field: str):
         raise FloorCampaignError(str(exc)) from exc
 
 
-def validate_protocol(document: Mapping) -> dict:
-    """共有 leaf の full validator を既存 FloorCampaignError API で公開する。"""
+def _historical_protocol_contract(
+        recorded_hash: str, env_tag: str,
+) -> _env_contract.ExecutionEnvironmentContract:
+    """記録 hash から protocol 世代の contract を一意に解決する。"""
+    try:
+        entry = _env_contract.resolve_by_contract_sha256(
+            recorded_hash, expected_env_tag=env_tag,
+        )
+    except _env_contract.EnvContractError as exc:
+        raise _floor_contract.FloorContractError(
+            f"protocol の歴史 env 契約を解決できない: {exc}"
+        ) from exc
+    if type(entry) is not _env_contract.GenerationEntry:
+        raise _floor_contract.FloorContractError(
+            "protocol の歴史 env 契約 resolver が exact GenerationEntry を返さなかった"
+        )
+    return entry.contract
+
+
+def _current_protocol_contract(
+        recorded_hash: str, env_tag: str,
+) -> _env_contract.ExecutionEnvironmentContract:
+    """protocol の env_tag に対する current contract を解決する。"""
+    del recorded_hash  # hash 一致は共通 core が exact contract object に対して検査する。
+    try:
+        return _env_contract.lookup(env_tag)
+    except _env_contract.EnvContractError as exc:
+        raise _floor_contract.FloorContractError(
+            f"protocol.env_tag が current env 契約に未登録: {exc}"
+        ) from exc
+
+
+def _validate_protocol_with_resolver(
+        document: Mapping, *,
+        resolver: Callable[
+            [str, str], _env_contract.ExecutionEnvironmentContract,
+        ],
+) -> tuple[dict, _env_contract.ExecutionEnvironmentContract]:
+    """共有 leaf を resolver 1 回で検証し、同一 contract object も返す。"""
+    resolved_contract = None
 
     def contract_sha256_lookup(env_tag: str) -> str:
-        try:
-            return _env_contract.lookup(env_tag).contract_sha256
-        except _env_contract.EnvContractError as exc:
+        nonlocal resolved_contract
+        recorded_hash = document["contract_sha256"]
+        if type(recorded_hash) is not str:
             raise _floor_contract.FloorContractError(
-                f"protocol.env_tag が env 契約に未登録: {exc}"
-            ) from exc
+                "protocol.contract_sha256 が exact str でない"
+            )
+        contract = resolver(recorded_hash, env_tag)
+        if type(contract) is not _env_contract.ExecutionEnvironmentContract:
+            raise _floor_contract.FloorContractError(
+                "protocol env 契約 resolver が exact ExecutionEnvironmentContract "
+                "を返さなかった"
+            )
+        if contract.env_tag != env_tag:
+            raise _floor_contract.FloorContractError(
+                "protocol.env_tag と resolver が返した env 契約が不一致"
+            )
+        if contract.contract_sha256 != recorded_hash:
+            raise _floor_contract.FloorContractError(
+                "protocol.contract_sha256 と resolver が返した env 契約が不一致"
+            )
+        resolved_contract = contract
+        return contract.contract_sha256
 
     try:
-        return _floor_contract.validate_protocol(
+        normalized = _floor_contract.validate_protocol(
             document, contract_sha256_lookup=contract_sha256_lookup,
         )
     except _floor_contract.FloorContractError as exc:
         raise FloorCampaignError(str(exc)) from exc
+    if resolved_contract is None:
+        raise FloorCampaignError("protocol env 契約 resolver が呼ばれなかった")
+    return normalized, resolved_contract
+
+
+def _validate_protocol_against_current(
+        document: Mapping,
+) -> tuple[dict, _env_contract.ExecutionEnvironmentContract]:
+    """producer と live admission を current contract へ束縛する。"""
+    return _validate_protocol_with_resolver(
+        document, resolver=_current_protocol_contract,
+    )
+
+
+def validate_protocol(document: Mapping) -> dict:
+    """凍結済み protocol を記録時の歴史 contract で read-only 検証する。"""
+    normalized, _contract = _validate_protocol_with_resolver(
+        document, resolver=_historical_protocol_contract,
+    )
+    return normalized
 
 
 # --------------------------------------------------------------------------- #
@@ -437,7 +511,7 @@ def build_protocol_document(master_seed, env_tag, *, stock_configuration,
         "contract_sha256": contract.contract_sha256,
     }
     # validate_protocol を単一の受理ゲートに通す (builder 自身では判定を持たない)。
-    normalized = validate_protocol(document)
+    normalized, _contract = _validate_protocol_against_current(document)
     canonical = _canonical_bytes(normalized)
     # 自由文字列 field (master_seed 等) 経由でも holdout 三軸 conjunction が protocol bytes に
     # 混入すれば凍結前に拒否する。検索器と同じ判定核を共用し、builder の自己申告にしない。
@@ -579,7 +653,9 @@ def freeze_protocol(*, confirm_user_freeze: bool, root=ROOT, isatty_fn=None,
     try:
         raw = destination.read_bytes()
         actual_sha256 = hashlib.sha256(raw).hexdigest()
-        reparsed = validate_protocol(load_protocol(destination))
+        reparsed, _contract = _validate_protocol_against_current(
+            load_protocol(destination),
+        )
     except (OSError, FloorCampaignError) as exc:
         raise FloorCampaignError(
             f"post-write 検証失敗。自動削除しないため commit 禁止: {exc}"
@@ -1864,14 +1940,18 @@ def _verify_resume_store(built: Mapping, out_root: Path) -> None:
 
 def _project_measure_run_cmd(
         raw_run_cmd, *, runtime_binary: str, portable_binary: str,
-        workload: Mapping, records: int, threads: int, protocol: Mapping) -> str:
+        workload: Mapping, records: int, threads: int, protocol: Mapping,
+        contract: _env_contract.ExecutionEnvironmentContract) -> str:
     """production raw command を完全照合し portable canonical command へ射影する。
 
     calibrator は workload Mapping の挿入順で末尾 flag を出すため、raw 側では workload
     flag の順序だけを非意味的差として許す。それ以外の prefix・perf event・binary・基本
     flag・token 数は完全一致を要求する。artifact 側は leaf の確定順へ必ず正規化する。
     """
-    contract = _env_contract.lookup(protocol["env_tag"])
+    if (type(contract) is not _env_contract.ExecutionEnvironmentContract
+            or contract.env_tag != protocol["env_tag"]
+            or contract.contract_sha256 != protocol["contract_sha256"]):
+        raise CampaignAbort("measure run_cmd の env contract が protocol と不一致")
     try:
         portable = build_portable_run_cmd(
             binary=portable_binary, workload=workload, records=records,
@@ -1913,13 +1993,15 @@ class _Runner:
     (β-5)。retry は失敗が起きた round の末尾で schedule 順に消化する (β-4)。
     """
 
-    def __init__(self, *, protocol, cells, cell_by_id, binaries, artifact_binaries, schedule,
+    def __init__(self, *, protocol, contract, cells, cell_by_id, binaries,
+                 artifact_binaries, schedule,
                  journal_path, measure_fn, probe_fn, sleep_fn, monotonic_fn, now_fn,
                  protocol_sha256, freeze_sha256, manifest_sha256,
                  execution_receipt=None, launch_certificate_sha256=None,
                  records=None, host_provenance_fn=None, process_identity_fn=None,
                  reservation_check=None, write_capability=None):
         self.protocol = protocol
+        self.contract = contract
         self.cells = cells
         self.cell_by_id = cell_by_id
         self.binaries = binaries
@@ -2121,6 +2203,7 @@ class _Runner:
                 portable_binary=self.artifact_binaries[cell_id]["binary"],
                 workload=cell["workload"], records=cell["records"],
                 threads=cell["threads"], protocol=self.protocol,
+                contract=self.contract,
             )
             notes = list(getattr(scale_point, "notes", []) or [])
         else:
@@ -2747,14 +2830,10 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     after_certificate_issued_fn = (
         after_certificate_issued_fn or _after_certificate_issued_noop)
 
-    protocol = validate_protocol(protocol)
+    protocol, contract = _validate_protocol_against_current(protocol)
 
-    # env 契約 lookup (F4): 未登録 env_tag は fail-closed。EnvContractError は境界で
-    # FloorCampaignError へ翻訳する (s8b_freeze_io adapter と同型)。
-    try:
-        contract = _env_contract.lookup(protocol["env_tag"])
-    except _env_contract.EnvContractError as exc:
-        raise FloorCampaignError(f"env 契約 lookup 失敗: {exc}") from exc
+    # current admission が解決した同一 contract object を calibration・receipt・
+    # materialization の全 edge へ渡す。歴史検証済み dict を実行権限にしない。
     # 全 env で calibration bytes を hash 束縛してから mode を dispatch する。required は
     # 統合 issuer + production probe 以外に receipt 生成経路を持たず、none は従来の
     # machine-pin + v1 receipt 呼出し形を維持する。
@@ -3102,7 +3181,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         return {"status": "completed", "run_dir": str(run_dir), "result": result}
 
     runner = _Runner(
-        protocol=protocol, cells=cells, cell_by_id=cell_by_id, binaries=runtime_built,
+        protocol=protocol, contract=contract, cells=cells, cell_by_id=cell_by_id,
+        binaries=runtime_built,
         artifact_binaries=artifact_built,
         schedule=schedule, journal_path=journal_path, measure_fn=measure_fn,
         probe_fn=probe_fn, sleep_fn=sleep_fn, monotonic_fn=monotonic_fn, now_fn=now_fn,

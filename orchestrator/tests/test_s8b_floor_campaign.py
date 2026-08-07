@@ -406,7 +406,7 @@ def test_measure_run_cmd_projection_removes_runtime_root_and_rejects_missing_tok
     projected = s8b_floor_campaign._project_measure_run_cmd(
         raw, runtime_binary=runtime_binary, portable_binary=portable_binary,
         workload=cell["ycsb"], records=cell["records"], threads=cell["threads"],
-        protocol=protocol,
+        protocol=protocol, contract=ec.lookup(ENV_TAG),
     )
     assert runtime_binary not in projected
     assert tuple(shlex.split(projected)) == s8b_floor_campaign.build_portable_run_cmd(
@@ -420,7 +420,7 @@ def test_measure_run_cmd_projection_removes_runtime_root_and_rejects_missing_tok
         s8b_floor_campaign._project_measure_run_cmd(
             missing, runtime_binary=runtime_binary, portable_binary=portable_binary,
             workload=cell["ycsb"], records=cell["records"], threads=cell["threads"],
-            protocol=protocol,
+            protocol=protocol, contract=ec.lookup(ENV_TAG),
         )
 
 
@@ -1424,7 +1424,9 @@ def test_required_calibration_sha_mismatch_has_zero_side_effects(tmp_path, monke
 def test_required_existing_claim_reports_owner_and_changes_nothing(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
-    protocol = s8b_floor_campaign.validate_protocol(ctx["protocol"])
+    protocol, _contract = s8b_floor_campaign._validate_protocol_against_current(
+        ctx["protocol"],
+    )
     identity = s8b_floor_campaign._fresh_run_id(
         s8b_floor_campaign._canonical_sha256(protocol), _FIXED_NOW,
     )
@@ -4424,6 +4426,268 @@ def _patch_current_contract_to_synthetic_successor(monkeypatch):
     return g1, g2
 
 
+def test_public_validate_protocol_resolves_recorded_historical_generation_once(
+        monkeypatch):
+    """合成 g2 は activation 正例でなく、read-only g1 解決だけを模す。"""
+    protocol = _valid_protocol_dict()
+    g1, g2 = _patch_current_contract_to_synthetic_successor(monkeypatch)
+    assert protocol["contract_sha256"] == g1.contract_sha256
+    assert protocol["contract_sha256"] != g2.contract_sha256
+
+    real_resolve = ec.resolve_by_contract_sha256
+    historical_resolver = mock.Mock(wraps=real_resolve)
+    current_lookup = mock.Mock(
+        side_effect=AssertionError("historical 検証から current lookup してはいけない"),
+    )
+    monkeypatch.setattr(ec, "resolve_by_contract_sha256", historical_resolver)
+    monkeypatch.setattr(ec, "lookup", current_lookup)
+
+    assert s8b_floor_campaign.validate_protocol(protocol) == protocol
+    historical_resolver.assert_called_once_with(
+        g1.contract_sha256, expected_env_tag=ENV_TAG,
+    )
+    current_lookup.assert_not_called()
+
+
+def test_protocol_lanes_both_reject_str_subclass_contract_sha256(monkeypatch):
+    class HashText(str):
+        pass
+
+    protocol = _valid_protocol_dict()
+    protocol["contract_sha256"] = HashText(protocol["contract_sha256"])
+    historical_resolver = mock.Mock(
+        side_effect=AssertionError("exact 型拒否より後へ進んではならない"),
+    )
+    current_lookup = mock.Mock(
+        side_effect=AssertionError("exact 型拒否より後へ進んではならない"),
+    )
+    monkeypatch.setattr(ec, "resolve_by_contract_sha256", historical_resolver)
+    monkeypatch.setattr(ec, "lookup", current_lookup)
+
+    errors = []
+    for validator in (
+            s8b_floor_campaign.validate_protocol,
+            s8b_floor_campaign._validate_protocol_against_current):
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError) as caught:
+            validator(protocol)
+        errors.append(caught.value)
+
+    assert [type(error) for error in errors] == [
+        s8b_floor_campaign.FloorCampaignError,
+        s8b_floor_campaign.FloorCampaignError,
+    ]
+    assert str(errors[0]) == str(errors[1])
+    historical_resolver.assert_not_called()
+    current_lookup.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", ["unknown", "cross-env", "invalid-return"])
+def test_public_validate_protocol_historical_failures_never_fallback_to_current(
+        monkeypatch, failure):
+    protocol = _valid_protocol_dict()
+    other_env = next(env_tag for env_tag in ec.REGISTRY if env_tag != ENV_TAG)
+    if failure == "unknown":
+        protocol["contract_sha256"] = "0" * 64
+        historical_resolver = mock.Mock(wraps=ec.resolve_by_contract_sha256)
+    elif failure == "cross-env":
+        protocol["contract_sha256"] = ec.lookup(other_env).contract_sha256
+        historical_resolver = mock.Mock(wraps=ec.resolve_by_contract_sha256)
+    else:
+        historical_resolver = mock.Mock(return_value=object())
+
+    current_lookup = mock.Mock(
+        side_effect=AssertionError("historical resolver 失敗時に fallback してはいけない"),
+    )
+    monkeypatch.setattr(ec, "resolve_by_contract_sha256", historical_resolver)
+    monkeypatch.setattr(ec, "lookup", current_lookup)
+
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError):
+        s8b_floor_campaign.validate_protocol(protocol)
+
+    historical_resolver.assert_called_once_with(
+        protocol["contract_sha256"], expected_env_tag=ENV_TAG,
+    )
+    current_lookup.assert_not_called()
+
+
+def test_public_validate_protocol_ambiguous_generation_never_falls_back_to_current(
+        monkeypatch):
+    protocol = _valid_protocol_dict()
+    entry = ec.resolve_by_contract_sha256(protocol["contract_sha256"])
+    monkeypatch.setattr(
+        ec,
+        "_CONTRACT_SHA256_INDEX",
+        MappingProxyType({protocol["contract_sha256"]: (entry, entry)}),
+    )
+    current_lookup = mock.Mock(
+        side_effect=AssertionError("ambiguous 時に current fallback してはいけない"),
+    )
+    monkeypatch.setattr(ec, "lookup", current_lookup)
+
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="一意"):
+        s8b_floor_campaign.validate_protocol(protocol)
+
+    current_lookup.assert_not_called()
+
+
+def test_main_validates_recorded_g1_with_historical_lane_when_current_is_g2(
+        tmp_path, monkeypatch, capsys):
+    protocol = _valid_protocol_dict()
+    g1, g2 = _patch_current_contract_to_synthetic_successor(monkeypatch)
+    assert protocol["contract_sha256"] == g1.contract_sha256
+    assert protocol["contract_sha256"] != g2.contract_sha256
+
+    real_resolve = ec.resolve_by_contract_sha256
+    historical_resolver = mock.Mock(wraps=real_resolve)
+    current_lookup = mock.Mock(
+        side_effect=AssertionError("main の read-only 検証を current へ戻せない"),
+    )
+    load_protocol = mock.Mock(return_value=protocol)
+    verified = object()
+    load_freeze = mock.Mock(return_value=verified)
+    run_campaign = mock.Mock(return_value={
+        "status": "completed", "run_dir": str(tmp_path / "run"),
+    })
+    monkeypatch.setattr(ec, "resolve_by_contract_sha256", historical_resolver)
+    monkeypatch.setattr(ec, "lookup", current_lookup)
+    monkeypatch.setattr(s8b_floor_campaign, "load_protocol", load_protocol)
+    monkeypatch.setattr(s8b_floor_campaign, "_load_verified_freeze", load_freeze)
+    monkeypatch.setattr(s8b_floor_campaign, "repo_output_root", lambda: str(tmp_path))
+    monkeypatch.setattr(s8b_floor_campaign, "run_campaign", run_campaign)
+    protocol_path = tmp_path / "protocol.json"
+
+    assert s8b_floor_campaign.main([
+        "--mode", "pilot", "--protocol", str(protocol_path),
+    ]) == 0
+
+    assert json.loads(capsys.readouterr().out)["status"] == "completed"
+    load_protocol.assert_called_once_with(protocol_path)
+    historical_resolver.assert_called_once_with(
+        g1.contract_sha256, expected_env_tag=ENV_TAG,
+    )
+    current_lookup.assert_not_called()
+    load_freeze.assert_called_once()
+    run_campaign.assert_called_once()
+    assert run_campaign.call_args.args == (protocol, verified)
+
+
+def test_fresh_run_rejects_recorded_g1_when_current_contract_is_g2_before_io(
+        tmp_path, monkeypatch):
+    """合成 g2 は activation 正例でなく、fresh current admission 境界だけを模す。"""
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    g1, g2 = _patch_current_contract_to_synthetic_successor(monkeypatch)
+    assert protocol["contract_sha256"] == g1.contract_sha256
+    assert protocol["contract_sha256"] != g2.contract_sha256
+
+    real_lookup = ec.lookup
+    current_lookup = mock.Mock(wraps=real_lookup)
+    historical_resolver = mock.Mock(
+        side_effect=AssertionError("fresh admission から historical resolver を呼べない"),
+    )
+    calibration_loader = mock.Mock(
+        side_effect=AssertionError("current 不一致時に calibration を読めない"),
+    )
+    measure_fn = mock.Mock(
+        side_effect=AssertionError("current 不一致時に計測してはいけない"),
+    )
+    monkeypatch.setattr(ec, "lookup", current_lookup)
+    monkeypatch.setattr(ec, "resolve_by_contract_sha256", historical_resolver)
+    monkeypatch.setattr(
+        s8b_floor_campaign.env_attestation,
+        "load_verified_calibration",
+        calibration_loader,
+    )
+    out_root = tmp_path / "out"
+
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError):
+        s8b_floor_campaign.run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
+            measure_fn=measure_fn,
+        )
+
+    current_lookup.assert_called_once_with(ENV_TAG)
+    historical_resolver.assert_not_called()
+    calibration_loader.assert_not_called()
+    measure_fn.assert_not_called()
+    assert not out_root.exists()
+
+
+def test_current_admission_reuses_exact_contract_across_successful_run(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    contract = ec.lookup(ENV_TAG)
+    protocol = _protocol(
+        freeze_sha=_freeze_sha(freeze),
+        contract_sha256=contract.contract_sha256,
+    )
+    verified = _verified_freeze(freeze)
+    current_lookup = mock.Mock(return_value=contract)
+    real_calibration = env_attestation.load_verified_calibration
+    real_projection = s8b_floor_campaign._project_measure_run_cmd
+    fake_build = _make_fake_build(tmp_path / "bin")
+    seen = {
+        "calibration": [], "receipt": [], "build": [], "command_receipt": [],
+    }
+
+    def calibration_spy(candidate, repo_root):
+        seen["calibration"].append(candidate)
+        return real_calibration(candidate, repo_root)
+
+    def receipt_spy(candidate, *, now_fn):
+        seen["receipt"].append(candidate)
+        return _fixed_receipt(candidate, now_fn=now_fn)
+
+    def build_spy(*args, **kwargs):
+        seen["build"].append(kwargs["contract"])
+        return fake_build(*args, **kwargs)
+
+    def projection_spy(*args, **kwargs):
+        seen["command_receipt"].append(kwargs["contract"])
+        return real_projection(*args, **kwargs)
+
+    def measure_fn(binary, records, threads, workload):
+        argv = list(s8b_floor_campaign.build_portable_run_cmd(
+            binary="output/fixture/bench", workload=workload,
+            records=records, threads=threads, extime_s=protocol["extime_s"],
+            clocks_per_us=contract.clocks_per_us, numactl=contract.numactl,
+        ))
+        argv[argv.index("--") + 1] = str(binary)
+        return _FakeScalePoint(
+            throughputs=[1000.0] * protocol["reps"], notes=[],
+            run_cmd=shlex.join(argv),
+        )
+
+    monkeypatch.setattr(ec, "lookup", current_lookup)
+    monkeypatch.setattr(
+        s8b_floor_campaign.env_attestation,
+        "load_verified_calibration",
+        calibration_spy,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_project_measure_run_cmd", projection_spy,
+    )
+
+    outcome = s8b_floor_campaign.run_campaign(
+        protocol, verified, out_root=tmp_path / "out", mode="pilot",
+        measure_fn=measure_fn, probe_fn=lambda: (1, "", ""),
+        sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
+        prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+        execution_receipt_fn=receipt_spy, build_fn=build_spy,
+        durable_root_policy=_durable_policy(tmp_path / "out"),
+    )
+
+    assert outcome["status"] == "completed"
+    current_lookup.assert_called_once_with(ENV_TAG)
+    assert len(seen["calibration"]) == 1
+    assert len(seen["receipt"]) == 1
+    assert len(seen["build"]) == len(_CONFIGS) * len(_HOLDOUT_SHAPE)
+    assert len(seen["command_receipt"]) == (
+        len(_CONFIGS) * len(_HOLDOUT_SHAPE) * protocol["n_sessions"]
+    )
+    assert all(candidate is contract for calls in seen.values() for candidate in calls)
+
+
 def test_resume_under_unchanged_current_contract_generation_completes(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -4723,7 +4987,8 @@ def test_binary_receipt_mismatch_aborts(tmp_path):
             "records": 1, "threads": 1, "workload": {"ycsb": {}}}
     binaries = {cell_id: {"binary": str(binf), "binary_sha256": "0" * 64}}  # 記録が偽
     runner = s8b_floor_campaign._Runner(
-        protocol=_valid_protocol_dict(), cells=[cell], cell_by_id={cell_id: cell},
+        protocol=_valid_protocol_dict(), contract=ec.lookup(ENV_TAG),
+        cells=[cell], cell_by_id={cell_id: cell},
         binaries=binaries, artifact_binaries={cell_id: {"binary": "output/fixture/bench"}},
         schedule=[], journal_path=tmp_path / "j.jsonl",
         measure_fn=lambda *a: _FakeScalePoint([1.0] * 5, [], "x"),
