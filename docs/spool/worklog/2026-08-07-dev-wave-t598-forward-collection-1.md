@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-07
 wave: dev-wave-t598-forward-collection
 seq: 1
-title: [T-598] wave 単位の前向き収集を結線した — ただし収集は 1 件も走っていない。実行場所が §7.0 未分類のため tool が自ら停止する (コード + docs、受入 7204 passed / 20 skipped、変異 9/9 KILLED + erratum 2 件、branch worktree-dev-wave-t598-forward-collection)
+title: [T-598] wave 単位の前向き収集を結線した — ただし収集は 1 件も走っていない。実行場所が §7.0 未分類のため tool が自ら停止する (コード + docs、受入 7207 passed / 20 skipped、変異 9/9 KILLED + erratum 2 件、branch worktree-dev-wave-t598-forward-collection)
 ---
 
 ## 本文
@@ -41,8 +41,13 @@ title: [T-598] wave 単位の前向き収集を結線した — ただし収集�
   読むと登録した 2 node のうち 1 node だけが赤だった。もう一方は collector を直接叩くテストで
   helper 側の受け渡しに依存しない。**実装が正しく親の登録が過剰だった。**
   初回台帳を erratum として残し、登録を実測へ合わせて再走した。
-- **local main が wave 中に 19 commit 先行した。** 受入全走の前に取り込み (競合なし)、
-  取り込み後 HEAD で変異 anchor 9 件の一意性を再検証してから変異を本走し直した。
+- **local main が wave 中に 3 度先行した (19 / 3 / 9 commit)。** そのつど取り込み (すべて競合なし)、
+  最初の取り込み後 HEAD で変異 anchor 9 件の一意性を再検証してから変異を本走し直した。
+  3 度目の incoming は [T-625] の条件 dispatch 追加を含んでいたが、追記先が入口 command 側で
+  `docs/dev-wave/**` は 25,196 / 25,200 のまま予算衝突しなかった。
+  **受入全走は 3 回走らせ、採る値は最後の `93c35183` での 7207 passed / 20 skipped である**
+  (先行 2 回は 7204 passed / 20 skipped。差の 3 件は [T-625] が足したテスト)。
+  本 fragment の受入値差し替えだけが同 commit より後の差分である。
 - **段 8 の参照文書への統合はゼロ。** 候補 3 件のうち 2 件は既存規則が覆っていた —
   期待 node の形式不一致は `DW-M08` の正規化義務が、変異 runner の cgroup attest race は
   F155/F156 の既定 recipe が既に担う。残る 1 件
