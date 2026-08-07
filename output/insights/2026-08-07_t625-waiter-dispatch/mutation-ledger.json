@@ -1,0 +1,738 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/adf6a0f1de0842ec3afe3779b53354e3/izdw-adf6a0f1de.o895284",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/adf6a0f1de0842ec3afe3779b53354e3/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [307 items]\n\n........................................................................ [ 23%]\n........................................................................ [ 46%]\n........................................................................ [ 70%]\n........................................................................ [ 93%]\n...................                                                      [100%]\n============================= 307 passed in 5.88s ==============================\n",
+      "stdout_sha256": "7b5a562a711371b0ba3e6b64781c6ce493b15e98d081a135645a7ff53af8ca3f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "5c97841fd194c0025d4b7da1e6378e42b3e4447ff8969db0f32e1e1c6ab821cc",
+    "duration_s": 26.903,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "fdca8895764ec7ef20caa945c3b530beb1b4a4614411fe684d908ddc7826d39a",
+    "repo_head": "50cc3db6d01db4db123aa17b35e7798d29bde7f1",
+    "runner_sha256": "bb4fca72aef500c6d4d0e8a1ceb870a17a09e802826d7db2a434989b0896c07b",
+    "spec_sha256": "fc48900ae614c7e0a4a5969f0d2cb731a383158010b42bff7b59e185f87cfe3c",
+    "status": "PASSED",
+    "test_output_sha256": "7b5a562a711371b0ba3e6b64781c6ce493b15e98d081a135645a7ff53af8ca3f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "0c882b5bb915274e8b190061edc0137a3241f7bfa2ea71e7c868f3c0210d9bea"
+  },
+  "date": "2026-08-07T11:02:01.620545+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/4e9ddacaf32da9c53410757f6620eb59/izdw-4e9ddacaf3.o895285",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/4e9ddacaf32da9c53410757f6620eb59/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [307 items]\n\n........................................................................ [ 23%]\n........................................................................ [ 46%]\n........................................................................ [ 70%]\n........................................................................ [ 93%]\n..................F                                                      [100%]\n=================================== FAILURES ===================================\n_____________________________ test_real_repo_clean _____________________________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_clean():\n        res = subprocess.run(\n            [sys.executable, os.path.join(_REPO, \"tools\", \"check_docs.py\")],\n            capture_output=True,\n            text=True,\n        )\n>       assert res.returncode == 0, f\"実 repo で違反が出た:\\n{res.stdout}\\n{res.stderr}\"\nE       AssertionError: 実 repo で違反が出た:\nE         check_docs: 1 件の違反\nE           - .claude/commands/dev-wave.md: 条件 dispatch '24' が契約と不一致 — rows=0, missing=[('docs/dev-wave/core.md', 'DW-C00')], extra=[]\nE         \nE         \nE       assert 1 == 0\nE        +  where 1 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/t.../dev-wave.md: 条件 dispatch '24' が契約と不一致 — rows=0, missing=[('docs/dev-wave/core.md', 'DW-C00')], extra=[]\\n\", stderr='').returncode\n\norchestrator/tests/test_check_docs.py:6402: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_docs.py::test_real_repo_clean - Assertio...\n======================== 1 failed, 306 passed in 5.85s =========================\n",
+        "stdout_sha256": "3ba171a490be68d04c0160da57448e9a0753a45578b9182f694a33f8098251d6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c97841fd194c0025d4b7da1e6378e42b3e4447ff8969db0f32e1e1c6ab821cc",
+      "duration_s": 26.874,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "91218182daf9327098819fb21b23873f75a745520be9e5f28f87bfa5dcb701d9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f3e4597bbf376fedda96a4d8bba53d75aef5f620f1de111ba7ab4dea25025e82",
+      "replacements": [
+        {
+          "file": ".claude/commands/dev-wave.md",
+          "new": "",
+          "old": "| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n"
+        }
+      ],
+      "repo_head": "50cc3db6d01db4db123aa17b35e7798d29bde7f1",
+      "runner_sha256": "bb4fca72aef500c6d4d0e8a1ceb870a17a09e802826d7db2a434989b0896c07b",
+      "spec_sha256": "fc48900ae614c7e0a4a5969f0d2cb731a383158010b42bff7b59e185f87cfe3c",
+      "status": "KILLED",
+      "test_output_sha256": "3ba171a490be68d04c0160da57448e9a0753a45578b9182f694a33f8098251d6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c882b5bb915274e8b190061edc0137a3241f7bfa2ea71e7c868f3c0210d9bea"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/59d29e3a76f744a15262d6611533184a/izdw-59d29e3a76.o895287",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/59d29e3a76f744a15262d6611533184a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [307 items]\n\n........................................................................ [ 23%]\n........................................................................ [ 46%]\n........................................................................ [ 70%]\n........................................................................ [ 93%]\n..................F                                                      [100%]\n=================================== FAILURES ===================================\n_____________________________ test_real_repo_clean _____________________________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_clean():\n        res = subprocess.run(\n            [sys.executable, os.path.join(_REPO, \"tools\", \"check_docs.py\")],\n            capture_output=True,\n            text=True,\n        )\n>       assert res.returncode == 0, f\"実 repo で違反が出た:\\n{res.stdout}\\n{res.stderr}\"\nE       AssertionError: 実 repo で違反が出た:\nE         check_docs: 1 件の違反\nE           - .claude/commands/dev-wave.md: 条件 dispatch '24' が契約と不一致 — rows=1, missing=[('docs/dev-wave/core.md', 'DW-C00')], extra=[('docs/dev-wave/core.md', 'DW-CTX')]\nE         \nE         \nE       assert 1 == 0\nE        +  where 1 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/t...不一致 — rows=1, missing=[('docs/dev-wave/core.md', 'DW-C00')], extra=[('docs/dev-wave/core.md', 'DW-CTX')]\\n\", stderr='').returncode\n\norchestrator/tests/test_check_docs.py:6402: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_docs.py::test_real_repo_clean - Assertio...\n======================== 1 failed, 306 passed in 6.49s =========================\n",
+        "stdout_sha256": "9d8d39001fb37822c32d826ceba522fe867a21afb3d48fceae71777e60253f76"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c97841fd194c0025d4b7da1e6378e42b3e4447ff8969db0f32e1e1c6ab821cc",
+      "duration_s": 26.865,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "db8fb223a5837c01895c2029e6f0bc87b9c65b1f63c1cfbf83f0f04e94668c8d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6cc622c688345ab6b75933f71d82c1281c2b446c04b8f2fd88e251cc5af7ea11",
+      "replacements": [
+        {
+          "file": ".claude/commands/dev-wave.md",
+          "new": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-CTX` |",
+          "old": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |"
+        }
+      ],
+      "repo_head": "50cc3db6d01db4db123aa17b35e7798d29bde7f1",
+      "runner_sha256": "bb4fca72aef500c6d4d0e8a1ceb870a17a09e802826d7db2a434989b0896c07b",
+      "spec_sha256": "fc48900ae614c7e0a4a5969f0d2cb731a383158010b42bff7b59e185f87cfe3c",
+      "status": "KILLED",
+      "test_output_sha256": "9d8d39001fb37822c32d826ceba522fe867a21afb3d48fceae71777e60253f76",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c882b5bb915274e8b190061edc0137a3241f7bfa2ea71e7c868f3c0210d9bea"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/6d7ad6e564b28aaf27c22c455d1b2d68/izdw-6d7ad6e564.o895288",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/6d7ad6e564b28aaf27c22c455d1b2d68/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [307 items]\n\n........................................................................ [ 23%]\n........................................................................ [ 46%]\n........................................................................ [ 70%]\n........................................................................ [ 93%]\n..................F                                                      [100%]\n=================================== FAILURES ===================================\n_____________________________ test_real_repo_clean _____________________________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_clean():\n        res = subprocess.run(\n            [sys.executable, os.path.join(_REPO, \"tools\", \"check_docs.py\")],\n            capture_output=True,\n            text=True,\n        )\n>       assert res.returncode == 0, f\"実 repo で違反が出た:\\n{res.stdout}\\n{res.stderr}\"\nE       AssertionError: 実 repo で違反が出た:\nE         check_docs: 1 件の違反\nE           - .claude/commands/dev-wave.md: 条件 dispatch '24' が契約と不一致 — rows=2, missing=[], extra=[]\nE         \nE         \nE       assert 1 == 0\nE        +  where 1 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/t..._docs: 1 件の違反\\n  - .claude/commands/dev-wave.md: 条件 dispatch '24' が契約と不一致 — rows=2, missing=[], extra=[]\\n\", stderr='').returncode\n\norchestrator/tests/test_check_docs.py:6402: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_docs.py::test_real_repo_clean - Assertio...\n======================== 1 failed, 306 passed in 6.12s =========================\n",
+        "stdout_sha256": "259dd12b4b5f964b7d427fb06ff62be323d95f930b99214557d1d84b010827fa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c97841fd194c0025d4b7da1e6378e42b3e4447ff8969db0f32e1e1c6ab821cc",
+      "duration_s": 32.009,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "823c97b194c65a54a83d22d00166fa8078d8c9dc651a07367cf291542a28db16",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "72903e4dc023ea348657111e3035ef2d84d752bd0ac7bf79f70fc8f309617f76",
+      "replacements": [
+        {
+          "file": ".claude/commands/dev-wave.md",
+          "new": "| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n\n",
+          "old": "| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n\n"
+        }
+      ],
+      "repo_head": "50cc3db6d01db4db123aa17b35e7798d29bde7f1",
+      "runner_sha256": "bb4fca72aef500c6d4d0e8a1ceb870a17a09e802826d7db2a434989b0896c07b",
+      "spec_sha256": "fc48900ae614c7e0a4a5969f0d2cb731a383158010b42bff7b59e185f87cfe3c",
+      "status": "KILLED",
+      "test_output_sha256": "259dd12b4b5f964b7d427fb06ff62be323d95f930b99214557d1d84b010827fa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c882b5bb915274e8b190061edc0137a3241f7bfa2ea71e7c868f3c0210d9bea"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/3ad712b2894619e9d6fab52ffae858b2/izdw-3ad712b289.o895289",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/3ad712b2894619e9d6fab52ffae858b2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [307 items]\n\n........................................................................ [ 23%]\n..............................................F......................... [ 46%]\n........................................................................ [ 70%]\n........................................................................ [ 93%]\n...................                                                      [100%]\n=================================== FAILURES ===================================\n_________________ test_condition_24_contract_pins_exact_target _________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_condition_24_contract_pins_exact_target():\n        \"\"\"条件 24 の参照先と operations 非所属だけを固定する。\"\"\"\n    \n>       assert check_docs.CONDITION_DISPATCH_CONTRACT[\"24\"] == {\n            (\"docs/dev-wave/core.md\", \"DW-C00\")\n        }\nE       AssertionError: assert frozenset({('...', 'DW-CTX')}) == {('docs/dev-w...d', 'DW-C00')}\nE         \nE         Extra items in the left set:\nE         ('docs/dev-wave/core.md', 'DW-CTX')\nE         Extra items in the right set:\nE         ('docs/dev-wave/core.md', 'DW-C00')\nE         Use -v to get more diff\n\norchestrator/tests/test_check_docs.py:4790: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_docs.py::test_condition_24_contract_pins_exact_target\n======================== 1 failed, 306 passed in 5.84s =========================\n",
+        "stdout_sha256": "7ba8a737beb9c0b42ebe27596ff1253c6c1e33393ddfe0dc45fb94b768e646ee"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c97841fd194c0025d4b7da1e6378e42b3e4447ff8969db0f32e1e1c6ab821cc",
+      "duration_s": 26.888,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_condition_24_contract_pins_exact_target"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_condition_24_contract_pins_exact_target"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "864f6ddded2a7f9f8f34bf1e23f191e124017b3fe8a5857275c8f33d421f7d88",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f936e7c82fa7a13c3a7e07a741c117cfea96067074301093d88bbc10c67d4cd4",
+      "replacements": [
+        {
+          "file": ".claude/commands/dev-wave.md",
+          "new": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-CTX` |",
+          "old": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |"
+        },
+        {
+          "file": "tools/check_docs.py",
+          "new": "    \"24\": _pairs(_CORE, \"DW-CTX\"),",
+          "old": "    \"24\": _pairs(_CORE, \"DW-C00\"),"
+        }
+      ],
+      "repo_head": "50cc3db6d01db4db123aa17b35e7798d29bde7f1",
+      "runner_sha256": "bb4fca72aef500c6d4d0e8a1ceb870a17a09e802826d7db2a434989b0896c07b",
+      "spec_sha256": "fc48900ae614c7e0a4a5969f0d2cb731a383158010b42bff7b59e185f87cfe3c",
+      "status": "KILLED",
+      "test_output_sha256": "7ba8a737beb9c0b42ebe27596ff1253c6c1e33393ddfe0dc45fb94b768e646ee",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c882b5bb915274e8b190061edc0137a3241f7bfa2ea71e7c868f3c0210d9bea"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/c26673614e59b65551aeb911a3229cb2/izdw-c26673614e.o895290",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/c26673614e59b65551aeb911a3229cb2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [306 items]\n\n........................................................................ [ 23%]\n.................................F...................................... [ 47%]\n........................................................................ [ 70%]\n........................................................................ [ 94%]\n..................                                                       [100%]\n=================================== FAILURES ===================================\n_______________ test_command_guard_case_registration_is_complete _______________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_command_guard_case_registration_is_complete():\n        \"\"\"条件 24 の case 実在と guard 登録表の key 一致を固定する。\"\"\"\n    \n        case_keys = set(_COMMAND_GUARD_CASES)\n>       assert \"condition_waiter_deleted\" in case_keys\nE       AssertionError: assert 'condition_waiter_deleted' in {'aggregate_over', 'arguments_missing', 'codex_command_contract_deleted', 'codex_core_contract_deleted', 'codex_rulings_skill_adapter_deleted', 'codex_rulings_skill_deleted', ...}\n\norchestrator/tests/test_check_docs.py:4723: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_docs.py::test_command_guard_case_registration_is_complete\n======================== 1 failed, 305 passed in 5.46s =========================\n",
+        "stdout_sha256": "8610300163aa1984af9883cee4a270ca853a130dd35b5426e56efe8263e68acc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c97841fd194c0025d4b7da1e6378e42b3e4447ff8969db0f32e1e1c6ab821cc",
+      "duration_s": 26.887,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_command_guard_case_registration_is_complete"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_command_guard_case_registration_is_complete"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "fcc618c47207f34a05a84ea78c3210d79a45d9846ad432dbc0f93b44f094fb35",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0f9174c9ca699b2ebeb876888c577ab32cc252bad1286130de9441e390b8acb0",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "new": "",
+          "old": "    \"condition_waiter_deleted\",\n"
+        }
+      ],
+      "repo_head": "50cc3db6d01db4db123aa17b35e7798d29bde7f1",
+      "runner_sha256": "bb4fca72aef500c6d4d0e8a1ceb870a17a09e802826d7db2a434989b0896c07b",
+      "spec_sha256": "fc48900ae614c7e0a4a5969f0d2cb731a383158010b42bff7b59e185f87cfe3c",
+      "status": "KILLED",
+      "test_output_sha256": "8610300163aa1984af9883cee4a270ca853a130dd35b5426e56efe8263e68acc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c882b5bb915274e8b190061edc0137a3241f7bfa2ea71e7c868f3c0210d9bea"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/6db78b28a4816c0db4b47226fe96b6e4/izdw-6db78b28a4.o895283",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/output/pegasus-dispatch/6db78b28a4816c0db4b47226fe96b6e4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean\norchestrator/tests/test_check_docs.py::test_admission_registry_load_failures_are_one_fail_closed_finding\norchestrator/tests/test_check_docs.py::test_admission_loader_executes_source_even_with_unchecked_stale_pyc\norchestrator/tests/test_check_docs.py::test_admission_loader_system_exit_never_evaporates_checker\norchestrator/tests/test_check_docs.py::test_admission_poisoned_exception_string_never_evaporates_checker\norchestrator/tests/test_check_docs.py::test_admission_outer_wrapper_fail_closed_on_poisoned_subchecker\norchestrator/tests/test_check_docs.py::test_admission_projection_mutations_each_have_one_primary_finding\norchestrator/tests/test_check_docs.py::test_admission_registry_mutations_have_exact_attributed_finding_sets\norchestrator/tests/test_check_docs.py::test_admission_unknown_table_rejects_non_unknown_and_incomplete_legacy_rows\norchestrator/tests/test_check_docs.py::test_admission_unknown_table_requires_grandfather_warning_golden\norchestrator/tests/test_check_docs.py::test_admission_measured_table_requires_exact_registry_path_set\norchestrator/tests/test_check_docs.py::test_admission_runbook_orphan_pipe_row_is_rejected\norchestrator/tests/test_check_docs.py::test_admission_readme_declaration_and_fenced_target_mutations_are_rejected\norchestrator/tests/test_check_docs.py::test_admission_readme_site_tags_and_three_site_values_are_exact\norchestrator/tests/test_check_docs.py::test_admission_readme_rejects_empty_and_noncanonical_path_surfaces\norchestrator/tests/test_check_docs.py::test_admission_readme_positive_command_and_negative_prose_controls_are_clean\norchestrator/tests/test_check_docs.py::test_admission_main_call_cannot_be_removed_without_evaporation_control_failing\norchestrator/tests/test_check_docs.py::test_spool_guard_main_rejects_schema_violation\norchestrator/tests/test_check_docs.py::test_spool_guard_import_failure_is_finding_without_traceback\norchestrator/tests/test_check_docs.py::test_n20_spool_guard_rejects_active_transaction_in_git_repo\norchestrator/tests/test_check_docs.py::test_spool_guard_git_marker_with_broken_rev_parse_fails_closed\norchestrator/tests/test_check_docs.py::test_backlog_guard_preservation_rule_still_rejects_implicit_drop\norchestrator/tests/test_check_docs.py::test_raised_doc_budgets_still_reject_each_new_limit_and_aggregate\norchestrator/tests/test_check_docs.py::test_spool_guard_empty_layout_is_clean\norchestrator/tests/test_check_docs.py::test_spool_guard_valid_pending_fragment_is_clean\norchestrator/tests/test_check_docs.py::test_spool_guard_unresolved_reference_propagates_to_main\norchestrator/tests/test_check_docs.py::test_spool_guard_missing_layout_is_finding\norchestrator/tests/test_check_docs.py::test_spool_guard_symlink_and_unexpected_members_fail_closed\norchestrator/tests/test_check_docs.py::test_spool_guard_unexpected_validator_exception_is_finding\norchestrator/tests/test_check_docs.py::test_spool_tree_is_excluded_from_all_legacy_doc_scans\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_limits_pin_adjudicated_caps\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_budget_pins_cap_sum\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_budget_pins_aggregate_ceiling\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_cap_sum_rejects_above_110_percent\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_assign\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_annassign\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_augassign\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_subscript_assign\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_del\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_update\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_pop\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_for_binding\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_with_binding\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_comprehension_binding\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_import_binding\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_globals_write\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_alias_subscript_write\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_dict_update_through_tasks_alias\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_as_mutating_call_argument\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_accepts_real_dispatcher_tasks_reads\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_raw_html_section_is_rejected\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_wrong_parent_section_is_rejected\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_accepts_equivalent_markdown_spacing\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_outer_pipe_less_added_row_is_rejected\norchestrator/tests/test_check_docs.py::test_shared_top_level_items_are_unchanged_by_raw_html_prefix\norchestrator/tests/test_check_docs.py::test_shared_provenance_sections_are_unchanged_by_raw_html_prefix\norchestrator/tests/test_check_docs.py::test_shared_condition_dispatch_is_unchanged_by_raw_html_prefix\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_current_mapping_has_no_findings\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_deleted_table_row_is_rejected\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_cap_sum_accepts_exactly_110_percent\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_added_tasks_entry_is_rejected\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_child_script_change_is_rejected\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_missing_table_is_rejected\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_empty_table_is_rejected\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_missing_section_is_rejected\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_accepts_exact_boundary[docs/dev-wave/core.md-9600]\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_accepts_exact_boundary[docs/dev-wave/workers.md-5000]\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_accepts_exact_boundary[docs/dev-wave/mutation.md-3750]\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_accepts_exact_boundary[docs/dev-wave/operations.md-8400]\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_duplicate_task_row_is_rejected\norchestrator/tests/test_check_docs.py::test_dispatch_inventory_ignores_table_outside_7_0_section\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_rejects_plus_one[docs/dev-wave/core.md-9600]\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_rejects_plus_one[docs/dev-wave/workers.md-5000]\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_rejects_plus_one[docs/dev-wave/mutation.md-3750]\norchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_rejects_plus_one[docs/dev-wave/operations.md-8400]\norchestrator/tests/test_check_docs.py::test_tools_readme_is_enumerated_and_budgeted\norchestrator/tests/test_check_docs.py::test_tools_readme_missing_is_rejected\norchestrator/tests/test_check_docs.py::test_tools_readme_budget_overrun_is_rejected\norchestrator/tests/test_check_docs.py::test_provenance_family_contract_pins_exact_surface\norchestrator/tests/test_check_docs.py::test_provenance_family_is_enumerated_and_not_dispatch_allowlisted\norchestrator/tests/test_check_docs.py::test_provenance_member_limit_accepts_exact_boundary[docs/ai-provenance.md-6300]\norchestrator/tests/test_check_docs.py::test_provenance_member_limit_accepts_exact_boundary[docs/provenance/correction.md-1600]\norchestrator/tests/test_check_docs.py::test_provenance_member_limit_accepts_exact_boundary[docs/provenance/audit.md-1600]\norchestrator/tests/test_check_docs.py::test_provenance_member_limit_rejects_plus_one[docs/ai-provenance.md-6300]\norchestrator/tests/test_check_docs.py::test_provenance_member_limit_rejects_plus_one[docs/provenance/correction.md-1600]\norchestrator/tests/test_check_docs.py::test_provenance_member_limit_rejects_plus_one[docs/provenance/audit.md-1600]\norchestrator/tests/test_check_docs.py::test_provenance_family_accepts_exactly_9000_bytes\norchestrator/tests/test_check_docs.py::test_provenance_family_rejects_9001_bytes\norchestrator/tests/test_check_docs.py::test_provenance_unregistered_reference_is_rejected\norchestrator/tests/test_check_docs.py::test_registered_provenance_reference_deletion_is_rejected\norchestrator/tests/test_check_docs.py::test_registered_provenance_reference_symlink_is_rejected\norchestrator/tests/test_check_docs.py::test_provenance_required_h2_multiplicity_is_rejected[missing]\norchestrator/tests/test_check_docs.py::test_provenance_required_h2_multiplicity_is_rejected[duplicate]\norchestrator/tests/test_check_docs.py::test_provenance_orphan_reference_h2_is_rejected\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_row_deletion_is_rejected\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_duplicate_row_is_rejected\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_condition_literal_change_is_rejected[]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_condition_literal_change_is_rejected[\\u5e38\\u306b\\u76e3\\u67fb\\u3059\\u308b]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_condition_literal_change_is_rejected[\\u6c7a\\u3057\\u3066\\u76e3\\u67fb\\u3057\\u306a\\u3044]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_conditions_cannot_be_swapped_between_keys\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_missing_pair_is_rejected_independently\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_condition_token_smuggling_is_diagnostic_sensitivity\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[header-missing-header '| key | \\u767a\\u706b\\u6761\\u4ef6 | \\u8aad\\u3080\\u7bc0 |' \\u304c 0 \\u4ef6]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[header-hidden-header '| key | \\u767a\\u706b\\u6761\\u4ef6 | \\u8aad\\u3080\\u7bc0 |' \\u304c 0 \\u4ef6]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[header-renamed-header '| key | \\u767a\\u706b\\u6761\\u4ef6 | \\u8aad\\u3080\\u7bc0 |' \\u304c 0 \\u4ef6]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[header-duplicate-header '| key | \\u767a\\u706b\\u6761\\u4ef6 | \\u8aad\\u3080\\u7bc0 |' \\u304c 2 \\u4ef6]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[separator-missing-3\\u5217 separator \\u304c 0 \\u4ef6]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[separator-duplicate-3\\u5217 separator \\u304c 2 \\u4ef6]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[separator-displaced-separator \\u304c header \\u76f4\\u5f8c\\u306b\\u306a\\u3044]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[four-columns-data row \\u304c3\\u5217\\u30fb\\u5916\\u5468 delimiter \\u9ad8\\u30051\\u500b\\u3067\\u306a\\u3044 \\u2014 leading=1, trailing=1, cells=4]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[two-columns-data row \\u304c3\\u5217\\u30fb\\u5916\\u5468 delimiter \\u9ad8\\u30051\\u500b\\u3067\\u306a\\u3044 \\u2014 leading=1, trailing=1, cells=2]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[double-leading-data row \\u304c3\\u5217\\u30fb\\u5916\\u5468 delimiter \\u9ad8\\u30051\\u500b\\u3067\\u306a\\u3044 \\u2014 leading=2, trailing=1, cells=4]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[double-trailing-data row \\u304c3\\u5217\\u30fb\\u5916\\u5468 delimiter \\u9ad8\\u30051\\u500b\\u3067\\u306a\\u3044 \\u2014 leading=1, trailing=2, cells=4]\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_data_row_outer_delimiters_are_optional\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_registry_outside_path_is_diagnostic_sensitivity\norchestrator/tests/test_check_docs.py::test_html_commented_provenance_dispatch_table_is_not_visible\norchestrator/tests/test_check_docs.py::test_fenced_provenance_h2_is_not_visible\norchestrator/tests/test_check_docs.py::test_inline_code_comment_delimiter_is_rejected_fail_closed\norchestrator/tests/test_check_docs.py::test_unclosed_provenance_fence_is_rejected_fail_closed\norchestrator/tests/test_check_docs.py::test_mismatched_provenance_fence_is_rejected_fail_closed\norchestrator/tests/test_check_docs.py::test_fence_inside_html_comment_does_not_mask_following_h2\norchestrator/tests/test_check_docs.py::test_invalid_backtick_fence_info_string_is_rejected_fail_closed\norchestrator/tests/test_check_docs.py::test_provenance_references_inherit_land_helper_location_lint\norchestrator/tests/test_check_docs.py::test_provenance_registry_three_faces_asymmetry_is_rejected\norchestrator/tests/test_check_docs.py::test_provenance_dispatch_pair_multiple_key_ownership_is_rejected\norchestrator/tests/test_check_docs.py::test_placeholder_guard_each_literal_independently_fires\norchestrator/tests/test_check_docs.py::test_placeholder_guard_main_propagates_finding_to_rc\norchestrator/tests/test_check_docs.py::test_placeholder_guard_new_literal_is_violation_in_each_family\norchestrator/tests/test_check_docs.py::test_placeholder_guard_detects_new_family_member\norchestrator/tests/test_check_docs.py::test_placeholder_guard_registered_line_removal_is_violation\norchestrator/tests/test_check_docs.py::test_placeholder_guard_registered_line_content_change_is_violation\norchestrator/tests/test_check_docs.py::test_placeholder_guard_registered_line_duplication_is_violation\norchestrator/tests/test_check_docs.py::test_placeholder_guard_same_file_record_replay_is_violation\norchestrator/tests/test_check_docs.py::test_placeholder_guard_duplicate_worklog_h2_is_violation\norchestrator/tests/test_check_docs.py::test_placeholder_guard_h2_collision_replay_is_violation\norchestrator/tests/test_check_docs.py::test_placeholder_guard_entry_rotation_keeps_ledger_green\norchestrator/tests/test_check_docs.py::test_placeholder_guard_allowlist_is_path_bound\norchestrator/tests/test_check_docs.py::test_placeholder_guard_backticked_literal_is_still_detected\norchestrator/tests/test_check_docs.py::test_placeholder_guard_verbatim_named_file_is_not_exempt\norchestrator/tests/test_check_docs.py::test_placeholder_guard_ledger_size_is_pinned\norchestrator/tests/test_check_docs.py::test_placeholder_guard_ledger_entries_are_pinned_exactly\norchestrator/tests/test_check_docs.py::test_placeholder_guard_digest_line_boundary_contract\norchestrator/tests/test_check_docs.py::test_placeholder_guard_missing_target_family_is_violation\norchestrator/tests/test_check_docs.py::test_placeholder_guard_read_failures_are_aggregated_without_traceback\norchestrator/tests/test_check_docs.py::test_placeholder_guard_unreadable_insight_does_not_mask_worklog_mismatch\norchestrator/tests/test_check_docs.py::test_safe_reader_dependency_failures_do_not_emit_derived_findings\norchestrator/tests/test_check_docs.py::test_safe_reader_rejects_worklog_symlink_and_fifo_without_hang\norchestrator/tests/test_check_docs.py::test_placeholder_guard_rejects_symlinked_target_directories\norchestrator/tests/test_check_docs.py::test_placeholder_guard_rejects_symlinked_and_non_regular_members\norchestrator/tests/test_check_docs.py::test_placeholder_guard_non_exact_literals_are_not_detected\norchestrator/tests/test_check_docs.py::test_command_guard_case_registration_is_complete\norchestrator/tests/test_check_docs.py::test_operation_contract_pins_exact_section_set\norchestrator/tests/test_check_docs.py::test_condition_24_contract_pins_exact_target\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pins_accept_current_workers_contract\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_high\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_high\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_missing_dw_s02_value\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_missing_dw_s03_value\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_decoys_and_duplicates\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_real_keys_and_quotes\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_real_keys_and_quotes\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pins_ignore_comment_and_fence_examples\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_high\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_high\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_real_key\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key\norchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_findings_are_time_invariant\norchestrator/tests/test_check_docs.py::test_codex_dev_wave_skill_contract_pins_exact_surface\norchestrator/tests/test_check_docs.py::test_codex_rulings_skill_contract_pins_exact_surface\norchestrator/tests/test_check_docs.py::test_codex_cleanup_branches_skill_contract_pins_exact_surface\norchestrator/tests/test_check_docs.py::test_command_docs_guard_rejects_symlinked_commands_directory\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[command_byte_over]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[reference_byte_over]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_byte_over]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[long_line]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[unregistered_command]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[registered_command_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[arguments_missing]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[frontmatter_key_changed]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[frontmatter_duplicate]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[frontmatter_malformed]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[disable_value_changed]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[reference_section_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[reference_section_duplicated]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage2_operations_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage3_o13_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage6_s05_inheritance_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage6_all_operations_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage8_operations_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage8_self_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage9_land_operation_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_o13_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_all_operations_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_supervisor_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_land_operation_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_waiter_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_heading_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_h3_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_long_line]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_reference_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[reference_orphan_h2]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[dispatch_heading_duplicated]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[dispatch_heading_missing]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[d2_rollback_body_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[d4_inheritance_body_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_command_contract_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_core_contract_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_worker_contract_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[s09_land_route_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[s09_acceptance_order_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[core_land_helper_outside_s09]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[o23_land_helper_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[operations_land_helper_outside_o23]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_extra_file]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_name_changed]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_adapter_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_stage9_land_literal_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_openai_changed]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_land_helper_duplicated]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[command_land_helper_duplicated]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[command_alternate_land_helper]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[skill_alternate_land_helper]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[command_direct_main_ff]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[skill_direct_main_ff]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_extra_file]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_name_changed]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_adapter_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_openai_changed]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[fifth_reference]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[nested_reference]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[non_md_reference]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[aggregate_over]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[invalid_utf8]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[symlink]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[non_regular]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[registered_reference_deleted]\norchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[dispatch_allowlist]\norchestrator/tests/test_check_docs.py::test_cleanup_skill_one_byte_change_is_rejected\norchestrator/tests/test_check_docs.py::test_cleanup_command_one_byte_change_is_rejected\norchestrator/tests/test_check_docs.py::test_cleanup_skill_additional_h2_is_rejected\norchestrator/tests/test_check_docs.py::test_cleanup_command_closing_hash_h2_is_rejected\norchestrator/tests/test_check_docs.py::test_cleanup_command_leading_space_h2_is_rejected\norchestrator/tests/test_check_docs.py::test_cleanup_command_setext_h2_is_rejected\norchestrator/tests/test_check_docs.py::test_cleanup_command_invalid_backtick_info_is_rejected\norchestrator/tests/test_check_docs.py::test_cleanup_metadata_policy_change_is_rejected\norchestrator/tests/test_check_docs.py::test_land_route_guard_does_not_overmatch_ordinary_prose\norchestrator/tests/test_check_docs.py::test_land_route_guard_rejects_command_syntax_variants_independently\norchestrator/tests/test_check_docs.py::test_land_route_guard_allows_non_land_and_non_ff_commands\norchestrator/tests/test_check_docs.py::test_missing_enumerated_doc_is_violation\norchestrator/tests/test_check_docs.py::test_missing_enumerated_doc_only_fires_own_finding\norchestrator/tests/test_check_docs.py::test_ruleops_doc_is_literal_pinned_as_enumerated_living_doc\norchestrator/tests/test_check_docs.py::test_ruleops_line_reference_is_own_violation\norchestrator/tests/test_check_docs.py::test_output_readmes_are_enumerated_and_valid_fixture_is_clean\norchestrator/tests/test_check_docs.py::test_broken_reference_in_task_runs_readme_is_positive_control\norchestrator/tests/test_check_docs.py::test_missing_task_runs_readme_is_violation\norchestrator/tests/test_check_docs.py::test_backlog_guard_missing_worklog_is_violation\norchestrator/tests/test_check_docs.py::test_backlog_guard_missing_phase3_is_violation\norchestrator/tests/test_check_docs.py::test_backlog_guard_rotation_heading_must_be_unique\norchestrator/tests/test_check_docs.py::test_backlog_guard_entry_title_must_fullmatch\norchestrator/tests/test_check_docs.py::test_backlog_guard_zero_entries_is_violation\norchestrator/tests/test_check_docs.py::test_backlog_guard_next_action_section_must_be_unique\norchestrator/tests/test_check_docs.py::test_backlog_guard_deferred_ledger_section_must_be_unique\norchestrator/tests/test_check_docs.py::test_backlog_guard_completion_record_section_must_be_unique\norchestrator/tests/test_check_docs.py::test_backlog_guard_completion_record_must_follow_ledger\norchestrator/tests/test_check_docs.py::test_backlog_guard_zero_entries_with_valid_ids_is_violation\norchestrator/tests/test_check_docs.py::test_backlog_guard_latest_item_requires_id\norchestrator/tests/test_check_docs.py::test_backlog_guard_latest_next_action_rejects_duplicate_ids\norchestrator/tests/test_check_docs.py::test_backlog_guard_id_bearing_middle_entry_requires_ids_on_all_items\norchestrator/tests/test_check_docs.py::test_backlog_guard_id_bearing_middle_entry_rejects_duplicate_ids\norchestrator/tests/test_check_docs.py::test_backlog_guard_ledger_rejects_invalid_id_format\norchestrator/tests/test_check_docs.py::test_backlog_guard_ledger_rejects_duplicate_ids\norchestrator/tests/test_check_docs.py::test_backlog_guard_ledger_live_item_requires_id\norchestrator/tests/test_check_docs.py::test_backlog_guard_ledger_struck_item_rejects_id\norchestrator/tests/test_check_docs.py::test_backlog_guard_carried_id_in_next_action_is_clean\norchestrator/tests/test_check_docs.py::test_backlog_guard_id_only_item_is_source_and_sink\norchestrator/tests/test_check_docs.py::test_backlog_guard_consumed_id_in_body_is_clean\norchestrator/tests/test_check_docs.py::test_backlog_guard_deferred_id_in_ledger_is_clean\norchestrator/tests/test_check_docs.py::test_backlog_guard_pre_id_transition_is_not_applicable\norchestrator/tests/test_check_docs.py::test_backlog_guard_source_is_only_next_action_in_three_entry_chain\norchestrator/tests/test_check_docs.py::test_backlog_guard_four_digit_id_is_clean\norchestrator/tests/test_check_docs.py::test_backlog_guard_dropped_id_is_violation\norchestrator/tests/test_check_docs.py::test_backlog_guard_prose_and_html_comment_do_not_satisfy_sink\norchestrator/tests/test_check_docs.py::test_backlog_guard_fences_and_multiline_comment_do_not_satisfy_sink\norchestrator/tests/test_check_docs.py::test_backlog_guard_hidden_ledger_items_do_not_satisfy_sink\norchestrator/tests/test_check_docs.py::test_backlog_guard_hidden_ledger_items_are_not_live_items\norchestrator/tests/test_check_docs.py::test_backlog_guard_rejects_redundant_zero_padding\norchestrator/tests/test_check_docs.py::test_backlog_guard_completion_record_does_not_satisfy_sink\norchestrator/tests/test_check_docs.py::test_backlog_guard_checks_all_adjacent_transitions\norchestrator/tests/test_check_docs.py::test_backlog_guard_checks_latest_archive_rotation_boundary\norchestrator/tests/test_check_docs.py::test_backlog_guard_checks_archive_internal_transitions\norchestrator/tests/test_check_docs.py::test_backlog_guard_id_bearing_archive_entry_requires_ids_on_all_items\norchestrator/tests/test_check_docs.py::test_backlog_guard_checks_boundaries_between_all_archives\norchestrator/tests/test_check_docs.py::test_backlog_guard_latest_archive_is_selected_by_entry_date\norchestrator/tests/test_check_docs.py::test_backlog_guard_same_day_archives_use_entry_ordinal_not_filename\norchestrator/tests/test_check_docs.py::test_backlog_guard_ambiguous_same_day_archive_order_is_violation\norchestrator/tests/test_check_docs.py::test_backlog_guard_latest_archive_structure_is_fail_closed\norchestrator/tests/test_check_docs.py::test_real_repo_clean\norchestrator/tests/test_check_docs.py::test_stale_active_handoff_does_not_make_check_docs_red\norchestrator/tests/test_check_docs.py::test_fresh_active_handoff_emits_no_stale_warning\norchestrator/tests/test_check_docs.py::test_handoff_without_status_header_is_still_a_finding\norchestrator/tests/test_check_docs.py::test_unknown_state_value_is_a_warning_not_a_finding\norchestrator/tests/test_check_docs.py::test_malformed_four_line_header_is_a_warning_not_a_finding\norchestrator/tests/test_check_docs.py::test_short_base_commit_is_a_warning_not_a_finding\norchestrator/tests/test_check_docs.py::test_repo_with_only_a_well_formed_handoff_has_zero_warnings\n\n307 tests collected in 0.12s\n",
+        "stdout_sha256": "e25813b0011394de758432ec46e250e8be373ebff72f9f3a699eff5aa2b04d67"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean",
+        "orchestrator/tests/test_check_docs.py::test_admission_registry_load_failures_are_one_fail_closed_finding",
+        "orchestrator/tests/test_check_docs.py::test_admission_loader_executes_source_even_with_unchecked_stale_pyc",
+        "orchestrator/tests/test_check_docs.py::test_admission_loader_system_exit_never_evaporates_checker",
+        "orchestrator/tests/test_check_docs.py::test_admission_poisoned_exception_string_never_evaporates_checker",
+        "orchestrator/tests/test_check_docs.py::test_admission_outer_wrapper_fail_closed_on_poisoned_subchecker",
+        "orchestrator/tests/test_check_docs.py::test_admission_projection_mutations_each_have_one_primary_finding",
+        "orchestrator/tests/test_check_docs.py::test_admission_registry_mutations_have_exact_attributed_finding_sets",
+        "orchestrator/tests/test_check_docs.py::test_admission_unknown_table_rejects_non_unknown_and_incomplete_legacy_rows",
+        "orchestrator/tests/test_check_docs.py::test_admission_unknown_table_requires_grandfather_warning_golden",
+        "orchestrator/tests/test_check_docs.py::test_admission_measured_table_requires_exact_registry_path_set",
+        "orchestrator/tests/test_check_docs.py::test_admission_runbook_orphan_pipe_row_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_admission_readme_declaration_and_fenced_target_mutations_are_rejected",
+        "orchestrator/tests/test_check_docs.py::test_admission_readme_site_tags_and_three_site_values_are_exact",
+        "orchestrator/tests/test_check_docs.py::test_admission_readme_rejects_empty_and_noncanonical_path_surfaces",
+        "orchestrator/tests/test_check_docs.py::test_admission_readme_positive_command_and_negative_prose_controls_are_clean",
+        "orchestrator/tests/test_check_docs.py::test_admission_main_call_cannot_be_removed_without_evaporation_control_failing",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_main_rejects_schema_violation",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_import_failure_is_finding_without_traceback",
+        "orchestrator/tests/test_check_docs.py::test_n20_spool_guard_rejects_active_transaction_in_git_repo",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_git_marker_with_broken_rev_parse_fails_closed",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_preservation_rule_still_rejects_implicit_drop",
+        "orchestrator/tests/test_check_docs.py::test_raised_doc_budgets_still_reject_each_new_limit_and_aggregate",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_empty_layout_is_clean",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_valid_pending_fragment_is_clean",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_unresolved_reference_propagates_to_main",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_missing_layout_is_finding",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_symlink_and_unexpected_members_fail_closed",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_unexpected_validator_exception_is_finding",
+        "orchestrator/tests/test_check_docs.py::test_spool_tree_is_excluded_from_all_legacy_doc_scans",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_limits_pin_adjudicated_caps",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_budget_pins_cap_sum",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_budget_pins_aggregate_ceiling",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_cap_sum_rejects_above_110_percent",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_assign",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_annassign",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_augassign",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_subscript_assign",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_del",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_update",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_pop",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_for_binding",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_with_binding",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_comprehension_binding",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_import_binding",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_post_definition_globals_write",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_alias_subscript_write",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_dict_update_through_tasks_alias",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_as_mutating_call_argument",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_accepts_real_dispatcher_tasks_reads",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_raw_html_section_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_wrong_parent_section_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_accepts_equivalent_markdown_spacing",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_outer_pipe_less_added_row_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_shared_top_level_items_are_unchanged_by_raw_html_prefix",
+        "orchestrator/tests/test_check_docs.py::test_shared_provenance_sections_are_unchanged_by_raw_html_prefix",
+        "orchestrator/tests/test_check_docs.py::test_shared_condition_dispatch_is_unchanged_by_raw_html_prefix",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_current_mapping_has_no_findings",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_deleted_table_row_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_cap_sum_accepts_exactly_110_percent",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_added_tasks_entry_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_child_script_change_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_missing_table_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_empty_table_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_missing_section_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_accepts_exact_boundary[docs/dev-wave/core.md-9600]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_accepts_exact_boundary[docs/dev-wave/workers.md-5000]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_accepts_exact_boundary[docs/dev-wave/mutation.md-3750]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_accepts_exact_boundary[docs/dev-wave/operations.md-8400]",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_duplicate_task_row_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_ignores_table_outside_7_0_section",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_rejects_plus_one[docs/dev-wave/core.md-9600]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_rejects_plus_one[docs/dev-wave/workers.md-5000]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_rejects_plus_one[docs/dev-wave/mutation.md-3750]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reference_limit_rejects_plus_one[docs/dev-wave/operations.md-8400]",
+        "orchestrator/tests/test_check_docs.py::test_tools_readme_is_enumerated_and_budgeted",
+        "orchestrator/tests/test_check_docs.py::test_tools_readme_missing_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_tools_readme_budget_overrun_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_provenance_family_contract_pins_exact_surface",
+        "orchestrator/tests/test_check_docs.py::test_provenance_family_is_enumerated_and_not_dispatch_allowlisted",
+        "orchestrator/tests/test_check_docs.py::test_provenance_member_limit_accepts_exact_boundary[docs/ai-provenance.md-6300]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_member_limit_accepts_exact_boundary[docs/provenance/correction.md-1600]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_member_limit_accepts_exact_boundary[docs/provenance/audit.md-1600]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_member_limit_rejects_plus_one[docs/ai-provenance.md-6300]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_member_limit_rejects_plus_one[docs/provenance/correction.md-1600]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_member_limit_rejects_plus_one[docs/provenance/audit.md-1600]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_family_accepts_exactly_9000_bytes",
+        "orchestrator/tests/test_check_docs.py::test_provenance_family_rejects_9001_bytes",
+        "orchestrator/tests/test_check_docs.py::test_provenance_unregistered_reference_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_registered_provenance_reference_deletion_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_registered_provenance_reference_symlink_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_provenance_required_h2_multiplicity_is_rejected[missing]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_required_h2_multiplicity_is_rejected[duplicate]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_orphan_reference_h2_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_row_deletion_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_duplicate_row_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_condition_literal_change_is_rejected[]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_condition_literal_change_is_rejected[/u5e38/u306b/u76e3/u67fb/u3059/u308b]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_condition_literal_change_is_rejected[/u6c7a/u3057/u3066/u76e3/u67fb/u3057/u306a/u3044]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_conditions_cannot_be_swapped_between_keys",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_missing_pair_is_rejected_independently",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_condition_token_smuggling_is_diagnostic_sensitivity",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[header-missing-header '| key | /u767a/u706b/u6761/u4ef6 | /u8aad/u3080/u7bc0 |' /u304c 0 /u4ef6]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[header-hidden-header '| key | /u767a/u706b/u6761/u4ef6 | /u8aad/u3080/u7bc0 |' /u304c 0 /u4ef6]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[header-renamed-header '| key | /u767a/u706b/u6761/u4ef6 | /u8aad/u3080/u7bc0 |' /u304c 0 /u4ef6]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[header-duplicate-header '| key | /u767a/u706b/u6761/u4ef6 | /u8aad/u3080/u7bc0 |' /u304c 2 /u4ef6]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[separator-missing-3/u5217 separator /u304c 0 /u4ef6]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[separator-duplicate-3/u5217 separator /u304c 2 /u4ef6]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[separator-displaced-separator /u304c header /u76f4/u5f8c/u306b/u306a/u3044]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[four-columns-data row /u304c3/u5217/u30fb/u5916/u5468 delimiter /u9ad8/u30051/u500b/u3067/u306a/u3044 /u2014 leading=1, trailing=1, cells=4]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[two-columns-data row /u304c3/u5217/u30fb/u5916/u5468 delimiter /u9ad8/u30051/u500b/u3067/u306a/u3044 /u2014 leading=1, trailing=1, cells=2]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[double-leading-data row /u304c3/u5217/u30fb/u5916/u5468 delimiter /u9ad8/u30051/u500b/u3067/u306a/u3044 /u2014 leading=2, trailing=1, cells=4]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_table_structure_is_exact[double-trailing-data row /u304c3/u5217/u30fb/u5916/u5468 delimiter /u9ad8/u30051/u500b/u3067/u306a/u3044 /u2014 leading=1, trailing=2, cells=4]",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_data_row_outer_delimiters_are_optional",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_registry_outside_path_is_diagnostic_sensitivity",
+        "orchestrator/tests/test_check_docs.py::test_html_commented_provenance_dispatch_table_is_not_visible",
+        "orchestrator/tests/test_check_docs.py::test_fenced_provenance_h2_is_not_visible",
+        "orchestrator/tests/test_check_docs.py::test_inline_code_comment_delimiter_is_rejected_fail_closed",
+        "orchestrator/tests/test_check_docs.py::test_unclosed_provenance_fence_is_rejected_fail_closed",
+        "orchestrator/tests/test_check_docs.py::test_mismatched_provenance_fence_is_rejected_fail_closed",
+        "orchestrator/tests/test_check_docs.py::test_fence_inside_html_comment_does_not_mask_following_h2",
+        "orchestrator/tests/test_check_docs.py::test_invalid_backtick_fence_info_string_is_rejected_fail_closed",
+        "orchestrator/tests/test_check_docs.py::test_provenance_references_inherit_land_helper_location_lint",
+        "orchestrator/tests/test_check_docs.py::test_provenance_registry_three_faces_asymmetry_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_provenance_dispatch_pair_multiple_key_ownership_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_each_literal_independently_fires",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_main_propagates_finding_to_rc",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_new_literal_is_violation_in_each_family",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_detects_new_family_member",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_registered_line_removal_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_registered_line_content_change_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_registered_line_duplication_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_same_file_record_replay_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_duplicate_worklog_h2_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_h2_collision_replay_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_entry_rotation_keeps_ledger_green",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_allowlist_is_path_bound",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_backticked_literal_is_still_detected",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_verbatim_named_file_is_not_exempt",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_ledger_size_is_pinned",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_ledger_entries_are_pinned_exactly",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_digest_line_boundary_contract",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_missing_target_family_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_read_failures_are_aggregated_without_traceback",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_unreadable_insight_does_not_mask_worklog_mismatch",
+        "orchestrator/tests/test_check_docs.py::test_safe_reader_dependency_failures_do_not_emit_derived_findings",
+        "orchestrator/tests/test_check_docs.py::test_safe_reader_rejects_worklog_symlink_and_fifo_without_hang",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_rejects_symlinked_target_directories",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_rejects_symlinked_and_non_regular_members",
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_non_exact_literals_are_not_detected",
+        "orchestrator/tests/test_check_docs.py::test_command_guard_case_registration_is_complete",
+        "orchestrator/tests/test_check_docs.py::test_operation_contract_pins_exact_section_set",
+        "orchestrator/tests/test_check_docs.py::test_condition_24_contract_pins_exact_target",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pins_accept_current_workers_contract",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_missing_dw_s02_value",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_missing_dw_s03_value",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_decoys_and_duplicates",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s02_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_rejects_dw_s03_real_keys_and_quotes",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pins_ignore_comment_and_fence_examples",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_high",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s02_real_key",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_findings_are_time_invariant",
+        "orchestrator/tests/test_check_docs.py::test_codex_dev_wave_skill_contract_pins_exact_surface",
+        "orchestrator/tests/test_check_docs.py::test_codex_rulings_skill_contract_pins_exact_surface",
+        "orchestrator/tests/test_check_docs.py::test_codex_cleanup_branches_skill_contract_pins_exact_surface",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_rejects_symlinked_commands_directory",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[command_byte_over]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[reference_byte_over]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_byte_over]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[long_line]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[unregistered_command]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[registered_command_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[arguments_missing]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[frontmatter_key_changed]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[frontmatter_duplicate]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[frontmatter_malformed]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[disable_value_changed]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[reference_section_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[reference_section_duplicated]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage2_operations_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage3_o13_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage6_s05_inheritance_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage6_all_operations_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage8_operations_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage8_self_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage9_land_operation_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_o13_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_all_operations_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_supervisor_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_land_operation_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[condition_waiter_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_heading_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_h3_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_long_line]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[self_reference_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[reference_orphan_h2]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[dispatch_heading_duplicated]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[dispatch_heading_missing]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[d2_rollback_body_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[d4_inheritance_body_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_command_contract_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_core_contract_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_worker_contract_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[s09_land_route_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[s09_acceptance_order_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[core_land_helper_outside_s09]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[o23_land_helper_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[operations_land_helper_outside_o23]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_extra_file]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_name_changed]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_adapter_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_stage9_land_literal_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_openai_changed]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_skill_land_helper_duplicated]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[command_land_helper_duplicated]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[command_alternate_land_helper]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[skill_alternate_land_helper]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[command_direct_main_ff]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[skill_direct_main_ff]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_extra_file]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_name_changed]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_adapter_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[codex_rulings_skill_openai_changed]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[fifth_reference]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[nested_reference]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[non_md_reference]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[aggregate_over]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[invalid_utf8]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[symlink]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[non_regular]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[registered_reference_deleted]",
+        "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[dispatch_allowlist]",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_skill_one_byte_change_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_command_one_byte_change_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_skill_additional_h2_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_command_closing_hash_h2_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_command_leading_space_h2_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_command_setext_h2_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_command_invalid_backtick_info_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_metadata_policy_change_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_land_route_guard_does_not_overmatch_ordinary_prose",
+        "orchestrator/tests/test_check_docs.py::test_land_route_guard_rejects_command_syntax_variants_independently",
+        "orchestrator/tests/test_check_docs.py::test_land_route_guard_allows_non_land_and_non_ff_commands",
+        "orchestrator/tests/test_check_docs.py::test_missing_enumerated_doc_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_missing_enumerated_doc_only_fires_own_finding",
+        "orchestrator/tests/test_check_docs.py::test_ruleops_doc_is_literal_pinned_as_enumerated_living_doc",
+        "orchestrator/tests/test_check_docs.py::test_ruleops_line_reference_is_own_violation",
+        "orchestrator/tests/test_check_docs.py::test_output_readmes_are_enumerated_and_valid_fixture_is_clean",
+        "orchestrator/tests/test_check_docs.py::test_broken_reference_in_task_runs_readme_is_positive_control",
+        "orchestrator/tests/test_check_docs.py::test_missing_task_runs_readme_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_missing_worklog_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_missing_phase3_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_rotation_heading_must_be_unique",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_entry_title_must_fullmatch",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_zero_entries_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_next_action_section_must_be_unique",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_deferred_ledger_section_must_be_unique",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_completion_record_section_must_be_unique",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_completion_record_must_follow_ledger",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_zero_entries_with_valid_ids_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_latest_item_requires_id",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_latest_next_action_rejects_duplicate_ids",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_id_bearing_middle_entry_requires_ids_on_all_items",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_id_bearing_middle_entry_rejects_duplicate_ids",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_ledger_rejects_invalid_id_format",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_ledger_rejects_duplicate_ids",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_ledger_live_item_requires_id",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_ledger_struck_item_rejects_id",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carried_id_in_next_action_is_clean",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_id_only_item_is_source_and_sink",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_consumed_id_in_body_is_clean",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_deferred_id_in_ledger_is_clean",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_pre_id_transition_is_not_applicable",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_source_is_only_next_action_in_three_entry_chain",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_four_digit_id_is_clean",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_dropped_id_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_prose_and_html_comment_do_not_satisfy_sink",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_fences_and_multiline_comment_do_not_satisfy_sink",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_hidden_ledger_items_do_not_satisfy_sink",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_hidden_ledger_items_are_not_live_items",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_rejects_redundant_zero_padding",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_completion_record_does_not_satisfy_sink",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_checks_all_adjacent_transitions",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_checks_latest_archive_rotation_boundary",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_checks_archive_internal_transitions",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_id_bearing_archive_entry_requires_ids_on_all_items",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_checks_boundaries_between_all_archives",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_latest_archive_is_selected_by_entry_date",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_same_day_archives_use_entry_ordinal_not_filename",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_ambiguous_same_day_archive_order_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_latest_archive_structure_is_fail_closed",
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean",
+        "orchestrator/tests/test_check_docs.py::test_stale_active_handoff_does_not_make_check_docs_red",
+        "orchestrator/tests/test_check_docs.py::test_fresh_active_handoff_emits_no_stale_warning",
+        "orchestrator/tests/test_check_docs.py::test_handoff_without_status_header_is_still_a_finding",
+        "orchestrator/tests/test_check_docs.py::test_unknown_state_value_is_a_warning_not_a_finding",
+        "orchestrator/tests/test_check_docs.py::test_malformed_four_line_header_is_a_warning_not_a_finding",
+        "orchestrator/tests/test_check_docs.py::test_short_base_commit_is_a_warning_not_a_finding",
+        "orchestrator/tests/test_check_docs.py::test_repo_with_only_a_well_formed_handoff_has_zero_warnings"
+      ],
+      "duration_s": 26.742,
+      "rc": 0,
+      "repo_head": "50cc3db6d01db4db123aa17b35e7798d29bde7f1",
+      "runner_sha256": "bb4fca72aef500c6d4d0e8a1ceb870a17a09e802826d7db2a434989b0896c07b",
+      "spec_sha256": "fc48900ae614c7e0a4a5969f0d2cb731a383158010b42bff7b59e185f87cfe3c",
+      "status": "PASSED",
+      "tool_sha256": "0c882b5bb915274e8b190061edc0137a3241f7bfa2ea71e7c868f3c0210d9bea"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "91218182daf9327098819fb21b23873f75a745520be9e5f28f87bfa5dcb701d9",
+        "replacements": [
+          {
+            "file": ".claude/commands/dev-wave.md",
+            "new": "",
+            "old": "| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "db8fb223a5837c01895c2029e6f0bc87b9c65b1f63c1cfbf83f0f04e94668c8d",
+        "replacements": [
+          {
+            "file": ".claude/commands/dev-wave.md",
+            "new": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-CTX` |",
+            "old": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "823c97b194c65a54a83d22d00166fa8078d8c9dc651a07367cf291542a28db16",
+        "replacements": [
+          {
+            "file": ".claude/commands/dev-wave.md",
+            "new": "| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n\n",
+            "old": "| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_docs.py::test_condition_24_contract_pins_exact_target"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "864f6ddded2a7f9f8f34bf1e23f191e124017b3fe8a5857275c8f33d421f7d88",
+        "replacements": [
+          {
+            "file": ".claude/commands/dev-wave.md",
+            "new": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-CTX` |",
+            "old": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |"
+          },
+          {
+            "file": "tools/check_docs.py",
+            "new": "    \"24\": _pairs(_CORE, \"DW-CTX\"),",
+            "old": "    \"24\": _pairs(_CORE, \"DW-C00\"),"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_docs.py::test_command_guard_case_registration_is_complete"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fcc618c47207f34a05a84ea78c3210d79a45d9846ad432dbc0f93b44f094fb35",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_check_docs.py",
+            "new": "",
+            "old": "    \"condition_waiter_deleted\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "fdca8895764ec7ef20caa945c3b530beb1b4a4614411fe684d908ddc7826d39a",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_check_docs.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "50cc3db6d01db4db123aa17b35e7798d29bde7f1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_check_docs.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "cf8339b73882ceb5d679a523f71d73e55e4b925c",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "bb4fca72aef500c6d4d0e8a1ceb870a17a09e802826d7db2a434989b0896c07b",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "fc48900ae614c7e0a4a5969f0d2cb731a383158010b42bff7b59e185f87cfe3c",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t625-waiter-dispatch/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "0c882b5bb915274e8b190061edc0137a3241f7bfa2ea71e7c868f3c0210d9bea",
+  "updated_at": "2026-08-07T11:04:54.526031+00:00"
+}
