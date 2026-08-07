@@ -82,6 +82,27 @@ wave = `dev-wave-t595-reasoning-ab` / branch = `worktree-dev-wave-t595-reasoning
 
 ---
 
+## 裁定 4 — 段 8 で予算に阻まれた dev-wave 改善候補 2 件
+
+段 8 の自己改善契約は「予算に収まらなければ reference へ統合し、それでも意味等価にできなければ
+変更を止めてユーザー裁定へ返す」と規定する。`docs/dev-wave/*.md` の余地は **13 bytes** であり、
+次の 2 件は書けなかった。[T-597] (予算の捻出先) と束ねて裁定してほしい。
+
+1. **`DW-O01` の起動形が、背景 job + worktree 隔離下では実行できない。** 入口が書く
+   `codex exec ... を bash -c で包んで nohup setsid` の一行形は、Bash guard に複合コマンドとして
+   拒否される。実際には wave ごとに `run_sN.sh` を Write して起動する形が事実上の標準に
+   なっているが、`DW-O01` にその形が書かれていない。本 wave も全子でこの形を使った。
+2. **変異 harness の `--runner-mode dispatch` は runner argv と整合しない。** harness 側で
+   `dispatch` を宣言しても、runner (`tools/run_tests.py`) に `--force-dispatch` を渡さなければ
+   ログインノードでは local 実行になり、baseline が dispatch receipt を得られず
+   `PARSE_ERROR` で harness ごと中止する。本 wave で 1 走を空費した。
+   `DW-M05` が挙げる「tool が検証できない自己申告」が実は 3 つある。
+   機械化するなら harness 側の入力検査 (dispatch 宣言時に runner argv を検証) が候補だが、
+   コード変更を伴うため段 8 の自動是正の枠を超える。
+
+**親の推奨:** 2 を harness の入力検査として実装する小さい T を起票する。1 は [T-597] の
+捻出結果に従う。どちらも本 wave では実装していない。
+
 ## 参考: 本 wave が land する変更 (裁定不要、報告のみ)
 
 `tools/check_docs.py` が `docs/dev-wave/workers.md` の `DW-S02` / `DW-S03` の
