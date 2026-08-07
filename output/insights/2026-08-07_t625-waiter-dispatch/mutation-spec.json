@@ -1,0 +1,93 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": ".claude/commands/dev-wave.md",
+          "old": "| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": ".claude/commands/dev-wave.md",
+          "old": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |",
+          "new": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-CTX` |"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": ".claude/commands/dev-wave.md",
+          "old": "| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n\n",
+          "new": "| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |\n\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": ".claude/commands/dev-wave.md",
+          "old": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |",
+          "new": "通知処理の直前 | `docs/dev-wave/core.md`: `DW-CTX` |"
+        },
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \"24\": _pairs(_CORE, \"DW-C00\"),",
+          "new": "    \"24\": _pairs(_CORE, \"DW-CTX\"),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_condition_24_contract_pins_exact_target"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "old": "    \"condition_waiter_deleted\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_command_guard_case_registration_is_complete"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

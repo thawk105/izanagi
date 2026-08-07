@@ -65,8 +65,9 @@
   `check_ai_provenance.py` = commit trailer 監査 / `codex_worker_ledger.py` = codex rollout ログから
   worker の session/stage/token/終了分類/retry を決定的に集計する read-only 台帳 (T-179) /
   `claude_session_ledger.py` = claude session transcript から model call と raw token 交通量を
-  母集団付きで集計する read-only 台帳 (D206。費用・課金・利用枠ではない。
-  production consumer は未結線 — 結線先の裁定は T-598) /
+  母集団付きで集計する read-only 台帳 (D206。費用・課金・利用枠ではない) /
+  `collect_wave_usage.py` = 上記台帳を wave ごとに 1 件の typed artifact として repo 外へ
+  前向き収集する consumer (D220。operand と挙動の正本は同 tool の `--help`) /
   `plotting/` = campaign の論文品質作図、規約は `tools/plotting/FIGURE_CONVENTIONS.md`)
 - `hooks/` — 正しさの最小第二防壁 (guard_write / guard_bash) + 別系統のコンテキスト衛生
   (guard_read)。詳細は同 README

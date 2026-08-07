@@ -18,6 +18,7 @@ try:
     import json
     import os
     import stat as stat_module
+    from dataclasses import dataclass
     from datetime import datetime, timezone
     from pathlib import Path
     from typing import Any, Sequence
@@ -105,7 +106,14 @@ def _max_files(value: str) -> int:
     return parsed
 
 
-def _parser() -> argparse.ArgumentParser:
+def _absolute_path(value: str) -> str:
+    path = Path(value)
+    if not path.is_absolute():
+        raise argparse.ArgumentTypeError("絶対 path を指定すること")
+    return os.fspath(path)
+
+
+def _parser(*, include_cwd_under: bool = False) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Claude session JSONL を決定的に集計する read-only 台帳"
     )
@@ -124,6 +132,14 @@ def _parser() -> argparse.ArgumentParser:
         metavar="SUBSTR",
         help="record.cwd の部分一致 filter (複数指定は OR)",
     )
+    if include_cwd_under:
+        parser.add_argument(
+            "--cwd-under",
+            type=_absolute_path,
+            default=None,
+            metavar="ABS_PATH",
+            help="record.cwd の path 境界一致 filter",
+        )
     parser.add_argument("--since", metavar="ISO8601")
     parser.add_argument("--until", metavar="ISO8601")
     parser.add_argument("--max-files", type=_max_files, default=DEFAULT_MAX_FILES, metavar="N")
@@ -496,6 +512,7 @@ def _selected(
     meta: dict[str, Any] | None,
     *,
     cwd_filters: list[str],
+    cwd_under: str | None,
     since: datetime | None,
     until: datetime | None,
 ) -> bool:
@@ -503,6 +520,10 @@ def _selected(
         return False
     cwd = meta["cwd"]
     if cwd_filters and not any(needle in cwd for needle in cwd_filters):
+        return False
+    if cwd_under is not None and not (
+        cwd == cwd_under or cwd.startswith(cwd_under + "/")
+    ):
         return False
     effective = meta["event_timestamp"] or meta["mtime"]
     if since is not None and effective < since:
@@ -521,6 +542,7 @@ def _stream_file(
     counters: dict[str, Any],
     report: dict[str, Any],
     cwd_filters: list[str],
+    cwd_under: str | None,
     since: datetime | None,
     until: datetime | None,
     sequence: int,
@@ -601,6 +623,7 @@ def _stream_file(
             if _is_compaction(record) and _selected(
                 meta,
                 cwd_filters=cwd_filters,
+                cwd_under=cwd_under,
                 since=since,
                 until=until,
             ):
@@ -902,8 +925,17 @@ def _exit_code(report: dict[str, Any], *, strict: bool) -> int:
     return 0
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    parser = _parser()
+@dataclass(frozen=True)
+class CollectionResult:
+    report: dict[str, Any]
+    exit_code: int
+    as_json: bool
+    strict: bool
+
+
+def collect_report(argv: Sequence[str] | None = None) -> CollectionResult:
+    """CLI と同じ selector で schema v2 report を収集する公開 API。"""
+    parser = _parser(include_cwd_under=True)
     args = parser.parse_args(argv)
     since, since_text = _normalized_timestamp(args.since, parser)
     until, until_text = _normalized_timestamp(args.until, parser)
@@ -973,6 +1005,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 counters=population,
                 report=report,
                 cwd_filters=args.cwd_contains,
+                cwd_under=args.cwd_under,
                 since=since,
                 until=until,
                 sequence=sequence,
@@ -993,12 +1026,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _issue(issues, "terminal_usage_missing", request_key)
                 continue
             meta = request["terminal_meta"]
-            if args.cwd_contains and meta is not None and not meta["cwd"]:
+            if (
+                (args.cwd_contains or args.cwd_under is not None)
+                and meta is not None
+                and not meta["cwd"]
+            ):
                 _issue(issues, "missing_cwd", request_key)
                 continue
             if not _selected(
                 meta,
                 cwd_filters=args.cwd_contains,
+                cwd_under=args.cwd_under,
                 since=since,
                 until=until,
             ):
@@ -1011,22 +1049,39 @@ def main(argv: Sequence[str] | None = None) -> int:
     }
     if args.include_sidechains:
         report["combined"] = _combined(report["root"], report["sidechains"])
-    if args.as_json:
+    rc = _exit_code(report, strict=args.strict)
+    return CollectionResult(
+        report=report,
+        exit_code=rc,
+        as_json=args.as_json,
+        strict=args.strict,
+    )
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    result = collect_report(argv)
+    if result.as_json:
         sys.stdout.write(
-            json.dumps(report, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            json.dumps(
+                result.report,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
             + "\n"
         )
     else:
-        sys.stdout.write(_render(report))
+        sys.stdout.write(_render(result.report))
 
-    rc = _exit_code(report, strict=args.strict)
-    if rc:
-        for category in sorted(report["issues"]):
-            if category in FATAL_ISSUES or (args.strict and category in STRICT_ISSUES):
-                prefix = "strict" if args.strict else "fatal"
-                for detail in report["issues"][category]:
+    if result.exit_code:
+        for category in sorted(result.report["issues"]):
+            if category in FATAL_ISSUES or (
+                result.strict and category in STRICT_ISSUES
+            ):
+                prefix = "strict" if result.strict else "fatal"
+                for detail in result.report["issues"][category]:
                     print(f"{prefix}: {category}: {detail}", file=sys.stderr)
-    return rc
+    return result.exit_code
 
 
 if __name__ == "__main__":

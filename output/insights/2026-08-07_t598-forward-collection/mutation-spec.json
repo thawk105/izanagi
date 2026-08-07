@@ -1,0 +1,159 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 300,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/collect_wave_usage.py",
+     "old": "        if model_calls == 0:\n            status = \"missing\"\n",
+     "new": "        if report[\"population\"][\"files_scanned\"] == 0:\n            status = \"missing\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_not_complete",
+    "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[True-None]",
+    "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[False-issues1]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/collect_wave_usage.py",
+     "old": "            if report[\"population\"][\"limit_reached\"]:\n                reasons.append(\"population.limit_reached is true\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_collect_wave_usage.py::test_limit_reached_is_incomplete"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/collect_wave_usage.py",
+     "old": "    argv.extend((\"--cwd-under\", os.fspath(args.cwd_under)))\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_collect_wave_usage.py::test_helper_passes_cwd_under_and_fixed_sidechain_selector"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/collect_wave_usage.py",
+     "old": "        report = result.report\n",
+     "new": "        report = json.loads(json.dumps(result.report))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_collect_wave_usage.py::test_helper_imports_public_collector_without_subprocess_or_json_reparse"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/collect_wave_usage.py",
+     "old": "                file=sys.stderr,\n            )\n    return 0\n",
+     "new": "                file=sys.stderr,\n            )\n    return artifact[\"collection\"][\"collector_exit_code\"] or 0\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_and_records_nonzero_collector_exit_code"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/collect_wave_usage.py",
+     "old": "        os.link(temporary_path, out)\n",
+     "new": "        os.replace(temporary_path, out)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_collect_wave_usage.py::test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/collect_wave_usage.py",
+     "old": "    elif site_policy.refuses_heavy_work(site):\n",
+     "new": "    elif False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_LOGIN]",
+    "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_SUSPECT]",
+    "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[None]",
+    "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus02]",
+    "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus-next]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/collect_wave_usage.py",
+     "old": "    if not args.project:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_collect_wave_usage.py::test_missing_project_never_falls_back_to_all_projects",
+    "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_project_is_missing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/claude_session_ledger.py",
+     "old": "        cwd == cwd_under or cwd.startswith(cwd_under + \"/\")\n",
+     "new": "        cwd == cwd_under or cwd.startswith(cwd_under)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_collect_wave_usage.py::test_cwd_under_uses_path_boundary_and_combines_with_contains_as_and"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

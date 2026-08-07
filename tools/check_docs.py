@@ -502,6 +502,7 @@ CONDITION_DISPATCH_CONTRACT["15"] = _pairs(_MUTATION, "DW-M07")
 CONDITION_DISPATCH_CONTRACT.update({
     "21": _pairs(_CORE, "DW-CTX"),
     "22": _pairs(_CORE, "DW-CTX"),
+    "24": _pairs(_CORE, "DW-C00"),
 })
 
 D2_ROLLBACK_STRUCTURE = re.compile(

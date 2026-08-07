@@ -1,0 +1,744 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/b93889069d9d21b8826874d6eab4fcaa/izdw-b93889069d.o895330",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/b93889069d9d21b8826874d6eab4fcaa/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n..........................................................               [100%]\n============================== 58 passed in 2.04s ==============================\n",
+      "stdout_sha256": "2c4e3c94ee472c2bab6121d3a632f31c916c28a45d9b3d072751eef768520ff7"
+    },
+    "artifact_error": null,
+    "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+    "duration_s": 21.764,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a405ffac5e564cc3eaaa1a9eda0b4ea12356ce05a53ce7fd0fa2510b664fcc3a",
+    "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+    "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+    "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+    "status": "PASSED",
+    "test_output_sha256": "2c4e3c94ee472c2bab6121d3a632f31c916c28a45d9b3d072751eef768520ff7",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+  },
+  "date": "2026-08-07T12:00:32.968643+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/359c0b82cc1b66e6bb753b6a5748d5ca/izdw-359c0b82cc.o895331",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/359c0b82cc1b66e6bb753b6a5748d5ca/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n..............................................FF...F......               [100%]\n=================================== FAILURES ===================================\n____ test_zero_model_calls_is_missing_before_incomplete_reasons[True-None] _____\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_zero_model_calls_is_missi0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14abde8cf1f0>\nlimit = True, issues = None\n\n    @pytest.mark.parametrize(\n        (\"limit\", \"issues\"),\n        [\n            (True, None),\n            (False, {\"missing_project\": [\"synthetic-project\"]}),\n        ],\n    )\n    def test_zero_model_calls_is_missing_before_incomplete_reasons(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        limit: bool,\n        issues: dict[str, list[str]] | None,\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        _patch_other_site(monkeypatch)\n        report = _report(model_calls=0, limit=limit, issues=issues)\n        monkeypatch.setattr(\n            USAGE,\n            \"collect_report\",\n            lambda argv: SimpleNamespace(report=report, exit_code=0),\n        )\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"missing\"\nE       AssertionError: assert 'incomplete' == 'missing'\nE         \nE         - missing\nE         + incomplete\n\norchestrator/tests/test_collect_wave_usage.py:135: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncollect_wave_usage: incomplete: population.limit_reached is true\n__ test_zero_model_calls_is_missing_before_incomplete_reasons[False-issues1] ___\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_zero_model_calls_is_missi0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1470ed917280>\nlimit = False, issues = {'missing_project': ['synthetic-project']}\n\n    @pytest.mark.parametrize(\n        (\"limit\", \"issues\"),\n        [\n            (True, None),\n            (False, {\"missing_project\": [\"synthetic-project\"]}),\n        ],\n    )\n    def test_zero_model_calls_is_missing_before_incomplete_reasons(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        limit: bool,\n        issues: dict[str, list[str]] | None,\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        _patch_other_site(monkeypatch)\n        report = _report(model_calls=0, limit=limit, issues=issues)\n        monkeypatch.setattr(\n            USAGE,\n            \"collect_report\",\n            lambda argv: SimpleNamespace(report=report, exit_code=0),\n        )\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"missing\"\nE       AssertionError: assert 'incomplete' == 'missing'\nE         \nE         - missing\nE         + incomplete\n\norchestrator/tests/test_collect_wave_usage.py:135: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncollect_wave_usage: incomplete: collector reported issues\n________________ test_zero_model_calls_is_missing_not_complete _________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_zero_model_calls_is_missi0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a296a4cfd0>\n\n    def test_zero_model_calls_is_missing_not_complete(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        _patch_other_site(monkeypatch)\n        report = _report(model_calls=0, sidechain_calls=0)\n        monkeypatch.setattr(\n            USAGE,\n            \"collect_report\",\n            lambda argv: SimpleNamespace(report=report, exit_code=0),\n        )\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"missing\"\nE       AssertionError: assert 'complete' == 'missing'\nE         \nE         - missing\nE         + complete\n\norchestrator/tests/test_collect_wave_usage.py:105: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[True-None]\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[False-issues1]\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_not_complete\n========================= 3 failed, 55 passed in 2.06s =========================\n",
+        "stdout_sha256": "b50861dc69ee16b049f7b3394c80491a4ff844f70efd648e8ef55c04f2d90925"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+      "duration_s": 26.828,
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_not_complete",
+        "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[True-None]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[False-issues1]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[True-None]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[False-issues1]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_not_complete"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "dc7190d3836f13d3f88a840442e1eb387c6b3cf90a931beedc2a3a641927b4a3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6c272093427bbf82424bfc812674fd8f8b1c529384a87bb796caacf07bcf5b91",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "new": "        if report[\"population\"][\"files_scanned\"] == 0:\n            status = \"missing\"\n",
+          "old": "        if model_calls == 0:\n            status = \"missing\"\n"
+        }
+      ],
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "KILLED",
+      "test_output_sha256": "b50861dc69ee16b049f7b3394c80491a4ff844f70efd648e8ef55c04f2d90925",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/768f093c6dbe92ceb60facc6033e7479/izdw-768f093c6d.o895332",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/768f093c6dbe92ceb60facc6033e7479/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n...................................................F......               [100%]\n=================================== FAILURES ===================================\n_______________________ test_limit_reached_is_incomplete _______________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_limit_reached_is_incomple0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14866e49f250>\n\n    def test_limit_reached_is_incomplete(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        _patch_other_site(monkeypatch)\n        report = _report(limit=True)\n        monkeypatch.setattr(\n            USAGE,\n            \"collect_report\",\n            lambda argv: SimpleNamespace(report=report, exit_code=0),\n        )\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"incomplete\"\nE       AssertionError: assert 'complete' == 'incomplete'\nE         \nE         - incomplete\nE         ? --\nE         + complete\n\norchestrator/tests/test_collect_wave_usage.py:156: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_limit_reached_is_incomplete\n========================= 1 failed, 57 passed in 2.03s =========================\n",
+        "stdout_sha256": "c72cd4a795b33e678ea7f40f20bfea5b44e59148b84e10dff7077a98fd6610e3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+      "duration_s": 26.883,
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_limit_reached_is_incomplete"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_limit_reached_is_incomplete"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "28b620d355fe61c73c88ae125e578eea2829db920767a031a6b036c8d7433e2b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b5ace822a4310c653e84731619c4f30abd896b773a807d13d816d589b18ba11d",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "new": "",
+          "old": "            if report[\"population\"][\"limit_reached\"]:\n                reasons.append(\"population.limit_reached is true\")\n"
+        }
+      ],
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "KILLED",
+      "test_output_sha256": "c72cd4a795b33e678ea7f40f20bfea5b44e59148b84e10dff7077a98fd6610e3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/c73ae9ce4407c48fbed9266cf2fd9fcc/izdw-c73ae9ce44.o895333",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/c73ae9ce4407c48fbed9266cf2fd9fcc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n................................F.........................               [100%]\n=================================== FAILURES ===================================\n__________ test_helper_passes_cwd_under_and_fixed_sidechain_selector ___________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_helper_passes_cwd_under_a0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145fcf2bb910>\n\n    def test_helper_passes_cwd_under_and_fixed_sidechain_selector(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        _patch_other_site(monkeypatch)\n        seen: list[str] = []\n    \n        def fake_collect(argv: list[str]) -> SimpleNamespace:\n            seen.extend(argv)\n            return SimpleNamespace(report=_report(), exit_code=0)\n    \n        monkeypatch.setattr(USAGE, \"collect_report\", fake_collect)\n    \n        assert USAGE.main(_argv(out, \"--project\", \"synthetic-secondary\")) == 0\n    \n>       cwd_index = seen.index(\"--cwd-under\")\nE       ValueError: '--cwd-under' is not in list\n\norchestrator/tests/test_collect_wave_usage.py:176: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_helper_passes_cwd_under_and_fixed_sidechain_selector\n========================= 1 failed, 57 passed in 2.07s =========================\n",
+        "stdout_sha256": "3d327ede13cd411cff161fcc2024f8cc6e07ff18f88072467fb3a256ba4e3e58"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+      "duration_s": 32.011,
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_helper_passes_cwd_under_and_fixed_sidechain_selector"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_helper_passes_cwd_under_and_fixed_sidechain_selector"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "dbc290f064ea44c4ef656f0fc24b607bfe4cdf510a8b67f94128de2b3ea970df",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "05e5c4285213118c0f27a08842d99d29d3ad214d7c466b0474d39471caf97271",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "new": "",
+          "old": "    argv.extend((\"--cwd-under\", os.fspath(args.cwd_under)))\n"
+        }
+      ],
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "KILLED",
+      "test_output_sha256": "3d327ede13cd411cff161fcc2024f8cc6e07ff18f88072467fb3a256ba4e3e58",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/e993d79674bd10728e9d3d48da8509b0/izdw-e993d79674.o895334",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/e993d79674bd10728e9d3d48da8509b0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n...................................................F......               [100%]\n=================================== FAILURES ===================================\n___ test_helper_imports_public_collector_without_subprocess_or_json_reparse ____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_helper_imports_public_col0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154011983850>\n\n    def test_helper_imports_public_collector_without_subprocess_or_json_reparse(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        _patch_other_site(monkeypatch)\n        report = _report(model_calls=2)\n        calls = 0\n    \n        def fake_collect(argv: list[str]) -> SimpleNamespace:\n            nonlocal calls\n            calls += 1\n            return SimpleNamespace(report=report, exit_code=0)\n    \n        monkeypatch.setattr(USAGE, \"collect_report\", fake_collect)\n        assert USAGE.main(_argv(out)) == 0\n        assert calls == 1\n        assert _load_artifact(out)[\"ledger_report\"] == report\n    \n        source = Path(USAGE.__file__).read_text(encoding=\"utf-8\")\n        tree = ast.parse(source)\n        imported_modules = {\n            alias.name\n            for node in ast.walk(tree)\n            if isinstance(node, ast.Import)\n            for alias in node.names\n        }\n        imported_from_modules = {\n            node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)\n        }\n        calls_in_source = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]\n        assert \"subprocess\" not in imported_modules\n        assert \"subprocess\" not in imported_from_modules\n>       assert not any(\n            isinstance(node.func, ast.Attribute)\n            and isinstance(node.func.value, ast.Name)\n            and node.func.value.id == \"json\"\n            and node.func.attr == \"loads\"\n            for node in calls_in_source\n        )\nE       assert not True\nE        +  where True = any(<generator object test_helper_imports_public_collector_without_subprocess_or_json_reparse.<locals>.<genexpr> at 0x154011a8a0a0>)\n\norchestrator/tests/test_collect_wave_usage.py:253: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_helper_imports_public_collector_without_subprocess_or_json_reparse\n========================= 1 failed, 57 passed in 2.05s =========================\n",
+        "stdout_sha256": "74a22a4fcae262f62c7a01d45917df38a7d81b9f0dace78e7aef22ef3989ebef"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+      "duration_s": 26.883,
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_helper_imports_public_collector_without_subprocess_or_json_reparse"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_helper_imports_public_collector_without_subprocess_or_json_reparse"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "09ba367d447842b2ae2d994a366e58ae7b9d2654bfe41b4389219b1dd1d54050",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a17e4f0a5970fe8130d276cf536f69940dafec0547833148d0243517049f0317",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "new": "        report = json.loads(json.dumps(result.report))\n",
+          "old": "        report = result.report\n"
+        }
+      ],
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "KILLED",
+      "test_output_sha256": "74a22a4fcae262f62c7a01d45917df38a7d81b9f0dace78e7aef22ef3989ebef",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/453131df702b6a924a2300139cd07d79/izdw-453131df70.o895335",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/453131df702b6a924a2300139cd07d79/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n.........................................................F               [100%]\n=================================== FAILURES ===================================\n______ test_process_returns_zero_and_records_nonzero_collector_exit_code _______\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_process_returns_zero_and_0')\n\n    def test_process_returns_zero_and_records_nonzero_collector_exit_code(\n        tmp_path: Path,\n    ) -> None:\n        out = tmp_path / \"collector-error.json\"\n        projects_root = tmp_path / \"missing-projects-root\"\n        completed = _run_helper_process(\n            tmp_path,\n            *_argv(out, \"--projects-root\", os.fspath(projects_root)),\n        )\n    \n>       assert completed.returncode == 0\nE       AssertionError: assert 2 == 0\nE        +  where 2 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collectio...'], returncode=2, stdout='', stderr='collect_wave_usage: missing: root.model_calls + sidechains.model_calls is zero\\n').returncode\n\norchestrator/tests/test_collect_wave_usage.py:522: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_and_records_nonzero_collector_exit_code\n========================= 1 failed, 57 passed in 2.06s =========================\n",
+        "stdout_sha256": "579f4b3a9134e1ee3fc6e6a25bab7778f67039c2b84fc82b8aa6f15163e87f72"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+      "duration_s": 32.039,
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_and_records_nonzero_collector_exit_code"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_and_records_nonzero_collector_exit_code"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "b09d8c7131d22c9991248208229c9b4355d398be607e934439d7e8020470ce21",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4df0ead3975903f87ee53d6070d3f57d147df6acd6461219b972eb7399f79867",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "new": "                file=sys.stderr,\n            )\n    return artifact[\"collection\"][\"collector_exit_code\"] or 0\n",
+          "old": "                file=sys.stderr,\n            )\n    return 0\n"
+        }
+      ],
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "KILLED",
+      "test_output_sha256": "579f4b3a9134e1ee3fc6e6a25bab7778f67039c2b84fc82b8aa6f15163e87f72",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/8dcb992a84baa3866ec18bf5db9bb9de/izdw-8dcb992a84.o895336",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/8dcb992a84baa3866ec18bf5db9bb9de/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n....................................................F.....               [100%]\n=================================== FAILURES ===================================\n___ test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact ___\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_existing_output_is_not_ov0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b107713310>\n\n    def test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        original = b\"synthetic existing artifact\\n\"\n        out.write_bytes(original)\n        _patch_other_site(monkeypatch)\n        monkeypatch.setattr(\n            USAGE,\n            \"collect_report\",\n            lambda argv: SimpleNamespace(report=_report(), exit_code=0),\n        )\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n>       assert out.read_bytes() == original\nE       assert b'{\"artifact_...etic-wave\"}\\n' == b'synthetic e...ng artifact\\n'\nE         \nE         At index 0 diff: b'{' != b's'\nE         Use -v to get more diff\n\norchestrator/tests/test_collect_wave_usage.py:298: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact\n========================= 1 failed, 57 passed in 2.05s =========================\n",
+        "stdout_sha256": "7a1f7ecb1255ecf6e188112264d20caf2e164af09e597d11a6cc255db713228f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+      "duration_s": 26.911,
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "8286ec7dbe37e08fbe33a0f71bfd116210db3b24276abed93be4ab4f6e96e9a5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "80662bf37f5399f24cb183e22b7f5de2d93c3f67130428dfe4d455807bb2d8cd",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "new": "        os.replace(temporary_path, out)\n",
+          "old": "        os.link(temporary_path, out)\n"
+        }
+      ],
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "KILLED",
+      "test_output_sha256": "7a1f7ecb1255ecf6e188112264d20caf2e164af09e597d11a6cc255db713228f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/b922bf68fc3823b472fe6adb64ea3057/izdw-b922bf68fc.o895337",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/b922bf68fc3823b472fe6adb64ea3057/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n...............................................FFFF.F.....               [100%]\n=================================== FAILURES ===================================\n____ test_collector_site_classification_fails_closed_without_evidence[None] ____\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_collector_site_classifica0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151fd22072e0>\nhostname = None\n\n    @pytest.mark.parametrize(\"hostname\", [None, \"pegasus02\", \"pegasus-next\"])\n    def test_collector_site_classification_fails_closed_without_evidence(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        hostname: str | None,\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        if hostname is None:\n            monkeypatch.setattr(\n                USAGE.site_policy.socket,\n                \"gethostname\",\n                lambda: (_ for _ in ()).throw(OSError(\"hostname unavailable\")),\n            )\n        else:\n            monkeypatch.setattr(\n                USAGE.site_policy.socket, \"gethostname\", lambda: hostname\n            )\n        monkeypatch.setattr(USAGE.site_policy, \"_has_nqsv\", lambda: False)\n        calls = 0\n    \n        def counted_collect(argv: list[str]) -> SimpleNamespace:\n            nonlocal calls\n            calls += 1\n            return SimpleNamespace(report=_report(), exit_code=0)\n    \n        monkeypatch.setattr(USAGE, \"collect_report\", counted_collect)\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"blocked\"\nE       AssertionError: assert 'complete' == 'blocked'\nE         \nE         - blocked\nE         + complete\n\norchestrator/tests/test_collect_wave_usage.py:372: AssertionError\n__ test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_LOGIN] __\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_unclassified_site_is_bloc0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151a485071f0>\nsite = 'PEGASUS_LOGIN'\n\n    @pytest.mark.parametrize(\n        \"site\",\n        [\n            USAGE.site_policy.PEGASUS_LOGIN,\n            USAGE.site_policy.PEGASUS_SUSPECT,\n        ],\n    )\n    def test_unclassified_site_is_blocked_without_calling_collector(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, site: str\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        monkeypatch.setattr(\n            USAGE.site_policy,\n            \"current_site\",\n            lambda **kwargs: site,\n        )\n        calls = 0\n    \n        def counted_collect(argv: list[str]) -> SimpleNamespace:\n            nonlocal calls\n            calls += 1\n            return SimpleNamespace(report=_report(), exit_code=0)\n    \n        monkeypatch.setattr(USAGE, \"collect_report\", counted_collect)\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"blocked\"\nE       AssertionError: assert 'complete' == 'blocked'\nE         \nE         - blocked\nE         + complete\n\norchestrator/tests/test_collect_wave_usage.py:330: AssertionError\n_ test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_SUSPECT] _\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_unclassified_site_is_bloc0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b3559538b0>\nsite = 'PEGASUS_SUSPECT'\n\n    @pytest.mark.parametrize(\n        \"site\",\n        [\n            USAGE.site_policy.PEGASUS_LOGIN,\n            USAGE.site_policy.PEGASUS_SUSPECT,\n        ],\n    )\n    def test_unclassified_site_is_blocked_without_calling_collector(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, site: str\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        monkeypatch.setattr(\n            USAGE.site_policy,\n            \"current_site\",\n            lambda **kwargs: site,\n        )\n        calls = 0\n    \n        def counted_collect(argv: list[str]) -> SimpleNamespace:\n            nonlocal calls\n            calls += 1\n            return SimpleNamespace(report=_report(), exit_code=0)\n    \n        monkeypatch.setattr(USAGE, \"collect_report\", counted_collect)\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"blocked\"\nE       AssertionError: assert 'complete' == 'blocked'\nE         \nE         - blocked\nE         + complete\n\norchestrator/tests/test_collect_wave_usage.py:330: AssertionError\n_ test_collector_site_classification_fails_closed_without_evidence[pegasus-next] _\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_collector_site_classifica0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153fd0bdf850>\nhostname = 'pegasus-next'\n\n    @pytest.mark.parametrize(\"hostname\", [None, \"pegasus02\", \"pegasus-next\"])\n    def test_collector_site_classification_fails_closed_without_evidence(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        hostname: str | None,\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        if hostname is None:\n            monkeypatch.setattr(\n                USAGE.site_policy.socket,\n                \"gethostname\",\n                lambda: (_ for _ in ()).throw(OSError(\"hostname unavailable\")),\n            )\n        else:\n            monkeypatch.setattr(\n                USAGE.site_policy.socket, \"gethostname\", lambda: hostname\n            )\n        monkeypatch.setattr(USAGE.site_policy, \"_has_nqsv\", lambda: False)\n        calls = 0\n    \n        def counted_collect(argv: list[str]) -> SimpleNamespace:\n            nonlocal calls\n            calls += 1\n            return SimpleNamespace(report=_report(), exit_code=0)\n    \n        monkeypatch.setattr(USAGE, \"collect_report\", counted_collect)\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"blocked\"\nE       AssertionError: assert 'complete' == 'blocked'\nE         \nE         - blocked\nE         + complete\n\norchestrator/tests/test_collect_wave_usage.py:372: AssertionError\n_ test_collector_site_classification_fails_closed_without_evidence[pegasus02] __\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_collector_site_classifica0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14be9d1db280>\nhostname = 'pegasus02'\n\n    @pytest.mark.parametrize(\"hostname\", [None, \"pegasus02\", \"pegasus-next\"])\n    def test_collector_site_classification_fails_closed_without_evidence(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        hostname: str | None,\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        if hostname is None:\n            monkeypatch.setattr(\n                USAGE.site_policy.socket,\n                \"gethostname\",\n                lambda: (_ for _ in ()).throw(OSError(\"hostname unavailable\")),\n            )\n        else:\n            monkeypatch.setattr(\n                USAGE.site_policy.socket, \"gethostname\", lambda: hostname\n            )\n        monkeypatch.setattr(USAGE.site_policy, \"_has_nqsv\", lambda: False)\n        calls = 0\n    \n        def counted_collect(argv: list[str]) -> SimpleNamespace:\n            nonlocal calls\n            calls += 1\n            return SimpleNamespace(report=_report(), exit_code=0)\n    \n        monkeypatch.setattr(USAGE, \"collect_report\", counted_collect)\n    \n        assert USAGE.main(_argv(out)) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"blocked\"\nE       AssertionError: assert 'complete' == 'blocked'\nE         \nE         - blocked\nE         + complete\n\norchestrator/tests/test_collect_wave_usage.py:372: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[None]\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_LOGIN]\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_SUSPECT]\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus-next]\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus02]\n========================= 5 failed, 53 passed in 2.05s =========================\n",
+        "stdout_sha256": "d4141f538ffc4e4154e57beeaec568d522fb9cae3e4f1c2cbe17dd7750900414"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+      "duration_s": 26.815,
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_LOGIN]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_SUSPECT]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[None]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus02]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus-next]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[None]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_LOGIN]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_SUSPECT]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus-next]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus02]"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "e72a267f36428de640d9e1a45c0e6efa6fab5e9d931e58732cbabe95efb0517a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f61177f8757f8a707c2c0e33bf368c4f0e05a9f5e9970506ab7eeb7f6afc2826",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "new": "    elif False:\n",
+          "old": "    elif site_policy.refuses_heavy_work(site):\n"
+        }
+      ],
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "KILLED",
+      "test_output_sha256": "d4141f538ffc4e4154e57beeaec568d522fb9cae3e4f1c2cbe17dd7750900414",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/9b3ae47f80064f598d7a3d06499f86c1/izdw-9b3ae47f80.o895338",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/9b3ae47f80064f598d7a3d06499f86c1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n........................................F................F               [100%]\n=================================== FAILURES ===================================\n____________ test_missing_project_never_falls_back_to_all_projects _____________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_missing_project_never_fal0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14666f86bbb0>\n\n    def test_missing_project_never_falls_back_to_all_projects(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        out = tmp_path / \"usage.json\"\n        _patch_other_site(monkeypatch)\n    \n        calls = 0\n    \n        def counted_collect(argv: list[str]) -> SimpleNamespace:\n            nonlocal calls\n            calls += 1\n            return SimpleNamespace(report=_report(), exit_code=0)\n    \n        monkeypatch.setattr(USAGE, \"collect_report\", counted_collect)\n        argv = [\n            \"--wave-id\",\n            \"synthetic-wave\",\n            \"--out\",\n            str(out),\n            \"--cwd-under\",\n            \"/synthetic/izanagi\",\n        ]\n    \n        assert USAGE.main(argv) == 0\n    \n        artifact = _load_artifact(out)\n>       assert artifact[\"collection\"][\"status\"] == \"error\"\nE       AssertionError: assert 'complete' == 'error'\nE         \nE         - error\nE         + complete\n\norchestrator/tests/test_collect_wave_usage.py:406: AssertionError\n______________ test_process_returns_zero_when_project_is_missing _______________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_process_returns_zero_when0')\n\n    def test_process_returns_zero_when_project_is_missing(tmp_path: Path) -> None:\n        out = tmp_path / \"missing-project.json\"\n        completed = _run_helper_process(\n            tmp_path,\n            \"--wave-id\",\n            \"synthetic-wave\",\n            \"--out\",\n            os.fspath(out),\n            \"--cwd-under\",\n            \"/synthetic/izanagi\",\n        )\n    \n        assert completed.returncode == 0\n>       assert _load_artifact(out)[\"collection\"][\"status\"] == \"error\"\nE       AssertionError: assert 'missing' == 'error'\nE         \nE         - error\nE         + missing\n\norchestrator/tests/test_collect_wave_usage.py:501: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_missing_project_never_falls_back_to_all_projects\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_project_is_missing\n========================= 2 failed, 56 passed in 6.99s =========================\n",
+        "stdout_sha256": "69ea7207678c132aa7f39dcca77599b598dbabb5de2e6b239017ee2dddc683e1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+      "duration_s": 37.034,
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_missing_project_never_falls_back_to_all_projects",
+        "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_project_is_missing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_missing_project_never_falls_back_to_all_projects",
+        "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_project_is_missing"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "67c01560ac8c5b8f8bc946e8f60ce2e8d9d389ff0586f9c3c6b254611b4b7e6d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f737b46bdeb5164b1d68efbc40b232a0bd42f15d35657112cffb91279d872a46",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "new": "    if False:\n",
+          "old": "    if not args.project:\n"
+        }
+      ],
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "KILLED",
+      "test_output_sha256": "69ea7207678c132aa7f39dcca77599b598dbabb5de2e6b239017ee2dddc683e1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/316a73d9801c556c715641591c49f6ae/izdw-316a73d980.o895339",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/316a73d9801c556c715641591c49f6ae/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [58 items]\n\n................................................F.........               [100%]\n=================================== FAILURES ===================================\n_____ test_cwd_under_uses_path_boundary_and_combines_with_contains_as_and ______\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_cwd_under_uses_path_bound0')\n\n    def test_cwd_under_uses_path_boundary_and_combines_with_contains_as_and(\n        tmp_path: Path,\n    ) -> None:\n        projects = tmp_path / \"projects\"\n        project = projects / \"synthetic-project\"\n        project.mkdir(parents=True)\n        records = []\n        for index, cwd in enumerate(\n            (\n                \"/synthetic/izanagi\",\n                \"/synthetic/izanagi/nested\",\n                \"/synthetic/izanagi-fix\",\n            )\n        ):\n            records.append(\n                {\n                    \"type\": \"assistant\",\n                    \"requestId\": f\"request-{index}\",\n                    \"cwd\": cwd,\n                    \"timestamp\": f\"2026-01-10T00:00:0{index}Z\",\n                    \"message\": {\n                        \"id\": f\"message-{index}\",\n                        \"model\": \"claude-synthetic-test\",\n                        \"content\": [],\n                        \"usage\": {\n                            \"cache_read_input_tokens\": 1,\n                            \"cache_creation_input_tokens\": 2,\n                            \"input_tokens\": 3,\n                            \"output_tokens\": 4,\n                        },\n                    },\n                }\n            )\n        with (project / \"synthetic.jsonl\").open(\"w\", encoding=\"utf-8\") as stream:\n            for record in records:\n                json.dump(record, stream, separators=(\",\", \":\"))\n                stream.write(\"\\n\")\n    \n        boundary = LEDGER.collect_report(\n            [\n                \"--projects-root\",\n                str(projects),\n                \"--project\",\n                \"synthetic-project\",\n                \"--cwd-under\",\n                \"/synthetic/izanagi\",\n            ]\n        )\n        combined = LEDGER.collect_report(\n            [\n                \"--projects-root\",\n                str(projects),\n                \"--project\",\n                \"synthetic-project\",\n                \"--cwd-under\",\n                \"/synthetic/izanagi\",\n                \"--cwd-contains\",\n                \"nested\",\n            ]\n        )\n    \n>       assert boundary.report[\"root\"][\"model_calls\"] == 2\nE       assert 3 == 2\n\norchestrator/tests/test_collect_wave_usage.py:620: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_collect_wave_usage.py::test_cwd_under_uses_path_boundary_and_combines_with_contains_as_and\n========================= 1 failed, 57 passed in 2.06s =========================\n",
+        "stdout_sha256": "db8bf6e3a80d8649aa5d3582b717af3d105dda5f14cc465a0e344d656f25dc4f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "182dc5b8b20c6e02ca683510b183de7c198671a9dd15f0b76a5e5f99d07bce6b",
+      "duration_s": 21.699,
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_cwd_under_uses_path_boundary_and_combines_with_contains_as_and"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_cwd_under_uses_path_boundary_and_combines_with_contains_as_and"
+      ],
+      "hang_risk": false,
+      "id": "M9",
+      "injection_diff_sha256": "501ffe6f4c4bcf3616e0d22b9ca32e578dadf29c9939e62171716083a4aa0ee1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "510ff0a35ef043dadaecdf2f8f8d9b616bf98b99fedada17c523203fb6217f9f",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "new": "        cwd == cwd_under or cwd.startswith(cwd_under)\n",
+          "old": "        cwd == cwd_under or cwd.startswith(cwd_under + \"/\")\n"
+        }
+      ],
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "KILLED",
+      "test_output_sha256": "db8bf6e3a80d8649aa5d3582b717af3d105dda5f14cc465a0e344d656f25dc4f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/92a83daf282f958c3acca60847ac14e2/izdw-92a83daf28.o895329",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/output/pegasus-dispatch/92a83daf282f958c3acca60847ac14e2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_not_complete\norchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[True-None]\norchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[False-issues1]\norchestrator/tests/test_collect_wave_usage.py::test_limit_reached_is_incomplete\norchestrator/tests/test_collect_wave_usage.py::test_helper_passes_cwd_under_and_fixed_sidechain_selector\norchestrator/tests/test_collect_wave_usage.py::test_issues_make_a_nonzero_collection_incomplete\norchestrator/tests/test_collect_wave_usage.py::test_helper_imports_public_collector_without_subprocess_or_json_reparse\norchestrator/tests/test_collect_wave_usage.py::test_collector_exception_is_error_but_main_returns_zero\norchestrator/tests/test_collect_wave_usage.py::test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact\norchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_LOGIN]\norchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_SUSPECT]\norchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[None]\norchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus02]\norchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus-next]\norchestrator/tests/test_collect_wave_usage.py::test_missing_project_never_falls_back_to_all_projects\norchestrator/tests/test_collect_wave_usage.py::test_output_must_be_absolute\norchestrator/tests/test_collect_wave_usage.py::test_output_below_any_git_marker_is_rejected[file]\norchestrator/tests/test_collect_wave_usage.py::test_output_below_any_git_marker_is_rejected[directory]\norchestrator/tests/test_collect_wave_usage.py::test_output_below_empty_git_directory_is_accepted\norchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_required_arguments_are_missing\norchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_project_is_missing\norchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_output_is_inside_repo\norchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_and_records_nonzero_collector_exit_code\norchestrator/tests/test_collect_wave_usage.py::test_missing_output_parent_is_not_created\norchestrator/tests/test_collect_wave_usage.py::test_keyboard_interrupt_is_not_caught\norchestrator/tests/test_collect_wave_usage.py::test_cwd_under_uses_path_boundary_and_combines_with_contains_as_and\norchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields\norchestrator/tests/test_claude_session_ledger.py::test_synthetic_zero_usage_is_excluded_and_reported\norchestrator/tests/test_claude_session_ledger.py::test_recursive_sidechains_are_separate_and_only_explicitly_combined\norchestrator/tests/test_claude_session_ledger.py::test_default_file_budget_is_balanced_before_unused_quota_is_reassigned\norchestrator/tests/test_claude_session_ledger.py::test_reserved_balanced_quota_precedes_reassignment_when_candidates_compete\norchestrator/tests/test_claude_session_ledger.py::test_raw_ids_do_not_merge_across_file_or_sidechain_provenance[requestId]\norchestrator/tests/test_claude_session_ledger.py::test_raw_ids_do_not_merge_across_file_or_sidechain_provenance[message.id]\norchestrator/tests/test_claude_session_ledger.py::test_conflicting_alias_graph_fails_closed\norchestrator/tests/test_claude_session_ledger.py::test_timestamp_reversal_is_reported_and_chronological_terminal_is_used\norchestrator/tests/test_claude_session_ledger.py::test_terminal_assistant_record_without_usage_is_not_silently_aggregated\norchestrator/tests/test_claude_session_ledger.py::test_partially_missing_event_timestamps_are_rejected_as_incomplete\norchestrator/tests/test_claude_session_ledger.py::test_descending_terminal_usage_is_used_instead_of_fieldwise_maximum\norchestrator/tests/test_claude_session_ledger.py::test_window_uses_each_event_timestamp_then_reports_mtime_fallback\norchestrator/tests/test_claude_session_ledger.py::test_population_filters_corruption_and_file_limit_are_visible\norchestrator/tests/test_claude_session_ledger.py::test_unreadable_file_is_counted_without_crashing\norchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract\norchestrator/tests/test_claude_session_ledger.py::test_compaction_boundaries_are_reported_without_a_monotonic_curve\norchestrator/tests/test_claude_session_ledger.py::test_missing_fields_are_reported_and_strict_mode_fails_cleanly\norchestrator/tests/test_claude_session_ledger.py::test_missing_root_returns_a_population_report_not_a_traceback\norchestrator/tests/test_claude_session_ledger.py::test_default_literals_and_all_hard_limits_are_independently_pinned\norchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_TOTAL_BYTES-1-records0-total_bytes_limit_exceeded]\norchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_LINE_BYTES-4-records1-line_too_long]\norchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_RECORDS-1-records2-record_limit_exceeded]\norchestrator/tests/test_claude_session_ledger.py::test_issue_detail_retention_is_hard_bounded\norchestrator/tests/test_claude_session_ledger.py::test_walk_errors_are_reported_through_onerror_and_fail_closed\norchestrator/tests/test_claude_session_ledger.py::test_symlink_jsonl_is_rejected_as_non_regular_or_outside_declared_root[inside-non_regular_file]\norchestrator/tests/test_claude_session_ledger.py::test_symlink_jsonl_is_rejected_as_non_regular_or_outside_declared_root[outside-path_outside_root]\norchestrator/tests/test_claude_session_ledger.py::test_strict_issue_matrix_covers_every_classification\norchestrator/tests/test_claude_session_ledger.py::test_cli_has_no_write_destination_argument\norchestrator/tests/test_claude_session_ledger.py::test_test_loader_suppresses_bytecode_before_importing_ledger\norchestrator/tests/test_claude_session_ledger.py::test_read_only_run_preserves_entire_isolated_tree_and_makes_no_bytecode\norchestrator/tests/test_claude_session_ledger.py::test_public_collect_report_matches_cli_json_schema_v2\n\n58 tests collected in 0.07s\n",
+        "stdout_sha256": "226f8521ce4f563143cc36a14de05979a00ef4c6f478c004a44a1873f6ae5d56"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_not_complete",
+        "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[True-None]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[False-issues1]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_limit_reached_is_incomplete",
+        "orchestrator/tests/test_collect_wave_usage.py::test_helper_passes_cwd_under_and_fixed_sidechain_selector",
+        "orchestrator/tests/test_collect_wave_usage.py::test_issues_make_a_nonzero_collection_incomplete",
+        "orchestrator/tests/test_collect_wave_usage.py::test_helper_imports_public_collector_without_subprocess_or_json_reparse",
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_exception_is_error_but_main_returns_zero",
+        "orchestrator/tests/test_collect_wave_usage.py::test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact",
+        "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_LOGIN]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_SUSPECT]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[None]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus02]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus-next]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_missing_project_never_falls_back_to_all_projects",
+        "orchestrator/tests/test_collect_wave_usage.py::test_output_must_be_absolute",
+        "orchestrator/tests/test_collect_wave_usage.py::test_output_below_any_git_marker_is_rejected[file]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_output_below_any_git_marker_is_rejected[directory]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_output_below_empty_git_directory_is_accepted",
+        "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_required_arguments_are_missing",
+        "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_project_is_missing",
+        "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_output_is_inside_repo",
+        "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_and_records_nonzero_collector_exit_code",
+        "orchestrator/tests/test_collect_wave_usage.py::test_missing_output_parent_is_not_created",
+        "orchestrator/tests/test_collect_wave_usage.py::test_keyboard_interrupt_is_not_caught",
+        "orchestrator/tests/test_collect_wave_usage.py::test_cwd_under_uses_path_boundary_and_combines_with_contains_as_and",
+        "orchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields",
+        "orchestrator/tests/test_claude_session_ledger.py::test_synthetic_zero_usage_is_excluded_and_reported",
+        "orchestrator/tests/test_claude_session_ledger.py::test_recursive_sidechains_are_separate_and_only_explicitly_combined",
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_file_budget_is_balanced_before_unused_quota_is_reassigned",
+        "orchestrator/tests/test_claude_session_ledger.py::test_reserved_balanced_quota_precedes_reassignment_when_candidates_compete",
+        "orchestrator/tests/test_claude_session_ledger.py::test_raw_ids_do_not_merge_across_file_or_sidechain_provenance[requestId]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_raw_ids_do_not_merge_across_file_or_sidechain_provenance[message.id]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_conflicting_alias_graph_fails_closed",
+        "orchestrator/tests/test_claude_session_ledger.py::test_timestamp_reversal_is_reported_and_chronological_terminal_is_used",
+        "orchestrator/tests/test_claude_session_ledger.py::test_terminal_assistant_record_without_usage_is_not_silently_aggregated",
+        "orchestrator/tests/test_claude_session_ledger.py::test_partially_missing_event_timestamps_are_rejected_as_incomplete",
+        "orchestrator/tests/test_claude_session_ledger.py::test_descending_terminal_usage_is_used_instead_of_fieldwise_maximum",
+        "orchestrator/tests/test_claude_session_ledger.py::test_window_uses_each_event_timestamp_then_reports_mtime_fallback",
+        "orchestrator/tests/test_claude_session_ledger.py::test_population_filters_corruption_and_file_limit_are_visible",
+        "orchestrator/tests/test_claude_session_ledger.py::test_unreadable_file_is_counted_without_crashing",
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract",
+        "orchestrator/tests/test_claude_session_ledger.py::test_compaction_boundaries_are_reported_without_a_monotonic_curve",
+        "orchestrator/tests/test_claude_session_ledger.py::test_missing_fields_are_reported_and_strict_mode_fails_cleanly",
+        "orchestrator/tests/test_claude_session_ledger.py::test_missing_root_returns_a_population_report_not_a_traceback",
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_literals_and_all_hard_limits_are_independently_pinned",
+        "orchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_TOTAL_BYTES-1-records0-total_bytes_limit_exceeded]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_LINE_BYTES-4-records1-line_too_long]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_RECORDS-1-records2-record_limit_exceeded]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_issue_detail_retention_is_hard_bounded",
+        "orchestrator/tests/test_claude_session_ledger.py::test_walk_errors_are_reported_through_onerror_and_fail_closed",
+        "orchestrator/tests/test_claude_session_ledger.py::test_symlink_jsonl_is_rejected_as_non_regular_or_outside_declared_root[inside-non_regular_file]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_symlink_jsonl_is_rejected_as_non_regular_or_outside_declared_root[outside-path_outside_root]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_strict_issue_matrix_covers_every_classification",
+        "orchestrator/tests/test_claude_session_ledger.py::test_cli_has_no_write_destination_argument",
+        "orchestrator/tests/test_claude_session_ledger.py::test_test_loader_suppresses_bytecode_before_importing_ledger",
+        "orchestrator/tests/test_claude_session_ledger.py::test_read_only_run_preserves_entire_isolated_tree_and_makes_no_bytecode",
+        "orchestrator/tests/test_claude_session_ledger.py::test_public_collect_report_matches_cli_json_schema_v2"
+      ],
+      "duration_s": 21.764,
+      "rc": 0,
+      "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+      "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+      "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+      "status": "PASSED",
+      "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_not_complete",
+          "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[True-None]",
+          "orchestrator/tests/test_collect_wave_usage.py::test_zero_model_calls_is_missing_before_incomplete_reasons[False-issues1]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "dc7190d3836f13d3f88a840442e1eb387c6b3cf90a931beedc2a3a641927b4a3",
+        "replacements": [
+          {
+            "file": "tools/collect_wave_usage.py",
+            "new": "        if report[\"population\"][\"files_scanned\"] == 0:\n            status = \"missing\"\n",
+            "old": "        if model_calls == 0:\n            status = \"missing\"\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_collect_wave_usage.py::test_limit_reached_is_incomplete"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "28b620d355fe61c73c88ae125e578eea2829db920767a031a6b036c8d7433e2b",
+        "replacements": [
+          {
+            "file": "tools/collect_wave_usage.py",
+            "new": "",
+            "old": "            if report[\"population\"][\"limit_reached\"]:\n                reasons.append(\"population.limit_reached is true\")\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_collect_wave_usage.py::test_helper_passes_cwd_under_and_fixed_sidechain_selector"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "dbc290f064ea44c4ef656f0fc24b607bfe4cdf510a8b67f94128de2b3ea970df",
+        "replacements": [
+          {
+            "file": "tools/collect_wave_usage.py",
+            "new": "",
+            "old": "    argv.extend((\"--cwd-under\", os.fspath(args.cwd_under)))\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_collect_wave_usage.py::test_helper_imports_public_collector_without_subprocess_or_json_reparse"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "09ba367d447842b2ae2d994a366e58ae7b9d2654bfe41b4389219b1dd1d54050",
+        "replacements": [
+          {
+            "file": "tools/collect_wave_usage.py",
+            "new": "        report = json.loads(json.dumps(result.report))\n",
+            "old": "        report = result.report\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_and_records_nonzero_collector_exit_code"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b09d8c7131d22c9991248208229c9b4355d398be607e934439d7e8020470ce21",
+        "replacements": [
+          {
+            "file": "tools/collect_wave_usage.py",
+            "new": "                file=sys.stderr,\n            )\n    return artifact[\"collection\"][\"collector_exit_code\"] or 0\n",
+            "old": "                file=sys.stderr,\n            )\n    return 0\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_collect_wave_usage.py::test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8286ec7dbe37e08fbe33a0f71bfd116210db3b24276abed93be4ab4f6e96e9a5",
+        "replacements": [
+          {
+            "file": "tools/collect_wave_usage.py",
+            "new": "        os.replace(temporary_path, out)\n",
+            "old": "        os.link(temporary_path, out)\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_LOGIN]",
+          "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_SUSPECT]",
+          "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[None]",
+          "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus02]",
+          "orchestrator/tests/test_collect_wave_usage.py::test_collector_site_classification_fails_closed_without_evidence[pegasus-next]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e72a267f36428de640d9e1a45c0e6efa6fab5e9d931e58732cbabe95efb0517a",
+        "replacements": [
+          {
+            "file": "tools/collect_wave_usage.py",
+            "new": "    elif False:\n",
+            "old": "    elif site_policy.refuses_heavy_work(site):\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_collect_wave_usage.py::test_missing_project_never_falls_back_to_all_projects",
+          "orchestrator/tests/test_collect_wave_usage.py::test_process_returns_zero_when_project_is_missing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "67c01560ac8c5b8f8bc946e8f60ce2e8d9d389ff0586f9c3c6b254611b4b7e6d",
+        "replacements": [
+          {
+            "file": "tools/collect_wave_usage.py",
+            "new": "    if False:\n",
+            "old": "    if not args.project:\n"
+          }
+        ]
+      },
+      "M9": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_collect_wave_usage.py::test_cwd_under_uses_path_boundary_and_combines_with_contains_as_and"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "501ffe6f4c4bcf3616e0d22b9ca32e578dadf29c9939e62171716083a4aa0ee1",
+        "replacements": [
+          {
+            "file": "tools/claude_session_ledger.py",
+            "new": "        cwd == cwd_under or cwd.startswith(cwd_under)\n",
+            "old": "        cwd == cwd_under or cwd.startswith(cwd_under + \"/\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a405ffac5e564cc3eaaa1a9eda0b4ea12356ce05a53ce7fd0fa2510b664fcc3a",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_collect_wave_usage.py",
+      "orchestrator/tests/test_claude_session_ledger.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2400.0
+  },
+  "repo_head": "1b53a6343714ad032a7564e7e1a916f616905b8d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_collect_wave_usage.py",
+      "orchestrator/tests/test_claude_session_ledger.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "d98bbe1e65c07649d96ab1ed5b7f417a4c5a185f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b707c596692b89439c38805ff1d60b131635f3f09439807ce9e48cd10eec5e3d",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "9e15756f7188438c128251f51a4a570e7a3a7f529e2a693b2da2c59a05221e6f",
+  "summary": {
+    "KILLED": 9,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t598-forward-collection/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "fae8019a4dab264c620c8a485dd195190debedd305ce20365596c0aa9d21c1e3",
+  "updated_at": "2026-08-07T12:05:22.904776+00:00"
+}

@@ -510,3 +510,14 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"2ee1a230c356ad01d0af5abc7b65f1c7550140c81982422bbbd70dc0797e566a","seq":18,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-07","content_sha256":"a543f49cce38e1e7b18146f096f54122424bba1c2007177ec5abd28bc69de8dc","seq":19,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"16fe70df71d0219d036d5964abee12cee12c8114e5782836d7163d7001ecfa63","seq":20,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-07","content_sha256":"ff65c3e896b79602493b5bce6f42e5910385922b05ef150779a752ba4260e6fd","seq":21,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:condition-table-unparsable-row":"[T-637]","T:dispatch-condition-literal-pin-policy":"[T-634]","T:m08-old-run-undefined":"[T-636]","T:s01-ruling-source-scope":"[T-635]","T:waiter-dispatch-observability":"[T-633]","T:waiter-rule-fourth-element":"[T-632]"},"authored":"2026-08-07","content_sha256":"af12b797673e19f7c3e7dbd7b75589b7323fce22e0b5d265f969658d6aad2351","seq":1,"wave":"dev-wave-t625-waiter-dispatch"}
+- {"allocations":{"F:pre-ruling-proposal-as-decision":"F158"},"authored":"2026-08-07","content_sha256":"8862aaf2c0c8d77e559a9b439bbfb80300fae2fc86bbb44518fae84474327f48","seq":2,"wave":"dev-wave-t625-waiter-dispatch"}
+
+- {"allocations":{"T:ai-classification-turn-violation-handling":"[T-639]","T:usage-collector-siting-classification":"[T-638]"},"authored":"2026-08-07","content_sha256":"1d18fac0702c6df89207bc9cb701750750b91c16ad832beca353e76b897fd610","seq":1,"wave":"dev-wave-t598-forward-collection"}
+- {"allocations":{"D:wave-usage-missing-rule":"D232","D:wave-usage-selector-and-siting":"D233"},"authored":"2026-08-07","content_sha256":"176d2fa76b233bb5d5dc1b7c94c7ea9b7a1ffe6cbe383e545e6682ea08d1063d","seq":2,"wave":"dev-wave-t598-forward-collection"}
+- {"allocations":{"F:ai-ran-classification-measurement":"F159","F:fix-narrowed-acceptance-without-positive-control":"F161","F:unclassified-tool-on-login-node":"F160"},"authored":"2026-08-07","content_sha256":"454ad79efc8c0426c29209dd615fb07acdd805751bb53c7d419a88bf25b1a8da","seq":3,"wave":"dev-wave-t598-forward-collection"}
