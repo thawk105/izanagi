@@ -6,7 +6,7 @@
   "mutations": [
     {
       "id": "M1",
-      "category": "call-site",
+      "category": "negative",
       "replacements": [
         {
           "file": "tools/pegasus/probes/t139_r4_env_probe.py",
@@ -38,7 +38,7 @@
     },
     {
       "id": "M3",
-      "category": "parser",
+      "category": "negative",
       "replacements": [
         {
           "file": "tools/pegasus/probes/t139_r4_env_probe.py",
@@ -54,7 +54,7 @@
     },
     {
       "id": "M5a",
-      "category": "boundary",
+      "category": "negative",
       "replacements": [
         {
           "file": "tools/pegasus/probes/t139_r4_env_probe.py",
@@ -70,7 +70,7 @@
     },
     {
       "id": "M6",
-      "category": "fail-closed",
+      "category": "negative",
       "replacements": [
         {
           "file": "tools/pegasus/probes/t139_r4_env_probe.py",
@@ -86,7 +86,7 @@
     },
     {
       "id": "M13",
-      "category": "raw-recompute",
+      "category": "negative",
       "replacements": [
         {
           "file": "tools/pegasus/probes/t139_r4_env_probe.py",
