@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t671-source-binding
 seq: 1
-title: 汎用 certified producer の source binding ([T-671] + t530 件 6) の設計択一を裁定へ返した — 実装はしていない (docs のみ、実装差分なし、branch worktree-dev-wave-t671-source-binding)
+title: 汎用 certified producer の source binding ([T-671] + t530 件 6) の設計択一を裁定へ返した — 実装はしていない (docs のみ、実装差分なし、受入 7505 passed / 20 skipped、変異は免除、branch worktree-dev-wave-t671-source-binding)
 ---
 
 ## 本文
@@ -57,6 +57,26 @@ title: 汎用 certified producer の source binding ([T-671] + t530 件 6) の�
   `orchestrator/tests/test_spool_fold.py` (いずれも実 checkout の `docs/` と `docs/spool/` を読む)、
   および D88 の literal placeholder gate (対象族に `output/insights/*.md` を含み、本 wave が
   追加した package・逐語 8 ファイルを走査する)。したがって受入全走を実施した。
+  **7505 passed / 20 skipped、rc=0** (land 対象の tip `80549392`、request `896545`、1273 秒)。
+  この受入値を記録する commit 自体は、その走行の対象に含まれない (値を書く前に測る順序のため)。
+- **受入 lease を約 4 時間取得できなかった。** 120 秒周期の待ち手が 2 度 (各 2 時間) 空振りし、
+  45 秒周期へ詰めて取得した。その間 holder は 5 回交替し、local main は 7 回進んだ
+  (`ee2da0bf` → `00eb029a`)。**これは [T-648] wave (エントリ 333) が同日に実測した
+  「lease に fairness が無く、待ち周期が短い側が有利」という観測の独立 2 例目**である。
+  待ちの間に main を 4 回取り込み、そのつど検査を通した。
+- **rulings の fold が `[T-671]` の項目本文を書き換えたため、fragment の base digest を
+  取り直した。** 取り直さずに land していれば、rulings が入れた「裁定済み → 設計 wave 起票可」の
+  記述を古い本文で上書きするところだった。**base digest 検査が設計どおり止めた**実例である。
+- **[T-664] の結論を受けて前提条件を訂正した。** パッケージは当初「実装は [T-664] の予算捻出が
+  前提」と書いたが、[T-664] が「依頼された 2 経路 (陳腐化ルール削除・テスト化) では予算が
+  空かない」と確定させた (main で実体確認)。**前提は [T-664] ではなく [T-313] の実装**であり、
+  規範文を必要としない形を選べればこの前提自体が外れる、と書き換えた。
+- **段 8 の改善候補は 2 件で、どちらも独立 2 例目が揃った。** (i) 受入 lease の fairness 欠如 —
+  新規起票した (下記)。(ii) `DW-O01` の実行雛形を worktree 隔離セッションで inline 実行すると
+  harness の隔離 guard が拒否し、wave 専用 subdirectory の `.sh` へ書くと通る (エントリ 319 が
+  1 例目、本 wave が 2 例目で 2 回発火)。**(ii) は本文編集を見送る** — `docs/dev-wave/**` の
+  aggregate 残は 1 byte で、[T-664] が「依頼された 2 経路では空かない」と確定させたため、
+  [T-577] の既定どおり見送りで確定し、**再訪条件を [T-313] の実装に紐づける**。
 - **失敗台帳 fragment は書いていない。** 本 wave は実装ゼロで、恒久対応が宣言だけの恒真な
   ものにしかならないため (`docs/spool/failures/README.md` は実体へのポインタを要求する)。
   機構が入る実装 wave で起票する。
@@ -82,3 +102,12 @@ title: 汎用 certified producer の source binding ([T-671] + t530 件 6) の�
   新規ファイル・alias・attribute 呼出しを検出しない。成果物影響 = 新規または別形態の writer が
   authority なしの COMMIT を書いても閉集合検査は緑のまま。[T-671] の段 3 レンズ A-04 が発見し、
   親が再現した。既存 gate の弱点であり [T-671] の所有ではない。
+- {{T:acceptance-lease-fairness}} **P2・新規**: 受入 lease に fairness が無く、待ち周期が短い側が
+  有利になる (`tools/wave_land_window.py` は FIFO の待ち行列を持たず、release 直後の claim 競争で
+  決まる)。**独立 2 例が揃った** — [T-648] wave が 2 時間 15 分 (holder 5 回交替、60 秒周期が
+  90 分空振り)、[T-671] wave が約 4 時間 (holder 5 回交替、120 秒周期の待ち手が 2 度空振り、
+  45 秒周期へ詰めて取得)。いずれも同日 2026-08-09、別 wave・別 holder 列。成果物影響 = 受入結果
+  そのものは変わらないが、待つ側が local main を都度取り込み直すため wave の実時間が延び、
+  取り込み回数ぶん検査と base digest の再基準化が増える (本 wave は main 取り込み 4 回、
+  digest 再基準化 1 回)。実装は `tools/` の変更であり Codex author を要するため、
+  本 wave (docs-only・本番コード編集禁止) では行わない。
