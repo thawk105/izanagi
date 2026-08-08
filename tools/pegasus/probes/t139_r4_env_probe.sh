@@ -2,7 +2,10 @@
 set -uo pipefail
 
 [[ $# -eq 1 && -n ${IZANAGI_T139_R4_PYTHON:-} &&
+   -n ${IZANAGI_T139_R4_INTERPRETER:-} &&
    -n ${IZANAGI_T139_R4_CONTRACT_BLOB:-} &&
+   -n ${IZANAGI_T139_R4_CONTRACT_METADATA:-} &&
+   -n ${IZANAGI_T139_R4_CONTRACT_SHA256:-} &&
    -n ${IZANAGI_CCBENCH_SNAPSHOT:-} &&
    -n ${IZANAGI_THIRDPARTY_SOURCE_ROOT:-} &&
    -n ${IZANAGI_GFLAGS_INSTALL:-} && -n ${IZANAGI_GLOG_INSTALL:-} &&
@@ -11,7 +14,9 @@ set -uo pipefail
 
 OUT=$(realpath -e "$1") || exit 2
 PYTHON=$(realpath -e "$IZANAGI_T139_R4_PYTHON") || exit 2
+INTERPRETER=$(realpath -e "$IZANAGI_T139_R4_INTERPRETER") || exit 2
 CONTRACT=$(realpath -e "$IZANAGI_T139_R4_CONTRACT_BLOB") || exit 2
+CONTRACT_METADATA=$(realpath -e "$IZANAGI_T139_R4_CONTRACT_METADATA") || exit 2
 SNAPSHOT=$(realpath -e "$IZANAGI_CCBENCH_SNAPSHOT") || exit 2
 TP=$(realpath -e "$IZANAGI_THIRDPARTY_SOURCE_ROOT") || exit 2
 GFLAGS_INSTALL=$(realpath -e "$IZANAGI_GFLAGS_INSTALL") || exit 2
@@ -22,44 +27,71 @@ PREFIX="$GFLAGS_INSTALL;$GLOG_INSTALL"
 export LC_ALL=C
 unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS CMAKE_TOOLCHAIN_FILE
 
-DRIVER_START_MONOTONIC_NS=$(python3 -I -B "$PYTHON" monotonic-ns) || exit 2
-DRIVER_CAP_NS=1895000000000
+FINALIZED=0
+DRIVER_SIGNAL_RC=0
+finalize_driver() {
+  local original_rc=$? final_rc=0 attempt
+  trap - EXIT TERM INT
+  set +e
+  if (( DRIVER_SIGNAL_RC != 0 )); then
+    original_rc=$DRIVER_SIGNAL_RC
+  fi
+  if [[ $FINALIZED -eq 0 && ! -e $OUT/COMPLETED && -s $STATE ]]; then
+    for attempt in 1 2; do
+      "$INTERPRETER" -I -B "$PYTHON" finalize --state "$STATE" --output "$OUT" \
+        --exit-rc "$original_rc" \
+        >"$OUT/decision.txt" 2>"$OUT/finalize.stderr"
+      final_rc=$?
+      [[ -e $OUT/COMPLETED ]] && { FINALIZED=1; break; }
+    done
+  fi
+  if [[ $FINALIZED -eq 0 && $original_rc -eq 0 ]]; then
+    original_rc=${final_rc:-12}
+    (( original_rc != 0 )) || original_rc=12
+  fi
+  exit "$original_rc"
+}
+latch_driver_signal() {
+  local signal_rc=$1
+  if (( DRIVER_SIGNAL_RC == 0 )); then
+    DRIVER_SIGNAL_RC=$signal_rc
+  fi
+}
+record_driver_signal() {
+  latch_driver_signal "$1"
+  exit "$DRIVER_SIGNAL_RC"
+}
+# TERM/INT receive enough grace to publish TSVs, then receipt, then COMPLETED.
+# SIGKILL cannot run a trap and is explicitly outside the receipt guarantee.
+trap finalize_driver EXIT
+trap 'record_driver_signal 143' TERM
+trap 'record_driver_signal 130' INT
+
+DRIVER_START_MONOTONIC_NS=$("$INTERPRETER" -I -B "$PYTHON" monotonic-ns) || exit 2
+DRIVER_CAP_NS=2045000000000
 
 driver_run() {
-  local phase_cap_s=$1 now_ns remaining_ns remaining_s limit_s
+  local phase_cap_s=$1 now_ns remaining_ns remaining_s limit_s rc
   shift
-  now_ns=$(python3 -I -B "$PYTHON" monotonic-ns) || return 8
+  now_ns=$("$INTERPRETER" -I -B "$PYTHON" monotonic-ns) || return 8
   remaining_ns=$((DRIVER_START_MONOTONIC_NS + DRIVER_CAP_NS - now_ns))
   (( remaining_ns > 0 )) || return 8
   remaining_s=$(((remaining_ns + 999999999) / 1000000000))
   limit_s=$phase_cap_s
   (( limit_s < remaining_s )) || limit_s=$remaining_s
-  timeout --foreground --signal=TERM --kill-after=10 "${limit_s}s" "$@"
+  timeout --foreground --signal=TERM --kill-after=120 "${limit_s}s" "$@"
+  rc=$?
+  # timeout's own cap expiry is 124. Only 128+N denotes signal termination.
+  if (( rc > 128 && rc <= 192 )); then
+    latch_driver_signal "$rc"
+  fi
+  return "$rc"
 }
 
-FINALIZED=0
-finalize_driver() {
-  local original_rc=$? final_rc=0
-  trap - EXIT TERM INT
-  set +e
-  if [[ $FINALIZED -eq 0 && -s $STATE ]]; then
-    FINALIZED=1
-    python3 -I -B "$PYTHON" finalize --state "$STATE" --output "$OUT" \
-      --exit-rc "$original_rc" \
-      >"$OUT/decision.txt" 2>"$OUT/finalize.stderr"
-    final_rc=$?
-  fi
-  if (( original_rc == 0 && final_rc != 0 )); then
-    original_rc=$final_rc
-  fi
-  exit "$original_rc"
-}
-trap finalize_driver EXIT
-trap 'exit 143' TERM
-trap 'exit 130' INT
-
-python3 -I -B "$PYTHON" init-state --contract "$CONTRACT" --state "$STATE" \
-  --commit "$IZANAGI_RUN_COMMIT" --jobid "$PBS_JOBID" || exit 2
+"$INTERPRETER" -I -B "$PYTHON" init-state --contract "$CONTRACT" --state "$STATE" \
+  --commit "$IZANAGI_RUN_COMMIT" --jobid "$PBS_JOBID" \
+  --expected-contract-sha256 "$IZANAGI_T139_R4_CONTRACT_SHA256" \
+  --contract-metadata "$CONTRACT_METADATA" || exit 2
 
 mkdir "$STAGE/ccbench-stock"
 if ! driver_run 75 cp -a "$SNAPSHOT/." "$STAGE/ccbench-stock/"; then
@@ -72,11 +104,11 @@ fi
 chmod -R u+w "$STAGE/ccbench-stock"
 SOURCE=$(realpath -e "$STAGE/ccbench-stock") || exit 2
 
-if ! driver_run 15 python3 -I -B "$PYTHON" capture-compilers --state "$STATE" \
+if ! driver_run 15 "$INTERPRETER" -I -B "$PYTHON" capture-compilers --state "$STATE" \
     --output "$OUT"; then
   exit 13
 fi
-mapfile -t COMPILER_PATHS < <(python3 -I -B - "$STATE" <<'PY'
+mapfile -t COMPILER_PATHS < <("$INTERPRETER" -I -B - "$STATE" <<'PY'
 import json
 import sys
 state = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -89,7 +121,7 @@ GCC_REAL=${COMPILER_PATHS[0]}
 GXX_REAL=${COMPILER_PATHS[1]}
 
 build_status() {
-  python3 -I -B - "$STATE" "$1" <<'PY'
+  "$INTERPRETER" -I -B - "$STATE" "$1" <<'PY'
 import json
 import sys
 state = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -133,7 +165,7 @@ record_one_build() {
     "-DCCBENCH_ADD_ANALYSIS=$analysis"
     -DCMAKE_CXX_FLAGS=
   )
-  python3 -I -B - "$argv_json" "${configure_argv[@]}" <<'PY'
+  driver_run 10 "$INTERPRETER" -I -B - "$argv_json" "${configure_argv[@]}" <<'PY'
 import json
 import sys
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
@@ -141,38 +173,50 @@ with open(sys.argv[1], "w", encoding="utf-8") as handle:
     handle.write("\n")
 PY
 
-  if ! driver_run 15 python3 -I -B "$PYTHON" recheck-compilers \
-      --state "$STATE" --label "before-$kind-configure"; then
+  if ! driver_run 15 "$INTERPRETER" -I -B "$PYTHON" recheck-compilers \
+      --state "$STATE" --label "before-configure-$kind"; then
     status=failed
     rc=13
     : >"$configure_log"
     : >"$build_log"
   else
-    config_start=$(python3 -I -B "$PYTHON" monotonic-ns)
+    config_start=$("$INTERPRETER" -I -B "$PYTHON" monotonic-ns)
     driver_run "$configure_cap" "${configure_argv[@]}" >"$configure_log" 2>&1
     config_rc=$?
-    config_end=$(python3 -I -B "$PYTHON" monotonic-ns)
+    config_end=$("$INTERPRETER" -I -B "$PYTHON" monotonic-ns)
     config_elapsed=$((config_end - config_start))
     if (( config_rc != 0 )); then
       status=failed
       rc=$config_rc
       : >"$build_log"
     else
-      build_start=$(python3 -I -B "$PYTHON" monotonic-ns)
-      driver_run "$build_cap" cmake --build "$build_dir" --target ycsb_silo.exe -j 48 \
-        >"$build_log" 2>&1
-      build_rc=$?
-      build_end=$(python3 -I -B "$PYTHON" monotonic-ns)
-      build_elapsed=$((build_end - build_start))
-      if (( build_rc != 0 )); then
+      if ! driver_run 15 "$INTERPRETER" -I -B "$PYTHON" recheck-compilers \
+          --state "$STATE" --label "before-build-$kind"; then
         status=failed
-        rc=$build_rc
+        rc=13
+        : >"$build_log"
+      else
+        build_start=$("$INTERPRETER" -I -B "$PYTHON" monotonic-ns)
+        driver_run "$build_cap" cmake --build "$build_dir" --target ycsb_silo.exe -j 48 \
+          >"$build_log" 2>&1
+        build_rc=$?
+        build_end=$("$INTERPRETER" -I -B "$PYTHON" monotonic-ns)
+        build_elapsed=$((build_end - build_start))
+        if (( build_rc != 0 )); then
+          status=failed
+          rc=$build_rc
+        fi
+        if ! driver_run 15 "$INTERPRETER" -I -B "$PYTHON" recheck-compilers \
+            --state "$STATE" --label "after-build-$kind"; then
+          status=failed
+          rc=13
+        fi
       fi
     fi
   fi
 
   local -a record=(
-    python3 -I -B "$PYTHON" record-build
+    "$INTERPRETER" -I -B "$PYTHON" record-build
     --state "$STATE" --kind "$kind" --status "$status" --returncode "$rc"
     --configure-elapsed-ns "$config_elapsed" --build-elapsed-ns "$build_elapsed"
     --configure-argv-json "$argv_json" --configure-log "$configure_log"
@@ -187,7 +231,7 @@ PY
   if [[ -f $build_dir/cc/silo/ycsb_silo.exe ]]; then
     record+=(--binary "$build_dir/cc/silo/ycsb_silo.exe")
   fi
-  "${record[@]}"
+  driver_run 30 "${record[@]}"
 }
 
 # The preflight window is intentionally after this TRACE=0 build and its
@@ -196,7 +240,7 @@ record_one_build trace0 0 0 60 180
 TRACE0_READY=0
 if build_status trace0; then
   TRACE0_READY=1
-  driver_run 810 python3 -I -B "$PYTHON" sample --state "$STATE" \
+  driver_run 960 "$INTERPRETER" -I -B "$PYTHON" sample --state "$STATE" \
     --binary "$STAGE/build-trace0/cc/silo/ycsb_silo.exe" --output "$OUT"
   SAMPLE_RC=$?
 else
@@ -207,11 +251,11 @@ fi
 # Its independently frozen caps are configure=90 seconds and build=420 seconds.
 record_one_build trace1 1 1 90 420
 
-python3 -I -B "$PYTHON" finalize --state "$STATE" --output "$OUT" \
+"$INTERPRETER" -I -B "$PYTHON" finalize --state "$STATE" --output "$OUT" \
   --exit-rc 0 \
   >"$OUT/decision.txt" 2>"$OUT/finalize.stderr"
 FINAL_RC=$?
-if [[ -s $OUT/receipt.json ]]; then FINALIZED=1; fi
+if [[ -e $OUT/COMPLETED ]]; then FINALIZED=1; fi
 if (( TRACE0_READY == 0 || SAMPLE_RC != 0 || FINAL_RC != 0 )); then
   exit 12
 fi

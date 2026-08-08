@@ -7,12 +7,50 @@ set -euo pipefail
 
 [[ -n ${PBS_JOBID:-} && -n ${PBS_O_WORKDIR:-} &&
    -n ${IZANAGI_T139_EXPECTED_COMMIT:-} &&
+   -n ${IZANAGI_T139_EXPECTED_WORKTREE_ROOT:-} &&
    -n ${IZANAGI_T139_DEPENDENCY_SOURCE_ROOT:-} &&
    -n ${IZANAGI_THIRDPARTY_SOURCE_ROOT:-} &&
    $IZANAGI_T139_EXPECTED_COMMIT =~ ^[0-9a-f]{40}$ &&
    $PBS_JOBID =~ ^[A-Za-z0-9._:-]+$ ]] || exit 2
 
-REPO=$(realpath -e "$PBS_O_WORKDIR") || exit 3
+INTERPRETER=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  bash -c 'command -v python3.10') || exit 3
+INTERPRETER=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  realpath -e "$INTERPRETER") || exit 3
+timeout --foreground --signal=TERM --kill-after=5 5s "$INTERPRETER" -I -B - <<'PY'
+import sys
+raise SystemExit(0 if sys.version_info[:2] == (3, 10) else 1)
+PY
+export IZANAGI_T139_R4_INTERPRETER=$INTERPRETER
+
+PBS_START_MONOTONIC_NS=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  "$INTERPRETER" -I -B -c 'import time; print(time.monotonic_ns())') || exit 3
+PBS_DEADLINE_NS=$((PBS_START_MONOTONIC_NS + 3300000000000))
+SETUP_DEADLINE_NS=$((PBS_START_MONOTONIC_NS + 903000000000))
+IN_DRIVER=0
+
+deadline_run() {
+  local cap=$1 now_ns phase_deadline_ns remaining_ns remaining_s limit kill_after
+  shift
+  now_ns=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+    "$INTERPRETER" -I -B -c 'import time; print(time.monotonic_ns())') || return 8
+  phase_deadline_ns=$PBS_DEADLINE_NS
+  if [[ $IN_DRIVER -eq 0 && $SETUP_DEADLINE_NS -lt $phase_deadline_ns ]]; then
+    phase_deadline_ns=$SETUP_DEADLINE_NS
+  fi
+  remaining_ns=$((phase_deadline_ns - now_ns))
+  (( remaining_ns >= 1000000000 )) || return 8
+  remaining_s=$((remaining_ns / 1000000000))
+  limit=$cap
+  (( limit < remaining_s )) || limit=$remaining_s
+  kill_after=10
+  [[ $IN_DRIVER -eq 1 ]] && kill_after=120
+  timeout --foreground --signal=TERM --kill-after="$kill_after" "${limit}s" "$@"
+}
+
+REPO=$(deadline_run 5 realpath -e "$PBS_O_WORKDIR") || exit 3
+EXPECTED_WORKTREE=$(deadline_run 5 realpath -e "$IZANAGI_T139_EXPECTED_WORKTREE_ROOT") || exit 3
+[[ $REPO == "$EXPECTED_WORKTREE" ]] || exit 3
 JOB_TAG=$PBS_JOBID
 OUT_PARENT="$REPO/output/env/pegasus/t139-r4-env-probe"
 OUT="$OUT_PARENT/$JOB_TAG"
@@ -24,8 +62,10 @@ cleanup_job() {
   trap - EXIT TERM INT
   set +e
   if [[ -n $IZANAGI_PROBE_STAGE && -d $IZANAGI_PROBE_STAGE ]]; then
-    chmod -R u+w -- "$IZANAGI_PROBE_STAGE"
-    rm -rf -- "$IZANAGI_PROBE_STAGE"
+    timeout --foreground --signal=TERM --kill-after=5 30s \
+      chmod -R u+w -- "$IZANAGI_PROBE_STAGE"
+    timeout --foreground --signal=TERM --kill-after=5 60s \
+      rm -rf -- "$IZANAGI_PROBE_STAGE"
   fi
   exit "$rc"
 }
@@ -33,18 +73,25 @@ trap cleanup_job EXIT
 trap 'exit 143' TERM
 trap 'exit 130' INT
 
-# Epoch is recorded and bounds PBS setup only.  The compute driver enforces its
-# 1895-second cap exclusively with time.monotonic_ns().
-export IZANAGI_ABSOLUTE_DEADLINE_EPOCH=$(( $(date +%s) + 3300 ))
-deadline_run() {
-  local cap=$1 remaining limit
-  shift
-  remaining=$((IZANAGI_ABSOLUTE_DEADLINE_EPOCH - $(date +%s)))
-  (( remaining > 0 )) || return 8
-  limit=$cap
-  (( limit < remaining )) || limit=$remaining
-  timeout --foreground --signal=TERM --kill-after=10 "${limit}s" "$@"
-}
+# Epoch is record-only.  Every remaining-time decision above uses
+# time.monotonic_ns(), including the 903-second setup envelope.
+export IZANAGI_ABSOLUTE_DEADLINE_EPOCH=$(deadline_run 5 "$INTERPRETER" -I -B -c \
+  'import time; print(int(time.time()) + 3300)')
+
+observed_root=$(deadline_run 10 git --no-replace-objects -C "$REPO" \
+  rev-parse --show-toplevel) || exit 3
+observed_git_dir=$(deadline_run 10 git --no-replace-objects -C "$REPO" \
+  rev-parse --absolute-git-dir) || exit 3
+observed_git_dir=$(deadline_run 5 realpath -e "$observed_git_dir") || exit 3
+observed_common_raw=$(deadline_run 10 git --no-replace-objects -C "$REPO" \
+  rev-parse --git-common-dir) || exit 3
+if [[ $observed_common_raw == /* ]]; then
+  observed_common=$(deadline_run 5 realpath -e "$observed_common_raw") || exit 3
+else
+  observed_common=$(deadline_run 5 realpath -e "$REPO/$observed_common_raw") || exit 3
+fi
+[[ $observed_root == "$REPO" && $observed_git_dir != "$observed_common" &&
+   $observed_git_dir == "$observed_common"/worktrees/* ]] || exit 3
 
 observed_head=$(deadline_run 10 git --no-replace-objects -C "$REPO" \
   rev-parse --verify 'HEAD^{commit}') || exit 3
@@ -62,18 +109,38 @@ repo_status=$(deadline_run 10 git --no-replace-objects -C "$REPO" \
 repo_index=$(deadline_run 10 git --no-replace-objects -C "$REPO" ls-files -v) || exit 3
 ! grep -Eq '^[a-zS]' <<<"$repo_index" || exit 3
 
-mkdir -p "$OUT_PARENT"
-mkdir "$OUT"
-IZANAGI_PROBE_STAGE=$(mktemp -d "${TMPDIR:-/scr}/t139r4.XXXXXX")
+ensure_real_directory() {
+  local path=$1 parent=$2 resolved
+  [[ ! -L $path ]] || return 1
+  if [[ ! -e $path ]]; then
+    deadline_run 5 mkdir -- "$path" || return 1
+  fi
+  [[ -d $path && ! -L $path ]] || return 1
+  resolved=$(deadline_run 5 realpath -e "$path") || return 1
+  [[ $resolved == "$parent"/* || $resolved == "$parent" ]]
+}
+
+# Build the namespace one component at a time and reject every symlink.  The
+# observed-attempt gate is an on-node namespace scan, not a scheduler ledger.
+ensure_real_directory "$REPO/output" "$REPO"
+ensure_real_directory "$REPO/output/env" "$REPO/output"
+ensure_real_directory "$REPO/output/env/pegasus" "$REPO/output/env"
+ensure_real_directory "$OUT_PARENT" "$REPO/output/env/pegasus"
+deadline_run 15 "$INTERPRETER" -I -B \
+  "$REPO/tools/pegasus/probes/t139_r4_env_probe.py" attempt-gate \
+  --namespace "$OUT_PARENT" || exit 14
+deadline_run 5 mkdir -- "$OUT"
+[[ -d $OUT && ! -L $OUT ]] || exit 3
+IZANAGI_PROBE_STAGE=$(deadline_run 5 mktemp -d "${TMPDIR:-/scr}/t139r4.XXXXXX")
 export IZANAGI_PROBE_STAGE
 BUNDLE="$IZANAGI_PROBE_STAGE/repo-bundle"
-mkdir "$BUNDLE"
+deadline_run 5 mkdir -- "$BUNDLE"
 
 extract_blob() {
   local relative=$1 destination=$2 temporary="$2.tmp"
   deadline_run 5 git --no-replace-objects -C "$REPO" cat-file blob \
     "$IZANAGI_RUN_COMMIT:$relative" >"$temporary"
-  mv "$temporary" "$destination"
+  deadline_run 5 mv -- "$temporary" "$destination"
 }
 
 PROBE_REL=tools/pegasus/probes
@@ -81,24 +148,31 @@ extract_blob "$PROBE_REL/t139_r4_env_probe.py" "$BUNDLE/t139_r4_env_probe.py"
 extract_blob "$PROBE_REL/t139_r4_env_probe.sh" "$BUNDLE/t139_r4_env_probe.sh"
 extract_blob "$PROBE_REL/t139_r4_env_probe.pbs" "$BUNDLE/t139_r4_env_probe.pbs"
 extract_blob tools/pegasus/policy.json "$BUNDLE/policy.json"
-chmod 500 "$BUNDLE/t139_r4_env_probe.py" "$BUNDLE/t139_r4_env_probe.sh"
-chmod 400 "$BUNDLE/t139_r4_env_probe.pbs" "$BUNDLE/policy.json"
+deadline_run 5 chmod 500 "$BUNDLE/t139_r4_env_probe.py" "$BUNDLE/t139_r4_env_probe.sh"
+deadline_run 5 chmod 400 "$BUNDLE/t139_r4_env_probe.pbs" "$BUNDLE/policy.json"
 
-runtime_pbs=$(realpath -e "$0") || exit 3
-runtime_pbs_sha=$(sha256sum "$runtime_pbs" | awk '{print $1}')
-committed_pbs_sha=$(sha256sum "$BUNDLE/t139_r4_env_probe.pbs" | awk '{print $1}')
+runtime_pbs=$(deadline_run 5 realpath -e "$0") || exit 3
+runtime_pbs_sha=$(deadline_run 10 sha256sum "$runtime_pbs") || exit 3
+runtime_pbs_sha=${runtime_pbs_sha%% *}
+committed_pbs_sha=$(deadline_run 10 sha256sum "$BUNDLE/t139_r4_env_probe.pbs") || exit 3
+committed_pbs_sha=${committed_pbs_sha%% *}
 [[ $runtime_pbs_sha == "$committed_pbs_sha" ]] || exit 3
 
 # The contract is read from the expected commit exactly once by contract-load.
 # That command hashes and parses the same in-memory byte buffer before writing
 # the staged copy; it never reopens the repository path after hashing.
 export IZANAGI_T139_R4_CONTRACT_BLOB="$BUNDLE/t139_r4_env_probe_contract.json"
-deadline_run 5 python3 -I -B "$BUNDLE/t139_r4_env_probe.py" contract-load \
+export IZANAGI_T139_R4_CONTRACT_METADATA="$OUT/contract-blob.json"
+IZANAGI_T139_R4_CONTRACT_SHA256=$(deadline_run 10 "$INTERPRETER" -I -B \
+  "$BUNDLE/t139_r4_env_probe.py" contract-load \
   --repo "$REPO" --commit "$IZANAGI_RUN_COMMIT" \
   --path "$PROBE_REL/t139_r4_env_probe_contract.json" \
   --output "$IZANAGI_T139_R4_CONTRACT_BLOB" \
-  --metadata-output "$OUT/contract-blob.json"
-chmod 400 "$IZANAGI_T139_R4_CONTRACT_BLOB"
+  --metadata-output "$IZANAGI_T139_R4_CONTRACT_METADATA") || exit 3
+[[ $IZANAGI_T139_R4_CONTRACT_SHA256 =~ ^[0-9a-f]{64}$ ]] || exit 3
+export IZANAGI_T139_R4_CONTRACT_SHA256
+deadline_run 5 chmod 400 "$IZANAGI_T139_R4_CONTRACT_BLOB" \
+  "$IZANAGI_T139_R4_CONTRACT_METADATA"
 export IZANAGI_T139_R4_PYTHON="$BUNDLE/t139_r4_env_probe.py"
 
 export IZANAGI_SOURCE_WITNESS_PATH="$OUT/source-witness.tsv"
@@ -106,14 +180,16 @@ printf 'probe_series_id\tpurpose\tstudy_eligible\tclass\tname\texpected_pin\tobs
   >"$IZANAGI_SOURCE_WITNESS_PATH"
 append_source_witness() {
   local class=$1 name=$2 source=$3 pin=$4 observed tree
-  observed=$(git --no-replace-objects -C "$source" rev-parse --verify 'HEAD^{commit}')
-  tree=$(git --no-replace-objects -C "$source" rev-parse --verify "$pin^{tree}")
+  observed=$(deadline_run 10 git --no-replace-objects -C "$source" \
+    rev-parse --verify 'HEAD^{commit}') || return 1
+  tree=$(deadline_run 10 git --no-replace-objects -C "$source" \
+    rev-parse --verify "$pin^{tree}") || return 1
   printf 't139-r4-env-probe\tnon_study_environment_probe\tfalse\t%s\t%s\t%s\t%s\t%s\n' \
     "$class" "$name" "$pin" "$observed" "$tree" >>"$IZANAGI_SOURCE_WITNESS_PATH"
 }
 
 if command -v module >/dev/null 2>&1; then
-  module list >"$OUT/module-list.txt" 2>&1 || true
+  deadline_run 10 bash -lc 'module list' >"$OUT/module-list.txt" 2>&1 || true
 else
   printf 'module command unavailable\n' >"$OUT/module-list.txt"
 fi
@@ -121,7 +197,7 @@ export IZANAGI_MODULE_LIST_PATH="$OUT/module-list.txt"
 
 POLICY="$BUNDLE/policy.json"
 policy_rows="$IZANAGI_PROBE_STAGE/policy-sources.tsv"
-deadline_run 10 python3 -I -B - "$POLICY" >"$policy_rows" <<'PY'
+deadline_run 10 "$INTERPRETER" -I -B - "$POLICY" >"$policy_rows" <<'PY'
 import json
 import sys
 policy = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -155,16 +231,16 @@ snapshot_source() {
   ' _ "$source" "$pin" "$destination"
 }
 
-DEPENDENCY_ROOT=$(realpath -e "$IZANAGI_T139_DEPENDENCY_SOURCE_ROOT")
-THIRD_ROOT=$(realpath -e "$IZANAGI_THIRDPARTY_SOURCE_ROOT")
+DEPENDENCY_ROOT=$(deadline_run 5 realpath -e "$IZANAGI_T139_DEPENDENCY_SOURCE_ROOT")
+THIRD_ROOT=$(deadline_run 5 realpath -e "$IZANAGI_THIRDPARTY_SOURCE_ROOT")
 [[ ! -L $IZANAGI_T139_DEPENDENCY_SOURCE_ROOT &&
    ! -L $IZANAGI_THIRDPARTY_SOURCE_ROOT ]] || exit 3
 THIRD_SNAPSHOT="$IZANAGI_PROBE_STAGE/third-party-snapshots"
-mkdir "$THIRD_SNAPSHOT"
+deadline_run 5 mkdir -- "$THIRD_SNAPSHOT"
 for row in "${POLICY_SOURCES[@]}"; do
   IFS=$'\t' read -r class name pin <<<"$row"
   if [[ $class == dependency ]]; then
-    source=$(realpath -e "$DEPENDENCY_ROOT/$name")
+    source=$(deadline_run 5 realpath -e "$DEPENDENCY_ROOT/$name")
     append_source_witness "$class" "$name" "$source" "$pin"
     destination="$IZANAGI_PROBE_STAGE/$name-source"
     snapshot_source "$source" "$pin" "$destination" 45
@@ -173,7 +249,7 @@ for row in "${POLICY_SOURCES[@]}"; do
       glog) GLOG_SOURCE=$destination; export IZANAGI_GLOG_SRC_HEAD=$pin ;;
     esac
   else
-    source=$(realpath -e "$THIRD_ROOT/$name")
+    source=$(deadline_run 5 realpath -e "$THIRD_ROOT/$name")
     append_source_witness "$class" "$name" "$source" "$pin"
     snapshot_source "$source" "$pin" "$THIRD_SNAPSHOT/$name" 50
   fi
@@ -186,14 +262,14 @@ deadline_run 60 bash -c '
   chmod -R u+w "$2"
   diff --brief --recursive --no-dereference "$1" "$2" >/dev/null
 ' _ "$THIRD_SNAPSHOT" "$THIRD_CONSUMER"
-export IZANAGI_THIRDPARTY_SOURCE_ROOT=$(realpath -e "$THIRD_CONSUMER")
+export IZANAGI_THIRDPARTY_SOURCE_ROOT=$(deadline_run 5 realpath -e "$THIRD_CONSUMER")
 
 gitlink=$(deadline_run 10 git --no-replace-objects -C "$REPO" \
   ls-tree "$IZANAGI_RUN_COMMIT" external/ccbench) || exit 3
 read -r gitlink_mode gitlink_type CCBENCH_PIN gitlink_path <<<"$gitlink"
 [[ $gitlink_mode == 160000 && $gitlink_type == commit &&
    $gitlink_path == external/ccbench && $CCBENCH_PIN =~ ^[0-9a-f]{40}$ ]] || exit 3
-CCBENCH_SOURCE=$(realpath -e "$REPO/external/ccbench")
+CCBENCH_SOURCE=$(deadline_run 5 realpath -e "$REPO/external/ccbench")
 append_source_witness ccbench ccbench "$CCBENCH_SOURCE" "$CCBENCH_PIN"
 export IZANAGI_CCBENCH_SNAPSHOT="$IZANAGI_PROBE_STAGE/ccbench-source"
 snapshot_source "$CCBENCH_SOURCE" "$CCBENCH_PIN" "$IZANAGI_CCBENCH_SNAPSHOT" 90
@@ -214,7 +290,10 @@ deadline_run 60 cmake -S "$GLOG_SOURCE" -B "$IZANAGI_PROBE_STAGE/glog-build" \
 deadline_run 120 cmake --build "$IZANAGI_PROBE_STAGE/glog-build" -j 48
 deadline_run 30 cmake --install "$IZANAGI_PROBE_STAGE/glog-build"
 
-# Frozen serial phase table (seconds): PBS setup 903 + driver 1895 = 2798.
+# Frozen non-contingency serial sum (seconds): setup 903 + driver 2045 = 2948.
 # Driver adjacency is explicit: 12 * 5 + preflight 5 = 65.  TRACE=1 is
-# configure 90 + build 420.  Thus 2798 <= deadline 3300 < walltime 3600.
-deadline_run 1895 "$BUNDLE/t139_r4_env_probe.sh" "$OUT"
+# configure 90 + build 420; sample has a 960-second cap.  Therefore the
+# non-contingency serial sum is 903 + 2045 = 2948.  Including the only outer
+# TERM grace gives 903 + 2045 + 120 = 3068 <= deadline 3300 < walltime 3600.
+IN_DRIVER=1
+deadline_run 2045 "$BUNDLE/t139_r4_env_probe.sh" "$OUT"

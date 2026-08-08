@@ -70,7 +70,7 @@ TOP_LEVEL_KEYS = {
     "window_duration_ns",
     "window_tolerance_ns",
     "max_run_adjacency_ns",
-    "thresholds",
+    "fixed_upper",
     "runs",
     "windows",
     "workloads",
@@ -92,11 +92,9 @@ ATTEMPT_POLICY_KEYS = METADATA_KEYS | {
     "attempt_with_any_observed_window_is_terminal",
     "resubmissions_after_observation",
     "resubmittable",
-    "pre_submit_ledger_required",
-    "pre_submit_ledger_create_only",
-    "attempt_ordinal_reserved_before_qsub",
-    "pre_measurement_resubmission_limit",
-    "scheduler_evidence_required_for_pre_measurement_resubmission",
+    "namespace_observed_attempt_gate_required",
+    "scheduler_backed_pre_submit_ledger",
+    "enforcement_scope",
 }
 PHASE_BUDGET_KEYS = METADATA_KEYS | {
     "pbs_setup_cap_s",
@@ -105,8 +103,13 @@ PHASE_BUDGET_KEYS = METADATA_KEYS | {
     "trace1_configure_cap_s",
     "trace1_build_cap_s",
     "adjacency_budget_s",
+    "sample_cap_s",
     "driver_cap_s",
+    "termination_grace_s",
     "serial_noncontingency_s",
+    "serial_sum_expression",
+    "serial_with_termination_grace_s",
+    "serial_with_grace_expression",
     "absolute_deadline_s",
     "walltime_s",
 }
@@ -198,8 +201,8 @@ def validate_contract(contract: Any) -> dict[str, Any]:
         raise ContractError("window_tolerance_ns differs")
     if contract["max_run_adjacency_ns"] != MAX_ADJACENCY_NS:
         raise ContractError("max_run_adjacency_ns differs")
-    if contract["thresholds"] != ["1.0", "2.0"]:
-        raise ContractError("threshold ladder differs")
+    if contract["fixed_upper"] != "1.0":
+        raise ContractError("fixed_upper must be 1.0")
 
     runs = contract["runs"]
     _require_type(runs, list, "runs")
@@ -272,31 +275,49 @@ def validate_contract(contract: Any) -> dict[str, Any]:
         raise ContractError("resubmissions_after_observation must be zero")
     if policy["resubmittable"] is not False:
         raise ContractError("resubmittable must be false")
-    for key in (
-        "pre_submit_ledger_required",
-        "pre_submit_ledger_create_only",
-        "attempt_ordinal_reserved_before_qsub",
-        "scheduler_evidence_required_for_pre_measurement_resubmission",
-    ):
-        if policy[key] is not True:
-            raise ContractError(f"terminal_attempt_policy.{key} must be true")
-    if policy["pre_measurement_resubmission_limit"] != 1:
-        raise ContractError("pre_measurement_resubmission_limit must be one")
+    if policy["namespace_observed_attempt_gate_required"] is not True:
+        raise ContractError("the namespace observed-attempt gate must be enabled")
+    if policy["scheduler_backed_pre_submit_ledger"] is not False:
+        raise ContractError("the probe must not claim a scheduler-backed pre-submit ledger")
+    if policy["enforcement_scope"] != "existing_attempt_receipt_or_windows_tsv_observed_rows_only":
+        raise ContractError("terminal attempt enforcement scope differs")
 
     budget = contract["phase_budget"]
     _require_type(budget, dict, "phase_budget")
     _require_exact_keys(budget, PHASE_BUDGET_KEYS, "phase_budget")
     _require_metadata(budget, "phase_budget")
-    for key in PHASE_BUDGET_KEYS - METADATA_KEYS:
+    for key in PHASE_BUDGET_KEYS - METADATA_KEYS - {
+        "serial_sum_expression",
+        "serial_with_grace_expression",
+    }:
         _require_type(budget[key], int, f"phase_budget.{key}")
+    if budget["pbs_setup_cap_s"] != 903:
+        raise ContractError("PBS setup cap differs")
+    if budget["trace0_configure_cap_s"] != 60 or budget["trace0_build_cap_s"] != 180:
+        raise ContractError("TRACE=0 caps differ")
     if budget["trace1_configure_cap_s"] != 90 or budget["trace1_build_cap_s"] != 420:
         raise ContractError("TRACE=1 caps differ")
     if budget["adjacency_budget_s"] != 12 * 5 + 5:
         raise ContractError("adjacency budget must be 12 * 5 + 5 = 65 seconds")
-    if budget["driver_cap_s"] != 1895:
+    if budget["sample_cap_s"] != 960:
+        raise ContractError("sample cap differs")
+    if budget["driver_cap_s"] != 2045:
         raise ContractError("driver cap differs")
-    if budget["serial_noncontingency_s"] != 2798:
+    if budget["termination_grace_s"] != 120:
+        raise ContractError("termination grace differs")
+    if budget["serial_noncontingency_s"] != 2948:
         raise ContractError("serial non-contingency total differs")
+    if budget["serial_sum_expression"] != "903 + 2045 = 2948 <= 3300 < 3600":
+        raise ContractError("serial sum expression differs")
+    if budget["serial_with_termination_grace_s"] != 3068:
+        raise ContractError("serial total with termination grace differs")
+    if (
+        budget["serial_with_grace_expression"]
+        != "903 + 2045 + 120 = 3068 <= 3300 < 3600"
+    ):
+        raise ContractError("serial sum with termination grace expression differs")
+    if budget["absolute_deadline_s"] != 3300 or budget["walltime_s"] != 3600:
+        raise ContractError("absolute deadline or walltime differs")
     if not budget["serial_noncontingency_s"] <= budget["absolute_deadline_s"] < budget["walltime_s"]:
         raise ContractError("phase budget does not fit deadline and walltime")
     return contract
@@ -444,7 +465,7 @@ def derive_decision(
     builds_ok: bool,
     compiler_ok: bool,
 ) -> str:
-    """Return the frozen four-valued decision; diagnostics are not accepted."""
+    """Return the fixed-upper three-valued decision; diagnostics are not accepted."""
     if not runs_ok or not builds_ok or not compiler_ok:
         return "incomplete"
     if len(windows) != len(expected_window_ids):
@@ -468,9 +489,7 @@ def derive_decision(
             return "incomplete"
         pairs.append((busy, total))
     if all(48 * busy <= total for busy, total in pairs):
-        return "confirmed_1.0"
-    if all(24 * busy <= total for busy, total in pairs):
-        return "escalated_2.0"
+        return "feasible"
     return "not_feasible"
 
 
@@ -696,11 +715,23 @@ def _decorate_objects(value: Any) -> Any:
 def _write_json_atomic(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(
-        json.dumps(_decorate_objects(value), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    with temporary.open("w", encoding="utf-8") as handle:
+        handle.write(
+            json.dumps(_decorate_objects(value), ensure_ascii=False, indent=2, sort_keys=True)
+            + "\n"
+        )
+        handle.flush()
+        os.fsync(handle.fileno())
     os.replace(temporary, path)
+    _fsync_directory(path.parent)
+
+
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _read_json(path: Path) -> Any:
@@ -843,12 +874,33 @@ def _placeholder_run(spec: Mapping[str, Any], index: int) -> dict[str, Any]:
     }
 
 
-def new_state(contract: LoadedContract, *, commit: str, jobid: str) -> dict[str, Any]:
+def new_state(
+    contract: LoadedContract,
+    *,
+    commit: str,
+    jobid: str,
+    expected_contract_sha256: str | None = None,
+) -> dict[str, Any]:
     value = contract.value
+    expected_digest = expected_contract_sha256 or contract.sha256
+    try:
+        environment = capture_environment_diagnostics()
+    except BaseException as exc:
+        environment = {
+            **metadata(),
+            "diagnostics_only": True,
+            "capture_error": f"{type(exc).__name__}:{exc}",
+        }
     return {
         **metadata(),
         "schema_version": "t139-r4-env-probe-state/v1",
         "contract_sha256": contract.sha256,
+        "contract_digest_reads": {
+            **metadata(),
+            "contract_load_sha256": expected_digest,
+            "init_state_sha256": contract.sha256,
+            "exact_match": expected_digest == contract.sha256,
+        },
         "contract": value,
         "run_commit": commit,
         "job": {
@@ -863,7 +915,7 @@ def new_state(contract: LoadedContract, *, commit: str, jobid: str) -> dict[str,
             "finished_epoch_ns": None,
             "finished_monotonic_ns": None,
         },
-        "environment": capture_environment_diagnostics(),
+        "environment": environment,
         "compilers": {**metadata(), "gcc": None, "gxx": None, "identity_rechecks": []},
         "builds": [
             {
@@ -901,6 +953,64 @@ def new_state(contract: LoadedContract, *, commit: str, jobid: str) -> dict[str,
         "windows": [_placeholder_window(spec) for spec in value["windows"]],
         "failure_reasons": [],
     }
+
+
+def initialize_state(
+    contract_path: Path,
+    state_path: Path,
+    *,
+    commit: str,
+    jobid: str,
+    expected_contract_sha256: str,
+    contract_metadata_path: Path,
+) -> bool:
+    """Create a complete state even when the staged contract cannot be trusted."""
+    if re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise ContractError("run commit must be 40 lowercase hex digits")
+    if re.fullmatch(r"[0-9a-f]{64}", expected_contract_sha256) is None:
+        raise ContractError("expected contract digest must be 64 lowercase hex digits")
+    try:
+        staged_buffer = contract_path.read_bytes()
+        staged_digest = hashlib.sha256(staged_buffer).hexdigest()
+        loaded = hash_then_parse_contract(staged_buffer)
+        state = new_state(
+            loaded,
+            commit=commit,
+            jobid=jobid,
+            expected_contract_sha256=expected_contract_sha256,
+        )
+        if staged_digest != expected_contract_sha256:
+            state["failure_reasons"].append("contract_digest_mismatch:contract-load:init-state")
+            _write_json_atomic(state_path, state)
+            return False
+        _write_json_atomic(state_path, state)
+        return True
+    except BaseException as exc:
+        staged_digest = None
+        try:
+            staged_digest = hashlib.sha256(contract_path.read_bytes()).hexdigest()
+        except OSError:
+            pass
+        metadata_value = _read_json(contract_metadata_path)
+        fallback_value = validate_contract(metadata_value["validated_contract"])
+        fallback = LoadedContract(
+            buffer=b"",
+            sha256=staged_digest or "unreadable",
+            value=fallback_value,
+        )
+        state = new_state(
+            fallback,
+            commit=commit,
+            jobid=jobid,
+            expected_contract_sha256=expected_contract_sha256,
+        )
+        state["contract_digest_reads"]["init_state_sha256"] = staged_digest
+        state["contract_digest_reads"]["exact_match"] = False
+        state["failure_reasons"].append(
+            f"init_state_exception:{type(exc).__name__}:{exc}"
+        )
+        _write_json_atomic(state_path, state)
+        return False
 
 
 def _load_proc_endpoint() -> dict[str, Any]:
@@ -1258,17 +1368,39 @@ def _tsv_value(value: Any) -> str:
     return str(value)
 
 
-def _write_tsv(path: Path, fields: Sequence[str], rows: Iterable[Mapping[str, Any]]) -> None:
-    with path.open("w", encoding="utf-8", newline="") as handle:
+def _write_tsv_atomic(
+    path: Path, fields: Sequence[str], rows: Iterable[Mapping[str, Any]]
+) -> None:
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    with temporary.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(fields), delimiter="\t", extrasaction="ignore")
         writer.writeheader()
         for row in rows:
             writer.writerow({field: _tsv_value(row.get(field)) for field in fields})
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+    _fsync_directory(path.parent)
+
+
+def _create_completed_marker(path: Path, decision: str) -> None:
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o400)
+    try:
+        os.write(descriptor, f"{decision}\n".encode("ascii"))
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    _fsync_directory(path.parent)
 
 
 def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
     state = _read_json(state_path)
     contract = validate_contract(state["contract"])
+    termination_signal = {130: "INT", 143: "TERM"}.get(exit_rc)
+    if termination_signal is not None:
+        reason = f"driver_signal:{termination_signal}"
+        if reason not in state["failure_reasons"]:
+            state["failure_reasons"].append(reason)
     for index, build in enumerate(state["builds"]):
         if build.get("status") != "not_observed":
             continue
@@ -1301,19 +1433,17 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
     builds_ok = len(state["builds"]) == 2 and all(
         build.get("status") == "success" for build in state["builds"]
     )
-    compiler_ok = (
-        isinstance(state["compilers"].get("gcc"), dict)
-        and isinstance(state["compilers"].get("gxx"), dict)
-        and all(check.get("match") is True for check in state["compilers"].get("identity_rechecks", []))
-        and len(state["compilers"].get("identity_rechecks", [])) >= 4
-    )
-    decision = derive_decision(
-        state["windows"],
-        expected_ids,
-        runs_ok=runs_ok,
-        builds_ok=builds_ok,
-        compiler_ok=compiler_ok,
-    )
+    compiler_ok = compiler_rechecks_ok(state["compilers"])
+    if termination_signal is not None:
+        decision = "incomplete"
+    else:
+        decision = derive_decision(
+            state["windows"],
+            expected_ids,
+            runs_ok=runs_ok,
+            builds_ok=builds_ok,
+            compiler_ok=compiler_ok,
+        )
     state["job"]["finished_epoch_ns"] = time.time_ns()
     state["job"]["finished_monotonic_ns"] = time.monotonic_ns()
     observed_count = sum(window.get("observed") is True for window in state["windows"])
@@ -1323,8 +1453,21 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
         "scope": "non_study_environment_probe",
         "terminal_status": decision,
         "failure_reasons": list(state.get("failure_reasons", [])),
+        "driver_exit": {
+            **metadata(),
+            "returncode": exit_rc,
+            "signal": termination_signal,
+        },
         "resubmittable": False,
         "attempt_terminal": observed_count > 0,
+        "guarantee_scope": {
+            **metadata(),
+            "sigterm_finalization_attempted": True,
+            "sigkill_excluded": True,
+            "completion_requires_marker": "COMPLETED",
+            "rerun_gate": "existing receipt/windows.tsv observed rows in this namespace",
+            "scheduler_backed_pre_submit_ledger": False,
+        },
         "provenance": {
             **metadata(),
             "run_commit": state["run_commit"],
@@ -1332,6 +1475,7 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
                 **metadata(),
                 "path": CONTRACT_PATH,
                 "sha256": state["contract_sha256"],
+                "digest_reads": state.get("contract_digest_reads"),
             },
         },
         "job": state["job"],
@@ -1347,14 +1491,13 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
             "malformed_ids": [window["window_id"] for window in state["windows"] if window.get("status") == "malformed"],
             "not_observed_ids": [window["window_id"] for window in state["windows"] if window.get("status") == "not_observed"],
             "decision": decision,
-            "threshold_ladder": ["1.0", "2.0"],
-            "integer_comparisons": ["48*busy<=total", "24*busy<=total"],
+            "fixed_upper": "1.0",
+            "integer_comparisons": ["48*busy<=total"],
             "tps_used": False,
         },
     }
-    _write_json_atomic(output / "receipt.json", receipt)
     common = ["probe_series_id", "purpose", "study_eligible"]
-    _write_tsv(
+    _write_tsv_atomic(
         output / "windows.tsv",
         common
         + [
@@ -1396,7 +1539,7 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
         ],
         state["windows"],
     )
-    _write_tsv(
+    _write_tsv_atomic(
         output / "runs.tsv",
         common
         + [
@@ -1417,7 +1560,7 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
         ],
         state["runs"],
     )
-    _write_tsv(
+    _write_tsv_atomic(
         output / "builds.tsv",
         common
         + [
@@ -1439,6 +1582,8 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
         ],
         state["builds"],
     )
+    _write_json_atomic(output / "receipt.json", receipt)
+    _create_completed_marker(output / "COMPLETED", decision)
     return decision
 
 
@@ -1483,6 +1628,71 @@ def _recheck_compilers(state_path: Path, label: str) -> bool:
     return matches
 
 
+def compiler_rechecks_ok(compilers: Mapping[str, Any]) -> bool:
+    if not isinstance(compilers.get("gcc"), dict) or not isinstance(compilers.get("gxx"), dict):
+        return False
+    checks = compilers.get("identity_rechecks")
+    if type(checks) is not list:
+        return False
+    expected = {
+        (f"{position}-{kind}", compiler)
+        for kind in ("trace0", "trace1")
+        for position in ("before-configure", "before-build", "after-build")
+        for compiler in ("gcc", "gxx")
+    }
+    observed: set[tuple[str, str]] = set()
+    for check in checks:
+        if type(check) is not dict or check.get("match") is not True:
+            return False
+        key = (check.get("label"), check.get("compiler"))
+        if key in observed:
+            return False
+        observed.add(key)
+    return observed == expected
+
+
+def attempt_namespace_allows_start(namespace: Path) -> bool:
+    """Reject a rerun after any prior receipt/TSV records an observed window.
+
+    This is deliberately only an on-node namespace scan.  It is not a
+    scheduler-backed pre-submit ledger and cannot exclude a concurrently
+    starting job that has not published an observed row yet.
+    """
+    if not namespace.exists():
+        return True
+    if namespace.is_symlink() or not namespace.is_dir():
+        raise ValueError("probe namespace must be a real directory")
+    for attempt in sorted(namespace.iterdir(), key=lambda path: path.name):
+        if attempt.is_symlink() or not attempt.is_dir():
+            raise ValueError(f"unexpected namespace entry: {attempt}")
+        receipt_path = attempt / "receipt.json"
+        windows_path = attempt / "windows.tsv"
+        if receipt_path.is_symlink() or windows_path.is_symlink():
+            raise ValueError(f"attempt witness is a symlink: {attempt}")
+        if receipt_path.exists():
+            receipt = _read_json(receipt_path)
+            windows = receipt.get("windows")
+            if (
+                type(windows) is not list
+                or len(windows) != 13
+                or any(type(row) is not dict or type(row.get("observed")) is not bool for row in windows)
+            ):
+                raise ValueError(f"receipt windows are malformed: {receipt_path}")
+            if any(row["observed"] is True for row in windows):
+                return False
+        if windows_path.exists():
+            with windows_path.open("r", encoding="utf-8", newline="") as handle:
+                reader = csv.DictReader(handle, delimiter="\t")
+                if reader.fieldnames is None or "observed" not in reader.fieldnames:
+                    raise ValueError(f"windows TSV is malformed: {windows_path}")
+                rows = list(reader)
+            if len(rows) != 13 or any(row.get("observed") not in {"true", "false"} for row in rows):
+                raise ValueError(f"windows TSV rows are malformed: {windows_path}")
+            if any(row["observed"] == "true" for row in rows):
+                return False
+    return True
+
+
 def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1499,6 +1709,8 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     init.add_argument("--state", type=Path, required=True)
     init.add_argument("--commit", required=True)
     init.add_argument("--jobid", required=True)
+    init.add_argument("--expected-contract-sha256", required=True)
+    init.add_argument("--contract-metadata", type=Path, required=True)
 
     capture = subparsers.add_parser("capture-compilers")
     capture.add_argument("--state", type=Path, required=True)
@@ -1532,6 +1744,9 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     finish.add_argument("--output", type=Path, required=True)
     finish.add_argument("--exit-rc", type=int, default=0)
 
+    gate = subparsers.add_parser("attempt-gate")
+    gate.add_argument("--namespace", type=Path, required=True)
+
     subparsers.add_parser("monotonic-ns")
     return parser.parse_args(argv)
 
@@ -1543,15 +1758,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.output.write_bytes(loaded.buffer)
         _write_json_atomic(
             args.metadata_output,
-            {**metadata(), "path": args.path, "sha256": loaded.sha256, "size_bytes": len(loaded.buffer)},
+            {
+                **metadata(),
+                "path": args.path,
+                "sha256": loaded.sha256,
+                "size_bytes": len(loaded.buffer),
+                "validated_contract": loaded.value,
+                "digest_stage": "contract-load",
+            },
         )
+        print(loaded.sha256)
         return 0
     if args.command == "init-state":
-        loaded = hash_then_parse_contract(args.contract.read_bytes())
-        if re.fullmatch(r"[0-9a-f]{40}", args.commit) is None:
-            raise ContractError("run commit must be 40 lowercase hex digits")
-        _write_json_atomic(args.state, new_state(loaded, commit=args.commit, jobid=args.jobid))
-        return 0
+        return 0 if initialize_state(
+            args.contract,
+            args.state,
+            commit=args.commit,
+            jobid=args.jobid,
+            expected_contract_sha256=args.expected_contract_sha256,
+            contract_metadata_path=args.contract_metadata,
+        ) else 14
     if args.command == "capture-compilers":
         _record_compilers(args.state, args.output)
         return 0
@@ -1582,6 +1808,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         decision = finalize(args.state, args.output, exit_rc=args.exit_rc)
         print(decision)
         return 12 if decision == "incomplete" else 0
+    if args.command == "attempt-gate":
+        return 0 if attempt_namespace_allows_start(args.namespace) else 14
     if args.command == "monotonic-ns":
         print(time.monotonic_ns())
         return 0

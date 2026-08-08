@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import copy
+import csv
+import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -34,6 +39,50 @@ def _window(window_id: str, busy: int, total: int, status: str = "valid") -> dic
 def _decision_windows(busy: int, total: int) -> tuple[list[dict[str, object]], list[str]]:
     ids = ["preflight", *[f"post-{index:02d}" for index in range(1, 13)]]
     return [_window(window_id, busy, total) for window_id in ids], ids
+
+
+def _new_state(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
+    loaded = PROBE.hash_then_parse_contract(CONTRACT_PATH.read_bytes())
+    state = PROBE.new_state(
+        loaded,
+        commit="a" * 40,
+        jobid="test.1",
+        expected_contract_sha256=loaded.sha256,
+    )
+    output = tmp_path / "attempt"
+    output.mkdir()
+    state_path = output / "state.json"
+    PROBE._write_json_atomic(state_path, state)
+    return state_path, output, state
+
+
+def _successful_rechecks() -> list[dict[str, object]]:
+    return [
+        {"label": f"{position}-{kind}", "compiler": compiler, "match": True}
+        for kind in ("trace0", "trace1")
+        for position in ("before-configure", "before-build", "after-build")
+        for compiler in ("gcc", "gxx")
+    ]
+
+
+def _make_state_feasible(state: dict[str, object]) -> None:
+    windows = state["windows"]
+    assert isinstance(windows, list)
+    for window in windows:
+        window.update(observed=True, status="valid", failure_reasons=[], busy=0, total=48)
+    runs = state["runs"]
+    assert isinstance(runs, list)
+    for run in runs:
+        run.update(status="success", returncode=0, flags_match=True)
+    builds = state["builds"]
+    assert isinstance(builds, list)
+    for build in builds:
+        build.update(status="success", returncode=0)
+    compilers = state["compilers"]
+    assert isinstance(compilers, dict)
+    compilers["gcc"] = {"identity": "gcc"}
+    compilers["gxx"] = {"identity": "gxx"}
+    compilers["identity_rechecks"] = _successful_rechecks()
 
 
 def _compile_commands(trace: int, analysis: int) -> list[dict[str, object]]:
@@ -135,6 +184,14 @@ def test_total_zero_is_malformed() -> None:
     assert "total_not_positive" in result["failure_reasons"]
 
 
+def test_total_zero_is_independently_rejected_by_decision_layer() -> None:
+    windows, ids = _decision_windows(0, 48)
+    windows[0]["total"] = 0
+    assert PROBE.derive_decision(
+        windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
+    ) == "incomplete"
+
+
 def test_iowait_is_counted_as_busy() -> None:
     result = PROBE.analyze_window(
         _line([100] * 8),
@@ -166,14 +223,14 @@ def test_decision_exactly_one_point_zero() -> None:
     windows, ids = _decision_windows(1, 48)
     assert PROBE.derive_decision(
         windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    ) == "confirmed_1.0"
+    ) == "feasible"
 
 
-def test_decision_exactly_two_point_zero() -> None:
-    windows, ids = _decision_windows(1, 24)
+def test_decision_one_point_zero_one_violates_fixed_upper() -> None:
+    windows, ids = _decision_windows(101, 4800)
     assert PROBE.derive_decision(
         windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    ) == "escalated_2.0"
+    ) == "not_feasible"
 
 
 def test_decision_above_two_point_zero() -> None:
@@ -203,7 +260,22 @@ def test_diagnostics_do_not_change_positive_decision() -> None:
     decision_b = PROBE.derive_decision(
         receipt_b["windows"], ids, runs_ok=True, builds_ok=True, compiler_ok=True
     )
-    assert decision_a == decision_b == "confirmed_1.0"
+    assert decision_a == decision_b == "feasible"
+
+
+def test_analyze_window_call_site_duration_gate_reaches_decision() -> None:
+    windows, ids = _decision_windows(0, 48)
+    analyzed = PROBE.analyze_window(
+        _line([100] * 8),
+        _line([100, 100, 100, 148, 100, 100, 100, 100]),
+        10_100_000_001,
+        0,
+    )
+    analyzed["window_id"] = ids[0]
+    windows[0] = analyzed
+    assert PROBE.derive_decision(
+        windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
+    ) == "incomplete"
 
 
 def test_contract_exact_schema_types_lengths_and_metadata() -> None:
@@ -213,11 +285,15 @@ def test_contract_exact_schema_types_lengths_and_metadata() -> None:
     assert len(contract["windows"]) == 13
     assert len(contract["runs"]) == 13
     assert len(contract["counter_names"]) == 8
-    assert contract["thresholds"] == ["1.0", "2.0"]
+    assert contract["fixed_upper"] == "1.0"
     assert contract["phase_budget"]["adjacency_budget_s"] == 12 * 5 + 5 == 65
     assert contract["terminal_attempt_policy"]["resubmissions_after_observation"] == 0
-    assert contract["terminal_attempt_policy"]["pre_submit_ledger_create_only"] is True
-    assert contract["terminal_attempt_policy"]["pre_measurement_resubmission_limit"] == 1
+    assert contract["terminal_attempt_policy"]["namespace_observed_attempt_gate_required"] is True
+    assert contract["terminal_attempt_policy"]["scheduler_backed_pre_submit_ledger"] is False
+    assert contract["phase_budget"]["sample_cap_s"] == 960
+    assert contract["phase_budget"]["driver_cap_s"] == 2045
+    assert contract["phase_budget"]["serial_noncontingency_s"] == 2948
+    assert contract["phase_budget"]["serial_with_termination_grace_s"] == 3068
     _assert_all_objects_have_metadata(contract)
 
 
@@ -374,6 +450,563 @@ def test_configure_argv_uses_absolute_compiler_paths_and_trace_split() -> None:
     assert "-DCMAKE_CXX_COMPILER=/usr/bin/g++-11" in trace0
 
 
+def test_trace1_build_failure_finalizes_all_expected_rows(tmp_path: Path) -> None:
+    state_path, output, _state = _new_state(tmp_path)
+    argv_path = output / "configure-trace1.argv.json"
+    argv_path.write_text("[]\n", encoding="utf-8")
+    configure_log = output / "configure-trace1.log"
+    build_log = output / "build-trace1.log"
+    configure_log.write_text("configured\n", encoding="utf-8")
+    build_log.write_text("failed\n", encoding="utf-8")
+    PROBE.record_build(
+        state_path,
+        kind="trace1",
+        status="failed",
+        returncode=7,
+        configure_elapsed_ns=1,
+        build_elapsed_ns=2,
+        configure_argv=[],
+        configure_log=configure_log,
+        build_log=build_log,
+        cache_path=None,
+        compile_commands_path=None,
+        binary_path=None,
+    )
+
+    assert PROBE.finalize(state_path, output, exit_rc=7) == "incomplete"
+    receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["terminal_status"] == "incomplete"
+    assert receipt["builds"][1]["status"] == "failed"
+    assert receipt["builds"][1]["returncode"] == 7
+    for name, expected_rows in (("windows.tsv", 13), ("runs.tsv", 13), ("builds.tsv", 2)):
+        with (output / name).open(encoding="utf-8", newline="") as handle:
+            assert len(list(csv.DictReader(handle, delimiter="\t"))) == expected_rows
+    assert (output / "COMPLETED").read_text(encoding="ascii") == "incomplete\n"
+
+
+@pytest.mark.parametrize(("exit_rc", "signal_name"), [(143, "TERM"), (130, "INT")])
+def test_signal_finalization_records_origin_and_stays_incomplete(
+    tmp_path: Path, exit_rc: int, signal_name: str
+) -> None:
+    state_path, output, state = _new_state(tmp_path)
+    _make_state_feasible(state)
+    PROBE._write_json_atomic(state_path, state)
+
+    assert PROBE.finalize(state_path, output, exit_rc=exit_rc) == "incomplete"
+    receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["terminal_status"] == "incomplete"
+    assert receipt["driver_exit"]["returncode"] == exit_rc
+    assert receipt["driver_exit"]["signal"] == signal_name
+    assert f"driver_signal:{signal_name}" in receipt["failure_reasons"]
+
+
+def test_run_failure_records_first_row_without_consuming_remaining_waits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_path, output, _state = _new_state(tmp_path)
+    binary = output / "fake-ycsb"
+    binary.write_bytes(b"fake")
+    calls: list[list[str]] = []
+
+    def fake_samples(start_target: int, end_target: int) -> tuple[dict[str, object], dict[str, object]]:
+        start = {
+            "begin_ns": start_target,
+            "end_ns": start_target,
+            "sample_ns": start_target,
+            "text": _line([100] * 8),
+            "load1": "999",
+            "foreign_count": 999,
+        }
+        end = {
+            "begin_ns": end_target,
+            "end_ns": end_target,
+            "sample_ns": end_target,
+            "text": _line([100, 100, 100, 148, 100, 100, 100, 100]),
+            "load1": "999",
+            "foreign_count": 999,
+        }
+        return start, end
+
+    class FailedProcess:
+        def __init__(self, argv: list[str], **_kwargs: object) -> None:
+            calls.append(argv)
+
+        def wait(self, timeout: int | None = None) -> int:
+            assert timeout == 15
+            return 7
+
+        def poll(self) -> int:
+            return 7
+
+    monkeypatch.setattr(PROBE, "_sample_window_targets", fake_samples)
+    monkeypatch.setattr(PROBE.subprocess, "Popen", FailedProcess)
+    assert PROBE.run_schedule(state_path, binary, output) == 12
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert len(calls) == 1
+    assert state["runs"][0]["status"] == "failed"
+    assert all(run["status"] == "not_observed" for run in state["runs"][1:])
+    assert state["windows"][0]["observed"] is True
+    assert all(window["observed"] is False for window in state["windows"][1:])
+    assert PROBE.finalize(state_path, output, exit_rc=12) == "incomplete"
+    assert (output / "COMPLETED").is_file()
+
+
+def test_sigterm_path_can_only_complete_after_all_publishes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_path, output, _state = _new_state(tmp_path)
+    binary = output / "fake-ycsb"
+    binary.write_bytes(b"fake")
+
+    def terminate_during_sample(_start: int, _end: int) -> tuple[dict[str, object], dict[str, object]]:
+        os.kill(os.getpid(), signal.SIGTERM)
+        raise AssertionError("signal handler did not interrupt the sampler")
+
+    monkeypatch.setattr(PROBE, "_sample_window_targets", terminate_during_sample)
+    assert PROBE.run_schedule(state_path, binary, output) == 143
+    assert not (output / "COMPLETED").exists()
+    assert PROBE.finalize(state_path, output, exit_rc=143) == "incomplete"
+    assert all((output / name).is_file() for name in ("windows.tsv", "runs.tsv", "builds.tsv"))
+    assert (output / "receipt.json").is_file()
+    assert (output / "COMPLETED").is_file()
+
+
+def test_shell_sigterm_trap_finalizes_before_reporting_completion(tmp_path: Path) -> None:
+    output = tmp_path / "attempt"
+    output.mkdir()
+    stage = tmp_path / "stage"
+    stage.mkdir()
+    required_dirs = [
+        tmp_path / name for name in ("snapshot", "third", "gflags", "glog")
+    ]
+    for directory in required_dirs:
+        directory.mkdir()
+    (required_dirs[0] / "snapshot-witness").write_text("fixture\n", encoding="utf-8")
+
+    loaded = PROBE.hash_then_parse_contract(CONTRACT_PATH.read_bytes())
+    contract = tmp_path / "contract.json"
+    contract.write_bytes(loaded.buffer)
+    contract_metadata = tmp_path / "contract-metadata.json"
+    contract_metadata.write_text(
+        json.dumps({"validated_contract": loaded.value}) + "\n", encoding="utf-8"
+    )
+
+    phase_marker = tmp_path / "copy-phase-entered"
+    wait_fifo = tmp_path / "copy-phase-wait"
+    os.mkfifo(wait_fifo)
+    stub_bin = tmp_path / "stub-bin"
+    stub_bin.mkdir()
+    cp_stub = stub_bin / "cp"
+    cp_stub.write_text(
+        """#!/bin/bash
+set -u
+: > "$IZANAGI_TEST_PHASE_MARKER"
+exec 3<> "$IZANAGI_TEST_WAIT_FIFO"
+read -r _ <&3
+""",
+        encoding="utf-8",
+    )
+    cp_stub.chmod(0o755)
+
+    driver_wrapper = tmp_path / "driver-wrapper.py"
+    driver_wrapper.write_text(
+        """import importlib.util
+import os
+from pathlib import Path
+import sys
+
+spec = importlib.util.spec_from_file_location(
+    "t139_r4_env_probe_wrapped", os.environ["IZANAGI_TEST_PROBE"]
+)
+assert spec is not None and spec.loader is not None
+probe = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = probe
+spec.loader.exec_module(probe)
+
+if sys.argv[1] == "finalize":
+    order = Path(os.environ["IZANAGI_TEST_PUBLISH_ORDER"])
+
+    def record(name):
+        with order.open("a", encoding="utf-8") as handle:
+            handle.write(name + "\\n")
+
+    original_tsv = probe._write_tsv_atomic
+    original_json = probe._write_json_atomic
+    original_marker = probe._create_completed_marker
+
+    def write_tsv(path, *args, **kwargs):
+        result = original_tsv(path, *args, **kwargs)
+        record(Path(path).name)
+        return result
+
+    def write_json(path, *args, **kwargs):
+        result = original_json(path, *args, **kwargs)
+        if Path(path).name == "receipt.json":
+            record(Path(path).name)
+        return result
+
+    def create_marker(path, *args, **kwargs):
+        result = original_marker(path, *args, **kwargs)
+        record(Path(path).name)
+        return result
+
+    probe._write_tsv_atomic = write_tsv
+    probe._write_json_atomic = write_json
+    probe._create_completed_marker = create_marker
+
+raise SystemExit(probe.main())
+""",
+        encoding="utf-8",
+    )
+    order_log = output / "order.log"
+    environment = {
+        **os.environ,
+        "PATH": f"{stub_bin}{os.pathsep}{os.environ['PATH']}",
+        "IZANAGI_T139_R4_PYTHON": str(driver_wrapper),
+        "IZANAGI_T139_R4_INTERPRETER": sys.executable,
+        "IZANAGI_T139_R4_CONTRACT_BLOB": str(contract),
+        "IZANAGI_T139_R4_CONTRACT_METADATA": str(contract_metadata),
+        "IZANAGI_T139_R4_CONTRACT_SHA256": loaded.sha256,
+        "IZANAGI_CCBENCH_SNAPSHOT": str(required_dirs[0]),
+        "IZANAGI_THIRDPARTY_SOURCE_ROOT": str(required_dirs[1]),
+        "IZANAGI_GFLAGS_INSTALL": str(required_dirs[2]),
+        "IZANAGI_GLOG_INSTALL": str(required_dirs[3]),
+        "IZANAGI_GFLAGS_SRC_HEAD": "b" * 40,
+        "IZANAGI_GLOG_SRC_HEAD": "c" * 40,
+        "IZANAGI_RUN_COMMIT": "d" * 40,
+        "IZANAGI_PROBE_STAGE": str(stage),
+        "IZANAGI_TEST_PHASE_MARKER": str(phase_marker),
+        "IZANAGI_TEST_WAIT_FIFO": str(wait_fifo),
+        "IZANAGI_TEST_PROBE": str(PROBE_PATH),
+        "IZANAGI_TEST_PUBLISH_ORDER": str(order_log),
+        "PBS_JOBID": "signal.1",
+    }
+    process = subprocess.Popen(
+        ["bash", str(SH_PATH), str(output)],
+        env=environment,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    stdout = stderr = ""
+    try:
+        deadline = time.monotonic() + 5
+        while (
+            not phase_marker.exists()
+            and process.poll() is None
+            and time.monotonic() < deadline
+        ):
+            time.sleep(0.01)
+        if not phase_marker.exists():
+            if process.poll() is not None:
+                stdout, stderr = process.communicate()
+            raise AssertionError(
+                "driver did not reach copy phase: "
+                f"rc={process.poll()} stdout={stdout!r} stderr={stderr!r}"
+            )
+
+        state = json.loads((output / "state.json").read_text(encoding="utf-8"))
+        assert (stage / "ccbench-stock").is_dir()
+        assert all(build["status"] == "not_observed" for build in state["builds"])
+        assert process.poll() is None
+        assert not (output / "COMPLETED").exists()
+
+        os.killpg(process.pid, signal.SIGTERM)
+        stdout, stderr = process.communicate(timeout=10)
+    finally:
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.communicate(timeout=5)
+
+    assert process.returncode == 143, f"stdout={stdout!r} stderr={stderr!r}"
+    assert order_log.read_text(encoding="utf-8").splitlines() == [
+        "windows.tsv",
+        "runs.tsv",
+        "builds.tsv",
+        "receipt.json",
+        "COMPLETED",
+    ]
+    expected_tsv_rows = (("windows.tsv", 13), ("runs.tsv", 13), ("builds.tsv", 2))
+    for name, expected_rows in expected_tsv_rows:
+        with (output / name).open(encoding="utf-8", newline="") as handle:
+            assert len(list(csv.DictReader(handle, delimiter="\t"))) == expected_rows
+    receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["terminal_status"] == "incomplete"
+    assert receipt["driver_exit"] == {
+        **PROBE.metadata(),
+        "returncode": 143,
+        "signal": "TERM",
+    }
+    assert "driver_signal:TERM" in receipt["failure_reasons"]
+    assert (output / "COMPLETED").read_text(encoding="ascii") == "incomplete\n"
+
+
+def test_shell_phase_cap_124_is_not_recorded_as_signal_termination(tmp_path: Path) -> None:
+    output = tmp_path / "attempt"
+    output.mkdir()
+    stage = tmp_path / "stage"
+    stage.mkdir()
+    required_dirs = [
+        tmp_path / name for name in ("snapshot", "third", "gflags", "glog")
+    ]
+    for directory in required_dirs:
+        directory.mkdir()
+
+    loaded = PROBE.hash_then_parse_contract(CONTRACT_PATH.read_bytes())
+    contract = tmp_path / "contract.json"
+    contract.write_bytes(loaded.buffer)
+    contract_metadata = tmp_path / "contract-metadata.json"
+    contract_metadata.write_text(
+        json.dumps({"validated_contract": loaded.value}) + "\n", encoding="utf-8"
+    )
+
+    timeout_marker = tmp_path / "timeout-returned-124"
+    stub_bin = tmp_path / "stub-bin"
+    stub_bin.mkdir()
+    timeout_stub = stub_bin / "timeout"
+    timeout_stub.write_text(
+        """#!/bin/bash
+set -u
+: > "$IZANAGI_TEST_TIMEOUT_MARKER"
+exit 124
+""",
+        encoding="utf-8",
+    )
+    timeout_stub.chmod(0o755)
+
+    environment = {
+        **os.environ,
+        "PATH": f"{stub_bin}{os.pathsep}{os.environ['PATH']}",
+        "IZANAGI_T139_R4_PYTHON": str(PROBE_PATH),
+        "IZANAGI_T139_R4_INTERPRETER": sys.executable,
+        "IZANAGI_T139_R4_CONTRACT_BLOB": str(contract),
+        "IZANAGI_T139_R4_CONTRACT_METADATA": str(contract_metadata),
+        "IZANAGI_T139_R4_CONTRACT_SHA256": loaded.sha256,
+        "IZANAGI_CCBENCH_SNAPSHOT": str(required_dirs[0]),
+        "IZANAGI_THIRDPARTY_SOURCE_ROOT": str(required_dirs[1]),
+        "IZANAGI_GFLAGS_INSTALL": str(required_dirs[2]),
+        "IZANAGI_GLOG_INSTALL": str(required_dirs[3]),
+        "IZANAGI_GFLAGS_SRC_HEAD": "b" * 40,
+        "IZANAGI_GLOG_SRC_HEAD": "c" * 40,
+        "IZANAGI_RUN_COMMIT": "d" * 40,
+        "IZANAGI_PROBE_STAGE": str(stage),
+        "IZANAGI_TEST_TIMEOUT_MARKER": str(timeout_marker),
+        "PBS_JOBID": "cap.1",
+    }
+    result = subprocess.run(
+        ["bash", str(SH_PATH), str(output)],
+        env=environment,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+    assert timeout_marker.is_file()
+    assert result.returncode == 8, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["terminal_status"] == "incomplete"
+    assert receipt["driver_exit"] == {
+        **PROBE.metadata(),
+        "returncode": 8,
+        "signal": None,
+    }
+    assert all(
+        not reason.startswith("driver_signal:") for reason in receipt["failure_reasons"]
+    )
+    assert (output / "COMPLETED").read_text(encoding="ascii") == "incomplete\n"
+
+
+def test_finalize_exception_never_marks_partial_publish_completed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_path, output, _state = _new_state(tmp_path)
+    original = PROBE._write_json_atomic
+
+    def fail_receipt(path: Path, value: object) -> None:
+        if path.name == "receipt.json":
+            raise OSError("injected receipt publish failure")
+        original(path, value)
+
+    monkeypatch.setattr(PROBE, "_write_json_atomic", fail_receipt)
+    with pytest.raises(OSError, match="injected receipt"):
+        PROBE.finalize(state_path, output, exit_rc=12)
+    assert all((output / name).is_file() for name in ("windows.tsv", "runs.tsv", "builds.tsv"))
+    assert not (output / "receipt.json").exists()
+    assert not (output / "COMPLETED").exists()
+
+
+def test_publish_order_is_atomic_tsv_then_receipt_then_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_path, output, _state = _new_state(tmp_path)
+    published: list[str] = []
+    original_replace = PROBE.os.replace
+    original_marker = PROBE._create_completed_marker
+
+    def record_replace(source: Path, destination: Path) -> None:
+        original_replace(source, destination)
+        if Path(destination).parent == output:
+            published.append(Path(destination).name)
+
+    def record_marker(path: Path, decision: str) -> None:
+        original_marker(path, decision)
+        published.append(path.name)
+
+    monkeypatch.setattr(PROBE.os, "replace", record_replace)
+    monkeypatch.setattr(PROBE, "_create_completed_marker", record_marker)
+    assert PROBE.finalize(state_path, output, exit_rc=12) == "incomplete"
+    assert published[-5:] == [
+        "windows.tsv",
+        "runs.tsv",
+        "builds.tsv",
+        "receipt.json",
+        "COMPLETED",
+    ]
+
+
+def test_staged_contract_replacement_trips_init_digest_comparison(tmp_path: Path) -> None:
+    payload = CONTRACT_PATH.read_bytes()
+    expected_digest = hashlib.sha256(payload).hexdigest()
+    loaded = PROBE.hash_then_parse_contract(payload)
+    staged = tmp_path / "contract.json"
+    staged.write_bytes(payload + b"\n")
+    metadata_path = tmp_path / "contract-metadata.json"
+    metadata_path.write_text(
+        json.dumps({"validated_contract": loaded.value}), encoding="utf-8"
+    )
+    state_path = tmp_path / "state.json"
+    assert PROBE.main(
+        [
+            "init-state",
+            "--contract",
+            str(staged),
+            "--state",
+            str(state_path),
+            "--commit",
+            "a" * 40,
+            "--jobid",
+            "test.1",
+            "--expected-contract-sha256",
+            expected_digest,
+            "--contract-metadata",
+            str(metadata_path),
+        ]
+    ) == 14
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    reads = state["contract_digest_reads"]
+    assert reads["contract_load_sha256"] == expected_digest
+    assert reads["init_state_sha256"] == hashlib.sha256(staged.read_bytes()).hexdigest()
+    assert reads["exact_match"] is False
+    assert "contract_digest_mismatch:contract-load:init-state" in state["failure_reasons"]
+
+
+def test_init_state_exception_still_creates_all_expected_state_rows(tmp_path: Path) -> None:
+    payload = CONTRACT_PATH.read_bytes()
+    loaded = PROBE.hash_then_parse_contract(payload)
+    staged = tmp_path / "contract.json"
+    staged.write_bytes(b"not-json")
+    metadata_path = tmp_path / "contract-metadata.json"
+    metadata_path.write_text(
+        json.dumps({"validated_contract": loaded.value}), encoding="utf-8"
+    )
+    state_path = tmp_path / "state.json"
+    assert not PROBE.initialize_state(
+        staged,
+        state_path,
+        commit="a" * 40,
+        jobid="test.1",
+        expected_contract_sha256=loaded.sha256,
+        contract_metadata_path=metadata_path,
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert len(state["windows"]) == 13
+    assert len(state["runs"]) == 13
+    assert len(state["builds"]) == 2
+    assert state["failure_reasons"][0].startswith("init_state_exception:ContractError:")
+
+
+def test_finalize_call_site_does_not_forward_diagnostics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_path, output, state = _new_state(tmp_path)
+    _make_state_feasible(state)
+    state["environment"] = {
+        "load1": "999",
+        "foreign_process_count": 999,
+        "cgroup_text": "diagnostic-only",
+    }
+    PROBE._write_json_atomic(state_path, state)
+    original = PROBE.derive_decision
+    calls: list[tuple[int, bool, bool, bool]] = []
+
+    def exact_decision_signature(
+        windows: list[dict[str, object]],
+        expected_ids: list[str],
+        *,
+        runs_ok: bool,
+        builds_ok: bool,
+        compiler_ok: bool,
+    ) -> str:
+        calls.append((len(windows), runs_ok, builds_ok, compiler_ok))
+        return original(
+            windows,
+            expected_ids,
+            runs_ok=runs_ok,
+            builds_ok=builds_ok,
+            compiler_ok=compiler_ok,
+        )
+
+    monkeypatch.setattr(PROBE, "derive_decision", exact_decision_signature)
+    assert PROBE.finalize(state_path, output) == "feasible"
+    assert calls == [(13, True, True, True)]
+
+
+def test_compiler_rechecks_require_build_immediate_and_post_build_labels() -> None:
+    compilers = {
+        "gcc": {},
+        "gxx": {},
+        "identity_rechecks": _successful_rechecks(),
+    }
+    assert PROBE.compiler_rechecks_ok(compilers)
+    compilers["identity_rechecks"] = [
+        row for row in compilers["identity_rechecks"] if row["label"] != "before-build-trace1"
+    ]
+    assert not PROBE.compiler_rechecks_ok(compilers)
+
+
+def test_attempt_gate_rejects_observed_receipt_and_tsv_rows(tmp_path: Path) -> None:
+    namespace = tmp_path / "probe"
+    attempt = namespace / "job-1"
+    attempt.mkdir(parents=True)
+    (attempt / "receipt.json").write_text(
+        json.dumps({"windows": [{"observed": False} for _ in range(13)]}), encoding="utf-8"
+    )
+    assert PROBE.attempt_namespace_allows_start(namespace)
+    (attempt / "receipt.json").write_text(
+        json.dumps({"windows": [{"observed": index == 0} for index in range(13)]}),
+        encoding="utf-8",
+    )
+    assert not PROBE.attempt_namespace_allows_start(namespace)
+    (attempt / "receipt.json").unlink()
+    (attempt / "windows.tsv").write_text(
+        "window_id\tobserved\n"
+        + "\n".join(
+            f"{'preflight' if index == 0 else f'post-{index:02d}'}\t"
+            f"{'true' if index == 0 else 'false'}"
+            for index in range(13)
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert not PROBE.attempt_namespace_allows_start(namespace)
+    assert PROBE.main(["attempt-gate", "--namespace", str(namespace)]) == 14
+
+
 @pytest.mark.parametrize("path", [SH_PATH, PBS_PATH])
 def test_shell_artifacts_pass_bash_n(path: Path) -> None:
     completed = subprocess.run(
@@ -384,11 +1017,18 @@ def test_shell_artifacts_pass_bash_n(path: Path) -> None:
 
 def test_driver_static_caps_order_and_finalizer_contract() -> None:
     shell = SH_PATH.read_text(encoding="utf-8")
-    assert "DRIVER_CAP_NS=1895000000000" in shell
+    assert "DRIVER_CAP_NS=2045000000000" in shell
+    assert "driver_run 960" in shell
     assert "record_one_build trace0 0 0 60 180" in shell
     assert "record_one_build trace1 1 1 90 420" in shell
     assert shell.index("record_one_build trace0") < shell.index("sample --state")
-    assert "trap finalize_driver EXIT" in shell
+    assert shell.index("trap finalize_driver EXIT") < shell.index("monotonic-ns")
+    assert "before-build-$kind" in shell
+    assert "after-build-$kind" in shell
+    assert shell.index("before-build-$kind") < shell.index("cmake --build")
+    assert shell.index("cmake --build") < shell.index("after-build-$kind")
+    assert "if [[ -e $OUT/COMPLETED ]]; then FINALIZED=1; fi" in shell
+    assert "SIGKILL cannot run a trap" in shell
     assert "time.monotonic_ns" not in shell  # delegated to the Python monotonic clock
     assert "monotonic-ns" in shell
 
@@ -398,9 +1038,16 @@ def test_pbs_contract_blob_namespace_and_phase_budget_are_static() -> None:
     assert "output/env/pegasus/t139-r4-env-probe" in pbs
     assert "contract-load" in pbs
     assert "cat-file blob" in pbs
+    assert "rev-parse --show-toplevel" in pbs
+    assert "rev-parse --absolute-git-dir" in pbs
+    assert "rev-parse --git-common-dir" in pbs
+    assert "IZANAGI_T139_EXPECTED_WORKTREE_ROOT" in pbs
+    assert "attempt-gate" in pbs
+    assert "mkdir -p" not in pbs
     assert "12 * 5 + preflight 5 = 65" in pbs
-    assert "deadline_run 1895" in pbs
-    assert "2798 <= deadline 3300 < walltime 3600" in pbs
+    assert "deadline_run 2045" in pbs
+    assert "903 + 2045 + 120 = 3068 <= deadline 3300 < walltime 3600" in pbs
+    assert "date +%s" not in pbs
 
 
 def _run() -> int:
