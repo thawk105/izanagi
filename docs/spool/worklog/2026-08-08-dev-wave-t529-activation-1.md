@@ -95,3 +95,10 @@ title: [T-529] 契約世代の活性化権限を実装した — 第 2 世代は
 - {{T:activation-tail-rollback-observability}} **P3・新規**: production 層の末尾巻き戻し検査は
   chain が 1 record の間は空 chain 拒否に mask されて観測できない。第 2 世代の活性化後に
   head=2 の状態で検出力を確認する。
+- {{T:dev-wave-budget-for-grep-authority}} **P2・ユーザー裁定待ち**: 段 8 の改善 2 件を
+  dev-wave 本文へ入れる予算が無い。`docs/dev-wave/**` の合計は 25185 / 25200 bytes で
+  空きが 15 bytes しかなく、入れたい 2 行 (`DW-O09` へ「tracked の閉包は `git grep` を
+  authority とする」、`DW-S06-B` へ「scope 除外は file でなく禁じる挙動で書く」) が
+  合計 256 bytes 必要。両方とも実測に基づく (前者は {{F:grep-r-misses-tracked-hit}}、
+  後者は F112 の独立 2 例目)。上限引き上げは提案せず、陳腐化した節の削除で空けるか
+  見送るかの裁定を求める (節の削除はユーザー裁定に限る)。
