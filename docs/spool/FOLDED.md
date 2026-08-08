@@ -565,3 +565,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:walltime-queue-wait-correlation":"[T-670]"},"authored":"2026-08-08","content_sha256":"6762dce2b523b05560b40cabf244e540e9ce13b6b2381f32277f54b93a5aa6ea","seq":1,"wave":"dev-wave-t656-walltime"}
 - {"allocations":{"D:dispatch-default-walltime-40min":"D244"},"authored":"2026-08-08","content_sha256":"3cc7bcdc473b79fea6752260d9734be9cb3ddab14419f31104f42c9160b18465","seq":2,"wave":"dev-wave-t656-walltime"}
 - {"allocations":{},"authored":"2026-08-08","content_sha256":"e7cad804904b303e23dd40cdf1acfb62b38f06ae2935b083c1f7f6fc8bd1a721","seq":3,"wave":"dev-wave-t656-walltime"}
+
+- {"allocations":{"D:activation-transition-bound-pair":"D245"},"authored":"2026-08-08","content_sha256":"fa67818eb8e8317af0e27d2dd828a4458d445a841d2e6ee783cf681ec8a75f6e","seq":1,"wave":"dev-wave-t627-noop-binding"}
+- {"allocations":{"T:activation-certified-writer-source-binding":"[T-671]","T:activation-transition-property-based-tests":"[T-673]","T:dev-wave-mid-wave-contract-change":"[T-672]"},"authored":"2026-08-08","content_sha256":"4c3c1c3bbe9966f61b66987edf2a4f0e58d417fe76d906f3213f9e518962d824","seq":2,"wave":"dev-wave-t627-noop-binding"}
