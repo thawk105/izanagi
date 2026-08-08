@@ -5342,6 +5342,53 @@ def test_dev_wave_reasoning_effort_pin_production_path_requires_independent_s06_
                 shutil.rmtree(root, ignore_errors=True)
 
 
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_unicode_line_separators_exact(
+):
+    cases = (
+        ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING),
+        ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING),
+    )
+    separators = ("\u2028", "\u2029", "\v", "\f", "\u0085")
+    for section_id, finding in cases:
+        sentence = {
+            "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,
+            "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,
+        }[section_id]
+        for separator in separators:
+            root = _build_min_repo()
+            try:
+                rel = "docs/dev-wave/workers.md"
+                _write(
+                    root,
+                    rel,
+                    _replace_workers_section_sentence(
+                        _read(root, rel),
+                        section_id,
+                        f"参考（旧規範）:{separator}{sentence}",
+                    ),
+                )
+                res = _run_check(root)
+                assert res.returncode != 0, res.stdout
+                assert _finding_set(res) == {finding}
+            finally:
+                shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_production_path_accepts_crlf_document_exact(
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/workers.md"
+        workers = _read(root, rel)
+        assert "\r" not in workers
+        _write_bytes(root, rel, workers.replace("\n", "\r\n").encode("utf-8"))
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert _finding_set(res) == set()
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _assert_s06_extra_visible_effort_rejected(section_id, finding):
     root = _build_min_repo()
     try:

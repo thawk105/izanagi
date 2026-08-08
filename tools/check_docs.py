@@ -3445,7 +3445,7 @@ def _check_dev_wave_reasoning_effort_pins(
             for match in DEV_WAVE_REASONING_EFFORT_RE.finditer(visible_section)
         ]
         required_text_count = (
-            visible_section.splitlines().count(required_text)
+            visible_section.replace("\r\n", "\n").split("\n").count(required_text)
             if section_id in {"DW-S06-A", "DW-S06-C"}
             else visible_section.count(required_text)
         )
