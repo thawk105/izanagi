@@ -758,6 +758,19 @@ python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json 
   止められない (fencing token が無い)。その場合の帰結は本機構が無かった場合と同じ競合であり、
   悪化はしない。release の権限証明は wave slug の digest だけである。
 
+### 7.4 変異 harness の runner argv
+
+`tools/mutation_harness.py --runner-mode dispatch` は「runner が計算ノードへ投げる」ことを
+保証しない。`tools/run_tests.py` はログインノードに余裕があると local で走り、その経路は
+harness が要求する dispatch receipt 行を出さないため、baseline が `PARSE_ERROR` で中断する。
+**runner argv に `--force-dispatch` を必ず付ける。**
+
+```
+python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
+  --expected-spec-sha256 <sha> --out <ledger> --runner-mode dispatch --detached \
+  -- python3 tools/run_tests.py --force-dispatch <対象テスト> -q -rf
+```
+
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した
