@@ -587,3 +587,8 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:dispatch-relay-diagnostic-reach":"[T-677]","T:flake-absence-evidence":"[T-680]","T:launcher-early-receipt":"[T-679]","T:launcher-fixture-budget-ruling":"[T-676]","T:probe-clean-tree-gate":"[T-681]","T:publication-wall-gate-gap":"[T-678]"},"authored":"2026-08-09","content_sha256":"ab32db70467bc216db84fa50ae02ac9d49e936aea201013d58fab73e0ab097d7","seq":1,"wave":"dev-wave-t663-flaky-truth-table"}
 - {"allocations":{"D:flake-instrument-before-widening":"D249","D:flake-instrumentation-must-not-depend-on-the-flake":"D250"},"authored":"2026-08-09","content_sha256":"5d2a6024188414adff54344c46d54897d14b2c41b884f76a156216f666f1444e","seq":2,"wave":"dev-wave-t663-flaky-truth-table"}
 - {"allocations":{"F:checkout-restore-wiped-uncommitted-child-work":"F174","F:flake-instrumentation-broke-under-the-flake":"F175"},"authored":"2026-08-09","content_sha256":"3c14442451eaec0859a0f8fa04d159f8e485095fd7551dbcc1704e0fefa38c52","seq":3,"wave":"dev-wave-t663-flaky-truth-table"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"6e819af0dc034bfbc1093cc296d1aad391c83b6a3b0e6c0c6d745e316b468c55","seq":1,"wave":"dev-wave-t316-semantic-gate"}
+
+- {"allocations":{"T:t659-probe-missing-codex-author":"[T-682]"},"authored":"2026-08-09","content_sha256":"630640e57aa8d3cba245f06547f0c4f2dd3e2974c1f6f6f26c67cc21ba5e08e2","seq":1,"wave":"dev-wave-t648-fallback-ledger"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"8428740dde8445a2a1d102aedf826ca6364f7c6ed06540f013f068fcc5175eef","seq":2,"wave":"dev-wave-t648-fallback-ledger"}
