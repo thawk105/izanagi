@@ -106,7 +106,7 @@ review を流用してはならない。
 | 21 | 無人継続を構成し最初の process を起動する前 | `docs/dev-wave/core.md`: `DW-CTX` |
 | 22 | supervisor を使用する前 | `docs/dev-wave/core.md`: `DW-CTX` |
 | 23 | local main を取り込む直前 | `docs/dev-wave/operations.md`: `DW-O23` |
-| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理の直前 | `docs/dev-wave/core.md`: `DW-C00` |
+| 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理、待ち条件作成の直前 | `docs/dev-wave/core.md`: `DW-C00` |
 
 各条件の詳細は参照節だけを正本とし、事故の物語は `docs/failures.md` の F 番号へ置く。
 入口や reference へ同じ物語を再掲しない。
