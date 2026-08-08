@@ -576,3 +576,10 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:codex-auth-expiry-mid-wave":"F172","F:dual-module-identity-across-test-and-production":"F171"},"authored":"2026-08-09","content_sha256":"4c30e44c622bb420b1becdb445cc3b13bae1462b5c7753a52b56a01dbe173187","seq":3,"wave":"dev-wave-t530-contract-hash-binding"}
 
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"fa9ef8cf1a7be009be816958e710c917b0b86f623169fa10dbc92e4651577bb9","seq":1,"wave":"dev-wave-t337-t339-rf-ruling"}
+
+- {"allocations":{"T:whole-file-pin-semantic-gap":"[T-675]"},"authored":"2026-08-09","content_sha256":"c74da12be4fee419af0f49a22faf277e5a8f1c9d950787a63c7c4acd50759b83","seq":1,"wave":"dev-wave-dangling-audit-offrepo-authority"}
+- {"allocations":{"D:offrepo-copy-needs-landed-reference":"D247","D:path-boundary-set-is-fail-safe-inverted":"D248"},"authored":"2026-08-09","content_sha256":"45c5acb969b5270593b673f956913cbc047c7309b7b501ba6acfa3a30e692430","seq":1,"wave":"dev-wave-dangling-audit-offrepo-authority"}
+- {"allocations":{"F:budget-trim-removed-safety-pointer":"F173"},"authored":"2026-08-09","content_sha256":"6bcde4fc501f19bc9c4cad284db49b41985253283ad4fcab3d9db72717434f8e","seq":1,"wave":"dev-wave-dangling-audit-offrepo-authority"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"6d4343c873ea4882196c9e875a9a2895868a700fcd65146d0e276174b1953291","seq":1,"wave":"dev-wave-t659-activation-deploy-window"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"ac13989af935d11e1afa11a59876fbf4691904a01ebad3855faf70304fd28714","seq":2,"wave":"dev-wave-t659-activation-deploy-window"}
