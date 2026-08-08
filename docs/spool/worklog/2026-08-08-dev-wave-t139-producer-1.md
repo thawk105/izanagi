@@ -39,13 +39,15 @@ title: [T-139] producer は実装せず裁定 4 問へ返した — 凍結事前
 - **実装差分がゼロのため変異 matrix は射程外。** 受入全走は [T-642] の裁定 (実装差分ゼロでも
   実 repo を読むテストがあるなら走らせる) に従い実施し、**7229 passed / 20 skipped** (19 分 12 秒、
   計算ノード) で緑だった。`DW-S04` 本文の射程改訂は未実装のままだが裁定の実質に従った。
-  **測った checkout は逐語 insight まで入れた tree であり、spool fragment 追加前である。**
-- **docs commit 後の閉じ直し (F34) は影響テストで行った。** commit 後の tree に対し
-  `check_docs.py` rc=0、`spool_fold.py --dry-run` rc=0、影響テスト
-  (`test_check_docs` + `test_spool_fold`) が **400 passed・rc=0** で緑。
-  commit 後の tree に対する受入**全**走は 30 分 walltime 上限で SIGKILL された (99% 到達)。
-  worklog (306) が記録した同型の既知事象であり、本 wave の変更由来ではない —
-  このときは別セッションの受入と 2 本並走していた。
+  **測った checkout は local main を取り込んだ最終 tree** (docs commit + merge commit) であり、
+  同じ値を fragment 追加前の tree でも得ている。
+- **docs commit 後の閉じ直し (F34)。** commit 後の tree に対し `check_docs.py` rc=0、
+  `spool_fold.py --dry-run` rc=0、影響テスト (`test_check_docs` + `test_spool_fold`) が
+  **400 passed・rc=0**。取り込み後は base digest を測り直し、[T-139] / [T-643] の対象 item digest が
+  不変であることを確認した。
+- **受入全走が 1 度 30 分 walltime 上限で SIGKILL された (99% 到達)。** 別セッションの受入と
+  2 本並走していたときである。worklog (306) が記録した同型の既知事象であり、
+  本 wave の変更由来ではない (単独で再走したときは 19 分で完走した)。
 - **受入全走を 1 度失った。** 最初の走行は detach した dispatch クライアントが 134 秒で外部から
   SIGTERM を受け `rc=16` (infra 失敗) となり、その qdel が計算ノード側 job を 98% 付近で打ち切った。
   walltime 30 分 + grace 300 秒に対して早すぎるので deadline ではない (原因は未特定)。
