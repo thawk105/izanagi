@@ -736,6 +736,52 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 (裁定パッケージを含む) である。**`docs/handoff/` は README のみが正常**であり、そこだけを見ると
 稼働中の裁定を取りこぼす。`/rulings` の収集はここも読む。
 
+### 7.3 並行 wave の受入 lease (`tools/wave_land_window.py`)
+
+並行 dev-wave が同じ main を base に受入全走を重ね、追い越された側の約 1055 秒が丸ごと無駄に
+なるのを減らすための**排他予約**である。lease directory は
+**`/work/1/SFC/tanab/dev-wave-jobs/land-lease/`** (作成済み、mode 700)。repo 外に置くのは
+wave worktree の clean-tree gate と land の untracked 検査に掛けないためである。
+
+```
+export IZANAGI_WAVE_LEASE_DIR=/work/1/SFC/tanab/dev-wave-jobs/land-lease
+W=<wave slug (branch 名の末尾。例 dev-wave-t642-s04-scope)>
+M=$(git rev-parse main)           # 40 桁。自分の checkout の local main
+python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
+```
+
+- `state=acquired` のときだけ受入全走を投入する。`held` / `stale-held` / `unavailable` および
+  非 0 rc では**投入しない**。`held` なら holder の land を待ち、local main を取り直してから
+  再度 `claim` する。
+- 受入と land の**どの終わり方でも** `release --wave "$W"` する (赤・失敗・中断を含む)。
+  他 wave の lease は消せない (holder digest 不一致なら `not-owner` で何もしない)。
+- land が成功したときだけ、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
+  照合した peer へ 1 度だけ送る。
+
+```
+python3 tools/dev_wave_land.py ... > land-result.json    # rc と JSON を保存する
+python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json land-result.json
+```
+
+- 取り残した lease は TTL (既定 2400 秒) で自然失効する。失効までの間は他 wave の受入投入が
+  止まるので、release を忘れないこと。
+- **既知の限界 (裁定パッケージ)**: TTL 超過で lease を取り直した場合、旧 holder の受入は
+  止められない (fencing token が無い)。その場合の帰結は本機構が無かった場合と同じ競合であり、
+  悪化はしない。release の権限証明は wave slug の digest だけである。
+
+### 7.4 変異 harness の runner argv
+
+`tools/mutation_harness.py --runner-mode dispatch` は「runner が計算ノードへ投げる」ことを
+保証しない。`tools/run_tests.py` はログインノードに余裕があると local で走り、その経路は
+harness が要求する dispatch receipt 行を出さないため、baseline が `PARSE_ERROR` で中断する。
+**runner argv に `--force-dispatch` を必ず付ける。**
+
+```
+python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
+  --expected-spec-sha256 <sha> --out <ledger> --runner-mode dispatch --detached \
+  -- python3 tools/run_tests.py --force-dispatch <対象テスト> -q -rf
+```
+
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した

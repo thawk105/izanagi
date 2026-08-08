@@ -540,3 +540,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-08","content_sha256":"651c7392e96e1e9766aa5391703ce22fea64cf25cc38df2b2228d2230d9615d4","seq":1,"wave":"dev-wave-t139-producer"}
 - {"allocations":{"F:corrected-estimate-reintroduced":"F165"},"authored":"2026-08-08","content_sha256":"c247a8b77d01017197e9822fd8479b9f7ff2d0a4e848c49926b5f3b2210680d7","seq":2,"wave":"dev-wave-t139-producer"}
+
+- {"allocations":{"T:acceptance-walltime-headroom":"[T-653]","T:land-tool-byte-invariant":"[T-654]","T:lease-e2e-measurement":"[T-651]","T:lease-fencing-token":"[T-649]","T:lease-transaction-wrapper":"[T-650]","T:receiver-contract-jit":"[T-652]"},"authored":"2026-08-08","content_sha256":"357b3d677f650cbc94b2a0b2194e5c8f08ec8ae7e57a7c5f9d80a6aa88777b0f","seq":1,"wave":"dev-wave-peer-land-coordination"}
+- {"allocations":{"D:acceptance-lease-advisory":"D239"},"authored":"2026-08-08","content_sha256":"5d157af9c8df30ce49fe98025e6166511bbf41961502388a059e7fd7c7a3400c","seq":2,"wave":"dev-wave-peer-land-coordination"}
+- {"allocations":{"F:acceptance-walltime-exceeded":"F167","F:mutation-runner-ran-local":"F166"},"authored":"2026-08-08","content_sha256":"419aa979a5c85e8ee2b146d49257ad7a3e628722059b75fcf4a501ab426507a5","seq":3,"wave":"dev-wave-peer-land-coordination"}
