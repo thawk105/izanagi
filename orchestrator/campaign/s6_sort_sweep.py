@@ -186,7 +186,8 @@ def config_for(tag: str, trial: str = TRIAL_MAIN) -> CampaignConfig:
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial=trial)
     context = build_run_context(generator_id=GeneratorId.S6_SORT_SWEEP)
-    return ident.bind_admission_policy(cfg, context.policy)
+    cfg = ident.bind_admission_policy(cfg, context.policy)
+    return ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
 
 
 def perf_for(tag: str) -> PerfConfig:

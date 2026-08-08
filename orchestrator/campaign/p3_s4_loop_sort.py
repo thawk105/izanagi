@@ -193,7 +193,8 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial="p3-s5-sort-loop")
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    return ident.bind_admission_policy(cfg, context.policy)
+    cfg = ident.bind_admission_policy(cfg, context.policy)
+    return ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
 
 
 default_perf = L.default_perf   # 軸非依存 (kickoff 規模、有意性を主張しない配線規模)
@@ -226,6 +227,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     genome = Genome("silo", {**_BASE, "SORT_VARIANT": 1})
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
@@ -317,6 +319,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
@@ -424,6 +427,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     cfg = default_cfg(reflux=(a.reflux == "on"))
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     perf = default_perf()
 
     isolate = not a.no_isolate_worktree

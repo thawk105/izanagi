@@ -11425,3 +11425,98 @@ record-level edge」だけである。contract 実体の rollback、世代列の
   別の分裂に置き換えるだけで、registry を差し替える試験経路から adapter が見えなくなる。
 - 許可 edge の data catalog を別に渡す — loader には再び投影結果しか残らず、二重 catalog の
   不整合面が増える。
+
+## D246. 実行契約 hash を campaign identity と WAL COMMIT の双方へ束縛し、lock 由来の期待値で照合する (2026-08-09)
+
+**決定:** 認可済み実行契約の fingerprint (`contract_sha256`) を次の 2 箇所へ束縛し、
+両者を独立に読み出して照合する。
+
+1. campaign identity の正準 pre-image。`search_config.environment_contract_sha256` に
+   64 lowercase hex の scalar として置く。`campaign.lock` の top-level は exact 5 key のまま
+   変えない。env_tag・世代・receipt 属性・日時は入れない。
+2. WAL の COMMIT record payload (`contract_sha256`)。`wal.log` 経由の 2 口だけに入れ、
+   COMMIT 以外の stage と qualification event sink 経路には入れない。
+
+照合は次の形とする。
+
+- 期待値は **campaign.lock からだけ**読む。lock が hash を束縛していない campaign
+  (legacy / guided の raw lane) では要求しない。
+- **record の field 有無から必須性を推論しない。** 推論すると欠落 COMMIT が自動的に
+  exempt になり、gate が恒真になる。
+- hash は ever-active 解決を通し、解決した契約の env_tag と COMMIT record の env_tag を照合する。
+  equality だけでは self-consistent な偽 hash を排除できない。
+- **検証は tail repair の receipt 書込み・truncate と recovery の追記より前**に、
+  同じ排他区間で完了する。拒否される campaign の bytes を 1 byte も変えない。
+
+**理由:**
+- 束縛前は認可の事実が成果物 bytes に残らず、proof chain が build admission receipt で切れていた。
+  認可済みの再起動が無束縛 COMMIT を terminal とみなして skip でき、無認可の測定値が
+  certified 選択の入力に残りうる。
+- 期待値を lock からだけ取る形は、record が自分で自分を免除する経路を構造的に断つ。
+  実測でも、この形にした変異 (必須性を record 由来へ倒す) は専用テストだけを赤にした。
+- 検証を repair より前に置かないと、拒否する campaign の WAL bytes と repair receipt が
+  先に書き換わる。「拒否したが成果物は変えた」という状態を作らないため順序を固定する。
+
+**却下した選択肢:**
+- **lock 隣接の別 record へ束縛して campaign identity を保存する案** — identity が同じまま
+  異なる契約の記録を同一 campaign へ混ぜられる。構造的に分離しないと照合は後付けの検査に留まる。
+- **COMMIT payload の hash 同士だけを比較する案** — 期待値の出所が record 側にあると、
+  lock を持たない改竄でも自己整合してしまう。
+- **qualification event sink 2 口へも同時に束縛する案** — その経路は campaign WAL ではなく
+  T126 の evaluation event ledger であり、独自の receipt 連鎖を持つ。射程が別なので分離した。
+- **世代 (generation) を identity 入力へ入れる案** — 別途裁定済みの独立課題であり先取りしない。
+
+## D247. repo 外の同一実体による抑止は landed 参照を連言に要求する (2026-08-09)
+
+**決定:** `tools/audit_dangling_commits.py` が到達不能 path を報告から外してよいのは、次の 5 つを
+**すべて**満たすときだけとする。
+
+1. 到達不能側が regular blob (git mode `100644` / `100755`) である。削除・symlink・gitlink は不可。
+2. repo 外候補が regular file で basename が一致する。
+3. 実行 mode が一致する。
+4. bytes が完全一致する (size prefilter → sha256 → 逐次 chunk 比較 → 比較後の `fstat` 安定性検査)。
+5. **main に land 済みの文書が、その候補の絶対 path または探索根より真に下位の祖先 directory path を、
+   path 境界を満たす形で参照している。**
+
+条件 1〜4 を満たすが 5 を満たさない候補は抑止せず、報告行に「repo 外に同一 bytes の実体あり
+(landed 参照なし)」と注記する。探索根そのものへの参照は根拠にしない。
+
+**理由:**
+- ユーザー裁定は「repo 外の正本を探しに行く」を採り、その利得を「[T-574] 型の偽陽性が構造的に消える」
+  と定義した。同じ裁定は [T-409] / [T-213] の残骸を「gc の自然回収に任せる」群として別に分類している。
+  実測すると 2 群を分ける観測可能な差は landed 参照の有無であり (前者は landed 文書 3 本から参照あり、
+  後者は 0 件)、条件 5 は裁定の分類をそのまま述語にしたものである。
+- bytes 一致だけでは「たまたま写しがある」ことしか言えない。repo 外の作業領域には保持契約が無く、
+  写しが消えたあとに object が gc されれば、抑止した path は二度と報告されない。landed 文書は main の
+  履歴に永続するため、条件 5 は「所在が台帳に記録されている」という永続的な証拠になる。
+- bytes 一致だけの述語は、無関係な同名同内容 (空ファイル、定型ファイル、生成物) を根拠に本物の
+  未 land 作業を隠す。条件 5 はその経路を塞ぐ。実測では抑止が 13 対から 2 対へ縮み、
+  抑止される commit 数は変わらなかった。
+
+**却下した選択肢:**
+- **判定済み commit の ack 台帳** — 台帳の陳腐化管理が必要になり、黙らせる機構は本物の再発を
+  隠す方向へ働く。ユーザー裁定で不採用。
+- **到達不能 object の即時 prune** — 不可逆であり、実行はユーザーの判断に留める。同じく不採用。
+- **basename + bytes 一致だけで抑止する** — 上記のとおり保全の証拠にならない。
+- **repo 外 path をツールへ焼き込む** — 機体固有の絶対 path が repo に入る。`--offrepo-root` と
+  環境変数 `IZANAGI_DEV_WAVE_JOBS_DIR` で外から渡し、両方未指定なら探索せず、未実施を明示する。
+
+## D248. path 境界判定は境界 byte を列挙し未知を延長扱いにする (2026-08-09)
+
+**決定:** landed 参照の照合で「pattern の出現が path として完結しているか」を判定するとき、
+**境界とみなす byte を明示列挙し、それ以外のすべての byte (非 ASCII を含む) は path を延長するもの
+として扱う。**境界 byte は空白類 (space, tab, LF, CR)、引用 (`"`, `'`, backtick)、
+括弧 (`()[]{}<>`) に限る。content の先頭・末尾に接する場合も境界とみなす。
+
+**理由:**
+- 逆向き (path を延長しうる byte を列挙する) にすると、列挙から漏れた文字が境界と誤判定される。
+  実際、英数字と `.-_/` だけを延長扱いにした初版は `<path>+backup` や `<path>@backup`、左側の
+  `/x<path>` を参照と誤判定した。filename に使える文字を網羅列挙することはできない。
+- 未知の byte を延長扱いにすると、判定は「参照なし = 抑止しない = 報告する」側へ倒れる。
+  安全監査の縮小方向にだけ倒れないことが重要であり、この向きが fail-safe である。
+- 代償として、path の直後に括りも空白も無く日本語の句点などが続く書き方は参照と数えない。
+  これは検出漏れではなく、報告が残る側の失敗である。テストで明示的に固定した。
+
+**却下した選択肢:**
+- **非 ASCII を境界とみなす** — 日本語文書の直後書きは拾えるが、非 ASCII を含む filename で
+  過剰抑止を招く。安全監査を緩める方向なので採らない。
