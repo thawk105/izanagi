@@ -574,3 +574,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:certified-read-boundary-ruling-package":"[T-674]"},"authored":"2026-08-09","content_sha256":"4456138b5f3faf53809e202dce33c3fdf32ad8dc6049c979be5b1069031b4521","seq":1,"wave":"dev-wave-t530-contract-hash-binding"}
 - {"allocations":{"D:contract-hash-identity-and-commit-binding":"D246"},"authored":"2026-08-09","content_sha256":"49fbc7b140def587f82c15aa3a31440a0d48731aad2fa3dc00fa4bb329c89e6a","seq":2,"wave":"dev-wave-t530-contract-hash-binding"}
 - {"allocations":{"F:codex-auth-expiry-mid-wave":"F172","F:dual-module-identity-across-test-and-production":"F171"},"authored":"2026-08-09","content_sha256":"4c30e44c622bb420b1becdb445cc3b13bae1462b5c7753a52b56a01dbe173187","seq":3,"wave":"dev-wave-t530-contract-hash-binding"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"fa9ef8cf1a7be009be816958e710c917b0b86f623169fa10dbc92e4651577bb9","seq":1,"wave":"dev-wave-t337-t339-rf-ruling"}
