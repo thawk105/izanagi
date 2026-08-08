@@ -1,0 +1,125 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "call-site",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "old": "    if not validate_window_duration(duration_ns):\n        result[\"failure_reasons\"].append(\"window_duration_out_of_tolerance\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "old": "        if any(delta < 0 for delta in deltas):\n            result[\"failure_reasons\"].append(\"counter_decreased\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_negative_delta_is_malformed_and_preserved"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "parser",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "old": "    if len(fields) < 8:\n        raise ValueError(\"aggregate cpu line has fewer than 8 counters\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5a",
+      "category": "boundary",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "old": "    if all(48 * busy <= total for busy, total in pairs):",
+          "new": "    if all(48 * busy < total for busy, total in pairs):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_exactly_one_point_zero"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "fail-closed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "old": "    if status_reasons:\n        return \"incomplete\", tuple(status_reasons)\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_malformed_mix_is_incomplete"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "raw-recompute",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "old": "        raw_reason = _window_raw_counter_reason(window, window_id)\n        if raw_reason is not None:\n            raw_reasons.append(raw_reason)\n            continue\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "old": "            if any(row[\"observed\"] is True for row in windows):\n                return False\n",
+          "new": ""
+        },
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "old": "            if any(row[\"observed\"] == \"true\" for row in rows):\n                return False\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_attempt_gate_rejects_observed_receipt_and_tsv_rows"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
