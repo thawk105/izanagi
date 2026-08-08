@@ -49,10 +49,44 @@ H_A2 = "2" * 64
 H_A3 = "5" * 64
 H_B1 = "3" * 64
 H_B2 = "4" * 64
+H_B3 = "6" * 64
+H_C1 = "7" * 64
+H_C2 = "8" * 64
+H_C3 = "9" * 64
+H_D1 = "a" * 64
+H_D2 = "b" * 64
+H_D3 = "c" * 64
 CATALOG = MappingProxyType({
     "env-a": ((1, H_A1), (2, H_A2), (3, H_A3)),
-    "env-b": ((1, H_B1), (2, H_B2)),
+    "env-b": ((1, H_B1), (2, H_B2), (3, H_B3)),
 })
+THREE_ENV_CATALOG = MappingProxyType({
+    **CATALOG,
+    "env-c": ((1, H_C1), (2, H_C2), (3, H_C3)),
+})
+FOUR_ENV_CATALOG = MappingProxyType({
+    **THREE_ENV_CATALOG,
+    "env-d": ((1, H_D1), (2, H_D2), (3, H_D3)),
+})
+
+
+def _is_synthetic_successor(
+    predecessor: activation.ActiveContract,
+    successor: activation.ActiveContract,
+) -> bool:
+    allowed = {
+        ("env-a", 1, H_A1, 2, H_A2),
+        ("env-a", 2, H_A2, 3, H_A3),
+        ("env-b", 1, H_B1, 2, H_B2),
+        ("env-b", 2, H_B2, 3, H_B3),
+    }
+    return (
+        predecessor.env_tag,
+        predecessor.generation,
+        predecessor.contract_sha256,
+        successor.generation,
+        successor.contract_sha256,
+    ) in allowed
 
 
 def _raw(document: dict[str, object]) -> bytes:
@@ -93,10 +127,44 @@ def _record2(first: dict[str, object] | None = None) -> dict[str, object]:
     )
 
 
-def _validate(records, head):
+def _chain(
+    *states: tuple[int, ...],
+    registered_contracts=CATALOG,
+):
+    records = []
+    previous = None
+    env_tags = sorted(registered_contracts)
+    for serial, state in enumerate(states, start=1):
+        assert len(state) == len(env_tags)
+        rows = tuple(
+            activation.ActiveContract(
+                env_tag,
+                generation,
+                dict(registered_contracts[env_tag])[generation],
+            )
+            for env_tag, generation in zip(env_tags, state)
+        )
+        head = activation.build_activation_record(
+            activation_serial=serial,
+            previous_activation_state_sha256=previous,
+            active_contracts=rows,
+        )
+        records.append((f"{serial:08d}.json", _raw(head)))
+        previous = head["activation_state_sha256"]
+    return tuple(records), head
+
+
+def _validate(
+    records,
+    head,
+    *,
+    registered_contracts=CATALOG,
+    predicate=_is_synthetic_successor,
+):
     return activation.validate_activation_records(
         records,
-        registered_contracts=CATALOG,
+        registered_contracts=registered_contracts,
+        is_valid_registered_successor=predicate,
         expected_head_serial=head["activation_serial"],
         expected_head_state_sha256=head["activation_state_sha256"],
     )
@@ -128,24 +196,6 @@ def _actual_serial2(directory: Path) -> dict[str, object]:
     )
     _write(directory, "00000002.json", second)
     return second
-
-
-def _actual_serial3_downgrade(directory: Path) -> dict[str, object]:
-    second = _actual_serial2(directory)
-    third = activation.build_activation_record(
-        activation_serial=3,
-        previous_activation_state_sha256=second["activation_state_sha256"],
-        active_contracts=tuple(
-            activation.ActiveContract(
-                env_tag=env_tag,
-                generation=1,
-                contract_sha256=ec.GENERATIONS[env_tag][0].contract.contract_sha256,
-            )
-            for env_tag in sorted(ec.GENERATIONS)
-        ),
-    )
-    _write(directory, "00000003.json", third)
-    return third
 
 
 def _git_archive_source_stage(tmp_path: Path) -> Path:
@@ -296,6 +346,7 @@ def test_initial_record_is_exact_canonical_hash_bound_and_selects_both_g1():
     state = activation.load_activation_state(
         path.parent,
         registered_contracts=ec._REGISTERED_CONTRACT_CATALOG,
+        is_valid_registered_successor=ec._is_valid_activation_successor,
         expected_head_serial=1,
         expected_head_state_sha256=INITIAL_STATE_SHA256,
     )
@@ -338,6 +389,7 @@ def test_record_rejects_duplicate_unknown_noncanonical_and_bool_integer_fields()
             activation.validate_activation_records(
                 (("00000001.json", _raw(mutated)),),
                 registered_contracts=CATALOG,
+                is_valid_registered_successor=_is_synthetic_successor,
                 expected_head_serial=1,
                 expected_head_state_sha256=mutated["activation_state_sha256"],
             )
@@ -348,6 +400,7 @@ def test_record_rejects_duplicate_unknown_noncanonical_and_bool_integer_fields()
         activation.validate_activation_records(
             (("00000001.json", _raw(mutated)),),
             registered_contracts=CATALOG,
+            is_valid_registered_successor=_is_synthetic_successor,
             expected_head_serial=1,
             expected_head_state_sha256=mutated["activation_state_sha256"],
         )
@@ -366,6 +419,7 @@ def test_chain_rejects_gap_filename_mismatch_and_bad_predecessor():
         activation.validate_activation_records(
             (("00000001.json", _raw(first)), ("00000002.json", _raw(bad_predecessor))),
             registered_contracts=CATALOG,
+            is_valid_registered_successor=_is_synthetic_successor,
             expected_head_serial=2,
             expected_head_state_sha256=bad_predecessor["activation_state_sha256"],
         )
@@ -404,6 +458,7 @@ def test_head_pin_rejects_tail_rollback():
         activation.validate_activation_records(
             (("00000001.json", _raw(first)),),
             registered_contracts=CATALOG,
+            is_valid_registered_successor=_is_synthetic_successor,
             expected_head_serial=2,
             expected_head_state_sha256=second["activation_state_sha256"],
         )
@@ -419,6 +474,7 @@ def test_head_pin_rejects_valid_suffix_injection():
         activation.validate_activation_records(
             (("00000001.json", _raw(first)), ("00000002.json", _raw(second))),
             registered_contracts=CATALOG,
+            is_valid_registered_successor=_is_synthetic_successor,
             expected_head_serial=1,
             expected_head_state_sha256=first["activation_state_sha256"],
         )
@@ -443,6 +499,7 @@ def test_head_pin_rejects_same_serial_state_hash_mismatch():
         activation.validate_activation_records(
             (("00000001.json", _raw(first)), ("00000002.json", _raw(second))),
             registered_contracts=CATALOG,
+            is_valid_registered_successor=_is_synthetic_successor,
             expected_head_serial=2,
             expected_head_state_sha256=alternate_second["activation_state_sha256"],
         )
@@ -457,42 +514,539 @@ def test_record_requires_exact_registered_env_set_and_contract_pair():
         activation.validate_activation_records(
             (("00000001.json", _raw(missing)),),
             registered_contracts=CATALOG,
+            is_valid_registered_successor=_is_synthetic_successor,
             expected_head_serial=1,
             expected_head_state_sha256=missing["activation_state_sha256"],
         )
 
 
-def test_chain_intentionally_does_not_enforce_generation_delta_predicates():
-    records = []
-    previous = None
-    rows_by_serial = (
-        ((1, H_A1), (1, H_B1)),
-        ((1, H_A1), (1, H_B1)),  # no-op
-        ((3, H_A3), (1, H_B1)),  # skip
-        ((2, H_A2), (1, H_B1)),  # downgrade
+def test_transition_accepts_one_plus_one_with_other_env_unchanged():
+    records, head = _chain((1, 1), (2, 1))
+    state = _validate(records, head)
+    assert tuple((row.env_tag, row.generation) for row in state.active_contracts) == (
+        ("env-a", 2),
+        ("env-b", 1),
     )
-    head = None
-    for serial, ((a_generation, a_hash), (b_generation, b_hash)) in enumerate(
-        rows_by_serial, start=1,
+    assert state.ever_active_contract_sha256s == frozenset({H_A1, H_A2, H_B1})
+
+
+def test_transition_accepts_multiple_simultaneous_plus_one():
+    records, head = _chain((1, 1), (2, 2))
+    state = _validate(records, head)
+    assert tuple(row.generation for row in state.active_contracts) == (2, 2)
+
+
+def test_transition_accepts_three_env_simultaneous_plus_one():
+    records, head = _chain(
+        (1, 1, 1),
+        (2, 2, 2),
+        registered_contracts=THREE_ENV_CATALOG,
+    )
+    state = _validate(
+        records,
+        head,
+        registered_contracts=THREE_ENV_CATALOG,
+        predicate=lambda _old, _new: True,
+    )
+    assert tuple(row.generation for row in state.active_contracts) == (2, 2, 2)
+
+
+def test_transition_accepts_four_env_simultaneous_plus_one():
+    """4 env matrix 境界だけを固定する。N >= 5 の truncation は、
+    有限 fixture では検出できない既知の残穴であり、保証しない。"""
+    records, head = _chain(
+        (1, 1, 1, 1),
+        (2, 2, 2, 2),
+        registered_contracts=FOUR_ENV_CATALOG,
+    )
+    state = _validate(
+        records,
+        head,
+        registered_contracts=FOUR_ENV_CATALOG,
+        predicate=lambda _old, _new: True,
+    )
+    assert tuple(row.generation for row in state.active_contracts) == (2, 2, 2, 2)
+
+
+def test_transition_rejects_fourth_env_downgrade():
+    records, head = _chain(
+        (1, 1, 1, 2),
+        (2, 2, 2, 1),
+        registered_contracts=FOUR_ENV_CATALOG,
+    )
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"exactly \+1.*env-d.*g2 -> g1",
     ):
-        head = activation.build_activation_record(
-            activation_serial=serial,
-            previous_activation_state_sha256=previous,
-            active_contracts=(
-                activation.ActiveContract("env-a", a_generation, a_hash),
-                activation.ActiveContract("env-b", b_generation, b_hash),
-            ),
+        _validate(
+            records,
+            head,
+            registered_contracts=FOUR_ENV_CATALOG,
+            predicate=lambda _old, _new: True,
         )
-        records.append((f"{serial:08d}.json", _raw(head)))
-        previous = head["activation_state_sha256"]
-    assert head is not None
-    state = _validate(tuple(records), head)
-    assert state.activation_serial == 4
-    assert state.active_contracts[0].generation == 2
+
+
+def test_transition_rejects_all_env_noop():
+    records, head = _chain((1, 1), (1, 1))
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"no-op: serial=2",
+    ):
+        _validate(records, head)
+
+
+def test_transition_rejects_noop_in_middle_of_chain():
+    records, head = _chain((1, 1), (1, 1), (2, 1))
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"no-op: serial=2",
+    ):
+        _validate(records, head)
+
+
+def test_transition_accepts_three_record_forward_chain():
+    records, head = _chain((1, 1), (2, 1), (3, 1))
+    state = _validate(records, head)
+    assert state.activation_serial == 3
+    assert tuple(row.generation for row in state.active_contracts) == (3, 1)
     assert state.ever_active_contract_sha256s == frozenset({
         H_A1, H_A2, H_A3, H_B1,
     })
-    first = json.loads(records[0][1])
+
+
+def test_transition_rejects_skip_even_when_successor_predicate_accepts():
+    records, head = _chain((1, 1), (3, 1))
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"exactly \+1.*env-a.*g1 -> g3",
+    ):
+        _validate(records, head, predicate=lambda _old, _new: True)
+
+
+def test_transition_rejects_downgrade_even_when_successor_predicate_accepts():
+    records, head = _chain((2, 1), (1, 1))
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"exactly \+1.*env-a.*g2 -> g1",
+    ):
+        _validate(records, head, predicate=lambda _old, _new: True)
+
+
+def test_transition_rejects_compensating_plus_two_minus_one():
+    records, head = _chain((1, 2), (3, 1))
+    with pytest.raises(activation.ActivationRecordError, match=r"exactly \+1"):
+        _validate(records, head, predicate=lambda _old, _new: True)
+
+
+def test_transition_rejects_compensating_plus_one_minus_one():
+    records, head = _chain((1, 2), (2, 1))
+    with pytest.raises(activation.ActivationRecordError, match=r"exactly \+1"):
+        _validate(records, head, predicate=lambda _old, _new: True)
+
+
+def test_transition_matrix_matches_d228_rule():
+    states = tuple(
+        (a_generation, b_generation)
+        for a_generation in (1, 2, 3)
+        for b_generation in (1, 2, 3)
+    )
+    for predecessor_state in states:
+        for successor_state in states:
+            records, head = _chain(predecessor_state, successor_state)
+            deltas = tuple(
+                successor - predecessor
+                for predecessor, successor in zip(
+                    predecessor_state, successor_state
+                )
+            )
+            expected = all(delta in {0, 1} for delta in deltas) and any(
+                delta == 1 for delta in deltas
+            )
+            if expected:
+                state = _validate(
+                    records,
+                    head,
+                    predicate=lambda _old, _new: True,
+                )
+                assert tuple(row.generation for row in state.active_contracts) == (
+                    successor_state
+                )
+            else:
+                with pytest.raises(
+                    activation.ActivationRecordError,
+                    match=r"no-op|exactly \+1",
+                ):
+                    _validate(
+                        records,
+                        head,
+                        predicate=lambda _old, _new: True,
+                    )
+
+
+def test_transition_three_env_matrix_matches_d228_rule():
+    states = tuple(
+        (a_generation, b_generation, c_generation)
+        for a_generation in (1, 2, 3)
+        for b_generation in (1, 2, 3)
+        for c_generation in (1, 2, 3)
+    )
+    for predecessor_state in states:
+        for successor_state in states:
+            records, head = _chain(
+                predecessor_state,
+                successor_state,
+                registered_contracts=THREE_ENV_CATALOG,
+            )
+            deltas = tuple(
+                successor - predecessor
+                for predecessor, successor in zip(
+                    predecessor_state, successor_state
+                )
+            )
+            expected = all(delta in {0, 1} for delta in deltas) and any(
+                delta == 1 for delta in deltas
+            )
+            if expected:
+                state = _validate(
+                    records,
+                    head,
+                    registered_contracts=THREE_ENV_CATALOG,
+                    predicate=lambda _old, _new: True,
+                )
+                assert tuple(row.generation for row in state.active_contracts) == (
+                    successor_state
+                )
+            else:
+                with pytest.raises(
+                    activation.ActivationRecordError,
+                    match=r"no-op|exactly \+1",
+                ):
+                    _validate(
+                        records,
+                        head,
+                        registered_contracts=THREE_ENV_CATALOG,
+                        predicate=lambda _old, _new: True,
+                    )
+
+
+def test_transition_checks_generation_change_even_when_hash_is_reused():
+    reused_hash_catalog = MappingProxyType({
+        "env-a": ((1, H_A1), (2, H_A1)),
+        "env-b": ((1, H_B1), (2, H_B2)),
+    })
+    records, head = _chain(
+        (1, 1),
+        (2, 2),
+        registered_contracts=reused_hash_catalog,
+    )
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return True
+
+    state = _validate(
+        records,
+        head,
+        registered_contracts=reused_hash_catalog,
+        predicate=predicate,
+    )
+    assert tuple(row.generation for row in state.active_contracts) == (2, 2)
+    assert [successor.env_tag for _predecessor, successor in calls] == [
+        "env-a", "env-b",
+    ]
+
+
+def test_transition_rejects_generation_change_with_reused_hash_when_successor_is_false():
+    reused_hash_catalog = MappingProxyType({
+        "env-a": ((1, H_A1), (2, H_A1)),
+        "env-b": ((1, H_B1),),
+    })
+    records, head = _chain(
+        (1, 1),
+        (2, 1),
+        registered_contracts=reused_hash_catalog,
+    )
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return False
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"successor でない.*env_tag=env-a",
+    ):
+        _validate(
+            records,
+            head,
+            registered_contracts=reused_hash_catalog,
+            predicate=predicate,
+        )
+    assert calls == [
+        (
+            activation.ActiveContract("env-a", 1, H_A1),
+            activation.ActiveContract("env-a", 2, H_A1),
+        ),
+    ]
+
+
+def test_transition_accepts_generation_change_when_hash_is_reused_and_other_env_is_unchanged():
+    reused_hash_catalog = MappingProxyType({
+        "env-a": ((1, H_A1), (2, H_A1)),
+        "env-b": ((1, H_B1),),
+    })
+    records, head = _chain(
+        (1, 1),
+        (2, 1),
+        registered_contracts=reused_hash_catalog,
+    )
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return True
+
+    state = _validate(
+        records,
+        head,
+        registered_contracts=reused_hash_catalog,
+        predicate=predicate,
+    )
+    assert tuple(row.generation for row in state.active_contracts) == (2, 1)
+    assert calls == [
+        (
+            activation.ActiveContract("env-a", 1, H_A1),
+            activation.ActiveContract("env-a", 2, H_A1),
+        ),
+    ]
+
+
+def test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances():
+    """public 経路では外側の registry pair gate が所有者である。
+
+    この private gate 直接呼出しは defense-in-depth の pin である。
+    """
+    predecessor_rows = (
+        activation.ActiveContract("env-a", 1, H_A1),
+        activation.ActiveContract("env-b", 1, H_B1),
+    )
+    successor_rows = (
+        activation.ActiveContract("env-a", 1, H_A2),
+        activation.ActiveContract("env-b", 2, H_B2),
+    )
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"exactly \+1.*env-a.*g1 -> g1",
+    ):
+        activation._validate_activation_transition(
+            predecessor_rows,
+            successor_rows,
+            activation_serial=2,
+            is_valid_registered_successor=lambda _old, _new: True,
+        )
+
+
+def test_transition_rejects_skip_when_catalog_order_is_not_generation_order():
+    unordered_catalog = MappingProxyType({
+        "env-a": ((1, H_A1), (3, H_A3), (2, H_A2)),
+        "env-b": ((1, H_B1),),
+    })
+    records, head = _chain(
+        (1, 1),
+        (3, 1),
+        registered_contracts=unordered_catalog,
+    )
+    with pytest.raises(activation.ActivationRecordError, match=r"g1 -> g3"):
+        _validate(
+            records,
+            head,
+            registered_contracts=unordered_catalog,
+            predicate=lambda _old, _new: True,
+        )
+
+
+def test_transition_rejects_plus_one_when_bound_contract_successor_is_false():
+    records, head = _chain((1, 1), (2, 1))
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match="正当な successor でない",
+    ):
+        _validate(records, head, predicate=lambda _old, _new: False)
+
+
+def test_transition_rejects_when_second_changed_env_successor_is_false():
+    records, head = _chain((1, 1), (2, 2))
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return successor.env_tag == "env-a"
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"successor でない.*env_tag=env-b",
+    ):
+        _validate(records, head, predicate=predicate)
+    assert [successor.env_tag for _predecessor, successor in calls] == [
+        "env-a", "env-b",
+    ]
+
+
+def test_transition_rejects_when_third_changed_env_successor_is_false():
+    records, head = _chain(
+        (1, 1, 1),
+        (2, 2, 2),
+        registered_contracts=THREE_ENV_CATALOG,
+    )
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return successor.env_tag != "env-c"
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"successor でない.*env_tag=env-c",
+    ):
+        _validate(
+            records,
+            head,
+            registered_contracts=THREE_ENV_CATALOG,
+            predicate=predicate,
+        )
+    assert [successor.env_tag for _predecessor, successor in calls] == [
+        "env-a", "env-b", "env-c",
+    ]
+
+
+def test_transition_rejects_when_fourth_changed_env_successor_is_false():
+    records, head = _chain(
+        (1, 1, 1, 1),
+        (2, 2, 2, 2),
+        registered_contracts=FOUR_ENV_CATALOG,
+    )
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return successor.env_tag != "env-d"
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"successor でない.*env_tag=env-d",
+    ):
+        _validate(
+            records,
+            head,
+            registered_contracts=FOUR_ENV_CATALOG,
+            predicate=predicate,
+        )
+    assert [successor.env_tag for _predecessor, successor in calls] == [
+        "env-a", "env-b", "env-c", "env-d",
+    ]
+
+
+def test_transition_preserves_first_failure_when_later_successor_is_true():
+    records, head = _chain((1, 1), (2, 2))
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return successor.env_tag == "env-b"
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"successor でない.*env_tag=env-a",
+    ):
+        _validate(records, head, predicate=predicate)
+    assert [successor.env_tag for _predecessor, successor in calls] == [
+        "env-a", "env-b",
+    ]
+
+
+def test_transition_preserves_first_non_bool_failure_when_later_successor_is_true():
+    records, head = _chain((1, 1), (2, 2))
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        if successor.env_tag == "env-a":
+            return 1
+        return True
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"exact bool でない.*env_tag=env-a",
+    ):
+        _validate(records, head, predicate=predicate)
+    assert [successor.env_tag for _predecessor, successor in calls] == [
+        "env-a", "env-b",
+    ]
+
+
+def test_transition_preserves_first_exception_when_later_successor_is_true():
+    records, head = _chain((1, 1), (2, 2))
+    calls = []
+    injected = RuntimeError("injected first successor failure")
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        if successor.env_tag == "env-a":
+            raise injected
+        return True
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"registered successor 判定中に例外.*env_tag=env-a",
+    ) as exc_info:
+        _validate(records, head, predicate=predicate)
+    assert exc_info.value.__cause__ is injected
+    assert [successor.env_tag for _predecessor, successor in calls] == [
+        "env-a", "env-b",
+    ]
+
+
+def test_successor_predicate_is_called_once_for_each_changed_env():
+    records, head = _chain((1, 1), (2, 2))
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return True
+
+    _validate(records, head, predicate=predicate)
+    assert calls == [
+        (
+            activation.ActiveContract("env-a", 1, H_A1),
+            activation.ActiveContract("env-a", 2, H_A2),
+        ),
+        (
+            activation.ActiveContract("env-b", 1, H_B1),
+            activation.ActiveContract("env-b", 2, H_B2),
+        ),
+    ]
+
+
+def test_successor_predicate_receives_exact_generation_hash_rows():
+    records, head = _chain((1, 1), (2, 1))
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return True
+
+    _validate(records, head, predicate=predicate)
+    assert calls == [
+        (
+            activation.ActiveContract("env-a", 1, H_A1),
+            activation.ActiveContract("env-a", 2, H_A2),
+        ),
+    ]
+
+
+def test_record_rejects_registered_generation_with_wrong_contract_hash():
+    first = _record1()
     mismatch = json.loads(_raw(first))
     mismatch["active_contracts"][0]["contract_sha256"] = H_A2
     _rehash(mismatch)
@@ -500,9 +1054,294 @@ def test_chain_intentionally_does_not_enforce_generation_delta_predicates():
         activation.validate_activation_records(
             (("00000001.json", _raw(mismatch)),),
             registered_contracts=CATALOG,
+            is_valid_registered_successor=_is_synthetic_successor,
             expected_head_serial=1,
             expected_head_state_sha256=mismatch["activation_state_sha256"],
         )
+
+
+def test_transition_rejects_non_bool_successor_result():
+    records, head = _chain((1, 1), (2, 1))
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match="exact bool でない",
+    ):
+        _validate(records, head, predicate=lambda _old, _new: 1)
+
+
+def test_transition_wraps_successor_exception_fail_closed():
+    records, head = _chain((1, 1), (2, 1))
+
+    def broken(_predecessor, _successor):
+        raise RuntimeError("injected successor failure")
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match="registered successor 判定中に例外",
+    ) as exc_info:
+        _validate(records, head, predicate=broken)
+    assert type(exc_info.value.__cause__) is RuntimeError
+
+
+def test_production_successor_adapter_resolves_bound_generation_entries(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    predecessor_entry, successor_entry = ec.GENERATIONS["pegasus"]
+    predecessor = activation.ActiveContract(
+        "pegasus", 1, predecessor_entry.contract.contract_sha256
+    )
+    successor = activation.ActiveContract(
+        "pegasus", 2, successor_entry.contract.contract_sha256
+    )
+    calls = []
+
+    def spy(old_contract, new_contract):
+        calls.append((old_contract, new_contract))
+        return True
+
+    monkeypatch.setattr(ec, "is_valid_successor", spy)
+    assert ec._is_valid_activation_successor(predecessor, successor) is True
+    assert calls == [(predecessor_entry.contract, successor_entry.contract)]
+
+
+def test_production_successor_adapter_returns_false_when_is_valid_successor_is_false(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    predecessor_entry, successor_entry = ec.GENERATIONS["pegasus"]
+    predecessor = activation.ActiveContract(
+        "pegasus", 1, predecessor_entry.contract.contract_sha256
+    )
+    successor = activation.ActiveContract(
+        "pegasus", 2, successor_entry.contract.contract_sha256
+    )
+    calls = []
+
+    def reject(old_contract, new_contract):
+        calls.append((old_contract, new_contract))
+        return False
+
+    monkeypatch.setattr(ec, "is_valid_successor", reject)
+    assert ec._is_valid_activation_successor(predecessor, successor) is False
+    assert calls == [(predecessor_entry.contract, successor_entry.contract)]
+
+    authority = tmp_path / "authority"
+    second = _actual_serial2(authority)
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match="正当な successor でない",
+    ):
+        activation.validate_activation_records(
+            activation.read_activation_record_files(authority),
+            registered_contracts=ec._REGISTERED_CONTRACT_CATALOG,
+            is_valid_registered_successor=ec._is_valid_activation_successor,
+            expected_head_serial=2,
+            expected_head_state_sha256=second["activation_state_sha256"],
+        )
+    assert calls == [
+        (predecessor_entry.contract, successor_entry.contract),
+        (predecessor_entry.contract, successor_entry.contract),
+    ]
+
+
+def test_production_successor_adapter_returns_false_for_resolved_invalid_contract(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    predecessor_entry = ec.GENERATIONS["pegasus"][0]
+    invalid_successor_entry = ec.GenerationEntry(
+        generation=2,
+        contract=replace(
+            predecessor_entry.contract,
+            clocks_per_us=predecessor_entry.contract.clocks_per_us + 1,
+        ),
+    )
+    generations = MappingProxyType({
+        "pegasus": (predecessor_entry, invalid_successor_entry),
+    })
+    monkeypatch.setattr(ec, "GENERATIONS", generations)
+    predecessor = activation.ActiveContract(
+        "pegasus", 1, predecessor_entry.contract.contract_sha256
+    )
+    successor = activation.ActiveContract(
+        "pegasus", 2, invalid_successor_entry.contract.contract_sha256
+    )
+    assert ec._resolve_activation_entry(predecessor) is predecessor_entry
+    assert ec._resolve_activation_entry(successor) is invalid_successor_entry
+    assert (
+        ec.is_valid_successor(
+            predecessor_entry.contract,
+            invalid_successor_entry.contract,
+        )
+        is False
+    )
+    assert ec._is_valid_activation_successor(predecessor, successor) is False
+
+    catalog = MappingProxyType({
+        "pegasus": (
+            (1, predecessor.contract_sha256),
+            (2, successor.contract_sha256),
+        ),
+    })
+    first = activation.build_activation_record(
+        activation_serial=1,
+        previous_activation_state_sha256=None,
+        active_contracts=(predecessor,),
+    )
+    second = activation.build_activation_record(
+        activation_serial=2,
+        previous_activation_state_sha256=first["activation_state_sha256"],
+        active_contracts=(successor,),
+    )
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match="正当な successor でない",
+    ):
+        activation.validate_activation_records(
+            (("00000001.json", _raw(first)), ("00000002.json", _raw(second))),
+            registered_contracts=catalog,
+            is_valid_registered_successor=ec._is_valid_activation_successor,
+            expected_head_serial=2,
+            expected_head_state_sha256=second["activation_state_sha256"],
+        )
+
+
+def test_production_successor_adapter_rejects_rows_that_do_not_resolve(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    predecessor_entry, successor_entry = ec.GENERATIONS["pegasus"]
+    predecessor = activation.ActiveContract(
+        "pegasus", 1, predecessor_entry.contract.contract_sha256
+    )
+    unresolved = (
+        activation.ActiveContract(
+            "pegasus", 3, successor_entry.contract.contract_sha256
+        ),
+        activation.ActiveContract("pegasus", 2, "f" * 64),
+        activation.ActiveContract(
+            "unknown-env", 2, successor_entry.contract.contract_sha256
+        ),
+    )
+    calls = []
+
+    def spy(old_contract, new_contract):
+        calls.append((old_contract, new_contract))
+        return True
+
+    monkeypatch.setattr(ec, "is_valid_successor", spy)
+    for successor in unresolved:
+        assert ec._is_valid_activation_successor(predecessor, successor) is False
+    assert calls == []
+
+
+def test_validate_activation_records_requires_successor_predicate(tmp_path: Path):
+    first = _record1()
+    records = (("00000001.json", _raw(first)),)
+    directory = tmp_path / "authority"
+    _write(directory, "00000001.json", first)
+    with pytest.raises(TypeError):
+        activation.validate_activation_records(
+            records,
+            registered_contracts=CATALOG,
+            expected_head_serial=1,
+            expected_head_state_sha256=first["activation_state_sha256"],
+        )
+    with pytest.raises(TypeError):
+        activation.load_activation_state(
+            directory,
+            registered_contracts=CATALOG,
+            expected_head_serial=1,
+            expected_head_state_sha256=first["activation_state_sha256"],
+        )
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match="successor は callable",
+    ):
+        activation.validate_activation_records(
+            records,
+            registered_contracts=CATALOG,
+            is_valid_registered_successor=None,
+            expected_head_serial=1,
+            expected_head_state_sha256=first["activation_state_sha256"],
+        )
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match="successor は callable",
+    ):
+        activation.load_activation_state(
+            directory,
+            registered_contracts=CATALOG,
+            is_valid_registered_successor=None,
+            expected_head_serial=1,
+            expected_head_state_sha256=first["activation_state_sha256"],
+        )
+
+
+def test_transition_rejects_missing_env_before_calling_predicate():
+    """実際に発火する外側の catalog 照合層を固定する診断 pin である。
+
+    transition gate 自体の env 集合検査へ到達する node ではない。
+    """
+    first = _record1()
+    second = activation.build_activation_record(
+        activation_serial=2,
+        previous_activation_state_sha256=first["activation_state_sha256"],
+        active_contracts=(
+            activation.ActiveContract("env-a", 2, H_A2),
+        ),
+    )
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return True
+
+    with pytest.raises(activation.ActivationRecordError, match="env 集合"):
+        activation.validate_activation_records(
+            (
+                ("00000001.json", _raw(first)),
+                ("00000002.json", _raw(second)),
+            ),
+            registered_contracts=CATALOG,
+            is_valid_registered_successor=predicate,
+            expected_head_serial=2,
+            expected_head_state_sha256=second["activation_state_sha256"],
+        )
+    assert calls == []
+
+
+def test_transition_rejects_extra_env_fail_closed_before_calling_predicate():
+    first = _record1()
+    second = activation.build_activation_record(
+        activation_serial=2,
+        previous_activation_state_sha256=first["activation_state_sha256"],
+        active_contracts=(
+            activation.ActiveContract("env-a", 2, H_A2),
+            activation.ActiveContract("env-b", 1, H_B1),
+            activation.ActiveContract("env-c", 1, H_C1),
+        ),
+    )
+    calls = []
+
+    def predicate(predecessor, successor):
+        calls.append((predecessor, successor))
+        return True
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match="env 集合",
+    ) as exc_info:
+        activation.validate_activation_records(
+            (
+                ("00000001.json", _raw(first)),
+                ("00000002.json", _raw(second)),
+            ),
+            registered_contracts=CATALOG,
+            is_valid_registered_successor=predicate,
+            expected_head_serial=2,
+            expected_head_state_sha256=second["activation_state_sha256"],
+        )
+    assert type(exc_info.value) is activation.ActivationRecordError
+    assert calls == []
 
 
 def test_real_pegasus_g2_serial2_is_accepted_and_switches_lookup(
@@ -549,7 +1388,17 @@ def test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart(
     suffix = activation.build_activation_record(
         activation_serial=current.activation_serial + 1,
         previous_activation_state_sha256=current.activation_state_sha256,
-        active_contracts=current.active_contracts,
+        active_contracts=tuple(
+            activation.ActiveContract(
+                env_tag=env_tag,
+                generation=2 if env_tag == "pegasus" else 1,
+                contract_sha256=(
+                    ec.GENERATIONS[env_tag][1 if env_tag == "pegasus" else 0]
+                    .contract.contract_sha256
+                ),
+            )
+            for env_tag in sorted(ec.GENERATIONS)
+        ),
     )
     issuer._write_create_only(
         authority,
@@ -561,7 +1410,10 @@ def test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart(
         ec._ACTIVATION_HEAD_STATE_SHA256,
     )
     with _use_source_head_authority(monkeypatch, authority):
-        with pytest.raises(ec.EnvContractError, match="activation authority 検証失敗"):
+        with pytest.raises(
+            ec.EnvContractError,
+            match=r"activation authority 検証失敗: activation head (?:serial|state hash) 不一致",
+        ):
             ec.lookup("pegasus")
         assert (
             ec._ACTIVATION_HEAD_SERIAL,
@@ -585,6 +1437,10 @@ def test_production_loader_passes_source_head_constants_to_leaf(monkeypatch):
     assert (
         observed["expected_head_state_sha256"]
         == ec._ACTIVATION_HEAD_STATE_SHA256
+    )
+    assert (
+        observed["is_valid_registered_successor"]
+        is ec._is_valid_activation_successor
     )
 
 
@@ -659,20 +1515,23 @@ def test_serial2_preserves_g1_as_ever_active_and_verifies_history_on_resolution(
         assert pegasus_g1.contract.contract_sha256 in ec._VERIFIED_CONTRACT_SHA256S
 
 
-def test_downgrade_preserves_pegasus_g2_for_historical_resolution(
+def test_forward_activation_preserves_pegasus_g1_for_historical_resolution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
     authority = tmp_path / "authority"
-    third = _actual_serial3_downgrade(authority)
-    with _use_authority(monkeypatch, authority, third):
-        assert ec.lookup("pegasus") is ec.GENERATIONS["pegasus"][0].contract
-        g2 = ec.GENERATIONS["pegasus"][1]
+    second = _actual_serial2(authority)
+    with _use_authority(monkeypatch, authority, second):
+        assert ec.lookup("pegasus") is ec.GENERATIONS["pegasus"][1].contract
+        g1 = ec.GENERATIONS["pegasus"][0]
+        assert g1.contract.contract_sha256 in (
+            ec.current_activation_state().ever_active_contract_sha256s
+        )
         assert (
             ec.resolve_by_contract_sha256(
-                g2.contract.contract_sha256,
+                g1.contract.contract_sha256,
                 expected_env_tag="pegasus",
             )
-            is g2
+            is g1
         )
 
 
@@ -1011,7 +1870,7 @@ def test_issue_main_success_prints_required_head_and_inactive_warning(
     )
     assert issuer.main([
         "--active", "linux-baremetal=1",
-        "--active", "pegasus=1",
+        "--active", "pegasus=2",
     ]) == 0
     output = capsys.readouterr().out
     issued_document = json.loads((authority / "00000002.json").read_bytes())
@@ -1023,6 +1882,62 @@ def test_issue_main_success_prints_required_head_and_inactive_warning(
     ) in output
     assert "同一 commit" in output
     assert "全 process を再起動" in output
+    rows = {
+        row["env_tag"]: (row["generation"], row["contract_sha256"])
+        for row in issued_document["active_contracts"]
+    }
+    assert rows == {
+        "linux-baremetal": (
+            1,
+            ec.GENERATIONS["linux-baremetal"][0].contract.contract_sha256,
+        ),
+        "pegasus": (
+            2,
+            ec.GENERATIONS["pegasus"][1].contract.contract_sha256,
+        ),
+    }
+
+
+def test_issue_main_rejects_noop_without_publishing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+):
+    issuer = _load_issue_tool()
+    authority = tmp_path / "authority"
+    authority.mkdir()
+    (authority / "00000001.json").write_bytes(INITIAL_BYTES)
+    monkeypatch.setattr(
+        ec,
+        "current_activation_state",
+        lambda: activation.ActivationState(
+            activation_serial=1,
+            activation_state_sha256=INITIAL_STATE_SHA256,
+            active_contracts=tuple(
+                activation.ActiveContract(
+                    env_tag=env_tag,
+                    generation=1,
+                    contract_sha256=ec.GENERATIONS[env_tag][0].contract.contract_sha256,
+                )
+                for env_tag in sorted(ec.GENERATIONS)
+            ),
+            ever_active_contract_sha256s=frozenset(
+                ec.GENERATIONS[env_tag][0].contract.contract_sha256
+                for env_tag in ec.GENERATIONS
+            ),
+        ),
+    )
+    monkeypatch.setattr(ec, "_repository_root", lambda: tmp_path)
+    monkeypatch.setattr(ec, "_ACTIVATION_DIRECTORY", PurePosixPath("authority"))
+    monkeypatch.setattr(
+        issuer, "__file__", str(tmp_path / "tools/issue_env_contract_activation.py")
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        issuer.main([
+            "--active", "linux-baremetal=1",
+            "--active", "pegasus=1",
+        ])
+    assert exc_info.value.code == 1
+    assert "no-op" in capsys.readouterr().err
+    assert not (authority / "00000002.json").exists()
 
 
 def _run() -> int:
