@@ -1,0 +1,267 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/output/pegasus-dispatch/07d7d50ab478a02b2a6078f626e01518/izdw-07d7d50ab4.o895978",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/output/pegasus-dispatch/07d7d50ab478a02b2a6078f626e01518/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [1 item]\n\n.                                                                        [100%]\n============================== 1 passed in 2.11s ===============================\n",
+      "stdout_sha256": "0356d2af210f4e40463b6e32c0a19fcc63ffba6a4793c3906d1f693a3a11e460"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ce1f2fec778c9b11a8251d24513ec5e326a62d9244c59c3a6010328e06014df2",
+    "duration_s": 21.805,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "796e04c50d138fd3cbbb7887e0b9d7c17a6465e26b45b6180ed32d30873de112",
+    "repo_head": "e562fd16a0f7705a9eb3fd5c6e721ba9953d67f1",
+    "runner_sha256": "c3989192fe3b401c1bad17fcb740309532ed00ac286c9eec38563c7efa32983b",
+    "spec_sha256": "9d5807490d28210e8d1b49d4d9333d73b199f0add9ba34f4ade9a5c7bea8eb47",
+    "status": "PASSED",
+    "test_output_sha256": "0356d2af210f4e40463b6e32c0a19fcc63ffba6a4793c3906d1f693a3a11e460",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "63850f976920a0ea2c1df5a3626bd6aeec3dc3a4420bab6f4a00ce5a93b6aa07"
+  },
+  "date": "2026-08-08T10:28:28.802415+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/output/pegasus-dispatch/b9508e5b221f8e13e9ddf9011ce924b8/izdw-b9508e5b22.o895980",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/output/pegasus-dispatch/b9508e5b221f8e13e9ddf9011ce924b8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [1 item]\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n_ test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact _\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact(\n    ):\n        root = _build_min_repo()\n        try:\n            rel = \"docs/dev-wave/workers.md\"\n            _write(\n                root,\n                rel,\n                _replace_workers_section_sentence(\n                    _read(root, rel),\n                    \"DW-S06-A\",\n                    \"`reasoning=high/max`\",\n                ),\n            )\n            res = _run_check(root)\n>           assert res.returncode != 0, res.stdout\nE           AssertionError: check_docs: 違反なし\nE             \nE           assert 0 != 0\nE            +  where 0 = CompletedProcess(args=['/bin/python3.10', '/tmp/izanagi_checkdocs_leu1l0zg/tools/check_docs.py'], returncode=0, stdout='check_docs: 違反なし\\n', stderr='').returncode\n\norchestrator/tests/test_check_docs.py:5443: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact\n============================== 1 failed in 2.18s ===============================\n",
+        "stdout_sha256": "273cf38fbc4ed9354f575217d7d5b4bc68312e4fb7311f9dd93f6f2a2507a895"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ce1f2fec778c9b11a8251d24513ec5e326a62d9244c59c3a6010328e06014df2",
+      "duration_s": 26.871,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "554f4012f5d0eab1e0106bbe466a5e53cc7ea852a0feedaee3978e1b72e2a897",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "46e8f7c48153b7097c041736ca2558c4e6304d6822841d3233747e357105ce16",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "new": "        if values != [expected]:\n",
+          "old": "        if values != [expected] or required_text_count != 1:\n"
+        },
+        {
+          "file": "tools/check_docs.py",
+          "new": "    r\"(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)\"\n",
+          "old": "    r\"(?P<value>[^ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』]+?)\"\n"
+        },
+        {
+          "file": "tools/check_docs.py",
+          "new": "    r\"(?![A-Za-z0-9_-])\"\n",
+          "old": "    r\"(?=$|[ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』])\"\n"
+        }
+      ],
+      "repo_head": "e562fd16a0f7705a9eb3fd5c6e721ba9953d67f1",
+      "runner_sha256": "c3989192fe3b401c1bad17fcb740309532ed00ac286c9eec38563c7efa32983b",
+      "spec_sha256": "9d5807490d28210e8d1b49d4d9333d73b199f0add9ba34f4ade9a5c7bea8eb47",
+      "status": "KILLED",
+      "test_output_sha256": "273cf38fbc4ed9354f575217d7d5b4bc68312e4fb7311f9dd93f6f2a2507a895",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "63850f976920a0ea2c1df5a3626bd6aeec3dc3a4420bab6f4a00ce5a93b6aa07"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/output/pegasus-dispatch/a15eccf71b03b4110e2a2f2dd4aa6aa7/izdw-a15eccf71b.o895981",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/output/pegasus-dispatch/a15eccf71b03b4110e2a2f2dd4aa6aa7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [1 item]\n\n.                                                                        [100%]\n============================== 1 passed in 2.13s ===============================\n",
+        "stdout_sha256": "756bd3cb6dcaf96c435c7d487d365dff5a021c85054c289b1894ac4c7285af58"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ce1f2fec778c9b11a8251d24513ec5e326a62d9244c59c3a6010328e06014df2",
+      "duration_s": 21.786,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "465444b27f214ae37da2595a4e065ec50d65496364da64de72b4e9883a7784d0",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "9d3363e26c99581458a269f5c4ea4288f8c0152496363e29006df59f5b4320a5",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "new": "    r\"(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)\"\n",
+          "old": "    r\"(?P<value>[^ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』]+?)\"\n"
+        },
+        {
+          "file": "tools/check_docs.py",
+          "new": "    r\"(?![A-Za-z0-9_-])\"\n",
+          "old": "    r\"(?=$|[ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』])\"\n"
+        }
+      ],
+      "repo_head": "e562fd16a0f7705a9eb3fd5c6e721ba9953d67f1",
+      "runner_sha256": "c3989192fe3b401c1bad17fcb740309532ed00ac286c9eec38563c7efa32983b",
+      "spec_sha256": "9d5807490d28210e8d1b49d4d9333d73b199f0add9ba34f4ade9a5c7bea8eb47",
+      "status": "SURVIVED",
+      "test_output_sha256": "756bd3cb6dcaf96c435c7d487d365dff5a021c85054c289b1894ac4c7285af58",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "63850f976920a0ea2c1df5a3626bd6aeec3dc3a4420bab6f4a00ce5a93b6aa07"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/output/pegasus-dispatch/5609ca97b04725a59c4b2b2a5996e417/izdw-5609ca97b0.o895977",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/output/pegasus-dispatch/5609ca97b04725a59c4b2b2a5996e417/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact\n\n1 test collected in 0.09s\n",
+        "stdout_sha256": "616821f080e941ffcfad2edfd80d2339433137dbd42684ca6a69ead9401a47f4"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact"
+      ],
+      "duration_s": 21.763,
+      "rc": 0,
+      "repo_head": "e562fd16a0f7705a9eb3fd5c6e721ba9953d67f1",
+      "runner_sha256": "c3989192fe3b401c1bad17fcb740309532ed00ac286c9eec38563c7efa32983b",
+      "spec_sha256": "9d5807490d28210e8d1b49d4d9333d73b199f0add9ba34f4ade9a5c7bea8eb47",
+      "status": "PASSED",
+      "tool_sha256": "63850f976920a0ea2c1df5a3626bd6aeec3dc3a4420bab6f4a00ce5a93b6aa07"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M10": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "554f4012f5d0eab1e0106bbe466a5e53cc7ea852a0feedaee3978e1b72e2a897",
+        "replacements": [
+          {
+            "file": "tools/check_docs.py",
+            "new": "        if values != [expected]:\n",
+            "old": "        if values != [expected] or required_text_count != 1:\n"
+          },
+          {
+            "file": "tools/check_docs.py",
+            "new": "    r\"(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)\"\n",
+            "old": "    r\"(?P<value>[^ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』]+?)\"\n"
+          },
+          {
+            "file": "tools/check_docs.py",
+            "new": "    r\"(?![A-Za-z0-9_-])\"\n",
+            "old": "    r\"(?=$|[ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』])\"\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "465444b27f214ae37da2595a4e065ec50d65496364da64de72b4e9883a7784d0",
+        "replacements": [
+          {
+            "file": "tools/check_docs.py",
+            "new": "    r\"(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)\"\n",
+            "old": "    r\"(?P<value>[^ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』]+?)\"\n"
+          },
+          {
+            "file": "tools/check_docs.py",
+            "new": "    r\"(?![A-Za-z0-9_-])\"\n",
+            "old": "    r\"(?=$|[ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』])\"\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "796e04c50d138fd3cbbb7887e0b9d7c17a6465e26b45b6180ed32d30873de112",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "e562fd16a0f7705a9eb3fd5c6e721ba9953d67f1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "69dd9121f75602074eb5cb3ddd6c801d79ef185c",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "c3989192fe3b401c1bad17fcb740309532ed00ac286c9eec38563c7efa32983b",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "9d5807490d28210e8d1b49d4d9333d73b199f0add9ba34f4ade9a5c7bea8eb47",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t181-stage6-high/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "63850f976920a0ea2c1df5a3626bd6aeec3dc3a4420bab6f4a00ce5a93b6aa07",
+  "updated_at": "2026-08-08T10:29:42.523003+00:00"
+}

@@ -1,0 +1,40 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "        (\n            \"DW-S06-A\",\n            \"high\",\n            DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,\n            DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING,\n        ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_max_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "        _check_dev_wave_reasoning_effort_pins(\n            workers_text,\n            findings,\n            operations_text=decoded.get(_OPERATIONS),\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_max_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

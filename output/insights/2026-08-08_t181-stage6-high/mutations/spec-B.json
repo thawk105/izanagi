@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "        (\n            \"DW-S06-C\",\n            \"high\",\n            DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,\n            DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING,\n        ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_c_max_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
