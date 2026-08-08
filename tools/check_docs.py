@@ -263,6 +263,8 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
 )
 DEV_WAVE_DW_S02_REASONING_MAX_LITERAL = "`reasoning=max`"
 DEV_WAVE_DW_S03_REASONING_MAX_LITERAL = "`reasoning=max`"
+DEV_WAVE_DW_S06_A_REASONING_HIGH_LITERAL = "`reasoning=high`"
+DEV_WAVE_DW_S06_C_REASONING_HIGH_LITERAL = "`reasoning=high`"
 DEV_WAVE_DW_S02_REASONING_MAX_FINDING = (
     "docs/dev-wave/workers.md: DW-S02 の `reasoning=max` は D207 に基づく"
     "現行 adoption pin と不一致 — "
@@ -273,12 +275,21 @@ DEV_WAVE_DW_S03_REASONING_MAX_FINDING = (
     "現行 adoption pin と不一致 — "
     "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
 )
+DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-A の `reasoning=high` は段 6 敵対レビューの"
+    "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
+)
+DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-C の `reasoning=high` は段 6 焦点再レビューの"
+    "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
+)
 DEV_WAVE_REASONING_EFFORT_RE = re.compile(
     r"(?<![A-Za-z0-9_-])"
     r"(?:reasoning|reasoning_effort|model_reasoning_effort)="
-    r"(?P<quote>[\"']?)(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)"
+    r"(?P<quote>[\"']?)"
+    r"(?P<value>[^ \t\r\n`。、，,;；!?！？()（）\[\]{}「」『』]+?)"
     r"(?P=quote)"
-    r"(?![A-Za-z0-9_-])"
+    r"(?=$|[ \t\r\n`。、，,;；!?！？()（）\[\]{}「」『』])"
 )
 CODEX_DEV_WAVE_SKILL_LITERALS = (
     ".claude/commands/dev-wave.md",
@@ -3383,28 +3394,45 @@ def _check_dev_wave_reasoning_effort_pins(
     workers_text: str,
     findings: list[str],
 ) -> None:
-    """D207 が固定した段 2/3 の reasoning=max を節ごとに exact pin する。"""
+    """採用済み reasoning effort を可視節ごとの canonical literal へ pin する。"""
 
-    for section_id, finding in (
+    visible_workers_text = _visible_markdown_text(workers_text)
+    for section_id, expected, literal, finding in (
         (
             "DW-S02",
+            "max",
+            DEV_WAVE_DW_S02_REASONING_MAX_LITERAL,
             DEV_WAVE_DW_S02_REASONING_MAX_FINDING,
         ),
         (
             "DW-S03",
+            "max",
+            DEV_WAVE_DW_S03_REASONING_MAX_LITERAL,
             DEV_WAVE_DW_S03_REASONING_MAX_FINDING,
         ),
+        (
+            "DW-S06-A",
+            "high",
+            DEV_WAVE_DW_S06_A_REASONING_HIGH_LITERAL,
+            DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING,
+        ),
+        (
+            "DW-S06-C",
+            "high",
+            DEV_WAVE_DW_S06_C_REASONING_HIGH_LITERAL,
+            DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING,
+        ),
     ):
-        sections = _reference_id_sections(workers_text, section_id)
+        sections = _reference_id_sections(visible_workers_text, section_id)
         if len(sections) != 1:
             findings.append(finding)
             continue
-        visible_section = _visible_markdown_text(sections[0])
+        visible_section = sections[0]
         values = [
             match.group("value")
             for match in DEV_WAVE_REASONING_EFFORT_RE.finditer(visible_section)
         ]
-        if values != ["max"]:
+        if values != [expected] or visible_section.count(literal) != 1:
             findings.append(finding)
 
 
@@ -3631,8 +3659,9 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         text = decoded.get(rel)
         if text is None:
             continue
+        visible_text = _visible_markdown_text(text)
         actual_sections = re.findall(
-            r"^##\s+([^\s—]+)", text, re.MULTILINE
+            r"^##\s+([^\s—]+)", visible_text, re.MULTILINE
         )
         for section in sorted(sections):
             count = actual_sections.count(section)

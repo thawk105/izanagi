@@ -570,6 +570,10 @@ description: synthetic Codex rulings skill
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S02_REASONING_MAX_LITERAL
             if rel == "docs/dev-wave/workers.md" and section == "DW-S03":
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S03_REASONING_MAX_LITERAL
+            if rel == "docs/dev-wave/workers.md" and section == "DW-S06-A":
+                body += "\n\n" + check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_LITERAL
+            if rel == "docs/dev-wave/workers.md" and section == "DW-S06-C":
+                body += "\n\n" + check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_LITERAL
             if rel == "docs/dev-wave/core.md" and section == "DW-S09":
                 body += (
                     "\n\n"
@@ -4846,6 +4850,8 @@ def _replace_workers_section_literal(text, section_id, replacement):
     literal = {
         "DW-S02": check_docs.DEV_WAVE_DW_S02_REASONING_MAX_LITERAL,
         "DW-S03": check_docs.DEV_WAVE_DW_S03_REASONING_MAX_LITERAL,
+        "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_LITERAL,
+        "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_LITERAL,
     }[section_id]
     changed_section = section.replace(literal, replacement, 1)
     assert changed_section != section
@@ -4874,10 +4880,40 @@ def _reasoning_effort_pin_findings(workers_text):
     return findings
 
 
+def _wrap_workers_section(text, section_id, before, after):
+    match = re.search(
+        rf"^## {re.escape(section_id)}(?:\s+—[^\n]*)?\s*$\n.*?(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None
+    return (
+        text[:match.start()]
+        + before
+        + match.group(0)
+        + after
+        + text[match.end():]
+    )
+
+
 def test_dev_wave_reasoning_effort_pins_accept_current_workers_contract():
     workers = os.path.join(_REPO, "docs", "dev-wave", "workers.md")
     with open(workers, encoding="utf-8") as stream:
         assert _reasoning_effort_pin_findings(stream.read()) == []
+
+
+def test_dev_wave_reasoning_effort_pins_accept_s06_b_inherited_without_literal():
+    workers = os.path.join(_REPO, "docs", "dev-wave", "workers.md")
+    with open(workers, encoding="utf-8") as stream:
+        text = stream.read()
+    visible = check_docs._visible_markdown_text(text)
+    sections = check_docs._reference_id_sections(visible, "DW-S06-B")
+    assert len(sections) == 1
+    assert [
+        match.group("value")
+        for match in check_docs.DEV_WAVE_REASONING_EFFORT_RE.finditer(sections[0])
+    ] == []
+    assert _reasoning_effort_pin_findings(text) == []
 
 
 def test_dev_wave_reasoning_effort_pin_rejects_dw_s02_high():
@@ -4924,6 +4960,39 @@ def test_dev_wave_reasoning_effort_pin_rejects_missing_dw_s03_value():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_max():
+    root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
+    try:
+        text = _mutated_workers_text(root, "DW-S06-A", "`reasoning=max`")
+        assert _reasoning_effort_pin_findings(text) == [
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+        ]
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_rejects_missing_dw_s06_a_value():
+    root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
+    try:
+        text = _mutated_workers_text(root, "DW-S06-A", "")
+        assert _reasoning_effort_pin_findings(text) == [
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+        ]
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_c_max():
+    root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
+    try:
+        text = _mutated_workers_text(root, "DW-S06-C", "`reasoning=max`")
+        assert _reasoning_effort_pin_findings(text) == [
+            check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING
+        ]
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _assert_reasoning_effort_decoys_rejected(section_id, finding):
     replacements = (
         "`reasoning=high` <!-- `reasoning=max` -->",
@@ -4953,6 +5022,23 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates():
         "DW-S03",
         check_docs.DEV_WAVE_DW_S03_REASONING_MAX_FINDING,
     )
+
+
+def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_decoys_and_duplicates():
+    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+    replacements = (
+        "`reasoning=max` <!-- `reasoning=high` -->",
+        "`reasoning=max`\n\n```\n`reasoning=high`\n```\ncontinuation",
+        "`reasoning=high` and `reasoning=max`",
+        "`reasoning=high` and `reasoning=high`",
+    )
+    for replacement in replacements:
+        root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
+        try:
+            text = _mutated_workers_text(root, "DW-S06-A", replacement)
+            assert _reasoning_effort_pin_findings(text) == [finding]
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
 
 def _assert_reasoning_effort_real_keys_and_quotes_rejected(section_id, finding):
@@ -4987,16 +5073,66 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s03_real_keys_and_quotes():
     )
 
 
-def test_dev_wave_reasoning_effort_pins_ignore_comment_and_fence_examples():
+def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_real_keys_and_quotes():
+    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
     replacements = (
-        '`reasoning=max` <!-- `model_reasoning_effort="high"` -->',
-        '`reasoning=max`\n\n```\n`reasoning_effort=high`\n```\ncontinuation',
-        (
-            '`reasoning=max` and `pre_model_reasoning_effort=high` and '
-            '`reasoning_effort_extra=high`'
-        ),
+        "`reasoning_effort=high`",
+        '`model_reasoning_effort="high"`',
+        "`model_reasoning_effort='high'`",
+        '`reasoning_effort="max"` and `reasoning=high`',
+        '`model_reasoning_effort="max"` <!-- `reasoning=high` -->',
     )
-    for section_id in ("DW-S02", "DW-S03"):
+    for replacement in replacements:
+        root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
+        try:
+            text = _mutated_workers_text(root, "DW-S06-A", replacement)
+            assert _reasoning_effort_pin_findings(text) == [finding]
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_ambiguous_values():
+    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+    for replacement, invalid_value in (
+        ("`reasoning=high/max`", "high/max"),
+        ("`reasoning=high.max`", "high.max"),
+        ("`reasoning=high:max`", "high:max"),
+        ('`reasoning=high"`', 'high"'),
+    ):
+        assert [
+            match.group("value")
+            for match in check_docs.DEV_WAVE_REASONING_EFFORT_RE.finditer(
+                replacement
+            )
+        ] == [invalid_value]
+        root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
+        try:
+            text = _mutated_workers_text(root, "DW-S06-A", replacement)
+            assert _reasoning_effort_pin_findings(text) == [finding]
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pins_ignore_comment_and_fence_examples():
+    cases = (
+        ("DW-S02", "max", "high"),
+        ("DW-S03", "max", "high"),
+        ("DW-S06-A", "high", "max"),
+        ("DW-S06-C", "high", "max"),
+    )
+    for section_id, expected, decoy in cases:
+        replacements = (
+            f'`reasoning={expected}` <!-- `model_reasoning_effort="{decoy}"` -->',
+            (
+                f'`reasoning={expected}`\n\n```\n'
+                f'`reasoning_effort={decoy}`\n```\ncontinuation'
+            ),
+            (
+                f'`reasoning={expected}` and '
+                f'`pre_model_reasoning_effort={decoy}` and '
+                f'`reasoning_effort_extra={decoy}`'
+            ),
+        )
         for replacement in replacements:
             root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
             try:
@@ -5004,6 +5140,21 @@ def test_dev_wave_reasoning_effort_pins_ignore_comment_and_fence_examples():
                 assert _reasoning_effort_pin_findings(text) == []
             finally:
                 shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_rejects_hidden_whole_s06_sections():
+    workers = os.path.join(_REPO, "docs", "dev-wave", "workers.md")
+    with open(workers, encoding="utf-8") as stream:
+        text = stream.read()
+    cases = (
+        ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING),
+        ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING),
+    )
+    wrappers = (("```\n", "```\n"), ("<!--\n", "-->\n"))
+    for section_id, finding in cases:
+        for before, after in wrappers:
+            hidden = _wrap_workers_section(text, section_id, before, after)
+            assert _reasoning_effort_pin_findings(hidden) == [finding]
 
 
 def _assert_reasoning_effort_production_path_rejects(section_id, finding):
@@ -5038,6 +5189,55 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_high():
         "DW-S03",
         check_docs.DEV_WAVE_DW_S03_REASONING_MAX_FINDING,
     )
+
+
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_max_exact(
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/workers.md"
+        _write(
+            root,
+            rel,
+            _replace_workers_section_literal(
+                _read(root, rel),
+                "DW-S06-A",
+                "`reasoning=max`",
+            ),
+        )
+        res = _run_check(root)
+        assert res.returncode != 0, res.stdout
+        assert _finding_set(res) == {
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+        }
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_hidden_s06_a_exact(
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/workers.md"
+        baseline = _read(root, rel)
+        expected = {
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING,
+            (
+                "docs/dev-wave/workers.md: H2 見出し DW-S06-A が 0 件 — "
+                "dispatch先は一意でなければならない"
+            ),
+        }
+        for before, after in (("```\n", "```\n"), ("<!--\n", "-->\n")):
+            _write(
+                root,
+                rel,
+                _wrap_workers_section(baseline, "DW-S06-A", before, after),
+            )
+            res = _run_check(root)
+            assert res.returncode != 0, res.stdout
+            assert _finding_set(res) == expected
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def _assert_reasoning_effort_real_key_production_path_rejects(
@@ -5089,6 +5289,14 @@ def test_dev_wave_reasoning_effort_pin_findings_are_time_invariant():
     assert check_docs.DEV_WAVE_DW_S03_REASONING_MAX_FINDING == (
         "docs/dev-wave/workers.md: DW-S03 の `reasoning=max` は D207 に基づく"
         + expected_suffix
+    )
+    assert check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING == (
+        "docs/dev-wave/workers.md: DW-S06-A の `reasoning=high` は段 6 敵対レビューの"
+        "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
+    )
+    assert check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING == (
+        "docs/dev-wave/workers.md: DW-S06-C の `reasoning=high` は段 6 焦点再レビューの"
+        "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
     )
 
 
