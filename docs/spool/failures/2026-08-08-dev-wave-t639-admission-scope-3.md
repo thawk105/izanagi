@@ -27,8 +27,22 @@ seq: 3
   (`DW-M02` の erratum は事後の受け皿であって、既知の指摘を通す口実にしない)。
 - 再発検知: harness の `matches_expectation` が false で残る。本件は v1 台帳
   (`mutation-ledger-v1.json`) を erratum として insights に残し、v2 と併置した。
+  **恒久対応の `DW-M01` への明文化は `docs/dev-wave/**` の byte hard ceiling (25,200) に
+  4 bytes しか空きがなく入らない。** F146 / F161 と同じく本エントリを恒久対応の所在とし、
+  空きが出たときに `DW-M01` へ 1 文で統合する。
 
 ## 再発
+
+### F114
+
+- **再発: 2026-08-08 ([T-639])。** 受入全走が PBS の 30 分 elapse 上限で SIGKILL されたあと、
+  wave worktree の `.git/worktrees/<name>/index.lock` が **0 byte のまま残り**、以後の
+  `git add` / `git commit --dry-run` がすべて `fatal: Unable to create ... index.lock` で止まった。
+  **新しい情報は原因が並行 git 操作ではなく scheduler による強制終了**であること — 台帳既載の
+  「全走中に編集・stage しない」規律を守っていても発生する。
+  復旧は git 自身が案内する手順どおりで、`fuser` で holder 不在と、
+  生きている `codex exec` が別 wave のものであることを確認してから lock を削除した。
+  恒久対応は追加していない (受入全走の walltime 側の問題として worklog へ起票した)。
 
 ### F57
 
