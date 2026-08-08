@@ -59,6 +59,14 @@ title: [T-627] 世代遷移述語を (generation, contract hash) の同一入力
   逐語を code block として markdown へ凍結した。実行可能な原本は wave の job directory に残した。
 - **fix は 3 巡** (`DW-O16` の上限)。production の挙動を変えたのは統合 commit だけで、
   第 2・第 3 巡はテストとコメントのみ。並行 wave の land を 3 回取り込んだ。
+- **段 8 は候補 4 件のうち 1 件だけ実装し、3 件は台帳と裁定へ回した。** 実装したのは
+  `DW-M07` へ「期待 node も再検証する」を足す 15 bytes の是正で、本 wave が実際に踏んだ
+  MISMATCH 7 件の再発を止める。`docs/dev-wave/**` の合計上限は 25200 bytes、残余は 16 bytes しか
+  なく、**上限引き上げは提案しない**。残る候補 = (i) 変異 spec の category 語彙が reference に
+  無く preflight abort を踏んだ (実装は予算不足で見送り、経緯は本エントリが正本)、
+  (ii) 親の実測 script を insights へ `.py` で置けない件を `DW-S07` へ 1 行入れる案
+  (185 bytes 必要で収まらず見送り)、(iii) wave 中に契約文そのものが変わったときの扱い
+  (段構成・裁定境界に触れるため実装せず裁定パッケージへ)。
 - 一次資料 = `output/insights/2026-08-08_t627-noop-binding/` (段 1 brief と probe、段 2 プラン、
   段 3 の 2 レンズ、段 4 裁定と変異事前登録、段 5 実装報告、段 6 の 3 レビュー + 追加レビュー、
   fix 3 巡、変異 spec 2 版と台帳 2 走、親の実測 script の逐語)。
@@ -80,6 +88,12 @@ title: [T-627] 世代遷移述語を (generation, contract hash) の同一入力
   code identity に含めるが、汎用 certified 経路はその binding を呼ばない。第 2 世代の活性化後は、
   dirty / 未レビューの loader bytes で certified 選択・レポート・WAL を生成しても activation 参照
   だけでは検出できない。活性化の前提として設計択一が要る。
+- {{T:dev-wave-mid-wave-contract-change}} **P3・新規・ユーザー裁定待ち**:
+  wave の実行中に dev-wave の契約文そのものが land したときの扱い。読み込み契約は
+  「後発条件の期限超過」だけを定めており、契約文の改訂は射程外である。本 wave は 2 度遭遇し、
+  いずれも完了段をやり直さず前方適応した (段 3 の model 混成は段 6 へ別 model を 1 本追加、
+  段 6 の reasoning pin は上位 effort で実行済みのため据置)。段構成と裁定境界に触れるため
+  自己改善では実装せず、規則化するかを裁定へ返す。
 - {{T:activation-transition-property-based-tests}} **P3・新規**:
   遷移述語の量化縮退 (`changed[:N]`) は有限 fixture では族全体を殺せない。現状は 4 env までの
   固定 fixture と docstring への残穴明記で閉じている。生成的 / property-based テストを
