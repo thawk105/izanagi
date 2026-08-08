@@ -531,3 +531,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:fix-child-fail-open-to-green":"F162","F:stale-base-worktree-integration":"F163"},"authored":"2026-08-07","content_sha256":"4789bc6395c9ed437f15617667bfef5c3fef220f33e2903e152337a9c65ba8d8","seq":3,"wave":"dev-wave-t609-certified-writer-closure"}
 
 - {"allocations":{},"authored":"2026-08-08","content_sha256":"2e23688d1f7c88e1d28bc73595227c8a6566506873019fc0f386a31fcbc1a6ab","seq":22,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"de557cedc78ea10e237cb2d9a296c7044fb34692468a37cd4164d924ca846a36","seq":1,"wave":"dev-wave-t632-waiter-condition"}
+- {"allocations":{"F:qdel-deleted-peer-session-job":"F164"},"authored":"2026-08-08","content_sha256":"51e239b1528f485a5eff24cde1f8ab810629c06ab0858202b404c6ad8929f97c","seq":2,"wave":"dev-wave-t632-waiter-condition"}
