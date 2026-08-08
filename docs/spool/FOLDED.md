@@ -537,3 +537,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:devwave-acceptance-exemption-evidence":"[T-648]"},"authored":"2026-08-08","content_sha256":"25e5e2960a039f659f6ee49d2eef123b79925ec94316fdadd25bb793228e6fdd","seq":1,"wave":"dev-wave-t642-s04-scope"}
 - {"allocations":{"D:dev-wave-reference-self-funding":"D238","D:dw-s04-acceptance-not-exempt":"D237"},"authored":"2026-08-08","content_sha256":"c4af4cf4121cc8154be561344a887b67a9850ecf622b4a5b03526b4207b4064f","seq":2,"wave":"dev-wave-t642-s04-scope"}
+
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"651c7392e96e1e9766aa5391703ce22fea64cf25cc38df2b2228d2230d9615d4","seq":1,"wave":"dev-wave-t139-producer"}
+- {"allocations":{"F:corrected-estimate-reintroduced":"F165"},"authored":"2026-08-08","content_sha256":"c247a8b77d01017197e9822fd8479b9f7ff2d0a4e848c49926b5f3b2210680d7","seq":2,"wave":"dev-wave-t139-producer"}
