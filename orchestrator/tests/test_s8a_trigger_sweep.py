@@ -45,7 +45,8 @@ from campaign.build_admission import (BuildAdmissionError,            # noqa: E4
                                       attest_generator_output,
                                       build_run_context,
                                       derive_build_admission)
-from campaign.model import STAGE_BUILD_START                       # noqa: E402
+from campaign.model import (ENVIRONMENT_CONTRACT_SEARCH_KEY,      # noqa: E402
+                            STAGE_BUILD_START)
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
@@ -69,6 +70,10 @@ _PRE_T343_S8A_CAMPAIGN_IDS = {
 _T343_S8A_CAMPAIGN_IDS = {
     "balanced": "p3-s8a-trigger-sweep-balanced-sweep-fc683dde",
     "write-heavy": "p3-s8a-trigger-sweep-write-heavy-sweep-5569ad76",
+}
+_T530_S8A_CAMPAIGN_IDS = {
+    "balanced": "p3-s8a-trigger-sweep-balanced-sweep-0b2966f0",
+    "write-heavy": "p3-s8a-trigger-sweep-write-heavy-sweep-27b6af7c",
 }
 
 # ==== 述語生成の構成的安全 =====================================================
@@ -260,7 +265,7 @@ def test_workload_trial_effective_baked_into_identity():
 
 
 def test_default_off_campaign_ids_remain_historical_values():
-    """pre-T343 の明示 preimage と現行 policy-bound ID を対で固定する。"""
+    """pre-T343/T343 を保存し、現行 contract-bound ID を固定する。"""
     workloads = {
         "balanced": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
         "write-heavy": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"},
@@ -294,10 +299,32 @@ def test_default_off_campaign_ids_remain_historical_values():
         ).encode("utf-8")).hexdigest()[:8]
         historical[tag] = f"p3-s8a-trigger-sweep-{tag}-sweep-{digest}"
     assert historical == _PRE_T343_S8A_CAMPAIGN_IDS
-    assert {
-        tag: str(ident.campaign_id(W.config_for(tag, EFF3)))
-        for tag in workloads
-    } == _T343_S8A_CAMPAIGN_IDS
+    explicit_contract = W.env_contract.GENERATIONS["linux-baremetal"][0].contract
+    saved_lookup = W.env_contract.lookup
+    W.env_contract.lookup = lambda _env_tag: explicit_contract
+    try:
+        configs = {
+            tag: W.config_for(tag, EFF3)
+            for tag in workloads
+        }
+    finally:
+        W.env_contract.lookup = saved_lookup
+    current = {
+        tag: str(ident.campaign_id(cfg)) for tag, cfg in configs.items()
+    }
+    t343 = {}
+    for tag, cfg in configs.items():
+        preimage = json.loads(ident.canonical_preimage(cfg))
+        assert preimage["search_config"].pop(
+            ENVIRONMENT_CONTRACT_SEARCH_KEY
+        ) == explicit_contract.contract_sha256
+        digest = hashlib.sha256(json.dumps(
+            preimage, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")).hexdigest()[:8]
+        t343[tag] = f"{cfg.spec_slug}-{cfg.search_tag}-{digest}"
+    assert t343 == _T343_S8A_CAMPAIGN_IDS
+    assert current == _T530_S8A_CAMPAIGN_IDS
 
 
 def test_config_wires_s2_verify_and_provenance():
