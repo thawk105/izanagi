@@ -736,6 +736,21 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 (裁定パッケージを含む) である。**`docs/handoff/` は README のみが正常**であり、そこだけを見ると
 稼働中の裁定を取りこぼす。`/rulings` の収集はここも読む。
 
+`tools/audit_dangling_commits.py` はこの directory を「repo 外の同一実体」の探索根として使う。
+repo 内のコードに機体固有の絶対 path を焼かないため、所在の指定は次のどちらかで外から渡す。
+
+```
+python3 tools/audit_dangling_commits.py --offrepo-root /work/1/SFC/tanab/dev-wave-jobs
+export IZANAGI_DEV_WAVE_JOBS_DIR=/work/1/SFC/tanab/dev-wave-jobs   # 上と同義。CLI 指定が優先する
+```
+
+- 指す先は **`dev-wave-jobs/` そのもの**である。§7.3 の `IZANAGI_WAVE_LEASE_DIR` は
+  その下の `land-lease/` を指す別変数で、探索根に渡しても意味がない (成果物が無い)。
+- どちらも未指定なら探索は行われず、その旨が出力される。**黙って縮まることはない。**
+- 抑止されるのは、到達不能側が regular blob で、basename・実行 mode・bytes が一致し、かつ
+  **main に land 済みの文書がその絶対 path (または探索根より下位の祖先 dir) を参照している**
+  場合だけである。bytes だけ一致する候補は抑止せず、報告行に注記が付く。
+
 ### 7.3 並行 wave の受入 lease (`tools/wave_land_window.py`)
 
 並行 dev-wave が同じ main を base に受入全走を重ね、追い越された側の約 1055 秒が丸ごと無駄に
