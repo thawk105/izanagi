@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M15",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "    r\"(?<![A-Za-z0-9_./?-])\"\n",
+     "new": "    r\"(?<![A-Za-z0-9_-])\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_accepts_url_and_path_references_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

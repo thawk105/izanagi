@@ -1,0 +1,53 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "        if values != [expected] or required_text_count != 1:\n",
+     "new": "        if values != [expected]:\n"
+    },
+    {
+     "file": "tools/check_docs.py",
+     "old": "    r\"(?P<value>[^ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』]+?)\"\n",
+     "new": "    r\"(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)\"\n"
+    },
+    {
+     "file": "tools/check_docs.py",
+     "old": "    r\"(?=$|[ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』])\"\n",
+     "new": "    r\"(?![A-Za-z0-9_-])\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "    r\"(?P<value>[^ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』]+?)\"\n",
+     "new": "    r\"(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)\"\n"
+    },
+    {
+     "file": "tools/check_docs.py",
+     "old": "    r\"(?=$|[ \\t\\r\\n`。、，,;；!?！？()（）\\[\\]{}「」『』])\"\n",
+     "new": "    r\"(?![A-Za-z0-9_-])\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

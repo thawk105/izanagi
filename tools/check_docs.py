@@ -296,6 +296,14 @@ DEV_WAVE_MODEL_SLUG_RE = re.compile(
 )
 DEV_WAVE_DW_S02_REASONING_MAX_LITERAL = "`reasoning=max`"
 DEV_WAVE_DW_S03_REASONING_MAX_LITERAL = "`reasoning=max`"
+DEV_WAVE_DW_S06_A_REASONING_HIGH_LITERAL = "`reasoning=high`"
+DEV_WAVE_DW_S06_C_REASONING_HIGH_LITERAL = "`reasoning=high`"
+DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE = (
+    "実装 wave は異なるレンズの敵対レビューを `reasoning=high` で必ず 2 本並列で行う。"
+)
+DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE = (
+    "並列 fix の統合後、焦点再レビューは全体へ `reasoning=high` で 1 本でよい。"
+)
 DEV_WAVE_DW_S02_REASONING_MAX_FINDING = (
     "docs/dev-wave/workers.md: DW-S02 の `reasoning=max` は D207 に基づく"
     "現行 adoption pin と不一致 — "
@@ -306,12 +314,25 @@ DEV_WAVE_DW_S03_REASONING_MAX_FINDING = (
     "現行 adoption pin と不一致 — "
     "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
 )
+DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-A の `reasoning=high` は段 6 敵対レビューの"
+    "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
+)
+DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-C の `reasoning=high` は段 6 焦点再レビューの"
+    "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
+)
+DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING = (
+    "docs/dev-wave/operations.md: DW-O16 に reasoning effort 値がある — "
+    "焦点再レビューの effort は DW-S06-C だけを正本とする"
+)
 DEV_WAVE_REASONING_EFFORT_RE = re.compile(
-    r"(?<![A-Za-z0-9_-])"
+    r"(?<![A-Za-z0-9_./?-])"
     r"(?:reasoning|reasoning_effort|model_reasoning_effort)="
-    r"(?P<quote>[\"']?)(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)"
+    r"(?P<quote>[\"']?)"
+    r"(?P<value>[^ \t\r\n`。、，,;；!?！？()（）\[\]{}「」『』]+?)"
     r"(?P=quote)"
-    r"(?![A-Za-z0-9_-])"
+    r"(?=$|[ \t\r\n`。、，,;；!?！？()（）\[\]{}「」『』])"
 )
 CODEX_DEV_WAVE_SKILL_LITERALS = (
     ".claude/commands/dev-wave.md",
@@ -867,7 +888,7 @@ def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
 
 
 def _dispatch_visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
-    """dispatch inventory 用に raw HTML block も除いた可視行を返す。"""
+    """reference 契約用に raw HTML block も除いた可視行を返す。"""
 
     lines: list[tuple[str, int, str]] = []
     in_comment = False
@@ -1045,7 +1066,7 @@ def _visible_markdown_text(text: str) -> str:
 
 
 def _visible_dispatch_inventory_text(text: str) -> str:
-    """dispatch inventory 抽出に限って raw HTML block も不可視化する。"""
+    """reference 契約抽出用に raw HTML block も不可視化する。"""
 
     return "".join(
         visible + newline
@@ -3473,30 +3494,64 @@ def _check_dev_wave_model_pins(
 def _check_dev_wave_reasoning_effort_pins(
     workers_text: str,
     findings: list[str],
+    *,
+    operations_text: str | None = None,
 ) -> None:
-    """D207 が固定した段 2/3 の reasoning=max を節ごとに exact pin する。"""
+    """採用済み reasoning effort と O16 の非 override を可視節へ pin する。"""
 
-    for section_id, finding in (
+    visible_workers_text = _visible_dispatch_inventory_text(workers_text)
+    for section_id, expected, required_text, finding in (
         (
             "DW-S02",
+            "max",
+            DEV_WAVE_DW_S02_REASONING_MAX_LITERAL,
             DEV_WAVE_DW_S02_REASONING_MAX_FINDING,
         ),
         (
             "DW-S03",
+            "max",
+            DEV_WAVE_DW_S03_REASONING_MAX_LITERAL,
             DEV_WAVE_DW_S03_REASONING_MAX_FINDING,
         ),
+        (
+            "DW-S06-A",
+            "high",
+            DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,
+            DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING,
+        ),
+        (
+            "DW-S06-C",
+            "high",
+            DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,
+            DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING,
+        ),
     ):
-        sections = _reference_id_sections(workers_text, section_id)
+        sections = _reference_id_sections(visible_workers_text, section_id)
         if len(sections) != 1:
             findings.append(finding)
             continue
-        visible_section = _visible_markdown_text(sections[0])
+        visible_section = sections[0]
         values = [
             match.group("value")
             for match in DEV_WAVE_REASONING_EFFORT_RE.finditer(visible_section)
         ]
-        if values != ["max"]:
+        required_text_count = (
+            visible_section.replace("\r\n", "\n").split("\n").count(required_text)
+            if section_id in {"DW-S06-A", "DW-S06-C"}
+            else visible_section.count(required_text)
+        )
+        if values != [expected] or required_text_count != 1:
             findings.append(finding)
+
+    if operations_text is None:
+        return
+    visible_operations_text = _visible_dispatch_inventory_text(operations_text)
+    sections = _reference_id_sections(visible_operations_text, "DW-O16")
+    if len(sections) != 1:
+        findings.append(DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING)
+        return
+    if DEV_WAVE_REASONING_EFFORT_RE.search(sections[0]) is not None:
+        findings.append(DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING)
 
 
 def _check_command_docs_guard(findings: list[str]) -> set[Path]:
@@ -3674,7 +3729,11 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         findings,
     )
     if workers_text is not None:
-        _check_dev_wave_reasoning_effort_pins(workers_text, findings)
+        _check_dev_wave_reasoning_effort_pins(
+            workers_text,
+            findings,
+            operations_text=decoded.get(_OPERATIONS),
+        )
 
     ambiguous_provenance: set[str] = set()
     for rel in sorted(PROVENANCE_FAMILY_FILES):
@@ -3730,8 +3789,9 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         text = decoded.get(rel)
         if text is None:
             continue
+        visible_text = _visible_dispatch_inventory_text(text)
         actual_sections = re.findall(
-            r"^##\s+([^\s—]+)", text, re.MULTILINE
+            r"^##\s+([^\s—]+)", visible_text, re.MULTILINE
         )
         for section in sorted(sections):
             count = actual_sections.count(section)
