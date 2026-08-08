@@ -56,9 +56,17 @@ title: 段 3 敵対相談を sol/luna 混成にし model の単一権威を不�
   CRLF 化すると byte gate が別環境で壊れる。(iv) `orchestrator/codex_roles/` の model allowlist
   (`spec.py` の `{gpt-5.6-sol, gpt-5.6-terra}`) に luna が無い。(v) dev-wave reference と
   dispatcher の byte 予算が慢性的に逼迫し、複数 wave が編集を断念している
-- 実測はすべて計算ノード。受入全走 = **7373 passed / 20 skipped** (1174.40s、job `895950.nqsv`)。
+- 実測はすべて計算ノード。受入全走は 2 回。1 回目 (実装 tip `03f1487b`) = **7373 passed /
+  20 skipped** (1174.40s、job `895950.nqsv`)。記録 commit `dd17b571` が実 repo を読むテストへ
+  影響しうるため最終 tip で再走し、2 回目 = **7372 passed / 1 failed / 20 skipped**
+  (1161.74s、job `895953.nqsv`)。
   `orchestrator/tests/test_check_docs.py` = 325 passed。`check_docs` 違反なし。
   `check_ai_provenance` 新規違反なし
+- **2 回目の赤 1 件はフレークと実測した。**
+  `test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table` は
+  本 wave の差分が到達しないファイルであり、1 回目の全走では緑、単独再走でも
+  **64 passed** で再現しなかった。`DW-O18` に従い実装差分へ帰属させない。
+  再現条件は不明で、同 test の非決定性は本 wave では追わない
 - エージェント工数: Codex 8 session (probe 1 / plan 1 / 段 3 相談 2 / 実装 1 / 段 6 レビュー 2 /
   fix 3 = 計 10、うち probe は claude 親が採点)。正確には probe 1 + plan 1 + 相談 2 + 実装 1 +
   レビュー 2 + fix 3 = 10 session。親 = brief・裁定・docs 編集・統合 commit・main 取り込み・
@@ -74,6 +82,11 @@ title: 段 3 敵対相談を sol/luna 混成にし model の単一権威を不�
   `DW-O01` の権威行と機械照合する層を設計する。Claude の PreToolUse hook は Codex 経路に
   未配線であり、両経路を覆う配線か、両経路が必ず通る launcher への集約が要る。
   served model の attest は [T-189] の所有のまま切り離す
+- {{T:codex-worker-launch-truth-table-flake}} **P3・新規**:
+  `test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table` が
+  受入全走で 1 度だけ赤になり、単独再走 (64 passed) と直前の全走では緑だった。
+  非決定性の源を特定し、再現条件を固定するか test を決定的にする。
+  実装差分とは無関係の観測であり、再現は 1 例のみ
 - {{T:dev-wave-docs-budget-relief}} **P2・新規**: dev-wave reference (25,200) と dispatcher
   (9,500) の byte 予算逼迫を、上限引き上げ以外の手段で恒久的に緩める。複数の wave が
   同じ壁で本文編集を断念している。陳腐化ルールの削除と、prose の機械検査への移管

@@ -95,7 +95,9 @@ prose を外しても義務は失われない。
 | 段 1 生死確認 | `codex exec -m gpt-5.6-luna -c model_reasoning_effort="max" -s read-only` = rc 0、CLI reported 13,017 token |
 | `tools/check_docs.py` | 違反なし |
 | `orchestrator/tests/test_check_docs.py` | 325 passed |
-| 受入全走 | **7373 passed / 20 skipped** (1174.40s、job `895950.nqsv`) |
+| 受入全走 1 回目 (実装 tip `03f1487b`) | **7373 passed / 20 skipped** (1174.40s、job `895950.nqsv`) |
+| 受入全走 2 回目 (最終 tip `dd17b571`) | 7372 passed / **1 failed** / 20 skipped (1161.74s、job `895953.nqsv`) — 赤はフレーク (下記) |
+| フレークの単独再走 | `test_codex_worker_launch.py` = 64 passed (再現せず) |
 | 変異 spec1 | 6 件中 5 KILLED / 1 MISMATCH (M5)、SURVIVED 0 |
 | 変異 spec2 | M7 KILLED (期待 2 node と完全一致)、SURVIVED 0 |
 | `tools/check_ai_provenance.py` | 新規違反なし |
