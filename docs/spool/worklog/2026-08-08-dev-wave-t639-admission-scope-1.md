@@ -50,14 +50,18 @@ title: [T-639] admission の適用 path を配置場所非依存へ広げた —
 - **`tools/README.md` は byte 予算 (3000) の余裕が 11 bytes しか無く、追記で超過した。**
   予算は上げず、古くなった限定 (「`tools/pegasus/` 配下の registry gate」) を削って射程の詳細を
   runbook §7.0 (正本) へ委譲する縮約で収めた。
-- **受入全走は 3 回投入した。最終結果は main 取り込み後の tip で 7240 passed / 20 skipped /
-  赤ゼロ (1237 秒、rc=0)。** 経緯は次のとおりで、いずれも実装差分に帰属する赤ではない。
+- **受入全走は 4 回投入した。最終結果は land 対象 tip で 7296 passed / 20 skipped /
+  赤ゼロ (rc=0)。** 4 回目は並行 wave の受入 lease (main に land 直後の
+  `tools/wave_land_window.py`) を取得して投入した。経緯は次のとおりで、
+  いずれも実装差分に帰属する赤ではない。
   1 回目 = PBS の 30 分 elapse 上限で進捗 99% 地点 SIGKILL (rc=16、テストの赤 0)。
   2 回目 = 7238 passed / **2 failed** / 20 skipped。赤 2 件はいずれも `git cat-file timeout` で、
   2 node の単独再走は 2 passed (85.06 秒) で再現しない。admission の差分は当該コードへ到達せず
   `DW-O18` により帰属しない。F57 族へ再発として記録した (独立 2 node が同一走行で同じ producer に
   当たったのは初、かつ親は子 process を 1 本も起動していない)。
-  3 回目 = main を 2 回目取り込みしたあとの land 対象 tip で再走し、赤ゼロで完走した。
+  3 回目 = main 2 回目取り込み後の tip で 7240 passed / 20 skipped / 赤ゼロ (1237 秒)。
+  4 回目 = main 3 回目取り込み後の land 対象 tip で 7296 passed / 20 skipped / 赤ゼロ。
+  件数の増加 (7240 → 7296) は取り込んだ並行 wave のテスト追加分である。
 - 受入・変異の逐語と一次資料は `output/insights/2026-08-08_t639-admission-scope/`。
 
 ## 次の一手差分

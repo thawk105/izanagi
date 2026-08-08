@@ -69,12 +69,15 @@ cwd 相対・`python3 -c`・未解析 launcher・Codex 子・ユーザー端末�
 
 ## 受入
 
-**最終 = 7240 passed / 20 skipped / 赤ゼロ (1237 秒、rc=0)。** main 取り込み後の tip で実測した。
+**最終 = 7296 passed / 20 skipped / 赤ゼロ (rc=0)。** land 対象 tip で、並行 wave の受入 lease を
+取得して実測した。
 
-3 回投入した経緯 (いずれも実装差分に帰属する赤ではない)。
+4 回投入した経緯 (いずれも実装差分に帰属する赤ではない)。
 
 1. PBS の 30 分 elapse 上限で進捗 99% 地点 SIGKILL (rc=16、テストの赤 0)。
 2. 7238 passed / **2 failed** / 20 skipped (1477 秒)。赤 2 件はいずれも `git cat-file timeout`。
    2 node の単独再走は 2 passed (85.06 秒) で再現せず、admission の差分は当該コードへ到達しない
    (`DW-O18` により非帰属)。F57 族へ再発記録。
-3. main 2 回目取り込み後の tip で再走し、赤ゼロで完走した。
+3. main 2 回目取り込み後の tip で 7240 passed / 20 skipped / 赤ゼロ (1237 秒)。
+4. main 3 回目取り込み後の land 対象 tip で 7296 passed / 20 skipped / 赤ゼロ。
+   件数の増加は取り込んだ並行 wave のテスト追加分である。
