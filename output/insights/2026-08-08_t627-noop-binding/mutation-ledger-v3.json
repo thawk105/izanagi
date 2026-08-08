@@ -1,0 +1,1010 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/6fa07418c4f30a0ee74decc1fb8ba28a/izdw-6fa07418c4.o896028",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/6fa07418c4f30a0ee74decc1fb8ba28a/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 67%]\n......................................................................   [100%]\n214 passed in 4.84s\n",
+      "stdout_sha256": "05f12dde9da141b926f8a073faf7f7b67f4ad43ce2e9ce98767a6b1b727ec9fa"
+    },
+    "artifact_error": null,
+    "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+    "duration_s": 26.873,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "777af82c9e20ac35d8a99367f26abfb1612bc0604da8f98223f15aa66a7348e4",
+    "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+    "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+    "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+    "status": "PASSED",
+    "test_output_sha256": "05f12dde9da141b926f8a073faf7f7b67f4ad43ce2e9ce98767a6b1b727ec9fa",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+  },
+  "date": "2026-08-08T12:05:25.102660+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/7b944abbf4b90a612236700ef2ffca6d/izdw-7b944abbf4.o896029",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/7b944abbf4b90a612236700ef2ffca6d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n......................................................................F. [ 67%]\nF....F...F..........................F.................................   [100%]\n=================================== FAILURES ===================================\n______________ test_transition_three_env_matrix_matches_d228_rule ______________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_three_env_matrix_matches_d228_rule():\n        states = tuple(\n            (a_generation, b_generation, c_generation)\n            for a_generation in (1, 2, 3)\n            for b_generation in (1, 2, 3)\n            for c_generation in (1, 2, 3)\n        )\n        for predecessor_state in states:\n            for successor_state in states:\n                records, head = _chain(\n                    predecessor_state,\n                    successor_state,\n                    registered_contracts=THREE_ENV_CATALOG,\n                )\n                deltas = tuple(\n                    successor - predecessor\n                    for predecessor, successor in zip(\n                        predecessor_state, successor_state\n                    )\n                )\n                expected = all(delta in {0, 1} for delta in deltas) and any(\n                    delta == 1 for delta in deltas\n                )\n                if expected:\n                    state = _validate(\n                        records,\n                        head,\n                        registered_contracts=THREE_ENV_CATALOG,\n                        predicate=lambda _old, _new: True,\n                    )\n                    assert tuple(row.generation for row in state.active_contracts) == (\n                        successor_state\n                    )\n                else:\n>                   with pytest.raises(\n                        activation.ActivationRecordError,\n                        match=r\"no-op|exactly \\+1\",\n                    ):\nE                   Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:763: Failed\n___________________ test_transition_matrix_matches_d228_rule ___________________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_matrix_matches_d228_rule():\n        states = tuple(\n            (a_generation, b_generation)\n            for a_generation in (1, 2, 3)\n            for b_generation in (1, 2, 3)\n        )\n        for predecessor_state in states:\n            for successor_state in states:\n                records, head = _chain(predecessor_state, successor_state)\n                deltas = tuple(\n                    successor - predecessor\n                    for predecessor, successor in zip(\n                        predecessor_state, successor_state\n                    )\n                )\n                expected = all(delta in {0, 1} for delta in deltas) and any(\n                    delta == 1 for delta in deltas\n                )\n                if expected:\n                    state = _validate(\n                        records,\n                        head,\n                        predicate=lambda _old, _new: True,\n                    )\n                    assert tuple(row.generation for row in state.active_contracts) == (\n                        successor_state\n                    )\n                else:\n>                   with pytest.raises(\n                        activation.ActivationRecordError,\n                        match=r\"no-op|exactly \\+1\",\n                    ):\nE                   Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:718: Failed\n_______________ test_transition_rejects_noop_in_middle_of_chain ________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_noop_in_middle_of_chain():\n        records, head = _chain((1, 1), (1, 1), (2, 1))\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"no-op: serial=2\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:600: Failed\n_____________________ test_transition_rejects_all_env_noop _____________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_all_env_noop():\n        records, head = _chain((1, 1), (1, 1))\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"no-op: serial=2\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:591: Failed\n_______________ test_issue_main_rejects_noop_without_publishing ________________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_issue_main_rejects_noop_w0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e2cbf8eb00>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14e2cbb49ea0>\n\n    def test_issue_main_rejects_noop_without_publishing(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],\n    ):\n        issuer = _load_issue_tool()\n        authority = tmp_path / \"authority\"\n        authority.mkdir()\n        (authority / \"00000001.json\").write_bytes(INITIAL_BYTES)\n        monkeypatch.setattr(\n            ec,\n            \"current_activation_state\",\n            lambda: activation.ActivationState(\n                activation_serial=1,\n                activation_state_sha256=INITIAL_STATE_SHA256,\n                active_contracts=tuple(\n                    activation.ActiveContract(\n                        env_tag=env_tag,\n                        generation=1,\n                        contract_sha256=ec.GENERATIONS[env_tag][0].contract.contract_sha256,\n                    )\n                    for env_tag in sorted(ec.GENERATIONS)\n                ),\n                ever_active_contract_sha256s=frozenset(\n                    ec.GENERATIONS[env_tag][0].contract.contract_sha256\n                    for env_tag in ec.GENERATIONS\n                ),\n            ),\n        )\n        monkeypatch.setattr(ec, \"_repository_root\", lambda: tmp_path)\n        monkeypatch.setattr(ec, \"_ACTIVATION_DIRECTORY\", PurePosixPath(\"authority\"))\n        monkeypatch.setattr(\n            issuer, \"__file__\", str(tmp_path / \"tools/issue_env_contract_activation.py\")\n        )\n>       with pytest.raises(SystemExit) as exc_info:\nE       Failed: DID NOT RAISE SystemExit\n\norchestrator/tests/test_env_contract_activation.py:2149: Failed\n----------------------------- Captured stdout call -----------------------------\nissued authority/00000002.json state_sha256=4f7ec918f8a3e81dab4b84c19e9d4147b4c04d7b6eae05b1fe0becd6c961d5ea\nNOT ACTIVE: activation record の発行だけでは有効化されない。\norchestrator/campaign/env_contract.py の reviewed head を次へ更新する:\n_ACTIVATION_HEAD_SERIAL: int = 2\n_ACTIVATION_HEAD_STATE_SHA256: str = \"4f7ec918f8a3e81dab4b84c19e9d4147b4c04d7b6eae05b1fe0becd6c961d5ea\"\nrecord と head 更新を同一 commit に収容し、配備後に全 process を再起動して初めて有効になる。\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_noop_in_middle_of_chain\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop\nFAILED orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_noop_without_publishing\n5 failed, 209 passed in 4.84s\n",
+        "stdout_sha256": "10b3bc7e9af5a7f3fff080d848254c6fef31c6f6fc7f65d04666ce04ade62088"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+      "duration_s": 37.119,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_noop_without_publishing",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_noop_in_middle_of_chain",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_noop_in_middle_of_chain",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_noop_without_publishing"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "c29db24f50ff71684940aa092a0cc90a09d3dc61d61a9361f08b7bba0904d844",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ad61bdd23c8aa052251b79c9dce7b260a1d5326f6e77e00b0a00e3895c016292",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    if not changed:\n        pass\n",
+          "old": "    if not changed:\n        raise ActivationRecordError(\n            \"activation transition が全 env 据置の no-op: \"\n            f\"serial={activation_serial}\"\n        )\n"
+        }
+      ],
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "KILLED",
+      "test_output_sha256": "10b3bc7e9af5a7f3fff080d848254c6fef31c6f6fc7f65d04666ce04ade62088",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/3cd1686e46c0db39c56ab0ee6167b0f7/izdw-3cd1686e46.o896031",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/3cd1686e46c0db39c56ab0ee6167b0f7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 67%]\n........F..FFF...F................F...................................   [100%]\n=================================== FAILURES ===================================\n______ test_transition_rejects_skip_even_when_successor_predicate_accepts ______\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_skip_even_when_successor_predicate_accepts():\n        records, head = _chain((1, 1), (3, 1))\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*env-a.*g1 -> g3\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:662: Failed\n_ test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances _\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances():\n        \"\"\"public 経路では外側の registry pair gate が所有者である。\n    \n        この private gate 直接呼出しは defense-in-depth の pin である。\n        \"\"\"\n        predecessor_rows = (\n            activation.ActiveContract(\"env-a\", 1, H_A1),\n            activation.ActiveContract(\"env-b\", 1, H_B1),\n        )\n        successor_rows = (\n            activation.ActiveContract(\"env-a\", 1, H_A2),\n            activation.ActiveContract(\"env-b\", 2, H_B2),\n        )\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*env-a.*g1 -> g1\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:881: Failed\n____________ test_transition_rejects_generation_skip_in_later_pair _____________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_generation_skip_in_later_pair():\n        later_skip_catalog = MappingProxyType({\n            \"env-a\": (*CATALOG[\"env-a\"], (4, \"d\" * 64)),\n            \"env-b\": CATALOG[\"env-b\"],\n        })\n        records, head = _chain(\n            (1, 1),\n            (2, 1),\n            (4, 1),\n            registered_contracts=later_skip_catalog,\n        )\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*serial=3.*env-a.*g2 -> g4\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:648: Failed\n___________________ test_transition_matrix_matches_d228_rule ___________________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_matrix_matches_d228_rule():\n        states = tuple(\n            (a_generation, b_generation)\n            for a_generation in (1, 2, 3)\n            for b_generation in (1, 2, 3)\n        )\n        for predecessor_state in states:\n            for successor_state in states:\n                records, head = _chain(predecessor_state, successor_state)\n                deltas = tuple(\n                    successor - predecessor\n                    for predecessor, successor in zip(\n                        predecessor_state, successor_state\n                    )\n                )\n                expected = all(delta in {0, 1} for delta in deltas) and any(\n                    delta == 1 for delta in deltas\n                )\n                if expected:\n                    state = _validate(\n                        records,\n                        head,\n                        predicate=lambda _old, _new: True,\n                    )\n                    assert tuple(row.generation for row in state.active_contracts) == (\n                        successor_state\n                    )\n                else:\n>                   with pytest.raises(\n                        activation.ActivationRecordError,\n                        match=r\"no-op|exactly \\+1\",\n                    ):\nE                   Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:718: Failed\n___ test_transition_rejects_skip_when_catalog_order_is_not_generation_order ____\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_skip_when_catalog_order_is_not_generation_order():\n        unordered_catalog = MappingProxyType({\n            \"env-a\": ((1, H_A1), (3, H_A3), (2, H_A2)),\n            \"env-b\": ((1, H_B1),),\n        })\n        records, head = _chain(\n            (1, 1),\n            (3, 1),\n            registered_contracts=unordered_catalog,\n        )\n>       with pytest.raises(activation.ActivationRecordError, match=r\"g1 -> g3\"):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:903: Failed\n______________ test_transition_three_env_matrix_matches_d228_rule ______________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_three_env_matrix_matches_d228_rule():\n        states = tuple(\n            (a_generation, b_generation, c_generation)\n            for a_generation in (1, 2, 3)\n            for b_generation in (1, 2, 3)\n            for c_generation in (1, 2, 3)\n        )\n        for predecessor_state in states:\n            for successor_state in states:\n                records, head = _chain(\n                    predecessor_state,\n                    successor_state,\n                    registered_contracts=THREE_ENV_CATALOG,\n                )\n                deltas = tuple(\n                    successor - predecessor\n                    for predecessor, successor in zip(\n                        predecessor_state, successor_state\n                    )\n                )\n                expected = all(delta in {0, 1} for delta in deltas) and any(\n                    delta == 1 for delta in deltas\n                )\n                if expected:\n                    state = _validate(\n                        records,\n                        head,\n                        registered_contracts=THREE_ENV_CATALOG,\n                        predicate=lambda _old, _new: True,\n                    )\n                    assert tuple(row.generation for row in state.active_contracts) == (\n                        successor_state\n                    )\n                else:\n>                   with pytest.raises(\n                        activation.ActivationRecordError,\n                        match=r\"no-op|exactly \\+1\",\n                    ):\nE                   Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:763: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule\n6 failed, 208 passed in 6.95s\n",
+        "stdout_sha256": "a692f302a5afa113564c8e1e4f3875f107dfc2091a817e4ccdd11946d385e68f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+      "duration_s": 32.037,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "59bfe39b219714c45e1bf6784a88326cc85cf766bca1024f6852d1b80303982b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c4d03276ede468879132b9d6885fc5a239e7b0b7174f603ebea322c6b84d31f6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "        if successor.generation < predecessor.generation:\n",
+          "old": "        if successor.generation != predecessor.generation + 1:\n"
+        }
+      ],
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "KILLED",
+      "test_output_sha256": "a692f302a5afa113564c8e1e4f3875f107dfc2091a817e4ccdd11946d385e68f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/019987d609c4ec12627314392fbf3be0/izdw-019987d609.o896032",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/019987d609c4ec12627314392fbf3be0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 67%]\n..............F..F.....FFF.F..F.F...F.F...............................   [100%]\n=================================== FAILURES ===================================\n___________ test_transition_rejects_compensating_plus_two_minus_one ____________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_compensating_plus_two_minus_one():\n        records, head = _chain((1, 2), (3, 1))\n>       with pytest.raises(activation.ActivationRecordError, match=r\"exactly \\+1\"):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:680: Failed\n___ test_transition_rejects_skip_when_catalog_order_is_not_generation_order ____\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_skip_when_catalog_order_is_not_generation_order():\n        unordered_catalog = MappingProxyType({\n            \"env-a\": ((1, H_A1), (3, H_A3), (2, H_A2)),\n            \"env-b\": ((1, H_B1),),\n        })\n        records, head = _chain(\n            (1, 1),\n            (3, 1),\n            registered_contracts=unordered_catalog,\n        )\n>       with pytest.raises(activation.ActivationRecordError, match=r\"g1 -> g3\"):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:903: Failed\n____________ test_transition_rejects_generation_skip_in_later_pair _____________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_generation_skip_in_later_pair():\n        later_skip_catalog = MappingProxyType({\n            \"env-a\": (*CATALOG[\"env-a\"], (4, \"d\" * 64)),\n            \"env-b\": CATALOG[\"env-b\"],\n        })\n        records, head = _chain(\n            (1, 1),\n            (2, 1),\n            (4, 1),\n            registered_contracts=later_skip_catalog,\n        )\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*serial=3.*env-a.*g2 -> g4\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:648: Failed\n______________ test_transition_three_env_matrix_matches_d228_rule ______________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_three_env_matrix_matches_d228_rule():\n        states = tuple(\n            (a_generation, b_generation, c_generation)\n            for a_generation in (1, 2, 3)\n            for b_generation in (1, 2, 3)\n            for c_generation in (1, 2, 3)\n        )\n        for predecessor_state in states:\n            for successor_state in states:\n                records, head = _chain(\n                    predecessor_state,\n                    successor_state,\n                    registered_contracts=THREE_ENV_CATALOG,\n                )\n                deltas = tuple(\n                    successor - predecessor\n                    for predecessor, successor in zip(\n                        predecessor_state, successor_state\n                    )\n                )\n                expected = all(delta in {0, 1} for delta in deltas) and any(\n                    delta == 1 for delta in deltas\n                )\n                if expected:\n                    state = _validate(\n                        records,\n                        head,\n                        registered_contracts=THREE_ENV_CATALOG,\n                        predicate=lambda _old, _new: True,\n                    )\n                    assert tuple(row.generation for row in state.active_contracts) == (\n                        successor_state\n                    )\n                else:\n>                   with pytest.raises(\n                        activation.ActivationRecordError,\n                        match=r\"no-op|exactly \\+1\",\n                    ):\nE                   Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:763: Failed\n___________________ test_transition_matrix_matches_d228_rule ___________________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_matrix_matches_d228_rule():\n        states = tuple(\n            (a_generation, b_generation)\n            for a_generation in (1, 2, 3)\n            for b_generation in (1, 2, 3)\n        )\n        for predecessor_state in states:\n            for successor_state in states:\n                records, head = _chain(predecessor_state, successor_state)\n                deltas = tuple(\n                    successor - predecessor\n                    for predecessor, successor in zip(\n                        predecessor_state, successor_state\n                    )\n                )\n                expected = all(delta in {0, 1} for delta in deltas) and any(\n                    delta == 1 for delta in deltas\n                )\n                if expected:\n                    state = _validate(\n                        records,\n                        head,\n                        predicate=lambda _old, _new: True,\n                    )\n                    assert tuple(row.generation for row in state.active_contracts) == (\n                        successor_state\n                    )\n                else:\n>                   with pytest.raises(\n                        activation.ActivationRecordError,\n                        match=r\"no-op|exactly \\+1\",\n                    ):\nE                   Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:718: Failed\n______ test_transition_rejects_skip_even_when_successor_predicate_accepts ______\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_skip_even_when_successor_predicate_accepts():\n        records, head = _chain((1, 1), (3, 1))\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*env-a.*g1 -> g3\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:662: Failed\n_ test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances _\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances():\n        \"\"\"public 経路では外側の registry pair gate が所有者である。\n    \n        この private gate 直接呼出しは defense-in-depth の pin である。\n        \"\"\"\n        predecessor_rows = (\n            activation.ActiveContract(\"env-a\", 1, H_A1),\n            activation.ActiveContract(\"env-b\", 1, H_B1),\n        )\n        successor_rows = (\n            activation.ActiveContract(\"env-a\", 1, H_A2),\n            activation.ActiveContract(\"env-b\", 2, H_B2),\n        )\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*env-a.*g1 -> g1\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:881: Failed\n___ test_transition_rejects_downgrade_even_when_successor_predicate_accepts ____\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_downgrade_even_when_successor_predicate_accepts():\n        records, head = _chain((2, 1), (1, 1))\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*env-a.*g2 -> g1\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:671: Failed\n___________ test_transition_rejects_compensating_plus_one_minus_one ____________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_compensating_plus_one_minus_one():\n        records, head = _chain((1, 2), (2, 1))\n>       with pytest.raises(activation.ActivationRecordError, match=r\"exactly \\+1\"):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:686: Failed\n_________________ test_transition_rejects_fourth_env_downgrade _________________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_fourth_env_downgrade():\n        records, head = _chain(\n            (1, 1, 1, 2),\n            (2, 2, 2, 1),\n            registered_contracts=FOUR_ENV_CATALOG,\n        )\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*env-d.*g2 -> g1\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:577: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_two_minus_one\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_downgrade_even_when_successor_predicate_accepts\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_one_minus_one\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\n10 failed, 204 passed in 4.77s\n",
+        "stdout_sha256": "b869b5c7061156b1775c31803038d2b2eecd5f8fbf06e9399a6d6765ebd0e409"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+      "duration_s": 42.284,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_one_minus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_two_minus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_downgrade_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_two_minus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_downgrade_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_one_minus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "8b2018b314d6b5d1c57cfef61f9bbc53d09b6143c5c6aaf0b864ca4d41e5b7cb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d62fe4bb1e4ec111508b52a5624c8ee5523ca5f64bacce8d21a9876341777b54",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "",
+          "old": "        if successor.generation != predecessor.generation + 1:\n            raise ActivationRecordError(\n                \"activation generation 遷移が exactly +1 でない: \"\n                f\"serial={activation_serial} env_tag={successor.env_tag} \"\n                f\"g{predecessor.generation} -> g{successor.generation}\"\n            )\n"
+        }
+      ],
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "KILLED",
+      "test_output_sha256": "b869b5c7061156b1775c31803038d2b2eecd5f8fbf06e9399a6d6765ebd0e409",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/f17023781e55e8206de7bda78e8b72d4/izdw-f17023781e.o896033",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/f17023781e55e8206de7bda78e8b72d4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 67%]\n...............F.FF......F.....FFFF..FF...............................   [100%]\n=================================== FAILURES ===================================\n_______ test_transition_rejects_non_bool_result_from_second_changed_env ________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_non_bool_result_from_second_changed_env():\n        records, head = _chain((1, 1), (2, 2))\n    \n        def predicate(_predecessor, successor):\n            if successor.env_tag == \"env-b\":\n                return 1\n            return True\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exact bool でない.*env_tag=env-b\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:1061: Failed\n______ test_transition_rejects_when_fourth_changed_env_successor_is_false ______\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_when_fourth_changed_env_successor_is_false():\n        records, head = _chain(\n            (1, 1, 1, 1),\n            (2, 2, 2, 2),\n            registered_contracts=FOUR_ENV_CATALOG,\n        )\n        calls = []\n    \n        def predicate(predecessor, successor):\n            calls.append((predecessor, successor))\n            return successor.env_tag != \"env-d\"\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"successor でない.*env_tag=env-d\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:978: Failed\n_____ test_transition_preserves_first_failure_when_later_successor_is_true _____\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_preserves_first_failure_when_later_successor_is_true():\n        records, head = _chain((1, 1), (2, 2))\n        calls = []\n    \n        def predicate(predecessor, successor):\n            calls.append((predecessor, successor))\n            return successor.env_tag == \"env-b\"\n    \n        with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"successor でない.*env_tag=env-a\",\n        ):\n            _validate(records, head, predicate=predicate)\n>       assert [successor.env_tag for _predecessor, successor in calls] == [\n            \"env-a\", \"env-b\",\n        ]\nE       AssertionError: assert ['env-a'] == ['env-a', 'env-b']\nE         \nE         Right contains one more item: 'env-b'\nE         Use -v to get more diff\n\norchestrator/tests/test_env_contract_activation.py:1006: AssertionError\n_________ test_successor_predicate_is_called_once_for_each_changed_env _________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_successor_predicate_is_called_once_for_each_changed_env():\n        records, head = _chain((1, 1), (2, 2))\n        calls = []\n    \n        def predicate(predecessor, successor):\n            calls.append((predecessor, successor))\n            return True\n    \n        _validate(records, head, predicate=predicate)\n>       assert calls == [\n            (\n                activation.ActiveContract(\"env-a\", 1, H_A1),\n                activation.ActiveContract(\"env-a\", 2, H_A2),\n            ),\n            (\n                activation.ActiveContract(\"env-b\", 1, H_B1),\n                activation.ActiveContract(\"env-b\", 2, H_B2),\n            ),\n        ]\nE       AssertionError: assert [(ActiveContr...2222222222'))] == [(ActiveContr...4444444444'))]\nE         \nE         Right contains one more item: (ActiveContract(env_tag='env-b', generation=1, contract_sha256='333333333333333333333333333333333333333333333333333333...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\nE         Use -v to get more diff\n\norchestrator/tests/test_env_contract_activation.py:1094: AssertionError\n______ test_transition_rejects_when_third_changed_env_successor_is_false _______\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_when_third_changed_env_successor_is_false():\n        records, head = _chain(\n            (1, 1, 1),\n            (2, 2, 2),\n            registered_contracts=THREE_ENV_CATALOG,\n        )\n        calls = []\n    \n        def predicate(predecessor, successor):\n            calls.append((predecessor, successor))\n            return successor.env_tag != \"env-c\"\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"successor でない.*env_tag=env-c\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:951: Failed\n___________ test_transition_wraps_exception_from_second_changed_env ____________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_wraps_exception_from_second_changed_env():\n        records, head = _chain((1, 1), (2, 2))\n        injected = RuntimeError(\"injected second successor failure\")\n    \n        def predicate(_predecessor, successor):\n            if successor.env_tag == \"env-b\":\n                raise injected\n            return True\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"registered successor 判定中に例外.*env_tag=env-b\",\n        ) as exc_info:\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:1077: Failed\n____ test_transition_preserves_first_exception_when_later_successor_is_true ____\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_preserves_first_exception_when_later_successor_is_true():\n        records, head = _chain((1, 1), (2, 2))\n        calls = []\n        injected = RuntimeError(\"injected first successor failure\")\n    \n        def predicate(predecessor, successor):\n            calls.append((predecessor, successor))\n            if successor.env_tag == \"env-a\":\n                raise injected\n            return True\n    \n        with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"registered successor 判定中に例外.*env_tag=env-a\",\n        ) as exc_info:\n            _validate(records, head, predicate=predicate)\n        assert exc_info.value.__cause__ is injected\n>       assert [successor.env_tag for _predecessor, successor in calls] == [\n            \"env-a\", \"env-b\",\n        ]\nE       AssertionError: assert ['env-a'] == ['env-a', 'env-b']\nE         \nE         Right contains one more item: 'env-b'\nE         Use -v to get more diff\n\norchestrator/tests/test_env_contract_activation.py:1048: AssertionError\n______ test_transition_rejects_when_second_changed_env_successor_is_false ______\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_when_second_changed_env_successor_is_false():\n        records, head = _chain((1, 1), (2, 2))\n        calls = []\n    \n        def predicate(predecessor, successor):\n            calls.append((predecessor, successor))\n            return successor.env_tag == \"env-a\"\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"successor でない.*env_tag=env-b\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:929: Failed\n______ test_transition_checks_generation_change_even_when_hash_is_reused _______\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_checks_generation_change_even_when_hash_is_reused():\n        reused_hash_catalog = MappingProxyType({\n            \"env-a\": ((1, H_A1), (2, H_A1)),\n            \"env-b\": ((1, H_B1), (2, H_B2)),\n        })\n        records, head = _chain(\n            (1, 1),\n            (2, 2),\n            registered_contracts=reused_hash_catalog,\n        )\n        calls = []\n    \n        def predicate(predecessor, successor):\n            calls.append((predecessor, successor))\n            return True\n    \n        state = _validate(\n            records,\n            head,\n            registered_contracts=reused_hash_catalog,\n            predicate=predicate,\n        )\n        assert tuple(row.generation for row in state.active_contracts) == (2, 2)\n>       assert [successor.env_tag for _predecessor, successor in calls] == [\n            \"env-a\", \"env-b\",\n        ]\nE       AssertionError: assert ['env-a'] == ['env-a', 'env-b']\nE         \nE         Right contains one more item: 'env-b'\nE         Use -v to get more diff\n\norchestrator/tests/test_env_contract_activation.py:798: AssertionError\n_ test_transition_preserves_first_non_bool_failure_when_later_successor_is_true _\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_preserves_first_non_bool_failure_when_later_successor_is_true():\n        records, head = _chain((1, 1), (2, 2))\n        calls = []\n    \n        def predicate(predecessor, successor):\n            calls.append((predecessor, successor))\n            if successor.env_tag == \"env-a\":\n                return 1\n            return True\n    \n        with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exact bool でない.*env_tag=env-a\",\n        ):\n            _validate(records, head, predicate=predicate)\n>       assert [successor.env_tag for _predecessor, successor in calls] == [\n            \"env-a\", \"env-b\",\n        ]\nE       AssertionError: assert ['env-a'] == ['env-a', 'env-b']\nE         \nE         Right contains one more item: 'env-b'\nE         Use -v to get more diff\n\norchestrator/tests/test_env_contract_activation.py:1026: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_fourth_changed_env_successor_is_false\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_failure_when_later_successor_is_true\nFAILED orchestrator/tests/test_env_contract_activation.py::test_successor_predicate_is_called_once_for_each_changed_env\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_third_changed_env_successor_is_false\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_wraps_exception_from_second_changed_env\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_exception_when_later_successor_is_true\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_second_changed_env_successor_is_false\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_checks_generation_change_even_when_hash_is_reused\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true\n10 failed, 204 passed in 4.82s\n",
+        "stdout_sha256": "26879502402931c9cc7a8661d7f3cb5c854494798891c6e76a2e39d82620a4c1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+      "duration_s": 42.29,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_successor_predicate_is_called_once_for_each_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_checks_generation_change_even_when_hash_is_reused",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_exception_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_failure_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_fourth_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_second_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_third_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_wraps_exception_from_second_changed_env"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_fourth_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_failure_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_successor_predicate_is_called_once_for_each_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_third_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_wraps_exception_from_second_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_exception_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_second_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_checks_generation_change_even_when_hash_is_reused",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "84af10bba86a4b23db37d7253c0daffe5caeea3680ac8286d2ec02aad334424a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8856aa2634d238748c80b59b449ccbed4d16604350a985d608b62ed5a5460f54",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:1]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "KILLED",
+      "test_output_sha256": "26879502402931c9cc7a8661d7f3cb5c854494798891c6e76a2e39d82620a4c1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/8dedb2012b896f762c1a44b706de7f74/izdw-8dedb2012b.o896034",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/8dedb2012b896f762c1a44b706de7f74/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n..................................................F....................F [ 67%]\n...............F......................................................   [100%]\n=================================== FAILURES ===================================\n_ test_production_successor_adapter_returns_false_when_is_valid_successor_is_false _\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_production_successor_adap0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a25663d7b0>\n\n    def test_production_successor_adapter_returns_false_when_is_valid_successor_is_false(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        predecessor_entry, successor_entry = ec.GENERATIONS[\"pegasus\"]\n        predecessor = activation.ActiveContract(\n            \"pegasus\", 1, predecessor_entry.contract.contract_sha256\n        )\n        successor = activation.ActiveContract(\n            \"pegasus\", 2, successor_entry.contract.contract_sha256\n        )\n        calls = []\n    \n        def reject(old_contract, new_contract):\n            calls.append((old_contract, new_contract))\n            return False\n    \n        monkeypatch.setattr(ec, \"is_valid_successor\", reject)\n>       assert ec._is_valid_activation_successor(predecessor, successor) is False\nE       AssertionError: assert True is False\nE        +  where True = <function _is_valid_activation_successor at 0x14a25698fac0>(ActiveContract(env_tag='pegasus', generation=1, contract_sha256='e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01'), ActiveContract(env_tag='pegasus', generation=2, contract_sha256='1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c'))\nE        +    where <function _is_valid_activation_successor at 0x14a25698fac0> = ec._is_valid_activation_successor\n\norchestrator/tests/test_env_contract_activation.py:1245: AssertionError\n_ test_production_successor_adapter_returns_false_for_resolved_invalid_contract _\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153058df56c0>\n\n    def test_production_successor_adapter_returns_false_for_resolved_invalid_contract(\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        predecessor_entry = ec.GENERATIONS[\"pegasus\"][0]\n        invalid_successor_entry = ec.GenerationEntry(\n            generation=2,\n            contract=replace(\n                predecessor_entry.contract,\n                clocks_per_us=predecessor_entry.contract.clocks_per_us + 1,\n            ),\n        )\n        generations = MappingProxyType({\n            \"pegasus\": (predecessor_entry, invalid_successor_entry),\n        })\n        monkeypatch.setattr(ec, \"GENERATIONS\", generations)\n        predecessor = activation.ActiveContract(\n            \"pegasus\", 1, predecessor_entry.contract.contract_sha256\n        )\n        successor = activation.ActiveContract(\n            \"pegasus\", 2, invalid_successor_entry.contract.contract_sha256\n        )\n        assert ec._resolve_activation_entry(predecessor) is predecessor_entry\n        assert ec._resolve_activation_entry(successor) is invalid_successor_entry\n        assert (\n            ec.is_valid_successor(\n                predecessor_entry.contract,\n                invalid_successor_entry.contract,\n            )\n            is False\n        )\n>       assert ec._is_valid_activation_successor(predecessor, successor) is False\nE       AssertionError: assert True is False\nE        +  where True = <function _is_valid_activation_successor at 0x153059147ac0>(ActiveContract(env_tag='pegasus', generation=1, contract_sha256='e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01'), ActiveContract(env_tag='pegasus', generation=2, contract_sha256='cc769264e1913692f59e674888b1cfb19054ab7ecf5d5a16c277402689df4067'))\nE        +    where <function _is_valid_activation_successor at 0x153059147ac0> = ec._is_valid_activation_successor\n\norchestrator/tests/test_env_contract_activation.py:1297: AssertionError\n______ test_issue_main_rejects_when_production_successor_adapter_rejects _______\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_issue_main_rejects_when_p0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ef0465ad70>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14ef04180a00>\n\n    def test_issue_main_rejects_when_production_successor_adapter_rejects(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],\n    ):\n        issuer = _load_issue_tool()\n        authority = tmp_path / \"authority\"\n        authority.mkdir()\n        (authority / \"00000001.json\").write_bytes(INITIAL_BYTES)\n        monkeypatch.setattr(\n            ec,\n            \"current_activation_state\",\n            lambda: activation.ActivationState(\n                activation_serial=1,\n                activation_state_sha256=INITIAL_STATE_SHA256,\n                active_contracts=tuple(\n                    activation.ActiveContract(\n                        env_tag=env_tag,\n                        generation=1,\n                        contract_sha256=(\n                            ec.GENERATIONS[env_tag][0].contract.contract_sha256\n                        ),\n                    )\n                    for env_tag in sorted(ec.GENERATIONS)\n                ),\n                ever_active_contract_sha256s=frozenset(\n                    ec.GENERATIONS[env_tag][0].contract.contract_sha256\n                    for env_tag in ec.GENERATIONS\n                ),\n            ),\n        )\n        monkeypatch.setattr(ec, \"_repository_root\", lambda: tmp_path)\n        monkeypatch.setattr(ec, \"_ACTIVATION_DIRECTORY\", PurePosixPath(\"authority\"))\n        monkeypatch.setattr(\n            issuer, \"__file__\", str(tmp_path / \"tools/issue_env_contract_activation.py\")\n        )\n        monkeypatch.setattr(ec, \"is_valid_successor\", lambda _old, _new: False)\n    \n>       with pytest.raises(SystemExit) as exc_info:\nE       Failed: DID NOT RAISE SystemExit\n\norchestrator/tests/test_env_contract_activation.py:2107: Failed\n----------------------------- Captured stdout call -----------------------------\nissued authority/00000002.json state_sha256=398b192013e0e3996ca225454049a14cb2866ef256b581fc3dfbfda02476bed8\nNOT ACTIVE: activation record の発行だけでは有効化されない。\norchestrator/campaign/env_contract.py の reviewed head を次へ更新する:\n_ACTIVATION_HEAD_SERIAL: int = 2\n_ACTIVATION_HEAD_STATE_SHA256: str = \"398b192013e0e3996ca225454049a14cb2866ef256b581fc3dfbfda02476bed8\"\nrecord と head 更新を同一 commit に収容し、配備後に全 process を再起動して初めて有効になる。\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_when_is_valid_successor_is_false\nFAILED orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_for_resolved_invalid_contract\nFAILED orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_when_production_successor_adapter_rejects\n3 failed, 211 passed in 6.54s\n",
+        "stdout_sha256": "2e970aab1df333b964c511ebb50e075f0685546c8b86612e9bc04ca7f8aeb059"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+      "duration_s": 26.879,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_when_production_successor_adapter_rejects",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_for_resolved_invalid_contract",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_when_is_valid_successor_is_false"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_when_is_valid_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_for_resolved_invalid_contract",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_when_production_successor_adapter_rejects"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "4415605ac70846ecc5c26ac3e463289bd2eb30a6d861310732557b29aea55345",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f5dda5272f91618695678b2ed0e804a6fb897923c9ebac4b262e5300f8f712bf",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract.py",
+          "new": "    is_valid_successor(\n        predecessor_entry.contract,\n        successor_entry.contract,\n    )\n    return True\n",
+          "old": "    return is_valid_successor(\n        predecessor_entry.contract,\n        successor_entry.contract,\n    )\n"
+        }
+      ],
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "KILLED",
+      "test_output_sha256": "2e970aab1df333b964c511ebb50e075f0685546c8b86612e9bc04ca7f8aeb059",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/84a4e4e4987945515239d16b3bf3e2d6/izdw-84a4e4e498.o896035",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/84a4e4e4987945515239d16b3bf3e2d6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n..............................................................F.F....... [ 67%]\n......................................................................   [100%]\n=================================== FAILURES ===================================\n______ test_production_successor_adapter_rejects_rows_that_do_not_resolve ______\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147a92bd0760>\n\n    def test_production_successor_adapter_rejects_rows_that_do_not_resolve(\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        predecessor_entry, successor_entry = ec.GENERATIONS[\"pegasus\"]\n        predecessor = activation.ActiveContract(\n            \"pegasus\", 1, predecessor_entry.contract.contract_sha256\n        )\n        unresolved = (\n            activation.ActiveContract(\n                \"pegasus\", 3, successor_entry.contract.contract_sha256\n            ),\n            activation.ActiveContract(\"pegasus\", 2, \"f\" * 64),\n            activation.ActiveContract(\n                \"unknown-env\", 2, successor_entry.contract.contract_sha256\n            ),\n        )\n        calls = []\n    \n        def spy(old_contract, new_contract):\n            calls.append((old_contract, new_contract))\n            return True\n    \n        monkeypatch.setattr(ec, \"is_valid_successor\", spy)\n        for successor in unresolved:\n>           assert ec._is_valid_activation_successor(predecessor, successor) is False\nE           AssertionError: assert True is False\nE            +  where True = <function _is_valid_activation_successor at 0x147a92f23ac0>(ActiveContract(env_tag='pegasus', generation=1, contract_sha256='e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01'), ActiveContract(env_tag='pegasus', generation=2, contract_sha256='ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'))\nE            +    where <function _is_valid_activation_successor at 0x147a92f23ac0> = ec._is_valid_activation_successor\n\norchestrator/tests/test_env_contract_activation.py:1352: AssertionError\n______ test_production_successor_adapter_reads_current_generations_global ______\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1460952d57e0>\n\n    def test_production_successor_adapter_reads_current_generations_global(\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        original_predecessor, original_successor = ec.GENERATIONS[\"pegasus\"]\n        replacement_predecessor = ec.GenerationEntry(\n            generation=1,\n            contract=replace(\n                original_predecessor.contract,\n                clocks_per_us=original_predecessor.contract.clocks_per_us + 1,\n            ),\n        )\n        replacement_successor = ec.GenerationEntry(\n            generation=2,\n            contract=replace(\n                original_successor.contract,\n                clocks_per_us=original_successor.contract.clocks_per_us + 1,\n            ),\n        )\n        predecessor = activation.ActiveContract(\n            \"pegasus\", 1, replacement_predecessor.contract.contract_sha256\n        )\n        successor = activation.ActiveContract(\n            \"pegasus\", 2, replacement_successor.contract.contract_sha256\n        )\n>       assert ec._is_valid_activation_successor(predecessor, successor) is False\nE       AssertionError: assert True is False\nE        +  where True = <function _is_valid_activation_successor at 0x146095627ac0>(ActiveContract(env_tag='pegasus', generation=1, contract_sha256='cc769264e1913692f59e674888b1cfb19054ab7ecf5d5a16c277402689df4067'), ActiveContract(env_tag='pegasus', generation=2, contract_sha256='8df8519f0ccbcf9aebc8ee2c5209320d0a75c53d692a2eb0ea2a07daba33ac0f'))\nE        +    where <function _is_valid_activation_successor at 0x146095627ac0> = ec._is_valid_activation_successor\n\norchestrator/tests/test_env_contract_activation.py:1206: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_rejects_rows_that_do_not_resolve\nFAILED orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_reads_current_generations_global\n2 failed, 212 passed in 4.81s\n",
+        "stdout_sha256": "5441cfcac73cd28b9733b5169f89746718172bd025735af98dd1c0b18ec67b53"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+      "duration_s": 42.181,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_reads_current_generations_global",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_rejects_rows_that_do_not_resolve"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_rejects_rows_that_do_not_resolve",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_reads_current_generations_global"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "e6fe2219721a0d4ac0e4aebd5217d863b7ee26cbce6a6fb0ca36735a00e76878",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7b6d40ebb81333bfcd2d8216b0043abdd11fa0fb6538032d4d62e913e0241933",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract.py",
+          "new": "    if (\n        entry.generation != row.generation\n        or entry.contract.env_tag != row.env_tag\n    ):\n",
+          "old": "    if (\n        entry.generation != row.generation\n        or entry.contract.env_tag != row.env_tag\n        or entry.contract.contract_sha256 != row.contract_sha256\n    ):\n"
+        }
+      ],
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "KILLED",
+      "test_output_sha256": "5441cfcac73cd28b9733b5169f89746718172bd025735af98dd1c0b18ec67b53",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/285635693b1e2d9962f1324d55e0857d/izdw-285635693b.o896036",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/285635693b1e2d9962f1324d55e0857d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 67%]\n..........................................................F...........   [100%]\n=================================== FAILURES ===================================\n________ test_validate_activation_records_requires_successor_predicate _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_validate_activation_recor0')\n\n    def test_validate_activation_records_requires_successor_predicate(tmp_path: Path):\n        first = _record1()\n        records = ((\"00000001.json\", _raw(first)),)\n        directory = tmp_path / \"authority\"\n        _write(directory, \"00000001.json\", first)\n>       with pytest.raises(TypeError):\nE       Failed: DID NOT RAISE TypeError\n\norchestrator/tests/test_env_contract_activation.py:1361: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_validate_activation_records_requires_successor_predicate\n1 failed, 213 passed in 4.81s\n",
+        "stdout_sha256": "c06cca0bed2d572f9bf3cf4549dc875aa0b3b84a676084022a9b8b5f72db40e2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+      "duration_s": 42.253,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_validate_activation_records_requires_successor_predicate"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_validate_activation_records_requires_successor_predicate"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "5f22eaeea7336d3368dc1da305de55895cb0d002ed4c2afd8e8b089b446ff7a9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c2da6cc397e1da444468290dd8a462443f05014d0745132974f28aa9bd3f2640",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "def validate_activation_records(\n    records: Sequence[tuple[str, bytes]],\n    *,\n    registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],\n    is_valid_registered_successor: _RegisteredSuccessorPredicate | None = None,\n",
+          "old": "def validate_activation_records(\n    records: Sequence[tuple[str, bytes]],\n    *,\n    registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],\n    is_valid_registered_successor: _RegisteredSuccessorPredicate,\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "def load_activation_state(\n    directory: Path,\n    *,\n    registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],\n    is_valid_registered_successor: _RegisteredSuccessorPredicate | None = None,\n",
+          "old": "def load_activation_state(\n    directory: Path,\n    *,\n    registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],\n    is_valid_registered_successor: _RegisteredSuccessorPredicate,\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    if is_valid_registered_successor is None:\n        def is_valid_registered_successor(predecessor, successor):\n            return True\n",
+          "old": "    if not callable(is_valid_registered_successor):\n        raise ActivationRecordError(\n            \"is_valid_registered_successor は callable でなければならない\"\n        )\n"
+        }
+      ],
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "KILLED",
+      "test_output_sha256": "c06cca0bed2d572f9bf3cf4549dc875aa0b3b84a676084022a9b8b5f72db40e2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/954297121a482e582c01a6eaaf2e4b00/izdw-954297121a.o896037",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/954297121a482e582c01a6eaaf2e4b00/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n..........................................................F...F......... [ 67%]\nF.....................................................................   [100%]\n=================================== FAILURES ===================================\n_ test_transition_preserves_first_non_bool_failure_when_later_successor_is_true _\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_preserves_first_non_bool_failure_when_later_successor_is_true():\n        records, head = _chain((1, 1), (2, 2))\n        calls = []\n    \n        def predicate(predecessor, successor):\n            calls.append((predecessor, successor))\n            if successor.env_tag == \"env-a\":\n                return 1\n            return True\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exact bool でない.*env_tag=env-a\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:1021: Failed\n______________ test_transition_rejects_non_bool_successor_result _______________\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_non_bool_successor_result():\n        records, head = _chain((1, 1), (2, 1))\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=\"exact bool でない\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:1140: Failed\n_______ test_transition_rejects_non_bool_result_from_second_changed_env ________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_non_bool_result_from_second_changed_env():\n        records, head = _chain((1, 1), (2, 2))\n    \n        def predicate(_predecessor, successor):\n            if successor.env_tag == \"env-b\":\n                return 1\n            return True\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exact bool でない.*env_tag=env-b\",\n        ):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_env_contract_activation.py:1061: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_successor_result\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env\n3 failed, 211 passed in 4.83s\n",
+        "stdout_sha256": "0ec0f2a802d7b0a827df32c4b84db48cafbe7538dda5095efbbe8fcab8ea6652"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+      "duration_s": 42.215,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_successor_result"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_successor_result",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "8108a11ff7f938845b47eab846bcf965312fa495d2e88134e08835c2e03001f8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6a0e6a5ba2ec4301da6ca8ca575d7a22c33d4b10d4d3fb41159ae7c937b0194d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "        if False:\n",
+          "old": "        if type(result) is not bool:\n"
+        }
+      ],
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "KILLED",
+      "test_output_sha256": "0ec0f2a802d7b0a827df32c4b84db48cafbe7538dda5095efbbe8fcab8ea6652",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/e25d25f2ed205f6db454d7d5abab592c/izdw-e25d25f2ed.o896038",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/e25d25f2ed205f6db454d7d5abab592c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 67%]\n.....................F.................F..........F.F.................   [100%]\n=================================== FAILURES ===================================\n___________ test_transition_rejects_invalid_successor_in_later_pair ____________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_invalid_successor_in_later_pair():\n        records, head = _chain((1, 1), (2, 1), (3, 1))\n    \n        def predicate(predecessor, successor):\n            if (\n                predecessor.env_tag == \"env-a\"\n                and predecessor.generation == 2\n                and successor.generation == 3\n            ):\n                return False\n            return _is_synthetic_successor(predecessor, successor)\n    \n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"successor でない.*serial=3.*env_tag=env-a\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'successor でない.*serial=3.*env_tag=env-a'\nE         Actual message: 'activation generation 遷移が exactly +1 でない: serial=3 env_tag=env-a'\n\norchestrator/tests/test_env_contract_activation.py:629: AssertionError\n______________ test_transition_accepts_three_record_forward_chain ______________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_accepts_three_record_forward_chain():\n        records, head = _chain((1, 1), (2, 1), (3, 1))\n>       state = _validate(records, head)\n\norchestrator/tests/test_env_contract_activation.py:609: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_env_contract_activation.py:164: in _validate\n    return activation.validate_activation_records(\norchestrator/campaign/env_contract_activation.py:401: in validate_activation_records\n    _validate_activation_transition(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npredecessor_rows = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=1, contract_sha256='3333333333333333333333333333333333333333333333333333333333333333'))\nsuccessor_rows = (ActiveContract(env_tag='env-a', generation=3, contract_sha256='555555555555555555555555555555555555555555555555555555...act(env_tag='env-b', generation=1, contract_sha256='3333333333333333333333333333333333333333333333333333333333333333'))\nactivation_serial = 3\nis_valid_registered_successor = <function _is_synthetic_successor at 0x1535f3521870>\n\n    def _validate_activation_transition(\n        predecessor_rows: tuple[ActiveContract, ...],\n        successor_rows: tuple[ActiveContract, ...],\n        *,\n        activation_serial: int,\n        is_valid_registered_successor: _RegisteredSuccessorPredicate,\n    ) -> None:\n        predecessor_by_env = {row.env_tag: row for row in predecessor_rows}\n        successor_by_env = {row.env_tag: row for row in successor_rows}\n        # production 経路では各 record の catalog 照合で precondition 済み。\n        # private gate を直接呼ぶ経路に対する defense-in-depth として保持する。\n        if predecessor_by_env.keys() != successor_by_env.keys():\n            raise ActivationRecordError(\n                \"activation transition の env 対応が不一致: \"\n                f\"serial={activation_serial}\"\n            )\n    \n        changed: list[tuple[ActiveContract, ActiveContract]] = []\n        for successor in successor_rows:\n            predecessor = predecessor_by_env[successor.env_tag]\n            if (\n                predecessor.generation,\n                predecessor.contract_sha256,\n            ) == (\n                successor.generation,\n                successor.contract_sha256,\n            ):\n                continue\n            if successor.generation != predecessor.generation + 1:\n                raise ActivationRecordError(\n                    \"activation generation 遷移が exactly +1 でない: \"\n                    f\"serial={activation_serial} env_tag={successor.env_tag} \"\n                    f\"g{predecessor.generation} -> g{successor.generation}\"\n                )\n            if predecessor.generation != 1:\n>               raise ActivationRecordError(\n                    \"activation generation 遷移が exactly +1 でない: \"\n                    f\"serial={activation_serial} env_tag={successor.env_tag}\"\n                )\nE               campaign.env_contract_activation.ActivationRecordError: activation generation 遷移が exactly +1 でない: serial=3 env_tag=env-a\n\norchestrator/campaign/env_contract_activation.py:292: ActivationRecordError\n______________ test_transition_three_env_matrix_matches_d228_rule ______________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_three_env_matrix_matches_d228_rule():\n        states = tuple(\n            (a_generation, b_generation, c_generation)\n            for a_generation in (1, 2, 3)\n            for b_generation in (1, 2, 3)\n            for c_generation in (1, 2, 3)\n        )\n        for predecessor_state in states:\n            for successor_state in states:\n                records, head = _chain(\n                    predecessor_state,\n                    successor_state,\n                    registered_contracts=THREE_ENV_CATALOG,\n                )\n                deltas = tuple(\n                    successor - predecessor\n                    for predecessor, successor in zip(\n                        predecessor_state, successor_state\n                    )\n                )\n                expected = all(delta in {0, 1} for delta in deltas) and any(\n                    delta == 1 for delta in deltas\n                )\n                if expected:\n>                   state = _validate(\n                        records,\n                        head,\n                        registered_contracts=THREE_ENV_CATALOG,\n                        predicate=lambda _old, _new: True,\n                    )\n\norchestrator/tests/test_env_contract_activation.py:753: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_env_contract_activation.py:164: in _validate\n    return activation.validate_activation_records(\norchestrator/campaign/env_contract_activation.py:401: in validate_activation_records\n    _validate_activation_transition(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npredecessor_rows = (ActiveContract(env_tag='env-a', generation=1, contract_sha256='111111111111111111111111111111111111111111111111111111...act(env_tag='env-c', generation=2, contract_sha256='8888888888888888888888888888888888888888888888888888888888888888'))\nsuccessor_rows = (ActiveContract(env_tag='env-a', generation=1, contract_sha256='111111111111111111111111111111111111111111111111111111...act(env_tag='env-c', generation=3, contract_sha256='9999999999999999999999999999999999999999999999999999999999999999'))\nactivation_serial = 2\nis_valid_registered_successor = <function test_transition_three_env_matrix_matches_d228_rule.<locals>.<lambda> at 0x14abf2989fc0>\n\n    def _validate_activation_transition(\n        predecessor_rows: tuple[ActiveContract, ...],\n        successor_rows: tuple[ActiveContract, ...],\n        *,\n        activation_serial: int,\n        is_valid_registered_successor: _RegisteredSuccessorPredicate,\n    ) -> None:\n        predecessor_by_env = {row.env_tag: row for row in predecessor_rows}\n        successor_by_env = {row.env_tag: row for row in successor_rows}\n        # production 経路では各 record の catalog 照合で precondition 済み。\n        # private gate を直接呼ぶ経路に対する defense-in-depth として保持する。\n        if predecessor_by_env.keys() != successor_by_env.keys():\n            raise ActivationRecordError(\n                \"activation transition の env 対応が不一致: \"\n                f\"serial={activation_serial}\"\n            )\n    \n        changed: list[tuple[ActiveContract, ActiveContract]] = []\n        for successor in successor_rows:\n            predecessor = predecessor_by_env[successor.env_tag]\n            if (\n                predecessor.generation,\n                predecessor.contract_sha256,\n            ) == (\n                successor.generation,\n                successor.contract_sha256,\n            ):\n                continue\n            if successor.generation != predecessor.generation + 1:\n                raise ActivationRecordError(\n                    \"activation generation 遷移が exactly +1 でない: \"\n                    f\"serial={activation_serial} env_tag={successor.env_tag} \"\n                    f\"g{predecessor.generation} -> g{successor.generation}\"\n                )\n            if predecessor.generation != 1:\n>               raise ActivationRecordError(\n                    \"activation generation 遷移が exactly +1 でない: \"\n                    f\"serial={activation_serial} env_tag={successor.env_tag}\"\n                )\nE               campaign.env_contract_activation.ActivationRecordError: activation generation 遷移が exactly +1 でない: serial=2 env_tag=env-c\n\norchestrator/campaign/env_contract_activation.py:292: ActivationRecordError\n___________________ test_transition_matrix_matches_d228_rule ___________________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_matrix_matches_d228_rule():\n        states = tuple(\n            (a_generation, b_generation)\n            for a_generation in (1, 2, 3)\n            for b_generation in (1, 2, 3)\n        )\n        for predecessor_state in states:\n            for successor_state in states:\n                records, head = _chain(predecessor_state, successor_state)\n                deltas = tuple(\n                    successor - predecessor\n                    for predecessor, successor in zip(\n                        predecessor_state, successor_state\n                    )\n                )\n                expected = all(delta in {0, 1} for delta in deltas) and any(\n                    delta == 1 for delta in deltas\n                )\n                if expected:\n>                   state = _validate(\n                        records,\n                        head,\n                        predicate=lambda _old, _new: True,\n                    )\n\norchestrator/tests/test_env_contract_activation.py:709: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_env_contract_activation.py:164: in _validate\n    return activation.validate_activation_records(\norchestrator/campaign/env_contract_activation.py:401: in validate_activation_records\n    _validate_activation_transition(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npredecessor_rows = (ActiveContract(env_tag='env-a', generation=1, contract_sha256='111111111111111111111111111111111111111111111111111111...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\nsuccessor_rows = (ActiveContract(env_tag='env-a', generation=1, contract_sha256='111111111111111111111111111111111111111111111111111111...act(env_tag='env-b', generation=3, contract_sha256='6666666666666666666666666666666666666666666666666666666666666666'))\nactivation_serial = 2\nis_valid_registered_successor = <function test_transition_matrix_matches_d228_rule.<locals>.<lambda> at 0x154a5c691fc0>\n\n    def _validate_activation_transition(\n        predecessor_rows: tuple[ActiveContract, ...],\n        successor_rows: tuple[ActiveContract, ...],\n        *,\n        activation_serial: int,\n        is_valid_registered_successor: _RegisteredSuccessorPredicate,\n    ) -> None:\n        predecessor_by_env = {row.env_tag: row for row in predecessor_rows}\n        successor_by_env = {row.env_tag: row for row in successor_rows}\n        # production 経路では各 record の catalog 照合で precondition 済み。\n        # private gate を直接呼ぶ経路に対する defense-in-depth として保持する。\n        if predecessor_by_env.keys() != successor_by_env.keys():\n            raise ActivationRecordError(\n                \"activation transition の env 対応が不一致: \"\n                f\"serial={activation_serial}\"\n            )\n    \n        changed: list[tuple[ActiveContract, ActiveContract]] = []\n        for successor in successor_rows:\n            predecessor = predecessor_by_env[successor.env_tag]\n            if (\n                predecessor.generation,\n                predecessor.contract_sha256,\n            ) == (\n                successor.generation,\n                successor.contract_sha256,\n            ):\n                continue\n            if successor.generation != predecessor.generation + 1:\n                raise ActivationRecordError(\n                    \"activation generation 遷移が exactly +1 でない: \"\n                    f\"serial={activation_serial} env_tag={successor.env_tag} \"\n                    f\"g{predecessor.generation} -> g{successor.generation}\"\n                )\n            if predecessor.generation != 1:\n>               raise ActivationRecordError(\n                    \"activation generation 遷移が exactly +1 でない: \"\n                    f\"serial={activation_serial} env_tag={successor.env_tag}\"\n                )\nE               campaign.env_contract_activation.ActivationRecordError: activation generation 遷移が exactly +1 でない: serial=2 env_tag=env-b\n\norchestrator/campaign/env_contract_activation.py:292: ActivationRecordError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_invalid_successor_in_later_pair\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_record_forward_chain\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule\n4 failed, 210 passed in 4.82s\n",
+        "stdout_sha256": "c6a26c89a41d2c2a8bb60f358295b59057b532232f9bedaaa38faa65f8a87112"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "608f41c9aa5b45f3f7089b593757030d0b1d28d45bd25d437748cad14d0640b0",
+      "duration_s": 42.273,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_record_forward_chain",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_invalid_successor_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_invalid_successor_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_record_forward_chain",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "73249bd4430259bcdb554edca2651f8325bd8a854a20577b96716c8a6a89d876",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "50de0c0ab1b228226a265a965f1a508d3585ff4dac8a504d60731cc7ab21a2d3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "        if predecessor.generation != 1:\n            raise ActivationRecordError(\n                \"activation generation 遷移が exactly +1 でない: \"\n                f\"serial={activation_serial} env_tag={successor.env_tag}\"\n            )\n        changed.append((predecessor, successor))\n",
+          "old": "        changed.append((predecessor, successor))\n"
+        }
+      ],
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "KILLED",
+      "test_output_sha256": "c6a26c89a41d2c2a8bb60f358295b59057b532232f9bedaaa38faa65f8a87112",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/7ff0258777e807d314f8c27a0689a32d/izdw-7ff0258777.o896027",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/output/pegasus-dispatch/7ff0258777e807d314f8c27a0689a32d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_env_contract_activation.py::test_initial_record_is_exact_canonical_hash_bound_and_selects_both_g1\norchestrator/tests/test_env_contract_activation.py::test_record_rejects_duplicate_unknown_noncanonical_and_bool_integer_fields\norchestrator/tests/test_env_contract_activation.py::test_chain_rejects_gap_filename_mismatch_and_bad_predecessor\norchestrator/tests/test_env_contract_activation.py::test_chain_rejects_symlink_nonregular_and_extra_entry\norchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_tail_rollback\norchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_valid_suffix_injection\norchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_same_serial_state_hash_mismatch\norchestrator/tests/test_env_contract_activation.py::test_record_requires_exact_registered_env_set_and_contract_pair\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_one_plus_one_with_other_env_unchanged\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_multiple_simultaneous_plus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_env_simultaneous_plus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_four_env_simultaneous_plus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_noop_in_middle_of_chain\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_record_forward_chain\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_invalid_successor_in_later_pair\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_downgrade_even_when_successor_predicate_accepts\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_two_minus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_one_minus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule\norchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule\norchestrator/tests/test_env_contract_activation.py::test_transition_checks_generation_change_even_when_hash_is_reused\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_change_with_reused_hash_when_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_generation_change_when_hash_is_reused_and_other_env_is_unchanged\norchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_plus_one_when_bound_contract_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_second_changed_env_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_third_changed_env_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_fourth_changed_env_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_failure_when_later_successor_is_true\norchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true\norchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_exception_when_later_successor_is_true\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env\norchestrator/tests/test_env_contract_activation.py::test_transition_wraps_exception_from_second_changed_env\norchestrator/tests/test_env_contract_activation.py::test_successor_predicate_is_called_once_for_each_changed_env\norchestrator/tests/test_env_contract_activation.py::test_successor_predicate_receives_exact_generation_hash_rows\norchestrator/tests/test_env_contract_activation.py::test_record_rejects_registered_generation_with_wrong_contract_hash\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_successor_result\norchestrator/tests/test_env_contract_activation.py::test_transition_wraps_successor_exception_fail_closed\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_resolves_bound_generation_entries\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_reads_current_generations_global\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_when_is_valid_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_for_resolved_invalid_contract\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_rejects_rows_that_do_not_resolve\norchestrator/tests/test_env_contract_activation.py::test_validate_activation_records_requires_successor_predicate\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_missing_env_before_calling_predicate\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_extra_env_fail_closed_before_calling_predicate\norchestrator/tests/test_env_contract_activation.py::test_real_pegasus_g2_serial2_is_accepted_and_switches_lookup\norchestrator/tests/test_env_contract_activation.py::test_production_loader_rejects_tail_deletion_with_source_head_unchanged\norchestrator/tests/test_env_contract_activation.py::test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart\norchestrator/tests/test_env_contract_activation.py::test_production_loader_passes_source_head_constants_to_leaf\norchestrator/tests/test_env_contract_activation.py::test_pegasus_g2_authorization_reaches_certified_sink_without_lookup\norchestrator/tests/test_env_contract_activation.py::test_serial2_preserves_g1_as_ever_active_and_verifies_history_on_resolution\norchestrator/tests/test_env_contract_activation.py::test_forward_activation_preserves_pegasus_g1_for_historical_resolution\norchestrator/tests/test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[missing]\norchestrator/tests/test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[modified]\norchestrator/tests/test_env_contract_activation.py::test_registered_but_never_active_hash_has_distinct_refusal_reason\norchestrator/tests/test_env_contract_activation.py::test_lazy_registry_mapping_contract_is_compatible_and_read_only\norchestrator/tests/test_env_contract_activation.py::test_import_performs_no_open_or_stat_io_in_worktree_or_archive_source_stage\norchestrator/tests/test_env_contract_activation.py::test_authority_validation_is_cached_once_per_pid\norchestrator/tests/test_env_contract_activation.py::test_held_lock_fork_reinitializes_child_cache_without_deadlock\norchestrator/tests/test_env_contract_activation.py::test_repo_root_is_cwd_independent\norchestrator/tests/test_env_contract_activation.py::test_activation_leaf_is_stdlib_only_campaign_import_free_and_env_neutral\norchestrator/tests/test_env_contract_activation.py::test_issue_cli_parses_before_authority_load_and_writes_create_only\norchestrator/tests/test_env_contract_activation.py::test_issue_publish_never_exposes_partial_bytes_and_fsyncs_directories\norchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[write]\norchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[file_fsync]\norchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[directory_fsync]\norchestrator/tests/test_env_contract_activation.py::test_issue_success_message_names_inactive_state_head_constants_and_restart\norchestrator/tests/test_env_contract_activation.py::test_issue_main_success_prints_required_head_and_inactive_warning\norchestrator/tests/test_env_contract_activation.py::test_issue_main_passes_production_successor_adapter_by_identity\norchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_when_production_successor_adapter_rejects\norchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_noop_without_publishing\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[Linux-Baremetal]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[-leading-dash]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[.leading-dot]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[has space]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[under_score/slash]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[]\norchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[\\u65e5\\u672c\\u8a9e]\norchestrator/tests/test_env_contract.py::test_rejects_non_str_env_tag\norchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[0]\norchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1]\norchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1800]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800.0]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[True]\norchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[False]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[None]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa1]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[numactl]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa3]\norchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa4]\norchestrator/tests/test_env_contract.py::test_accepts_empty_numactl_tuple\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[None]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[True]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[False]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[0]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[optional]\norchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[Required]\norchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[none]\norchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[required]\norchestrator/tests/test_env_contract.py::test_required_attestation_rejects_non_single_process\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[00000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[0000000000000000000000000000000000000000000000000000000000000000 ]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[123]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[123]\norchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[None]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-1]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-true]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-None]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-0]\norchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-false]\norchestrator/tests/test_env_contract.py::test_rejects_wrong_nested_types\norchestrator/tests/test_env_contract.py::test_lookup_baremetal_golden\norchestrator/tests/test_env_contract.py::test_lookup_pegasus_golden\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unregistered-env]\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[linux-baremetal-x]\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[]\norchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unknown]\norchestrator/tests/test_env_contract.py::test_lookup_non_str_fails_closed\norchestrator/tests/test_env_contract.py::test_lookup_non_hashable_fails_closed_with_exact_message\norchestrator/tests/test_env_contract.py::test_generation_entry_is_exact_frozen_data\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[0]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[-1]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[True]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[False]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[1.0]\norchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[1]\norchestrator/tests/test_env_contract.py::test_generation_entry_requires_exact_contract_type\norchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_and_all_generation_hashes\norchestrator/tests/test_env_contract.py::test_generations_are_immutable_tuples_without_exposed_backing_dict\norchestrator/tests/test_env_contract.py::test_registry_and_lookup_follow_activation_not_generation_tail\norchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table\norchestrator/tests/test_env_contract.py::test_validate_generations_accepts_single_generation_candidate\norchestrator/tests/test_env_contract.py::test_validate_generations_delegates_once_with_same_mapping\norchestrator/tests/test_env_contract.py::test_validate_generations_public_rejects_invalid_single_generation_candidate\norchestrator/tests/test_env_contract.py::test_validate_generations_rejects_bad_sequence_shapes_and_entries\norchestrator/tests/test_env_contract.py::test_validate_generations_without_bootstrap_fuse_accepts_valid_two_generation_candidate\norchestrator/tests/test_env_contract.py::test_validate_generations_synthetic_two_generation_negative_table\norchestrator/tests/test_env_contract.py::test_validate_generations_rejects_cross_env_contract_hash_collision\norchestrator/tests/test_env_contract.py::test_validate_generations_accepts_valid_two_generation_candidate\norchestrator/tests/test_env_contract.py::test_module_level_generation_validation_precedes_indexes_and_registry\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[linux-baremetal-expected_hashes0]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[None]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[123]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[00000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\norchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env\norchestrator/tests/test_env_contract.py::test_resolver_rejects_registered_never_active_pegasus_g2\norchestrator/tests/test_env_contract.py::test_resolver_rejects_non_unique_synthetic_index\norchestrator/tests/test_env_contract.py::test_contract_is_frozen\norchestrator/tests/test_env_contract.py::test_nested_dataclasses_frozen\norchestrator/tests/test_env_contract.py::test_registry_is_read_only_mapping_proxy\norchestrator/tests/test_env_contract.py::test_no_register_api\norchestrator/tests/test_env_contract.py::test_no_mutable_backing_dict_exposed\norchestrator/tests/test_env_contract.py::test_forbidden_literals_cover_all_registry_values\norchestrator/tests/test_env_contract.py::test_matches_p2_2_constants\norchestrator/tests/test_env_contract.py::test_registry_calibration_refs_are_canonical_hash_bound_and_meaningful\norchestrator/tests/test_env_contract.py::test_registered_pegasus_g2_calibration_is_hash_bound_v2_and_accepted\norchestrator/tests/test_env_contract.py::test_none_mode_successor_transition_does_not_bypass_loader_grandfather_pin\norchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception\norchestrator/tests/test_env_contract.py::test_registry_policy_equality_rejects_near_and_rounded_values\norchestrator/tests/test_env_contract.py::test_legacy_calibration_allowlist_is_exact_and_closed\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[env-tag]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[clocks]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[schema]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[threads]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-skew]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rratio]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rmw]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[quality]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[attestation-profile]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[acquisition-receipt]\norchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[noise-kind]\norchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[wrong-env-hash-copy]\norchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[missing-attestation]\norchestrator/tests/test_env_contract.py::test_pegasus_one_byte_mutation_is_rejected\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[/absolute/calibration.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/pegasus/calibration/../escape.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/wrong-env/calibration/artifact.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output//env/pegasus/calibration/artifact.json]\norchestrator/tests/test_env_contract.py::test_calibration_path_rejects_symlink_escape\norchestrator/tests/test_env_contract.py::test_calibration_ref_has_no_free_text_note\norchestrator/tests/test_env_contract.py::test_contract_has_no_records_or_threads\norchestrator/tests/test_env_contract.py::test_contract_sha256_small_golden\norchestrator/tests/test_env_contract.py::test_contract_sha256_matches_independent_reference\norchestrator/tests/test_env_contract.py::test_pegasus_contract_sha256_golden\norchestrator/tests/test_env_contract.py::test_pegasus_g2_contract_sha256_golden\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides0]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides1]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides2]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides3]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides4]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides5]\norchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides6]\norchestrator/tests/test_env_contract.py::test_contract_sha256_stable_and_hex64\norchestrator/tests/test_env_contract.py::test_v2_modules_have_no_env_literals_outside_registry\norchestrator/tests/test_env_contract.py::test_calibration_verify_is_in_v2_env_neutral_module_closure\norchestrator/tests/test_env_contract.py::test_ast_check_is_not_vacuous_env_contract_has_literals\norchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_outside_region\norchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_inside_region_is_exempt\norchestrator/tests/test_env_contract.py::test_find_env_literals_ignores_bool_lookalikes\n\n214 tests collected in 0.23s\n",
+        "stdout_sha256": "9f2fd8410bfb16a946e1c6d9a11749fbf8c6c0f4f97d82385dbdcf982bab1a5c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_initial_record_is_exact_canonical_hash_bound_and_selects_both_g1",
+        "orchestrator/tests/test_env_contract_activation.py::test_record_rejects_duplicate_unknown_noncanonical_and_bool_integer_fields",
+        "orchestrator/tests/test_env_contract_activation.py::test_chain_rejects_gap_filename_mismatch_and_bad_predecessor",
+        "orchestrator/tests/test_env_contract_activation.py::test_chain_rejects_symlink_nonregular_and_extra_entry",
+        "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_tail_rollback",
+        "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_valid_suffix_injection",
+        "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_same_serial_state_hash_mismatch",
+        "orchestrator/tests/test_env_contract_activation.py::test_record_requires_exact_registered_env_set_and_contract_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_one_plus_one_with_other_env_unchanged",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_multiple_simultaneous_plus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_env_simultaneous_plus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_four_env_simultaneous_plus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_noop_in_middle_of_chain",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_record_forward_chain",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_invalid_successor_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_downgrade_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_two_minus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_one_minus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_checks_generation_change_even_when_hash_is_reused",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_change_with_reused_hash_when_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_generation_change_when_hash_is_reused_and_other_env_is_unchanged",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_plus_one_when_bound_contract_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_second_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_third_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_fourth_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_failure_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_exception_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_wraps_exception_from_second_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_successor_predicate_is_called_once_for_each_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_successor_predicate_receives_exact_generation_hash_rows",
+        "orchestrator/tests/test_env_contract_activation.py::test_record_rejects_registered_generation_with_wrong_contract_hash",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_successor_result",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_wraps_successor_exception_fail_closed",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_resolves_bound_generation_entries",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_reads_current_generations_global",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_when_is_valid_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_for_resolved_invalid_contract",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_rejects_rows_that_do_not_resolve",
+        "orchestrator/tests/test_env_contract_activation.py::test_validate_activation_records_requires_successor_predicate",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_missing_env_before_calling_predicate",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_extra_env_fail_closed_before_calling_predicate",
+        "orchestrator/tests/test_env_contract_activation.py::test_real_pegasus_g2_serial2_is_accepted_and_switches_lookup",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_loader_rejects_tail_deletion_with_source_head_unchanged",
+        "orchestrator/tests/test_env_contract_activation.py::test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_loader_passes_source_head_constants_to_leaf",
+        "orchestrator/tests/test_env_contract_activation.py::test_pegasus_g2_authorization_reaches_certified_sink_without_lookup",
+        "orchestrator/tests/test_env_contract_activation.py::test_serial2_preserves_g1_as_ever_active_and_verifies_history_on_resolution",
+        "orchestrator/tests/test_env_contract_activation.py::test_forward_activation_preserves_pegasus_g1_for_historical_resolution",
+        "orchestrator/tests/test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[missing]",
+        "orchestrator/tests/test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[modified]",
+        "orchestrator/tests/test_env_contract_activation.py::test_registered_but_never_active_hash_has_distinct_refusal_reason",
+        "orchestrator/tests/test_env_contract_activation.py::test_lazy_registry_mapping_contract_is_compatible_and_read_only",
+        "orchestrator/tests/test_env_contract_activation.py::test_import_performs_no_open_or_stat_io_in_worktree_or_archive_source_stage",
+        "orchestrator/tests/test_env_contract_activation.py::test_authority_validation_is_cached_once_per_pid",
+        "orchestrator/tests/test_env_contract_activation.py::test_held_lock_fork_reinitializes_child_cache_without_deadlock",
+        "orchestrator/tests/test_env_contract_activation.py::test_repo_root_is_cwd_independent",
+        "orchestrator/tests/test_env_contract_activation.py::test_activation_leaf_is_stdlib_only_campaign_import_free_and_env_neutral",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_cli_parses_before_authority_load_and_writes_create_only",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_publish_never_exposes_partial_bytes_and_fsyncs_directories",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[write]",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[file_fsync]",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[directory_fsync]",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_success_message_names_inactive_state_head_constants_and_restart",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_success_prints_required_head_and_inactive_warning",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_passes_production_successor_adapter_by_identity",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_when_production_successor_adapter_rejects",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_noop_without_publishing",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[Linux-Baremetal]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[-leading-dash]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[.leading-dot]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[has space]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[under_score/slash]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_invalid_slug[/u65e5/u672c/u8a9e]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_str_env_tag",
+        "orchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_nonpositive_clocks[-1800]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800.0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[1800]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[True]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_int_clocks[False]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa1]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[numactl]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa3]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_numactl[bad_numa4]",
+        "orchestrator/tests/test_env_contract.py::test_accepts_empty_numactl_tuple",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[True]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[False]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[optional]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_attestation_mode[Required]",
+        "orchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[none]",
+        "orchestrator/tests/test_env_contract.py::test_accepts_exact_attestation_modes[required]",
+        "orchestrator/tests/test_env_contract.py::test_required_attestation_rejects_non_single_process",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[00000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[0000000000000000000000000000000000000000000000000000000000000000 ]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_sha256[123]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[123]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_bad_calibration_path[None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-1]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-true]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[single_process-None]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-0]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_non_bool_isolation[allow_resume-false]",
+        "orchestrator/tests/test_env_contract.py::test_rejects_wrong_nested_types",
+        "orchestrator/tests/test_env_contract.py::test_lookup_baremetal_golden",
+        "orchestrator/tests/test_env_contract.py::test_lookup_pegasus_golden",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unregistered-env]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[linux-baremetal-x]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_unknown_fails_closed[unknown]",
+        "orchestrator/tests/test_env_contract.py::test_lookup_non_str_fails_closed",
+        "orchestrator/tests/test_env_contract.py::test_lookup_non_hashable_fails_closed_with_exact_message",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_is_exact_frozen_data",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[0]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[-1]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[True]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[False]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[1.0]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_rejects_nonpositive_or_non_int_generation[1]",
+        "orchestrator/tests/test_env_contract.py::test_generation_entry_requires_exact_contract_type",
+        "orchestrator/tests/test_env_contract.py::test_generation_golden_has_exact_keys_and_all_generation_hashes",
+        "orchestrator/tests/test_env_contract.py::test_generations_are_immutable_tuples_without_exposed_backing_dict",
+        "orchestrator/tests/test_env_contract.py::test_registry_and_lookup_follow_activation_not_generation_tail",
+        "orchestrator/tests/test_env_contract.py::test_is_valid_successor_leaf_pointer_table",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_accepts_single_generation_candidate",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_delegates_once_with_same_mapping",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_public_rejects_invalid_single_generation_candidate",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_rejects_bad_sequence_shapes_and_entries",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_without_bootstrap_fuse_accepts_valid_two_generation_candidate",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_synthetic_two_generation_negative_table",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_rejects_cross_env_contract_hash_collision",
+        "orchestrator/tests/test_env_contract.py::test_validate_generations_accepts_valid_two_generation_candidate",
+        "orchestrator/tests/test_env_contract.py::test_module_level_generation_validation_precedes_indexes_and_registry",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[linux-baremetal-expected_hashes0]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_resolves_all_g1_hashes[pegasus-expected_hashes1]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[None]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[123]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[00000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_malformed[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_env_contract.py::test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env",
+        "orchestrator/tests/test_env_contract.py::test_resolver_rejects_registered_never_active_pegasus_g2",
+        "orchestrator/tests/test_env_contract.py::test_resolver_rejects_non_unique_synthetic_index",
+        "orchestrator/tests/test_env_contract.py::test_contract_is_frozen",
+        "orchestrator/tests/test_env_contract.py::test_nested_dataclasses_frozen",
+        "orchestrator/tests/test_env_contract.py::test_registry_is_read_only_mapping_proxy",
+        "orchestrator/tests/test_env_contract.py::test_no_register_api",
+        "orchestrator/tests/test_env_contract.py::test_no_mutable_backing_dict_exposed",
+        "orchestrator/tests/test_env_contract.py::test_forbidden_literals_cover_all_registry_values",
+        "orchestrator/tests/test_env_contract.py::test_matches_p2_2_constants",
+        "orchestrator/tests/test_env_contract.py::test_registry_calibration_refs_are_canonical_hash_bound_and_meaningful",
+        "orchestrator/tests/test_env_contract.py::test_registered_pegasus_g2_calibration_is_hash_bound_v2_and_accepted",
+        "orchestrator/tests/test_env_contract.py::test_none_mode_successor_transition_does_not_bypass_loader_grandfather_pin",
+        "orchestrator/tests/test_env_contract.py::test_registry_effective_clock_self_failures_are_exact_known_exception",
+        "orchestrator/tests/test_env_contract.py::test_registry_policy_equality_rejects_near_and_rounded_values",
+        "orchestrator/tests/test_env_contract.py::test_legacy_calibration_allowlist_is_exact_and_closed",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[env-tag]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[clocks]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[schema]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[threads]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-skew]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rratio]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[workload-rmw]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[quality]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[attestation-profile]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[acquisition-receipt]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_semantic_core_mutations_are_rejected[noise-kind]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[wrong-env-hash-copy]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_hash_bound_semantic_copies_are_rejected[missing-attestation]",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_one_byte_mutation_is_rejected",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[/absolute/calibration.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/pegasus/calibration/../escape.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output/env/wrong-env/calibration/artifact.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_canonical_checks_reject_bad_spellings[output//env/pegasus/calibration/artifact.json]",
+        "orchestrator/tests/test_env_contract.py::test_calibration_path_rejects_symlink_escape",
+        "orchestrator/tests/test_env_contract.py::test_calibration_ref_has_no_free_text_note",
+        "orchestrator/tests/test_env_contract.py::test_contract_has_no_records_or_threads",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_small_golden",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_matches_independent_reference",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_contract_sha256_golden",
+        "orchestrator/tests/test_env_contract.py::test_pegasus_g2_contract_sha256_golden",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides0]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides1]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides2]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides3]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides4]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides5]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_changes_when_field_changes[overrides6]",
+        "orchestrator/tests/test_env_contract.py::test_contract_sha256_stable_and_hex64",
+        "orchestrator/tests/test_env_contract.py::test_v2_modules_have_no_env_literals_outside_registry",
+        "orchestrator/tests/test_env_contract.py::test_calibration_verify_is_in_v2_env_neutral_module_closure",
+        "orchestrator/tests/test_env_contract.py::test_ast_check_is_not_vacuous_env_contract_has_literals",
+        "orchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_outside_region",
+        "orchestrator/tests/test_env_contract.py::test_find_env_literals_positive_control_inside_region_is_exempt",
+        "orchestrator/tests/test_env_contract.py::test_find_env_literals_ignores_bool_lookalikes"
+      ],
+      "duration_s": 26.856,
+      "rc": 0,
+      "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+      "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+      "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+      "status": "PASSED",
+      "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_noop_without_publishing",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_noop_in_middle_of_chain",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c29db24f50ff71684940aa092a0cc90a09d3dc61d61a9361f08b7bba0904d844",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    if not changed:\n        pass\n",
+            "old": "    if not changed:\n        raise ActivationRecordError(\n            \"activation transition が全 env 据置の no-op: \"\n            f\"serial={activation_serial}\"\n        )\n"
+          }
+        ]
+      },
+      "M10": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_record_forward_chain",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_invalid_successor_in_later_pair",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "73249bd4430259bcdb554edca2651f8325bd8a854a20577b96716c8a6a89d876",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "        if predecessor.generation != 1:\n            raise ActivationRecordError(\n                \"activation generation 遷移が exactly +1 でない: \"\n                f\"serial={activation_serial} env_tag={successor.env_tag}\"\n            )\n        changed.append((predecessor, successor))\n",
+            "old": "        changed.append((predecessor, successor))\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "59bfe39b219714c45e1bf6784a88326cc85cf766bca1024f6852d1b80303982b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "        if successor.generation < predecessor.generation:\n",
+            "old": "        if successor.generation != predecessor.generation + 1:\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_one_minus_one",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_two_minus_one",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_downgrade_even_when_successor_predicate_accepts",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8b2018b314d6b5d1c57cfef61f9bbc53d09b6143c5c6aaf0b864ca4d41e5b7cb",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "",
+            "old": "        if successor.generation != predecessor.generation + 1:\n            raise ActivationRecordError(\n                \"activation generation 遷移が exactly +1 でない: \"\n                f\"serial={activation_serial} env_tag={successor.env_tag} \"\n                f\"g{predecessor.generation} -> g{successor.generation}\"\n            )\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_successor_predicate_is_called_once_for_each_changed_env",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_checks_generation_change_even_when_hash_is_reused",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_exception_when_later_successor_is_true",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_failure_when_later_successor_is_true",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_fourth_changed_env_successor_is_false",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_second_changed_env_successor_is_false",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_third_changed_env_successor_is_false",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_wraps_exception_from_second_changed_env"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "84af10bba86a4b23db37d7253c0daffe5caeea3680ac8286d2ec02aad334424a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:1]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_when_production_successor_adapter_rejects",
+          "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_for_resolved_invalid_contract",
+          "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_when_is_valid_successor_is_false"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4415605ac70846ecc5c26ac3e463289bd2eb30a6d861310732557b29aea55345",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract.py",
+            "new": "    is_valid_successor(\n        predecessor_entry.contract,\n        successor_entry.contract,\n    )\n    return True\n",
+            "old": "    return is_valid_successor(\n        predecessor_entry.contract,\n        successor_entry.contract,\n    )\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_reads_current_generations_global",
+          "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_rejects_rows_that_do_not_resolve"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e6fe2219721a0d4ac0e4aebd5217d863b7ee26cbce6a6fb0ca36735a00e76878",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract.py",
+            "new": "    if (\n        entry.generation != row.generation\n        or entry.contract.env_tag != row.env_tag\n    ):\n",
+            "old": "    if (\n        entry.generation != row.generation\n        or entry.contract.env_tag != row.env_tag\n        or entry.contract.contract_sha256 != row.contract_sha256\n    ):\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_validate_activation_records_requires_successor_predicate"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5f22eaeea7336d3368dc1da305de55895cb0d002ed4c2afd8e8b089b446ff7a9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "def validate_activation_records(\n    records: Sequence[tuple[str, bytes]],\n    *,\n    registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],\n    is_valid_registered_successor: _RegisteredSuccessorPredicate | None = None,\n",
+            "old": "def validate_activation_records(\n    records: Sequence[tuple[str, bytes]],\n    *,\n    registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],\n    is_valid_registered_successor: _RegisteredSuccessorPredicate,\n"
+          },
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "def load_activation_state(\n    directory: Path,\n    *,\n    registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],\n    is_valid_registered_successor: _RegisteredSuccessorPredicate | None = None,\n",
+            "old": "def load_activation_state(\n    directory: Path,\n    *,\n    registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],\n    is_valid_registered_successor: _RegisteredSuccessorPredicate,\n"
+          },
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    if is_valid_registered_successor is None:\n        def is_valid_registered_successor(predecessor, successor):\n            return True\n",
+            "old": "    if not callable(is_valid_registered_successor):\n        raise ActivationRecordError(\n            \"is_valid_registered_successor は callable でなければならない\"\n        )\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env",
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_successor_result"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8108a11ff7f938845b47eab846bcf965312fa495d2e88134e08835c2e03001f8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "        if False:\n",
+            "old": "        if type(result) is not bool:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "777af82c9e20ac35d8a99367f26abfb1612bc0604da8f98223f15aa66a7348e4",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_env_contract_activation.py",
+      "orchestrator/tests/test_env_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "16e0274554a008e4af96398438ab0e973386793f",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_env_contract_activation.py",
+      "orchestrator/tests/test_env_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "dispatch_head_blob_sha256": "34c08eb17307d3bb6d17aeab1332deaae56c20261a5bc6ca18d50c9b36048d2f",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "4a0d687627b2ca65214e198324bf3be46c904a70",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "d1b56d1f9cc382b625025fcda9e830ce334fc25862068c393cb1306b14bca7d4",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "0ca88bc9982abfad780b9f41592bf8c680dbc809cc5e4d14a0d6f70c01e37f3f",
+  "summary": {
+    "KILLED": 9,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "6f829f8d4e59a95de8d0e987b75d4cf9143270a01d65afa9119d65c920d12a5d",
+  "updated_at": "2026-08-08T12:11:53.000653+00:00"
+}

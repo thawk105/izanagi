@@ -1,0 +1,100 @@
+あなたは izanagi プロジェクトの実装担当 (role=author) である。sandbox は workspace-write であり、
+repo 内のコードとテストを編集してよい。**docs の編集と git commit は禁止**である。
+repo 外への書込みも行わない。
+
+出力は日本語。最後に必ず `## 総括` 節を置くこと。
+
+## 必ず最初に読むファイル (読めなければ即座に停止し、その旨だけを出力すること)
+
+- 段 4 裁定: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t627-noop-binding/s4-adjudication.md
+- 焦点再レビュー (**これが今回の所見の正本**): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t627-noop-binding/s6-refocus.md
+- fix 第 1 巡の報告: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t627-noop-binding/s6-fix1.md
+
+repo は worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding (cwd)。
+**未 commit の作業ツリーが fix 第 1 巡まで適用済みの実装差分である。**その上に fix を重ねること。
+親は計算ノードで実走し **199 passed** を確認済みである。
+
+編集してよいファイルは次の 4 つだけである。
+
+- orchestrator/campaign/env_contract_activation.py
+- orchestrator/campaign/env_contract.py
+- tools/issue_env_contract_activation.py
+- orchestrator/tests/test_env_contract_activation.py
+
+## 親が real と裁定した所見 (すべて対応すること)
+
+### G1 (再レビュー must-fix 1、**限定採用**) — 4 env 境界
+
+`changed[:3]` 型の量化縮退と `sum(deltas) in {1,2,3}` 型の集約が、現行の 3 env fixture を通る。
+
+**4 env の fixture を追加する**。
+
+- `test_transition_accepts_four_env_simultaneous_plus_one` (4 env 同時 +1 の正例)
+- `test_transition_rejects_fourth_env_downgrade` (4 件目だけ downgrade)
+- `test_transition_rejects_when_fourth_changed_env_successor_is_false`
+  (先頭 3 件は `True`、4 件目だけ `False`)
+
+**重要 — 親の裁定**: `changed[:N]` 型の縮退は N を増やせば必ず逃げられる無限後退であり、
+有限の fixture では族全体を殺せない。したがって 4 env までを固定し、
+**「N ≥ 5 の truncation は有限 fixture では検出できない既知の残穴である」ことを、
+4 env matrix node の docstring に 1〜2 行で明記せよ。**保証を謳わないこと。
+5 env 以上の fixture は追加しない。
+
+### G2 (再レビュー must-fix 2) — hash 再利用 edge で返り値を捨てる実装を殺す
+
+現在の hash 再利用 node は predicate が常に `True` で call 列だけを検査するため、
+「hash が同じで generation だけ違うとき、call-trace 用に呼ぶだけで返り値を捨てて `continue` する」
+実装が通過する。
+
+- `test_transition_rejects_generation_change_with_reused_hash_when_successor_is_false`:
+  同じ hash を 2 世代に登録した synthetic catalog で g1→g2 の遷移を作り、
+  その env の predicate を `False` にして**拒否される**ことを検査する。
+- `test_transition_accepts_generation_change_when_hash_is_reused_and_other_env_is_unchanged`:
+  他 env を据置にした単独の正例 (全体 no-op 拒否で偶然赤にならないことを確認する)。
+
+### G3 (再レビュー must-fix 3) — failure 種別を限定した後続成功消去を殺す
+
+現在の「先頭失敗→後続成功」node は先頭が `False` の場合しかない。先頭が
+**非 bool** または **例外**のときに、後続の `True` で失敗状態を消す退行が通過する。
+
+- `test_transition_preserves_first_non_bool_failure_when_later_successor_is_true`
+- `test_transition_preserves_first_exception_when_later_successor_is_true`
+
+いずれも 2 env 以上を同時に変化させ、先頭 env が非 bool / 例外、後続 env が exact `True` とし、
+最終的に `ActivationRecordError` になること (および例外の場合は `__cause__` が保たれること) を固定する。
+
+### G4 (再レビュー D-6) — N11 の missing / extra を別 node に分ける
+
+`test_transition_rejects_env_set_change_before_calling_predicate` は missing と extra を
+1 node で処理している。
+
+- missing 側と extra 側を**別 node**にする。
+- extra 側は `KeyError` などの `ActivationRecordError` 以外の例外が漏れないこと
+  (fail-closed であること) を明示的に検査する node にする。
+- missing 側の docstring には、**実際に発火しているのは外側の catalog 照合層**であり
+  この node は診断 pin であることを明記する (fix 第 1 巡で入れた記述を維持・移植する)。
+
+## 禁止事項 (絶対規律)
+
+- **既存テストの期待値を、実装の都合で緩めない。**反転・緩和・skip・削除を禁じる。
+  赤が出たら実装側が誤りとみなす。期待値のほうが誤りだと判断した場合は、
+  **実装を変えずに報告して止めること。**
+- **production 側を fail-open にして辻褄を合わせない。**受理集合を広げる変更を禁じる。
+  必要ならテスト側に代役の node を足してよいが、既存 node の期待は下げない。
+- `_ACTIVATION_HEAD_SERIAL` / `_ACTIVATION_HEAD_STATE_SHA256` /
+  `orchestrator/campaign/env_contract_activations/00000001.json` は変更しない。
+- activation leaf は `campaign` / `orchestrator` / `calibrator` を import しない。
+  env 固有 literal を置かない。
+- docs の編集と git commit をしない。
+
+## 実走について
+
+**この環境では pytest を走らせられない。**したがって**緑を主張してはならない**。
+実走は親が計算ノードで行う。所見を `closed` と申告せず「実装済み・未実走」と書くこと。
+
+## 完了報告に必ず含めるもの
+
+1. **所見ごとの closed / partial / regressed 対応表** (G1〜G4 の 4 行)。表が無い報告は差し戻す。
+2. 追加・変更した test node の一覧と、それが殺す誤実装。
+3. 所有外の caller、共有 fixture、consumer test への波及可能性の静的な列挙。
+4. 実装できなかった項目と理由 (あれば)。

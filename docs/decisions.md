@@ -11351,3 +11351,77 @@ pin 対象は `DW-S02` / `DW-S03` / `DW-S06-A` / `DW-S06-C` と `DW-O16` の eff
 - 「全体へ 1 本でよい」を byte 捻出のために削る — この「1 本」は 1 巡あたりの reviewer 本数の
   許可であり、削れば子とトークンが増える。byte は導入文の縮約で捻出する。予算値は上げない。
 - 実装せずユーザーへ返し続ける — 値の確定自体は既に裁定済みで、実装待ちのまま滞留していた。
+
+## D244. dispatch の既定 walltime を 40 分へ上げ、下限を余裕比でテストに pin する (2026-08-08)
+
+**決定:** `tools/pegasus/dispatch_compute.py` の `DEFAULT_WALLTIME` を `00:30:00` から
+`00:40:00` へ上げる。`tools/run_tests.py` へ walltime を渡す経路は作らず、受入全走の分割もしない。
+あわせて、既定値が受入全走の実測最大所要 (1809 秒) の 1.25 倍以上であることをテストで pin し、
+既存の qsub 伝播検査の期待値を literal から `DEFAULT_WALLTIME` 導出へ移す。
+
+本決定は D105 の「`provenance` task の walltime は既定 `00:30:00` を据え置く」の**数値部分だけを
+上書きする**。据え置きの理由 (`elapstim_req` は確保上限であって消費ポイントの決定項ではなく、
+短縮しても支配項の queue 待ちは縮まない) は不変であり、本決定はその理由と矛盾しない —
+短縮ではなく確保上限の引き上げだからである。
+
+**理由:**
+- 受入全走の実測所要は 1146〜1809 秒で、30 分枠の 8 割を超えていた。実際に 1 度は進捗 99% 地点で
+  per-req elapse 超過により SIGKILL された。試験が増える限りこの縁は再発し、受入結果が
+  得られないと wave の land が止まる。
+- gen_S の Per-Req Elapse Time Limit は Max 86400S (`qstat -Qf gen_S` で実測) であり、
+  40 分は上限に対して十分小さい。`elapstim_req` は確保上限なので、早く終われば消費もそこで止まる。
+- 既存の伝播検査は qsub argv の literal 一致だけを見ており、定数と期待値を同時に下げれば
+  素通りした。既定値そのものの下限を測る検査が無かったため、同じ縁が黙って戻りうる。
+  余裕比を名前付き定数で pin することで、下げる変更が赤になる。
+
+**却下した選択肢:**
+- `run_tests.py` へ walltime を plumbing して受入形だけ枠を伸ばす — 受入形の判定は
+  「余計な flag を足さない」ことに依存しており、flag を増やすと事前検査が黙って発火しなくなる縁を
+  作る。受入全走以外の dispatch も同じ縁を持つため、受入形だけ直すのは対象が狭すぎる。
+- 受入全走の分割 — 走行単位が増えると queue 待ちがその回数だけ掛かり、総所要はむしろ延びる。
+  分割境界の維持コストも恒常的に乗る。
+- lease による直列化だけで足りるとみなす — lease は並行 wave 同士の重なりを減らすもので、
+  単一走行の所要そのものを縮めない。SIGKILL の原因は重なりではなく走行時間である。
+
+## D245. activation の世代遷移は (generation, contract hash) の対を同一入力として検査する (2026-08-08)
+
+**決定:** activation record chain の連続 record 間の遷移検査を、次の形で実装する。
+
+- 述語の入力は各 env の `(generation, contract_sha256)` の**対**であり、番号だけの射影ではない。
+- 変化した env すべてについて `successor.generation == predecessor.generation + 1` を要求する。
+  **env ごとに評価し、総和・最大・個数などの集約量で判定しない。**
+- 変化した env すべてについて、その対を registry の `GenerationEntry` へ exact 解決したうえで
+  `is_valid_successor` が真であることを要求する。最初の 1 件で打ち切らない。
+- 全 env の対が据置なら no-op として拒否する。据置 env の混在は許す。
+- successor 判定は loader の**既定値なし keyword-only 引数**として注入し、
+  production 側 adapter が `GENERATIONS` を**呼出し時に**読んで解決する。
+  activation record の schema leaf は環境契約 module を import しない (stdlib-only を維持)。
+- 発行 tool は同じ adapter を loader へ渡すだけとし、独自の遷移判定を持たない (実効 gate は 1 箇所)。
+
+D228 の遷移規則そのものは変えない。本決定はその**実装形**を固定するものである。
+
+**射程 (この決定が保証しないこと):** 束縛するのは「検証済み production generation snapshot に対する
+record-level edge」だけである。contract 実体の rollback、世代列の再定義、module 属性の再束縛、
+逆引き index の再束縛、較正の新旧は D228 と同じく射程外であり、塞いだと読める記述を置かない。
+
+**理由:**
+- 番号だけを見る述語は、後継世代が旧較正を指す再束縛を素通しする (D176 が「逆引き index を
+  authority として扱ってはならない」と定めたのと同じ理由)。対を同一入力にすることで、
+  番号の前進と contract 同一性の検査が同じ判断の中で閉じる。
+- 集約量による判定は、複数 env の相殺を受理する。実測でも、変化 env ごとに見ない実装は
+  `(+2, −1)` や `(+1, −1)` を受理し、提案されたテスト表を全部通った。
+- registry catalog の隣接だけに頼る案は、loader が受け取る catalog を呼び出し側が任意に構成できる
+  以上、loader の契約上は `is_valid_successor` との合成が現れない。必須注入にすると、
+  合成が公開署名の上に現れ、省略が型エラーになる。
+- adapter が import 時 snapshot を closure で捕捉すると、registry を差し替える既存の試験経路と
+  分裂する。既存 consumer も load 後に module-global を読み直しており、呼出し時参照が整合する。
+- 発行 tool 側に独自判定を置くと、同じ入力を拒否する層が 2 つになり、変異の単一理由性が失われる。
+
+**却下した選択肢:**
+- env→generation の数値 mapping を受ける純述語 — contract の rollback を素通しする。
+- 世代 entry の mapping を loader へ直接渡す — schema leaf から環境契約 module への逆 import が生じ、
+  stdlib-only を構造的に強制している既存検査を壊す。
+- 検証済み registry snapshot から catalog と adapter closure を同時生成する — 片方の分裂を
+  別の分裂に置き換えるだけで、registry を差し替える試験経路から adapter が見えなくなる。
+- 許可 edge の data catalog を別に渡す — loader には再び投影結果しか残らず、二重 catalog の
+  不整合面が増える。

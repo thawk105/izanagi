@@ -7,7 +7,7 @@ import json
 import os
 import re
 import stat
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -63,6 +63,12 @@ class ActiveContract:
             "generation": self.generation,
             "contract_sha256": self.contract_sha256,
         }
+
+
+_RegisteredSuccessorPredicate = Callable[
+    [ActiveContract, ActiveContract],
+    bool,
+]
 
 
 @dataclass(frozen=True)
@@ -248,10 +254,86 @@ def _registered_index(
     return result
 
 
+def _validate_activation_transition(
+    predecessor_rows: tuple[ActiveContract, ...],
+    successor_rows: tuple[ActiveContract, ...],
+    *,
+    activation_serial: int,
+    is_valid_registered_successor: _RegisteredSuccessorPredicate,
+) -> None:
+    predecessor_by_env = {row.env_tag: row for row in predecessor_rows}
+    successor_by_env = {row.env_tag: row for row in successor_rows}
+    # production 経路では各 record の catalog 照合で precondition 済み。
+    # private gate を直接呼ぶ経路に対する defense-in-depth として保持する。
+    if predecessor_by_env.keys() != successor_by_env.keys():
+        raise ActivationRecordError(
+            "activation transition の env 対応が不一致: "
+            f"serial={activation_serial}"
+        )
+
+    changed: list[tuple[ActiveContract, ActiveContract]] = []
+    for successor in successor_rows:
+        predecessor = predecessor_by_env[successor.env_tag]
+        if (
+            predecessor.generation,
+            predecessor.contract_sha256,
+        ) == (
+            successor.generation,
+            successor.contract_sha256,
+        ):
+            continue
+        if successor.generation != predecessor.generation + 1:
+            raise ActivationRecordError(
+                "activation generation 遷移が exactly +1 でない: "
+                f"serial={activation_serial} env_tag={successor.env_tag} "
+                f"g{predecessor.generation} -> g{successor.generation}"
+            )
+        changed.append((predecessor, successor))
+
+    if not changed:
+        raise ActivationRecordError(
+            "activation transition が全 env 据置の no-op: "
+            f"serial={activation_serial}"
+        )
+
+    first_failure: tuple[str, BaseException | None] | None = None
+    for predecessor, successor in changed:
+        try:
+            result = is_valid_registered_successor(predecessor, successor)
+        # process 中断を握り潰さないため、BaseException は包まずそのまま伝播させる。
+        except Exception as exc:
+            if first_failure is None:
+                first_failure = (
+                    "registered successor 判定中に例外: "
+                    f"serial={activation_serial} env_tag={successor.env_tag}",
+                    exc,
+                )
+            continue
+        if type(result) is not bool:
+            if first_failure is None:
+                first_failure = (
+                    "registered successor 判定値が exact bool でない: "
+                    f"serial={activation_serial} env_tag={successor.env_tag}",
+                    None,
+                )
+        elif not result and first_failure is None:
+            first_failure = (
+                "generation/hash 束縛済み contract が正当な successor でない: "
+                f"serial={activation_serial} env_tag={successor.env_tag}",
+                None,
+            )
+    if first_failure is not None:
+        message, cause = first_failure
+        if cause is not None:
+            raise ActivationRecordError(message) from cause
+        raise ActivationRecordError(message)
+
+
 def validate_activation_records(
     records: Sequence[tuple[str, bytes]],
     *,
     registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],
+    is_valid_registered_successor: _RegisteredSuccessorPredicate,
     expected_head_serial: int,
     expected_head_state_sha256: str,
 ) -> ActivationState:
@@ -261,6 +343,10 @@ def validate_activation_records(
     if (type(expected_head_state_sha256) is not str
             or _HEX64_RE.fullmatch(expected_head_state_sha256) is None):
         raise ActivationRecordError("expected head state hash が 64 lower-hex でない")
+    if not callable(is_valid_registered_successor):
+        raise ActivationRecordError(
+            "is_valid_registered_successor は callable でなければならない"
+        )
     catalog = _registered_index(registered_contracts)
     raw_records = tuple(records)
     if any(type(item) is not tuple or len(item) != 2 for item in raw_records):
@@ -275,6 +361,7 @@ def validate_activation_records(
     ever_active: set[str] = set()
     terminal_serial = 0
     terminal_hash = ""
+    previous_rows: tuple[ActiveContract, ...] | None = None
     for expected_serial, (name, raw) in enumerate(ordered, start=1):
         if type(name) is not str or _RECORD_NAME_RE.fullmatch(name) is None:
             raise ActivationRecordError(f"activation record filename が不正: {name!r}")
@@ -305,6 +392,14 @@ def validate_activation_records(
                     f"active contract hash が registry と不一致: {row.env_tag!r} g{row.generation}"
                 )
             ever_active.add(row.contract_sha256)
+        if previous_rows is not None:
+            _validate_activation_transition(
+                previous_rows,
+                rows,
+                activation_serial=serial,
+                is_valid_registered_successor=is_valid_registered_successor,
+            )
+        previous_rows = rows
         previous_hash = state_hash
         terminal_serial = serial
         terminal_hash = state_hash
@@ -385,6 +480,7 @@ def load_activation_state(
     directory: Path,
     *,
     registered_contracts: Mapping[str, tuple[tuple[int, str], ...]],
+    is_valid_registered_successor: _RegisteredSuccessorPredicate,
     expected_head_serial: int,
     expected_head_state_sha256: str,
 ) -> ActivationState:
@@ -392,6 +488,7 @@ def load_activation_state(
     return validate_activation_records(
         read_activation_record_files(directory),
         registered_contracts=registered_contracts,
+        is_valid_registered_successor=is_valid_registered_successor,
         expected_head_serial=expected_head_serial,
         expected_head_state_sha256=expected_head_state_sha256,
     )
