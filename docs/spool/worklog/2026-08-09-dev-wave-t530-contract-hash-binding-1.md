@@ -77,3 +77,8 @@ title: [T-530] contract hash を campaign identity と WAL COMMIT へ束縛し�
   (6) 契約を更新すると campaign id が分裂する結合をどう扱うか。第 2 世代の活性化と直結する。
   加えて、writer と reader の identity 導出を一元化するか (ambient 参照が 15 か所残る。
   成果物の値は変わらず、既存の status quo と同じ)。
+  **段 8 由来の 1 件も同じ束へ入れる**: `DW-O16` の fix 3 巡上限は「争点の再 fix」を想定した
+  規定に見えるが、焦点再レビューが**新規に見つけた実回帰**の扱いが書かれていない。本 wave は
+  この空白のため 2 度超過した。上限の射程を明文化するか、超過の記録義務だけにするかは裁定境界の
+  変更なので実装しない。なお失敗 2 件の恒久対応は dev-wave の docs 予算 (hard ceiling) を
+  超えるため reference 節ではなく memory へ置いた。予算そのものの引き上げは提案しない。

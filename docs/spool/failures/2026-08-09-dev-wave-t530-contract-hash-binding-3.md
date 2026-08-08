@@ -19,9 +19,11 @@ seq: 3
   オブジェクトを取らなければならないが、その規律がどこにも書かれていなかった。
   production 側 (`p3_autonomous_workload_trial.py` の import 直前コメント) は
   「同一 module identity 上に揃える」意図を明記していたのに、テスト側には伝わっていなかった。
-- 恒久対応: `docs/dev-wave/workers.md` の `DW-S05-C` が実装子プロンプトへ入れる項目として、
-  「exact 型検査を跨いで production へ渡す値は production module 自身の namespace
-  (`A.env_contract` 等) から取る」を追加する。
+- 恒久対応: memory `exact-type-checks-need-same-module-namespace` —
+  実装子・fix 子のプロンプトへ「exact 型検査を跨いで production へ渡す値は production module
+  自身の namespace (`A.env_contract` 等) から取る」を入れ、production の型検査を `isinstance` へ
+  緩めることを禁じ、同型の全走査を要求する。`DW-S05-C` への追記は dev-wave の docs 予算
+  (`docs/dev-wave/**` の hard ceiling) を超えるため採らなかった。
 - 再発検知: 同型は `type(...) is not ...` を持つ production 関数へテストが直接値を渡す箇所で
   起きる。fix 3 巡目で同型の全走査を子に要求し、取り残しゼロを静的に確認した。
 
@@ -34,8 +36,9 @@ seq: 3
   `DW-O01` は起動レシピと採用条件だけを持ち、**走行中の認証失効時にどう振る舞うか**を
   書いていない。`docs/ai-provenance.md` の D105 は Codex 不可用時の waiver 手順を定めるが、
   入口の条件 dispatch からは辿れない。
-- 恒久対応: `docs/dev-wave/operations.md` の `DW-O01` へ、認証失効は fail-closed 停止とし、
-  親が実装面を代行せず、再投入は新しい artifact 名で行う旨を追加する。
+- 恒久対応: memory `codex-auth-expiry-is-fail-closed-stop` — 401 / 未ログインは fail-closed
+  停止とし、親は実装面を代行せず、作業中の成果を commit して保全し、回復後の再投入は新しい
+  artifact 名で行う。`DW-O01` への追記は dev-wave の docs 予算を超えるため採らなかった。
 - 再発検知: 失効時は `-o` の出力ファイルが生成されないため、
   `tools/check_codex_output.py` が「対象を開けない」で必ず非 0 になる。
   この rc を採用条件として扱っていれば、無出力を成果と誤認する経路はない。
