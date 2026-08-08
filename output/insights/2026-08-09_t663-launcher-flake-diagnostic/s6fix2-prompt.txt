@@ -1,0 +1,98 @@
+あなたは izanagi の開発 wave の段 6 (fix) 担当である。日本語で報告を書くこと。
+段 5 実装子の契約をすべて継承する。
+
+## 読むもの (読めなければ即停止し、その旨だけを書いて終わること)
+
+- **段 4 裁定 (正本)**: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t663-flaky-truth-table/s4-adjudication.md
+- 段 5 実装報告: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t663-flaky-truth-table/s5-impl.md
+- 段 6 レビュー C: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t663-flaky-truth-table/s6-R1.md
+- 段 6 レビュー D: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t663-flaky-truth-table/s6-R2.md
+- 対象ファイル: orchestrator/tests/test_codex_worker_launch.py (段 5 実装が commit 済み)
+- production (読むだけ、**編集禁止**): tools/codex_worker_launch.py
+
+## 編集してよいもの
+
+`orchestrator/tests/test_codex_worker_launch.py` **1 枚だけ**。
+production・docs・他テストは編集しない。commit しない。
+
+## 直すもの (親が real と裁定した must-fix。すべて対応すること)
+
+- **F0 (親の実測)**: `test_final_drain_actuals_are_rechecked_before_acceptance` の
+  `assert not _paths["output"].exists()` が `NameError`。束縛名は `paths`。
+  **期待値は変えず**、名前だけ直す。
+- **F1 (C1)**: wiring meta-test `test_launcher_failure_diagnostic_is_wired_to_the_returncode_assertion`
+  が `_assert_launcher_returncode` を直接呼ぶだけで実 call site を通っていない。
+  `_run_case` 経由、direct `Popen` 経由、in-process 経由の**それぞれ**で意図的な rc 不一致を
+  起こし、sentinel formatter の出力が捕捉した専用例外の `str(exc)` に入ることを固定せよ。
+- **F9 (親が probe で決定的に再現。最重要)**: **実際の launcher を走らせる meta-test が、
+  その launcher の rc が特定の値になることに依存してはならない。**
+  親は既定 wall 予算を 0.30 秒へ縮める probe を行い、`_run_case(..., expected_returncode=1)` を
+  `pytest.raises` で包む書き方が `Failed: DID NOT RAISE LauncherReturncodeMismatch` で
+  落ちることを確認した (計 23 failed / 56 passed)。これは**フレークを観測するための計装が、
+  観測したいフレークそのもので壊れる**設計である。
+  規則: 実 launcher を走らせて診断経路を発火させる meta-test は、
+  **起こりえない期待 rc (例: 99) を渡して不一致を必ず成立させる**こと。
+  そのうえで、assert は「実 rc の literal」を焼き込まず、
+  注入した障害が保証する内容 (例: `metering_status=missing`, `codex_exit_code=7`) と
+  メッセージの構造 (先頭行の形、末尾 `truth_summary:` の再掲) を検査せよ。
+  先頭行の rc 値を検査したい場合は、その走行で観測した実 rc から期待文字列を組み立てること。
+  この規則を、実 launcher を走らせる**すべての** meta-test へ適用せよ。
+- **F2 (C2/D3)**: 診断が `json.loads` と緩い型検査だけで真理値行を出している。
+  production 相当の strict JSON load と receipt schema/semantic 検証を通過した receipt に**限って**
+  `failed_predicates` を出すこと。通過しない場合は `receipt_status=invalid:<理由>` と
+  上限つき raw 抜粋だけを出し、真理値を断定しない。
+  meta-test に「完全な JSON だが field 欠落」「duplicate key」「型違い」「非有限値」を追加せよ。
+- **F3 (C3)**: stream 読み込みが regular file 検査なしで blocking open している。
+  FIFO・symlink・非 regular file は `lstat`/`fstat` で即 `unreadable` とし、
+  診断 I/O に明示的な byte 上限を設けよ。FIFO を指す receipt を使った meta-test を追加し、
+  **一次の `actual rc != expected rc` 行が必ず残る**ことを固定せよ。
+- **F4 (C4)**: receipt の上限を production の 16 MiB に合わせよ。
+  末尾要約が先頭 8 attempt しか出さない点も直し、**最後の決定的な attempt の
+  compact predicate 行を 16 KiB 予算内へ優先的に確保**せよ。
+  9 attempt 超と大きい valid receipt の meta-test を追加せよ。
+- **F5 (D1)**: `test_manifest_is_appended_while_correlated_session_is_running` は
+  manifest 待機の assert が先にあり、launcher が早期に rc≠0 で終わると診断へ到達しない。
+  待機中に `process.poll()` を確認し、終了済みなら manifest assert より**前に**
+  診断付きの rc 判定を通せ。**既存の manifest 期待値は変えないこと。**
+- **F6 (D2)**: production の `accepted` は `not force_not_accepted` を含むが、
+  対応する receipt field は存在しない。可視 field がすべて成立しているのに
+  `accepted` が偽の場合は、でっち上げの predicate を出さず
+  `unrecorded_acceptance_guard` と明示せよ。さらに**複数の conjunct が同時に落ちる fixture**を
+  追加し、`failed_predicates` が全件を列挙する (最初の 1 件で return しない) ことを固定せよ。
+- **F7 (D4、scope 内の分だけ)**: 1 件の診断から「負荷か実障害か」を判別する材料を足せ。
+  `hostname`、環境変数 `PYTEST_XDIST_WORKER` と `PBS_JOBID` (不在なら明示)、
+  テスト process の PID、`os.getloadavg()`、receipt の `limits` と `actuals` 全体、
+  および launcher へ渡した予算 (wall/evidence/termination/poll) の実値。
+  **cgroup や pressure の収集は scope 外なのでやらないこと。**
+- **F8 (D7)**: 検証を通っていない receipt に対して `failed_predicates` や
+  「不成立だったゲート」という断定的表現を使わない。その場合は
+  `observability_status=insufficient` を出すこと。
+
+## やらないこと (段 4 で scope 外と裁定済み)
+
+- `tools/codex_worker_launch.py` の編集 (early receipt、`force_not_accepted` の保存、
+  phase 別経過時間の記録を含む)。
+- 時間予算の変更。wall `"3"` / evidence `1.0` / termination `0.05` / poll `0.01` /
+  外側 `timeout=10` は**すべて現行値のまま**。
+- dispatch relay (末尾 64 KiB) の E2E テスト新設。`tools/pegasus/` は触らない。
+- cgroup / memory pressure の収集。
+
+## 守ること (絶対)
+
+- **既存テストの期待値を変更しない。** 反転・緩和・skip・削除・xfail 化を禁じる。
+  赤が出たら実装側が誤りであると考えること。既存の期待値そのものが誤りだと判断したら、
+  **実装を変えずに報告して止めること。**
+- production を fail-open にして辻褄を合わせない。
+- 新設 meta-test は恒真にしない。専用例外 `LauncherReturncodeMismatch` を捕捉し、
+  `str(exc)` の具体的な値を検査すること。
+- 段 5 で追加した 7 本の meta-test 名は**変更しない** (親が変異を事前登録済み)。
+  追加する meta-test は新しい名前でよい。
+
+## 検査と報告
+
+- pytest を走らせられない可能性がある。走らせられなければ「実装済み・未実走」と正直に書くこと。
+  **未実走を緑と書かない。** テストの実測はすべて親が行う。
+- 完了報告には **F0〜F9 の対応表** (closed / partial / 未対応 と、その根拠 file:line) を必ず付けよ。
+- **F9 については、実 launcher を走らせる meta-test を全部列挙し、
+  それぞれが「起こりえない期待 rc」を使っているかを 1 件ずつ示せ。**
+- 最後に `## 総括` 見出しを置き、10 行以内でまとめること。
