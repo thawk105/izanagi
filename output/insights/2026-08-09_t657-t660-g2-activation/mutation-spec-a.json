@@ -1,0 +1,57 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1-serial-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if terminal_serial != expected_head_serial:",
+          "new": "    if False and terminal_serial != expected_head_serial:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-state-hash-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if terminal_hash != expected_head_state_sha256:",
+          "new": "    if False and terminal_hash != expected_head_state_sha256:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-head-pin-pair",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if terminal_serial != expected_head_serial:",
+          "new": "    if False and terminal_serial != expected_head_serial:"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if terminal_hash != expected_head_state_sha256:",
+          "new": "    if False and terminal_hash != expected_head_state_sha256:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_production_loader_rejects_tail_deletion_with_source_head_unchanged"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M4-state-hash-only-full-suite",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if terminal_hash != expected_head_state_sha256:",
+          "new": "    if False and terminal_hash != expected_head_state_sha256:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_same_serial_state_hash_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-empty-chain-reason",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "        raise ActivationRecordError(\"activation record chain が空\")",
+          "new": "        raise ActivationRecordError(\"activation record chain が不在\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_empty_chain_rejection_is_distinct_from_head_pin_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
