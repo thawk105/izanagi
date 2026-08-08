@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-"""実行環境契約 (F4 裁定) — 計測環境の同一性を型で凍結する中立 leaf。
+"""実行環境契約 (F4 裁定) — 計測環境の同一性と活性化 authority。
 
-このモジュールは stdlib のみ・campaign 内 import なしの葉である。env_tag 等価比較
+型と世代 registry の import-time 構築は stdlib のみで完結し、activation record と
+calibration の import / I/O は初回 Mapping 操作まで遅延する。env_tag 等価比較
 (cygnus 固有値のハードコード) を、registry の fail-closed lookup へ置き換えるための
 契約 dataclass と静的 registry を提供する。**このモジュールは何も強制しない宣言
 field を持たない** (γ-3): 契約は「registry に登録された env の canonical な値集合」を
@@ -13,18 +14,23 @@ field を持たない** (γ-3): 契約は「registry に登録された env の 
 - 自由文 note — calibration 参照は {path, sha256} の構造化参照のみ (γ-2)
 - wal_root_policy / capture 列挙 — 宣言だけで発火しない恒真 field は置かない (γ-3)
 
-registry は private dict を ``MappingProxyType`` で公開するのみで register API を持たない
-(γ-13)。静的定義以外から env を注入する経路はない。
+registry は activation state から構築する read-only ``Mapping`` を
+``MappingProxyType`` で公開し、register API を持たない (γ-13)。静的世代定義と reviewed
+activation head 以外から env/current を注入する production 経路はない。
 """
 from __future__ import annotations
 
 import ast
 import hashlib
 import json
+import os
 import re
-from dataclasses import asdict, dataclass
+import threading
+from collections.abc import Iterator, Mapping
+from dataclasses import asdict, dataclass, replace
+from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import Mapping, Tuple
+from typing import Tuple
 
 # env 固有 literal はこのモジュールでは ``_build_registry`` の内部にのみ現れる。
 # その他の場所 (lookup / validation / property) は env 中立でなければならず、
@@ -233,6 +239,44 @@ def _build_registry() -> dict[str, tuple[GenerationEntry, ...]]:
 
     登録済み calibration の bytes と契約値を静的に束縛する。
     """
+    pegasus_g1 = GenerationEntry(
+        generation=1,
+        contract=ExecutionEnvironmentContract(
+            env_tag="pegasus",
+            clocks_per_us=2100,
+            numactl=(),
+            attestation_mode="required",
+            isolation_policy=IsolationPolicy(single_process=True, allow_resume=False),
+            calibration_ref=CalibrationRef(
+                path=(
+                    "output/env/pegasus/calibration/registered/"
+                    "calibration-753f535a8d024727.json"
+                ),
+                sha256="753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+            ),
+        ),
+    )
+    pegasus_g2 = GenerationEntry(
+        generation=2,
+        contract=replace(
+            pegasus_g1.contract,
+            calibration_ref=CalibrationRef(
+                path=(
+                    "output/env/pegasus/calibration/registered/"
+                    "calibration-94a4b79fa31bba3c.json"
+                ),
+                sha256="94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9",
+            ),
+        ),
+    )
+    expected_pegasus_g2_sha256 = (
+        "1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c"
+    )
+    if pegasus_g2.contract.contract_sha256 != expected_pegasus_g2_sha256:
+        raise EnvContractError(
+            "pegasus g2 contract_sha256 が reviewed golden と一致しない: "
+            f"{pegasus_g2.contract.contract_sha256}"
+        )
     return {
         "linux-baremetal": (
             GenerationEntry(
@@ -253,25 +297,7 @@ def _build_registry() -> dict[str, tuple[GenerationEntry, ...]]:
                 ),
             ),
         ),
-        "pegasus": (
-            GenerationEntry(
-                generation=1,
-                contract=ExecutionEnvironmentContract(
-                    env_tag="pegasus",
-                    clocks_per_us=2100,
-                    numactl=(),
-                    attestation_mode="required",
-                    isolation_policy=IsolationPolicy(single_process=True, allow_resume=False),
-                    calibration_ref=CalibrationRef(
-                        path=(
-                            "output/env/pegasus/calibration/registered/"
-                            "calibration-753f535a8d024727.json"
-                        ),
-                        sha256="753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
-                    ),
-                ),
-            ),
-        ),
+        "pegasus": (pegasus_g1, pegasus_g2),
     }
 
 
@@ -316,14 +342,8 @@ def _validate_generations_without_bootstrap_fuse(
 def validate_generations(
     mapping: Mapping[str, tuple[GenerationEntry, ...]],
 ) -> None:
-    """候補世代 mapping を検証し、未認可の複数世代登録を fuse で拒否する。"""
+    """候補世代 mapping の構造と隣接 successor を検証する。"""
     _validate_generations_without_bootstrap_fuse(mapping)
-    for sequence in mapping.values():
-        if len(sequence) != 1:
-            raise EnvContractError(
-                "活性化権限 (activation record / activation receipt) が未実装のため、"
-                "2 世代目の登録を fail-closed で拒否する"
-            )
 
 
 def _build_contract_sha256_index(
@@ -346,10 +366,262 @@ GENERATIONS: Mapping[str, tuple[GenerationEntry, ...]] = MappingProxyType(
 )
 validate_generations(GENERATIONS)
 _CONTRACT_SHA256_INDEX = _build_contract_sha256_index(GENERATIONS)
-REGISTRY = MappingProxyType({
-    env_tag: sequence[-1].contract
-    for env_tag, sequence in GENERATIONS.items()
-})
+
+_ACTIVATION_HEAD_SERIAL: int = 1
+_ACTIVATION_HEAD_STATE_SHA256: str = (
+    "f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed"
+)
+_ACTIVATION_DIRECTORY = PurePosixPath(
+    "orchestrator/campaign/env_contract_activations"
+)
+
+
+def _build_registered_contract_catalog() -> Mapping[str, tuple[tuple[int, str], ...]]:
+    return MappingProxyType({
+        env_tag: tuple(
+            (entry.generation, entry.contract.contract_sha256)
+            for entry in sequence
+        )
+        for env_tag, sequence in GENERATIONS.items()
+    })
+
+
+_REGISTERED_CONTRACT_CATALOG = _build_registered_contract_catalog()
+
+
+@dataclass(frozen=True)
+class _AuthoritySnapshot:
+    state: object
+    current: Mapping[str, ExecutionEnvironmentContract]
+
+
+_AUTHORITY_LOCK = threading.Lock()
+_AUTHORITY_PID = os.getpid()
+_AUTHORITY_SNAPSHOT: _AuthoritySnapshot | None = None
+_VERIFIED_CONTRACT_SHA256S: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class AuthorizedContract:
+    """検証済み activation state と current contract の process-local receipt。"""
+
+    contract: ExecutionEnvironmentContract
+    activation_serial: int
+    activation_state_sha256: str
+    issued_pid: int
+    process_seal: object
+    _activation_state: object
+
+
+_AUTHORIZATION_LOCK = threading.Lock()
+_AUTHORIZATION_PID = os.getpid()
+_AUTHORIZATION_PROCESS_SEAL = object()
+_AUTHORIZED_CONTRACTS: dict[str, AuthorizedContract] = {}
+
+
+def _repository_root() -> Path:
+    """Source checkout / worktree / source-stage の root を ``__file__`` から解決する。"""
+    try:
+        module_path = Path(__file__).resolve(strict=True)
+    except OSError as exc:
+        raise EnvContractError(f"env_contract module path を解決できない: {exc}") from exc
+    root = module_path.parents[2]
+    sentinels = (
+        root / "orchestrator" / "campaign" / "env_contract.py",
+        root / Path(_ACTIVATION_DIRECTORY),
+        root / "output",
+    )
+    if (not sentinels[0].is_file()
+            or not sentinels[1].is_dir()
+            or not sentinels[2].is_dir()):
+        raise EnvContractError(
+            "source checkout / worktree / source-stage の sentinel が揃っていない"
+        )
+    return root
+
+
+def _verify_entry_calibration(entry: GenerationEntry, repo_root: Path) -> None:
+    """選択された一行だけの calibration bytes と admission semantics を検証する。"""
+    from . import calibration_verify
+
+    contract = entry.contract
+    if contract.attestation_mode == "required":
+        expected_path = PurePosixPath(
+            "output", "env", contract.env_tag, "calibration", "registered",
+            f"calibration-{contract.calibration_ref.sha256[:16]}.json",
+        )
+        if PurePosixPath(contract.calibration_ref.path) != expected_path:
+            raise EnvContractError(
+                "required calibration path が content-addressed registered path でない: "
+                f"{contract.calibration_ref.path!r}"
+            )
+    try:
+        verified = calibration_verify.load_verified_calibration(
+            env_tag=contract.env_tag,
+            clocks_per_us=contract.clocks_per_us,
+            attestation_mode=contract.attestation_mode,
+            calibration_path=contract.calibration_ref.path,
+            calibration_sha256=contract.calibration_ref.sha256,
+            repo_root=repo_root,
+        )
+    except calibration_verify.AttestationError as exc:
+        raise EnvContractError(
+            f"active/historical contract の calibration 検証失敗: {exc}"
+        ) from exc
+    if contract.attestation_mode == "required":
+        if verified.calibration is None or verified.calibration.quality.status != "accepted":
+            raise EnvContractError("required calibration quality.status が accepted でない")
+
+
+def _load_authority_snapshot() -> _AuthoritySnapshot:
+    from . import env_contract_activation as activation
+
+    repo_root = _repository_root()
+    try:
+        state = activation.load_activation_state(
+            repo_root / Path(_ACTIVATION_DIRECTORY),
+            registered_contracts=_REGISTERED_CONTRACT_CATALOG,
+            expected_head_serial=_ACTIVATION_HEAD_SERIAL,
+            expected_head_state_sha256=_ACTIVATION_HEAD_STATE_SHA256,
+        )
+    except activation.ActivationRecordError as exc:
+        raise EnvContractError(f"activation authority 検証失敗: {exc}") from exc
+    current: dict[str, ExecutionEnvironmentContract] = {}
+    verified_hashes: set[str] = set()
+    for row in state.active_contracts:
+        sequence = GENERATIONS[row.env_tag]
+        entry = sequence[row.generation - 1]
+        if entry.contract.contract_sha256 != row.contract_sha256:
+            raise EnvContractError("activation state と generation registry が load 後に不一致")
+        _verify_entry_calibration(entry, repo_root)
+        current[row.env_tag] = entry.contract
+        verified_hashes.add(row.contract_sha256)
+    global _VERIFIED_CONTRACT_SHA256S
+    _VERIFIED_CONTRACT_SHA256S = frozenset(verified_hashes)
+    return _AuthoritySnapshot(
+        state=state,
+        current=MappingProxyType(current),
+    )
+
+
+def _reset_authority_after_fork() -> None:
+    global _AUTHORITY_LOCK, _AUTHORITY_PID, _AUTHORITY_SNAPSHOT
+    global _VERIFIED_CONTRACT_SHA256S
+    _AUTHORITY_LOCK = threading.Lock()
+    _AUTHORITY_PID = os.getpid()
+    _AUTHORITY_SNAPSHOT = None
+    _VERIFIED_CONTRACT_SHA256S = frozenset()
+
+
+os.register_at_fork(after_in_child=_reset_authority_after_fork)
+
+
+def _reset_authorization_after_fork() -> None:
+    """fork child で親の authorization lock、seal、receipt を継承しない。"""
+    global _AUTHORIZATION_LOCK, _AUTHORIZATION_PID
+    global _AUTHORIZATION_PROCESS_SEAL, _AUTHORIZED_CONTRACTS
+    _AUTHORIZATION_LOCK = threading.Lock()
+    _AUTHORIZATION_PID = os.getpid()
+    _AUTHORIZATION_PROCESS_SEAL = object()
+    _AUTHORIZED_CONTRACTS = {}
+
+
+os.register_at_fork(after_in_child=_reset_authorization_after_fork)
+
+
+def _authority_snapshot() -> _AuthoritySnapshot:
+    global _AUTHORITY_PID, _AUTHORITY_SNAPSHOT
+    if _AUTHORITY_PID != os.getpid():
+        _reset_authority_after_fork()
+    with _AUTHORITY_LOCK:
+        if _AUTHORITY_PID != os.getpid():
+            _reset_authority_after_fork()
+            return _authority_snapshot()
+        if _AUTHORITY_SNAPSHOT is None:
+            _AUTHORITY_SNAPSHOT = _load_authority_snapshot()
+        return _AUTHORITY_SNAPSHOT
+
+
+def _clear_authority_cache_for_tests() -> None:
+    """Test fixture 専用。production authority を変更せず process cache だけを捨てる。"""
+    global _AUTHORITY_PID, _AUTHORITY_SNAPSHOT, _VERIFIED_CONTRACT_SHA256S
+    with _AUTHORITY_LOCK:
+        _AUTHORITY_PID = os.getpid()
+        _AUTHORITY_SNAPSHOT = None
+        _VERIFIED_CONTRACT_SHA256S = frozenset()
+    with _AUTHORIZATION_LOCK:
+        global _AUTHORIZED_CONTRACTS
+        _AUTHORIZED_CONTRACTS = {}
+
+
+def _ensure_calibration_verified(entry: GenerationEntry) -> None:
+    global _VERIFIED_CONTRACT_SHA256S
+    contract_sha256 = entry.contract.contract_sha256
+    if contract_sha256 in _VERIFIED_CONTRACT_SHA256S:
+        return
+    with _AUTHORITY_LOCK:
+        if contract_sha256 in _VERIFIED_CONTRACT_SHA256S:
+            return
+        _verify_entry_calibration(entry, _repository_root())
+        _VERIFIED_CONTRACT_SHA256S = frozenset(
+            (*_VERIFIED_CONTRACT_SHA256S, contract_sha256)
+        )
+
+
+class _ActivationRegistryView(Mapping[str, ExecutionEnvironmentContract]):
+    """初回 Mapping 操作でだけ activation authority を load する read-only view。"""
+
+    def __getitem__(self, env_tag: str) -> ExecutionEnvironmentContract:
+        return _authority_snapshot().current[env_tag]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(_authority_snapshot().current)
+
+    def __len__(self) -> int:
+        return len(_authority_snapshot().current)
+
+
+REGISTRY = MappingProxyType(_ActivationRegistryView())
+
+
+def current_activation_state() -> object:
+    """検証済み process-local activation state。receipt 単位が型付けして消費する。"""
+    return _authority_snapshot().state
+
+
+def authorize(env_tag: str) -> AuthorizedContract:
+    """env_tag の current contract と activation receipt を一体で取得する。"""
+    if type(env_tag) is not str:
+        raise EnvContractError(
+            f"env_tag は exact str でなければならない: {env_tag!r}"
+        )
+    snapshot = _authority_snapshot()
+    try:
+        contract = snapshot.current[env_tag]
+    except (KeyError, TypeError):
+        raise EnvContractError(
+            f"未登録の env_tag: {env_tag!r} (登録済み: {sorted(snapshot.current)})"
+        )
+    state = snapshot.state
+    with _AUTHORIZATION_LOCK:
+        if _AUTHORIZATION_PID != os.getpid():
+            raise EnvContractError(
+                "authorization receipt issuer の PID が current process と一致しない"
+            )
+        current = _AUTHORIZED_CONTRACTS.get(env_tag)
+        if (current is None
+                or current.contract is not contract
+                or current._activation_state is not state):
+            current = AuthorizedContract(
+                contract=contract,
+                activation_serial=state.activation_serial,
+                activation_state_sha256=state.activation_state_sha256,
+                issued_pid=os.getpid(),
+                process_seal=_AUTHORIZATION_PROCESS_SEAL,
+                _activation_state=state,
+            )
+            _AUTHORIZED_CONTRACTS[env_tag] = current
+        return current
 
 
 def resolve_by_contract_sha256(
@@ -371,12 +643,19 @@ def resolve_by_contract_sha256(
             f"contract_sha256 を一意に解決できない: {contract_sha256}"
         )
     entry = candidates[0]
+    state = _authority_snapshot().state
+    if contract_sha256 not in state.ever_active_contract_sha256s:
+        raise EnvContractError(
+            "登録済みだが activation chain 上で ever-active でない contract_sha256: "
+            f"{contract_sha256}"
+        )
     if (expected_env_tag is not None
             and entry.contract.env_tag != expected_env_tag):
         raise EnvContractError(
             f"contract_sha256 の env_tag {entry.contract.env_tag!r} が "
             f"expected_env_tag {expected_env_tag!r} と一致しない"
         )
+    _ensure_calibration_verified(entry)
     return entry
 
 

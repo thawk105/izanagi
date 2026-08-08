@@ -50,10 +50,11 @@ def main() -> int:
     print(f"=== P2-0: silo {len(genomes)} genome verifier sanity (do_bench=False) ===")
     for g in genomes:
         print(f"  - {g.canonical()}")
-    contract = env_contract.lookup(ENV_TAG)
+    authorization = env_contract.authorize(ENV_TAG)
+    contract = authorization.contract
     s = run_campaign(
         cfg, genomes, perf, ENV_TAG, CLK, numactl=list(contract.numactl),
-        do_bench=False, authorization_contract=contract,
+        do_bench=False, authorization_contract=authorization,
         build_context=build_context,
     )
 

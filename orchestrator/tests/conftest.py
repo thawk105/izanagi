@@ -29,7 +29,8 @@ fsync を呼ぶコード経路は変えていない (検査は弱めない) — 
 """
 import os
 import sys
-from types import SimpleNamespace
+from pathlib import Path, PurePosixPath
+from types import MappingProxyType, SimpleNamespace
 
 import pytest
 
@@ -37,6 +38,62 @@ import pytest
 @pytest.fixture
 def _detect_site_under_test():
     """Allow site-policy unit tests to exercise the real detector explicitly."""
+
+
+@pytest.fixture
+def _activate_synthetic_env_authority(monkeypatch):
+    """合成契約を registry と activation record の正規経路で認可する。"""
+    from campaign import env_contract as ec
+    from campaign import env_contract_activation as activation
+
+    def activate(contract, *, repo_root: Path, authority_dir: Path):
+        root = Path(repo_root).resolve()
+        directory = Path(authority_dir).resolve()
+        entry = ec.GenerationEntry(generation=1, contract=contract)
+        generations = MappingProxyType({contract.env_tag: (entry,)})
+        ec.validate_generations(generations)
+        catalog = MappingProxyType({
+            contract.env_tag: ((1, contract.contract_sha256),),
+        })
+        record = activation.build_activation_record(
+            activation_serial=1,
+            previous_activation_state_sha256=None,
+            active_contracts=(activation.ActiveContract(
+                env_tag=contract.env_tag,
+                generation=1,
+                contract_sha256=contract.contract_sha256,
+            ),),
+        )
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "00000001.json").write_bytes(
+            activation.canonical_record_bytes(record) + b"\n"
+        )
+
+        monkeypatch.setattr(ec, "GENERATIONS", generations)
+        monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", catalog)
+        monkeypatch.setattr(
+            ec, "_CONTRACT_SHA256_INDEX",
+            ec._build_contract_sha256_index(generations),
+        )
+        monkeypatch.setattr(
+            ec, "_ACTIVATION_DIRECTORY",
+            PurePosixPath(directory.as_posix()),
+        )
+        monkeypatch.setattr(ec, "_ACTIVATION_HEAD_SERIAL", 1)
+        monkeypatch.setattr(
+            ec, "_ACTIVATION_HEAD_STATE_SHA256",
+            record["activation_state_sha256"],
+        )
+        monkeypatch.setattr(ec, "_repository_root", lambda: root)
+        ec._clear_authority_cache_for_tests()
+        authorization = ec.authorize(contract.env_tag)
+        assert authorization.contract is contract
+        return authorization
+
+    yield activate
+    # monkeypatch 復元後の初回参照が production authority を再 load するよう cache を残さない。
+    from campaign import env_contract as ec
+    ec._clear_authority_cache_for_tests()
 
 
 @pytest.fixture(autouse=True)

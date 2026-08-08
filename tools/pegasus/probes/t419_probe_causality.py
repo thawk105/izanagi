@@ -3492,9 +3492,16 @@ def _submission_binding(
         str(driver_path.relative_to(repo_root)),
         str(pbs_path.relative_to(repo_root)),
         calibration_relative,
+        "orchestrator/campaign/__init__.py",
         "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/env_contract_activation.py",
+        "orchestrator/campaign/env_contract_activations",
         "orchestrator/campaign/env_attestation.py",
         "orchestrator/campaign/calibration_verify.py",
+        "orchestrator/calibrator/__init__.py",
+        "orchestrator/calibrator/effective_clock_policy.py",
+        "orchestrator/calibrator/schema_v2.py",
+        "orchestrator/calibrator/tsc.py",
     ]
     dirty = subprocess.run(
         ["git", "-C", str(repo_root), "status", "--porcelain", "--", *related],

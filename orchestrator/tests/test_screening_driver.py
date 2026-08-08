@@ -34,7 +34,8 @@ from campaign.source_digest import (  # noqa: E402
 
 WORKLOAD = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
 _BUILD_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-_AUTHORIZATION = env_contract.lookup("linux-baremetal")
+_AUTHORIZATION = env_contract.authorize("linux-baremetal")
+_AUTH_CONTRACT = _AUTHORIZATION.contract
 
 
 def _source_evidence(genome: Genome, *, root: str = "/fixture/ccbench"):
@@ -114,9 +115,9 @@ def test_prepare_screening_bakes_identity_and_uses_new_same_campaign_baseline(tm
     prepared = screening_driver.prepare_screening_campaign(
         _cfg(), WORKLOAD, "baseline-v1", measure,
         authorization_contract=_AUTHORIZATION,
-        env_tag=_AUTHORIZATION.env_tag,
-        clocks_per_us=_AUTHORIZATION.clocks_per_us,
-        numactl=_AUTHORIZATION.numactl,
+        env_tag=_AUTH_CONTRACT.env_tag,
+        clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+        numactl=_AUTH_CONTRACT.numactl,
         calibration_dir=calibration, output_root=output,
         build_context=_BUILD_CONTEXT)
     assert prepared.cfg is seen["cfg"] and prepared.layout is seen["layout"]
@@ -139,9 +140,9 @@ def test_prepare_screening_fails_closed_when_floor_json_missing(tmp_path):
         screening_driver.prepare_screening_campaign(
             _cfg(), WORKLOAD, "baseline-v1", measure,
             authorization_contract=_AUTHORIZATION,
-            env_tag=_AUTHORIZATION.env_tag,
-            clocks_per_us=_AUTHORIZATION.clocks_per_us,
-            numactl=_AUTHORIZATION.numactl,
+            env_tag=_AUTH_CONTRACT.env_tag,
+            clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+            numactl=_AUTH_CONTRACT.numactl,
             calibration_dir=str(tmp_path / "missing"), output_root=str(tmp_path / "out"),
             build_context=_BUILD_CONTEXT)
     assert called is False
@@ -161,9 +162,9 @@ def test_prepare_screening_rejects_authorization_before_layout_or_wal(tmp_path):
         screening_driver.prepare_screening_campaign(
             _cfg(), WORKLOAD, "baseline-v1", measure,
             authorization_contract=None,
-            env_tag=_AUTHORIZATION.env_tag,
-            clocks_per_us=_AUTHORIZATION.clocks_per_us,
-            numactl=_AUTHORIZATION.numactl,
+            env_tag=_AUTH_CONTRACT.env_tag,
+            clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+            numactl=_AUTH_CONTRACT.numactl,
             calibration_dir=str(calibration), output_root=str(output),
             build_context=_BUILD_CONTEXT,
         )
@@ -191,9 +192,9 @@ def test_prepare_screening_requires_complete_baseline_evidence(tmp_path, missing
         screening_driver.prepare_screening_campaign(
             _cfg(), WORKLOAD, "baseline-v1", measure,
             authorization_contract=_AUTHORIZATION,
-            env_tag=_AUTHORIZATION.env_tag,
-            clocks_per_us=_AUTHORIZATION.clocks_per_us,
-            numactl=_AUTHORIZATION.numactl,
+            env_tag=_AUTH_CONTRACT.env_tag,
+            clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+            numactl=_AUTH_CONTRACT.numactl,
             calibration_dir=calibration, output_root=str(tmp_path / f"out-{missing}"),
             build_context=_BUILD_CONTEXT)
 
@@ -225,9 +226,9 @@ def test_prepare_repairs_tail_before_baseline_callback(tmp_path):
     screening_driver.prepare_screening_campaign(
         _cfg(), WORKLOAD, "baseline-v1", measure,
         authorization_contract=_AUTHORIZATION,
-        env_tag=_AUTHORIZATION.env_tag,
-        clocks_per_us=_AUTHORIZATION.clocks_per_us,
-        numactl=_AUTHORIZATION.numactl,
+        env_tag=_AUTH_CONTRACT.env_tag,
+        clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+        numactl=_AUTH_CONTRACT.numactl,
         calibration_dir=calibration, output_root=output, log=surfaced.append,
         build_context=_BUILD_CONTEXT)
     assert len(surfaced) == 1 and '"status": "repaired"' in surfaced[0]
@@ -260,8 +261,8 @@ def test_evaluate_candidate_repairs_tail_before_replay_and_evaluate(
     )
     result = screening_driver.evaluate_candidate(
         cfg, layout, genome, PerfConfig(records=1, threads=1),
-        _AUTHORIZATION.env_tag, _AUTHORIZATION.clocks_per_us,
-        numactl=_AUTHORIZATION.numactl,
+        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+        numactl=_AUTH_CONTRACT.numactl,
         authorization_contract=_AUTHORIZATION,
         build_context=_BUILD_CONTEXT,
         screening=None, src_token="stock", log=lambda message: None)
@@ -292,8 +293,8 @@ def test_evaluate_candidate_does_not_append_abort_after_wal_io_error(
     with pytest.raises(type(failure)) as caught:
         screening_driver.evaluate_candidate(
             cfg, layout, genome, PerfConfig(records=1, threads=1),
-            _AUTHORIZATION.env_tag, _AUTHORIZATION.clocks_per_us,
-            numactl=_AUTHORIZATION.numactl,
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=_AUTH_CONTRACT.numactl,
             authorization_contract=_AUTHORIZATION,
             build_context=_BUILD_CONTEXT,
             screening=None, src_token="stock", log=lambda message: None)

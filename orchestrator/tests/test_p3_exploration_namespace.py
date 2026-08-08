@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import argparse
 import contextlib
+import dataclasses
 import inspect
 import os
 import stat
@@ -19,6 +20,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
 from campaign import ident, layout as layout_module, wal            # noqa: E402
+from campaign import env_contract                                  # noqa: E402
 from campaign import patchharness                                  # noqa: E402
 from campaign import p3_kickoff as KICKOFF                          # noqa: E402
 from campaign import p3_s4_loop as LOOP                             # noqa: E402
@@ -75,7 +77,8 @@ class _BuildSpyReached(RuntimeError):
     ids=[case[0] for case in _DRIVERS],
 )
 def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
-        name, module, monkeypatch, tmp_path):
+        name, module, monkeypatch, tmp_path,
+        _activate_synthetic_env_authority):
     """各 coder CLI の正例は exact CODER_DERIVED/opt-in true だけを検査する。"""
     from campaign import p2_2
 
@@ -108,11 +111,18 @@ def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
         if name in {"sort", "trigger_gating"}:
             argv.append("--no-isolate-worktree")
         if name == "trigger_gating":
+            contract = dataclasses.replace(
+                env_contract.GENERATIONS["linux-baremetal"][0].contract,
+                env_tag="test", numactl=(),
+            )
+            _activate_synthetic_env_authority(
+                contract,
+                repo_root=Path(__file__).resolve().parents[2],
+                authority_dir=tmp_path / "authority",
+            )
             monkeypatch.setattr(
                 module, "_admit_env_contract",
-                lambda _site: SimpleNamespace(env_tag="test", clocks_per_us=1800,
-                                              numactl=(), isolation_policy=SimpleNamespace(
-                                                  allow_resume=True)),
+                lambda _site: contract,
             )
     else:
         monkeypatch.setattr(module, "_assert_single_tenant", lambda: None)

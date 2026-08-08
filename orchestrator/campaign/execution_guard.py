@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import math
+import os
 import re
 import socket
 import statistics
@@ -21,6 +22,7 @@ from typing import Callable, Mapping, Optional
 from calibrator import schema_v2 as _schema_v2
 from calibrator import effective_clock_policy
 from campaign import env_contract as _env_contract
+from campaign import env_contract_activation as _env_contract_activation
 from campaign import env_attestation as _env_attestation
 from campaign import site_policy as _site_policy
 
@@ -39,8 +41,71 @@ class CertifiedWriterAuthorizationError(ExecutionGuardError, ValueError):
     """Certified-writer authorization input is inconsistent or unregistered."""
 
 
+def _contract_from_authorization(
+        authorization: "_env_contract.AuthorizedContract",
+) -> "_env_contract.ExecutionEnvironmentContract":
+    """渡された authorized value の receipt だけから current 契約を解決する。"""
+    if type(authorization) is not _env_contract.AuthorizedContract:
+        raise TypeError(
+            "authorization_contract は exact AuthorizedContract が必要"
+        )
+    if type(authorization.contract) is not _env_contract.ExecutionEnvironmentContract:
+        raise CertifiedWriterAuthorizationError(
+            "authorization receipt の contract 型が不正"
+        )
+    if (type(authorization.issued_pid) is not int
+            or authorization.issued_pid != os.getpid()):
+        raise CertifiedWriterAuthorizationError(
+            "authorization receipt の発行 PID が current process と一致しない"
+        )
+    if authorization.process_seal is not _env_contract._AUTHORIZATION_PROCESS_SEAL:
+        raise CertifiedWriterAuthorizationError(
+            "authorization receipt の process seal が一致しない"
+        )
+    if _env_contract._AUTHORIZED_CONTRACTS.get(
+            authorization.contract.env_tag) is not authorization:
+        raise CertifiedWriterAuthorizationError(
+            "authorization receipt が current process の cached issuer 発行物でない"
+        )
+    state = authorization._activation_state
+    if type(state) is not _env_contract_activation.ActivationState:
+        raise CertifiedWriterAuthorizationError(
+            "authorization receipt の state 型が不正"
+        )
+    if (type(authorization.activation_serial) is not int
+            or authorization.activation_serial != state.activation_serial
+            or type(authorization.activation_state_sha256) is not str
+            or authorization.activation_state_sha256 != state.activation_state_sha256):
+        raise CertifiedWriterAuthorizationError(
+            "authorization receipt の serial/state hash が state と一致しない"
+        )
+    env_tag = authorization.contract.env_tag
+    matches = tuple(row for row in state.active_contracts if row.env_tag == env_tag)
+    if len(matches) != 1:
+        raise CertifiedWriterAuthorizationError(
+            "activation receipt state から env_tag を一意に解決できない"
+        )
+    row = matches[0]
+    try:
+        entry = _env_contract.GENERATIONS[row.env_tag][row.generation - 1]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise CertifiedWriterAuthorizationError(
+            "activation receipt state が未登録 generation を指している"
+        ) from exc
+    if (entry.generation != row.generation
+            or entry.contract.contract_sha256 != row.contract_sha256):
+        raise CertifiedWriterAuthorizationError(
+            "activation receipt state と generation registry が一致しない"
+        )
+    if authorization.contract is not entry.contract:
+        raise CertifiedWriterAuthorizationError(
+            "authorization contract が receipt state の current contract と一致しない"
+        )
+    return entry.contract
+
+
 def require_certified_writer_authorization(
-        authorization_contract: "_env_contract.ExecutionEnvironmentContract", *,
+        authorization_contract: "_env_contract.AuthorizedContract", *,
         env_tag: str, clocks_per_us: int, numactl,
         env_contract: Optional[
             "_env_contract.ExecutionEnvironmentContract"
@@ -52,24 +117,11 @@ def require_certified_writer_authorization(
     evaluation, including the legacy-build path, must present the separate
     ``authorization_contract``.
     """
-    if type(authorization_contract) is not _env_contract.ExecutionEnvironmentContract:
-        raise TypeError(
-            "authorization_contract は exact ExecutionEnvironmentContract が必要"
-        )
     if type(env_tag) is not str:
         raise TypeError("campaign env_tag は exact str でなければならない")
     if type(clocks_per_us) is not int:
         raise TypeError("campaign clocks_per_us は exact int でなければならない")
-    try:
-        registered = _env_contract.lookup(authorization_contract.env_tag)
-    except _env_contract.EnvContractError as exc:
-        raise CertifiedWriterAuthorizationError(
-            f"authorization_contract の env_tag が未登録: {exc}"
-        ) from exc
-    if authorization_contract != registered:
-        raise CertifiedWriterAuthorizationError(
-            "authorization_contract が current registry contract と一致しない"
-        )
+    registered = _contract_from_authorization(authorization_contract)
     if type(numactl) not in {list, tuple} or any(type(part) is not str for part in numactl):
         raise CertifiedWriterAuthorizationError(
             "campaign 実行値 numactl は str の list/tuple でなければならない"
@@ -83,12 +135,28 @@ def require_certified_writer_authorization(
         )
     if (
         _site_policy.current_site() == _site_policy.PEGASUS_COMPUTE
-        and registered != _env_contract.lookup_required_attestation_contract()
     ):
-        raise CertifiedWriterAuthorizationError(
-            "Pegasus compute では登録済み pegasus authorization_contract "
-            "だけを受理する"
-        )
+        required_contracts = []
+        for row in authorization_contract._activation_state.active_contracts:
+            try:
+                candidate = _env_contract.GENERATIONS[
+                    row.env_tag
+                ][row.generation - 1].contract
+            except (KeyError, IndexError, TypeError) as exc:
+                raise CertifiedWriterAuthorizationError(
+                    "authorization receipt state の required contract を解決できない"
+                ) from exc
+            if candidate.contract_sha256 != row.contract_sha256:
+                raise CertifiedWriterAuthorizationError(
+                    "authorization receipt state の required contract hash が不一致"
+                )
+            if candidate.attestation_mode == "required":
+                required_contracts.append(candidate)
+        if len(required_contracts) != 1 or registered is not required_contracts[0]:
+            raise CertifiedWriterAuthorizationError(
+                "Pegasus compute では receipt state 内で一意な required "
+                "authorization_contract だけを受理する"
+            )
     if env_contract is not None:
         if type(env_contract) is not _env_contract.ExecutionEnvironmentContract:
             raise TypeError(

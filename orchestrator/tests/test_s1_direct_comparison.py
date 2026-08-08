@@ -1244,7 +1244,8 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
         ).coder_build_authority,
     )
     evidence = _evidence(stock=False, commit="deadbeef")
-    authorization = env_contract.lookup("linux-baremetal")
+    authorization = env_contract.authorize("linux-baremetal")
+    contract = authorization.contract
     monkeypatch.setattr(
         pipeline.source_digest, "resolve_evidence", lambda *a, **k: evidence,
     )
@@ -1253,8 +1254,8 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
         layout = CampaignLayout(str(tmp_path / f"c-{max_rounds}")).ensure()
         kwargs = {} if max_rounds is None else {"bench_max_rounds": max_rounds}
         result = pipeline.evaluate(
-            genome, layout, authorization.env_tag, "deadbeef", perf,
-            authorization.clocks_per_us, numactl=authorization.numactl,
+            genome, layout, contract.env_tag, "deadbeef", perf,
+            contract.clocks_per_us, numactl=contract.numactl,
             log=lambda msg: None, build_context=context,
             authorization_contract=authorization,
             source_evidence=evidence, **kwargs)

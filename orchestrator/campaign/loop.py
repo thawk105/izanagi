@@ -19,7 +19,7 @@ from typing import List, Optional, Sequence
 
 from . import buildcache, env_attestation, execution_guard, ident, source_digest, wal
 from .build_admission import BuildRunContext
-from .env_contract import ExecutionEnvironmentContract
+from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
 from .layout import campaign_layout, exploration_campaign_layout
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
 from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_TAG,
@@ -59,7 +59,7 @@ def _repo_root() -> Path:
 
 
 def _authorize_measurement(
-        authorization_contract: ExecutionEnvironmentContract, *,
+        authorization_contract: AuthorizedContract, *,
         env_tag: str, clocks_per_us: int,
         numactl: Optional[Sequence[str]],
         env_contract: Optional[ExecutionEnvironmentContract] = None,
@@ -95,7 +95,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  do_bench: bool = True, output_root: str = "",
                  log=print, ccbench_dir: str = "", cache_root: str = "",
                  env_contract=None, dependency_prefix: str = "", *,
-                 authorization_contract: ExecutionEnvironmentContract,
+                 authorization_contract: AuthorizedContract,
                  build_context: BuildRunContext,
                  capability_resolver: Optional[AdmissionCapabilityResolver] = None,
                  campaign_namespace: str = "official",

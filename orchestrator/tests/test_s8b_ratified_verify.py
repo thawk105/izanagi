@@ -720,8 +720,8 @@ def test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses
         ),
     }
     assert EC._validate_generations_without_bootstrap_fuse(candidate) is None
-    with pytest.raises(EC.EnvContractError, match="活性化権限"):
-        EC.validate_generations(candidate)
+    assert EC.validate_generations(candidate) is None
+    assert EC.lookup(g1.env_tag) is g1
     historical = mock.Mock(wraps=EC.resolve_by_contract_sha256)
     journal_spy = mock.Mock(wraps=M._validate_journal)
     result_spy = mock.Mock(wraps=M._validate_result)

@@ -509,6 +509,10 @@ class ForkedMemberRunner:
         pid, is_child = _fork_owned_process_group(self.process_groups)
         if is_child:
             try:
+                authorization = env_contract.authorize(
+                    self.protocol["environment"]["env_tag"]
+                )
+                contract = authorization.contract
                 full_source_digest = source_digest.compute(
                     genome, ccbench_dir=str(self.ccbench_dir),
                 )
@@ -538,7 +542,7 @@ class ForkedMemberRunner:
                     cache_root=str(self.cache_root),
                     bench_max_rounds=self.protocol["workload"]["bench_max_rounds"],
                     env_contract=contract,
-                    authorization_contract=contract,
+                    authorization_contract=authorization,
                     record_rep_returncodes=True,
                     qualification_policy=policy,
                     build_context=build_context,
