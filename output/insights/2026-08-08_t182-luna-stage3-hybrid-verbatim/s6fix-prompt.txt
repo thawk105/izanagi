@@ -1,0 +1,115 @@
+あなたは izanagi repository の Codex 実装子 (role=author) である。日本語で報告すること。
+
+作業 directory は `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t182-luna-stage3` である。
+sandbox は workspace-write、reasoning は high である。
+
+## 権限境界 (厳守)
+
+- **編集してよいのは `tools/check_docs.py` と `orchestrator/tests/test_check_docs.py` の 2 つだけ。**
+- **docs は 1 字も編集しない。** `docs/`、`.claude/commands/`、`.agents/` は読むだけ。
+  親が docs 側の fix を入れ終えている。
+- **commit しない。** `git add` / `git commit` / `git stash` を実行しない。
+- **既存テストの期待値を変更しない。** 反転・緩和・skip・削除を禁じる。
+- **production を fail-open にして辻褄を合わせてはならない。**
+  検査を通すために検査自体を弱めるのは禁止である。期待値のほうが誤りだと判断したら、
+  実装を変えずに報告して止めよ。
+- 既存の代役 (helper の共通化、定数の切り出し) は許す。production の受理集合を緩めるのは禁止。
+
+## 先に読むもの (読めなければ推測せず、その旨を書いて即座に停止せよ)
+
+- 段 6 レビュー R1: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t182-luna-stage3/s6-R1.md`
+- 段 6 レビュー R2: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t182-luna-stage3/s6-R2.md`
+- 段 4 裁定: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t182-luna-stage3/s4-adjudication.md`
+- 現在の `git diff` (親の docs fix を含む)
+- `tools/check_docs.py` の `_check_dev_wave_model_pins` と関連定数、その呼び出し元
+- `tools/check_docs.py` の既存 `CODEX_DEV_WAVE_STAGE9_LAND_LITERAL` の検査方式
+  (**`str.count()` == 1 で検査している。新 pin もこれに揃えよ**)
+- `orchestrator/tests/test_check_docs.py` の新規テスト群と `_build_min_repo` / `_assert_findings`
+
+## 直す欠陥 (段 6 レビューの real 所見)
+
+### F1 — dispatcher literal pin が `in` 判定で、件数も可視性も見ていない (R1 BLOCKER, R2 BLOCKER)
+
+現状は `CODEX_DEV_WAVE_STAGE_MODEL_LITERAL not in dev_wave_text` である。
+これでは正規の契約行を消し、同じ literal を HTML comment / fenced code block /
+「以下は廃止」の後ろへ置いても通る。さらに矛盾する第二の model 規則を足しても通る。
+
+**直し方:** 既存の段 9 land literal と同じく、`_visible_markdown_text` を通した可視テキスト上で
+**出現回数がちょうど 1 回**であることを要求せよ。0 回でも 2 回以上でも finding を出す。
+
+pin する literal は、親が入れた次の行のものへ更新すること
+(`.claude/commands/dev-wave.md` の「凍結境界」節を読んで正確に写せ)。
+レンズ割当ての文も pin 対象に含めること。**2 つの literal 定数に分けてよい。**
+
+### F2 — `DW-O01` に `-m <model>` が在ることを pin していない (R1 BLOCKER)
+
+slug の不在しか見ていないため、`-m <model>` を丸ごと削除すると
+codex の既定 model で起動できるのに全 pin が通る。
+
+**直し方:** `DW-O01` の可視本文に literal `-m <model>` が**ちょうど 1 回**現れることを要求せよ。
+
+### F3 — slug 不在検査が 3 節に閉じており、第二の権威を置ける (R1 BLOCKER)
+
+現状は `DW-S02` / `DW-S03` / `DW-O01` の本文しか見ない。
+`DW-S05-A` や `DW-S06-A` に model slug を書けば第二の権威になるが検査されない。
+`_reference_id_sections` は heading を除いた body しか返さないため、
+`## DW-S03 — gpt-5.6-sol で起動` のような見出しへの記載も通る。
+
+**直し方:** 節単位をやめ、`docs/dev-wave/workers.md` と `docs/dev-wave/operations.md` の
+**ファイル全体の可視テキスト**に `gpt-5.6-` 系 slug が 1 つも現れないことを要求せよ
+(見出しも含まれる形にすること)。file ごとに finding を 1 件出す。
+`.claude/commands/dev-wave.md` は model の権威なので、この不在検査の対象にしない。
+
+### F4 — 節 cardinality と slug 混入が同じ finding に畳まれている (R1 SHOULD)
+
+「節が一意でない」と「slug がある」が同じ文字列を出すため、修正理由を判別できない。
+
+**直し方:** F3 でファイル全体検査に移すため、`DW-S02` / `DW-S03` の節 cardinality 判定は
+この pin から外してよい (既存の H2 一意性検査が別に存在する)。
+`DW-O01` については F2 のために節を取る必要があるので、
+「節が一意でない」と「`-m <model>` が 1 回でない」を**別々の finding** にせよ。
+
+### F5 — 別 model family が素通りする (R1, R2)
+
+`gpt-5.4-mini` や `gpt-6-*` は現行 regex の対象外である。
+
+**直し方:** 検出対象を `gpt-` で始まる model slug 一般へ広げよ
+(`gpt-<digit>` で始まり、識別子文字が続く形)。
+ただし `gpt-5.6-*` のような**説明のための表記**を巻き込みすぎないよう、
+現行 docs が緑のままであることを必ず確認せよ (現在 `docs/dev-wave/` に `gpt-` は 1 つも無い)。
+
+## テスト
+
+`orchestrator/tests/test_check_docs.py` に追加・更新する。既存の命名と helper に合わせよ。
+**公開経路 (`_build_min_repo()` + 実 `check_docs` 実行経路) を必ず通すこと。**
+private helper の直呼びだけで KILL を主張してはならない (F28)。
+
+最低限、次の negative を公開経路で用意し、いずれも**その finding 1 件だけ**が出ることを固定せよ。
+
+1. dispatcher の段別 model 行を削除し、同じ literal を HTML comment 内に置く → literal 件数違反
+2. dispatcher の段別 model 行を**複製**する (2 回出現) → literal 件数違反
+3. レンズ割当ての文を改変する → 割当て literal 違反
+4. `DW-O01` から `-m <model>` を削除する → `-m <model>` 不在違反
+5. `DW-S05-A` に `gpt-5.6-luna` を足す → workers slug 混入違反
+6. `DW-S03` の**見出し**に slug を足す → workers slug 混入違反
+7. `DW-O01` に `gpt-5.4-mini` を足す → operations slug 混入違反 (別 family)
+8. `DW-S03` 本文に bare `-m gpt-5.6-sol` を足す → workers slug 混入違反 (decoy)
+
+既存の 5 negative のうち、F3/F4 で意味が変わるものは**期待 finding を新しい定数へ更新**してよい
+(テストを甘くするのではなく、production の finding 名が変わったことへの追随である)。
+削除する場合は理由を報告に書け。
+
+positive: 現行の実 docs 一式で `check_docs` が緑であることを固定せよ。
+`_build_min_repo()` の最小 repo も新しい pin をすべて満たす形にしておくこと。
+
+## 完了報告に必ず書くこと
+
+- 走らせた pytest の nodeid と範囲。走らせていないなら「実装済み・未実走」と書く
+- 追加・変更した定数名・関数名・呼び出し位置 (file:line)
+- 変更後の受理・拒否挙動と、変更前との差分
+- 所有外の caller、共有 fixture、consumer test への波及可能性
+
+## 総括
+
+**この見出しは `## 総括` (H2) にすること。`###` にしてはならない。**
+直した F1〜F5 と、テストで固定した negative / positive を 5 行以内で要約せよ。

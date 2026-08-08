@@ -574,6 +574,11 @@ description: synthetic Codex rulings skill
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE
             if rel == "docs/dev-wave/workers.md" and section == "DW-S06-C":
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE
+            if rel == "docs/dev-wave/operations.md" and section == "DW-O01":
+                body += (
+                    "\n\n`codex exec -m <model>`\n\n"
+                    + check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
+                )
             if rel == "docs/dev-wave/core.md" and section == "DW-S09":
                 body += (
                     "\n\n"
@@ -5590,6 +5595,291 @@ def test_dev_wave_reasoning_effort_pin_findings_are_time_invariant():
     assert check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE == (
         "並列 fix の統合後、焦点再レビューは全体へ `reasoning=high` で 1 本でよい。"
     )
+
+
+def _append_reference_section_body(text, section_id, addition):
+    match = re.search(
+        rf"^## {re.escape(section_id)}(?:\s+—[^\n]*)?\s*$\n.*?(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None
+    section = match.group(0).rstrip()
+    changed_section = section + "\n\n" + addition + "\n\n"
+    return text[:match.start()] + changed_section + text[match.end():]
+
+
+def _replace_reference_section_literal(text, section_id, old, new):
+    match = re.search(
+        rf"^## {re.escape(section_id)}(?:\s+—[^\n]*)?\s*$\n.*?(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None
+    section = match.group(0)
+    changed_section = section.replace(old, new, 1)
+    assert changed_section != section
+    return text[:match.start()] + changed_section + text[match.end():]
+
+
+def _assert_model_slug_production_path_rejects(
+    rel,
+    section_id,
+    addition,
+    finding,
+):
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            rel,
+            _append_reference_section_body(
+                _read(root, rel),
+                section_id,
+                addition,
+            ),
+        )
+        _assert_findings(root, finding)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_production_path_rejects_dw_s03_backticked_slug():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/workers.md",
+        "DW-S03",
+        "`gpt-5.6-sol`",
+        check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_production_path_rejects_dw_s03_bare_model_decoy():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/workers.md",
+        "DW-S03",
+        "-m gpt-5.6-sol",
+        check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_production_path_rejects_dw_s02_slug():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/workers.md",
+        "DW-S02",
+        "--model=gpt-5.6-luna",
+        check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_production_path_rejects_dw_o01_concrete_model():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/operations.md",
+        "DW-O01",
+        "-m gpt-5.6-sol",
+        check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_rejects_dw_o01_authority_drift():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        changed = text.replace("gpt-5.6-luna", "gpt-5.6-terra", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_dw_o01_authority_in_html_comment():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        literal = check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
+        changed = text.replace(literal, f"<!-- {literal} -->", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_duplicate_dw_o01_authority():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        literal = check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
+        changed = text.replace(literal, f"{literal}\n\n{literal}", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_slug_in_dw_o01_heading():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        changed = text.replace(
+            "## DW-O01 — synthetic",
+            "## DW-O01 — synthetic gpt-5.6-sol",
+            1,
+        )
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_missing_dw_o01_model_placeholder():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        _write(
+            root,
+            rel,
+            _replace_reference_section_literal(
+                _read(root, rel),
+                "DW-O01",
+                "-m <model>",
+                "--model-from-dispatcher",
+            ),
+        )
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_slug_in_dw_s05_a():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/workers.md",
+        "DW-S05-A",
+        "gpt-5.6-luna",
+        check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_rejects_slug_in_dw_s03_heading():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/workers.md"
+        text = _read(root, rel)
+        changed = text.replace(
+            "## DW-S03 — synthetic",
+            "## DW-S03 — synthetic gpt-5.6-sol",
+            1,
+        )
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_other_model_family_outside_dw_o01():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/operations.md",
+        "DW-O05",
+        "gpt-5.4-mini",
+        check_docs.DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_rejects_slug_in_command():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        _write(root, rel, _read(root, rel) + "\ngpt-5.6-sol\n")
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_duplicate_dw_o01_section():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel) + "\n## DW-O01 — duplicate\n\nbody\n",
+        )
+        # DW-O01 重複は model pin と既存 H2 一意性の冗長 gate である。
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING,
+            f"{rel}: H2 見出し DW-O01 が 2 件 — "
+            "dispatch先は一意でなければならない",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pins_accept_min_repo_contract():
+    root = _build_min_repo()
+    try:
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pins_accept_current_docs_contract():
+    res = subprocess.run(
+        [sys.executable, os.path.join(_REPO, "tools", "check_docs.py")],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0, f"実 repo で違反が出た:\n{res.stdout}\n{res.stderr}"
+    assert "違反なし" in res.stdout, res.stdout
+
+
+def test_dev_wave_model_pin_contract_is_time_invariant():
+    assert check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL == (
+        "`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、"
+        "他段 `gpt-5.6-sol`。"
+    )
+    assert check_docs.DEV_WAVE_MODEL_SLUG_RE.findall(
+        "`gpt-5.6-sol` -m gpt-5.6-sol --model=gpt-5.6-luna\n"
+        "gpt-5.6-terra gpt-5.4-mini gpt-6-next\n"
+        "descriptions: gpt-5.6-* gpt-6-*"
+    ) == [
+        "gpt-5.6-sol",
+        "gpt-5.6-sol",
+        "gpt-5.6-luna",
+        "gpt-5.6-terra",
+        "gpt-5.4-mini",
+        "gpt-6-next",
+    ]
 
 
 def test_codex_dev_wave_skill_contract_pins_exact_surface():
