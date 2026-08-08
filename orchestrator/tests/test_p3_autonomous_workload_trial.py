@@ -50,6 +50,16 @@ _T530_CONTRACT = A.env_contract.GENERATIONS["linux-baremetal"][0].contract
 assert _T530_CONTRACT.contract_sha256 == (
     "1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7"
 )
+_T530_PEGASUS_CONTRACT = A.env_contract.GENERATIONS["pegasus"][1].contract
+assert _T530_PEGASUS_CONTRACT.contract_sha256 == (
+    "1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c"
+)
+_C01_OTHER_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-32985b96"
+)
+_C01_PEGASUS_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-37c5e748"
+)
 
 
 class _CliGateReached(Exception):
@@ -329,14 +339,176 @@ def test_prepare_campaign_identity_uses_injected_contract_once(monkeypatch) -> N
         return _T530_CONTRACT
 
     monkeypatch.setattr(A.trigger, "_lookup", lookup)
+    site = A.trigger.site_policy.OTHER
+    contract = A.trigger._admit_env_contract(site)
     prepared = A._prepare_campaign_identity(
         workload="ycsb-a", trial_id="fixture-completeness",
-        generations=1, build_context=_no_build_context(),
+        generations=1, site=site, contract=contract,
+        build_context=_no_build_context(),
     )
     assert calls == ["linux-baremetal"]
     assert prepared.campaign.search_config[
         campaign_model.ENVIRONMENT_CONTRACT_SEARCH_KEY
     ] == _T530_CONTRACT.contract_sha256
+
+
+def _pegasus_transport_fixture():
+    source_env = {
+        "PBS_JOBID": "12345.pegasus",
+        "http_proxy": "http://proxy.example:18080",
+        "https_proxy": "http://proxy.example:18443",
+    }
+    policy_bytes = json.dumps({
+        "schema_version": "pegasus-claude-transport-policy/v1",
+        "site": "PEGASUS_COMPUTE",
+        "mode": "explicit-http-proxy-env",
+        "endpoint_values": {
+            "http_proxy": source_env["http_proxy"],
+            "https_proxy": source_env["https_proxy"],
+        },
+    }).encode("utf-8")
+    admission = claude_transport.evaluate_transport_admission(
+        source_env=source_env,
+        policy_bytes=policy_bytes,
+        site=A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    return admission, admission.receipt.as_dict()
+
+
+def _assert_workload_campaign_uses_site_contract(
+    tmp_path, monkeypatch, *, site, contract, other_site, other_contract,
+    expected_env_tag, expected_campaign_id,
+) -> None:
+    site_calls = []
+    lookup_calls = []
+
+    def current_site():
+        site_calls.append(site)
+        return site
+
+    def lookup(env_tag):
+        lookup_calls.append(env_tag)
+        assert env_tag == expected_env_tag
+        return contract
+
+    monkeypatch.setattr(A.trigger, "_current_site", current_site)
+    monkeypatch.setattr(A.trigger, "_lookup", lookup)
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    run_root = tmp_path / "run"
+    for child in (run_root, run_root / "raw", run_root / "proposals"):
+        child.mkdir(exist_ok=True)
+    context = _no_build_context()
+    observed = {}
+
+    def drive(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(), build_context=None,
+        _resolved_site=None, _contract=None,
+    ):
+        observed.update({
+            "cfg": cfg,
+            "layout": layout,
+            "site": _resolved_site,
+            "contract": _contract,
+        })
+        Path(layout.root).mkdir(parents=True, exist_ok=True)
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+            "trigger_gate_binding_commitment": "b" * 64,
+        }
+
+    transport_admission = None
+    transport_receipt = None
+    if site == A.trigger.site_policy.PEGASUS_COMPUTE:
+        transport_admission, transport_receipt = _pegasus_transport_fixture()
+    monkeypatch.setattr(A.trigger, "drive_iteration", drive)
+    result = _run_workload_with_scope(
+        workload="ycsb-a",
+        generations=1,
+        providers={
+            role: _RecordingFixture(role)
+            for role in ("planner", "coder", "auditor", "critic")
+        },
+        journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+        run_root=run_root,
+        sub="/unused",
+        do_build=True,
+        cache_root="",
+        trial_id="c01-site-contract",
+        started_monotonic=time.monotonic(),
+        max_wall_s=60,
+        drive=A.trigger.drive_iteration,
+        preview=_fake_preview,
+        transport_admission=transport_admission,
+        transport_receipt=transport_receipt,
+        build_context=context,
+    )
+    other = A._prepare_campaign_identity(
+        workload="ycsb-a",
+        trial_id="c01-site-contract",
+        generations=1,
+        site=other_site,
+        contract=other_contract,
+        build_context=context,
+    )
+    expected_root = (
+        tmp_path / "exploration" / "campaigns" / expected_campaign_id
+    )
+    assert site_calls == [site]
+    assert lookup_calls == [expected_env_tag]
+    assert observed["site"] == site
+    assert observed["contract"] is contract
+    assert observed["cfg"].search_config[
+        campaign_model.ENVIRONMENT_CONTRACT_SEARCH_KEY
+    ] == contract.contract_sha256
+    if site == A.trigger.site_policy.PEGASUS_COMPUTE:
+        assert observed["cfg"].search_config["measurement_env"] == "pegasus"
+    else:
+        assert "measurement_env" not in observed["cfg"].search_config
+    assert result["campaign_id"] == expected_campaign_id
+    assert result["campaign_id"] != other.campaign_id
+    assert str(A.ident.campaign_id(observed["cfg"])) == expected_campaign_id
+    assert Path(result["campaign_root"]) == expected_root
+    assert Path(observed["layout"].root) == expected_root
+
+
+def test_pegasus_workload_identity_layout_and_drive_use_pegasus_contract(
+    tmp_path, monkeypatch,
+) -> None:
+    _assert_workload_campaign_uses_site_contract(
+        tmp_path,
+        monkeypatch,
+        site=A.trigger.site_policy.PEGASUS_COMPUTE,
+        contract=_T530_PEGASUS_CONTRACT,
+        other_site=A.trigger.site_policy.OTHER,
+        other_contract=_T530_CONTRACT,
+        expected_env_tag="pegasus",
+        expected_campaign_id=_C01_PEGASUS_CAMPAIGN_ID,
+    )
+
+
+def test_other_workload_identity_layout_and_drive_use_linux_contract(
+    tmp_path, monkeypatch,
+) -> None:
+    _assert_workload_campaign_uses_site_contract(
+        tmp_path,
+        monkeypatch,
+        site=A.trigger.site_policy.OTHER,
+        contract=_T530_CONTRACT,
+        other_site=A.trigger.site_policy.PEGASUS_COMPUTE,
+        other_contract=_T530_PEGASUS_CONTRACT,
+        expected_env_tag="linux-baremetal",
+        expected_campaign_id=_C01_OTHER_CAMPAIGN_ID,
+    )
 
 
 def test_parse_coder_accepts_wire_and_rejects_implementation() -> None:
@@ -3535,6 +3707,9 @@ def _t325_git(repo: Path, *args: str) -> str:
 
 @pytest.fixture
 def t325_registered_trial(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
     repo = tmp_path / "registry-repo"
     repo.mkdir()
     _t325_git(repo, "init")
@@ -3565,6 +3740,8 @@ def t325_registered_trial(tmp_path, monkeypatch):
                 workload=workload,
                 trial_id=trial_id,
                 generations=1,
+                site=A.trigger.site_policy.OTHER,
+                contract=_T530_CONTRACT,
                 build_context=_no_build_context(),
             )
             trials.append({
@@ -3702,6 +3879,8 @@ def test_prepare_campaign_identity_exactly_matches_existing_derivation(
         workload="rr80",
         trial_id=t325_registered_trial.trial_id,
         generations=1,
+        site=A.trigger.site_policy.OTHER,
+        contract=_T530_CONTRACT,
         build_context=context,
     )
     assert prepared.descriptor == descriptor
@@ -3735,6 +3914,8 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
         workload="rr80",
         trial_id=t325_registered_trial.trial_id,
         generations=1,
+        site=A.trigger.site_policy.OTHER,
+        contract=_T530_CONTRACT,
         build_context=context,
     )
     assert prepared.campaign_id == admission.binding.campaign_id
@@ -4354,6 +4535,8 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
                 workload=workload,
                 trial_id=trial_id,
                 generations=1,
+                site=A.trigger.site_policy.OTHER,
+                contract=_T530_CONTRACT,
                 build_context=_no_build_context(),
             )
             campaign_id = prepared.campaign_id

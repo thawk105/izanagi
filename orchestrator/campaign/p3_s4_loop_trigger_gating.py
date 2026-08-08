@@ -720,7 +720,11 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     cache_root: str = "", proposal_path: str = "",
                     extra_sources: Sequence[Dict[str, str]] = (), *,
                     dependency_prefix: str = "",
-                    build_context: Optional[BuildRunContext] = None) -> Dict:
+                    build_context: Optional[BuildRunContext] = None,
+                    _resolved_site: Optional[str] = None,
+                    _contract: Optional[
+                        env_contract.ExecutionEnvironmentContract
+                    ] = None) -> Dict:
     """段 8a trigger-gating の 1 iteration をメインセッション駆動で回す (sort 版と
     同型の骨格 + provenance 配線)。
 
@@ -731,8 +735,22 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
          同 iteration が再記録される (duplicate 経路も entry を書く)
     """
     _assert_trigger_proposal_contract(planner, coder)
-    resolved_site = _current_site()
-    contract = _admit_env_contract(resolved_site)
+    if _resolved_site is None and _contract is None:
+        resolved_site = _current_site()
+        contract = _admit_env_contract(resolved_site)
+    elif _resolved_site is None or _contract is None:
+        raise TypeError("resolved site と contract は同時に渡す必要がある")
+    else:
+        resolved_site = _resolved_site
+        contract = _contract
+        if not _site_admits_measurement(resolved_site):
+            raise execution_guard.ExecutionGuardError(
+                f"計測用 env bytes は site={resolved_site!r} では生成できない"
+            )
+        if contract.env_tag != _SITE_ENV_TAGS[resolved_site]:
+            raise execution_guard.ExecutionGuardError(
+                "解決済み site と environment contract の env_tag が一致しない"
+            )
     campaign_cfg = _campaign_cfg_for_site(
         cfg, resolved_site, _contract=contract,
     )
