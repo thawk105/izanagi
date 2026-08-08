@@ -96,6 +96,7 @@ def run_workload(tag: str, log=print) -> dict:
     cfg = _config(tag, o["workload"])
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     capability_resolver = lambda evidence: attest_generator_output(
         build_context, evidence,
         generator_input_sha256=hashlib.sha256(

@@ -643,7 +643,9 @@ def _inspect_campaign(
     if search["build_admission"] != policy.as_preimage():
         raise ArtifactAdmissionError("post-policy campaign lock admission policy differs")
     try:
-        wal._validate_attempt_topology(records, admission_policy=policy)
+        wal._validate_attempt_topology(
+            records, admission_policy=policy, campaign_lock=lock,
+        )
         if (wal.is_trigger_machine_campaign_lock(lock)
                 and any(
                     type(record.payload.get("build_admission")) is dict

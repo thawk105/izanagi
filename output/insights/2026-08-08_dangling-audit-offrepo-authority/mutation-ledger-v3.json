@@ -1,0 +1,1208 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/92e2cad43d3ae8e0cbf530f5ee894d80/izdw-92e2cad43d.o896214",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/92e2cad43d3ae8e0cbf530f5ee894d80/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................                             [100%]\n44 passed in 2.06s\n",
+      "stdout_sha256": "3e3416c01903b136b170c473fcb6a52b5cecf6236a3965adb250603fea2afddc"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+    "duration_s": 26.799,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "2e3199d1896e853a58691c28f08b6cabe96150e7fe26b289529d7551c517cab0",
+    "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+    "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+    "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+    "status": "PASSED",
+    "test_output_sha256": "3e3416c01903b136b170c473fcb6a52b5cecf6236a3965adb250603fea2afddc",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+  },
+  "date": "2026-08-08T15:24:09.105601+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/6fece9f7494844389dfa67f0a711202b/izdw-6fece9f749.o896215",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/6fece9f7494844389dfa67f0a711202b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................F.FFFFFF                             [100%]\n=================================== FAILURES ===================================\n__ test_negative_offrepo_copy_without_landed_reference_is_reported_with_note ___\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_negative_offrepo_copy_wit0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1506015f5900>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1506015f69b0>\n\n    def test_negative_offrepo_copy_without_landed_reference_is_reported_with_note(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/unlanded.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"same bytes\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/unlanded.py\", \"same bytes\\n\")\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('0661241ae9...nlanded.py'])]\nE         \nE         Right contains one more item: ('0661241ae92ab9ad88e9d62aa4774178818065c6', 'work on doomed', ['tools/unlanded.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:311: AssertionError\n______ test_negative_landed_reference_non_ascii_suffix_does_not_suppress _______\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_negative_landed_reference0')\n\n    def test_negative_landed_reference_non_ascii_suffix_does_not_suppress(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/a.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"non-ASCII suffix\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"w/a.py\", \"non-ASCII suffix\\n\")\n        _landed_reference(repo, Path(str(external) + \"。\"))\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('06a4acabb9...tools/a.py'])]\nE         \nE         Right contains one more item: ('06a4acabb980f96b9af38eec2ab50adb124cd0c8', 'work on doomed', ['tools/a.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:819: AssertionError\n__________ test_negative_landed_reference_check_failure_keeps_finding __________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_negative_landed_reference0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1531bb0ad8a0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1531bb0ae470>\n\n    def test_negative_landed_reference_check_failure_keeps_finding(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/grep_failure.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"grep failure\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/grep_failure.py\", \"grep failure\\n\")\n        _landed_reference(repo, external)\n        real_git_bytes = ADC._git_bytes\n    \n        def fail_grep(repo_path, *args):\n            if args and args[0] == \"grep\":\n                return subprocess.CompletedProcess(args, 2, b\"\", b\"grep failed\")\n            return real_git_bytes(repo_path, *args)\n    \n        monkeypatch.setattr(ADC, \"_git_bytes\", fail_grep)\n    \n>       assert ADC.main([\"--repo\", str(repo), \"--offrepo-root\", str(root)]) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = <function main at 0x1531bb0b11b0>(['--repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_negative_landed_reference0/repo', '--offrepo-root', '/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_negative_landed_reference0/offrepo'])\nE        +    where <function main at 0x1531bb0b11b0> = ADC.main\n\norchestrator/tests/test_audit_dangling_commits.py:759: AssertionError\n----------------------------- Captured stdout call -----------------------------\naudit_dangling_commits: repo 外の同一実体の探索根 1 件\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw32/test_negative_landed_reference0/offrepo\n  landed 参照確認不能 (抑止せず): git grep rc=2: grep failed\naudit_dangling_commits: repo 外の同一実体で抑止 1 (commit, path) 対\n  commit 8697a6b16a2dbb497f477ca3bf39c5a87a1256f4: tools/grep_failure.py\n    repo 外の同一実体: /tmp/pytest-of-tanab/pytest-0/popen-gw32/test_negative_landed_reference0/offrepo/wave/grep_failure.py\naudit_dangling_commits: 要確認 0 件 (検出対象外: 既存ファイルへの変更・削除・同名別内容・gitlink 更新)\n___ test_negative_landed_reference_left_boundary_collision_does_not_suppress ___\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_negative_landed_reference0')\n\n    def test_negative_landed_reference_left_boundary_collision_does_not_suppress(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/a.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"left boundary\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"w/a.py\", \"left boundary\\n\")\n        extended_absolute_path = Path(\"/other\" + str(external))\n        _landed_reference(repo, extended_absolute_path)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('e5cb5966e9...tools/a.py'])]\nE         \nE         Right contains one more item: ('e5cb5966e94b807bdfa093e402e96b2fa5ffc082', 'work on doomed', ['tools/a.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:856: AssertionError\n____ test_negative_landed_reference_plus_suffix_collision_does_not_suppress ____\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_negative_landed_reference0')\n\n    def test_negative_landed_reference_plus_suffix_collision_does_not_suppress(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/a.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"plus suffix\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"w/a.py\", \"plus suffix\\n\")\n        _landed_reference(repo, Path(str(external) + \"+backup\"))\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('d3d1dd016d...tools/a.py'])]\nE         \nE         Right contains one more item: ('d3d1dd016d9e6d7f8a5ec7473e3fbec0039ae17b', 'work on doomed', ['tools/a.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:801: AssertionError\n_______ test_negative_reference_to_search_root_itself_does_not_suppress ________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_negative_reference_to_sea0')\n\n    def test_negative_reference_to_search_root_itself_does_not_suppress(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/root_reference.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"root ref\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"root_reference.py\", \"root ref\\n\")\n        _landed_reference(repo, root.resolve())\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('9163e3d904...ference.py'])]\nE         \nE         Right contains one more item: ('9163e3d904b8d9789326975be4c52803aa44096a', 'work on doomed', ['tools/root_reference.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:734: AssertionError\n______ test_negative_landed_reference_prefix_collision_does_not_suppress _______\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_negative_landed_reference0')\n\n    def test_negative_landed_reference_prefix_collision_does_not_suppress(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        lost = _commit_files(\n            repo,\n            \"doomed\",\n            {\"tools/a.py\": \"first\\n\", \"tools/a.py.backup\": \"backup\\n\"},\n        )\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        first = _external_file(root, \"w/a.py\", \"first\\n\")\n        backup = _external_file(root, \"w/a.py.backup\", \"backup\\n\")\n        _landed_reference(repo, backup)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [\"tools/a.py\"])]\nE       AssertionError: assert [] == [('4780ca948b...tools/a.py'])]\nE         \nE         Right contains one more item: ('4780ca948b461c8a48926169c91cef853f177570', 'work on doomed', ['tools/a.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:783: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_copy_without_landed_reference_is_reported_with_note\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_non_ascii_suffix_does_not_suppress\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_left_boundary_collision_does_not_suppress\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_plus_suffix_collision_does_not_suppress\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_reference_to_search_root_itself_does_not_suppress\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress\n7 failed, 37 passed in 2.09s\n",
+        "stdout_sha256": "52acb16088bc0230a0ae38a0b15e583daf0b2413c6f7a1e2229a6e6601bf71ce"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.954,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_copy_without_landed_reference_is_reported_with_note",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_left_boundary_collision_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_reference_to_search_root_itself_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_copy_without_landed_reference_is_reported_with_note",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_non_ascii_suffix_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_left_boundary_collision_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_plus_suffix_collision_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_reference_to_search_root_itself_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "b6bc8fe529af5758b5919dad6e827f685ffabd28ad456c0646c7e5edf6f3103e",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "23d63c503f1c667bbf26a5425a6d9c064792e1c227451ba9106d6de3a838657d",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "            referenced_paths = [entry.path for entry in matches.get(key, ())]\n",
+          "old": "            referenced_paths = referenced.get(key, ()) if reference_failure is None else ()\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "MISMATCH",
+      "test_output_sha256": "52acb16088bc0230a0ae38a0b15e583daf0b2413c6f7a1e2229a6e6601bf71ce",
+      "test_output_tail": [
+        "        repo = _repo(tmp_path)",
+        "        relpath = \"tools/a.py\"",
+        "        lost = _commit_files(repo, \"doomed\", {relpath: \"plus suffix\\n\"})",
+        "        _delete_branch(repo, \"doomed\")",
+        "        root = tmp_path / \"offrepo\"",
+        "        external = _external_file(root, \"w/a.py\", \"plus suffix\\n\")",
+        "        _landed_reference(repo, Path(str(external) + \"+backup\"))",
+        "    ",
+        "        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))",
+        "    ",
+        ">       assert report.findings == [(lost, \"work on doomed\", [relpath])]",
+        "E       AssertionError: assert [] == [('d3d1dd016d...tools/a.py'])]",
+        "E         ",
+        "E         Right contains one more item: ('d3d1dd016d9e6d7f8a5ec7473e3fbec0039ae17b', 'work on doomed', ['tools/a.py'])",
+        "E         Use -v to get more diff",
+        "",
+        "orchestrator/tests/test_audit_dangling_commits.py:801: AssertionError",
+        "_______ test_negative_reference_to_search_root_itself_does_not_suppress ________",
+        "[gw31] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_negative_reference_to_sea0')",
+        "",
+        "    def test_negative_reference_to_search_root_itself_does_not_suppress(",
+        "        tmp_path: Path,",
+        "    ) -> None:",
+        "        repo = _repo(tmp_path)",
+        "        relpath = \"tools/root_reference.py\"",
+        "        lost = _commit_files(repo, \"doomed\", {relpath: \"root ref\\n\"})",
+        "        _delete_branch(repo, \"doomed\")",
+        "        root = tmp_path / \"offrepo\"",
+        "        external = _external_file(root, \"root_reference.py\", \"root ref\\n\")",
+        "        _landed_reference(repo, root.resolve())",
+        "    ",
+        "        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))",
+        "    ",
+        ">       assert report.findings == [(lost, \"work on doomed\", [relpath])]",
+        "E       AssertionError: assert [] == [('9163e3d904...ference.py'])]",
+        "E         ",
+        "E         Right contains one more item: ('9163e3d904b8d9789326975be4c52803aa44096a', 'work on doomed', ['tools/root_reference.py'])",
+        "E         Use -v to get more diff",
+        "",
+        "orchestrator/tests/test_audit_dangling_commits.py:734: AssertionError",
+        "______ test_negative_landed_reference_prefix_collision_does_not_suppress _______",
+        "[gw33] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_negative_landed_reference0')",
+        "",
+        "    def test_negative_landed_reference_prefix_collision_does_not_suppress(",
+        "        tmp_path: Path,",
+        "    ) -> None:",
+        "        repo = _repo(tmp_path)",
+        "        lost = _commit_files(",
+        "            repo,",
+        "            \"doomed\",",
+        "            {\"tools/a.py\": \"first\\n\", \"tools/a.py.backup\": \"backup\\n\"},",
+        "        )",
+        "        _delete_branch(repo, \"doomed\")",
+        "        root = tmp_path / \"offrepo\"",
+        "        first = _external_file(root, \"w/a.py\", \"first\\n\")",
+        "        backup = _external_file(root, \"w/a.py.backup\", \"backup\\n\")",
+        "        _landed_reference(repo, backup)",
+        "    ",
+        "        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))",
+        "    ",
+        ">       assert report.findings == [(lost, \"work on doomed\", [\"tools/a.py\"])]",
+        "E       AssertionError: assert [] == [('4780ca948b...tools/a.py'])]",
+        "E         ",
+        "E         Right contains one more item: ('4780ca948b461c8a48926169c91cef853f177570', 'work on doomed', ['tools/a.py'])",
+        "E         Use -v to get more diff",
+        "",
+        "orchestrator/tests/test_audit_dangling_commits.py:783: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_copy_without_landed_reference_is_reported_with_note",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_non_ascii_suffix_does_not_suppress",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_left_boundary_collision_does_not_suppress",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_plus_suffix_collision_does_not_suppress",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_reference_to_search_root_itself_does_not_suppress",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress",
+        "7 failed, 37 passed in 2.09s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/6cb0565b7b18970109c652552b55166f/izdw-6cb0565b7b.o896216",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/6cb0565b7b18970109c652552b55166f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................F                             [100%]\n=================================== FAILURES ===================================\n_________ test_negative_offrepo_same_size_different_bytes_is_reported __________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_negative_offrepo_same_siz0')\n\n    def test_negative_offrepo_same_size_different_bytes_is_reported(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/same_size.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"abcd\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/same_size.py\", \"wxyz\\n\")\n        _landed_reference(repo, external)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('9d70f86a89...me_size.py'])]\nE         \nE         Right contains one more item: ('9d70f86a8964926d3125bd1d07772daeaab826c5', 'work on doomed', ['tools/same_size.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:334: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_size_different_bytes_is_reported\n1 failed, 43 passed in 2.09s\n",
+        "stdout_sha256": "7f7aeacc829cc077209e4dd237e9a5541f133a3f16ba6ab2739b651db8975ab0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 21.791,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_size_different_bytes_is_reported"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_size_different_bytes_is_reported"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "12507705f51c0ff954471f719b3e449eae68cd5f82505eda66725465c6543878",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "195e5c39b221c3215a00e2fb2e1cb37677248a9fed2785c128a9a421fdab0bb9",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "",
+          "old": "        if digest.digest() != candidate.digest:\n            return False, False\n\n        os.lseek(descriptor, 0, os.SEEK_SET)\n        offset = 0\n        while offset < len(candidate.content):\n            chunk = os.read(\n                descriptor,\n                min(READ_CHUNK_SIZE, len(candidate.content) - offset),\n            )\n            if not chunk or chunk != candidate.content[offset : offset + len(chunk)]:\n                return False, True\n            offset += len(chunk)\n        if os.read(descriptor, 1):\n            return False, True\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "7f7aeacc829cc077209e4dd237e9a5541f133a3f16ba6ab2739b651db8975ab0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/253055ba5cfd98fdfa7a1208c81e5575/izdw-253055ba5c.o896217",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/253055ba5cfd98fdfa7a1208c81e5575/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F..........                             [100%]\n=================================== FAILURES ===================================\n_______________ test_negative_offrepo_mode_mismatch_is_reported ________________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_negative_offrepo_mode_mis0')\n\n    def test_negative_offrepo_mode_mismatch_is_reported(tmp_path: Path) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/executable.py\"\n        lost = _commit_executable(repo, \"doomed\", relpath, \"#!/bin/sh\\n\")\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/executable.py\", \"#!/bin/sh\\n\")\n        _landed_reference(repo, external)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('005c3b1c4d...cutable.py'])]\nE         \nE         Right contains one more item: ('005c3b1c4d8bbc83f4f59628436a971c200aade9', 'work on doomed', ['tools/executable.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:350: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_mode_mismatch_is_reported\n1 failed, 43 passed in 2.08s\n",
+        "stdout_sha256": "55272ebbae1aa8eb177d8cc148d358a3bcb8607e2e0dd28fd454b9747554af72"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.958,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_mode_mismatch_is_reported"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_mode_mismatch_is_reported"
+      ],
+      "hang_risk": false,
+      "id": "M03",
+      "injection_diff_sha256": "900435b8cb9955156934edc1447f996157ffe2d9473f7dc2b1c73e9b005f176c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a4ca1a25b3fca934cc3d4633543cb2212b5f431a93770adfcfced1e09b3324be",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "",
+          "old": "    if bool(initial_stat.st_mode & stat.S_IXUSR) != candidate.executable:\n        return False, False\n"
+        },
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "",
+          "old": "            or bool(opened_stat.st_mode & stat.S_IXUSR) != candidate.executable\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "55272ebbae1aa8eb177d8cc148d358a3bcb8607e2e0dd28fd454b9747554af72",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/1137428db92f2ab5e71a9d0a623e0951/izdw-1137428db9.o896218",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/1137428db92f2ab5e71a9d0a623e0951/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................F                             [100%]\n=================================== FAILURES ===================================\n__________ test_negative_offrepo_root_containing_worktree_is_rejected __________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_negative_offrepo_root_con0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1519b841e3e0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1519b841d7b0>\n\n    def test_negative_offrepo_root_containing_worktree_is_rejected(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/ancestor.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"ancestor\\n\"})\n        _delete_branch(repo, \"doomed\")\n        external = _external_file(\n            tmp_path, \"copies/ancestor.py\", \"ancestor\\n\"\n        )\n        _landed_reference(repo, external)\n    \n>       assert ADC.main([\"--repo\", str(repo), \"--offrepo-root\", str(tmp_path)]) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = <function main at 0x1519b8419120>(['--repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_negative_offrepo_root_con0/repo', '--offrepo-root', '/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_negative_offrepo_root_con0'])\nE        +    where <function main at 0x1519b8419120> = ADC.main\n\norchestrator/tests/test_audit_dangling_commits.py:367: AssertionError\n----------------------------- Captured stdout call -----------------------------\naudit_dangling_commits: repo 外の同一実体の探索根 1 件\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw13/test_negative_offrepo_root_con0\naudit_dangling_commits: repo 外の同一実体で抑止 1 (commit, path) 対\n  commit b9ec9a233c64a51125ecaaed8a61bb1a63b8ae1b: tools/ancestor.py\n    repo 外の同一実体: /tmp/pytest-of-tanab/pytest-0/popen-gw13/test_negative_offrepo_root_con0/copies/ancestor.py\naudit_dangling_commits: 要確認 0 件 (検出対象外: 既存ファイルへの変更・削除・同名別内容・gitlink 更新)\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected\n1 failed, 43 passed in 2.05s\n",
+        "stdout_sha256": "ac68d83139160cbd34de155ee108cd32e51e3babb4bcb3dc36cca936ea1a79be"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.953,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M04",
+      "injection_diff_sha256": "a410d00bd16659be5fb7fc098e7f83ecdf7020d940f9dd7a11251b696a29d634",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c829666ad50705bd8ef2cb88d9b101ce0b7c0bf06c8b249f8c8a982cd2b23551",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "        elif False:\n            rejected.append((root, \"対象 worktree の祖先\"))\n",
+          "old": "        elif worktree.is_relative_to(root):\n            rejected.append((root, \"対象 worktree の祖先\"))\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "ac68d83139160cbd34de155ee108cd32e51e3babb4bcb3dc36cca936ea1a79be",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/8329615da6be9e3c1316fd3880734b71/izdw-8329615da6.o896219",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/8329615da6be9e3c1316fd3880734b71/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................F                             [100%]\n=================================== FAILURES ===================================\n_________________ test_positive_cli_roots_override_environment _________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1551939bfd00>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1551939bf4f0>\n\n    def test_positive_cli_roots_override_environment(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        repo = _repo(tmp_path)\n        paths = {\n            \"tools/from_cli.py\": \"cli copy\\n\",\n            \"tools/from_env.py\": \"env copy\\n\",\n        }\n        lost = _commit_files(repo, \"doomed\", paths)\n        _delete_branch(repo, \"doomed\")\n        cli_root = tmp_path / \"cli-root\"\n        cli_second = tmp_path / \"cli-second\"\n        env_root = tmp_path / \"env-root\"\n        cli_external = _external_file(cli_root, \"wave/from_cli.py\", \"cli copy\\n\")\n        cli_second.mkdir()\n        env_external = _external_file(env_root, \"wave/from_env.py\", \"env copy\\n\")\n        _landed_reference(repo, cli_external, env_external)\n        monkeypatch.setenv(\"IZANAGI_DEV_WAVE_JOBS_DIR\", str(env_root))\n    \n>       assert ADC.main(\n            [\n                \"--repo\",\n                str(repo),\n                \"--offrepo-root\",\n                str(cli_root),\n                \"--offrepo-root\",\n                str(cli_second),\n            ]\n        ) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = <function main at 0x1551939ad1b0>(['--repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0/repo', '--offrepo-root', '/tmp/py...ri0/cli-root', '--offrepo-root', '/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0/cli-second'])\nE        +    where <function main at 0x1551939ad1b0> = ADC.main\n\norchestrator/tests/test_audit_dangling_commits.py:394: AssertionError\n----------------------------- Captured stdout call -----------------------------\naudit_dangling_commits: repo 外の同一実体の探索根 3 件\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0/cli-root\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0/cli-second\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0/env-root\naudit_dangling_commits: repo 外の同一実体で抑止 2 (commit, path) 対\n  commit 14e7bab57df0a07e7057e04217b73a0da32d913b: tools/from_cli.py\n    repo 外の同一実体: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0/cli-root/wave/from_cli.py\n  commit 14e7bab57df0a07e7057e04217b73a0da32d913b: tools/from_env.py\n    repo 外の同一実体: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0/env-root/wave/from_env.py\naudit_dangling_commits: 要確認 0 件 (検出対象外: 既存ファイルへの変更・削除・同名別内容・gitlink 更新)\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment\n1 failed, 43 passed in 2.06s\n",
+        "stdout_sha256": "c4f6d55d961cf80d85301d010510891c38a7aaace66571cc10bfe22b367da652"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.902,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment"
+      ],
+      "hang_risk": false,
+      "id": "M05",
+      "injection_diff_sha256": "1414335884df20c5b710547ad1e89bc3b97fb33ef4806afa30e833cbf5720e08",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ab3009fd67e8f25e7b751bef469a39966a2130ec00e2a96918af77dd97820220",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "    environment_root = os.environ.get(OFFREPO_ROOT_ENV, \"\")\n    roots: Sequence[Path | str] = tuple(args.offrepo_root or ())\n    if environment_root:\n        roots = (*roots, environment_root)\n",
+          "old": "    if args.offrepo_root is not None:\n        roots: Sequence[Path | str] = tuple(args.offrepo_root)\n    else:\n        environment_root = os.environ.get(OFFREPO_ROOT_ENV, \"\")\n        roots = (environment_root,) if environment_root else ()\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "c4f6d55d961cf80d85301d010510891c38a7aaace66571cc10bfe22b367da652",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/c2859bdf2106490450182958af6815df/izdw-c2859bdf21.o896220",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/c2859bdf2106490450182958af6815df/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................F.......                             [100%]\n=================================== FAILURES ===================================\n__________ test_cli_include_fold_trees_reaches_audit_through_wrapper ___________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_cli_include_fold_trees_re0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145863dd1900>\ncapsys = <_pytest.capture.CaptureFixture object at 0x145863dd2980>\n\n    def test_cli_include_fold_trees_reaches_audit_through_wrapper(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"docs/spool/worklog/fragment.md\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"fold data\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/fragment.md\", \"fold data\\n\")\n        _landed_reference(repo, external)\n    \n        assert ADC.main(\n            [\n                \"--repo\",\n                str(repo),\n                \"--offrepo-root\",\n                str(root),\n                \"--include-fold-trees\",\n            ]\n        ) == 0\n        output = capsys.readouterr().out\n>       assert f\"commit {lost}: {relpath}\" in output\nE       AssertionError: assert 'commit b095af7f96b633553d9f60391b2ba91ed7487a09: docs/spool/worklog/fragment.md' in 'audit_dangling_commits: repo 外の同一実体の探索根 1 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw15/test_cli_include_fold_tr..._commits: repo 外の同一実体で抑止 0 (commit, path) 対\\naudit_dangling_commits: 要確認 0 件 (検出対象外: 既存ファイルへの変更・削除・同名別内容・gitlink 更新)\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:434: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper\n1 failed, 43 passed in 2.07s\n",
+        "stdout_sha256": "756aa5b039bea456654d1e81bbf8d7c11b853d7a67dcde4ee7e97a4d6651a8f6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.907,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper"
+      ],
+      "hang_risk": false,
+      "id": "M06",
+      "injection_diff_sha256": "e021ab7580b3bac91953b574da0025331b021325397d160adfcd32c73ebaeb83",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b1f55930849d07154bbb3ad74da5f260a5bc112dfd415c09aefb68a2b03c7256",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "    original_findings = audit(repo, main_ref, DEFAULT_EXCLUDED_PREFIXES)\n",
+          "old": "    original_findings = audit(repo, main_ref, excluded_prefixes)\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "756aa5b039bea456654d1e81bbf8d7c11b853d7a67dcde4ee7e97a4d6651a8f6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/9cb63e520ecb779a8f71d864901af8ab/izdw-9cb63e520e.o896221",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/9cb63e520ecb779a8f71d864901af8ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............F.....................F.FFFFFFF                             [100%]\n=================================== FAILURES ===================================\n________________ test_negative_root_unspecified_discloses_skip _________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_negative_root_unspecified0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149e52bf7a30>\ncapsys = <_pytest.capture.CaptureFixture object at 0x149e52bf75b0>\n\n    def test_negative_root_unspecified_discloses_skip(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/no_root.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"copy\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        _external_file(root, \"wave/no_root.py\", \"copy\\n\")\n    \n        assert ADC.main([\"--repo\", str(repo)]) == 1\n        output = capsys.readouterr().out\n        assert lost in output\n        assert \"探索を未実施\" in output\n>       assert \"repo 外の同一実体で抑止 0\" in output\nE       AssertionError: assert 'repo 外の同一実体で抑止 0' in 'audit_dangling_commits: repo 外の同一実体の探索を未実施\\n  --offrepo-root / IZANAGI_DEV_WAVE_JOBS_DIR が未指定\\naudit_dangling_commits... commit 405d4031dbb45ebab9cdd9e5d6bf7218d3446688 (work on doomed)\\n    main・全 local branch tip に不在: tools/no_root.py\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:475: AssertionError\n________________ test_positive_suppression_is_disclosed_at_rc0 _________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_positive_suppression_is_d0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x155064c37a30>\ncapsys = <_pytest.capture.CaptureFixture object at 0x155064c375b0>\n\n    def test_positive_suppression_is_disclosed_at_rc0(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/recovered.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"recovered\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/recovered.py\", \"recovered\\n\")\n        _landed_reference(repo, external)\n    \n        assert ADC.main([\"--repo\", str(repo), \"--offrepo-root\", str(root)]) == 0\n        output = capsys.readouterr().out\n>       assert \"repo 外の同一実体で抑止 1\" in output\nE       AssertionError: assert 'repo 外の同一実体で抑止 1' in 'audit_dangling_commits: repo 外の同一実体の探索根 1 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw9/test_positive_suppression_is_d0/offrepo\\naudit_dangling_commits: 要確認 0 件 (検出対象外: 既存ファイルへの変更・削除・同名別内容・gitlink 更新)\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:292: AssertionError\n__________ test_negative_offrepo_root_containing_worktree_is_rejected __________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_negative_offrepo_root_con0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15517caf3a60>\ncapsys = <_pytest.capture.CaptureFixture object at 0x15517caf16c0>\n\n    def test_negative_offrepo_root_containing_worktree_is_rejected(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/ancestor.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"ancestor\\n\"})\n        _delete_branch(repo, \"doomed\")\n        external = _external_file(\n            tmp_path, \"copies/ancestor.py\", \"ancestor\\n\"\n        )\n        _landed_reference(repo, external)\n    \n        assert ADC.main([\"--repo\", str(repo), \"--offrepo-root\", str(tmp_path)]) == 1\n        output = capsys.readouterr().out\n        assert lost in output\n        assert \"探索根を拒否\" in output\n        assert \"対象 worktree の祖先\" in output\n>       assert \"repo 外の同一実体で抑止 0\" in output\nE       AssertionError: assert 'repo 外の同一実体で抑止 0' in 'audit_dangling_commits: repo 外の同一実体の探索根 1 件\\n  探索根を拒否 (抑止せず): /tmp/pytest-of-tanab/pytest-0/popen-gw13/test_negative_...commit 43ea5f875885f8b543d778340e21cde678116dec (work on doomed)\\n    main・全 local branch tip に不在: tools/ancestor.py\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:372: AssertionError\n__ test_negative_offrepo_root_inside_worktree_is_rejected_without_suppression __\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_negative_offrepo_root_ins0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154eae673bb0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x154eae673790>\n\n    def test_negative_offrepo_root_inside_worktree_is_rejected_without_suppression(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/inside.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"inside\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = repo / \"untracked-copies\"\n        external = _external_file(root, \"wave/inside.py\", \"inside\\n\")\n        _landed_reference(repo, external)\n    \n        assert ADC.main([\"--repo\", str(repo), \"--offrepo-root\", str(root)]) == 1\n        output = capsys.readouterr().out\n        assert lost in output\n        assert \"対象 worktree の子孫\" in output\n>       assert \"repo 外の同一実体で抑止 0\" in output\nE       AssertionError: assert 'repo 外の同一実体で抑止 0' in 'audit_dangling_commits: repo 外の同一実体の探索根 1 件\\n  探索根を拒否 (抑止せず): /tmp/pytest-of-tanab/pytest-0/popen-gw22/test_negative_...  commit 9d913823db3ea07ef8aeb7f7c7b6406f17cf397d (work on doomed)\\n    main・全 local branch tip に不在: tools/inside.py\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:567: AssertionError\n__________ test_cli_include_fold_trees_reaches_audit_through_wrapper ___________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_cli_include_fold_trees_re0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147a8b7e3a00>\ncapsys = <_pytest.capture.CaptureFixture object at 0x147a8b7e3580>\n\n    def test_cli_include_fold_trees_reaches_audit_through_wrapper(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"docs/spool/worklog/fragment.md\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"fold data\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/fragment.md\", \"fold data\\n\")\n        _landed_reference(repo, external)\n    \n        assert ADC.main(\n            [\n                \"--repo\",\n                str(repo),\n                \"--offrepo-root\",\n                str(root),\n                \"--include-fold-trees\",\n            ]\n        ) == 0\n        output = capsys.readouterr().out\n>       assert f\"commit {lost}: {relpath}\" in output\nE       AssertionError: assert 'commit 38d6b6dfaf7a2577bddc9c46ce4026b45df3bbff: docs/spool/worklog/fragment.md' in 'audit_dangling_commits: repo 外の同一実体の探索根 1 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw15/test_cli_include_fold_trees_re0/offrepo\\naudit_dangling_commits: 要確認 0 件 (検出対象外: 既存ファイルへの変更・削除・同名別内容・gitlink 更新)\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:434: AssertionError\n__________ test_negative_landed_reference_check_failure_keeps_finding __________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_negative_landed_reference0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d9cc64fc10>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14d9cc64d870>\n\n    def test_negative_landed_reference_check_failure_keeps_finding(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/grep_failure.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"grep failure\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/grep_failure.py\", \"grep failure\\n\")\n        _landed_reference(repo, external)\n        real_git_bytes = ADC._git_bytes\n    \n        def fail_grep(repo_path, *args):\n            if args and args[0] == \"grep\":\n                return subprocess.CompletedProcess(args, 2, b\"\", b\"grep failed\")\n            return real_git_bytes(repo_path, *args)\n    \n        monkeypatch.setattr(ADC, \"_git_bytes\", fail_grep)\n    \n        assert ADC.main([\"--repo\", str(repo), \"--offrepo-root\", str(root)]) == 1\n        output = capsys.readouterr().out\n        assert lost in output\n        assert \"landed 参照確認不能 (抑止せず)\" in output\n>       assert \"repo 外の同一実体で抑止 0\" in output\nE       AssertionError: assert 'repo 外の同一実体で抑止 0' in 'audit_dangling_commits: repo 外の同一実体の探索根 1 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw32/test_negative_landed_ref...it 9732c5f88bb5bd6e52259d6c4eaabb18fd69dab5 (work on doomed)\\n    main・全 local branch tip に不在: tools/grep_failure.py\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:763: AssertionError\n______________ test_positive_offrepo_environment_default_is_used _______________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_positive_offrepo_environm0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1463a7a07a30>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1463a7a075b0>\n\n    def test_positive_offrepo_environment_default_is_used(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/from_environment.py\"\n        _commit_files(repo, \"doomed\", {relpath: \"environment\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/from_environment.py\", \"environment\\n\")\n        _landed_reference(repo, external)\n        monkeypatch.setenv(\"IZANAGI_DEV_WAVE_JOBS_DIR\", str(root))\n    \n        assert ADC.main([\"--repo\", str(repo)]) == 0\n        output = capsys.readouterr().out\n>       assert str(external) in output\nE       AssertionError: assert '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_positive_offrepo_environm0/offrepo/wave/from_environment.py' in 'audit_dangling_commits: repo 外の同一実体の探索根 1 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw18/test_positive_offrepo_environm0/offrepo\\naudit_dangling_commits: 要確認 0 件 (検出対象外: 既存ファイルへの変更・削除・同名別内容・gitlink 更新)\\n'\nE        +  where '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_positive_offrepo_environm0/offrepo/wave/from_environment.py' = str(PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_positive_offrepo_environm0/offrepo/wave/from_environment.py'))\n\norchestrator/tests/test_audit_dangling_commits.py:492: AssertionError\n_______ test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1 _______\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_partial_offrepo_suppressi0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ec86c63c10>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14ec86c61870>\n\n    def test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        lost = _commit_files(\n            repo,\n            \"doomed\",\n            {\"tools/copied.py\": \"copied\\n\", \"tools/still_lost.py\": \"lost\\n\"},\n        )\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/copied.py\", \"copied\\n\")\n        _landed_reference(repo, external)\n    \n        assert ADC.main([\"--repo\", str(repo), \"--offrepo-root\", str(root)]) == 1\n        output = capsys.readouterr().out\n>       assert f\"commit {lost}: tools/copied.py\" in output\nE       AssertionError: assert 'commit 831f18cd6030969496647429fddd47e100614760: tools/copied.py' in 'audit_dangling_commits: repo 外の同一実体の探索根 1 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw19/test_partial_offrepo_sup...mmit 831f18cd6030969496647429fddd47e100614760 (work on doomed)\\n    main・全 local branch tip に不在: tools/still_lost.py\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:513: AssertionError\n_________________ test_positive_cli_roots_override_environment _________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148f79b3d330>\ncapsys = <_pytest.capture.CaptureFixture object at 0x148f79b3e890>\n\n    def test_positive_cli_roots_override_environment(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        repo = _repo(tmp_path)\n        paths = {\n            \"tools/from_cli.py\": \"cli copy\\n\",\n            \"tools/from_env.py\": \"env copy\\n\",\n        }\n        lost = _commit_files(repo, \"doomed\", paths)\n        _delete_branch(repo, \"doomed\")\n        cli_root = tmp_path / \"cli-root\"\n        cli_second = tmp_path / \"cli-second\"\n        env_root = tmp_path / \"env-root\"\n        cli_external = _external_file(cli_root, \"wave/from_cli.py\", \"cli copy\\n\")\n        cli_second.mkdir()\n        env_external = _external_file(env_root, \"wave/from_env.py\", \"env copy\\n\")\n        _landed_reference(repo, cli_external, env_external)\n        monkeypatch.setenv(\"IZANAGI_DEV_WAVE_JOBS_DIR\", str(env_root))\n    \n        assert ADC.main(\n            [\n                \"--repo\",\n                str(repo),\n                \"--offrepo-root\",\n                str(cli_root),\n                \"--offrepo-root\",\n                str(cli_second),\n            ]\n        ) == 1\n        output = capsys.readouterr().out\n>       assert f\"commit {lost}: tools/from_cli.py\" in output\nE       AssertionError: assert 'commit 8e82a8a2b1500a87d1cfbfdff131b9bede25db0d: tools/from_cli.py' in 'audit_dangling_commits: repo 外の同一実体の探索根 2 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_...commit 8e82a8a2b1500a87d1cfbfdff131b9bede25db0d (work on doomed)\\n    main・全 local branch tip に不在: tools/from_env.py\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:405: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_inside_worktree_is_rejected_without_suppression\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment\n9 failed, 35 passed in 2.10s\n",
+        "stdout_sha256": "4fa9596e299f0cdbb2d17624fc06d1dde8e23b9598a21ff3184a2cbf0a11ed0d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 32.029,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_inside_worktree_is_rejected_without_suppression",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_inside_worktree_is_rejected_without_suppression",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment"
+      ],
+      "hang_risk": false,
+      "id": "M07",
+      "injection_diff_sha256": "061e498798371b4daa7edb25e0a0f9ca41499476a41e6b53b8dbdd7a62aeb8ed",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "33d633bc2e4176d19d259d332d2ef6b3e426c5b0da4f1a94f4bfefb9c4e21121",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "",
+          "old": "    print(\n        \"audit_dangling_commits: repo 外の同一実体で抑止 \"\n        f\"{len(report.suppressions)} (commit, path) 対\"\n    )\n    for commit, path, external_copy_path in report.suppressions:\n        print(f\"  commit {commit}: {path}\")\n        print(f\"    repo 外の同一実体: {external_copy_path}\")\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "4fa9596e299f0cdbb2d17624fc06d1dde8e23b9598a21ff3184a2cbf0a11ed0d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/04fa2f514d6c4aa1be25f6b1bd65f4ef/izdw-04fa2f514d.o896222",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/04fa2f514d6c4aa1be25f6b1bd65f4ef/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................F................                             [100%]\n=================================== FAILURES ===================================\n_____________ test_negative_unreachable_symlink_is_not_suppressed ______________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_negative_unreachable_syml0')\n\n    def test_negative_unreachable_symlink_is_not_suppressed(tmp_path: Path) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/link.py\"\n        _git(repo, \"checkout\", \"-q\", \"-b\", \"doomed\")\n        target = repo / relpath\n        target.parent.mkdir(parents=True)\n        target.symlink_to(\"payload\")\n        _git(repo, \"add\", relpath)\n        _git(repo, \"commit\", \"-qm\", \"work on doomed\")\n        lost = _git(repo, \"rev-parse\", \"HEAD\")\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/link.py\", \"payload\")\n        _landed_reference(repo, external)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('7e2fd8bc46...ls/link.py'])]\nE         \nE         Right contains one more item: ('7e2fd8bc468994ffa7d0f70cfd3c286971c3b8fc', 'work on doomed', ['tools/link.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:455: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_symlink_is_not_suppressed\n1 failed, 43 passed in 2.09s\n",
+        "stdout_sha256": "78ee0c39c5b489e9fcc38a0a4fae088d82d44ce56347fd5da89154e6dea4ebcf"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.975,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_symlink_is_not_suppressed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_symlink_is_not_suppressed"
+      ],
+      "hang_risk": false,
+      "id": "M08",
+      "injection_diff_sha256": "22dce6b64eff9f91850ca61697886fcec8082b73b3ba6f267b87aea08a73be6a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "266a0f127370ac4ff34a9ec1a360a99ac7b4e7b05c3e2a8acf4a45350de6129b",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "    if mode not in {b\"100644\", b\"100755\", b\"120000\"} or object_type != b\"blob\":\n        return None, False, None\n",
+          "old": "    if mode not in {b\"100644\", b\"100755\"} or object_type != b\"blob\":\n        return None, False, None\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "78ee0c39c5b489e9fcc38a0a4fae088d82d44ce56347fd5da89154e6dea4ebcf",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/ce570657ef81bb0c701fd03e3c9a2387/izdw-ce570657ef.o896223",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/ce570657ef81bb0c701fd03e3c9a2387/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................F..                             [100%]\n=================================== FAILURES ===================================\n________________ test_negative_root_unspecified_discloses_skip _________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_negative_root_unspecified0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150fd3e2ba30>\ncapsys = <_pytest.capture.CaptureFixture object at 0x150fd3e2b5b0>\n\n    def test_negative_root_unspecified_discloses_skip(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/no_root.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"copy\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        _external_file(root, \"wave/no_root.py\", \"copy\\n\")\n    \n        assert ADC.main([\"--repo\", str(repo)]) == 1\n        output = capsys.readouterr().out\n        assert lost in output\n>       assert \"探索を未実施\" in output\nE       AssertionError: assert '探索を未実施' in 'audit_dangling_commits: repo 外の同一実体で抑止 0 (commit, path) 対\\naudit_dangling_commits: 要確認の到達不能変更 1 commit\\n  commit c7c66e5e63f3e818d4914f197c008098ee103c3e (work on doomed)\\n    main・全 local branch tip に不在: tools/no_root.py\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:474: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip\n1 failed, 43 passed in 2.06s\n",
+        "stdout_sha256": "d6aa54c823fd77ad519bbb14bb87e9394f2dc53571356bdf035e8112d283bb79"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.895,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip"
+      ],
+      "hang_risk": false,
+      "id": "M09",
+      "injection_diff_sha256": "8006746067f23da462dabc415526910a48a96394bd9c2b283f3f6518fbcf7d5d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e3b04e4925c6ff9cffe6caed3c0a65eabe936f02ac8f01028f66f10c1dff2124",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "        pass\n",
+          "old": "        print(\"audit_dangling_commits: repo 外の同一実体の探索を未実施\")\n        print(f\"  --offrepo-root / {OFFREPO_ROOT_ENV} が未指定\")\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "d6aa54c823fd77ad519bbb14bb87e9394f2dc53571356bdf035e8112d283bb79",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/7027d21393fc1b261a99dd4df3a0faee/izdw-7027d21393.o896224",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/7027d21393fc1b261a99dd4df3a0faee/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................F.FFF..FFFFFFFF                             [100%]\n=================================== FAILURES ===================================\n__________ test_positive_landed_referenced_offrepo_copy_is_suppressed __________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_positive_landed_reference0')\n\n    def test_positive_landed_referenced_offrepo_copy_is_suppressed(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"output/insights/wave/probe_g2_consumers.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"probe\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"different-wave/probe_g2_consumers.py\", \"probe\\n\")\n        _landed_reference(repo, external)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == []\nE       AssertionError: assert [('baab2a4b31...nsumers.py'])] == []\nE         \nE         Left contains one more item: ('baab2a4b31887ee813b6c1097adf9b08b8bd446b', 'work on doomed', ['output/insights/wave/probe_g2_consumers.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:273: AssertionError\n______ test_positive_landed_reference_to_descendant_directory_suppresses _______\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_positive_landed_reference0')\n\n    def test_positive_landed_reference_to_descendant_directory_suppresses(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/directory_reference.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"directory ref\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(\n            root, \"wave/nested/directory_reference.py\", \"directory ref\\n\"\n        )\n        _landed_reference(repo, external.parent)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == []\nE       AssertionError: assert [('7d5c687863...ference.py'])] == []\nE         \nE         Left contains one more item: ('7d5c687863a07962b93b990927f1bd7987d0a718', 'work on doomed', ['tools/directory_reference.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:717: AssertionError\n________ test_positive_landed_reference_found_after_invalid_occurrence _________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_positive_landed_reference0')\n\n    def test_positive_landed_reference_found_after_invalid_occurrence(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/a.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"later valid reference\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"w/a.py\", \"later valid reference\\n\")\n        _landed_reference(repo, Path(str(external) + \"+backup\"), external)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == []\nE       AssertionError: assert [('1e6e522892...tools/a.py'])] == []\nE         \nE         Left contains one more item: ('1e6e52289203152e338173e76ad55f6f128fe7ab', 'work on doomed', ['tools/a.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:837: AssertionError\n______________ test_positive_offrepo_environment_default_is_used _______________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_positive_offrepo_environm0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c29b867a60>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14c29b8675e0>\n\n    def test_positive_offrepo_environment_default_is_used(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/from_environment.py\"\n        _commit_files(repo, \"doomed\", {relpath: \"environment\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/from_environment.py\", \"environment\\n\")\n        _landed_reference(repo, external)\n        monkeypatch.setenv(\"IZANAGI_DEV_WAVE_JOBS_DIR\", str(root))\n    \n>       assert ADC.main([\"--repo\", str(repo)]) == 0\nE       AssertionError: assert 1 == 0\nE        +  where 1 = <function main at 0x14c29b8551b0>(['--repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_positive_offrepo_environm0/repo'])\nE        +    where <function main at 0x14c29b8551b0> = ADC.main\n\norchestrator/tests/test_audit_dangling_commits.py:490: AssertionError\n----------------------------- Captured stdout call -----------------------------\naudit_dangling_commits: repo 外の同一実体の探索根 1 件\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw18/test_positive_offrepo_environm0/offrepo\naudit_dangling_commits: repo 外の同一実体で抑止 0 (commit, path) 対\naudit_dangling_commits: 要確認の到達不能変更 1 commit\n  commit d6ff822fee946735f8e69ac95aeb6eee9acf9f9b (work on doomed)\n    main・全 local branch tip に不在: tools/from_environment.py — repo 外に同一 bytes の実体あり (landed 参照なし): /tmp/pytest-of-tanab/pytest-0/popen-gw18/test_positive_offrepo_environm0/offrepo/wave/from_environment.py\n________ test_landed_reference_git_grep_runs_once_for_all_bytes_matches ________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_reference_git_grep0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145f171a7ac0>\n\n    def test_landed_reference_git_grep_runs_once_for_all_bytes_matches(\n        tmp_path: Path, monkeypatch,\n    ) -> None:\n        repo = _repo(tmp_path)\n        lost = _commit_files(\n            repo,\n            \"doomed\",\n            {\"tools/first.py\": \"first\\n\", \"tools/second.py\": \"second\\n\"},\n        )\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        first = _external_file(root, \"one/first.py\", \"first\\n\")\n        second = _external_file(root, \"two/second.py\", \"second\\n\")\n        _landed_reference(repo, first, second)\n        real_git_bytes = ADC._git_bytes\n        grep_calls = 0\n    \n        def count_grep(repo_path, *args):\n            nonlocal grep_calls\n            if args and args[0] == \"grep\":\n                grep_calls += 1\n            return real_git_bytes(repo_path, *args)\n    \n        monkeypatch.setattr(ADC, \"_git_bytes\", count_grep)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n        assert grep_calls == 1\n>       assert report.findings == []\nE       AssertionError: assert [('e0256efde4.../second.py'])] == []\nE         \nE         Left contains one more item: ('e0256efde4fd6595029817116e763beaf8506894', 'work on doomed', ['tools/first.py', 'tools/second.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:981: AssertionError\n________________ test_positive_suppression_is_disclosed_at_rc0 _________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_positive_suppression_is_d0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147053acfb20>\ncapsys = <_pytest.capture.CaptureFixture object at 0x147053acf880>\n\n    def test_positive_suppression_is_disclosed_at_rc0(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"tools/recovered.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"recovered\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/recovered.py\", \"recovered\\n\")\n        _landed_reference(repo, external)\n    \n>       assert ADC.main([\"--repo\", str(repo), \"--offrepo-root\", str(root)]) == 0\nE       AssertionError: assert 1 == 0\nE        +  where 1 = <function main at 0x147053ac11b0>(['--repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_positive_suppression_is_d0/repo', '--offrepo-root', '/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_positive_suppression_is_d0/offrepo'])\nE        +    where <function main at 0x147053ac11b0> = ADC.main\n\norchestrator/tests/test_audit_dangling_commits.py:290: AssertionError\n----------------------------- Captured stdout call -----------------------------\naudit_dangling_commits: repo 外の同一実体の探索根 1 件\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw9/test_positive_suppression_is_d0/offrepo\naudit_dangling_commits: repo 外の同一実体で抑止 0 (commit, path) 対\naudit_dangling_commits: 要確認の到達不能変更 1 commit\n  commit 367472c56d1e6b137518679937eac4b5382561c8 (work on doomed)\n    main・全 local branch tip に不在: tools/recovered.py — repo 外に同一 bytes の実体あり (landed 参照なし): /tmp/pytest-of-tanab/pytest-0/popen-gw9/test_positive_suppression_is_d0/offrepo/wave/recovered.py\n__________ test_cli_include_fold_trees_reaches_audit_through_wrapper ___________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_cli_include_fold_trees_re0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f79d077ac0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14f79d0776a0>\n\n    def test_cli_include_fold_trees_reaches_audit_through_wrapper(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        relpath = \"docs/spool/worklog/fragment.md\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"fold data\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/fragment.md\", \"fold data\\n\")\n        _landed_reference(repo, external)\n    \n>       assert ADC.main(\n            [\n                \"--repo\",\n                str(repo),\n                \"--offrepo-root\",\n                str(root),\n                \"--include-fold-trees\",\n            ]\n        ) == 0\nE       AssertionError: assert 1 == 0\nE        +  where 1 = <function main at 0x14f79d0651b0>(['--repo', '/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_cli_include_fold_trees_re0/repo', '--offrepo-root', '/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_cli_include_fold_trees_re0/offrepo', '--include-fold-trees'])\nE        +    where <function main at 0x14f79d0651b0> = ADC.main\n\norchestrator/tests/test_audit_dangling_commits.py:424: AssertionError\n----------------------------- Captured stdout call -----------------------------\naudit_dangling_commits: repo 外の同一実体の探索根 1 件\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw15/test_cli_include_fold_trees_re0/offrepo\naudit_dangling_commits: repo 外の同一実体で抑止 0 (commit, path) 対\naudit_dangling_commits: 要確認の到達不能変更 1 commit\n  commit 1346653ebcc19159c5ff3a6cdc50c796db797f55 (work on doomed)\n    main・全 local branch tip に不在: docs/spool/worklog/fragment.md — repo 外に同一 bytes の実体あり (landed 参照なし): /tmp/pytest-of-tanab/pytest-0/popen-gw15/test_cli_include_fold_trees_re0/offrepo/wave/fragment.md\n______ test_negative_landed_reference_prefix_collision_does_not_suppress _______\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_negative_landed_reference0')\n\n    def test_negative_landed_reference_prefix_collision_does_not_suppress(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        lost = _commit_files(\n            repo,\n            \"doomed\",\n            {\"tools/a.py\": \"first\\n\", \"tools/a.py.backup\": \"backup\\n\"},\n        )\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        first = _external_file(root, \"w/a.py\", \"first\\n\")\n        backup = _external_file(root, \"w/a.py.backup\", \"backup\\n\")\n        _landed_reference(repo, backup)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [\"tools/a.py\"])]\nE       AssertionError: assert [('429502004a....py.backup'])] == [('429502004a...tools/a.py'])]\nE         \nE         At index 0 diff: ('429502004a1d230a97150859c86400055ae836ef', 'work on doomed', ['tools/a.py', 'tools/a.py.backup']) != ('429502004a1d230a97150859c86400055ae836ef', 'work on doomed', ['tools/a.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:783: AssertionError\n______________ test_positive_executable_mode_match_is_suppressed _______________\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_positive_executable_mode_0')\n\n    def test_positive_executable_mode_match_is_suppressed(tmp_path: Path) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/executable_match.py\"\n        lost = _commit_executable(repo, \"doomed\", relpath, \"#!/bin/sh\\n\")\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(\n            root, \"wave/executable_match.py\", \"#!/bin/sh\\n\", executable=True\n        )\n        _landed_reference(repo, external)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == []\nE       AssertionError: assert [('e99808ca78...e_match.py'])] == []\nE         \nE         Left contains one more item: ('e99808ca78b4b46dcc389563b5f6f62503fb1270', 'work on doomed', ['tools/executable_match.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:1001: AssertionError\n_______ test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1 _______\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_partial_offrepo_suppressi0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152caecbfa60>\ncapsys = <_pytest.capture.CaptureFixture object at 0x152caecbd6c0>\n\n    def test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)\n        repo = _repo(tmp_path)\n        lost = _commit_files(\n            repo,\n            \"doomed\",\n            {\"tools/copied.py\": \"copied\\n\", \"tools/still_lost.py\": \"lost\\n\"},\n        )\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/copied.py\", \"copied\\n\")\n        _landed_reference(repo, external)\n    \n        assert ADC.main([\"--repo\", str(repo), \"--offrepo-root\", str(root)]) == 1\n        output = capsys.readouterr().out\n>       assert f\"commit {lost}: tools/copied.py\" in output\nE       AssertionError: assert 'commit ded571232210c13629a5006f06bc0e841ab27e9d: tools/copied.py' in 'audit_dangling_commits: repo 外の同一実体の探索根 1 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw19/test_partial_offrepo_sup...en-gw19/test_partial_offrepo_suppressi0/offrepo/wave/copied.py\\n    main・全 local branch tip に不在: tools/still_lost.py\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:513: AssertionError\n_________________ test_positive_cli_roots_override_environment _________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14be85aefa60>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14be85aef5e0>\n\n    def test_positive_cli_roots_override_environment(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        repo = _repo(tmp_path)\n        paths = {\n            \"tools/from_cli.py\": \"cli copy\\n\",\n            \"tools/from_env.py\": \"env copy\\n\",\n        }\n        lost = _commit_files(repo, \"doomed\", paths)\n        _delete_branch(repo, \"doomed\")\n        cli_root = tmp_path / \"cli-root\"\n        cli_second = tmp_path / \"cli-second\"\n        env_root = tmp_path / \"env-root\"\n        cli_external = _external_file(cli_root, \"wave/from_cli.py\", \"cli copy\\n\")\n        cli_second.mkdir()\n        env_external = _external_file(env_root, \"wave/from_env.py\", \"env copy\\n\")\n        _landed_reference(repo, cli_external, env_external)\n        monkeypatch.setenv(\"IZANAGI_DEV_WAVE_JOBS_DIR\", str(env_root))\n    \n        assert ADC.main(\n            [\n                \"--repo\",\n                str(repo),\n                \"--offrepo-root\",\n                str(cli_root),\n                \"--offrepo-root\",\n                str(cli_second),\n            ]\n        ) == 1\n        output = capsys.readouterr().out\n>       assert f\"commit {lost}: tools/from_cli.py\" in output\nE       AssertionError: assert 'commit 1c854d3bc0ddbad6ae2a232c7cf3fbafab4f1ca9: tools/from_cli.py' in 'audit_dangling_commits: repo 外の同一実体の探索根 2 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_...n-gw14/test_positive_cli_roots_overri0/cli-root/wave/from_cli.py\\n    main・全 local branch tip に不在: tools/from_env.py\\n'\n\norchestrator/tests/test_audit_dangling_commits.py:405: AssertionError\n_____________ test_negative_unreachable_deletion_is_not_suppressed _____________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_negative_unreachable_dele0')\n\n    def test_negative_unreachable_deletion_is_not_suppressed(tmp_path: Path) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/deleted.py\"\n        added = _commit_files(repo, \"doomed\", {relpath: \"deleted later\\n\"})\n        target = repo / relpath\n        target.unlink()\n        _git(repo, \"add\", relpath)\n        _git(repo, \"commit\", \"-qm\", \"delete on doomed\")\n        deletion = _git(repo, \"rev-parse\", \"HEAD\")\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/deleted.py\", \"deleted later\\n\")\n        _landed_reference(repo, external)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert (added, relpath, external) in report.suppressions\nE       AssertionError: assert ('677988956808baac615a4ee6b63be63a25540f38', 'tools/deleted.py', PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_negative_unreachable_dele0/offrepo/wave/deleted.py')) in []\nE        +  where [] = AuditReport(findings=[('1443df4cac59dce98461c732cb9a8d9de77ec43c', 'delete on doomed', ['tools/deleted.py']), ('677988...), rejected_roots=(), scan_performed=True, blob_failures=0, scan_failures=0, oversize_blobs=(), reference_failure=None).suppressions\n\norchestrator/tests/test_audit_dangling_commits.py:1021: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_referenced_offrepo_copy_is_suppressed\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_to_descendant_directory_suppresses\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_found_after_invalid_occurrence\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_landed_reference_git_grep_runs_once_for_all_bytes_matches\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_executable_mode_match_is_suppressed\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_deletion_is_not_suppressed\n12 failed, 32 passed in 2.09s\n",
+        "stdout_sha256": "0b70323d7def0fd5f56a486fec77c5a9a0a55d67b4650c2ac491f0b9728cb84c"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 32.085,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_referenced_offrepo_copy_is_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_executable_mode_match_is_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_to_descendant_directory_suppresses",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_landed_reference_git_grep_runs_once_for_all_bytes_matches",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_deletion_is_not_suppressed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_referenced_offrepo_copy_is_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_to_descendant_directory_suppresses",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_found_after_invalid_occurrence",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_landed_reference_git_grep_runs_once_for_all_bytes_matches",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_executable_mode_match_is_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_deletion_is_not_suppressed"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "baf2b8522a022c367c2d6bfa6fd095508cadbf835c75575a5bbcba482ffa317e",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "59b37a7130f1d0c4196d78e7113e5e634c5f80920e663c0476af6a97dee99016",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "            if False:\n                suppressions.append((commit, path, referenced_paths[0]))\n                continue\n",
+          "old": "            if referenced_paths:\n                suppressions.append((commit, path, referenced_paths[0]))\n                continue\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "MISMATCH",
+      "test_output_sha256": "0b70323d7def0fd5f56a486fec77c5a9a0a55d67b4650c2ac491f0b9728cb84c",
+      "test_output_tail": [
+        "[gw14] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_overri0')",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14be85aefa60>",
+        "capsys = <_pytest.capture.CaptureFixture object at 0x14be85aef5e0>",
+        "",
+        "    def test_positive_cli_roots_override_environment(",
+        "        tmp_path: Path, monkeypatch, capsys,",
+        "    ) -> None:",
+        "        repo = _repo(tmp_path)",
+        "        paths = {",
+        "            \"tools/from_cli.py\": \"cli copy\\n\",",
+        "            \"tools/from_env.py\": \"env copy\\n\",",
+        "        }",
+        "        lost = _commit_files(repo, \"doomed\", paths)",
+        "        _delete_branch(repo, \"doomed\")",
+        "        cli_root = tmp_path / \"cli-root\"",
+        "        cli_second = tmp_path / \"cli-second\"",
+        "        env_root = tmp_path / \"env-root\"",
+        "        cli_external = _external_file(cli_root, \"wave/from_cli.py\", \"cli copy\\n\")",
+        "        cli_second.mkdir()",
+        "        env_external = _external_file(env_root, \"wave/from_env.py\", \"env copy\\n\")",
+        "        _landed_reference(repo, cli_external, env_external)",
+        "        monkeypatch.setenv(\"IZANAGI_DEV_WAVE_JOBS_DIR\", str(env_root))",
+        "    ",
+        "        assert ADC.main(",
+        "            [",
+        "                \"--repo\",",
+        "                str(repo),",
+        "                \"--offrepo-root\",",
+        "                str(cli_root),",
+        "                \"--offrepo-root\",",
+        "                str(cli_second),",
+        "            ]",
+        "        ) == 1",
+        "        output = capsys.readouterr().out",
+        ">       assert f\"commit {lost}: tools/from_cli.py\" in output",
+        "E       AssertionError: assert 'commit 1c854d3bc0ddbad6ae2a232c7cf3fbafab4f1ca9: tools/from_cli.py' in 'audit_dangling_commits: repo 外の同一実体の探索根 2 件\\n  探索根: /tmp/pytest-of-tanab/pytest-0/popen-gw14/test_positive_cli_roots_...n-gw14/test_positive_cli_roots_overri0/cli-root/wave/from_cli.py\\n    main・全 local branch tip に不在: tools/from_env.py\\n'",
+        "",
+        "orchestrator/tests/test_audit_dangling_commits.py:405: AssertionError",
+        "_____________ test_negative_unreachable_deletion_is_not_suppressed _____________",
+        "[gw42] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_negative_unreachable_dele0')",
+        "",
+        "    def test_negative_unreachable_deletion_is_not_suppressed(tmp_path: Path) -> None:",
+        "        repo = _repo(tmp_path)",
+        "        relpath = \"tools/deleted.py\"",
+        "        added = _commit_files(repo, \"doomed\", {relpath: \"deleted later\\n\"})",
+        "        target = repo / relpath",
+        "        target.unlink()",
+        "        _git(repo, \"add\", relpath)",
+        "        _git(repo, \"commit\", \"-qm\", \"delete on doomed\")",
+        "        deletion = _git(repo, \"rev-parse\", \"HEAD\")",
+        "        _delete_branch(repo, \"doomed\")",
+        "        root = tmp_path / \"offrepo\"",
+        "        external = _external_file(root, \"wave/deleted.py\", \"deleted later\\n\")",
+        "        _landed_reference(repo, external)",
+        "    ",
+        "        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))",
+        "    ",
+        ">       assert (added, relpath, external) in report.suppressions",
+        "E       AssertionError: assert ('677988956808baac615a4ee6b63be63a25540f38', 'tools/deleted.py', PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_negative_unreachable_dele0/offrepo/wave/deleted.py')) in []",
+        "E        +  where [] = AuditReport(findings=[('1443df4cac59dce98461c732cb9a8d9de77ec43c', 'delete on doomed', ['tools/deleted.py']), ('677988...), rejected_roots=(), scan_performed=True, blob_failures=0, scan_failures=0, oversize_blobs=(), reference_failure=None).suppressions",
+        "",
+        "orchestrator/tests/test_audit_dangling_commits.py:1021: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_referenced_offrepo_copy_is_suppressed",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_to_descendant_directory_suppresses",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_found_after_invalid_occurrence",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_landed_reference_git_grep_runs_once_for_all_bytes_matches",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_executable_mode_match_is_suppressed",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment",
+        "FAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_deletion_is_not_suppressed",
+        "12 failed, 32 passed in 2.09s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/624200c9d5be245daacaabc05fb0edcf/izdw-624200c9d5.o896226",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/624200c9d5be245daacaabc05fb0edcf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................F                             [100%]\n=================================== FAILURES ===================================\n____ test_negative_landed_reference_plus_suffix_collision_does_not_suppress ____\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_negative_landed_reference0')\n\n    def test_negative_landed_reference_plus_suffix_collision_does_not_suppress(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/a.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"plus suffix\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"w/a.py\", \"plus suffix\\n\")\n        _landed_reference(repo, Path(str(external) + \"+backup\"))\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('50c3cd0859...tools/a.py'])]\nE         \nE         Right contains one more item: ('50c3cd0859db10c71d805f60a0877324f030ff0e', 'work on doomed', ['tools/a.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:801: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_plus_suffix_collision_does_not_suppress\n1 failed, 43 passed in 2.09s\n",
+        "stdout_sha256": "bc9dfe62cd0e7150e2e093e11e1bdb8d58267ec3ab0ff00548d26c64fbc56e35"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.86,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_plus_suffix_collision_does_not_suppress"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_plus_suffix_collision_does_not_suppress"
+      ],
+      "hang_risk": false,
+      "id": "M11",
+      "injection_diff_sha256": "16d4a478603b112528d3d308ee6598b0b696e7b1699a6dabc7e8bd8c662c6779",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "51a7166d6f3e879a6b7e9d88d33d8ebd80b4bac94767b0b6d55982999865942a",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "_PATH_BOUNDARY_BYTES = frozenset(b\" \\t\\n\\r\\\"'`()[]{}<>+@\")\n",
+          "old": "_PATH_BOUNDARY_BYTES = frozenset(b\" \\t\\n\\r\\\"'`()[]{}<>\")\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "bc9dfe62cd0e7150e2e093e11e1bdb8d58267ec3ab0ff00548d26c64fbc56e35",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/5d0c8b866e99327964064fb072da2107/izdw-5d0c8b866e.o896227",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/5d0c8b866e99327964064fb072da2107/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................F.....................                             [100%]\n=================================== FAILURES ===================================\n________ test_positive_landed_reference_found_after_invalid_occurrence _________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_positive_landed_reference0')\n\n    def test_positive_landed_reference_found_after_invalid_occurrence(\n        tmp_path: Path,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/a.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"later valid reference\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"w/a.py\", \"later valid reference\\n\")\n        _landed_reference(repo, Path(str(external) + \"+backup\"), external)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n>       assert report.findings == []\nE       AssertionError: assert [('b8e2a67857...tools/a.py'])] == []\nE         \nE         Left contains one more item: ('b8e2a678577f67ed6037cda73463495700bc2fdd', 'work on doomed', ['tools/a.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:837: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_found_after_invalid_occurrence\n1 failed, 43 passed in 2.06s\n",
+        "stdout_sha256": "eac8df6214dc2a94eea62b4799605d453456406b1c254740557a350837504d4e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.905,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_found_after_invalid_occurrence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_found_after_invalid_occurrence"
+      ],
+      "hang_risk": false,
+      "id": "M12",
+      "injection_diff_sha256": "a8b6b6207f8f82e1b2f631d228cbf93e5f9734407984ea28b1ef670c39794323",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0b2048cfaf2119c92d67dcdf74556c408706d3013530367b95c0ebf7325f5ba0",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "        return False\n",
+          "old": "        start = index + 1\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "eac8df6214dc2a94eea62b4799605d453456406b1c254740557a350837504d4e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/775a093ec6368f3d91ff8797cec56c84/izdw-775a093ec6.o896229",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/775a093ec6368f3d91ff8797cec56c84/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................F                             [100%]\n=================================== FAILURES ===================================\n_ test_negative_external_file_ctime_change_during_comparison_is_not_suppressed _\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_negative_external_file_ct0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1547ee435330>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1547ee436890>\n\n    def test_negative_external_file_ctime_change_during_comparison_is_not_suppressed(\n        tmp_path: Path, monkeypatch, capsys,\n    ) -> None:\n        repo = _repo(tmp_path)\n        relpath = \"tools/changing_ctime.py\"\n        lost = _commit_files(repo, \"doomed\", {relpath: \"stable bytes\\n\"})\n        _delete_branch(repo, \"doomed\")\n        root = tmp_path / \"offrepo\"\n        external = _external_file(root, \"wave/changing_ctime.py\", \"stable bytes\\n\")\n        _landed_reference(repo, external)\n        external_stat = external.lstat()\n        real_fstat = ADC.os.fstat\n        target_fstat_calls = 0\n    \n        def changed_after_comparison(descriptor):\n            nonlocal target_fstat_calls\n            current = real_fstat(descriptor)\n            if (\n                current.st_dev != external_stat.st_dev\n                or current.st_ino != external_stat.st_ino\n            ):\n                return current\n            target_fstat_calls += 1\n            if target_fstat_calls == 2:\n                return SimpleNamespace(\n                    st_dev=current.st_dev,\n                    st_ino=current.st_ino,\n                    st_mode=current.st_mode,\n                    st_size=current.st_size,\n                    st_mtime_ns=current.st_mtime_ns,\n                    st_ctime_ns=current.st_ctime_ns + 1,\n                )\n            return current\n    \n        monkeypatch.setattr(ADC.os, \"fstat\", changed_after_comparison)\n    \n        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))\n    \n        assert target_fstat_calls == 2\n>       assert report.findings == [(lost, \"work on doomed\", [relpath])]\nE       AssertionError: assert [] == [('be97b59956...g_ctime.py'])]\nE         \nE         Right contains one more item: ('be97b59956af31043e7f4d6c72404ad890ae0a71', 'work on doomed', ['tools/changing_ctime.py'])\nE         Use -v to get more diff\n\norchestrator/tests/test_audit_dangling_commits.py:946: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_audit_dangling_commits.py::test_negative_external_file_ctime_change_during_comparison_is_not_suppressed\n1 failed, 43 passed in 2.08s\n",
+        "stdout_sha256": "40d488f121c4b70deed5f874942e55e0ccec7939e0714fa442b9efb7fa441704"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9d9f494de6e94b307783bbad10475116e1e54221250c310e6068aa98ca9e808",
+      "duration_s": 26.896,
+      "expected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_external_file_ctime_change_during_comparison_is_not_suppressed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_external_file_ctime_change_during_comparison_is_not_suppressed"
+      ],
+      "hang_risk": false,
+      "id": "M13",
+      "injection_diff_sha256": "3db3fb57ba29f4699780cda37375453d107b9f1b4c832bc7c9f296cb13e8a7dc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cfc53cbe2af6b33366d1e058cb527e1fdcd29f4d2a6db6fabebe2b3201c00323",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "",
+          "old": "            final_stat.st_ctime_ns,\n"
+        },
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "new": "",
+          "old": "            opened_stat.st_ctime_ns,\n"
+        }
+      ],
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "KILLED",
+      "test_output_sha256": "40d488f121c4b70deed5f874942e55e0ccec7939e0714fa442b9efb7fa441704",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/589a75e6719fa659866238bd37c2298c/izdw-589a75e671.o896212",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/output/pegasus-dispatch/589a75e6719fa659866238bd37c2298c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_audit_dangling_commits.py::test_positive_control_deleted_branch_work_is_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_main_reachable_commit_is_not_reported\norchestrator/tests/test_audit_dangling_commits.py::test_help_discloses_detection_limitations\norchestrator/tests/test_audit_dangling_commits.py::test_decode_error_is_execution_failure\norchestrator/tests/test_audit_dangling_commits.py::test_negative_path_already_in_main_is_not_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_path_on_live_branch_tip_is_not_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_main_side_of_unreachable_merge_is_not_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_fold_managed_paths_are_excluded_by_default\norchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_referenced_offrepo_copy_is_suppressed\norchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_copy_without_landed_reference_is_reported_with_note\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_size_different_bytes_is_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_mode_mismatch_is_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected\norchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment\norchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper\norchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_symlink_is_not_suppressed\norchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip\norchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used\norchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_basename_different_size_is_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_bytes_different_basename_is_reported\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_inside_worktree_is_rejected_without_suppression\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_candidate_kind_is_not_external_copy[symlink]\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_candidate_kind_is_not_external_copy[fifo]\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_read_error_keeps_finding_and_is_not_rc2\norchestrator/tests/test_audit_dangling_commits.py::test_offrepo_scan_is_skipped_without_candidate_basenames\norchestrator/tests/test_audit_dangling_commits.py::test_negative_unreadable_offrepo_root_keeps_finding\norchestrator/tests/test_audit_dangling_commits.py::test_negative_oversize_blob_is_reported_without_scan\norchestrator/tests/test_audit_dangling_commits.py::test_negative_filesystem_root_is_rejected\norchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_to_descendant_directory_suppresses\norchestrator/tests/test_audit_dangling_commits.py::test_negative_reference_to_search_root_itself_does_not_suppress\norchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding\norchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress\norchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_plus_suffix_collision_does_not_suppress\norchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_non_ascii_suffix_does_not_suppress\norchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_found_after_invalid_occurrence\norchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_left_boundary_collision_does_not_suppress\norchestrator/tests/test_audit_dangling_commits.py::test_negative_external_file_changed_during_comparison_is_not_suppressed\norchestrator/tests/test_audit_dangling_commits.py::test_negative_external_file_ctime_change_during_comparison_is_not_suppressed\norchestrator/tests/test_audit_dangling_commits.py::test_landed_reference_git_grep_runs_once_for_all_bytes_matches\norchestrator/tests/test_audit_dangling_commits.py::test_positive_executable_mode_match_is_suppressed\norchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_deletion_is_not_suppressed\norchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_equal_worktree_is_rejected\n\n44 tests collected in 0.09s\n",
+        "stdout_sha256": "7ed4c041581b74fe84eec0177fe893bb967ddc268b45f8ab5767d2477ddbeb60"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_control_deleted_branch_work_is_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_reachable_commit_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_help_discloses_detection_limitations",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_decode_error_is_execution_failure",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_already_in_main_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_path_on_live_branch_tip_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_main_side_of_unreachable_merge_is_not_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_fold_managed_paths_are_excluded_by_default",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_referenced_offrepo_copy_is_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_copy_without_landed_reference_is_reported_with_note",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_size_different_bytes_is_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_mode_mismatch_is_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_symlink_is_not_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_basename_different_size_is_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_bytes_different_basename_is_reported",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_inside_worktree_is_rejected_without_suppression",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_candidate_kind_is_not_external_copy[symlink]",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_candidate_kind_is_not_external_copy[fifo]",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_read_error_keeps_finding_and_is_not_rc2",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_offrepo_scan_is_skipped_without_candidate_basenames",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreadable_offrepo_root_keeps_finding",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_oversize_blob_is_reported_without_scan",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_filesystem_root_is_rejected",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_to_descendant_directory_suppresses",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_reference_to_search_root_itself_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_plus_suffix_collision_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_non_ascii_suffix_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_found_after_invalid_occurrence",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_left_boundary_collision_does_not_suppress",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_external_file_changed_during_comparison_is_not_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_external_file_ctime_change_during_comparison_is_not_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_landed_reference_git_grep_runs_once_for_all_bytes_matches",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_positive_executable_mode_match_is_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_deletion_is_not_suppressed",
+        "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_equal_worktree_is_rejected"
+      ],
+      "duration_s": 21.752,
+      "rc": 0,
+      "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+      "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+      "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+      "status": "PASSED",
+      "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_copy_without_landed_reference_is_reported_with_note",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_left_boundary_collision_does_not_suppress",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_reference_to_search_root_itself_does_not_suppress",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b6bc8fe529af5758b5919dad6e827f685ffabd28ad456c0646c7e5edf6f3103e",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "            referenced_paths = [entry.path for entry in matches.get(key, ())]\n",
+            "old": "            referenced_paths = referenced.get(key, ()) if reference_failure is None else ()\n"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_same_size_different_bytes_is_reported"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "12507705f51c0ff954471f719b3e449eae68cd5f82505eda66725465c6543878",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "",
+            "old": "        if digest.digest() != candidate.digest:\n            return False, False\n\n        os.lseek(descriptor, 0, os.SEEK_SET)\n        offset = 0\n        while offset < len(candidate.content):\n            chunk = os.read(\n                descriptor,\n                min(READ_CHUNK_SIZE, len(candidate.content) - offset),\n            )\n            if not chunk or chunk != candidate.content[offset : offset + len(chunk)]:\n                return False, True\n            offset += len(chunk)\n        if os.read(descriptor, 1):\n            return False, True\n"
+          }
+        ]
+      },
+      "M03": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_mode_mismatch_is_reported"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "900435b8cb9955156934edc1447f996157ffe2d9473f7dc2b1c73e9b005f176c",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "",
+            "old": "    if bool(initial_stat.st_mode & stat.S_IXUSR) != candidate.executable:\n        return False, False\n"
+          },
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "",
+            "old": "            or bool(opened_stat.st_mode & stat.S_IXUSR) != candidate.executable\n"
+          }
+        ]
+      },
+      "M04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a410d00bd16659be5fb7fc098e7f83ecdf7020d940f9dd7a11251b696a29d634",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "        elif False:\n            rejected.append((root, \"対象 worktree の祖先\"))\n",
+            "old": "        elif worktree.is_relative_to(root):\n            rejected.append((root, \"対象 worktree の祖先\"))\n"
+          }
+        ]
+      },
+      "M05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1414335884df20c5b710547ad1e89bc3b97fb33ef4806afa30e833cbf5720e08",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "    environment_root = os.environ.get(OFFREPO_ROOT_ENV, \"\")\n    roots: Sequence[Path | str] = tuple(args.offrepo_root or ())\n    if environment_root:\n        roots = (*roots, environment_root)\n",
+            "old": "    if args.offrepo_root is not None:\n        roots: Sequence[Path | str] = tuple(args.offrepo_root)\n    else:\n        environment_root = os.environ.get(OFFREPO_ROOT_ENV, \"\")\n        roots = (environment_root,) if environment_root else ()\n"
+          }
+        ]
+      },
+      "M06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e021ab7580b3bac91953b574da0025331b021325397d160adfcd32c73ebaeb83",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "    original_findings = audit(repo, main_ref, DEFAULT_EXCLUDED_PREFIXES)\n",
+            "old": "    original_findings = audit(repo, main_ref, excluded_prefixes)\n"
+          }
+        ]
+      },
+      "M07": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_check_failure_keeps_finding",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_containing_worktree_is_rejected",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_offrepo_root_inside_worktree_is_rejected_without_suppression",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "061e498798371b4daa7edb25e0a0f9ca41499476a41e6b53b8dbdd7a62aeb8ed",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "",
+            "old": "    print(\n        \"audit_dangling_commits: repo 外の同一実体で抑止 \"\n        f\"{len(report.suppressions)} (commit, path) 対\"\n    )\n    for commit, path, external_copy_path in report.suppressions:\n        print(f\"  commit {commit}: {path}\")\n        print(f\"    repo 外の同一実体: {external_copy_path}\")\n"
+          }
+        ]
+      },
+      "M08": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_symlink_is_not_suppressed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "22dce6b64eff9f91850ca61697886fcec8082b73b3ba6f267b87aea08a73be6a",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "    if mode not in {b\"100644\", b\"100755\", b\"120000\"} or object_type != b\"blob\":\n        return None, False, None\n",
+            "old": "    if mode not in {b\"100644\", b\"100755\"} or object_type != b\"blob\":\n        return None, False, None\n"
+          }
+        ]
+      },
+      "M09": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_root_unspecified_discloses_skip"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8006746067f23da462dabc415526910a48a96394bd9c2b283f3f6518fbcf7d5d",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "        pass\n",
+            "old": "        print(\"audit_dangling_commits: repo 外の同一実体の探索を未実施\")\n        print(f\"  --offrepo-root / {OFFREPO_ROOT_ENV} が未指定\")\n"
+          }
+        ]
+      },
+      "M10": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_referenced_offrepo_copy_is_suppressed",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_suppression_is_disclosed_at_rc0",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_offrepo_environment_default_is_used",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_cli_roots_override_environment",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_partial_offrepo_suppression_keeps_remaining_finding_and_rc1",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_executable_mode_match_is_suppressed",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_to_descendant_directory_suppresses",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_cli_include_fold_trees_reaches_audit_through_wrapper",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_landed_reference_git_grep_runs_once_for_all_bytes_matches",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_prefix_collision_does_not_suppress",
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_unreachable_deletion_is_not_suppressed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "baf2b8522a022c367c2d6bfa6fd095508cadbf835c75575a5bbcba482ffa317e",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "            if False:\n                suppressions.append((commit, path, referenced_paths[0]))\n                continue\n",
+            "old": "            if referenced_paths:\n                suppressions.append((commit, path, referenced_paths[0]))\n                continue\n"
+          }
+        ]
+      },
+      "M11": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_landed_reference_plus_suffix_collision_does_not_suppress"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "16d4a478603b112528d3d308ee6598b0b696e7b1699a6dabc7e8bd8c662c6779",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "_PATH_BOUNDARY_BYTES = frozenset(b\" \\t\\n\\r\\\"'`()[]{}<>+@\")\n",
+            "old": "_PATH_BOUNDARY_BYTES = frozenset(b\" \\t\\n\\r\\\"'`()[]{}<>\")\n"
+          }
+        ]
+      },
+      "M12": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_positive_landed_reference_found_after_invalid_occurrence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a8b6b6207f8f82e1b2f631d228cbf93e5f9734407984ea28b1ef670c39794323",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "        return False\n",
+            "old": "        start = index + 1\n"
+          }
+        ]
+      },
+      "M13": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_audit_dangling_commits.py::test_negative_external_file_ctime_change_during_comparison_is_not_suppressed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3db3fb57ba29f4699780cda37375453d107b9f1b4c832bc7c9f296cb13e8a7dc",
+        "replacements": [
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "",
+            "old": "            final_stat.st_ctime_ns,\n"
+          },
+          {
+            "file": "tools/audit_dangling_commits.py",
+            "new": "",
+            "old": "            opened_stat.st_ctime_ns,\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "2e3199d1896e853a58691c28f08b6cabe96150e7fe26b289529d7551c517cab0",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_audit_dangling_commits.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "5195f60d5022e9dcb5e292153713a2296671f56e",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_audit_dangling_commits.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "f9546f6de52b74adeba08a70563972037ac3968d",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "8df54692d2d9c807524908947eb1d9c7a979be5c2faa64f4131e749b3d0fdd3c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "94cc2b02245b39f924c807633f8ce3a35a957379c8af9e9964ac3850ea86d47d",
+  "summary": {
+    "KILLED": 11,
+    "MISMATCH": 2,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 13,
+    "matching": 11,
+    "recorded": 13,
+    "registered": 13
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dangling-audit-offrepo-authority/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "df0bdd3b142311c99218c9229cfdf78822971833c0a7596e4be87f273ddfdcbd",
+  "updated_at": "2026-08-08T15:30:48.204706+00:00"
+}
