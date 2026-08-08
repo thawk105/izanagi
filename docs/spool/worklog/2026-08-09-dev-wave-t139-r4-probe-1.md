@@ -64,9 +64,19 @@ title: [T-139] R4 環境 probe を実走し 3 測定を取得して追補 A を�
 
 ### 更新
 
-- [T-139] **P1・ユーザー裁定待ち**: R4 の環境 probe を実走し 3 測定を取得した
-  (13 窓すべて `[0,1.0]`・最大 `0.0791`、`CCBENCH_TRACE=1` build 成立、compiler digest)。
-  追補 A を再発行済み。`output/insights/2026-08-08_t139-r4-env-probe/package.md` の
-  Q1〜Q5 を裁定する。Q1 = 4 本まとめて承認し段階 2 へ進めるか。
-  凍結後の順序は「追補 A → producer 実装 → pilot」で変わらない。
-  base: e104f595463d86fac5cdddda1432b4d029dce1d6e13cc4359fd8ffe8466c3010
+- [T-139] **P1・ユーザー裁定待ち (再提出)**: R4 = (a) の環境 probe を gen_S で実走し、
+  3 測定をすべて取得した — (i) 待機後の `/proc/stat` は 13 窓すべて `valid` かつ `[0,1.0]`、
+  最大 `0.0791` core-equivalents (上限の 7.9%) で判定 `feasible`、
+  (ii) `CCBENCH_TRACE=1` build 成立 (`stock`、witness ゼロを解消)、
+  (iii) compiler の realpath・`--version`・bytes SHA-256 を取得。
+  **`a03` の許容範囲 `[0,1.0]` は初版から不変で、閾値を観測から作っていない**
+  (観測に合わせる 2 案はいずれも core §14 の恒真化に該当すると敵対検証が反証した)。
+  実測が追補 A の誤り 2 件を確定させた — `a04` の「予備 2 本が吸収する」は core §9 に
+  照らして偽、`a08` の「唯一の差は `-DCCBENCH_TRACE`」も偽 (compiler の渡し方が異なる)。
+  追補 A を再発行済み。裁定するのは
+  `output/insights/2026-08-08_t139-r4-env-probe/package.md` の Q1〜Q5。
+  Q1 = 4 本 (追補 A 再発行版・判定写像・erratum・record-items) を一括承認して
+  段階 2 へ進めるか。Q2 = 3 arm × `TRACE=1` witness を追加で取るか。
+  Q3 = 単一割当ての記述的結果で締めるか。Q4/Q5 = 再走 gate と signal identity の限界の受容。
+  凍結後の順序は「追補 A → producer 実装 → pilot」で変わらない。pilot 投入は依然不可。
+  base: 1b403b69d977646bb64782823b14e492c690d077893f678151ca0004317167ad
