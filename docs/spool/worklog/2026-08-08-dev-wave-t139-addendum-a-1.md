@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-08
 wave: dev-wave-t139-addendum-a
 seq: 1
-title: [T-139] 追補 A の 13 field を埋めて確定パッケージへ返した — 凍結はしていない (docs のみ、実装差分なし、受入 7372 passed / 20 skipped、赤 1 件は F57 のフレーク、変異は免除、branch worktree-dev-wave-t139-addendum-a)
+title: [T-139] 追補 A の 13 field を埋めて確定パッケージへ返した — 凍結はしていない (docs のみ、実装差分なし、受入 7393 passed / 20 skipped、変異は免除、branch worktree-dev-wave-t139-addendum-a)
 ---
 
 ## 本文
@@ -56,13 +56,19 @@ title: [T-139] 追補 A の 13 field を埋めて確定パッケージへ返し�
   配列長・cross-field 制約を網羅していないため、2 つの実装が同じ受領証で適格/拒否に分かれうる。
   本書は schema が満たすべき**要件**を定める文書とし、完全な機械可読 schema の発行と
   digest 束縛を裁定 R6 へ返した。
-- **実装差分がゼロのため変異 matrix は射程外** (`DW-S04` の免除条項)。
-  受入全走は免除せず、local main (`a0c55a87`) を取り込んだ merge 済み tree で実走した
-  (request `896006`、48 worker、1216 秒)。**7372 passed / 1 failed / 20 skipped。**
-  赤 1 件は `test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running`
-  で、F57 の型 (launcher subprocess が rc=1 / stderr 空) である。同 file の単独再走
-  (request `896010`) は 64 passed / rc=0 で再現しない。本 wave の差分は docs のみで
+- **実装差分がゼロのため変異 matrix は射程外** (`DW-S04` の免除条項)。受入全走は免除せず 2 回実走した。
+  1 回目は local main `a0c55a87` を取り込んだ tree (request `896006`、48 worker、1216 秒) で
+  **7372 passed / 1 failed / 20 skipped**。赤 1 件は
+  `test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running` で、
+  F57 の型 (launcher subprocess が rc=1 / stderr 空) である。同 file の単独再走
+  (request `896010`) は 64 passed / rc=0 で再現せず、本 wave の差分は docs のみで
   当該実装へ到達しえないため `DW-O18` により帰属しない。F57 へ再発として記録した。
+- **land 対象 tip の受入は緑である。** その後 main が `9b1398fa` (並行 wave の [T-227] 段 6
+  reasoning 機械 pin と check_docs 改修) へ前進したので取り込み直し、
+  **land する tip そのもの**で再走した (request `896016`、1187 秒)。
+  **7393 passed / 20 skipped / rc=0。**測った checkout は land 対象の merge commit である。
+  記録後検査 (F34) は `check_docs.py` rc=0、`spool_fold.py --dry-run` rc=0、
+  影響テスト (`test_check_docs` + `test_spool_fold`) が **418 passed / rc=0**。
 - **段 8 の改善候補 1 件は予算不足で本文へ入れられず、[T-664] へ寄せた。**
   背景 job + worktree 隔離のセッションでは、`DW-O01` が定める 1 行の起動形
   (`nohup setsid bash -c "codex exec … > log 2>&1; echo $? > done"` を Bash へ直接渡す形) が
