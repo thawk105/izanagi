@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-08
 wave: dev-wave-t664-docs-budget
 seq: 1
-title: [T-664] 依頼された 2 経路では dev-wave docs 予算は空かないと確定した — 既裁定 4 件が [T-313] の実装へ収束している (docs のみ、実装差分なし、branch worktree-dev-wave-t664-docs-budget)
+title: [T-664] 依頼された 2 経路では dev-wave docs 予算は空かないと確定した — 既裁定 4 件が [T-313] の実装へ収束している (docs のみ、実装差分なし、受入 7505 passed / 20 skipped、変異は免除、branch worktree-dev-wave-t664-docs-budget)
 ---
 
 ## 本文
@@ -56,7 +56,26 @@ title: [T-664] 依頼された 2 経路では dev-wave docs 予算は空かな�
   `DW-O01` の 1 行起動形が guard に機械拒否される件は本 wave でも 2 回発火したが、
   [T-594] (2026-08-06 /rulings、防壁変更) が「guard の解析強化で改善する。許可範囲は広げない」として
   既に所有している。**`DW-O01` へ 1 行足す必要も予算も無い。**
-- 実装差分がゼロのため変異 matrix は射程外 (`DW-S04` の免除条項)。受入全走は免除せず実走した。
+- **ユーザー裁定 (2026-08-09、(332)) で [T-412] と [T-550] が本パッケージと同束になった。**
+  [T-412] は「L2 剪定の個別選定は t664 パッケージ到着後に一括裁定」、[T-550] は
+  「使い捨て probe の規模上限の族制度化と D184 の族化は t664 の予算裁定と同じ束で判断」。
+  前者は R1 が直接答える (候補ゼロ)。後者は明文化先が予算に従属するため R6 を新設し、
+  **`docs/decisions.md` と `docs/failures.md` に byte 上限が無い**ことを使う道
+  (判断は D として予算外に記録し、dev-wave 本文への 1 文だけ [T-313] 後へ回す) を提示した。
+- 実装差分がゼロのため変異 matrix は射程外 (`DW-S04` の免除条項)。受入全走は免除せず**3 回実走した**。
+  1 回目 (request `896508`、1255 秒) は **7458 passed / 1 failed / 20 skipped** で、赤 1 件は
+  F57 型の再発 (`git cat-file` の 15 秒 timeout)。単独再走 8 passed / rc=0 で再現せず、
+  docs のみの差分は当該コードへ到達しえないため `DW-O18` により帰属しない。
+  2 回目 (1233 秒) は **7495 passed / 20 skipped / rc=0** だが、走行開始前に別 wave が main を
+  進めていたため land 対象として stale だった。
+  3 回目は **受入 lease を保持したまま main を取り込んでから**走らせ、
+  **7505 passed / 20 skipped / rc=0** (1290 秒)。**測った checkout は `86f14c38`** で、
+  local main `5e75328d` を含む。本 fragment を書いた記録 commit はその上に載る docs のみの差分である。
+- **受入 lease の飽和が本 wave の最大の実コストだった。** 並行 wave 6 本以上が同じ lease を
+  奪い合い、最初の待ち手は 90 分 (holder 4 回交代) 取得できずに空振りした。
+  さらに「取り込み → claim → 全走」の順序では、待っている間に追い越されて tested main が
+  stale になる。**正しい順序は「claim → 取り込み → 全走 → land → release」**であり、
+  3 回目でこれに変えて初めて通った。runbook §7.3 はこの順序を書いていない。
 - 一次資料 = `output/insights/2026-08-08_t664-docs-budget/` (`inventory.md` = 棚卸しと段 4 裁定、
   `package.md` = 裁定 R1〜R5、`verbatim/` = 段 1 brief・親実測・段 2 棚卸し・段 3 の 2 レンズ・全 prompt)。
 
