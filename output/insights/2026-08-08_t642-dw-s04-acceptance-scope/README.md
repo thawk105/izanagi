@@ -89,7 +89,8 @@
 
 | 検査 | 結果 |
 |---|---|
-| 受入全走 `python3 tools/run_tests.py` | **7229 passed / 20 skipped**、rc=0 (計算ノード dispatch `895666.nqsv`、1753s) |
+| 受入全走 1 回目 (契約 commit `4c50861a`) | **7229 passed / 20 skipped**、rc=0 (計算ノード dispatch `895666.nqsv`、1753s) |
+| 受入全走 2 回目 (main 取り込み後の merge commit `6fb6fd14`) | **7229 passed / 20 skipped**、rc=0 (計算ノード dispatch、1147s) |
 | `python3 tools/check_docs.py` | 違反なし |
 | `python3 tools/spool_fold.py --dry-run` | rc=0 |
 | `python3 tools/check_ai_provenance.py` | 1762 件、新規違反なし (known-violations=7) |
