@@ -165,6 +165,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_screening_driver.py
 - test_screening_opt_in.py
 - test_t419_probe_causality.py
+- test_wave_land_window.py
 <!-- PYTEST_ONLY_ALLOWLIST_END -->
 
 ## 依存物不在時の skip (可視化)
