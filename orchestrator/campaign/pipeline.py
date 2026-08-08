@@ -52,7 +52,8 @@ from .env_contract import ExecutionEnvironmentContract          # noqa: E402
 from .axis_trigger_gating import (MARKER_ID as TRIGGER_MARKER_ID,
                                   SOURCE_REL as TRIGGER_SOURCE_REL)  # noqa: E402
 from .diff_quarantine import parse_template_file                # noqa: E402
-from .model import (Genome, STAGE_ABORT, STAGE_BENCH_DONE,      # noqa: E402
+from .model import (COMMIT_CONTRACT_SHA256_KEY, Genome, STAGE_ABORT,
+                    STAGE_BENCH_DONE,                           # noqa: E402
                     STAGE_BUILD_DONE, STAGE_BUILD_START, STAGE_COMMIT,
                     STAGE_VERIFY_DONE)
 from .reflux_ir import TriggerGateIR, emit_predicate             # noqa: E402
@@ -592,7 +593,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         raise ValueError(
             "extra_correctness に numactl 必須の構成があるが numactl 未指定 "
             "(D36 決定4-4: S2 相当は bench と同じメモリ配置 numactl interleave=all で回す)")
-    execution_guard.require_certified_writer_authorization(
+    authorized_contract = execution_guard.require_certified_writer_authorization(
         authorization_contract,
         env_tag=env_tag,
         clocks_per_us=clocks_per_us,
@@ -1024,6 +1025,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             _require_measurement_site("campaign COMMIT 記録")
             if qualification_policy is None:
                 wal.log(layout, v, STAGE_COMMIT, env_tag, {
+                    COMMIT_CONTRACT_SHA256_KEY: authorized_contract.contract_sha256,
                     "fitness_tps": None,
                     "note": "no-bench",
                     "verify_configs": verify_tags,
@@ -1081,7 +1083,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             commit_payload["screened"] = True
         _require_measurement_site("campaign COMMIT 記録")
         if qualification_policy is None:
-            wal.log(layout, v, STAGE_COMMIT, env_tag, commit_payload)
+            wal.log(layout, v, STAGE_COMMIT, env_tag, {
+                **commit_payload,
+                COMMIT_CONTRACT_SHA256_KEY: authorized_contract.contract_sha256,
+            })
         else:
             qualification_policy.event_sink.emit(
                 layout, v, STAGE_COMMIT, env_tag, commit_payload)

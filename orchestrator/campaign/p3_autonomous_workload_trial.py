@@ -127,7 +127,7 @@ else:
 # The axis driver imports the campaign namespace directly.  Keep the U1 run
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
-from campaign import ident  # noqa: E402
+from campaign import env_contract, ident  # noqa: E402
 from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     BuildAdmissionError,
@@ -549,6 +549,7 @@ class AttemptJournal:
 def _campaign_for(
     *, workload: str, workload_flags: Mapping[str, str], descriptor: Mapping[str, Any],
     descriptor_record: Mapping[str, Any], trial_id: str, generations: int,
+    contract: env_contract.ExecutionEnvironmentContract,
     build_context: BuildRunContext | None = None,
 ) -> CampaignConfig:
     base = trigger.default_cfg(reflux=True)
@@ -581,7 +582,8 @@ def _campaign_for(
         raise AutonomousTrialError(
             "autonomous campaign identity requires one shared BuildRunContext"
         )
-    return ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    return ident.bind_environment_contract(cfg, contract)
 
 
 def _perf_for(workload_flags: Mapping[str, str]) -> PerfConfig:
@@ -615,6 +617,7 @@ def _prepare_campaign_identity(
     """Derive the existing descriptor/campaign identity without writing artifacts."""
     flags = WORKLOADS[workload]
     descriptor, descriptor_record = _descriptor_for(flags)
+    contract = trigger._lookup("linux-baremetal")
     campaign = _campaign_for(
         workload=workload,
         workload_flags=flags,
@@ -622,6 +625,7 @@ def _prepare_campaign_identity(
         descriptor_record=descriptor_record,
         trial_id=trial_id,
         generations=generations,
+        contract=contract,
         build_context=build_context,
     )
     return PreparedCampaignIdentity(

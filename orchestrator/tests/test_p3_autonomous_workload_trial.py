@@ -37,6 +37,20 @@ from orchestrator.critic.digest import DiffQuarantineRejection
 from calibrator import runner as calibrator_runner
 from orchestrator.campaign import claude_projected_provider as P
 
+_PRE_T343_NO_BUILD_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
+)
+_T343_NO_BUILD_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
+)
+_T530_NO_BUILD_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-4bf2256c"
+)
+_T530_CONTRACT = A.env_contract.GENERATIONS["linux-baremetal"][0].contract
+assert _T530_CONTRACT.contract_sha256 == (
+    "1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7"
+)
+
 
 class _CliGateReached(Exception):
     """Sentinel proving that an accepted CLI path reached its next operation."""
@@ -44,6 +58,17 @@ class _CliGateReached(Exception):
 
 def _no_build_context():
     return A.build_run_context(generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP)
+
+
+def _campaign_id_without_environment_contract(cfg) -> str:
+    search_config = dict(cfg.search_config)
+    search_config.pop(campaign_model.ENVIRONMENT_CONTRACT_SEARCH_KEY)
+    historical = dataclasses.replace(cfg, search_config=search_config)
+    preimage = A.ident.canonical_preimage(
+        historical, require_environment_contract=False,
+    )
+    digest = hashlib.sha256(preimage.encode("utf-8")).hexdigest()[:8]
+    return f"{cfg.spec_slug}-{cfg.search_tag}-{digest}"
 
 
 def _coder_authority():
@@ -269,6 +294,7 @@ def _actual_campaign_layout(
         descriptor_record=descriptor_record,
         trial_id=trial_id,
         generations=generations,
+        contract=_T530_CONTRACT,
         build_context=_no_build_context(),
     )
     return A.CampaignLayout(
@@ -284,16 +310,33 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
         workload="ycsb-a", workload_flags=flags,
         descriptor=descriptor, descriptor_record=descriptor_record,
         trial_id="fixture-completeness", generations=1,
-        build_context=context,
+        contract=_T530_CONTRACT, build_context=context,
     )
     assert cfg.search_config["build_admission"] == context.policy.as_preimage()
-    assert str(A.ident.campaign_id(cfg)) == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
-    )
-    pre_t343_no_build_id = (
+    assert str(A.ident.campaign_id(cfg)) == _T530_NO_BUILD_CAMPAIGN_ID
+    assert _PRE_T343_NO_BUILD_CAMPAIGN_ID == (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     )
-    assert str(A.ident.campaign_id(cfg)) != pre_t343_no_build_id
+    assert _campaign_id_without_environment_contract(cfg) == \
+        _T343_NO_BUILD_CAMPAIGN_ID
+
+
+def test_prepare_campaign_identity_uses_injected_contract_once(monkeypatch) -> None:
+    calls = []
+
+    def lookup(env_tag):
+        calls.append(env_tag)
+        return _T530_CONTRACT
+
+    monkeypatch.setattr(A.trigger, "_lookup", lookup)
+    prepared = A._prepare_campaign_identity(
+        workload="ycsb-a", trial_id="fixture-completeness",
+        generations=1, build_context=_no_build_context(),
+    )
+    assert calls == ["linux-baremetal"]
+    assert prepared.campaign.search_config[
+        campaign_model.ENVIRONMENT_CONTRACT_SEARCH_KEY
+    ] == _T530_CONTRACT.contract_sha256
 
 
 def test_parse_coder_accepts_wire_and_rejects_implementation() -> None:
@@ -3639,8 +3682,9 @@ def _t325_run_start(run_root: Path) -> dict:
 
 
 def test_prepare_campaign_identity_exactly_matches_existing_derivation(
-    t325_registered_trial,
+    t325_registered_trial, monkeypatch,
 ) -> None:
+    monkeypatch.setattr(A.trigger, "_lookup", lambda _tag: _T530_CONTRACT)
     context = _no_build_context()
     flags = A.WORKLOADS["rr80"]
     descriptor, descriptor_record = A._descriptor_for(flags)
@@ -3651,6 +3695,7 @@ def test_prepare_campaign_identity_exactly_matches_existing_derivation(
         descriptor_record=descriptor_record,
         trial_id=t325_registered_trial.trial_id,
         generations=1,
+        contract=_T530_CONTRACT,
         build_context=context,
     )
     prepared = A._prepare_campaign_identity(

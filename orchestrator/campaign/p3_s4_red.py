@@ -144,6 +144,7 @@ def main(argv=None) -> int:
     _assert_single_tenant()
     assert_pinned_clean(sub, PIN)
     cfg, perf = ident.bind_admission_policy(_cfg(), build_context.policy), _perf()
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
 
     print("=== 赤 1: coder 発 liveness-red (過大 backoff → trace-timeout、完全 E2E) ===")
     print(f"  期待: build → trace run が {pipeline.TRACE_TIMEOUT_S:.0f}s timeout → abort")

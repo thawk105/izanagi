@@ -27,6 +27,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     from orchestrator.campaign.artifact_admission import (ArtifactAdmissionError,
                                                            require_admitted_campaign)
     from orchestrator.campaign.layer3_report import canonical_record_ref
+    from orchestrator.campaign.model import ENVIRONMENT_CONTRACT_SEARCH_KEY
     from orchestrator.campaign.role_session_isolation import (
         evaluate_role_session_isolation,
     )
@@ -34,6 +35,7 @@ else:
     from . import layer3_report as _layer3_report
     from .artifact_admission import ArtifactAdmissionError, require_admitted_campaign
     from .layer3_report import canonical_record_ref
+    from .model import ENVIRONMENT_CONTRACT_SEARCH_KEY
     from .role_session_isolation import evaluate_role_session_isolation
 
 
@@ -156,6 +158,40 @@ def _path_identity(path: Any, *, gate: str, label: str) -> Path:
     if not isinstance(path, str) or not path:
         _fail(gate, f"{label} is not a non-empty path string")
     return Path(path).resolve()
+
+
+def _environment_contract_from_campaign_lock(
+    campaign_root: Path, *, producer: Any,
+) -> Any:
+    lock_path = campaign_root / "campaign.lock"
+    try:
+        raw = lock_path.read_bytes()
+    except OSError as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[campaign-chain] campaign.lock cannot be read: {lock_path}"
+        ) from exc
+    lock = _decode_json(raw, label="campaign.lock")
+    if not isinstance(lock, dict):
+        _fail("campaign-chain", "campaign.lock root is not an object")
+    search_config = lock.get("search_config")
+    if not isinstance(search_config, dict):
+        _fail("campaign-chain", "campaign.lock search_config is not an object")
+    contract_sha256 = search_config.get(ENVIRONMENT_CONTRACT_SEARCH_KEY)
+    if not isinstance(contract_sha256, str) or _SHA256_RE.fullmatch(
+        contract_sha256
+    ) is None:
+        _fail(
+            "campaign-chain",
+            "campaign.lock environment contract is not a lowercase SHA-256",
+        )
+    try:
+        return producer.env_contract.resolve_by_contract_sha256(
+            contract_sha256
+        ).contract
+    except producer.env_contract.EnvContractError as exc:
+        raise AutonomousTrialCompletenessError(
+            "[campaign-chain] campaign.lock environment contract is not ever-active"
+        ) from exc
 
 
 def _canonical_ref(record: Mapping[str, Any]) -> str:
@@ -1124,6 +1160,16 @@ def assert_campaign_layer3_chain(
             _fail("campaign-chain", f"cells[{index}].descriptor differs from producer")
         if cell.get("descriptor_binding") != expected_binding:
             _fail("campaign-chain", f"cells[{index}].descriptor_binding differs from producer")
+        campaign_root = _path_identity(
+            campaign_root_value, gate="campaign-chain",
+            label=f"cells[{index}].campaign_root",
+        )
+        expected_root = (output_root / "campaigns" / campaign_id).resolve()
+        if campaign_root != expected_root:
+            _fail("campaign-chain", f"cells[{index}] campaign identity/path mismatch")
+        contract = _environment_contract_from_campaign_lock(
+            campaign_root, producer=producer,
+        )
         context = producer.build_run_context(
             generator_id=producer.GeneratorId.S8A_TRIGGER_SWEEP,
         )
@@ -1134,18 +1180,12 @@ def assert_campaign_layer3_chain(
             descriptor_record=expected_binding,
             trial_id=trial_id,
             generations=budget,
+            contract=contract,
             build_context=context,
         )
         expected_campaign_id = str(producer.ident.campaign_id(expected_cfg))
         if campaign_id != expected_campaign_id:
             _fail("campaign-chain", f"cells[{index}] campaign_id differs from producer derivation")
-        campaign_root = _path_identity(
-            campaign_root_value, gate="campaign-chain",
-            label=f"cells[{index}].campaign_root",
-        )
-        expected_root = (output_root / "campaigns" / campaign_id).resolve()
-        if campaign_root != expected_root:
-            _fail("campaign-chain", f"cells[{index}] campaign identity/path mismatch")
         persisted_path = campaign_root / "reports" / "layer3_report.json"
         try:
             persisted = _read_report(persisted_path)

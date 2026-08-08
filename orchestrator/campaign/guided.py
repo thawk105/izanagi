@@ -171,7 +171,8 @@ def cmd_start(args) -> int:
     # 既存 WAL 拒否 → lock 原子獲得 → meta の順。競合敗者は meta/WAL に触れない。
     if not ident.ensure_campaign_identity(
             _trial_config(meta, args.trial), layout,
-            admission_policy=_NO_BUILD_POLICY):
+            admission_policy=_NO_BUILD_POLICY,
+            require_environment_contract=False):
         print(json.dumps({
             "rejected": "campaign.lock は別 start が先に獲得済み",
             "reason": "campaign-lock-already-acquired",
@@ -197,6 +198,7 @@ def cmd_evaluate(args) -> int:
     cfg = _trial_config(meta, args.trial)  # trial exact 検査より前に repair しない
     _surface_repair(ident.ensure_resumable_wal(
         cfg, layout, admission_policy=_NO_BUILD_POLICY,
+        require_environment_contract=False,
     ))
     tag, workload = meta["tag"], meta["workload"]
     landscape = replay.load_landscape(tag)

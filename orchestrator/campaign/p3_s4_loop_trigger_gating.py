@@ -324,14 +324,21 @@ def _admit_env_contract(site: str) -> env_contract.ExecutionEnvironmentContract:
     return _lookup(_SITE_ENV_TAGS[site])
 
 
-def _campaign_cfg_for_site(cfg: CampaignConfig, site: str) -> CampaignConfig:
-    """Pegasus contract だけ campaign identity を別 namespace に分ける。"""
-    if site != site_policy.PEGASUS_COMPUTE:
-        return cfg
-    return replace(
-        cfg,
-        search_config={**cfg.search_config, _CAMPAIGN_ENV_KEY: _SITE_ENV_TAGS[site]},
-    )
+def _campaign_cfg_for_site(
+        cfg: CampaignConfig, site: str, *,
+        _contract: Optional[env_contract.ExecutionEnvironmentContract] = None,
+) -> CampaignConfig:
+    """Resolved site contract を identity に束縛し、Pegasus marker も分離する。"""
+    contract = _contract if _contract is not None else _admit_env_contract(site)
+    if site == site_policy.PEGASUS_COMPUTE:
+        cfg = replace(
+            cfg,
+            search_config={
+                **cfg.search_config,
+                _CAMPAIGN_ENV_KEY: _SITE_ENV_TAGS[site],
+            },
+        )
+    return ident.bind_environment_contract(cfg, contract)
 
 
 def _assert_resume_allowed(
@@ -491,6 +498,27 @@ def _with_campaign_location(
     return outcome
 
 
+def _assert_layout_matches_campaign(
+        campaign_cfg: CampaignConfig, layout: CampaignLayout, *,
+        require_authoritative_root: bool,
+) -> None:
+    campaign_id = str(ident.campaign_id(campaign_cfg))
+    expected = exploration_campaign_layout(campaign_id).root
+    matches = (
+        layout.root == expected
+        if require_authoritative_root
+        else (
+            os.path.basename(os.path.normpath(layout.root)) == campaign_id
+            or layout.root == expected
+        )
+    )
+    if not matches:
+        raise ValueError(
+            "layout 注入は最終 campaign-id 由来と一致必須 (WAL 分裂防止): "
+            f"{layout.root} != {expected}"
+        )
+
+
 def _wal_binding_commitment(records: Dict[str, Dict]) -> str:
     """Return the commitment already validated against the raw WAL binding."""
     return records[STAGE_BUILD_START][wal.TRIGGER_BINDING_COMMITMENT_KEY]
@@ -625,7 +653,9 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     _assert_trigger_proposal_contract(planner, coder)
     resolved_site = _current_site()
     contract = _admit_env_contract(resolved_site)
-    campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
+    campaign_cfg = _campaign_cfg_for_site(
+        cfg, resolved_site, _contract=contract,
+    )
     if build_context is None and not do_build:
         build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     if type(build_context) is not BuildRunContext:
@@ -633,10 +663,10 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     campaign_cfg = ident.bind_admission_policy(campaign_cfg, build_context.policy)
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
-    elif do_build and layout.root != exploration_campaign_layout(
-            str(ident.campaign_id(campaign_cfg))).root:
-        raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
-                         f"{layout.root} != cfg 由来")
+    else:
+        _assert_layout_matches_campaign(
+            campaign_cfg, layout, require_authoritative_root=do_build,
+        )
     _assert_resume_allowed(contract, layout)
     return _run_one_iteration_resolved(
         campaign_cfg, perf, planner, coder, auditor, state, sub, do_build,
@@ -703,7 +733,9 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     _assert_trigger_proposal_contract(planner, coder)
     resolved_site = _current_site()
     contract = _admit_env_contract(resolved_site)
-    campaign_cfg = _campaign_cfg_for_site(cfg, resolved_site)
+    campaign_cfg = _campaign_cfg_for_site(
+        cfg, resolved_site, _contract=contract,
+    )
     if build_context is None and not do_build:
         build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     if type(build_context) is not BuildRunContext:
@@ -711,6 +743,10 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     campaign_cfg = ident.bind_admission_policy(campaign_cfg, build_context.policy)
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
+    else:
+        _assert_layout_matches_campaign(
+            campaign_cfg, layout, require_authoritative_root=do_build,
+        )
     _assert_resume_allowed(contract, layout)
     layout.ensure()
     ident.ensure_resumable_attempts(

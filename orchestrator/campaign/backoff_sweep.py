@@ -74,12 +74,13 @@ def config_for(tag: str, workload: dict, *,
     # 足さず、既存 campaign-id と全点 sweep の既定挙動を不変に保つ。
     if screening_fixed_us is not None:
         search_config["screening_fixed_us"] = screening_fixed_us
-    return CampaignConfig(
+    cfg = CampaignConfig(
         spec_slug=f"backoff-sweep-silo-{tag}", search_tag="sweep",
         spec_content=f"P2 case study: silo static-backoff sweep — workload={tag}",
         ccbench_commit=CCBENCH_COMMIT,
         search_config=search_config,
         trial="p2-backoff")
+    return ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
 
 
 def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,

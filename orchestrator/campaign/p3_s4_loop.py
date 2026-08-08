@@ -748,7 +748,8 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                        "records": 100_000, "threads": 4},
         trial="p3-s4-loop")
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    return ident.bind_admission_policy(cfg, context.policy)
+    cfg = ident.bind_admission_policy(cfg, context.policy)
+    return ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
 
 
 def default_perf() -> PerfConfig:
@@ -861,6 +862,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
                              "BACKOFF_FIXED": int(coder.value)})
     # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
@@ -993,6 +995,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     layout.ensure()
@@ -1079,6 +1082,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     cfg = default_cfg(reflux=(a.reflux == "on"))
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     perf = default_perf()
 
     # 段5 git worktree 隔離 (opt-in): 有効時は 1 回だけ使い捨て worktree を作り、build

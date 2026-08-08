@@ -63,7 +63,7 @@ def _authorize_measurement(
         env_tag: str, clocks_per_us: int,
         numactl: Optional[Sequence[str]],
         env_contract: Optional[ExecutionEnvironmentContract] = None,
-) -> Optional[dict]:
+) -> tuple[ExecutionEnvironmentContract, Optional[dict]]:
     """明示 contract と required attestation を最初の書込みより前に検査する。"""
     contract = execution_guard.require_certified_writer_authorization(
         authorization_contract,
@@ -73,7 +73,7 @@ def _authorize_measurement(
         env_contract=env_contract,
     )
     if contract.attestation_mode != "required":
-        return None
+        return contract, None
     verified = env_attestation.load_verified_calibration(contract, _repo_root())
     receipt = execution_guard.attest_and_build_receipt(contract, verified)
     if not execution_guard.receipt_matches_contract(
@@ -86,7 +86,7 @@ def _authorize_measurement(
         raise execution_guard.ExecutionGuardError(
             "execution receipt の契約再検算に失敗"
         )
-    return receipt
+    return contract, receipt
 
 
 def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
@@ -127,11 +127,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         layout_constructor = exploration_campaign_layout
     else:
         raise ValueError(f"未知の campaign namespace: {campaign_namespace!r}")
-
-    execution_receipt = _authorize_measurement(
+    authorized_contract, execution_receipt = _authorize_measurement(
         authorization_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
         numactl=numactl, env_contract=env_contract,
     )
+    cfg = ident.bind_environment_contract(cfg, authorized_contract)
     cid = ident.campaign_id(cfg)
     layout = layout_constructor(str(cid), output_root).ensure()
 

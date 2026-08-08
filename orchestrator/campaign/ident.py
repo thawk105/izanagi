@@ -3,8 +3,8 @@
 
 `<spec-slug>-<search-tag>-<cfg-hash8>`。ハッシュは spec の**名前でなく内容**を覆う
 (編集して名前据え置きでも別 campaign になる = honest-by-construction, §3.4)。
-**env も date も同一性に含めない** (env は WAL の読み出しフィルタ、date はクラッシュ後
-再開で別ディレクトリを生むので禁止、D13)。
+raw env/date は同一性に含めない。certified execution contract の fingerprint だけは
+search_config に束縛する。generation、receipt 属性、日時は含めない。
 
 `campaign.lock` = 正準 pre-image。再開時はハッシュ一致に加えて lock と現在 config を
 照合し、万一ハッシュ一致で中身相違なら**黙ってマージせずエラー** (改竄/衝突の関所)。
@@ -17,8 +17,13 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from .build_admission import BuildAdmissionPolicy
+from .env_contract import ExecutionEnvironmentContract
 from .layout import CampaignLayout
-from .model import CampaignConfig, CampaignId
+from .model import (
+    ENVIRONMENT_CONTRACT_SEARCH_KEY,
+    CampaignConfig,
+    CampaignId,
+)
 from . import wal
 
 if TYPE_CHECKING:
@@ -41,6 +46,31 @@ def bind_admission_policy(
     return replace(
         cfg,
         search_config={**cfg.search_config, ADMISSION_POLICY_SEARCH_KEY: expected},
+    )
+
+
+def bind_environment_contract(
+        cfg: CampaignConfig, contract: ExecutionEnvironmentContract,
+) -> CampaignConfig:
+    """Return a config bound to one exact certified execution contract."""
+    if type(contract) is not ExecutionEnvironmentContract:
+        raise TypeError(
+            "contract は exact ExecutionEnvironmentContract が必要"
+        )
+    expected = contract.contract_sha256
+    if ENVIRONMENT_CONTRACT_SEARCH_KEY in cfg.search_config:
+        existing = cfg.search_config[ENVIRONMENT_CONTRACT_SEARCH_KEY]
+        if existing != expected:
+            raise ValueError(
+                "search_config の environment contract が authorization と不一致"
+            )
+        return cfg
+    return replace(
+        cfg,
+        search_config={
+            **cfg.search_config,
+            ENVIRONMENT_CONTRACT_SEARCH_KEY: expected,
+        },
     )
 
 
@@ -122,16 +152,33 @@ def verify_screening_preimage(
             f"stored={actual!r}, expected={expected!r}")
 
 
-def canonical_preimage(cfg: CampaignConfig) -> str:
+def canonical_preimage(
+        cfg: CampaignConfig, *, require_environment_contract: bool = True,
+) -> str:
     """ハッシュ対象の正準シリアライズ。決定論的 (キー順固定・区切り固定)。
 
     覆うもの: spec の内容 + ccbench-commit + 探索軸 (search_tag) + 探索 config
     (ablation/Tier/scale) + trial。**slug は覆わない** (人間ラベルで spec_content が
-    真の同一性源、要件: 名前でなく内容)。**env/date/実測値は覆わない** (派生値)。
+    真の同一性源、要件: 名前でなく内容)。raw env_tag/date/実測値は覆わず、certified
+    execution contract の fingerprint だけを search_config 経由で覆う。
     """
     if ADMISSION_POLICY_SEARCH_KEY not in cfg.search_config:
         raise ValueError(
             "campaign identity には search_config.build_admission policy が必須"
+        )
+    if type(require_environment_contract) is not bool:
+        raise TypeError("require_environment_contract は exact bool が必要")
+    contract_present = ENVIRONMENT_CONTRACT_SEARCH_KEY in cfg.search_config
+    contract_sha256 = cfg.search_config.get(ENVIRONMENT_CONTRACT_SEARCH_KEY)
+    if ((require_environment_contract and not contract_present)
+            or (contract_present
+                and (type(contract_sha256) is not str
+                     or len(contract_sha256) != 64
+                     or any(ch not in "0123456789abcdef"
+                            for ch in contract_sha256)))):
+        raise ValueError(
+            "certified campaign identity には search_config."
+            "environment_contract_sha256 の exact lowercase SHA-256 が必須"
         )
     obj: Dict[str, Any] = {
         "spec_content": cfg.spec_content,
@@ -167,6 +214,7 @@ class IdentityMismatch(Exception):
 def verify_against_lock(
         cfg: CampaignConfig, stored_preimage: str, *,
         admission_policy: BuildAdmissionPolicy,
+        require_environment_contract: bool = True,
 ) -> None:
     """再開時の関所: 現在 config の正準 pre-image が格納済み lock と一致するか。
 
@@ -174,7 +222,9 @@ def verify_against_lock(
     ハッシュに含めていない軸の相違を捕まえる最終防壁。
     """
     verify_admission_preimage(admission_policy, stored_preimage)
-    cur = canonical_preimage(cfg)
+    cur = canonical_preimage(
+        cfg, require_environment_contract=require_environment_contract,
+    )
     if cur != stored_preimage:
         raise IdentityMismatch(
             "campaign.lock と現在 config の正準 pre-image が不一致。"
@@ -185,6 +235,7 @@ def verify_against_lock(
 def ensure_resumable_wal(
         cfg: CampaignConfig, layout: CampaignLayout, *,
         admission_policy: BuildAdmissionPolicy,
+        require_environment_contract: bool = True,
 ) -> wal.WalTailRepairResult:
     """identity 照合後に tail repair と interrupted-attempt recovery を行う。
 
@@ -192,7 +243,10 @@ def ensure_resumable_wal(
     しない。初回 campaign (lock 無し・WAL byte 無し) だけは原子的に lock を
     作成し、その後に機構層の repair を呼ぶ。
     """
-    ensure_campaign_identity(cfg, layout, admission_policy=admission_policy)
+    ensure_campaign_identity(
+        cfg, layout, admission_policy=admission_policy,
+        require_environment_contract=require_environment_contract,
+    )
     repair = wal.repair_truncated_tail(
         layout, reject_active_attempt=True,
     )
@@ -205,9 +259,13 @@ def ensure_resumable_wal(
 def ensure_resumable_attempts(
         cfg: CampaignConfig, layout: CampaignLayout, *,
         admission_policy: BuildAdmissionPolicy,
+        require_environment_contract: bool = True,
 ) -> None:
     """identity 照合後、tail を切り戻さず interrupted attempt だけを閉じる。"""
-    ensure_campaign_identity(cfg, layout, admission_policy=admission_policy)
+    ensure_campaign_identity(
+        cfg, layout, admission_policy=admission_policy,
+        require_environment_contract=require_environment_contract,
+    )
     wal.recover_interrupted_attempts(
         layout, admission_policy=admission_policy,
     )
@@ -216,6 +274,7 @@ def ensure_resumable_attempts(
 def ensure_campaign_identity(
         cfg: CampaignConfig, layout: CampaignLayout, *,
         admission_policy: BuildAdmissionPolicy,
+        require_environment_contract: bool = True,
 ) -> bool:
     """repair を行わず campaign.lock を原子的に確立・照合する。
 
@@ -231,6 +290,7 @@ def ensure_campaign_identity(
     if stored is not None:
         verify_against_lock(
             cfg, stored, admission_policy=admission_policy,
+            require_environment_contract=require_environment_contract,
         )
         return False
 
@@ -242,7 +302,9 @@ def ensure_campaign_identity(
             reason="missing-lock-with-wal-bytes",
         )
 
-    preimage = canonical_preimage(cfg)
+    preimage = canonical_preimage(
+        cfg, require_environment_contract=require_environment_contract,
+    )
     if wal.acquire_lock_atomic(layout, preimage):
         return True
 
@@ -253,5 +315,8 @@ def ensure_campaign_identity(
             "campaign.lock の原子的獲得に失敗し、既存 lock も読めない。",
             reason="lock-create-failed",
         )
-    verify_against_lock(cfg, stored, admission_policy=admission_policy)
+    verify_against_lock(
+        cfg, stored, admission_policy=admission_policy,
+        require_environment_contract=require_environment_contract,
+    )
     return False
