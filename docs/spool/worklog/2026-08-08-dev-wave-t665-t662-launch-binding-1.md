@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-08
 wave: dev-wave-t665-t662-launch-binding
 seq: 1
-title: 起動値の機械束縛 ([T-665] + [T-662]) の設計択一を裁定へ返した — 実装はしていない (docs のみ、実装差分なし、受入は再走待ち、変異は免除、branch worktree-dev-wave-t665-t662-launch-binding)
+title: 起動値の機械束縛 ([T-665] + [T-662]) の設計択一を裁定へ返した — 実装はしていない (docs のみ、実装差分なし、受入 7439 passed / 20 skipped、変異は免除、branch worktree-dev-wave-t665-t662-launch-binding)
 ---
 
 ## 本文
@@ -48,9 +48,12 @@ title: 起動値の機械束縛 ([T-665] + [T-662]) の設計択一を裁定へ�
   レンズ B は worktree 命名規約だけでも 91 bytes (裸 ASCII でも 53 bytes) と実測した。
   したがって本 wave の裁定は「どれを選ぶか」に加えて「**[T-664] の予算捻出を先に置く**」という
   順序の判断を含む。
-- **受入を 2 走した。** 1 走目 (request 896121、1176 秒、7394 passed / 20 skipped、rc=0) は
-  peer (t627) の land で main が `4816049f` へ進む前の tip を測っていた。計算ノードへ投入済み
-  だったため中断せず完走させ、取り込み後に land する tip そのもので再走した。
+- **受入を 2 走した。** 1 走目 (tip `026f7719`、request 896121、1176 秒、
+  7394 passed / 20 skipped、rc=0) は peer (t627) の land で main が `4816049f` へ進む前の tip を
+  測っていた。計算ノードへ投入済みだったため中断せず完走させ、取り込み後に**land する tip
+  `4d820a22` そのもの**で再走した (request 896137、1211 秒、**7439 passed / 20 skipped、rc=0**)。
+  この受入値を記録する commit 自体は、その走行の対象に含まれない (値を書く前に測る順序のため)。
+  受入 lease は 1 走目の後に残り時間が不足したため一度 release して取り直した。
 - **段 8 の改善候補は 1 件。** `DW-O01` の実行雛形を worktree 隔離セッションで逐語のまま inline 実行
   すると harness の隔離 guard が拒否する (本 wave で 2 回)。起動 command を wave 専用
   subdirectory の `.sh` へ書けば通り、これは `DW-O02` の置き場義務と同型である。
