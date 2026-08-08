@@ -1,0 +1,53 @@
+あなたは izanagi の開発 wave の段 3 (敵対相談) 担当、レンズ A である。日本語で書くこと。
+
+これは**防御目的のレビュー**である。目的は、テストの検出力を落とす変更や、正しさゲートを
+静かに緩める変更が本番へ入るのを未然に防ぐことにある。あなたはプランを守る側に回らず、
+欠陥を探す側に回ってほしい。親 brief 自身も攻撃対象である。
+
+## 読むもの (読めなければ即停止し、その旨だけを書いて終わること)
+
+- 親 brief: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t663-flaky-truth-table/brief.md
+- 段 2 プラン: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t663-flaky-truth-table/s2-plan.md
+- 対象テスト: orchestrator/tests/test_codex_worker_launch.py
+- 対象 production (読むだけ): tools/codex_worker_launch.py
+- 失敗台帳: docs/failures.md の "### F57." から次の "### F58." の直前まで
+
+cwd はリポジトリの作業コピー root。あなたは read-only で書き込み可能な tmp を持たない。
+pytest を走らせて緑を主張してはならない。静的検査だけでよい。実測は親が行う。
+
+## レンズ A = 正しさ境界と受理集合
+
+次を重点的に攻撃せよ。
+
+1. **予算拡大が本物の回帰を隠さないか。** プランは通常 fixture を wall 3→6 秒、
+   evidence 1.0→2.0 秒、termination grace 0.05→0.2 秒、harness timeout 10→20 秒へ広げる。
+   それぞれについて「いま検出できていて、拡大後は検出できなくなる実在の欠陥」を
+   具体的に構成できるか試せ。構成できないなら「できない」と明記せよ。
+   特に termination grace は production の終了処理の遅さを覆い隠しうる。
+2. **据え置き集合の列挙漏れ。** プランは「予算そのものを検査しているテスト」を file:line で
+   列挙している。列挙から漏れて予算が広がると期待が壊れる、あるいは逆に
+   **テストが恒真になる** call site が無いか、実ファイルを読んで照合せよ。
+   `stop_reason` / `limit_trigger` / `evidence_status` を期待する assert が、
+   予算拡大によって「そもそも発火しなくなる」ものが無いかを特に見よ。
+3. **meta-test が恒真でないか。** プランの `no_token` を使った意図的失敗の meta-test は、
+   診断が実際に生成されなくても通ってしまう書き方になりうる。
+   恒真化する具体的な実装ミスを挙げ、それを排除する assert を提案せよ。
+4. **診断が rc 不一致を覆い隠さないか。** 診断生成中の例外・巨大出力・非 UTF-8 で、
+   元の `assert rc == expected` が別の失敗 (例: 診断側の例外、OOM、message 切り詰め) に
+   化ける経路を探せ。
+5. **親 brief の実測とその一般化を攻撃せよ。** brief は (a) 失敗署名が `accepted` の 7 条件に
+   多義であること、(b) 実所要 median 0.428 / p90 0.671 秒、(c) evidence grace の方が薄いこと、
+   (d) `max_wall=0.30` の probe が署名を再現したこと、を主張する。
+   これらの一般化が誤っている点、または結論を支えない点を示せ。
+   特に「probe が同じ署名を出したこと」は「実障害の原因が予算超過であること」を
+   **証明しない**。この論点をきちんと詰めよ。
+6. **成果物が効く全層が scope に入るか。** 診断を新設する wave なので、
+   受入全走で実際にその診断が人間の目に届くまでの層 (pytest の message 長、xdist の
+   worker 経由の報告、`tools/run_tests.py` の出力、dispatch 経由の stdout 切り詰め) が
+   scope に入っているかを検査し、抜けていれば裁定パッケージ候補として返せ。
+
+## 出力
+
+所見ごとに (i) 主張、(ii) 根拠となる file:line、(iii) それが成果物 (受入 gate の判定・
+誤帰属リスク) に与える影響、(iv) 提案 を書け。憶測と実読を区別し、実読していないものは
+そう明記せよ。最後に `## 総括` 見出しを置き、must-fix と nit を分けて 10 行以内でまとめよ。
