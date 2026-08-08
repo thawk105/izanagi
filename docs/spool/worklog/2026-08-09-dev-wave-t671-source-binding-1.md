@@ -52,6 +52,11 @@ title: 汎用 certified producer の source binding ([T-671] + t530 件 6) の�
 - **レンズ 2 件は t530 パッケージの既出項目と同一面と裁定し、二重起票しなかった。**
   raw reader / freeze / offline report の迂回は t530 件 2、S8b private lock は t530 件 3。
   したがって R1〜R8 を全部実装しても「proof chain が全経路で完結した」とは名乗れない。
+- **受入要否の判定証拠 ([T-648] fallback 義務)**: 本 wave は docs-only・実装差分ゼロだが、
+  **実 repo を読むテストは存在する**。判定証拠 = `orchestrator/tests/test_check_docs.py` と
+  `orchestrator/tests/test_spool_fold.py` (いずれも実 checkout の `docs/` と `docs/spool/` を読む)、
+  および D88 の literal placeholder gate (対象族に `output/insights/*.md` を含み、本 wave が
+  追加した package・逐語 8 ファイルを走査する)。したがって受入全走を実施した。
 - **失敗台帳 fragment は書いていない。** 本 wave は実装ゼロで、恒久対応が宣言だけの恒真な
   ものにしかならないため (`docs/spool/failures/README.md` は実体へのポインタを要求する)。
   機構が入る実装 wave で起票する。
