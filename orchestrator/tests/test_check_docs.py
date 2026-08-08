@@ -4858,6 +4858,24 @@ def _replace_workers_section_literal(text, section_id, replacement):
     return text[:match.start()] + changed_section + text[match.end():]
 
 
+def _replace_workers_section_sentence(text, section_id, replacement):
+    match = re.search(
+        rf"^## {re.escape(section_id)}(?:\s+—[^\n]*)?\s*$\n.*?(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None
+    section = match.group(0)
+    sentence = {
+        "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,
+        "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,
+    }[section_id]
+    assert section.count(sentence) == 1
+    changed_section = section.replace(sentence, replacement, 1)
+    assert changed_section != section
+    return text[:match.start()] + changed_section + text[match.end():]
+
+
 def _mutated_workers_text(root, section_id, replacement):
     target = os.path.join(root, "workers.md")
     shutil.copyfile(
@@ -5277,6 +5295,110 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_s06_decoys_exact(
             assert _finding_set(res) == {finding}
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_production_path_requires_independent_s06_lines_exact(
+):
+    cases = (
+        ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING),
+        ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING),
+    )
+    for section_id, finding in cases:
+        sentence = {
+            "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,
+            "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,
+        }[section_id]
+        replacements = (
+            f"> {sentence}",
+            f"- {sentence}",
+            f"* {sentence}",
+            f"+ {sentence}",
+            f"1. {sentence}",
+            f"# {sentence}",
+            f"参考（旧規範）: {sentence}",
+            f"例: {sentence}",
+            f"  {sentence}",
+            f"{sentence} 参考",
+            f"{sentence} ",
+            f"{sentence}\n{sentence}",
+        )
+        for replacement in replacements:
+            root = _build_min_repo()
+            try:
+                rel = "docs/dev-wave/workers.md"
+                _write(
+                    root,
+                    rel,
+                    _replace_workers_section_sentence(
+                        _read(root, rel),
+                        section_id,
+                        replacement,
+                    ),
+                )
+                res = _run_check(root)
+                assert res.returncode != 0, res.stdout
+                assert _finding_set(res) == {finding}
+            finally:
+                shutil.rmtree(root, ignore_errors=True)
+
+
+def _assert_s06_extra_visible_effort_rejected(section_id, finding):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/workers.md"
+        _write(
+            root,
+            rel,
+            _append_reference_section_text(
+                _read(root, rel),
+                section_id,
+                "\n`reasoning=max`\n",
+            ),
+        )
+        res = _run_check(root)
+        assert res.returncode != 0, res.stdout
+        assert _finding_set(res) == {finding}
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_extra_visible_effort_exact(
+):
+    _assert_s06_extra_visible_effort_rejected(
+        "DW-S06-A",
+        check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING,
+    )
+
+
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_c_extra_visible_effort_exact(
+):
+    _assert_s06_extra_visible_effort_rejected(
+        "DW-S06-C",
+        check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING,
+    )
+
+
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguous_value_exact(
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/workers.md"
+        _write(
+            root,
+            rel,
+            _replace_workers_section_sentence(
+                _read(root, rel),
+                "DW-S06-A",
+                "`reasoning=high/max`",
+            ),
+        )
+        res = _run_check(root)
+        assert res.returncode != 0, res.stdout
+        assert _finding_set(res) == {
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+        }
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_dev_wave_reasoning_effort_pin_accepts_url_and_path_references_exact():

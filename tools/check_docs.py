@@ -3444,7 +3444,12 @@ def _check_dev_wave_reasoning_effort_pins(
             match.group("value")
             for match in DEV_WAVE_REASONING_EFFORT_RE.finditer(visible_section)
         ]
-        if values != [expected] or visible_section.count(required_text) != 1:
+        required_text_count = (
+            visible_section.splitlines().count(required_text)
+            if section_id in {"DW-S06-A", "DW-S06-C"}
+            else visible_section.count(required_text)
+        )
+        if values != [expected] or required_text_count != 1:
             findings.append(finding)
 
     if operations_text is None:
