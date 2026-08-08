@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t659-activation-deploy-window
 seq: 1
-title: activation 発行→配備の分裂窓 ([T-659]) の設計択一を裁定へ返した — 実装はしていない (docs のみ、実装差分なし、branch worktree-dev-wave-t659-activation-deploy-window)
+title: activation 発行→配備の分裂窓 ([T-659]) の設計択一を裁定へ返した — 実装はしていない (docs のみ、実装差分なし、受入 7495 passed / 20 skipped、変異は免除、branch worktree-dev-wave-t659-activation-deploy-window)
 ---
 
 ## 本文
@@ -54,6 +54,12 @@ title: activation 発行→配備の分裂窓 ([T-659]) の設計択一を裁定
   ファイルは空か不存在だった。非 persistent task は偽完了で待ち手ごと閉じられる。
   `DW-O01` の「完了通知を判定にしない」に従い、**成果物の実在・`.done` の exit code・
   producer process の死の 3 点照合**だけで判定した。
+- **受入 lease が 1 時間 32 分埋まっていた。** 保持者が 3 回交代し (1de688ef → a04bbc9f →
+  cc98ed71)、その間に main も 2 回進んだ。**120 秒間隔の待ち手は 40 回試行 (80 分) すべて
+  取り逃し、30 秒間隔へ詰めた 2 本目が 12 分で取得した** — 解放の瞬間を他 wave に先取りされて
+  いたためで、TTL 失効待ちではない。受入は tip `75eda62e` で 1 走のみ
+  (**7495 passed / 20 skipped、rc=0**、request 896527.nqsv、1216 秒)。この受入値を書く
+  commit 自体は、その走行の対象に含まれない (値を書く前に測る順序のため)。
 - **段 8 の改善候補は 1 件、本文編集なしで記録のみとした。** 「`DW-O13` の発火条件は設計 wave
   でも成立する (実装ゼロでも裁定パッケージが gate 案を含む時点)」を入口へ足す案だが、
   (i) 実測は本 wave の 1 例だけで `DW-G03` の独立 2 例に届かず、(ii) [T-661] の裁定
