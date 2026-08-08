@@ -1048,6 +1048,48 @@ def test_admission_projection_mutations_each_have_one_primary_finding():
             shutil.rmtree(root, ignore_errors=True)
 
 
+def test_admission_non_pegasus_registry_entry_requires_projection_only():
+    root = _build_min_repo()
+    path = "tools/claude_session_ledger.py"
+    entry = {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain",
+    }
+    row = (
+        f"| `{path}` | `unknown` | "
+        "`unmeasured; unbounded input surfaces remain` |"
+    )
+    try:
+        def add_entry(document):
+            entries = dict(document["entries"])
+            entries[path] = entry
+            document["entries"] = {
+                key: entries[key] for key in sorted(entries)
+            }
+
+        _rewrite_registry(root, add_entry)
+        detail = (
+            "runbook §7.0 投影表が registry と集合完全一致しない — "
+            "registry_only=[('tools/claude_session_ledger.py', 'unknown', "
+            "'unmeasured; unbounded input surfaces remain')], runbook_only=[]"
+        )
+        _assert_admission_exact(root, detail)
+
+        rel = "docs/pegasus-runbook.md"
+        runbook = _read(root, rel)
+        first_row = (
+            "| `tools/pegasus/collect_receipt.py` | `unknown` | "
+            "`unmeasured synthetic input` |"
+        )
+        assert runbook.count(first_row) == 1
+        _write(root, rel, runbook.replace(first_row, row + "\n" + first_row, 1))
+        _assert_admission_exact(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_admission_registry_mutations_have_exact_attributed_finding_sets():
     cases = {
         "class": (

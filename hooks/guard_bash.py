@@ -192,11 +192,37 @@ _NON_PEGASUS_SANCTIONED_PATHS = frozenset({
     # SUSPECT では rc=16 で止まる = 「自分で fail-closed する entry point」。
     "tools/check_ai_provenance.py",
 })
+# JSON 正本が読めないときにも既知の非 Pegasus admission path を
+# fail-open させないための静的投影。正本ではない。
+_NON_PEGASUS_ADMISSION_FALLBACK_PATHS = frozenset({
+    "tools/claude_session_ledger.py",
+})
 
 
-def _is_canonical_pegasus_path(path) -> bool:
+def _non_pegasus_admission_raw_spellings(path: str):
+    spellings = {path, f"./{path}"}
+    if "/" in path:
+        directory, name = path.rsplit("/", 1)
+        spellings.update({f"{directory}//{name}", f"{directory}/./{name}"})
+    if path.endswith(".py"):
+        spellings.add(path[:-3].replace("/", "."))
+    return spellings
+
+
+_NON_PEGASUS_ADMISSION_RAW_MENTION_RE = re.compile(
+    "|".join(
+        re.escape(spelling)
+        for path in sorted(_NON_PEGASUS_ADMISSION_FALLBACK_PATHS)
+        for spelling in sorted(_non_pegasus_admission_raw_spellings(path))
+    )
+)
+
+
+def _is_canonical_admission_path(path) -> bool:
     return (type(path) is str
-            and path.startswith("tools/pegasus/")
+            and bool(path)
+            and not os.path.isabs(path)
+            and ".." not in path.split("/")
             and not path.endswith("/")
             and "\\" not in path
             and not any(unicodedata.category(char) == "Cc" for char in path)
@@ -231,8 +257,8 @@ def _load_pegasus_admission_registry():
             raise ValueError("loader return が空")
         registry = {}
         for path, entry in loaded.items():
-            if not _is_canonical_pegasus_path(path):
-                raise TypeError("loader return path が canonical Pegasus path でない")
+            if not _is_canonical_admission_path(path):
+                raise TypeError("loader return path が canonical admission path でない")
             if type(entry) is not dict or set(entry) != _PEGASUS_ENTRY_FIELDS:
                 raise TypeError("loader return entry の 4 field が不正")
             copied = dict(entry)
@@ -241,19 +267,34 @@ def _load_pegasus_admission_registry():
                 raise TypeError("loader return entry value が非空 plain str でない")
             if copied["class"] not in _PEGASUS_CLASSES:
                 raise TypeError("loader return entry class が閉集合外")
+            if (not path.startswith("tools/pegasus/")
+                    and copied["class"] == _PEGASUS_LOCAL_OK):
+                raise TypeError("loader return の非 Pegasus local-ok は禁止")
             registry[path] = copied
 
+        local_ok_paths = {
+            path for path, entry in registry.items()
+            if (path.startswith("tools/pegasus/")
+                and entry["class"] == _PEGASUS_LOCAL_OK)
+        }
+        non_local_paths = {
+            path for path, entry in registry.items()
+            if entry["class"] != _PEGASUS_LOCAL_OK
+        }
         sanctioned_paths = frozenset(
-            _NON_PEGASUS_SANCTIONED_PATHS
-            | {path for path, entry in registry.items()
-               if entry["class"] == _PEGASUS_LOCAL_OK})
+            (_NON_PEGASUS_SANCTIONED_PATHS
+             - non_local_paths
+             - _NON_PEGASUS_ADMISSION_FALLBACK_PATHS)
+            | local_ok_paths)
         return registry, sanctioned_paths, ""
     except BaseException as exc:  # SystemExit を含め module 初期化から絶対に漏らさない。
         diagnostic = (
             "Pegasus admission registry load failed: "
             f"{type(exc).__name__}"
         )
-        return {}, _NON_PEGASUS_SANCTIONED_PATHS, diagnostic
+        return {}, frozenset(
+            _NON_PEGASUS_SANCTIONED_PATHS
+            - _NON_PEGASUS_ADMISSION_FALLBACK_PATHS), diagnostic
     finally:
         # loader 自身が sys の可変属性を壊しても cleanup 例外を hook 外へ漏らさない。
         try:
@@ -562,13 +603,16 @@ def _invocation_path(token: str, repo_root: str) -> str:
 
 def _pegasus_admission_entry(path: str):
     """exact entry、Pegasus 配下の未登録 sentinel、管轄外 None を返す。"""
-    # registry lookup は Pegasus subtree に限定する。wrapper の postcondition が将来
-    # 退行しても、管轄外 key を admission allow に使わせない。
-    if path != "tools/pegasus" and not path.startswith("tools/pegasus/"):
-        return None
     entry = _PEGASUS_ADMISSION_REGISTRY.get(path)
     if entry is not None:
-        return entry
+        if (path.startswith("tools/pegasus/")
+                or entry["class"] != _PEGASUS_LOCAL_OK):
+            return entry
+        # wrapper と sanctioned 導出が同時に壊れても allow に反転させない。
+        return _PEGASUS_UNREGISTERED
+    # loader 障害時の静的投影は exact path だけを deny 側へ倒す。
+    if path in _NON_PEGASUS_ADMISSION_FALLBACK_PATHS:
+        return _PEGASUS_UNREGISTERED
     # prefix は allow に使わず、Pegasus 配下の未登録を deny に倒すためだけに使う。
     if path == "tools/pegasus" or path.startswith("tools/pegasus/"):
         return _PEGASUS_UNREGISTERED
@@ -1152,9 +1196,13 @@ def _heavy_segment_violation(seg, repo_root: str, depth: int):
     for target in targets:
         admission = _pegasus_admission_entry(target)
         if admission is _PEGASUS_UNREGISTERED:
-            return f"未登録 Pegasus 実行体 ({target})"
+            if target == "tools/pegasus" or target.startswith("tools/pegasus/"):
+                return f"未登録 Pegasus 実行体 ({target})"
+            return f"未登録 admission 実行体 ({target})"
         if admission is not None and admission["class"] != _PEGASUS_LOCAL_OK:
-            return (f"Pegasus {admission['class']} 実行体 ({target})")
+            if target.startswith("tools/pegasus/"):
+                return (f"Pegasus {admission['class']} 実行体 ({target})")
+            return (f"admission {admission['class']} 実行体 ({target})")
 
     residual = _interpreter_residual_violation(head, args, repo_root)
     if residual:
@@ -1605,7 +1653,9 @@ def main() -> int:
         allow, reason = decide(command, site=_runtime_site())
     except BaseException as exc:  # SystemExit/KeyboardInterrupt も hook 外へ漏らさない。
         # ただし生入力に防護対象が見えるときだけ fails-closed。
-        if _MENTION_RE.search(raw) or _PEGASUS_RAW_MENTION_RE.search(raw):
+        if (_MENTION_RE.search(raw)
+                or _PEGASUS_RAW_MENTION_RE.search(raw)
+                or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(raw)):
             print(f"guard_bash hook 内部エラー ({type(exc).__name__}) — 防護対象を"
                   "含むため fails-closed で拒否", file=sys.stderr)
             return 2
