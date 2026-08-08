@@ -144,6 +144,15 @@ class ProcStatSnapshot:
         return self.values[:8]
 
 
+@dataclass(frozen=True)
+class ProbeDecision:
+    window_verdict: str
+    window_verdict_reasons: tuple[str, ...]
+    trace1_build_witness: str
+    compiler_witness: str
+    terminal_status: str
+
+
 def metadata() -> dict[str, Any]:
     return {
         "probe_series_id": PROBE_SERIES_ID,
@@ -437,7 +446,7 @@ def analyze_window(
         result["failure_reasons"].append(f"end:{exc}")
         end = None
     if not validate_window_duration(duration_ns):
-        result["failure_reasons"].append("window_duration_out_of_range")
+        result["failure_reasons"].append("window_duration_out_of_tolerance")
     if adjacency_ns is None:
         result["failure_reasons"].append("run_adjacency_missing")
     elif not validate_run_adjacency(adjacency_ns):
@@ -457,40 +466,129 @@ def analyze_window(
     return result
 
 
+def _exact_int_list(value: Any, expected: Sequence[int]) -> bool:
+    return (
+        type(value) is list
+        and len(value) == len(expected)
+        and all(type(item) is int for item in value)
+        and value == list(expected)
+    )
+
+
+def _window_raw_counter_reason(window: Mapping[str, Any], window_id: str) -> str | None:
+    start_raw = window.get("start_raw_line")
+    end_raw = window.get("end_raw_line")
+    if type(start_raw) is not str or type(end_raw) is not str:
+        return f"window_raw_counter_missing:{window_id}"
+    try:
+        start = parse_aggregate_cpu_line(start_raw)
+        end = parse_aggregate_cpu_line(end_raw)
+    except ValueError:
+        return f"window_raw_counter_invalid:{window_id}"
+    deltas = tuple(after - before for before, after in zip(start.first_eight, end.first_eight))
+    total = sum(deltas)
+    busy = total - deltas[3]
+    exact_fields = (
+        _exact_int_list(window.get("start_values"), start.first_eight),
+        _exact_int_list(window.get("end_values"), end.first_eight),
+        _exact_int_list(window.get("start_extra_values"), start.values[8:]),
+        _exact_int_list(window.get("end_extra_values"), end.values[8:]),
+        _exact_int_list(window.get("deltas"), deltas),
+        type(window.get("total")) is int and window.get("total") == total,
+        type(window.get("busy")) is int and window.get("busy") == busy,
+    )
+    if not all(exact_fields):
+        return f"window_raw_counter_mismatch:{window_id}"
+    if any(delta < 0 for delta in deltas) or total <= 0 or busy < 0:
+        return f"window_raw_counter_invalid:{window_id}"
+    return None
+
+
+def _derive_window_verdict(
+    windows: Sequence[Mapping[str, Any]],
+    expected_window_ids: Sequence[str],
+) -> tuple[str, tuple[str, ...]]:
+    if len(windows) != len(expected_window_ids):
+        return "incomplete", ("window_count_mismatch",)
+    by_id: dict[str, Mapping[str, Any]] = {}
+    for window in windows:
+        window_id = window.get("window_id")
+        if type(window_id) is not str:
+            return "incomplete", ("window_id_invalid",)
+        if window_id in by_id:
+            return "incomplete", (f"window_id_duplicate:{window_id}",)
+        by_id[window_id] = window
+    if set(by_id) != set(expected_window_ids):
+        return "incomplete", ("window_id_set_mismatch",)
+    ordered = [by_id[window_id] for window_id in expected_window_ids]
+    status_reasons: list[str] = []
+    for window_id, window in zip(expected_window_ids, ordered):
+        if window.get("status") == "valid":
+            continue
+        reasons = window.get("failure_reasons")
+        if (
+            type(reasons) is list
+            and reasons
+            and all(type(reason) is str for reason in reasons)
+        ):
+            status_reasons.extend(f"{reason}:{window_id}" for reason in reasons)
+        else:
+            status_reasons.append(f"window_status_not_valid:{window_id}")
+    if status_reasons:
+        return "incomplete", tuple(status_reasons)
+    pairs: list[tuple[int, int]] = []
+    raw_reasons: list[str] = []
+    for window_id, window in zip(expected_window_ids, ordered):
+        raw_reason = _window_raw_counter_reason(window, window_id)
+        if raw_reason is not None:
+            raw_reasons.append(raw_reason)
+            continue
+        busy = window.get("busy")
+        total = window.get("total")
+        assert type(busy) is int and type(total) is int
+        pairs.append((busy, total))
+    if raw_reasons:
+        return "incomplete", tuple(raw_reasons)
+    if all(48 * busy <= total for busy, total in pairs):
+        return "feasible", ()
+    return "not_feasible", ()
+
+
 def derive_decision(
     windows: Sequence[Mapping[str, Any]],
     expected_window_ids: Sequence[str],
     *,
     runs_ok: bool,
-    builds_ok: bool,
-    compiler_ok: bool,
-) -> str:
-    """Return the fixed-upper three-valued decision; diagnostics are not accepted."""
-    if not runs_ok or not builds_ok or not compiler_ok:
-        return "incomplete"
-    if len(windows) != len(expected_window_ids):
-        return "incomplete"
-    by_id: dict[str, Mapping[str, Any]] = {}
-    for window in windows:
-        window_id = window.get("window_id")
-        if type(window_id) is not str or window_id in by_id:
-            return "incomplete"
-        by_id[window_id] = window
-    if set(by_id) != set(expected_window_ids):
-        return "incomplete"
-    ordered = [by_id[window_id] for window_id in expected_window_ids]
-    if any(window.get("status") != "valid" for window in ordered):
-        return "incomplete"
-    pairs: list[tuple[int, int]] = []
-    for window in ordered:
-        busy = window.get("busy")
-        total = window.get("total")
-        if type(busy) is not int or type(total) is not int or busy < 0 or total <= 0:
-            return "incomplete"
-        pairs.append((busy, total))
-    if all(48 * busy <= total for busy, total in pairs):
-        return "feasible"
-    return "not_feasible"
+    trace0_build_ok: bool,
+    trace1_build_witness: str,
+    compiler_witness: str,
+    driver_signaled: bool = False,
+) -> ProbeDecision:
+    """Derive the three independent measurement faces and overall terminal state."""
+    witness_values = {"present", "failed", "not_attempted"}
+    if trace1_build_witness not in witness_values:
+        raise ValueError("trace1 build witness is outside the closed set")
+    if compiler_witness not in witness_values:
+        raise ValueError("compiler witness is outside the closed set")
+    window_verdict, reasons = _derive_window_verdict(windows, expected_window_ids)
+    if (
+        driver_signaled
+        or window_verdict == "incomplete"
+        or not runs_ok
+        or not trace0_build_ok
+        or trace1_build_witness != "present"
+        or compiler_witness != "present"
+    ):
+        terminal_status = "incomplete"
+    else:
+        terminal_status = window_verdict
+    return ProbeDecision(
+        window_verdict=window_verdict,
+        window_verdict_reasons=reasons,
+        trace1_build_witness=trace1_build_witness,
+        compiler_witness=compiler_witness,
+        terminal_status=terminal_status,
+    )
 
 
 def parse_cmake_cache_exact(text: str, expected: Mapping[str, str]) -> dict[str, str]:
@@ -1014,6 +1112,10 @@ def initialize_state(
 
 
 def _load_proc_endpoint() -> dict[str, Any]:
+    load1 = Path("/proc/loadavg").read_text(encoding="utf-8").split()[0]
+    foreign_count = max(
+        0, sum(1 for item in Path("/proc").iterdir() if item.name.isdigit()) - 1
+    )
     begin = time.monotonic_ns()
     text = Path("/proc/stat").read_text(encoding="utf-8")
     end = time.monotonic_ns()
@@ -1022,8 +1124,8 @@ def _load_proc_endpoint() -> dict[str, Any]:
         "end_ns": end,
         "sample_ns": (begin + end) // 2,
         "text": text,
-        "load1": Path("/proc/loadavg").read_text(encoding="utf-8").split()[0],
-        "foreign_count": max(0, sum(1 for item in Path("/proc").iterdir() if item.name.isdigit()) - 1),
+        "load1": load1,
+        "foreign_count": foreign_count,
     }
 
 
@@ -1132,6 +1234,12 @@ def run_schedule(state_path: Path, binary: Path, output: Path) -> int:
     terminated = False
     active_process: subprocess.Popen[bytes] | None = None
     active_run: dict[str, Any] | None = None
+    pending_window_index: int | None = None
+    pending_start: Mapping[str, Any] | None = None
+    pending_end: Mapping[str, Any] | None = None
+    pending_wait_start_ns: int | None = None
+    pending_wait_end_ns: int | None = None
+    pending_window_persisted = False
 
     def on_signal(signum: int, _frame: Any) -> None:
         nonlocal terminated
@@ -1141,46 +1249,48 @@ def run_schedule(state_path: Path, binary: Path, output: Path) -> int:
     old_handlers = {
         signum: signal.signal(signum, on_signal) for signum in (signal.SIGTERM, signal.SIGINT)
     }
-    try:
-        now = time.monotonic_ns()
-        preflight_end_target = now + WINDOW_TARGET_NS
-        start, end = _sample_window_targets(now, preflight_end_target)
+
+    def persist_pending_window(adjacency_ns: int | None) -> None:
+        nonlocal pending_window_persisted
+        if pending_window_persisted or pending_window_index is None:
+            return
+        assert pending_start is not None and pending_end is not None
+        assert pending_wait_end_ns is not None
         _set_window_observed(
             state,
-            0,
-            start,
-            end,
-            wait_start_ns=None,
-            wait_end_ns=preflight_end_target,
-            adjacency_ns=None,
+            pending_window_index,
+            pending_start,
+            pending_end,
+            wait_start_ns=pending_wait_start_ns,
+            wait_end_ns=pending_wait_end_ns,
+            adjacency_ns=adjacency_ns,
         )
         _write_json_atomic(state_path, state)
-        preceding_finished: int | None = None
-        pending_start = start
-        pending_end = end
-        for index, run_spec in enumerate(contract["runs"]):
-            if index > 0:
-                assert preceding_finished is not None
-                wait_s = int(contract["windows"][index]["nominal_wait_s"])
-                start_target = preceding_finished + (wait_s - 10) * 1_000_000_000
-                end_target = preceding_finished + wait_s * 1_000_000_000
-                pending_start, pending_end = _sample_window_targets(start_target, end_target)
-                _set_window_observed(
-                    state,
-                    index,
-                    pending_start,
-                    pending_end,
-                    wait_start_ns=preceding_finished,
-                    wait_end_ns=end_target,
-                    adjacency_ns=None,
-                )
-                _write_json_atomic(state_path, state)
+        pending_window_persisted = True
 
+    try:
+        preceding_finished: int | None = None
+        for index, run_spec in enumerate(contract["runs"]):
             workload = run_spec["workload"]
             argv = list(contract["workloads"][workload])
             log_path = output / f"run-{run_spec['run_id']}.log"
             timed_out = False
             with log_path.open("wb") as log_handle:
+                if index == 0:
+                    start_target = time.monotonic_ns()
+                    end_target = start_target + WINDOW_TARGET_NS
+                    wait_start_ns = None
+                else:
+                    assert preceding_finished is not None
+                    wait_s = int(contract["windows"][index]["nominal_wait_s"])
+                    start_target = preceding_finished + (wait_s - 10) * 1_000_000_000
+                    end_target = preceding_finished + wait_s * 1_000_000_000
+                    wait_start_ns = preceding_finished
+                pending_start, pending_end = _sample_window_targets(start_target, end_target)
+                pending_window_index = index
+                pending_wait_start_ns = wait_start_ns
+                pending_wait_end_ns = end_target
+                pending_window_persisted = False
                 started = time.monotonic_ns()
                 active_run = {
                     "index": index,
@@ -1199,6 +1309,9 @@ def run_schedule(state_path: Path, binary: Path, output: Path) -> int:
                     )
                     exec_monotonic_ns = time.monotonic_ns()
                     active_run["exec_monotonic_ns"] = exec_monotonic_ns
+                    persist_pending_window(
+                        exec_monotonic_ns - int(pending_end["sample_ns"])
+                    )
                     returncode = active_process.wait(timeout=15)
                 except subprocess.TimeoutExpired:
                     active_process.terminate()
@@ -1211,20 +1324,6 @@ def run_schedule(state_path: Path, binary: Path, output: Path) -> int:
                     timed_out = True
                 active_process = None
             finished = time.monotonic_ns()
-            adjacency = exec_monotonic_ns - int(pending_end["sample_ns"])
-            _set_window_observed(
-                state,
-                index,
-                pending_start,
-                pending_end,
-                wait_start_ns=None if index == 0 else preceding_finished,
-                wait_end_ns=(
-                    preflight_end_target
-                    if index == 0
-                    else int(preceding_finished) + int(contract["windows"][index]["nominal_wait_s"]) * 1_000_000_000
-                ),
-                adjacency_ns=adjacency,
-            )
             flags_match = False
             if returncode == 0:
                 try:
@@ -1265,6 +1364,7 @@ def run_schedule(state_path: Path, binary: Path, output: Path) -> int:
             except subprocess.TimeoutExpired:
                 active_process.kill()
                 active_process.wait()
+        persist_pending_window(None)
         if active_run is not None:
             finished = time.monotonic_ns()
             index = int(active_run["index"])
@@ -1290,6 +1390,7 @@ def run_schedule(state_path: Path, binary: Path, output: Path) -> int:
         _write_json_atomic(state_path, state)
         return 143 if terminated else 12
     except BaseException as exc:
+        persist_pending_window(None)
         state["failure_reasons"].append(f"sampler_exception:{type(exc).__name__}:{exc}")
         _write_json_atomic(state_path, state)
         return 12
@@ -1393,6 +1494,25 @@ def _create_completed_marker(path: Path, decision: str) -> None:
     _fsync_directory(path.parent)
 
 
+def _build_witness_status(build: Mapping[str, Any]) -> str:
+    status = build.get("status")
+    if status == "success":
+        return "present"
+    if status == "not_observed":
+        return "not_attempted"
+    return "failed"
+
+
+def _compiler_witness_status(compilers: Mapping[str, Any]) -> str:
+    checks = compilers.get("identity_rechecks")
+    baseline_present = isinstance(compilers.get("gcc"), dict) and isinstance(
+        compilers.get("gxx"), dict
+    )
+    if not baseline_present or type(checks) is not list or not checks:
+        return "not_attempted"
+    return "present" if compiler_rechecks_ok(compilers) else "failed"
+
+
 def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
     state = _read_json(state_path)
     contract = validate_contract(state["contract"])
@@ -1401,6 +1521,15 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
         reason = f"driver_signal:{termination_signal}"
         if reason not in state["failure_reasons"]:
             state["failure_reasons"].append(reason)
+    trace0_build_ok = (
+        len(state["builds"]) == 2 and state["builds"][0].get("status") == "success"
+    )
+    trace1_build_witness = (
+        _build_witness_status(state["builds"][1])
+        if len(state["builds"]) == 2
+        else "not_attempted"
+    )
+    compiler_witness = _compiler_witness_status(state["compilers"])
     for index, build in enumerate(state["builds"]):
         if build.get("status") != "not_observed":
             continue
@@ -1430,33 +1559,40 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
         run.get("status") == "success" and run.get("returncode") == 0 and run.get("flags_match") is True
         for run in state["runs"]
     )
-    builds_ok = len(state["builds"]) == 2 and all(
-        build.get("status") == "success" for build in state["builds"]
+    decision = derive_decision(
+        state["windows"],
+        expected_ids,
+        runs_ok=runs_ok,
+        trace0_build_ok=trace0_build_ok,
+        trace1_build_witness=trace1_build_witness,
+        compiler_witness=compiler_witness,
+        driver_signaled=termination_signal is not None,
     )
-    compiler_ok = compiler_rechecks_ok(state["compilers"])
-    if termination_signal is not None:
-        decision = "incomplete"
-    else:
-        decision = derive_decision(
-            state["windows"],
-            expected_ids,
-            runs_ok=runs_ok,
-            builds_ok=builds_ok,
-            compiler_ok=compiler_ok,
-        )
     state["job"]["finished_epoch_ns"] = time.time_ns()
     state["job"]["finished_monotonic_ns"] = time.monotonic_ns()
     observed_count = sum(window.get("observed") is True for window in state["windows"])
+    receipt_failure_reasons = list(state.get("failure_reasons", []))
+    for reason in decision.window_verdict_reasons:
+        if reason not in receipt_failure_reasons:
+            receipt_failure_reasons.append(reason)
     receipt = {
         **metadata(),
         "schema_version": "t139-r4-env-probe-receipt/v1",
         "scope": "non_study_environment_probe",
-        "terminal_status": decision,
-        "failure_reasons": list(state.get("failure_reasons", [])),
+        "window_verdict": decision.window_verdict,
+        "window_verdict_reasons": list(decision.window_verdict_reasons),
+        "trace1_build_witness": decision.trace1_build_witness,
+        "compiler_witness": decision.compiler_witness,
+        "terminal_status": decision.terminal_status,
+        "failure_reasons": receipt_failure_reasons,
         "driver_exit": {
             **metadata(),
             "returncode": exit_rc,
             "signal": termination_signal,
+            "signal_identity_best_effort": True,
+            "signal_identity_limitation": (
+                "group-TERM may be recorded as the current stage failure code"
+            ),
         },
         "resubmittable": False,
         "attempt_terminal": observed_count > 0,
@@ -1490,7 +1626,11 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
             "valid_ids": [window["window_id"] for window in state["windows"] if window.get("status") == "valid"],
             "malformed_ids": [window["window_id"] for window in state["windows"] if window.get("status") == "malformed"],
             "not_observed_ids": [window["window_id"] for window in state["windows"] if window.get("status") == "not_observed"],
-            "decision": decision,
+            "window_verdict": decision.window_verdict,
+            "window_verdict_reasons": list(decision.window_verdict_reasons),
+            "trace1_build_witness": decision.trace1_build_witness,
+            "compiler_witness": decision.compiler_witness,
+            "terminal_status": decision.terminal_status,
             "fixed_upper": "1.0",
             "integer_comparisons": ["48*busy<=total"],
             "tps_used": False,
@@ -1583,8 +1723,8 @@ def finalize(state_path: Path, output: Path, *, exit_rc: int = 0) -> str:
         state["builds"],
     )
     _write_json_atomic(output / "receipt.json", receipt)
-    _create_completed_marker(output / "COMPLETED", decision)
-    return decision
+    _create_completed_marker(output / "COMPLETED", decision.terminal_status)
+    return decision.terminal_status
 
 
 def _record_compilers(state_path: Path, output: Path) -> None:

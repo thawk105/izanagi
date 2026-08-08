@@ -33,12 +33,44 @@ def _line(values: list[object], label: str = "cpu") -> str:
 
 
 def _window(window_id: str, busy: int, total: int, status: str = "valid") -> dict[str, object]:
-    return {"window_id": window_id, "busy": busy, "total": total, "status": status}
+    assert 0 <= busy <= total
+    start = [100] * 8
+    deltas = [busy, 0, 0, total - busy, 0, 0, 0, 0]
+    end = [value + delta for value, delta in zip(start, deltas)]
+    analyzed = PROBE.analyze_window(
+        _line(start),
+        _line(end),
+        10_000_000_000,
+        0,
+    )
+    analyzed.update(window_id=window_id, observed=True, status=status)
+    if status != "valid":
+        analyzed["failure_reasons"] = ["test_malformed_window"]
+    return analyzed
 
 
 def _decision_windows(busy: int, total: int) -> tuple[list[dict[str, object]], list[str]]:
     ids = ["preflight", *[f"post-{index:02d}" for index in range(1, 13)]]
     return [_window(window_id, busy, total) for window_id in ids], ids
+
+
+def _decision(
+    windows: list[dict[str, object]],
+    ids: list[str],
+    *,
+    runs_ok: bool = True,
+    trace0_build_ok: bool = True,
+    trace1_build_witness: str = "present",
+    compiler_witness: str = "present",
+) -> object:
+    return PROBE.derive_decision(
+        windows,
+        ids,
+        runs_ok=runs_ok,
+        trace0_build_ok=trace0_build_ok,
+        trace1_build_witness=trace1_build_witness,
+        compiler_witness=compiler_witness,
+    )
 
 
 def _new_state(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
@@ -69,7 +101,7 @@ def _make_state_feasible(state: dict[str, object]) -> None:
     windows = state["windows"]
     assert isinstance(windows, list)
     for window in windows:
-        window.update(observed=True, status="valid", failure_reasons=[], busy=0, total=48)
+        window.update(_window(str(window["window_id"]), 0, 48))
     runs = state["runs"]
     assert isinstance(runs, list)
     for run in runs:
@@ -187,9 +219,19 @@ def test_total_zero_is_malformed() -> None:
 def test_total_zero_is_independently_rejected_by_decision_layer() -> None:
     windows, ids = _decision_windows(0, 48)
     windows[0]["total"] = 0
-    assert PROBE.derive_decision(
-        windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    ) == "incomplete"
+    decision = _decision(windows, ids)
+    assert decision.window_verdict == "incomplete"
+    assert decision.window_verdict_reasons == ("window_raw_counter_mismatch:preflight",)
+
+
+def test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters() -> None:
+    windows, ids = _decision_windows(0, 48)
+    windows[4]["busy"] = 1
+    decision = _decision(windows, ids)
+    assert decision.window_verdict == "incomplete"
+    assert decision.window_verdict_reasons == (
+        "window_raw_counter_mismatch:post-04",
+    )
 
 
 def test_iowait_is_counted_as_busy() -> None:
@@ -221,31 +263,23 @@ def test_run_adjacency_five_second_boundary() -> None:
 
 def test_decision_exactly_one_point_zero() -> None:
     windows, ids = _decision_windows(1, 48)
-    assert PROBE.derive_decision(
-        windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    ) == "feasible"
+    assert _decision(windows, ids).window_verdict == "feasible"
 
 
 def test_decision_one_point_zero_one_violates_fixed_upper() -> None:
     windows, ids = _decision_windows(101, 4800)
-    assert PROBE.derive_decision(
-        windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    ) == "not_feasible"
+    assert _decision(windows, ids).window_verdict == "not_feasible"
 
 
 def test_decision_above_two_point_zero() -> None:
     windows, ids = _decision_windows(1, 23)
-    assert PROBE.derive_decision(
-        windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    ) == "not_feasible"
+    assert _decision(windows, ids).window_verdict == "not_feasible"
 
 
 def test_decision_malformed_mix_is_incomplete() -> None:
     windows, ids = _decision_windows(0, 48)
     windows[7]["status"] = "malformed"
-    assert PROBE.derive_decision(
-        windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    ) == "incomplete"
+    assert _decision(windows, ids).window_verdict == "incomplete"
 
 
 def test_diagnostics_do_not_change_positive_decision() -> None:
@@ -254,13 +288,10 @@ def test_diagnostics_do_not_change_positive_decision() -> None:
     high_diagnostics = {"load1": "999", "foreign_count": 999, "cgroup": "different"}
     receipt_a = {"windows": copy.deepcopy(windows), "diagnostics": low_diagnostics}
     receipt_b = {"windows": copy.deepcopy(windows), "diagnostics": high_diagnostics}
-    decision_a = PROBE.derive_decision(
-        receipt_a["windows"], ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    )
-    decision_b = PROBE.derive_decision(
-        receipt_b["windows"], ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    )
-    assert decision_a == decision_b == "feasible"
+    decision_a = _decision(receipt_a["windows"], ids)
+    decision_b = _decision(receipt_b["windows"], ids)
+    assert decision_a == decision_b
+    assert decision_a.window_verdict == "feasible"
 
 
 def test_analyze_window_call_site_duration_gate_reaches_decision() -> None:
@@ -273,9 +304,11 @@ def test_analyze_window_call_site_duration_gate_reaches_decision() -> None:
     )
     analyzed["window_id"] = ids[0]
     windows[0] = analyzed
-    assert PROBE.derive_decision(
-        windows, ids, runs_ok=True, builds_ok=True, compiler_ok=True
-    ) == "incomplete"
+    decision = _decision(windows, ids)
+    assert decision.window_verdict == "incomplete"
+    assert decision.window_verdict_reasons == (
+        "window_duration_out_of_tolerance:preflight",
+    )
 
 
 def test_contract_exact_schema_types_lengths_and_metadata() -> None:
@@ -476,12 +509,33 @@ def test_trace1_build_failure_finalizes_all_expected_rows(tmp_path: Path) -> Non
     assert PROBE.finalize(state_path, output, exit_rc=7) == "incomplete"
     receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["terminal_status"] == "incomplete"
+    assert receipt["trace1_build_witness"] == "failed"
+    assert receipt["compiler_witness"] == "not_attempted"
     assert receipt["builds"][1]["status"] == "failed"
     assert receipt["builds"][1]["returncode"] == 7
     for name, expected_rows in (("windows.tsv", 13), ("runs.tsv", 13), ("builds.tsv", 2)):
         with (output / name).open(encoding="utf-8", newline="") as handle:
             assert len(list(csv.DictReader(handle, delimiter="\t"))) == expected_rows
     assert (output / "COMPLETED").read_text(encoding="ascii") == "incomplete\n"
+
+
+def test_not_feasible_window_verdict_survives_trace1_build_failure(tmp_path: Path) -> None:
+    state_path, output, state = _new_state(tmp_path)
+    _make_state_feasible(state)
+    windows = state["windows"]
+    assert isinstance(windows, list)
+    windows[5].update(_window(str(windows[5]["window_id"]), 101, 4800))
+    builds = state["builds"]
+    assert isinstance(builds, list)
+    builds[1].update(status="failed", returncode=7)
+    PROBE._write_json_atomic(state_path, state)
+
+    assert PROBE.finalize(state_path, output) == "incomplete"
+    receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["window_verdict"] == "not_feasible"
+    assert receipt["trace1_build_witness"] == "failed"
+    assert receipt["compiler_witness"] == "present"
+    assert receipt["terminal_status"] == "incomplete"
 
 
 @pytest.mark.parametrize(("exit_rc", "signal_name"), [(143, "TERM"), (130, "INT")])
@@ -507,6 +561,8 @@ def test_run_failure_records_first_row_without_consuming_remaining_waits(
     binary = output / "fake-ycsb"
     binary.write_bytes(b"fake")
     calls: list[list[str]] = []
+    schedule_events: list[str] = []
+    original_write_json = PROBE._write_json_atomic
 
     def fake_samples(start_target: int, end_target: int) -> tuple[dict[str, object], dict[str, object]]:
         start = {
@@ -530,6 +586,7 @@ def test_run_failure_records_first_row_without_consuming_remaining_waits(
     class FailedProcess:
         def __init__(self, argv: list[str], **_kwargs: object) -> None:
             calls.append(argv)
+            schedule_events.append("popen")
 
         def wait(self, timeout: int | None = None) -> int:
             assert timeout == 15
@@ -538,11 +595,18 @@ def test_run_failure_records_first_row_without_consuming_remaining_waits(
         def poll(self) -> int:
             return 7
 
+    def track_state_write(path: Path, value: object) -> None:
+        schedule_events.append("state-write")
+        original_write_json(path, value)
+
     monkeypatch.setattr(PROBE, "_sample_window_targets", fake_samples)
     monkeypatch.setattr(PROBE.subprocess, "Popen", FailedProcess)
+    monkeypatch.setattr(PROBE, "_write_json_atomic", track_state_write)
     assert PROBE.run_schedule(state_path, binary, output) == 12
     state = json.loads(state_path.read_text(encoding="utf-8"))
     assert len(calls) == 1
+    assert schedule_events[0] == "popen"
+    assert "state-write" in schedule_events[1:]
     assert state["runs"][0]["status"] == "failed"
     assert all(run["status"] == "not_observed" for run in state["runs"][1:])
     assert state["windows"][0]["observed"] is True
@@ -720,7 +784,7 @@ raise SystemExit(probe.main())
             os.killpg(process.pid, signal.SIGKILL)
             process.communicate(timeout=5)
 
-    assert process.returncode == 143, f"stdout={stdout!r} stderr={stderr!r}"
+    assert process.returncode is not None, f"stdout={stdout!r} stderr={stderr!r}"
     assert order_log.read_text(encoding="utf-8").splitlines() == [
         "windows.tsv",
         "runs.tsv",
@@ -734,16 +798,15 @@ raise SystemExit(probe.main())
             assert len(list(csv.DictReader(handle, delimiter="\t"))) == expected_rows
     receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["terminal_status"] == "incomplete"
-    assert receipt["driver_exit"] == {
-        **PROBE.metadata(),
-        "returncode": 143,
-        "signal": "TERM",
-    }
-    assert "driver_signal:TERM" in receipt["failure_reasons"]
+    assert receipt["window_verdict"] == "incomplete"
+    assert receipt["trace1_build_witness"] == "not_attempted"
+    assert receipt["compiler_witness"] == "not_attempted"
     assert (output / "COMPLETED").read_text(encoding="ascii") == "incomplete\n"
 
 
-def test_shell_phase_cap_124_is_not_recorded_as_signal_termination(tmp_path: Path) -> None:
+def _run_shell_with_timeout_stub(
+    tmp_path: Path, *, child_rc: int
+) -> tuple[subprocess.CompletedProcess[str], Path, Path]:
     output = tmp_path / "attempt"
     output.mkdir()
     stage = tmp_path / "stage"
@@ -762,15 +825,15 @@ def test_shell_phase_cap_124_is_not_recorded_as_signal_termination(tmp_path: Pat
         json.dumps({"validated_contract": loaded.value}) + "\n", encoding="utf-8"
     )
 
-    timeout_marker = tmp_path / "timeout-returned-124"
+    timeout_marker = tmp_path / f"timeout-returned-{child_rc}"
     stub_bin = tmp_path / "stub-bin"
     stub_bin.mkdir()
     timeout_stub = stub_bin / "timeout"
     timeout_stub.write_text(
-        """#!/bin/bash
+        f"""#!/bin/bash
 set -u
 : > "$IZANAGI_TEST_TIMEOUT_MARKER"
-exit 124
+exit {child_rc}
 """,
         encoding="utf-8",
     )
@@ -806,6 +869,12 @@ exit 124
         check=False,
     )
 
+    return result, output, timeout_marker
+
+
+def test_shell_phase_cap_124_is_not_recorded_as_signal_termination(tmp_path: Path) -> None:
+    result, output, timeout_marker = _run_shell_with_timeout_stub(tmp_path, child_rc=124)
+
     assert timeout_marker.is_file()
     assert result.returncode == 8, f"stdout={result.stdout!r} stderr={result.stderr!r}"
     receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
@@ -814,11 +883,51 @@ exit 124
         **PROBE.metadata(),
         "returncode": 8,
         "signal": None,
+        "signal_identity_best_effort": True,
+        "signal_identity_limitation": (
+            "group-TERM may be recorded as the current stage failure code"
+        ),
     }
     assert all(
         not reason.startswith("driver_signal:") for reason in receipt["failure_reasons"]
     )
     assert (output / "COMPLETED").read_text(encoding="ascii") == "incomplete\n"
+
+
+def test_shell_child_normal_exit_143_is_not_recorded_as_term(tmp_path: Path) -> None:
+    result, output, timeout_marker = _run_shell_with_timeout_stub(tmp_path, child_rc=143)
+
+    assert timeout_marker.is_file()
+    assert result.returncode == 8, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["terminal_status"] == "incomplete"
+    assert receipt["driver_exit"] == {
+        **PROBE.metadata(),
+        "returncode": 8,
+        "signal": None,
+        "signal_identity_best_effort": True,
+        "signal_identity_limitation": (
+            "group-TERM may be recorded as the current stage failure code"
+        ),
+    }
+    assert all(
+        not reason.startswith("driver_signal:") for reason in receipt["failure_reasons"]
+    )
+    assert (output / "COMPLETED").read_text(encoding="ascii") == "incomplete\n"
+
+
+def test_driver_receipt_pins_group_term_signal_identity_limit(tmp_path: Path) -> None:
+    state_path, output, _state = _new_state(tmp_path)
+    assert PROBE.finalize(state_path, output, exit_rc=8) == "incomplete"
+
+    receipt = json.loads((output / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["driver_exit"]["signal_identity_best_effort"] is True
+    assert receipt["driver_exit"]["signal_identity_limitation"] == (
+        "group-TERM may be recorded as the current stage failure code"
+    )
+    shell = SH_PATH.read_text(encoding="utf-8")
+    assert "Bash may defer a pending TERM trap" in shell
+    assert "child can die first and make wait return normally" in shell
 
 
 def test_finalize_exception_never_marks_partial_publish_completed(
@@ -942,28 +1051,41 @@ def test_finalize_call_site_does_not_forward_diagnostics(
     }
     PROBE._write_json_atomic(state_path, state)
     original = PROBE.derive_decision
-    calls: list[tuple[int, bool, bool, bool]] = []
+    calls: list[tuple[int, bool, bool, str, str, bool]] = []
 
     def exact_decision_signature(
         windows: list[dict[str, object]],
         expected_ids: list[str],
         *,
         runs_ok: bool,
-        builds_ok: bool,
-        compiler_ok: bool,
-    ) -> str:
-        calls.append((len(windows), runs_ok, builds_ok, compiler_ok))
+        trace0_build_ok: bool,
+        trace1_build_witness: str,
+        compiler_witness: str,
+        driver_signaled: bool = False,
+    ) -> object:
+        calls.append(
+            (
+                len(windows),
+                runs_ok,
+                trace0_build_ok,
+                trace1_build_witness,
+                compiler_witness,
+                driver_signaled,
+            )
+        )
         return original(
             windows,
             expected_ids,
             runs_ok=runs_ok,
-            builds_ok=builds_ok,
-            compiler_ok=compiler_ok,
+            trace0_build_ok=trace0_build_ok,
+            trace1_build_witness=trace1_build_witness,
+            compiler_witness=compiler_witness,
+            driver_signaled=driver_signaled,
         )
 
     monkeypatch.setattr(PROBE, "derive_decision", exact_decision_signature)
     assert PROBE.finalize(state_path, output) == "feasible"
-    assert calls == [(13, True, True, True)]
+    assert calls == [(13, True, True, "present", "present", False)]
 
 
 def test_compiler_rechecks_require_build_immediate_and_post_build_labels() -> None:
@@ -1029,6 +1151,8 @@ def test_driver_static_caps_order_and_finalizer_contract() -> None:
     assert shell.index("cmake --build") < shell.index("after-build-$kind")
     assert "if [[ -e $OUT/COMPLETED ]]; then FINALIZED=1; fi" in shell
     assert "SIGKILL cannot run a trap" in shell
+    assert "rc > 128" not in shell
+    assert "rc <= 192" not in shell
     assert "time.monotonic_ns" not in shell  # delegated to the Python monotonic clock
     assert "monotonic-ns" in shell
 

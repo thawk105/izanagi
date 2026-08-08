@@ -63,6 +63,10 @@ record_driver_signal() {
 }
 # TERM/INT receive enough grace to publish TSVs, then receipt, then COMPLETED.
 # SIGKILL cannot run a trap and is explicitly outside the receipt guarantee.
+# Known limitation after six fix iterations: Bash may defer a pending TERM trap
+# until the surrounding compound command finishes. Under group-TERM, the
+# child can die first and make wait return normally, so the receipt may record
+# the current stage failure code without preserving the signal identity.
 trap finalize_driver EXIT
 trap 'record_driver_signal 143' TERM
 trap 'record_driver_signal 130' INT
@@ -71,7 +75,7 @@ DRIVER_START_MONOTONIC_NS=$("$INTERPRETER" -I -B "$PYTHON" monotonic-ns) || exit
 DRIVER_CAP_NS=2045000000000
 
 driver_run() {
-  local phase_cap_s=$1 now_ns remaining_ns remaining_s limit_s rc
+  local phase_cap_s=$1 now_ns remaining_ns remaining_s limit_s child_pid rc
   shift
   now_ns=$("$INTERPRETER" -I -B "$PYTHON" monotonic-ns) || return 8
   remaining_ns=$((DRIVER_START_MONOTONIC_NS + DRIVER_CAP_NS - now_ns))
@@ -79,12 +83,12 @@ driver_run() {
   remaining_s=$(((remaining_ns + 999999999) / 1000000000))
   limit_s=$phase_cap_s
   (( limit_s < remaining_s )) || limit_s=$remaining_s
-  timeout --foreground --signal=TERM --kill-after=120 "${limit_s}s" "$@"
+  timeout --foreground --signal=TERM --kill-after=120 "${limit_s}s" "$@" <&0 &
+  child_pid=$!
+  wait "$child_pid"
   rc=$?
-  # timeout's own cap expiry is 124. Only 128+N denotes signal termination.
-  if (( rc > 128 && rc <= 192 )); then
-    latch_driver_signal "$rc"
-  fi
+  # Only the driver's TERM/INT traps establish signal origin. A child may
+  # normally return 128+N, while timeout's own cap expiry remains 124.
   return "$rc"
 }
 
