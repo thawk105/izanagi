@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t659-evidence-erratum
 seq: 1
-title: [T-659] 裁定パッケージの中核証拠を親 probe から既存テストへ差し替えた — probe は不適切かつ不要だった (docs のみ、実装差分なし、branch worktree-dev-wave-t659-evidence-erratum)
+title: [T-659] 裁定パッケージの中核証拠を親 probe から既存テストへ差し替えた — probe は不適切かつ不要だった (docs のみ、実装差分なし、受入 7505 passed / 20 skipped、変異は免除、branch worktree-dev-wave-t659-evidence-erratum)
 ---
 
 ## 本文
@@ -33,7 +33,14 @@ title: [T-659] 裁定パッケージの中核証拠を親 probe から既存テ�
   [T-317] (未裁定) が所有する。本エントリはそこへ「**書く前に既存被覆を検索する**」という
   手前の問いを材料として足すだけで、新規起票はしない。
 - 本 wave は docs-only のため D95 決定 (1) により子ゼロ。実装面 path を触らないので
-  Codex `role=author` は不要 (`git diff --stat` で `.md` のみを確認)。
+  Codex `role=author` は不要 (`git diff --stat` で `.md` のみを確認)。変異 matrix は
+  実装差分ゼロのため `DW-S04` の免除条項どおり免除。
+- **受入は tip `2b09b2ea` で 1 走** (request 896548.nqsv、1493 秒、**7505 passed / 20 skipped、
+  rc=0**)。lease は 30 秒間隔の待ち手が約 3 分で取得した (前 wave の 120 秒間隔では 80 分
+  取り逃していた実測と整合する)。この受入値を書く commit 自体は、その走行の対象に含まれない。
+- **検査は今回すべて rc を直接見た** (`check_docs` rc=0、`spool_fold --dry-run` rc=0、
+  `check_ai_provenance` rc=1 = 既知の `2c192953` のみ、本 wave の commit は clean)。
+  前 wave で `| tail -2` により赤を緑と誤判定した F37 再発への直接の是正である。
 
 ## 次の一手差分
 
