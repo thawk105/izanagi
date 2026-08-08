@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t648-fallback-ledger
 seq: 1
-title: [T-648] 受入免除判定の証拠記録義務を fallback (台帳 + memory) で発効させた — 契約本文は 1 byte も変えず、本文昇格は再訪条件付きで見送り台帳へ (docs のみ、実装差分なし、branch worktree-dev-wave-t648-fallback-ledger)
+title: [T-648] 受入免除判定の証拠記録義務を fallback (台帳 + memory) で発効させた — 契約本文は 1 byte も変えず、本文昇格は再訪条件付きで見送り台帳へ (docs のみ、実装差分なし、受入 7504 passed / 1 failed = F57 再発・単独再走 1 passed / 20 skipped、変異は免除、branch worktree-dev-wave-t648-fallback-ledger)
 ---
 
 ## 本文
@@ -27,13 +27,32 @@ title: [T-648] 受入免除判定の証拠記録義務を fallback (台帳 + mem
   前向き supersession のみ)。
 - **義務の初回適用は本 wave 自身。** 実 repo を読むテストは存在する — 判定証拠 =
   `orchestrator/tests/test_check_docs.py` / `orchestrator/tests/test_spool_fold.py`
-  (いずれも実 checkout の docs/ と spool を読む) — したがって docs-only だが受入全走を実施する。
-  受入結果はこの commit 時点では未実施 (投入前に fragment を先に commit する順序のため)。
-  実測後に本行を再走値で更新する。
+  (いずれも実 checkout の docs/ と spool を読む) — したがって docs-only だが受入全走を実施した。
+  **7504 passed / 1 failed / 20 skipped** (tip `5bcf6382`、request `896541`、1260 秒)。
+  赤 1 件は F57 の再発 (`test_ruleops.py` の real_repo node が `ruleops: git-timeout` で rc=2)。
+  単独再走は 1 passed / 75.55 秒で再現せず、`DW-O18` により実装差分へ帰属しない。詳細は F57 の再発追記。
+- **受入 lease が 2 時間 15 分取得できなかった。** 60 秒周期の待ち手が 90 分空振りし、30 秒周期へ
+  詰めて取得した。その間 holder は 5 回交替しており、並行 wave の輻輳が実測値として残った
+  (この観測は F57 の再発追記でも独立の裏付けとして使った)。lease に fairness は無く、
+  待ち周期が短い側が有利になる — 短い wave が長時間待たされる構造は残っている。
+- **peer wave 由来の provenance 赤を 1 件検出したが、本 wave では直していない。** main の祖先
+  `2c192953` ([T-659] wave が 2026-08-09 01:34 に land) が
+  `output/insights/2026-08-09_t659-activation-deploy-window/verbatim/probe_split_window.py` を
+  含みながら Codex `role=author` trailer を持たない (trailer は manager + researcher 2 本)。
+  他セッションの履歴は書き換えない。`tools/dev_wave_land.py` の provenance 使用は fold message の
+  preflight だけで全史監査ではないため、本 wave の land は塞がれない。**所見として起票する。**
 - 実装差分ゼロのため変異 matrix は免除 (`DW-S04` の免除条項)。子エージェントは起動していない
   (docs-only は子ゼロ、`DW-C00`)。
 
 ## 次の一手差分
+
+### 新規
+
+- {{T:t659-probe-missing-codex-author}} **P2・新規**: land 済み commit `2c192953` ([T-659] wave)
+  が実装面ファイル (`output/insights/2026-08-09_t659-activation-deploy-window/verbatim/probe_split_window.py`)
+  を Codex `role=author` trailer なしで含み、全史 provenance 監査が新規違反 1 件を返す。
+  履歴改変を避ける処置 (forward-correction commit か known-violation 登録か waiver) を
+  [T-659] wave 所有者が選ぶ。本 wave は検出のみで直していない
 
 ### 見送り
 
