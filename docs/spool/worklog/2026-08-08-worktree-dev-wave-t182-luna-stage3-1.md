@@ -56,10 +56,13 @@ title: 段 3 敵対相談を sol/luna 混成にし model の単一権威を不�
   CRLF 化すると byte gate が別環境で壊れる。(iv) `orchestrator/codex_roles/` の model allowlist
   (`spec.py` の `{gpt-5.6-sol, gpt-5.6-terra}`) に luna が無い。(v) dev-wave reference と
   dispatcher の byte 予算が慢性的に逼迫し、複数 wave が編集を断念している
-- 実測はすべて計算ノード。受入全走は 2 回。1 回目 (実装 tip `03f1487b`) = **7373 passed /
-  20 skipped** (1174.40s、job `895950.nqsv`)。記録 commit `dd17b571` が実 repo を読むテストへ
-  影響しうるため最終 tip で再走し、2 回目 = **7372 passed / 1 failed / 20 skipped**
-  (1161.74s、job `895953.nqsv`)。
+- 実測はすべて計算ノード。受入全走は 3 回。1 回目 (実装 tip `03f1487b`) = 7373 passed /
+  20 skipped (1174.40s、job `895950.nqsv`)。記録 commit が実 repo を読むテストへ影響しうるため
+  tip ごとに再走し、2 回目 (`dd17b571`) = 7372 passed / **1 failed** / 20 skipped
+  (1161.74s、job `895953.nqsv`)、3 回目 (`9a99fede`) = **7373 passed / 20 skipped・赤ゼロ**
+  (1210.04s、job `895995.nqsv`)。**land 対象 tip の権威値は 3 回目**である。
+  land 直前の最終 amend 1 commit だけは docs のみで、`DW-S07` / F34 に従い
+  repo scan invariant (`check_docs` / `check_ai_provenance` / spool fold dry-run) で閉じた。
   `orchestrator/tests/test_check_docs.py` = 325 passed。`check_docs` 違反なし。
   `check_ai_provenance` 新規違反なし
 - **2 回目の赤 1 件はフレークと実測した。**
