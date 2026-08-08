@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t663-flaky-truth-table
 seq: 1
-title: [T-663] launcher 負荷フレークの失敗署名が 7 条件に多義だと特定し、次回再発を自己申告させる計装を入れた — 原因は未確定でフレークは直っていない (テストのみ、変異 3/3 KILLED・事前登録一致、branch worktree-dev-wave-t663-flaky-truth-table)
+title: [T-663] launcher 負荷フレークの失敗署名が 7 条件に多義だと特定し、次回再発を自己申告させる計装を入れた — 原因は未確定でフレークは直っていない (テストのみ、受入 7505 passed / 20 skipped・赤ゼロ、変異 3/3 KILLED・事前登録一致、branch worktree-dev-wave-t663-flaky-truth-table)
 ---
 
 ## 本文
@@ -37,6 +37,10 @@ title: [T-663] launcher 負荷フレークの失敗署名が 7 条件に多義�
 - 変異は事前登録 3 本すべて KILLED、観測 node は事前登録と完全一致、baseline 緑。
   M1 / M2 は赤くなった node が新 meta-test だけで、同席した既存テストは全て緑だった =
   変更前の検出面はこの 2 変異を検出しない。`DW-M08` の新旧両走はこの 1 走で満たしている。
+- **受入全走は 7505 passed / 20 skipped / 赤ゼロ** (1225 秒、request `896530`、main `ce1de6df` 取り込み後)。
+  この走行では F57 は発火せず、計装が実負荷で何を出すかはまだ観測できていない。
+  受入 lease は 3 回の待ち直しを要し、15 秒間隔の 240 回では 1 度も取れず、
+  3 秒間隔の 357 回目でようやく `acquired` になった。並行 wave の受入枠が飽和している。
 - エージェント工数: Codex 6 session (plan 1 / 段 3 相談 2 / 実装 1 / 段 6 レビュー 2 = 6、
   および fix 2 = 計 8)。親 = brief・実測 probe 4 本・裁定・統合 commit・変異・受入・記録。
 - 一次資料と逐語 = `output/insights/2026-08-09_t663-launcher-flake-diagnostic/`。
