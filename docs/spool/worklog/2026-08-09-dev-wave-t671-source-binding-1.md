@@ -65,7 +65,7 @@ title: 汎用 certified producer の source binding ([T-671] + t530 件 6) の�
   R1 (束縛閉包) と R7 (発火計測を先に作るか) が中核。t530 件 6 (campaign id 分裂) を R2・R4・R5 として
   束ねた。実装の前提条件は [T-664] (docs 予算)、および t530 の land 保留。
   起票文の「第 2 世代の活性化後は検出できない」は実測により訂正 — 同じ穴は現行 g1 でも成立する。
-  base: 0cb8d346aff818118da698edade961f1505a154b385dd337ad609a5896bff51b
+  base: c493a4e594ccd2250469715d0b51c0834b17f57686b28669ea40b1b3ca95af09
 
 ### 新規
 

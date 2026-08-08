@@ -606,6 +606,10 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-156] selector-8b workload descriptor への set-size 条件反映 — 理由: (36) で条件成立まで保留と裁定済み。発火条件は「8b descriptor の拡張を設計するとき」または「TPC-C 級 workload corpus を採るとき」で、着手前に workload 別の set-size 分布を測る順序も決まっている。
 - [T-176] raw evidence bundle の保存形 (trace 圧縮) — 理由: (60) の裁定で driver 変更を伴うため次回 characterization に合流すると決まった。
 
+- [T-549] Pegasus 全 probe 共通の単独性 witness (process / cgroup / PSI) — 理由: 2026-08-09
+  ユーザー裁定で見送り (プロトタイプ基準の防御的堅牢化)。現行の runbook 手順 + probe 毎対応を
+  維持する。再訪 = [T-139] campaign 本走の直前に再評価。
+
 ### プロセス文書系
 
 - [T-040] **CLAUDE.md 作業手順 5 への provenance pointer 配線** (B-032, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — hot path への provenance pointer を承認し現行導線に無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
@@ -631,6 +635,15 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-151] CCBench 上流への還元 — 理由: (54) の裁定で [T-167] wave へ束ね、上流 PR / push は人間が行う。
 - [T-012] task-run pilot の凍結解除可否 — 理由: (33) の裁定で解除しないと確定した。復活させる場合は新規に裁定を起こす。
 - [T-170] CCBench 上流への還元 — 理由: (54) の裁定で [T-167] wave へ束ね、上流 PR / push は人間が行う。
+
+- [T-648] 受入免除判定の証拠記録義務の契約本文への明文化 — 理由: 義務は fallback
+  (本エントリ + memory) で発効済みで、契約 1 文の追加は dev-wave docs 予算 (空き 1 byte) に
+  入らない ([T-641] (c) 同型)。再訪 = [T-313] 実装などで `docs/dev-wave/**` 予算に空きが
+  出たとき、本文 1 文への昇格を再検討する (2026-08-09 ユーザー裁定 (B') による再訪条件)。
+
+- [T-635] DW-S01 の「decision 本文」の射程明文化 — 理由: 2026-08-09 ユーザー裁定で (b)
+  F158 の恒久対応 (failures 台帳の再発検査レンズ) で足りるとした。再訪 = [T-664] の予算裁定で
+  空きが出たら (a)「成立済み台帳に限る」の明文 1 行を再検討。
 
 ### 外部環境系
 
