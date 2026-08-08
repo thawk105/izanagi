@@ -599,3 +599,8 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-08","content_sha256":"7195229ffb6944f72ff627c84bcab7721c5227c62e3d499530df1e4f5563aab3","seq":26,"wave":"rulings-20260806-a"}
 - {"allocations":{},"authored":"2026-08-08","content_sha256":"9b6da840bac8cbf2499a43b72b64eea3ec8ceb3e470ac8be6bb8ad2011a909aa","seq":27,"wave":"rulings-20260806-a"}
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"bff79286f65d630daad87b4d6addb5b1cf8d80810cb890d610cb83a2f2ec6945","seq":1,"wave":"rulings2-20260809"}
+
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"75a9fb646ac290a464934f25f95dd40848ee9b4416a65c1445c88a2e7c7ac934","seq":1,"wave":"dev-wave-t664-docs-budget"}
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"8a3874fde71f62c627605acdb74bedd62113147908b51843b43ce31275137a8b","seq":2,"wave":"dev-wave-t664-docs-budget"}
+
+- {"allocations":{"T:acceptance-lease-fairness":"[T-684]","T:caller-inventory-any-tautology":"[T-683]"},"authored":"2026-08-09","content_sha256":"88d882ae14d45af64091c8b0f5b7e5e53e5b110d7c93dd2c0a9777b8d1a0567b","seq":1,"wave":"dev-wave-t671-source-binding"}
