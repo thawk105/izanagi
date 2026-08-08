@@ -269,6 +269,10 @@ class TxExecutor {
             monkeypatch.setattr(module, "_current_site", lambda: module.site_policy.OTHER)
 
     cfg = ident.bind_admission_policy(cfg, _CODER_CONTEXT.policy)
+    if name == "trigger_gating":
+        contract = env_contract.lookup(module.ENV_TAG)
+        monkeypatch.setattr(module, "_lookup", lambda _env_tag: contract)
+        cfg = ident.bind_environment_contract(cfg, contract)
     sub = tmp_path / f"{name}-sub"
     source = sub / module.SOURCE_REL
     source.parent.mkdir(parents=True)
@@ -336,9 +340,11 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
     monkeypatch.setattr(module, "exploration_campaign_layout", ensured_spy)
     assert module.main(["--allow-coder-derived-build"]) == 1
     policy_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    campaign_id = str(ident.campaign_id(ident.bind_admission_policy(
-        module._cfg(), policy_context.policy,
-    )))
+    cfg = ident.bind_admission_policy(module._cfg(), policy_context.policy)
+    cfg = ident.bind_environment_contract(
+        cfg, env_contract.lookup(module.ENV_TAG),
+    )
+    campaign_id = str(ident.campaign_id(cfg))
     expected = tmp_path / "exploration" / "campaigns" / campaign_id
     assert roots and set(roots) == {expected}
     assert selectors == ["exploration", "exploration"]

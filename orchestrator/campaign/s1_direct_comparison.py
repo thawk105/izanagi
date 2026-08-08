@@ -235,7 +235,8 @@ def config_for(document: Mapping, role: str) -> CampaignConfig:
         trial="s1-direct-v2",
     )
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    return ident.bind_admission_policy(cfg, context.policy)
+    cfg = ident.bind_admission_policy(cfg, context.policy)
+    return ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
 
 
 def layout_for(document: Mapping, role: str, output_root: str = "") -> CampaignLayout:
@@ -642,13 +643,14 @@ def run_role(
     schedule = schedule_for_role(document, role)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     authorization_contract = env_contract.authorize(ENV_TAG)
-    pipeline.execution_guard.require_certified_writer_authorization(
+    authorized_contract = pipeline.execution_guard.require_certified_writer_authorization(
         authorization_contract,
         env_tag=ENV_TAG,
         clocks_per_us=CLOCKS_PER_US,
         numactl=NUMACTL,
     )
     cfg = ident.bind_admission_policy(config_for(document, role), build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, authorized_contract)
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root=output_root)
 
     if dry_run:

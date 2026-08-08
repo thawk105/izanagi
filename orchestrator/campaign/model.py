@@ -14,7 +14,7 @@ orchestrator を **DB のトランザクション実行エンジンの原理**�
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 # 評価パイプラインの段 (orchestrator-design.md A/D)。commit が唯一のコミットポイント。
@@ -24,6 +24,8 @@ STAGE_VERIFY_DONE = "verify_done"
 STAGE_BENCH_DONE = "bench_done"
 STAGE_COMMIT = "commit"
 STAGE_ABORT = "abort"        # 段で失格 (verifier red 等)。commit と同じく終端だが不採用
+ENVIRONMENT_CONTRACT_SEARCH_KEY = "environment_contract_sha256"
+COMMIT_CONTRACT_SHA256_KEY = "contract_sha256"
 STAGES = (STAGE_BUILD_START, STAGE_BUILD_DONE, STAGE_VERIFY_DONE,
           STAGE_BENCH_DONE, STAGE_COMMIT, STAGE_ABORT)
 STAGE_S1_SESSION = "s1-session"
@@ -61,17 +63,18 @@ class Genome:
 
 @dataclass(frozen=True)
 class CampaignConfig:
-    """campaign 同一性を決める入力 (D13)。**env は含めない**・**date は含めない**。
+    """campaign 同一性を決める入力 (D13)。raw env/date は含めない。
 
     ハッシュ対象 = spec の**内容** + ccbench-commit + 探索 config (ablation / Tier 集合 /
-    scale protocol) + trial。spec を編集して名前据え置きでも内容が変われば別 campaign に
-    なる (honest-by-construction, §3.4 改竄識別)。
+    scale protocol) + certified execution contract fingerprint + trial。spec を編集して名前
+    据え置きでも内容が変われば別 campaign になる (honest-by-construction, §3.4 改竄識別)。
+    raw env_tag、generation、receipt 属性、日時は同一性入力へ入れない。
     """
     spec_slug: str              # 可読プレフィクス (例 readheavy-locont)
     search_tag: str             # ablation 軸 (例 fullsearch / llmguided)
     spec_content: str           # 入力 spec の**中身** (名前でなく)
     ccbench_commit: str         # 素材コーパスの版
-    search_config: Dict[str, str] = field(default_factory=dict)  # ablation/Tier/scale
+    search_config: Dict[str, Any] = field(default_factory=dict)  # ablation/Tier/scale/policy
     trial: Optional[str] = None  # 入力同一でも別 campaign を切るとき (seed study 等)
 
 
