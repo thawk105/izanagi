@@ -22,3 +22,15 @@ seq: 3
   Elapse 1213 秒で完走しており、枠不足 (F167 型) とは別型であることが同じ走行の中で分離できた。
   親は codex 子を 1 本も起動していない。恒久対応は F57 既載の失敗 artifact 保存による原因分離
   ([T-190]) のままで、本 wave では変えない。
+
+### F155
+
+- **再発: 2026-08-08 ([T-656] 記録後の再走)。** 段 7 の docs commit 後に
+  `python3 tools/run_tests.py orchestrator/tests/test_check_docs.py orchestrator/tests/test_spool_fold.py -q -rf`
+  を追加 flag なしで投げ、`bounded scope の memory.max / memory.oom.group を走行中に attest できない`
+  で rc=16 になった。`--force-dispatch` を足した再走は計算ノードで 438 passed / rc=0。
+  本 F の (b) と 2026-08-07 ([T-618]) の再発が**既に射程として明記していた**
+  「login ノードから投げる短時間の targeted 走行」そのものであり、新しい条件ではない。
+  実装差分は 1 byte も汚れていない。**新しい情報は、この型が変異本走・単発 targeted 走行だけでなく
+  段 7 の記録後再走 (F34 の閉じ工程) でも出ること**で、発火点は wave の終盤にもある。
+  恒久対応は本 F 既載の既定 recipe のままで、追加の機構は作らない。
