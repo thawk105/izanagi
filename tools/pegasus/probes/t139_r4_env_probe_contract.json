@@ -1,0 +1,89 @@
+{
+  "schema_version": "t139-r4-env-probe-contract/v1",
+  "probe_series_id": "t139-r4-env-probe",
+  "purpose": "non_study_environment_probe",
+  "study_eligible": false,
+  "physical_cores": 48,
+  "counter_names": [
+    "user",
+    "nice",
+    "system",
+    "idle",
+    "iowait",
+    "irq",
+    "softirq",
+    "steal"
+  ],
+  "window_duration_ns": 10000000000,
+  "window_tolerance_ns": 100000000,
+  "max_run_adjacency_ns": 5000000000,
+  "thresholds": [
+    "1.0",
+    "2.0"
+  ],
+  "runs": [
+    {"run_id":"R01","workload":"W1","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R02","workload":"W2","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R03","workload":"W2","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R04","workload":"W1","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R05","workload":"W1","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R06","workload":"W2","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R07","workload":"W2","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R08","workload":"W1","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R09","workload":"W1","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R10","workload":"W2","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R11","workload":"W2","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R12","workload":"W1","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"run_id":"R13","workload":"W2","probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false}
+  ],
+  "windows": [
+    {"window_id":"preflight","stratum":"preflight","nominal_wait_s":null,"preceding_run_id":null,"following_run_id":"R01","preceding_workload":null,"cell_rep":null,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-01","stratum":"wait30","nominal_wait_s":30,"preceding_run_id":"R01","following_run_id":"R02","preceding_workload":"W1","cell_rep":1,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-02","stratum":"wait60","nominal_wait_s":60,"preceding_run_id":"R02","following_run_id":"R03","preceding_workload":"W2","cell_rep":1,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-03","stratum":"wait30","nominal_wait_s":30,"preceding_run_id":"R03","following_run_id":"R04","preceding_workload":"W2","cell_rep":1,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-04","stratum":"wait60","nominal_wait_s":60,"preceding_run_id":"R04","following_run_id":"R05","preceding_workload":"W1","cell_rep":1,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-05","stratum":"wait30","nominal_wait_s":30,"preceding_run_id":"R05","following_run_id":"R06","preceding_workload":"W1","cell_rep":2,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-06","stratum":"wait60","nominal_wait_s":60,"preceding_run_id":"R06","following_run_id":"R07","preceding_workload":"W2","cell_rep":2,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-07","stratum":"wait30","nominal_wait_s":30,"preceding_run_id":"R07","following_run_id":"R08","preceding_workload":"W2","cell_rep":2,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-08","stratum":"wait60","nominal_wait_s":60,"preceding_run_id":"R08","following_run_id":"R09","preceding_workload":"W1","cell_rep":2,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-09","stratum":"wait30","nominal_wait_s":30,"preceding_run_id":"R09","following_run_id":"R10","preceding_workload":"W1","cell_rep":3,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-10","stratum":"wait60","nominal_wait_s":60,"preceding_run_id":"R10","following_run_id":"R11","preceding_workload":"W2","cell_rep":3,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-11","stratum":"wait30","nominal_wait_s":30,"preceding_run_id":"R11","following_run_id":"R12","preceding_workload":"W2","cell_rep":3,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false},
+    {"window_id":"post-12","stratum":"wait60","nominal_wait_s":60,"preceding_run_id":"R12","following_run_id":"R13","preceding_workload":"W1","cell_rep":3,"probe_series_id":"t139-r4-env-probe","purpose":"non_study_environment_probe","study_eligible":false}
+  ],
+  "workloads": {
+    "W1": ["-ycsb_rmw=true","-ycsb_zipf_skew=0.9","-ycsb_tuple_num=10000","-ycsb_max_ope=10","-thread_num=48","-extime=3"],
+    "W2": ["-ycsb_rratio=50","-ycsb_zipf_skew=0.5","-ycsb_tuple_num=100000","-ycsb_max_ope=10","-thread_num=48","-extime=3"],
+    "probe_series_id": "t139-r4-env-probe",
+    "purpose": "non_study_environment_probe",
+    "study_eligible": false
+  },
+  "terminal_attempt_policy": {
+    "attempt_with_any_observed_window_is_terminal": true,
+    "resubmissions_after_observation": 0,
+    "resubmittable": false,
+    "pre_submit_ledger_required": true,
+    "pre_submit_ledger_create_only": true,
+    "attempt_ordinal_reserved_before_qsub": true,
+    "pre_measurement_resubmission_limit": 1,
+    "scheduler_evidence_required_for_pre_measurement_resubmission": true,
+    "probe_series_id": "t139-r4-env-probe",
+    "purpose": "non_study_environment_probe",
+    "study_eligible": false
+  },
+  "phase_budget": {
+    "pbs_setup_cap_s": 903,
+    "trace0_configure_cap_s": 60,
+    "trace0_build_cap_s": 180,
+    "trace1_configure_cap_s": 90,
+    "trace1_build_cap_s": 420,
+    "adjacency_budget_s": 65,
+    "driver_cap_s": 1895,
+    "serial_noncontingency_s": 2798,
+    "absolute_deadline_s": 3300,
+    "walltime_s": 3600,
+    "probe_series_id": "t139-r4-env-probe",
+    "purpose": "non_study_environment_probe",
+    "study_eligible": false
+  }
+}

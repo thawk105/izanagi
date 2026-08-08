@@ -73,6 +73,24 @@
       "primary_gate": "hook deny pending admission evidence",
       "evidence": "unmeasured probe artifact"
     },
+    "tools/pegasus/probes/t139_r4_env_probe.pbs": {
+      "class": "dispatch-required",
+      "reason": "gen_S environment-probe PBS job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t139_r4_env_probe.py": {
+      "class": "dispatch-required",
+      "reason": "compute-side benchmark/window sampler",
+      "primary_gate": "compute allocation owned by t139_r4_env_probe.pbs",
+      "evidence": "static compute-side call-site classification"
+    },
+    "tools/pegasus/probes/t139_r4_env_probe.sh": {
+      "class": "dispatch-required",
+      "reason": "compute-side CCBench build and measurement driver",
+      "primary_gate": "compute allocation owned by t139_r4_env_probe.pbs",
+      "evidence": "static compute-side call-site classification"
+    },
     "tools/pegasus/probes/t293_perf_site_probe.pbs": {
       "class": "unknown",
       "reason": "probe artifact has no login admission ruling",
