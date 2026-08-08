@@ -1,0 +1,63 @@
+あなたは izanagi repository の read-only プラン起草子である。日本語で答えること。
+
+作業 directory は `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t182-luna-stage3` である。
+
+## 先に読むもの (読めなければ推測せず、その旨だけ書いて即座に停止せよ)
+
+- 親 brief: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t182-luna-stage3/brief.md`
+- 段 1 probe の逐語: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t182-luna-stage3/s1-probe/luna.md`
+- `docs/dev-wave/workers.md` (全文、4575 bytes)
+- `docs/dev-wave/operations.md` の `DW-O01`
+- `.claude/commands/dev-wave.md` の「段 dispatch」表と「条件 dispatch」表
+- `tools/check_docs.py` の次の箇所
+  - 176〜200 行付近の `REFERENCE_LIMITS` / `DEV_WAVE_AGGREGATE_BYTES` 周辺
+  - 250〜300 行付近の `DEV_WAVE_DW_S02_REASONING_MAX_*` / `DEV_WAVE_DW_S03_REASONING_MAX_*` /
+    `DEV_WAVE_REASONING_EFFORT_RE`
+  - `_check_dev_wave_reasoning_effort_pins` 関数とその呼び出し元
+  - `_reference_id_sections` と `_visible_markdown_text` の定義
+- `docs/decisions.md` の `## D207` 節
+- 既存の check_docs 向け test の所在 (`tools/` 配下または test ディレクトリを自分で探索せよ)
+
+書込可能な tmp は無い。pytest を走らせる必要はなく、静的読解だけでよい。
+テストの実測は親が行うので、あなたは「走らせて緑だった」と書いてはならない。
+
+## 課題
+
+親 brief の scope を実現する実装プランを **file:line 粒度**で起草せよ。
+
+必ず解かねばならない制約が 2 つある。
+
+**制約 A — byte 予算。** `docs/dev-wave/` の 4 reference の visible bytes 合計は
+実測 25,196 で ceiling は 25,200 (残り 4 バイト) である。個別 free は
+core 954 / workers 425 / mutation 76 / operations 99。
+**ceiling と個別 cap を引き上げてはならない。**
+また `tools/check_docs.py` の 250 行付近が明示するとおり、
+**安全義務の prose を削って byte を捻出する解を出してはならない。**
+
+**制約 B — precedence。** `DW-S03` の model だけを `gpt-5.6-luna` に変えると、
+`DW-O01` の起動雛形に書かれた `gpt-5.6-sol` と食い違う。段 3 preflight では両方を読むため、
+どちらが権威かが一意に決まらないと `DW-STOP` の「指定が一意でない」に該当する。
+一方 `DW-S05-A` と `DW-S06-A` は model を書いておらず `DW-O01` に依存している。
+`DW-O01` を placeholder 化するとこの 2 節への model 追記が必要になり、byte が足りない。
+
+## 出力に必ず含めるもの
+
+1. **precedence 解決方式の候補を 2 案以上**、それぞれ (a) 変更する file:line、
+   (b) 差し引きの正確な byte 増減 (UTF-8、日本語は 3 バイトで数えよ)、
+   (c) 制約 A に収まるか、(d) 一意性が本当に fail-closed になるか、を書け。
+   そのうえで推奨 1 案を選び、選ばなかった理由を書け。
+2. **`tools/check_docs.py` の変更案**を関数名・挿入位置・呼び出し元込みで示せ。
+   既存 `_check_dev_wave_reasoning_effort_pins` と同型にすること。
+   model slug を正規表現でどう抽出するか、DW-S02 と DW-S03 で期待値をどう分けるかを書け。
+3. **テストの追加案**。既存 check_docs テストの置き場と命名に合わせ、
+   「pin を外すと赤になる」ことを示す negative case を含めよ。
+4. **既存 consumer の棚卸し。** `gpt-5.6-sol` という文字列に依存している
+   live な (archive / output / insights を除く) file:line を列挙し、
+   本変更で更新が要るものと要らないものを分類せよ。
+5. **変異事前登録の候補** (`DW-M01`)。新設する pin を無効化したとき赤理由が 1 つに絞れる位置を、
+   コード上の根拠つきで 3〜7 件挙げよ。前後に同じ入力を拒否する層が無いことも述べよ。
+6. **親 brief への反論。** brief の (P1)〜(P4) のうち誤っているものがあれば指摘せよ。
+
+## 総括
+
+推奨プランの骨子と、最大のリスクを 5 行以内で要約せよ。
