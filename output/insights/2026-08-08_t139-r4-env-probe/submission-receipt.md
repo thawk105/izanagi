@@ -60,6 +60,11 @@ job body が probe namespace の既存 attempt を走査し、観測済み行が
 
 ## 6. submission 台帳 (append-only)
 
-| # | request ID | 投入時刻 | replacement-of | 理由 | terminal state |
+| # | request ID | 投入時刻 | run commit | 理由 | terminal state |
 |---|---|---|---|---|---|
-| 1 | (投入後に追記) | | — | 初回 | (追記) |
+| 1 | `896500.nqsv` | 2026-08-09 01:45 (gen_S、51 秒、node は receipt 参照) | `30719e51` | 初回 | **`incomplete`**。窓 **0 件** (`not_observed` × 13)。原因は自作 validator が `compile_commands.json` に `arguments` 配列を要求し、CMake が出す `command` 文字列形式を拒否したこと。**環境要因ではない。**build 自体は TRACE=0 / TRACE=1 とも成功しており、compiler witness は取得できた |
+| 2 | `896504.nqsv` | 2026-08-09 01:58 (gen_S、633 秒、node `bnode028`) | `1fa2b75b` | 1 の再投入 (**窓 0 件のため再走 gate に該当せず**) | **`feasible`**。13 窓すべて `valid` かつ `[0, 1.0]`、最大 `0.0791` core-equivalents。`trace1_build_witness = present`、`compiler_witness = present`、`failure_reasons` 空 |
+
+**再走規律との整合。** 凍結した規律は「**窓を 1 つでも観測した attempt は terminal、再走 0 回**」である。
+attempt 1 は窓を 1 つも観測していない (13 件すべて `not_observed`) ため、この規律に該当しない。
+**不都合な観測を捨てて選び直した事実はない。**両 attempt の成果物は削除せず、いずれも repo へ残してある。
