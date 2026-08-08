@@ -381,6 +381,7 @@ def _assert_workload_campaign_uses_site_contract(
 ) -> None:
     site_calls = []
     lookup_calls = []
+    observed = {}
 
     def current_site():
         site_calls.append(site)
@@ -393,17 +394,41 @@ def _assert_workload_campaign_uses_site_contract(
 
     monkeypatch.setattr(A.trigger, "_current_site", current_site)
     monkeypatch.setattr(A.trigger, "_lookup", lookup)
+    prepare = A._prepare_campaign_identity
+
+    def prepare_campaign_identity(
+        *, workload, trial_id, generations, site, contract, build_context,
+    ):
+        prepared = prepare(
+            workload=workload,
+            trial_id=trial_id,
+            generations=generations,
+            site=site,
+            contract=contract,
+            build_context=build_context,
+        )
+        observed["site"] = site
+        observed["contract"] = contract
+        observed["cfg"] = prepared.campaign
+        return prepared
+
+    monkeypatch.setattr(A, "_prepare_campaign_identity", prepare_campaign_identity)
     factory = A.exploration_campaign_layout
+
+    def campaign_layout(campaign_id):
+        layout = factory(campaign_id, str(tmp_path))
+        observed["layout"] = layout
+        return layout
+
     monkeypatch.setattr(
         A,
         "exploration_campaign_layout",
-        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+        campaign_layout,
     )
     run_root = tmp_path / "run"
     for child in (run_root, run_root / "raw", run_root / "proposals"):
         child.mkdir(exist_ok=True)
     context = _no_build_context()
-    observed = {}
 
     def drive(
         cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
@@ -452,7 +477,7 @@ def _assert_workload_campaign_uses_site_contract(
         transport_receipt=transport_receipt,
         build_context=context,
     )
-    other = A._prepare_campaign_identity(
+    other = prepare(
         workload="ycsb-a",
         trial_id="c01-site-contract",
         generations=1,
