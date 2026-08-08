@@ -43,7 +43,7 @@ fail-closed から fail-open へ倒れた証拠として記録し、harness 全�
 
 ## DW-M07 — fix 後 anchor
 
-fix 後の最終 commit で変異 spec の anchor（old 逐語）を再検証してから本走する。
+fix 後の最終 commit で変異 spec の anchor（old 逐語）と期待 node を再検証してから本走する。
 mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
 
 ## DW-M08 — 失敗 node と検出力
