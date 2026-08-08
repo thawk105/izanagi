@@ -493,6 +493,9 @@ $ARGUMENTS
 コード・テスト・実行可能資材（以下「実装面」）は軽量版でも
 Codex `role=author` が書き、親は実装面を直接編集せず統合する。
 
+{check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LITERAL}
+{check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL}
+
 ## 段 dispatch
 
 | 段 | 参照 |
@@ -570,6 +573,8 @@ description: synthetic Codex rulings skill
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S02_REASONING_MAX_LITERAL
             if rel == "docs/dev-wave/workers.md" and section == "DW-S03":
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S03_REASONING_MAX_LITERAL
+            if rel == "docs/dev-wave/operations.md" and section == "DW-O01":
+                body += "\n\n`codex exec -m <model>`"
             if rel == "docs/dev-wave/core.md" and section == "DW-S09":
                 body += (
                     "\n\n"
@@ -5048,6 +5053,241 @@ def test_dev_wave_reasoning_effort_pin_findings_are_time_invariant():
         "docs/dev-wave/workers.md: DW-S03 の `reasoning=max` は D207 に基づく"
         + expected_suffix
     )
+
+
+def _append_reference_section_body(text, section_id, addition):
+    match = re.search(
+        rf"^## {re.escape(section_id)}(?:\s+—[^\n]*)?\s*$\n.*?(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None
+    section = match.group(0).rstrip()
+    changed_section = section + "\n\n" + addition + "\n\n"
+    return text[:match.start()] + changed_section + text[match.end():]
+
+
+def _replace_reference_section_literal(text, section_id, old, new):
+    match = re.search(
+        rf"^## {re.escape(section_id)}(?:\s+—[^\n]*)?\s*$\n.*?(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None
+    section = match.group(0)
+    changed_section = section.replace(old, new, 1)
+    assert changed_section != section
+    return text[:match.start()] + changed_section + text[match.end():]
+
+
+def _assert_model_slug_production_path_rejects(
+    rel,
+    section_id,
+    addition,
+    finding,
+):
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            rel,
+            _append_reference_section_body(
+                _read(root, rel),
+                section_id,
+                addition,
+            ),
+        )
+        _assert_findings(root, finding)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_production_path_rejects_dw_s03_backticked_slug():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/workers.md",
+        "DW-S03",
+        "`gpt-5.6-sol`",
+        check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_production_path_rejects_dw_s03_bare_model_decoy():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/workers.md",
+        "DW-S03",
+        "-m gpt-5.6-sol",
+        check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_production_path_rejects_dw_s02_slug():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/workers.md",
+        "DW-S02",
+        "--model=gpt-5.6-luna",
+        check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_production_path_rejects_dw_o01_concrete_model():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/operations.md",
+        "DW-O01",
+        "-m gpt-5.6-sol",
+        check_docs.DEV_WAVE_OPERATIONS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_production_path_rejects_dispatcher_literal_drift():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        changed = text.replace("gpt-5.6-luna", "gpt-5.6-terra", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(root, check_docs.CODEX_DEV_WAVE_STAGE_MODEL_FINDING)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_dispatcher_literal_in_html_comment():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        literal = check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LITERAL
+        changed = text.replace(literal, f"<!-- {literal} -->", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(root, check_docs.CODEX_DEV_WAVE_STAGE_MODEL_FINDING)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_duplicate_dispatcher_literal():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        literal = check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LITERAL
+        changed = text.replace(literal, f"{literal}\n\n{literal}", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(root, check_docs.CODEX_DEV_WAVE_STAGE_MODEL_FINDING)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_dispatcher_lens_assignment_drift():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        literal = check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL
+        changed_literal = literal.replace("2 本目を luna", "2 本目を sol")
+        changed = text.replace(literal, changed_literal, 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LENS_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_missing_dw_o01_model_placeholder():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        _write(
+            root,
+            rel,
+            _replace_reference_section_literal(
+                _read(root, rel),
+                "DW-O01",
+                "-m <model>",
+                "--model-from-dispatcher",
+            ),
+        )
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_slug_in_dw_s05_a():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/workers.md",
+        "DW-S05-A",
+        "gpt-5.6-luna",
+        check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pin_rejects_slug_in_dw_s03_heading():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/workers.md"
+        text = _read(root, rel)
+        changed = text.replace(
+            "## DW-S03 — synthetic",
+            "## DW-S03 — synthetic gpt-5.6-sol",
+            1,
+        )
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_other_model_family_in_dw_o01():
+    _assert_model_slug_production_path_rejects(
+        "docs/dev-wave/operations.md",
+        "DW-O01",
+        "-m gpt-5.4-mini",
+        check_docs.DEV_WAVE_OPERATIONS_MODEL_SLUG_ABSENCE_FINDING,
+    )
+
+
+def test_dev_wave_model_pins_accept_current_docs_contract():
+    res = subprocess.run(
+        [sys.executable, os.path.join(_REPO, "tools", "check_docs.py")],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0, f"実 repo で違反が出た:\n{res.stdout}\n{res.stderr}"
+    assert "違反なし" in res.stdout, res.stdout
+
+
+def test_dev_wave_model_pin_contract_is_time_invariant():
+    assert check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LITERAL == (
+        "codex の `-m` は段 3 が `gpt-5.6-sol` と `gpt-5.6-luna` を 1 本ずつ、"
+        "他の全段が `gpt-5.6-sol`。"
+    )
+    assert check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL == (
+        "段 3 はレンズ 1 本目を sol、2 本目を luna とし、3 本目以降は sol、"
+        "2 本未満にしない。"
+    )
+    assert check_docs.DEV_WAVE_MODEL_SLUG_RE.findall(
+        "`gpt-5.6-sol` -m gpt-5.6-sol --model=gpt-5.6-luna\n"
+        "gpt-5.6-terra gpt-5.4-mini gpt-6-next\n"
+        "descriptions: gpt-5.6-* gpt-6-*"
+    ) == [
+        "gpt-5.6-sol",
+        "gpt-5.6-sol",
+        "gpt-5.6-luna",
+        "gpt-5.6-terra",
+        "gpt-5.4-mini",
+        "gpt-6-next",
+    ]
 
 
 def test_codex_dev_wave_skill_contract_pins_exact_surface():

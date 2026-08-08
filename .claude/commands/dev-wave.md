@@ -37,6 +37,9 @@ review を流用してはならない。
 - 実装子はコードとテストだけを編集し、docs 編集と commit をしない。親だけが統合 commit、
   変異 matrix、受入全走、記録、local main 取り込みを行う。
 - push と remote branch 操作はしない。local main 取り込みは全条件成立時の共通段 9 operation だけとする。
+- codex の `-m` は段 3 が `gpt-5.6-sol` と `gpt-5.6-luna` を 1 本ずつ、他の全段が `gpt-5.6-sol`。
+  段 3 はレンズ 1 本目を sol、2 本目を luna とし、3 本目以降は sol、2 本未満にしない。
+  `reasoning` と `sandbox` は各 worker 節に従う。
 - 規定の停止条件、検査赤、権限・scope・参照の不整合を迂回しない。
 - 1 wave は 1 fresh context とし、command を自己再帰させず、段 9 後に新しい wave を始めない。
 
@@ -81,7 +84,7 @@ review を流用してはならない。
 
 | # | 発火条件 | 読む節 |
 |---|---|---|
-| 01 | codex subprocess を起動する直前 | `docs/dev-wave/operations.md`: `DW-O01`（F23/F24） |
+| 01 | codex subprocess を起動する直前 | `docs/dev-wave/operations.md`: `DW-O01`（F23/F24）と本書「凍結境界」の段別 model 行 |
 | 02 | prompt・log・patch を作る直前 | `docs/dev-wave/operations.md`: `DW-O02` |
 | 03 | prompt に防護パス文字列を含めて作る直前 | `docs/dev-wave/operations.md`: `DW-O03` |
 | 04 | commit message に防護パス文字列を含めて作る直前 | `docs/dev-wave/operations.md`: `DW-O04` |

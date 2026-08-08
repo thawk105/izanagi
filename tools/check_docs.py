@@ -261,6 +261,42 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
     "Codex 固有の取り込み手順を重ねない。"
 )
+CODEX_DEV_WAVE_STAGE_MODEL_LITERAL = (
+    "codex の `-m` は段 3 が `gpt-5.6-sol` と `gpt-5.6-luna` を 1 本ずつ、"
+    "他の全段が `gpt-5.6-sol`。"
+)
+CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL = (
+    "段 3 はレンズ 1 本目を sol、2 本目を luna とし、3 本目以降は sol、"
+    "2 本未満にしない。"
+)
+CODEX_DEV_WAVE_STAGE_MODEL_FINDING = (
+    ".claude/commands/dev-wave.md: 可視な codex の段別 model literal が 1 件でない — "
+    "model の単一権威を保持する"
+)
+CODEX_DEV_WAVE_STAGE_MODEL_LENS_FINDING = (
+    ".claude/commands/dev-wave.md: 可視な段 3 の model・レンズ割当て literal が "
+    "1 件でない — model とレンズの対応を一意に保持する"
+)
+DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING = (
+    "docs/dev-wave/workers.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
+    "model の権威は dispatcher の段別 model 行だけ"
+)
+DEV_WAVE_OPERATIONS_MODEL_SLUG_ABSENCE_FINDING = (
+    "docs/dev-wave/operations.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
+    "model の権威は dispatcher の段別 model 行だけ"
+)
+DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 節が一意でない — "
+    "codex subprocess 起動契約を検査できない"
+)
+DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 の可視本文に `-m <model>` が "
+    "1 件でない — dispatcher が定める model の束縛位置を保持する"
+)
+DEV_WAVE_MODEL_SLUG_RE = re.compile(
+    r"(?<![A-Za-z0-9._-])gpt-[0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
+    r"(?![A-Za-z0-9._-])"
+)
 DEV_WAVE_DW_S02_REASONING_MAX_LITERAL = "`reasoning=max`"
 DEV_WAVE_DW_S03_REASONING_MAX_LITERAL = "`reasoning=max`"
 DEV_WAVE_DW_S02_REASONING_MAX_FINDING = (
@@ -3379,6 +3415,43 @@ def _check_dev_wave_reference_cap_sum(
         )
 
 
+def _check_dev_wave_model_pins(
+    dev_wave_text: str | None,
+    workers_text: str | None,
+    operations_text: str | None,
+    findings: list[str],
+) -> None:
+    """model の単一権威と worker/operation 側の slug 不在を pin する。"""
+
+    if dev_wave_text is not None:
+        visible_dev_wave = _visible_markdown_text(dev_wave_text)
+        if visible_dev_wave.count(CODEX_DEV_WAVE_STAGE_MODEL_LITERAL) != 1:
+            findings.append(CODEX_DEV_WAVE_STAGE_MODEL_FINDING)
+        if (
+            visible_dev_wave.count(CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL)
+            != 1
+        ):
+            findings.append(CODEX_DEV_WAVE_STAGE_MODEL_LENS_FINDING)
+
+    if workers_text is not None:
+        visible_workers = _visible_markdown_text(workers_text)
+        if DEV_WAVE_MODEL_SLUG_RE.search(visible_workers) is not None:
+            findings.append(DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING)
+
+    if operations_text is not None:
+        visible_operations = _visible_markdown_text(operations_text)
+        if DEV_WAVE_MODEL_SLUG_RE.search(visible_operations) is not None:
+            findings.append(DEV_WAVE_OPERATIONS_MODEL_SLUG_ABSENCE_FINDING)
+
+        sections = _reference_id_sections(operations_text, "DW-O01")
+        if len(sections) != 1:
+            findings.append(DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING)
+        elif (
+            _visible_markdown_text(sections[0]).count("-m <model>") != 1
+        ):
+            findings.append(DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING)
+
+
 def _check_dev_wave_reasoning_effort_pins(
     workers_text: str,
     findings: list[str],
@@ -3573,7 +3646,15 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 f"{PROVENANCE_FAMILY_BYTES} bytes"
             )
 
+    dev_wave_text = decoded.get(".claude/commands/dev-wave.md")
     workers_text = decoded.get(_WORKERS)
+    operations_text = decoded.get(_OPERATIONS)
+    _check_dev_wave_model_pins(
+        dev_wave_text,
+        workers_text,
+        operations_text,
+        findings,
+    )
     if workers_text is not None:
         _check_dev_wave_reasoning_effort_pins(workers_text, findings)
 
@@ -3828,7 +3909,6 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     f"が {acceptance_order_count} 件"
                 )
 
-    operations_text = decoded.get(_OPERATIONS)
     if operations_text is not None:
         o23 = _reference_id_sections(operations_text, "DW-O23")
         o23_count = (
@@ -3872,7 +3952,6 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     f"dispatch 契約にない孤児 H{level} — {orphan_headings}"
                 )
 
-    dev_wave_text = decoded.get(".claude/commands/dev-wave.md")
     if dev_wave_text is not None:
         dispatch = _dispatch_tables(dev_wave_text)
         if dispatch is None:

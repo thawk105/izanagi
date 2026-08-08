@@ -5,7 +5,7 @@
 
 ## DW-O01 — codex subprocess 起動
 
-`codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach する。
+`codex exec -m <model> -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach する。
 投入前に prompt の非空を検査し、既存 `.done` は消さず再利用せず再投入を止め、完了は `.done` と exit code だけで判定する。
 ログの grep も完了通知も判定にしてはならず（通知は子より先行しうる）、
 成果物は `-o` の最終メッセージから読む（F23/F24）。
