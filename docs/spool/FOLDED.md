@@ -583,3 +583,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"6d4343c873ea4882196c9e875a9a2895868a700fcd65146d0e276174b1953291","seq":1,"wave":"dev-wave-t659-activation-deploy-window"}
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"ac13989af935d11e1afa11a59876fbf4691904a01ebad3855faf70304fd28714","seq":2,"wave":"dev-wave-t659-activation-deploy-window"}
+
+- {"allocations":{"T:dispatch-relay-diagnostic-reach":"[T-677]","T:flake-absence-evidence":"[T-680]","T:launcher-early-receipt":"[T-679]","T:launcher-fixture-budget-ruling":"[T-676]","T:probe-clean-tree-gate":"[T-681]","T:publication-wall-gate-gap":"[T-678]"},"authored":"2026-08-09","content_sha256":"ab32db70467bc216db84fa50ae02ac9d49e936aea201013d58fab73e0ab097d7","seq":1,"wave":"dev-wave-t663-flaky-truth-table"}
+- {"allocations":{"D:flake-instrument-before-widening":"D249","D:flake-instrumentation-must-not-depend-on-the-flake":"D250"},"authored":"2026-08-09","content_sha256":"5d2a6024188414adff54344c46d54897d14b2c41b884f76a156216f666f1444e","seq":2,"wave":"dev-wave-t663-flaky-truth-table"}
+- {"allocations":{"F:checkout-restore-wiped-uncommitted-child-work":"F174","F:flake-instrumentation-broke-under-the-flake":"F175"},"authored":"2026-08-09","content_sha256":"3c14442451eaec0859a0f8fa04d159f8e485095fd7551dbcc1704e0fefa38c52","seq":3,"wave":"dev-wave-t663-flaky-truth-table"}
