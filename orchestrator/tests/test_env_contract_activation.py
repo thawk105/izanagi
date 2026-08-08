@@ -614,6 +614,49 @@ def test_transition_accepts_three_record_forward_chain():
     })
 
 
+def test_transition_rejects_invalid_successor_in_later_pair():
+    records, head = _chain((1, 1), (2, 1), (3, 1))
+
+    def predicate(predecessor, successor):
+        if (
+            predecessor.env_tag == "env-a"
+            and predecessor.generation == 2
+            and successor.generation == 3
+        ):
+            return False
+        return _is_synthetic_successor(predecessor, successor)
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"successor でない.*serial=3.*env_tag=env-a",
+    ):
+        _validate(records, head, predicate=predicate)
+
+
+def test_transition_rejects_generation_skip_in_later_pair():
+    later_skip_catalog = MappingProxyType({
+        "env-a": (*CATALOG["env-a"], (4, "d" * 64)),
+        "env-b": CATALOG["env-b"],
+    })
+    records, head = _chain(
+        (1, 1),
+        (2, 1),
+        (4, 1),
+        registered_contracts=later_skip_catalog,
+    )
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"exactly \+1.*serial=3.*env-a.*g2 -> g4",
+    ):
+        _validate(
+            records,
+            head,
+            registered_contracts=later_skip_catalog,
+            predicate=lambda _old, _new: True,
+        )
+
+
 def test_transition_rejects_skip_even_when_successor_predicate_accepts():
     records, head = _chain((1, 1), (3, 1))
     with pytest.raises(
@@ -1007,6 +1050,38 @@ def test_transition_preserves_first_exception_when_later_successor_is_true():
     ]
 
 
+def test_transition_rejects_non_bool_result_from_second_changed_env():
+    records, head = _chain((1, 1), (2, 2))
+
+    def predicate(_predecessor, successor):
+        if successor.env_tag == "env-b":
+            return 1
+        return True
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"exact bool でない.*env_tag=env-b",
+    ):
+        _validate(records, head, predicate=predicate)
+
+
+def test_transition_wraps_exception_from_second_changed_env():
+    records, head = _chain((1, 1), (2, 2))
+    injected = RuntimeError("injected second successor failure")
+
+    def predicate(_predecessor, successor):
+        if successor.env_tag == "env-b":
+            raise injected
+        return True
+
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"registered successor 判定中に例外.*env_tag=env-b",
+    ) as exc_info:
+        _validate(records, head, predicate=predicate)
+    assert exc_info.value.__cause__ is injected
+
+
 def test_successor_predicate_is_called_once_for_each_changed_env():
     records, head = _chain((1, 1), (2, 2))
     calls = []
@@ -1102,6 +1177,51 @@ def test_production_successor_adapter_resolves_bound_generation_entries(
     monkeypatch.setattr(ec, "is_valid_successor", spy)
     assert ec._is_valid_activation_successor(predecessor, successor) is True
     assert calls == [(predecessor_entry.contract, successor_entry.contract)]
+
+
+def test_production_successor_adapter_reads_current_generations_global(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    original_predecessor, original_successor = ec.GENERATIONS["pegasus"]
+    replacement_predecessor = ec.GenerationEntry(
+        generation=1,
+        contract=replace(
+            original_predecessor.contract,
+            clocks_per_us=original_predecessor.contract.clocks_per_us + 1,
+        ),
+    )
+    replacement_successor = ec.GenerationEntry(
+        generation=2,
+        contract=replace(
+            original_successor.contract,
+            clocks_per_us=original_successor.contract.clocks_per_us + 1,
+        ),
+    )
+    predecessor = activation.ActiveContract(
+        "pegasus", 1, replacement_predecessor.contract.contract_sha256
+    )
+    successor = activation.ActiveContract(
+        "pegasus", 2, replacement_successor.contract.contract_sha256
+    )
+    assert ec._is_valid_activation_successor(predecessor, successor) is False
+
+    replacement_generations = MappingProxyType({
+        "pegasus": (replacement_predecessor, replacement_successor),
+    })
+    calls = []
+
+    def accept(old_contract, new_contract):
+        calls.append((old_contract, new_contract))
+        return True
+
+    monkeypatch.setattr(ec, "GENERATIONS", replacement_generations)
+    monkeypatch.setattr(ec, "is_valid_successor", accept)
+    assert ec._resolve_activation_entry(predecessor) is replacement_predecessor
+    assert ec._resolve_activation_entry(successor) is replacement_successor
+    assert ec._is_valid_activation_successor(predecessor, successor) is True
+    assert calls == [
+        (replacement_predecessor.contract, replacement_successor.contract),
+    ]
 
 
 def test_production_successor_adapter_returns_false_when_is_valid_successor_is_false(
@@ -1896,6 +2016,102 @@ def test_issue_main_success_prints_required_head_and_inactive_warning(
             ec.GENERATIONS["pegasus"][1].contract.contract_sha256,
         ),
     }
+
+
+def test_issue_main_passes_production_successor_adapter_by_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    issuer = _load_issue_tool()
+    authority = tmp_path / "authority"
+    authority.mkdir()
+    (authority / "00000001.json").write_bytes(INITIAL_BYTES)
+    monkeypatch.setattr(
+        ec,
+        "current_activation_state",
+        lambda: activation.ActivationState(
+            activation_serial=1,
+            activation_state_sha256=INITIAL_STATE_SHA256,
+            active_contracts=tuple(
+                activation.ActiveContract(
+                    env_tag=env_tag,
+                    generation=1,
+                    contract_sha256=(
+                        ec.GENERATIONS[env_tag][0].contract.contract_sha256
+                    ),
+                )
+                for env_tag in sorted(ec.GENERATIONS)
+            ),
+            ever_active_contract_sha256s=frozenset(
+                ec.GENERATIONS[env_tag][0].contract.contract_sha256
+                for env_tag in ec.GENERATIONS
+            ),
+        ),
+    )
+    monkeypatch.setattr(ec, "_repository_root", lambda: tmp_path)
+    monkeypatch.setattr(ec, "_ACTIVATION_DIRECTORY", PurePosixPath("authority"))
+    monkeypatch.setattr(
+        issuer, "__file__", str(tmp_path / "tools/issue_env_contract_activation.py")
+    )
+    observed = []
+    original_validate = activation.validate_activation_records
+
+    def spy(*args, **kwargs):
+        observed.append(kwargs["is_valid_registered_successor"])
+        return original_validate(*args, **kwargs)
+
+    monkeypatch.setattr(activation, "validate_activation_records", spy)
+    assert issuer.main([
+        "--active", "linux-baremetal=1",
+        "--active", "pegasus=2",
+    ]) == 0
+    assert len(observed) == 1
+    assert observed[0] is ec._is_valid_activation_successor
+
+
+def test_issue_main_rejects_when_production_successor_adapter_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+):
+    issuer = _load_issue_tool()
+    authority = tmp_path / "authority"
+    authority.mkdir()
+    (authority / "00000001.json").write_bytes(INITIAL_BYTES)
+    monkeypatch.setattr(
+        ec,
+        "current_activation_state",
+        lambda: activation.ActivationState(
+            activation_serial=1,
+            activation_state_sha256=INITIAL_STATE_SHA256,
+            active_contracts=tuple(
+                activation.ActiveContract(
+                    env_tag=env_tag,
+                    generation=1,
+                    contract_sha256=(
+                        ec.GENERATIONS[env_tag][0].contract.contract_sha256
+                    ),
+                )
+                for env_tag in sorted(ec.GENERATIONS)
+            ),
+            ever_active_contract_sha256s=frozenset(
+                ec.GENERATIONS[env_tag][0].contract.contract_sha256
+                for env_tag in ec.GENERATIONS
+            ),
+        ),
+    )
+    monkeypatch.setattr(ec, "_repository_root", lambda: tmp_path)
+    monkeypatch.setattr(ec, "_ACTIVATION_DIRECTORY", PurePosixPath("authority"))
+    monkeypatch.setattr(
+        issuer, "__file__", str(tmp_path / "tools/issue_env_contract_activation.py")
+    )
+    monkeypatch.setattr(ec, "is_valid_successor", lambda _old, _new: False)
+
+    with pytest.raises(SystemExit) as exc_info:
+        issuer.main([
+            "--active", "linux-baremetal=1",
+            "--active", "pegasus=2",
+        ])
+    assert exc_info.value.code == 1
+    assert "正当な successor でない" in capsys.readouterr().err
+    assert not (authority / "00000002.json").exists()
 
 
 def test_issue_main_rejects_noop_without_publishing(

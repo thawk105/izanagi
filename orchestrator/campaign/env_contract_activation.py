@@ -300,6 +300,7 @@ def _validate_activation_transition(
     for predecessor, successor in changed:
         try:
             result = is_valid_registered_successor(predecessor, successor)
+        # process 中断を握り潰さないため、BaseException は包まずそのまま伝播させる。
         except Exception as exc:
             if first_failure is None:
                 first_failure = (
