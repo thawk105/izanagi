@@ -74,6 +74,10 @@ title: [T-139] R4 環境 probe を実走し 3 測定を取得して追補 A を�
   fold したためで、古い本文からの上書きを防ぐ機構が設計どおり働いた)。
   記録後検査は `check_docs.py` rc=0、`spool_fold.py --dry-run` が `planned`、
   provenance 監査 rc=0 (既知違反 7 件のみ)。
+  **land 対象 tip でも再走して緑を確認した** (request `0:896547.nqsv`、node `bnode001`、
+  1381 秒、**7570 passed / 20 skipped / rc=0**)。1 回目との差分は本 fragment 1 ファイルの
+  docs 差分だけで、件数も一致した。**本行を書き足す最後の docs-only commit だけは
+  全走に含まれていない** (自己参照になるため。先例と同じ扱い)。
 - 一次資料 = `output/insights/2026-08-08_t139-r4-env-probe/`
   (`derivation-map.md` / `submission-receipt.md` / `addendum-a-reissue.md` / `package.md` /
   変異 spec と台帳)。実測成果物 = `output/env/pegasus/t139-r4-env-probe/` の 2 attempt。
