@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t139-r4-probe
 seq: 1
-title: [T-139] R4 環境 probe を実走し 3 測定を取得して追補 A を再発行した — 閾値は観測から作らず [0,1.0] のまま (コード + docs、受入 (欄は実測後に埋める)、変異 7/7 検出・SURVIVED 0、branch worktree-dev-wave-t139-r4-probe)
+title: [T-139] R4 環境 probe を実走し 3 測定を取得して追補 A を再発行した — 閾値は観測から作らず [0,1.0] のまま (コード + docs、受入 7570 passed / 20 skipped、変異 7/7 検出・SURVIVED 0、branch worktree-dev-wave-t139-r4-probe)
 ---
 
 ## 本文
@@ -56,6 +56,24 @@ title: [T-139] R4 環境 probe を実走し 3 測定を取得して追補 A を�
   `DW-M03` に従い冗長 gate として記録した。取り下げた 6 件の理由も台帳に残した。
 - **凍結していない。**承認は `package.md` の Q1〜Q5 でユーザーへ返す。段階 1 で終端。
   凍結 core の bytes は 1 byte も変えていない (`ac939af4…` を投入前後で照合)。
+- **段 8 の改善候補 1 件は予算不足で本文へ入れられず、[T-664] へ寄せた。**
+  `DW-S06-B` の「fix の prompt には既存テストの期待値を変更しないを明記する」は、
+  **「既存」を tracked で切ると本 wave が中間 commit した自分のテストまで禁止対象に入る。**
+  本 wave では倒れた設計 (梯子) を pin した期待値を直せず、fix 子が正しく fail-closed して
+  1 巡空振りした。判定基準は「本 wave より前から存在する」で切り、対象外のファイル名を
+  prompt へ列挙するのが最小修正である ([T-471] が独立 1 例目、本件が 2 例目で `DW-G03` の
+  独立 2 例を満たす)。`docs/dev-wave/workers.md` は 4526/5000 bytes で単体には収まるが、
+  **`docs/dev-wave/**` の合計が編集前 25199 / 上限 25200 bytes で実質満杯**であり、
+  453 bytes の追記が合計上限を超えた。上限引き上げは提案せず、同じ壁を 4 wave 続けて
+  踏んでいる [T-664] の材料として記録する (前回 [T-139] wave も同じ理由で見送っている)。
+- **受入全走は land 対象 tip そのもので緑。** request `0:896546.nqsv`、node `bnode001`、1345 秒、
+  **7570 passed / 20 skipped / rc=0**。測った checkout は `aaffa644` (main `34957a24` を
+  投入直前に取り込んだ merge commit)。受入 lease は `acquired` を確認してから投入した
+  (取得まで 2 巡・約 4 時間待った。その間 main を 6 回取り込み、うち 1 回は fold の
+  `base-mismatch` を実際に踏んだ — 並行セッションが同じ [T-139] 項へ R1〜R7 の裁定を
+  fold したためで、古い本文からの上書きを防ぐ機構が設計どおり働いた)。
+  記録後検査は `check_docs.py` rc=0、`spool_fold.py --dry-run` が `planned`、
+  provenance 監査 rc=0 (既知違反 7 件のみ)。
 - 一次資料 = `output/insights/2026-08-08_t139-r4-env-probe/`
   (`derivation-map.md` / `submission-receipt.md` / `addendum-a-reissue.md` / `package.md` /
   変異 spec と台帳)。実測成果物 = `output/env/pegasus/t139-r4-env-probe/` の 2 attempt。
