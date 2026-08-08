@@ -9,7 +9,9 @@ default_effect: no-state-change
 
 ## 1. 投入する commit と blob
 
-**期待 commit: `6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec`**
+**期待 commit**: 投入時の wave branch tip とする。本書は自分自身の commit hash を書かない
+(自己参照の禁止)。実際に投入した run commit は §6 の台帳へ**投入後に追記**する。
+下表の blob digest は commit に依らず安定であり、これが同一性の一次証拠である。
 
 | path | sha256 |
 |---|---|
@@ -38,7 +40,7 @@ default_effect: no-state-change
 ## 4. qsub の env
 
 ```text
-IZANAGI_T139_EXPECTED_COMMIT=6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec
+IZANAGI_T139_EXPECTED_COMMIT=<投入時の wave branch tip。§6 へ追記する>
 IZANAGI_T139_EXPECTED_WORKTREE_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe
 IZANAGI_T139_DEPENDENCY_SOURCE_ROOT=/work/1/SFC/tanab/izanagi-thirdparty-deps
 IZANAGI_THIRDPARTY_SOURCE_ROOT=/work/1/SFC/tanab/izanagi-thirdparty-cache
