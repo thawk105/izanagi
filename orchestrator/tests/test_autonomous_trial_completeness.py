@@ -17,7 +17,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from orchestrator.campaign import autonomous_trial_completeness as C  # noqa: E402
-from orchestrator.campaign import ident                              # noqa: E402
+from orchestrator.campaign import env_contract, ident                # noqa: E402
 from orchestrator.campaign import p3_autonomous_workload_trial as A  # noqa: E402
 from orchestrator.campaign import layer3_report as L3                 # noqa: E402
 from orchestrator.campaign import pipeline as P                       # noqa: E402
@@ -29,7 +29,11 @@ from orchestrator.campaign.build_admission import (                  # noqa: E40
 )
 from orchestrator.campaign.pin import CURRENT_PIN                    # noqa: E402
 from orchestrator.campaign.layout import CampaignLayout              # noqa: E402
-from orchestrator.campaign.model import CampaignConfig, Genome       # noqa: E402
+from orchestrator.campaign.model import (                           # noqa: E402
+    ENVIRONMENT_CONTRACT_SEARCH_KEY,
+    CampaignConfig,
+    Genome,
+)
 from orchestrator.campaign.source_digest import (                    # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
@@ -130,6 +134,32 @@ _T428_POLICY_BOUND_CAMPAIGN_IDS = {
         "p3-t178-ycsb-a-workload-conditioned-autonomous-b2c81ec8"
     ),
 }
+_T530_CONTRACT = A.env_contract.GENERATIONS["linux-baremetal"][0].contract
+_T530_LAYER3_CONTRACT = (
+    env_contract.GENERATIONS["linux-baremetal"][0].contract
+)
+_T530_CONTRACT_SHA256 = (
+    "1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7"
+)
+assert _T530_CONTRACT.contract_sha256 == _T530_CONTRACT_SHA256
+assert _T530_LAYER3_CONTRACT.contract_sha256 == _T530_CONTRACT_SHA256
+_T530_CONTRACT_BOUND_CAMPAIGN_IDS = {
+    ("fixture-completeness", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-4bf2256c"
+    ),
+    ("fixture-completeness", "ycsb-b"): (
+        "p3-t178-ycsb-b-workload-conditioned-autonomous-add1a705"
+    ),
+    ("fixture-completeness", "ycsb-c"): (
+        "p3-t178-ycsb-c-workload-conditioned-autonomous-03a4517a"
+    ),
+    ("trial-a", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-7037dbaf"
+    ),
+    ("trial-b", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-620450b7"
+    ),
+}
 _T428_WORKLOAD_CAMPAIGN_EPOCHS = (
     (
         "ycsb-a",
@@ -147,6 +177,32 @@ _T428_WORKLOAD_CAMPAIGN_EPOCHS = (
         "p3-t178-ycsb-c-workload-conditioned-autonomous-c3cccc72",
     ),
 )
+
+
+def _t428_descriptor_campaign_id(trial_id: str, workload: str) -> str:
+    workload_flags = A.WORKLOADS[workload]
+    descriptor, descriptor_record = A._descriptor_for(workload_flags)
+    cfg = A._campaign_for(
+        workload=workload,
+        workload_flags=workload_flags,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        trial_id=trial_id,
+        generations=1,
+        contract=_T530_CONTRACT,
+        build_context=A.build_run_context(
+            generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP,
+        ),
+    )
+    preimage = json.loads(A.ident.canonical_preimage(cfg))
+    assert preimage["search_config"].pop(
+        ENVIRONMENT_CONTRACT_SEARCH_KEY
+    ) == _T530_CONTRACT_SHA256
+    rendered = json.dumps(
+        preimage, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    digest = hashlib.sha256(rendered).hexdigest()[:8]
+    return f"{cfg.spec_slug}-{cfg.search_tag}-{digest}"
 _LITERAL_ADMISSION_DECISION = {
     "schema_version": "campaign-artifact-admission-decision/v1",
     "classification": "admitted-new-schema",
@@ -1278,8 +1334,11 @@ def _layer3_campaign(
         },
         trial=f"{trial_id}-{workload}",
     )
+    campaign_cfg = ident.bind_environment_contract(
+        campaign_cfg, _T530_LAYER3_CONTRACT,
+    )
     campaign_id = str(ident.campaign_id(campaign_cfg))
-    assert campaign_id == _T428_POLICY_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
+    assert campaign_id == _T530_CONTRACT_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
     metadata["campaign_id"] = campaign_id
     metadata["campaign_root"] = str(output_root / "campaigns" / campaign_id)
     campaign = output_root / "campaigns" / campaign_id
@@ -1326,14 +1385,14 @@ def _layer3_campaign(
     records = [
         {
             "ts": 0.5, "stage": TGB.WAL_RECORD_STAGE, "variant": variant,
-            "env_tag": "fixture-env", "payload": {
+            "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
                 "build_attempt_id": attempt_id,
                 "trigger_gate_binding": TGB.to_record(binding),
             },
         },
         {
             "ts": 1.0, "stage": "build_start", "variant": variant,
-            "env_tag": "fixture-env", "payload": {
+            "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
                 "build_attempt_id": attempt_id,
                 "genome": genome,
                 "src_token": "stock",
@@ -1344,11 +1403,11 @@ def _layer3_campaign(
         },
         {
             "ts": 2.0, "stage": "build_done", "variant": variant,
-            "env_tag": "fixture-env", "payload": dict(terminal),
+            "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": dict(terminal),
         },
         {
             "ts": 3.0, "stage": "bench_done", "variant": variant,
-            "env_tag": "fixture-env",
+            "env_tag": _T530_LAYER3_CONTRACT.env_tag,
             "payload": {
                 "tps": [1.0], "median_tps": 1.0, "cv": 0.0, "rounds": 1,
                 "leading_indicators": {},
@@ -1356,7 +1415,10 @@ def _layer3_campaign(
         },
         {
             "ts": 4.0, "stage": "commit", "variant": variant,
-            "env_tag": "fixture-env", "payload": dict(terminal),
+            "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
+                **terminal,
+                "contract_sha256": _T530_CONTRACT_SHA256,
+            },
         },
     ]
     wal_path = campaign / "runs" / "wal.jsonl"
@@ -1419,17 +1481,23 @@ def test_m10_campaign_chain_rejects_persisted_performance_mutation(tmp_path) -> 
         C.assert_campaign_layer3_chain(report=report, output_root=output_root)
 
 
-def test_campaign_identity_is_pinned_without_producer_helper_oracle(tmp_path) -> None:
+def test_campaign_identity_is_pinned_without_producer_helper_oracle(
+    tmp_path, monkeypatch,
+) -> None:
     output_root, _campaign, _persisted_path, _persisted, cell = _layer3_campaign(
         tmp_path
     )
     assert cell["campaign_id"] == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-4bf2256c"
     )
     assert _PRE_T343_NO_BUILD_CAMPAIGN_IDS[(
         "fixture-completeness", "ycsb-a",
     )] == "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     report = _campaign_report(cell)
+    monkeypatch.setattr(
+        A.env_contract, "lookup",
+        lambda _env_tag: pytest.fail("offline completeness used current lookup"),
+    )
     C.assert_campaign_layer3_chain(report=report, output_root=output_root)
 
 
@@ -1446,19 +1514,27 @@ def test_t428_workload_campaign_epoch_and_old_root_nonwrite(
     assert _T428_POLICY_BOUND_CAMPAIGN_IDS[
         ("fixture-completeness", workload)
     ] == new_campaign_id
+    assert _t428_descriptor_campaign_id(
+        "fixture-completeness", workload,
+    ) == new_campaign_id
     assert old_campaign_id != new_campaign_id
 
     output_root, campaign, _persisted_path, _persisted, cell = _layer3_campaign(
         tmp_path, workload=workload,
     )
     old_root = output_root / "campaigns" / old_campaign_id
-    assert campaign == output_root / "campaigns" / new_campaign_id
+    current_campaign_id = _T530_CONTRACT_BOUND_CAMPAIGN_IDS[
+        ("fixture-completeness", workload)
+    ]
+    assert campaign == output_root / "campaigns" / current_campaign_id
     assert not old_root.exists()
+    assert not (output_root / "campaigns" / new_campaign_id).exists()
 
     C.assert_campaign_layer3_chain(
         report=_campaign_report(cell), output_root=output_root,
     )
     assert not old_root.exists()
+    assert not (output_root / "campaigns" / new_campaign_id).exists()
 
 
 def test_independent_literal_layer3_admission_decision_is_accepted() -> None:

@@ -20,7 +20,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import ident, pipeline, wal                         # noqa: E402
+from campaign import env_contract, ident, pipeline, wal           # noqa: E402
 from campaign.artifact_admission import (CampaignNotAdmitted,     # noqa: E402
                                          require_admitted_campaign)
 from campaign.build_admission import (                            # noqa: E402
@@ -51,6 +51,7 @@ from critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection,  # noqa: E4
 
 
 _ADMISSION_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+_ENV_CONTRACT = env_contract.GENERATIONS["linux-baremetal"][0].contract
 
 
 def render_rejections(*args, **kwargs):
@@ -71,6 +72,7 @@ def _tmp_layout():
         search_config={"records": 1, "threads": 1},
         trial="test",
     ), _ADMISSION_CONTEXT.policy)
+    cfg = ident.bind_environment_contract(cfg, _ENV_CONTRACT)
     wal.write_lock(layout, ident.canonical_preimage(cfg))
     return layout
 
@@ -136,7 +138,7 @@ def _start_attempt(
     attempt_id = "critic-fixture-attempt-%d" % sum(
         record.stage == STAGE_BUILD_START for record in wal.read_records(lay)
     )
-    wal.log(lay, variant, STAGE_BUILD_START, "test", {
+    wal.log(lay, variant, STAGE_BUILD_START, _ENV_CONTRACT.env_tag, {
         "genome": genome,
         "src_token": admitted_src_token,
         "build_attempt_id": attempt_id,
@@ -151,8 +153,10 @@ def _attempt_event(
     payload: dict,
 ) -> None:
     variant, attempt_id, receipt_sha, _src_token = attempt
-    wal.log(lay, variant, stage, "test", {
+    wal.log(lay, variant, stage, _ENV_CONTRACT.env_tag, {
         **payload,
+        **({"contract_sha256": _ENV_CONTRACT.contract_sha256}
+           if stage == STAGE_COMMIT else {}),
         "build_attempt_id": attempt_id,
         "build_admission_receipt_sha256": receipt_sha,
     })
