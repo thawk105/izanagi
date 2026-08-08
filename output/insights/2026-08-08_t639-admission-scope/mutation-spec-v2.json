@@ -1,0 +1,353 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus_admission_registry.py",
+          "old": "        if not _is_canonical_repo_relative_path(path):\n            raise AdmissionRegistryError(f\"registry path is invalid: {path!r}\")\n",
+          "new": "        if (not _is_canonical_repo_relative_path(path)\n                or not path.startswith(\"tools/pegasus/\")):\n            raise AdmissionRegistryError(f\"registry path is invalid: {path!r}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_admission_non_pegasus_registry_entry_requires_projection_only",
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[certify-absolute]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[certify-bash]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[certify-dot]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[certify-double]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[dispatch-absolute]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[dispatch-dot]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[dispatch-double]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[dispatch-python]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[fetch-absolute]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[fetch-dot]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[fetch-double]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[fetch-python]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[floor-absolute]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[floor-bash]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[floor-dot]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[floor-double]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[silo-absolute]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[silo-bash]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[silo-dot]",
+        "orchestrator/tests/test_hooks.py::test_bash_local_ok_normalized_spelling_bits_are_literal_golden[silo-double]",
+        "orchestrator/tests/test_hooks.py::test_bash_login_allows_fetch_third_party_sanctioned_spellings",
+        "orchestrator/tests/test_hooks.py::test_bash_login_fetch_third_party_entry_is_exact",
+        "orchestrator/tests/test_hooks.py::test_bash_login_pbs_shebang_entries_remain_unknown_and_denied",
+        "orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact",
+        "orchestrator/tests/test_hooks.py::test_bash_non_pegasus_fallback_set_matches_registry_projection",
+        "orchestrator/tests/test_hooks.py::test_bash_non_pegasus_registry_keys_exist_as_regular_files",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_execution_inventory_is_synchronized",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_login_and_suspect_bits_are_pinned",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_schema_and_fixed_classes",
+        "orchestrator/tests/test_hooks.py::test_bash_registered_non_pegasus_unknown_site_matrix",
+        "orchestrator/tests/test_hooks.py::test_bash_sanctioned_pegasus_paths_are_derived_from_registry",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_loader_accepts_canonical_non_pegasus_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus_admission_registry.py",
+          "old": "        if (not path.startswith(\"tools/pegasus/\")\n                and entry[\"class\"] == \"local-ok\"):\n            raise AdmissionRegistryError(f\"registry path is invalid: {path!r}\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_loader_rejects_non_pegasus_local_ok",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_is_rejected_by_loader[outside-path]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    entry = _PEGASUS_ADMISSION_REGISTRY.get(path)\n    if entry is not None:\n",
+          "new": "    if path != \"tools/pegasus\" and not path.startswith(\"tools/pegasus/\"):\n        return None\n    entry = _PEGASUS_ADMISSION_REGISTRY.get(path)\n    if entry is not None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_non_local_registry_entry_overrides_sanctioned_path",
+        "orchestrator/tests/test_hooks.py::test_bash_non_pegasus_local_ok_corruption_cannot_borrow_sanctioned_allow",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_entry_lookup_rejects_registry_keys_outside_subtree",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-bom]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-duplicate-key]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-empty]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-invalid]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-schema-version]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-wrong-type]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-empty-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-extra-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-list]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-none]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-outside-local-ok]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-raising-mapping]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-scalar-entry]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-system-exit]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_login_and_suspect_bits_are_pinned",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_wrapper_rejects_empty_loader_registry",
+        "orchestrator/tests/test_hooks.py::test_bash_registered_non_pegasus_unknown_site_matrix"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "        if (path.startswith(\"tools/pegasus/\")\n                or entry[\"class\"] != _PEGASUS_LOCAL_OK):\n            return entry\n        # wrapper と sanctioned 導出が同時に壊れても allow に反転させない。\n        return _PEGASUS_UNREGISTERED\n",
+          "new": "        return entry\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_non_pegasus_local_ok_corruption_cannot_borrow_sanctioned_allow",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_entry_lookup_rejects_registry_keys_outside_subtree"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "_NON_PEGASUS_ADMISSION_FALLBACK_PATHS = frozenset({\n    \"tools/claude_session_ledger.py\",\n})\n",
+          "new": "_NON_PEGASUS_ADMISSION_FALLBACK_PATHS = frozenset()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_main_internal_error_conservatively_rejects_pegasus_mentions",
+        "orchestrator/tests/test_hooks.py::test_bash_main_rule_error_is_scoped_to_protected_commands[KeyboardInterrupt]",
+        "orchestrator/tests/test_hooks.py::test_bash_main_rule_error_is_scoped_to_protected_commands[RuntimeError]",
+        "orchestrator/tests/test_hooks.py::test_bash_main_rule_error_is_scoped_to_protected_commands[SystemExit]",
+        "orchestrator/tests/test_hooks.py::test_bash_non_pegasus_fallback_set_matches_registry_projection",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-bom]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-duplicate-key]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-empty]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-invalid]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-schema-version]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-wrong-type]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-empty-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-extra-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-list]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-none]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-outside-local-ok]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-raising-mapping]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-scalar-entry]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-system-exit]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_wrapper_rejects_empty_loader_registry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    # loader 障害時の静的投影は exact path だけを deny 側へ倒す。\n    if path in _NON_PEGASUS_ADMISSION_FALLBACK_PATHS:\n        return _PEGASUS_UNREGISTERED\n",
+          "new": "    # loader 障害時の静的投影は exact path だけを deny 側へ倒す。\n    if path in _NON_PEGASUS_ADMISSION_FALLBACK_PATHS:\n        return None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-bom]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-duplicate-key]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-empty]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-invalid]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-schema-version]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-wrong-type]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-empty-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-extra-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-list]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-none]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-outside-local-ok]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-raising-mapping]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-scalar-entry]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-system-exit]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_wrapper_rejects_empty_loader_registry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "        sanctioned_paths = frozenset(\n            (_NON_PEGASUS_SANCTIONED_PATHS\n             - non_local_paths\n             - _NON_PEGASUS_ADMISSION_FALLBACK_PATHS)\n            | local_ok_paths)\n",
+          "new": "        sanctioned_paths = frozenset(\n            _NON_PEGASUS_SANCTIONED_PATHS\n            | local_ok_paths)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_non_local_registry_entry_overrides_sanctioned_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    # prefix は allow に使わず、Pegasus 配下の未登録を deny に倒すためだけに使う。\n    if path == \"tools/pegasus\" or path.startswith(\"tools/pegasus/\"):\n        return _PEGASUS_UNREGISTERED\n",
+          "new": "    # prefix は allow に使わず、Pegasus 配下の未登録を deny に倒すためだけに使う。\n    if path == \"tools/pegasus\" or path.startswith(\"tools/pegasus/\"):\n        return None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_interpreter_prefix_value_options_reveal_scripts",
+        "orchestrator/tests/test_hooks.py::test_bash_login_rejects_unregistered_nested_pegasus_entry",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-cleanup-system-exit]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-entry-getitem]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-keyboard-interrupt]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-list]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-none]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-raising-mapping]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-sanctioned-derivation]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-scalar-entry]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-system-exit]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-top-level-keyboard-interrupt]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_loader_failures_are_denied_by_real_subprocess[loader-top-level-system-exit]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-bom]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-duplicate-key]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-empty]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-invalid]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-schema-version]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-wrong-type]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-empty-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-extra-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-list]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-none]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-outside-local-ok]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-raising-mapping]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-scalar-entry]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-system-exit]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_wrapper_postcondition_fails_closed_in_subprocess[loader-empty-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_wrapper_postcondition_fails_closed_in_subprocess[loader-extra-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_wrapper_postcondition_fails_closed_in_subprocess[loader-missing-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_wrapper_postcondition_fails_closed_in_subprocess[loader-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_wrapper_rejects_empty_loader_registry",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_file_boundary_closes_real_hook[directory]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_file_boundary_closes_real_hook[fifo-no-writer]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_file_boundary_closes_real_hook[final-symlink]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_file_boundary_closes_real_hook[oversize]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_file_boundary_closes_real_hook[permission-denied]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[absolute-path]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[control-path]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[double-slash]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[empty-entries]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[empty-field]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[extra-field]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[extra-final-newline]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[field-order]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[four-space-indent]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[missing-field]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[missing-final-newline]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[nul-path]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[outside-path]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[parent-path]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[path-order]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[root-order]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    # loader 障害時の静的投影は exact path だけを deny 側へ倒す。\n    if path in _NON_PEGASUS_ADMISSION_FALLBACK_PATHS:\n        return _PEGASUS_UNREGISTERED\n",
+          "new": "    # loader 障害時の静的投影は exact path だけを deny 側へ倒す。\n    if path.startswith(\"tools/\"):\n        return _PEGASUS_UNREGISTERED\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_allows_nonexecuting_provenance_flags",
+        "orchestrator/tests/test_hooks.py::test_bash_login_keeps_required_session_commands_available",
+        "orchestrator/tests/test_hooks.py::test_bash_login_provenance_branch_does_not_capture_readers",
+        "orchestrator/tests/test_hooks.py::test_bash_login_python_module_option_boundaries_allowed",
+        "orchestrator/tests/test_hooks.py::test_bash_login_resolves_python_modules_to_exact_repo_paths",
+        "orchestrator/tests/test_hooks.py::test_bash_login_sanctioned_entries_are_exact",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-bom]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-duplicate-key]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-empty]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-invalid]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-schema-version]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[json-wrong-type]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-empty-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-extra-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-list]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing-field]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-missing]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-none]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-outside-local-ok]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-raising-mapping]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-scalar-entry]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-system-exit]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-unknown-class]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_wrapper_rejects_empty_loader_registry",
+        "orchestrator/tests/test_hooks.py::test_bash_unregistered_non_pegasus_path_remains_allowed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "        if (_MENTION_RE.search(raw)\n                or _PEGASUS_RAW_MENTION_RE.search(raw)\n                or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(raw)):\n",
+          "new": "        if (_MENTION_RE.search(raw)\n                or _PEGASUS_RAW_MENTION_RE.search(raw)):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_main_internal_error_conservatively_rejects_non_pegasus_admission_mentions"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

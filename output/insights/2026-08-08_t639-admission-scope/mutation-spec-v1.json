@@ -1,0 +1,173 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus_admission_registry.py",
+          "old": "        if not _is_canonical_repo_relative_path(path):\n            raise AdmissionRegistryError(f\"registry path is invalid: {path!r}\")\n",
+          "new": "        if (not _is_canonical_repo_relative_path(path)\n                or not path.startswith(\"tools/pegasus/\")):\n            raise AdmissionRegistryError(f\"registry path is invalid: {path!r}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_loader_accepts_canonical_non_pegasus_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus_admission_registry.py",
+          "old": "        if (not path.startswith(\"tools/pegasus/\")\n                and entry[\"class\"] == \"local-ok\"):\n            raise AdmissionRegistryError(f\"registry path is invalid: {path!r}\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_loader_rejects_non_pegasus_local_ok",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_is_rejected_by_loader[outside-path]",
+        "orchestrator/tests/test_hooks.py::test_pegasus_registry_negative_corpus_closes_real_hook[outside-path]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    entry = _PEGASUS_ADMISSION_REGISTRY.get(path)\n    if entry is not None:\n",
+          "new": "    if path != \"tools/pegasus\" and not path.startswith(\"tools/pegasus/\"):\n        return None\n    entry = _PEGASUS_ADMISSION_REGISTRY.get(path)\n    if entry is not None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_registered_non_pegasus_unknown_site_matrix"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "        if (path.startswith(\"tools/pegasus/\")\n                or entry[\"class\"] != _PEGASUS_LOCAL_OK):\n            return entry\n        # wrapper と sanctioned 導出が同時に壊れても allow に反転させない。\n        return _PEGASUS_UNREGISTERED\n",
+          "new": "        return entry\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_entry_lookup_rejects_registry_keys_outside_subtree",
+        "orchestrator/tests/test_hooks.py::test_bash_non_pegasus_local_ok_corruption_cannot_borrow_sanctioned_allow"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "_NON_PEGASUS_ADMISSION_FALLBACK_PATHS = frozenset({\n    \"tools/claude_session_ledger.py\",\n})\n",
+          "new": "_NON_PEGASUS_ADMISSION_FALLBACK_PATHS = frozenset()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_non_pegasus_fallback_set_matches_registry_projection",
+        "orchestrator/tests/test_hooks.py::test_bash_non_pegasus_raw_mention_detector_covers_fallback_spellings",
+        "orchestrator/tests/test_hooks.py::test_bash_main_internal_error_conservatively_rejects_non_pegasus_admission_mentions"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    # loader 障害時の静的投影は exact path だけを deny 側へ倒す。\n    if path in _NON_PEGASUS_ADMISSION_FALLBACK_PATHS:\n        return _PEGASUS_UNREGISTERED\n",
+          "new": "    # loader 障害時の静的投影は exact path だけを deny 側へ倒す。\n    if path in _NON_PEGASUS_ADMISSION_FALLBACK_PATHS:\n        return None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_failures_close_all_direct_entries[loader-outside-local-ok]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "        sanctioned_paths = frozenset(\n            (_NON_PEGASUS_SANCTIONED_PATHS\n             - non_local_paths\n             - _NON_PEGASUS_ADMISSION_FALLBACK_PATHS)\n            | local_ok_paths)\n",
+          "new": "        sanctioned_paths = frozenset(\n            _NON_PEGASUS_SANCTIONED_PATHS\n            | local_ok_paths)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_non_local_registry_entry_overrides_sanctioned_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    # prefix は allow に使わず、Pegasus 配下の未登録を deny に倒すためだけに使う。\n    if path == \"tools/pegasus\" or path.startswith(\"tools/pegasus/\"):\n        return _PEGASUS_UNREGISTERED\n",
+          "new": "    # prefix は allow に使わず、Pegasus 配下の未登録を deny に倒すためだけに使う。\n    if path == \"tools/pegasus\" or path.startswith(\"tools/pegasus/\"):\n        return None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_login_rejects_unregistered_nested_pegasus_entry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "    # loader 障害時の静的投影は exact path だけを deny 側へ倒す。\n    if path in _NON_PEGASUS_ADMISSION_FALLBACK_PATHS:\n        return _PEGASUS_UNREGISTERED\n",
+          "new": "    # loader 障害時の静的投影は exact path だけを deny 側へ倒す。\n    if path.startswith(\"tools/\"):\n        return _PEGASUS_UNREGISTERED\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_unregistered_non_pegasus_path_remains_allowed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "hooks/guard_bash.py",
+          "old": "        if (_MENTION_RE.search(raw)\n                or _PEGASUS_RAW_MENTION_RE.search(raw)\n                or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(raw)):\n",
+          "new": "        if (_MENTION_RE.search(raw)\n                or _PEGASUS_RAW_MENTION_RE.search(raw)):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_bash_main_internal_error_conservatively_rejects_non_pegasus_admission_mentions"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
