@@ -13,11 +13,18 @@ wave = `worktree-dev-wave-t664-docs-budget`、起点 HEAD = `3ae4856c`、2026-08
 |---|---:|---:|---:|
 | `docs/dev-wave/core.md` | 8,655 | 9,600 | 945 |
 | `docs/dev-wave/workers.md` | 4,526 | 5,000 | 474 |
-| `docs/dev-wave/mutation.md` | 3,674 | 3,750 | 76 |
+| `docs/dev-wave/mutation.md` | 3,689 | 3,750 | 61 |
 | `docs/dev-wave/operations.md` | 8,329 | 8,400 | 71 |
-| **`docs/dev-wave/**` 合計** | **25,184** | **25,200** | **16** |
+| **`docs/dev-wave/**` 合計** | **25,199** | **25,200** | **1** |
 | `.claude/commands/dev-wave.md` | 9,457 | 9,500 (最長行 140) | 43 |
 | `docs/skill-self-improvement.md` | 5,997 | 6,000 (最長行 100) | 3 |
+
+**この表は wave 中に 1 度変わった。** 段 1 の実測は合計 25,184 / 空き 16 bytes だったが、
+並行 wave [T-627] が `DW-M07` を 15 bytes 是正して land したため (commit `b7158554`、
+「変異の本走前検証へ期待 node を含める」)、取り込み後の空きは **1 byte** になった。
+同 commit の message は「残る候補 3 件は合計上限に収まらないため worklog へ記録するに留める。
+上限引き上げは提案しない」と記録しており、**本 wave が扱っている壁に同じ日に別 wave が当たっている**。
+以下の解放 bytes の算術はすべて取り込み後の 25,199 を基準にしている。
 
 実効 gate は集約 25,200 (`tools/check_docs.py` の `DEV_WAVE_AGGREGATE_BYTES`)。
 個別 cap の総和 26,750 は ceiling の 110% (27,720) 以内なので、**1 file の cap を上げても集約が先に落ちる**。
