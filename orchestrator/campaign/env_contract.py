@@ -370,9 +370,9 @@ GENERATIONS: Mapping[str, tuple[GenerationEntry, ...]] = MappingProxyType(
 validate_generations(GENERATIONS)
 _CONTRACT_SHA256_INDEX = _build_contract_sha256_index(GENERATIONS)
 
-_ACTIVATION_HEAD_SERIAL: int = 1
+_ACTIVATION_HEAD_SERIAL: int = 2
 _ACTIVATION_HEAD_STATE_SHA256: str = (
-    "f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed"
+    "398b192013e0e3996ca225454049a14cb2866ef256b581fc3dfbfda02476bed8"
 )
 _ACTIVATION_DIRECTORY = PurePosixPath(
     "orchestrator/campaign/env_contract_activations"

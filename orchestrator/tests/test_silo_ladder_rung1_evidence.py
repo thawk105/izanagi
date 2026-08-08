@@ -1259,8 +1259,13 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
     assert activation["macro"] == entry["macro"]
     assert activation["symbols"] == [item["name"] for item in entry["symbols"]]
 
-    registered = env_contract.lookup("pegasus")
     calibration_binding = binding["calibration"]
+    generation_entry = env_contract.resolve_by_contract_sha256(
+        calibration_binding["contract_sha256"],
+        expected_env_tag="pegasus",
+    )
+    assert type(generation_entry) is env_contract.GenerationEntry
+    registered = generation_entry.contract
     assert calibration_binding["path"] == registered.calibration_ref.path
     calibration_path = ROOT / calibration_binding["path"]
     calibration_raw, calibration = _load_json_bytes(calibration_path)

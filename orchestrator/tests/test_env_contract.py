@@ -269,16 +269,17 @@ def test_lookup_baremetal_golden():
 
 def test_lookup_pegasus_golden():
     c = ec.lookup("pegasus")
+    assert c is ec.GENERATIONS["pegasus"][1].contract
     assert c.env_tag == "pegasus"
     assert c.clocks_per_us == 2100
     assert c.numactl == ()
     assert c.attestation_mode == "required"
     assert c.isolation_policy == ec.IsolationPolicy(single_process=True, allow_resume=False)
     assert c.calibration_ref.path == (
-        "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json"
+        "output/env/pegasus/calibration/registered/calibration-94a4b79fa31bba3c.json"
     )
     assert c.calibration_ref.sha256 == (
-        "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49"
+        "94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9"
     )
 
 
@@ -378,10 +379,13 @@ def test_generations_are_immutable_tuples_without_exposed_backing_dict():
 def test_registry_and_lookup_follow_activation_not_generation_tail():
     assert list(ec.REGISTRY) == ["linux-baremetal", "pegasus"]
     assert set(ec.REGISTRY) == set(ec.GENERATIONS)
+    expected_active_index = {"linux-baremetal": 0, "pegasus": 1}
     for env_tag, sequence in ec.GENERATIONS.items():
-        assert ec.REGISTRY[env_tag] is sequence[0].contract
-        assert ec.lookup(env_tag) is sequence[0].contract
-    assert ec.REGISTRY["pegasus"] is not ec.GENERATIONS["pegasus"][-1].contract
+        active = sequence[expected_active_index[env_tag]].contract
+        assert ec.REGISTRY[env_tag] is active
+        assert ec.lookup(env_tag) is active
+    assert ec.REGISTRY["pegasus"] is ec.GENERATIONS["pegasus"][-1].contract
+    assert ec.REGISTRY["pegasus"] is not ec.GENERATIONS["pegasus"][0].contract
 
 
 def test_is_valid_successor_leaf_pointer_table():
@@ -615,10 +619,40 @@ def test_resolve_by_contract_sha256_rejects_unknown_and_wrong_env():
         )
 
 
-def test_resolver_rejects_registered_never_active_pegasus_g2():
+def test_resolver_rejects_registered_never_active_pegasus_g2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    source = (
+        REPO_ROOT
+        / "orchestrator/campaign/env_contract_activations/00000001.json"
+    )
+    raw = source.read_bytes()
+    record = json.loads(raw)
+    authority = tmp_path / "authority"
+    authority.mkdir()
+    (authority / "00000001.json").write_bytes(raw)
     g2 = ec.GENERATIONS["pegasus"][1]
-    with pytest.raises(ec.EnvContractError, match="登録済み.*ever-active でない"):
-        ec.resolve_by_contract_sha256(g2.contract.contract_sha256)
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            ec,
+            "_ACTIVATION_DIRECTORY",
+            pathlib.PurePosixPath(authority.as_posix()),
+        )
+        patch.setattr(ec, "_ACTIVATION_HEAD_SERIAL", 1)
+        patch.setattr(
+            ec,
+            "_ACTIVATION_HEAD_STATE_SHA256",
+            record["activation_state_sha256"],
+        )
+        ec._clear_authority_cache_for_tests()
+        try:
+            with pytest.raises(
+                ec.EnvContractError,
+                match="登録済み.*ever-active でない",
+            ):
+                ec.resolve_by_contract_sha256(g2.contract.contract_sha256)
+        finally:
+            ec._clear_authority_cache_for_tests()
 
 
 def test_resolver_rejects_non_unique_synthetic_index(monkeypatch):
@@ -843,29 +877,34 @@ def test_registry_effective_clock_self_failures_are_exact_known_exception():
     checked_entries = 0
     required_entries = 0
 
-    for registry_key, contract in ec.REGISTRY.items():
-        checked_entries += 1
-        verified = ea.load_verified_calibration(contract, REPO_ROOT)
-        if contract.attestation_mode == "none":
-            assert verified.schema_version == "calibration/v1"
-            assert verified.calibration is None
-            continue
+    for env_tag, sequence in ec.GENERATIONS.items():
+        for entry in sequence:
+            checked_entries += 1
+            contract = entry.contract
+            verified = ea.load_verified_calibration(contract, REPO_ROOT)
+            if contract.attestation_mode == "none":
+                assert verified.schema_version == "calibration/v1"
+                assert verified.calibration is None
+                continue
 
-        assert contract.attestation_mode == "required"
-        required_entries += 1
-        assert verified.calibration is not None
-        profile = verified.calibration.attestation_profile
-        assert (profile.effective_clock.tolerance_pct
-                == effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT)
-        ref = (contract.calibration_ref.path, contract.calibration_ref.sha256)
-        passes = _registry_clock_self_passes(profile)
-        if not passes:
-            self_failures.add(ref)
-        if ref not in KNOWN_SELF_INCONSISTENT_CALIBRATIONS:
-            assert passes, f"new self-inconsistent calibration: {registry_key} {ref}"
+            assert contract.attestation_mode == "required"
+            required_entries += 1
+            assert verified.calibration is not None
+            profile = verified.calibration.attestation_profile
+            assert (profile.effective_clock.tolerance_pct
+                    == effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT)
+            ref = (contract.calibration_ref.path, contract.calibration_ref.sha256)
+            passes = _registry_clock_self_passes(profile)
+            if not passes:
+                self_failures.add(ref)
+            if ref not in KNOWN_SELF_INCONSISTENT_CALIBRATIONS:
+                assert passes, (
+                    "new self-inconsistent calibration: "
+                    f"{env_tag}/g{entry.generation} {ref}"
+                )
 
-    assert checked_entries == 2
-    assert required_entries == 1
+    assert checked_entries == 3
+    assert required_entries == 2
     assert self_failures == KNOWN_SELF_INCONSISTENT_CALIBRATIONS
 
     base = ea.load_verified_calibration(ec.lookup("pegasus"), REPO_ROOT)
@@ -1121,8 +1160,8 @@ def test_contract_sha256_matches_independent_reference():
     assert c.contract_sha256 == ref
 
 
-def test_pegasus_contract_sha256_golden():
-    c = ec.lookup("pegasus")
+def test_pegasus_g1_contract_sha256_golden():
+    c = ec.GENERATIONS["pegasus"][0].contract
     ref = _reference_sha256(
         env_tag="pegasus",
         clocks_per_us=2100,

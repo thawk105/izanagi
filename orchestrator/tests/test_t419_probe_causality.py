@@ -1583,8 +1583,9 @@ def test_submission_binding_rejects_dirty_calibration_verify(monkeypatch):
     assert binding["related_dirty_entries"] == [f" M {leaf_path}"]
 
 
+@pytest.mark.parametrize("record_name", ("00000001.json", "00000002.json"))
 def test_submission_binding_dirty_scope_covers_activation_leaf_and_records(
-    monkeypatch,
+    monkeypatch, record_name,
 ):
     activation_leaf = "orchestrator/campaign/env_contract_activation.py"
     activation_records = "orchestrator/campaign/env_contract_activations"
@@ -1597,7 +1598,7 @@ def test_submission_binding_dirty_scope_covers_activation_leaf_and_records(
             stdout = f"{expected_head}\n"
         elif "status" in command:
             status_commands.append(command)
-            stdout = f" M {activation_records}/00000001.json\n"
+            stdout = f" M {activation_records}/{record_name}\n"
         else:
             raise AssertionError(f"unexpected command: {command!r}")
         return T419.subprocess.CompletedProcess(command, 0, stdout=stdout)
@@ -1623,7 +1624,7 @@ def test_submission_binding_dirty_scope_covers_activation_leaf_and_records(
     assert binding["related_paths"].count(activation_leaf) == 1
     assert binding["related_paths"].count(activation_records) == 1
     assert binding["related_dirty_entries"] == [
-        f" M {activation_records}/00000001.json"
+        f" M {activation_records}/{record_name}"
     ]
     assert binding["matched"] is False
 

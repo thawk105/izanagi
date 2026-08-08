@@ -340,23 +340,48 @@ def _use_source_head_authority(monkeypatch, directory: Path):
     return _Context()
 
 
-def test_initial_record_is_exact_canonical_hash_bound_and_selects_both_g1():
+def test_genesis_record_is_golden_and_real_authority_selects_pegasus_g2():
     path = REPO_ROOT / "orchestrator/campaign/env_contract_activations/00000001.json"
     assert path.read_bytes() == INITIAL_BYTES
-    state = activation.load_activation_state(
-        path.parent,
+    genesis = activation.validate_activation_records(
+        (("00000001.json", INITIAL_BYTES),),
         registered_contracts=ec._REGISTERED_CONTRACT_CATALOG,
         is_valid_registered_successor=ec._is_valid_activation_successor,
         expected_head_serial=1,
         expected_head_state_sha256=INITIAL_STATE_SHA256,
     )
-    assert state.activation_serial == 1
-    assert state.activation_state_sha256 == INITIAL_STATE_SHA256
-    assert tuple((row.env_tag, row.generation) for row in state.active_contracts) == (
+    assert genesis.activation_serial == 1
+    assert genesis.activation_state_sha256 == INITIAL_STATE_SHA256
+    assert tuple((row.env_tag, row.generation) for row in genesis.active_contracts) == (
         ("linux-baremetal", 1), ("pegasus", 1),
     )
-    assert state.ever_active_contract_sha256s == frozenset(
-        row.contract_sha256 for row in state.active_contracts
+    assert genesis.ever_active_contract_sha256s == frozenset(
+        row.contract_sha256 for row in genesis.active_contracts
+    )
+
+    records = activation.read_activation_record_files(path.parent)
+    assert tuple(name for name, _raw_record in records) == (
+        "00000001.json",
+        "00000002.json",
+    )
+    current = activation.load_activation_state(
+        path.parent,
+        registered_contracts=ec._REGISTERED_CONTRACT_CATALOG,
+        is_valid_registered_successor=ec._is_valid_activation_successor,
+        expected_head_serial=2,
+        expected_head_state_sha256=ec._ACTIVATION_HEAD_STATE_SHA256,
+    )
+    assert current.activation_serial == 2
+    assert current.activation_state_sha256 == ec._ACTIVATION_HEAD_STATE_SHA256
+    assert tuple((row.env_tag, row.generation) for row in current.active_contracts) == (
+        ("linux-baremetal", 1), ("pegasus", 2),
+    )
+    assert current.ever_active_contract_sha256s == frozenset(
+        {
+            ec.GENERATIONS["linux-baremetal"][0].contract.contract_sha256,
+            ec.GENERATIONS["pegasus"][0].contract.contract_sha256,
+            ec.GENERATIONS["pegasus"][1].contract.contract_sha256,
+        }
     )
 
 
@@ -446,6 +471,20 @@ def test_chain_rejects_symlink_nonregular_and_extra_entry(tmp_path: Path):
     directory_link.symlink_to(authority, target_is_directory=True)
     with pytest.raises(activation.ActivationRecordError, match="symlink でない directory"):
         activation.read_activation_record_files(directory_link)
+
+
+def test_empty_chain_rejection_is_distinct_from_head_pin_mismatch():
+    with pytest.raises(
+        activation.ActivationRecordError,
+        match=r"^activation record chain が空$",
+    ):
+        activation.validate_activation_records(
+            (),
+            registered_contracts=CATALOG,
+            is_valid_registered_successor=_is_synthetic_successor,
+            expected_head_serial=1,
+            expected_head_state_sha256=INITIAL_STATE_SHA256,
+        )
 
 
 def test_head_pin_rejects_tail_rollback():
@@ -1487,7 +1526,13 @@ def test_production_loader_rejects_tail_deletion_with_source_head_unchanged(
         ec._ACTIVATION_HEAD_STATE_SHA256,
     )
     with _use_source_head_authority(monkeypatch, authority):
-        with pytest.raises(ec.EnvContractError, match="activation authority 検証失敗"):
+        with pytest.raises(
+            ec.EnvContractError,
+            match=(
+                r"activation authority 検証失敗: "
+                r"activation head (?:serial|state hash) 不一致"
+            ),
+        ):
             ec.current_activation_state()
         assert (
             ec._ACTIVATION_HEAD_SERIAL,
@@ -1501,13 +1546,12 @@ def test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart(
     """発行→head 更新→同一 commit→再起動の全段が揃って初めて有効になる。"""
     issuer = _load_issue_tool()
     authority = tmp_path / "authority"
-    shutil.copytree(
-        REPO_ROOT / "orchestrator/campaign/env_contract_activations", authority
-    )
-    current = ec.current_activation_state()
+    authority.mkdir()
+    (authority / "00000001.json").write_bytes(INITIAL_BYTES)
+    current = json.loads(INITIAL_BYTES)
     suffix = activation.build_activation_record(
-        activation_serial=current.activation_serial + 1,
-        previous_activation_state_sha256=current.activation_state_sha256,
+        activation_serial=current["activation_serial"] + 1,
+        previous_activation_state_sha256=current["activation_state_sha256"],
         active_contracts=tuple(
             activation.ActiveContract(
                 env_tag=env_tag,
@@ -1525,11 +1569,7 @@ def test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart(
         f"{suffix['activation_serial']:08d}.json",
         _raw(suffix),
     )
-    original_head = (
-        ec._ACTIVATION_HEAD_SERIAL,
-        ec._ACTIVATION_HEAD_STATE_SHA256,
-    )
-    with _use_source_head_authority(monkeypatch, authority):
+    with _use_authority(monkeypatch, authority, current):
         with pytest.raises(
             ec.EnvContractError,
             match=r"activation authority 検証失敗: activation head (?:serial|state hash) 不一致",
@@ -1538,7 +1578,7 @@ def test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart(
         assert (
             ec._ACTIVATION_HEAD_SERIAL,
             ec._ACTIVATION_HEAD_STATE_SHA256,
-        ) == original_head
+        ) == (1, INITIAL_STATE_SHA256)
 
 
 def test_production_loader_passes_source_head_constants_to_leaf(monkeypatch):
@@ -1697,13 +1737,19 @@ print("current-ok-historical-rejected")
     assert completed.stdout.strip() == "current-ok-historical-rejected"
 
 
-def test_registered_but_never_active_hash_has_distinct_refusal_reason():
-    ec._clear_authority_cache_for_tests()
+def test_registered_but_never_active_hash_has_distinct_refusal_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    authority = tmp_path / "authority"
+    authority.mkdir()
+    (authority / "00000001.json").write_bytes(INITIAL_BYTES)
+    first = json.loads(INITIAL_BYTES)
     g2_hash = ec.GENERATIONS["pegasus"][1].contract.contract_sha256
-    with pytest.raises(ec.EnvContractError, match="登録済み.*ever-active でない"):
-        ec.resolve_by_contract_sha256(g2_hash)
-    with pytest.raises(ec.EnvContractError, match="未知の contract_sha256"):
-        ec.resolve_by_contract_sha256("f" * 64)
+    with _use_authority(monkeypatch, authority, first):
+        with pytest.raises(ec.EnvContractError, match="登録済み.*ever-active でない"):
+            ec.resolve_by_contract_sha256(g2_hash)
+        with pytest.raises(ec.EnvContractError, match="未知の contract_sha256"):
+            ec.resolve_by_contract_sha256("f" * 64)
 
 
 def test_lazy_registry_mapping_contract_is_compatible_and_read_only():
@@ -1795,7 +1841,7 @@ def test_held_lock_fork_reinitializes_child_cache_without_deadlock():
     assert not worker.is_alive()
     assert os.waitstatus_to_exitcode(status) == 0
     assert observed == (
-        b"ok:" + ec.GENERATIONS["pegasus"][0].contract.contract_sha256.encode("ascii")
+        b"ok:" + ec.GENERATIONS["pegasus"][1].contract.contract_sha256.encode("ascii")
     )
 
 
