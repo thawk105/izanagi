@@ -4,8 +4,9 @@
 **実装差分ゼロの設計 wave。** 本番コードは 1 行も変えていない (ユーザー指示)。
 
 読み方: §1 が前提事実 (実測)、§2 が設問 R0〜R4 (各問に推奨と見送り時の影響)、§3 が採用時の
-不変条件、§4 が本 wave が扱わないもの。**根拠はすべて静的読解と leaf 検証の実測であり、
-実機の並行実行・race・PBS wrapper 全分類は測っていない。**
+不変条件、§4 が本 wave が扱わないもの。**分裂窓の中核 (§1.1) の根拠は tracked なテストによる
+production 経路の断言であり、それ以外は静的読解である。実機の並行実行・race・PBS wrapper の
+全分類は測っていない。**
 
 ---
 
@@ -17,16 +18,29 @@ activation record の発行 tool (`tools/issue_env_contract_activation.py`) は 
 directory へ create-only で公開するが、`orchestrator/campaign/env_contract.py` の head 定数
 (`_ACTIVATION_HEAD_SERIAL` / `_ACTIVATION_HEAD_STATE_SHA256`) を更新しない。
 
-親が temp copy 上で実測した (live は不変):
+**正本の証拠は tracked なテストである** (`orchestrator/tests/test_env_contract_activation.py`)。
+いずれも `ec.lookup()` / `ec.current_activation_state()` を通る **production の読み込み経路**
+(process cache、root 解決、較正検証を含む) で断言しており、実際の発行 tool
+(`_load_issue_tool()` / `issuer._write_create_only`) を呼んでいる。
 
-- **発行後・head 未更新**: 新しく読み込む process は `activation head serial 不一致:
-  expected=1 observed=2` で拒否する。
-- **head 更新後**: 受理する。
-- **逆向き (定数だけ先に進め record 未配備)**: 同じく拒否する。
+| テスト | 断言する内容 |
+|---|---|
+| `test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart` (:1498) | 発行済み・head 未更新では `ec.lookup()` が `activation head (serial\|state hash) 不一致` で拒否する。docstring「発行→head 更新→同一 commit→再起動の全段が揃って初めて有効になる」 |
+| `test_production_loader_rejects_tail_deletion_with_source_head_unchanged` (:1477) | 末尾巻き戻し (record を消し head 定数はそのまま) を production loader が拒否する |
+| `test_production_loader_passes_source_head_constants_to_leaf` (:1544) | production loader が pin 定数 (serial + state hash) を leaf へ実際に渡す |
 
-**どちらの向きの分裂も安全側に倒れる。fail-open の経路は見つからなかった。**
-ただしこの実測は leaf の検証関数 (`load_activation_state`) に期待値を直接渡したものであり、
-production の読み込み経路 (cache、fork、root 解決、較正検証) を通した実測ではない。
+**これらは本 wave の受入全走 (7495 passed / 20 skipped) に含まれ、緑で通っている。**
+
+**したがって、どちらの向きの分裂も production 経路で安全側に倒れることが確立している。
+fail-open の経路は無い。**
+
+**[erratum 2026-08-09]** 本節の初版は親が書いた temp copy 上の probe
+(`verbatim/probe_split_window.py`) を根拠にし、「production の読み込み経路を通した実測ではない」
+と留保していた。**留保は下方に過ぎた** — 上表のテストが production 層で同じことを、
+より強い形 (実発行 tool 経由) で既に断言していたからである。
+**親は既存被覆を検索せずに probe を書いており、その probe は不適切であると同時に不要だった**
+(規律面の帰結は `verbatim/s4-adjudication.md` と [T-682] / [T-317] を参照)。
+初版の probe とその限界の記述は `verbatim/` にそのまま残す。
 
 ### 1.2 窓は 2 つではなく 3 つ
 
@@ -191,6 +205,8 @@ runbook に `tools/check_docs.py` の byte 上限は無く、現状 `check_docs:
 - 「record と head はどちらも git tracked」→ **新 record は untracked** (§1.3)。実測で確認。
 - 「receipt の serial で混在を追える」→ **追えない**。durable には `contract_sha256` しか
   載らず、据置 env は区別できない (§1.4)。
-- 「probe で live 経路に fail-open が無いと実測した」→ 実測したのは leaf の検証関数の範囲まで。
+- 「probe で live 経路に fail-open が無いと実測した」→ 段 3 で「実測したのは leaf の検証関数まで」
+  へ縮めたが、**それも誤りだった (2026-08-09 erratum)。** production 経路の断言は
+  tracked なテスト 3 本が既に持っており (§1.1)、**probe を書く必要自体が無かった。**
 - P1 の親案 (発行 tool に head も書かせる) は**取り下げ**、選択肢から落とすことを推奨 (R1)。
 - 段 2 プランの推奨 (機械検査を作る) も**採らない**。理由は成果物の値が変わらないこと (R1)。
