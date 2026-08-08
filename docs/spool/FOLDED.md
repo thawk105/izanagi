@@ -548,3 +548,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:acceptance-run-walltime-headroom":"[T-656]","T:admission-measured-table-non-pegasus":"[T-655]"},"authored":"2026-08-08","content_sha256":"ef01865e99fa2979f11a0d2399078a3145aa3a6f3756a5c2315737468c48a752","seq":1,"wave":"dev-wave-t639-admission-scope"}
 - {"allocations":{"D:admission-scope-deny-only":"D240"},"authored":"2026-08-08","content_sha256":"d6c3956c7859250e5d2a37055477a88d4a47e35badfdc5354a19d8d1056ffe05","seq":2,"wave":"dev-wave-t639-admission-scope"}
 - {"allocations":{"F:mutation-expected-nodes-overdetermined":"F168"},"authored":"2026-08-08","content_sha256":"2fed1bfb6336d8f9c16844862f9c7c02b3263983b58dfd0e7b515660a5fdc34d","seq":3,"wave":"dev-wave-t639-admission-scope"}
+
+- {"allocations":{"T:activation-issue-deploy-window":"[T-659]","T:activation-receipt-entry-wiring":"[T-658]","T:activation-tail-rollback-observability":"[T-660]","T:dev-wave-budget-for-grep-authority":"[T-661]","T:pegasus-g2-activation":"[T-657]"},"authored":"2026-08-08","content_sha256":"80ea2cb553c8119aaeda0c0362295671912353de53c561fd9911a59493cb41ba","seq":1,"wave":"dev-wave-t529-activation"}
+- {"allocations":{"F:grep-r-misses-tracked-hit":"F169"},"authored":"2026-08-08","content_sha256":"b5b88edf591313b26cb8ea3dbfd4fdc944f3eb88f09b531f1a89ac12de324249","seq":2,"wave":"dev-wave-t529-activation"}

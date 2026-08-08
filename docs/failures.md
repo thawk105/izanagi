@@ -2790,6 +2790,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-08-05** — fix prompt の「既存テストの期待値を変更しない」を tracked 限定と
   書かなかったため、fix 子が同 wave の段 5 で新設した assert を「既存テスト」と解釈して
   fail-closed で停止し、fix 1 巡がまるごと空振りした ([T-481] 段 6)。
+
+- **再発: 2026-08-08** — [T-529] の fix 第 1 巡。親が scope 除外を「入口 gate を作らない」の
+  つもりで書いたが、実際の文が「oracle driver へ receipt を配線しない」と file 単位で読め、
+  必須引数を満たすための caller 配線まで禁じたことになっていた。子は矛盾を検出して
+  1 行も書かずに fail-closed し、必要な配線の一覧だけを返した。親が境界を再裁定して再投入。
+  F112 (未 land テストの範囲が曖昧) と同型で、**scope 記述の曖昧さが fix 1 巡を空振りさせる**
+  独立 2 例目。`DW-S06-B` へ「scope 除外は file でなく禁じる挙動で書く」を入れたいが
+  予算に空きがなく、[T-661] と同じ裁定へ束ねる。
 ### F113. 変異事前登録に「赤くはなるが受理集合は変わらない」偽 kill を登録しかけた [恒真ゲート]
 
 - 事象: 段 4 で登録した共有層変異 (M5) の期待 node が
@@ -3961,3 +3969,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **恒久対応の `DW-M01` への明文化は、`docs/dev-wave/**` の byte hard ceiling (25,200) に対する
   空きが 1 文にも足りない (本 wave の land 直前で 15 bytes) ため入らない。** F146 / F161 と同じく
   本エントリを恒久対応の所在とし、空きが出たときに `DW-M01` へ 1 文で統合する。
+
+### F169. pin 閉包の `grep -r` が tracked hit を黙って 1 件落とした [手順漏れ]
+
+- 事象: 段 1 の pin 閉包で pegasus g1 の contract hash を repo root から
+  `grep -rl "<hash>" --exclude-dir=.git --exclude-dir=archive --exclude-dir=insights
+  --exclude-dir=external .` で検索し、tracked file 4 件を得て brief に書いた。
+  段 3 レンズ A が 5 件目 (`output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/
+  raw-bundle-attempt-1/gap-result-receipt.json`) を指摘した。
+- 根本原因: 同じ hash・同じ除外 flag でも、検索起点を `.` にすると当該 file を落とし、
+  起点を `output` / `output/env` にすると拾う。`git grep -l` も拾う。本 worktree で再現する
+  (`grep` は GNU grep、file は 96560 bytes の通常 JSON、symlink でも権限差でもない)。
+  原因は特定できていないが、**起点 `.` の再帰検索が silent に取りこぼす**ことは実測した。
+  `DW-O09` は「path の hit 0 件を pin なしと結論しない」までしか定めておらず、
+  検索コマンド自身の取りこぼしは射程外だった。
+- 恒久対応: 未実施。`DW-O09` へ「tracked の閉包は `git grep` を authority とする」の 1 行を
+  入れたいが、`docs/dev-wave/**` の合計予算に空きが 15 bytes しかなく入らない。
+  [T-661] としてユーザー裁定へ返す。
+  それまでの暫定は memory の「着手前に main を確認する」等と同じ prompt 規律とする。
+- 再発検知: pin 件数を 2 種類の検索 (`git grep -l` と部分木起点の `grep -rl`) で突き合わせ、
+  食い違えば brief を書かない。
