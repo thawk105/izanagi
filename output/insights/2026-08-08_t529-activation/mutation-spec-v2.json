@@ -1,0 +1,81 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 1500,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M10",
+   "category": "both-layers",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "old": "    if terminal_serial != expected_head_serial:\n        raise ActivationRecordError(\n            f\"activation head serial 不一致: expected={expected_head_serial} observed={terminal_serial}\"\n        )\n",
+     "new": ""
+    },
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "old": "    if terminal_hash != expected_head_state_sha256:\n        raise ActivationRecordError(\n            \"activation head state hash 不一致: \"\n            f\"expected={expected_head_state_sha256} observed={terminal_hash}\"\n        )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_tail_rollback",
+    "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_valid_suffix_injection",
+    "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_same_serial_state_hash_mismatch",
+    "orchestrator/tests/test_env_contract_activation.py::test_production_loader_rejects_tail_deletion_with_source_head_unchanged",
+    "orchestrator/tests/test_env_contract_activation.py::test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "old": "    if terminal_hash != expected_head_state_sha256:\n        raise ActivationRecordError(\n            \"activation head state hash 不一致: \"\n            f\"expected={expected_head_state_sha256} observed={terminal_hash}\"\n        )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_same_serial_state_hash_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "old": "            if row.contract_sha256 != registered_hash:\n                raise ActivationRecordError(\n                    f\"active contract hash が registry と不一致: {row.env_tag!r} g{row.generation}\"\n                )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_env_contract_activation.py::test_chain_intentionally_does_not_enforce_generation_delta_predicates"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract.py",
+     "old": "os.register_at_fork(after_in_child=_reset_authorization_after_fork)\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_execution_guard.py::test_worker_thread_held_receipt_lock_is_reinitialized_after_fork"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": true
+  }
+ ]
+}
