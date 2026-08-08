@@ -16,6 +16,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import signal
 import socket
 import subprocess
@@ -633,9 +634,24 @@ def select_compile_argvs(compile_commands: Any) -> dict[str, list[str]]:
     for entry in compile_commands:
         if type(entry) is not dict:
             raise ValueError("compile command entry must be an object")
-        argv = entry.get("arguments")
-        if type(argv) is not list or not all(type(arg) is str for arg in argv):
-            raise ValueError("compile command must contain string arguments")
+        if "arguments" in entry:
+            argv = entry["arguments"]
+            if type(argv) is not list or not all(type(arg) is str for arg in argv):
+                raise ValueError("compile command must contain string arguments")
+        else:
+            command = entry.get("command")
+            if type(command) is not str:
+                raise ValueError(
+                    "compile command must contain an arguments list or command string"
+                )
+            if not command:
+                raise ValueError("compile command string must not be empty")
+            try:
+                argv = shlex.split(command)
+            except ValueError as exc:
+                raise ValueError("compile command string cannot be split") from exc
+            if not argv:
+                raise ValueError("compile command string must split to non-empty arguments")
         directory = entry.get("directory")
         source = entry.get("file")
         if type(directory) is not str or type(source) is not str:

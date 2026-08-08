@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import signal
 import subprocess
 import sys
@@ -137,6 +138,15 @@ def _compile_commands(trace: int, analysis: int) -> list[dict[str, object]]:
             "arguments": common + ["-o", "util.o", "-c", "/source/common/util.cc"],
         },
     ]
+
+
+def _compile_commands_as_command(trace: int, analysis: int) -> list[dict[str, object]]:
+    commands = _compile_commands(trace, analysis)
+    for entry in commands:
+        arguments = entry.pop("arguments")
+        assert isinstance(arguments, list)
+        entry["command"] = shlex.join(arguments)
+    return commands
 
 
 def _cache(trace: int, analysis: int) -> str:
@@ -435,6 +445,66 @@ def test_compile_argv_trace_analysis_exactness() -> None:
     duplicated[0]["arguments"].append("-DTRACE=0")
     with pytest.raises(ValueError, match="TRACE"):
         PROBE.validate_build_artifacts(_cache(0, 0), duplicated, trace=0, analysis=0)
+
+
+def test_compile_commands_accepts_arguments_and_command_forms() -> None:
+    arguments_result = PROBE.validate_build_artifacts(
+        _cache(0, 0), _compile_commands(0, 0), trace=0, analysis=0
+    )
+    command_result = PROBE.validate_build_artifacts(
+        _cache(0, 0), _compile_commands_as_command(0, 0), trace=0, analysis=0
+    )
+    assert command_result["selected_compile_argv"] == arguments_result["selected_compile_argv"]
+
+
+@pytest.mark.parametrize(
+    ("malformed_fields", "message"),
+    [
+        ({}, "arguments list or command string"),
+        ({"arguments": "g++", "command": "/usr/bin/g++"}, "string arguments"),
+        ({"arguments": ["/usr/bin/g++", 1]}, "string arguments"),
+        ({"command": ["/usr/bin/g++"]}, "command string"),
+        ({"command": ""}, "must not be empty"),
+        ({"command": "'/usr/bin/g++"}, "cannot be split"),
+        ({"command": " \t"}, "non-empty arguments"),
+    ],
+    ids=[
+        "both-missing",
+        "arguments-wrong-type",
+        "argument-element-wrong-type",
+        "command-wrong-type",
+        "empty-command",
+        "unsplittable-command",
+        "empty-split-result",
+    ],
+)
+def test_compile_commands_rejects_malformed_argv_sources(
+    malformed_fields: dict[str, object], message: str
+) -> None:
+    commands = _compile_commands(0, 0)
+    commands[0] = {
+        "directory": commands[0]["directory"],
+        "file": commands[0]["file"],
+        **malformed_fields,
+    }
+    with pytest.raises(ValueError, match=message):
+        PROBE.validate_build_artifacts(_cache(0, 0), commands, trace=0, analysis=0)
+
+
+@pytest.mark.parametrize(
+    ("trace", "analysis", "message"),
+    [(1, 0, "TRACE"), (0, 1, "ADD_ANALYSIS")],
+)
+def test_command_form_preserves_trace_analysis_detection(
+    trace: int, analysis: int, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        PROBE.validate_build_artifacts(
+            _cache(0, 0),
+            _compile_commands_as_command(trace, analysis),
+            trace=0,
+            analysis=0,
+        )
 
 
 def test_stock_compile_argv_rejects_mode_macro() -> None:
