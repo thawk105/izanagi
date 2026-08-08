@@ -111,7 +111,10 @@ S02/S03 の既存テストまで巻き込んで集合がずれ帰属が曖昧に
 
 ## 検査
 
-- 受入全走 **7376 passed / 20 skipped** (1224.27s、計算ノード dispatch、追加 flag なしの受入形)
+- 受入全走 (**land 対象 tip = main merge 後**) **7393 passed / 20 skipped**
+  (1189.88s、計算ノード dispatch、追加 flag なしの受入形)。
+  fix 3 巡目の実装 commit 時点でも 1 度実施しており **7376 passed / 20 skipped** (1224.27s)。
+  件数差は取り込んだ並行 wave のテスト追加分である。land 対象は前者。
 - 焦点 `orchestrator/tests/test_check_docs.py`: 297 → **328 passed** (純増 31)
 - `python3 tools/check_docs.py` rc=0、`python3 tools/check_ai_provenance.py` 新規違反なし
 - 変異 15/15 が期待一致 (内訳は上表)

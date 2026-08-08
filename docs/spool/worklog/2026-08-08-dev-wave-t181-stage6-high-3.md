@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-08
 wave: dev-wave-t181-stage6-high
 seq: 3
-title: [T-227] 段 6 review 子の reasoning を high に確定し機械 pin を張った — 契約 drift の pin が 3 巡続けて恒真だった (コード + docs、受入 7376 passed / 20 skipped、変異 15/15 期待一致 (実効 kill 12 / 診断 pin 2 / SURVIVED 1)、branch worktree-dev-wave-t181-stage6-high)
+title: [T-227] 段 6 review 子の reasoning を high に確定し機械 pin を張った — 契約 drift の pin が 3 巡続けて恒真だった (コード + docs、受入 7393 passed / 20 skipped、変異 15/15 期待一致 (実効 kill 12 / 診断 pin 2 / SURVIVED 1)、branch worktree-dev-wave-t181-stage6-high)
 ---
 
 ## 本文
