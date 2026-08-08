@@ -30,7 +30,10 @@ from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
+
+if TYPE_CHECKING:
+    from .env_contract_activation import ActiveContract
 
 # env 固有 literal はこのモジュールでは ``_build_registry`` の内部にのみ現れる。
 # その他の場所 (lookup / validation / property) は env 中立でなければならず、
@@ -389,6 +392,46 @@ def _build_registered_contract_catalog() -> Mapping[str, tuple[tuple[int, str], 
 _REGISTERED_CONTRACT_CATALOG = _build_registered_contract_catalog()
 
 
+def _resolve_activation_entry(
+    row: ActiveContract,
+) -> GenerationEntry | None:
+    from . import env_contract_activation as activation
+
+    if type(row) is not activation.ActiveContract:
+        return None
+    try:
+        entry = GENERATIONS[row.env_tag][row.generation - 1]
+    except (KeyError, IndexError, TypeError):
+        return None
+    if type(entry) is not GenerationEntry:
+        return None
+    if (
+        entry.generation != row.generation
+        or entry.contract.env_tag != row.env_tag
+        or entry.contract.contract_sha256 != row.contract_sha256
+    ):
+        return None
+    return entry
+
+
+def _is_valid_activation_successor(
+    predecessor: ActiveContract,
+    successor: ActiveContract,
+) -> bool:
+    predecessor_entry = _resolve_activation_entry(predecessor)
+    successor_entry = _resolve_activation_entry(successor)
+    if (
+        predecessor_entry is None
+        or successor_entry is None
+        or predecessor.env_tag != successor.env_tag
+    ):
+        return False
+    return is_valid_successor(
+        predecessor_entry.contract,
+        successor_entry.contract,
+    )
+
+
 @dataclass(frozen=True)
 class _AuthoritySnapshot:
     state: object
@@ -481,6 +524,7 @@ def _load_authority_snapshot() -> _AuthoritySnapshot:
         state = activation.load_activation_state(
             repo_root / Path(_ACTIVATION_DIRECTORY),
             registered_contracts=_REGISTERED_CONTRACT_CATALOG,
+            is_valid_registered_successor=_is_valid_activation_successor,
             expected_head_serial=_ACTIVATION_HEAD_SERIAL,
             expected_head_state_sha256=_ACTIVATION_HEAD_STATE_SHA256,
         )

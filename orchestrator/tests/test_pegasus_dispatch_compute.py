@@ -252,7 +252,7 @@ def test_dispatch_state_machine_returns_child_rc_after_accounting(tmp_path):
     assert commands[0] == ["qstat", "-Q"]
     assert commands[1][:9] == [
         "qsub", "-A", "SFC", "-q", "gen_S", "-b", "1", "-l",
-        "elapstim_req=00:30:00",
+        f"elapstim_req={DC.DEFAULT_WALLTIME}",
     ]
     assert not any(command[0] in {
         "pegasusinfo", "rbudgetcheck", "check_quota",
@@ -2457,6 +2457,16 @@ def test_progress_output_is_explicitly_flushed():
     with mock.patch("builtins.print") as printed:
         DC._progress("状態: RUN")
     printed.assert_called_once_with("[Pegasus dispatch] 状態: RUN", flush=True)
+
+
+def test_default_walltime_preserves_acceptance_runtime_margin():
+    # [T-656] 受入全走で実測した最大所要時間と、既定値に要求する余裕。
+    ACCEPTANCE_FULL_RUN_MAX_S = 1809
+    REQUIRED_MARGIN_FACTOR = 1.25
+
+    assert DC._walltime_seconds(DC.DEFAULT_WALLTIME) >= (
+        ACCEPTANCE_FULL_RUN_MAX_S * REQUIRED_MARGIN_FACTOR
+    )
 
 
 def test_walltime_override_is_bound_to_pbs_and_total_bound(tmp_path):
