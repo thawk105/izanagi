@@ -30,6 +30,8 @@ import types
 from pathlib import Path
 from unittest import mock as unittest_mock
 
+import pytest
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
@@ -76,8 +78,16 @@ _BUILD_CONTEXT = build_run_context(
         ["--allow-coder-derived-build"]
     ).coder_build_authority,
 )
-_AUTHORIZATION = ec.authorize("linux-baremetal")
-_AUTH_CONTRACT = _AUTHORIZATION.contract
+
+
+@pytest.fixture(autouse=True)
+def _certified_writer_authority():
+    global _AUTHORIZATION, _AUTH_CONTRACT
+    authorization = ec.authorize("linux-baremetal")
+    _AUTHORIZATION = authorization
+    _AUTH_CONTRACT = authorization.contract
+
+
 def _source_evidence(
         genome_value: Genome, commit: str, *, src_token: str = "stock",
         source_root: str = "/tmp/izanagi-test-ccbench",

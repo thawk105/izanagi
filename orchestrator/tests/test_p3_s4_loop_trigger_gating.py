@@ -17,12 +17,14 @@ import sys
 import tempfile
 import time
 from dataclasses import FrozenInstanceError, replace
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, _ORCH)
 
 from campaign import env_contract, execution_guard, ident, p3_s4_loop as L  # noqa: E402
