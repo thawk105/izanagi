@@ -1,0 +1,48 @@
+あなたは izanagi の開発 wave の段 2 (プラン起草) 担当である。日本語で書くこと。
+
+## 読むもの (読めなければ即停止し、その旨だけを書いて終わること)
+
+- 親 brief: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t663-flaky-truth-table/brief.md
+- 対象テスト: orchestrator/tests/test_codex_worker_launch.py
+- 対象 production (読むだけ。編集計画を立ててはならない): tools/codex_worker_launch.py
+- 失敗台帳の F57 節: docs/failures.md の "### F57." から次の "### F58." の直前まで
+
+cwd はリポジトリの作業コピー root である。あなたは read-only であり、書き込み可能な tmp を
+持たない。したがって pytest を走らせて緑を主張してはならない。静的検査だけでよい。
+テストの実測はすべて親が行う。実走していない結果を緑と書かないこと。
+
+## 依頼
+
+親 brief の「成果物の形」1〜3 を実装するための、**file:line 粒度の実装プラン**を書け。
+実装は別の子が行う。あなたは書かない。
+
+必ず次を含めること。
+
+1. **診断保存の設計。** `_run_case` (orchestrator/tests/test_codex_worker_launch.py:421) が返す
+   `completed` の returncode が期待外のとき、receipt の
+   `attempts[*].limit_trigger` / `evidence_status` / `metering_status` /
+   `process_group_residual` / `termination_verified` / `wall_clock_s` と、
+   attempt の stdout/stderr ファイルの中身 (パスは receipt の `stdout_path` / `stderr_path`) を
+   assert message へ載せる。どの関数をどう変えるか、call site が何箇所あり (現状 `_run_case` の
+   呼び出し元を列挙せよ)、既存の assert 文をどう書き換えるかを file:line で示せ。
+   receipt が存在しない場合・壊れている場合の扱いも決めよ。
+2. **どの call site の予算を広げ、どれを据え置くか。** 予算そのものを検査しているテストを
+   file:line で列挙し (`max_wall` の explicit 値、`--evidence-grace-s`、`--termination-grace-s`、
+   `stop_reason` / `limit_trigger` / `evidence_status` を期待している assert)、
+   それ以外を「広げてよい集合」として列挙せよ。広げる値は根拠つきで提案し、
+   `subprocess.run(..., timeout=10)` との整合 (予算が harness の timeout を超えると
+   失敗モードが変わる) を必ず論じよ。
+3. **恒真でないことの固定。** 診断が実際に発火することを示す meta-test の設計。
+   どの入力で診断経路へ入り、何を assert するか。テストを甘くして緑にする案は却下すること。
+4. **波及の静的列挙。** 変更が触る fixture・helper の他 test file からの利用、
+   同 dir の conftest への影響を列挙せよ。
+5. **やらないこと。** production (tools/codex_worker_launch.py) を編集する案は禁止である。
+   もし test 側だけでは目的を達成できない箇所があるなら、それを「裁定パッケージ候補」として
+   分離して書き、実装計画には入れるな。
+
+## 制約
+
+- 親 brief の provisional 裁定 (P1)(P2)(P3) は攻撃してよい。誤りだと思うなら根拠を書け。
+- 絶対規律 2 (正しさゲートを緩める変更をしない) を守ること。テストの期待値を緩めて
+  緑にする案は書かないこと。
+- 出力は簡潔に。最後に `## 総括` 見出しを必ず置き、そこにプランの要点を 10 行以内でまとめること。

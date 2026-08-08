@@ -580,3 +580,22 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:whole-file-pin-semantic-gap":"[T-675]"},"authored":"2026-08-09","content_sha256":"c74da12be4fee419af0f49a22faf277e5a8f1c9d950787a63c7c4acd50759b83","seq":1,"wave":"dev-wave-dangling-audit-offrepo-authority"}
 - {"allocations":{"D:offrepo-copy-needs-landed-reference":"D247","D:path-boundary-set-is-fail-safe-inverted":"D248"},"authored":"2026-08-09","content_sha256":"45c5acb969b5270593b673f956913cbc047c7309b7b501ba6acfa3a30e692430","seq":1,"wave":"dev-wave-dangling-audit-offrepo-authority"}
 - {"allocations":{"F:budget-trim-removed-safety-pointer":"F173"},"authored":"2026-08-09","content_sha256":"6bcde4fc501f19bc9c4cad284db49b41985253283ad4fcab3d9db72717434f8e","seq":1,"wave":"dev-wave-dangling-audit-offrepo-authority"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"6d4343c873ea4882196c9e875a9a2895868a700fcd65146d0e276174b1953291","seq":1,"wave":"dev-wave-t659-activation-deploy-window"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"ac13989af935d11e1afa11a59876fbf4691904a01ebad3855faf70304fd28714","seq":2,"wave":"dev-wave-t659-activation-deploy-window"}
+
+- {"allocations":{"T:dispatch-relay-diagnostic-reach":"[T-677]","T:flake-absence-evidence":"[T-680]","T:launcher-early-receipt":"[T-679]","T:launcher-fixture-budget-ruling":"[T-676]","T:probe-clean-tree-gate":"[T-681]","T:publication-wall-gate-gap":"[T-678]"},"authored":"2026-08-09","content_sha256":"ab32db70467bc216db84fa50ae02ac9d49e936aea201013d58fab73e0ab097d7","seq":1,"wave":"dev-wave-t663-flaky-truth-table"}
+- {"allocations":{"D:flake-instrument-before-widening":"D249","D:flake-instrumentation-must-not-depend-on-the-flake":"D250"},"authored":"2026-08-09","content_sha256":"5d2a6024188414adff54344c46d54897d14b2c41b884f76a156216f666f1444e","seq":2,"wave":"dev-wave-t663-flaky-truth-table"}
+- {"allocations":{"F:checkout-restore-wiped-uncommitted-child-work":"F174","F:flake-instrumentation-broke-under-the-flake":"F175"},"authored":"2026-08-09","content_sha256":"3c14442451eaec0859a0f8fa04d159f8e485095fd7551dbcc1704e0fefa38c52","seq":3,"wave":"dev-wave-t663-flaky-truth-table"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"6e819af0dc034bfbc1093cc296d1aad391c83b6a3b0e6c0c6d745e316b468c55","seq":1,"wave":"dev-wave-t316-semantic-gate"}
+
+- {"allocations":{"T:t659-probe-missing-codex-author":"[T-682]"},"authored":"2026-08-09","content_sha256":"630640e57aa8d3cba245f06547f0c4f2dd3e2974c1f6f6f26c67cc21ba5e08e2","seq":1,"wave":"dev-wave-t648-fallback-ledger"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"8428740dde8445a2a1d102aedf826ca6364f7c6ed06540f013f068fcc5175eef","seq":2,"wave":"dev-wave-t648-fallback-ledger"}
+
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"8df386241fa2cb3b766dfa9719805331d27e0dd38de8c1115cf50539018b8120","seq":23,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"9354c3a881581dda8ad420de24d6cae3c0fd42e8d9565e351460e1fc5adcd1aa","seq":24,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"d5d4e1c0a3ddc1a9f0bb670d5d5f5b6868400c171efb03d967bb77d9ea9f803b","seq":25,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"7195229ffb6944f72ff627c84bcab7721c5227c62e3d499530df1e4f5563aab3","seq":26,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"9b6da840bac8cbf2499a43b72b64eea3ec8ceb3e470ac8be6bb8ad2011a909aa","seq":27,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"bff79286f65d630daad87b4d6addb5b1cf8d80810cb890d610cb83a2f2ec6945","seq":1,"wave":"rulings2-20260809"}

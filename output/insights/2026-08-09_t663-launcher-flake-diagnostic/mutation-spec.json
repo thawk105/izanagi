@@ -1,0 +1,58 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        \"codex_exit_code\": process.returncode,\n",
+          "new": "        \"codex_exit_code\": 0,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_nonzero_codex_exit_code"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        \"validator_rc\": validator_rc,\n",
+          "new": "        \"validator_rc\": 0,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_validator_rejection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "def _evidence_status(state: AttemptState) -> str:\n    if not state.session_ids or any(\n        session_id not in state.rollouts for session_id in state.session_ids\n    ):\n        return \"missing\"\n",
+          "new": "def _evidence_status(state: AttemptState) -> str:\n    if False:\n        return \"missing\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_incomplete_evidence",
+        "orchestrator/tests/test_codex_worker_launch.py::test_rollout_missing_after_grace_is_stopped_and_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_thread_missing_after_grace_kills_process_group"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
