@@ -592,3 +592,10 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:t659-probe-missing-codex-author":"[T-682]"},"authored":"2026-08-09","content_sha256":"630640e57aa8d3cba245f06547f0c4f2dd3e2974c1f6f6f26c67cc21ba5e08e2","seq":1,"wave":"dev-wave-t648-fallback-ledger"}
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"8428740dde8445a2a1d102aedf826ca6364f7c6ed06540f013f068fcc5175eef","seq":2,"wave":"dev-wave-t648-fallback-ledger"}
+
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"8df386241fa2cb3b766dfa9719805331d27e0dd38de8c1115cf50539018b8120","seq":23,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"9354c3a881581dda8ad420de24d6cae3c0fd42e8d9565e351460e1fc5adcd1aa","seq":24,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"d5d4e1c0a3ddc1a9f0bb670d5d5f5b6868400c171efb03d967bb77d9ea9f803b","seq":25,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"7195229ffb6944f72ff627c84bcab7721c5227c62e3d499530df1e4f5563aab3","seq":26,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"9b6da840bac8cbf2499a43b72b64eea3ec8ceb3e470ac8be6bb8ad2011a909aa","seq":27,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"bff79286f65d630daad87b4d6addb5b1cf8d80810cb890d610cb83a2f2ec6945","seq":1,"wave":"rulings2-20260809"}
