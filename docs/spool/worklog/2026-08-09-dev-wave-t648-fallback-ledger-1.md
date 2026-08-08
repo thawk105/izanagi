@@ -41,6 +41,13 @@ title: [T-648] 受入免除判定の証拠記録義務を fallback (台帳 + mem
   含みながら Codex `role=author` trailer を持たない (trailer は manager + researcher 2 本)。
   他セッションの履歴は書き換えない。`tools/dev_wave_land.py` の provenance 使用は fold message の
   preflight だけで全史監査ではないため、本 wave の land は塞がれない。**所見として起票する。**
+- **段 8 の改善候補は 2 件、いずれも本文編集なしで記録のみとした。** (1) 受入 lease の待ち周期は
+  30 秒にする — 60 秒 90 回 (本 wave) と 120 秒 40 回 (同日の別 wave) がいずれも全空振りし、
+  30 秒の 2 本目が取得した。**独立 2 例が揃い `DW-G03` の族一般化条件は満たす**が、
+  `docs/dev-wave/**` の空き 1 byte では本文へ入らないため memory
+  (`acceptance-lease-poll-30s`) を正本とする ([T-641] (c) と同型、本 wave の [T-648] 処理と同じ形)。
+  (2) worktree 隔離セッションで複合 shell (export + `$()` + heredoc) が harness の guard に
+  拒否される件は、[T-594] が既に所有しており本 wave では起票しない (worklog 319 と同じ扱い)。
 - 実装差分ゼロのため変異 matrix は免除 (`DW-S04` の免除条項)。子エージェントは起動していない
   (docs-only は子ゼロ、`DW-C00`)。
 
