@@ -1,0 +1,62 @@
+あなたは izanagi repository の Codex 実装子 (role=author) である。日本語で報告すること。
+
+作業 directory は `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t182-luna-stage3` である。
+sandbox は workspace-write、reasoning は high である。
+
+## 権限境界 (厳守)
+
+- **編集してよいのは `orchestrator/tests/test_check_docs.py` だけ。**
+- `tools/check_docs.py` を**変更しない**。docs も 1 字も変更しない。
+- commit しない。`git` の状態を変える操作をしない。
+- **production を緩めて辻褄を合わせることを禁じる。** 直すのはテストの期待値であって
+  production の受理集合ではない。
+
+## 直す対象 (親が計算ノードで実測した赤 1 件)
+
+```
+FAILED orchestrator/tests/test_check_docs.py::test_dev_wave_model_pin_rejects_duplicate_dw_o01_section
+AssertionError: check_docs: 2 件の違反
+  - docs/dev-wave/operations.md: DW-O01 節が一意でない — codex subprocess 起動契約を検査できない
+  - docs/dev-wave/operations.md: H2 見出し DW-O01 が 2 件 — dispatch先は一意でなければならない
+```
+
+`orchestrator/tests/test_check_docs.py:2451` 付近で、`DW-O01` 節を重複させた入力に対し
+finding が 1 件だけ出ることを期待している。しかし実際には 2 件出る。
+
+- 1 件目は本 wave で追加した model pin の節 cardinality finding。
+- 2 件目は**既存の** H2 見出し一意性 gate の finding。
+
+## なぜテスト側が誤りか (この判断を検証してから直すこと)
+
+`DW-O01` 節の重複は 2 つの独立した gate に同時に触れる**冗長 gate** の入力である。
+`docs/dev-wave/mutation.md` の `DW-M03` は、fixture が過剰決定なら
+「単一理由へ差し替えるか、冗長 gate と明記して単独変異の証拠から外す」ことを要求する。
+また既存の reasoning pin (`_check_dev_wave_reasoning_effort_pins`) も、節が一意でないときに
+自分の finding を出す実装であり、production の挙動は既存慣行と一致している。
+
+**まずこの判断が正しいか自分で確認せよ。** 誤りだと判断したら直さずに報告して止めよ。
+
+## 直し方 (どちらかを選び、理由を報告に書け)
+
+- (a) 当該テストの期待を**実際に出る 2 件の finding 集合**へ改める。
+  「`DW-O01` 重複は冗長 gate であり 2 件出るのが正しい」ことをテスト名かコメントで明示する。
+- (b) 当該テストを削除し、節 cardinality の単一理由 negative を別の形で用意する。
+  ただし既存 H2 gate に触れずに model pin の cardinality だけを発火させる入力が
+  実在することを示せる場合に限る。示せないなら (a) にせよ。
+
+**期待値を緩める (finding 数を検査しない、部分一致にする) のは禁止。**
+`_assert_findings` の完全一致・件数固定の性質を保つこと。
+
+他のテストは触らない。
+
+## 完了報告に必ず書くこと
+
+- 選んだ選択肢と理由
+- 変更した nodeid と file:line
+- `python3 tools/check_docs.py` の rc (これは実行してよい)
+- pytest を走らせたなら nodeid と結果。走らせていないなら「実装済み・未実走」と書く
+
+## 総括
+
+**この見出しは `## 総括` (H2) にすること。**
+直した内容を 3 行以内で要約せよ。

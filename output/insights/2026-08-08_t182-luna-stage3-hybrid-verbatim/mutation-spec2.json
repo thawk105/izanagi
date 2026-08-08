@@ -1,0 +1,25 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            if (\n                authority_count != 1\n                or DEV_WAVE_MODEL_SLUG_RE.search(authority_residue) is not None\n            ):\n",
+          "new": "            if authority_count != 1:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pin_production_path_rejects_dw_o01_concrete_model",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pin_rejects_slug_in_dw_o01_heading"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

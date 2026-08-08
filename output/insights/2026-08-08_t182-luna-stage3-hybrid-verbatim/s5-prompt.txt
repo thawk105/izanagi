@@ -1,0 +1,107 @@
+あなたは izanagi repository の Codex 実装子 (role=author) である。日本語で報告すること。
+
+作業 directory は `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t182-luna-stage3` である。
+sandbox は workspace-write、reasoning は high である。
+
+## 権限境界 (厳守)
+
+- **編集してよいのは `tools/check_docs.py` と `orchestrator/tests/test_check_docs.py` の 2 つだけ。**
+- **docs は 1 字も編集しない。** `docs/`、`.claude/commands/`、`.agents/` は読むだけ。
+  親が既に必要な docs 変更を入れ終えている。
+- **commit しない。** `git add` / `git commit` / `git stash` を実行しない。
+- 指示にない受理集合の拡大・縮小をしない。scope を書く前に現行の受理・拒否挙動を明記せよ。
+- 既存テストの期待値を変更しない。反転・緩和・skip・削除を禁じる。赤なら実装側が誤りとする。
+  期待値のほうが誤りだと判断したら、実装を変えずに報告して止めよ。
+- production コードを fail-open にして辻褄を合わせてはならない。
+  検査を通すために検査自体を弱めるのは禁止である。
+
+## 先に読むもの (読めなければ推測せず、その旨を書いて即座に停止せよ)
+
+- 親の段 4 裁定: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t182-luna-stage3/s4-adjudication.md`
+- 段 2 プラン: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t182-luna-stage3/s2-plan.md`
+  (**案 A は段 4 で破棄済み**。§2 の checker 実装案と §3 のテスト命名だけを参考にせよ)
+- 段 3 レンズ A: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t182-luna-stage3/s3-lensA.md`
+- `tools/check_docs.py` の `REFERENCE_LIMITS`, `COMMAND_LIMITS`,
+  `DEV_WAVE_DW_S02_REASONING_MAX_*`, `DEV_WAVE_REASONING_EFFORT_RE`,
+  `_check_dev_wave_reasoning_effort_pins` とその呼び出し元,
+  `_reference_id_sections`, `_visible_markdown_text`,
+  `CODEX_DEV_WAVE_STAGE9_LAND_LITERAL` の pin 方式
+- `orchestrator/tests/test_check_docs.py` の `_build_min_repo()` と
+  既存 reasoning pin テスト群、`_assert_findings` の使い方
+- 親が変更済みの `docs/dev-wave/workers.md`, `docs/dev-wave/operations.md`,
+  `.claude/commands/dev-wave.md` の「凍結境界」節
+
+## 実装する内容
+
+model の権威を dispatcher (`.claude/commands/dev-wave.md`) の 1 行だけにした。
+その単一権威が黙って壊れないよう、`tools/check_docs.py` に次の 3 つの pin を追加せよ。
+
+### pin 1 — dispatcher の段別 model 行を exact literal で固定する
+
+`.claude/commands/dev-wave.md` に次の文字列がそのまま存在することを要求する。
+存在しなければ finding を 1 件出す。
+
+```
+codex の `-m` は段 3 が `gpt-5.6-sol` と `gpt-5.6-luna` を 1 本ずつ、他の全段が `gpt-5.6-sol`。
+```
+
+`CODEX_DEV_WAVE_STAGE9_LAND_LITERAL` と同じ「literal 定数 + `in text` 判定」方式でよい。
+
+### pin 2 — `DW-S02` / `DW-S03` に model slug が現れないことを要求する
+
+`docs/dev-wave/workers.md` の `DW-S02` と `DW-S03` の**可視本文**
+(`_visible_markdown_text` を通したもの) に `gpt-5.6-` で始まる model slug が
+**1 つも現れない**ことを要求する。現れたら節ごとに finding を 1 件出す。
+
+**期待値との一致ではなく「不在」を要求する点が重要である。**
+期待 slug との一致方式は、期待 slug を 1 つ残したまま別の slug を decoy として
+足せば通ってしまう (段 3 レンズ A の BLOCKER)。不在方式ならその攻撃が成立しない。
+
+検出する正規表現は、backtick の有無にかかわらず slug を拾うこと。
+`` `gpt-5.6-sol` ``、`-m gpt-5.6-sol`、`--model=gpt-5.6-luna`、行頭の bare slug を
+すべて拾わなければならない。
+
+### pin 3 — `DW-O01` に model slug が現れないことを要求する
+
+`docs/dev-wave/operations.md` の `DW-O01` の可視本文についても pin 2 と同じ不在検査を行う。
+起動雛形は `-m <model>` という placeholder でなければならない。
+
+### 共通
+
+- 既存の `_check_dev_wave_reasoning_effort_pins` は**変更しない**。
+- `REFERENCE_LIMITS`、`COMMAND_LIMITS`、`DEV_WAVE_AGGREGATE_BYTES` を**変更しない**。
+- 節が一意に取れない場合は既存 pin と同様に finding を出して fail-closed にすること。
+- finding 文言は D207 を根拠にしない。model の権威は dispatcher の段別 model 行である。
+
+## テスト
+
+`orchestrator/tests/test_check_docs.py` に追加する。既存の命名・helper に合わせること。
+
+**公開経路 (`_build_min_repo()` + 実際の `check_docs` 実行経路) を必ず通すこと。**
+private helper の直呼びだけで KILL を主張してはならない (F28)。
+
+最低限、次の negative を公開経路で用意せよ。いずれも**その finding 1 件だけ**が出ることを固定する。
+
+1. `DW-S03` の本文に `` `gpt-5.6-sol` `` を足す → workers slug 不在違反 1 件
+2. `DW-S03` の本文に bare `-m gpt-5.6-sol` を足す → 同上 (decoy 攻撃)
+3. `DW-S02` の本文に slug を足す → workers slug 不在違反 1 件
+4. `DW-O01` の雛形を `-m gpt-5.6-sol` へ戻す → operations slug 不在違反 1 件
+5. dispatcher の段別 model 行を改変・削除する → literal 不一致 1 件
+
+positive も置くこと。**現行の実 docs 一式で `check_docs` が緑である**ことを固定する
+(過剰拒否の検出)。`_build_min_repo()` の最小 repo にも、上の 3 か所が
+違反しない形の本文を入れておくこと。入れないと production-path baseline が常時赤になる。
+
+min repo の fixture が byte 予算 gate に先に食われないよう、headroom を確認せよ。
+
+## 完了報告に必ず書くこと
+
+- 走らせた pytest の nodeid と範囲。走らせていないなら「実装済み・未実走」と書く。
+  **緑を主張するなら nodeid を併記すること。**
+- 追加した定数名・関数名・呼び出し位置 (file:line)
+- 所有外の caller、共有 fixture、consumer test への波及可能性の静的な列挙
+- 現行の受理・拒否挙動と、変更後の受理・拒否挙動の差分
+
+## 総括
+
+実装した pin 3 つと、テストで固定した negative / positive を 5 行以内で要約せよ。

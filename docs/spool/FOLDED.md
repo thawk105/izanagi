@@ -551,3 +551,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:activation-issue-deploy-window":"[T-659]","T:activation-receipt-entry-wiring":"[T-658]","T:activation-tail-rollback-observability":"[T-660]","T:dev-wave-budget-for-grep-authority":"[T-661]","T:pegasus-g2-activation":"[T-657]"},"authored":"2026-08-08","content_sha256":"80ea2cb553c8119aaeda0c0362295671912353de53c561fd9911a59493cb41ba","seq":1,"wave":"dev-wave-t529-activation"}
 - {"allocations":{"F:grep-r-misses-tracked-hit":"F169"},"authored":"2026-08-08","content_sha256":"b5b88edf591313b26cb8ea3dbfd4fdc944f3eb88f09b531f1a89ac12de324249","seq":2,"wave":"dev-wave-t529-activation"}
+
+- {"allocations":{"T:codex-worker-launch-truth-table-flake":"[T-663]","T:dev-wave-docs-budget-relief":"[T-664]","T:dev-wave-model-runtime-binding":"[T-662]"},"authored":"2026-08-08","content_sha256":"dfb6e7b8fb1c9a3f4b6a94bbfb878de446d0af427d867f189eef52395f30a088","seq":1,"wave":"worktree-dev-wave-t182-luna-stage3"}
+- {"allocations":{"D:dev-wave-model-single-authority-absence-pin":"D242","D:stage3-hybrid-model-user-ruling":"D241"},"authored":"2026-08-08","content_sha256":"1e5a1e351f63aae05a259c55c89e0174627b2e48a8a3c6866a478978d9ed85b5","seq":2,"wave":"worktree-dev-wave-t182-luna-stage3"}

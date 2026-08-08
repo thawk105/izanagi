@@ -261,6 +261,39 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
     "Codex 固有の取り込み手順を重ねない。"
 )
+DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL = (
+    "`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、"
+    "他段 `gpt-5.6-sol`。"
+)
+DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 の可視本文に model 権威行が "
+    "exact 1 件でない、または権威行外に `gpt-` model slug がある — "
+    "model の単一権威を保持する"
+)
+DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING = (
+    "docs/dev-wave/workers.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
+    "model の権威は DW-O01 の model 権威行だけ"
+)
+DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 外の可視テキストに `gpt-` model slug がある — "
+    "model の権威は DW-O01 の model 権威行だけ"
+)
+DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING = (
+    ".claude/commands/dev-wave.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
+    "model の権威は DW-O01 の model 権威行だけ"
+)
+DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 節が一意でない — "
+    "codex subprocess 起動契約を検査できない"
+)
+DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 の可視本文に `-m <model>` が "
+    "1 件でない — dispatcher が定める model の束縛位置を保持する"
+)
+DEV_WAVE_MODEL_SLUG_RE = re.compile(
+    r"(?<![A-Za-z0-9._-])gpt-[0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
+    r"(?![A-Za-z0-9._-])"
+)
 DEV_WAVE_DW_S02_REASONING_MAX_LITERAL = "`reasoning=max`"
 DEV_WAVE_DW_S03_REASONING_MAX_LITERAL = "`reasoning=max`"
 DEV_WAVE_DW_S02_REASONING_MAX_FINDING = (
@@ -3379,6 +3412,64 @@ def _check_dev_wave_reference_cap_sum(
         )
 
 
+def _check_dev_wave_model_pins(
+    dev_wave_text: str | None,
+    workers_text: str | None,
+    operations_text: str | None,
+    findings: list[str],
+) -> None:
+    """DW-O01 の model 権威と他 surface の slug 不在を pin する。"""
+
+    if dev_wave_text is not None:
+        visible_dev_wave = _visible_markdown_text(dev_wave_text)
+        if DEV_WAVE_MODEL_SLUG_RE.search(visible_dev_wave) is not None:
+            findings.append(DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING)
+
+    if workers_text is not None:
+        visible_workers = _visible_markdown_text(workers_text)
+        if DEV_WAVE_MODEL_SLUG_RE.search(visible_workers) is not None:
+            findings.append(DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING)
+
+    if operations_text is not None:
+        dw_o01_pattern = re.compile(
+            r"^## DW-O01(?:\s+—[^\n]*)?\s*$\n"
+            r"(?P<body>.*?)(?=^## |\Z)",
+            re.MULTILINE | re.DOTALL,
+        )
+        dw_o01_matches = list(dw_o01_pattern.finditer(operations_text))
+        if len(dw_o01_matches) != 1:
+            findings.append(DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING)
+        else:
+            dw_o01_match = dw_o01_matches[0]
+            visible_dw_o01 = _visible_markdown_text(
+                dw_o01_match.group("body")
+            )
+            authority_count = visible_dw_o01.count(
+                DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
+            )
+            authority_residue = _visible_markdown_text(
+                dw_o01_match.group(0)
+            ).replace(
+                DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL,
+                "",
+            )
+            if (
+                authority_count != 1
+                or DEV_WAVE_MODEL_SLUG_RE.search(authority_residue) is not None
+            ):
+                findings.append(DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING)
+            if visible_dw_o01.count("-m <model>") != 1:
+                findings.append(DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING)
+
+        operations_outside_dw_o01 = dw_o01_pattern.sub("", operations_text)
+        if DEV_WAVE_MODEL_SLUG_RE.search(
+            _visible_markdown_text(operations_outside_dw_o01)
+        ) is not None:
+            findings.append(
+                DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING
+            )
+
+
 def _check_dev_wave_reasoning_effort_pins(
     workers_text: str,
     findings: list[str],
@@ -3573,7 +3664,15 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 f"{PROVENANCE_FAMILY_BYTES} bytes"
             )
 
+    dev_wave_text = decoded.get(".claude/commands/dev-wave.md")
     workers_text = decoded.get(_WORKERS)
+    operations_text = decoded.get(_OPERATIONS)
+    _check_dev_wave_model_pins(
+        dev_wave_text,
+        workers_text,
+        operations_text,
+        findings,
+    )
     if workers_text is not None:
         _check_dev_wave_reasoning_effort_pins(workers_text, findings)
 
@@ -3828,7 +3927,6 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     f"が {acceptance_order_count} 件"
                 )
 
-    operations_text = decoded.get(_OPERATIONS)
     if operations_text is not None:
         o23 = _reference_id_sections(operations_text, "DW-O23")
         o23_count = (
@@ -3872,7 +3970,6 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     f"dispatch 契約にない孤児 H{level} — {orphan_headings}"
                 )
 
-    dev_wave_text = decoded.get(".claude/commands/dev-wave.md")
     if dev_wave_text is not None:
         dispatch = _dispatch_tables(dev_wave_text)
         if dispatch is None:
