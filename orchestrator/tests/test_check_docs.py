@@ -262,7 +262,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "5d0087f8f5dd69e248589bbd8df84ba428cd6383868e6057e1bfb4b9b516586a"
+    "a92d960c4da65a199b39a50c43d64f5ab66fccbb19205f25c5d87db47a4722e3"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -352,7 +352,7 @@ submodule の gitlink を含む worktree は `git worktree remove` を使わず�
 3. ディレクトリを削除して `git worktree prune`
 
 **`git submodule deinit` は使わない**。誤って実行した場合は
-`git submodule update --init external/ccbench` で復元する。
+`git submodule update --init external/ccbench` で復元する。正本は `docs/failures.md` F26。
 
 ExitWorktree の remove を `discard_changes: true` で押し切らない。main が当該 commit を含むことを
 `git log` で確認し、`action: keep` で抜け、本節の手動手順で畳む。

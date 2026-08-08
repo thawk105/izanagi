@@ -25,9 +25,7 @@ DEFAULT_REPO = Path(__file__).resolve().parents[1]
 OFFREPO_ROOT_ENV = "IZANAGI_DEV_WAVE_JOBS_DIR"
 MAX_BLOB_SIZE = 32 * 1024 * 1024
 READ_CHUNK_SIZE = 1024 * 1024
-_PATH_EXTENDING_BYTES = frozenset(
-    b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_/"
-)
+_PATH_BOUNDARY_BYTES = frozenset(b" \t\n\r\"'`()[]{}<>")
 
 Finding = tuple[str, str, list[str]]
 Suppression = tuple[str, str, Path]
@@ -463,11 +461,12 @@ def _has_bounded_path_reference(content: bytes, pattern: bytes) -> bool:
         if index < 0:
             return False
         end = index + len(pattern)
-        left_extends = index > 0 and content[index - 1] in _PATH_EXTENDING_BYTES
-        right_extends = (
-            end < len(content) and content[end] in _PATH_EXTENDING_BYTES
+        left_bounded = index == 0 or content[index - 1] in _PATH_BOUNDARY_BYTES
+        right_bounded = (
+            end == len(content) or content[end] in _PATH_BOUNDARY_BYTES
         )
-        if not left_extends and not right_extends:
+        # 未知 byte（非 ASCII を含む）は path の延長として扱い、抑止しない。
+        if left_bounded and right_bounded:
             return True
         start = index + 1
 

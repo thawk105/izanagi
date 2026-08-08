@@ -401,7 +401,7 @@ policy:
   allow_implicit_invocation: false
 """
 CLEANUP_COMMAND_SHA256 = (
-    "5d0087f8f5dd69e248589bbd8df84ba428cd6383868e6057e1bfb4b9b516586a"
+    "a92d960c4da65a199b39a50c43d64f5ab66fccbb19205f25c5d87db47a4722e3"
 )
 
 COMMAND_INTERFACES = {

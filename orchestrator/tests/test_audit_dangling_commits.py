@@ -785,6 +785,60 @@ def test_negative_landed_reference_prefix_collision_does_not_suppress(
     assert report.unreferenced_copies == [(lost, "tools/a.py", first)]
 
 
+def test_negative_landed_reference_plus_suffix_collision_does_not_suppress(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    relpath = "tools/a.py"
+    lost = _commit_files(repo, "doomed", {relpath: "plus suffix\n"})
+    _delete_branch(repo, "doomed")
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "w/a.py", "plus suffix\n")
+    _landed_reference(repo, Path(str(external) + "+backup"))
+
+    report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))
+
+    assert report.findings == [(lost, "work on doomed", [relpath])]
+    assert report.suppressions == []
+    assert report.unreferenced_copies == [(lost, relpath, external)]
+
+
+def test_negative_landed_reference_non_ascii_suffix_does_not_suppress(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    relpath = "tools/a.py"
+    lost = _commit_files(repo, "doomed", {relpath: "non-ASCII suffix\n"})
+    _delete_branch(repo, "doomed")
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "w/a.py", "non-ASCII suffix\n")
+    _landed_reference(repo, Path(str(external) + "。"))
+
+    report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))
+
+    assert report.findings == [(lost, "work on doomed", [relpath])]
+    assert report.suppressions == []
+    assert report.unreferenced_copies == [(lost, relpath, external)]
+
+
+def test_positive_landed_reference_found_after_invalid_occurrence(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    relpath = "tools/a.py"
+    lost = _commit_files(repo, "doomed", {relpath: "later valid reference\n"})
+    _delete_branch(repo, "doomed")
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "w/a.py", "later valid reference\n")
+    _landed_reference(repo, Path(str(external) + "+backup"), external)
+
+    report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))
+
+    assert report.findings == []
+    assert report.suppressions == [(lost, relpath, external)]
+    assert report.unreferenced_copies == []
+
+
 def test_negative_landed_reference_left_boundary_collision_does_not_suppress(
     tmp_path: Path,
 ) -> None:
@@ -835,6 +889,52 @@ def test_negative_external_file_changed_during_comparison_is_not_suppressed(
                 st_size=current.st_size,
                 st_mtime_ns=current.st_mtime_ns + 1,
                 st_ctime_ns=current.st_ctime_ns,
+            )
+        return current
+
+    monkeypatch.setattr(ADC.os, "fstat", changed_after_comparison)
+
+    report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))
+
+    assert target_fstat_calls == 2
+    assert report.findings == [(lost, "work on doomed", [relpath])]
+    assert report.suppressions == []
+    assert report.scan_failures == 1
+    ADC._print_offrepo_report(report)
+    assert "repo 外候補の確認不能 1 件 (抑止せず)" in capsys.readouterr().out
+
+
+def test_negative_external_file_ctime_change_during_comparison_is_not_suppressed(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    repo = _repo(tmp_path)
+    relpath = "tools/changing_ctime.py"
+    lost = _commit_files(repo, "doomed", {relpath: "stable bytes\n"})
+    _delete_branch(repo, "doomed")
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "wave/changing_ctime.py", "stable bytes\n")
+    _landed_reference(repo, external)
+    external_stat = external.lstat()
+    real_fstat = ADC.os.fstat
+    target_fstat_calls = 0
+
+    def changed_after_comparison(descriptor):
+        nonlocal target_fstat_calls
+        current = real_fstat(descriptor)
+        if (
+            current.st_dev != external_stat.st_dev
+            or current.st_ino != external_stat.st_ino
+        ):
+            return current
+        target_fstat_calls += 1
+        if target_fstat_calls == 2:
+            return SimpleNamespace(
+                st_dev=current.st_dev,
+                st_ino=current.st_ino,
+                st_mode=current.st_mode,
+                st_size=current.st_size,
+                st_mtime_ns=current.st_mtime_ns,
+                st_ctime_ns=current.st_ctime_ns + 1,
             )
         return current
 
