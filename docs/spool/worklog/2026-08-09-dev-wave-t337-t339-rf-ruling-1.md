@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t337-t339-rf-ruling
 seq: 1
-title: [T-337][T-338][T-339] の束ね裁定依頼を現況照合で返した — 3 件とも裁定済みで新規裁定 0 件 (docs のみ、実装差分なし、受入は未実施 (land tip で実走後に本 fragment を更新)、変異は免除、branch worktree-dev-wave-t337-t339-rf-ruling)
+title: [T-337][T-338][T-339] の束ね裁定依頼を現況照合で返した — 3 件とも裁定済みで新規裁定 0 件 (docs のみ、実装差分なし、受入 7439 passed / 20 skipped、変異は免除、branch worktree-dev-wave-t337-t339-rf-ruling)
 ---
 
 ## 本文
@@ -29,6 +29,13 @@ title: [T-337][T-338][T-339] の束ね裁定依頼を現況照合で返した �
 - 調査は read-only Explore 子 2 本 (台帳ポインタ連鎖の遡及 / repo 外 rulings-inbox・handoff 走査)。
   §47 と 0805-199 の逐語は親が直接再確認した。稼働 handoff 7 件と scope 重複なし。
   実装差分ゼロのため変異 matrix は `DW-S04` 免除条項の対象。
+- **受入全走は緑** (request `896458`、1299 秒、**7439 passed / 20 skipped / rc=0**、測った checkout =
+  `d70d6a57`)。この受入値を記録する commit 自体は走行対象に含まれない (値を書く前に測る順序のため)。
+  記録後検査は `check_docs.py` rc=0、`spool_fold.py --dry-run` rc=0、provenance 監査 1845 件
+  新規違反なし、影響テスト (`test_check_docs` + `test_spool_fold`) 438 passed / rc=0。
+- **段 8 の改善候補 1 件を自動是正した** — `docs/spool/worklog/README.md` の carry 節の例
+  `- [T-298] 変わらず` が check_docs の carry-shape 検査 (ID のみ) と食い違い、本 wave で実測して
+  1 往復を失った。例と規則 bullet を是正 (専用 commit)。
 
 ## 次の一手差分
 
