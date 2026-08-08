@@ -1,0 +1,62 @@
+あなたは izanagi プロジェクトの実装プラン起草者である。sandbox は read-only であり、
+ファイルを変更してはならない。pytest も実行できない (書込可能 tmp が無い) ため、
+**静的読解だけで判定してよい。緑の主張は不要であり、実走していないことを明記すること。**
+
+出力は日本語。最後に必ず `## 総括` 節を置くこと。
+
+## 必ず最初に読むファイル (読めなければ即座に停止し、その旨だけを出力すること)
+
+- 親 brief: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t627-noop-binding/s1-brief.md
+- 段 1 実測 probe: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t627-noop-binding/s1-probe.py
+
+repo は worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t627-noop-binding である
+(cwd がそこに設定されている)。次のファイルを読むこと。
+
+- orchestrator/campaign/env_contract_activation.py (実 schema と chain 検証。本 wave の主編集面)
+- orchestrator/campaign/env_contract.py (GenerationEntry, is_valid_successor,
+  _validate_generations_without_bootstrap_fuse, _build_registered_contract_catalog,
+  _load_authority_snapshot, _ACTIVATION_HEAD_*)
+- orchestrator/tests/test_env_contract_activation.py (既存テスト。特に
+  test_chain_intentionally_does_not_enforce_generation_delta_predicates、
+  test_downgrade_preserves_pegasus_g2_for_historical_resolution、
+  test_issue_main_success_prints_required_head_and_inactive_warning)
+- tools/issue_env_contract_activation.py (issuer。loader を呼ぶ)
+- orchestrator/campaign/env_contract_activations/00000001.json (本番 record 1 件)
+- docs/decisions.md の D228 (`grep -n "^## D228" docs/decisions.md` で位置を出して該当節だけ読む)
+
+## 依頼
+
+ユーザー裁定は「[T-627] = 次点 (b) generation + contract hash の同一入力束縛で実装」である。
+番号 delta だけを見る述語 ((a) 案) は却下済みである。この裁定を実装する
+**file:line 粒度のプラン**を起草せよ。次を必ず含めること。
+
+1. **編集面の特定**: どのファイルのどの行に何を挿入・変更するか。関数の署名、引数の型、
+   例外メッセージの骨子まで書く。挿入位置は現行行番号で指す。
+2. **述語の入力と束縛**: 「generation と contract hash を同一入力で束縛する」を、この実 schema
+   (`active_contracts[] = {env_tag, generation, contract_sha256}`) の上でどう実現するか。
+   親 brief の (P2)「registry 経由の推移で `is_valid_successor` との合成を満たす」案の是非を
+   検討し、代案 (loader へ GenerationEntry mapping を渡す / successor 判定を callable で注入する /
+   その他) と比較して 1 つを推奨せよ。**循環 import と pure leaf 性への影響を必ず論じること。**
+3. **受理集合の前後表**: 変更前に受理され変更後に拒否されるケース、変更前後とも受理されるケース、
+   変更前後とも拒否されるケースを表で書く。**`(+2, −1)` の相殺ケースを必ず含めること。**
+   過剰拒否 (承認外の縮小) が起きないことを、正例を挙げて論じよ。
+4. **既存 3 テストの再著述案**: 親 brief の (P4) を検討する。特に
+   `test_downgrade_preserves_pegasus_g2_for_historical_resolution` は downgrade chain を fixture に
+   しているため、遷移述語の導入後にどう ever-active な歴史世代を作るかを file:line で示せ。
+   **テストを甘くする方向 (expected の緩和・skip・削除) は禁止**である。
+   受理集合が狭まった結果として期待が変わるものと、単に壊れたものを区別せよ。
+5. **新規テストの node 設計**: 各性質を独立 node にする。node 名と assert の骨子を書く。
+   相殺 `(+2, −1)` は必須の独立負例とする。
+   「番号だけを見る誤実装」「hash だけを見る誤実装」がそれぞれ落ちる node を設計せよ。
+6. **波及**: 所有外の caller・共有 fixture・consumer test への影響を静的に列挙せよ
+   (`orchestrator/campaign/execution_guard.py`、`orchestrator/tests/conftest.py`、
+   `orchestrator/campaign/silo_ladder_rung1.py` などを含めて確認すること)。
+7. **判定**: GO / 条件付き GO / NO-GO を述べ、条件があれば列挙せよ。
+
+## 制約
+
+- 絶対規律: 正しさゲートを緩める変更は採用しない。受理集合の拡大・縮小は裁定の範囲に限る。
+- 本番 record 1 件の load 結果 (`lookup()` の返り値) は land 前後で不変でなければならない。
+  `_ACTIVATION_HEAD_SERIAL` / `_ACTIVATION_HEAD_STATE_SHA256` は変更しない。
+- 凍結成果物の bytes を変えない。
+- docs は編集対象外 (親が書く)。commit もしない。
