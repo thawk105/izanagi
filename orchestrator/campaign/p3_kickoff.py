@@ -97,6 +97,7 @@ def main(argv=None) -> int:
     _assert_single_tenant()
 
     cfg, perf = ident.bind_admission_policy(_cfg(), build_context.policy), _perf()
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     assert_pinned_clean(sub, PIN)
     print("=== 完了条件 1: dirty no-op → coder namespace の cache-miss commit ===")
     with applied(os.path.join(root, NOOP_PATCH), PIN, sub):

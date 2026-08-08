@@ -100,12 +100,13 @@ def prepare_screening_campaign(
         baseline_ref, floor, k, high_abort_factor)
     cfg = replace(base_cfg, search_config={**base_cfg.search_config, **policy})
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    execution_guard.require_certified_writer_authorization(
+    authorized_contract = execution_guard.require_certified_writer_authorization(
         authorization_contract,
         env_tag=env_tag,
         clocks_per_us=clocks_per_us,
         numactl=numactl,
     )
+    cfg = ident.bind_environment_contract(cfg, authorized_contract)
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root).ensure()
     _surface_repair(ident.ensure_resumable_wal(
         cfg, layout, admission_policy=build_context.policy,
@@ -153,13 +154,14 @@ def evaluate_candidate(
     """sweep候補を1点評価する。forceはbaseline再アンカー専用。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
-    execution_guard.require_certified_writer_authorization(
+    authorized_contract = execution_guard.require_certified_writer_authorization(
         authorization_contract,
         env_tag=env_tag,
         clocks_per_us=clocks_per_us,
         numactl=numactl,
     )
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, authorized_contract)
     _surface_repair(ident.ensure_resumable_wal(
         cfg, layout, admission_policy=build_context.policy,
     ), log)

@@ -32,8 +32,11 @@ from .build_admission import (
     BuildAdmissionPolicy,
     validate_build_admission_receipt,
 )
+from . import env_contract
 from .layout import CampaignLayout
 from .model import (
+    COMMIT_CONTRACT_SHA256_KEY,
+    ENVIRONMENT_CONTRACT_SEARCH_KEY,
     INCOMPLETE_ATTEMPT_RECOVERY_REASON,
     STAGE_ABORT,
     STAGE_BENCH_DONE,
@@ -550,8 +553,13 @@ def repair_truncated_tail(
             )
 
         final_size = _last_frame_boundary(fd, original_size)
+        prefix_records = (
+            _read_records_from_locked_fd(fd, final_size) if final_size else []
+        )
+        validate_commit_contract_bindings(
+            prefix_records, campaign_lock=_campaign_lock_value(layout),
+        )
         if reject_active_attempt and final_size:
-            prefix_records = _read_records_from_locked_fd(fd, final_size)
             if any(
                     _ATTEMPT_SCHEMA_KEYS & frozenset(record.payload)
                     for record in prefix_records):
@@ -936,11 +944,55 @@ def _receipt_sha(payload: Dict, *, stage: str) -> str:
     return value
 
 
+def validate_commit_contract_bindings(
+        records: List[WalRecord], *, campaign_lock: object,
+) -> None:
+    """Validate lock-bound execution-contract identity on every COMMIT.
+
+    The lock alone selects whether binding is required.  Legacy and guided
+    locks without the wire key remain readable; a record cannot exempt itself
+    by omitting the COMMIT field.
+    """
+    search_config = (
+        campaign_lock.get("search_config")
+        if type(campaign_lock) is dict else None
+    )
+    if (type(search_config) is not dict
+            or ENVIRONMENT_CONTRACT_SEARCH_KEY not in search_config):
+        return
+    expected = search_config.get(ENVIRONMENT_CONTRACT_SEARCH_KEY)
+    try:
+        resolved = env_contract.resolve_by_contract_sha256(expected)
+    except env_contract.EnvContractError as exc:
+        raise AttemptTopologyError(
+            "campaign.lock の environment contract を ever-active 契約へ解決できない"
+        ) from exc
+    for record in records:
+        if record.stage != STAGE_COMMIT:
+            continue
+        actual = record.payload.get(COMMIT_CONTRACT_SHA256_KEY)
+        if (type(actual) is not str or len(actual) != 64
+                or any(ch not in "0123456789abcdef" for ch in actual)):
+            raise AttemptTopologyError(
+                "commit: contract_sha256 が exact lowercase SHA-256 でない"
+            )
+        if actual != expected:
+            raise AttemptTopologyError(
+                "commit: contract_sha256 が campaign.lock と不一致"
+            )
+        if record.env_tag != resolved.contract.env_tag:
+            raise AttemptTopologyError(
+                "commit: env_tag が environment contract と不一致"
+            )
+
+
 def _validate_attempt_topology(
         records: List[WalRecord], *, admission_policy: BuildAdmissionPolicy,
+        campaign_lock: object,
 ) -> Dict[str, Dict[str, BuildAttemptState]]:
     if type(admission_policy) is not BuildAdmissionPolicy:
         raise TypeError("admission_policy は BuildRunContext.policy の exact value が必要")
+    validate_commit_contract_bindings(records, campaign_lock=campaign_lock)
     by_variant: Dict[str, Dict[str, BuildAttemptState]] = {}
     global_attempts: Dict[str, BuildAttemptState] = {}
     active: Dict[str, BuildAttemptState] = {}
@@ -1256,6 +1308,18 @@ def recover_interrupted_attempts(
                 detail=("campaign.lock search_config.build_admission must "
                         "match the current admission policy"),
             )
+        try:
+            validate_commit_contract_bindings(
+                records, campaign_lock=campaign_lock,
+            )
+        except AttemptTopologyError as exc:
+            variant, attempt_ids = _recovery_context(records)
+            raise InterruptedAttemptRecoveryError(
+                condition="existing-contract-binding-violation",
+                variant=variant,
+                attempt_ids=attempt_ids,
+                detail=str(exc),
+            ) from exc
         if not any(
                 _ATTEMPT_SCHEMA_KEYS & frozenset(record.payload)
                 for record in records):
@@ -1275,6 +1339,7 @@ def recover_interrupted_attempts(
             validate_trigger_bindings(records, campaign_lock=campaign_lock)
             _validate_attempt_topology(
                 records, admission_policy=admission_policy,
+                campaign_lock=campaign_lock,
             )
         except AttemptTopologyError as exc:
             variant, attempt_ids = _recovery_context(records)
@@ -1360,13 +1425,17 @@ def replay(
     """WAL をリプレイし、new-schema lock では attempt topology も検証する。"""
     records = read_records(layout)
     campaign_lock = _campaign_lock_value(layout)
+    validate_commit_contract_bindings(records, campaign_lock=campaign_lock)
     validate_trigger_bindings(records, campaign_lock=campaign_lock)
     if admission_policy is None and _lock_declares_admission_policy(layout):
         raise AttemptTopologyError(
             "admission-aware campaign replay には current admission_policy が必要"
         )
     attempts = (
-        _validate_attempt_topology(records, admission_policy=admission_policy)
+        _validate_attempt_topology(
+            records, admission_policy=admission_policy,
+            campaign_lock=campaign_lock,
+        )
         if admission_policy is not None else {}
     )
     orphan = _tail_trigger_orphan(records)
@@ -1378,7 +1447,10 @@ def replay(
         records = read_records(layout)
         validate_trigger_bindings(records, campaign_lock=campaign_lock)
         attempts = (
-            _validate_attempt_topology(records, admission_policy=admission_policy)
+            _validate_attempt_topology(
+                records, admission_policy=admission_policy,
+                campaign_lock=campaign_lock,
+            )
             if admission_policy is not None else {}
         )
     states: Dict[str, EvalState] = {}
@@ -1415,9 +1487,9 @@ def records_by_stage(layout: CampaignLayout, variant: str) -> Dict[str, Dict]:
     (例 critic.digest.load_verify_abort_signals) は wal.read_records() を直接使い、
     workload タグ (payload["workload"]["tag"]) で読み分けること。"""
     records = read_records(layout)
-    validate_trigger_bindings(
-        records, campaign_lock=_campaign_lock_value(layout),
-    )
+    campaign_lock = _campaign_lock_value(layout)
+    validate_commit_contract_bindings(records, campaign_lock=campaign_lock)
+    validate_trigger_bindings(records, campaign_lock=campaign_lock)
     out: Dict[str, Dict] = {}
     for index, r in enumerate(records):
         if (r.variant == variant
