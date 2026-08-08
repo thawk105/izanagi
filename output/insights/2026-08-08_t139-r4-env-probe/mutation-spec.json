@@ -47,7 +47,7 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger"
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 1 1 1 1-fewer than 8]"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
