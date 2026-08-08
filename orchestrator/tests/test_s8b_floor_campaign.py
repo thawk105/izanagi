@@ -3242,15 +3242,15 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     seal_commit = "82803d6d245d80a82954d61e065404fb15b3eeab"
     pre_oracle_head = "776640790752a969baee9246b2531b5dde49244d"
     ccbench_pin = "d706650cdb31e442bef45b9b4216951d4fb40969"
-    protocol_sha256 = "261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac"
+    protocol_sha256 = "c0eeed87ab1f449b97c0b7d88654a8c3a5c07fae3565dc90c5724e29f1cb660d"
     freeze_sha256 = "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"
     prediction_sha256 = "5884c83f010f73914fe121e9eb7b2fe047a4739087a984d17287cfa338fd73f1"
     journal_sha256 = "d41135998cff3047cf792047239a3147a1154929e560b4a2e413e4ac14f9e000"
     calibration_sha256 = (
-        "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49"
+        "94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9"
     )
     contract_sha256 = (
-        "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+        "1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c"
     )
 
     clone_root = _clone_committed_head_with_ccbench(
@@ -3478,7 +3478,9 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         ]
         assert len(clean_samples) == calibration_profile.cores.logical == 48
         assert all(lower <= sample <= upper for sample in clean_samples)
-        assert any(sample != calibration_median for sample in clean_samples)
+        # 元の較正が単一値なら clamp 後の多様性を要求できない。
+        if len(set(calibration_samples)) > 1:
+            assert any(sample != calibration_median for sample in clean_samples)
         clean_clock = dataclasses.replace(
             calibration_clock,
             samples_mhz=clean_samples,

@@ -3517,7 +3517,10 @@ def validate_raw_bundle(
 def validate_current_bindings(
     document: Mapping[str, Any], repo: Path,
 ) -> tuple[EvidenceFailure, ...]:
-    """committed result を現行 patch/ledger/verifier/PBS bytes へ再束縛する。"""
+    """新規生成 evidence 専用で、現行 patch/ledger/verifier/PBS bytes へ束縛する。
+
+    現行 bytes と直接照合するため、committed な歴史 evidence の再検証には使えない。
+    """
     paths = {
         "patch": repo / patch_contract.PATCH_PATH,
         "ledger": repo / "patches/ledger.json",
@@ -4814,7 +4817,14 @@ def build_parser() -> argparse.ArgumentParser:
     collect.add_argument("--stdout", type=Path, required=True)
     collect.add_argument("--stderr", type=Path, required=True)
     collect.add_argument("--output", type=Path, required=True)
-    verify = commands.add_parser("verify-result")
+    verify = commands.add_parser(
+        "verify-result",
+        help="新規生成 evidence を現行 bytes で自己検証する",
+        description=(
+            "新規生成 evidence 専用。現行 bytes と照合するため、"
+            "committed な歴史 evidence の再検証には使えない。"
+        ),
+    )
     verify.add_argument("--json", type=Path, required=True, dest="json_path")
     return parser
 

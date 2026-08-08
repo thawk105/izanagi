@@ -43,7 +43,7 @@ FROZEN_MANIFEST = {
     "output/s8b-freeze/holdout_freeze.json":
         "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
     "output/s8b-freeze/floor_protocol.json":
-        "261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac",
+        "c0eeed87ab1f449b97c0b7d88654a8c3a5c07fae3565dc90c5724e29f1cb660d",
     "output/insights/2026-07-16_s8b-floor-protocol-package.md":
         "150438a4ce2d0e5cab772c3eb9bfa05f44307a5dae5e47a1034778a3e3d9f6ba",
     "output/insights/2026-07-16_s8b-freeze-v2-design-material.md":

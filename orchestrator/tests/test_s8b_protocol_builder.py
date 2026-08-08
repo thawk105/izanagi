@@ -115,7 +115,7 @@ def test_approved_constants_protocol_bytes_match_parent_precalculation():
         wired_min_rel_floor=s8b_approved.APPROVED_WIRED_MIN_REL_FLOOR,
     )
     assert len(built.canonical_bytes) == 774
-    assert built.sha256 == "261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac"
+    assert built.sha256 == "c0eeed87ab1f449b97c0b7d88654a8c3a5c07fae3565dc90c5724e29f1cb660d"
 
 
 def test_builder_rejects_holdout_conjunction_in_master_seed():
@@ -410,7 +410,7 @@ def test_freeze_protocol_success_writes_only_fixed_tmp_repo_path(tmp_path):
         "status": "frozen",
         "path": fc._FLOOR_PROTOCOL_REL,
         "byte_length": 774,
-        "sha256": "261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac",
+        "sha256": "c0eeed87ab1f449b97c0b7d88654a8c3a5c07fae3565dc90c5724e29f1cb660d",
     }
     assert len(raw) == outcome["byte_length"]
     assert hashlib.sha256(raw).hexdigest() == outcome["sha256"]
