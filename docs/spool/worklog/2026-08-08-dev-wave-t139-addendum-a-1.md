@@ -63,6 +63,14 @@ title: [T-139] 追補 A の 13 field を埋めて確定パッケージへ返し�
   で、F57 の型 (launcher subprocess が rc=1 / stderr 空) である。同 file の単独再走
   (request `896010`) は 64 passed / rc=0 で再現しない。本 wave の差分は docs のみで
   当該実装へ到達しえないため `DW-O18` により帰属しない。F57 へ再発として記録した。
+- **段 8 の改善候補 1 件は予算不足で本文へ入れられず、[T-664] へ寄せた。**
+  背景 job + worktree 隔離のセッションでは、`DW-O01` が定める 1 行の起動形
+  (`nohup setsid bash -c "codex exec … > log 2>&1; echo $? > done"` を Bash へ直接渡す形) が
+  worktree guard に「複雑すぎて worktree 内に留まると検証できない」と**機械拒否される**。
+  本 wave では launcher script を Write して `bash <script>` で起動する形に置き換えて通した
+  (段 2 投入時と段 1 の検算コマンドの 2 回で実測)。`DW-O01` へ 1 行足したいが、
+  `docs/dev-wave/operations.md` は 8387 / 8400 bytes で空きが 13 bytes しかない。
+  上限引き上げは提案せず、同じ壁を 3 wave 続けて踏んでいる [T-664] の材料として記録する。
 - 一次資料 = `output/insights/2026-08-08_t139-addendum-a/` (段 1 brief、段 2 プラン、段 3 の 2 レンズ、
   段 4 裁定、段 6 の 2 レビュー、焦点再レビュー、fix 対応表 2 巡、成果物 4 本)。
   裁定パッケージ = 同 `package.md`。
