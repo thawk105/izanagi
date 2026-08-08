@@ -27,9 +27,9 @@ seq: 3
   (`DW-M02` の erratum は事後の受け皿であって、既知の指摘を通す口実にしない)。
 - 再発検知: harness の `matches_expectation` が false で残る。本件は v1 台帳
   (`mutation-ledger-v1.json`) を erratum として insights に残し、v2 と併置した。
-  **恒久対応の `DW-M01` への明文化は `docs/dev-wave/**` の byte hard ceiling (25,200) に
-  4 bytes しか空きがなく入らない。** F146 / F161 と同じく本エントリを恒久対応の所在とし、
-  空きが出たときに `DW-M01` へ 1 文で統合する。
+  **恒久対応の `DW-M01` への明文化は、`docs/dev-wave/**` の byte hard ceiling (25,200) に対する
+  空きが 1 文にも足りない (本 wave の land 直前で 15 bytes) ため入らない。** F146 / F161 と同じく
+  本エントリを恒久対応の所在とし、空きが出たときに `DW-M01` へ 1 文で統合する。
 
 ## 再発
 
