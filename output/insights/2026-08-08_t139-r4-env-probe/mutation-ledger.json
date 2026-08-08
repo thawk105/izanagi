@@ -1,0 +1,694 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/b5f75b1293003f42eb9b218cdec6cfb3/izdw-b5f75b1293.o896492",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/b5f75b1293003f42eb9b218cdec6cfb3/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................                  [100%]\n55 passed in 2.21s\n",
+      "stdout_sha256": "a0708a2c87e30bba3e8b26ac184a11da1676d5cd1a7cf8581e4c3bcd597b1dab"
+    },
+    "artifact_error": null,
+    "collection_sha256": "3739ff3e121688396f725b833d30fcb8e0989369ad6a17ac58606a1f752e6b83",
+    "duration_s": 21.757,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "4fe67e67b674a757ed1a865e64a276c2ce5428af4bba508efe0e08a103fc21f0",
+    "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+    "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+    "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+    "status": "PASSED",
+    "test_output_sha256": "a0708a2c87e30bba3e8b26ac184a11da1676d5cd1a7cf8581e4c3bcd597b1dab",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108"
+  },
+  "date": "2026-08-08T16:38:59.956449+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/31010661a4a5416d1dec747f7dd12f52/izdw-31010661a4.o896493",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/31010661a4a5416d1dec747f7dd12f52/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................................F.........                  [100%]\n=================================== FAILURES ===================================\n_________ test_analyze_window_call_site_duration_gate_reaches_decision _________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_analyze_window_call_site_duration_gate_reaches_decision() -> None:\n        windows, ids = _decision_windows(0, 48)\n        analyzed = PROBE.analyze_window(\n            _line([100] * 8),\n            _line([100, 100, 100, 148, 100, 100, 100, 100]),\n            10_100_000_001,\n            0,\n        )\n        analyzed[\"window_id\"] = ids[0]\n        windows[0] = analyzed\n        decision = _decision(windows, ids)\n>       assert decision.window_verdict == \"incomplete\"\nE       AssertionError: assert 'feasible' == 'incomplete'\nE         \nE         - incomplete\nE         + feasible\n\norchestrator/tests/test_t139_r4_env_probe.py:308: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision\n1 failed, 54 passed in 2.21s\n",
+        "stdout_sha256": "8fed7e721fdedfd2a4972767af32562362672c5ad8764762dc8b226a58c7066e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3739ff3e121688396f725b833d30fcb8e0989369ad6a17ac58606a1f752e6b83",
+      "duration_s": 26.825,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "320a01b2d31aac3f35495b63e78a65ca62877b461a5db9e69bc732959abfd7f9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "85b63c87c398fd66102de93edf3b438e1ed9a3a597cdc19b57150685b0ddf998",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "new": "",
+          "old": "    if not validate_window_duration(duration_ns):\n        result[\"failure_reasons\"].append(\"window_duration_out_of_tolerance\")\n"
+        }
+      ],
+      "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+      "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+      "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+      "status": "KILLED",
+      "test_output_sha256": "8fed7e721fdedfd2a4972767af32562362672c5ad8764762dc8b226a58c7066e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/ab06d6ac399d4fa6a737cbfd2a0457d4/izdw-ab06d6ac39.o896494",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/ab06d6ac399d4fa6a737cbfd2a0457d4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................F............                  [100%]\n=================================== FAILURES ===================================\n________________ test_negative_delta_is_malformed_and_preserved ________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_negative_delta_is_malformed_and_preserved() -> None:\n        result = PROBE.analyze_window(\n            _line([100] * 8),\n            _line([99, 101, 101, 101, 101, 101, 101, 101]),\n            10_000_000_000,\n            0,\n        )\n>       assert result[\"status\"] == \"malformed\"\nE       AssertionError: assert 'valid' == 'malformed'\nE         \nE         - malformed\nE         + valid\n\norchestrator/tests/test_t139_r4_env_probe.py:206: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_r4_env_probe.py::test_negative_delta_is_malformed_and_preserved\n1 failed, 54 passed in 2.27s\n",
+        "stdout_sha256": "640027d089ec4cc1d146c991a55da2ece7faef0ffb0c76f9d10b3cb3cc9a8353"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3739ff3e121688396f725b833d30fcb8e0989369ad6a17ac58606a1f752e6b83",
+      "duration_s": 21.746,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_negative_delta_is_malformed_and_preserved"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_negative_delta_is_malformed_and_preserved"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "d84115ca8f1fb32c5c95b2228214895e647076e713cb5eff4c26292df05b528c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8c8cbebc79e61e4f549d46f70d33b001df1012e7a0505427b929846ec8f3a3bc",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "new": "",
+          "old": "        if any(delta < 0 for delta in deltas):\n            result[\"failure_reasons\"].append(\"counter_decreased\")\n"
+        }
+      ],
+      "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+      "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+      "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+      "status": "KILLED",
+      "test_output_sha256": "640027d089ec4cc1d146c991a55da2ece7faef0ffb0c76f9d10b3cb3cc9a8353",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/33c3e18e475cbf69d284ef4c6be83f96/izdw-33c3e18e47.o896495",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/33c3e18e475cbf69d284ef4c6be83f96/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................F............                  [100%]\n=================================== FAILURES ===================================\n_ test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 1 1 1 1-fewer than 8] _\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntext = 'cpu 1 1 1 1 1 1 1', message = 'fewer than 8'\n\n    @pytest.mark.parametrize(\n        \"text, message\",\n        [\n            (_line([1] * 7), \"fewer than 8\"),\n            (_line([1, 1, 1, \"x\", 1, 1, 1, 1]), \"non-integer\"),\n        ],\n    )\n    def test_parse_aggregate_cpu_line_rejects_short_and_noninteger(text: str, message: str) -> None:\n>       with pytest.raises(ValueError, match=message):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_t139_r4_env_probe.py:181: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 1 1 1 1-fewer than 8]\n1 failed, 54 passed in 2.22s\n",
+        "stdout_sha256": "25a01f2d8a39703414e365c457892ab1b58934bf4239db5e98f759d49e5060bf"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3739ff3e121688396f725b833d30fcb8e0989369ad6a17ac58606a1f752e6b83",
+      "duration_s": 21.747,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 1 1 1 1-fewer than 8]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 1 1 1 1-fewer than 8]"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "a14c59380c8662c7fd49be0941fef70b3fb54e9ecf9152e75e3106c1d92cde7b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "af1f33ba4eabc176182830f5d002e1619aa3710b0b1651d32959e5d77e6fdfd0",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "new": "",
+          "old": "    if len(fields) < 8:\n        raise ValueError(\"aggregate cpu line has fewer than 8 counters\")\n"
+        }
+      ],
+      "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+      "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+      "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+      "status": "KILLED",
+      "test_output_sha256": "25a01f2d8a39703414e365c457892ab1b58934bf4239db5e98f759d49e5060bf",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/058b59fee82bb82cf7e8e94fae76ec97/izdw-058b59fee8.o896496",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/058b59fee82bb82cf7e8e94fae76ec97/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................................F.........                  [100%]\n=================================== FAILURES ===================================\n_____________________ test_decision_exactly_one_point_zero _____________________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_decision_exactly_one_point_zero() -> None:\n        windows, ids = _decision_windows(1, 48)\n>       assert _decision(windows, ids).window_verdict == \"feasible\"\nE       AssertionError: assert 'not_feasible' == 'feasible'\nE         \nE         - feasible\nE         + not_feasible\nE         ? ++++\n\norchestrator/tests/test_t139_r4_env_probe.py:266: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_r4_env_probe.py::test_decision_exactly_one_point_zero\n1 failed, 54 passed in 2.26s\n",
+        "stdout_sha256": "e8184a64cd74ff732fe262b1e07cd4063f9656a0eb679e912f682b39c84638f0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3739ff3e121688396f725b833d30fcb8e0989369ad6a17ac58606a1f752e6b83",
+      "duration_s": 21.726,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_exactly_one_point_zero"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_exactly_one_point_zero"
+      ],
+      "hang_risk": false,
+      "id": "M5a",
+      "injection_diff_sha256": "4f6e7bb1c5e81e5b221d9cf1d0f8c170d8efaa07cea18ef500dc81b1ceedab58",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "120c1c99c1b2a5226d47e045c34f40ec7ea24d880f46f5d6e658ef1936965cda",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "new": "    if all(48 * busy < total for busy, total in pairs):",
+          "old": "    if all(48 * busy <= total for busy, total in pairs):"
+        }
+      ],
+      "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+      "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+      "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+      "status": "KILLED",
+      "test_output_sha256": "e8184a64cd74ff732fe262b1e07cd4063f9656a0eb679e912f682b39c84638f0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/b471da43aae831ecdc0d7c3f8b20afe8/izdw-b471da43aa.o896497",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/b471da43aae831ecdc0d7c3f8b20afe8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................FF............                  [100%]\n=================================== FAILURES ===================================\n_________ test_analyze_window_call_site_duration_gate_reaches_decision _________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_analyze_window_call_site_duration_gate_reaches_decision() -> None:\n        windows, ids = _decision_windows(0, 48)\n        analyzed = PROBE.analyze_window(\n            _line([100] * 8),\n            _line([100, 100, 100, 148, 100, 100, 100, 100]),\n            10_100_000_001,\n            0,\n        )\n        analyzed[\"window_id\"] = ids[0]\n        windows[0] = analyzed\n        decision = _decision(windows, ids)\n>       assert decision.window_verdict == \"incomplete\"\nE       AssertionError: assert 'feasible' == 'incomplete'\nE         \nE         - incomplete\nE         + feasible\n\norchestrator/tests/test_t139_r4_env_probe.py:308: AssertionError\n__________________ test_decision_malformed_mix_is_incomplete ___________________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_decision_malformed_mix_is_incomplete() -> None:\n        windows, ids = _decision_windows(0, 48)\n        windows[7][\"status\"] = \"malformed\"\n>       assert _decision(windows, ids).window_verdict == \"incomplete\"\nE       AssertionError: assert 'feasible' == 'incomplete'\nE         \nE         - incomplete\nE         + feasible\n\norchestrator/tests/test_t139_r4_env_probe.py:282: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision\nFAILED orchestrator/tests/test_t139_r4_env_probe.py::test_decision_malformed_mix_is_incomplete\n2 failed, 53 passed in 2.21s\n",
+        "stdout_sha256": "b053b49b3f1b83b9d2f8d08c1e757b07d483475cfd1fc3dd5b2efd866286d24f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3739ff3e121688396f725b833d30fcb8e0989369ad6a17ac58606a1f752e6b83",
+      "duration_s": 21.771,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_malformed_mix_is_incomplete"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_malformed_mix_is_incomplete"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "0ea193bdda810fb7f240c9a8d686d544dc6323126ceb1428ccec763f53968f1b",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "f97dba3eae4cad1ad534f705ee887912a04ac7344aa9015471ae2c30966d4275",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "new": "",
+          "old": "    if status_reasons:\n        return \"incomplete\", tuple(status_reasons)\n"
+        }
+      ],
+      "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+      "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+      "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+      "status": "MISMATCH",
+      "test_output_sha256": "b053b49b3f1b83b9d2f8d08c1e757b07d483475cfd1fc3dd5b2efd866286d24f",
+      "test_output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".........................................FF............                  [100%]",
+        "=================================== FAILURES ===================================",
+        "_________ test_analyze_window_call_site_duration_gate_reaches_decision _________",
+        "[gw20] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_analyze_window_call_site_duration_gate_reaches_decision() -> None:",
+        "        windows, ids = _decision_windows(0, 48)",
+        "        analyzed = PROBE.analyze_window(",
+        "            _line([100] * 8),",
+        "            _line([100, 100, 100, 148, 100, 100, 100, 100]),",
+        "            10_100_000_001,",
+        "            0,",
+        "        )",
+        "        analyzed[\"window_id\"] = ids[0]",
+        "        windows[0] = analyzed",
+        "        decision = _decision(windows, ids)",
+        ">       assert decision.window_verdict == \"incomplete\"",
+        "E       AssertionError: assert 'feasible' == 'incomplete'",
+        "E         ",
+        "E         - incomplete",
+        "E         + feasible",
+        "",
+        "orchestrator/tests/test_t139_r4_env_probe.py:308: AssertionError",
+        "__________________ test_decision_malformed_mix_is_incomplete ___________________",
+        "[gw18] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_decision_malformed_mix_is_incomplete() -> None:",
+        "        windows, ids = _decision_windows(0, 48)",
+        "        windows[7][\"status\"] = \"malformed\"",
+        ">       assert _decision(windows, ids).window_verdict == \"incomplete\"",
+        "E       AssertionError: assert 'feasible' == 'incomplete'",
+        "E         ",
+        "E         - incomplete",
+        "E         + feasible",
+        "",
+        "orchestrator/tests/test_t139_r4_env_probe.py:282: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision",
+        "FAILED orchestrator/tests/test_t139_r4_env_probe.py::test_decision_malformed_mix_is_incomplete",
+        "2 failed, 53 passed in 2.21s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/c7194521b6173ee7a7a790441c1e72d8/izdw-c7194521b6.o896498",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/c7194521b6173ee7a7a790441c1e72d8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................FF...........                  [100%]\n=================================== FAILURES ===================================\n____ test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters ____\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters() -> None:\n        windows, ids = _decision_windows(0, 48)\n        windows[4][\"busy\"] = 1\n        decision = _decision(windows, ids)\n>       assert decision.window_verdict == \"incomplete\"\nE       AssertionError: assert 'feasible' == 'incomplete'\nE         \nE         - incomplete\nE         + feasible\n\norchestrator/tests/test_t139_r4_env_probe.py:231: AssertionError\n_________ test_total_zero_is_independently_rejected_by_decision_layer __________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_total_zero_is_independently_rejected_by_decision_layer() -> None:\n        windows, ids = _decision_windows(0, 48)\n        windows[0][\"total\"] = 0\n        decision = _decision(windows, ids)\n>       assert decision.window_verdict == \"incomplete\"\nE       AssertionError: assert 'feasible' == 'incomplete'\nE         \nE         - incomplete\nE         + feasible\n\norchestrator/tests/test_t139_r4_env_probe.py:223: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_r4_env_probe.py::test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters\nFAILED orchestrator/tests/test_t139_r4_env_probe.py::test_total_zero_is_independently_rejected_by_decision_layer\n2 failed, 53 passed in 2.23s\n",
+        "stdout_sha256": "4786cf859d24ad5f94cbae270cfccf1724f68f8b110668aa18944fe0bc6d3055"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3739ff3e121688396f725b833d30fcb8e0989369ad6a17ac58606a1f752e6b83",
+      "duration_s": 32.069,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_total_zero_is_independently_rejected_by_decision_layer"
+      ],
+      "hang_risk": false,
+      "id": "M13",
+      "injection_diff_sha256": "2a5e931006c4ae6b50649ed00c33651a53f06731e71023cc2a169fc5b47d2f20",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "4cb1d36a9e9d40ff18272ca06525cb125340bd26dba88cac89d1ef24066ca67b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "new": "",
+          "old": "        raw_reason = _window_raw_counter_reason(window, window_id)\n        if raw_reason is not None:\n            raw_reasons.append(raw_reason)\n            continue\n"
+        }
+      ],
+      "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+      "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+      "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+      "status": "MISMATCH",
+      "test_output_sha256": "4786cf859d24ad5f94cbae270cfccf1724f68f8b110668aa18944fe0bc6d3055",
+      "test_output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "..........................................FF...........                  [100%]",
+        "=================================== FAILURES ===================================",
+        "____ test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters ____",
+        "[gw8] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters() -> None:",
+        "        windows, ids = _decision_windows(0, 48)",
+        "        windows[4][\"busy\"] = 1",
+        "        decision = _decision(windows, ids)",
+        ">       assert decision.window_verdict == \"incomplete\"",
+        "E       AssertionError: assert 'feasible' == 'incomplete'",
+        "E         ",
+        "E         - incomplete",
+        "E         + feasible",
+        "",
+        "orchestrator/tests/test_t139_r4_env_probe.py:231: AssertionError",
+        "_________ test_total_zero_is_independently_rejected_by_decision_layer __________",
+        "[gw7] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_total_zero_is_independently_rejected_by_decision_layer() -> None:",
+        "        windows, ids = _decision_windows(0, 48)",
+        "        windows[0][\"total\"] = 0",
+        "        decision = _decision(windows, ids)",
+        ">       assert decision.window_verdict == \"incomplete\"",
+        "E       AssertionError: assert 'feasible' == 'incomplete'",
+        "E         ",
+        "E         - incomplete",
+        "E         + feasible",
+        "",
+        "orchestrator/tests/test_t139_r4_env_probe.py:223: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t139_r4_env_probe.py::test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters",
+        "FAILED orchestrator/tests/test_t139_r4_env_probe.py::test_total_zero_is_independently_rejected_by_decision_layer",
+        "2 failed, 53 passed in 2.23s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/fd55cf3ead8ccc168824cce2f962c15e/izdw-fd55cf3ead.o896499",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/fd55cf3ead8ccc168824cce2f962c15e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................................F....                  [100%]\n=================================== FAILURES ===================================\n___________ test_attempt_gate_rejects_observed_receipt_and_tsv_rows ____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_attempt_gate_rejects_obse0')\n\n    def test_attempt_gate_rejects_observed_receipt_and_tsv_rows(tmp_path: Path) -> None:\n        namespace = tmp_path / \"probe\"\n        attempt = namespace / \"job-1\"\n        attempt.mkdir(parents=True)\n        (attempt / \"receipt.json\").write_text(\n            json.dumps({\"windows\": [{\"observed\": False} for _ in range(13)]}), encoding=\"utf-8\"\n        )\n        assert PROBE.attempt_namespace_allows_start(namespace)\n        (attempt / \"receipt.json\").write_text(\n            json.dumps({\"windows\": [{\"observed\": index == 0} for index in range(13)]}),\n            encoding=\"utf-8\",\n        )\n>       assert not PROBE.attempt_namespace_allows_start(namespace)\nE       AssertionError: assert not True\nE        +  where True = <function attempt_namespace_allows_start at 0x1508fecb7490>(PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_attempt_gate_rejects_obse0/probe'))\nE        +    where <function attempt_namespace_allows_start at 0x1508fecb7490> = PROBE.attempt_namespace_allows_start\n\norchestrator/tests/test_t139_r4_env_probe.py:1116: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_r4_env_probe.py::test_attempt_gate_rejects_observed_receipt_and_tsv_rows\n1 failed, 54 passed in 2.21s\n",
+        "stdout_sha256": "37f5292b2ebfd0bcf04a6914c5c7b12740b2ed839b97ab0a5d12077af6a2fb47"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "3739ff3e121688396f725b833d30fcb8e0989369ad6a17ac58606a1f752e6b83",
+      "duration_s": 26.896,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_attempt_gate_rejects_observed_receipt_and_tsv_rows"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_attempt_gate_rejects_observed_receipt_and_tsv_rows"
+      ],
+      "hang_risk": false,
+      "id": "M12",
+      "injection_diff_sha256": "a3304da6fbe3c5144af01ba78862bab467ab4787b201d03af60be3b5def25c9c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8dda0d1bc8d73143b234973248bb4fa4a96dfd6b741637875c5b5d4173565fad",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "new": "",
+          "old": "            if any(row[\"observed\"] is True for row in windows):\n                return False\n"
+        },
+        {
+          "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+          "new": "",
+          "old": "            if any(row[\"observed\"] == \"true\" for row in rows):\n                return False\n"
+        }
+      ],
+      "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+      "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+      "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+      "status": "KILLED",
+      "test_output_sha256": "37f5292b2ebfd0bcf04a6914c5c7b12740b2ed839b97ab0a5d12077af6a2fb47",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/81acce61fa690e64f4fc9787cfe00c68/izdw-81acce61fa.o896491",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/output/pegasus-dispatch/81acce61fa690e64f4fc9787cfe00c68/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_ignores_cpu0\norchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_cpu0_only\norchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 1 1 1 1-fewer than 8]\norchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 x 1 1 1 1-non-integer]\norchestrator/tests/test_t139_r4_env_probe.py::test_extra_guest_columns_are_retained_but_not_counted\norchestrator/tests/test_t139_r4_env_probe.py::test_negative_delta_is_malformed_and_preserved\norchestrator/tests/test_t139_r4_env_probe.py::test_total_zero_is_malformed\norchestrator/tests/test_t139_r4_env_probe.py::test_total_zero_is_independently_rejected_by_decision_layer\norchestrator/tests/test_t139_r4_env_probe.py::test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters\norchestrator/tests/test_t139_r4_env_probe.py::test_iowait_is_counted_as_busy\norchestrator/tests/test_t139_r4_env_probe.py::test_window_duration_inclusive_boundaries[9900000000]\norchestrator/tests/test_t139_r4_env_probe.py::test_window_duration_inclusive_boundaries[10100000000]\norchestrator/tests/test_t139_r4_env_probe.py::test_window_duration_rejects_one_nanosecond_outside[9899999999]\norchestrator/tests/test_t139_r4_env_probe.py::test_window_duration_rejects_one_nanosecond_outside[10100000001]\norchestrator/tests/test_t139_r4_env_probe.py::test_run_adjacency_five_second_boundary\norchestrator/tests/test_t139_r4_env_probe.py::test_decision_exactly_one_point_zero\norchestrator/tests/test_t139_r4_env_probe.py::test_decision_one_point_zero_one_violates_fixed_upper\norchestrator/tests/test_t139_r4_env_probe.py::test_decision_above_two_point_zero\norchestrator/tests/test_t139_r4_env_probe.py::test_decision_malformed_mix_is_incomplete\norchestrator/tests/test_t139_r4_env_probe.py::test_diagnostics_do_not_change_positive_decision\norchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision\norchestrator/tests/test_t139_r4_env_probe.py::test_contract_exact_schema_types_lengths_and_metadata\norchestrator/tests/test_t139_r4_env_probe.py::test_contract_rejects_extra_key_wrong_type_and_array_length\norchestrator/tests/test_t139_r4_env_probe.py::test_contract_rejects_duplicate_json_key\norchestrator/tests/test_t139_r4_env_probe.py::test_contract_reader_is_called_once_and_same_buffer_is_retained\norchestrator/tests/test_t139_r4_env_probe.py::test_git_contract_loader_issues_one_cat_file_read\norchestrator/tests/test_t139_r4_env_probe.py::test_schedule_has_preflight_wait_strata_and_thirteen_runs\norchestrator/tests/test_t139_r4_env_probe.py::test_cmake_cache_missing_duplicate_and_value_mismatch[CCBENCH_TRACE:STRING=0\\n]\norchestrator/tests/test_t139_r4_env_probe.py::test_cmake_cache_missing_duplicate_and_value_mismatch[CCBENCH_TRACE:STRING=0\\nCCBENCH_TRACE:STRING=0\\nCCBENCH_ADD_ANALYSIS:STRING=0\\n]\norchestrator/tests/test_t139_r4_env_probe.py::test_cmake_cache_missing_duplicate_and_value_mismatch[CCBENCH_TRACE:STRING=1\\nCCBENCH_ADD_ANALYSIS:STRING=0\\n]\norchestrator/tests/test_t139_r4_env_probe.py::test_compile_argv_trace_analysis_exactness\norchestrator/tests/test_t139_r4_env_probe.py::test_stock_compile_argv_rejects_mode_macro\norchestrator/tests/test_t139_r4_env_probe.py::test_compiler_identity_drift_fields\norchestrator/tests/test_t139_r4_env_probe.py::test_configure_argv_uses_absolute_compiler_paths_and_trace_split\norchestrator/tests/test_t139_r4_env_probe.py::test_trace1_build_failure_finalizes_all_expected_rows\norchestrator/tests/test_t139_r4_env_probe.py::test_not_feasible_window_verdict_survives_trace1_build_failure\norchestrator/tests/test_t139_r4_env_probe.py::test_signal_finalization_records_origin_and_stays_incomplete[143-TERM]\norchestrator/tests/test_t139_r4_env_probe.py::test_signal_finalization_records_origin_and_stays_incomplete[130-INT]\norchestrator/tests/test_t139_r4_env_probe.py::test_run_failure_records_first_row_without_consuming_remaining_waits\norchestrator/tests/test_t139_r4_env_probe.py::test_sigterm_path_can_only_complete_after_all_publishes\norchestrator/tests/test_t139_r4_env_probe.py::test_shell_sigterm_trap_finalizes_before_reporting_completion\norchestrator/tests/test_t139_r4_env_probe.py::test_shell_phase_cap_124_is_not_recorded_as_signal_termination\norchestrator/tests/test_t139_r4_env_probe.py::test_shell_child_normal_exit_143_is_not_recorded_as_term\norchestrator/tests/test_t139_r4_env_probe.py::test_driver_receipt_pins_group_term_signal_identity_limit\norchestrator/tests/test_t139_r4_env_probe.py::test_finalize_exception_never_marks_partial_publish_completed\norchestrator/tests/test_t139_r4_env_probe.py::test_publish_order_is_atomic_tsv_then_receipt_then_marker\norchestrator/tests/test_t139_r4_env_probe.py::test_staged_contract_replacement_trips_init_digest_comparison\norchestrator/tests/test_t139_r4_env_probe.py::test_init_state_exception_still_creates_all_expected_state_rows\norchestrator/tests/test_t139_r4_env_probe.py::test_finalize_call_site_does_not_forward_diagnostics\norchestrator/tests/test_t139_r4_env_probe.py::test_compiler_rechecks_require_build_immediate_and_post_build_labels\norchestrator/tests/test_t139_r4_env_probe.py::test_attempt_gate_rejects_observed_receipt_and_tsv_rows\norchestrator/tests/test_t139_r4_env_probe.py::test_shell_artifacts_pass_bash_n[path0]\norchestrator/tests/test_t139_r4_env_probe.py::test_shell_artifacts_pass_bash_n[path1]\norchestrator/tests/test_t139_r4_env_probe.py::test_driver_static_caps_order_and_finalizer_contract\norchestrator/tests/test_t139_r4_env_probe.py::test_pbs_contract_blob_namespace_and_phase_budget_are_static\n\n55 tests collected in 0.04s\n",
+        "stdout_sha256": "bdaa7baf1ec8d4e4a3ac18fe90f2c9a7bf37132f2a21c3efc1992c8df89c0ebd"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_ignores_cpu0",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_cpu0_only",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 1 1 1 1-fewer than 8]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 x 1 1 1 1-non-integer]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_extra_guest_columns_are_retained_but_not_counted",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_negative_delta_is_malformed_and_preserved",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_total_zero_is_malformed",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_total_zero_is_independently_rejected_by_decision_layer",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_iowait_is_counted_as_busy",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_window_duration_inclusive_boundaries[9900000000]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_window_duration_inclusive_boundaries[10100000000]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_window_duration_rejects_one_nanosecond_outside[9899999999]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_window_duration_rejects_one_nanosecond_outside[10100000001]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_run_adjacency_five_second_boundary",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_exactly_one_point_zero",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_one_point_zero_one_violates_fixed_upper",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_above_two_point_zero",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_malformed_mix_is_incomplete",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_diagnostics_do_not_change_positive_decision",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_contract_exact_schema_types_lengths_and_metadata",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_contract_rejects_extra_key_wrong_type_and_array_length",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_contract_rejects_duplicate_json_key",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_contract_reader_is_called_once_and_same_buffer_is_retained",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_git_contract_loader_issues_one_cat_file_read",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_schedule_has_preflight_wait_strata_and_thirteen_runs",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_cmake_cache_missing_duplicate_and_value_mismatch[CCBENCH_TRACE:STRING=0/n]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_cmake_cache_missing_duplicate_and_value_mismatch[CCBENCH_TRACE:STRING=0/nCCBENCH_TRACE:STRING=0/nCCBENCH_ADD_ANALYSIS:STRING=0/n]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_cmake_cache_missing_duplicate_and_value_mismatch[CCBENCH_TRACE:STRING=1/nCCBENCH_ADD_ANALYSIS:STRING=0/n]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_compile_argv_trace_analysis_exactness",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_stock_compile_argv_rejects_mode_macro",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_compiler_identity_drift_fields",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_configure_argv_uses_absolute_compiler_paths_and_trace_split",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_trace1_build_failure_finalizes_all_expected_rows",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_not_feasible_window_verdict_survives_trace1_build_failure",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_signal_finalization_records_origin_and_stays_incomplete[143-TERM]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_signal_finalization_records_origin_and_stays_incomplete[130-INT]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_run_failure_records_first_row_without_consuming_remaining_waits",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_sigterm_path_can_only_complete_after_all_publishes",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_shell_sigterm_trap_finalizes_before_reporting_completion",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_shell_phase_cap_124_is_not_recorded_as_signal_termination",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_shell_child_normal_exit_143_is_not_recorded_as_term",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_driver_receipt_pins_group_term_signal_identity_limit",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_finalize_exception_never_marks_partial_publish_completed",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_publish_order_is_atomic_tsv_then_receipt_then_marker",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_staged_contract_replacement_trips_init_digest_comparison",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_init_state_exception_still_creates_all_expected_state_rows",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_finalize_call_site_does_not_forward_diagnostics",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_compiler_rechecks_require_build_immediate_and_post_build_labels",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_attempt_gate_rejects_observed_receipt_and_tsv_rows",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_shell_artifacts_pass_bash_n[path0]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_shell_artifacts_pass_bash_n[path1]",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_driver_static_caps_order_and_finalizer_contract",
+        "orchestrator/tests/test_t139_r4_env_probe.py::test_pbs_contract_blob_namespace_and_phase_budget_are_static"
+      ],
+      "duration_s": 21.738,
+      "rc": 0,
+      "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+      "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+      "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+      "status": "PASSED",
+      "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_r4_env_probe.py::test_analyze_window_call_site_duration_gate_reaches_decision"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "320a01b2d31aac3f35495b63e78a65ca62877b461a5db9e69bc732959abfd7f9",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+            "new": "",
+            "old": "    if not validate_window_duration(duration_ns):\n        result[\"failure_reasons\"].append(\"window_duration_out_of_tolerance\")\n"
+          }
+        ]
+      },
+      "M12": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_r4_env_probe.py::test_attempt_gate_rejects_observed_receipt_and_tsv_rows"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a3304da6fbe3c5144af01ba78862bab467ab4787b201d03af60be3b5def25c9c",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+            "new": "",
+            "old": "            if any(row[\"observed\"] is True for row in windows):\n                return False\n"
+          },
+          {
+            "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+            "new": "",
+            "old": "            if any(row[\"observed\"] == \"true\" for row in rows):\n                return False\n"
+          }
+        ]
+      },
+      "M13": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_rejects_saved_busy_total_that_disagree_with_raw_counters"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2a5e931006c4ae6b50649ed00c33651a53f06731e71023cc2a169fc5b47d2f20",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+            "new": "",
+            "old": "        raw_reason = _window_raw_counter_reason(window, window_id)\n        if raw_reason is not None:\n            raw_reasons.append(raw_reason)\n            continue\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_r4_env_probe.py::test_negative_delta_is_malformed_and_preserved"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d84115ca8f1fb32c5c95b2228214895e647076e713cb5eff4c26292df05b528c",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+            "new": "",
+            "old": "        if any(delta < 0 for delta in deltas):\n            result[\"failure_reasons\"].append(\"counter_decreased\")\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_r4_env_probe.py::test_parse_aggregate_cpu_line_rejects_short_and_noninteger[cpu 1 1 1 1 1 1 1-fewer than 8]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a14c59380c8662c7fd49be0941fef70b3fb54e9ecf9152e75e3106c1d92cde7b",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+            "new": "",
+            "old": "    if len(fields) < 8:\n        raise ValueError(\"aggregate cpu line has fewer than 8 counters\")\n"
+          }
+        ]
+      },
+      "M5a": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_exactly_one_point_zero"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4f6e7bb1c5e81e5b221d9cf1d0f8c170d8efaa07cea18ef500dc81b1ceedab58",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+            "new": "    if all(48 * busy < total for busy, total in pairs):",
+            "old": "    if all(48 * busy <= total for busy, total in pairs):"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_r4_env_probe.py::test_decision_malformed_mix_is_incomplete"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0ea193bdda810fb7f240c9a8d686d544dc6323126ceb1428ccec763f53968f1b",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t139_r4_env_probe.py",
+            "new": "",
+            "old": "    if status_reasons:\n        return \"incomplete\", tuple(status_reasons)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "4fe67e67b674a757ed1a865e64a276c2ce5428af4bba508efe0e08a103fc21f0",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t139_r4_env_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t139_r4_env_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "fd49f38743d496917b2eb07ef9b5089814f1b915",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "fef30c1b000f1d0cf8fadec6d0a9f76dc1fe2dbb460f4259231547c6c3446f3a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "b0218f56be830cad0031b9e424ef7a610944590dfae9d9f7a3d351422f4b68f6",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 2,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 5,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-r4-probe/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "2fb6c761b5ba7a70f342cee7c05d31fea5952d224f2b0e6159e06dcb4b95f108",
+  "updated_at": "2026-08-08T16:42:22.077473+00:00"
+}

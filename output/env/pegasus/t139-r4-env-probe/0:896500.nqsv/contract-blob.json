@@ -1,0 +1,333 @@
+{
+  "digest_stage": "contract-load",
+  "path": "tools/pegasus/probes/t139_r4_env_probe_contract.json",
+  "probe_series_id": "t139-r4-env-probe",
+  "purpose": "non_study_environment_probe",
+  "sha256": "a1445a65612007e0a0ac6dcb9abb0fbc6b3b1cb98379eeef2c4b90eac8458950",
+  "size_bytes": 7219,
+  "study_eligible": false,
+  "validated_contract": {
+    "counter_names": [
+      "user",
+      "nice",
+      "system",
+      "idle",
+      "iowait",
+      "irq",
+      "softirq",
+      "steal"
+    ],
+    "fixed_upper": "1.0",
+    "max_run_adjacency_ns": 5000000000,
+    "phase_budget": {
+      "absolute_deadline_s": 3300,
+      "adjacency_budget_s": 65,
+      "driver_cap_s": 2045,
+      "pbs_setup_cap_s": 903,
+      "probe_series_id": "t139-r4-env-probe",
+      "purpose": "non_study_environment_probe",
+      "sample_cap_s": 960,
+      "serial_noncontingency_s": 2948,
+      "serial_sum_expression": "903 + 2045 = 2948 <= 3300 < 3600",
+      "serial_with_grace_expression": "903 + 2045 + 120 = 3068 <= 3300 < 3600",
+      "serial_with_termination_grace_s": 3068,
+      "study_eligible": false,
+      "termination_grace_s": 120,
+      "trace0_build_cap_s": 180,
+      "trace0_configure_cap_s": 60,
+      "trace1_build_cap_s": 420,
+      "trace1_configure_cap_s": 90,
+      "walltime_s": 3600
+    },
+    "physical_cores": 48,
+    "probe_series_id": "t139-r4-env-probe",
+    "purpose": "non_study_environment_probe",
+    "runs": [
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R01",
+        "study_eligible": false,
+        "workload": "W1"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R02",
+        "study_eligible": false,
+        "workload": "W2"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R03",
+        "study_eligible": false,
+        "workload": "W2"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R04",
+        "study_eligible": false,
+        "workload": "W1"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R05",
+        "study_eligible": false,
+        "workload": "W1"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R06",
+        "study_eligible": false,
+        "workload": "W2"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R07",
+        "study_eligible": false,
+        "workload": "W2"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R08",
+        "study_eligible": false,
+        "workload": "W1"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R09",
+        "study_eligible": false,
+        "workload": "W1"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R10",
+        "study_eligible": false,
+        "workload": "W2"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R11",
+        "study_eligible": false,
+        "workload": "W2"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R12",
+        "study_eligible": false,
+        "workload": "W1"
+      },
+      {
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "run_id": "R13",
+        "study_eligible": false,
+        "workload": "W2"
+      }
+    ],
+    "schema_version": "t139-r4-env-probe-contract/v1",
+    "study_eligible": false,
+    "terminal_attempt_policy": {
+      "attempt_with_any_observed_window_is_terminal": true,
+      "enforcement_scope": "existing_attempt_receipt_or_windows_tsv_observed_rows_only",
+      "namespace_observed_attempt_gate_required": true,
+      "probe_series_id": "t139-r4-env-probe",
+      "purpose": "non_study_environment_probe",
+      "resubmissions_after_observation": 0,
+      "resubmittable": false,
+      "scheduler_backed_pre_submit_ledger": false,
+      "study_eligible": false
+    },
+    "window_duration_ns": 10000000000,
+    "window_tolerance_ns": 100000000,
+    "windows": [
+      {
+        "cell_rep": null,
+        "following_run_id": "R01",
+        "nominal_wait_s": null,
+        "preceding_run_id": null,
+        "preceding_workload": null,
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "preflight",
+        "study_eligible": false,
+        "window_id": "preflight"
+      },
+      {
+        "cell_rep": 1,
+        "following_run_id": "R02",
+        "nominal_wait_s": 30,
+        "preceding_run_id": "R01",
+        "preceding_workload": "W1",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait30",
+        "study_eligible": false,
+        "window_id": "post-01"
+      },
+      {
+        "cell_rep": 1,
+        "following_run_id": "R03",
+        "nominal_wait_s": 60,
+        "preceding_run_id": "R02",
+        "preceding_workload": "W2",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait60",
+        "study_eligible": false,
+        "window_id": "post-02"
+      },
+      {
+        "cell_rep": 1,
+        "following_run_id": "R04",
+        "nominal_wait_s": 30,
+        "preceding_run_id": "R03",
+        "preceding_workload": "W2",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait30",
+        "study_eligible": false,
+        "window_id": "post-03"
+      },
+      {
+        "cell_rep": 1,
+        "following_run_id": "R05",
+        "nominal_wait_s": 60,
+        "preceding_run_id": "R04",
+        "preceding_workload": "W1",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait60",
+        "study_eligible": false,
+        "window_id": "post-04"
+      },
+      {
+        "cell_rep": 2,
+        "following_run_id": "R06",
+        "nominal_wait_s": 30,
+        "preceding_run_id": "R05",
+        "preceding_workload": "W1",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait30",
+        "study_eligible": false,
+        "window_id": "post-05"
+      },
+      {
+        "cell_rep": 2,
+        "following_run_id": "R07",
+        "nominal_wait_s": 60,
+        "preceding_run_id": "R06",
+        "preceding_workload": "W2",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait60",
+        "study_eligible": false,
+        "window_id": "post-06"
+      },
+      {
+        "cell_rep": 2,
+        "following_run_id": "R08",
+        "nominal_wait_s": 30,
+        "preceding_run_id": "R07",
+        "preceding_workload": "W2",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait30",
+        "study_eligible": false,
+        "window_id": "post-07"
+      },
+      {
+        "cell_rep": 2,
+        "following_run_id": "R09",
+        "nominal_wait_s": 60,
+        "preceding_run_id": "R08",
+        "preceding_workload": "W1",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait60",
+        "study_eligible": false,
+        "window_id": "post-08"
+      },
+      {
+        "cell_rep": 3,
+        "following_run_id": "R10",
+        "nominal_wait_s": 30,
+        "preceding_run_id": "R09",
+        "preceding_workload": "W1",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait30",
+        "study_eligible": false,
+        "window_id": "post-09"
+      },
+      {
+        "cell_rep": 3,
+        "following_run_id": "R11",
+        "nominal_wait_s": 60,
+        "preceding_run_id": "R10",
+        "preceding_workload": "W2",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait60",
+        "study_eligible": false,
+        "window_id": "post-10"
+      },
+      {
+        "cell_rep": 3,
+        "following_run_id": "R12",
+        "nominal_wait_s": 30,
+        "preceding_run_id": "R11",
+        "preceding_workload": "W2",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait30",
+        "study_eligible": false,
+        "window_id": "post-11"
+      },
+      {
+        "cell_rep": 3,
+        "following_run_id": "R13",
+        "nominal_wait_s": 60,
+        "preceding_run_id": "R12",
+        "preceding_workload": "W1",
+        "probe_series_id": "t139-r4-env-probe",
+        "purpose": "non_study_environment_probe",
+        "stratum": "wait60",
+        "study_eligible": false,
+        "window_id": "post-12"
+      }
+    ],
+    "workloads": {
+      "W1": [
+        "-ycsb_rmw=true",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_tuple_num=10000",
+        "-ycsb_max_ope=10",
+        "-thread_num=48",
+        "-extime=3"
+      ],
+      "W2": [
+        "-ycsb_rratio=50",
+        "-ycsb_zipf_skew=0.5",
+        "-ycsb_tuple_num=100000",
+        "-ycsb_max_ope=10",
+        "-thread_num=48",
+        "-extime=3"
+      ],
+      "probe_series_id": "t139-r4-env-probe",
+      "purpose": "non_study_environment_probe",
+      "study_eligible": false
+    }
+  }
+}
