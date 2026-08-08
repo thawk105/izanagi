@@ -30,7 +30,7 @@ import subprocess
 import sys
 import textwrap
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import MappingProxyType, SimpleNamespace
 from unittest import mock
 
@@ -491,6 +491,33 @@ def _clone_committed_head_with_ccbench(destination: Path, *, ccbench_pin: str) -
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     return destination
+
+
+@pytest.fixture
+def _pegasus_g1_authority(tmp_path, monkeypatch):
+    """実 genesis record だけを読む head=1 authority で g1 を current にする。"""
+    authority_dir = tmp_path / "pegasus-g1-authority"
+    authority_dir.mkdir()
+    genesis_raw = (
+        ROOT
+        / "orchestrator/campaign/env_contract_activations/00000001.json"
+    ).read_bytes()
+    genesis = json.loads(genesis_raw)
+    assert genesis["activation_serial"] == 1
+    (authority_dir / "00000001.json").write_bytes(genesis_raw)
+
+    monkeypatch.setattr(
+        ec, "_ACTIVATION_DIRECTORY", PurePosixPath(authority_dir.as_posix()),
+    )
+    monkeypatch.setattr(ec, "_ACTIVATION_HEAD_SERIAL", 1)
+    monkeypatch.setattr(
+        ec, "_ACTIVATION_HEAD_STATE_SHA256", genesis["activation_state_sha256"],
+    )
+    ec._clear_authority_cache_for_tests()
+    contract = ec.lookup("pegasus")
+    assert contract is ec.GENERATIONS["pegasus"][0].contract
+    yield contract
+    ec._clear_authority_cache_for_tests()
 
 
 def _bytes_snapshot(root: Path, relative_paths) -> tuple:
@@ -3223,8 +3250,50 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     assert cert["clean_scan_digest"] == expected
 
 
-def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
-    """固定 seal の consumer replay を official core test seam で通す。
+def _install_real_contract_attestation(monkeypatch, contract, repo_root):
+    """実 calibration と comparator を使う in-tolerance の test probe を結線する。"""
+    from statistics import median
+
+    verified_calibration = env_attestation.load_verified_calibration(
+        contract, repo_root,
+    )
+    probe_calls = []
+
+    def attestation_probe():
+        probe_calls.append(True)
+        calibration_profile = verified_calibration.attestation_profile
+        calibration_clock = calibration_profile.effective_clock
+        calibration_samples = list(calibration_clock.samples_mhz)
+        calibration_median = median(calibration_samples)
+        allowed_delta = (
+            abs(calibration_median) * calibration_clock.tolerance_pct / 100.0
+        )
+        lower = calibration_median - allowed_delta
+        upper = calibration_median + allowed_delta
+        clean_samples = [
+            min(max(sample, lower), upper)
+            for sample in calibration_samples
+        ]
+        assert len(clean_samples) == calibration_profile.cores.logical == 48
+        assert all(lower <= sample <= upper for sample in clean_samples)
+        # 元の較正が単一値なら clamp 後の多様性を要求できない。
+        if len(set(calibration_samples)) > 1:
+            assert any(sample != calibration_median for sample in clean_samples)
+        clean_clock = dataclasses.replace(
+            calibration_clock,
+            samples_mhz=clean_samples,
+        )
+        return _observed(dataclasses.replace(
+            calibration_profile, effective_clock=clean_clock,
+        ))
+
+    monkeypatch.setattr(s8b_floor_campaign.env_attestation, "probe", attestation_probe)
+    return verified_calibration, probe_calls
+
+
+def test_historical_real_seal_protocol_to_floor_official_core_e2e(
+        tmp_path, monkeypatch, _pegasus_g1_authority):
+    """封印時の tree と g1 authority で固定 seal の consumer replay を通す。
 
     producer の seal()/provider 実走や commit 作成は行わず、D79(7) の部分閉鎖だけを
     characterization する。R3 の初回捏造と R4 の HOME 盲検境界は残り、closed とはしない。
@@ -3242,19 +3311,24 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     seal_commit = "82803d6d245d80a82954d61e065404fb15b3eeab"
     pre_oracle_head = "776640790752a969baee9246b2531b5dde49244d"
     ccbench_pin = "d706650cdb31e442bef45b9b4216951d4fb40969"
-    protocol_sha256 = "c0eeed87ab1f449b97c0b7d88654a8c3a5c07fae3565dc90c5724e29f1cb660d"
+    protocol_sha256 = "261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac"
     freeze_sha256 = "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"
     prediction_sha256 = "5884c83f010f73914fe121e9eb7b2fe047a4739087a984d17287cfa338fd73f1"
     journal_sha256 = "d41135998cff3047cf792047239a3147a1154929e560b4a2e413e4ac14f9e000"
     calibration_sha256 = (
-        "94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9"
+        "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49"
     )
     contract_sha256 = (
-        "1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c"
+        "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
     )
 
     clone_root = _clone_committed_head_with_ccbench(
         tmp_path / "committed-head", ccbench_pin=ccbench_pin,
+    )
+    subprocess.run(
+        ["git", "checkout", "--quiet", "--detach", seal_commit],
+        cwd=clone_root, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     out_root = tmp_path / "campaign-output"
     claim_root = out_root / "claims"
@@ -3276,10 +3350,10 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
                 assert not left.is_relative_to(right)
 
     source_head = _git_stdout(ROOT, "rev-parse", "HEAD").strip()
-    assert _git_stdout(clone_root, "rev-parse", "HEAD").strip() == source_head
+    assert _git_stdout(clone_root, "rev-parse", "HEAD").strip() == seal_commit
     assert _git_stdout(clone_root, "rev-parse", "--is-shallow-repository").strip() == "false"
     subprocess.run(
-        ["git", "merge-base", "--is-ancestor", seal_commit, "HEAD"],
+        ["git", "merge-base", "--is-ancestor", seal_commit, source_head],
         cwd=clone_root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     assert _git_stdout(clone_root, "rev-parse", f"{seal_commit}^").strip() == pre_oracle_head
@@ -3380,7 +3454,12 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     snapshot_paths = frozen_paths | {calibration_rel}
     source_before = _bytes_snapshot(ROOT, snapshot_paths)
     clone_before = _bytes_snapshot(clone_root, snapshot_paths)
-    assert source_before == clone_before
+    clone_by_path = dict(clone_before)
+    assert {
+        relative for relative, payload in source_before
+        if payload != clone_by_path[relative]
+    } == {s8b_floor_campaign._FLOOR_PROTOCOL_REL}
+    assert _git_stdout(clone_root, "status", "--porcelain=v1") == ""
 
     seal_targets = {
         s8b_floor_campaign._SELECTOR_PREDICTIONS_REL,
@@ -3398,7 +3477,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     assert {status for status, _path in seal_diff} == {"A"}
     assert {path for _status, path in seal_diff} == seal_targets
     assert _git_stdout(
-        clone_root, "diff", "--name-only", f"{seal_commit}..HEAD", "--",
+        clone_root, "diff", "--name-only", f"{seal_commit}..{source_head}", "--",
         *sorted(seal_targets),
     ) == ""
 
@@ -3447,49 +3526,11 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         assert parsed_raw["choice_id"] == invocation["choice_id"]
         assert parsed_raw["rationale"] == invocation["rationale"]
 
-    contract = ec.lookup("pegasus")
+    contract = _pegasus_g1_authority
     assert contract.contract_sha256 == contract_sha256
-    verified_calibration = env_attestation.load_verified_calibration(
-        contract, clone_root,
+    verified_calibration, probe_calls = _install_real_contract_attestation(
+        monkeypatch, contract, clone_root,
     )
-    probe_calls = []
-
-    def attestation_probe():
-        """calibration 由来の clean な in-tolerance runtime 観測を返す。
-
-        実 calibration・comparator・issuer/consumer は production を通すが、
-        これは物理 Pegasus の実 attestation ではない。
-        """
-        from statistics import median
-
-        probe_calls.append(True)
-        calibration_profile = verified_calibration.attestation_profile
-        calibration_clock = calibration_profile.effective_clock
-        calibration_samples = list(calibration_clock.samples_mhz)
-        calibration_median = median(calibration_samples)
-        allowed_delta = (
-            abs(calibration_median) * calibration_clock.tolerance_pct / 100.0
-        )
-        lower = calibration_median - allowed_delta
-        upper = calibration_median + allowed_delta
-        clean_samples = [
-            min(max(sample, lower), upper)
-            for sample in calibration_samples
-        ]
-        assert len(clean_samples) == calibration_profile.cores.logical == 48
-        assert all(lower <= sample <= upper for sample in clean_samples)
-        # 元の較正が単一値なら clamp 後の多様性を要求できない。
-        if len(set(calibration_samples)) > 1:
-            assert any(sample != calibration_median for sample in clean_samples)
-        clean_clock = dataclasses.replace(
-            calibration_clock,
-            samples_mhz=clean_samples,
-        )
-        return _observed(dataclasses.replace(
-            calibration_profile, effective_clock=clean_clock,
-        ))
-
-    monkeypatch.setattr(s8b_floor_campaign.env_attestation, "probe", attestation_probe)
     reservation_values = _install_real_seal_reservation(monkeypatch)
 
     def producer_tripwire(*_args, **_kwargs):
@@ -3731,7 +3772,73 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
 
     assert _bytes_snapshot(ROOT, snapshot_paths) == source_before
     assert _bytes_snapshot(clone_root, snapshot_paths) == clone_before
-    assert source_before == clone_before
+
+
+def test_current_reissued_protocol_refuses_official_core_on_pre_oracle_mismatch(
+        tmp_path, monkeypatch):
+    """現行 g2 protocol は current admission 後、歴史 blob 不一致で launch を拒否する。"""
+    ccbench_pin = "d706650cdb31e442bef45b9b4216951d4fb40969"
+    protocol_sha256 = "c0eeed87ab1f449b97c0b7d88654a8c3a5c07fae3565dc90c5724e29f1cb660d"
+    freeze_sha256 = "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"
+    calibration_sha256 = (
+        "94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9"
+    )
+    contract_sha256 = (
+        "1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c"
+    )
+
+    clone_root = _clone_committed_head_with_ccbench(
+        tmp_path / "current-head", ccbench_pin=ccbench_pin,
+    )
+    assert _git_stdout(clone_root, "rev-parse", "HEAD").strip() == (
+        _git_stdout(ROOT, "rev-parse", "HEAD").strip()
+    )
+    protocol_path = clone_root / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    freeze_path = clone_root / s8b_floor_campaign._HOLDOUT_FREEZE_REL
+    protocol_raw = protocol_path.read_bytes()
+    protocol = s8b_floor_campaign.load_protocol(protocol_path)
+    assert hashlib.sha256(protocol_raw).hexdigest() == protocol_sha256
+    assert protocol["contract_sha256"] == contract_sha256
+    assert protocol["freeze"]["sha256"] == freeze_sha256
+
+    contract = ec.lookup("pegasus")
+    assert contract is ec.GENERATIONS["pegasus"][1].contract
+    assert contract.contract_sha256 == contract_sha256
+    assert hashlib.sha256(
+        (clone_root / contract.calibration_ref.path).read_bytes()
+    ).hexdigest() == calibration_sha256
+    _verified_calibration, probe_calls = _install_real_contract_attestation(
+        monkeypatch, contract, clone_root,
+    )
+    freeze = s8b_floor_campaign._load_verified_freeze(
+        freeze_path, expected_hash=freeze_sha256,
+    )
+
+    out_root = tmp_path / "current-campaign-output"
+    (out_root / "claims").mkdir(parents=True, mode=0o700)
+    _install_real_seal_reservation(monkeypatch)
+    build_spy = mock.Mock(side_effect=AssertionError("launch refusal 後に build した"))
+    monkeypatch.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None)
+    monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", build_spy)
+
+    with pytest.raises(
+        s8b_floor_campaign.FloorCampaignError,
+        match=r"^launch refusal: floor protocol が pre_oracle_head/worktree で不一致$",
+    ):
+        s8b_floor_campaign._run_campaign_core(
+            protocol, freeze, out_root=out_root, mode="official",
+            measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
+            sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
+            prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+            host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
+            execution_receipt_fn=None, repo_root=clone_root,
+            durable_root_policy=_durable_policy(out_root),
+            _floor_preflight_fn=None,
+        )
+
+    assert probe_calls == [True]
+    build_spy.assert_not_called()
+    assert not (out_root / "env").exists()
 
 
 def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_path):
