@@ -568,3 +568,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"D:activation-transition-bound-pair":"D245"},"authored":"2026-08-08","content_sha256":"fa67818eb8e8317af0e27d2dd828a4458d445a841d2e6ee783cf681ec8a75f6e","seq":1,"wave":"dev-wave-t627-noop-binding"}
 - {"allocations":{"T:activation-certified-writer-source-binding":"[T-671]","T:activation-transition-property-based-tests":"[T-673]","T:dev-wave-mid-wave-contract-change":"[T-672]"},"authored":"2026-08-08","content_sha256":"4c3c1c3bbe9966f61b66987edf2a4f0e58d417fe76d906f3213f9e518962d824","seq":2,"wave":"dev-wave-t627-noop-binding"}
+
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"47442d21c8701fe66528433168a0c3098b89d49effd74f02466ac959bd10adc4","seq":1,"wave":"dev-wave-t665-t662-launch-binding"}
