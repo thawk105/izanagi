@@ -11,10 +11,11 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
 - `git worktree list` と `git branch -a` を列挙し、各ローカルブランチの `git rev-list --count
   main..<b>` (ahead) / `<b>..main` (behind) を出す
 - 各 worktree の `git status --short` を確認する (未コミット差分の有無)
-- ahead>0 のブランチは `git cherry main <b>` を出す。rebase / cherry-pick で取り込まれた側は
-  ahead>0 のまま残るため、ahead だけでは取り残しの有無を判定できない。`+` 行が真の取り残しで、
-  ファイルが main に無ければ取り込み漏れとして §5 で報告する
-- `python3 tools/audit_dangling_commits.py` rc0削除/1§5報告・救出判断/2実行不能・削除停止
+- ahead>0 のブランチは `git cherry main <b>` を出す。ahead だけでは取り残しを判定できない
+  (rebase / cherry-pick 経由は ahead>0 のまま残る)。`+` 行が真の取り残しで、ファイルが main に
+  無ければ取り込み漏れとして §5 で報告する
+- `python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>`
+  rc0削除/1§5報告・救出判断/2実行不能・削除停止。抑止行も rc0 で §5 へ
 
 ## 2. 安全条件 (満たさないものは削除せず報告に回す)
 
@@ -34,7 +35,7 @@ submodule の gitlink を含む worktree は `git worktree remove` を使わず�
 3. ディレクトリを削除して `git worktree prune`
 
 **`git submodule deinit` は使わない**。誤って実行した場合は
-`git submodule update --init external/ccbench` で復元する。正本は `docs/failures.md` F26。
+`git submodule update --init external/ccbench` で復元する。
 
 ExitWorktree の remove を `discard_changes: true` で押し切らない。main が当該 commit を含むことを
 `git log` で確認し、`action: keep` で抜け、本節の手動手順で畳む。
@@ -53,7 +54,6 @@ worktree の削除と prune を行わず、detach → branch -d → unlock ま�
 
 リモートブランチの削除 (`git push origin --delete <b>`) と main の push は行わず、対象を列挙して
 ユーザーに提示する。削除しなかったブランチ・worktree はその理由 (ahead>0、dirty 等) と併せて報告する。
-記録はセッションの通常規律 (worklog) に従う。
 
 ## 6. スキル自己改善 (発火条件つき)
 
