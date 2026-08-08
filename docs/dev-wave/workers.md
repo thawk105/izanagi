@@ -4,12 +4,12 @@ codex plan、敵対相談、実装、レビュー・fix worker の正本。入�
 
 ## DW-S02 — 段 2 プラン起草
 
-brief と関連コードの所在を渡し、codex `gpt-5.6-sol`、`reasoning=max`、`sandbox=read-only` で
-file:line 粒度のプランを起草させる。read-only 固有のテスト帰属は `DW-O05` に従う。
+brief と関連コードの所在を渡し、codex `reasoning=max`、`sandbox=read-only` で
+file:line 粒度のプランを起草させる。
 
 ## DW-S03 — 段 3 敵対相談
 
-codex `gpt-5.6-sol`、`reasoning=max`、`sandbox=read-only` を異なるレンズで並列起動し、
+codex `reasoning=max`、`sandbox=read-only` で異なるレンズへ並列起動し、
 プランを守る側に回らせず攻撃させる。正しさ境界と整合・実効性を分け、親 brief 自身も攻撃対象だと
 明記する。brief の file:line、前提、所有範囲、変異の帰属不成立を探させる。**親自身の実測値と
 その一般化も明示的にレンズへ入れる**。
@@ -45,7 +45,7 @@ codex は `reasoning=high`、`sandbox=workspace-write` とする。
 
 ## DW-S06-A — 段 6 敵対レビュー
 
-実装 wave は異なるレンズの敵対レビューを必ず 2 本並列で行う。
+実装 wave は異なるレンズの敵対レビューを `reasoning=high` で必ず 2 本並列で行う。
 実装面に Codex `role=author` のないハンクがあればレビューで代替せず停止する。
 所見ゼロは変異で裏取りするまで緑と数えない。
 
@@ -64,6 +64,6 @@ fix の prompt には**既存テストの期待値を変更しない**を明記�
 
 ## DW-S06-C — 段 6 統合後の再検証
 
-並列 fix の統合後、焦点再レビューは全体へ 1 本でよい。
+並列 fix の統合後、焦点再レビューは全体へ `reasoning=high` で 1 本でよい。
 親が変異 matrix と受入を再走する。
 成立した条件の operations と `DW-G05` を適用し、成果物影響を書けない所見を must-fix にしない。

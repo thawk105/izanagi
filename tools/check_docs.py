@@ -261,8 +261,49 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
     "Codex 固有の取り込み手順を重ねない。"
 )
+DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL = (
+    "`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、"
+    "他段 `gpt-5.6-sol`。"
+)
+DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 の可視本文に model 権威行が "
+    "exact 1 件でない、または権威行外に `gpt-` model slug がある — "
+    "model の単一権威を保持する"
+)
+DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING = (
+    "docs/dev-wave/workers.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
+    "model の権威は DW-O01 の model 権威行だけ"
+)
+DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 外の可視テキストに `gpt-` model slug がある — "
+    "model の権威は DW-O01 の model 権威行だけ"
+)
+DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING = (
+    ".claude/commands/dev-wave.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
+    "model の権威は DW-O01 の model 権威行だけ"
+)
+DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 節が一意でない — "
+    "codex subprocess 起動契約を検査できない"
+)
+DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 の可視本文に `-m <model>` が "
+    "1 件でない — dispatcher が定める model の束縛位置を保持する"
+)
+DEV_WAVE_MODEL_SLUG_RE = re.compile(
+    r"(?<![A-Za-z0-9._-])gpt-[0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
+    r"(?![A-Za-z0-9._-])"
+)
 DEV_WAVE_DW_S02_REASONING_MAX_LITERAL = "`reasoning=max`"
 DEV_WAVE_DW_S03_REASONING_MAX_LITERAL = "`reasoning=max`"
+DEV_WAVE_DW_S06_A_REASONING_HIGH_LITERAL = "`reasoning=high`"
+DEV_WAVE_DW_S06_C_REASONING_HIGH_LITERAL = "`reasoning=high`"
+DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE = (
+    "実装 wave は異なるレンズの敵対レビューを `reasoning=high` で必ず 2 本並列で行う。"
+)
+DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE = (
+    "並列 fix の統合後、焦点再レビューは全体へ `reasoning=high` で 1 本でよい。"
+)
 DEV_WAVE_DW_S02_REASONING_MAX_FINDING = (
     "docs/dev-wave/workers.md: DW-S02 の `reasoning=max` は D207 に基づく"
     "現行 adoption pin と不一致 — "
@@ -273,12 +314,25 @@ DEV_WAVE_DW_S03_REASONING_MAX_FINDING = (
     "現行 adoption pin と不一致 — "
     "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
 )
+DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-A の `reasoning=high` は段 6 敵対レビューの"
+    "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
+)
+DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-C の `reasoning=high` は段 6 焦点再レビューの"
+    "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
+)
+DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING = (
+    "docs/dev-wave/operations.md: DW-O16 に reasoning effort 値がある — "
+    "焦点再レビューの effort は DW-S06-C だけを正本とする"
+)
 DEV_WAVE_REASONING_EFFORT_RE = re.compile(
-    r"(?<![A-Za-z0-9_-])"
+    r"(?<![A-Za-z0-9_./?-])"
     r"(?:reasoning|reasoning_effort|model_reasoning_effort)="
-    r"(?P<quote>[\"']?)(?P<value>[A-Za-z0-9][A-Za-z0-9_-]*)"
+    r"(?P<quote>[\"']?)"
+    r"(?P<value>[^ \t\r\n`。、，,;；!?！？()（）\[\]{}「」『』]+?)"
     r"(?P=quote)"
-    r"(?![A-Za-z0-9_-])"
+    r"(?=$|[ \t\r\n`。、，,;；!?！？()（）\[\]{}「」『』])"
 )
 CODEX_DEV_WAVE_SKILL_LITERALS = (
     ".claude/commands/dev-wave.md",
@@ -834,7 +888,7 @@ def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
 
 
 def _dispatch_visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
-    """dispatch inventory 用に raw HTML block も除いた可視行を返す。"""
+    """reference 契約用に raw HTML block も除いた可視行を返す。"""
 
     lines: list[tuple[str, int, str]] = []
     in_comment = False
@@ -1012,7 +1066,7 @@ def _visible_markdown_text(text: str) -> str:
 
 
 def _visible_dispatch_inventory_text(text: str) -> str:
-    """dispatch inventory 抽出に限って raw HTML block も不可視化する。"""
+    """reference 契約抽出用に raw HTML block も不可視化する。"""
 
     return "".join(
         visible + newline
@@ -3379,33 +3433,125 @@ def _check_dev_wave_reference_cap_sum(
         )
 
 
+def _check_dev_wave_model_pins(
+    dev_wave_text: str | None,
+    workers_text: str | None,
+    operations_text: str | None,
+    findings: list[str],
+) -> None:
+    """DW-O01 の model 権威と他 surface の slug 不在を pin する。"""
+
+    if dev_wave_text is not None:
+        visible_dev_wave = _visible_markdown_text(dev_wave_text)
+        if DEV_WAVE_MODEL_SLUG_RE.search(visible_dev_wave) is not None:
+            findings.append(DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING)
+
+    if workers_text is not None:
+        visible_workers = _visible_markdown_text(workers_text)
+        if DEV_WAVE_MODEL_SLUG_RE.search(visible_workers) is not None:
+            findings.append(DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING)
+
+    if operations_text is not None:
+        dw_o01_pattern = re.compile(
+            r"^## DW-O01(?:\s+—[^\n]*)?\s*$\n"
+            r"(?P<body>.*?)(?=^## |\Z)",
+            re.MULTILINE | re.DOTALL,
+        )
+        dw_o01_matches = list(dw_o01_pattern.finditer(operations_text))
+        if len(dw_o01_matches) != 1:
+            findings.append(DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING)
+        else:
+            dw_o01_match = dw_o01_matches[0]
+            visible_dw_o01 = _visible_markdown_text(
+                dw_o01_match.group("body")
+            )
+            authority_count = visible_dw_o01.count(
+                DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
+            )
+            authority_residue = _visible_markdown_text(
+                dw_o01_match.group(0)
+            ).replace(
+                DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL,
+                "",
+            )
+            if (
+                authority_count != 1
+                or DEV_WAVE_MODEL_SLUG_RE.search(authority_residue) is not None
+            ):
+                findings.append(DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING)
+            if visible_dw_o01.count("-m <model>") != 1:
+                findings.append(DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING)
+
+        operations_outside_dw_o01 = dw_o01_pattern.sub("", operations_text)
+        if DEV_WAVE_MODEL_SLUG_RE.search(
+            _visible_markdown_text(operations_outside_dw_o01)
+        ) is not None:
+            findings.append(
+                DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING
+            )
+
+
 def _check_dev_wave_reasoning_effort_pins(
     workers_text: str,
     findings: list[str],
+    *,
+    operations_text: str | None = None,
 ) -> None:
-    """D207 が固定した段 2/3 の reasoning=max を節ごとに exact pin する。"""
+    """採用済み reasoning effort と O16 の非 override を可視節へ pin する。"""
 
-    for section_id, finding in (
+    visible_workers_text = _visible_dispatch_inventory_text(workers_text)
+    for section_id, expected, required_text, finding in (
         (
             "DW-S02",
+            "max",
+            DEV_WAVE_DW_S02_REASONING_MAX_LITERAL,
             DEV_WAVE_DW_S02_REASONING_MAX_FINDING,
         ),
         (
             "DW-S03",
+            "max",
+            DEV_WAVE_DW_S03_REASONING_MAX_LITERAL,
             DEV_WAVE_DW_S03_REASONING_MAX_FINDING,
         ),
+        (
+            "DW-S06-A",
+            "high",
+            DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,
+            DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING,
+        ),
+        (
+            "DW-S06-C",
+            "high",
+            DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,
+            DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING,
+        ),
     ):
-        sections = _reference_id_sections(workers_text, section_id)
+        sections = _reference_id_sections(visible_workers_text, section_id)
         if len(sections) != 1:
             findings.append(finding)
             continue
-        visible_section = _visible_markdown_text(sections[0])
+        visible_section = sections[0]
         values = [
             match.group("value")
             for match in DEV_WAVE_REASONING_EFFORT_RE.finditer(visible_section)
         ]
-        if values != ["max"]:
+        required_text_count = (
+            visible_section.replace("\r\n", "\n").split("\n").count(required_text)
+            if section_id in {"DW-S06-A", "DW-S06-C"}
+            else visible_section.count(required_text)
+        )
+        if values != [expected] or required_text_count != 1:
             findings.append(finding)
+
+    if operations_text is None:
+        return
+    visible_operations_text = _visible_dispatch_inventory_text(operations_text)
+    sections = _reference_id_sections(visible_operations_text, "DW-O16")
+    if len(sections) != 1:
+        findings.append(DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING)
+        return
+    if DEV_WAVE_REASONING_EFFORT_RE.search(sections[0]) is not None:
+        findings.append(DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING)
 
 
 def _check_command_docs_guard(findings: list[str]) -> set[Path]:
@@ -3573,9 +3719,21 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 f"{PROVENANCE_FAMILY_BYTES} bytes"
             )
 
+    dev_wave_text = decoded.get(".claude/commands/dev-wave.md")
     workers_text = decoded.get(_WORKERS)
+    operations_text = decoded.get(_OPERATIONS)
+    _check_dev_wave_model_pins(
+        dev_wave_text,
+        workers_text,
+        operations_text,
+        findings,
+    )
     if workers_text is not None:
-        _check_dev_wave_reasoning_effort_pins(workers_text, findings)
+        _check_dev_wave_reasoning_effort_pins(
+            workers_text,
+            findings,
+            operations_text=decoded.get(_OPERATIONS),
+        )
 
     ambiguous_provenance: set[str] = set()
     for rel in sorted(PROVENANCE_FAMILY_FILES):
@@ -3631,8 +3789,9 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         text = decoded.get(rel)
         if text is None:
             continue
+        visible_text = _visible_dispatch_inventory_text(text)
         actual_sections = re.findall(
-            r"^##\s+([^\s—]+)", text, re.MULTILINE
+            r"^##\s+([^\s—]+)", visible_text, re.MULTILINE
         )
         for section in sorted(sections):
             count = actual_sections.count(section)
@@ -3828,7 +3987,6 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     f"が {acceptance_order_count} 件"
                 )
 
-    operations_text = decoded.get(_OPERATIONS)
     if operations_text is not None:
         o23 = _reference_id_sections(operations_text, "DW-O23")
         o23_count = (
@@ -3872,7 +4030,6 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     f"dispatch 契約にない孤児 H{level} — {orphan_headings}"
                 )
 
-    dev_wave_text = decoded.get(".claude/commands/dev-wave.md")
     if dev_wave_text is not None:
         dispatch = _dispatch_tables(dev_wave_text)
         if dispatch is None:

@@ -713,6 +713,10 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   token −31.6%、mini は 5 件 (45%) で wall +39.0%。**実装差分なし** — 専用ツールは独立 3 レンズの
   NO-GO (未配線で gate にならない、attest 経路が外部にある) を受けて実装しない裁定。
   被覆率は循環・非盲検・事前登録なし・n=1 のため **policy 根拠にしない**。
+  **2026-08-08 追記: production 既定はその後ユーザー裁定で変わった** — 段 3 は sol 1 本 +
+  luna 1 本の混成になった。根拠はユーザー裁定であって本 pilot の被覆率ではない。
+  正本は同日の decisions と worklog、材料は
+  `output/insights/2026-08-08_t182-luna-stage3-hybrid.md`。
   正本 = worklog 2026-07-30 (68)、分析と裁定パッケージ =
   `output/insights/2026-07-29_t182-model-routing-shadow-pilot.md`、逐語 = 同 `-verbatim/`。
   妥当な比較実験の設計は [T-189] へ送った。

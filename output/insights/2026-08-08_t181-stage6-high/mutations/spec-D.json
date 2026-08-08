@@ -1,0 +1,82 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 480,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "    visible_workers_text = _visible_dispatch_inventory_text(workers_text)\n",
+     "new": "    visible_workers_text = workers_text\n"
+    },
+    {
+     "file": "tools/check_docs.py",
+     "old": "        visible_text = _visible_dispatch_inventory_text(text)\n",
+     "new": "        visible_text = text\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_hidden_s06_a_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "    visible_workers_text = _visible_dispatch_inventory_text(workers_text)\n",
+     "new": "    visible_workers_text = _visible_markdown_text(workers_text)\n"
+    },
+    {
+     "file": "tools/check_docs.py",
+     "old": "        visible_text = _visible_dispatch_inventory_text(text)\n",
+     "new": "        visible_text = _visible_markdown_text(text)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_hidden_s06_a_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "    visible_workers_text = _visible_dispatch_inventory_text(workers_text)\n",
+     "new": "    visible_workers_text = workers_text\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_hidden_s06_a_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "        visible_text = _visible_dispatch_inventory_text(text)\n",
+     "new": "        visible_text = text\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_rejects_hidden_s06_a_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

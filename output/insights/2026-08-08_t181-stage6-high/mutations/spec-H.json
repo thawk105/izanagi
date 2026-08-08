@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M13",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "        required_text_count = (\n            visible_section.replace(\"\\r\\n\", \"\\n\").split(\"\\n\").count(required_text)\n            if section_id in {\"DW-S06-A\", \"DW-S06-C\"}\n            else visible_section.count(required_text)\n        )\n",
+     "new": "        required_text_count = visible_section.count(required_text)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_production_path_requires_independent_s06_lines_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

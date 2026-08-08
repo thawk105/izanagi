@@ -1,15 +1,16 @@
 # dev-wave 条件付き運用
 
-条件付き運用の正本。発火条件は入口の条件 dispatch が正本で、本書は各条件が
-成立したときの実行手順だけを持つ。操作の直前に該当節を読み、停止条件を迂回しない。
+発火条件の正本は入口の条件 dispatch、成立時の実行手順だけは本書が正本。
+該当節を操作直前に読み、停止条件を迂回しない。
 
 ## DW-O01 — codex subprocess 起動
 
-`codex exec -m gpt-5.6-sol -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach する。
+`codex exec -m <model> -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach する。
 投入前に prompt の非空を検査し、既存 `.done` は消さず再利用せず再投入を止め、完了は `.done` と exit code だけで判定する。
 ログの grep も完了通知も判定にしてはならず（通知は子より先行しうる）、
 成果物は `-o` の最終メッセージから読む（F23/F24）。
 採用条件 = `tools/check_codex_output.py <出力>.md` の rc=0（prompt に `## 総括` を義務付ける。F43）。
+`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、他段 `gpt-5.6-sol`。
 
 ## DW-O02 — job artifact
 

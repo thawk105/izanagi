@@ -551,3 +551,10 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:activation-issue-deploy-window":"[T-659]","T:activation-receipt-entry-wiring":"[T-658]","T:activation-tail-rollback-observability":"[T-660]","T:dev-wave-budget-for-grep-authority":"[T-661]","T:pegasus-g2-activation":"[T-657]"},"authored":"2026-08-08","content_sha256":"80ea2cb553c8119aaeda0c0362295671912353de53c561fd9911a59493cb41ba","seq":1,"wave":"dev-wave-t529-activation"}
 - {"allocations":{"F:grep-r-misses-tracked-hit":"F169"},"authored":"2026-08-08","content_sha256":"b5b88edf591313b26cb8ea3dbfd4fdc944f3eb88f09b531f1a89ac12de324249","seq":2,"wave":"dev-wave-t529-activation"}
+
+- {"allocations":{"T:codex-worker-launch-truth-table-flake":"[T-663]","T:dev-wave-docs-budget-relief":"[T-664]","T:dev-wave-model-runtime-binding":"[T-662]"},"authored":"2026-08-08","content_sha256":"dfb6e7b8fb1c9a3f4b6a94bbfb878de446d0af427d867f189eef52395f30a088","seq":1,"wave":"worktree-dev-wave-t182-luna-stage3"}
+- {"allocations":{"D:dev-wave-model-single-authority-absence-pin":"D242","D:stage3-hybrid-model-user-ruling":"D241"},"authored":"2026-08-08","content_sha256":"1e5a1e351f63aae05a259c55c89e0174627b2e48a8a3c6866a478978d9ed85b5","seq":2,"wave":"worktree-dev-wave-t182-luna-stage3"}
+
+- {"allocations":{"D:stage6-reasoning-high":"D243"},"authored":"2026-08-08","content_sha256":"b8b2a4f701681e4d98e5f20c9957983fbf6a1b8a29bd7a9faaa372d3e9ef9bff","seq":1,"wave":"dev-wave-t181-stage6-high"}
+- {"allocations":{"F:substring-pin-tautology":"F170"},"authored":"2026-08-08","content_sha256":"ddcc63ac162d08681e1b78a9ecdb66cdece07704df7ff6af41a7d6f61563acfb","seq":2,"wave":"dev-wave-t181-stage6-high"}
+- {"allocations":{"T:cr-only-section-extraction":"[T-668]","T:main-sha-stop-gate":"[T-669]","T:stage5-effort-pin-residual":"[T-667]","T:stage6-launcher-binding":"[T-665]","T:wording-pin-freeze":"[T-666]"},"authored":"2026-08-08","content_sha256":"7d055656edce537ac7a1bea4e118f7f394175e040cebe4e9e6c4a0a1ed3e0134","seq":3,"wave":"dev-wave-t181-stage6-high"}
