@@ -565,7 +565,8 @@ def _run_one_iteration_resolved(
         summary = run_campaign(
             campaign_cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
             numactl=list(contract.numactl), log=log, ccbench_dir=sub,
-            cache_root=cache_root, authorization_contract=contract,
+            cache_root=cache_root,
+            authorization_contract=env_contract.authorize(contract.env_tag),
             build_context=build_context,
             campaign_namespace="exploration",
             trigger_gate_binding=binding,

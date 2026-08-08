@@ -66,6 +66,17 @@ def _read_registry_bytes(path: str) -> bytes:
             ) from exc
 
 
+def _is_canonical_repo_relative_path(path) -> bool:
+    return (isinstance(path, str)
+            and bool(path)
+            and not os.path.isabs(path)
+            and ".." not in path.split("/")
+            and not path.endswith("/")
+            and "\\" not in path
+            and not any(unicodedata.category(char) == "Cc" for char in path)
+            and os.path.normpath(path) == path)
+
+
 def _validated_document(raw: bytes) -> tuple[dict, dict]:
     text = raw.decode("utf-8")
     document = json.loads(
@@ -85,17 +96,15 @@ def _validated_document(raw: bytes) -> tuple[dict, dict]:
 
     validated = {}
     for path, entry in entries.items():
-        if (not isinstance(path, str)
-                or not path.startswith("tools/pegasus/")
-                or path.endswith("/")
-                or "\\" in path
-                or any(unicodedata.category(char) == "Cc" for char in path)
-                or os.path.normpath(path) != path):
+        if not _is_canonical_repo_relative_path(path):
             raise AdmissionRegistryError(f"registry path is invalid: {path!r}")
         if not isinstance(entry, dict) or tuple(entry) != _ENTRY_FIELDS:
             raise AdmissionRegistryError(f"registry entry fields are invalid: {path}")
         if entry["class"] not in _CLASSES:
             raise AdmissionRegistryError(f"registry class is invalid: {path}")
+        if (not path.startswith("tools/pegasus/")
+                and entry["class"] == "local-ok"):
+            raise AdmissionRegistryError(f"registry path is invalid: {path!r}")
         if any(not isinstance(entry[field], str) or not entry[field]
                for field in _ENTRY_FIELDS):
             raise AdmissionRegistryError(f"registry entry value is invalid: {path}")

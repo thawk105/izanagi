@@ -641,7 +641,7 @@ def run_role(
     workload_flags = _workload_flags(document)
     schedule = schedule_for_role(document, role)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    authorization_contract = env_contract.lookup(ENV_TAG)
+    authorization_contract = env_contract.authorize(ENV_TAG)
     pipeline.execution_guard.require_certified_writer_authorization(
         authorization_contract,
         env_tag=ENV_TAG,

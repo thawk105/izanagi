@@ -367,7 +367,7 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
 
                 prepared = screening_driver.prepare_screening_campaign(
                     cfg, WORKLOADS[tag], baseline_ref, measure_baseline,
-                    authorization_contract=env_contract.lookup(ENV_TAG),
+                    authorization_contract=env_contract.authorize(ENV_TAG),
                     env_tag=ENV_TAG, clocks_per_us=CLK, numactl=NUMA,
                     calibration_dir=calibration_dir, build_context=build_context)
                 cfg, layout, active_screening = (
@@ -458,14 +458,14 @@ def _eval_one(name: str, effective: Sequence[str], cfg: CampaignConfig,
         if screening is None and not force:
             summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA,
                                    log=log, ccbench_dir=sub, cache_root=cache_root,
-                                   authorization_contract=env_contract.lookup(ENV_TAG),
+                                   authorization_contract=env_contract.authorize(ENV_TAG),
                                    build_context=build_context,
                                    capability_resolver=capability_resolver)
             r = summary.results[0] if summary.results else None
         else:
             r = screening_driver.evaluate_candidate(
                 cfg, layout, genome, perf, ENV_TAG, CLK, screening=screening,
-                authorization_contract=env_contract.lookup(ENV_TAG),
+                authorization_contract=env_contract.authorize(ENV_TAG),
                 build_context=build_context,
                 capability_resolver=capability_resolver,
                 numactl=NUMA, src_token=src_tok, force=force, log=log,

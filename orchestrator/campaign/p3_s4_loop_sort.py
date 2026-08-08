@@ -248,7 +248,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             return {"outcome": "dry-pass", "variant": None}
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                               ccbench_dir=sub, cache_root=cache_root,
-                              authorization_contract=env_contract.lookup(ENV_TAG),
+                              authorization_contract=env_contract.authorize(ENV_TAG),
                               build_context=build_context,
                               campaign_namespace="exploration")
     v = next((r.variant for r in summary.results), None)

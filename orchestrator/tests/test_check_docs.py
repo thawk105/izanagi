@@ -493,9 +493,6 @@ $ARGUMENTS
 コード・テスト・実行可能資材（以下「実装面」）は軽量版でも
 Codex `role=author` が書き、親は実装面を直接編集せず統合する。
 
-{check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LITERAL}
-{check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL}
-
 ## 段 dispatch
 
 | 段 | 参照 |
@@ -574,7 +571,10 @@ description: synthetic Codex rulings skill
             if rel == "docs/dev-wave/workers.md" and section == "DW-S03":
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S03_REASONING_MAX_LITERAL
             if rel == "docs/dev-wave/operations.md" and section == "DW-O01":
-                body += "\n\n`codex exec -m <model>`"
+                body += (
+                    "\n\n`codex exec -m <model>`\n\n"
+                    + check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
+                )
             if rel == "docs/dev-wave/core.md" and section == "DW-S09":
                 body += (
                     "\n\n"
@@ -1051,6 +1051,48 @@ def test_admission_projection_mutations_each_have_one_primary_finding():
             _assert_admission_count(root, 1)
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_non_pegasus_registry_entry_requires_projection_only():
+    root = _build_min_repo()
+    path = "tools/claude_session_ledger.py"
+    entry = {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain",
+    }
+    row = (
+        f"| `{path}` | `unknown` | "
+        "`unmeasured; unbounded input surfaces remain` |"
+    )
+    try:
+        def add_entry(document):
+            entries = dict(document["entries"])
+            entries[path] = entry
+            document["entries"] = {
+                key: entries[key] for key in sorted(entries)
+            }
+
+        _rewrite_registry(root, add_entry)
+        detail = (
+            "runbook §7.0 投影表が registry と集合完全一致しない — "
+            "registry_only=[('tools/claude_session_ledger.py', 'unknown', "
+            "'unmeasured; unbounded input surfaces remain')], runbook_only=[]"
+        )
+        _assert_admission_exact(root, detail)
+
+        rel = "docs/pegasus-runbook.md"
+        runbook = _read(root, rel)
+        first_row = (
+            "| `tools/pegasus/collect_receipt.py` | `unknown` | "
+            "`unmeasured synthetic input` |"
+        )
+        assert runbook.count(first_row) == 1
+        _write(root, rel, runbook.replace(first_row, row + "\n" + first_row, 1))
+        _assert_admission_exact(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_admission_registry_mutations_have_exact_attributed_finding_sets():
@@ -5134,64 +5176,75 @@ def test_dev_wave_model_pin_production_path_rejects_dw_o01_concrete_model():
         "docs/dev-wave/operations.md",
         "DW-O01",
         "-m gpt-5.6-sol",
-        check_docs.DEV_WAVE_OPERATIONS_MODEL_SLUG_ABSENCE_FINDING,
+        check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
     )
 
 
-def test_dev_wave_model_pin_production_path_rejects_dispatcher_literal_drift():
+def test_dev_wave_model_pin_rejects_dw_o01_authority_drift():
     root = _build_min_repo()
     try:
-        rel = ".claude/commands/dev-wave.md"
+        rel = "docs/dev-wave/operations.md"
         text = _read(root, rel)
         changed = text.replace("gpt-5.6-luna", "gpt-5.6-terra", 1)
         assert changed != text
         _write(root, rel, changed)
-        _assert_findings(root, check_docs.CODEX_DEV_WAVE_STAGE_MODEL_FINDING)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
+        )
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_dev_wave_model_pin_rejects_dispatcher_literal_in_html_comment():
+def test_dev_wave_model_pin_rejects_dw_o01_authority_in_html_comment():
     root = _build_min_repo()
     try:
-        rel = ".claude/commands/dev-wave.md"
+        rel = "docs/dev-wave/operations.md"
         text = _read(root, rel)
-        literal = check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LITERAL
+        literal = check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
         changed = text.replace(literal, f"<!-- {literal} -->", 1)
-        assert changed != text
-        _write(root, rel, changed)
-        _assert_findings(root, check_docs.CODEX_DEV_WAVE_STAGE_MODEL_FINDING)
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
-
-
-def test_dev_wave_model_pin_rejects_duplicate_dispatcher_literal():
-    root = _build_min_repo()
-    try:
-        rel = ".claude/commands/dev-wave.md"
-        text = _read(root, rel)
-        literal = check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LITERAL
-        changed = text.replace(literal, f"{literal}\n\n{literal}", 1)
-        assert changed != text
-        _write(root, rel, changed)
-        _assert_findings(root, check_docs.CODEX_DEV_WAVE_STAGE_MODEL_FINDING)
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
-
-
-def test_dev_wave_model_pin_rejects_dispatcher_lens_assignment_drift():
-    root = _build_min_repo()
-    try:
-        rel = ".claude/commands/dev-wave.md"
-        text = _read(root, rel)
-        literal = check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL
-        changed_literal = literal.replace("2 本目を luna", "2 本目を sol")
-        changed = text.replace(literal, changed_literal, 1)
         assert changed != text
         _write(root, rel, changed)
         _assert_findings(
             root,
-            check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LENS_FINDING,
+            check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_duplicate_dw_o01_authority():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        literal = check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
+        changed = text.replace(literal, f"{literal}\n\n{literal}", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_slug_in_dw_o01_heading():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        changed = text.replace(
+            "## DW-O01 — synthetic",
+            "## DW-O01 — synthetic gpt-5.6-sol",
+            1,
+        )
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING,
         )
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -5248,13 +5301,53 @@ def test_dev_wave_model_pin_rejects_slug_in_dw_s03_heading():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_dev_wave_model_pin_rejects_other_model_family_in_dw_o01():
+def test_dev_wave_model_pin_rejects_other_model_family_outside_dw_o01():
     _assert_model_slug_production_path_rejects(
         "docs/dev-wave/operations.md",
-        "DW-O01",
-        "-m gpt-5.4-mini",
-        check_docs.DEV_WAVE_OPERATIONS_MODEL_SLUG_ABSENCE_FINDING,
+        "DW-O05",
+        "gpt-5.4-mini",
+        check_docs.DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING,
     )
+
+
+def test_dev_wave_model_pin_rejects_slug_in_command():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        _write(root, rel, _read(root, rel) + "\ngpt-5.6-sol\n")
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pin_rejects_duplicate_dw_o01_section():
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel) + "\n## DW-O01 — duplicate\n\nbody\n",
+        )
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_model_pins_accept_min_repo_contract():
+    root = _build_min_repo()
+    try:
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "違反なし" in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_dev_wave_model_pins_accept_current_docs_contract():
@@ -5268,13 +5361,9 @@ def test_dev_wave_model_pins_accept_current_docs_contract():
 
 
 def test_dev_wave_model_pin_contract_is_time_invariant():
-    assert check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LITERAL == (
-        "codex の `-m` は段 3 が `gpt-5.6-sol` と `gpt-5.6-luna` を 1 本ずつ、"
-        "他の全段が `gpt-5.6-sol`。"
-    )
-    assert check_docs.CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL == (
-        "段 3 はレンズ 1 本目を sol、2 本目を luna とし、3 本目以降は sol、"
-        "2 本未満にしない。"
+    assert check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL == (
+        "`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、"
+        "他段 `gpt-5.6-sol`。"
     )
     assert check_docs.DEV_WAVE_MODEL_SLUG_RE.findall(
         "`gpt-5.6-sol` -m gpt-5.6-sol --model=gpt-5.6-luna\n"

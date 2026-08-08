@@ -1,0 +1,120 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 9000,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "MX1-claim-drops-o-excl",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "        os.O_WRONLY\n        | os.O_CREAT\n        | os.O_EXCL\n",
+          "new": "        os.O_WRONLY\n        | os.O_CREAT\n        | 0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_second_wave_is_held_by_first_holder"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX2-mtime-state-always-stale",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "    stale = (\n        age_seconds > _POLICY_TTL_SECONDS\n        or future_seconds > _POLICY_TTL_SECONDS\n    )",
+          "new": "    stale = True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2399-held]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX3-mtime-state-never-stale",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "    stale = (\n        age_seconds > _POLICY_TTL_SECONDS\n        or future_seconds > _POLICY_TTL_SECONDS\n    )",
+          "new": "    stale = False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2401-acquired]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX4-release-skips-owner-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                if lease.holder != self_holder:",
+          "new": "                if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_non_owner_release_never_removes_lease"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX5-status-reports-unavailable-directory-as-free",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "def status(lease_dir: Path, wave: str | None) -> dict[str, object]:\n    self_holder = _holder_for(wave) if wave is not None else None\n    try:\n        directory_fd = _open_directory(lease_dir)\n    except OSError:\n        return _unavailable(\"directory-unavailable\", self_holder)",
+          "new": "def status(lease_dir: Path, wave: str | None) -> dict[str, object]:\n    self_holder = _holder_for(wave) if wave is not None else None\n    try:\n        directory_fd = _open_directory(lease_dir)\n    except OSError:\n        return _result(\"free\", self_holder=self_holder)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_open_directory_failure_is_unavailable_not_free"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX6-holder-emits-raw-wave-slug",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "        return hashlib.sha256(wave.encode(\"utf-8\")).hexdigest()[:12]",
+          "new": "        return wave"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_instruction_like_wave_is_digest_only_in_all_outputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MX7-message-skips-land-status-validation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "    if not isinstance(status_value, str) or status_value not in _SUCCESS_STATUSES:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[stale-main]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

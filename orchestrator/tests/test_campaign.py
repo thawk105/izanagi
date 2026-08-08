@@ -30,6 +30,13 @@ import types
 from pathlib import Path
 from unittest import mock as unittest_mock
 
+try:
+    import pytest
+except ModuleNotFoundError as exc:
+    if exc.name != "pytest":
+        raise
+    pytest = None
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
@@ -76,7 +83,31 @@ _BUILD_CONTEXT = build_run_context(
         ["--allow-coder-derived-build"]
     ).coder_build_authority,
 )
-_AUTH_CONTRACT = ec.lookup("linux-baremetal")
+
+
+def _refresh_certified_writer_authority():
+    global _AUTHORIZATION, _AUTH_CONTRACT
+    authorization = ec.authorize("linux-baremetal")
+    _AUTHORIZATION = authorization
+    _AUTH_CONTRACT = authorization.contract
+
+
+if pytest is not None:
+    @pytest.fixture(autouse=True)
+    def _certified_writer_authority():
+        _refresh_certified_writer_authority()
+
+
+@contextlib.contextmanager
+def _assert_raises_contains(expected_type, expected_text):
+    try:
+        yield
+    except expected_type as exc:
+        assert expected_text in str(exc), str(exc)
+    else:
+        raise AssertionError(f"{expected_type.__name__} が送出されなかった")
+
+
 def _source_evidence(
         genome_value: Genome, commit: str, *, src_token: str = "stock",
         source_root: str = "/tmp/izanagi-test-ccbench",
@@ -2155,7 +2186,7 @@ def test_trigger_campaign_epoch_never_writes_pre_t428_paths():
         cfg, [], PerfConfig(records=1000, threads=2),
         _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
         numactl=list(_AUTH_CONTRACT.numactl),
-        authorization_contract=_AUTH_CONTRACT,
+        authorization_contract=_AUTHORIZATION,
         do_bench=False, output_root=output_root, log=lambda *_args: None,
         build_context=context, campaign_namespace="exploration",
         trigger_gate_binding=candidate,
@@ -2243,6 +2274,94 @@ def test_m1_pipeline_requires_authorization_before_any_sink_write():
     )
 
 
+def test_m0_activation_receipt_refusal_precedes_any_sink_write():
+    import dataclasses
+
+    guard = pipeline.execution_guard
+    forged = dataclasses.replace(
+        _AUTHORIZATION, activation_state_sha256="0" * 64,
+    )
+    _assert_authorization_rejects_without_writes(
+        forged,
+        env_tag=_AUTH_CONTRACT.env_tag,
+        clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
+        numactl=list(_AUTH_CONTRACT.numactl),
+        expected_type=guard.CertifiedWriterAuthorizationError,
+    )
+
+
+def test_activation_receipt_check_precedes_registry_runtime_site_and_selector_checks():
+    import dataclasses
+
+    guard = pipeline.execution_guard
+    forged_receipt = dataclasses.replace(
+        _AUTHORIZATION, activation_state_sha256="0" * 64,
+    )
+    assert forged_receipt.process_seal is guard._env_contract._AUTHORIZATION_PROCESS_SEAL
+    mismatched_selector = ec.lookup("pegasus")
+
+    cases = (
+        (
+            "registry",
+            lambda: unittest_mock.patch.object(
+                guard._env_contract, "GENERATIONS", {},
+            ),
+            {},
+            "未登録 generation",
+        ),
+        (
+            "runtime",
+            contextlib.nullcontext,
+            {"clocks_per_us": _AUTH_CONTRACT.clocks_per_us + 1},
+            "campaign execution values",
+        ),
+        (
+            "site",
+            lambda: unittest_mock.patch.object(
+                guard._site_policy, "current_site",
+                lambda: guard._site_policy.PEGASUS_COMPUTE,
+            ),
+            {},
+            "Pegasus compute",
+        ),
+        (
+            "selector",
+            contextlib.nullcontext,
+            {"env_contract": mismatched_selector},
+            "build selector",
+        ),
+    )
+    base = {
+        "env_tag": _AUTH_CONTRACT.env_tag,
+        "clocks_per_us": _AUTH_CONTRACT.clocks_per_us,
+        "numactl": list(_AUTH_CONTRACT.numactl),
+        "env_contract": None,
+    }
+    for _name, arm_later_check, overrides, later_match in cases:
+        with arm_later_check():
+            call = {**base, **overrides}
+            with _assert_raises_contains(
+                guard.CertifiedWriterAuthorizationError,
+                later_match,
+            ):
+                guard.require_certified_writer_authorization(
+                    _AUTHORIZATION, **call,
+                )
+
+            with unittest_mock.patch.dict(
+                    guard._env_contract._AUTHORIZED_CONTRACTS,
+                    {_AUTH_CONTRACT.env_tag: forged_receipt},
+            ):
+                with _assert_raises_contains(
+                    guard.CertifiedWriterAuthorizationError,
+                    "authorization receipt の serial/state hash",
+                ):
+                    guard.require_certified_writer_authorization(
+                        forged_receipt,
+                        **call,
+                    )
+
+
 def test_m2_pipeline_rejects_forged_contract_even_when_runtime_matches_it():
     import dataclasses
 
@@ -2254,7 +2373,7 @@ def test_m2_pipeline_rejects_forged_contract_even_when_runtime_matches_it():
         ),
     )
     _assert_authorization_rejects_without_writes(
-        forged,
+        dataclasses.replace(_AUTHORIZATION, contract=forged),
         env_tag=forged.env_tag,
         clocks_per_us=forged.clocks_per_us,
         numactl=list(forged.numactl),
@@ -2274,14 +2393,14 @@ def test_runtime_authorization_rejects_equality_spoof_and_float_clock():
             return "forged-runtime-value"
 
     _assert_authorization_rejects_without_writes(
-        _AUTH_CONTRACT,
+        _AUTHORIZATION,
         env_tag=EqualitySpoof(),
         clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
         numactl=list(_AUTH_CONTRACT.numactl),
         expected_type=TypeError,
     )
     _assert_authorization_rejects_without_writes(
-        _AUTH_CONTRACT,
+        _AUTHORIZATION,
         env_tag=_AUTH_CONTRACT.env_tag,
         clocks_per_us=1800.0,
         numactl=list(_AUTH_CONTRACT.numactl),
@@ -2291,7 +2410,7 @@ def test_runtime_authorization_rejects_equality_spoof_and_float_clock():
 
 def test_m3_pipeline_rejects_authorization_selector_mismatch():
     _assert_authorization_rejects_without_writes(
-        _AUTH_CONTRACT,
+        _AUTHORIZATION,
         env_tag=_AUTH_CONTRACT.env_tag,
         clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
         numactl=list(_AUTH_CONTRACT.numactl),
@@ -2317,7 +2436,7 @@ def test_build_selector_rejects_custom_equality_subclass():
         calibration_ref=_AUTH_CONTRACT.calibration_ref,
     )
     _assert_authorization_rejects_without_writes(
-        _AUTH_CONTRACT,
+        _AUTHORIZATION,
         env_tag=_AUTH_CONTRACT.env_tag,
         clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
         numactl=list(_AUTH_CONTRACT.numactl),
@@ -2327,9 +2446,10 @@ def test_build_selector_rejects_custom_equality_subclass():
 
 
 def test_m4_pipeline_rejects_unresolved_none_numactl_for_pegasus():
-    pegasus = ec.lookup("pegasus")
+    pegasus_authorization = ec.authorize("pegasus")
+    pegasus = pegasus_authorization.contract
     _assert_authorization_rejects_without_writes(
-        pegasus,
+        pegasus_authorization,
         env_tag=pegasus.env_tag,
         clocks_per_us=pegasus.clocks_per_us,
         numactl=None,
@@ -2344,7 +2464,7 @@ def test_m5_pipeline_compute_rejects_registered_linux_contract():
     )
     try:
         _assert_authorization_rejects_without_writes(
-            _AUTH_CONTRACT,
+            _AUTHORIZATION,
             env_tag=_AUTH_CONTRACT.env_tag,
             clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
@@ -2362,7 +2482,7 @@ def test_p1_pipeline_accepts_registered_contract_without_enabling_v2_build():
             _AUTH_CONTRACT.env_tag, "deadbeef", PerfConfig(records=1000, threads=2),
             _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, build_context=_BUILD_CONTEXT,
             log=lambda *_args: None,
         )
@@ -2384,7 +2504,7 @@ def test_p1_run_campaign_accepts_registered_contract():
         _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
         numactl=list(_AUTH_CONTRACT.numactl), do_bench=False,
         output_root=_tmpdir("izanagi_authorization_run_"),
-        authorization_contract=_AUTH_CONTRACT,
+        authorization_contract=_AUTHORIZATION,
         build_context=_BUILD_CONTEXT, log=lambda *_args: None,
     )
     assert summary.total == 0 and summary.results == []
@@ -2832,7 +2952,7 @@ def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
             do_bench=do_bench, screening=screening,
             expected_perf_sha256=expected_perf_sha256,
             record_rep_returncodes=record_rep_returncodes,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             log=lambda *a: None, build_context=_BUILD_CONTEXT)
     return r, calls
 
@@ -2847,7 +2967,7 @@ def test_build_admission_coder_default_rejects_before_pipeline_build_spy():
                 Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
                 numactl=_AUTH_CONTRACT.numactl,
-                authorization_contract=_AUTH_CONTRACT,
+                authorization_contract=_AUTHORIZATION,
                 do_bench=False, build_context=object(),
                 log=lambda *_args: None,
             )
@@ -2873,7 +2993,7 @@ def test_build_admission_explicit_coder_opt_in_reaches_build_and_records_receipt
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=_AUTH_CONTRACT.numactl,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, build_context=_BUILD_CONTEXT, log=lambda *_args: None,
         )
     assert result.certified and len(calls.builds) == 2
@@ -2915,7 +3035,7 @@ def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_bui
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=_AUTH_CONTRACT.numactl,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, build_context=_BUILD_CONTEXT,
             trigger_gate_binding=candidate, ccbench_dir=source_root,
             log=lambda *_args: None,
@@ -2968,7 +3088,7 @@ def test_trigger_binding_rejects_crossed_materialized_predicate_and_mask():
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=_AUTH_CONTRACT.numactl,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, build_context=_BUILD_CONTEXT,
             trigger_gate_binding=binding_b, ccbench_dir=source_root,
             log=lambda *_args: None,
@@ -2999,7 +3119,7 @@ def test_trigger_prebuild_abort_records_source_null_binding_before_start():
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=_AUTH_CONTRACT.numactl,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, build_context=_BUILD_CONTEXT,
             trigger_gate_binding=candidate, log=lambda *_args: None,
         )
@@ -3024,7 +3144,7 @@ def test_build_admission_stock_positive_reaches_build_without_coder_opt_in():
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, pin.CURRENT_PIN,
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=_AUTH_CONTRACT.numactl,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, build_context=_BUILD_CONTEXT, log=lambda *_args: None,
         )
     assert result.certified and len(calls.builds) == 2
@@ -3066,7 +3186,7 @@ def test_build_admission_loop_and_screening_revalidate_before_build_entry_spy():
         try:
             L.run_campaign(
                 cfg, [genome], PerfConfig(records=1, threads=1), "test", 1800,
-                authorization_contract=_AUTH_CONTRACT,
+                authorization_contract=_AUTHORIZATION,
                 do_bench=False, output_root=_tmpdir("t316_loop_"),
                 build_context=bad, log=lambda *_args: None,
             )
@@ -3086,7 +3206,7 @@ def test_build_admission_loop_and_screening_revalidate_before_build_entry_spy():
                 cfg, layout, genome, PerfConfig(records=1, threads=1),
                 _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                 numactl=_AUTH_CONTRACT.numactl,
-                authorization_contract=_AUTH_CONTRACT,
+                authorization_contract=_AUTHORIZATION,
                 build_context=bad, screening=None, src_token="stock",
                 log=lambda *_args: None,
             )
@@ -3155,7 +3275,7 @@ def test_pipeline_env_contract_opt_in_uses_v2_for_trace_and_perf_only():
         result = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, contract.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-            numactl=contract.numactl, authorization_contract=contract,
+            numactl=contract.numactl, authorization_contract=ec.authorize(contract.env_tag),
             do_bench=False, env_contract=contract, log=lambda *a: None,
         build_context=_BUILD_CONTEXT,
         )
@@ -3179,7 +3299,7 @@ def test_m12_pipeline_compute_uses_gxx_for_source_digest_and_v2_builds():
         result = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, "pegasus", "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=2100,
-            authorization_contract=contract, numactl=contract.numactl,
+            authorization_contract=ec.authorize(contract.env_tag), numactl=contract.numactl,
             do_bench=False, env_contract=contract, dependency_prefix=prefix,
             log=lambda *a: None, build_context=_BUILD_CONTEXT,
         )
@@ -3201,7 +3321,7 @@ def test_pipeline_v2_passes_nondefault_prepared_ccbench_tree_to_both_builds():
         result = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, contract.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-            numactl=contract.numactl, authorization_contract=contract,
+            numactl=contract.numactl, authorization_contract=ec.authorize(contract.env_tag),
             do_bench=False, env_contract=contract, ccbench_dir=prepared_tree,
             log=lambda *a: None,
         build_context=_BUILD_CONTEXT,
@@ -3392,7 +3512,7 @@ def _assert_legacy_cache_hit_site_refusal(site):
                     _AUTH_CONTRACT.env_tag, "deadbeef",
                     PerfConfig(records=1000, threads=2), clocks_per_us=1800,
                     numactl=_AUTH_CONTRACT.numactl,
-                    authorization_contract=_AUTH_CONTRACT,
+                    authorization_contract=_AUTHORIZATION,
                     log=lambda *a: None, build_context=_BUILD_CONTEXT,
                 )
             except buildcache.BuildError as exc:
@@ -3524,7 +3644,7 @@ def test_m18_commit_rechecks_site_immediately_before_write():
                 _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
                 numactl=_AUTH_CONTRACT.numactl,
-                authorization_contract=_AUTH_CONTRACT,
+                authorization_contract=_AUTHORIZATION,
                 log=lambda *a: None, build_context=_BUILD_CONTEXT,
             )
         except buildcache.BuildError:
@@ -3550,7 +3670,7 @@ def test_m18_no_bench_commit_rechecks_site_immediately_before_write():
                 _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
                 numactl=_AUTH_CONTRACT.numactl,
-                authorization_contract=_AUTH_CONTRACT,
+                authorization_contract=_AUTHORIZATION,
                 do_bench=False, log=lambda *a: None,
                 build_context=_BUILD_CONTEXT,
             )
@@ -3990,7 +4110,7 @@ def test_pipeline_screening_with_no_bench_is_immediate_value_error():
                 _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
                 numactl=_AUTH_CONTRACT.numactl,
-                authorization_contract=_AUTH_CONTRACT,
+                authorization_contract=_AUTHORIZATION,
                 do_bench=False, screening=_screening(), log=lambda *a: None, build_context=_BUILD_CONTEXT)
             assert False, "should raise ValueError"
         except ValueError as e:
@@ -4014,7 +4134,7 @@ def test_pipeline_rejects_runtime_screening_mixed_into_legacy_campaign():
                 _AUTH_CONTRACT.env_tag, "deadbeef",
                 PerfConfig(records=1000, threads=2), clocks_per_us=1800,
                 numactl=_AUTH_CONTRACT.numactl,
-                authorization_contract=_AUTH_CONTRACT,
+                authorization_contract=_AUTHORIZATION,
                 screening=_screening(), log=lambda *a: None, build_context=_BUILD_CONTEXT)
             assert False, "legacy campaign への runtime screening 混在は拒否すべき"
         except ValueError as exc:
@@ -4038,7 +4158,7 @@ def test_pipeline_rejects_screening_policy_drift_from_campaign_lock():
                     _AUTH_CONTRACT.env_tag, "deadbeef",
                     PerfConfig(records=1000, threads=2), clocks_per_us=1800,
                     numactl=_AUTH_CONTRACT.numactl,
-                    authorization_contract=_AUTH_CONTRACT,
+                    authorization_contract=_AUTHORIZATION,
                     screening=runtime, log=lambda *a: None, build_context=_BUILD_CONTEXT)
                 assert False, f"screening policy drift {changed} must be rejected"
             except ValueError as exc:
@@ -4093,7 +4213,7 @@ def test_pipeline_self_compute_identity_error_aborts_under_stock_id():
                               PerfConfig(records=1000, threads=2),
                               clocks_per_us=_AUTH_CONTRACT.clocks_per_us,
                               numactl=list(_AUTH_CONTRACT.numactl),
-                              authorization_contract=_AUTH_CONTRACT,
+                              authorization_contract=_AUTHORIZATION,
                               do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         pipeline.source_digest = saved
@@ -4212,7 +4332,7 @@ def test_pipeline_extra_correctness_both_pass_tags_commit_and_uses_numactl_lock(
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.certified and not r.aborted
@@ -4236,7 +4356,7 @@ def test_pipeline_extra_correctness_second_pass_red_aborts_with_workload_tag():
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=["numactl", "--interleave=all"],
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.aborted and not r.certified
@@ -4261,7 +4381,7 @@ def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=_AUTH_CONTRACT.numactl,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.certified and calls["bench_lock_enters"] == 0
     verify_recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
@@ -4281,7 +4401,7 @@ def test_pipeline_extra_correctness_requires_numactl():
             Genome("silo", {"BACK_OFF": 1}), lay,
             _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
         assert False, "should raise ValueError"
@@ -4300,7 +4420,7 @@ def test_pipeline_extra_correctness_second_pass_competing_tenant_aborts():
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.aborted and not r.certified
@@ -4324,7 +4444,7 @@ def test_pipeline_extra_correctness_second_pass_early_reject_clears_stale_verdic
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.aborted and not r.certified
@@ -4369,7 +4489,7 @@ def test_pipeline_verify_probe_error_aborts_and_clears_verdict():
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800, numactl=numa,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.aborted and not r.certified
@@ -4419,7 +4539,7 @@ def test_loop_probe_error_is_retryable_after_recovery():
                 cfg, [g], PerfConfig(records=1, threads=1),
                 _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                 numactl=list(_AUTH_CONTRACT.numactl),
-                authorization_contract=_AUTH_CONTRACT,
+                authorization_contract=_AUTHORIZATION,
                 do_bench=False, output_root=out_root,
                                log=lambda *a: None, build_context=_BUILD_CONTEXT)
         finally:
@@ -4471,7 +4591,7 @@ def test_screening_driver_probe_error_is_retryable_after_recovery():
                 cfg, lay, g, PerfConfig(records=1, threads=1),
                 _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                 numactl=_AUTH_CONTRACT.numactl,
-                authorization_contract=_AUTH_CONTRACT,
+                authorization_contract=_AUTHORIZATION,
                 screening=None, src_token="stock", log=lambda *a: None,
                 build_context=_BUILD_CONTEXT)
         finally:
@@ -4516,7 +4636,7 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
                        PerfConfig(records=1, threads=1),
                        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                        numactl=list(_AUTH_CONTRACT.numactl),
-                       authorization_contract=_AUTH_CONTRACT,
+                       authorization_contract=_AUTHORIZATION,
                        output_root=out_root, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
@@ -4556,7 +4676,7 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
                        PerfConfig(records=1, threads=1),
                        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                        numactl=list(_AUTH_CONTRACT.numactl),
-                       authorization_contract=_AUTH_CONTRACT,
+                       authorization_contract=_AUTHORIZATION,
                        output_root=out_root, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
@@ -4603,7 +4723,7 @@ def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
             do_bench=False, output_root=out_root, log=lambda *a: None,
             env_contract=contract, dependency_prefix=prefix,
             numactl=contract.numactl,
-            authorization_contract=contract,
+            authorization_contract=ec.authorize(contract.env_tag),
             build_context=_BUILD_CONTEXT,
         )
     finally:
@@ -4664,7 +4784,7 @@ def test_required_contract_is_attested_once_at_run_campaign_sink():
             PerfConfig(records=1, threads=1), contract.env_tag,
             contract.clocks_per_us, numactl=contract.numactl,
             do_bench=False, output_root=out_root, log=lambda *a: None,
-            env_contract=contract, authorization_contract=contract,
+            env_contract=contract, authorization_contract=ec.authorize(contract.env_tag),
             build_context=_BUILD_CONTEXT,
         )
     finally:
@@ -4718,7 +4838,7 @@ def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False,
             cfg, genomes, PerfConfig(records=1, threads=1),
             _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
-            authorization_contract=_AUTH_CONTRACT, do_bench=do_bench,
+            authorization_contract=_AUTHORIZATION, do_bench=do_bench,
                            output_root=out_root, log=lambda *a: None,
                            build_context=_BUILD_CONTEXT)
     finally:
@@ -4739,7 +4859,7 @@ def test_run_campaign_default_namespace_remains_official():
         cfg, [], PerfConfig(records=1, threads=1),
         _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
         numactl=list(_AUTH_CONTRACT.numactl),
-        authorization_contract=_AUTH_CONTRACT,
+        authorization_contract=_AUTHORIZATION,
         do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
     )
     expected = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root)
@@ -4775,7 +4895,7 @@ def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
             cfg, [genome], PerfConfig(records=1, threads=1),
             _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
             campaign_namespace="exploration",
         )
@@ -4806,7 +4926,7 @@ def test_run_campaign_rejects_unknown_namespace_before_output_creation():
     try:
         L.run_campaign(
             cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800,
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
             campaign_namespace="typo",
         )
@@ -4829,12 +4949,12 @@ def test_run_campaign_namespace_does_not_change_campaign_id():
     )
     official = L.run_campaign(
         *common, numactl=list(_AUTH_CONTRACT.numactl),
-        authorization_contract=_AUTH_CONTRACT, do_bench=False,
+        authorization_contract=_AUTHORIZATION, do_bench=False,
         output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
     )
     exploration = L.run_campaign(
         *common, numactl=list(_AUTH_CONTRACT.numactl),
-        authorization_contract=_AUTH_CONTRACT, do_bench=False,
+        authorization_contract=_AUTHORIZATION, do_bench=False,
         output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
         campaign_namespace="exploration",
     )
@@ -4931,7 +5051,7 @@ def test_loop_recovery_skips_committed_src_token_variant():
             cfg, [g], PerfConfig(records=1, threads=1),
             _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=lambda *a: None,
             build_context=_BUILD_CONTEXT)
     finally:
@@ -4980,7 +5100,7 @@ def test_loop_identity_error_is_retryable_after_repair():
             cfg, [g], PerfConfig(records=1, threads=1),
             _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=lambda *a: None,
             build_context=_BUILD_CONTEXT)
         assert s1.aborted == 1 and len(calls) == 0
@@ -4990,7 +5110,7 @@ def test_loop_identity_error_is_retryable_after_repair():
             cfg, [g], PerfConfig(records=1, threads=1),
             _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=lambda *a: None,
             build_context=_BUILD_CONTEXT)
     finally:
@@ -5040,7 +5160,7 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
             cfg, [g], PerfConfig(records=1, threads=1),
             _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root,
                             log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
@@ -5078,7 +5198,7 @@ def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
                         cfg, [genome_value], PerfConfig(records=1, threads=1),
                         _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                         numactl=list(_AUTH_CONTRACT.numactl),
-                        authorization_contract=_AUTH_CONTRACT, do_bench=False,
+                        authorization_contract=_AUTHORIZATION, do_bench=False,
                         output_root=out_root, log=lambda *_args: None,
                         build_context=_BUILD_CONTEXT,
                     )
@@ -5099,7 +5219,7 @@ def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
                 cfg, [genome_value], PerfConfig(records=1, threads=1),
                 _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                 numactl=list(_AUTH_CONTRACT.numactl),
-                authorization_contract=_AUTH_CONTRACT, do_bench=False,
+                authorization_contract=_AUTHORIZATION, do_bench=False,
                 output_root=out_root, log=lambda *_args: None,
                 build_context=_BUILD_CONTEXT,
             )
@@ -5153,7 +5273,7 @@ def test_loop_identity_skip_is_visible_when_stock_id_terminal():
             cfg, [g], PerfConfig(records=1, threads=1),
             _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root,
                            log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
@@ -7386,7 +7506,7 @@ def test_loop_resume_repairs_tail_before_replay_and_surfaces_receipt():
             cfg, [genome], PerfConfig(records=1, threads=1),
             _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
-            authorization_contract=_AUTH_CONTRACT,
+            authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=messages.append, build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
@@ -7432,7 +7552,7 @@ def test_loop_does_not_append_abort_after_wal_io_error():
                     cfg, [genome], PerfConfig(records=1, threads=1),
                     _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                     numactl=list(_AUTH_CONTRACT.numactl),
-                    authorization_contract=_AUTH_CONTRACT,
+                    authorization_contract=_AUTHORIZATION,
                     do_bench=False, output_root=out_root,
                     log=lambda message: None, build_context=_BUILD_CONTEXT)
             except (wal.WalAppendError, wal.WalFramingError) as exc:
@@ -7451,6 +7571,7 @@ def _run():
     passed = failed = skipped = 0
     for fn in fns:
         try:
+            _refresh_certified_writer_authority()
             fn()
             print(f"PASS {fn.__name__}")
             passed += 1

@@ -261,29 +261,26 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
     "Codex 固有の取り込み手順を重ねない。"
 )
-CODEX_DEV_WAVE_STAGE_MODEL_LITERAL = (
-    "codex の `-m` は段 3 が `gpt-5.6-sol` と `gpt-5.6-luna` を 1 本ずつ、"
-    "他の全段が `gpt-5.6-sol`。"
+DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL = (
+    "`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、"
+    "他段 `gpt-5.6-sol`。"
 )
-CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL = (
-    "段 3 はレンズ 1 本目を sol、2 本目を luna とし、3 本目以降は sol、"
-    "2 本未満にしない。"
-)
-CODEX_DEV_WAVE_STAGE_MODEL_FINDING = (
-    ".claude/commands/dev-wave.md: 可視な codex の段別 model literal が 1 件でない — "
+DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 の可視本文に model 権威行が "
+    "exact 1 件でない、または権威行外に `gpt-` model slug がある — "
     "model の単一権威を保持する"
-)
-CODEX_DEV_WAVE_STAGE_MODEL_LENS_FINDING = (
-    ".claude/commands/dev-wave.md: 可視な段 3 の model・レンズ割当て literal が "
-    "1 件でない — model とレンズの対応を一意に保持する"
 )
 DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING = (
     "docs/dev-wave/workers.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
-    "model の権威は dispatcher の段別 model 行だけ"
+    "model の権威は DW-O01 の model 権威行だけ"
 )
-DEV_WAVE_OPERATIONS_MODEL_SLUG_ABSENCE_FINDING = (
-    "docs/dev-wave/operations.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
-    "model の権威は dispatcher の段別 model 行だけ"
+DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 外の可視テキストに `gpt-` model slug がある — "
+    "model の権威は DW-O01 の model 権威行だけ"
+)
+DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING = (
+    ".claude/commands/dev-wave.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
+    "model の権威は DW-O01 の model 権威行だけ"
 )
 DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING = (
     "docs/dev-wave/operations.md: DW-O01 節が一意でない — "
@@ -3421,17 +3418,12 @@ def _check_dev_wave_model_pins(
     operations_text: str | None,
     findings: list[str],
 ) -> None:
-    """model の単一権威と worker/operation 側の slug 不在を pin する。"""
+    """DW-O01 の model 権威と他 surface の slug 不在を pin する。"""
 
     if dev_wave_text is not None:
         visible_dev_wave = _visible_markdown_text(dev_wave_text)
-        if visible_dev_wave.count(CODEX_DEV_WAVE_STAGE_MODEL_LITERAL) != 1:
-            findings.append(CODEX_DEV_WAVE_STAGE_MODEL_FINDING)
-        if (
-            visible_dev_wave.count(CODEX_DEV_WAVE_STAGE_MODEL_LENS_LITERAL)
-            != 1
-        ):
-            findings.append(CODEX_DEV_WAVE_STAGE_MODEL_LENS_FINDING)
+        if DEV_WAVE_MODEL_SLUG_RE.search(visible_dev_wave) is not None:
+            findings.append(DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING)
 
     if workers_text is not None:
         visible_workers = _visible_markdown_text(workers_text)
@@ -3439,17 +3431,43 @@ def _check_dev_wave_model_pins(
             findings.append(DEV_WAVE_WORKERS_MODEL_SLUG_ABSENCE_FINDING)
 
     if operations_text is not None:
-        visible_operations = _visible_markdown_text(operations_text)
-        if DEV_WAVE_MODEL_SLUG_RE.search(visible_operations) is not None:
-            findings.append(DEV_WAVE_OPERATIONS_MODEL_SLUG_ABSENCE_FINDING)
-
-        sections = _reference_id_sections(operations_text, "DW-O01")
-        if len(sections) != 1:
+        dw_o01_pattern = re.compile(
+            r"^## DW-O01(?:\s+—[^\n]*)?\s*$\n"
+            r"(?P<body>.*?)(?=^## |\Z)",
+            re.MULTILINE | re.DOTALL,
+        )
+        dw_o01_matches = list(dw_o01_pattern.finditer(operations_text))
+        if len(dw_o01_matches) != 1:
             findings.append(DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING)
-        elif (
-            _visible_markdown_text(sections[0]).count("-m <model>") != 1
-        ):
-            findings.append(DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING)
+        else:
+            dw_o01_match = dw_o01_matches[0]
+            visible_dw_o01 = _visible_markdown_text(
+                dw_o01_match.group("body")
+            )
+            authority_count = visible_dw_o01.count(
+                DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
+            )
+            authority_residue = _visible_markdown_text(
+                dw_o01_match.group(0)
+            ).replace(
+                DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL,
+                "",
+            )
+            if (
+                authority_count != 1
+                or DEV_WAVE_MODEL_SLUG_RE.search(authority_residue) is not None
+            ):
+                findings.append(DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING)
+            if visible_dw_o01.count("-m <model>") != 1:
+                findings.append(DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING)
+
+        operations_outside_dw_o01 = dw_o01_pattern.sub("", operations_text)
+        if DEV_WAVE_MODEL_SLUG_RE.search(
+            _visible_markdown_text(operations_outside_dw_o01)
+        ) is not None:
+            findings.append(
+                DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING
+            )
 
 
 def _check_dev_wave_reasoning_effort_pins(

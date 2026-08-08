@@ -101,14 +101,14 @@ def main(argv=None) -> int:
     print("=== 完了条件 1: dirty no-op → coder namespace の cache-miss commit ===")
     with applied(os.path.join(root, NOOP_PATCH), PIN, sub):
         s1 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
-                          authorization_contract=env_contract.lookup(ENV_TAG),
+                          authorization_contract=env_contract.authorize(ENV_TAG),
                           build_context=build_context,
                           campaign_namespace="exploration")
 
     print("\n=== 完了条件 2: 純 timing static50 → cache-miss 新規ビルド 1 周 ===")
     with applied(os.path.join(root, STATIC_PATCH), PIN, sub):
         s2 = run_campaign(cfg, [STATIC_G], perf, ENV_TAG, CLK, numactl=NUMA,
-                          authorization_contract=env_contract.lookup(ENV_TAG),
+                          authorization_contract=env_contract.authorize(ENV_TAG),
                           build_context=build_context,
                           campaign_namespace="exploration")
 

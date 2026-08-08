@@ -254,10 +254,15 @@ def sha256_file(path: Path) -> str:
 def _runtime_module_paths(repo: Path) -> list[Path]:
     """取得・検証の実行意味論を持つ Python module の閉じた binding 集合。"""
     verifier = repo / "orchestrator/verifier"
+    activation_records = (
+        repo / "orchestrator/campaign/env_contract_activations"
+    )
     paths = [
         repo / "orchestrator/campaign/__init__.py",
         repo / "orchestrator/campaign/silo_ladder_rung1_contract.py",
         repo / "orchestrator/campaign/env_contract.py",
+        repo / "orchestrator/campaign/env_contract_activation.py",
+        *sorted(activation_records.glob("*.json")),
         repo / "orchestrator/campaign/env_attestation.py",
         repo / "orchestrator/campaign/calibration_verify.py",
         repo / "orchestrator/campaign/execution_guard.py",

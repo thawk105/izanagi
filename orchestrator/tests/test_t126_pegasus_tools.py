@@ -1425,6 +1425,46 @@ def test_shared_pegasus_policy_owns_no_t126_qualification_keys():
     assert pinned_policy["sha256"] != current_policy_sha256
 
 
+def test_required_code_identity_closes_activation_receipt_imports_without_records():
+    required = {
+        "orchestrator/campaign/__init__.py",
+        "orchestrator/campaign/calibration_verify.py",
+        "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/env_contract_activation.py",
+        "orchestrator/campaign/env_attestation.py",
+        "orchestrator/campaign/execution_guard.py",
+        "orchestrator/campaign/site_policy.py",
+        "orchestrator/calibrator/__init__.py",
+        "orchestrator/calibrator/effective_clock_policy.py",
+        "orchestrator/calibrator/schema_v2.py",
+        "orchestrator/calibrator/tsc.py",
+    }
+    assert required <= REQUIRED_CODE_IDENTITY_PATHS
+    record_directory = "orchestrator/campaign/env_contract_activations"
+    assert not {
+        path for path in REQUIRED_CODE_IDENTITY_PATHS
+        if path == record_directory or path.startswith(record_directory + "/")
+    }
+
+
+def test_series_preimage_exact_code_identity_set_tracks_activation_closure(
+    tmp_path,
+):
+    (_, _, layout, _, _, _, _, _, _) = _attempt(
+        tmp_path, "activation-identity-closure"
+    )
+    preimage = load_json_strict(layout.attempt_dir / "series-identity.json")
+    assert set(preimage["code_identity"]) == REQUIRED_CODE_IDENTITY_PATHS
+    assert series_identity(preimage)
+
+    missing_leaf = deepcopy(preimage)
+    missing_leaf["code_identity"].pop(
+        "orchestrator/campaign/env_contract_activation.py"
+    )
+    with pytest.raises(ProtocolError, match="required set mismatch"):
+        series_identity(missing_leaf)
+
+
 @pytest.mark.parametrize(
     "relative",
     sorted(REQUIRED_CODE_IDENTITY_PATHS | REQUIRED_SCRIPT_IDENTITY_PATHS),

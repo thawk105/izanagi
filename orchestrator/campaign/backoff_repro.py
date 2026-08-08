@@ -106,7 +106,7 @@ def run_workload(tag: str, log=print) -> dict:
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff repro  workload={tag}  逆順 {[g.flags['BACKOFF_FIXED'] for g in gs]} ===")
     s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                     authorization_contract=env_contract.lookup(ENV_TAG),
+                     authorization_contract=env_contract.authorize(ENV_TAG),
                      build_context=build_context,
                      capability_resolver=capability_resolver)
 

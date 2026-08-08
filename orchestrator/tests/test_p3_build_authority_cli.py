@@ -122,6 +122,7 @@ def test_all_five_drivers_issue_opaque_authority():
 
 def _pipeline_admission(source, context, *, capability_resolver=None):
     contract = env_contract.lookup("linux-baremetal")
+    authorization = env_contract.authorize("linux-baremetal")
     genome = Genome("silo", {"BACK_OFF": 1})
     source = replace(
         source,
@@ -148,7 +149,7 @@ def _pipeline_admission(source, context, *, capability_resolver=None):
                 pipeline.PerfConfig(records=1, threads=1), contract.clocks_per_us,
                 numactl=contract.numactl,
                 do_bench=False, log=lambda *_args: None,
-                authorization_contract=contract,
+                authorization_contract=authorization,
                 build_context=context,
                 capability_resolver=capability_resolver,
                 src_token=source.src_token,

@@ -421,17 +421,27 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
   **path 粒度**なので、許可された path が任意 argv で規範値未満であることは意味しない。
   pin・入力・cap が変わったら測り直す。argv / env を含む admission と CLI 側の入力 cap の比較は
   [T-482] (b)(c) として裁定待ちに残る。
-- **admission registry と証拠クラス。** `tools/pegasus/` 配下の実行体をログインノードで
+- **admission registry と証拠クラス。** 実行体をログインノードで
   実行してよいかの判定は **`tools/pegasus/admission_registry.json` が正本**で、path ごとに 3 値の
   class と `reason` / `primary_gate` / `evidence` を持つ ([T-522])。`hooks/guard_bash.py` と
   `tools/check_docs.py` は、共有 validator (`tools/pegasus_admission_registry.py`) を通した
-  **投影**であって正本ではない。**hook が許可するのは `local-ok` だけ**で、
-  `unknown`・`dispatch-required`・未登録 (subdirectory を含む) はすべて拒否する。
+  **投影**であって正本ではない。拒否の射程はちょうど次の 2 つで、それ以外は素通りする。
+  (i) **registry に exact 登録された path のうち class が `local-ok` でないもの** —
+  repo 内のどこにあってもよい ([T-639])。(ii) **`tools/pegasus/` 配下の未登録 path**
+  (subdirectory を含む)。**未登録 = 拒否の閉包はこの subtree にだけ残る**のであって、
+  `tools/pegasus/` 外の未登録 path は従来どおり通る — 全 tool の分類完備は目指さない
+  縮小版だからである。**許可するのは `local-ok` だけ**という原則は (i) の内側で変わらない。
+  **`tools/pegasus/` の外に登録できるのは deny 側の class (`unknown` / `dispatch-required`) だけ**で、
+  非 `tools/pegasus/` の `local-ok` は loader と hook の双方が拒否する。この制約により、
+  適用 path を広げても受理集合は単調に縮むだけになる。
   **この「拒否する」の射程は、正しく `PEGASUS_LOGIN` / `PEGASUS_SUSPECT` と判定された上で、
   hook の parser が実行 target と認識した綴りに限られる。** `python3 -c`、cwd 相対で組み立てた path、
   変数展開、未解析 launcher、script file 越しの実行は原理的に見えない (F121 の残穴。[T-518])。
+  **Claude Code の Bash tool 以外の実行面 — Codex 子、ユーザー端末・IDE・cron、subprocess の内側 —
+  もこの gate の外である。** 適用 path を広げてもこの限界は変わらない ([T-639] で裁定へ返した)。
   正本が読めない・schema に反する・未知の class を含むときは、hook は空 registry へ縮退し
-  `tools/pegasus/` 配下を**すべて拒否する** (fail-closed)。この異常時には現在 `local-ok` の 5 本も
+  `tools/pegasus/` 配下を**すべて拒否する** (fail-closed)。**縮退時も、hook が静的に持つ
+  非 `tools/pegasus/` の登録 path (fallback 投影) は拒否側に倒れる。** この異常時には現在 `local-ok` の 5 本も
   拒否されるため、単調性 (D175 決定 6) の射程は**正常系 (valid canonical registry) に限られる**。
   `evidence` は現在 2 種類ある — 本節の手順で実測したもの (`fetch_third_party.py`) と、
   **本節の手順で測られないまま以前から許可されていたもの (`legacy-admitted`)** である。
@@ -447,6 +457,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 
 | path | class | evidence |
 |---|---|---|
+| `tools/claude_session_ledger.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/certify_calibration.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/collect_receipt.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/collect_t126_qualification.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
@@ -484,8 +495,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 - **分類の測定はユーザー端末の手番である (2026-08-05 ユーザー裁定)。** 上の
   `systemd-run --user --scope` 手順は計算ノードでは動かない (2026-08-05 実測: PBS ジョブに
   user systemd session が無く `$DBUS_SESSION_BUS_ADDRESS` / `$XDG_RUNTIME_DIR` が未設定。
-  ジョブ自身の cgroup は `nqs-jsv.service` 配下で他テナントと混ざる)。一方 hook は未登録の
-  実行体をログインノードで拒否する。**したがって「登録には実測が要る / 実測には登録が要る」という
+  ジョブ自身の cgroup は `nqs-jsv.service` 配下で他テナントと混ざる)。一方 hook は
+  `tools/pegasus/` 配下の未登録実行体をログインノードで拒否する。**したがって「登録には実測が要る / 実測には登録が要る」という
   循環がある** (F123)。裁定はこの循環を当面そのまま追認したものであり、**ログインノード上の
   ユーザー端末 (hook の管轄外) が現行唯一の正規な測定面である。** 手番は次のとおり。
   - **AI セッション・子エージェント・自動化は分類の実測を自分で行わない。** hook の拒否を
@@ -724,6 +735,52 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 `rulings-inbox/*.md` が別セッションで下されて台帳へ未記録の裁定、`<wave>/` が各 wave の成果物
 (裁定パッケージを含む) である。**`docs/handoff/` は README のみが正常**であり、そこだけを見ると
 稼働中の裁定を取りこぼす。`/rulings` の収集はここも読む。
+
+### 7.3 並行 wave の受入 lease (`tools/wave_land_window.py`)
+
+並行 dev-wave が同じ main を base に受入全走を重ね、追い越された側の約 1055 秒が丸ごと無駄に
+なるのを減らすための**排他予約**である。lease directory は
+**`/work/1/SFC/tanab/dev-wave-jobs/land-lease/`** (作成済み、mode 700)。repo 外に置くのは
+wave worktree の clean-tree gate と land の untracked 検査に掛けないためである。
+
+```
+export IZANAGI_WAVE_LEASE_DIR=/work/1/SFC/tanab/dev-wave-jobs/land-lease
+W=<wave slug (branch 名の末尾。例 dev-wave-t642-s04-scope)>
+M=$(git rev-parse main)           # 40 桁。自分の checkout の local main
+python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
+```
+
+- `state=acquired` のときだけ受入全走を投入する。`held` / `stale-held` / `unavailable` および
+  非 0 rc では**投入しない**。`held` なら holder の land を待ち、local main を取り直してから
+  再度 `claim` する。
+- 受入と land の**どの終わり方でも** `release --wave "$W"` する (赤・失敗・中断を含む)。
+  他 wave の lease は消せない (holder digest 不一致なら `not-owner` で何もしない)。
+- land が成功したときだけ、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
+  照合した peer へ 1 度だけ送る。
+
+```
+python3 tools/dev_wave_land.py ... > land-result.json    # rc と JSON を保存する
+python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json land-result.json
+```
+
+- 取り残した lease は TTL (既定 2400 秒) で自然失効する。失効までの間は他 wave の受入投入が
+  止まるので、release を忘れないこと。
+- **既知の限界 (裁定パッケージ)**: TTL 超過で lease を取り直した場合、旧 holder の受入は
+  止められない (fencing token が無い)。その場合の帰結は本機構が無かった場合と同じ競合であり、
+  悪化はしない。release の権限証明は wave slug の digest だけである。
+
+### 7.4 変異 harness の runner argv
+
+`tools/mutation_harness.py --runner-mode dispatch` は「runner が計算ノードへ投げる」ことを
+保証しない。`tools/run_tests.py` はログインノードに余裕があると local で走り、その経路は
+harness が要求する dispatch receipt 行を出さないため、baseline が `PARSE_ERROR` で中断する。
+**runner argv に `--force-dispatch` を必ず付ける。**
+
+```
+python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
+  --expected-spec-sha256 <sha> --out <ledger> --runner-mode dispatch --detached \
+  -- python3 tools/run_tests.py --force-dispatch <対象テスト> -q -rf
+```
 
 ## 8. 投入前チェックリスト
 

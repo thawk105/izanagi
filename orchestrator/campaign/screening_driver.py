@@ -13,7 +13,7 @@ from typing import Callable, Dict, Optional, Sequence
 
 from . import buildcache, execution_guard, ident, source_digest, wal
 from .build_admission import BuildRunContext
-from .env_contract import ExecutionEnvironmentContract
+from .env_contract import AuthorizedContract
 from .layout import CampaignLayout, campaign_layout, repo_output_root
 from .model import (STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT,
                     CampaignConfig, Genome)
@@ -76,7 +76,7 @@ def _surface_repair(result: wal.WalTailRepairResult, log) -> None:
 def prepare_screening_campaign(
         base_cfg: CampaignConfig, workload: Dict[str, str], baseline_ref: str,
         measure_baseline: Callable[[CampaignConfig, CampaignLayout], None], *,
-        authorization_contract: ExecutionEnvironmentContract,
+        authorization_contract: AuthorizedContract,
         env_tag: str, clocks_per_us: int, numactl: Sequence[str],
         calibration_dir: str = "", output_root: str = "", k: float = 1.5,
         high_abort_factor: float = 2.0,
@@ -143,7 +143,7 @@ def prepare_screening_campaign(
 def evaluate_candidate(
         cfg: CampaignConfig, layout: CampaignLayout, genome: Genome,
         perf: PerfConfig, env_tag: str, clocks_per_us: int, *,
-        authorization_contract: ExecutionEnvironmentContract,
+        authorization_contract: AuthorizedContract,
         build_context: BuildRunContext,
         screening: Optional[ScreeningConfig],
         capability_resolver: Optional[AdmissionCapabilityResolver] = None,

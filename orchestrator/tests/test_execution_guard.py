@@ -13,7 +13,10 @@ import hashlib
 import json
 import math
 import os
+import select
+import signal
 import sys
+import threading
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -34,6 +37,172 @@ _ENV = "linux-baremetal"
 
 def _contract():
     return ec.lookup(_ENV)
+
+
+def test_activation_receipt_resolves_current_contract_without_lookup():
+    authorization = ec.authorize(_ENV)
+    contract = authorization.contract
+    saved_lookup = eg._env_contract.lookup
+    saved_required_lookup = eg._env_contract.lookup_required_attestation_contract
+    saved_site = eg._site_policy.current_site
+    eg._env_contract.lookup = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        AssertionError("certified writer guard が env_contract.lookup を呼び直した")
+    )
+    eg._env_contract.lookup_required_attestation_contract = (
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError(
+                "certified writer guard が required attestation lookup を呼び直した"
+            )
+        )
+    )
+    eg._site_policy.current_site = lambda: eg._site_policy.OTHER
+    try:
+        resolved = eg.require_certified_writer_authorization(
+            authorization,
+            env_tag=contract.env_tag,
+            clocks_per_us=contract.clocks_per_us,
+            numactl=contract.numactl,
+        )
+    finally:
+        eg._env_contract.lookup = saved_lookup
+        eg._env_contract.lookup_required_attestation_contract = saved_required_lookup
+        eg._site_policy.current_site = saved_site
+    assert resolved is contract
+
+
+def test_plain_execution_environment_contract_is_rejected():
+    contract = _contract()
+    try:
+        eg.require_certified_writer_authorization(
+            contract,
+            env_tag=contract.env_tag,
+            clocks_per_us=contract.clocks_per_us,
+            numactl=contract.numactl,
+        )
+    except TypeError as exc:
+        assert "AuthorizedContract" in str(exc)
+    else:
+        raise AssertionError("素の ExecutionEnvironmentContract が受理された")
+
+
+def test_activation_receipt_rejects_forged_and_stale_bindings():
+    receipt = ec.authorize(_ENV)
+    contract = receipt.contract
+    forged = (
+        dataclasses.replace(receipt),
+        dataclasses.replace(
+            receipt, activation_serial=receipt.activation_serial + 1,
+        ),
+        dataclasses.replace(receipt, activation_state_sha256="0" * 64),
+        dataclasses.replace(receipt, issued_pid=receipt.issued_pid + 1),
+        dataclasses.replace(receipt, process_seal=object()),
+    )
+    def guard_rejects(candidate):
+        try:
+            eg.require_certified_writer_authorization(
+                candidate,
+                env_tag=contract.env_tag,
+                clocks_per_us=contract.clocks_per_us,
+                numactl=contract.numactl,
+            )
+        except eg.CertifiedWriterAuthorizationError:
+            return
+        raise AssertionError("不正 activation receipt を guard が拒否しなかった")
+
+    for candidate in forged:
+        guard_rejects(candidate)
+
+    ec._reset_authorization_after_fork()
+    guard_rejects(receipt)
+    fresh = ec.authorize(_ENV)
+    assert eg.require_certified_writer_authorization(
+        fresh,
+        env_tag=contract.env_tag,
+        clocks_per_us=contract.clocks_per_us,
+        numactl=contract.numactl,
+    ) is contract
+
+
+def test_fork_child_cannot_reuse_parent_activation_receipt():
+    receipt = ec.authorize(_ENV)
+    contract = receipt.contract
+    read_fd, write_fd = os.pipe()
+    child = os.fork()
+    if child == 0:
+        os.close(read_fd)
+        try:
+            eg.require_certified_writer_authorization(
+                receipt,
+                env_tag=contract.env_tag,
+                clocks_per_us=contract.clocks_per_us,
+                numactl=contract.numactl,
+            )
+        except eg.CertifiedWriterAuthorizationError:
+            payload = b"rejected"
+        else:
+            payload = b"accepted"
+        os.write(write_fd, payload)
+        os.close(write_fd)
+        os._exit(0)
+    os.close(write_fd)
+    ready, _writable, _exceptional = select.select([read_fd], [], [], 10)
+    if ready:
+        payload = os.read(read_fd, 32)
+    else:
+        os.kill(child, signal.SIGKILL)
+        payload = b"timeout"
+    os.close(read_fd)
+    _, status = os.waitpid(child, 0)
+    assert ready, "fork child が authorization 検査で停止した"
+    assert os.waitstatus_to_exitcode(status) == 0
+    assert payload == b"rejected"
+
+
+def test_worker_thread_held_receipt_lock_is_reinitialized_after_fork():
+    held = threading.Event()
+    release = threading.Event()
+
+    def hold_receipt_lock():
+        with ec._AUTHORIZATION_LOCK:
+            held.set()
+            release.wait(10)
+
+    worker = threading.Thread(target=hold_receipt_lock)
+    worker.start()
+    assert held.wait(5), "worker が receipt lock を保持できなかった"
+    read_fd, write_fd = os.pipe()
+    child = os.fork()
+    if child == 0:
+        os.close(read_fd)
+        try:
+            authorization = ec.authorize(_ENV)
+            eg.require_certified_writer_authorization(
+                authorization,
+                env_tag=authorization.contract.env_tag,
+                clocks_per_us=authorization.contract.clocks_per_us,
+                numactl=authorization.contract.numactl,
+            )
+            payload = b"accepted"
+        except BaseException as exc:  # noqa: BLE001 - child diagnostic
+            payload = f"error:{type(exc).__name__}:{exc}".encode()
+        os.write(write_fd, payload)
+        os.close(write_fd)
+        os._exit(0)
+    os.close(write_fd)
+    ready, _writable, _exceptional = select.select([read_fd], [], [], 10)
+    if ready:
+        payload = os.read(read_fd, 4096)
+    else:
+        os.kill(child, signal.SIGKILL)
+        payload = b"timeout"
+    release.set()
+    worker.join(5)
+    os.close(read_fd)
+    _, status = os.waitpid(child, 0)
+    assert ready, "fork child が inherited receipt lock で停止した"
+    assert not worker.is_alive()
+    assert os.waitstatus_to_exitcode(status) == 0
+    assert payload == b"accepted"
 
 
 def test_assert_machine_pin_accepts_matching_env_tag():

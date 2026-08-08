@@ -931,6 +931,13 @@ def test_runtime_binding_covers_all_execution_semantics_modules():
         "orchestrator/campaign/__init__.py",
         "orchestrator/campaign/silo_ladder_rung1_contract.py",
         "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/env_contract_activation.py",
+        *{
+            path.relative_to(ROOT).as_posix()
+            for path in (
+                ROOT / "orchestrator/campaign/env_contract_activations"
+            ).glob("*.json")
+        },
         "orchestrator/campaign/env_attestation.py",
         "orchestrator/campaign/calibration_verify.py",
         "orchestrator/campaign/execution_guard.py",

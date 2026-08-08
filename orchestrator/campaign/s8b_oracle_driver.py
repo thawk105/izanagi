@@ -708,11 +708,13 @@ def _outcome_for(result, abort_payload: Mapping) -> str:
 class _V2Plan:
     """v2 実走前検査 (_prepare_v2_execution) の成果。
 
-    ``contract`` = env_contract lookup 結果 (clocks_per_us / numactl の正本)。
+    ``contract`` = authorized contract 内の契約 (clocks_per_us / numactl の正本)。
+    ``authorization_contract`` = certified sink へ渡す process-local receipt。
     ``receipt`` = 共有 execution guard の receipt (WAL campaign-start に記録)。
     ``perf_sha_by_cell`` = (holdout_id, configuration_id) → 期待 perf binary sha256。
     """
     contract: "_env_contract.ExecutionEnvironmentContract"
+    authorization_contract: "_env_contract.AuthorizedContract"
     receipt: dict
     perf_sha_by_cell: dict
     verified_calibration: Optional["_env_attestation.VerifiedCalibration"] = None
@@ -767,9 +769,10 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
             f"({ratified_env!r}) と不一致"
         )
     try:
-        contract = _env_contract.lookup(env_tag)
+        authorization_contract = _env_contract.authorize(env_tag)
+        contract = authorization_contract.contract
     except _env_contract.EnvContractError as exc:
-        raise OracleDriverError(f"env 契約 lookup 失敗: {exc}") from exc
+        raise OracleDriverError(f"env 契約 authorize 失敗: {exc}") from exc
     # (3) machine-pin + contract_sha256/clocks 完全一致 (共有 guard 経由)。
     try:
         execution_guard.assert_machine_pin(
@@ -848,7 +851,8 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
             )
         perf_sha_by_cell[cell] = rec["binary_sha256"]
     return _V2Plan(
-        contract=contract, receipt=receipt, perf_sha_by_cell=perf_sha_by_cell,
+        contract=contract, authorization_contract=authorization_contract,
+        receipt=receipt, perf_sha_by_cell=perf_sha_by_cell,
         verified_calibration=verified, reservation_check=reservation_check,
     )
 
@@ -1379,7 +1383,7 @@ def run_block(
                                 ),
                                 bench_max_rounds=run_contract["bench_max_rounds"],
                                 env_contract=plan.contract,
-                                authorization_contract=plan.contract,
+                                authorization_contract=plan.authorization_contract,
                                 # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を
                                 # pipeline 照合 (第二防壁・TOCTOU) へ渡す。
                                 expected_perf_sha256=plan.perf_sha_by_cell[

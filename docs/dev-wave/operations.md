@@ -10,6 +10,7 @@
 ログの grep も完了通知も判定にしてはならず（通知は子より先行しうる）、
 成果物は `-o` の最終メッセージから読む（F23/F24）。
 採用条件 = `tools/check_codex_output.py <出力>.md` の rc=0（prompt に `## 総括` を義務付ける。F43）。
+`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、他段 `gpt-5.6-sol`。
 
 ## DW-O02 — job artifact
 

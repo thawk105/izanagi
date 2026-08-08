@@ -1400,6 +1400,7 @@ def _canned_plan(**kwargs) -> "driver._V2Plan":
     }
     return driver._V2Plan(
         contract=contract,
+        authorization_contract=ec.authorize(V2_ENV_TAG),
         receipt=execution_guard.build_receipt(contract),
         perf_sha_by_cell=perf,
     )
@@ -1464,14 +1465,20 @@ def _required_contract(repo_root: Path):
     raw = json.dumps(
         document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
-    artifact = repo_root / "calibration.json"
+    sha256 = hashlib.sha256(raw).hexdigest()
+    relative = Path(
+        "output", "env", document["env_tag"], "calibration", "registered",
+        f"calibration-{sha256[:16]}.json",
+    )
+    artifact = repo_root / relative
+    artifact.parent.mkdir(parents=True, exist_ok=True)
     artifact.write_bytes(raw)
     contract = ec.ExecutionEnvironmentContract(
         env_tag=document["env_tag"], clocks_per_us=document["clocks_per_us"],
         numactl=(), attestation_mode="required",
         isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=False),
         calibration_ref=ec.CalibrationRef(
-            path=artifact.name, sha256=hashlib.sha256(raw).hexdigest(),
+            path=relative.as_posix(), sha256=sha256,
         ),
     )
     verified = env_attestation.load_verified_calibration(contract, repo_root)
@@ -1549,10 +1556,13 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
 
 
 def _run_required_preflight(
-        tmp_path: Path, *, receipt_issuer=None, verified_override=None,
+        tmp_path: Path, *, activate_authority, receipt_issuer=None, verified_override=None,
         environ: dict[str, str] | None = None):
     """run_block production entry から required preflight を実発火する。"""
     contract, verified = _required_contract(tmp_path)
+    authorization = activate_authority(
+        contract, repo_root=tmp_path, authority_dir=tmp_path / "authority",
+    )
     freeze_path = _synthetic_freeze(tmp_path)
     prepare_fn = _prepare_factory()
     manifest_path, manifest_document = _write_manifest(
@@ -1589,7 +1599,10 @@ def _run_required_preflight(
             mock.patch.object(driver.s8b_ratified_freeze, "launch_validate",
                               return_value=validated), \
             mock.patch.object(driver, "verify_manifest", return_value=verified_manifest), \
-            mock.patch.object(driver._env_contract, "lookup", return_value=contract), \
+            mock.patch.object(
+                driver._env_contract, "authorize",
+                return_value=authorization,
+            ), \
             mock.patch.object(driver, "MACHINE_ENV_TAG", contract.env_tag), \
             mock.patch.object(driver._env_attestation, "load_verified_calibration",
                               return_value=(verified_override or verified)), \
@@ -1605,7 +1618,7 @@ def _run_required_preflight(
     return result, output_root, budget_path, marker_root, contract, verified
 
 
-def _required_plan(contract, verified, schedule, environ):
+def _required_plan(contract, verified, schedule, environ, authorization):
     original = execution_guard.attest_and_build_receipt
     receipt = original(
         contract, verified, probe_fn=lambda: _observed(verified.attestation_profile),
@@ -1617,7 +1630,9 @@ def _required_plan(contract, verified, schedule, environ):
         environ=environ,
     )
     return driver._V2Plan(
-        contract=contract, receipt=receipt,
+        contract=contract,
+        authorization_contract=authorization,
+        receipt=receipt,
         perf_sha_by_cell={
             (row["holdout_id"], row["configuration_id"]): "0" * 64
             for row in schedule
@@ -1626,8 +1641,11 @@ def _required_plan(contract, verified, schedule, environ):
     )
 
 
-def _required_run_fixture(tmp_path: Path):
+def _required_run_fixture(tmp_path: Path, activate_authority):
     contract, verified = _required_contract(tmp_path)
+    authorization = activate_authority(
+        contract, repo_root=tmp_path, authority_dir=tmp_path / "authority",
+    )
     freeze_path = _synthetic_freeze(tmp_path)
     prepare_fn = _prepare_factory()
     manifest_path, document = _write_manifest(
@@ -1643,7 +1661,9 @@ def _required_run_fixture(tmp_path: Path):
         freeze_sha256=verified_freeze.sha256,
     )
     environ = _reservation_env()
-    plan = _required_plan(contract, verified, document["schedule"]["rows"], environ)
+    plan = _required_plan(
+        contract, verified, document["schedule"]["rows"], environ, authorization,
+    )
     marker_root = tmp_path / "required-marker-root"
     marker_root.mkdir()
     output_root = tmp_path / "required-run-out"
@@ -2003,9 +2023,10 @@ def _assert_required_refusal_has_zero_side_effects(result, output_root, budget_p
     assert not marker_root.exists()
 
 
-def test_required_binding_missing_refuses_at_production_entry_without_side_effects(tmp_path):
+def test_required_binding_missing_refuses_at_production_entry_without_side_effects(
+        tmp_path, _activate_synthetic_env_authority):
     result, out, budget, markers, _contract, _verified = _run_required_preflight(
-        tmp_path, environ={},
+        tmp_path, activate_authority=_activate_synthetic_env_authority, environ={},
     )
     _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
     _assert_exact_refusals(result["refusals"], {
@@ -2014,12 +2035,14 @@ def test_required_binding_missing_refuses_at_production_entry_without_side_effec
     })
 
 
-def test_required_v1_receipt_refuses_at_production_entry_without_side_effects(tmp_path):
+def test_required_v1_receipt_refuses_at_production_entry_without_side_effects(
+        tmp_path, _activate_synthetic_env_authority):
     def v1_issuer(contract, _verified):
         return execution_guard.build_receipt(contract)
 
     result, out, budget, markers, _contract, _verified = _run_required_preflight(
-        tmp_path, receipt_issuer=v1_issuer,
+        tmp_path, activate_authority=_activate_synthetic_env_authority,
+        receipt_issuer=v1_issuer,
     )
     _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
     _assert_exact_refusals(result["refusals"], {
@@ -2028,11 +2051,12 @@ def test_required_v1_receipt_refuses_at_production_entry_without_side_effects(tm
 
 
 def test_required_verified_calibration_from_other_contract_is_refused_without_side_effects(
-        tmp_path):
+        tmp_path, _activate_synthetic_env_authority):
     _contract, verified = _required_contract(tmp_path)
     wrong_verified = dataclasses.replace(verified, sha256="b" * 64)
     result, out, budget, markers, _contract, _verified = _run_required_preflight(
-        tmp_path, verified_override=wrong_verified,
+        tmp_path, activate_authority=_activate_synthetic_env_authority,
+        verified_override=wrong_verified,
     )
     _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
     _assert_exact_refusals(result["refusals"], {
@@ -2041,7 +2065,7 @@ def test_required_verified_calibration_from_other_contract_is_refused_without_si
 
 
 def test_required_secondary_calibration_identity_recheck_fires_with_monkeypatched_loader(
-        tmp_path):
+        tmp_path, _activate_synthetic_env_authority):
     contract, verified = _required_contract(tmp_path)
     assert verified.calibration is not None
     drifted = dataclasses.replace(
@@ -2049,7 +2073,8 @@ def test_required_secondary_calibration_identity_recheck_fires_with_monkeypatche
         calibration=dataclasses.replace(verified.calibration, env_tag="drifted-env"),
     )
     result, out, budget, markers, _contract, _verified = _run_required_preflight(
-        tmp_path, verified_override=drifted,
+        tmp_path, activate_authority=_activate_synthetic_env_authority,
+        verified_override=drifted,
     )
     _assert_required_refusal_has_zero_side_effects(result, out, budget, markers)
     _assert_exact_refusals(result["refusals"], {
@@ -2057,8 +2082,9 @@ def test_required_secondary_calibration_identity_recheck_fires_with_monkeypatche
     })
 
 
-def test_required_missing_preprovisioned_oracle_claim_root_is_fail_closed(tmp_path):
-    fixture = _required_run_fixture(tmp_path)
+def test_required_missing_preprovisioned_oracle_claim_root_is_fail_closed(
+        tmp_path, _activate_synthetic_env_authority):
+    fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
     (fixture["output_root"] / "claims").rmdir()
     before = _tree_file_snapshot(fixture["output_root"])
 
@@ -2074,8 +2100,9 @@ def test_required_missing_preprovisioned_oracle_claim_root_is_fail_closed(tmp_pa
     assert not fixture["budget_path"].exists()
 
 
-def test_required_oracle_claim_root_outside_durable_approval_is_fail_closed(tmp_path):
-    fixture = _required_run_fixture(tmp_path)
+def test_required_oracle_claim_root_outside_durable_approval_is_fail_closed(
+        tmp_path, _activate_synthetic_env_authority):
+    fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
     unrelated = tmp_path / "unrelated-approved-root"
     unrelated.mkdir()
     policy = driver.DurableRootPolicy(
@@ -2093,8 +2120,9 @@ def test_required_oracle_claim_root_outside_durable_approval_is_fail_closed(tmp_
     assert not fixture["budget_path"].exists()
 
 
-def test_required_existing_claim_refuses_production_entry_without_new_side_effects(tmp_path):
-    fixture = _required_run_fixture(tmp_path)
+def test_required_existing_claim_refuses_production_entry_without_new_side_effects(
+        tmp_path, _activate_synthetic_env_authority):
+    fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
     identity = driver._execution_identity(fixture["plan"])
     driver._acquire_g12_claim(
         plan=fixture["plan"], claim_root=fixture["output_root"] / "claims",
@@ -2117,8 +2145,9 @@ def test_required_existing_claim_refuses_production_entry_without_new_side_effec
     assert not fixture["budget_path"].exists()
 
 
-def test_required_recheck_real_reservation_shortfall_writes_aborted_terminal(tmp_path):
-    fixture = _required_run_fixture(tmp_path)
+def test_required_recheck_real_reservation_shortfall_writes_aborted_terminal(
+        tmp_path, _activate_synthetic_env_authority):
+    fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
     fixture["plan"].reservation_check = dataclasses.replace(
         fixture["plan"].reservation_check,
         monotonic_deadline=time.monotonic() + 1.0,
@@ -2137,8 +2166,9 @@ def test_required_recheck_real_reservation_shortfall_writes_aborted_terminal(tmp
     assert terminals[0]["scheduled_rows"] == len(fixture["document"]["schedule"]["rows"])
 
 
-def test_required_recheck_real_receipt_validation_catches_midcampaign_drift(tmp_path):
-    fixture = _required_run_fixture(tmp_path)
+def test_required_recheck_real_receipt_validation_catches_midcampaign_drift(
+        tmp_path, _activate_synthetic_env_authority):
+    fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
     valid = execution_guard.attest_and_build_receipt(
         fixture["contract"], fixture["verified"],
         probe_fn=lambda: _observed(fixture["verified"].attestation_profile),
@@ -2213,7 +2243,9 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
             isolation_policy=env_contract.IsolationPolicy(
                 single_process=True, allow_resume=False))
         plan = driver._V2Plan(
-            contract=required, receipt=execution_guard.build_receipt(required),
+            contract=required,
+            authorization_contract=env_contract.authorize("linux-baremetal"),
+            receipt=execution_guard.build_receipt(required),
             perf_sha_by_cell={{}})
 
         def won_claim_then_stop(*_args, **_kwargs):
@@ -2968,6 +3000,7 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
                      for r in kwargs["schedule"]}}
             return driver._V2Plan(
                 contract=contract,
+                authorization_contract=ec.authorize("linux-baremetal"),
                 receipt=execution_guard.build_receipt(contract),
                 perf_sha_by_cell=perf)
 
@@ -3811,6 +3844,7 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     assert result["completed_trials"] == len(document["schedule"]["rows"])
     # expected_perf_sha256 が各 cell の store binary sha と一致して伝搬する。
     contract = ec.lookup(V2_ENV_TAG)
+    authorization = ec.authorize(V2_ENV_TAG)
     for call in evaluate_fn.calls:
         assert call["clocks_per_us"] == contract.clocks_per_us  # env 契約由来
         assert call["kwargs"]["numactl"] == list(contract.numactl)  # NUMACTL 撤去
@@ -3998,7 +4032,7 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
             pipeline.PerfConfig(records=1000, threads=2),
             contract.clocks_per_us, do_bench=False,
             numactl=contract.numactl,
-            authorization_contract=contract,
+            authorization_contract=authorization,
             src_token=prepared.src_token, ccbench_dir=prepared.ccbench_dir,
             cache_root=str(tmp_path / "cache"), env_contract=contract,
             log=lambda _message: None, build_context=build_context,

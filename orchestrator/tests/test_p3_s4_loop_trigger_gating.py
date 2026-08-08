@@ -17,12 +17,14 @@ import sys
 import tempfile
 import time
 from dataclasses import FrozenInstanceError, replace
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, _ORCH)
 
 from campaign import env_contract, execution_guard, ident, p3_s4_loop as L  # noqa: E402
@@ -352,6 +354,9 @@ def _load_fresh_driver(monkeypatch, *, current_site, lookup, suffix):
 
 
 def _sentinel_contract(*, numactl=("numactl", "--sentinel")):
+    calibration_ref = (
+        env_contract.GENERATIONS["linux-baremetal"][0].contract.calibration_ref
+    )
     return env_contract.ExecutionEnvironmentContract(
         env_tag="sentinel-env",
         clocks_per_us=4242,
@@ -360,9 +365,7 @@ def _sentinel_contract(*, numactl=("numactl", "--sentinel")):
         isolation_policy=env_contract.IsolationPolicy(
             single_process=False, allow_resume=True,
         ),
-        calibration_ref=env_contract.CalibrationRef(
-            path="output/sentinel-calibration.json", sha256="0" * 64,
-        ),
+        calibration_ref=calibration_ref,
     )
 
 
@@ -486,8 +489,12 @@ def test_environment_module_surface_and_default_seams():
     assert "site" not in inspect.signature(T.drive_iteration).parameters
 
 
-def test_contract_sentinel_flows_to_run_campaign(monkeypatch):
+def test_contract_sentinel_flows_to_run_campaign(
+        monkeypatch, tmp_path, _activate_synthetic_env_authority):
     contract = _sentinel_contract()
+    _activate_synthetic_env_authority(
+        contract, repo_root=ROOT, authority_dir=tmp_path / "authority",
+    )
     looked_up = []
 
     def lookup(env_tag):
@@ -539,8 +546,12 @@ def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
     }]
 
 
-def test_empty_numactl_contract_flows_as_empty_list(monkeypatch):
+def test_empty_numactl_contract_flows_as_empty_list(
+        monkeypatch, tmp_path, _activate_synthetic_env_authority):
     contract = _sentinel_contract(numactl=())
+    _activate_synthetic_env_authority(
+        contract, repo_root=ROOT, authority_dir=tmp_path / "authority",
+    )
     invoke, _lay, calls = _measurement_case(
         monkeypatch, site=site_policy.OTHER, lookup=lambda _env_tag: contract,
     )
@@ -907,12 +918,16 @@ def test_admit_env_contract_behaviorally_rejects_non_admitted_sites(site):
         T._admit_env_contract(site)
 
 
-def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(monkeypatch):
+def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(
+        monkeypatch, tmp_path, _activate_synthetic_env_authority):
     """R16 measurement 実経路。import 後の module 再束縛や動的 reflection は保証外。"""
     import contextlib
     from campaign import patchharness
 
     contract = _sentinel_contract()
+    _activate_synthetic_env_authority(
+        contract, repo_root=ROOT, authority_dir=tmp_path / "authority",
+    )
     looked_up = []
 
     def current_site():

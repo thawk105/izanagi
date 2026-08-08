@@ -531,3 +531,23 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:fix-child-fail-open-to-green":"F162","F:stale-base-worktree-integration":"F163"},"authored":"2026-08-07","content_sha256":"4789bc6395c9ed437f15617667bfef5c3fef220f33e2903e152337a9c65ba8d8","seq":3,"wave":"dev-wave-t609-certified-writer-closure"}
 
 - {"allocations":{},"authored":"2026-08-08","content_sha256":"2e23688d1f7c88e1d28bc73595227c8a6566506873019fc0f386a31fcbc1a6ab","seq":22,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"de557cedc78ea10e237cb2d9a296c7044fb34692468a37cd4164d924ca846a36","seq":1,"wave":"dev-wave-t632-waiter-condition"}
+- {"allocations":{"F:qdel-deleted-peer-session-job":"F164"},"authored":"2026-08-08","content_sha256":"51e239b1528f485a5eff24cde1f8ab810629c06ab0858202b404c6ad8929f97c","seq":2,"wave":"dev-wave-t632-waiter-condition"}
+
+- {"allocations":{"T:devwave-acceptance-exemption-evidence":"[T-648]"},"authored":"2026-08-08","content_sha256":"25e5e2960a039f659f6ee49d2eef123b79925ec94316fdadd25bb793228e6fdd","seq":1,"wave":"dev-wave-t642-s04-scope"}
+- {"allocations":{"D:dev-wave-reference-self-funding":"D238","D:dw-s04-acceptance-not-exempt":"D237"},"authored":"2026-08-08","content_sha256":"c4af4cf4121cc8154be561344a887b67a9850ecf622b4a5b03526b4207b4064f","seq":2,"wave":"dev-wave-t642-s04-scope"}
+
+- {"allocations":{},"authored":"2026-08-08","content_sha256":"651c7392e96e1e9766aa5391703ce22fea64cf25cc38df2b2228d2230d9615d4","seq":1,"wave":"dev-wave-t139-producer"}
+- {"allocations":{"F:corrected-estimate-reintroduced":"F165"},"authored":"2026-08-08","content_sha256":"c247a8b77d01017197e9822fd8479b9f7ff2d0a4e848c49926b5f3b2210680d7","seq":2,"wave":"dev-wave-t139-producer"}
+
+- {"allocations":{"T:acceptance-walltime-headroom":"[T-653]","T:land-tool-byte-invariant":"[T-654]","T:lease-e2e-measurement":"[T-651]","T:lease-fencing-token":"[T-649]","T:lease-transaction-wrapper":"[T-650]","T:receiver-contract-jit":"[T-652]"},"authored":"2026-08-08","content_sha256":"357b3d677f650cbc94b2a0b2194e5c8f08ec8ae7e57a7c5f9d80a6aa88777b0f","seq":1,"wave":"dev-wave-peer-land-coordination"}
+- {"allocations":{"D:acceptance-lease-advisory":"D239"},"authored":"2026-08-08","content_sha256":"5d157af9c8df30ce49fe98025e6166511bbf41961502388a059e7fd7c7a3400c","seq":2,"wave":"dev-wave-peer-land-coordination"}
+- {"allocations":{"F:acceptance-walltime-exceeded":"F167","F:mutation-runner-ran-local":"F166"},"authored":"2026-08-08","content_sha256":"419aa979a5c85e8ee2b146d49257ad7a3e628722059b75fcf4a501ab426507a5","seq":3,"wave":"dev-wave-peer-land-coordination"}
+
+- {"allocations":{"T:acceptance-run-walltime-headroom":"[T-656]","T:admission-measured-table-non-pegasus":"[T-655]"},"authored":"2026-08-08","content_sha256":"ef01865e99fa2979f11a0d2399078a3145aa3a6f3756a5c2315737468c48a752","seq":1,"wave":"dev-wave-t639-admission-scope"}
+- {"allocations":{"D:admission-scope-deny-only":"D240"},"authored":"2026-08-08","content_sha256":"d6c3956c7859250e5d2a37055477a88d4a47e35badfdc5354a19d8d1056ffe05","seq":2,"wave":"dev-wave-t639-admission-scope"}
+- {"allocations":{"F:mutation-expected-nodes-overdetermined":"F168"},"authored":"2026-08-08","content_sha256":"2fed1bfb6336d8f9c16844862f9c7c02b3263983b58dfd0e7b515660a5fdc34d","seq":3,"wave":"dev-wave-t639-admission-scope"}
+
+- {"allocations":{"T:activation-issue-deploy-window":"[T-659]","T:activation-receipt-entry-wiring":"[T-658]","T:activation-tail-rollback-observability":"[T-660]","T:dev-wave-budget-for-grep-authority":"[T-661]","T:pegasus-g2-activation":"[T-657]"},"authored":"2026-08-08","content_sha256":"80ea2cb553c8119aaeda0c0362295671912353de53c561fd9911a59493cb41ba","seq":1,"wave":"dev-wave-t529-activation"}
+- {"allocations":{"F:grep-r-misses-tracked-hit":"F169"},"authored":"2026-08-08","content_sha256":"b5b88edf591313b26cb8ea3dbfd4fdc944f3eb88f09b531f1a89ac12de324249","seq":2,"wave":"dev-wave-t529-activation"}

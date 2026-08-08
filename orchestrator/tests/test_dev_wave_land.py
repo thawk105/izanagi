@@ -2759,11 +2759,12 @@ def test_exploration_external_root_keeps_wave_clean() -> None:
                 ccbench_commit="deadbeef",
             )
             context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-            authorization = env_contract.lookup("linux-baremetal")
+            authorization = env_contract.authorize("linux-baremetal")
+            contract = authorization.contract
             summary = loop.run_campaign(
                 cfg, [Genome("silo", {"BACK_OFF": 1})],
-                PerfConfig(records=1, threads=1), authorization.env_tag,
-                authorization.clocks_per_us, numactl=authorization.numactl,
+                PerfConfig(records=1, threads=1), contract.env_tag,
+                contract.clocks_per_us, numactl=contract.numactl,
                 do_bench=False, log=lambda *_args: None,
                 authorization_contract=authorization,
                 build_context=context, campaign_namespace="exploration",

@@ -22,6 +22,25 @@ T419 = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = T419
 _SPEC.loader.exec_module(T419)
 
+_ENV_CONTRACT_IMPORT_CLOSURE_ADDITIONS = (
+    "orchestrator/campaign/__init__.py",
+    "orchestrator/calibrator/__init__.py",
+    "orchestrator/calibrator/effective_clock_policy.py",
+    "orchestrator/calibrator/schema_v2.py",
+    "orchestrator/calibrator/tsc.py",
+)
+
+
+def test_t419_env_contract_dirty_closure_is_covered_by_identity_authority():
+    orchestrator = str(_ROOT / "orchestrator")
+    sys.path.insert(0, orchestrator)
+    try:
+        from qualification.contract import REQUIRED_CODE_IDENTITY_PATHS
+    finally:
+        assert sys.path[0] == orchestrator
+        sys.path.pop(0)
+    assert set(_ENV_CONTRACT_IMPORT_CLOSURE_ADDITIONS) <= REQUIRED_CODE_IDENTITY_PATHS
+
 
 def _verdict(name: str):
     fixture = T419.synthetic_fixture(name)
@@ -1562,6 +1581,91 @@ def test_submission_binding_rejects_dirty_calibration_verify(monkeypatch):
     assert binding["matched"] is False
     assert binding["calibration_verify_sha256"] == observed_sha256
     assert binding["related_dirty_entries"] == [f" M {leaf_path}"]
+
+
+def test_submission_binding_dirty_scope_covers_activation_leaf_and_records(
+    monkeypatch,
+):
+    activation_leaf = "orchestrator/campaign/env_contract_activation.py"
+    activation_records = "orchestrator/campaign/env_contract_activations"
+    observed_sha256 = "a" * 64
+    expected_head = "b" * 40
+    status_commands = []
+
+    def fake_run(command, **_kwargs):
+        if "rev-parse" in command:
+            stdout = f"{expected_head}\n"
+        elif "status" in command:
+            status_commands.append(command)
+            stdout = f" M {activation_records}/00000001.json\n"
+        else:
+            raise AssertionError(f"unexpected command: {command!r}")
+        return T419.subprocess.CompletedProcess(command, 0, stdout=stdout)
+
+    monkeypatch.setattr(T419.subprocess, "run", fake_run)
+    monkeypatch.setattr(T419, "_sha256_path", lambda _path: observed_sha256)
+    binding = T419._submission_binding(
+        _ROOT,
+        {
+            "path": "fixture/calibration.json",
+            "pin_verified": True,
+            "submission_expected_sha256": "c" * 64,
+            "actual_sha256": "c" * 64,
+        },
+        expect_head=expected_head,
+        expect_driver_sha256=observed_sha256,
+        expect_pbs_sha256=observed_sha256,
+        expect_env_attestation_sha256=observed_sha256,
+    )
+    assert len(status_commands) == 1
+    assert activation_leaf in status_commands[0]
+    assert activation_records in status_commands[0]
+    assert binding["related_paths"].count(activation_leaf) == 1
+    assert binding["related_paths"].count(activation_records) == 1
+    assert binding["related_dirty_entries"] == [
+        f" M {activation_records}/00000001.json"
+    ]
+    assert binding["matched"] is False
+
+
+@pytest.mark.parametrize("dirty_path", _ENV_CONTRACT_IMPORT_CLOSURE_ADDITIONS)
+def test_submission_binding_rejects_each_dirty_env_contract_import_closure_path(
+    monkeypatch, dirty_path,
+):
+    observed_sha256 = "a" * 64
+    expected_head = "b" * 40
+    status_commands = []
+
+    def fake_run(command, **_kwargs):
+        if "rev-parse" in command:
+            stdout = f"{expected_head}\n"
+        elif "status" in command:
+            status_commands.append(command)
+            stdout = f" M {dirty_path}\n" if dirty_path in command else ""
+        else:
+            raise AssertionError(f"unexpected command: {command!r}")
+        return T419.subprocess.CompletedProcess(command, 0, stdout=stdout)
+
+    monkeypatch.setattr(T419.subprocess, "run", fake_run)
+    monkeypatch.setattr(T419, "_sha256_path", lambda _path: observed_sha256)
+    binding = T419._submission_binding(
+        _ROOT,
+        {
+            "path": "fixture/calibration.json",
+            "pin_verified": True,
+            "submission_expected_sha256": "c" * 64,
+            "actual_sha256": "c" * 64,
+        },
+        expect_head=expected_head,
+        expect_driver_sha256=observed_sha256,
+        expect_pbs_sha256=observed_sha256,
+        expect_env_attestation_sha256=observed_sha256,
+    )
+    assert len(status_commands) == 1
+    assert dirty_path in status_commands[0]
+    assert binding["related_paths"].count(dirty_path) == 1
+    assert binding["related_dirty_entries"] == [f" M {dirty_path}"]
+    assert binding["matched"] is False
 
 
 def test_final_binding_mismatch_returns_nonzero_and_has_no_done_marker(
