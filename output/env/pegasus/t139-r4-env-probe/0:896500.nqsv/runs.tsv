@@ -1,0 +1,14 @@
+probe_series_id	purpose	study_eligible	run_id	role	workload	argv	binary_sha256	started_monotonic_ns	exec_monotonic_ns	finished_monotonic_ns	elapsed_ns	returncode	timed_out	flags_match	status	log
+t139-r4-env-probe	non_study_environment_probe	false	R01	measured_predecessor	W1	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R02	measured_predecessor	W2	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R03	measured_predecessor	W2	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R04	measured_predecessor	W1	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R05	measured_predecessor	W1	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R06	measured_predecessor	W2	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R07	measured_predecessor	W2	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R08	measured_predecessor	W1	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R09	measured_predecessor	W1	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R10	measured_predecessor	W2	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R11	measured_predecessor	W2	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R12	measured_predecessor	W1	[]							false	false	not_observed	
+t139-r4-env-probe	non_study_environment_probe	false	R13	terminal_follower	W2	[]							false	false	not_observed	
