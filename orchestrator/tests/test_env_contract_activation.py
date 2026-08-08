@@ -14,6 +14,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import threading
 from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path, PurePosixPath
@@ -772,12 +773,24 @@ def test_held_lock_fork_reinitializes_child_cache_without_deadlock():
     if not hasattr(os, "fork"):
         pytest.skip("os.fork がない")
     ec._clear_authority_cache_for_tests()
+    held = threading.Event()
+    release = threading.Event()
+
+    def hold_authority_lock():
+        with ec._AUTHORITY_LOCK:
+            held.set()
+            release.wait(20)
+
+    worker = threading.Thread(target=hold_authority_lock)
+    worker.start()
+    assert held.wait(5), "worker が authority lock を保持できなかった"
     read_fd, write_fd = os.pipe()
-    ec._AUTHORITY_LOCK.acquire()
     pid = os.fork()
     if pid == 0:
         try:
             os.close(read_fd)
+            with ec._AUTHORITY_LOCK:
+                pass
             contract = ec.lookup("pegasus")
             os.write(write_fd, b"ok:" + contract.contract_sha256.encode("ascii"))
         except BaseException as exc:  # noqa: BLE001 - child diagnostic
@@ -795,10 +808,12 @@ def test_held_lock_fork_reinitializes_child_cache_without_deadlock():
         else:
             os.kill(pid, signal.SIGKILL)
     finally:
-        ec._AUTHORITY_LOCK.release()
+        release.set()
+        worker.join(5)
         os.close(read_fd)
         _waited, status = os.waitpid(pid, 0)
     assert ready, "fork child が inherited lock で停止した"
+    assert not worker.is_alive()
     assert os.waitstatus_to_exitcode(status) == 0
     assert observed == (
         b"ok:" + ec.GENERATIONS["pegasus"][0].contract.contract_sha256.encode("ascii")

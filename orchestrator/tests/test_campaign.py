@@ -30,7 +30,12 @@ import types
 from pathlib import Path
 from unittest import mock as unittest_mock
 
-import pytest
+try:
+    import pytest
+except ModuleNotFoundError as exc:
+    if exc.name != "pytest":
+        raise
+    pytest = None
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -80,12 +85,27 @@ _BUILD_CONTEXT = build_run_context(
 )
 
 
-@pytest.fixture(autouse=True)
-def _certified_writer_authority():
+def _refresh_certified_writer_authority():
     global _AUTHORIZATION, _AUTH_CONTRACT
     authorization = ec.authorize("linux-baremetal")
     _AUTHORIZATION = authorization
     _AUTH_CONTRACT = authorization.contract
+
+
+if pytest is not None:
+    @pytest.fixture(autouse=True)
+    def _certified_writer_authority():
+        _refresh_certified_writer_authority()
+
+
+@contextlib.contextmanager
+def _assert_raises_contains(expected_type, expected_text):
+    try:
+        yield
+    except expected_type as exc:
+        assert expected_text in str(exc), str(exc)
+    else:
+        raise AssertionError(f"{expected_type.__name__} が送出されなかった")
 
 
 def _source_evidence(
@@ -2270,8 +2290,7 @@ def test_m0_activation_receipt_refusal_precedes_any_sink_write():
     )
 
 
-def test_activation_receipt_check_precedes_registry_runtime_site_and_selector_checks(
-        monkeypatch):
+def test_activation_receipt_check_precedes_registry_runtime_site_and_selector_checks():
     import dataclasses
 
     guard = pipeline.execution_guard
@@ -2284,19 +2303,21 @@ def test_activation_receipt_check_precedes_registry_runtime_site_and_selector_ch
     cases = (
         (
             "registry",
-            lambda patch: patch.setattr(guard._env_contract, "GENERATIONS", {}),
+            lambda: unittest_mock.patch.object(
+                guard._env_contract, "GENERATIONS", {},
+            ),
             {},
             "未登録 generation",
         ),
         (
             "runtime",
-            lambda _patch: None,
+            contextlib.nullcontext,
             {"clocks_per_us": _AUTH_CONTRACT.clocks_per_us + 1},
             "campaign execution values",
         ),
         (
             "site",
-            lambda patch: patch.setattr(
+            lambda: unittest_mock.patch.object(
                 guard._site_policy, "current_site",
                 lambda: guard._site_policy.PEGASUS_COMPUTE,
             ),
@@ -2305,7 +2326,7 @@ def test_activation_receipt_check_precedes_registry_runtime_site_and_selector_ch
         ),
         (
             "selector",
-            lambda _patch: None,
+            contextlib.nullcontext,
             {"env_contract": mismatched_selector},
             "build selector",
         ),
@@ -2317,30 +2338,28 @@ def test_activation_receipt_check_precedes_registry_runtime_site_and_selector_ch
         "env_contract": None,
     }
     for _name, arm_later_check, overrides, later_match in cases:
-        with monkeypatch.context() as patch:
-            arm_later_check(patch)
+        with arm_later_check():
             call = {**base, **overrides}
-            with pytest.raises(
+            with _assert_raises_contains(
                 guard.CertifiedWriterAuthorizationError,
-                match=later_match,
+                later_match,
             ):
                 guard.require_certified_writer_authorization(
                     _AUTHORIZATION, **call,
                 )
 
-            patch.setitem(
-                guard._env_contract._AUTHORIZED_CONTRACTS,
-                _AUTH_CONTRACT.env_tag,
-                forged_receipt,
-            )
-            with pytest.raises(
-                guard.CertifiedWriterAuthorizationError,
-                match="authorization receipt の serial/state hash",
+            with unittest_mock.patch.dict(
+                    guard._env_contract._AUTHORIZED_CONTRACTS,
+                    {_AUTH_CONTRACT.env_tag: forged_receipt},
             ):
-                guard.require_certified_writer_authorization(
-                    forged_receipt,
-                    **call,
-                )
+                with _assert_raises_contains(
+                    guard.CertifiedWriterAuthorizationError,
+                    "authorization receipt の serial/state hash",
+                ):
+                    guard.require_certified_writer_authorization(
+                        forged_receipt,
+                        **call,
+                    )
 
 
 def test_m2_pipeline_rejects_forged_contract_even_when_runtime_matches_it():
@@ -7552,6 +7571,7 @@ def _run():
     passed = failed = skipped = 0
     for fn in fns:
         try:
+            _refresh_certified_writer_authority()
             fn()
             print(f"PASS {fn.__name__}")
             passed += 1
