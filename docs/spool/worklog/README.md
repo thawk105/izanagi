@@ -24,7 +24,7 @@ title: 並行 docs 衝突を spool + fold で解消する (コード + docs、br
 
 ### carry
 
-- [T-298] 変わらず
+- [T-298]
 
 ### 完了
 
@@ -56,7 +56,7 @@ title: 並行 docs 衝突を spool + fold で解消する (コード + docs、br
 ## 規則
 
 - **`carry` 節は任意である。** 触れなかった active な T は fold が自動的に carry する。
-  明示 carry と暗黙 carry は同じ出力を生む。
+  明示 carry と暗黙 carry は同じ出力を生む。item は ID だけの 1 行 (`- [T-NNN]`) とする。
   これは並行 wave のために必要である — 他の wave が新しい T を先に fold しても、
   先に書かれた fragment がそれを知らないまま畳める。
 - 脱落は fold の**保存則 postcondition** が塞ぐ。

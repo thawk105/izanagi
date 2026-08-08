@@ -97,7 +97,9 @@ def test_online_digest_leakage_assert():
         search_config={"fixture": "post-admission-schema"},
         trial="online-digest",
     ), context.policy)
-    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    wal.write_lock(lay, ident.canonical_preimage(
+        cfg, require_environment_contract=False,
+    ))
     genomes = (
         _G.format(b=0, l=1, t=0, w=0),
         _G.format(b=1, l=1, t=0, w=0),
@@ -278,6 +280,7 @@ def test_cmd_evaluate_repairs_committed_tail_before_four_new_frames():
     ident.ensure_resumable_wal(
         guided._trial_config(meta, trial), layout,
         admission_policy=guided._NO_BUILD_POLICY,
+        require_environment_contract=False,
     )
     first, second = SILO_SPACE.enumerate()[:2]
     guided._log_eval(layout, _gr(first.canonical(), 100.0))
@@ -344,7 +347,9 @@ def test_cmd_start_acquires_lock_before_winner_writes_meta():
 
     def checked_write_meta(candidate_layout, meta):
         assert wal.read_lock(candidate_layout) == ident.canonical_preimage(
-            guided._trial_config(meta, trial))
+            guided._trial_config(meta, trial),
+            require_environment_contract=False,
+        )
         real_write_meta(candidate_layout, meta)
 
     guided._write_meta = checked_write_meta
@@ -378,6 +383,7 @@ def test_cmd_start_atomic_loser_is_structured_and_touches_no_meta_or_wal():
     assert ident.ensure_campaign_identity(
         guided._trial_config(meta, trial), layout,
         admission_policy=guided._NO_BUILD_POLICY,
+        require_environment_contract=False,
     ) is True
 
     stderr = io.StringIO()

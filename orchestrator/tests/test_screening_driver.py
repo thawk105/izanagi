@@ -34,6 +34,7 @@ from campaign.source_digest import (  # noqa: E402
 
 WORKLOAD = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
 _BUILD_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+_CONTRACT = env_contract.GENERATIONS["linux-baremetal"][0].contract
 
 
 @pytest.fixture
@@ -71,21 +72,24 @@ def _log_completed_attempt(layout, variant: str, genome: Genome) -> None:
         "build_attempt_id": attempt_id,
         "build_admission_receipt_sha256": admission.receipt_sha256,
     }
-    wal.log(layout, variant, STAGE_BUILD_START, "test", {
+    wal.log(layout, variant, STAGE_BUILD_START, _CONTRACT.env_tag, {
         **common,
         "genome": genome.canonical(),
         "src_token": evidence.src_token,
         "build_admission": admission.as_wal_receipt(),
     })
-    wal.log(layout, variant, STAGE_BUILD_DONE, "test", common)
-    wal.log(layout, variant, STAGE_COMMIT, "test", common)
+    wal.log(layout, variant, STAGE_BUILD_DONE, _CONTRACT.env_tag, common)
+    wal.log(layout, variant, STAGE_COMMIT, _CONTRACT.env_tag, {
+        **common, "contract_sha256": _CONTRACT.contract_sha256,
+    })
 
 
 def _cfg():
-    return ident.bind_admission_policy(CampaignConfig(
+    cfg = ident.bind_admission_policy(CampaignConfig(
         spec_slug="screen-driver", search_tag="sweep", spec_content="fixture",
         ccbench_commit="deadbeef", search_config={"workload": "balanced"},
         trial="fixture"), _BUILD_CONTEXT.policy)
+    return ident.bind_environment_contract(cfg, _CONTRACT)
 
 
 def _write_floor(root, *, floor=0.03, workload=WORKLOAD):
@@ -114,8 +118,9 @@ def test_prepare_screening_bakes_identity_and_uses_new_same_campaign_baseline(
             "median_tps": 10000.0,
             "leading_indicators": {"abort_rate": 0.04},
         }, ts=1234.0)
-        wal.log(layout, "baseline-v1", STAGE_COMMIT, "test", {
+        wal.log(layout, "baseline-v1", STAGE_COMMIT, _CONTRACT.env_tag, {
             "fitness_tps": 10000.0,
+            "contract_sha256": _CONTRACT.contract_sha256,
         }, ts=1235.0)
 
     prepared = screening_driver.prepare_screening_campaign(
@@ -198,7 +203,9 @@ def test_prepare_screening_requires_complete_baseline_evidence(
             payload["leading_indicators"].pop("abort_rate")
         wal.log(layout, "baseline-v1", STAGE_BENCH_DONE, "test", payload, ts=10.0)
         if missing != "commit":
-            wal.log(layout, "baseline-v1", STAGE_COMMIT, "test", {}, ts=11.0)
+            wal.log(layout, "baseline-v1", STAGE_COMMIT, _CONTRACT.env_tag, {
+                "contract_sha256": _CONTRACT.contract_sha256,
+            }, ts=11.0)
 
     with pytest.raises(ValueError):
         screening_driver.prepare_screening_campaign(
@@ -235,7 +242,10 @@ def test_prepare_repairs_tail_before_baseline_callback(
             "median_tps": 100.0,
             "leading_indicators": {"abort_rate": 0.1},
         }, ts=10.0)
-        wal.log(callback_layout, "baseline-v1", STAGE_COMMIT, "test", {}, ts=11.0)
+        wal.log(callback_layout, "baseline-v1", STAGE_COMMIT,
+                _CONTRACT.env_tag, {
+                    "contract_sha256": _CONTRACT.contract_sha256,
+                }, ts=11.0)
 
     screening_driver.prepare_screening_campaign(
         _cfg(), WORKLOAD, "baseline-v1", measure,
