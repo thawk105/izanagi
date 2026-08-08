@@ -5332,9 +5332,12 @@ def test_dev_wave_model_pin_rejects_duplicate_dw_o01_section():
             rel,
             _read(root, rel) + "\n## DW-O01 — duplicate\n\nbody\n",
         )
+        # DW-O01 重複は model pin と既存 H2 一意性の冗長 gate である。
         _assert_findings(
             root,
             check_docs.DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING,
+            f"{rel}: H2 見出し DW-O01 が 2 件 — "
+            "dispatch先は一意でなければならない",
         )
     finally:
         shutil.rmtree(root, ignore_errors=True)
