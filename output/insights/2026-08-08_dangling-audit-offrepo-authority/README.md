@@ -15,18 +15,33 @@
 | `s5-impl.md` | 段 5 実装子の報告 (sol, high) |
 | `s6-reviewR1.md` | 段 6 敵対レビュー R1 = 述語の正しさ (sol, high)。NO-GO、blocker 2 |
 | `s6-reviewR2.md` | 段 6 敵対レビュー R2 = 検出力と全層被覆 (luna, high)。NO-GO、blocker 4 |
-| `s6fix.md` `s6fix2.md` `s6fix3.md` | 段 6 fix 3 巡の報告 |
+| `s6fix.md` `s6fix2.md` `s6fix3.md` `s6fix4.md` | 段 6 fix 4 巡の報告 |
+| `s6re.md` | 段 6 焦点再レビュー (sol, high)。NO-GO、blocker 1 + must-fix 1 |
 
-## 変異台帳 2 走
+## 変異台帳 4 走
 
-`mutation-spec-v1.json` / `mutation-ledger-v1.json` が 1 走目、`-v2` が本走。
-どちらも anchor commit は `fd97fe93`、runner は
+runner はすべて
 `python3 tools/run_tests.py --force-dispatch orchestrator/tests/test_audit_dangling_commits.py -q -rf`。
+1〜2 走目の anchor は `fd97fe93`、3〜4 走目は焦点再レビューの fix を含む `5195f60d`。
 
-- **1 走目 = 8 KILLED / 2 MISMATCH / SURVIVED 0** (330 秒)。MISMATCH は M07 と M10 で、
+- **1 走目 (v1) = 8 KILLED / 2 MISMATCH / SURVIVED 0** (330 秒)。MISMATCH は M07 と M10 で、
   いずれも**実測 node が事前登録の上位集合** (期待側の欠落ゼロ) だった。親の事前登録が狭すぎた
   ことによるもので、実装の欠陥ではない。**erratum として消さずに残す** (`DW-M02`)。
-- **本走 = 10 KILLED / 0 MISMATCH / 0 SURVIVED / 0 TIMEOUT** (625 秒)、baseline PASSED。
+- **2 走目 (v2) = 10 KILLED / 0 MISMATCH / 0 SURVIVED** (625 秒)、baseline PASSED。
+  この時点の 10 変異が段 4 の事前登録である。
+- **3 走目 (v3) = 11 KILLED / 2 MISMATCH / SURVIVED 0** (420 秒)。焦点再レビューが
+  「この変異集合では検出されない」と指摘した穴へ **M11・M12・M13 を追加**し、3 件とも KILLED。
+  MISMATCH は M01・M10 で、fix 4 巡目が足した新テストも赤くなるのを期待集合へ入れていなかった
+  登録漏れである。**erratum として残す。**
+- **本走 (v4) = 13 KILLED / 0 MISMATCH / 0 SURVIVED / 0 TIMEOUT** (425 秒)、baseline PASSED。
+
+### 追加した 3 変異 (焦点再レビュー由来)
+
+| ID | 変異 | 期待 kill node |
+|---|---|---|
+| M11 | 境界 byte 集合に `+@` を混ぜ、`<path>+backup` を参照扱いにする | `test_negative_landed_reference_plus_suffix_collision_does_not_suppress` |
+| M12 | 全出現走査を最初の出現だけへ退行させる | `test_positive_landed_reference_found_after_invalid_occurrence` |
+| M13 | 比較後 `fstat` の `st_ctime_ns` 比較だけを外す | `test_negative_external_file_ctime_change_during_comparison_is_not_suppressed` |
 
 ### 受理集合 kill と diagnostic pin の区別 (`DW-M08`)
 
