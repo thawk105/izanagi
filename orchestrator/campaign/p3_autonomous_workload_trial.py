@@ -127,7 +127,7 @@ else:
 # The axis driver imports the campaign namespace directly.  Keep the U1 run
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
-from campaign import ident  # noqa: E402
+from campaign import env_contract, ident  # noqa: E402
 from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     BuildAdmissionError,
@@ -549,6 +549,7 @@ class AttemptJournal:
 def _campaign_for(
     *, workload: str, workload_flags: Mapping[str, str], descriptor: Mapping[str, Any],
     descriptor_record: Mapping[str, Any], trial_id: str, generations: int,
+    contract: env_contract.ExecutionEnvironmentContract,
     build_context: BuildRunContext | None = None,
 ) -> CampaignConfig:
     base = trigger.default_cfg(reflux=True)
@@ -581,7 +582,8 @@ def _campaign_for(
         raise AutonomousTrialError(
             "autonomous campaign identity requires one shared BuildRunContext"
         )
-    return ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    return ident.bind_environment_contract(cfg, contract)
 
 
 def _perf_for(workload_flags: Mapping[str, str]) -> PerfConfig:
@@ -610,6 +612,8 @@ def _prepare_campaign_identity(
     workload: str,
     trial_id: str,
     generations: int,
+    site: str,
+    contract: env_contract.ExecutionEnvironmentContract,
     build_context: BuildRunContext,
 ) -> PreparedCampaignIdentity:
     """Derive the existing descriptor/campaign identity without writing artifacts."""
@@ -622,7 +626,11 @@ def _prepare_campaign_identity(
         descriptor_record=descriptor_record,
         trial_id=trial_id,
         generations=generations,
+        contract=contract,
         build_context=build_context,
+    )
+    campaign = trigger._campaign_cfg_for_site(
+        campaign, site, _contract=contract,
     )
     return PreparedCampaignIdentity(
         descriptor=descriptor,
@@ -669,10 +677,14 @@ def _trial_launch_admission(
     identity_context = build_run_context(
         generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
     )
+    site = trigger._current_site()
+    contract = trigger._admit_env_contract(site)
     prepared = _prepare_campaign_identity(
         workload=binding.workload,
         trial_id=trial_id,
         generations=generations,
+        site=site,
+        contract=contract,
         build_context=identity_context,
     )
     trial_registry.assert_campaign_binding(
@@ -1172,7 +1184,24 @@ def _assert_build_transport_admitted(
     """計測到達前に exact admission と run-level receipt の一致を要求する。"""
     if not do_build:
         return
-    site = trigger._current_site()
+    _assert_build_transport_admitted_for_site(
+        trigger._current_site(),
+        do_build,
+        transport_admission=transport_admission,
+        transport_receipt=transport_receipt,
+    )
+
+
+def _assert_build_transport_admitted_for_site(
+    site: str,
+    do_build: bool,
+    *,
+    transport_admission: ClaudeTransportAdmission | None,
+    transport_receipt: Mapping[str, Any] | None,
+) -> None:
+    """解決済み site に対する exact transport admission を検査する。"""
+    if not do_build:
+        return
     if site == trigger.site_policy.OTHER:
         return
     if site != trigger.site_policy.PEGASUS_COMPUTE:
@@ -1640,11 +1669,14 @@ def _run_workload(
                 "[launch-binding] active binding differs from workload inputs"
             )
     _validate_generation_budget(generations)
-    _assert_build_transport_admitted(
+    resolved_site = trigger._current_site()
+    _assert_build_transport_admitted_for_site(
+        resolved_site,
         do_build,
         transport_admission=transport_admission,
         transport_receipt=transport_receipt,
     )
+    contract = trigger._admit_env_contract(resolved_site)
     if type(build_context) is not BuildRunContext:
         raise AutonomousTrialError(
             "workload requires the trial's shared BuildRunContext"
@@ -1654,6 +1686,8 @@ def _run_workload(
         workload=workload,
         trial_id=trial_id,
         generations=generations,
+        site=resolved_site,
+        contract=contract,
         build_context=build_context,
     )
     descriptor = prepared.descriptor
@@ -1852,6 +1886,11 @@ def _run_workload(
                 "role": "T-178 unattended Python supervisor and descriptor projection",
             },),
         }
+        if drive is trigger.drive_iteration:
+            drive_kwargs.update({
+                "_resolved_site": resolved_site,
+                "_contract": contract,
+            })
         if do_build:
             drive_kwargs["build_context"] = build_context
         outcome = dict(

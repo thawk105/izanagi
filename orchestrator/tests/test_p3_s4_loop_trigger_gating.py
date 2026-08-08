@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import inspect
 import json
 import os
@@ -42,7 +43,8 @@ from campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: 
 from campaign.build_admission import (GeneratorId, add_coder_build_authority_argument,  # noqa: E402
                                       build_run_context)
 from campaign.layout import CampaignLayout                          # noqa: E402
-from campaign.model import Genome                                   # noqa: E402
+from campaign.model import (ENVIRONMENT_CONTRACT_SEARCH_KEY,       # noqa: E402
+                            Genome)
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
 from campaign.projection_guard import (                              # noqa: E402
@@ -116,10 +118,17 @@ _T343_OTHER_CAMPAIGN_ID = (
 _T343_COMPUTE_CAMPAIGN_ID = (
     "p3-s8a-trigger-loop-s8a-trigger-autonomous-9a92049d"
 )
+_T530_OTHER_CAMPAIGN_ID = (
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-25c37015"
+)
+_T530_COMPUTE_CAMPAIGN_ID = (
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-6c3e7a27"
+)
 
 
 def _critic_view(layout: CampaignLayout):
-    wal.write_lock(layout, ident.canonical_preimage(T.default_cfg()))
+    cfg = T._campaign_cfg_for_site(T.default_cfg(), site_policy.OTHER)
+    wal.write_lock(layout, ident.canonical_preimage(cfg))
     return require_admitted_campaign(layout)
 
 
@@ -135,6 +144,17 @@ def _mk_template_dir() -> str:
 def _tmp_layout(tag: str) -> CampaignLayout:
     return CampaignLayout(
         root=tempfile.mkdtemp(prefix=f"izanagi_s8atrigloop_{tag}_")).ensure()
+
+
+def _campaign_id_without_environment_contract(cfg) -> str:
+    preimage = json.loads(ident.canonical_preimage(cfg))
+    preimage["search_config"].pop(ENVIRONMENT_CONTRACT_SEARCH_KEY)
+    rendered = json.dumps(
+        preimage, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    digest = hashlib.sha256(rendered).hexdigest()[:8]
+    return f"{cfg.spec_slug}-{cfg.search_tag}-{digest}"
 
 
 def _planner() -> "L.PlannerProposal":
@@ -435,6 +455,7 @@ def _reject_case(monkeypatch, *, site, wire=_CLEAN_WIRE,
     lay = _tmp_layout("reject")
     monkeypatch.setattr(T, "_current_site", lambda: site)
     monkeypatch.setattr(T, "_lookup", lookup)
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
     monkeypatch.setattr(
         patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext(),
@@ -485,6 +506,7 @@ def test_environment_module_surface_and_default_seams():
     assert not hasattr(T, "NUMA")
     assert T._current_site is site_policy.current_site
     assert T._lookup is env_contract.lookup
+    assert ENVIRONMENT_CONTRACT_SEARCH_KEY not in T.default_cfg().search_config
     assert "site" not in inspect.signature(T.run_one_iteration).parameters
     assert "site" not in inspect.signature(T.drive_iteration).parameters
 
@@ -506,8 +528,11 @@ def test_contract_sentinel_flows_to_run_campaign(
     )
     invoke()
     assert looked_up == [T.ENV_TAG]
+    expected_cfg = T._campaign_cfg_for_site(
+        T.default_cfg(), site_policy.OTHER, _contract=contract,
+    )
     assert calls == [{
-        "campaign_id": str(ident.campaign_id(T.default_cfg())),
+        "campaign_id": str(ident.campaign_id(expected_cfg)),
         "env_tag": contract.env_tag,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
@@ -535,8 +560,11 @@ def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
         lookup=lambda _env_tag: contract,
     )
     invoke()
+    expected_cfg = T._campaign_cfg_for_site(
+        T.default_cfg(), site_policy.OTHER, _contract=contract,
+    )
     assert calls == [{
-        "campaign_id": str(ident.campaign_id(T.default_cfg())),
+        "campaign_id": str(ident.campaign_id(expected_cfg)),
         "env_tag": T.ENV_TAG,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
@@ -560,17 +588,89 @@ def test_empty_numactl_contract_flows_as_empty_list(
 
 
 def test_campaign_identity_is_unchanged_for_other_and_split_for_compute():
-    cfg = T.default_cfg()
-    other_cfg = T._campaign_cfg_for_site(cfg, site_policy.OTHER)
-    compute_cfg = T._campaign_cfg_for_site(cfg, site_policy.PEGASUS_COMPUTE)
+    linux_contract = env_contract.GENERATIONS["linux-baremetal"][0].contract
+    pegasus_contract = env_contract.GENERATIONS["pegasus"][0].contract
+    saved_lookup = T.env_contract.lookup
+    saved_site_lookup = T._lookup
+    T.env_contract.lookup = lambda env_tag: {
+        "linux-baremetal": linux_contract,
+        "pegasus": pegasus_contract,
+    }[env_tag]
+    T._lookup = T.env_contract.lookup
+    try:
+        unbound = T.default_cfg()
+        cfg = T._campaign_cfg_for_site(
+            unbound, site_policy.OTHER, _contract=linux_contract,
+        )
+        other_cfg = T._campaign_cfg_for_site(
+            cfg, site_policy.OTHER, _contract=linux_contract,
+        )
+        compute_cfg = T._campaign_cfg_for_site(
+            unbound, site_policy.PEGASUS_COMPUTE,
+            _contract=pegasus_contract,
+        )
+    finally:
+        T.env_contract.lookup = saved_lookup
+        T._lookup = saved_site_lookup
     assert other_cfg is cfg
     assert str(ident.campaign_id(other_cfg)) == str(ident.campaign_id(cfg))
-    assert str(ident.campaign_id(other_cfg)) == _T343_OTHER_CAMPAIGN_ID
-    assert str(ident.campaign_id(compute_cfg)) == _T343_COMPUTE_CAMPAIGN_ID
-    assert _PRE_T343_OTHER_CAMPAIGN_ID.endswith("3f72ecd5")
-    assert _PRE_T343_COMPUTE_CAMPAIGN_ID.endswith("75727902")
+    assert str(ident.campaign_id(other_cfg)) == _T530_OTHER_CAMPAIGN_ID
+    assert str(ident.campaign_id(compute_cfg)) == _T530_COMPUTE_CAMPAIGN_ID
+    assert _campaign_id_without_environment_contract(cfg) == \
+        _T343_OTHER_CAMPAIGN_ID
+    t343_compute = replace(
+        unbound,
+        search_config={
+            **unbound.search_config,
+            T._CAMPAIGN_ENV_KEY: T._SITE_ENV_TAGS[site_policy.PEGASUS_COMPUTE],
+        },
+    )
+    t343_compute_hash = hashlib.sha256(
+        ident.canonical_preimage(
+            t343_compute, require_environment_contract=False,
+        ).encode("utf-8")
+    ).hexdigest()[:8]
+    assert (
+        f"{t343_compute.spec_slug}-{t343_compute.search_tag}-{t343_compute_hash}"
+        == _T343_COMPUTE_CAMPAIGN_ID
+    )
+    assert _PRE_T343_OTHER_CAMPAIGN_ID == (
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
+    )
+    assert _PRE_T343_COMPUTE_CAMPAIGN_ID == (
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-75727902"
+    )
     assert compute_cfg.search_config["measurement_env"] == "pegasus"
     assert "measurement_env" not in cfg.search_config
+
+
+def test_campaign_site_projection_rejects_conflicting_prebound_contract():
+    linux_contract = env_contract.GENERATIONS["linux-baremetal"][0].contract
+    pegasus_contract = env_contract.GENERATIONS["pegasus"][0].contract
+    cfg = T._campaign_cfg_for_site(
+        T.default_cfg(), site_policy.OTHER, _contract=linux_contract,
+    )
+    before = dict(cfg.search_config)
+    with pytest.raises(ValueError, match="environment contract"):
+        T._campaign_cfg_for_site(
+            cfg, site_policy.PEGASUS_COMPUTE, _contract=pegasus_contract,
+        )
+    assert cfg.search_config == before
+
+
+def test_injected_layout_must_match_final_campaign_id(monkeypatch):
+    contract = env_contract.GENERATIONS["linux-baremetal"][0].contract
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(T, "_lookup", lambda _env_tag: contract)
+    with pytest.raises(ValueError, match="layout 注入"):
+        T.run_one_iteration(
+            T.default_cfg(), T.default_perf(), _planner(),
+            T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE),
+            AuditorVerdict(verdict="pass", diff_digest="a" * 64),
+            L.LoopState(start_ts=time.monotonic()),
+            "/must-not-be-read", do_build=False,
+            layout=_tmp_layout("identity-mismatch"),
+        )
 
 
 def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
@@ -609,7 +709,7 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
             stream.write("compute-only\n")
         return {
             "outcome": "aborted", "variant": None,
-            "campaign_id": _T343_COMPUTE_CAMPAIGN_ID,
+            "campaign_id": _T530_COMPUTE_CAMPAIGN_ID,
             "layout_root": compute.root,
         }
 
@@ -628,7 +728,7 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
         T, "exploration_campaign_layout",
         lambda campaign_id: (
             CampaignLayout(compute.root)
-            if campaign_id == _T343_COMPUTE_CAMPAIGN_ID
+            if campaign_id == _T530_COMPUTE_CAMPAIGN_ID
             else pytest.fail("CLI が返却された campaign_id 以外から layout を再計算した")
         ),
     )
@@ -669,7 +769,9 @@ def test_fixture_no_build_cli_fresh_layout_uses_provenance_without_digest_mock(
     )
 
     assert T.main(["--no-build", "--no-isolate-worktree"]) == 0
-    campaign_id = str(ident.campaign_id(T.default_cfg()))
+    campaign_id = str(ident.campaign_id(T._campaign_cfg_for_site(
+        T.default_cfg(), site_policy.OTHER,
+    )))
     layout = CampaignLayout(str(output_root / campaign_id))
     assert os.path.exists(T._provenance_path(layout))
     assert os.path.exists(L.loop_state_path(layout))
@@ -815,7 +917,11 @@ def test_measurement_sink_admits_compute_with_pegasus_contract_and_identity(monk
     assert len(calls) == 1
     assert calls[0]["env_tag"] == "pegasus"
     assert calls[0]["env_contract"] is contract
-    assert calls[0]["campaign_id"] != str(ident.campaign_id(T.default_cfg()))
+    other = T._campaign_cfg_for_site(
+        T.default_cfg(), site_policy.OTHER,
+        _contract=env_contract.GENERATIONS["linux-baremetal"][0].contract,
+    )
+    assert calls[0]["campaign_id"] != str(ident.campaign_id(other))
     assert wal.read_records(lay) == []
 
 
@@ -1006,6 +1112,9 @@ def test_fresh_default_seams_flow_distinct_contract_to_reject_sink(monkeypatch):
     sub = _mk_template_dir()
     lay = _tmp_layout("fresh-default-reject")
     monkeypatch.setattr(
+        fresh, "exploration_campaign_layout", lambda _campaign_id: lay,
+    )
+    monkeypatch.setattr(
         patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
@@ -1040,11 +1149,12 @@ def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
     sub = _mk_template_dir()
     lay = _tmp_layout("dry-pass-pegasus")
     lookup_calls = 0
+    contract = _sentinel_contract()
 
     def lookup(_env_tag):
         nonlocal lookup_calls
         lookup_calls += 1
-        return _sentinel_contract()
+        return contract
 
     site_calls = 0
 
@@ -1055,19 +1165,23 @@ def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
 
     monkeypatch.setattr(T, "_current_site", current_site)
     monkeypatch.setattr(T, "_lookup", lookup)
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
     monkeypatch.setattr(
         patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
     auditor = AuditorVerdict(verdict="pass", diff_digest=_digest_for(sub))
+    expected_cfg = T._campaign_cfg_for_site(
+        T.default_cfg(), site_policy.PEGASUS_COMPUTE, _contract=contract,
+    )
     out = T.run_one_iteration(
         T.default_cfg(), T.default_perf(), _planner(), coder, auditor,
         L.LoopState(start_ts=time.monotonic()), sub, do_build=False, layout=lay,
         log=lambda *_args: None,
     )
     assert out["outcome"] == "dry-pass" and out["variant"] is None
-    assert out["campaign_id"] == _T343_COMPUTE_CAMPAIGN_ID
+    assert out["campaign_id"] == str(ident.campaign_id(expected_cfg))
     assert out["layout_root"] == lay.root
     assert len(out["trigger_gate_binding_commitment"]) == 64
     assert site_calls == 1
@@ -1849,10 +1963,12 @@ def test_drive_iteration_stops_before_running_but_writes_header(monkeypatch):
     sub に不在パスを渡しても到達しないことが実行前停止の証拠。"""
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     lay = _tmp_layout("stopbefore")
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
     seed = L.LoopState(iteration=0, start_wall=time.time(),
                        reverse_recommendations=L.REVERSE_STREAK - 1)
     L.save_loop_state(lay, seed)
-    cfg, perf = T.default_cfg(), T.default_perf()
+    cfg = T._campaign_cfg_for_site(T.default_cfg(), site_policy.OTHER)
+    perf = T.default_perf()
     cd = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
     au = AuditorVerdict(verdict="pass", diff_digest="a" * 64)
     out = T.drive_iteration(cfg, perf, _planner(), cd, au, prior_critic_reverse=True,
@@ -1866,6 +1982,7 @@ def test_drive_iteration_stops_before_running_but_writes_header(monkeypatch):
 def test_compute_no_resume_precedes_drive_entry_stop_and_provenance(monkeypatch):
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.PEGASUS_COMPUTE)
     lay = _tmp_layout("compute-stop-before")
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
     seed = L.LoopState(
         iteration=0, start_wall=time.time(),
         reverse_recommendations=L.REVERSE_STREAK - 1,
@@ -1891,7 +2008,9 @@ def test_drive_trigger_crash_tail_fails_before_stop_checkpoint_and_provenance(
         monkeypatch):
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     lay = _tmp_layout("trigger-recovery-before-stop")
-    cfg, perf = T.default_cfg(), T.default_perf()
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
+    cfg = T._campaign_cfg_for_site(T.default_cfg(), site_policy.OTHER)
+    perf = T.default_perf()
     wal.write_lock(lay, ident.canonical_preimage(cfg))
     attempt_id = "trigger-crashed-attempt"
     binding = _binding()
@@ -1933,7 +2052,7 @@ def test_inner_run_reject_start_crash_fails_before_second_start(monkeypatch):
     from campaign import patchharness
 
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
-    cfg = T.default_cfg()
+    cfg = T._campaign_cfg_for_site(T.default_cfg(), site_policy.OTHER)
     policy = _CODER_CONTEXT.policy
     attempt_id = "crashed-trigger-reject-attempt"
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
@@ -2081,7 +2200,9 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
     lay = _tmp_layout("driveprov")
-    cfg, perf = T.default_cfg(), T.default_perf()
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
+    cfg = T._campaign_cfg_for_site(T.default_cfg(), site_policy.OTHER)
+    perf = T.default_perf()
     first_wire = "10100"
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=first_wire)
     auditor = AuditorVerdict(
@@ -2133,6 +2254,7 @@ def test_drive_iteration_provenance_copies_each_reject_wal_build_attempt_id(monk
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
     lay = _tmp_layout("reject-attempt-provenance")
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
     auditor = AuditorVerdict(
         verdict="reject", diff_digest=_digest_for(sub),
         violations=[{"type": 16}],
@@ -2176,6 +2298,7 @@ def test_drive_iteration_dry_pass_provenance_has_no_attempt_id(monkeypatch):
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
     lay = _tmp_layout("dry-pass-no-attempt")
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
     auditor = AuditorVerdict(
         verdict="pass", diff_digest=_digest_for(sub),
     )
@@ -2207,6 +2330,7 @@ def test_drive_iteration_entry_failure_blocks_checkpoint(monkeypatch):
         lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
     lay = _tmp_layout("provblock")
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
     cfg, perf = T.default_cfg(), T.default_perf()
     coder = T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire=_CLEAN_WIRE)
     auditor = AuditorVerdict(
