@@ -74,6 +74,14 @@ _CONTROL_DIR = (
 )
 _FOCUS1_SHA = "901ad02256524bac35c56ae4e3a2b7c5fbc01a618670182885040c6912b82771"
 _FOCUS2_SHA = "a738cd2979b3569dd90563e8f0931cd8badbc4b4cebe66129695bbb194fbe978"
+_CERTIFIED_RERUN_DIR = (
+    _ROOT
+    / "output"
+    / "insights"
+    / "2026-08-09_t181-certified-rerun"
+    / "run-outputs"
+)
+_S03_SHA = "393df3429fff61bb87d45350237a55ea3346ff9cbad0f7042eeb9ebf859b33ce"
 _REAL_ROLLOUT = (
     _HISTORICAL_SESSIONS
     / "2026/07/29/"
@@ -2242,6 +2250,217 @@ def test_m10_historical_controls() -> None:
     assert positive_rc == negative_rc == 0
     assert (positive["decision"], positive["r1_candidate"]) == ("NO-GO", True)
     assert (negative["decision"], negative["r1_candidate"]) == ("GO", False)
+
+
+@pytest.mark.parametrize(
+    "opening",
+    [
+        pytest.param("NO-GO。", id="plain"),
+        pytest.param("NO-GO です。", id="spaced_desu"),
+        pytest.param("**NO-GO**です。", id="emphasized_copula"),
+        pytest.param("結論は NO-GO です。", id="conclusion_prefix"),
+    ],
+)
+def test_f176_accepts_decision_statement_variants(opening: str) -> None:
+    score = TOOL.score_text("## 総括\n" + opening + "総括本文。" * 100)
+    assert score["valid"] is True
+    assert score["decision"] == "NO-GO"
+
+
+def test_f176_accepts_real_s03_artifact() -> None:
+    path = _CERTIFIED_RERUN_DIR / "s03-POS-max.md"
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == _S03_SHA
+    score, rc = TOOL.score_run(path, "s03")
+    assert rc == 0
+    assert score["valid"] is True
+    assert score["decision"] == "NO-GO"
+    assert score["r1_candidate"] is True
+
+
+@pytest.mark.parametrize(
+    ("opening", "additional_opening"),
+    [
+        pytest.param("GO。しかしNO-GOでもある。", None, id="however"),
+        pytest.param("GO。NO-GOです。", None, id="second_plain"),
+        pytest.param(
+            "GO。結論はNO-GOです。", None, id="conclusion_assertion"
+        ),
+        pytest.param(
+            "GO。判断はNO-GOです。", None, id="embedded_assertion"
+        ),
+        pytest.param("GO。ただしNO-GOです。", None, id="but"),
+        pytest.param(
+            "GO。NO-GOと判断する。", None, id="judgment_statement"
+        ),
+        pytest.param(
+            "NO-GO。しかしGOでもある。", None, id="reverse_however"
+        ),
+        pytest.param("NO-GO。GOです。", None, id="reverse_plain"),
+        pytest.param(
+            "NO-GO。結論はGOです。",
+            None,
+            id="reverse_conclusion_assertion",
+        ),
+        pytest.param(
+            "NO-GO。判断はGOです。",
+            None,
+            id="reverse_embedded_assertion",
+        ),
+        pytest.param("NO-GO。ただしGOです。", None, id="reverse_but"),
+        pytest.param(
+            "NO-GOです。ただしGOです。", None, id="conflicting_copulas"
+        ),
+        pytest.param(
+            "GO。NO-GO の理由は、未修正の正しさ欠陥が残るためです。",
+            "GO。NO-GO の理由です。別の説は採らない。",
+            id="reason_assertion",
+        ),
+        pytest.param(
+            "GO。NO-GOの結論です。",
+            "GO。NO-GOの結論にはならない。",
+            id="nominal_conclusion",
+        ),
+    ],
+)
+def test_f176_rejects_conflicting_decision_claims(
+    opening: str, additional_opening: str | None
+) -> None:
+    for candidate in (opening, additional_opening):
+        if candidate is None:
+            continue
+        score = TOOL.score_text("## 総括\n" + candidate + "総括本文。" * 100)
+        assert score["valid"] is False
+        assert score["decision"] is None
+
+
+@pytest.mark.parametrize(
+    ("opening", "decision"),
+    [
+        pytest.param(
+            "NO-GO。GOの条件を満たさない。", "NO-GO", id="go_condition"
+        ),
+        pytest.param(
+            "GO。このfocused reviewのNO-GO理由にはなりません。",
+            "GO",
+            id="focused_review_reason",
+        ),
+    ],
+)
+def test_f176_preserves_decision_mentions(
+    opening: str, decision: str
+) -> None:
+    score = TOOL.score_text("## 総括\n" + opening + "総括本文。" * 100)
+    assert score["valid"] is True
+    assert score["decision"] == decision
+
+
+@pytest.mark.parametrize(
+    ("opening", "decision"),
+    [
+        pytest.param(
+            "NO-GO。GOの余地はあるが、結論はNO-GOである。",
+            "NO-GO",
+            id="go_possibility",
+        ),
+        pytest.param(
+            "NO-GO。GOの条件を満たさない。",
+            "NO-GO",
+            id="go_condition_not_met",
+        ),
+        pytest.param(
+            "NO-GO。GOへ倒す材料は見つからなかった。",
+            "NO-GO",
+            id="no_material_for_go",
+        ),
+        pytest.param(
+            "NO-GO。前回のGO判定は本件に適用できない。",
+            "NO-GO",
+            id="prior_go_inapplicable",
+        ),
+        pytest.param(
+            "NO-GO。GOの根拠として挙げられた3点はいずれも成立しない。",
+            "NO-GO",
+            id="go_reasons_invalid",
+        ),
+        pytest.param(
+            "GO。NO-GO理由にはなりません。",
+            "GO",
+            id="not_no_go_reason",
+        ),
+        pytest.param(
+            "GO。NO-GOの条件を満たす所見は無い。",
+            "GO",
+            id="no_no_go_finding",
+        ),
+        pytest.param(
+            "GO。NO-GO側の懸念は解消済みである。",
+            "GO",
+            id="no_go_concerns_resolved",
+        ),
+        pytest.param(
+            "GO。NO-GO寄りの解釈も検討したが採らない。",
+            "GO",
+            id="no_go_interpretation_rejected",
+        ),
+        pytest.param(
+            "GO。NO-GO判定に必要な must-fix は残っていない。",
+            "GO",
+            id="no_no_go_must_fix",
+        ),
+    ],
+)
+def test_f176_preserves_legitimate_opposite_mentions(
+    opening: str, decision: str
+) -> None:
+    score = TOOL.score_text("## 総括\n" + opening + "総括本文。" * 100)
+    assert score["valid"] is True
+    assert score["decision"] == decision
+
+
+@pytest.mark.parametrize(
+    "openings",
+    [
+        pytest.param(
+            (
+                "よってNO-GOです。",
+                "したがってNO-GOです。",
+                "以上よりNO-GOです。",
+            ),
+            id="discourse_connective",
+        ),
+        pytest.param(("結論は\nNO-GOです。",), id="newline_in_opening"),
+    ],
+)
+def test_f176_rejects_open_grammar_beyond_closed_set(
+    openings: tuple[str, ...],
+) -> None:
+    for opening in openings:
+        score = TOOL.score_text("## 総括\n" + opening + "総括本文。" * 100)
+        assert score["valid"] is False
+        assert score["decision"] is None
+
+
+@pytest.mark.parametrize(
+    ("filename", "decision"),
+    [
+        pytest.param("s01-POS-high.md", "NO-GO", id="s01"),
+        pytest.param("s02-POS-max.md", "NO-GO", id="s02"),
+        pytest.param("s04-POS-high.md", "NO-GO", id="s04"),
+        pytest.param("s05-POS-high.md", "NO-GO", id="s05"),
+        pytest.param("s06-POS-max.md", "NO-GO", id="s06"),
+        pytest.param("s07-NEG-max.md", "GO", id="s07"),
+        pytest.param("s08-NEG-high.md", "GO", id="s08"),
+        pytest.param("s09-NEG-high.md", "GO", id="s09"),
+        pytest.param("s10-NEG-max.md", "GO", id="s10"),
+    ],
+)
+def test_f176_preserves_other_certified_runs(
+    filename: str, decision: str
+) -> None:
+    score, rc = TOOL.score_run(_CERTIFIED_RERUN_DIR / filename, filename)
+    assert rc == 0
+    assert score["valid"] is True
+    assert score["decision"] == decision
 
 
 @pytest.mark.parametrize(
