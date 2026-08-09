@@ -1,3 +1,15 @@
+# 分裂窓 probe (逐語)
+
+元 repo path は
+`output/insights/2026-08-09_t659-activation-deploy-window/verbatim/probe_split_window.py`。
+SHA-256 `0128696a79035139ffaba3732cd3b20400eb231fb3124af98496665d70da455d` は、
+`.md` 全体や fence 内文字列ではなく、移行前の元 `.py` bytes の digest である。
+
+本移行は履歴 artifact の実装面是正であり、probe に証拠能力を与えるものではない。probe は既存テストより
+弱く、[T-659] の裁定で証拠から外されている。実体は repo へ置かない。repo 外の byte 同一控えは
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t659-activation-deploy-window/probe_split_window.py`。
+
+```python
 #!/usr/bin/env python3
 """[T-659] 分裂窓 probe: record 発行後・head 更新前の fresh load を temp copy 上で実測する。
 
@@ -80,3 +92,4 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as tmp:
         print("UNEXPECTED: 受理された (fail-open!)")
     except activation.ActivationRecordError as exc:
         print(f"fail-closed: ActivationRecordError: {exc}")
+```

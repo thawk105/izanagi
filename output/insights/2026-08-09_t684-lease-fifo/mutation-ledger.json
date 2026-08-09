@@ -1,0 +1,1059 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/0e5a6a4ef2a88e63a46670bb2a8a7544/izdw-0e5a6a4ef2.o896683",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/0e5a6a4ef2a88e63a46670bb2a8a7544/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n............                                                             [100%]\n84 passed in 2.03s\n",
+      "stdout_sha256": "8e76fd7d7047eb4d8aabd74b1014e0b0c524dc2a87c395daf0b839082b27ea63"
+    },
+    "artifact_error": null,
+    "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+    "duration_s": 21.761,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a07cec381df202d47a019f420ea3736c10b0f38d88be44ded774aa97add3c095",
+    "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+    "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+    "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+    "status": "PASSED",
+    "test_output_sha256": "8e76fd7d7047eb4d8aabd74b1014e0b0c524dc2a87c395daf0b839082b27ea63",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+  },
+  "date": "2026-08-09T01:13:03.136565+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/97edadcdda677275e55eebc77c0e0279/izdw-97edadcdda.o896684",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/97edadcdda677275e55eebc77c0e0279/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................................F [ 85%]\nFF..F.......                                                             [100%]\n=================================== FAILURES ===================================\n__________ test_single_corrupt_ticket_does_not_let_newcomer_overtake ___________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_single_corrupt_ticket_doe0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14d72c9af160>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d72c822380>\n\n    def test_single_corrupt_ticket_does_not_let_newcomer_overtake(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M6/V3: 異常札だけを外し、別の正常な先着 waiter を保持する。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        _write_ticket(\n            tmp_path,\n            _WAVE_B,\n            queued_at_ns=100,\n            mtime_ns=_NOW_NS - 2_000_000_000,\n        )\n        corrupt_holder = \"deadbeef0000\"\n        corrupt = tmp_path / f\"ticket.{corrupt_holder}\"\n        corrupt.write_bytes(b'{\"holder\":\"deadbeef0000\",\"queued_at_ns\":')\n        os.utime(corrupt, ns=(_NOW_NS - 2_000_000_000,) * 2)\n        _write_ticket(\n            tmp_path,\n            _WAVE_C,\n            queued_at_ns=200,\n            mtime_ns=_NOW_NS - 1_000_000_000,\n        )\n    \n        result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)\n    \n>       assert result[\"state\"] == \"queued\"\nE       AssertionError: assert 'acquired' == 'queued'\nE         \nE         - queued\nE         + acquired\n\norchestrator/tests/test_wave_land_window.py:540: AssertionError\n______________ test_abandoned_waiter_ttl_boundary_is_literal_300 _______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_abandoned_waiter_ttl_boun0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x1463bd1019f0>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1463bd101d20>\n\n    def test_abandoned_waiter_ttl_boundary_is_literal_300(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M3: 299 秒は fresh、300 秒ちょうどで stale とする。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        results: dict[int, dict[str, object]] = {}\n        for age_seconds in (299, 300):\n            lease_dir = tmp_path / str(age_seconds)\n            lease_dir.mkdir()\n            _write_ticket(\n                lease_dir,\n                _WAVE_B,\n                queued_at_ns=100,\n                mtime_ns=_NOW_NS - age_seconds * 1_000_000_000,\n            )\n            _write_ticket(\n                lease_dir,\n                _WAVE_C,\n                queued_at_ns=200,\n                mtime_ns=_NOW_NS - 1_000_000_000,\n            )\n            results[age_seconds] = _claim(\n                lease_dir, _WAVE_C, capsys, main_sha=_SHA_B\n            )\n    \n>       assert results[299][\"state\"] == \"queued\"\nE       AssertionError: assert 'acquired' == 'queued'\nE         \nE         - queued\nE         + acquired\n\norchestrator/tests/test_wave_land_window.py:336: AssertionError\n____________ test_fifo_oldest_waiter_acquires_before_fast_newcomer _____________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_fifo_oldest_waiter_acquir0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x1551d1bc6710>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1551d1a39f00>\n\n    def test_fifo_oldest_waiter_acquires_before_fast_newcomer(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M1: 最古優先を固定する。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        _claim(tmp_path, _WAVE_A, capsys)\n        _write_ticket(\n            tmp_path,\n            _WAVE_B,\n            queued_at_ns=100,\n            mtime_ns=_NOW_NS - 2_000_000_000,\n        )\n        _write_ticket(\n            tmp_path,\n            _WAVE_C,\n            queued_at_ns=200,\n            mtime_ns=_NOW_NS - 1_000_000_000,\n        )\n        _release(tmp_path, _WAVE_A, capsys)\n    \n        newcomer = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)\n        oldest = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)\n    \n>       assert newcomer[\"state\"] == \"queued\"\nE       AssertionError: assert 'acquired' == 'queued'\nE         \nE         - queued\nE         + acquired\n\norchestrator/tests/test_wave_land_window.py:229: AssertionError\n__________________ test_exactly_64_tickets_keep_queue_enabled __________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_exactly_64_tickets_keep_q0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14bc596ae980>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bc5951c2e0>\n\n    def test_exactly_64_tickets_keep_queue_enabled(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M8: 64 枚ちょうどなら cap 超過ではない。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        claimant = WLW._holder_for(_WAVE_C)\n        holders = [f\"{index:012x}\" for index in range(63)] + [claimant]\n        for index, holder in enumerate(holders):\n            path = tmp_path / f\"ticket.{holder}\"\n            path.write_bytes(WLW._ticket_payload(holder, index + 1))\n            os.utime(path, ns=(_NOW_NS - 1_000_000_000,) * 2)\n    \n        result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)\n    \n>       assert result[\"state\"] == \"queued\"\nE       AssertionError: assert 'acquired' == 'queued'\nE         \nE         - queued\nE         + acquired\n\norchestrator/tests/test_wave_land_window.py:463: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_single_corrupt_ticket_does_not_let_newcomer_overtake\nFAILED orchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300\nFAILED orchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer\nFAILED orchestrator/tests/test_wave_land_window.py::test_exactly_64_tickets_keep_queue_enabled\n4 failed, 80 passed in 2.06s\n",
+        "stdout_sha256": "c0971ae745aa78f49b9133120ca9e7536b14c47111af1e605b17cec1bc24fa0d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 26.926,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_single_corrupt_ticket_does_not_let_newcomer_overtake",
+        "orchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300",
+        "orchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer",
+        "orchestrator/tests/test_wave_land_window.py::test_exactly_64_tickets_keep_queue_enabled"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "68a49ee3f3b7798036f485beae5642cfe5fd4db7f8b3d4d2aece849bc25ffffd",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "91988608041f6458a8e75194cd7088dd7bf8fcd0b5bcc42dfdb13805a9b2828b",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "    oldest_queued_at_ns = max(ordering.values())\n",
+          "old": "    oldest_queued_at_ns = min(ordering.values())\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "MISMATCH",
+      "test_output_sha256": "c0971ae745aa78f49b9133120ca9e7536b14c47111af1e605b17cec1bc24fa0d",
+      "test_output_tail": [
+        "E         ",
+        "E         - queued",
+        "E         + acquired",
+        "",
+        "orchestrator/tests/test_wave_land_window.py:336: AssertionError",
+        "____________ test_fifo_oldest_waiter_acquires_before_fast_newcomer _____________",
+        "[gw5] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_fifo_oldest_waiter_acquir0')",
+        "capsys = <_pytest.capture.CaptureFixture object at 0x1551d1bc6710>",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1551d1a39f00>",
+        "",
+        "    def test_fifo_oldest_waiter_acquires_before_fast_newcomer(",
+        "        tmp_path: Path,",
+        "        capsys: pytest.CaptureFixture[str],",
+        "        monkeypatch: pytest.MonkeyPatch,",
+        "    ) -> None:",
+        "        \"\"\"M1: 最古優先を固定する。\"\"\"",
+        "        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)",
+        "        _claim(tmp_path, _WAVE_A, capsys)",
+        "        _write_ticket(",
+        "            tmp_path,",
+        "            _WAVE_B,",
+        "            queued_at_ns=100,",
+        "            mtime_ns=_NOW_NS - 2_000_000_000,",
+        "        )",
+        "        _write_ticket(",
+        "            tmp_path,",
+        "            _WAVE_C,",
+        "            queued_at_ns=200,",
+        "            mtime_ns=_NOW_NS - 1_000_000_000,",
+        "        )",
+        "        _release(tmp_path, _WAVE_A, capsys)",
+        "    ",
+        "        newcomer = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)",
+        "        oldest = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)",
+        "    ",
+        ">       assert newcomer[\"state\"] == \"queued\"",
+        "E       AssertionError: assert 'acquired' == 'queued'",
+        "E         ",
+        "E         - queued",
+        "E         + acquired",
+        "",
+        "orchestrator/tests/test_wave_land_window.py:229: AssertionError",
+        "__________________ test_exactly_64_tickets_keep_queue_enabled __________________",
+        "[gw14] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_exactly_64_tickets_keep_q0')",
+        "capsys = <_pytest.capture.CaptureFixture object at 0x14bc596ae980>",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bc5951c2e0>",
+        "",
+        "    def test_exactly_64_tickets_keep_queue_enabled(",
+        "        tmp_path: Path,",
+        "        capsys: pytest.CaptureFixture[str],",
+        "        monkeypatch: pytest.MonkeyPatch,",
+        "    ) -> None:",
+        "        \"\"\"M8: 64 枚ちょうどなら cap 超過ではない。\"\"\"",
+        "        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)",
+        "        claimant = WLW._holder_for(_WAVE_C)",
+        "        holders = [f\"{index:012x}\" for index in range(63)] + [claimant]",
+        "        for index, holder in enumerate(holders):",
+        "            path = tmp_path / f\"ticket.{holder}\"",
+        "            path.write_bytes(WLW._ticket_payload(holder, index + 1))",
+        "            os.utime(path, ns=(_NOW_NS - 1_000_000_000,) * 2)",
+        "    ",
+        "        result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)",
+        "    ",
+        ">       assert result[\"state\"] == \"queued\"",
+        "E       AssertionError: assert 'acquired' == 'queued'",
+        "E         ",
+        "E         - queued",
+        "E         + acquired",
+        "",
+        "orchestrator/tests/test_wave_land_window.py:463: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_wave_land_window.py::test_single_corrupt_ticket_does_not_let_newcomer_overtake",
+        "FAILED orchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300",
+        "FAILED orchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer",
+        "FAILED orchestrator/tests/test_wave_land_window.py::test_exactly_64_tickets_keep_queue_enabled",
+        "4 failed, 80 passed in 2.06s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/94a1a96e8a49f87c78f2d821393b999c/izdw-94a1a96e8a.o896685",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/94a1a96e8a49f87c78f2d821393b999c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n..FF.F......                                                             [100%]\n=================================== FAILURES ===================================\n________ test_waiter_heartbeat_updates_mtime_without_rewriting_arrival _________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_waiter_heartbeat_updates_0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14a89c55a710>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a89c3c9ed0>\n\n    def test_waiter_heartbeat_updates_mtime_without_rewriting_arrival(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M2: heartbeat は mtime だけを更新し queued_at_ns を不変にする。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        _claim(tmp_path, _WAVE_A, capsys)\n        ticket = _write_ticket(\n            tmp_path,\n            _WAVE_B,\n            queued_at_ns=123,\n            mtime_ns=_NOW_NS - 10_000_000_000,\n        )\n        before = ticket.read_bytes()\n    \n        result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)\n    \n        assert result[\"state\"] == \"held\"\n>       assert ticket.read_bytes() == before\nE       assert b'{\"holder\": ...\"ttl\": 300}\\n' == b'{\"holder\": ...\"ttl\": 300}\\n'\nE         \nE         At index 43 diff: b'2' != b'1'\nE         Use -v to get more diff\n\norchestrator/tests/test_wave_land_window.py:275: AssertionError\n______________ test_ticket_open_uses_nofollow_nonblock_and_dir_fd ______________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_ticket_open_uses_nofollow0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x148c4a4fafb0>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148c4a36b5b0>\n\n    def test_ticket_open_uses_nofollow_nonblock_and_dir_fd(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _claim(tmp_path, _WAVE_A, capsys)\n        _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)\n        real_open = WLW.os.open\n        seen: list[tuple[int, int | None]] = []\n    \n        def checked_open(\n            path: object, flags: int, mode: int = 0o777, *, dir_fd: int | None = None\n        ) -> int:\n            if path == _ticket_path(tmp_path, _WAVE_B).name:\n                seen.append((flags, dir_fd))\n            return real_open(path, flags, mode, dir_fd=dir_fd)\n    \n        monkeypatch.setattr(WLW.os, \"open\", checked_open)\n    \n        result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)\n    \n        assert result[\"state\"] == \"held\"\n        assert seen\n>       assert all(flags & os.O_NOFOLLOW for flags, _ in seen)\nE       assert False\nE        +  where False = all(<generator object test_ticket_open_uses_nofollow_nonblock_and_dir_fd.<locals>.<genexpr> at 0x148c4a34eb20>)\n\norchestrator/tests/test_wave_land_window.py:1080: AssertionError\n____________ test_fifo_oldest_waiter_acquires_before_fast_newcomer _____________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_fifo_oldest_waiter_acquir0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14cfa357d9c0>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cfa357e1d0>\n\n    def test_fifo_oldest_waiter_acquires_before_fast_newcomer(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M1: 最古優先を固定する。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        _claim(tmp_path, _WAVE_A, capsys)\n        _write_ticket(\n            tmp_path,\n            _WAVE_B,\n            queued_at_ns=100,\n            mtime_ns=_NOW_NS - 2_000_000_000,\n        )\n        _write_ticket(\n            tmp_path,\n            _WAVE_C,\n            queued_at_ns=200,\n            mtime_ns=_NOW_NS - 1_000_000_000,\n        )\n        _release(tmp_path, _WAVE_A, capsys)\n    \n        newcomer = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)\n        oldest = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)\n    \n        assert newcomer[\"state\"] == \"queued\"\n        assert newcomer[\"holder\"] == WLW._holder_for(_WAVE_B)\n>       assert oldest[\"state\"] == \"acquired\"\nE       AssertionError: assert 'queued' == 'acquired'\nE         \nE         - acquired\nE         + queued\n\norchestrator/tests/test_wave_land_window.py:231: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_waiter_heartbeat_updates_mtime_without_rewriting_arrival\nFAILED orchestrator/tests/test_wave_land_window.py::test_ticket_open_uses_nofollow_nonblock_and_dir_fd\nFAILED orchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer\n3 failed, 81 passed in 2.04s\n",
+        "stdout_sha256": "1beb7a440164e605de1828ed04649296ad6333ab925d2642f8c2f4661fa22d2d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 26.899,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_waiter_heartbeat_updates_mtime_without_rewriting_arrival"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_waiter_heartbeat_updates_mtime_without_rewriting_arrival",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_open_uses_nofollow_nonblock_and_dir_fd",
+        "orchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "216451db34b3a110b2a6fe9828922d9a3ad30fe5e7e176b1a06de933a018bde1",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "92b51189fd929cc236d465d825d1eec988430a1f27107b27d0e0a356a1a5680f",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "            heartbeat_ns = time.time_ns()\n            rewrite_fd = os.open(\n                name,\n                os.O_WRONLY | os.O_NONBLOCK | getattr(os, \"O_CLOEXEC\", 0),\n                dir_fd=directory_fd,\n            )\n            try:\n                os.ftruncate(rewrite_fd, 0)\n                _write_all(rewrite_fd, _ticket_payload(holder, heartbeat_ns))\n                os.fsync(rewrite_fd)\n            finally:\n                os.close(rewrite_fd)\n            os.utime(ticket.fd, ns=(heartbeat_ns, heartbeat_ns))\n",
+          "old": "            heartbeat_ns = time.time_ns()\n            os.utime(ticket.fd, ns=(heartbeat_ns, heartbeat_ns))\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "MISMATCH",
+      "test_output_sha256": "1beb7a440164e605de1828ed04649296ad6333ab925d2642f8c2f4661fa22d2d",
+      "test_output_tail": [
+        "[gw47] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_ticket_open_uses_nofollow0')",
+        "capsys = <_pytest.capture.CaptureFixture object at 0x148c4a4fafb0>",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148c4a36b5b0>",
+        "",
+        "    def test_ticket_open_uses_nofollow_nonblock_and_dir_fd(",
+        "        tmp_path: Path,",
+        "        capsys: pytest.CaptureFixture[str],",
+        "        monkeypatch: pytest.MonkeyPatch,",
+        "    ) -> None:",
+        "        _claim(tmp_path, _WAVE_A, capsys)",
+        "        _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)",
+        "        real_open = WLW.os.open",
+        "        seen: list[tuple[int, int | None]] = []",
+        "    ",
+        "        def checked_open(",
+        "            path: object, flags: int, mode: int = 0o777, *, dir_fd: int | None = None",
+        "        ) -> int:",
+        "            if path == _ticket_path(tmp_path, _WAVE_B).name:",
+        "                seen.append((flags, dir_fd))",
+        "            return real_open(path, flags, mode, dir_fd=dir_fd)",
+        "    ",
+        "        monkeypatch.setattr(WLW.os, \"open\", checked_open)",
+        "    ",
+        "        result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)",
+        "    ",
+        "        assert result[\"state\"] == \"held\"",
+        "        assert seen",
+        ">       assert all(flags & os.O_NOFOLLOW for flags, _ in seen)",
+        "E       assert False",
+        "E        +  where False = all(<generator object test_ticket_open_uses_nofollow_nonblock_and_dir_fd.<locals>.<genexpr> at 0x148c4a34eb20>)",
+        "",
+        "orchestrator/tests/test_wave_land_window.py:1080: AssertionError",
+        "____________ test_fifo_oldest_waiter_acquires_before_fast_newcomer _____________",
+        "[gw5] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_fifo_oldest_waiter_acquir0')",
+        "capsys = <_pytest.capture.CaptureFixture object at 0x14cfa357d9c0>",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cfa357e1d0>",
+        "",
+        "    def test_fifo_oldest_waiter_acquires_before_fast_newcomer(",
+        "        tmp_path: Path,",
+        "        capsys: pytest.CaptureFixture[str],",
+        "        monkeypatch: pytest.MonkeyPatch,",
+        "    ) -> None:",
+        "        \"\"\"M1: 最古優先を固定する。\"\"\"",
+        "        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)",
+        "        _claim(tmp_path, _WAVE_A, capsys)",
+        "        _write_ticket(",
+        "            tmp_path,",
+        "            _WAVE_B,",
+        "            queued_at_ns=100,",
+        "            mtime_ns=_NOW_NS - 2_000_000_000,",
+        "        )",
+        "        _write_ticket(",
+        "            tmp_path,",
+        "            _WAVE_C,",
+        "            queued_at_ns=200,",
+        "            mtime_ns=_NOW_NS - 1_000_000_000,",
+        "        )",
+        "        _release(tmp_path, _WAVE_A, capsys)",
+        "    ",
+        "        newcomer = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)",
+        "        oldest = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)",
+        "    ",
+        "        assert newcomer[\"state\"] == \"queued\"",
+        "        assert newcomer[\"holder\"] == WLW._holder_for(_WAVE_B)",
+        ">       assert oldest[\"state\"] == \"acquired\"",
+        "E       AssertionError: assert 'queued' == 'acquired'",
+        "E         ",
+        "E         - acquired",
+        "E         + queued",
+        "",
+        "orchestrator/tests/test_wave_land_window.py:231: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_wave_land_window.py::test_waiter_heartbeat_updates_mtime_without_rewriting_arrival",
+        "FAILED orchestrator/tests/test_wave_land_window.py::test_ticket_open_uses_nofollow_nonblock_and_dir_fd",
+        "FAILED orchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer",
+        "3 failed, 81 passed in 2.04s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/0ccd96a5e4041d39cd058c709b6ebb16/izdw-0ccd96a5e4.o896687",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/0ccd96a5e4041d39cd058c709b6ebb16/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n...FF.......                                                             [100%]\n=================================== FAILURES ===================================\n_________ test_stale_waiter_unlink_failure_does_not_block_acquisition __________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_stale_waiter_unlink_failu0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x152b1a97d960>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152b1a97e170>\n\n    def test_stale_waiter_unlink_failure_does_not_block_acquisition(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        stale = _write_ticket(\n            tmp_path,\n            _WAVE_B,\n            queued_at_ns=100,\n            mtime_ns=_NOW_NS - 300_000_000_000,\n        )\n        _write_ticket(\n            tmp_path,\n            _WAVE_C,\n            queued_at_ns=200,\n            mtime_ns=_NOW_NS - 1,\n        )\n        real_unlink = WLW.os.unlink\n        unlink_attempts: list[object] = []\n    \n        def fail_stale_unlink(path: object, *, dir_fd: int | None = None) -> None:\n            if path == stale.name:\n                unlink_attempts.append(path)\n                raise PermissionError(errno.EACCES, \"denied\")\n            real_unlink(path, dir_fd=dir_fd)\n    \n        monkeypatch.setattr(WLW.os, \"unlink\", fail_stale_unlink)\n    \n        result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)\n    \n>       assert result[\"state\"] == \"acquired\"\nE       AssertionError: assert 'queued' == 'acquired'\nE         \nE         - acquired\nE         + queued\n\norchestrator/tests/test_wave_land_window.py:673: AssertionError\n______________ test_abandoned_waiter_ttl_boundary_is_literal_300 _______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_abandoned_waiter_ttl_boun0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14bee3886710>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bee36f5f30>\n\n    def test_abandoned_waiter_ttl_boundary_is_literal_300(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M3: 299 秒は fresh、300 秒ちょうどで stale とする。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        results: dict[int, dict[str, object]] = {}\n        for age_seconds in (299, 300):\n            lease_dir = tmp_path / str(age_seconds)\n            lease_dir.mkdir()\n            _write_ticket(\n                lease_dir,\n                _WAVE_B,\n                queued_at_ns=100,\n                mtime_ns=_NOW_NS - age_seconds * 1_000_000_000,\n            )\n            _write_ticket(\n                lease_dir,\n                _WAVE_C,\n                queued_at_ns=200,\n                mtime_ns=_NOW_NS - 1_000_000_000,\n            )\n            results[age_seconds] = _claim(\n                lease_dir, _WAVE_C, capsys, main_sha=_SHA_B\n            )\n    \n        assert results[299][\"state\"] == \"queued\"\n        assert results[299][\"holder\"] == WLW._holder_for(_WAVE_B)\n>       assert results[300][\"state\"] == \"acquired\"\nE       AssertionError: assert 'queued' == 'acquired'\nE         \nE         - acquired\nE         + queued\n\norchestrator/tests/test_wave_land_window.py:338: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_stale_waiter_unlink_failure_does_not_block_acquisition\nFAILED orchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300\n2 failed, 82 passed in 2.03s\n",
+        "stdout_sha256": "1a6b9fd5b87a940e29ec243a76cc2c4176a4cb0e0e2f957ffa7f2f08fd4b4f6d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 32.044,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_stale_waiter_unlink_failure_does_not_block_acquisition",
+        "orchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "7b8d94834d827b0632d8a416cc05e258ee6e9ac36f38a054c12e56ba81c34995",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "93bf8dbbf04a019b4e5d02d09ab248537e825a97958a82a77295edf1a322f7a6",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "    stale = delta_ns < 0 or delta_ns > _WAITER_TTL_SECONDS * 1_000_000_000\n",
+          "old": "    stale = delta_ns < 0 or delta_ns >= _WAITER_TTL_SECONDS * 1_000_000_000\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "MISMATCH",
+      "test_output_sha256": "1a6b9fd5b87a940e29ec243a76cc2c4176a4cb0e0e2f957ffa7f2f08fd4b4f6d",
+      "test_output_tail": [
+        "        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)",
+        "        stale = _write_ticket(",
+        "            tmp_path,",
+        "            _WAVE_B,",
+        "            queued_at_ns=100,",
+        "            mtime_ns=_NOW_NS - 300_000_000_000,",
+        "        )",
+        "        _write_ticket(",
+        "            tmp_path,",
+        "            _WAVE_C,",
+        "            queued_at_ns=200,",
+        "            mtime_ns=_NOW_NS - 1,",
+        "        )",
+        "        real_unlink = WLW.os.unlink",
+        "        unlink_attempts: list[object] = []",
+        "    ",
+        "        def fail_stale_unlink(path: object, *, dir_fd: int | None = None) -> None:",
+        "            if path == stale.name:",
+        "                unlink_attempts.append(path)",
+        "                raise PermissionError(errno.EACCES, \"denied\")",
+        "            real_unlink(path, dir_fd=dir_fd)",
+        "    ",
+        "        monkeypatch.setattr(WLW.os, \"unlink\", fail_stale_unlink)",
+        "    ",
+        "        result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)",
+        "    ",
+        ">       assert result[\"state\"] == \"acquired\"",
+        "E       AssertionError: assert 'queued' == 'acquired'",
+        "E         ",
+        "E         - acquired",
+        "E         + queued",
+        "",
+        "orchestrator/tests/test_wave_land_window.py:673: AssertionError",
+        "______________ test_abandoned_waiter_ttl_boundary_is_literal_300 _______________",
+        "[gw9] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_abandoned_waiter_ttl_boun0')",
+        "capsys = <_pytest.capture.CaptureFixture object at 0x14bee3886710>",
+        "monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bee36f5f30>",
+        "",
+        "    def test_abandoned_waiter_ttl_boundary_is_literal_300(",
+        "        tmp_path: Path,",
+        "        capsys: pytest.CaptureFixture[str],",
+        "        monkeypatch: pytest.MonkeyPatch,",
+        "    ) -> None:",
+        "        \"\"\"M3: 299 秒は fresh、300 秒ちょうどで stale とする。\"\"\"",
+        "        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)",
+        "        results: dict[int, dict[str, object]] = {}",
+        "        for age_seconds in (299, 300):",
+        "            lease_dir = tmp_path / str(age_seconds)",
+        "            lease_dir.mkdir()",
+        "            _write_ticket(",
+        "                lease_dir,",
+        "                _WAVE_B,",
+        "                queued_at_ns=100,",
+        "                mtime_ns=_NOW_NS - age_seconds * 1_000_000_000,",
+        "            )",
+        "            _write_ticket(",
+        "                lease_dir,",
+        "                _WAVE_C,",
+        "                queued_at_ns=200,",
+        "                mtime_ns=_NOW_NS - 1_000_000_000,",
+        "            )",
+        "            results[age_seconds] = _claim(",
+        "                lease_dir, _WAVE_C, capsys, main_sha=_SHA_B",
+        "            )",
+        "    ",
+        "        assert results[299][\"state\"] == \"queued\"",
+        "        assert results[299][\"holder\"] == WLW._holder_for(_WAVE_B)",
+        ">       assert results[300][\"state\"] == \"acquired\"",
+        "E       AssertionError: assert 'queued' == 'acquired'",
+        "E         ",
+        "E         - acquired",
+        "E         + queued",
+        "",
+        "orchestrator/tests/test_wave_land_window.py:338: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_wave_land_window.py::test_stale_waiter_unlink_failure_does_not_block_acquisition",
+        "FAILED orchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300",
+        "2 failed, 82 passed in 2.03s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/1faef53ff425b1ca6d9291dff77a5ab4/izdw-1faef53ff4.o896688",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/1faef53ff425b1ca6d9291dff77a5ab4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n..F.........                                                             [100%]\n=================================== FAILURES ===================================\n_____________ test_head_that_cannot_create_lease_drops_own_ticket ______________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_head_that_cannot_create_l0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14fd58352710>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fd581c5f30>\n\n    def test_head_that_cannot_create_lease_drops_own_ticket(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M4/V1: lease 作成失敗で self-maintaining head を残さない。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        _write_ticket(\n            tmp_path,\n            _WAVE_A,\n            queued_at_ns=100,\n            mtime_ns=_NOW_NS - 1,\n        )\n        monkeypatch.setattr(\n            WLW,\n            \"_create_lease\",\n            lambda *args: (_ for _ in ()).throw(OSError(errno.ENOSPC, \"full\")),\n        )\n    \n        result = _claim(tmp_path, _WAVE_A, capsys)\n    \n        assert result[\"state\"] == \"unavailable\"\n>       assert not _ticket_path(tmp_path, _WAVE_A).exists()\nE       AssertionError: assert not True\nE        +  where True = exists()\nE        +    where exists = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_head_that_cannot_create_l0/ticket.a7d445352120').exists\nE        +      where PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_head_that_cannot_create_l0/ticket.a7d445352120') = _ticket_path(PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_head_that_cannot_create_l0'), 'wave-a')\n\norchestrator/tests/test_wave_land_window.py:363: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_head_that_cannot_create_lease_drops_own_ticket\n1 failed, 83 passed in 2.03s\n",
+        "stdout_sha256": "53cbec55d649c807eea039c6c0bc8fad98976d0b047455ae790d39bece7036a5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 26.975,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_head_that_cannot_create_lease_drops_own_ticket"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_head_that_cannot_create_lease_drops_own_ticket"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "73f0a3b55d67e7173016c7e2aba40398be891feb1e1d03e54bf3cbb3690f4658",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2915959e4855e0296806262c39f483388d6cd3dd12df9bde82ff0cabd74aa799",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "                try:\n                    acquired = _create_lease(directory_fd, self_holder, main_sha)\n                except (OSError, UnicodeError, ValueError, RecursionError):\n                    return _unavailable(\"lease-unavailable\", self_holder)\n",
+          "old": "                try:\n                    acquired = _create_lease(directory_fd, self_holder, main_sha)\n                except (OSError, UnicodeError, ValueError, RecursionError):\n                    _drop_ticket_best_effort(directory_fd, self_holder)\n                    return _unavailable(\"lease-unavailable\", self_holder)\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "KILLED",
+      "test_output_sha256": "53cbec55d649c807eea039c6c0bc8fad98976d0b047455ae790d39bece7036a5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/3574172404852e5b6a9f8bfeede4a38c/izdw-3574172404.o896689",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/3574172404852e5b6a9f8bfeede4a38c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n.....F......                                                             [100%]\n=================================== FAILURES ===================================\n_________________ test_ticket_scan_cap_degrades_to_legacy_path _________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_ticket_scan_cap_degrades_0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14fc1b60a710>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fc1b479ed0>\n\n    def test_ticket_scan_cap_degrades_to_legacy_path(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M5/V2: 65 枚は queue を無効化し、停止せず現行 lease 競争へ戻す。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        existing_tickets: list[Path] = []\n        for index in range(64):\n            holder = f\"{index:012x}\"\n            path = tmp_path / f\"ticket.{holder}\"\n            path.write_bytes(WLW._ticket_payload(holder, index + 1))\n            os.utime(path, ns=(_NOW_NS - 1_000_000_000,) * 2)\n            existing_tickets.append(path)\n        _write_ticket(\n            tmp_path,\n            _WAVE_C,\n            queued_at_ns=10_000,\n            mtime_ns=_NOW_NS - 1_000_000_000,\n        )\n    \n        result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)\n    \n>       assert result[\"state\"] == \"acquired\"\nE       AssertionError: assert 'queued' == 'acquired'\nE         \nE         - acquired\nE         + queued\n\norchestrator/tests/test_wave_land_window.py:442: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_ticket_scan_cap_degrades_to_legacy_path\n1 failed, 83 passed in 2.07s\n",
+        "stdout_sha256": "76de935e1f3cb0143cf96f3109e360fb2cbc0199a5eec1d31af13062ad4fc745"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 26.908,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_scan_cap_degrades_to_legacy_path"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_scan_cap_degrades_to_legacy_path"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "fd2bbb635d414e90aa338f209a55e2e7a2b81d33ab61efe1782d8bd764995071",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c4f1defc6f4648a96c1b8c94f19b7d2fcc20bb5a91fab297cf0cf3445b8975e0",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "                ticket_names.append(name)\n",
+          "old": "                ticket_names.append(name)\n                if len(ticket_names) > _MAX_TICKETS_SCANNED:\n                    return _QUEUE_DEGRADED\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "KILLED",
+      "test_output_sha256": "76de935e1f3cb0143cf96f3109e360fb2cbc0199a5eec1d31af13062ad4fc745",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/0e39d737169025c7e5608b34587362eb/izdw-0e39d73716.o896690",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/0e39d737169025c7e5608b34587362eb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n.....F......                                                             [100%]\n=================================== FAILURES ===================================\n__________ test_single_corrupt_ticket_does_not_let_newcomer_overtake ___________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_single_corrupt_ticket_doe0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14c2f11b7130>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c2f1026380>\n\n    def test_single_corrupt_ticket_does_not_let_newcomer_overtake(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M6/V3: 異常札だけを外し、別の正常な先着 waiter を保持する。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        _write_ticket(\n            tmp_path,\n            _WAVE_B,\n            queued_at_ns=100,\n            mtime_ns=_NOW_NS - 2_000_000_000,\n        )\n        corrupt_holder = \"deadbeef0000\"\n        corrupt = tmp_path / f\"ticket.{corrupt_holder}\"\n        corrupt.write_bytes(b'{\"holder\":\"deadbeef0000\",\"queued_at_ns\":')\n        os.utime(corrupt, ns=(_NOW_NS - 2_000_000_000,) * 2)\n        _write_ticket(\n            tmp_path,\n            _WAVE_C,\n            queued_at_ns=200,\n            mtime_ns=_NOW_NS - 1_000_000_000,\n        )\n    \n        result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)\n    \n>       assert result[\"state\"] == \"queued\"\nE       AssertionError: assert 'acquired' == 'queued'\nE         \nE         - queued\nE         + acquired\n\norchestrator/tests/test_wave_land_window.py:540: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_single_corrupt_ticket_does_not_let_newcomer_overtake\n1 failed, 83 passed in 2.04s\n",
+        "stdout_sha256": "438a3b692787c21bf4755ee1023e0d4211b4474470d2931ad518a1a9bc466a0a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 26.967,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_single_corrupt_ticket_does_not_let_newcomer_overtake"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_single_corrupt_ticket_does_not_let_newcomer_overtake"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "04d9fa6c7e5566c127b20dd329eddc2265c97e9215eb7f1b3f6d82b586fa45e6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3edeac7b7f6ff7df922e6f03b7c04e849aa2c08cbc5c7257bbfbe0e117eae824",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "        try:\n            ticket, initially_stale = _open_ticket(\n                directory_fd,\n                name,\n                exclusive=False,\n                skip_stale_payload=True,\n            )\n        except (OSError, UnicodeError, ValueError, RecursionError):\n            return _QUEUE_DEGRADED\n",
+          "old": "        try:\n            ticket, initially_stale = _open_ticket(\n                directory_fd,\n                name,\n                exclusive=False,\n                skip_stale_payload=True,\n            )\n        except (OSError, UnicodeError, ValueError, RecursionError):\n            continue\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "KILLED",
+      "test_output_sha256": "438a3b692787c21bf4755ee1023e0d4211b4474470d2931ad518a1a9bc466a0a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/0bb6be1ab7a9306beff183db809dcac8/izdw-0bb6be1ab7.o896691",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/0bb6be1ab7a9306beff183db809dcac8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n.....F......                                                             [100%]\n=================================== FAILURES ===================================\n_________________ test_release_without_lease_drops_own_ticket __________________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_release_without_lease_dro0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x1514a47629e0>\n\n    def test_release_without_lease_drops_own_ticket(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n    ) -> None:\n        \"\"\"M7: lease 不在の free release も自分の待ち札を cancel する。\"\"\"\n        ticket = _write_ticket(\n            tmp_path,\n            _WAVE_B,\n            queued_at_ns=100,\n            mtime_ns=_NOW_NS,\n        )\n    \n        result = _release(tmp_path, _WAVE_B, capsys)\n    \n        assert result[\"state\"] == \"free\"\n>       assert not ticket.exists()\nE       AssertionError: assert not True\nE        +  where True = exists()\nE        +    where exists = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_release_without_lease_dro0/ticket.c6d422779c18').exists\n\norchestrator/tests/test_wave_land_window.py:559: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_release_without_lease_drops_own_ticket\n1 failed, 83 passed in 2.02s\n",
+        "stdout_sha256": "c02e16aba4dd9abf1c980aec10ab3e3ecb7073e28d5ed81ec7b0b06b50331984"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 31.974,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_release_without_lease_drops_own_ticket"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_release_without_lease_drops_own_ticket"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "ce1f6e0b4666d6a3c9f06fdcc6315a7459be6ca9679d82644197fd5b0ca1881e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "08d1a73d5ed875a2a1fe11e622a2637a43b52f87b7cf9442677ffc450143da67",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "            except FileNotFoundError:\n                cleanup_in_finally = False\n                return _result(\"free\", self_holder=self_holder)\n",
+          "old": "            except FileNotFoundError:\n                _drop_ticket_best_effort(directory_fd, self_holder)\n                cleanup_in_finally = False\n                return _result(\"free\", self_holder=self_holder)\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "KILLED",
+      "test_output_sha256": "c02e16aba4dd9abf1c980aec10ab3e3ecb7073e28d5ed81ec7b0b06b50331984",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/915c18c6f02e7ba97ca202766f801038/izdw-915c18c6f0.o896692",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/915c18c6f02e7ba97ca202766f801038/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n.....F......                                                             [100%]\n=================================== FAILURES ===================================\n__________________ test_exactly_64_tickets_keep_queue_enabled __________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_exactly_64_tickets_keep_q0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x1553399266b0>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1553397962c0>\n\n    def test_exactly_64_tickets_keep_queue_enabled(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M8: 64 枚ちょうどなら cap 超過ではない。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        claimant = WLW._holder_for(_WAVE_C)\n        holders = [f\"{index:012x}\" for index in range(63)] + [claimant]\n        for index, holder in enumerate(holders):\n            path = tmp_path / f\"ticket.{holder}\"\n            path.write_bytes(WLW._ticket_payload(holder, index + 1))\n            os.utime(path, ns=(_NOW_NS - 1_000_000_000,) * 2)\n    \n        result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)\n    \n>       assert result[\"state\"] == \"queued\"\nE       AssertionError: assert 'acquired' == 'queued'\nE         \nE         - queued\nE         + acquired\n\norchestrator/tests/test_wave_land_window.py:463: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_exactly_64_tickets_keep_queue_enabled\n1 failed, 83 passed in 2.04s\n",
+        "stdout_sha256": "c28a6fa2a5074f8cc5e3ff8e41a5c4169dc1949ed572ce46ccf1298127f3448e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 26.864,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_exactly_64_tickets_keep_queue_enabled"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_exactly_64_tickets_keep_queue_enabled"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "212d742b8a87df18c6a2a695f39269f83d70448f8497505dcaae1e6914de46c7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "10c4728c2fff5cf7212cfe4d893fe1fec0a5d69d87584e64228bb2e2b83626db",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "                if len(ticket_names) >= _MAX_TICKETS_SCANNED:\n",
+          "old": "                if len(ticket_names) > _MAX_TICKETS_SCANNED:\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "KILLED",
+      "test_output_sha256": "c28a6fa2a5074f8cc5e3ff8e41a5c4169dc1949ed572ce46ccf1298127f3448e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/3e5119a6d82e49af846cba04f6e0f8e7/izdw-3e5119a6d8.o896693",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/3e5119a6d82e49af846cba04f6e0f8e7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n.....F......                                                             [100%]\n=================================== FAILURES ===================================\n___________ test_equal_arrival_uses_holder_digest_not_creation_order ___________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_equal_arrival_uses_holder0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x15510eefea40>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15510ed723e0>\n\n    def test_equal_arrival_uses_holder_digest_not_creation_order(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M9: 同着時は作成順でなく holder digest の小さい札を先頭にする。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        waves_by_holder = sorted((_WAVE_B, _WAVE_C), key=WLW._holder_for)\n        for wave in reversed(waves_by_holder):\n            _write_ticket(\n                tmp_path,\n                wave,\n                queued_at_ns=300,\n                mtime_ns=_NOW_NS - 1_000_000_000,\n            )\n    \n        result = _claim(tmp_path, waves_by_holder[1], capsys, main_sha=_SHA_B)\n    \n>       assert result[\"state\"] == \"queued\"\nE       AssertionError: assert 'acquired' == 'queued'\nE         \nE         - queued\nE         + acquired\n\norchestrator/tests/test_wave_land_window.py:252: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_equal_arrival_uses_holder_digest_not_creation_order\n1 failed, 83 passed in 2.05s\n",
+        "stdout_sha256": "b923e523b73351f27adf4d889b2ad42038f030643fe4fbc06a2389a8dd5da53d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 26.853,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_equal_arrival_uses_holder_digest_not_creation_order"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_equal_arrival_uses_holder_digest_not_creation_order"
+      ],
+      "hang_risk": false,
+      "id": "M9",
+      "injection_diff_sha256": "3166c085f64b07e06111e984c64f9eabcbe98905f03269aee2225765d3a0c494",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "62ee617d82a7ea29dfef1c3bed4b109db2abedfe4fa7ddfa649b70fca7fa25e5",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "        key=lambda item: ordering[item.holder] != oldest_queued_at_ns,\n",
+          "old": "        key=lambda item: (\n            ordering[item.holder] != oldest_queued_at_ns,\n            item.holder,\n        ),\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "KILLED",
+      "test_output_sha256": "b923e523b73351f27adf4d889b2ad42038f030643fe4fbc06a2389a8dd5da53d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/79113e999c87cd38d6ebce497d345ea1/izdw-79113e999c.o896694",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/79113e999c87cd38d6ebce497d345ea1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 85%]\n.....F......                                                             [100%]\n=================================== FAILURES ===================================\n________ test_filename_payload_holder_mismatch_is_not_a_queue_candidate ________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_filename_payload_holder_m0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x149c4a6f69b0>\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149c4a569bd0>\n\n    def test_filename_payload_holder_mismatch_is_not_a_queue_candidate(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"M10: filename と payload の holder 不一致札を順序候補から外す。\"\"\"\n        monkeypatch.setattr(WLW.time, \"time_ns\", lambda: _NOW_NS)\n        filename_holder = WLW._holder_for(_WAVE_B)\n        payload_holder = \"000000000000\"\n        mismatched = tmp_path / f\"ticket.{filename_holder}\"\n        mismatched.write_bytes(WLW._ticket_payload(payload_holder, 1))\n        os.utime(mismatched, ns=(_NOW_NS - 1_000_000_000,) * 2)\n        _write_ticket(\n            tmp_path,\n            _WAVE_C,\n            queued_at_ns=2,\n            mtime_ns=_NOW_NS - 1_000_000_000,\n        )\n    \n        result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)\n    \n>       assert result[\"state\"] == \"acquired\"\nE       AssertionError: assert 'queued' == 'acquired'\nE         \nE         - acquired\nE         + queued\n\norchestrator/tests/test_wave_land_window.py:510: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_wave_land_window.py::test_filename_payload_holder_mismatch_is_not_a_queue_candidate\n1 failed, 83 passed in 2.03s\n",
+        "stdout_sha256": "ebe802d146f3fad827ddde549c6727d6889231b25355c9a3ba25229aecdf69e1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3ea515dfd2794cd36461af51e52a5fcf4f3ff76fba453faf778b73f4a4c201da",
+      "duration_s": 26.843,
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_filename_payload_holder_mismatch_is_not_a_queue_candidate"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_filename_payload_holder_mismatch_is_not_a_queue_candidate"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "4c78cca53b67924fc9575a2d50e6e001cef3447fa7418066df3d484de6b8e3de",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "55522b27ee0bb1458f818086b703c0f95302795b8f47573a5bf6a190bc52324f",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "new": "        or _HOLDER_RE.fullmatch(holder) is None\n",
+          "old": "        or _HOLDER_RE.fullmatch(holder) is None\n        or holder != expected_holder\n"
+        }
+      ],
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "KILLED",
+      "test_output_sha256": "ebe802d146f3fad827ddde549c6727d6889231b25355c9a3ba25229aecdf69e1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/61ec18678621e307801c791ea7f5aa56/izdw-61ec186786.o896682",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/output/pegasus-dispatch/61ec18678621e307801c791ea7f5aa56/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_wave_land_window.py::test_claim_empty_directory_acquires_and_creates_lease\norchestrator/tests/test_wave_land_window.py::test_second_wave_is_held_by_first_holder\norchestrator/tests/test_wave_land_window.py::test_release_then_other_wave_can_acquire\norchestrator/tests/test_wave_land_window.py::test_acquired_claim_removes_own_wait_ticket\norchestrator/tests/test_wave_land_window.py::test_held_claim_creates_strict_wait_ticket\norchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer\norchestrator/tests/test_wave_land_window.py::test_equal_arrival_uses_holder_digest_not_creation_order\norchestrator/tests/test_wave_land_window.py::test_waiter_heartbeat_updates_mtime_without_rewriting_arrival\norchestrator/tests/test_wave_land_window.py::test_waiter_heartbeat_succeeds_when_flock_is_busy\norchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300\norchestrator/tests/test_wave_land_window.py::test_head_that_cannot_create_lease_drops_own_ticket\norchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_failure_does_not_mask_acquired\norchestrator/tests/test_wave_land_window.py::test_ticket_registration_failure_degrades_to_legacy_path\norchestrator/tests/test_wave_land_window.py::test_ticket_scan_cap_degrades_to_legacy_path\norchestrator/tests/test_wave_land_window.py::test_exactly_64_tickets_keep_queue_enabled\norchestrator/tests/test_wave_land_window.py::test_total_entry_scan_cap_degrades_to_legacy_path\norchestrator/tests/test_wave_land_window.py::test_filename_payload_holder_mismatch_is_not_a_queue_candidate\norchestrator/tests/test_wave_land_window.py::test_single_corrupt_ticket_does_not_let_newcomer_overtake\norchestrator/tests/test_wave_land_window.py::test_release_without_lease_drops_own_ticket\norchestrator/tests/test_wave_land_window.py::test_status_distinguishes_free_and_held\norchestrator/tests/test_wave_land_window.py::test_status_free_means_only_that_the_lease_is_absent\norchestrator/tests/test_wave_land_window.py::test_status_does_not_touch_or_interpret_wait_tickets\norchestrator/tests/test_wave_land_window.py::test_future_dated_waiter_is_stale_immediately\norchestrator/tests/test_wave_land_window.py::test_stale_waiter_unlink_failure_does_not_block_acquisition\norchestrator/tests/test_wave_land_window.py::test_non_owner_release_cancels_own_wait_ticket_only\norchestrator/tests/test_wave_land_window.py::test_queue_scan_failure_degrades_to_existing_lease_path\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2399-held]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2400-held]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2401-acquired]\norchestrator/tests/test_wave_land_window.py::test_status_reports_stale_at_2401_seconds\norchestrator/tests/test_wave_land_window.py::test_payload_ttl_does_not_override_literal_policy_ttl\norchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[malformed]\norchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[oversized]\norchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[type-spoofed-ttl]\norchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[ttl-over-policy]\norchestrator/tests/test_wave_land_window.py::test_fresh_invalid_lease_remains_fail_closed\norchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2399-held]\norchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2400-held]\norchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2401-acquired]\norchestrator/tests/test_wave_land_window.py::test_non_owner_release_never_removes_lease\norchestrator/tests/test_wave_land_window.py::test_open_directory_failure_is_unavailable_not_free\norchestrator/tests/test_wave_land_window.py::test_listdir_failure_is_unavailable_not_free\norchestrator/tests/test_wave_land_window.py::test_fifo_open_is_nonblocking_and_rejected_before_flock\norchestrator/tests/test_wave_land_window.py::test_other_uid_lease_is_rejected_before_flock\norchestrator/tests/test_wave_land_window.py::test_busy_flock_retries_are_nonblocking_and_bounded\norchestrator/tests/test_wave_land_window.py::test_new_lease_flock_retries_are_nonblocking_and_bounded\norchestrator/tests/test_wave_land_window.py::test_ticket_payload_rejects_duplicate_oversized_and_nonliteral_fields\norchestrator/tests/test_wave_land_window.py::test_ticket_open_uses_nofollow_nonblock_and_dir_fd\norchestrator/tests/test_wave_land_window.py::test_other_uid_ticket_is_rejected_before_flock\norchestrator/tests/test_wave_land_window.py::test_ticket_flock_retries_are_nonblocking_bounded\norchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_preserves_same_name_replacement\norchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_does_not_require_flock_and_returns_success\norchestrator/tests/test_wave_land_window.py::test_instruction_like_waiter_is_digest_only_in_ticket_and_output\norchestrator/tests/test_wave_land_window.py::test_instruction_like_wave_is_digest_only_in_all_outputs\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[stale-main]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[lock-busy]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[rejected]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[fold-failed]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[status_value4]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[status_value5]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[7]\norchestrator/tests/test_wave_land_window.py::test_landed_message_success_is_exact_fixed_text[landed]\norchestrator/tests/test_wave_land_window.py::test_landed_message_success_is_exact_fixed_text[already-landed]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_invalid_main_after\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[39]\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[40]\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[41]\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[uppercase]\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[non-hex]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_duplicate_json_key\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_more_than_65536_bytes\norchestrator/tests/test_wave_land_window.py::test_lease_dir_uses_environment_fallback\norchestrator/tests/test_wave_land_window.py::test_missing_lease_dir_argument_and_environment_is_cli_rejection\norchestrator/tests/test_wave_land_window.py::test_removed_commands_and_land_intent_are_rejected\norchestrator/tests/test_wave_land_window.py::test_claim_rejects_invalid_sha_and_ttl[argv0]\norchestrator/tests/test_wave_land_window.py::test_claim_rejects_invalid_sha_and_ttl[argv1]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[39]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[40]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[41]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[uppercase]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[non-hex]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[1-0]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[2400-0]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[2401-2]\n\n84 tests collected in 0.09s\n",
+        "stdout_sha256": "209ab82fd201ac591e7cbbb4418184ea40e2e15b3e3f82e1e0baf500d70c5a17"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_claim_empty_directory_acquires_and_creates_lease",
+        "orchestrator/tests/test_wave_land_window.py::test_second_wave_is_held_by_first_holder",
+        "orchestrator/tests/test_wave_land_window.py::test_release_then_other_wave_can_acquire",
+        "orchestrator/tests/test_wave_land_window.py::test_acquired_claim_removes_own_wait_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_held_claim_creates_strict_wait_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer",
+        "orchestrator/tests/test_wave_land_window.py::test_equal_arrival_uses_holder_digest_not_creation_order",
+        "orchestrator/tests/test_wave_land_window.py::test_waiter_heartbeat_updates_mtime_without_rewriting_arrival",
+        "orchestrator/tests/test_wave_land_window.py::test_waiter_heartbeat_succeeds_when_flock_is_busy",
+        "orchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300",
+        "orchestrator/tests/test_wave_land_window.py::test_head_that_cannot_create_lease_drops_own_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_failure_does_not_mask_acquired",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_registration_failure_degrades_to_legacy_path",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_scan_cap_degrades_to_legacy_path",
+        "orchestrator/tests/test_wave_land_window.py::test_exactly_64_tickets_keep_queue_enabled",
+        "orchestrator/tests/test_wave_land_window.py::test_total_entry_scan_cap_degrades_to_legacy_path",
+        "orchestrator/tests/test_wave_land_window.py::test_filename_payload_holder_mismatch_is_not_a_queue_candidate",
+        "orchestrator/tests/test_wave_land_window.py::test_single_corrupt_ticket_does_not_let_newcomer_overtake",
+        "orchestrator/tests/test_wave_land_window.py::test_release_without_lease_drops_own_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_status_distinguishes_free_and_held",
+        "orchestrator/tests/test_wave_land_window.py::test_status_free_means_only_that_the_lease_is_absent",
+        "orchestrator/tests/test_wave_land_window.py::test_status_does_not_touch_or_interpret_wait_tickets",
+        "orchestrator/tests/test_wave_land_window.py::test_future_dated_waiter_is_stale_immediately",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_waiter_unlink_failure_does_not_block_acquisition",
+        "orchestrator/tests/test_wave_land_window.py::test_non_owner_release_cancels_own_wait_ticket_only",
+        "orchestrator/tests/test_wave_land_window.py::test_queue_scan_failure_degrades_to_existing_lease_path",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2399-held]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2400-held]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2401-acquired]",
+        "orchestrator/tests/test_wave_land_window.py::test_status_reports_stale_at_2401_seconds",
+        "orchestrator/tests/test_wave_land_window.py::test_payload_ttl_does_not_override_literal_policy_ttl",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[malformed]",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[oversized]",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[type-spoofed-ttl]",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[ttl-over-policy]",
+        "orchestrator/tests/test_wave_land_window.py::test_fresh_invalid_lease_remains_fail_closed",
+        "orchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2399-held]",
+        "orchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2400-held]",
+        "orchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2401-acquired]",
+        "orchestrator/tests/test_wave_land_window.py::test_non_owner_release_never_removes_lease",
+        "orchestrator/tests/test_wave_land_window.py::test_open_directory_failure_is_unavailable_not_free",
+        "orchestrator/tests/test_wave_land_window.py::test_listdir_failure_is_unavailable_not_free",
+        "orchestrator/tests/test_wave_land_window.py::test_fifo_open_is_nonblocking_and_rejected_before_flock",
+        "orchestrator/tests/test_wave_land_window.py::test_other_uid_lease_is_rejected_before_flock",
+        "orchestrator/tests/test_wave_land_window.py::test_busy_flock_retries_are_nonblocking_and_bounded",
+        "orchestrator/tests/test_wave_land_window.py::test_new_lease_flock_retries_are_nonblocking_and_bounded",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_payload_rejects_duplicate_oversized_and_nonliteral_fields",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_open_uses_nofollow_nonblock_and_dir_fd",
+        "orchestrator/tests/test_wave_land_window.py::test_other_uid_ticket_is_rejected_before_flock",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_flock_retries_are_nonblocking_bounded",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_preserves_same_name_replacement",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_does_not_require_flock_and_returns_success",
+        "orchestrator/tests/test_wave_land_window.py::test_instruction_like_waiter_is_digest_only_in_ticket_and_output",
+        "orchestrator/tests/test_wave_land_window.py::test_instruction_like_wave_is_digest_only_in_all_outputs",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[stale-main]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[lock-busy]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[rejected]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[fold-failed]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[status_value4]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[status_value5]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[7]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_success_is_exact_fixed_text[landed]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_success_is_exact_fixed_text[already-landed]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_invalid_main_after",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[39]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[40]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[41]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[uppercase]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[non-hex]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_duplicate_json_key",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_more_than_65536_bytes",
+        "orchestrator/tests/test_wave_land_window.py::test_lease_dir_uses_environment_fallback",
+        "orchestrator/tests/test_wave_land_window.py::test_missing_lease_dir_argument_and_environment_is_cli_rejection",
+        "orchestrator/tests/test_wave_land_window.py::test_removed_commands_and_land_intent_are_rejected",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_rejects_invalid_sha_and_ttl[argv0]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_rejects_invalid_sha_and_ttl[argv1]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[39]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[40]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[41]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[uppercase]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[non-hex]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[1-0]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[2400-0]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[2401-2]"
+      ],
+      "duration_s": 37.096,
+      "rc": 0,
+      "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+      "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+      "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+      "status": "PASSED",
+      "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_fifo_oldest_waiter_acquires_before_fast_newcomer"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "68a49ee3f3b7798036f485beae5642cfe5fd4db7f8b3d4d2aece849bc25ffffd",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "    oldest_queued_at_ns = max(ordering.values())\n",
+            "old": "    oldest_queued_at_ns = min(ordering.values())\n"
+          }
+        ]
+      },
+      "M10": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_filename_payload_holder_mismatch_is_not_a_queue_candidate"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4c78cca53b67924fc9575a2d50e6e001cef3447fa7418066df3d484de6b8e3de",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "        or _HOLDER_RE.fullmatch(holder) is None\n",
+            "old": "        or _HOLDER_RE.fullmatch(holder) is None\n        or holder != expected_holder\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_waiter_heartbeat_updates_mtime_without_rewriting_arrival"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "216451db34b3a110b2a6fe9828922d9a3ad30fe5e7e176b1a06de933a018bde1",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "            heartbeat_ns = time.time_ns()\n            rewrite_fd = os.open(\n                name,\n                os.O_WRONLY | os.O_NONBLOCK | getattr(os, \"O_CLOEXEC\", 0),\n                dir_fd=directory_fd,\n            )\n            try:\n                os.ftruncate(rewrite_fd, 0)\n                _write_all(rewrite_fd, _ticket_payload(holder, heartbeat_ns))\n                os.fsync(rewrite_fd)\n            finally:\n                os.close(rewrite_fd)\n            os.utime(ticket.fd, ns=(heartbeat_ns, heartbeat_ns))\n",
+            "old": "            heartbeat_ns = time.time_ns()\n            os.utime(ticket.fd, ns=(heartbeat_ns, heartbeat_ns))\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_abandoned_waiter_ttl_boundary_is_literal_300"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7b8d94834d827b0632d8a416cc05e258ee6e9ac36f38a054c12e56ba81c34995",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "    stale = delta_ns < 0 or delta_ns > _WAITER_TTL_SECONDS * 1_000_000_000\n",
+            "old": "    stale = delta_ns < 0 or delta_ns >= _WAITER_TTL_SECONDS * 1_000_000_000\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_head_that_cannot_create_lease_drops_own_ticket"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "73f0a3b55d67e7173016c7e2aba40398be891feb1e1d03e54bf3cbb3690f4658",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "                try:\n                    acquired = _create_lease(directory_fd, self_holder, main_sha)\n                except (OSError, UnicodeError, ValueError, RecursionError):\n                    return _unavailable(\"lease-unavailable\", self_holder)\n",
+            "old": "                try:\n                    acquired = _create_lease(directory_fd, self_holder, main_sha)\n                except (OSError, UnicodeError, ValueError, RecursionError):\n                    _drop_ticket_best_effort(directory_fd, self_holder)\n                    return _unavailable(\"lease-unavailable\", self_holder)\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_ticket_scan_cap_degrades_to_legacy_path"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fd2bbb635d414e90aa338f209a55e2e7a2b81d33ab61efe1782d8bd764995071",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "                ticket_names.append(name)\n",
+            "old": "                ticket_names.append(name)\n                if len(ticket_names) > _MAX_TICKETS_SCANNED:\n                    return _QUEUE_DEGRADED\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_single_corrupt_ticket_does_not_let_newcomer_overtake"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "04d9fa6c7e5566c127b20dd329eddc2265c97e9215eb7f1b3f6d82b586fa45e6",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "        try:\n            ticket, initially_stale = _open_ticket(\n                directory_fd,\n                name,\n                exclusive=False,\n                skip_stale_payload=True,\n            )\n        except (OSError, UnicodeError, ValueError, RecursionError):\n            return _QUEUE_DEGRADED\n",
+            "old": "        try:\n            ticket, initially_stale = _open_ticket(\n                directory_fd,\n                name,\n                exclusive=False,\n                skip_stale_payload=True,\n            )\n        except (OSError, UnicodeError, ValueError, RecursionError):\n            continue\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_release_without_lease_drops_own_ticket"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ce1f6e0b4666d6a3c9f06fdcc6315a7459be6ca9679d82644197fd5b0ca1881e",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "            except FileNotFoundError:\n                cleanup_in_finally = False\n                return _result(\"free\", self_holder=self_holder)\n",
+            "old": "            except FileNotFoundError:\n                _drop_ticket_best_effort(directory_fd, self_holder)\n                cleanup_in_finally = False\n                return _result(\"free\", self_holder=self_holder)\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_exactly_64_tickets_keep_queue_enabled"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "212d742b8a87df18c6a2a695f39269f83d70448f8497505dcaae1e6914de46c7",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "                if len(ticket_names) >= _MAX_TICKETS_SCANNED:\n",
+            "old": "                if len(ticket_names) > _MAX_TICKETS_SCANNED:\n"
+          }
+        ]
+      },
+      "M9": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_wave_land_window.py::test_equal_arrival_uses_holder_digest_not_creation_order"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3166c085f64b07e06111e984c64f9eabcbe98905f03269aee2225765d3a0c494",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "        key=lambda item: ordering[item.holder] != oldest_queued_at_ns,\n",
+            "old": "        key=lambda item: (\n            ordering[item.holder] != oldest_queued_at_ns,\n            item.holder,\n        ),\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a07cec381df202d47a019f420ea3736c10b0f38d88be44ded774aa97add3c095",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_wave_land_window.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "bf4e4fc1794634fcb276a19e4adc0eef647ef206",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_wave_land_window.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c34ec307e59aefbc25b3dc3aa4622c45e4b879a2",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "d938f16a9707a3d5853cbe3fd70fab5dc09c13eb52b54e3343ad7f0a6b605c5a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "09864eb91010f5555600d0c8188f7aced3ef0705db43d458687c2d785562e9f2",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 3,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 10,
+    "matching": 7,
+    "recorded": 10,
+    "registered": 10
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t684-lease-fifo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "1d23ddbfc3652d466978fa474b7319b12af820ceca8ffb05d3955c402739debc",
+  "updated_at": "2026-08-09T01:18:21.700976+00:00"
+}
