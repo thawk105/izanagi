@@ -4418,3 +4418,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `test_dev_wave_dispatch_rejects_ascii_tilde_inside_url`、および正規の
   `` `DW-O01`〜`DW-O06` `` が引き続き展開されることを固定する正例。
   いずれも fails-closed のテストで、変異 matrix の M04 が同 node を KILL する。
+
+### F182. wave の fragment 更新が他所有の裁定待ちを消した [手順漏れ]
+
+- 事象: [T-682] wave の worklog fragment が [T-139] 項を全置換し、並行して返されていた
+  P1 裁定待ち (R4 probe の Q1〜Q5、再提出) を active 項から消して P2 へ降格させた。
+  fold の 更新 は追記でなく項の置換であるため、直前状態を写さない更新は他 wave の
+  pending を黙って落とす。/rulings の照合 (前回 pending 集合との差分) が検出した。
+- 根本原因: 更新 fragment を書く際に対象項の現本文を読まず、自 wave の関心事だけで
+  本文を再構成した。base digest 検査は「古い本文からの更新」を拒むだけで、
+  「内容を狭める更新」は機械検出されない。
+- 恒久対応: `.claude/commands/rulings.md` 収集 1 の退行検査 (裁定なしに待ちが消えた・
+  降格した ID は上書き退行を疑い原文 entry へ遡る。同 commit で追加)。
+- 再発検知: /rulings 毎実行の pending 差分照合。
