@@ -1,0 +1,29 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M10b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                if refreshed_fingerprint != initial_fingerprint:",
+     "new": "                if False:"
+    },
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                if preflight.fingerprint != initial_fingerprint:",
+     "new": "                if False:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_provenance_audit_detects_removed_ignored_collision"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
