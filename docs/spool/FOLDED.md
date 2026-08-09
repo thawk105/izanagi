@@ -641,3 +641,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"b1a6bd5cb88bde11edec2282c561ea1271732b528348240fe94d06f5412e9887","seq":29,"wave":"rulings-20260806-a"}
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"fdb4dc02553c2711835dbdb86fed655992ba522f25010f2070bd3430b7df813b","seq":30,"wave":"rulings-20260806-a"}
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"75a9526d6124b841decb32a730f79497c89680518d1b42ff9cd3cf0fd47e03b4","seq":31,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:atomic-publish-output-rollback":"[T-705]","T:launcher-interrupt-rc-split":"[T-706]","T:mutation-positive-control-subset":"[T-709]","T:publication-commit-protocol":"[T-703]","T:receipt-post-commit-exception":"[T-704]","T:replace-invalid-publication-pin":"[T-708]","T:staged-temp-replacement-window":"[T-707]"},"authored":"2026-08-09","content_sha256":"7504586913392ff2813674fe5b9c7190c60a4ae9e4ac3fe3c3838764c0bd36ef","seq":1,"wave":"dev-wave-t678-publication-wall-gate"}
+- {"allocations":{"D:late-admission-gate-at-last-reversible-point":"D256"},"authored":"2026-08-09","content_sha256":"381cd40658829b40776eebffa11ad00b3f9663a19c338ec019802d463873c92a","seq":1,"wave":"dev-wave-t678-publication-wall-gate"}
