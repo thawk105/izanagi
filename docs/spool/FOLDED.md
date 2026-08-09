@@ -656,3 +656,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"40e904aaf1ff6bce870bb1353de6e498f50df74579c66ec96d99907fbe51cd09","seq":1,"wave":"dev-wave-t673-transition-pbt-package"}
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"3a4e0a100f796d4c1cf3f7ea88acc1199620b98da96551895cb91019a71cfa8f","seq":2,"wave":"dev-wave-t673-transition-pbt-package"}
+
+- {"allocations":{"T:acceptance-walltime-ceiling":"[T-717]","T:cli-second-resolution":"[T-718]","T:mutation-expected-node-overdetermination":"[T-719]","T:realrepo-payer-closure":"[T-715]","T:s8c-canonical-group":"[T-716]"},"authored":"2026-08-10","content_sha256":"4787b49e85645f990bd3fecc2df6165abe75f6e8c3f4b21a9489796123b8f119","seq":1,"wave":"dev-wave-t692-r3-xdist-walltime"}
+- {"allocations":{"D:xdist-group-closure-audit":"D258"},"authored":"2026-08-10","content_sha256":"6a6d7b86746aa36d24eb97cad666d7149770605a632c11867ca3d718a57a380e","seq":1,"wave":"dev-wave-t692-r3-xdist-walltime"}

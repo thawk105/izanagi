@@ -80,6 +80,14 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation",
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+    "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
+})
+
+# suite で許す xdist group 名の独立 oracle。conftest や marker 定数から導出しない。
+_XDIST_GROUP_NAMES_GOLDEN = frozenset({
+    "dev-waves-runtime",
+    "real-repo",
+    "s8c-preregistration-candidate",
 })
 
 
@@ -349,9 +357,12 @@ def _require_pytest() -> None:
         skip("pytest 不在 — pytest 依存検査を実行できない")
 
 
-def test_real_repo_group_collection_exactly_matches_canonical_nodes():
-    """real-repo marker の収集結果は正本 node 集合と過不足なく一致する。"""
-    _require_pytest()
+def _collect_xdist_group_report(
+    target: Path, *, cwd: Path, collection_options: tuple[str, ...] = (),
+    lastfailed_nodeids: tuple[str, ...] = (),
+    cached_nodeids: tuple[str, ...] = (),
+) -> list[dict]:
+    """temp plugin で collection 後の全 xdist_group marker を取得する。"""
     with tempfile.TemporaryDirectory(prefix="izanagi-real-repo-collect-") as raw_tmp:
         tmp = Path(raw_tmp)
         report_path = tmp / "markers.json"
@@ -386,6 +397,19 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
             ),
             encoding="utf-8",
         )
+        cache_dir = tmp / "pytest-cache"
+        cache_values = cache_dir / "v" / "cache"
+        if lastfailed_nodeids or cached_nodeids:
+            cache_values.mkdir(parents=True)
+        if lastfailed_nodeids:
+            (cache_values / "lastfailed").write_text(
+                json.dumps(dict.fromkeys(lastfailed_nodeids, True)),
+                encoding="utf-8",
+            )
+        if cached_nodeids:
+            (cache_values / "nodeids").write_text(
+                json.dumps(list(cached_nodeids)), encoding="utf-8",
+            )
         env = os.environ.copy()
         env["IZANAGI_REAL_REPO_MARK_REPORT"] = str(report_path)
         env["PYTHONPATH"] = os.pathsep.join(
@@ -394,15 +418,157 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         proc = _run_subprocess(
             [
                 sys.executable, "-m", "pytest", "--collect-only", "-q",
-                "-p", "real_repo_collection_plugin", str(HERE),
+                "-o", f"cache_dir={cache_dir}",
+                *collection_options,
+                "-p", "real_repo_collection_plugin", str(target),
             ],
-            cwd=ROOT,
+            cwd=cwd,
             env=env,
         )
         assert proc.returncode == 0, (
             f"collection subprocess failed:\nstdout={proc.stdout}\nstderr={proc.stderr}"
         )
-        report = json.loads(report_path.read_text(encoding="utf-8"))
+        return json.loads(report_path.read_text(encoding="utf-8"))
+
+
+def _assert_xdist_group_contract(
+    report: list[dict], expected_group_names: set[str] | frozenset[str],
+) -> None:
+    """全 collected item の marker 個数・表記・group 名閉包を検査する。"""
+    actual_group_names = set()
+    for entry in report:
+        marks = entry["marks"]
+        assert len(marks) <= 1, (
+            "xdist_group marker は 1 node につき最大 1 個でなければならない: "
+            f"nodeid={entry['nodeid']} marks={marks!r}"
+        )
+        if not marks:
+            continue
+        mark = marks[0]
+        args = mark["args"]
+        kwargs = mark["kwargs"]
+        assert (
+            len(args) == 1
+            and isinstance(args[0], str)
+            and not kwargs
+        ), (
+            "xdist_group 名は positional 引数 1 個で与えなければならない: "
+            f"nodeid={entry['nodeid']} mark={mark!r}"
+        )
+        actual_group_names.add(args[0])
+    assert actual_group_names == set(expected_group_names), (
+        "xdist_group 名集合が独立 golden と不一致: "
+        f"missing={sorted(set(expected_group_names) - actual_group_names)} "
+        f"extra={sorted(actual_group_names - set(expected_group_names))}"
+    )
+
+
+def _assert_no_direct_xdist_group_decorators(
+    canonical_nodes: set[str] | frozenset[str], sources: dict[str, str],
+) -> None:
+    """canonical node の関数に手書き xdist_group decorator がないこと。"""
+    assert canonical_nodes, "canonical node 集合が空では provenance を監査できない"
+    nodes_by_file: dict[str, set[str]] = {}
+    for canonical in canonical_nodes:
+        filename, separator, function_name = canonical.partition("::")
+        assert separator and filename and function_name, (
+            f"canonical node が file::function 形でない: {canonical!r}"
+        )
+        nodes_by_file.setdefault(filename, set()).add(function_name)
+
+    missing_sources = set(nodes_by_file) - set(sources)
+    assert not missing_sources, (
+        f"canonical node の source がない: {sorted(missing_sources)}"
+    )
+    missing_functions = []
+    handwritten = []
+    for filename, function_names in sorted(nodes_by_file.items()):
+        module = ast.parse(sources[filename], filename=filename)
+        functions = {
+            node.name: node
+            for node in module.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        for function_name in sorted(function_names):
+            function = functions.get(function_name)
+            if function is None:
+                missing_functions.append(f"{filename}::{function_name}")
+                continue
+            for decorator in function.decorator_list:
+                if not isinstance(decorator, ast.Call):
+                    continue
+                target = decorator.func
+                is_xdist_group = (
+                    isinstance(target, ast.Attribute)
+                    and target.attr == "xdist_group"
+                ) or (
+                    isinstance(target, ast.Name)
+                    and target.id == "xdist_group"
+                )
+                if is_xdist_group:
+                    handwritten.append(
+                        f"{filename}::{function_name}:{decorator.lineno}"
+                    )
+
+    assert not missing_functions, (
+        f"canonical node の関数定義が source にない: {missing_functions}"
+    )
+    assert not handwritten, (
+        "REAL_REPO_SERIAL_NODES の xdist_group は hook 由来でなければならず、"
+        f"手書き decorator を許さない: {handwritten}"
+    )
+
+
+def _assert_real_repo_collection_order(report: list[dict]) -> None:
+    """実 collection の先頭 literal と writer/barrier 関係を検査する。"""
+    expected_priority = (
+        "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
+        "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+    )
+    suite_conftest = _load_suite_conftest()
+    assert tuple(suite_conftest.REAL_REPO_EXECUTION_PRIORITY) == expected_priority, (
+        "conftest の real-repo priority が独立 literal と不一致"
+    )
+    real_repo_order = [
+        entry["canonical_node"]
+        for entry in report
+        if entry["marks"] == [{"args": ["real-repo"], "kwargs": {}}]
+    ]
+    priority_positions = {
+        node: [
+            index for index, actual in enumerate(real_repo_order)
+            if actual == node
+        ]
+        for node in expected_priority
+    }
+    assert all(priority_positions.values()), (
+        "collection 後の real-repo priority node が欠落した: "
+        f"positions={priority_positions!r}"
+    )
+    assert max(priority_positions[expected_priority[0]]) < min(
+        priority_positions[expected_priority[1]]
+    ), (
+        "全 CLI instance が全 cache barrier instance より前でなければならない: "
+        f"positions={priority_positions!r}"
+    )
+    writers = (
+        "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
+        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint",
+    )
+    barrier_index = real_repo_order.index(expected_priority[1])
+    assert all(real_repo_order.index(writer) > barrier_index for writer in writers), (
+        "実 submodule writer が CLI / cache barrier より前にある: "
+        f"order={real_repo_order!r}"
+    )
+
+
+def test_real_repo_group_collection_exactly_matches_canonical_nodes():
+    """全 group marker と real-repo node 集合を独立 golden で監査する。"""
+    _require_pytest()
+    report = _collect_xdist_group_report(HERE, cwd=ROOT)
+    _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)
 
     golden = set(_REAL_REPO_SERIAL_NODES_GOLDEN)
     configured = set(_load_suite_conftest().REAL_REPO_SERIAL_NODES)
@@ -424,9 +590,7 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         canonical = entry["canonical_node"]
         marks = entry["marks"]
         collected_counts[canonical] += 1
-        real_repo_marks = [
-            mark for mark in marks if "real-repo" in mark["args"]
-        ]
+        group_name = marks[0]["args"][0] if marks else None
         if canonical in golden:
             assert marks == exact_mark, (
                 f"{nodeid} の xdist_group は real-repo 1 個だけでなければならない: "
@@ -434,7 +598,7 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
             )
             marked_counts[canonical] += 1
         else:
-            assert not real_repo_marks, (
+            assert group_name != "real-repo", (
                 f"golden 外 instance {nodeid} に real-repo marker がある: "
                 f"{marks!r}"
             )
@@ -448,6 +612,212 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
             f"collected={collected_counts[canonical]} "
             f"marked={marked_counts[canonical]}"
         )
+    _assert_real_repo_collection_order(report)
+
+
+def test_xdist_group_audit_rejects_synthetic_negative_controls():
+    """kwargs・二重 marker の shape 負例が監査を必ず赤にする。"""
+    _require_pytest()
+    with tempfile.TemporaryDirectory(prefix="izanagi-xdist-mark-negative-") as raw_tmp:
+        tmp = Path(raw_tmp)
+        suite = tmp / "test_synthetic_xdist_groups.py"
+        suite.write_text(
+            textwrap.dedent(
+                """
+                import pytest
+
+                @pytest.mark.xdist_group("real-repo", name="real_repo")
+                def test_kwargs_name():
+                    pass
+
+                @pytest.mark.xdist_group("real-repo")
+                @pytest.mark.xdist_group("real-repo")
+                def test_duplicate_markers():
+                    pass
+                """
+            ),
+            encoding="utf-8",
+        )
+        report = _collect_xdist_group_report(suite, cwd=tmp)
+
+    entries = {entry["canonical_node"]: entry for entry in report}
+    controls = (
+        (
+            ("test_synthetic_xdist_groups.py::test_kwargs_name",),
+            {"real-repo"},
+            "positional 引数 1 個",
+        ),
+        (
+            ("test_synthetic_xdist_groups.py::test_duplicate_markers",),
+            {"real-repo"},
+            "最大 1 個",
+        ),
+    )
+    for canonicals, expected_names, expected_error in controls:
+        try:
+            _assert_xdist_group_contract(
+                [entries[canonical] for canonical in canonicals], expected_names,
+            )
+        except AssertionError as exc:
+            assert expected_error in str(exc), (
+                f"{canonicals!r} が意図した不変条件で拒否されなかった: {exc}"
+            )
+        else:
+            raise AssertionError(f"合成負例が監査を通過した: {canonicals!r}")
+
+
+def test_xdist_group_name_set_audit_rejects_isolated_negative_controls():
+    """集合だけが不正な underscore・missing-only・extra-only を拒否する。"""
+    _require_pytest()
+    with tempfile.TemporaryDirectory(prefix="izanagi-xdist-name-negative-") as raw_tmp:
+        tmp = Path(raw_tmp)
+        suite = tmp / "test_synthetic_xdist_group_names.py"
+        suite.write_text(
+            textwrap.dedent(
+                """
+                import pytest
+
+                @pytest.mark.xdist_group("real_repo")
+                def test_underscore_name():
+                    pass
+
+                @pytest.mark.xdist_group("real-repo")
+                def test_missing_only_actual():
+                    pass
+
+                @pytest.mark.xdist_group("real-repo")
+                def test_extra_only_expected():
+                    pass
+
+                @pytest.mark.xdist_group("unexpected-group")
+                def test_extra_only_unexpected():
+                    pass
+                """
+            ),
+            encoding="utf-8",
+        )
+        report = _collect_xdist_group_report(suite, cwd=tmp)
+
+    entries = {entry["canonical_node"]: entry for entry in report}
+    for entry in entries.values():
+        assert len(entry["marks"]) == 1, entry
+        mark = entry["marks"][0]
+        assert (
+            len(mark["args"]) == 1
+            and isinstance(mark["args"][0], str)
+            and mark["kwargs"] == {}
+        ), f"集合負例が marker shape まで壊している: {entry!r}"
+
+    controls = (
+        (
+            ("test_synthetic_xdist_group_names.py::test_underscore_name",),
+            {"real-repo"},
+            "missing=['real-repo'] extra=['real_repo']",
+        ),
+        (
+            ("test_synthetic_xdist_group_names.py::test_missing_only_actual",),
+            {"missing-group", "real-repo"},
+            "missing=['missing-group'] extra=[]",
+        ),
+        (
+            (
+                "test_synthetic_xdist_group_names.py::test_extra_only_expected",
+                "test_synthetic_xdist_group_names.py::test_extra_only_unexpected",
+            ),
+            {"real-repo"},
+            "missing=[] extra=['unexpected-group']",
+        ),
+    )
+    for canonicals, expected_names, expected_error in controls:
+        try:
+            _assert_xdist_group_contract(
+                [entries[canonical] for canonical in canonicals], expected_names,
+            )
+        except AssertionError as exc:
+            assert expected_error in str(exc), (
+                f"{canonicals!r} が集合 assertion だけで拒否されなかった: {exc}"
+            )
+        else:
+            raise AssertionError(f"集合の合成負例が監査を通過した: {canonicals!r}")
+
+
+def test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator():
+    """canonical node の real-repo marker は conftest hook だけが付与する。"""
+    configured = set(_load_suite_conftest().REAL_REPO_SERIAL_NODES)
+    filenames = {canonical.partition("::")[0] for canonical in configured}
+    sources = {
+        filename: (HERE / filename).read_text(encoding="utf-8")
+        for filename in filenames
+    }
+    _assert_no_direct_xdist_group_decorators(configured, sources)
+
+
+def test_handwritten_xdist_group_decorator_control_is_rejected():
+    """canonical node への手書き decorator を AST 監査が実際に拒否する。"""
+    canonical = "test_synthetic_canonical.py::test_canonical"
+    source = textwrap.dedent(
+        """
+        import pytest
+
+        @pytest.mark.xdist_group("real-repo")
+        def test_canonical():
+            pass
+        """
+    )
+    try:
+        _assert_no_direct_xdist_group_decorators(
+            {canonical}, {"test_synthetic_canonical.py": source},
+        )
+    except AssertionError as exc:
+        assert "手書き decorator を許さない" in str(exc), exc
+    else:
+        raise AssertionError("手書き xdist_group decorator の合成負例が監査を通過した")
+
+
+def test_real_repo_priority_order_is_literal_and_writers_follow_barrier():
+    """通常・ff・nf の hook chain 後にも priority と barrier 順を保つ。"""
+    _require_pytest()
+    report = _collect_xdist_group_report(HERE, cwd=ROOT)
+    _assert_real_repo_collection_order(report)
+    nodeids = {
+        entry["canonical_node"]: entry["nodeid"] for entry in report
+    }
+    cli = "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused"
+    barrier = (
+        "test_s8b_binding_driftguards.py::"
+        "test_run_block_broken_binding_manifest_refuses_and_writes_nothing"
+    )
+    controls = (
+        (("--ff",), (nodeids[barrier],), ()),
+        (("--nf",), (), (nodeids[cli],)),
+    )
+    for collection_options, lastfailed_nodeids, cached_nodeids in controls:
+        report = _collect_xdist_group_report(
+            HERE, cwd=ROOT, collection_options=collection_options,
+            lastfailed_nodeids=lastfailed_nodeids,
+            cached_nodeids=cached_nodeids,
+        )
+        _assert_real_repo_collection_order(report)
+
+    # priority node が parameterize されても、raw 先頭 2 item ではなく
+    # canonical node ごとの全 instance 境界で受理する。
+    exact_mark = [{"args": ["real-repo"], "kwargs": {}}]
+    writers = (
+        "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
+        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint",
+    )
+    canonical_nodes = (cli, cli, barrier, barrier, *writers)
+    report = [
+        {
+            "nodeid": f"{canonical}[case-{index}]",
+            "canonical_node": canonical,
+            "marks": exact_mark,
+        }
+        for index, canonical in enumerate(canonical_nodes)
+    ]
+    _assert_real_repo_collection_order(report)
 
 
 def test_protocol_builder_repo_tree_guard_is_wired_to_real_root():
@@ -605,9 +975,16 @@ def test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_
                 @pytest.mark.xdist_group("probe")
                 def test_group_a():
                     _record("a")
+                    out = Path(os.environ["IZANAGI_GROUP_PROBE_OUT"])
+                    (out / "fifo.sentinel").write_text("a", encoding="utf-8")
 
                 @pytest.mark.xdist_group("probe")
                 def test_group_b():
+                    out = Path(os.environ["IZANAGI_GROUP_PROBE_OUT"])
+                    if os.environ.get("IZANAGI_ENFORCE_GROUP_FIFO"):
+                        assert (out / "fifo.sentinel").read_text(
+                            encoding="utf-8",
+                        ) == "a"
                     _record("b")
                 """
             ),
@@ -617,6 +994,7 @@ def test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_
         grouped_out = tmp / "grouped"
         grouped_env = os.environ.copy()
         grouped_env["IZANAGI_GROUP_PROBE_OUT"] = str(grouped_out)
+        grouped_env["IZANAGI_ENFORCE_GROUP_FIFO"] = "1"
         grouped = _run_subprocess(
             [
                 sys.executable, "-m", "pytest", "-q", "-n", "2",
@@ -636,6 +1014,7 @@ def test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_
         control_out = tmp / "control"
         control_env = os.environ.copy()
         control_env["IZANAGI_GROUP_PROBE_OUT"] = str(control_out)
+        control_env.pop("IZANAGI_ENFORCE_GROUP_FIFO", None)
         control = _run_subprocess(
             [sys.executable, "-m", "pytest", "-q", "-n", "2", str(suite)],
             cwd=tmp,

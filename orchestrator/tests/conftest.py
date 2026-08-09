@@ -183,7 +183,16 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation",
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+    # RuleOps inventory が親 working tree と実履歴を読む reader ([T-438])。
+    "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
 })
+
+# real-repo worker の先頭で独立 CLI 解決を開始し、次に共有 cache barrier を置く。
+# この 2 node 以外は collection 時点の相対順を維持する。
+REAL_REPO_EXECUTION_PRIORITY = (
+    "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
+    "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+)
 
 # 意図的な除外（正本リストの境界）:
 # - test_s1_measurement_freeze.py のうち fixture 非利用 3 node (AST import 検査 +
@@ -250,8 +259,30 @@ def pytest_collection_modifyitems(items) -> None:
         item.add_marker(pytest.mark.xdist_group("real-repo"))
 
 
+def _prioritize_real_repo_items(items) -> None:
+    """collection 確定後の real-repo slots へ優先順を適用する。"""
+    priority = {
+        node: index for index, node in enumerate(REAL_REPO_EXECUTION_PRIORITY)
+    }
+    serial_positions = [
+        index for index, item in enumerate(items)
+        if _real_repo_node_id(item) in REAL_REPO_SERIAL_NODES
+    ]
+    serial_items = [items[index] for index in serial_positions]
+    serial_items.sort(
+        key=lambda item: priority.get(
+            _real_repo_node_id(item), len(REAL_REPO_EXECUTION_PRIORITY),
+        ),
+    )
+    for index, item in zip(serial_positions, serial_items):
+        items[index] = item
+
+
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_finish(session) -> None:
-    """Opt-in task-run stats collection; observation must never affect pytest."""
+    """cacheprovider の後で順序を固定し、任意の task-run stats を収集する。"""
+    # collection_finish は --ff / --nf の post-yield より後に来るため、最終順を固定できる。
+    _prioritize_real_repo_items(session.items)
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
