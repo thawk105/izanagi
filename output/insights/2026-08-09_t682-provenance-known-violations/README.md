@@ -70,6 +70,8 @@ U+3164 (`Lo`) だけからなる note が通った。拒否リストを 2 度広
   登録後 rc=0 / 新規違反なし / known-violations=30 / stale 0。
 - **対象テスト**: fix 1 巡目前 6 failed / 261 passed → 1 巡目後 281 passed →
   2 巡目後 286 passed (いずれも rc=0 で確定したのは後 2 者)。
+- **受入全走**: rc=0、**7615 passed / 20 skipped** (1350.34s)。lease `d076270d68a3` を保持して
+  1 走で実施した。
 
 ## 子の非実走について
 

@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t682-provenance-known-violations
 seq: 1
-title: [T-682] provenance の既知違反 23 件を裁定参照つきで登録し、probe を .md 逐語へ移した — 抑止条件は SHA+kind から SHA+kind+観測値へ狭めた (コード + docs、変異 8/8 KILLED・SURVIVED 0、branch worktree-dev-wave-t682-provenance-known-violations)
+title: [T-682] provenance の既知違反 23 件を裁定参照つきで登録し、probe を .md 逐語へ移した — 抑止条件は SHA+kind から SHA+kind+観測値へ狭めた (コード + docs、受入 7615 passed / 20 skipped、変異 8/8 KILLED・SURVIVED 0、branch worktree-dev-wave-t682-provenance-known-violations)
 ---
 
 ## 本文
