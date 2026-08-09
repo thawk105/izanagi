@@ -57,7 +57,17 @@ title: s8c 事前登録の git wall-clock を作業量比例の上限付き予�
 - 変異は事前登録 12 件が **12/12 KILLED、SURVIVED 0、MISMATCH 0、baseline PASSED**。
   M05 (request clamp の除去) は現 production では CAP が先に効くため semantic kill ではなく、
   `DW-M08` の diagnostic sensitivity pin として `category: positive` で分離した。
-- 段 8 自己改善は候補 2 件、いずれも本文へ反映せず候補のまま返す (行き先が並行 wave の編集所有下)。
+- **段 8 自己改善は候補 2 件、採用 0 件。** (候補 1) `DW-M05` の「起動前に総所要を見積る」義務へ
+  「runner mode の実測下限から」を足す — 今回の実害 ({{F:mutation-spec-timeout-below-dispatch-floor}})
+  の恒久対応。**実際に編集したが `check_docs` が赤になり revert した。**
+  `docs/dev-wave/**` の L1.5 footprint は予算 9566 bytes に対し **headroom がちょうど 0** で、
+  59 byte の追記がそのまま 59 byte 超過になった。自己改善契約の「予算に収まらず意味等価に
+  できなければ変更を止めてユーザー裁定へ返す」に従い候補として返す。
+  **これは worklog (342) 候補 2 に続く独立 2 例目**で、当時も「hard ceiling まで残り 1 byte、
+  意味等価な縮約先が無い」と記録されている。すなわち **dev-wave docs の自己改善は現在
+  構造的に入らない状態**であり、個別 wave の努力では解けない。
+  (候補 2) 受入 lease の待ち手を逐語一致で書く罠は {{F:lease-state-matched-literally}} で閉じており、
+  行き先は runbook §7.3 (dev-wave 系ではない) なので本契約の射程外とした。
 
 ## 次の一手差分
 
