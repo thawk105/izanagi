@@ -1,0 +1,136 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 30,
+  "timeout_seconds": 300,
+  "hang_timeout_seconds": 180,
+  "mutations": [
+    {
+      "id": "MT1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    \"test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight\",",
+          "new": "    \"test_ruleops.py::__t692_mutant_removed_from_canonical_set__\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ruleops.py",
+          "old": "def test_real_checkout_independent_maximum_package_and_runner_preflight(",
+          "new": "@pytest.mark.xdist_group(name=\"real_repo\")\ndef test_real_checkout_independent_maximum_package_and_runner_preflight("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        item.add_marker(pytest.mark.xdist_group(\"real-repo\"))",
+          "new": "        item.add_marker(pytest.mark.xdist_group(\"real_repo\"))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "            and not kwargs\n",
+          "new": "            and True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_xdist_group_audit_rejects_synthetic_negative_controls"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "    assert actual_group_names == set(expected_group_names), (",
+          "new": "    assert actual_group_names <= set(expected_group_names), ("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_xdist_group_name_set_audit_rejects_isolated_negative_controls"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "REAL_REPO_EXECUTION_PRIORITY = (\n    \"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\n    \"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\n)",
+          "new": "REAL_REPO_EXECUTION_PRIORITY = (\n    \"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\n    \"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_priority_order_is_literal_and_writers_follow_barrier"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "REAL_REPO_EXECUTION_PRIORITY = (\n    \"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\n    \"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\n)",
+          "new": "REAL_REPO_EXECUTION_PRIORITY = ()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_priority_order_is_literal_and_writers_follow_barrier"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "    assert canonical_nodes, \"canonical node 集合が空では provenance を監査できない\"",
+          "new": "    assert canonical_nodes, \"canonical node 集合が空では provenance を監査できない\"\n    return"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_handwritten_xdist_group_decorator_control_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
