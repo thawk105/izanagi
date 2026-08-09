@@ -170,15 +170,6 @@ COMMAND_LIMITS = {
     ".claude/commands/cleanup-branches.md": TextLimit(4_000, 110),
     ".claude/commands/rulings.md": TextLimit(5_000, 180),
 }
-# 段2 DW-S07縮約案は、この節だけの「再走値は amend」「insights の逐語・変異台帳」義務を
-# byte予算のため落としていた。安全義務を削らせる手段目的の逆転を止めるため、ユーザー裁定
-# (2026-08-02) により小幅に引き上げる。
-REFERENCE_LIMITS = {
-    "docs/dev-wave/core.md": TextLimit(9_600),
-    "docs/dev-wave/workers.md": TextLimit(5_000),
-    "docs/dev-wave/mutation.md": TextLimit(3_750),
-    "docs/dev-wave/operations.md": TextLimit(8_400),
-}
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
 }
@@ -248,14 +239,9 @@ CODEX_DEV_WAVE_SKILL_LIMITS = {
     ".agents/skills/dev-wave/SKILL.md": TextLimit(5_500, 400),
     ".agents/skills/dev-wave/agents/openai.yaml": TextLimit(500, 160),
 }
-# 段2 DW-S07縮約案は、この節だけの「再走値は amend」「insights の逐語・変異台帳」義務を
-# byte予算のため落としていた。安全義務を削らせる手段目的の逆転を止めるため、ユーザー裁定
-# (2026-08-02) により小幅に引き上げる。
-DEV_WAVE_AGGREGATE_BYTES = 25_200
-# 個別 cap は各 reference の「形」を守り、実 byte 合計の ceiling が実効 gate になる。
-# cap 総和が ceiling を大きく超えると個別 gate が事実上無効になるため、作業余裕を
-# 10% だけ許す 1.10 倍を構成上限とする。
-DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT = 110
+DEV_WAVE_L1_BYTES_MAX = 10_625
+DEV_WAVE_L1_5_BYTES_MAX = 9_566
+DEV_WAVE_L2_SECTION_BYTES_MAX = 1_000
 CODEX_DEV_WAVE_SKILL_FILES = frozenset(CODEX_DEV_WAVE_SKILL_LIMITS)
 CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "段 9 は dispatcher が指定する共通 land 契約だけに従い、"
@@ -465,8 +451,9 @@ REQUIRED_REFERENCE_SECTIONS = {
         f"DW-O{i:02d}" for i in _OPERATION_NUMBERS
     },
 }
-NORMATIVE_DISPATCH_ALLOWLIST = frozenset(
-    {*REFERENCE_LIMITS, *SELF_LIMITS}
+DEV_WAVE_REFERENCE_FILES = frozenset(REQUIRED_REFERENCE_SECTIONS)
+NORMATIVE_DISPATCH_ALLOWLIST = (
+    DEV_WAVE_REFERENCE_FILES | frozenset(SELF_LIMITS)
 )
 REQUIRED_SELF_HEADINGS = {
     2: {
@@ -495,16 +482,26 @@ _ALL_OPERATIONS = _pairs(
     _OPERATIONS, *(f"DW-O{i:02d}" for i in _OPERATION_NUMBERS)
 )
 
-STAGE_DISPATCH_CONTRACT = {
-    "wave 開始": _pairs(_CORE, "DW-C00", "DW-CTX", "DW-STOP"),
+DEV_WAVE_STAGE_DISPATCH_LEGEND = "種別は U=無条件、C=条件 dispatch 成立時。"
+DEV_WAVE_STAGE_DISPATCH_HEADER = "| 入る直前 | 種別 | 必ず読む節 |"
+DEV_WAVE_CONDITION_DISPATCH_HEADER = "| # | 発火条件 | 読む節 |"
+DEV_WAVE_L1_STAGE_KEYS = frozenset({
+    "wave 開始", "段 1", "段 4", "段 7", "段 8 preflight", "段 9",
+})
+DEV_WAVE_L1_5_STAGE_KEYS = frozenset({
+    "段 2 preflight", "段 3 preflight", "段 5", "段 6",
+})
+
+STAGE_UNCONDITIONAL_DISPATCH_CONTRACT = {
+    "wave 開始": _pairs(_CORE, "DW-C00", "DW-STOP"),
     "段 1": _pairs(
         _CORE, "DW-S01", "DW-G01", "DW-G02", "DW-G03", "DW-G04", "DW-G05"
     ),
-    "段 2": (
+    "段 2 preflight": (
         _pairs(_WORKERS, "DW-S02")
         | _pairs(_OPERATIONS, "DW-O01", "DW-O02", "DW-O03", "DW-O05")
     ),
-    "段 3": (
+    "段 3 preflight": (
         _pairs(_WORKERS, "DW-S03")
         | _pairs(
             _OPERATIONS, "DW-O01", "DW-O02", "DW-O03", "DW-O05", "DW-O13"
@@ -516,10 +513,7 @@ STAGE_DISPATCH_CONTRACT = {
         )
         | _pairs(_MUTATION, "DW-M01")
     ),
-    "段 5": (
-        _pairs(_WORKERS, "DW-S05-A", "DW-S05-B", "DW-S05-C")
-        | _ALL_OPERATIONS
-    ),
+    "段 5": _pairs(_WORKERS, "DW-S05-A", "DW-S05-B", "DW-S05-C"),
     "段 6": (
         _pairs(
             _WORKERS,
@@ -532,21 +526,34 @@ STAGE_DISPATCH_CONTRACT = {
             "DW-M02", "DW-M03", "DW-M04", "DW-M05",
             "DW-M06", "DW-M07", "DW-M08",
         )
-        | _ALL_OPERATIONS
     ),
-    "段 7": (
-        _pairs(_CORE, "DW-S07")
-        | _pairs(_OPERATIONS, "DW-O12", "DW-O17", "DW-O18", "DW-O19")
-    ),
-    "段 8": (
+    "段 7": _pairs(_CORE, "DW-S07"),
+    "段 8 preflight": (
         _pairs(_CORE, "DW-S08")
         | _SELF_SECTIONS
-        | _pairs(_OPERATIONS, "DW-O04", "DW-O17")
     ),
     "段 9": (
         _pairs(_CORE, "DW-S09", "DW-CTX", "DW-STOP")
         | _pairs(_OPERATIONS, "DW-O23")
     ),
+}
+
+STAGE_CONDITIONAL_DISPATCH_CONTRACT = {
+    "段 5": _ALL_OPERATIONS,
+    "段 6": _ALL_OPERATIONS,
+    "段 7": _pairs(_OPERATIONS, "DW-O12", "DW-O17", "DW-O18", "DW-O19"),
+    "段 8 preflight": _pairs(_OPERATIONS, "DW-O17"),
+}
+
+STAGE_DISPATCH_CONTRACT = {
+    key: (
+        STAGE_UNCONDITIONAL_DISPATCH_CONTRACT.get(key, frozenset())
+        | STAGE_CONDITIONAL_DISPATCH_CONTRACT.get(key, frozenset())
+    )
+    for key in (
+        set(STAGE_UNCONDITIONAL_DISPATCH_CONTRACT)
+        | set(STAGE_CONDITIONAL_DISPATCH_CONTRACT)
+    )
 }
 CONDITION_DISPATCH_CONTRACT = {
     f"{i:02d}": _pairs(_OPERATIONS, f"DW-O{i:02d}")
@@ -558,6 +565,31 @@ CONDITION_DISPATCH_CONTRACT.update({
     "22": _pairs(_CORE, "DW-CTX"),
     "24": _pairs(_CORE, "DW-C00"),
 })
+CONDITION_TRIGGER_CONTRACT = {
+    "01": "codex subprocess を起動する直前",
+    "02": "prompt・log・patch を作る直前",
+    "03": "prompt に防護パス文字列を含めて作る直前",
+    "04": "commit message に防護パス文字列を含めて作る直前",
+    "05": "read-only codex に相談・レビューさせる直前",
+    "06": "workspace-write 子で submodule 系テストを扱う直前",
+    "08": "freeze / oracle gate / proof chain に触る可能性が判明",
+    "09": "凍結成果物の bytes を変えうる可能性が判明",
+    "10": "09 が成立し producer の出力 bytes が変わりうる",
+    "11": "ファイル削除を伴うと判明",
+    "12": "裁定手順と実行手順が食い違った時点",
+    "13": "gate・検証を新設する可能性が生じた時点",
+    "14": "no-touch 対象へ monkeypatch を検討する直前",
+    "15": "fix 後に変異を走らせる直前",
+    "16": "fix 後の焦点再レビューを行う直前",
+    "17": "commit を作る直前",
+    "18": "親がテスト・受入を走らせる直前",
+    "19": "tracked file を一時変異する直前",
+    "20": "背景 job + worktree 隔離の wave 開始時（最遅: clean-tree gate を worktree で走らせる直前）",
+    "21": "無人継続を構成し最初の process を起動する前",
+    "22": "supervisor を使用する前",
+    "23": "local main を取り込む直前",
+    "24": "背景 producer・待ち手の生成 / 再利用 / 停止、通知処理、待ち条件作成の直前",
+}
 
 D2_ROLLBACK_STRUCTURE = re.compile(
     r"条件には最遅読了段がある。"
@@ -1713,13 +1745,59 @@ def _check_backlog_guard(
 
 @dataclass
 class _DispatchTables:
-    stages: dict[str, set[tuple[str, str]]]
-    conditions: dict[str, set[tuple[str, str]]]
+    edges: set[tuple[str, str, str, str]]
+    condition_triggers: dict[str, set[str]]
     condition_row_counts: dict[str, int]
     paths: set[str]
+    structure_errors: tuple[str, ...]
+
+    @property
+    def stage_unconditional(self) -> dict[str, set[tuple[str, str]]]:
+        return _stage_dispatch_from_edges(self.edges, "U")
+
+    @property
+    def stage_conditional(self) -> dict[str, set[tuple[str, str]]]:
+        return _stage_dispatch_from_edges(self.edges, "C")
+
+    @property
+    def stages(self) -> dict[str, set[tuple[str, str]]]:
+        keys = set(self.stage_unconditional) | set(self.stage_conditional)
+        return {
+            key: (
+                self.stage_unconditional.get(key, set())
+                | self.stage_conditional.get(key, set())
+            )
+            for key in keys
+        }
+
+    @property
+    def conditions(self) -> dict[str, set[tuple[str, str]]]:
+        result: dict[str, set[tuple[str, str]]] = {}
+        for owner, mode, path, section in self.edges:
+            if owner.startswith("条件 ") and mode == "C":
+                result.setdefault(owner.removeprefix("条件 "), set()).add(
+                    (path, section)
+                )
+        return result
+
+
+def _stage_dispatch_from_edges(
+    edges: set[tuple[str, str, str, str]],
+    mode: str,
+) -> dict[str, set[tuple[str, str]]]:
+    result: dict[str, set[tuple[str, str]]] = {}
+    for owner, edge_mode, path, section in edges:
+        if not owner.startswith("条件 ") and edge_mode == mode:
+            result.setdefault(owner, set()).add((path, section))
+    return result
 
 
 _DISPATCH_PATH_RE = re.compile(r"`((?:docs|\.claude)/[^`]+\.md)`")
+_DISPATCH_RAW_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9_.-])"
+    r"(?:docs|\.claude)/[^\s`|;:]+\.md"
+    r"(?![A-Za-z0-9_.-])"
+)
 _DISPATCH_SECTION_ID = (
     r"(?:DW-(?:[A-Z][0-9]{2}(?:-[A-C])?|CTX|STOP)|PR-[AC][0-9]{2})"
 )
@@ -1727,6 +1805,45 @@ _DISPATCH_TOKEN_RE = re.compile(
     r"`(?P<path>(?:docs|\.claude)/[^`]+\.md)`"
     rf"|`(?P<section>{_DISPATCH_SECTION_ID})`"
 )
+_SELF_ALL_SECTIONS_RE = re.compile(
+    rf"(?:^|;[ \t]*)`{re.escape(_SELF_PATH)}` の全節(?=;|$)"
+)
+
+
+def _dispatch_reference_cell_errors(cell: str) -> tuple[str, ...]:
+    """dev-wave の参照 cell で grammar 外の path・全節指定を拒否する。"""
+
+    quoted_matches = list(_DISPATCH_PATH_RE.finditer(cell))
+    quoted_paths = {match.group(1) for match in quoted_matches}
+    quoted_spans = {
+        (match.start(1), match.end(1)) for match in quoted_matches
+    }
+    raw_matches = list(_DISPATCH_RAW_PATH_RE.finditer(cell))
+    raw_paths = {match.group(0) for match in raw_matches}
+    unquoted_paths = sorted(
+        {
+            match.group(0)
+            for match in raw_matches
+            if (match.start(), match.end()) not in quoted_spans
+        }
+    )
+
+    errors: list[str] = []
+    if raw_paths != quoted_paths or unquoted_paths:
+        errors.append(
+            "raw .md path と backtick path が一致しない — "
+            f"raw={sorted(raw_paths)}, quoted={sorted(quoted_paths)}, "
+            f"unquoted={unquoted_paths}"
+        )
+
+    all_sections_count = cell.count("の全節")
+    exact_self_count = len(_SELF_ALL_SECTIONS_RE.findall(cell))
+    if all_sections_count != exact_self_count:
+        errors.append(
+            "`docs/skill-self-improvement.md` の exact fragment 以外に "
+            f"の全節がある — all={all_sections_count}, exact={exact_self_count}"
+        )
+    return tuple(errors)
 
 
 def _markdown_sections(text: str, heading: str) -> list[str]:
@@ -1788,7 +1905,10 @@ def _dispatch_pairs_from_line(
         if previous is not None:
             previous_section, previous_path, previous_end = previous
             between = line[previous_end:token.start()]
-            if previous_path == current_path and re.search(r"[〜~]", between):
+            if (
+                previous_path == current_path
+                and re.fullmatch(r"[ \t]*〜[ \t]*", between)
+            ):
                 pairs.update(
                     (current_path, expanded)
                     for expanded in _expand_dispatch_range(
@@ -1796,7 +1916,7 @@ def _dispatch_pairs_from_line(
                     )
                 )
         previous = (section, current_path, token.end())
-    if _SELF_PATH in paths and "全節" in line:
+    if _SELF_PATH in paths and len(_SELF_ALL_SECTIONS_RE.findall(line)) == 1:
         pairs.update(_SELF_SECTIONS)
     return pairs, paths
 
@@ -3200,50 +3320,138 @@ def _provenance_markdown_ambiguities(text: str) -> tuple[str, ...]:
 
 
 def _dispatch_tables(text: str) -> _DispatchTables | None:
-    """段/条件表を一意に取り出し、行キーごとの規範参照へ展開する。
+    """段/条件表を一意に取り出し、typed edge へ展開する。
 
     表の直接参照だけを閉じる。leaf reference 本文から別 living doc への間接委譲は、
     義務本文の意味判定を要するため本 lint の既知限界として検査しない。
     """
 
+    visible_text = _visible_dispatch_inventory_text(text)
     sections = {
-        heading: _markdown_sections(text, heading)
+        heading: _markdown_sections(visible_text, heading)
         for heading in ("段 dispatch", "条件 dispatch")
     }
     if any(len(matches) != 1 for matches in sections.values()):
         return None
 
-    stages: dict[str, set[tuple[str, str]]] = {}
-    conditions: dict[str, set[tuple[str, str]]] = {}
+    edges: set[tuple[str, str, str, str]] = set()
+    condition_triggers: dict[str, set[str]] = {}
     condition_row_counts: dict[str, int] = {}
     paths: set[str] = set()
+    structure_errors: list[str] = []
 
-    for line in sections["段 dispatch"][0].splitlines():
+    stage_lines = sections["段 dispatch"][0].splitlines()
+    legend_count = stage_lines.count(DEV_WAVE_STAGE_DISPATCH_LEGEND)
+    header_count = stage_lines.count(DEV_WAVE_STAGE_DISPATCH_HEADER)
+    if legend_count != 1:
+        structure_errors.append(
+            f"段 dispatch 凡例が exact 1 件でない — rows={legend_count}"
+        )
+    if header_count != 1:
+        structure_errors.append(
+            f"段 dispatch header が exact 1 件でない — rows={header_count}"
+        )
+
+    for line in stage_lines:
         if not line.startswith("|"):
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) < 2 or not _DISPATCH_PATH_RE.search(line):
+        if line == DEV_WAVE_STAGE_DISPATCH_HEADER or all(
+            re.fullmatch(r":?-+:?", cell) for cell in cells
+        ):
             continue
-        raw_key = cells[0]
-        match = re.fullmatch(r"(段 [1-9])(?: preflight)?", raw_key)
-        key = match.group(1) if match else raw_key
-        pairs, line_paths = _dispatch_pairs_from_line(line)
-        stages.setdefault(key, set()).update(pairs)
+        if len(cells) != 3:
+            structure_errors.append(
+                f"段 dispatch data row が3列でない — cells={len(cells)}"
+            )
+            continue
+        key, mode, reference_cell = cells
+        if mode not in {"U", "C"}:
+            structure_errors.append(
+                f"段 dispatch {key!r} の種別が U/C exact 1文字でない — {mode!r}"
+            )
+            continue
+        reference_errors = _dispatch_reference_cell_errors(reference_cell)
+        if reference_errors:
+            structure_errors.extend(
+                f"段 dispatch {key!r} の参照 cell grammar が不一致 — {error}"
+                for error in reference_errors
+            )
+        pairs, line_paths = _dispatch_pairs_from_line(reference_cell)
+        pair_paths = {path for path, _ in pairs}
+        if line_paths != pair_paths:
+            structure_errors.append(
+                f"段 dispatch {key!r} に節へ束縛されない path がある — "
+                f"paths={sorted(line_paths)}, pair_paths={sorted(pair_paths)}"
+            )
+        edges.update((key, mode, path, section) for path, section in pairs)
         paths.update(line_paths)
 
-    for line in sections["条件 dispatch"][0].splitlines():
+    condition_lines = sections["条件 dispatch"][0].splitlines()
+    condition_header_count = condition_lines.count(
+        DEV_WAVE_CONDITION_DISPATCH_HEADER
+    )
+    first_condition_table_row = next(
+        (index for index, line in enumerate(condition_lines) if line.startswith("|")),
+        None,
+    )
+    if (
+        condition_header_count != 1
+        or first_condition_table_row is None
+        or condition_lines[first_condition_table_row]
+        != DEV_WAVE_CONDITION_DISPATCH_HEADER
+    ):
+        structure_errors.append(
+            "条件 dispatch header が exact 1 件でない、または先頭表行でない — "
+            f"rows={condition_header_count}"
+        )
+
+    for index, line in enumerate(condition_lines):
         if not line.startswith("|"):
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) < 3 or not _DISPATCH_PATH_RE.search(line):
+        if (
+            index == first_condition_table_row
+            or line == DEV_WAVE_CONDITION_DISPATCH_HEADER
+            or all(
+                re.fullmatch(r":?-+:?", cell) for cell in cells
+            )
+        ):
             continue
-        key = cells[0]
-        pairs, line_paths = _dispatch_pairs_from_line(line)
-        conditions.setdefault(key, set()).update(pairs)
+        if len(cells) != 3:
+            structure_errors.append(
+                f"条件 dispatch data row が3列でない — cells={len(cells)}"
+            )
+            continue
+        key, trigger, reference_cell = cells
+        reference_errors = _dispatch_reference_cell_errors(reference_cell)
+        if reference_errors:
+            structure_errors.extend(
+                f"条件 dispatch {key!r} の参照 cell grammar が不一致 — {error}"
+                for error in reference_errors
+            )
+        pairs, line_paths = _dispatch_pairs_from_line(reference_cell)
+        pair_paths = {path for path, _ in pairs}
+        if line_paths != pair_paths:
+            structure_errors.append(
+                f"条件 dispatch {key!r} に節へ束縛されない path がある — "
+                f"paths={sorted(line_paths)}, pair_paths={sorted(pair_paths)}"
+            )
+        edges.update(
+            (f"条件 {key}", "C", path, section)
+            for path, section in pairs
+        )
+        condition_triggers.setdefault(key, set()).add(trigger)
         condition_row_counts[key] = condition_row_counts.get(key, 0) + 1
         paths.update(line_paths)
 
-    return _DispatchTables(stages, conditions, condition_row_counts, paths)
+    return _DispatchTables(
+        edges,
+        condition_triggers,
+        condition_row_counts,
+        paths,
+        tuple(structure_errors),
+    )
 
 
 def _parse_frontmatter(text: str) -> tuple[dict[str, str], set[str]] | None:
@@ -3413,24 +3621,146 @@ def _check_codex_skill_guard(
         )
 
 
-def _check_dev_wave_reference_cap_sum(
+def _visible_reference_slices(
+    text: str,
+) -> tuple[str, dict[str, list[str]], str]:
+    """可視 H2 の raw offset を境界に、原文 byte slice を返す。"""
+
+    visible_lines = _dispatch_visible_markdown_lines(text)
+    boundaries: list[tuple[int, str | None]] = []
+    for visible, offset, _ in visible_lines:
+        if not re.match(r"^##\s+", visible):
+            continue
+        match = re.match(r"^##\s+([^\s—]+)", visible)
+        boundaries.append((offset, match.group(1) if match is not None else None))
+
+    first = boundaries[0][0] if boundaries else len(text)
+    slices: dict[str, list[str]] = {}
+    for index, (start, section_id) in enumerate(boundaries):
+        end = boundaries[index + 1][0] if index + 1 < len(boundaries) else len(text)
+        if section_id is not None:
+            slices.setdefault(section_id, []).append(text[start:end])
+    visible_text = "".join(
+        visible + newline for visible, _, newline in visible_lines
+    )
+    return text[:first], slices, visible_text
+
+
+def _check_dev_wave_layer_budget(
     findings: list[str],
-    reference_limits: Mapping[str, TextLimit],
-    aggregate_bytes: int,
+    decoded: Mapping[str, str],
+    edges: set[tuple[str, str, str, str]],
 ) -> None:
-    cap_sum = sum(limit.max_bytes for limit in reference_limits.values())
-    if (
-        cap_sum * 100
-        > aggregate_bytes * DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT
-    ):
-        max_cap_sum = (
-            aggregate_bytes * DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT // 100
-        )
+    """dispatch edge から leaf unique-footprint の三層予算を検査する。"""
+
+    registered_pairs = {
+        (path, section)
+        for path, sections in REQUIRED_REFERENCE_SECTIONS.items()
+        for section in sections
+    }
+    unconditional = _stage_dispatch_from_edges(edges, "U")
+    l1_pairs = set().union(*(
+        unconditional.get(key, set()) for key in DEV_WAVE_L1_STAGE_KEYS
+    )) if DEV_WAVE_L1_STAGE_KEYS else set()
+    l1_5_pairs = (
+        set().union(*(
+            unconditional.get(key, set()) for key in DEV_WAVE_L1_5_STAGE_KEYS
+        )) if DEV_WAVE_L1_5_STAGE_KEYS else set()
+    ) - l1_pairs
+    l1_pairs &= registered_pairs
+    l1_5_pairs &= registered_pairs
+    l2_pairs = registered_pairs - l1_pairs - l1_5_pairs
+    layer_pairs = {
+        "L1": l1_pairs,
+        "L1.5": l1_5_pairs,
+        "L2": l2_pairs,
+    }
+    layer_bytes = {"L1": 0, "L1.5": 0, "L2": 0}
+    classified_bytes = 0
+    assigned_preamble_bytes = 0
+    actual_bytes = 0
+
+    for rel in sorted(DEV_WAVE_REFERENCE_FILES):
+        text = decoded.get(rel)
+        if text is None:
+            continue
+        actual_bytes += len(text.encode("utf-8"))
+        preamble, slices, visible_text = _visible_reference_slices(text)
+        present_layers = [
+            layer
+            for layer in ("L1", "L1.5", "L2")
+            if any(path == rel for path, _ in layer_pairs[layer])
+        ]
+        if "L1" in present_layers:
+            preamble_layer = "L1"
+        elif "L1.5" in present_layers:
+            preamble_layer = "L1.5"
+        else:
+            findings.append(
+                f"{rel}: L2 節しかない reference — preamble の無上限化を拒否"
+            )
+            preamble_layer = None
+        if preamble_layer is not None:
+            preamble_bytes = len(preamble.encode("utf-8"))
+            assigned_preamble_bytes += preamble_bytes
+            layer_bytes[preamble_layer] += preamble_bytes
+
+        for layer, pairs in layer_pairs.items():
+            for path, section in sorted(pairs):
+                if path != rel:
+                    continue
+                section_slices = slices.get(section, [])
+                exact_count = len(_reference_id_sections(visible_text, section))
+                if len(section_slices) != 1 or exact_count != 1:
+                    findings.append(
+                        f"{rel}: 可視 H2 {section} と byte slice が1:1でない — "
+                        f"visible_exact={exact_count}, slices={len(section_slices)}"
+                    )
+                if len(section_slices) != 1:
+                    continue
+                section_bytes = len(section_slices[0].encode("utf-8"))
+                classified_bytes += section_bytes
+                layer_bytes[layer] += section_bytes
+                if (
+                    layer == "L2"
+                    and section_bytes > DEV_WAVE_L2_SECTION_BYTES_MAX
+                ):
+                    findings.append(
+                        f"{rel}: L2 節 {section} が {section_bytes} bytes > "
+                        f"単節予算 {DEV_WAVE_L2_SECTION_BYTES_MAX} bytes"
+                    )
+
+    covered_bytes = classified_bytes + assigned_preamble_bytes
+    if covered_bytes != actual_bytes:
         findings.append(
-            "docs/dev-wave/**: 個別 cap 総和 "
-            f"{cap_sum} bytes > aggregate ceiling {aggregate_bytes} bytes の "
-            f"1.10 倍 ({max_cap_sum} bytes)"
+            "docs/dev-wave/**: 分類済み節 + preamble が実 bytes を被覆しない — "
+            f"classified={classified_bytes}, preamble={assigned_preamble_bytes}, "
+            f"actual={actual_bytes}"
         )
+    if layer_bytes["L1"] > DEV_WAVE_L1_BYTES_MAX:
+        findings.append(
+            f"docs/dev-wave/**: L1 unique footprint {layer_bytes['L1']} bytes > "
+            f"予算 {DEV_WAVE_L1_BYTES_MAX} bytes"
+        )
+    if layer_bytes["L1.5"] > DEV_WAVE_L1_5_BYTES_MAX:
+        findings.append(
+            f"docs/dev-wave/**: L1.5 unique footprint {layer_bytes['L1.5']} bytes > "
+            f"予算 {DEV_WAVE_L1_5_BYTES_MAX} bytes"
+        )
+
+
+def _dev_wave_visible_inventory_is_exact(decoded: Mapping[str, str]) -> bool:
+    """既存 inventory finding がある入力では層 finding を重ねない。"""
+
+    for rel, expected in REQUIRED_REFERENCE_SECTIONS.items():
+        text = decoded.get(rel)
+        if text is None:
+            return False
+        visible_text = _visible_dispatch_inventory_text(text)
+        actual = re.findall(r"^##\s+([^\s—]+)", visible_text, re.MULTILINE)
+        if len(actual) != len(expected) or set(actual) != expected:
+            return False
+    return True
 
 
 def _check_dev_wave_model_pins(
@@ -3558,11 +3888,6 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
     """command/reference の閉包・予算・interface・dispatch を fail-closed 検査する。"""
 
     unreadable: set[Path] = set()
-    _check_dev_wave_reference_cap_sum(
-        findings,
-        REFERENCE_LIMITS,
-        DEV_WAVE_AGGREGATE_BYTES,
-    )
     command_dir = REPO / ".claude" / "commands"
     if command_dir.is_symlink():
         findings.append(
@@ -3598,12 +3923,12 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         }
         if reference_root.is_dir() else set()
     )
-    expected_references = {REPO / rel for rel in REFERENCE_LIMITS}
+    expected_references = {REPO / rel for rel in DEV_WAVE_REFERENCE_FILES}
     extra_references = sorted(actual_references - expected_references)
     missing_references = sorted(expected_references - actual_references)
     for path in extra_references:
         findings.append(
-            f"{path.relative_to(REPO)}: docs/dev-wave/** の予算未登録実体 — "
+            f"{path.relative_to(REPO)}: docs/dev-wave/** の層予算registry未登録実体 — "
             "規範 detail を4 referenceの閉包外へ逃がしてはならない"
         )
     for path in missing_references:
@@ -3651,17 +3976,20 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         )
         unreadable.add(path)
 
-    all_limits = {
+    bounded_limits = {
         **COMMAND_LIMITS,
-        **REFERENCE_LIMITS,
         **SELF_LIMITS,
         **TOOLS_README_LIMITS,
         **PROVENANCE_LIMITS,
         **PROVENANCE_REFERENCE_LIMITS,
     }
+    all_text_files: dict[str, TextLimit | None] = {
+        rel: None for rel in DEV_WAVE_REFERENCE_FILES
+    }
+    all_text_files.update(bounded_limits)
     decoded: dict[str, str] = {}
     sizes: dict[str, int] = {}
-    for rel, limit in all_limits.items():
+    for rel, limit in all_text_files.items():
         path = REPO / rel
         if path in unreadable:
             continue
@@ -3687,26 +4015,19 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
             continue
         size = len(text.encode("utf-8"))
         sizes[rel] = size
-        if size > limit.max_bytes:
+        if limit is not None and size > limit.max_bytes:
             findings.append(
                 f"{rel}: {size} bytes > 予算 {limit.max_bytes} bytes — "
                 "安全義務を削らず既存 reference へ統合する。予算増加は独立審査にする"
             )
         decoded[rel] = text
-        if limit.max_line_chars is not None:
+        if limit is not None and limit.max_line_chars is not None:
             for lineno, line in enumerate(text.splitlines(), 1):
                 if len(line) > limit.max_line_chars:
                     findings.append(
                         f"{rel}:{lineno}: {len(line)} chars > 最長行予算 "
                         f"{limit.max_line_chars} — 規則を一行へ詰め込まない"
                     )
-
-    reference_size = sum(sizes.get(rel, 0) for rel in REFERENCE_LIMITS)
-    if not missing_references and reference_size > DEV_WAVE_AGGREGATE_BYTES:
-        findings.append(
-            f"docs/dev-wave/**: 合計 {reference_size} bytes > hard ceiling "
-            f"{DEV_WAVE_AGGREGATE_BYTES} bytes"
-        )
 
     if PROVENANCE_FAMILY_FILES.issubset(sizes):
         provenance_size = sum(
@@ -4037,29 +4358,56 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 ".claude/commands/dev-wave.md: 段/条件 dispatch 表を一意に抽出できない"
             )
         else:
-            for key in sorted(
-                set(STAGE_DISPATCH_CONTRACT) | set(dispatch.stages)
+            dispatch_findings_start = len(findings)
+            if dispatch.structure_errors:
+                findings.append(
+                    ".claude/commands/dev-wave.md: 段/条件 dispatch 表の構造が不一致 — "
+                    f"{list(dispatch.structure_errors)}"
+                )
+            for mode, expected_map, actual_map in (
+                (
+                    "U",
+                    STAGE_UNCONDITIONAL_DISPATCH_CONTRACT,
+                    dispatch.stage_unconditional,
+                ),
+                (
+                    "C",
+                    STAGE_CONDITIONAL_DISPATCH_CONTRACT,
+                    dispatch.stage_conditional,
+                ),
             ):
-                expected = STAGE_DISPATCH_CONTRACT.get(key, frozenset())
-                actual = dispatch.stages.get(key, set())
-                if actual != expected:
+                for key in sorted(set(expected_map) | set(actual_map)):
+                    expected = expected_map.get(key, frozenset())
+                    actual = actual_map.get(key, set())
+                    if actual == expected:
+                        continue
                     findings.append(
                         ".claude/commands/dev-wave.md: "
-                        f"段 dispatch {key!r} が契約と不一致 — "
+                        f"段 dispatch {key!r} の {mode} edge が契約と不一致 — "
                         f"missing={sorted(expected - actual)}, "
                         f"extra={sorted(actual - expected)}"
                     )
             for key in sorted(
-                set(CONDITION_DISPATCH_CONTRACT) | set(dispatch.conditions)
+                set(CONDITION_DISPATCH_CONTRACT)
+                | set(CONDITION_TRIGGER_CONTRACT)
+                | set(dispatch.conditions)
+                | set(dispatch.condition_triggers)
             ):
                 expected = CONDITION_DISPATCH_CONTRACT.get(key, frozenset())
                 actual = dispatch.conditions.get(key, set())
                 row_count = dispatch.condition_row_counts.get(key, 0)
-                if actual != expected or row_count != 1:
+                actual_triggers = dispatch.condition_triggers.get(key, set())
+                expected_trigger = CONDITION_TRIGGER_CONTRACT.get(key)
+                if (
+                    actual != expected
+                    or row_count != 1
+                    or actual_triggers != {expected_trigger}
+                ):
                     findings.append(
                         ".claude/commands/dev-wave.md: "
                         f"条件 dispatch {key!r} が契約と不一致 — "
                         f"rows={row_count}, "
+                        f"triggers={sorted(actual_triggers)!r}, "
                         f"missing={sorted(expected - actual)}, "
                         f"extra={sorted(actual - expected)}"
                     )
@@ -4071,6 +4419,28 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     ".claude/commands/dev-wave.md: 規範 dispatch の参照先が allowlist 外 — "
                     f"{disallowed}"
                 )
+            registered_pairs = {
+                (path, section)
+                for path, sections in REQUIRED_REFERENCE_SECTIONS.items()
+                for section in sections
+            }
+            dispatched_reference_pairs = {
+                (path, section)
+                for _, _, path, section in dispatch.edges
+                if path in DEV_WAVE_REFERENCE_FILES
+            }
+            if dispatched_reference_pairs != registered_pairs:
+                findings.append(
+                    "tools/check_docs.py: dev-wave registry と typed edge の閉包が不一致 — "
+                    f"undispatched={sorted(registered_pairs - dispatched_reference_pairs)}, "
+                    f"unregistered={sorted(dispatched_reference_pairs - registered_pairs)}"
+                )
+            if (
+                len(findings) == dispatch_findings_start
+                and DEV_WAVE_REFERENCE_FILES <= set(decoded)
+                and _dev_wave_visible_inventory_is_exact(decoded)
+            ):
+                _check_dev_wave_layer_budget(findings, decoded, dispatch.edges)
         if D2_ROLLBACK_STRUCTURE.search(dev_wave_text) is None:
             findings.append(
                 ".claude/commands/dev-wave.md: D2 巻き戻し構造 "

@@ -4399,3 +4399,35 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (V1 の cleanup を外す) が KILLED であること。段 3・段 6 とも敵対レビュー 2 本を独立レンズで
   回し、いずれも NO-GO を返してこの経路を見つけた — **レビューを 1 本に減らしていたら
   land していた**。
+
+### F181. dispatch の範囲記法が注記・URL の `~` でも展開し、読了 edge を捏造していた [恒真ゲート]
+
+- 事象: `tools/check_docs.py` の dispatch 表 parser は、隣接する 2 つの節 token の間に
+  `〜` または `~` が**一文字でも**あれば範囲記法とみなして中間の節をすべて展開していた。
+  そのため `` `DW-G01`（説明〜補足）, `DW-G05` `` や `` `DW-G01`（https://x/~u）, `DW-G05` `` のように、
+  人間には 2 節の列挙にしか見えない表記でも、checker は `DW-G02`〜`DW-G04` を
+  **読了済み edge として生成**した。必須参照集合の充足検査はその捏造された edge で緑になる。
+- 根本原因: 範囲判定が `re.search(r"[〜~]", between)` の部分一致で、
+  token 間文字列全体に対する完全一致でなかった。範囲記法は「区切り」であって
+  「どこかに現れる文字」ではない、という区別が実装に落ちていなかった。
+- 恒久対応: 範囲 delimiter を `re.fullmatch(r"[ \t]*〜[ \t]*", between)` 相当の完全一致に限定した
+  (D255 の両方向照合の一部)。
+  `docs/dev-wave/**` の層予算はこの edge 集合から導出されるため、捏造は予算値も歪めていた。
+- 再発検知: `orchestrator/tests/test_check_docs.py` の負例
+  `test_dev_wave_dispatch_rejects_range_marker_inside_annotation` と
+  `test_dev_wave_dispatch_rejects_ascii_tilde_inside_url`、および正規の
+  `` `DW-O01`〜`DW-O06` `` が引き続き展開されることを固定する正例。
+  いずれも fails-closed のテストで、変異 matrix の M04 が同 node を KILL する。
+
+### F182. wave の fragment 更新が他所有の裁定待ちを消した [手順漏れ]
+
+- 事象: [T-682] wave の worklog fragment が [T-139] 項を全置換し、並行して返されていた
+  P1 裁定待ち (R4 probe の Q1〜Q5、再提出) を active 項から消して P2 へ降格させた。
+  fold の 更新 は追記でなく項の置換であるため、直前状態を写さない更新は他 wave の
+  pending を黙って落とす。/rulings の照合 (前回 pending 集合との差分) が検出した。
+- 根本原因: 更新 fragment を書く際に対象項の現本文を読まず、自 wave の関心事だけで
+  本文を再構成した。base digest 検査は「古い本文からの更新」を拒むだけで、
+  「内容を狭める更新」は機械検出されない。
+- 恒久対応: `.claude/commands/rulings.md` 収集 1 の退行検査 (裁定なしに待ちが消えた・
+  降格した ID は上書き退行を疑い原文 entry へ遡る。同 commit で追加)。
+- 再発検知: /rulings 毎実行の pending 差分照合。

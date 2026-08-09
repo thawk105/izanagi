@@ -58,24 +58,27 @@ review を流用してはならない。
 
 ## 段 dispatch
 
-| 入る直前 | 必ず読む節 |
-|---|---|
-| wave 開始 | `docs/dev-wave/core.md`: `DW-C00`, `DW-CTX`, `DW-STOP` |
-| 段 1 | `docs/dev-wave/core.md`: `DW-S01`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05` |
-| 段 2 preflight | `docs/dev-wave/workers.md`: `DW-S02`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05` |
-| 段 3 preflight | `docs/dev-wave/workers.md`: `DW-S03`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05`, `DW-O13` |
-| 段 4 | `docs/dev-wave/core.md`: `DW-S04`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05`; `docs/dev-wave/mutation.md`: `DW-M01` |
-| 段 5 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
-| 段 5 | 成立した条件の `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23` |
-| 段 6 | `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
-| 段 6 | `docs/dev-wave/workers.md`: `DW-S06-A`, `DW-S06-B`, `DW-S06-C` |
-| 段 6 | `docs/dev-wave/core.md`: `DW-G05` |
-| 段 6 | `docs/dev-wave/mutation.md`: `DW-M02`, `DW-M03`, `DW-M04`, `DW-M05`, `DW-M06`, `DW-M07`, `DW-M08` |
-| 段 6 | 成立した全 `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23` |
-| 段 7 | `docs/dev-wave/core.md`: `DW-S07`; 成立した条件の `docs/dev-wave/operations.md`: `DW-O12`, `DW-O17`, `DW-O18`, `DW-O19` |
-| 段 8 preflight | `docs/dev-wave/core.md`: `DW-S08`; `docs/skill-self-improvement.md` の全節 |
-| 段 8 preflight | commit するなら `docs/dev-wave/operations.md`: `DW-O17`; 防護パス message なら `DW-O04` |
-| 段 9 | `docs/dev-wave/core.md`: `DW-S09`, `DW-CTX`, `DW-STOP`; `docs/dev-wave/operations.md`: `DW-O23` |
+種別は U=無条件、C=条件 dispatch 成立時。
+
+| 入る直前 | 種別 | 必ず読む節 |
+|---|---|---|
+| wave 開始 |U| `docs/dev-wave/core.md`: `DW-C00`, `DW-STOP` |
+| 段 1 |U| `docs/dev-wave/core.md`: `DW-S01`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05` |
+| 段 2 preflight |U| `docs/dev-wave/workers.md`: `DW-S02`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05` |
+| 段 3 preflight |U| `docs/dev-wave/workers.md`: `DW-S03`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05`, `DW-O13` |
+| 段 4 |U| `docs/dev-wave/core.md`: `DW-S04`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05`; `docs/dev-wave/mutation.md`: `DW-M01` |
+| 段 5 |U| `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
+| 段 5 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23` |
+| 段 6 |U| `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
+| 段 6 |U| `docs/dev-wave/workers.md`: `DW-S06-A`, `DW-S06-B`, `DW-S06-C` |
+| 段 6 |U| `docs/dev-wave/core.md`: `DW-G05` |
+| 段 6 |U| `docs/dev-wave/mutation.md`: `DW-M02`, `DW-M03`, `DW-M04`, `DW-M05`, `DW-M06`, `DW-M07`, `DW-M08` |
+| 段 6 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23` |
+| 段 7 |U| `docs/dev-wave/core.md`: `DW-S07` |
+| 段 7 |C| `docs/dev-wave/operations.md`: `DW-O12`, `DW-O17`, `DW-O18`, `DW-O19` |
+| 段 8 preflight |U| `docs/dev-wave/core.md`: `DW-S08`; `docs/skill-self-improvement.md` の全節 |
+| 段 8 preflight |C| `docs/dev-wave/operations.md`: `DW-O17` |
+| 段 9 |U| `docs/dev-wave/core.md`: `DW-S09`, `DW-CTX`, `DW-STOP`; `docs/dev-wave/operations.md`: `DW-O23` |
 
 段 6 で fix を codex へ再投する子は、段 5 の実装子契約 `DW-S05-A`、`DW-S05-B`、`DW-S05-C` を
 全文継承する。段 6 時点で成立している全条件の `DW-Oxx` も、fix 操作の直前に読む。
