@@ -628,3 +628,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:canonical-lease-waiter":"[T-694]","T:lease-claim-rc-semantics":"[T-693]"},"authored":"2026-08-09","content_sha256":"2e49d6b1957ad78260e52a575ff93b531e903f9eb72b881742583e76da47e352","seq":1,"wave":"dev-wave-t684-lease-fifo"}
 - {"allocations":{"D:acceptance-lease-fifo-queue":"D253"},"authored":"2026-08-09","content_sha256":"c74662dd41cfcea2585659ed5ac3233469e86bceb8ca410a4870054970540af3","seq":1,"wave":"dev-wave-t684-lease-fifo"}
 - {"allocations":{"F:acceptance-lease-no-fairness":"F179","F:fifo-queue-self-sustaining-deadlock":"F180"},"authored":"2026-08-09","content_sha256":"b75754a857bad3b2f8ecae011fe5507492d9c96703a1b2128099137b8ce226d9","seq":1,"wave":"dev-wave-t684-lease-fifo"}
+
+- {"allocations":{"T:dev-wave-docs-budget-blocks-gate-sync":"[T-695]","T:exploration-external-root-test-red-both-nodes":"[T-698]","T:land-gate-immutable-trust-root":"[T-696]","T:s8c-git-batch-timeout-under-load":"[T-697]"},"authored":"2026-08-09","content_sha256":"0b54137fe4e0321b0628fd47930f4855c2f6a6e3dce841e94afddd49c6c54942","seq":1,"wave":"dev-wave-t139-provenance-known-violation"}
+- {"allocations":{"D:land-ff-only-provenance-gate":"D254"},"authored":"2026-08-09","content_sha256":"8155801802269121b357a1092c7d52b2469641ff66f80850fc1566530baf4b8b","seq":1,"wave":"dev-wave-t139-provenance-known-violation"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"4aa1a5845eed50ffcf547172ceaa9950c2b9e53f5faa3efc24616af49caedd4a","seq":1,"wave":"dev-wave-t139-provenance-known-violation"}
