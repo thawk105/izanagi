@@ -1,0 +1,14 @@
+{
+  "verdicts": [
+    {"packet_id": "12aaaae318e241eb6e46a14a7f3f0072", "r1_detected": false, "decision": "GO", "findings": []},
+    {"packet_id": "3c71bea9793cab41a6305526931fb4bb", "r1_detected": true, "decision": "NO-GO", "findings": []},
+    {"packet_id": "a27e7fbf394f28c37c75531b560d56ee", "r1_detected": false, "decision": "GO", "findings": []},
+    {"packet_id": "ae545ba70cf60de38a363b9305c0a6b6", "r1_detected": true, "decision": "NO-GO", "findings": []},
+    {"packet_id": "b014ba613bdeb5a5d4acaa68dfca8ebf", "r1_detected": true, "decision": "NO-GO", "findings": []},
+    {"packet_id": "b3dfad052c7ca83a02d358e1ac685a74", "r1_detected": true, "decision": "NO-GO", "findings": []},
+    {"packet_id": "b4355e8b228d9e85c0617ee5b52f6e8d", "r1_detected": false, "decision": "GO", "findings": []},
+    {"packet_id": "bb6fbd1fc07069f915b54b347cdebcf2", "r1_detected": true, "decision": "NO-GO", "findings": []},
+    {"packet_id": "e38e68d2a783825ba1c8124762dbca21", "r1_detected": false, "decision": "GO", "findings": []},
+    {"packet_id": "f91a3dcf8cff0979b959fdf7fae18317", "r1_detected": true, "decision": "NO-GO", "findings": []}
+  ]
+}
