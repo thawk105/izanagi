@@ -141,6 +141,18 @@ _LEDGER_FINDING_KINDS = frozenset({
 _NOTE_REQUIRED_FINDING_KINDS = frozenset({MALFORMED_AI_AGENT})
 _ZERO_WIDTH_REGISTRY_CHARACTERS = frozenset("\u200b\u200c\u200d\ufeff")
 _PROHIBITED_REGISTRY_CATEGORIES = frozenset({"Cc", "Cf", "Zl", "Zp"})
+_DESCRIPTIVE_NOTE_CATEGORY_PREFIXES = frozenset({"L", "N", "P", "S"})
+_NON_DESCRIPTIVE_NOTE_CHARACTERS = frozenset({
+    "\u034f",  # COMBINING GRAPHEME JOINER
+    "\u115f",  # HANGUL CHOSEONG FILLER
+    "\u1160",  # HANGUL JUNGSEONG FILLER
+    "\u17b4",  # KHMER VOWEL INHERENT AQ
+    "\u17b5",  # KHMER VOWEL INHERENT AA
+    "\u2065",  # reserved default-ignorable code point
+    "\u3164",  # HANGUL FILLER
+    "\ufe0f",  # VARIATION SELECTOR-16
+    "\uffa0",  # HALFWIDTH HANGUL FILLER
+})
 
 
 @dataclass(frozen=True)
@@ -473,6 +485,14 @@ def _contains_prohibited_registry_character(value: str) -> bool:
     )
 
 
+def _contains_descriptive_note_character(value: str) -> bool:
+    return any(
+        char not in _NON_DESCRIPTIVE_NOTE_CHARACTERS
+        and unicodedata.category(char)[0] in _DESCRIPTIVE_NOTE_CATEGORY_PREFIXES
+        for char in value
+    )
+
+
 def _known_violation_registry() -> dict[str, KnownViolationSpec]:
     """固定台帳を history 監査時にだけ検証して full SHA map にする。"""
 
@@ -563,6 +583,14 @@ def _known_violation_registry() -> dict[str, KnownViolationSpec]:
         ):
             raise RuntimeError(
                 "known provenance violation registry has prohibited character in note: "
+                f"{spec.commit}"
+            )
+        if (
+            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS
+            and not _contains_descriptive_note_character(spec.note)
+        ):
+            raise RuntimeError(
+                "known provenance violation registry has non-descriptive required note: "
                 f"{spec.commit}"
             )
         if _contains_prohibited_registry_character(spec.expected_finding_value):

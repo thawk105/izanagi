@@ -1804,6 +1804,86 @@ def test_registry_rejects_control_and_zero_width_characters(
 
 
 @pytest.mark.parametrize(
+    "note",
+    ["\u034f", "\ufe0f", "\u3164"],
+    ids=["combining-grapheme-joiner", "variation-selector-16", "hangul-filler"],
+)
+def test_registry_rejects_non_descriptive_required_note_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    note: str,
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        "malformed\n\nAI-Agent: bad value\n",
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (
+            _known_spec(
+                commit,
+                provenance.MALFORMED_AI_AGENT,
+                note=note,
+                expected_finding_value="bad value",
+            ),
+        ),
+    )
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert captured.err == (
+        "check_ai_provenance: 実行不能: known provenance violation registry "
+        f"has non-descriptive required note: {commit}\n"
+    )
+    assert captured.out == ""
+
+
+def test_production_registry_notes_satisfy_descriptive_contract():
+    registry = provenance._known_violation_registry()
+
+    assert len(registry) == 30
+    assert tuple(registry.values()) == provenance.KNOWN_PROVENANCE_VIOLATIONS
+
+
+def test_registry_accepts_visible_character_mixed_with_non_descriptive_characters(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        "malformed\n\nAI-Agent: bad value\n",
+    )
+    non_descriptive = "\u034f\u115f\u1160\u17b4\u17b5\u2065\u3164\ufe0f\uffa0"
+    spec = _known_spec(
+        commit,
+        provenance.MALFORMED_AI_AGENT,
+        note=f"A{non_descriptive}",
+        expected_finding_value="bad value",
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (spec,),
+    )
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 0
+    captured = capsys.readouterr()
+    assert captured.out.endswith("check_ai_provenance: 1 件、新規違反なし\n")
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize(
     ("spec", "error"),
     [
         (
