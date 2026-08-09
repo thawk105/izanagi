@@ -1,0 +1,113 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 900,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "        if (\n            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS\n            and not spec.note.strip()\n        ):\n            raise RuntimeError(\n                \"known provenance violation registry has empty required note: \"\n                f\"{spec.commit}\"\n            )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "    if finding.startswith(f\"{label}: AI-Agent の形式違反: \"):",
+     "new": "    if \"AI-Agent の形式違反\" in finding:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[none-mixed]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[reserved]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[model-none]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "    if spec.expected_finding_kind in {\n        MISSING_AI_AGENT,\n        MALFORMED_AI_AGENT,\n    }:\n        return True\n",
+     "new": "    if spec.expected_finding_kind in {\n        MISSING_AI_AGENT,\n    }:\n        return True\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_malformed_known_violation_missing_finding_is_stale_rc2"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "                and (\n                    not spec_for_commit.expected_finding_value\n                    or finding.text.startswith(\n                        f\"{audit.label}: AI-Agent の形式違反: \"\n                        f\"{spec_for_commit.expected_finding_value!r} — \"\n                    )\n                )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[non-malformed-nonempty]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "    rf\"(?:; scope=(?P<scope>{IDENT}))?$\"",
+     "new": "    rf\"(?:; scope=(?P<scope>{IDENT}))?(?:; extra={IDENT})?$\""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_ai_agent_acceptance_language_is_unchanged"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "_PROHIBITED_REGISTRY_CATEGORIES = frozenset({\"Cc\", \"Cf\", \"Zl\", \"Zp\"})",
+     "new": "_PROHIBITED_REGISTRY_CATEGORIES = frozenset({\"Cc\"})"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\u00ad]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\u2060]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\u00ad]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\u2060]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\u2028]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\u2029]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
