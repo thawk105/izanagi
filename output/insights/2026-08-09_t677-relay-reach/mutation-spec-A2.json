@@ -1,0 +1,137 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1800,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        DEFAULT_FAILURE_RELAY_LIMIT_BYTES\n        * _FAILURE_DIGEST_NUMERATOR\n        // _FAILURE_DIGEST_DENOMINATOR\n",
+          "new": "        DEFAULT_FAILURE_RELAY_LIMIT_BYTES\n        * 1\n        // 1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pytest_failure_digest.py::test_e2e_real_conftest_digest_has_real_failures_and_exact_account",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failed_and_collect_reports_are_stashed_independently_of_terminal_stats",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_budget_is_bound_to_dispatch_limit"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    first_line_neutralized = False\n    for char in reversed(value):\n",
+          "new": "    first_line_neutralized = False\n    for char in value:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pytest_failure_digest.py::test_digest_excerpt_cannot_inject_mutation_failed_nodes",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_e2e_real_conftest_digest_has_real_failures_and_exact_account",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failed_and_collect_reports_are_stashed_independently_of_terminal_stats",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_budget_and_omission_accounting_are_exact",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_contains_nodeid_and_diagnostic_tail"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        rendered.append(f\"> {escaped}\\n\")\n",
+          "new": "        rendered.append(f\"| {escaped}\\n\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pytest_failure_digest.py::test_digest_excerpt_cannot_inject_mutation_failed_nodes",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_e2e_real_conftest_digest_has_real_failures_and_exact_account",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failed_and_collect_reports_are_stashed_independently_of_terminal_stats",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_budget_and_omission_accounting_are_exact",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_contains_nodeid_and_diagnostic_tail"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "            f\"omitted_bytes={source_bytes - retained_bytes} budget_bytes={budget_bytes} \"\n",
+          "new": "            f\"omitted_bytes=0 budget_bytes={budget_bytes} \"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pytest_failure_digest.py::test_e2e_real_conftest_digest_has_real_failures_and_exact_account",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_budget_and_omission_accounting_are_exact",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_contains_nodeid_and_diagnostic_tail"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        if not hasattr(config, \"workerinput\") and stashed:\n",
+          "new": "        if hasattr(config, \"workerinput\") and stashed:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failed_and_collect_reports_are_stashed_independently_of_terminal_stats",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_exception_boundaries_preserve_pytest_outcome",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_is_silent_for_nonfailures_worker_and_plain_import",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_real_pytest_end_states_have_exact_digest_presence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    try:\n        writer(builder(stashed, budget_bytes))\n    except Exception as exc:\n",
+          "new": "    try:\n        writer(builder(stashed, budget_bytes))\n    except OSError as exc:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failure_digest_exception_boundaries_preserve_pytest_outcome"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "def pytest_runtest_logreport(report) -> None:\n    if report.failed:\n",
+          "new": "def pytest_runtest_logreport(report) -> None:\n    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pytest_failure_digest.py::test_failed_and_collect_reports_are_stashed_independently_of_terminal_stats",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_nested_pytest_main_currently_clears_outer_failure_stash",
+        "orchestrator/tests/test_pytest_failure_digest.py::test_real_pytest_end_states_have_exact_digest_presence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
