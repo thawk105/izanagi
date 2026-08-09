@@ -217,9 +217,7 @@ def decode_campaign_lock(text: str) -> DecodedCampaignLock:
             original_text=text,
         )
 
-    if set(value) != IDENTITY_KEYS:
-        raise CampaignLockCodecError("未知の campaign lock schema")
-    identity = _validate_identity(value)
+    identity = value
     return DecodedCampaignLock(
         schema_version="campaign-lock/v1",
         identity_preimage=text,
@@ -258,7 +256,7 @@ def preserve_v1_campaign_lock_text(text: str) -> str:
 
 
 def encode_campaign_lock_v1(identity_preimage: str) -> str:
-    """v1 identity を検証し、入力文字列を再書式化せず返す。"""
+    """v1 object を検証し、入力文字列を再書式化せず返す。"""
     return preserve_v1_campaign_lock_text(identity_preimage)
 
 

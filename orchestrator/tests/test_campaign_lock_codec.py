@@ -9,7 +9,8 @@ import sys
 
 import pytest
 
-from orchestrator.campaign import campaign_lock
+from orchestrator.campaign import campaign_lock, ident
+from orchestrator.campaign.build_admission import GeneratorId, build_run_context
 
 
 def _identity() -> dict[str, object]:
@@ -62,6 +63,35 @@ def test_v1_is_detected_and_original_bytes_are_preserved() -> None:
     assert campaign_lock.preserve_v1_campaign_lock_bytes(raw) is raw
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        {"search_config": {}},
+        {"ccbench_commit": "d706650", "search_config": {"fixture": True}},
+    ],
+)
+def test_partial_v1_objects_are_accepted_by_codec(
+        value: dict[str, object],
+) -> None:
+    text = json.dumps(value)
+    decoded = campaign_lock.decode_campaign_lock(text)
+    assert decoded.is_v1
+    assert decoded.identity == value
+    assert decoded.identity_preimage == text
+
+
+def test_admission_preimage_still_requires_exact_identity_keys() -> None:
+    policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
+    partial = {
+        "ccbench_commit": "d706650",
+        "search_config": {
+            ident.ADMISSION_POLICY_SEARCH_KEY: dict(policy.as_preimage()),
+        },
+    }
+    with pytest.raises(ident.IdentityMismatch, match="top-level exact key"):
+        ident.verify_admission_preimage(policy, _canonical(partial))
+
+
 def test_v2_exact_shape_and_canonical_encoding() -> None:
     expected = _canonical(_v2_value())
     actual = campaign_lock.encode_campaign_lock_v2(
@@ -76,7 +106,9 @@ def test_v2_exact_shape_and_canonical_encoding() -> None:
     assert decoded.authority.activation_serial == 1
 
 
-@pytest.mark.parametrize("missing", sorted(campaign_lock.V2_KEYS))
+@pytest.mark.parametrize(
+    "missing", sorted(campaign_lock.V2_KEYS - {"schema_version"}),
+)
 def test_v2_rejects_each_missing_top_level_key(missing: str) -> None:
     value = _v2_value()
     del value[missing]
@@ -84,13 +116,26 @@ def test_v2_rejects_each_missing_top_level_key(missing: str) -> None:
         campaign_lock.decode_campaign_lock(_canonical(value))
 
 
-def test_v1_and_v2_reject_extra_or_missing_identity_keys() -> None:
+def test_v2_without_schema_version_is_decoded_as_v1() -> None:
+    # schema_version 除去は降格攻撃で、拒否は codec でなく admission の anti-downgrade 層が担う。
+    value = _v2_value()
+    del value["schema_version"]
+    text = _canonical(value)
+
+    decoded = campaign_lock.decode_campaign_lock(text)
+
+    assert decoded.is_v1
+    assert decoded.identity == value
+    assert decoded.identity_preimage == text
+    assert decoded.authority is None
+
+
+def test_v2_rejects_extra_or_missing_identity_keys() -> None:
+    # v1 の exact 5 key は codec でなく admission-aware な ident 層が検査する。
     for identity in (
         {**_identity(), "extra": 1},
         {key: value for key, value in _identity().items() if key != "trial"},
     ):
-        with pytest.raises(campaign_lock.CampaignLockCodecError):
-            campaign_lock.decode_campaign_lock(_canonical(identity))
         value = _v2_value()
         value["identity_preimage"] = _canonical(identity)
         with pytest.raises(campaign_lock.CampaignLockCodecError):

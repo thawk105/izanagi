@@ -151,7 +151,9 @@ def test_v2_lock_rejects_commit_env_tag_not_matching_contract(tmp_path: Path) ->
 @pytest.mark.parametrize(
     "lock_text",
     [
-        "{}",
+        "[]",
+        '{"duplicate":1,"duplicate":2}',
+        '{"value":NaN}',
         campaign_lock.canonical_json({
             "schema_version": "campaign-lock/v3",
             "identity_preimage": _identity_preimage(),
@@ -167,6 +169,18 @@ def test_wal_reader_wraps_malformed_or_unknown_lock_schema(
 
     with pytest.raises(wal.AttemptTopologyError, match="v1/v2 wire contract"):
         wal.replay(layout)
+
+
+def test_wal_reader_reads_empty_object_as_v1(tmp_path: Path) -> None:
+    # schema_version 除去は降格攻撃で、拒否は codec でなく admission の anti-downgrade 層が担う。
+    layout = _layout(tmp_path, "empty-v1-lock")
+    wal.write_lock(layout, "{}")
+
+    decoded = campaign_lock.decode_campaign_lock("{}")
+
+    assert decoded.is_v1
+    assert decoded.identity == {}
+    assert wal.replay(layout) == {}
 
 
 @pytest.mark.parametrize("schema", ["v1", "v2"])

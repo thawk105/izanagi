@@ -85,7 +85,11 @@ def verify_admission_preimage(
         decoded = campaign_lock.decode_campaign_lock(stored_preimage)
     except campaign_lock.CampaignLockCodecError as exc:
         raise IdentityMismatch("campaign.lock schema が不正") from exc
+    if set(decoded.identity) != campaign_lock.IDENTITY_KEYS:
+        raise IdentityMismatch("campaign.lock の top-level exact key 集合が不正")
     search_config = decoded.identity["search_config"]
+    if type(search_config) is not dict:
+        raise IdentityMismatch("campaign.lock search_config が object でない")
     actual = search_config.get(ADMISSION_POLICY_SEARCH_KEY)
     expected = policy.as_preimage()
     if actual != expected:
