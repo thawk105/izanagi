@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t678-publication-wall-gate
 seq: 1
-title: [T-678] receipt 公開直前の最後の可逆点で wall gate を再評価する形へ直した — 字義どおりの「publication 完了後」は create-only 制約で実装不能と確定した (コード + docs、受入 7660 passed / 20 skipped、変異 4/4 KILLED・事前登録一致、branch worktree-dev-wave-t678-publication-wall-gate)
+title: [T-678] receipt 公開直前の最後の可逆点で wall gate を再評価する形へ直した — 字義どおりの「publication 完了後」は create-only 制約で実装不能と確定した (コード + docs、受入 7685 passed / 20 skipped、変異 4/4 KILLED・事前登録一致、branch worktree-dev-wave-t678-publication-wall-gate)
 ---
 
 ## 本文
@@ -47,8 +47,14 @@ title: [T-678] receipt 公開直前の最後の可逆点で wall gate を再評�
 - **provenance 検査 rc=1 は本 wave 由来ではない。** 統合 commit 後の full-history 監査が挙げた
   23 件はすべて main の祖先 (別 wave の `role=orchestrator` 形式違反ほか) で、
   `git merge-base --is-ancestor` で全件確認した。本 wave の commit は 1 件も含まれない。
+- **受入は 2 回走らせた。** 1 走目 (main `b409bd28` 取り込み時点) は 7660 passed / 20 skipped。
+  lease 待ちの間に main が進んでいたため land 対象 tip にならず、取り込み直して再走した。
+  2 走目 = land 対象 tip `03374f20` で **7685 passed / 20 skipped** (1379 秒)。
+  この記録 commit だけが 2 走目より後で、差分は docs のみ (コード変更なし)。
+  なお lease 取得後の main 差検査を段 8 で足したところ、3 回目の投入前に実際に発火して
+  (peer が `2169a06c` を land 済み) 走行前に止めた。無駄な全走を 1 回防いでいる。
 - エージェント工数: Codex 8 session (plan 1 / 段 3 相談 2 / 実装 1 / 段 6 レビュー 2 / fix 1 /
-  焦点再レビュー 1)。親 = brief・実測 probe 1 本・裁定・統合 commit・変異・受入・記録。
+  焦点再レビュー 1)。親 = brief・実測 probe 1 本・裁定・統合 commit・変異・受入 2 走・記録。
 - 一次資料と逐語 = `output/insights/2026-08-09_t678-publication-wall-gate/`。
 
 ## 次の一手差分
