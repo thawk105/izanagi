@@ -53,6 +53,10 @@ title: [T-181] の reasoning A/B を認証付きで再走した — aggregate/ve
   本 wave は調査も手当もしていない。自 wave の range 監査は別途実施した。
 - 計算資源: 10 run はログインノードの codex 実行で計算ノードを使っていない。
   R4 probe ([T-139]) の計測とは競合していない (同 wave は本走中に land 済み)。
+- 受入全走 **7570 passed / 20 skipped、rc=0** (計算ノード、1334 秒、request 896773)。
+  lease は 30 秒間隔の待ちで 18 回目に取得した (先行 holder の解放待ち約 9 分)。
+  変異 matrix は実装差分ゼロのため DW-S04 により免除。
+- 段 8 の改善候補は 1 件で、実装子権限の境界に当たるため契約どおり実装せず [T-317] へ返した。
 
 ## 次の一手差分
 
@@ -65,6 +69,17 @@ title: [T-181] の reasoning A/B を認証付きで再走した — aggregate/ve
   [T-184] へ渡す前に {{T:score-decision-extraction-defect}} の裁定が要る。
   2026-07-30 の成果物は job tmp 削除により再検証不能であり、以後の引用は本走の台帳を使う。
   base: d95f08ec2ced6721ccc02fb179792e2a767cb05683f049ea19ebeb26263ec0fe
+
+- [T-317] **P3・独立 2 例目を観測**: dev-wave の凍結境界は「実行可能な probe / harness / script」を
+  実装面とし Codex `role=author` が書くと定めるが、親の責務 (`DW-S01` の前提実測、実走の運転) の
+  手段が script になる場合の担当が入口・reference のどちらにも無い。
+  1 例目は [T-316] wave で親が段 1 probe を直接書いた件。**2 例目が本 wave** で、
+  親が実走 driver 一式 (setup / block runner / manifest builder) を書いた。所在は repo 外で
+  commit していないため provenance checker は発火しないが、凍結境界を満たしたことにはならない。
+  択一は (a) 前提実測・実走運転用の使い捨て script を明示的に例外にする、
+  (b) 例外を作らず親は必ず子に書かせる、(c) 文言だけ明確化する。推奨は依然 (b) だが、
+  本 wave のように実走が数時間かかる場合の実行可能性は (b) の検討材料に含める。
+  base: 0f45414c192f44484eed035ea8135a98d1ffe3908f5ab82498375b1c1456d376
 
 ### 新規
 
