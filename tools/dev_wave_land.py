@@ -49,6 +49,7 @@ RC_LANDED_POSTCONDITION_FAILED = 25
 RC_FOLD_FAILED = 26
 RC_FOLD_RECOVERY_FAILED = 27
 RC_FOLD_ROLLBACK_FAILED = 28
+RC_PROVENANCE = 29
 
 _GIT_EXE = "/usr/bin/git"
 _LOCK_NAME = b"dev-wave-land.lock"
@@ -148,6 +149,107 @@ class _PathSnapshot:
     existed: bool
     content: bytes
     mode: int
+
+
+@dataclass(frozen=True)
+class _ProvenanceReceipt:
+    tip_sha: str
+    checker_blob_sha: str
+    executed_bytes_sha: str
+    returncode: int
+
+
+@dataclass
+class _ProvenanceCheckerBinding:
+    path: Path
+    tools_fd: int
+    checker_fd: int
+
+    def bytes_sha256(self) -> str:
+        """束縛済み inode の現在 bytes を同じ FD から読む。"""
+
+        digest = hashlib.sha256()
+        offset = 0
+        try:
+            while True:
+                chunk = os.pread(self.checker_fd, 1024 * 1024, offset)
+                if not chunk:
+                    return digest.hexdigest()
+                digest.update(chunk)
+                offset += len(chunk)
+        except OSError as exc:
+            raise _Reject(
+                RC_PROVENANCE,
+                f"provenance checker bound bytes read failed ({exc})",
+            ) from exc
+
+    def verify(self, repository: _Repository) -> None:
+        try:
+            wave = repository.wave.stat(follow_symlinks=False)
+            tools = os.stat(
+                b"tools",
+                dir_fd=repository.wave_fd,
+                follow_symlinks=False,
+            )
+            checker = os.stat(
+                b"check_ai_provenance.py",
+                dir_fd=self.tools_fd,
+                follow_symlinks=False,
+            )
+        except OSError as exc:
+            raise _Reject(
+                RC_PROVENANCE,
+                f"provenance checker binding changed ({exc})",
+            ) from exc
+        if (
+            not _same_inode(os.fstat(repository.wave_fd), wave)
+            or not _same_inode(os.fstat(self.tools_fd), tools)
+            or not _same_inode(os.fstat(self.checker_fd), checker)
+        ):
+            raise _Reject(
+                RC_PROVENANCE,
+                "provenance checker path changed during the audit",
+            )
+
+    def close(self) -> None:
+        """両 FD を独立に閉じる。二重呼出しは no-op。"""
+
+        try:
+            if self.checker_fd >= 0:
+                checker_fd = self.checker_fd
+                try:
+                    os.close(checker_fd)
+                finally:
+                    self.checker_fd = -1
+        finally:
+            if self.tools_fd >= 0:
+                tools_fd = self.tools_fd
+                try:
+                    os.close(tools_fd)
+                finally:
+                    self.tools_fd = -1
+
+
+@dataclass(frozen=True)
+class _LandFingerprint:
+    main_head: str
+    wave_head: str
+    collision_paths: frozenset[tuple[str, bytes]]
+
+
+@dataclass(frozen=True)
+class _LockedPreflight:
+    fold: object
+    active_plan: object | None
+    control: _ControlSnapshot
+    audited: tuple[str, ...]
+    base_gitlinks: dict[bytes, str]
+    target_gitlinks: dict[bytes, str]
+    target_normal_entries: frozenset[bytes]
+    gitlinks_changed: bool
+    locked_main: str
+    wave_ref: str
+    fingerprint: _LandFingerprint
 
 
 def _git_env() -> dict[str, str]:
@@ -917,6 +1019,50 @@ def _verify_target_collisions(
             )
 
 
+def _land_fingerprint(
+    repository: _Repository,
+    *,
+    current: str,
+    tested_tip: str,
+    wave_head: str,
+    control: _ControlSnapshot,
+) -> _LandFingerprint:
+    """監査窓を跨いで HEAD と collision 観測集合を束縛する。
+
+    種別を path と組にすることで、同じ target path が ignored collision として
+    消えた場合も、単なる target path の残存と区別する。
+    """
+
+    targets = _target_paths(repository, current, tested_tip)
+    paths: set[tuple[str, bytes]] = {
+        ("target", target) for target in targets
+    }
+    protected = tuple(control.handoffs) + _CONTROL_CONTAINERS + tuple(
+        prefix[:-1] for prefix in control.worktree_prefixes
+    )
+    paths.update(("protected", path) for path in protected)
+    for record in _status_records(repository.main, "main fingerprint"):
+        if not record.startswith(b"?? "):
+            continue
+        relative = record[3:].rstrip(b"/")
+        if any(_paths_overlap(relative, target) for target in targets):
+            paths.add(("untracked", relative))
+    for target in targets:
+        paths.update(
+            ("ignored", path)
+            for path in _ignored_paths_for_target(repository, target)
+            if path == target or path.startswith(target + b"/")
+        )
+        ancestor = _existing_ignored_target_or_ancestor(repository, target)
+        if ancestor is not None:
+            paths.add(("ignored-ancestor", ancestor))
+    return _LandFingerprint(
+        main_head=current,
+        wave_head=wave_head,
+        collision_paths=frozenset(paths),
+    )
+
+
 def _is_ancestor(repo: Path, older: str, newer: str) -> bool:
     result = _git(repo, "merge-base", "--is-ancestor", older, newer)
     if result.returncode == 0:
@@ -1123,6 +1269,99 @@ def _main_is_allowed(
     )
 
 
+def _acquire_land_lock(repository: _Repository) -> int | None:
+    fd = _open_lock(repository)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        return None
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def _locked_preflight(
+    repository: _Repository,
+    *,
+    tested_main: str,
+    tested_tip: str,
+    requested_audit: tuple[str, ...],
+    reported_main_before: str | None,
+) -> _LockedPreflight | LandResult:
+    """lock 内の cheap checks と監査窓 fingerprint を一括実行する。"""
+
+    _verify_history_modifiers(repository)
+    _verify_effective_config(repository)
+    target_paths = _target_paths(repository, tested_main, tested_tip)
+    try:
+        fold = _load_spool_fold()
+        active_plan = fold.load_active_plan(repository.main)
+        active_fold_paths = (
+            tuple(os.fsencode(path) for path in _fold_plan_paths(active_plan))
+            if active_plan is not None
+            else ()
+        )
+    except (Exception, KeyboardInterrupt) as exc:
+        return LandResult(
+            RC_FOLD_RECOVERY_FAILED,
+            "fold-recovery-failed",
+            f"fold transaction inspection failed: {type(exc).__name__}: {exc}",
+            reported_main_before,
+            reported_main_before,
+            tested_tip,
+        )
+    control = _verify_main_clean(
+        repository,
+        collision_paths=target_paths,
+        allowed_tracked_paths=active_fold_paths,
+    )
+    _verify_wave_clean(repository)
+    audited = _verify_audit(
+        repository,
+        tested_main,
+        tested_tip,
+        requested_audit,
+    )
+    base_gitlinks = _gitlink_map(repository.wave, tested_main)
+    target_gitlinks = _gitlink_map(repository.wave, tested_tip)
+    target_normal_entries = _normal_entry_paths(repository.wave, tested_tip)
+    gitlinks_changed = base_gitlinks != target_gitlinks
+    locked_main, wave_ref = _verify_heads(repository, tested_tip)
+    if not _main_is_allowed(
+        repository, locked_main, tested_main, tested_tip, audited
+    ):
+        return LandResult(
+            RC_STALE_MAIN,
+            "stale-main",
+            "main moved outside the tested audited closure while locking",
+            locked_main,
+            locked_main,
+            tested_tip,
+        )
+    fingerprint = _land_fingerprint(
+        repository,
+        current=locked_main,
+        tested_tip=tested_tip,
+        wave_head=tested_tip,
+        control=control,
+    )
+    return _LockedPreflight(
+        fold=fold,
+        active_plan=active_plan,
+        control=control,
+        audited=audited,
+        base_gitlinks=base_gitlinks,
+        target_gitlinks=target_gitlinks,
+        target_normal_entries=target_normal_entries,
+        gitlinks_changed=gitlinks_changed,
+        locked_main=locked_main,
+        wave_ref=wave_ref,
+        fingerprint=fingerprint,
+    )
+
+
 def _open_lock(repository: _Repository) -> int:
     try:
         fd = os.open(
@@ -1143,6 +1382,199 @@ def _open_lock(repository: _Repository) -> int:
         os.close(fd)
         raise _Reject(RC_IDENTITY, "land lock has unsafe metadata")
     return fd
+
+
+def _provenance_checker_blob(repository: _Repository, revision: str) -> str:
+    return _decode_sha(
+        _require_git(
+            _git(
+                repository.wave,
+                "rev-parse",
+                "--verify",
+                f"{revision}:tools/check_ai_provenance.py",
+            ),
+            "provenance checker blob",
+            RC_PROVENANCE,
+        ),
+        "provenance checker blob",
+        RC_PROVENANCE,
+    )
+
+
+def _provenance_checker_content_sha(
+    repository: _Repository, revision: str
+) -> str:
+    content = _require_git(
+        _git(
+            repository.wave,
+            "show",
+            f"{revision}:tools/check_ai_provenance.py",
+        ),
+        "provenance checker content",
+        RC_PROVENANCE,
+    )
+    return hashlib.sha256(content).hexdigest()
+
+
+def _bind_provenance_checker(repository: _Repository) -> _ProvenanceCheckerBinding:
+    """wave 側 checker の全 path component を symlink 非追従で束縛する。"""
+
+    tools_fd = _openat_dir(
+        repository.wave_fd,
+        b"tools",
+        "wave tools",
+        rc=RC_PROVENANCE,
+    )
+    checker = _ProvenanceCheckerBinding(
+        repository.wave / "tools" / "check_ai_provenance.py",
+        tools_fd,
+        -1,
+    )
+    try:
+        try:
+            before = os.stat(
+                b"check_ai_provenance.py",
+                dir_fd=tools_fd,
+                follow_symlinks=False,
+            )
+            checker.checker_fd = os.open(
+                b"check_ai_provenance.py",
+                os.O_RDONLY | os.O_NOFOLLOW,
+                dir_fd=tools_fd,
+            )
+            opened = os.fstat(checker.checker_fd)
+        except OSError as exc:
+            raise _Reject(
+                RC_PROVENANCE,
+                f"provenance checker open failed ({exc})",
+            ) from exc
+        if not stat.S_ISREG(opened.st_mode) or not _same_inode(before, opened):
+            raise _Reject(
+                RC_PROVENANCE,
+                "provenance checker is symlink/raced/non-regular",
+            )
+        current = checker.path.stat(follow_symlinks=False)
+        if not _same_inode(opened, current):
+            raise _Reject(
+                RC_PROVENANCE,
+                "provenance checker pathname/inode mismatch",
+            )
+        return checker
+    except BaseException:
+        checker.close()
+        raise
+
+
+def _audit_provenance_history(repository: _Repository) -> _ProvenanceReceipt:
+    """lock 外で wave tip の full-history provenance 監査を実行する。
+
+    pathname 実行の前後に、束縛 FD の bytes と commit blob 内容の SHA-256 を
+    照合する。実行中だけ pathname を一時差し替えて終了前に戻す race は、実行後の
+    再読でも観測できない残余窓として残る。
+    """
+
+    try:
+        tip_sha = _head(repository.wave, "provenance audit wave")
+        checker_blob_sha = _provenance_checker_blob(repository, tip_sha)
+        committed_bytes_sha = _provenance_checker_content_sha(repository, tip_sha)
+        checker = _bind_provenance_checker(repository)
+        env = _git_env()
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+        try:
+            executed_bytes_sha = checker.bytes_sha256()
+            if executed_bytes_sha != committed_bytes_sha:
+                raise _Reject(
+                    RC_PROVENANCE,
+                    "provenance checker bound bytes do not match the committed blob",
+                )
+            completed = subprocess.run(
+                [sys.executable, str(checker.path)],
+                cwd=repository.wave,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                shell=False,
+                close_fds=True,
+                timeout=480,
+            )
+            checker.verify(repository)
+            after_bytes_sha = checker.bytes_sha256()
+            if (
+                after_bytes_sha != executed_bytes_sha
+                or after_bytes_sha != committed_bytes_sha
+            ):
+                raise _Reject(
+                    RC_PROVENANCE,
+                    "provenance checker bound bytes changed during the audit",
+                )
+        finally:
+            checker.close()
+        return _ProvenanceReceipt(
+            tip_sha=tip_sha,
+            checker_blob_sha=checker_blob_sha,
+            executed_bytes_sha=executed_bytes_sha,
+            returncode=completed.returncode,
+        )
+    except _Reject as exc:
+        if exc.rc == RC_PROVENANCE:
+            raise
+        raise _Reject(RC_PROVENANCE, f"provenance audit failed ({exc.reason})") from exc
+    except BaseException as exc:
+        detail = ""
+        if isinstance(exc, subprocess.TimeoutExpired):
+            detail = " after 480 seconds"
+        raise _Reject(
+            RC_PROVENANCE,
+            f"provenance audit failed: {type(exc).__name__}{detail}: {exc}",
+        ) from exc
+
+
+def _verify_provenance_receipt(
+    repository: _Repository,
+    receipt: _ProvenanceReceipt,
+    tested_tip: str,
+) -> None:
+    """lock 内で監査対象・checker blob・実行 bytes・子 rc を再照合する。"""
+
+    try:
+        if receipt.tip_sha != tested_tip:
+            raise _Reject(
+                RC_PROVENANCE,
+                "provenance audit tip does not match the tested wave tip",
+            )
+        checker_blob_sha = _provenance_checker_blob(repository, tested_tip)
+        if receipt.checker_blob_sha != checker_blob_sha:
+            raise _Reject(
+                RC_PROVENANCE,
+                "provenance checker blob changed after the audit",
+            )
+        committed_bytes_sha = _provenance_checker_content_sha(
+            repository, tested_tip
+        )
+        if receipt.executed_bytes_sha != committed_bytes_sha:
+            raise _Reject(
+                RC_PROVENANCE,
+                "provenance checker executed bytes do not match the committed blob",
+            )
+        if receipt.returncode != 0:
+            raise _Reject(
+                RC_PROVENANCE,
+                f"provenance full-history audit rejected the wave (rc={receipt.returncode})",
+            )
+    except _Reject as exc:
+        if exc.rc == RC_PROVENANCE:
+            raise
+        raise _Reject(
+            RC_PROVENANCE,
+            f"provenance receipt verification failed ({exc.reason})",
+        ) from exc
+    except BaseException as exc:
+        raise _Reject(
+            RC_PROVENANCE,
+            f"provenance receipt verification failed: {type(exc).__name__}: {exc}",
+        ) from exc
 
 
 def _pending_spool_paths(repo: Path) -> tuple[str, ...]:
@@ -1667,71 +2099,98 @@ def land(request: LandRequest) -> LandResult:
             for index, commit in enumerate(request.audited_commits)
         )
         repository = _verify_repository(request)
-        lock_fd = _open_lock(repository)
+        lock_fd = _acquire_land_lock(repository)
+        if lock_fd is None:
+            return LandResult(
+                RC_LOCK_BUSY,
+                "lock-busy",
+                "another cooperative land operation holds the common lock",
+                None,
+                None,
+                tested_tip,
+            )
         try:
-            try:
-                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                return LandResult(
-                    RC_LOCK_BUSY,
-                    "lock-busy",
-                    "another cooperative land operation holds the common lock",
-                    None,
-                    None,
-                    tested_tip,
-                )
-            _verify_history_modifiers(repository)
-            _verify_effective_config(repository)
-            target_paths = _target_paths(repository, tested_main, tested_tip)
-            try:
-                fold = _load_spool_fold()
-                active_plan = fold.load_active_plan(repository.main)
-                active_fold_paths = (
-                    tuple(os.fsencode(path) for path in _fold_plan_paths(active_plan))
-                    if active_plan is not None
-                    else ()
-                )
-            except (Exception, KeyboardInterrupt) as exc:
-                return LandResult(
-                    RC_FOLD_RECOVERY_FAILED,
-                    "fold-recovery-failed",
-                    f"fold transaction inspection failed: {type(exc).__name__}: {exc}",
-                    main_before,
-                    main_before,
-                    tested_tip,
-                )
-            control = _verify_main_clean(
+            preflight = _locked_preflight(
                 repository,
-                collision_paths=target_paths,
-                allowed_tracked_paths=active_fold_paths,
+                tested_main=tested_main,
+                tested_tip=tested_tip,
+                requested_audit=requested_audit,
+                reported_main_before=main_before,
             )
-            _verify_wave_clean(repository)
-            audited = _verify_audit(
-                repository,
-                tested_main,
-                tested_tip,
-                requested_audit,
-            )
-            base_gitlinks = _gitlink_map(repository.wave, tested_main)
-            target_gitlinks = _gitlink_map(repository.wave, tested_tip)
-            target_normal_entries = _normal_entry_paths(
-                repository.wave,
-                tested_tip,
-            )
-            gitlinks_changed = base_gitlinks != target_gitlinks
-            locked_main, wave_ref = _verify_heads(repository, tested_tip)
-            main_before = locked_main
-            if not _main_is_allowed(
-                repository, locked_main, tested_main, tested_tip, audited
-            ):
-                return LandResult(
-                    RC_STALE_MAIN,
-                    "stale-main",
-                    "main moved outside the tested audited closure while locking",
-                    main_before,
-                    locked_main,
-                    tested_tip,
+            if isinstance(preflight, LandResult):
+                return preflight
+            main_before = preflight.locked_main
+            if preflight.locked_main != tested_tip:
+                initial_fingerprint = preflight.fingerprint
+                os.close(lock_fd)
+                lock_fd = -1
+                receipt = _audit_provenance_history(repository)
+                lock_fd = _acquire_land_lock(repository)
+                if lock_fd is None:
+                    return LandResult(
+                        RC_LOCK_BUSY,
+                        "lock-busy",
+                        "another cooperative land operation holds the common lock",
+                        None,
+                        None,
+                        tested_tip,
+                    )
+                refreshed_control = _control_snapshot(repository)
+                if refreshed_control != preflight.control:
+                    raise _Reject(
+                        RC_CONTROL_PLANE,
+                        "control-plane identity/binding changed during "
+                        "the provenance audit",
+                    )
+                try:
+                    refreshed_fingerprint = _land_fingerprint(
+                        repository,
+                        current=_head(repository.main, "main after provenance audit"),
+                        tested_tip=tested_tip,
+                        wave_head=_head(
+                            repository.wave, "wave after provenance audit"
+                        ),
+                        control=refreshed_control,
+                    )
+                except _Reject as exc:
+                    raise _Reject(
+                        RC_PROVENANCE,
+                        "provenance audit fingerprint recomputation failed "
+                        f"({exc.reason})",
+                    ) from exc
+                if refreshed_fingerprint != initial_fingerprint:
+                    raise _Reject(
+                        RC_PROVENANCE,
+                        "main/wave heads or collision paths changed during "
+                        "the provenance audit",
+                    )
+                preflight = _locked_preflight(
+                    repository,
+                    tested_main=tested_main,
+                    tested_tip=tested_tip,
+                    requested_audit=requested_audit,
+                    reported_main_before=main_before,
                 )
+                if isinstance(preflight, LandResult):
+                    return preflight
+                if preflight.fingerprint != initial_fingerprint:
+                    raise _Reject(
+                        RC_PROVENANCE,
+                        "main/wave heads or collision paths changed during "
+                        "the provenance audit",
+                    )
+                _verify_provenance_receipt(repository, receipt, tested_tip)
+                main_before = preflight.locked_main
+            fold = preflight.fold
+            active_plan = preflight.active_plan
+            control = preflight.control
+            audited = preflight.audited
+            base_gitlinks = preflight.base_gitlinks
+            target_gitlinks = preflight.target_gitlinks
+            target_normal_entries = preflight.target_normal_entries
+            gitlinks_changed = preflight.gitlinks_changed
+            locked_main = preflight.locked_main
+            wave_ref = preflight.wave_ref
             if active_plan is not None:
                 if locked_main != tested_tip:
                     return LandResult(
@@ -1951,7 +2410,8 @@ def land(request: LandRequest) -> LandResult:
                 state_path=state_path,
             )
         finally:
-            os.close(lock_fd)
+            if lock_fd is not None and lock_fd >= 0:
+                os.close(lock_fd)
     except _Reject as exc:
         return LandResult(
             exc.rc,

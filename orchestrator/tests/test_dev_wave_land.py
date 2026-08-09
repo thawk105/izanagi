@@ -119,7 +119,18 @@ class _Repo:
         tools = self.main / "tools"
         tools.mkdir()
         (tools / "check_docs.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
-        _git(self.main, "add", "base.txt", "docs", "tools/check_docs.py")
+        (tools / "check_ai_provenance.py").write_text(
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        _git(
+            self.main,
+            "add",
+            "base.txt",
+            "docs",
+            "tools/check_docs.py",
+            "tools/check_ai_provenance.py",
+        )
         _git(self.main, "commit", "-qm", "base")
         self.base = _git(self.main, "rev-parse", "HEAD")
         self.waves: dict[str, Path] = {}
@@ -1210,9 +1221,15 @@ def test_audited_sequence_same_length_wrong_commit_is_rejected() -> None:
 
 
 def test_nonblocking_common_lock_reports_lock_busy() -> None:
-    """M2: concurrent lock holder がいると待機・mergeせず lock-busy。"""
+    """M9: lock-busy は checker を起動せず 2 秒未満で返す。"""
     with _repo() as repo:
         wave = repo.waves["one"]
+        marker = repo.root / "provenance-checker-started"
+        checker = (
+            "from pathlib import Path\n"
+            f"Path({str(marker)!r}).write_text('started')\n"
+        )
+        repo.commit(wave, "tools/check_ai_provenance.py", checker)
         tip = repo.commit(wave, "wave.txt", "wave\n")
         lock_path = repo.main / ".git" / "dev-wave-land.lock"
         lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
@@ -1225,7 +1242,407 @@ def test_nonblocking_common_lock_reports_lock_busy() -> None:
             os.close(lock_fd)
         assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy"), result
         assert elapsed < 2.0
+        assert not marker.exists()
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_provenance_gate_accepts_tip_zero_and_lands() -> None:
+    """正例: tracked tip checker の full audit が緑なら通常 land できる。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_provenance_gate_rejects_tip_nonzero_before_ff() -> None:
+    """M1/M2/M3/M8: wave 側の非 0 を新規 admit 前に拒否する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(
+            wave,
+            "tools/check_ai_provenance.py",
+            "raise SystemExit(73)\n",
+        )
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_PROVENANCE, "rejected"), result
+        assert "rc=73" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_provenance_audit_runs_with_global_lock_released() -> None:
+    """二相化: 新規 admit の checker 実行中は common lock を解放する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        marker = repo.root / "audit-obtained-lock"
+        lock_path = repo.main / ".git" / "dev-wave-land.lock"
+        checker = (
+            "import fcntl, os\n"
+            f"fd = os.open({str(lock_path)!r}, os.O_RDWR | os.O_CREAT, 0o600)\n"
+            "try:\n"
+            "    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n"
+            f"    open({str(marker)!r}, 'wb').close()\n"
+            "finally:\n"
+            "    os.close(fd)\n"
+        )
+        tip = repo.commit(wave, "tools/check_ai_provenance.py", checker)
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert marker.is_file()
+
+
+def test_already_landed_does_not_run_failing_provenance_checker() -> None:
+    """M8: 同じ request の二回目は checker を起動せず already-landed。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        first = _land(request)
+        assert (first.rc, first.status) == (LAND.RC_OK, "landed"), first
+
+        original_run = LAND.subprocess.run
+        checker_calls = 0
+
+        def fail_checker(argv, **kwargs):
+            nonlocal checker_calls
+            if isinstance(argv, list) and argv and argv[0] == LAND._GIT_EXE:
+                return original_run(argv, **kwargs)
+            if argv == [
+                sys.executable,
+                str(wave / "tools" / "check_ai_provenance.py"),
+            ]:
+                checker_calls += 1
+                raise RuntimeError("checker must not run for already-landed")
+            return original_run(argv, **kwargs)
+
+        try:
+            LAND.subprocess.run = fail_checker
+            second = _land(request)
+        finally:
+            LAND.subprocess.run = original_run
+
+        assert (second.rc, second.status) == (LAND.RC_OK, "already-landed"), second
+        assert checker_calls == 0
+
+
+def test_provenance_audit_detects_removed_ignored_collision() -> None:
+    """監査中に ignored collision が消えたら fingerprint 不一致で rc=29。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        collision = repo.main / "collision.txt"
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            "collision.txt\n",
+            encoding="utf-8",
+        )
+        collision.write_text("existing ignored artifact\n", encoding="utf-8")
+        checker = (
+            "from pathlib import Path\n"
+            f"Path({str(collision)!r}).unlink(missing_ok=True)\n"
+        )
+        repo.commit(wave, "tools/check_ai_provenance.py", checker)
+        (wave / "collision.txt").write_text("incoming\n", encoding="utf-8")
+        _git(wave, "add", "-f", "collision.txt")
+        _git(wave, "commit", "-qm", "add collision.txt")
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        assert _git(
+            repo.main,
+            "status", "--short", "--ignored=matching", "--", "collision.txt",
+        ) == "!! collision.txt"
+        assert _git(wave, "ls-files", "--error-unmatch", "collision.txt") == (
+            "collision.txt"
+        )
+
+        result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (
+            LAND.RC_PROVENANCE,
+            "rejected",
+        ), result
+        assert "collision paths changed" in result.reason
+        assert not collision.exists()
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_provenance_audit_accepts_absent_ignored_collision() -> None:
+    """正例: ignored target が元から無く監査後も無ければ land できる。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        collision = repo.main / "collision.txt"
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            "collision.txt\n",
+            encoding="utf-8",
+        )
+        checker = (
+            "from pathlib import Path\n"
+            f"Path({str(collision)!r}).unlink(missing_ok=True)\n"
+        )
+        repo.commit(wave, "tools/check_ai_provenance.py", checker)
+        (wave / "collision.txt").write_text("incoming\n", encoding="utf-8")
+        _git(wave, "add", "-f", "collision.txt")
+        _git(wave, "commit", "-qm", "add collision.txt")
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        assert not collision.exists()
+        assert _git(repo.main, "check-ignore", "collision.txt") == "collision.txt"
+        assert _git(wave, "ls-files", "--error-unmatch", "collision.txt") == (
+            "collision.txt"
+        )
+
+        result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert collision.read_text(encoding="utf-8") == "incoming\n"
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_provenance_receipt_rejects_each_bound_field() -> None:
+    """M2/M4/M5: receipt の tip/blob/bytes/rc 四条件を独立に固定する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request = repo.request(wave)
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            try:
+                receipt = LAND._audit_provenance_history(repository)
+                cases = (
+                    LAND._ProvenanceReceipt(
+                        "0" * len(receipt.tip_sha),
+                        receipt.checker_blob_sha,
+                        receipt.executed_bytes_sha,
+                        0,
+                    ),
+                    LAND._ProvenanceReceipt(
+                        receipt.tip_sha,
+                        "0" * len(receipt.checker_blob_sha),
+                        receipt.executed_bytes_sha,
+                        0,
+                    ),
+                    LAND._ProvenanceReceipt(
+                        receipt.tip_sha,
+                        receipt.checker_blob_sha,
+                        "0" * len(receipt.executed_bytes_sha),
+                        0,
+                    ),
+                    LAND._ProvenanceReceipt(
+                        receipt.tip_sha,
+                        receipt.checker_blob_sha,
+                        receipt.executed_bytes_sha,
+                        1,
+                    ),
+                )
+                for invalid in cases:
+                    try:
+                        LAND._verify_provenance_receipt(
+                            repository,
+                            invalid,
+                            receipt.tip_sha,
+                        )
+                        assert False, f"invalid receipt accepted: {invalid}"
+                    except LAND._Reject as exc:
+                        assert exc.rc == LAND.RC_PROVENANCE
+            finally:
+                repository.close()
+
+
+def test_provenance_audit_rejects_executed_bytes_mismatch() -> None:
+    """M5: 束縛 FD の実行予定 bytes が commit blob と違えば rc=29。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request = repo.request(wave)
+        (wave / "tools" / "check_ai_provenance.py").write_text(
+            "raise SystemExit(0)\n# dirty replacement\n",
+            encoding="utf-8",
+        )
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            try:
+                try:
+                    LAND._audit_provenance_history(repository)
+                    assert False, "mismatched executed bytes were accepted"
+                except LAND._Reject as exc:
+                    assert exc.rc == LAND.RC_PROVENANCE
+                    assert "bound bytes do not match" in exc.reason
+            finally:
+                repository.close()
+
+
+def test_provenance_binding_close_is_idempotent_and_closes_both_fds() -> None:
+    """最初の close 失敗でも二つ目を閉じ、全 field を -1 にする。"""
+
+    checker_fd = os.open(os.devnull, os.O_RDONLY)
+    tools_fd = os.open(os.devnull, os.O_RDONLY)
+    binding = LAND._ProvenanceCheckerBinding(Path(os.devnull), tools_fd, checker_fd)
+    original_close = LAND.os.close
+    closed = []
+
+    def fail_first(fd):
+        closed.append(fd)
+        if fd == checker_fd:
+            raise OSError("synthetic first close failure")
+        return original_close(fd)
+
+    try:
+        LAND.os.close = fail_first
+        try:
+            binding.close()
+            assert False, "synthetic close failure was hidden"
+        except OSError as exc:
+            assert "synthetic first close failure" in str(exc)
+    finally:
+        LAND.os.close = original_close
+        original_close(checker_fd)
+
+    assert closed == [checker_fd, tools_fd]
+    assert (binding.checker_fd, binding.tools_fd) == (-1, -1)
+    try:
+        os.fstat(tools_fd)
+        assert False, "tools fd was left open"
+    except OSError:
+        pass
+    binding.close()
+
+
+def test_provenance_receipt_rejects_tip_that_moves_during_audit() -> None:
+    """M4 integration: audit 中に tested tip から動いた HEAD は拒否する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        checker = (
+            "import subprocess\n"
+            "from pathlib import Path\n"
+            "repo = Path(__file__).resolve().parent.parent\n"
+            "raise SystemExit(subprocess.run(["
+            f"{REAL_GIT!r}, '-C', str(repo), 'reset', '--hard', "
+            "'refs/heads/provenance-next'], check=False).returncode)\n"
+        )
+        repo.commit(wave, "tools/check_ai_provenance.py", checker)
+        tested_tip = repo.commit(wave, "wave.txt", "wave\n")
+        moved_tip = repo.commit(wave, "next.txt", "next\n")
+        _git(wave, "branch", "provenance-next", moved_tip)
+        _git(wave, "reset", "--hard", tested_tip)
+        request = repo.request(wave, tip=tested_tip)
+        result = _land(request)
+        assert (result.rc, result.status) == (LAND.RC_PROVENANCE, "rejected"), result
+        assert "heads or collision paths changed" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_provenance_subprocess_contract_and_exception_mapping() -> None:
+    """M6/M7: argv/kwargs を固定し、起動・timeout・想定外例外を rc=29 化する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request = repo.request(wave)
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            original_run = LAND.subprocess.run
+            checker_path = wave / "tools" / "check_ai_provenance.py"
+            expected_keys = {
+                "cwd", "env", "stdin", "stdout", "stderr", "check",
+                "shell", "close_fds", "timeout",
+            }
+            observed_calls = []
+
+            def fake_run(argv, **kwargs):
+                if isinstance(argv, list) and argv and argv[0] == LAND._GIT_EXE:
+                    return original_run(argv, **kwargs)
+                observed_calls.append((argv, kwargs))
+                return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+            try:
+                LAND.subprocess.run = fake_run
+                receipt = LAND._audit_provenance_history(repository)
+                assert receipt.returncode == 0
+                assert len(observed_calls) == 1
+                argv, kwargs = observed_calls[0]
+                assert argv == [sys.executable, str(checker_path)]
+                assert set(kwargs) == expected_keys
+                assert kwargs["cwd"] == wave
+                assert kwargs["env"] == {
+                    **LAND._git_env(),
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                }
+                assert kwargs["stdin"] is subprocess.DEVNULL
+                assert kwargs["stdout"] is subprocess.PIPE
+                assert kwargs["stderr"] is subprocess.PIPE
+                assert kwargs["check"] is False
+                assert kwargs["shell"] is False
+                assert kwargs["close_fds"] is True
+                assert kwargs["timeout"] == 480
+
+                for failure in (
+                    OSError("synthetic exec failure"),
+                    subprocess.TimeoutExpired([sys.executable], 480),
+                    RuntimeError("synthetic unexpected failure"),
+                    SystemExit("synthetic system exit"),
+                    GeneratorExit("synthetic generator exit"),
+                ):
+                    def failing_run(argv, _failure=failure, **kwargs):
+                        if (
+                            isinstance(argv, list)
+                            and argv
+                            and argv[0] == LAND._GIT_EXE
+                        ):
+                            return original_run(argv, **kwargs)
+                        raise _failure
+
+                    LAND.subprocess.run = failing_run
+                    try:
+                        LAND._audit_provenance_history(repository)
+                        assert False, f"exception escaped mapping: {failure!r}"
+                    except LAND._Reject as exc:
+                        assert exc.rc == LAND.RC_PROVENANCE
+            finally:
+                LAND.subprocess.run = original_run
+                repository.close()
+
+
+def test_provenance_checker_missing_and_symlink_components_are_rejected_clean() -> None:
+    """checker 欠落・leaf/ancestor symlink は clean commit tip でも rc=29。"""
+
+    for kind in ("missing", "leaf-symlink", "ancestor-symlink"):
+        with _repo() as repo:
+            wave = repo.waves["one"]
+            external = repo.root / f"external-{kind}"
+            if kind == "missing":
+                _git(wave, "rm", "tools/check_ai_provenance.py")
+            elif kind == "leaf-symlink":
+                external.write_text("raise SystemExit(0)\n", encoding="utf-8")
+                _git(wave, "rm", "tools/check_ai_provenance.py")
+                os.symlink(external, wave / "tools" / "check_ai_provenance.py")
+                _git(wave, "add", "tools/check_ai_provenance.py")
+            else:
+                external.mkdir()
+                (external / "check_ai_provenance.py").write_text(
+                    "raise SystemExit(0)\n",
+                    encoding="utf-8",
+                )
+                (external / "check_docs.py").write_text(
+                    "raise SystemExit(0)\n",
+                    encoding="utf-8",
+                )
+                _git(wave, "rm", "-r", "tools")
+                os.symlink(external, wave / "tools", target_is_directory=True)
+                _git(wave, "add", "tools")
+            _git(wave, "commit", "-qm", f"make checker {kind}")
+            assert _git(wave, "status", "--porcelain=v1") == ""
+            tip = _git(wave, "rev-parse", "HEAD")
+            result = _land(repo.request(wave, tip=tip))
+            assert (result.rc, result.status) == (
+                LAND.RC_PROVENANCE,
+                "rejected",
+            ), (kind, result)
+            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
 _WRAPPER = """#!/usr/bin/env python3
@@ -2072,6 +2489,85 @@ def test_active_transaction_resumes_before_main_dirty_gate() -> None:
         assert result.main_after != tip
         assert _git(repo.main, "rev-parse", f"{result.main_after}^") == tip
         assert _git(repo.main, "status", "--porcelain=v1") == ""
+
+
+def test_active_transaction_recovery_completes_with_provenance_red() -> None:
+    """正例/M8: active recovery は checker 欠落・非0・timeout を起動しない。"""
+
+    for mode in ("missing", "nonzero", "timeout"):
+        with _repo() as repo:
+            wave = repo.waves["one"]
+            (repo.main / ".git" / "info" / "exclude").write_text(
+                ".codex/worktrees/\n",
+                encoding="utf-8",
+            )
+            if mode == "missing":
+                _git(wave, "rm", "tools/check_ai_provenance.py")
+                _git(wave, "commit", "-qm", "remove provenance checker")
+            elif mode == "nonzero":
+                repo.commit(
+                    wave,
+                    "tools/check_ai_provenance.py",
+                    "raise SystemExit(73)\n",
+                )
+            else:
+                repo.commit(
+                    wave,
+                    "tools/check_ai_provenance.py",
+                    "import time\ntime.sleep(600)\n",
+                )
+            relative, _wave_fragment, _content = _fake_pending_fragment(repo, wave)
+            tip = _git(wave, "rev-parse", "HEAD")
+            _git(repo.main, "merge", "--ff-only", tip)
+            receipt_rel = "docs/spool/FOLDED.md"
+            (repo.main / receipt_rel).write_text(
+                "partial canonical\n", encoding="utf-8"
+            )
+
+            def resume(repo_path: Path, _plan) -> None:
+                (repo_path / receipt_rel).write_text(
+                    f"# receipts\n- resumed-{mode}-provenance\n",
+                    encoding="utf-8",
+                )
+                (repo_path / relative).unlink()
+
+            plan = _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget(receipt_rel),),
+            )
+            module = _FakeFoldModule(plan, resume, active=True)
+            original_run = LAND.subprocess.run
+
+            def timeout_checker(argv, **kwargs):
+                if isinstance(argv, list) and argv and argv[0] == LAND._GIT_EXE:
+                    return original_run(argv, **kwargs)
+                if argv == [
+                    sys.executable,
+                    str(wave / "tools" / "check_ai_provenance.py"),
+                ]:
+                    raise subprocess.TimeoutExpired(argv, 480)
+                return original_run(argv, **kwargs)
+
+            try:
+                if mode == "timeout":
+                    LAND.subprocess.run = timeout_checker
+                with (
+                    _patched_land_attr("_load_spool_fold", lambda: module),
+                    _patched_land_attr(
+                        "_preflight_fold_message", lambda *_args: None
+                    ),
+                ):
+                    result = _land(repo.request(wave, tip=tip))
+            finally:
+                LAND.subprocess.run = original_run
+
+            assert (result.rc, result.status) == (
+                LAND.RC_OK,
+                "landed",
+            ), (mode, result)
+            assert result.main_after != tip
+            assert _git(repo.main, "rev-parse", f"{result.main_after}^") == tip
+            assert _git(repo.main, "status", "--porcelain=v1") == ""
 
 
 def test_not_landed_is_distinct_from_postcondition_failure() -> None:
