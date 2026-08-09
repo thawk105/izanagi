@@ -20,6 +20,7 @@ import sys
 import tempfile
 import threading
 import time
+import unicodedata
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
@@ -131,20 +132,57 @@ INCIDENT_6B64D21_FORWARD_CORRECTION = ForwardCorrectionSpec(
 
 MISSING_AI_AGENT = "missing-ai-agent"
 MISSING_CODEX_AUTHOR = "missing-codex-author"
-_LEDGER_FINDING_KINDS = frozenset({MISSING_AI_AGENT, MISSING_CODEX_AUTHOR})
+MALFORMED_AI_AGENT = "malformed-ai-agent"
+_LEDGER_FINDING_KINDS = frozenset({
+    MISSING_AI_AGENT,
+    MISSING_CODEX_AUTHOR,
+    MALFORMED_AI_AGENT,
+})
+_NOTE_REQUIRED_FINDING_KINDS = frozenset({MALFORMED_AI_AGENT})
+_ZERO_WIDTH_REGISTRY_CHARACTERS = frozenset("\u200b\u200c\u200d\ufeff")
+_PROHIBITED_REGISTRY_CATEGORIES = frozenset({"Cc", "Cf", "Zl", "Zp"})
+_DESCRIPTIVE_NOTE_CATEGORY_PREFIXES = frozenset({"L", "N", "P", "S"})
+_NON_DESCRIPTIVE_NOTE_CHARACTERS = frozenset({
+    "\u034f",  # COMBINING GRAPHEME JOINER
+    "\u115f",  # HANGUL CHOSEONG FILLER
+    "\u1160",  # HANGUL JUNGSEONG FILLER
+    "\u17b4",  # KHMER VOWEL INHERENT AQ
+    "\u17b5",  # KHMER VOWEL INHERENT AA
+    "\u2065",  # reserved default-ignorable code point
+    "\u3164",  # HANGUL FILLER
+    "\ufe0f",  # VARIATION SELECTOR-16
+    "\uffa0",  # HALFWIDTH HANGUL FILLER
+})
 
 
 @dataclass(frozen=True)
 class KnownViolationSpec:
-    """ユーザー裁定済みの既知 provenance 違反。"""
+    """ユーザー裁定済みの既知 provenance 違反。
+
+    expected_finding_value は malformed commit で観測した不正 trailer 値を
+    逐語で持ち、それ以外の kind では空にする。
+    """
 
     commit: str
     expected_finding_kind: str
     ruling: str
     note: str = ""
+    expected_finding_value: str = ""
 
 
 _KNOWN_VIOLATION_RULING = "worklog(284) 2026-08-07 /rulings"
+_T139_MALFORMED_RULING = (
+    "2026-08-09 dev-wave-jobs/rulings-inbox/"
+    "2026-08-09-t139-r4-probe-provenance-format-violation.md"
+)
+_T659_PROBE_RULING = (
+    "2026-08-09 dev-wave-jobs/rulings-inbox/"
+    "2026-08-09-t659-provenance-and-f37-rulings.md"
+)
+_T139_MALFORMED_VALUE = (
+    "product=claude; model=claude-opus-5[1m]; reasoning=high; "
+    "role=orchestrator"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -185,7 +223,274 @@ KNOWN_PROVENANCE_VIOLATIONS = (
             "空行で trailer block 不成立"
         ),
     ),
+    KnownViolationSpec(
+        "f277efd4461d361d5c9aa6db9a7e00b194b76083",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=実装面（test・probe・PBS wrapper・機械設定、insight docs 併記）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "74b501962092373ba2e8bbca1566d0732e0f16c6",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=merge（全 parent 共通の combined path なし）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "7ec088163dee920f0b8e1e9783faa6e36b22b730",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=実装面（test・probe・PBS wrapper・契約、runbook・insight docs 併記）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "1d09940463ccacb0dbb0ab3e69ca0698a960fdf1",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=merge（全 parent 共通の combined path なし）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "f1406c22abece76276b43dde897750a46aae877e",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=実装面（test・probe・shell wrapper）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=変異台帳（mutation-spec.json）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "ff264975a04aa19f36f861ca97efe9dc59c88659",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=変異台帳（mutation-spec.json）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
+        MISSING_CODEX_AUTHOR,
+        _T659_PROBE_RULING,
+        note=(
+            "親作成の所在不問 Python probe を含む実装面 commit に Codex role=author が欠落；"
+            "変更 path 種別=実装面（verbatim/probe_split_window.py、.md 逐語移行対象）"
+        ),
+    ),
+    KnownViolationSpec(
+        "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=変異台帳（mutation-spec.json）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=変異台帳（mutation-ledger.json）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "2b3d06cbe81b1ae2675c153bdf307d508fc35a20",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=docs（submission receipt）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "30719e517dcee45c014cbf1052c6dc70a8fcf693",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=docs（submission receipt）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=実装面（test・probe、実測成果物併記）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "622bd786191d40bda388596fa2adbf119ee84c9a",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=実測成果物・docs（追補 A・package・receipt）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "c75fde903384b6eb9e4d45239b66008b7639cbf7",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=merge（combined path は docs/pegasus-runbook.md）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "c55ace29e55bba948d7bdca89f6fc1fb1a5191da",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=docs（worklog fragment）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "edf74c94427686f2b91519ef10e94446d0fe89d5",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=merge（全 parent 共通の combined path なし）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "7e3cc116f2466fb439ec2bddd38f35dab928c942",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=merge（全 parent 共通の combined path なし）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "66769067ee57d78650b208b9a86438ff2f1bf73b",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=merge（全 parent 共通の combined path なし）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=docs（worklog fragment）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "aaffa644a969f0a58969b2661318bda4c42ac767",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=merge（全 parent 共通の combined path なし）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=docs（worklog fragment）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "797db5def66ef1d318d06c7aa189ea51a66c9312",
+        MALFORMED_AI_AGENT,
+        _T139_MALFORMED_RULING,
+        note=(
+            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+            "変更 path 種別=docs（worklog fragment）"
+        ),
+        expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
 )
+
+
+def _contains_prohibited_registry_character(value: str) -> bool:
+    return any(
+        char in _ZERO_WIDTH_REGISTRY_CHARACTERS
+        or unicodedata.category(char) in _PROHIBITED_REGISTRY_CATEGORIES
+        for char in value
+    )
+
+
+def _contains_descriptive_note_character(value: str) -> bool:
+    return any(
+        char not in _NON_DESCRIPTIVE_NOTE_CHARACTERS
+        and unicodedata.category(char)[0] in _DESCRIPTIVE_NOTE_CATEGORY_PREFIXES
+        for char in value
+    )
 
 
 def _known_violation_registry() -> dict[str, KnownViolationSpec]:
@@ -242,6 +547,56 @@ def _known_violation_registry() -> dict[str, KnownViolationSpec]:
             raise RuntimeError(
                 "known provenance violation registry has line break in note: "
                 f"{spec.commit}"
+            )
+        if not isinstance(spec.expected_finding_value, str):
+            raise RuntimeError(
+                "known provenance violation registry has invalid finding value type: "
+                f"{type(spec.expected_finding_value).__name__}"
+            )
+        if (
+            spec.expected_finding_kind == MALFORMED_AI_AGENT
+            and not spec.expected_finding_value
+        ):
+            raise RuntimeError(
+                "known provenance violation registry has empty required finding value: "
+                f"{spec.commit}"
+            )
+        if (
+            spec.expected_finding_kind != MALFORMED_AI_AGENT
+            and spec.expected_finding_value
+        ):
+            raise RuntimeError(
+                "known provenance violation registry has unexpected finding value: "
+                f"{spec.commit}"
+            )
+        if (
+            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS
+            and not spec.note.strip()
+        ):
+            raise RuntimeError(
+                "known provenance violation registry has empty required note: "
+                f"{spec.commit}"
+            )
+        if (
+            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS
+            and _contains_prohibited_registry_character(spec.note)
+        ):
+            raise RuntimeError(
+                "known provenance violation registry has prohibited character in note: "
+                f"{spec.commit}"
+            )
+        if (
+            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS
+            and not _contains_descriptive_note_character(spec.note)
+        ):
+            raise RuntimeError(
+                "known provenance violation registry has non-descriptive required note: "
+                f"{spec.commit}"
+            )
+        if _contains_prohibited_registry_character(spec.expected_finding_value):
+            raise RuntimeError(
+                "known provenance violation registry has prohibited character in "
+                f"finding value: {spec.commit}"
             )
         registry[spec.commit] = spec
     return registry
@@ -932,6 +1287,14 @@ def _build_ancestry(commits: list[str]) -> _Ancestry:
     return _Ancestry(index, tuple(bits), mask)
 
 
+def _base_finding_ledger_kind(label: str, finding: str) -> str | None:
+    if finding == f"{label}: AI-Agent trailer がない":
+        return MISSING_AI_AGENT
+    if finding.startswith(f"{label}: AI-Agent の形式違反: "):
+        return MALFORMED_AI_AGENT
+    return None
+
+
 def _normal_commit_audit(
     commit: str,
     *,
@@ -963,9 +1326,7 @@ def _normal_commit_audit(
     findings = [
         NormalFinding(
             finding,
-            MISSING_AI_AGENT
-            if finding == f"{label}: AI-Agent trailer がない"
-            else None,
+            _base_finding_ledger_kind(label, finding),
         )
         for finding in base
     ]
@@ -1028,6 +1389,13 @@ def _known_violation_audit(
             if (
                 spec_for_commit is not None
                 and finding.ledger_kind == spec_for_commit.expected_finding_kind
+                and (
+                    not spec_for_commit.expected_finding_value
+                    or finding.text.startswith(
+                        f"{audit.label}: AI-Agent の形式違反: "
+                        f"{spec_for_commit.expected_finding_value!r} — "
+                    )
+                )
             ):
                 if audit.commit in expected_kind_counts:
                     expected_kind_counts[audit.commit] += 1
@@ -1054,7 +1422,10 @@ def _ledger_policy_is_visible(
 ) -> bool:
     """期待 finding の policy epoch を current HEAD から検証できるか。"""
 
-    if spec.expected_finding_kind == MISSING_AI_AGENT:
+    if spec.expected_finding_kind in {
+        MISSING_AI_AGENT,
+        MALFORMED_AI_AGENT,
+    }:
         return True
     if spec.expected_finding_kind == MISSING_CODEX_AUTHOR:
         return (
