@@ -51,6 +51,10 @@ title: [T-673] 量化縮退への検査方式を実測して裁定へ返した �
   16 ファイルあり (`test_check_docs` / `test_spool_fold` / `test_frozen_artifacts` /
   `test_dev_wave_land` ほか)、本 wave はその両方へ追加するため全走が要ると判定した。
   lease は別 wave が保持しており 30 秒周期で待って取得、取得直後に main を取り込んでから投入した。
+  **land する tip は、受入を走らせた tip に docs-only の記録 commit を載せたものである。**
+  記録は受入値を含むため、tip と測定を厳密に一致させようとすると記録 commit ごとに再走が要る
+  無限後退になる。台帳の慣行どおり最後の docs-only commit を上に載せて land し、
+  測定 tip (`189c7ea0`) と差分の性質をここに明示する。
 - **段 8 の改善候補 2 件は、予算余白がゼロのため実装せず裁定へ送った。**
   `docs/dev-wave/**` の L1.5 読量は **9566 / 9566 bytes と上限ちょうど**で、
   両候補で +569 bytes 必要だった。[T-627] も同じ壁に当たっており (残余 16 bytes)、**2 波連続**である。
