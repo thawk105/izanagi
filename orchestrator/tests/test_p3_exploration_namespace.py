@@ -31,6 +31,7 @@ from campaign.build_admission import (BuildAdmissionError, BuildRunContext, Gene
                                       add_coder_build_authority_argument,
                                       build_run_context)
 from campaign.layout import exploration_campaign_layout             # noqa: E402
+from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
 
 _DRIVERS = (
@@ -163,7 +164,9 @@ def test_iteration_public_entry_routes_runtime_layout_and_selector(
         cfg = run_args[0]
         campaign_id = str(ident.campaign_id(cfg))
         sink_layout = module.exploration_campaign_layout(campaign_id).ensure()
-        wal.write_lock(sink_layout, ident.canonical_preimage(cfg))
+        wal.write_lock(sink_layout, build_v2_lock(
+            ident.canonical_preimage(cfg)
+        ))
         Path(sink_layout.wal_file).touch(exist_ok=True)
         return SimpleNamespace(results=[], skipped=0)
 
@@ -321,7 +324,9 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
         cfg = run_args[0]
         campaign_id = str(ident.campaign_id(cfg))
         sink_layout = module.exploration_campaign_layout(campaign_id).ensure()
-        wal.write_lock(sink_layout, ident.canonical_preimage(cfg))
+        wal.write_lock(sink_layout, build_v2_lock(
+            ident.canonical_preimage(cfg)
+        ))
         Path(sink_layout.wal_file).touch(exist_ok=True)
         return SimpleNamespace(results=[], skipped=0)
 

@@ -56,6 +56,7 @@ from critic.digest import (DIFF_QUARANTINE_REASON,                 # noqa: E402
                            IdentityProjection,
                            load_diff_rejections,
                            load_liveness_rejections, render_rejections)
+from campaign_lock_test_support import build_v2_lock               # noqa: E402
 
 # 実 backoff.hh の EVOLVE-BLOCK 骨格を写した fixture (test_diff_quarantine と同型)。
 _TEMPLATE = """#pragma once
@@ -103,7 +104,9 @@ _OUTER_WHITESPACE = (
 
 def _critic_view(layout: CampaignLayout):
     """実 policy-bound lock と attempt topology から critic view を発行する。"""
-    wal.write_lock(layout, ident.canonical_preimage(L.default_cfg()))
+    wal.write_lock(layout, build_v2_lock(
+        ident.canonical_preimage(L.default_cfg())
+    ))
     return require_admitted_campaign(layout)
 
 
@@ -1093,7 +1096,10 @@ def test_digest_projection_changes_only_identity_bytes_with_reflux_off():
 # ==== LoopState checkpoint/resume (段 4b の cross-process 永続化) ==============
 
 def _tmp_layout(tag: str) -> CampaignLayout:
-    return CampaignLayout(root=tempfile.mkdtemp(prefix=f"izanagi_s4loop_{tag}_")).ensure()
+    parent = tempfile.mkdtemp(prefix=f"izanagi_s4loop_{tag}_")
+    return CampaignLayout(
+        root=os.path.join(parent, str(ident.campaign_id(L.default_cfg())))
+    ).ensure()
 
 
 def _checkpoint_with_whiteboard_value(field, value):
@@ -1450,7 +1456,7 @@ def test_drive_iteration_stops_before_running_when_reverse_exhausted():
 def test_drive_iteration_recovers_real_wal_start_before_entry_stop():
     lay = _tmp_layout("recover-before-stop")
     cfg, perf = L.default_cfg(), L.default_perf()
-    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    wal.write_lock(lay, build_v2_lock(ident.canonical_preimage(cfg)))
     wal.log(lay, "crashed-v", STAGE_BUILD_START, "test-env", {
         "build_attempt_id": "crashed-attempt",
     })
@@ -1488,7 +1494,7 @@ def test_inner_run_recovers_reject_start_before_writing_retry_start():
 
     lay = _tmp_layout("inner-reject-recovery")
     cfg, perf = L.default_cfg(), L.default_perf()
-    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    wal.write_lock(lay, build_v2_lock(ident.canonical_preimage(cfg)))
     implementation = "#define EVIL 1\ndouble now_backoff = 20.0;"
     variant = L.diffq_variant_id(_G, implementation)
     wal.log(lay, variant, STAGE_BUILD_START, "test-env", {
@@ -1545,7 +1551,7 @@ def test_drive_iteration_checkpoint_survives_across_calls():
             cfg, perf, pl, cd, None, sub, do_build=False, layout=lay,
         )
     assert out1["ran"] is True and out1["outcome"] == "rejected" and out1["iteration"] == 1
-    assert wal.read_lock(lay) == ident.canonical_preimage(cfg)
+    assert wal.read_lock(lay) == build_v2_lock(ident.canonical_preimage(cfg))
     st = L.load_loop_state(lay)
     assert len(st.whiteboard) == 1 and st.whiteboard[0].result == "rejected"
     next_cd = L.CoderProposal(

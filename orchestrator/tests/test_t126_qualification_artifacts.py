@@ -15,13 +15,13 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
-from campaign import layer3_report, pipeline  # noqa: E402
+from campaign import campaign_lock, ident, layer3_report, pipeline  # noqa: E402
 from campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
     derive_build_admission,
 )
-from campaign.model import Genome  # noqa: E402
+from campaign.model import CampaignConfig, Genome  # noqa: E402
 from campaign.pin import CURRENT_PIN  # noqa: E402
 from campaign.source_digest import (  # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
@@ -46,6 +46,7 @@ from qualification.attempt_ledger import (  # noqa: E402
     replay_attempt_ledger,
 )
 from qualification import attempt_ledger as attempt_ledger_module  # noqa: E402
+from campaign_lock_test_support import build_v2_lock  # noqa: E402
 
 
 def _root(tmp_path: Path):
@@ -245,9 +246,19 @@ def _member_events():
 
 def _formal_campaign(tmp_path: Path):
     output_root = tmp_path / "repo" / "output"
-    campaign = output_root / "campaigns" / "formal-shaped"
-    (campaign / "runs").mkdir(parents=True)
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    cfg = CampaignConfig(
+        spec_slug="formal-shaped", search_tag="test", spec_content="x",
+        ccbench_commit=CURRENT_PIN,
+        search_config={
+            "records": 1,
+            "threads": 1,
+            "build_admission": dict(context.policy.as_preimage()),
+        },
+        trial="t",
+    )
+    campaign = output_root / "campaigns" / str(ident.campaign_id(cfg))
+    (campaign / "runs").mkdir(parents=True)
     genome = Genome("silo", {})
     evidence = SourceEvidence(
         schema_version="source-evidence/v1",
@@ -263,15 +274,9 @@ def _formal_campaign(tmp_path: Path):
         tracked_paths=(),
     )
     receipt = derive_build_admission(context, evidence).as_wal_receipt()
-    (campaign / "campaign.lock").write_text(json.dumps({
-        "ccbench_commit": CURRENT_PIN,
-        "search_config": {
-            "records": 1,
-            "threads": 1,
-            "build_admission": dict(context.policy.as_preimage()),
-        },
-        "search_tag": "test", "spec_content": "x", "trial": "t",
-    }), encoding="utf-8")
+    (campaign / "campaign.lock").write_text(
+        build_v2_lock(ident.canonical_preimage(cfg)), encoding="utf-8",
+    )
     record = {
         "ts": 1.0,
         "stage": "build_start",
@@ -324,7 +329,8 @@ def test_m2_normal_formal_campaign_remains_accepted(tmp_path):
     report = layer3_report.build_report(
         campaign, generated_from_head="fixed", output_root=output_root)
     assert report["schema_version"] == "layer3-material-report/v3"
-    assert report["meta"]["campaign_id"] == "formal-shaped"
+    # v2 admission は directory 名を inner identity 由来 ID に固定する。
+    assert report["meta"]["campaign_id"] == campaign.name
 
 
 def test_layer3_rejects_qualification_lineage_nested_in_formal_wal(tmp_path):
@@ -353,12 +359,22 @@ def test_m2a_ancestor_marker_alone_rejects_formal_shape(tmp_path):
 def test_m2b_lock_lineage_alone_rejects_without_shape_mask(tmp_path):
     campaign, output_root = _formal_campaign(tmp_path)
     lock_path = campaign / "campaign.lock"
-    lock = json.loads(lock_path.read_text(encoding="utf-8"))
-    lock["search_config"]["qualification_lineage"] = "t126-only"
-    lock_path.write_text(json.dumps(lock), encoding="utf-8")
+    decoded = campaign_lock.decode_campaign_lock(
+        lock_path.read_text(encoding="utf-8")
+    )
+    identity = dict(decoded.identity)
+    identity["search_config"] = {
+        **identity["search_config"],
+        "qualification_lineage": "t126-only",
+    }
+    preimage = campaign_lock.canonical_json(identity)
+    lock_path.write_text(build_v2_lock(preimage), encoding="utf-8")
+    suffix = hashlib.sha256(preimage.encode("utf-8")).hexdigest()[:8]
+    renamed = campaign.with_name(f"formal-shaped-test-{suffix}")
+    campaign.rename(renamed)
     with pytest.raises(layer3_report.Layer3ReportError, match="qualification"):
         layer3_report.build_report(
-            campaign, generated_from_head="fixed", output_root=output_root)
+            renamed, generated_from_head="fixed", output_root=output_root)
 
 
 def test_m3_source_snapshot_requires_the_registered_full_hash(tmp_path):

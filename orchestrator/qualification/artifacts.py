@@ -17,6 +17,11 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
+if __package__ and __package__.startswith("orchestrator."):
+    from ..campaign import campaign_lock
+else:
+    from campaign import campaign_lock
+
 from .contract import (
     attempt_identity,
     canonical_json_bytes,
@@ -803,9 +808,15 @@ def select_source_pair(repo_root: Path, protocol: Mapping[str, Any]) -> dict[str
         raise QualificationArtifactError("source campaign.lock hash mismatch")
     if sha256_file(wal_path) != source["wal_sha256"]:
         raise QualificationArtifactError("source WAL hash mismatch")
-    lock = load_source_json(lock_path)
+    try:
+        lock_text = read_regular_file(lock_path).decode("utf-8")
+        lock_identity = campaign_lock.decode_campaign_lock(lock_text).identity
+    except (UnicodeDecodeError, campaign_lock.CampaignLockCodecError) as exc:
+        raise QualificationArtifactError(
+            "source campaign.lock schema is invalid"
+        ) from exc
     records = load_source_jsonl(wal_path)
-    if lock.get("ccbench_commit") != source["historical_ccbench_commit"]:
+    if lock_identity.get("ccbench_commit") != source["historical_ccbench_commit"]:
         raise QualificationArtifactError("source historical CCBench commit mismatch")
     selected = {}
     for role in ("subject", "reference"):
@@ -838,7 +849,7 @@ def select_source_pair(repo_root: Path, protocol: Mapping[str, Any]) -> dict[str
             "genome": expected["genome"],
             "historical_median_tps": expected["historical_median_tps"],
         }
-    return {"lock": lock, "members": selected}
+    return {"lock": lock_identity, "members": selected}
 
 
 def validate_member_evidence(

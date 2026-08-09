@@ -30,6 +30,7 @@ from campaign.source_digest import (  # noqa: E402
     SOURCE_EVIDENCE_SCHEMA,
     SourceEvidence,
 )
+from campaign_lock_test_support import build_v2_lock              # noqa: E402
 
 
 WORKLOAD = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
@@ -228,7 +229,7 @@ def test_prepare_repairs_tail_before_baseline_callback(
     cfg = CampaignConfig(
         **{**_cfg().__dict__, "search_config": {**_cfg().search_config, **policy}})
     layout = campaign_layout(str(ident.campaign_id(cfg)), output).ensure()
-    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     _log_completed_attempt(layout, "prior", Genome("silo", {"BACK_OFF": 0}))
     with open(layout.wal_file, "ab") as stream:
         stream.write(b'{"torn":')
@@ -264,7 +265,7 @@ def test_evaluate_candidate_repairs_tail_before_replay_and_evaluate(
     authorization, contract = _certified_writer_authority
     cfg = _cfg()
     layout = campaign_layout(str(ident.campaign_id(cfg)), str(tmp_path / "out")).ensure()
-    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     prior_genome = Genome("silo", {"BACK_OFF": 0})
     _log_completed_attempt(layout, "prior", prior_genome)
     with open(layout.wal_file, "ab") as stream:

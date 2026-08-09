@@ -32,11 +32,11 @@ from .build_admission import (
     BuildAdmissionPolicy,
     validate_build_admission_receipt,
 )
+from . import campaign_lock as campaign_lock_codec
 from . import env_contract
 from .layout import CampaignLayout
 from .model import (
     COMMIT_CONTRACT_SHA256_KEY,
-    ENVIRONMENT_CONTRACT_SEARCH_KEY,
     INCOMPLETE_ATTEMPT_RECOVERY_REASON,
     STAGE_ABORT,
     STAGE_BENCH_DONE,
@@ -77,6 +77,7 @@ _ATTEMPT_SCHEMA_KEYS = frozenset({
     TRIGGER_BINDING_COMMITMENT_KEY,
 })
 INCOMPLETE_ATTEMPT_RECOVERY_LIMIT = 3
+_LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY = "environment_contract_sha256"
 
 
 # ---- シリアライズ ----
@@ -686,15 +687,9 @@ def read_records(layout: CampaignLayout) -> List[WalRecord]:
     return records
 
 
-def _lock_declares_admission_policy(layout: CampaignLayout) -> bool:
-    stored = read_lock(layout)
-    if stored is None:
-        return False
-    try:
-        value = json.loads(stored)
-    except (json.JSONDecodeError, TypeError):
-        return False
-    search = value.get("search_config") if type(value) is dict else None
+def _lock_declares_admission_policy(lock_value: object) -> bool:
+    identity = _campaign_lock_identity(lock_value)
+    search = identity.get("search_config") if type(identity) is dict else None
     return type(search) is dict and "build_admission" in search
 
 
@@ -703,14 +698,51 @@ def _campaign_lock_value(layout: CampaignLayout) -> object:
     if stored is None:
         return None
     try:
-        return json.loads(stored)
-    except (json.JSONDecodeError, TypeError) as exc:
-        raise AttemptTopologyError("campaign.lock が canonical JSON object でない") from exc
+        return campaign_lock_codec.decode_campaign_lock(stored)
+    except campaign_lock_codec.CampaignLockCodecError as exc:
+        raise AttemptTopologyError(
+            "campaign.lock が既知の v1/v2 wire contract を満たさない"
+        ) from exc
+
+
+def _decoded_campaign_lock_value(
+        lock_value: object,
+) -> Optional[campaign_lock_codec.DecodedCampaignLock]:
+    """Normalize a decoded lock or a v2 object supplied by a direct caller.
+
+    WAL file readers always pass a codec-validated ``DecodedCampaignLock``.
+    Historical direct unit/helper callers pass an already extracted v1 identity
+    dict, sometimes with only the fields relevant to the helper; keep that API
+    compatible without weakening the file-reading boundary.
+    """
+    if lock_value is None:
+        return None
+    if type(lock_value) is campaign_lock_codec.DecodedCampaignLock:
+        return lock_value
+    if type(lock_value) is dict and "schema_version" not in lock_value:
+        return None
+    if type(lock_value) is not dict:
+        raise AttemptTopologyError("campaign.lock value が object でない")
+    try:
+        encoded = campaign_lock_codec.canonical_json(lock_value)
+        return campaign_lock_codec.decode_campaign_lock(encoded)
+    except campaign_lock_codec.CampaignLockCodecError as exc:
+        raise AttemptTopologyError(
+            "campaign.lock が既知の v1/v2 wire contract を満たさない"
+        ) from exc
+
+
+def _campaign_lock_identity(lock_value: object) -> object:
+    decoded = _decoded_campaign_lock_value(lock_value)
+    if decoded is not None:
+        return decoded.identity
+    return lock_value
 
 
 def is_trigger_proposal_campaign_lock(campaign_lock: object) -> bool:
     """Classify proposal-driven trigger campaigns from their search config."""
-    search = campaign_lock.get("search_config") if type(campaign_lock) is dict else None
+    identity = _campaign_lock_identity(campaign_lock)
+    search = identity.get("search_config") if type(identity) is dict else None
     if type(search) is not dict:
         return False
     if TRIGGER_BINDING_SCHEMA_MARKER_KEY in search:
@@ -723,7 +755,8 @@ def is_trigger_proposal_campaign_lock(campaign_lock: object) -> bool:
 
 def is_trigger_machine_campaign_lock(campaign_lock: object) -> bool:
     """Recognize marker-free mechanical trigger enumeration, not proposals."""
-    search = campaign_lock.get("search_config") if type(campaign_lock) is dict else None
+    identity = _campaign_lock_identity(campaign_lock)
+    search = identity.get("search_config") if type(identity) is dict else None
     return (
         type(search) is dict
         and search.get("axis") == TRIGGER_AXIS
@@ -800,7 +833,8 @@ def validate_trigger_bindings(
     """Validate the shared trigger-binding record/start/source proof chain."""
     if type(require_build_start) is not bool:
         raise TypeError("require_build_start は exact bool が必要")
-    search = campaign_lock.get("search_config") if type(campaign_lock) is dict else None
+    identity = _campaign_lock_identity(campaign_lock)
+    search = identity.get("search_config") if type(identity) is dict else None
     proposal_campaign = is_trigger_proposal_campaign_lock(campaign_lock)
     binding_records = [
         (index, record) for index, record in enumerate(records)
@@ -953,14 +987,20 @@ def validate_commit_contract_bindings(
     locks without the wire key remain readable; a record cannot exempt itself
     by omitting the COMMIT field.
     """
+    decoded = _decoded_campaign_lock_value(campaign_lock)
+    identity = decoded.identity if decoded is not None else campaign_lock
     search_config = (
-        campaign_lock.get("search_config")
-        if type(campaign_lock) is dict else None
+        identity.get("search_config") if type(identity) is dict else None
     )
-    if (type(search_config) is not dict
-            or ENVIRONMENT_CONTRACT_SEARCH_KEY not in search_config):
-        return
-    expected = search_config.get(ENVIRONMENT_CONTRACT_SEARCH_KEY)
+    if decoded is not None and decoded.is_v2:
+        if decoded.authority is None:  # codec contract 上は到達不能。防御的に閉じる。
+            raise AttemptTopologyError("campaign-lock/v2 authority が欠落")
+        expected = decoded.authority.environment_contract_sha256
+    else:
+        if (type(search_config) is not dict
+                or _LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY not in search_config):
+            return
+        expected = search_config.get(_LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY)
     try:
         resolved = env_contract.resolve_by_contract_sha256(expected)
     except env_contract.EnvContractError as exc:
@@ -1293,9 +1333,9 @@ def recover_interrupted_attempts(
             raise OSError(errno.EINVAL, "WAL is not a regular file")
         records = _read_records_from_locked_fd(fd, info.st_size)
         campaign_lock = _campaign_lock_value(layout)
+        identity = _campaign_lock_identity(campaign_lock)
         search_config = (
-            campaign_lock.get("search_config")
-            if type(campaign_lock) is dict else None
+            identity.get("search_config") if type(identity) is dict else None
         )
         if (type(search_config) is not dict
                 or search_config.get("build_admission")
@@ -1427,7 +1467,7 @@ def replay(
     campaign_lock = _campaign_lock_value(layout)
     validate_commit_contract_bindings(records, campaign_lock=campaign_lock)
     validate_trigger_bindings(records, campaign_lock=campaign_lock)
-    if admission_policy is None and _lock_declares_admission_policy(layout):
+    if admission_policy is None and _lock_declares_admission_policy(campaign_lock):
         raise AttemptTopologyError(
             "admission-aware campaign replay には current admission_policy が必要"
         )

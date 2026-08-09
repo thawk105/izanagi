@@ -41,7 +41,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import (buildcache, genome, ident, pin, pipeline,  # noqa: E402
+from campaign import (buildcache, campaign_lock, genome, ident, pin, pipeline,  # noqa: E402
                       site_policy, source_digest, trigger_gate_binding, wal)
 from campaign import env_contract as ec                          # noqa: E402
 from campaign.build_admission import (  # noqa: E402
@@ -60,7 +60,6 @@ from campaign.layout import (CampaignLayout,                     # noqa: E402
 from campaign.lock import BenchBusy, bench_lock                  # noqa: E402
 from campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             COMMIT_CONTRACT_SHA256_KEY,
-                            ENVIRONMENT_CONTRACT_SEARCH_KEY,
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
                             STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE,
                             STAGE_S1_SESSION, STAGE_S8B_ORACLE_SESSION,
@@ -76,6 +75,7 @@ from certified_writer_fixtures import (                          # noqa: E402
     build_admission_fixture,
     build_source_drift_fixture,
 )
+from campaign_lock_test_support import build_v2_lock              # noqa: E402
 
 _AUTHORITY_PARSER = argparse.ArgumentParser(add_help=False)
 add_coder_build_authority_argument(_AUTHORITY_PARSER)
@@ -320,23 +320,20 @@ _T530_S6_CAMPAIGN_IDS = frozenset({
 })
 
 
+def _certified_lock_text(cfg: CampaignConfig) -> str:
+    return build_v2_lock(ident.canonical_preimage(cfg))
+
+
+def _write_certified_lock(layout: CampaignLayout, cfg: CampaignConfig) -> None:
+    wal.write_lock(layout, _certified_lock_text(cfg))
+
+
 def _campaign_id_from_historical_preimage(spec_slug, search_tag, preimage):
     rendered = json.dumps(
         preimage, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
     )
     digest = hashlib.sha256(rendered.encode("utf-8")).hexdigest()[:8]
     return f"{spec_slug}-{search_tag}-{digest}"
-
-
-def _campaign_id_without_environment_contract(cfg):
-    preimage = json.loads(ident.canonical_preimage(cfg))
-    removed = preimage["search_config"].pop(
-        ENVIRONMENT_CONTRACT_SEARCH_KEY
-    )
-    assert removed == _T530_CONTRACT_SHA256
-    return _campaign_id_from_historical_preimage(
-        cfg.spec_slug, cfg.search_tag, preimage,
-    )
 
 
 def test_campaign_id_deterministic():
@@ -355,13 +352,12 @@ def test_campaign_id_binds_admission_policy():
     )
     current = str(ident.campaign_id(_cfg()))
     assert historical == _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID
-    assert _campaign_id_without_environment_contract(_cfg()) == \
-        _T343_REPRESENTATIVE_CAMPAIGN_ID
-    assert current == _T530_REPRESENTATIVE_CAMPAIGN_ID
-    assert current not in {historical, _T343_REPRESENTATIVE_CAMPAIGN_ID}
+    # T-671 で H が identity から外れ、current は admission-policy 世代の ID に戻る。
+    assert current == _T343_REPRESENTATIVE_CAMPAIGN_ID
+    assert current not in {historical, _T530_REPRESENTATIVE_CAMPAIGN_ID}
 
 
-def test_environment_contract_binding_is_scalar_hash_only():
+def test_environment_contract_binding_is_runtime_carrier_only():
     raw = CampaignConfig(
         spec_slug="contract", search_tag="identity",
         spec_content="explicit reviewed contract fixture", ccbench_commit="deadbeef",
@@ -369,10 +365,8 @@ def test_environment_contract_binding_is_scalar_hash_only():
     )
     admission_bound = ident.bind_admission_policy(raw, _BUILD_CONTEXT.policy)
     bound = ident.bind_environment_contract(admission_bound, _T530_CONTRACT)
-    assert bound.search_config == {
-        **admission_bound.search_config,
-        ENVIRONMENT_CONTRACT_SEARCH_KEY: _T530_CONTRACT_SHA256,
-    }
+    assert bound.search_config == admission_bound.search_config
+    assert bound.bound_environment_contract is _T530_CONTRACT
     assert set(json.loads(ident.canonical_preimage(bound))) == {
         "spec_content", "ccbench_commit", "search_tag", "search_config", "trial",
     }
@@ -380,40 +374,54 @@ def test_environment_contract_binding_is_scalar_hash_only():
             "env_tag", "generation", "issued_pid", "activation_serial",
             "created_at", "receipt"):
         assert forbidden not in bound.search_config
-    try:
+    assert ident.canonical_preimage(bound) == \
         ident.canonical_preimage(admission_bound)
-        assert False, "certified config の environment contract 欠落を拒否すべき"
-    except ValueError as exc:
-        assert ENVIRONMENT_CONTRACT_SEARCH_KEY in str(exc)
 
 
-def test_bind_environment_contract_rejects_conflicting_prebound_hash():
+def test_bind_environment_contract_rejects_legacy_identity_hash():
     foreign = ec.GENERATIONS["pegasus"][0].contract.contract_sha256
     for conflicting in (None, foreign, _T530_CONTRACT_SHA256.upper()):
         cfg = CampaignConfig(
             spec_slug="contract", search_tag="conflict",
             spec_content="conflicting prebind", ccbench_commit="deadbeef",
-            search_config={ENVIRONMENT_CONTRACT_SEARCH_KEY: conflicting},
+            search_config={"environment_contract_sha256": conflicting},
         )
         before = dict(cfg.search_config)
         try:
             ident.bind_environment_contract(cfg, _T530_CONTRACT)
             assert False, "異なる事前束縛値を上書きせず拒否すべき"
         except ValueError as exc:
-            assert "environment contract" in str(exc)
+            assert (
+                "search_config.environment_contract_sha256 は旧 identity field"
+                in str(exc)
+            )
         assert cfg.search_config == before
 
 
-def test_campaign_lock_contract_binding_stays_under_search_config():
+def test_campaign_lock_identity_excludes_contract_authority():
     stored = json.loads(ident.canonical_preimage(_cfg()))
     assert set(stored) == {
         "spec_content", "ccbench_commit", "search_tag", "search_config", "trial",
     }
-    assert stored["search_config"][ENVIRONMENT_CONTRACT_SEARCH_KEY] == \
-        _T530_CONTRACT_SHA256
-    assert ENVIRONMENT_CONTRACT_SEARCH_KEY not in (
-        set(stored) - {"search_config"}
+    assert "environment_contract_sha256" not in stored["search_config"]
+    decoded = campaign_lock.decode_campaign_lock(_certified_lock_text(_cfg()))
+    assert decoded.identity == stored
+    assert decoded.authority.environment_contract_sha256 == _T530_CONTRACT_SHA256
+
+
+def test_different_runtime_contracts_keep_same_campaign_id():
+    admission_bound = ident.bind_admission_policy(CampaignConfig(
+        spec_slug="contract", search_tag="identity",
+        spec_content="runtime authority is outside identity",
+        ccbench_commit="deadbeef", search_config={"axis": "fixture"},
+    ), _BUILD_CONTEXT.policy)
+    linux = ident.bind_environment_contract(admission_bound, _T530_CONTRACT)
+    pegasus = ident.bind_environment_contract(
+        admission_bound, ec.GENERATIONS["pegasus"][0].contract,
     )
+    assert linux.search_config == pegasus.search_config
+    assert linux.bound_environment_contract is not pegasus.bound_environment_contract
+    assert ident.campaign_id(linux) == ident.campaign_id(pegasus)
 
 
 def test_run_campaign_binds_guard_contract_before_campaign_id():
@@ -447,8 +455,8 @@ def test_run_campaign_binds_guard_contract_before_campaign_id():
     finally:
         L.ident.campaign_id = saved
     assert caught is sentinel and len(captured) == 1
-    assert captured[0].search_config[ENVIRONMENT_CONTRACT_SEARCH_KEY] == \
-        _AUTH_CONTRACT.contract_sha256
+    assert "environment_contract_sha256" not in captured[0].search_config
+    assert captured[0].bound_environment_contract is _AUTH_CONTRACT
 
 
 def test_campaign_id_content_sensitive():
@@ -539,10 +547,11 @@ def test_screening_search_config_omits_none_and_binds_current_admission_policy()
     search = {**base, **ident.screening_search_config(None)}
     assert search == base and "screening" not in search
     cfg = _cfg(search_config=search)
-    assert str(ident.campaign_id(_bound(cfg))) == _T530_REPRESENTATIVE_CAMPAIGN_ID
+    # T-671 では runtime authority H を hash しないため T343 identity が current。
+    assert str(ident.campaign_id(_bound(cfg))) == _T343_REPRESENTATIVE_CAMPAIGN_ID
     assert str(ident.campaign_id(_bound(cfg))) not in {
         _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID,
-        _T343_REPRESENTATIVE_CAMPAIGN_ID,
+        _T530_REPRESENTATIVE_CAMPAIGN_ID,
     }
 
 
@@ -576,7 +585,7 @@ def test_screening_float_identity_does_not_collapse_distinct_values():
 
 
 def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
-    """pre-T343/T343 の歴史値を残し、T530 contract-bound ID を固定する。"""
+    """pre-T343/T530 の歴史値を残し、authority-free current ID を固定する。"""
     import dataclasses
 
     from campaign.backoff_sweep import WORKLOADS as BACKOFF_WORKLOADS
@@ -623,14 +632,10 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
         ]
     finally:
         ec.lookup = saved_lookup
-    t343_backoff = {
-        _campaign_id_without_environment_contract(cfg)
-        for cfg in backoff_cfgs
-    }
-    t530_backoff = {str(ident.campaign_id(cfg)) for cfg in backoff_cfgs}
-    assert t343_backoff == _T343_BACKOFF_CAMPAIGN_IDS
-    assert t530_backoff == _T530_BACKOFF_CAMPAIGN_IDS
-    assert t530_backoff.isdisjoint(_T343_BACKOFF_CAMPAIGN_IDS)
+    current_backoff = {str(ident.campaign_id(cfg)) for cfg in backoff_cfgs}
+    # T-671 で H が preimage から消え、current は T343 値になる。
+    assert current_backoff == _T343_BACKOFF_CAMPAIGN_IDS
+    assert current_backoff.isdisjoint(_T530_BACKOFF_CAMPAIGN_IDS)
 
     historical_s6 = set()
     for tag in ("balanced", "write-heavy"):
@@ -657,16 +662,17 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
             },
         ))
     assert historical_s6 == _PRE_T343_S6_CAMPAIGN_IDS
-    assert {
-        _campaign_id_without_environment_contract(cfg) for cfg in s6_cfgs
-    } == _T343_S6_CAMPAIGN_IDS
+    # 同じ理由で S6 current も T530 H 込み値ではなく T343 値になる。
     assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs} == \
+        _T343_S6_CAMPAIGN_IDS
+    assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs}.isdisjoint(
         _T530_S6_CAMPAIGN_IDS
+    )
 
 
 def test_identity_mismatch_guard():
     cfg = _cfg()
-    stored = ident.canonical_preimage(_bound(cfg))
+    stored = _certified_lock_text(_bound(cfg))
     ident.verify_against_lock(
         cfg, stored, admission_policy=_BUILD_CONTEXT.policy,
     )
@@ -684,7 +690,9 @@ def test_campaign_lock_requires_exact_admission_policy():
     cfg = _cfg()
     stored = json.loads(ident.canonical_preimage(_bound(cfg)))
     stored["search_config"].pop(ident.ADMISSION_POLICY_SEARCH_KEY)
-    forged = json.dumps(stored, sort_keys=True, separators=(",", ":"))
+    forged = build_v2_lock(json.dumps(
+        stored, sort_keys=True, separators=(",", ":"),
+    ))
     try:
         ident.verify_against_lock(
             cfg, forged, admission_policy=_BUILD_CONTEXT.policy,
@@ -707,12 +715,16 @@ def test_ensure_campaign_identity_uses_atomic_lock_and_loser_only_verifies():
         assert ident.ensure_campaign_identity(
             cfg, lay, admission_policy=_BUILD_CONTEXT.policy,
         ) is True
-        assert wal.read_lock(lay) == ident.canonical_preimage(_bound(cfg))
+        assert wal.read_lock(lay) == _certified_lock_text(_bound(cfg))
         assert ident.ensure_campaign_identity(
             cfg, lay, admission_policy=_BUILD_CONTEXT.policy,
         ) is False
     finally:
         wal.write_lock = saved_write_lock
+
+
+# lock 作成時の active-H 要求は撤回された。真正性検証は admission 側の
+# ident.verify_recorded_activation_tuple と、そのテストが担う。
 
 
 def test_ensure_campaign_identity_propagates_wal_lstat_eio_before_lock():
@@ -822,7 +834,7 @@ def test_ensure_resumable_wal_lock_mismatch_does_not_repair_bytes():
     stored_cfg = _cfg(spec_content="stored")
     requested_cfg = _cfg(spec_content="requested")
     lay = _layout(); lay.ensure()
-    wal.write_lock(lay, ident.canonical_preimage(_bound(stored_cfg)))
+    _write_certified_lock(lay, _bound(stored_cfg))
     wal.log(lay, "v", STAGE_BUILD_START, "test")
     with open(lay.wal_file, "ab") as stream:
         stream.write(b"torn-tail")
@@ -890,11 +902,9 @@ def _attempt_stage(lay, variant, stage, attempt_id, receipt_sha, **extra):
 
 
 def _contract_binding_lock(contract_sha256=_T530_CONTRACT_SHA256):
-    return {
-        "search_config": {
-            ENVIRONMENT_CONTRACT_SEARCH_KEY: contract_sha256,
-        },
-    }
+    lock = json.loads(_certified_lock_text(_cfg()))
+    lock["authority"]["environment_contract_sha256"] = contract_sha256
+    return lock
 
 
 def _contract_commit(payload, *, env_tag=None):
@@ -1003,11 +1013,39 @@ def test_commit_contract_validator_rejects_contract_env_tag_mismatch():
         assert "env_tag" in str(exc)
 
 
+def test_commit_contract_projection_ignores_inner_identity_contract_spoof():
+    decoded = campaign_lock.decode_campaign_lock(_certified_lock_text(_cfg()))
+    identity = dict(decoded.identity)
+    identity["search_config"] = {
+        **identity["search_config"],
+        "environment_contract_sha256": (
+            ec.GENERATIONS["pegasus"][0].contract.contract_sha256
+        ),
+    }
+    inner_spoofed = campaign_lock.encode_campaign_lock_v2(
+        campaign_lock.canonical_json(identity), decoded.authority,
+    )
+    wal.validate_commit_contract_bindings(
+        [_contract_commit({COMMIT_CONTRACT_SHA256_KEY: _T530_CONTRACT_SHA256})],
+        campaign_lock=json.loads(inner_spoofed),
+    )
+
+
+def test_commit_contract_projection_rejects_outer_authority_change():
+    foreign = ec.GENERATIONS["pegasus"][0].contract.contract_sha256
+    try:
+        wal.validate_commit_contract_bindings(
+            [_contract_commit({COMMIT_CONTRACT_SHA256_KEY: _T530_CONTRACT_SHA256})],
+            campaign_lock=_contract_binding_lock(foreign),
+        )
+        assert False, "outer authority と COMMIT の不一致を拒否すべき"
+    except wal.AttemptTopologyError as exc:
+        assert "campaign.lock と不一致" in str(exc)
+
+
 def test_commit_contract_rejection_precedes_tail_repair_mutation():
     lay = CampaignLayout(root=_tmpdir("t530_contract_tail_order_")).ensure()
-    wal.write_lock(lay, json.dumps(
-        _contract_binding_lock(), sort_keys=True, separators=(",", ":"),
-    ))
+    wal.write_lock(lay, campaign_lock.canonical_json(_contract_binding_lock()))
     wal.log(
         lay, "contract-v", STAGE_COMMIT, _T530_CONTRACT.env_tag,
         {COMMIT_CONTRACT_SHA256_KEY: "0" * 64},
@@ -1028,7 +1066,7 @@ def test_commit_contract_rejection_precedes_tail_repair_mutation():
 def test_contract_rejection_precedes_recovery_abort_and_repair_receipt():
     cfg = _cfg(spec_content="contract rejection precedes every WAL mutation")
     lay = CampaignLayout(root=_tmpdir("t530_contract_recovery_order_")).ensure()
-    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    _write_certified_lock(lay, cfg)
     committed_receipt, committed_sha = _wal_admission_receipt("mismatched")
     _attempt_start(
         lay, "mismatched-v", "mismatched-attempt",
@@ -1094,9 +1132,7 @@ def test_unbound_legacy_and_guided_campaigns_remain_readable():
         root=_tmpdir("t530_guided_unbound_")
     ).ensure()
     guided_cfg = guided._trial_config(meta, trial)
-    wal.write_lock(guided_layout, ident.canonical_preimage(
-        guided_cfg, require_environment_contract=False,
-    ))
+    wal.write_lock(guided_layout, ident.canonical_preimage(guided_cfg))
     canonical = genome.space_for("silo").enumerate()[0].canonical()
     guided._log_eval(guided_layout, replay.GenomeResult(
         genome=canonical, flags=replay.parse_flags(canonical),
@@ -1114,9 +1150,21 @@ def test_unbound_legacy_and_guided_campaigns_remain_readable():
     assert records[-1].variant == canonical and records[-1].stage == STAGE_COMMIT
 
 
+def test_certified_lane_rejects_historical_v1_lock_as_read_only():
+    cfg = _cfg(spec_content="historical v1 certified resume")
+    historical_v1_lock = ident.canonical_preimage(cfg)
+    try:
+        ident.verify_against_lock(
+            cfg, historical_v1_lock, admission_policy=_BUILD_CONTEXT.policy,
+        )
+        assert False, "certified lane で historical v1 lock を拒否すべき"
+    except ident.IdentityMismatch as exc:
+        assert exc.reason == "legacy-lock-read-only"
+
+
 def _admission_aware_layout(prefix: str):
     lay = CampaignLayout(root=_tmpdir(prefix)).ensure()
-    wal.write_lock(lay, ident.canonical_preimage(_cfg(spec_content=prefix)))
+    _write_certified_lock(lay, _cfg(spec_content=prefix))
     return lay
 
 
@@ -1127,7 +1175,7 @@ def _trigger_admission_layout(prefix: str):
         "axis": wal.TRIGGER_AXIS, "reflux": "on",
         wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY: trigger_gate_binding.SCHEMA_VERSION,
     }
-    wal.write_lock(lay, ident.canonical_preimage(_cfg(search_config=search)))
+    _write_certified_lock(lay, _cfg(search_config=search))
     return lay
 
 
@@ -1250,7 +1298,7 @@ def test_resumable_wal_rejects_truncated_tail_with_active_attempt_before_repair(
     for case in ("lf-missing-verify", "signal-then-torn"):
         cfg = _cfg(spec_content=f"truncated-active-{case}")
         lay = CampaignLayout(root=_tmpdir(f"recovery_tail_{case}_")).ensure()
-        wal.write_lock(lay, ident.canonical_preimage(cfg))
+        _write_certified_lock(lay, cfg)
         _receipt, receipt_sha = _active_receiptful_attempt(
             lay, "tail-v", f"attempt-{case}",
         )
@@ -1379,10 +1427,7 @@ def test_recovery_fail_closed_for_trigger_lock_or_attempt_commitment():
         "space": "reason-subsets(effective)+identall+stock",
     }
     machine = CampaignLayout(root=_tmpdir("recovery_trigger_machine_")).ensure()
-    wal.write_lock(
-        machine,
-        ident.canonical_preimage(_cfg(search_config=machine_search)),
-    )
+    _write_certified_lock(machine, _cfg(search_config=machine_search))
     _active_receiptful_attempt(machine, "machine-v", "machine-attempt")
     _assert_recovery_blocked(machine, "trigger-campaign")
 
@@ -3321,7 +3366,7 @@ def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
     if screening is not None and wal.read_lock(lay) is None:
         cfg = _cfg(search_config={**_cfg().search_config,
                                   **ident.screening_search_config(screening)})
-        wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
+        _write_certified_lock(lay, _bound(cfg))
     with _mock_pipeline(**mock_kw) as calls:
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
@@ -4529,7 +4574,7 @@ def test_pipeline_rejects_runtime_screening_mixed_into_legacy_campaign():
     """F4監査再現: helper不使用の既存COMMIT campaignへscreeningを後付けできない。"""
     lay = _tmp_layout()
     legacy_cfg = _cfg()
-    wal.write_lock(lay, ident.canonical_preimage(_bound(legacy_cfg)))
+    _write_certified_lock(lay, _bound(legacy_cfg))
     wal.log(lay, "already-committed", STAGE_COMMIT, _T530_CONTRACT.env_tag, {
         "fitness_tps": 1.0,
         COMMIT_CONTRACT_SHA256_KEY: _T530_CONTRACT_SHA256,
@@ -4558,7 +4603,7 @@ def test_pipeline_rejects_screening_policy_drift_from_campaign_lock():
         locked = _screening()
         cfg = _cfg(search_config={**_cfg().search_config,
                                   **ident.screening_search_config(locked)})
-        wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
+        _write_certified_lock(lay, _bound(cfg))
         runtime = _screening(**changed)
         with _mock_pipeline() as calls:
             try:
@@ -4925,7 +4970,7 @@ def test_loop_probe_error_is_retryable_after_recovery():
         g = Genome("silo", {"BACK_OFF": 1})
         v = pipeline.variant_id(g, "stock")
         lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
-        wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
+        _write_certified_lock(lay, _bound(cfg))
         # run1: probe 故障 → terminal abort (evaluate は呼ばれた体で WAL を直書き)
         _write_receiptful_attempt(
             lay, g, v, attempt_id=f"loop-probe-{reason}",
@@ -4972,7 +5017,7 @@ def test_screening_driver_probe_error_is_retryable_after_recovery():
         g = Genome("silo", {"BACK_OFF": 1})
         v = pipeline.variant_id(g, "stock")
         lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
-        wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
+        _write_certified_lock(lay, _bound(cfg))
         # run1: terminal abort (evaluate は呼ばれた体で WAL を直書き)
         if reason == "identity-error":
             _write_prebuild_abort(
@@ -5454,7 +5499,7 @@ def test_loop_recovery_skips_committed_src_token_variant():
     assert src_id != pipeline.variant_id(g)              # src_token id ≠ stock id
     # 前回 run の成果を WAL に seed: src_token id で commit 済み (terminal)
     lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
-    wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
+    _write_certified_lock(lay, _bound(cfg))
     _write_receiptful_attempt(
         lay, g, src_id, attempt_id="recovery-codediff",
         terminal=STAGE_COMMIT,
@@ -5501,7 +5546,7 @@ def test_replay_accepts_matching_contract_bound_commit_and_skips_evaluation():
     genome_value = Genome("silo", {"BACK_OFF": 1})
     variant = pipeline.variant_id(genome_value, "stock")
     layout = campaign_layout(str(ident.campaign_id(bound)), out_root).ensure()
-    wal.write_lock(layout, ident.canonical_preimage(bound))
+    _write_certified_lock(layout, bound)
     _write_receiptful_attempt(
         layout, genome_value, variant,
         attempt_id="matching-contract-attempt", terminal=STAGE_COMMIT,
@@ -5610,7 +5655,7 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
     g = Genome("silo", {"BACK_OFF": 1})
     v_stock = pipeline.variant_id(g)
     lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
-    wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
+    _write_certified_lock(lay, _bound(cfg))
     # run1: identity-error abort (stock id)
     _write_prebuild_abort(
         lay, g, v_stock, attempt_id="identity-error-1",
@@ -5737,7 +5782,7 @@ def test_loop_identity_skip_is_visible_when_stock_id_terminal():
     g = Genome("silo", {"BACK_OFF": 1})
     v_stock = pipeline.variant_id(g)
     lay = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
-    wal.write_lock(lay, ident.canonical_preimage(_bound(cfg)))
+    _write_certified_lock(lay, _bound(cfg))
     # 過去 run で stock id が commit 済み (coder variant の working-tree で再開する状況)
     _write_receiptful_attempt(
         lay, g, v_stock, attempt_id="identity-skip-commit",
@@ -7938,7 +7983,7 @@ def test_loop_resume_repairs_tail_before_replay_and_surfaces_receipt():
         _BUILD_CONTEXT.policy,
     )
     layout = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root).ensure()
-    wal.write_lock(layout, ident.canonical_preimage(_bound(cfg)))
+    _write_certified_lock(layout, _bound(cfg))
     prior_receipt, prior_sha = _wal_admission_receipt("prior")
     _attempt_start(layout, "prior", "prior-attempt", prior_receipt, prior_sha)
     _attempt_stage(

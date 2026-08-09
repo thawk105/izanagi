@@ -48,6 +48,7 @@ from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
                                     STOCK, SourceEvidence)
+from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
 # ==== C++ 比較式 → Python モデルの機械導出 ====================================
 # 生成器 (_one/_two/_mk) が出す式形のみ受理する。受理できない式は即 fail
@@ -309,7 +310,7 @@ def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     )
     assert first_result[first]["outcome"] == "quarantine-reject"
     cfg = W.config_for("balanced")
-    assert wal.read_lock(layout) == ident.canonical_preimage(cfg)
+    assert wal.read_lock(layout) == build_v2_lock(ident.canonical_preimage(cfg))
 
     resumed = W.run_sweep(
         "balanced", names=[second], isolate=False, log=lambda _line: None,
@@ -322,7 +323,7 @@ def test_public_sweep_recovers_real_wal_start_before_quarantine_write(monkeypatc
     layout = _tmp_layout()
     _install_public_reject_sweep_fakes(monkeypatch, layout)
     cfg = W.config_for("balanced")
-    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     wal.log(layout, "crashed-v", "build_start", W.ENV_TAG, {
         "build_attempt_id": "crashed-attempt",
     })

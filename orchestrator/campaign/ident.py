@@ -3,11 +3,11 @@
 
 `<spec-slug>-<search-tag>-<cfg-hash8>`。ハッシュは spec の**名前でなく内容**を覆う
 (編集して名前据え置きでも別 campaign になる = honest-by-construction, §3.4)。
-raw env/date は同一性に含めない。certified execution contract の fingerprint だけは
-search_config に束縛する。generation、receipt 属性、日時は含めない。
+raw env/date と certified execution authority は同一性に含めない。authority は v2 lock
+envelope に分離し、inner identity は従来の exact 5 key を維持する。
 
-`campaign.lock` = 正準 pre-image。再開時はハッシュ一致に加えて lock と現在 config を
-照合し、万一ハッシュ一致で中身相違なら**黙ってマージせずエラー** (改竄/衝突の関所)。
+`campaign.lock` は historical/guided v1 の正準 pre-image、または certified v2 envelope。
+再開時はハッシュ一致に加えて inner identity と現在 config を照合する。
 """
 from __future__ import annotations
 
@@ -17,13 +17,15 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from .build_admission import BuildAdmissionPolicy
-from .env_contract import ExecutionEnvironmentContract
-from .layout import CampaignLayout
-from .model import (
-    ENVIRONMENT_CONTRACT_SEARCH_KEY,
-    CampaignConfig,
-    CampaignId,
+from . import (
+    campaign_lock,
+    contract_loader_binding,
+    env_contract,
+    env_contract_activation,
 )
+from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
+from .layout import CampaignLayout
+from .model import CampaignConfig, CampaignId
 from . import wal
 
 if TYPE_CHECKING:
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
 
 
 ADMISSION_POLICY_SEARCH_KEY = "build_admission"
+_LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY = "environment_contract_sha256"
 
 
 def bind_admission_policy(
@@ -52,26 +55,22 @@ def bind_admission_policy(
 def bind_environment_contract(
         cfg: CampaignConfig, contract: ExecutionEnvironmentContract,
 ) -> CampaignConfig:
-    """Return a config bound to one exact certified execution contract."""
+    """Return a config carrying one exact runtime execution contract."""
     if type(contract) is not ExecutionEnvironmentContract:
         raise TypeError(
             "contract は exact ExecutionEnvironmentContract が必要"
         )
-    expected = contract.contract_sha256
-    if ENVIRONMENT_CONTRACT_SEARCH_KEY in cfg.search_config:
-        existing = cfg.search_config[ENVIRONMENT_CONTRACT_SEARCH_KEY]
-        if existing != expected:
-            raise ValueError(
-                "search_config の environment contract が authorization と不一致"
-            )
+    if _LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY in cfg.search_config:
+        raise ValueError(
+            "search_config.environment_contract_sha256 は旧 identity field であり、"
+            "runtime contract と二義化できない"
+        )
+    existing = cfg.bound_environment_contract
+    if existing is not None:
+        if type(existing) is not ExecutionEnvironmentContract or existing != contract:
+            raise ValueError("campaign config へ異なる environment contract を再 bind できない")
         return cfg
-    return replace(
-        cfg,
-        search_config={
-            **cfg.search_config,
-            ENVIRONMENT_CONTRACT_SEARCH_KEY: expected,
-        },
-    )
+    return replace(cfg, bound_environment_contract=contract)
 
 
 def verify_admission_preimage(
@@ -83,17 +82,10 @@ def verify_admission_preimage(
     if stored_preimage is None:
         raise IdentityMismatch("admission-aware campaign には campaign.lock が必要")
     try:
-        stored = json.loads(stored_preimage)
-    except (json.JSONDecodeError, TypeError) as exc:
-        raise IdentityMismatch("campaign.lock が正準 JSON でない") from exc
-    expected_top = {
-        "spec_content", "ccbench_commit", "search_tag", "search_config", "trial",
-    }
-    if type(stored) is not dict or set(stored) != expected_top:
-        raise IdentityMismatch("campaign.lock の top-level exact key 集合が不正")
-    search_config = stored["search_config"]
-    if type(search_config) is not dict:
-        raise IdentityMismatch("campaign.lock search_config が object でない")
+        decoded = campaign_lock.decode_campaign_lock(stored_preimage)
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise IdentityMismatch("campaign.lock schema が不正") from exc
+    search_config = decoded.identity["search_config"]
     actual = search_config.get(ADMISSION_POLICY_SEARCH_KEY)
     expected = policy.as_preimage()
     if actual != expected:
@@ -138,13 +130,13 @@ def verify_screening_preimage(
     if stored_preimage is None:
         raise ValueError("screening 有効評価には campaign.lock の方針焼き込みが必要")
     try:
-        stored = json.loads(stored_preimage)
-    except (json.JSONDecodeError, TypeError) as exc:
-        raise ValueError("campaign.lock が正準 JSON でなく screening 方針を検証できない") from exc
-    if not isinstance(stored, dict):
-        raise ValueError("campaign.lock の正準JSONがobjectでなくscreening方針を検証できない")
-    search_config = stored.get("search_config")
-    actual = search_config.get("screening") if isinstance(search_config, dict) else None
+        decoded = campaign_lock.decode_campaign_lock(stored_preimage)
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise ValueError(
+            "campaign.lock schema が不正で screening 方針を検証できない"
+        ) from exc
+    search_config = decoded.identity["search_config"]
+    actual = search_config.get("screening")
     expected = screening_search_config(screening)["screening"]
     if actual != expected:
         raise ValueError(
@@ -152,33 +144,21 @@ def verify_screening_preimage(
             f"stored={actual!r}, expected={expected!r}")
 
 
-def canonical_preimage(
-        cfg: CampaignConfig, *, require_environment_contract: bool = True,
-) -> str:
+def canonical_preimage(cfg: CampaignConfig) -> str:
     """ハッシュ対象の正準シリアライズ。決定論的 (キー順固定・区切り固定)。
 
     覆うもの: spec の内容 + ccbench-commit + 探索軸 (search_tag) + 探索 config
     (ablation/Tier/scale) + trial。**slug は覆わない** (人間ラベルで spec_content が
-    真の同一性源、要件: 名前でなく内容)。raw env_tag/date/実測値は覆わず、certified
-    execution contract の fingerprint だけを search_config 経由で覆う。
+    真の同一性源、要件: 名前でなく内容)。raw env_tag/date/実測値と execution authority
+    は覆わない。``measurement_env`` は通常の search_config key として覆う。
     """
     if ADMISSION_POLICY_SEARCH_KEY not in cfg.search_config:
         raise ValueError(
             "campaign identity には search_config.build_admission policy が必須"
         )
-    if type(require_environment_contract) is not bool:
-        raise TypeError("require_environment_contract は exact bool が必要")
-    contract_present = ENVIRONMENT_CONTRACT_SEARCH_KEY in cfg.search_config
-    contract_sha256 = cfg.search_config.get(ENVIRONMENT_CONTRACT_SEARCH_KEY)
-    if ((require_environment_contract and not contract_present)
-            or (contract_present
-                and (type(contract_sha256) is not str
-                     or len(contract_sha256) != 64
-                     or any(ch not in "0123456789abcdef"
-                            for ch in contract_sha256)))):
+    if _LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY in cfg.search_config:
         raise ValueError(
-            "certified campaign identity には search_config."
-            "environment_contract_sha256 の exact lowercase SHA-256 が必須"
+            "search_config.environment_contract_sha256 は旧 identity field であり拒否する"
         )
     obj: Dict[str, Any] = {
         "spec_content": cfg.spec_content,
@@ -188,7 +168,10 @@ def canonical_preimage(
         "trial": cfg.trial,
     }
     # sort_keys + 固定 separators で、同じ内容は必ず同じバイト列に。
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(
+        obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        allow_nan=False,
+    )
 
 
 def cfg_hash(cfg: CampaignConfig) -> str:
@@ -211,6 +194,132 @@ class IdentityMismatch(Exception):
         self.reason = reason
 
 
+def _validate_identity_inputs(
+        admission_policy: BuildAdmissionPolicy,
+        require_environment_contract: bool,
+) -> None:
+    if type(admission_policy) is not BuildAdmissionPolicy:
+        raise TypeError("admission_policy は exact BuildAdmissionPolicy が必要")
+    if type(require_environment_contract) is not bool:
+        raise TypeError("require_environment_contract は exact bool が必要")
+
+
+def _load_current_activation_state(
+) -> env_contract_activation.ActivationState:
+    directory = (
+        env_contract._repository_root()
+        / env_contract._ACTIVATION_DIRECTORY
+    )
+    return env_contract_activation.load_activation_state(
+        directory,
+        registered_contracts=env_contract._REGISTERED_CONTRACT_CATALOG,
+        is_valid_registered_successor=env_contract._is_valid_activation_successor,
+        expected_head_serial=env_contract._ACTIVATION_HEAD_SERIAL,
+        expected_head_state_sha256=env_contract._ACTIVATION_HEAD_STATE_SHA256,
+    )
+
+
+def _authority_source_for_new_certified_lock(
+        cfg: CampaignConfig,
+) -> tuple[ExecutionEnvironmentContract, env_contract_activation.ActivationState]:
+    bound = cfg.bound_environment_contract
+    if type(bound) is not ExecutionEnvironmentContract:
+        raise IdentityMismatch(
+            "certified campaign には runtime environment contract の bind が必要",
+            reason="environment-contract-missing",
+        )
+    try:
+        state = _load_current_activation_state()
+    except (env_contract.EnvContractError,
+            env_contract_activation.ActivationRecordError) as exc:
+        raise IdentityMismatch(
+            f"campaign-lock activation tuple is not authentic: {exc}",
+            reason="activation-tuple-invalid",
+        ) from exc
+    return bound, state
+
+
+def _capture_current_loader_binding(
+) -> contract_loader_binding.ContractLoaderBinding:
+    try:
+        binding = contract_loader_binding.capture_contract_loader_binding()
+        contract_loader_binding.verify_live_contract_loader_binding(binding)
+        return binding
+    except contract_loader_binding.ContractLoaderBindingError as exc:
+        raise IdentityMismatch(
+            f"contract-loader-drift: {exc}",
+            reason="contract-loader-drift",
+        ) from exc
+
+
+def _binding_from_lock(
+        decoded: campaign_lock.DecodedCampaignLock,
+) -> contract_loader_binding.ContractLoaderBinding:
+    authority = decoded.authority
+    if authority is None:
+        raise IdentityMismatch("v2 campaign.lock authority が無い")
+    try:
+        return contract_loader_binding.binding_from_authority(
+            authority.contract_loader_commit,
+            authority.contract_loader_blob_sha256s,
+        )
+    except contract_loader_binding.ContractLoaderBindingError as exc:
+        raise IdentityMismatch(
+            f"contract-loader-drift: {exc}", reason="contract-loader-drift",
+        ) from exc
+
+
+def verify_recorded_activation_tuple(
+        decoded: campaign_lock.DecodedCampaignLock,
+) -> None:
+    """v2 authority の記録 activation tuple と対象 contract H を認証する。"""
+    if type(decoded) is not campaign_lock.DecodedCampaignLock or not decoded.is_v2:
+        raise IdentityMismatch(
+            "activation tuple 検証には exact v2 campaign.lock が必要",
+            reason="activation-tuple-invalid",
+        )
+    authority = decoded.authority
+    if authority is None:
+        raise IdentityMismatch(
+            "v2 campaign.lock authority が無い",
+            reason="activation-tuple-invalid",
+        )
+    try:
+        current = _load_current_activation_state()
+        if authority.activation_serial > current.activation_serial:
+            raise env_contract_activation.ActivationRecordError(
+                "記録 activation serial が current chain head を越えている"
+            )
+        directory = (
+            env_contract._repository_root()
+            / env_contract._ACTIVATION_DIRECTORY
+        )
+        records = env_contract_activation.read_activation_record_files(
+            directory
+        )
+        recorded = env_contract_activation.validate_activation_records(
+            records[:authority.activation_serial],
+            registered_contracts=env_contract._REGISTERED_CONTRACT_CATALOG,
+            is_valid_registered_successor=env_contract._is_valid_activation_successor,
+            expected_head_serial=authority.activation_serial,
+            expected_head_state_sha256=authority.activation_state_sha256,
+        )
+        target_rows = tuple(
+            row for row in recorded.active_contracts
+            if row.contract_sha256 == authority.environment_contract_sha256
+        )
+        if len(target_rows) != 1:
+            raise env_contract_activation.ActivationRecordError(
+                "記録 activation state が対象 environment contract H を active にしていない"
+            )
+    except (env_contract.EnvContractError,
+            env_contract_activation.ActivationRecordError) as exc:
+        raise IdentityMismatch(
+            f"campaign-lock activation tuple is not authentic: {exc}",
+            reason="activation-tuple-invalid",
+        ) from exc
+
+
 def verify_against_lock(
         cfg: CampaignConfig, stored_preimage: str, *,
         admission_policy: BuildAdmissionPolicy,
@@ -221,21 +330,63 @@ def verify_against_lock(
     一致しなければ IdentityMismatch (黙ってマージしない、D13)。8 hex 衝突や、
     ハッシュに含めていない軸の相違を捕まえる最終防壁。
     """
+    _validate_identity_inputs(admission_policy, require_environment_contract)
     verify_admission_preimage(admission_policy, stored_preimage)
-    cur = canonical_preimage(
-        cfg, require_environment_contract=require_environment_contract,
-    )
-    if cur != stored_preimage:
+    try:
+        decoded = campaign_lock.decode_campaign_lock(stored_preimage)
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise IdentityMismatch("campaign.lock schema が不正") from exc
+
+    if require_environment_contract and decoded.is_v1:
+        raise IdentityMismatch(
+            "certified lane では v1 campaign.lock は read-only",
+            reason="legacy-lock-read-only",
+        )
+    if not require_environment_contract and decoded.is_v2:
+        raise IdentityMismatch(
+            "guided exemption で v2 campaign.lock を開けない",
+            reason="v2-lock-requires-authority",
+        )
+
+    cur = canonical_preimage(cfg)
+    if cur != decoded.identity_preimage:
         raise IdentityMismatch(
             "campaign.lock と現在 config の正準 pre-image が不一致。"
             "ハッシュ衝突か config ドリフト。黙ってマージせず停止する。\n"
-            f"  stored : {stored_preimage}\n  current: {cur}")
+            f"  stored : {decoded.identity_preimage}\n  current: {cur}")
+
+    if not require_environment_contract:
+        return
+
+    authority = decoded.authority
+    verify_recorded_activation_tuple(decoded)
+    stored_binding = _binding_from_lock(decoded)
+    try:
+        contract_loader_binding.verify_live_contract_loader_binding(stored_binding)
+    except contract_loader_binding.ContractLoaderBindingError as exc:
+        raise IdentityMismatch(
+            f"contract-loader-drift: {exc}", reason="contract-loader-drift",
+        ) from exc
+
+    bound = cfg.bound_environment_contract
+    if authority is None or type(bound) is not ExecutionEnvironmentContract:
+        raise IdentityMismatch(
+            "certified v2 authority または bound environment contract が不正",
+            reason="environment-contract-missing",
+        )
+    target_sha256 = bound.contract_sha256
+    if authority.environment_contract_sha256 != target_sha256:
+        raise IdentityMismatch(
+            "campaign.lock authority と target environment contract H が不一致",
+            reason="environment-contract-mismatch",
+        )
 
 
 def ensure_resumable_wal(
         cfg: CampaignConfig, layout: CampaignLayout, *,
         admission_policy: BuildAdmissionPolicy,
         require_environment_contract: bool = True,
+        authorization_contract: Optional[AuthorizedContract] = None,
 ) -> wal.WalTailRepairResult:
     """identity 照合後に tail repair と interrupted-attempt recovery を行う。
 
@@ -246,6 +397,7 @@ def ensure_resumable_wal(
     ensure_campaign_identity(
         cfg, layout, admission_policy=admission_policy,
         require_environment_contract=require_environment_contract,
+        authorization_contract=authorization_contract,
     )
     repair = wal.repair_truncated_tail(
         layout, reject_active_attempt=True,
@@ -260,11 +412,13 @@ def ensure_resumable_attempts(
         cfg: CampaignConfig, layout: CampaignLayout, *,
         admission_policy: BuildAdmissionPolicy,
         require_environment_contract: bool = True,
+        authorization_contract: Optional[AuthorizedContract] = None,
 ) -> None:
     """identity 照合後、tail を切り戻さず interrupted attempt だけを閉じる。"""
     ensure_campaign_identity(
         cfg, layout, admission_policy=admission_policy,
         require_environment_contract=require_environment_contract,
+        authorization_contract=authorization_contract,
     )
     wal.recover_interrupted_attempts(
         layout, admission_policy=admission_policy,
@@ -275,6 +429,7 @@ def ensure_campaign_identity(
         cfg: CampaignConfig, layout: CampaignLayout, *,
         admission_policy: BuildAdmissionPolicy,
         require_environment_contract: bool = True,
+        authorization_contract: Optional[AuthorizedContract] = None,
 ) -> bool:
     """repair を行わず campaign.lock を原子的に確立・照合する。
 
@@ -282,6 +437,7 @@ def ensure_campaign_identity(
     byte がある場合は identity 不明のため拒否する。既存 lock との競合敗者は
     lock を再読して同一 config なら False を返す。
     """
+    _validate_identity_inputs(admission_policy, require_environment_contract)
     if cfg.search_config.get(ADMISSION_POLICY_SEARCH_KEY) != admission_policy.as_preimage():
         raise IdentityMismatch(
             "campaign config の admission policy が current run context と不一致"
@@ -302,10 +458,26 @@ def ensure_campaign_identity(
             reason="missing-lock-with-wal-bytes",
         )
 
-    preimage = canonical_preimage(
-        cfg, require_environment_contract=require_environment_contract,
-    )
-    if wal.acquire_lock_atomic(layout, preimage):
+    if require_environment_contract:
+        binding = _capture_current_loader_binding()
+        bound, activation_state = _authority_source_for_new_certified_lock(cfg)
+        identity_preimage = canonical_preimage(cfg)
+        lock_text = campaign_lock.encode_campaign_lock_v2(
+            identity_preimage,
+            campaign_lock.CampaignLockAuthority(
+                environment_contract_sha256=bound.contract_sha256,
+                activation_serial=activation_state.activation_serial,
+                activation_state_sha256=activation_state.activation_state_sha256,
+                contract_loader_commit=binding.contract_loader_commit,
+                contract_loader_blob_sha256s=dict(
+                    binding.contract_loader_blob_sha256s
+                ),
+            ),
+        )
+    else:
+        identity_preimage = canonical_preimage(cfg)
+        lock_text = identity_preimage
+    if wal.acquire_lock_atomic(layout, lock_text):
         return True
 
     # 並行 winner が作った lock だけを正本として読み、敗者は何も書かない。

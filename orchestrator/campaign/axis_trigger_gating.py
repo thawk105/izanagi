@@ -17,7 +17,7 @@ campaign provenance に情報源として記録する (D46 決定 1 のループ
 """
 from __future__ import annotations
 
-from campaign import pin
+from . import pin
 
 # ---- identity 核 (D 偵察器 / E 段 driver 共通) ----
 MARKER_ID = "silo-backoff-trigger-gating"

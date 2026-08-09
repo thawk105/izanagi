@@ -19,12 +19,16 @@ import statistics
 from pathlib import Path
 from typing import Callable, Mapping, Optional
 
-from calibrator import schema_v2 as _schema_v2
-from calibrator import effective_clock_policy
-from campaign import env_contract as _env_contract
-from campaign import env_contract_activation as _env_contract_activation
-from campaign import env_attestation as _env_attestation
-from campaign import site_policy as _site_policy
+if __package__ == "orchestrator.campaign":
+    from ..calibrator import schema_v2 as _schema_v2
+    from ..calibrator import effective_clock_policy
+else:  # top-level ``campaign`` compatibility
+    from calibrator import schema_v2 as _schema_v2
+    from calibrator import effective_clock_policy
+from . import env_contract as _env_contract
+from . import env_contract_activation as _env_contract_activation
+from . import env_attestation as _env_attestation
+from . import site_policy as _site_policy
 
 RECEIPT_SCHEMA = "s8b-execution-receipt/v1"
 RECEIPT_SCHEMA_V2 = "s8b-execution-receipt/v2"

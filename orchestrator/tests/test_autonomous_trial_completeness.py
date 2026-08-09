@@ -30,7 +30,6 @@ from orchestrator.campaign.build_admission import (                  # noqa: E40
 from orchestrator.campaign.pin import CURRENT_PIN                    # noqa: E402
 from orchestrator.campaign.layout import CampaignLayout              # noqa: E402
 from orchestrator.campaign.model import (                           # noqa: E402
-    ENVIRONMENT_CONTRACT_SEARCH_KEY,
     CampaignConfig,
     Genome,
 )
@@ -38,6 +37,7 @@ from orchestrator.campaign.source_digest import (                    # noqa: E40
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
+from orchestrator.tests.campaign_lock_test_support import build_v2_lock  # noqa: E402
 
 
 _ROLES = ("planner", "coder", "auditor", "critic")
@@ -194,15 +194,9 @@ def _t428_descriptor_campaign_id(trial_id: str, workload: str) -> str:
             generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP,
         ),
     )
-    preimage = json.loads(A.ident.canonical_preimage(cfg))
-    assert preimage["search_config"].pop(
-        ENVIRONMENT_CONTRACT_SEARCH_KEY
-    ) == _T530_CONTRACT_SHA256
-    rendered = json.dumps(
-        preimage, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-    ).encode("utf-8")
-    digest = hashlib.sha256(rendered).hexdigest()[:8]
-    return f"{cfg.spec_slug}-{cfg.search_tag}-{digest}"
+    assert "environment_contract_sha256" not in cfg.search_config
+    assert cfg.bound_environment_contract is _T530_CONTRACT
+    return str(A.ident.campaign_id(cfg))
 _LITERAL_ADMISSION_DECISION = {
     "schema_version": "campaign-artifact-admission-decision/v1",
     "classification": "admitted-new-schema",
@@ -1338,7 +1332,8 @@ def _layer3_campaign(
         campaign_cfg, _T530_LAYER3_CONTRACT,
     )
     campaign_id = str(ident.campaign_id(campaign_cfg))
-    assert campaign_id == _T530_CONTRACT_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
+    # T-671 で H が identity から外れ、current は T428 policy-bound 値になる。
+    assert campaign_id == _T428_POLICY_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
     metadata["campaign_id"] = campaign_id
     metadata["campaign_root"] = str(output_root / "campaigns" / campaign_id)
     campaign = output_root / "campaigns" / campaign_id
@@ -1346,8 +1341,9 @@ def _layer3_campaign(
     assert ident.ensure_campaign_identity(
         campaign_cfg, layout, admission_policy=context.policy,
     )
-    assert Path(layout.lock_file).read_bytes() == \
-        ident.canonical_preimage(campaign_cfg).encode("utf-8")
+    assert Path(layout.lock_file).read_text(encoding="utf-8") == build_v2_lock(
+        ident.canonical_preimage(campaign_cfg)
+    )
     state_path = campaign / "loop_state.json"
     state_path.write_text(
         json.dumps({"whiteboard": []}), encoding="utf-8",
@@ -1487,8 +1483,9 @@ def test_campaign_identity_is_pinned_without_producer_helper_oracle(
     output_root, _campaign, _persisted_path, _persisted, cell = _layer3_campaign(
         tmp_path
     )
+    # T-671 で契約 H が identity から外れ、current golden は T428 値になる。
     assert cell["campaign_id"] == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-4bf2256c"
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
     )
     assert _PRE_T343_NO_BUILD_CAMPAIGN_IDS[(
         "fixture-completeness", "ycsb-a",
@@ -1523,18 +1520,22 @@ def test_t428_workload_campaign_epoch_and_old_root_nonwrite(
         tmp_path, workload=workload,
     )
     old_root = output_root / "campaigns" / old_campaign_id
-    current_campaign_id = _T530_CONTRACT_BOUND_CAMPAIGN_IDS[
+    current_campaign_id = _T428_POLICY_BOUND_CAMPAIGN_IDS[
         ("fixture-completeness", workload)
     ]
     assert campaign == output_root / "campaigns" / current_campaign_id
     assert not old_root.exists()
-    assert not (output_root / "campaigns" / new_campaign_id).exists()
+    assert campaign == output_root / "campaigns" / new_campaign_id
+    t530_root = output_root / "campaigns" / _T530_CONTRACT_BOUND_CAMPAIGN_IDS[
+        ("fixture-completeness", workload)
+    ]
+    assert not t530_root.exists()
 
     C.assert_campaign_layer3_chain(
         report=_campaign_report(cell), output_root=output_root,
     )
     assert not old_root.exists()
-    assert not (output_root / "campaigns" / new_campaign_id).exists()
+    assert not t530_root.exists()
 
 
 def test_independent_literal_layer3_admission_decision_is_accepted() -> None:
