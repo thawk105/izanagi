@@ -54,6 +54,11 @@ title: s8c 事前登録の git wall-clock を作業量比例の上限付き予�
   (request `898080`、1519.62 秒)。F57 族の `git-timeout` は出ていない。**ただし 1 回の緑は
   「稀な尾部事象が来ても落ちない」ことの証拠ではない。** 本 wave が示せたのは
   「予算化して赤が増えていないこと」までである。
+- **受入後の 2 commit は docs のみ (spool fragment) で、[T-648] の免除証拠規則に従い該当 nodeid を
+  実走した。** 判定手順 = 実 repo の docs を読むテストを `orchestrator/tests/` から名指しで探し
+  (`test_check_docs.py`、`test_spool_fold.py` の 2 file が該当、他は不存在)、最終 tip `593d63b4` で
+  実走して **450 passed / rc=0** を得た。併せて `check_docs.py` rc=0 と
+  `spool_fold.py --dry-run` rc=0 も最終 tip で実測している。
 - 変異は事前登録 12 件が **12/12 KILLED、SURVIVED 0、MISMATCH 0、baseline PASSED**。
   M05 (request clamp の除去) は現 production では CAP が先に効くため semantic kill ではなく、
   `DW-M08` の diagnostic sensitivity pin として `category: positive` で分離した。
