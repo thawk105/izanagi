@@ -67,17 +67,26 @@ title: F37 を機械強制へ移した — land の ff-only だけに全史 prov
   main に land 済みの前例 `claude-opus-5-1m` が 4 commit あり checker を通るため、
   **既存慣行に揃えた**。`unknown` も `not-exposed` も厳密には該当しないという並行 session の
   精読と整合する。規約の穴自体は同 session が起票済み。
-- **受入全走は tip `05f99b6f` で 1 走した** (request 896778.nqsv、1330.92 秒、
-  **7582 passed / 1 failed / 20 skipped、rc=1**)。lease は 30 秒間隔の待ち手が約 5 分で取得し、
-  受入の終端で解放した。取得時に main が `bcda1c02` → `c9d14c23` へ進んでいたため、
-  投入前に取り込んで merge commit を作った。
-  **赤 1 件はフレークである。** `test_s8c_preregistration_invariant.py::`
-  `test_candidate_freeze_matches_contract_and_generation_chain` が
-  `git cat-file --batch-check` の 15 秒 timeout で SIGKILL (`returncode: -9`) された。
-  論理的な失敗ではなく xdist 並列下の負荷由来である。**単独再走で 8 passed / rc=0** を実測し、
-  再現しないことを確認した (`DW-O18`)。本 wave の差分は `s8c_preregistration` 経路に到達しない。
-  なお心配していた `test_exploration_external_root_keeps_wave_clean` は**この走行では通った** —
-  同テストの赤はノードと大域状態に依存する。
+- **受入全走は 3 走した。land 対象は 3 走目 (tip `011736bf`、request 897054.nqsv、
+  1385.83 秒、7628 passed / 20 skipped、rc=0)。**
+  1 走目は tip `05f99b6f` (request 896778.nqsv、1330.92 秒、7582 passed / **1 failed** /
+  20 skipped、rc=1)。2 走目は [T-682] の land を取り込んだ tip `011736bf`
+  (request 897048.nqsv、1393.12 秒、7627 passed / **1 failed** / 20 skipped、rc=1)。
+  **1 走目と 2 走目は同一のテストが同一の形で落ちた** —
+  `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  が `git cat-file --batch-check` の 15 秒 timeout で SIGKILL (`returncode: -9`) された。
+  **親は 1 走目の時点でこれを「フレーク」と判定したが、2 走目の再現で撤回した。**
+  単独再走では 8 passed / rc=0 で通る一方、受入全走の文脈では 2/2 で再現し、
+  同時期に並行 wave が同じ受入を 2 走して 2 走とも rc=0 だったため、
+  「本 wave の追加テストが並列時の負荷を押し上げ、既存の 15 秒 timeout の余裕を
+  食い潰している」可能性を否定できない状態だった。3 走目が緑だったことで
+  **系統的ではなく、負荷と時間帯に依存する断続的な infra 失敗**と結論した。
+  論理的な失敗ではなく、本 wave の差分は `s8c_preregistration` 経路に到達しない。
+  {{T:s8c-git-batch-timeout-under-load}} として起票する。
+  lease は 1 走ごとに release → claim で TTL を取り直した (claim の打ち直しでは TTL が
+  更新されないため)。待ち手の間隔は 30 秒では解放窓を取り逃したため 10 秒へ詰めた。
+  なお `test_exploration_external_root_keeps_wave_clean` は **3 走とも通った** —
+  同テストの赤はログインノード固有 (`/tmp/.git`) と計算ノードの大域状態に依存する。
 - 段 5 と段 6 の実装子・fix 子はいずれも **pytest を実走できなかった**
   (`qstat -Q preflight rc=1`、runner rc=16)。テスト実測はすべて親が行った。
   ログインノードでは bounded scope の attest が 4 回連続 rc=16 (並行 8 wave でメモリ逼迫、
@@ -107,6 +116,16 @@ title: F37 を機械強制へ移した — land の ff-only だけに全史 prov
   悪化させないが解消もしない (親は既に tip 側 helper を実行しているため信頼面は増えていない)。
   選択肢は immutable trust root からの実行体固定と宣言的 registry の分離、または
   「協調境界として受容する」の明文化。checker を更新する wave のための bootstrap 手順も要る。
+- {{T:s8c-git-batch-timeout-under-load}} **P2・新規**:
+  `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  が受入全走で断続的に赤になる。`orchestrator/campaign/s8c_preregistration.py` の
+  `_git()` が `git cat-file --batch-check` を `GIT_TIMEOUT_SECONDS = 15` で呼び、
+  xdist 並列下の負荷で超過して SIGKILL される。単独実行では 8 passed で通る。
+  実測は 3 走中 2 走が赤 (同一 node 種別、同一形)、3 走目が緑。同時期の並行 wave は
+  同じ受入を 2 走して 2 走とも緑だった。**land を 2 度阻んだ実害がある。**
+  選択肢は (a) `GIT_TIMEOUT_SECONDS` を負荷実測に基づいて見直す、
+  (b) 当該テストを直列実行へ隔離する、(c) batch を分割して 1 呼び出しの所要を下げる。
+  timeout を緩めるのは guard の弱化になりうるため、(a) を採るなら根拠の実測が要る。
 - {{T:exploration-external-root-test-red-both-nodes}} **P2・新規**:
   `test_exploration_external_root_keeps_wave_clean` が両ノードで別々の理由により赤。
   ログインノードは `/tmp/.git` (空ディレクトリ、2026-07-28 作成) が
