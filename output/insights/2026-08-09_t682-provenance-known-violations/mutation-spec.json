@@ -99,12 +99,12 @@
     }
    ],
    "expected_nodes": [
-    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\u00ad]",
-    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\u2060]",
-    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\u00ad]",
-    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\u2060]",
-    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\u2028]",
-    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\u2029]"
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u00ad]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u2060]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u00ad]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u2060]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u2028]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u2029]"
    ],
    "expected_status": "KILLED",
    "hang_risk": false
