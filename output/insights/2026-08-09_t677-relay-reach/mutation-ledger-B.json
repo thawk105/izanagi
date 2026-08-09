@@ -1,0 +1,515 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/7db8fb4d497c69816db1f33f52f8b1c1/izdw-7db8fb4d49.o896744",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/7db8fb4d497c69816db1f33f52f8b1c1/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n............                                                             [100%]\n12 passed in 12.56s\n",
+      "stdout_sha256": "8372d2c528b935f55110447384e159143e213e210f7a96f40800995fd8068cd5"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f6f4ec48c6261d77227ea2f408d27976b472cfa590271ab16984cea29b1cfd84",
+    "duration_s": 32.033,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "4d34bc5dfe713aeb0d9cf4031e4b33e107d890f021ac47d2c11b65519b08515f",
+    "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+    "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+    "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+    "status": "PASSED",
+    "test_output_sha256": "8372d2c528b935f55110447384e159143e213e210f7a96f40800995fd8068cd5",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2"
+  },
+  "date": "2026-08-09T01:56:13.035233+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/10c8d3a769deedb8001b5051faf35a27/izdw-10c8d3a769.o896745",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/10c8d3a769deedb8001b5051faf35a27/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............                                                             [100%]\n12 passed in 12.65s\n",
+        "stdout_sha256": "4762351acfb277cb49f73a0bc0ce826dc4b67f2f1ba836bc431f4ff14d19dd0f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f6f4ec48c6261d77227ea2f408d27976b472cfa590271ab16984cea29b1cfd84",
+      "duration_s": 36.99,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "1560ec3474920764e7502fe3d6b857782e6e5c0f6fced7e4be16f20f6311048b",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "ff518f50bd310793ad2ba8ee25c0d3877d560dd1d4663feaa0f0403e0f35889b",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "        DEFAULT_FAILURE_RELAY_LIMIT_BYTES\n        * 1\n        // 1\n",
+          "old": "        DEFAULT_FAILURE_RELAY_LIMIT_BYTES\n        * _FAILURE_DIGEST_NUMERATOR\n        // _FAILURE_DIGEST_DENOMINATOR\n"
+        }
+      ],
+      "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+      "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+      "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+      "status": "SURVIVED",
+      "test_output_sha256": "4762351acfb277cb49f73a0bc0ce826dc4b67f2f1ba836bc431f4ff14d19dd0f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/e606932e53b1782e6ffe7f1faf09e285/izdw-e606932e53.o896747",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/e606932e53b1782e6ffe7f1faf09e285/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............                                                             [100%]\n12 passed in 12.67s\n",
+        "stdout_sha256": "a089066c0c4040cac4351234776f1e77364858845d4aabbd8395931c658b4907"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f6f4ec48c6261d77227ea2f408d27976b472cfa590271ab16984cea29b1cfd84",
+      "duration_s": 37.127,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "7678f493d0fdf2a20a2b19c066df5d52a020efcf4bbe52e7f5a634905ada12c4",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "7e968fda9d4265194fef931bc176575fce489372053abc1aa967b9b2187f0100",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    first_line_neutralized = False\n    for char in value:\n",
+          "old": "    first_line_neutralized = False\n    for char in reversed(value):\n"
+        }
+      ],
+      "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+      "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+      "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+      "status": "SURVIVED",
+      "test_output_sha256": "a089066c0c4040cac4351234776f1e77364858845d4aabbd8395931c658b4907",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/85aa2127684b31e0e1baf686be67c7e1/izdw-85aa212768.o896751",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/85aa2127684b31e0e1baf686be67c7e1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............                                                             [100%]\n12 passed in 12.64s\n",
+        "stdout_sha256": "23bbb4753cbe8dd9898e4fc2efc249e555087ff102c32b9511637708aaa94fd7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f6f4ec48c6261d77227ea2f408d27976b472cfa590271ab16984cea29b1cfd84",
+      "duration_s": 32.011,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "444459f5ed188b66da150265f7b2287ec1b92f1313b7769bd6f518f95cef6be8",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "065514dc88429c56d1f6abcae9a3a3fae4faa8adcc63b1b7c4feaa15864007ed",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "        rendered.append(f\"| {escaped}\\n\")\n",
+          "old": "        rendered.append(f\"> {escaped}\\n\")\n"
+        }
+      ],
+      "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+      "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+      "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+      "status": "SURVIVED",
+      "test_output_sha256": "23bbb4753cbe8dd9898e4fc2efc249e555087ff102c32b9511637708aaa94fd7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/f95e4d213f7cbe210f3a057c8902b198/izdw-f95e4d213f.o896752",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/f95e4d213f7cbe210f3a057c8902b198/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............                                                             [100%]\n12 passed in 12.69s\n",
+        "stdout_sha256": "a8be89c0e7bacd5ab37fadc9b6efebd68f957ac325928f31be3484df8309233c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f6f4ec48c6261d77227ea2f408d27976b472cfa590271ab16984cea29b1cfd84",
+      "duration_s": 37.061,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "765c104eb5d06be0cb8e8846706b16207016fa0db611245932b24cf188d11c33",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "a5cf5ab6ef6c0b7449afe869e8dd5e6e21ebde72f18f63a02d68ae64da803e01",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "            f\"omitted_bytes=0 budget_bytes={budget_bytes} \"\n",
+          "old": "            f\"omitted_bytes={source_bytes - retained_bytes} budget_bytes={budget_bytes} \"\n"
+        }
+      ],
+      "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+      "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+      "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+      "status": "SURVIVED",
+      "test_output_sha256": "a8be89c0e7bacd5ab37fadc9b6efebd68f957ac325928f31be3484df8309233c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/708defd669f1980c1084d7293fcf9356/izdw-708defd669.o896753",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/708defd669f1980c1084d7293fcf9356/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............                                                             [100%]\n12 passed in 12.60s\n",
+        "stdout_sha256": "270d12233d583a7814f76ac9aeff25ac2d6f7e3433cd90953302d0240459d0d8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f6f4ec48c6261d77227ea2f408d27976b472cfa590271ab16984cea29b1cfd84",
+      "duration_s": 31.966,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "57816311b2784a1f0dd703767ef2b31c0001576b0fff5fe34e36f2aee4a7e654",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "e56bd371a70a2486dad8c4ae863da91bed77b433d7862a1577f8c46e8368c8bc",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "        if hasattr(config, \"workerinput\") and stashed:\n",
+          "old": "        if not hasattr(config, \"workerinput\") and stashed:\n"
+        }
+      ],
+      "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+      "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+      "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+      "status": "SURVIVED",
+      "test_output_sha256": "270d12233d583a7814f76ac9aeff25ac2d6f7e3433cd90953302d0240459d0d8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/c0e9147f9542720eecdf0b5adc202023/izdw-c0e9147f95.o896754",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/c0e9147f9542720eecdf0b5adc202023/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............                                                             [100%]\n12 passed in 12.68s\n",
+        "stdout_sha256": "3889a8401a95ccb3a4b04a726c32c50b9ceff35353efcf8baae07d5b5424d4c6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f6f4ec48c6261d77227ea2f408d27976b472cfa590271ab16984cea29b1cfd84",
+      "duration_s": 31.989,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "73760dc18dfa17e4d93f9d304df50e1a5fabeb6683c21519b6465b08d0fedc6f",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "7be0e808917bcaabe13ea884368c2190dd0ec9f834593b6b0264f3d7072fcd28",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    try:\n        writer(builder(stashed, budget_bytes))\n    except OSError as exc:\n",
+          "old": "    try:\n        writer(builder(stashed, budget_bytes))\n    except Exception as exc:\n"
+        }
+      ],
+      "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+      "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+      "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+      "status": "SURVIVED",
+      "test_output_sha256": "3889a8401a95ccb3a4b04a726c32c50b9ceff35353efcf8baae07d5b5424d4c6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/42b540d136cca6370dd2edd85772a817/izdw-42b540d136.o896755",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/42b540d136cca6370dd2edd85772a817/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............                                                             [100%]\n12 passed in 12.58s\n",
+        "stdout_sha256": "8156e9be408a606e1f6346c6bff00255ea697fe3a33699837a9342e92b4f1f77"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f6f4ec48c6261d77227ea2f408d27976b472cfa590271ab16984cea29b1cfd84",
+      "duration_s": 37.116,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "8943ac1cc031f50c0b273a4ceb94537df4f62e070891023b27534ffd28f4040e",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "a66d3c8d1ecd99488ecdefffdad737a41cf0b078c336eec71f15bc93b5dc8a4d",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "def pytest_runtest_logreport(report) -> None:\n    if False:\n",
+          "old": "def pytest_runtest_logreport(report) -> None:\n    if report.failed:\n"
+        }
+      ],
+      "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+      "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+      "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+      "status": "SURVIVED",
+      "test_output_sha256": "8156e9be408a606e1f6346c6bff00255ea697fe3a33699837a9342e92b4f1f77",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/42e1233eb7b8f5e09b318ae73786448d/izdw-42e1233eb7.o896743",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/output/pegasus-dispatch/42e1233eb7b8f5e09b318ae73786448d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted\norchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries\norchestrator/tests/test_plain_runner_coverage.py::test_this_metatest_is_itself_self_runnable\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\norchestrator/tests/test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\norchestrator/tests/test_real_repo_serialization.py::test_ratified_memo_has_a_real_resolution_payer\norchestrator/tests/test_real_repo_serialization.py::test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_absence\norchestrator/tests/test_real_repo_serialization.py::test_effective_tempdir_is_not_tmpfs\norchestrator/tests/test_real_repo_serialization.py::test_suite_conftest_does_not_wire_tmpdir_to_tmpfs\norchestrator/tests/test_real_repo_serialization.py::test_tmpdir_fstype_lookup_positive_and_negative_control\norchestrator/tests/test_real_repo_serialization.py::test_tmpfs_tmpdir_wiring_scanner_positive_and_negative_control\norchestrator/tests/test_real_repo_serialization.py::test_tmpdir_guards_are_present_and_load_bearing\n\n12 tests collected in 0.10s\n",
+        "stdout_sha256": "a28109cdebbe219575f9f433e9f23fc7ea4ffe8199ac6fbd2d6fd980f928a75c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted",
+        "orchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries",
+        "orchestrator/tests/test_plain_runner_coverage.py::test_this_metatest_is_itself_self_runnable",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+        "orchestrator/tests/test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+        "orchestrator/tests/test_real_repo_serialization.py::test_ratified_memo_has_a_real_resolution_payer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_absence",
+        "orchestrator/tests/test_real_repo_serialization.py::test_effective_tempdir_is_not_tmpfs",
+        "orchestrator/tests/test_real_repo_serialization.py::test_suite_conftest_does_not_wire_tmpdir_to_tmpfs",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpdir_fstype_lookup_positive_and_negative_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpfs_tmpdir_wiring_scanner_positive_and_negative_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpdir_guards_are_present_and_load_bearing"
+      ],
+      "duration_s": 21.735,
+      "rc": 0,
+      "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+      "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+      "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+      "status": "PASSED",
+      "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "1560ec3474920764e7502fe3d6b857782e6e5c0f6fced7e4be16f20f6311048b",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "        DEFAULT_FAILURE_RELAY_LIMIT_BYTES\n        * 1\n        // 1\n",
+            "old": "        DEFAULT_FAILURE_RELAY_LIMIT_BYTES\n        * _FAILURE_DIGEST_NUMERATOR\n        // _FAILURE_DIGEST_DENOMINATOR\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "7678f493d0fdf2a20a2b19c066df5d52a020efcf4bbe52e7f5a634905ada12c4",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    first_line_neutralized = False\n    for char in value:\n",
+            "old": "    first_line_neutralized = False\n    for char in reversed(value):\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "444459f5ed188b66da150265f7b2287ec1b92f1313b7769bd6f518f95cef6be8",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "        rendered.append(f\"| {escaped}\\n\")\n",
+            "old": "        rendered.append(f\"> {escaped}\\n\")\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "765c104eb5d06be0cb8e8846706b16207016fa0db611245932b24cf188d11c33",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "            f\"omitted_bytes=0 budget_bytes={budget_bytes} \"\n",
+            "old": "            f\"omitted_bytes={source_bytes - retained_bytes} budget_bytes={budget_bytes} \"\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "57816311b2784a1f0dd703767ef2b31c0001576b0fff5fe34e36f2aee4a7e654",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "        if hasattr(config, \"workerinput\") and stashed:\n",
+            "old": "        if not hasattr(config, \"workerinput\") and stashed:\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "73760dc18dfa17e4d93f9d304df50e1a5fabeb6683c21519b6465b08d0fedc6f",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    try:\n        writer(builder(stashed, budget_bytes))\n    except OSError as exc:\n",
+            "old": "    try:\n        writer(builder(stashed, budget_bytes))\n    except Exception as exc:\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "8943ac1cc031f50c0b273a4ceb94537df4f62e070891023b27534ffd28f4040e",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "def pytest_runtest_logreport(report) -> None:\n    if False:\n",
+            "old": "def pytest_runtest_logreport(report) -> None:\n    if report.failed:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "4d34bc5dfe713aeb0d9cf4031e4b33e107d890f021ac47d2c11b65519b08515f",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_plain_runner_coverage.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "575fb77acd7a179fec7a2b5a7d079a79144bb938",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_plain_runner_coverage.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "b6552edafb53056c58513ecdcd961ccd97602309",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "a4fae4e5585c9adea6c8b1c6ab9cc5f02a55c72884e115081a183b7812dcf669",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "3f0568d16fc71e06540fd5531c49170302bd19c3f2ace192011cb58788e73189",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 7,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 7,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t677-relay-reach/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "40760d00d17d6aaf5fb99d7fd1c560ef1334eab983c9df8be67feae3753997a2",
+  "updated_at": "2026-08-09T02:01:00.125944+00:00"
+}

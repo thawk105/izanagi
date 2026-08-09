@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1800,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        DEFAULT_FAILURE_RELAY_LIMIT_BYTES\n        * _FAILURE_DIGEST_NUMERATOR\n        // _FAILURE_DIGEST_DENOMINATOR\n",
+          "new": "        DEFAULT_FAILURE_RELAY_LIMIT_BYTES\n        * 1\n        // 1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    first_line_neutralized = False\n    for char in reversed(value):\n",
+          "new": "    first_line_neutralized = False\n    for char in value:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        rendered.append(f\"> {escaped}\\n\")\n",
+          "new": "        rendered.append(f\"| {escaped}\\n\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "            f\"omitted_bytes={source_bytes - retained_bytes} budget_bytes={budget_bytes} \"\n",
+          "new": "            f\"omitted_bytes=0 budget_bytes={budget_bytes} \"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        if not hasattr(config, \"workerinput\") and stashed:\n",
+          "new": "        if hasattr(config, \"workerinput\") and stashed:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    try:\n        writer(builder(stashed, budget_bytes))\n    except Exception as exc:\n",
+          "new": "    try:\n        writer(builder(stashed, budget_bytes))\n    except OSError as exc:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "def pytest_runtest_logreport(report) -> None:\n    if report.failed:\n",
+          "new": "def pytest_runtest_logreport(report) -> None:\n    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
