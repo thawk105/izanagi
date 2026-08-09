@@ -621,3 +621,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:diagnostic-line-prefix-not-pipe":"D252","D:failure-digest-producer-side":"D251"},"authored":"2026-08-09","content_sha256":"19ae57d58fe2f3f59b3dbf72046c094601158282b7fc232a9f978b7bd6c4c52a","seq":1,"wave":"dev-wave-t677-relay-reach"}
 - {"allocations":{"F:in-tree-temp-test-tree":"F178"},"authored":"2026-08-09","content_sha256":"80eb22600a57ab87d36f1907d30d371daa82d25aa5d8e0d3034006bf40ef0af3","seq":2,"wave":"dev-wave-t677-relay-reach"}
 - {"allocations":{"T:dev-wave-docs-budget-full":"[T-690]","T:digest-infra-kill-evidence":"[T-688]","T:digest-stash-session-binding":"[T-691]","T:digest-xdist-crash-coverage":"[T-687]","T:relay-best-effort-durability":"[T-689]"},"authored":"2026-08-09","content_sha256":"1e9151c686c2d4b305f6a19327f66b4140cb81556135428e5af3b38478516c1e","seq":3,"wave":"dev-wave-t677-relay-reach"}
+
+- {"allocations":{"T:s8c-wall-clock-budget-policy":"[T-692]"},"authored":"2026-08-09","content_sha256":"6509e68498a632735635aebf484924e134dbb23f5ac591fec19ecb04d67ddb8f","seq":1,"wave":"dev-wave-red-suite-20260809"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"fc262047be04ca91e49b9e830bf03ff590efa94aba91cf7a7d330875dc764444","seq":2,"wave":"dev-wave-red-suite-20260809"}
