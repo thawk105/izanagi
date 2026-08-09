@@ -507,8 +507,11 @@ def _session(*, worker=False, collected=3):
     config = SimpleNamespace(pluginmanager=manager)
     if worker:
         config.workerinput = {}
-    items = [SimpleNamespace(nodeid="a::one"), SimpleNamespace(nodeid="b::two"),
-             SimpleNamespace(nodeid="c::three")]
+    items = [
+        SimpleNamespace(nodeid="a::one", path=Path("a"), name="one"),
+        SimpleNamespace(nodeid="b::two", path=Path("b"), name="two"),
+        SimpleNamespace(nodeid="c::three", path=Path("c"), name="three"),
+    ]
     return SimpleNamespace(config=config, items=items, testscollected=collected)
 
 
