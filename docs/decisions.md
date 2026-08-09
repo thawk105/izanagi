@@ -11898,3 +11898,73 @@ post-yield で items を再配置して上書きするため、collection の**�
 - **収集順で group 外の 2 解決を意図的に重ねる案** — 段 2 の推奨案 (期待 wall 約 876 秒) だが、
   段 3 の両レンズが「同時開始は未測定の仮定。非重複なら 1529.17 秒」と計算し、
   かつ group 外 payer との意図的な並走を新規に作るため却下した。
+
+## D259. campaign identity から実行契約 hash を外し、campaign.lock の v2 authority 欄と契約 loader の commit 束縛へ移す (2026-08-10)
+
+**決定:**
+
+1. **identity と authority を分離する。** 実行契約の fingerprint (`environment_contract_sha256`) を
+   campaign identity の pre-image から外し、`campaign.lock` を v2 envelope
+   (`schema_version` / `identity_preimage` / `authority`) にして authority 欄へ置く。
+   campaign id は inner identity preimage だけから導く。
+2. **契約 loader 2 module を記録 commit の blob へ束縛する。** 対象は
+   `orchestrator/campaign/env_contract.py` と `env_contract_activation.py` の exact 2 path で、
+   単一の名前付き定数に置く。検証は「記録 commit の blob」と「現在の disk bytes」の一致で行い、
+   current HEAD の一致は要求しない。
+3. **停止点は `ident.ensure_campaign_identity` の 1 点とする。** `campaign.lock` を書く唯一の関数が
+   ここであり、`run_campaign` も先行 8 caller も必ず通る。
+   **停止するのは「lock と WAL の 1 byte 目より前」であって「durable write より前」ではない** —
+   `layout.ensure()` が作るディレクトリと exploration lane の `namespace.json` は検査より前に残る。
+4. **記録は full、比較は対象 env の H だけ。** authority へ `contract_sha256` に加えて
+   `activation_serial` と `activation_state_sha256` を記録する。**記録 tuple の真正性は admission で
+   検証し、lock 作成時の事前条件にはしない。** resume 可否の比較は対象 env の H だけに限る
+   (他 env の活性化で既存 resume を拒否しない)。
+5. **v1 lock は historical read-only。** certified lane が v1 lock を見たら repair / recovery より前に
+   拒否する。guided lane は明示 exemption で v1 を書き続ける。
+6. **anti-downgrade は「その成果物が certified 実行を主張しているか」で判定する。**
+   v1 lock + `build_admission` + WAL の COMMIT に契約 hash あり ⇒ 降格として拒否。
+   lane 名・slug・`search_tag` の値を判定に使わない。
+7. **`measurement_env` は identity に残す。** 「契約 hash は id に入れないが env tag は入る」という
+   非対称を明文化する。D125 決定 (2) の失効記録は [T-674] (5) の別 wave が持つ。
+8. **certifying 入力の判定を `admission_status == "admitted"` に限定する** ([T-674] (1))。
+   `layer3_schema.json` は変更しない — enum を狭めると非 certifying な historical report まで拒否し、
+   裁定より広く受理集合を縮めるため。
+9. **D246 の分離を維持する** ([T-674] (4))。契約 hash は `wal.log` 経由の COMMIT 2 口だけに載せ、
+   qualification event sink の 2 口には載せない。裁定文は所有 wave の指定であって方向の指定ではない
+   と読み、分離が沈黙で崩れないことを挙動テストと AST census で固定した。
+
+**名乗ってよい範囲 (これを超えて書いてはならない):**
+
+**「契約 loader 2 module の disk bytes が、lock に記録した commit の blob と一致する」までである。**
+
+- 「certified 経路が source-bound」とは名乗らない。契約を**強制する** `execution_guard` / `loop` /
+  `pipeline` / `wal` / `ident` / `artifact_admission` の bytes は束縛していない。
+- 「悪意ある in-process 改変を防ぐ」とは名乗らない。検査対象は disk 上の bytes であって
+  実行中の bytes ではない。
+- **成果物 bytes の書き換えは検出しない。** lock の authority と全 COMMIT の契約 hash を整合的に
+  書き換える改竄、および外側 envelope と COMMIT 契約 hash を同時に削除した artifact は検出できない。
+
+**受けた既知コスト:**
+
+- **campaign directory 名による再束縛検出を失う。** 従来は契約 hash が identity に入っていたため
+  H1 → H2 の付け替えが directory 名の変更を強制し可視だった。これは決定 1 が意図的に手放した性質で
+  あり、ユーザーが承認済みの択一である。D246 が買った「H を独立 2 箇所へ置き相互照合する」性質
+  自体は保たれる (lock authority と全 COMMIT payload は引き続き独立に読まれ照合される)。
+- **外側 envelope と COMMIT 契約 hash を同時に削除した artifact は guided と区別できない。**
+  これは main の現状と同じ挙動であり本決定が広げたものではない。素朴な envelope 剥がしは新たに捕まる。
+
+**却下した案:**
+
+- **lock 作成時に explicit `AuthorizedContract` を必須にする案。** 親が一度採ったが撤回した。
+  承認済み裁定に含まれない上乗せであり、実測で 10 個の driver テストファイル・55 件を拒否した。
+  main も素の contract を受け付けるため、外しても退行ではない。
+- **lock 作成時に「束縛契約が activation state で active」を要求する案。** 同じく親の上乗せで、
+  合成契約を注入する正当な driver テストを拒否した。真正性検証は admission に置くのが正しい層である。
+- **v2 campaign の directory 名と inner identity を全面照合する案。** 同じく親の上乗せで、
+  任意名の一時 directory を使う正当な consumer を拒否した。trigger proposal 専用の既存照合だけを残す。
+
+**延期 (実装しない):**
+
+report v4 / authority の report 投影 / historical report reader の authority 解釈 /
+raw reader ([T-674] (2) 見送り) / S8b private lock ([T-674] (3) 見送り) / caller 閉包の拡張。
+**したがって R1〜R8 を実装しても「proof chain が全経路で完結した」とは名乗れない。**

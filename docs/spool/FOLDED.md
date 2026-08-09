@@ -659,3 +659,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:acceptance-walltime-ceiling":"[T-717]","T:cli-second-resolution":"[T-718]","T:mutation-expected-node-overdetermination":"[T-719]","T:realrepo-payer-closure":"[T-715]","T:s8c-canonical-group":"[T-716]"},"authored":"2026-08-10","content_sha256":"4787b49e85645f990bd3fecc2df6165abe75f6e8c3f4b21a9489796123b8f119","seq":1,"wave":"dev-wave-t692-r3-xdist-walltime"}
 - {"allocations":{"D:xdist-group-closure-audit":"D258"},"authored":"2026-08-10","content_sha256":"6a6d7b86746aa36d24eb97cad666d7149770605a632c11867ca3d718a57a380e","seq":1,"wave":"dev-wave-t692-r3-xdist-walltime"}
+
+- {"allocations":{"D:campaign-identity-authority-split":"D259"},"authored":"2026-08-09","content_sha256":"e1d434e13e6b08716d45bd1b3209ce514c34c553eb5bab2d67563bc7cd6b4dff","seq":1,"wave":"dev-wave-t671-impl"}
+- {"allocations":{"T:authority-external-anchor":"[T-722]","T:guided-lane-nonforgeable-marker":"[T-723]","T:import-namespace-unification":"[T-720]","T:r1-closure-expansion":"[T-721]"},"authored":"2026-08-09","content_sha256":"3af0defaa7d06c85816834c49775153df77826a83bb4b558c79ead6a5fa27bcc","seq":2,"wave":"dev-wave-t671-impl"}
+- {"allocations":{"F:dual-import-namespace-breaks-exact-type-checks":"F187","F:parent-adds-gates-outside-approved-ruling":"F188"},"authored":"2026-08-09","content_sha256":"69da3a4f8f6674d38e9385fd6a73ab0762fadcbc11a50aa6157b23256fcd2051","seq":3,"wave":"dev-wave-t671-impl"}
