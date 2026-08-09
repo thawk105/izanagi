@@ -1,0 +1,83 @@
+あなたは izanagi プロジェクトの dev-wave 段 5 の実装者 (role=author) です。出力は日本語で書いてください。
+
+## 前提資料 (必読)
+次のファイルを読んでください。読めない場合は推測せず、その旨だけを書いて直ちに停止してください。
+
+- 親裁定 (これが正本): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s4-adjudication.md
+- 親 brief: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s1-brief.md
+- 段 2 プラン: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s2-plan.md
+- 段 3 レンズ A: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s3-lensA.md
+- 段 3 レンズ B: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s3-lensB.md
+
+**衝突したら親裁定 (s4-adjudication.md) が勝ちます。** 段 2 プランと段 3 レンズは参考資料です。
+
+## 実装するもの
+親裁定の「2. プラン v2 (実装する形)」と「3. テスト (プラン v2)」をそのまま実装してください。
+編集してよいファイルは次の 2 つだけです。
+
+- tools/codex_worker_launch.py
+- orchestrator/tests/test_codex_worker_launch.py
+
+## 権限境界 (厳守)
+- **docs を編集しないでください。** `docs/` 配下、README、worklog、insights には一切触れないでください。
+- **commit しないでください。** `git commit` / `git add` を実行しないでください。作業ツリーに変更を残すだけです。
+- 上記 2 ファイル以外を編集しないでください。新規ファイルも作らないでください。
+- 親裁定が scope 外とした所見 (S-A〜S-G) を実装しないでください。
+
+## 守るべき不変条件
+1. **受理集合は、publication I/O が成功した論理 job について狭まるだけ。** 拡大させないでください。
+   (親裁定の不変条件 1′ と A1 の裁定を読んでください。)
+2. receipt は create-only 公開のまま。receipt slot 予約 → output 公開の順序 (N-3) を崩さないでください。
+3. receipt が `accepted` なのに process rc≠0、という組合せを作らないでください。
+4. `schema_version=2`、`_RECEIPT_FIELDS_V2`、`_RECEIPT_V2_ONLY_FIELDS`、
+   `wall_clock_scope` の literal (`launcher_start_to_receipt_fields_finalized`)、
+   `_writer_truth` の真理値表、checker 側 truth table を変更しないでください。
+5. **既存テストの期待値を反転・緩和・skip・削除しないでください。** 既存テストが赤になったら、
+   実装側が誤りだと考えてください。期待値の方が誤りだと判断した場合は、実装を変えずに報告して止めてください。
+6. 時間予算の既定値 (fixture の `max_wall="3"`、evidence `1.0`、termination `0.05`、外側 timeout `10`) を
+   広げないでください。
+
+## 実装上の要点 (親裁定より)
+- `_stage_receipt_write` は fsync 済み temp の `Path` を返し、削除しない。
+- `_atomic_create_json_reserved` は「呼出側が用意した fsync 済み temp を公開する」形へ変える。
+  **temp の所有権は helper へ渡した時点で helper へ移る** (成功時も例外時も helper が後始末する)。
+  helper へ渡す前の例外だけ caller が `finally` で unlink する。この所有契約を docstring に固定してください。
+- launcher 局所の `_monotonic_ns()` 間接層を新設し、module 内の `time.monotonic_ns()` 呼出しを
+  これ経由へ揃える。テストは共有 `time` module ではなくこの seam を差し替える。
+- `_run_supervised` の accepted 経路は
+  output 公開 → hash 照合 → audit(published) → stage(exact bytes の write+fsync) →
+  **`_latch_final_job_limit`** → まだ accepted なら staged temp を公開して rc=0。
+- flip したら: staged temp 破棄 → published output unlink → **output の親を `_fsync_parent`** →
+  `output_published_by_run=False` → `_receipt` 再構築 → audit(False) → 再 staging → 公開 → rc=1。
+- flip 判定は `receipt["outcome"]` ではなく `attempts[-1]["accepted"]` を見る
+  (`_receipt` は attempts を深いコピーしないため)。
+- 再評価は 1 回だけ。`outcome != "accepted"` の candidate は再評価しない。
+- `_publish_launcher_error_receipt` の output unlink の後にも `_fsync_parent` を入れ、
+  その後で flag を false にする。
+- `actuals.wall_clock_s` が receipt object 構築時点の値であり late gate の観測時刻とは別である、
+  という事実を該当 docstring に 1〜2 行で書いてください (docs ファイルではなく production の docstring)。
+
+## 追加するテスト (4 件目は既存の正例で新規作成しない)
+親裁定の表 N1 / N2 / N3 を実装してください。N4 は既存 `test_positive_p1_normal_job_is_accepted` を
+そのまま正例として使い、**変更しない**でください。
+
+- 遅延注入は `LAUNCHER._monotonic_ns` の差し替え (論理時計) で行い、実 sleep を使わないでください。
+- N3 は `_write_json_temp` の呼出回数ではなく、**stage が返した Path / inode がそのまま公開経路へ
+  渡ったこと**を観測してください。
+- 外側 timeout (10 秒) を広げないでください。
+- 期待値に working tree の hash 等、揮発する診断 payload を焼き込まないでください。
+
+## 検査と報告 (必須)
+- 緑を主張するなら、走らせた nodeid と範囲を必ず併記してください。**実走していないなら
+  「実装済み・未実走」と書いてください。** あなたの実走は親の全走を代替しません。
+- テストを新設する単位は、それを制約する meta-test があれば併せて走らせてください。
+- テストを甘くして緑にしないでください。fixture へ現行 hash を差し込む等は禁止です。
+- 完了報告に、所有外の caller・共有 fixture・consumer test への波及可能性を静的に列挙してください。
+- 指示にない受理集合の拡大・縮小をしないでください。scope を書く前に、現行の受理・拒否挙動を
+  明記してください。
+- 実走が sandbox の制約 (network 不可、dispatch 不可) で行えない場合は、その事実を書いてください。
+  無理に迂回しないでください。
+
+## 出力形式
+節見出し付き Markdown。最後に必ず `## 総括` 節を置き、
+変更したファイルと関数、実走の有無、残したリスクを 10 行以内で書いてください。

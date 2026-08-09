@@ -778,6 +778,10 @@ python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
   その間ほかの wave 全部が待つ (head-of-line blocking)。
 - **FIFO が保証するのは「後着が先着を追い越さない」ことだけで、待ち時間の上界ではない。**
   待ち時間は待ち行列の長さと受入 1 回の所要 (1055〜1273 秒) に比例する。
+- **`acquired` の直後に local main を取り込んでから投入する。** 待っている間に先行 holder が land
+  するので、`claim` 時の `main_sha` は待ち始めた時点の main ではない。取り込まずに走らせると
+  land 対象 tip が main の子孫でなくなり、全走をもう一度やり直すことになる (2026-08-09 に
+  12 commit 差で 1324 秒を空費)。
 - 受入と land の**どの終わり方でも** `release --wave "$W"` する (赤・失敗・中断を含む)。
   他 wave の lease は消せない (holder digest 不一致なら `not-owner` で何もしない)。
 - land が成功したときだけ、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
