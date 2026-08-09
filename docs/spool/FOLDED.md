@@ -649,3 +649,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:mutation-spec-diverged-from-preregistration":"F184","F:scorer-conflict-guard-inert":"F183"},"authored":"2026-08-09","content_sha256":"8c3ed0d27b29eb00215f9a0cb63e7048239137b36a6e646993653bd924df8ac0","seq":2,"wave":"dev-wave-t685-scorer-erratum"}
 
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"087ecf010e2238ae858f3353df2bf931eeeac4cfcfb320a42a09f625e0cb3e81","seq":1,"wave":"dev-wave-provenance-model-switch-rule"}
+
+- {"allocations":{"T:evidence-path-control-char":"[T-714]","T:s8c-heavy-git-xdist-group":"[T-713]"},"authored":"2026-08-09","content_sha256":"33740252c49c16f1476ebc1483ada6ec4adc8fc0462467c0ef383081e4869520","seq":1,"wave":"dev-wave-t553-git-budget"}
+- {"allocations":{"D:git-work-proportional-budget":"D257"},"authored":"2026-08-09","content_sha256":"27be8510a9271fa22fd1dba33a8d3246d6963c7c909c46ebe6ac610686cb7175","seq":2,"wave":"dev-wave-t553-git-budget"}
+- {"allocations":{"F:lease-state-matched-literally":"F186","F:mutation-spec-timeout-below-dispatch-floor":"F185"},"authored":"2026-08-09","content_sha256":"93b10a0cc036e9ca3fc74fdf7d9801da25763adcb432dfcda32f54e3a5f5ce20","seq":3,"wave":"dev-wave-t553-git-budget"}

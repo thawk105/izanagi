@@ -6,6 +6,7 @@ freeze namespace や履歴には触れない。
 """
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import hashlib
 import inspect
@@ -984,8 +985,206 @@ def test_git_timeout_generation_commit_and_blob_limits_fail_closed(
     _assert_reason("git-timeout", M._git, root, ["status", "--short"])
 
 
+def test_git_timeout_budget_constants_match_preregistered_measurement() -> None:
+    assert M.GIT_TIMEOUT_SECONDS == 15.0
+    assert M.GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST == 0.0086
+    assert M.GIT_TIMEOUT_CAP_SECONDS == 300.0
+    assert M.GIT_TIMEOUT_CAP_SECONDS != (
+        M.GIT_TIMEOUT_SECONDS
+        + M.MAX_BATCH_REQUESTS * M.GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST
+    )
+
+
+@pytest.mark.parametrize(
+    ("stdin", "expected"),
+    [
+        pytest.param(None, 15.0, id="no-stdin"),
+        pytest.param(b"", 15.0, id="empty-stdin"),
+        pytest.param(b"x\n" * 7_005, 75.243, id="legal-linear-example"),
+        pytest.param(
+            b"x\n" * M.MAX_BATCH_REQUESTS,
+            300.0,
+            id="max-batch-requests",
+        ),
+        pytest.param(
+            b"x\n" * (M.MAX_BATCH_REQUESTS + 1),
+            300.0,
+            id="above-max-batch-requests",
+        ),
+        pytest.param(b"unterminated", 15.0086, id="no-trailing-lf"),
+        pytest.param(b"x" * 1_000, 15.0086, id="not-byte-length"),
+        pytest.param(b"x\ry", 15.0086, id="lf-framing-only"),
+    ],
+)
+def test_git_timeout_budget_from_request_count(
+    stdin: bytes | None, expected: float
+) -> None:
+    assert M._git_timeout_budget_seconds(stdin) == expected
+
+
+def test_git_timeout_budget_never_exceeds_absolute_cap() -> None:
+    amplified = b"x\n" * (M.MAX_BATCH_REQUESTS * 2)
+    assert M._git_timeout_budget_seconds(amplified) == M.GIT_TIMEOUT_CAP_SECONDS
+
+
+def test_git_timeout_budget_clamps_requests_before_rate_amplification(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(M, "GIT_TIMEOUT_CAP_SECONDS", 1_000.0)
+    at_limit = b"x\n" * M.MAX_BATCH_REQUESTS
+    amplified = b"x\n" * (M.MAX_BATCH_REQUESTS * 2)
+    expected = (
+        M.GIT_TIMEOUT_SECONDS
+        + M.MAX_BATCH_REQUESTS * M.GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST
+    )
+    assert M._git_timeout_budget_seconds(at_limit) == expected
+    assert M._git_timeout_budget_seconds(amplified) == expected
+
+
+def test_git_uses_one_internal_budget_and_preserves_timeout_reason(
+    tmp_path: Path, monkeypatch
+) -> None:
+    stdin = b"x\n" * (M.MAX_BATCH_REQUESTS * 2)
+    budget_calls: list[bytes | None] = []
+    run_timeouts: list[float] = []
+    expected_timeout = 123.25
+
+    def budget(value: bytes | None) -> float:
+        budget_calls.append(value)
+        return expected_timeout
+
+    def complete(command, **kwargs):
+        del command
+        run_timeouts.append(kwargs["timeout"])
+        return object()
+
+    monkeypatch.setattr(M, "_git_timeout_budget_seconds", budget)
+    monkeypatch.setattr(M.subprocess, "run", complete)
+    assert M._git(tmp_path, ["cat-file", "--batch-check"], stdin=stdin) == b""
+    assert budget_calls == [stdin]
+    assert run_timeouts == [expected_timeout]
+
+    timeout_calls = 0
+
+    def timeout(command, **kwargs):
+        nonlocal timeout_calls
+        timeout_calls += 1
+        assert kwargs["timeout"] == expected_timeout
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    monkeypatch.setattr(M.subprocess, "run", timeout)
+    _assert_reason(
+        "git-timeout",
+        M._git,
+        tmp_path,
+        ["cat-file", "--batch-check"],
+        stdin=stdin,
+    )
+    assert timeout_calls == 1
+
+
+def test_git_budget_caller_surfaces_match_exact_contract() -> None:
+    empty = inspect.Parameter.empty
+    positional = inspect.Parameter.POSITIONAL_OR_KEYWORD
+    keyword_only = inspect.Parameter.KEYWORD_ONLY
+    expected_signatures = {
+        "_git": (
+            ("root", positional, empty),
+            ("args", positional, empty),
+            ("stdin", keyword_only, None),
+        ),
+        "_git_text": (
+            ("root", positional, empty),
+            ("args", positional, empty),
+            ("stdin", keyword_only, None),
+        ),
+        "validate_condition_freeze_at": (
+            ("repo_root", positional, empty),
+            ("commit", positional, "HEAD"),
+        ),
+        "prepare_revision": (
+            ("repo_root", positional, empty),
+            ("ruling_reference", keyword_only, None),
+            ("revision_reason", keyword_only, empty),
+            ("commit", keyword_only, "HEAD"),
+        ),
+    }
+    functions = (
+        M._git,
+        M._git_text,
+        M.validate_condition_freeze_at,
+        M.prepare_revision,
+    )
+    actual_signatures = {
+        function.__name__: tuple(
+            (parameter.name, parameter.kind, parameter.default)
+            for parameter in inspect.signature(function).parameters.values()
+        )
+        for function in functions
+    }
+    assert actual_signatures == expected_signatures
+
+    parsers = [((), M._build_parser())]
+    option_strings: set[str] = set()
+    action_surfaces: dict[tuple[str, ...], tuple[tuple[str, tuple[str, ...]], ...]] = {}
+    for path, parser in parsers:
+        actions: list[tuple[str, tuple[str, ...]]] = []
+        for action in parser._actions:
+            option_strings.update(action.option_strings)
+            actions.append((action.dest, tuple(action.option_strings)))
+            if isinstance(action, argparse._SubParsersAction):
+                parsers.extend(
+                    ((*path, command), child)
+                    for command, child in action.choices.items()
+                )
+        action_surfaces[path] = tuple(actions)
+
+    assert option_strings == {
+        "-h",
+        "--help",
+        "--commit",
+        "--repo-root",
+        "--json",
+        "--ruling-reference",
+        "--revision-reason",
+    }
+    assert action_surfaces == {
+        (): (("help", ("-h", "--help")), ("command", ())),
+        ("check",): (
+            ("help", ("-h", "--help")),
+            ("commit", ("--commit",)),
+            ("repo_root", ("--repo-root",)),
+            ("json_output", ("--json",)),
+        ),
+        ("prepare-revision",): (
+            ("help", ("-h", "--help")),
+            ("commit", ("--commit",)),
+            ("repo_root", ("--repo-root",)),
+            ("ruling_reference", ("--ruling-reference",)),
+            ("revision_reason", ("--revision-reason",)),
+        ),
+    }
+
+
+def test_git_failed_reason_is_preserved_with_computed_budget(
+    tmp_path: Path, monkeypatch
+) -> None:
+    def fail(command, **kwargs):
+        del kwargs
+        raise subprocess.CalledProcessError(2, command, stderr=b"fixture failure")
+
+    monkeypatch.setattr(M.subprocess, "run", fail)
+    _assert_reason("git-failed", M._git, tmp_path, ["status", "--short"])
+
+
 def test_git_input_limit_stops_before_subprocess(tmp_path: Path, monkeypatch) -> None:
     calls = 0
+    budget_calls = 0
+
+    def must_not_budget(*args, **kwargs):
+        nonlocal budget_calls
+        budget_calls += 1
+        raise AssertionError("input limit 後に git 予算を計算してはならない")
 
     def must_not_run(*args, **kwargs):
         nonlocal calls
@@ -993,8 +1192,10 @@ def test_git_input_limit_stops_before_subprocess(tmp_path: Path, monkeypatch) ->
         raise AssertionError("input limit 後に git subprocess を起動してはならない")
 
     monkeypatch.setattr(M, "MAX_GIT_INPUT_BYTES", 3)
+    monkeypatch.setattr(M, "_git_timeout_budget_seconds", must_not_budget)
     monkeypatch.setattr(M.subprocess, "run", must_not_run)
     _assert_reason("git-input-limit", M._git, tmp_path, ["cat-file"], stdin=b"1234")
+    assert budget_calls == 0
     assert calls == 0
 
 
