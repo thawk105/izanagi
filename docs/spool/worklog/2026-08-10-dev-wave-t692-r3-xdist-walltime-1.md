@@ -70,7 +70,15 @@ title: [T-692] R3 の xdist 対応を実装し、受入 wall の律速が real-r
   親 = brief・計測全走 2 本・切り分け実験 1 本・裁定・統合 commit 2 本・変異 3 投入・受入 3 投入・記録。
 - **受入を走らせた tip と land する tip の差**: 受入 (7746 passed / 20 skipped / 1247.95 秒) は
   `984387ec` で走らせた。land する tip はその後の記録 commit と段 8 commit を含むため異なるが、
-  **差分は docs と output/insights のみでコード変更を含まない** (`orchestrator/` と `tools/` は無変更)。
+  **差分は docs と output/insights のみでコード変更を含まない**
+  (`git diff --stat 984387ec..HEAD -- orchestrator tools` が空)。
+- **AI-Agent trailer の role を 7 commit すべてで書き直した。** 当初 `role=orchestrator` と
+  書いたが、これは `docs/ai-provenance.md` の許容集合 (`author` / `reviewer` / `researcher` /
+  `manager` / `integrator`) に無く、land が全史 provenance 監査で rc=29 拒否した (F37 の機械強制)。
+  統合・取り込みを `integrator`、本文を書いた docs を `author` へ是正し、rc=0 を確認して land した。
+  **親は最初の照合を誤っていた** — `sha=` 行 (既知違反) だけを grep して「本 wave 由来なし」と
+  判定し、冒頭の「6 新規違反」を見落とした。F37 の「要約行を緑判定にせず rc を見る」の同型。
+  書き換えで受入 tip の SHA は `984387ec` → `e7876963` へ変わったが、両者の diff は空である。
 - **段 8 自己改善は候補 3 件、採用 1 件。**
   (採用) 受入 lease 取得後の main 取り込みに `--ff-only` を使うと、wave branch が自前 commit を
   持った時点で必ず失敗する。実測で取得済み lease を 1 回捨てた。runbook §7.3 を是正し、
