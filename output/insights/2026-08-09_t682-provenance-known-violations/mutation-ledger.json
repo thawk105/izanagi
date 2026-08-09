@@ -1,0 +1,681 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/7b3585663263978fcb2dc2f462ab2c73/izdw-7b35856632.o896761",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/7b3585663263978fcb2dc2f462ab2c73/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [42 items]\n\n..........................................                               [100%]\n============================== 42 passed in 2.13s ==============================\n",
+      "stdout_sha256": "2416cb2351482477c154ab60f8ae10980bed25a499358392b5616c9fa2e1ad47"
+    },
+    "artifact_error": null,
+    "collection_sha256": "5e47b7a52e9e9b45a8222865d60956e582f3ed641d7d1e61950219b735d0e07f",
+    "duration_s": 21.745,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "219226636a0a5cb0d32a332642610ac33265a57b8a5071ec6e30b4796f352824",
+    "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+    "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+    "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+    "status": "PASSED",
+    "test_output_sha256": "2416cb2351482477c154ab60f8ae10980bed25a499358392b5616c9fa2e1ad47",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+  },
+  "date": "2026-08-09T02:06:03.385856+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/2b40b890d777c5c9f35f7023545f99fb/izdw-2b40b890d7.o896762",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/2b40b890d777c5c9f35f7023545f99fb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [42 items]\n\n........................................FF                               [100%]\n=================================== FAILURES ===================================\n____________ test_malformed_kind_requires_nonblank_note_rc2[blank] _____________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_malformed_kind_requires_n0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ca669eda20>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14ca66a12b90>, note = ' \\t'\n\n    @pytest.mark.parametrize(\"note\", [\"\", \" \\t\"], ids=[\"empty\", \"blank\"])\n    def test_malformed_kind_requires_nonblank_note_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        note: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=\"bad value\",\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\n        captured = capsys.readouterr()\n>       assert f\"empty required note: {commit}\" in captured.err\nE       AssertionError: assert 'empty required note: c603fa352f800c3c597c0fdaf60790e387810670' in 'check_ai_provenance: 実行不能: known provenance violation registry has prohibited character in note: c603fa352f800c3c597c0fdaf60790e387810670\\n'\nE        +  where 'check_ai_provenance: 実行不能: known provenance violation registry has prohibited character in note: c603fa352f800c3c597c0fdaf60790e387810670\\n' = CaptureResult(out='', err='check_ai_provenance: 実行不能: known provenance violation registry has prohibited character in note: c603fa352f800c3c597c0fdaf60790e387810670\\n').err\n\norchestrator/tests/test_check_ai_provenance.py:1705: AssertionError\n____________ test_malformed_kind_requires_nonblank_note_rc2[empty] _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_malformed_kind_requires_n0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15445e95f190>\ncapsys = <_pytest.capture.CaptureFixture object at 0x15445e95f490>, note = ''\n\n    @pytest.mark.parametrize(\"note\", [\"\", \" \\t\"], ids=[\"empty\", \"blank\"])\n    def test_malformed_kind_requires_nonblank_note_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        note: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=\"bad value\",\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\n        captured = capsys.readouterr()\n>       assert f\"empty required note: {commit}\" in captured.err\nE       AssertionError: assert 'empty required note: c603fa352f800c3c597c0fdaf60790e387810670' in 'check_ai_provenance: 実行不能: known provenance violation registry has non-descriptive required note: c603fa352f800c3c597c0fdaf60790e387810670\\n'\nE        +  where 'check_ai_provenance: 実行不能: known provenance violation registry has non-descriptive required note: c603fa352f800c3c597c0fdaf60790e387810670\\n' = CaptureResult(out='', err='check_ai_provenance: 実行不能: known provenance violation registry has non-descriptive required note: c603fa352f800c3c597c0fdaf60790e387810670\\n').err\n\norchestrator/tests/test_check_ai_provenance.py:1705: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]\n========================= 2 failed, 40 passed in 2.17s =========================\n",
+        "stdout_sha256": "5e52b44fe6978ff202d98110bb2dc1d7421aee6355a82b21f26b144ebf0418ba"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5e47b7a52e9e9b45a8222865d60956e582f3ed641d7d1e61950219b735d0e07f",
+      "duration_s": 26.87,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "95c7b19c40df7d2109edbb15e9395316ed363dc62dfbbd830cd616f7ecebe559",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3d33d0d22c008ed0f746f6a46323a9add082db5a35134ebb65c68d7b23d5b374",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "",
+          "old": "        if (\n            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS\n            and not spec.note.strip()\n        ):\n            raise RuntimeError(\n                \"known provenance violation registry has empty required note: \"\n                f\"{spec.commit}\"\n            )\n"
+        }
+      ],
+      "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+      "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+      "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+      "status": "KILLED",
+      "test_output_sha256": "5e52b44fe6978ff202d98110bb2dc1d7421aee6355a82b21f26b144ebf0418ba",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/d0d7d8fd39a54f85587626fb4b2aea08/izdw-d0d7d8fd39.o896763",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/d0d7d8fd39a54f85587626fb4b2aea08/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [42 items]\n\n......................................FFFF                               [100%]\n=================================== FAILURES ===================================\n________ test_base_finding_kind_is_anchored_after_full_label[duplicate] ________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\nmessage = 'AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\nAI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\n'\nexpected_kind = None\n\n    @pytest.mark.parametrize(\n        (\"message\", \"expected_kind\"),\n        [\n            (\"AI-Agent: malformed\\n\", \"malformed-ai-agent\"),\n            (\n                \"AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\n\"\n                \"AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\n\",\n                None,\n            ),\n            (\"AI-Agent: none\\nAI-Agent: malformed\\n\", None),\n            (\n                \"AI-Agent: product=none; model=gpt-5; reasoning=high; role=author\\n\",\n                None,\n            ),\n            (\n                \"AI-Agent: product=codex; model=none; reasoning=high; role=author\\n\",\n                None,\n            ),\n        ],\n        ids=[\"malformed\", \"duplicate\", \"none-mixed\", \"reserved\", \"model-none\"],\n    )\n    def test_base_finding_kind_is_anchored_after_full_label(\n        message: str, expected_kind: str | None,\n    ):\n        label = \"123456789abc subject: AI-Agent の形式違反: injected\"\n        base, _, _ = provenance.validate_message(\"label-probe\", f\"body\\n\\n{message}\")\n        assert base\n        rewritten = [finding.replace(\"label-probe\", label, 1) for finding in base]\n>       assert [\n            provenance._base_finding_ledger_kind(label, finding)\n            for finding in rewritten\n        ] == [expected_kind] * len(rewritten)\nE       AssertionError: assert ['malformed-ai-agent'] == [None]\nE         \nE         At index 0 diff: 'malformed-ai-agent' != None\nE         Use -v to get more diff\n\norchestrator/tests/test_check_ai_provenance.py:2012: AssertionError\n________ test_base_finding_kind_is_anchored_after_full_label[reserved] _________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\nmessage = 'AI-Agent: product=none; model=gpt-5; reasoning=high; role=author\\n'\nexpected_kind = None\n\n    @pytest.mark.parametrize(\n        (\"message\", \"expected_kind\"),\n        [\n            (\"AI-Agent: malformed\\n\", \"malformed-ai-agent\"),\n            (\n                \"AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\n\"\n                \"AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\n\",\n                None,\n            ),\n            (\"AI-Agent: none\\nAI-Agent: malformed\\n\", None),\n            (\n                \"AI-Agent: product=none; model=gpt-5; reasoning=high; role=author\\n\",\n                None,\n            ),\n            (\n                \"AI-Agent: product=codex; model=none; reasoning=high; role=author\\n\",\n                None,\n            ),\n        ],\n        ids=[\"malformed\", \"duplicate\", \"none-mixed\", \"reserved\", \"model-none\"],\n    )\n    def test_base_finding_kind_is_anchored_after_full_label(\n        message: str, expected_kind: str | None,\n    ):\n        label = \"123456789abc subject: AI-Agent の形式違反: injected\"\n        base, _, _ = provenance.validate_message(\"label-probe\", f\"body\\n\\n{message}\")\n        assert base\n        rewritten = [finding.replace(\"label-probe\", label, 1) for finding in base]\n>       assert [\n            provenance._base_finding_ledger_kind(label, finding)\n            for finding in rewritten\n        ] == [expected_kind] * len(rewritten)\nE       AssertionError: assert ['malformed-ai-agent'] == [None]\nE         \nE         At index 0 diff: 'malformed-ai-agent' != None\nE         Use -v to get more diff\n\norchestrator/tests/test_check_ai_provenance.py:2012: AssertionError\n_______ test_base_finding_kind_is_anchored_after_full_label[model-none] ________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\nmessage = 'AI-Agent: product=codex; model=none; reasoning=high; role=author\\n'\nexpected_kind = None\n\n    @pytest.mark.parametrize(\n        (\"message\", \"expected_kind\"),\n        [\n            (\"AI-Agent: malformed\\n\", \"malformed-ai-agent\"),\n            (\n                \"AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\n\"\n                \"AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\n\",\n                None,\n            ),\n            (\"AI-Agent: none\\nAI-Agent: malformed\\n\", None),\n            (\n                \"AI-Agent: product=none; model=gpt-5; reasoning=high; role=author\\n\",\n                None,\n            ),\n            (\n                \"AI-Agent: product=codex; model=none; reasoning=high; role=author\\n\",\n                None,\n            ),\n        ],\n        ids=[\"malformed\", \"duplicate\", \"none-mixed\", \"reserved\", \"model-none\"],\n    )\n    def test_base_finding_kind_is_anchored_after_full_label(\n        message: str, expected_kind: str | None,\n    ):\n        label = \"123456789abc subject: AI-Agent の形式違反: injected\"\n        base, _, _ = provenance.validate_message(\"label-probe\", f\"body\\n\\n{message}\")\n        assert base\n        rewritten = [finding.replace(\"label-probe\", label, 1) for finding in base]\n>       assert [\n            provenance._base_finding_ledger_kind(label, finding)\n            for finding in rewritten\n        ] == [expected_kind] * len(rewritten)\nE       AssertionError: assert ['malformed-ai-agent'] == [None]\nE         \nE         At index 0 diff: 'malformed-ai-agent' != None\nE         Use -v to get more diff\n\norchestrator/tests/test_check_ai_provenance.py:2012: AssertionError\n_______ test_base_finding_kind_is_anchored_after_full_label[none-mixed] ________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\nmessage = 'AI-Agent: none\\nAI-Agent: malformed\\n', expected_kind = None\n\n    @pytest.mark.parametrize(\n        (\"message\", \"expected_kind\"),\n        [\n            (\"AI-Agent: malformed\\n\", \"malformed-ai-agent\"),\n            (\n                \"AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\n\"\n                \"AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\\n\",\n                None,\n            ),\n            (\"AI-Agent: none\\nAI-Agent: malformed\\n\", None),\n            (\n                \"AI-Agent: product=none; model=gpt-5; reasoning=high; role=author\\n\",\n                None,\n            ),\n            (\n                \"AI-Agent: product=codex; model=none; reasoning=high; role=author\\n\",\n                None,\n            ),\n        ],\n        ids=[\"malformed\", \"duplicate\", \"none-mixed\", \"reserved\", \"model-none\"],\n    )\n    def test_base_finding_kind_is_anchored_after_full_label(\n        message: str, expected_kind: str | None,\n    ):\n        label = \"123456789abc subject: AI-Agent の形式違反: injected\"\n        base, _, _ = provenance.validate_message(\"label-probe\", f\"body\\n\\n{message}\")\n        assert base\n        rewritten = [finding.replace(\"label-probe\", label, 1) for finding in base]\n>       assert [\n            provenance._base_finding_ledger_kind(label, finding)\n            for finding in rewritten\n        ] == [expected_kind] * len(rewritten)\nE       AssertionError: assert ['malformed-ai-agent'] == [None]\nE         \nE         At index 0 diff: 'malformed-ai-agent' != None\nE         Use -v to get more diff\n\norchestrator/tests/test_check_ai_provenance.py:2012: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[duplicate]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[reserved]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[model-none]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[none-mixed]\n========================= 4 failed, 38 passed in 2.14s =========================\n",
+        "stdout_sha256": "98a2bbe2a1221a07bacf5dfd215ace96f1d0bfa2986f8dffb3f383e2e8fae479"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5e47b7a52e9e9b45a8222865d60956e582f3ed641d7d1e61950219b735d0e07f",
+      "duration_s": 26.774,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[duplicate]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[none-mixed]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[reserved]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[model-none]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[duplicate]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[reserved]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[model-none]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[none-mixed]"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "fe7741ddbe8a2aa33ed8fb71ca952a05e373bb2e37d0293eef24ef90379fb32b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0e19acf66c62525b11015f52ca6ccc575252524586c07cbc708233d0ff8ec317",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "    if \"AI-Agent の形式違反\" in finding:",
+          "old": "    if finding.startswith(f\"{label}: AI-Agent の形式違反: \"):"
+        }
+      ],
+      "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+      "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+      "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+      "status": "KILLED",
+      "test_output_sha256": "98a2bbe2a1221a07bacf5dfd215ace96f1d0bfa2986f8dffb3f383e2e8fae479",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/0d3580d8b6244f91aa8bec7692225755/izdw-0d3580d8b6.o896764",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/0d3580d8b6244f91aa8bec7692225755/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [42 items]\n\n.........................................F                               [100%]\n=================================== FAILURES ===================================\n_________ test_malformed_known_violation_missing_finding_is_stale_rc2 __________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_malformed_known_violation0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1487b2a55e40>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1487b2a71de0>\n\n    def test_malformed_known_violation_missing_finding_is_stale_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n    ):\n        _init_repo(tmp_path)\n        clean = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    clean,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=\"explanation\",\n                    expected_finding_value=\"bad value\",\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{clean}^!\"], site=site_policy.OTHER,\n        ) == 2\n        captured = capsys.readouterr()\n>       assert (\n            f\"sha={clean} finding=malformed-ai-agent \"\n            \"reason=expected-finding-missing checker-regression-suspected\"\n            in captured.err\n        )\nE       assert 'sha=54eebdc26eb5e37ba9106fa59d1237407bf50ba3 finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected' in \"check_ai_provenance: 実行不能: known provenance violation registry has invalid finding kind: 'malformed-ai-agent'\\n\"\nE        +  where \"check_ai_provenance: 実行不能: known provenance violation registry has invalid finding kind: 'malformed-ai-agent'\\n\" = CaptureResult(out='', err=\"check_ai_provenance: 実行不能: known provenance violation registry has invalid finding kind: 'malformed-ai-agent'\\n\").err\n\norchestrator/tests/test_check_ai_provenance.py:2106: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_malformed_known_violation_missing_finding_is_stale_rc2\n========================= 1 failed, 41 passed in 2.14s =========================\n",
+        "stdout_sha256": "76699c845b190d558d095ed217abb648c81a87a4f97da66fb7e06a4aeee00627"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5e47b7a52e9e9b45a8222865d60956e582f3ed641d7d1e61950219b735d0e07f",
+      "duration_s": 31.883,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_malformed_known_violation_missing_finding_is_stale_rc2"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_malformed_known_violation_missing_finding_is_stale_rc2"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "4845d8eac11f3043e83e5dfcf89472e6491aec7cd7b3736b07d595e20d519a11",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ad24dc14aa30dd37ff31b83117bd3a093b43eeaf42569637df794d36f339be4b",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "    if spec.expected_finding_kind in {\n        MISSING_AI_AGENT,\n    }:\n        return True\n",
+          "old": "    if spec.expected_finding_kind in {\n        MISSING_AI_AGENT,\n        MALFORMED_AI_AGENT,\n    }:\n        return True\n"
+        }
+      ],
+      "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+      "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+      "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+      "status": "KILLED",
+      "test_output_sha256": "76699c845b190d558d095ed217abb648c81a87a4f97da66fb7e06a4aeee00627",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/736fbb456b2f87ef957dab1afbea3f3a/izdw-736fbb456b.o896767",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/736fbb456b2f87ef957dab1afbea3f3a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [42 items]\n\n.........................................F                               [100%]\n=================================== FAILURES ===================================\n_ test_expected_finding_value_registry_contract_is_rc2[non-malformed-nonempty] _\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_expected_finding_value_re0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ee1a95ff10>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14ee1a97afe0>\nspec = KnownViolationSpec(commit='1111111111111111111111111111111111111111', expected_finding_kind='missing-ai-agent', ruling='ruling', note='', expected_finding_value='unexpected')\nerror = 'unexpected finding value'\n\n    @pytest.mark.parametrize(\n        (\"spec\", \"error\"),\n        [\n            (\n                provenance.KnownViolationSpec(\n                    \"1\" * 40,\n                    \"malformed-ai-agent\",\n                    \"ruling\",\n                    note=\"explanation\",\n                    expected_finding_value=None,\n                ),\n                \"invalid finding value type: NoneType\",\n            ),\n            (\n                provenance.KnownViolationSpec(\n                    \"1\" * 40,\n                    \"malformed-ai-agent\",\n                    \"ruling\",\n                    note=\"explanation\",\n                ),\n                \"empty required finding value\",\n            ),\n            (\n                provenance.KnownViolationSpec(\n                    \"1\" * 40,\n                    \"missing-ai-agent\",\n                    \"ruling\",\n                    expected_finding_value=\"unexpected\",\n                ),\n                \"unexpected finding value\",\n            ),\n        ],\n        ids=[\"non-string\", \"malformed-empty\", \"non-malformed-nonempty\"],\n    )\n    def test_expected_finding_value_registry_contract_is_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        spec: provenance.KnownViolationSpec,\n        error: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            CODEX_AUTHOR,\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                provenance.KnownViolationSpec(\n                    commit=commit,\n                    expected_finding_kind=spec.expected_finding_kind,\n                    ruling=spec.ruling,\n                    note=spec.note,\n                    expected_finding_value=spec.expected_finding_value,\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\n        captured = capsys.readouterr()\n        assert error in captured.err\n        assert captured.out == \"\"\n        if error == \"unexpected finding value\":\n            label = f\"{commit[:12]} subject\"\n            actual_value = \"actual malformed value\"\n            finding = provenance.NormalFinding(\n                f\"{label}: AI-Agent の形式違反: {actual_value!r} — detail\",\n                provenance.MALFORMED_AI_AGENT,\n            )\n            audit = provenance.CommitAudit(\n                commit,\n                label,\n                (finding,),\n                provenance.CorrectionAudit((), (), (), (), ()),\n            )\n            matching_kind_wrong_value = _known_spec(\n                commit,\n                provenance.MALFORMED_AI_AGENT,\n                note=\"explanation\",\n                expected_finding_value=\"different malformed value\",\n            )\n            result = provenance._known_violation_audit(\n                [audit],\n                registry={commit: matching_kind_wrong_value},\n                suppressed_missing=None,\n                stale_eligible_commits={commit},\n            )\n>           assert result.findings == (finding.text,)\nE           assert () == (\"430ffd8d50e...e' — detail\",)\nE             \nE             Right contains one more item: \"430ffd8d50e3 subject: AI-Agent の形式違反: 'actual malformed value' — detail\"\nE             Use -v to get more diff\n\norchestrator/tests/test_check_ai_provenance.py:1979: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[non-malformed-nonempty]\n========================= 1 failed, 41 passed in 2.15s =========================\n",
+        "stdout_sha256": "5da02dba4cd42b6439477cf3b12626886de1f2b687f6ab1b0134dc1f694ea7b8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5e47b7a52e9e9b45a8222865d60956e582f3ed641d7d1e61950219b735d0e07f",
+      "duration_s": 26.835,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[non-malformed-nonempty]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[non-malformed-nonempty]"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "ced5a2ecbeb93d8ab6efedc9936d181d75bbef034cbe8e0fada3f75a2df599c9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "44e79396e2a75b6f4b7c07768531ed878a7532fd94918b2165547c44f737536a",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "",
+          "old": "                and (\n                    not spec_for_commit.expected_finding_value\n                    or finding.text.startswith(\n                        f\"{audit.label}: AI-Agent の形式違反: \"\n                        f\"{spec_for_commit.expected_finding_value!r} — \"\n                    )\n                )\n"
+        }
+      ],
+      "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+      "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+      "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+      "status": "KILLED",
+      "test_output_sha256": "5da02dba4cd42b6439477cf3b12626886de1f2b687f6ab1b0134dc1f694ea7b8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/e35d2778d8b622f8daffc009bed2e980/izdw-e35d2778d8.o896769",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/e35d2778d8b622f8daffc009bed2e980/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [42 items]\n\n.........................................F                               [100%]\n=================================== FAILURES ===================================\n________________ test_ai_agent_acceptance_language_is_unchanged ________________\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_ai_agent_acceptance_language_is_unchanged():\n        assert provenance.ROLES == (\n            \"author\", \"reviewer\", \"researcher\", \"manager\", \"integrator\",\n        )\n        assert provenance.IDENT == r\"[a-z0-9][a-z0-9._-]*\"\n        accepted = [\n            f\"product=claude; model=claude-opus-5-1m; reasoning=high; role={role}\"\n            for role in provenance.ROLES\n        ]\n        accepted.append(\n            \"product=codex.v2; model=gpt_5-6; reasoning=x.high; role=author\"\n        )\n        rejected = [\n            accepted[0] + \"; extra=x\",\n            \"model=claude-opus-5-1m; product=claude; reasoning=high; role=manager\",\n            \"product=claude; modell=claude-opus-5-1m; reasoning=high; role=manager\",\n            \"product=claude; model=claude-opus-5[1m]; reasoning=high; role=manager\",\n            \"product=claude; model=claude-opus-5-1m; reasoning=high; role=orchestrator\",\n            \"product=Claude; model=claude-opus-5-1m; reasoning=high; role=manager\",\n        ]\n        assert all(provenance.AGENT_VALUE.fullmatch(value) for value in accepted)\n>       assert all(provenance.AGENT_VALUE.fullmatch(value) is None for value in rejected)\nE       assert False\nE        +  where False = all(<generator object test_ai_agent_acceptance_language_is_unchanged.<locals>.<genexpr> at 0x14623262cd60>)\n\norchestrator/tests/test_check_ai_provenance.py:2135: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_ai_agent_acceptance_language_is_unchanged\n========================= 1 failed, 41 passed in 2.12s =========================\n",
+        "stdout_sha256": "b7ade03840310eb425913af2fee7cfd6a97d5fe13edc031fe4fd10e1e4149c63"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5e47b7a52e9e9b45a8222865d60956e582f3ed641d7d1e61950219b735d0e07f",
+      "duration_s": 26.837,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_ai_agent_acceptance_language_is_unchanged"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_ai_agent_acceptance_language_is_unchanged"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "c853364a6ec85292735d33696e1fdf01db351417a573c6b4b32c238ef8bd00ce",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f6bfc3534ca593e2a16648faa81cc6e727b81312a76103227e260be081b34ce0",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "    rf\"(?:; scope=(?P<scope>{IDENT}))?(?:; extra={IDENT})?$\"",
+          "old": "    rf\"(?:; scope=(?P<scope>{IDENT}))?$\""
+        }
+      ],
+      "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+      "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+      "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+      "status": "KILLED",
+      "test_output_sha256": "b7ade03840310eb425913af2fee7cfd6a97d5fe13edc031fe4fd10e1e4149c63",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/7a91cde657683c035d9416d13574ed69/izdw-7a91cde657.o896770",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/7a91cde657683c035d9416d13574ed69/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [42 items]\n\n....................................FFFFFF                               [100%]\n=================================== FAILURES ===================================\n____ test_registry_rejects_control_and_zero_width_characters[value-\\\\u2028] ____\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_registry_rejects_control_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1517e7b2ff10>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1517e7b46fe0>\nselector = 'value'\nexpected_diagnostic = 'prohibited character in finding value'\ncharacter = '\\u2028'\n\n    @pytest.mark.parametrize(\n        (\"selector\", \"expected_diagnostic\", \"character\"),\n        [\n            (\"note\", \"prohibited character in note\", \"\\x00\"),\n            (\"note\", \"prohibited character in note\", \"\\x1f\"),\n            (\"note\", \"prohibited character in note\", \"\\u200b\"),\n            (\"note\", \"prohibited character in note\", \"\\u200c\"),\n            (\"note\", \"prohibited character in note\", \"\\u200d\"),\n            (\"note\", \"prohibited character in note\", \"\\ufeff\"),\n            (\"note\", \"prohibited character in note\", \"\\u00ad\"),\n            (\"note\", \"prohibited character in note\", \"\\u2060\"),\n            (\"note\", \"prohibited character in note\", \"\\t\"),\n            (\"note\", \"line break in note\", \"\\n\"),\n            (\"note\", \"prohibited character in note\", \"\\x7f\"),\n            (\"note\", \"line break in note\", \"\\u2028\"),\n            (\"note\", \"line break in note\", \"\\u2029\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x00\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x1f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200b\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200c\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200d\"),\n            (\"value\", \"prohibited character in finding value\", \"\\ufeff\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u00ad\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2060\"),\n            (\"value\", \"prohibited character in finding value\", \"\\t\"),\n            (\"value\", \"prohibited character in finding value\", \"\\n\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x7f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2028\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2029\"),\n        ],\n        ids=[\n            \"note-\\\\x00\", \"note-\\\\x1f\", \"note-\\\\u200b\", \"note-\\\\u200c\",\n            \"note-\\\\u200d\", \"note-\\\\ufeff\", \"note-\\\\u00ad\", \"note-\\\\u2060\",\n            \"note-\\\\t\", \"note-\\\\n\", \"note-\\\\x7f\", \"note-\\\\u2028\",\n            \"note-\\\\u2029\", \"value-\\\\x00\", \"value-\\\\x1f\", \"value-\\\\u200b\",\n            \"value-\\\\u200c\", \"value-\\\\u200d\", \"value-\\\\ufeff\", \"value-\\\\u00ad\",\n            \"value-\\\\u2060\", \"value-\\\\t\", \"value-\\\\n\", \"value-\\\\x7f\",\n            \"value-\\\\u2028\", \"value-\\\\u2029\",\n        ],\n    )\n    def test_registry_rejects_control_and_zero_width_characters(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        selector: str,\n        expected_diagnostic: str,\n        character: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        note = (\n            f\"explanation{character}\" if selector == \"note\" else \"explanation\"\n        )\n        value = f\"bad{character}value\" if selector == \"value\" else \"bad value\"\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=value,\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\n        captured = capsys.readouterr()\n>       assert expected_diagnostic in captured.err\nE       AssertionError: assert 'prohibited character in finding value' in 'check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n'\nE        +  where 'check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n' = CaptureResult(out='', err='check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n').err\n\norchestrator/tests/test_check_ai_provenance.py:1802: AssertionError\n____ test_registry_rejects_control_and_zero_width_characters[value-\\\\u00ad] ____\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_registry_rejects_control_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15044047bfa0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x150440496f50>\nselector = 'value'\nexpected_diagnostic = 'prohibited character in finding value'\ncharacter = '\\xad'\n\n    @pytest.mark.parametrize(\n        (\"selector\", \"expected_diagnostic\", \"character\"),\n        [\n            (\"note\", \"prohibited character in note\", \"\\x00\"),\n            (\"note\", \"prohibited character in note\", \"\\x1f\"),\n            (\"note\", \"prohibited character in note\", \"\\u200b\"),\n            (\"note\", \"prohibited character in note\", \"\\u200c\"),\n            (\"note\", \"prohibited character in note\", \"\\u200d\"),\n            (\"note\", \"prohibited character in note\", \"\\ufeff\"),\n            (\"note\", \"prohibited character in note\", \"\\u00ad\"),\n            (\"note\", \"prohibited character in note\", \"\\u2060\"),\n            (\"note\", \"prohibited character in note\", \"\\t\"),\n            (\"note\", \"line break in note\", \"\\n\"),\n            (\"note\", \"prohibited character in note\", \"\\x7f\"),\n            (\"note\", \"line break in note\", \"\\u2028\"),\n            (\"note\", \"line break in note\", \"\\u2029\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x00\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x1f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200b\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200c\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200d\"),\n            (\"value\", \"prohibited character in finding value\", \"\\ufeff\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u00ad\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2060\"),\n            (\"value\", \"prohibited character in finding value\", \"\\t\"),\n            (\"value\", \"prohibited character in finding value\", \"\\n\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x7f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2028\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2029\"),\n        ],\n        ids=[\n            \"note-\\\\x00\", \"note-\\\\x1f\", \"note-\\\\u200b\", \"note-\\\\u200c\",\n            \"note-\\\\u200d\", \"note-\\\\ufeff\", \"note-\\\\u00ad\", \"note-\\\\u2060\",\n            \"note-\\\\t\", \"note-\\\\n\", \"note-\\\\x7f\", \"note-\\\\u2028\",\n            \"note-\\\\u2029\", \"value-\\\\x00\", \"value-\\\\x1f\", \"value-\\\\u200b\",\n            \"value-\\\\u200c\", \"value-\\\\u200d\", \"value-\\\\ufeff\", \"value-\\\\u00ad\",\n            \"value-\\\\u2060\", \"value-\\\\t\", \"value-\\\\n\", \"value-\\\\x7f\",\n            \"value-\\\\u2028\", \"value-\\\\u2029\",\n        ],\n    )\n    def test_registry_rejects_control_and_zero_width_characters(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        selector: str,\n        expected_diagnostic: str,\n        character: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        note = (\n            f\"explanation{character}\" if selector == \"note\" else \"explanation\"\n        )\n        value = f\"bad{character}value\" if selector == \"value\" else \"bad value\"\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=value,\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\n        captured = capsys.readouterr()\n>       assert expected_diagnostic in captured.err\nE       AssertionError: assert 'prohibited character in finding value' in 'check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n'\nE        +  where 'check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n' = CaptureResult(out='', err='check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n').err\n\norchestrator/tests/test_check_ai_provenance.py:1802: AssertionError\n____ test_registry_rejects_control_and_zero_width_characters[note-\\\\u2060] _____\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_registry_rejects_control_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b7b3c83f10>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14b7b3c9efe0>\nselector = 'note', expected_diagnostic = 'prohibited character in note'\ncharacter = '\\u2060'\n\n    @pytest.mark.parametrize(\n        (\"selector\", \"expected_diagnostic\", \"character\"),\n        [\n            (\"note\", \"prohibited character in note\", \"\\x00\"),\n            (\"note\", \"prohibited character in note\", \"\\x1f\"),\n            (\"note\", \"prohibited character in note\", \"\\u200b\"),\n            (\"note\", \"prohibited character in note\", \"\\u200c\"),\n            (\"note\", \"prohibited character in note\", \"\\u200d\"),\n            (\"note\", \"prohibited character in note\", \"\\ufeff\"),\n            (\"note\", \"prohibited character in note\", \"\\u00ad\"),\n            (\"note\", \"prohibited character in note\", \"\\u2060\"),\n            (\"note\", \"prohibited character in note\", \"\\t\"),\n            (\"note\", \"line break in note\", \"\\n\"),\n            (\"note\", \"prohibited character in note\", \"\\x7f\"),\n            (\"note\", \"line break in note\", \"\\u2028\"),\n            (\"note\", \"line break in note\", \"\\u2029\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x00\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x1f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200b\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200c\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200d\"),\n            (\"value\", \"prohibited character in finding value\", \"\\ufeff\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u00ad\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2060\"),\n            (\"value\", \"prohibited character in finding value\", \"\\t\"),\n            (\"value\", \"prohibited character in finding value\", \"\\n\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x7f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2028\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2029\"),\n        ],\n        ids=[\n            \"note-\\\\x00\", \"note-\\\\x1f\", \"note-\\\\u200b\", \"note-\\\\u200c\",\n            \"note-\\\\u200d\", \"note-\\\\ufeff\", \"note-\\\\u00ad\", \"note-\\\\u2060\",\n            \"note-\\\\t\", \"note-\\\\n\", \"note-\\\\x7f\", \"note-\\\\u2028\",\n            \"note-\\\\u2029\", \"value-\\\\x00\", \"value-\\\\x1f\", \"value-\\\\u200b\",\n            \"value-\\\\u200c\", \"value-\\\\u200d\", \"value-\\\\ufeff\", \"value-\\\\u00ad\",\n            \"value-\\\\u2060\", \"value-\\\\t\", \"value-\\\\n\", \"value-\\\\x7f\",\n            \"value-\\\\u2028\", \"value-\\\\u2029\",\n        ],\n    )\n    def test_registry_rejects_control_and_zero_width_characters(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        selector: str,\n        expected_diagnostic: str,\n        character: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        note = (\n            f\"explanation{character}\" if selector == \"note\" else \"explanation\"\n        )\n        value = f\"bad{character}value\" if selector == \"value\" else \"bad value\"\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=value,\n                ),\n            ),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x14b7b3f237f0>(['--range', 'f6855eccd2a8fd68a2d22515233e9ae198b972dc^!'], site='OTHER')\nE        +    where <function main at 0x14b7b3f237f0> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1798: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent note=explanation⁠\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n____ test_registry_rejects_control_and_zero_width_characters[value-\\\\u2060] ____\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_registry_rejects_control_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147d40ef7d90>\ncapsys = <_pytest.capture.CaptureFixture object at 0x147d40f13070>\nselector = 'value'\nexpected_diagnostic = 'prohibited character in finding value'\ncharacter = '\\u2060'\n\n    @pytest.mark.parametrize(\n        (\"selector\", \"expected_diagnostic\", \"character\"),\n        [\n            (\"note\", \"prohibited character in note\", \"\\x00\"),\n            (\"note\", \"prohibited character in note\", \"\\x1f\"),\n            (\"note\", \"prohibited character in note\", \"\\u200b\"),\n            (\"note\", \"prohibited character in note\", \"\\u200c\"),\n            (\"note\", \"prohibited character in note\", \"\\u200d\"),\n            (\"note\", \"prohibited character in note\", \"\\ufeff\"),\n            (\"note\", \"prohibited character in note\", \"\\u00ad\"),\n            (\"note\", \"prohibited character in note\", \"\\u2060\"),\n            (\"note\", \"prohibited character in note\", \"\\t\"),\n            (\"note\", \"line break in note\", \"\\n\"),\n            (\"note\", \"prohibited character in note\", \"\\x7f\"),\n            (\"note\", \"line break in note\", \"\\u2028\"),\n            (\"note\", \"line break in note\", \"\\u2029\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x00\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x1f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200b\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200c\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200d\"),\n            (\"value\", \"prohibited character in finding value\", \"\\ufeff\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u00ad\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2060\"),\n            (\"value\", \"prohibited character in finding value\", \"\\t\"),\n            (\"value\", \"prohibited character in finding value\", \"\\n\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x7f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2028\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2029\"),\n        ],\n        ids=[\n            \"note-\\\\x00\", \"note-\\\\x1f\", \"note-\\\\u200b\", \"note-\\\\u200c\",\n            \"note-\\\\u200d\", \"note-\\\\ufeff\", \"note-\\\\u00ad\", \"note-\\\\u2060\",\n            \"note-\\\\t\", \"note-\\\\n\", \"note-\\\\x7f\", \"note-\\\\u2028\",\n            \"note-\\\\u2029\", \"value-\\\\x00\", \"value-\\\\x1f\", \"value-\\\\u200b\",\n            \"value-\\\\u200c\", \"value-\\\\u200d\", \"value-\\\\ufeff\", \"value-\\\\u00ad\",\n            \"value-\\\\u2060\", \"value-\\\\t\", \"value-\\\\n\", \"value-\\\\x7f\",\n            \"value-\\\\u2028\", \"value-\\\\u2029\",\n        ],\n    )\n    def test_registry_rejects_control_and_zero_width_characters(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        selector: str,\n        expected_diagnostic: str,\n        character: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        note = (\n            f\"explanation{character}\" if selector == \"note\" else \"explanation\"\n        )\n        value = f\"bad{character}value\" if selector == \"value\" else \"bad value\"\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=value,\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\n        captured = capsys.readouterr()\n>       assert expected_diagnostic in captured.err\nE       AssertionError: assert 'prohibited character in finding value' in 'check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n'\nE        +  where 'check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n' = CaptureResult(out='', err='check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n').err\n\norchestrator/tests/test_check_ai_provenance.py:1802: AssertionError\n____ test_registry_rejects_control_and_zero_width_characters[value-\\\\u2029] ____\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_registry_rejects_control_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1547c7c03d00>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1547c7c1f040>\nselector = 'value'\nexpected_diagnostic = 'prohibited character in finding value'\ncharacter = '\\u2029'\n\n    @pytest.mark.parametrize(\n        (\"selector\", \"expected_diagnostic\", \"character\"),\n        [\n            (\"note\", \"prohibited character in note\", \"\\x00\"),\n            (\"note\", \"prohibited character in note\", \"\\x1f\"),\n            (\"note\", \"prohibited character in note\", \"\\u200b\"),\n            (\"note\", \"prohibited character in note\", \"\\u200c\"),\n            (\"note\", \"prohibited character in note\", \"\\u200d\"),\n            (\"note\", \"prohibited character in note\", \"\\ufeff\"),\n            (\"note\", \"prohibited character in note\", \"\\u00ad\"),\n            (\"note\", \"prohibited character in note\", \"\\u2060\"),\n            (\"note\", \"prohibited character in note\", \"\\t\"),\n            (\"note\", \"line break in note\", \"\\n\"),\n            (\"note\", \"prohibited character in note\", \"\\x7f\"),\n            (\"note\", \"line break in note\", \"\\u2028\"),\n            (\"note\", \"line break in note\", \"\\u2029\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x00\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x1f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200b\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200c\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200d\"),\n            (\"value\", \"prohibited character in finding value\", \"\\ufeff\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u00ad\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2060\"),\n            (\"value\", \"prohibited character in finding value\", \"\\t\"),\n            (\"value\", \"prohibited character in finding value\", \"\\n\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x7f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2028\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2029\"),\n        ],\n        ids=[\n            \"note-\\\\x00\", \"note-\\\\x1f\", \"note-\\\\u200b\", \"note-\\\\u200c\",\n            \"note-\\\\u200d\", \"note-\\\\ufeff\", \"note-\\\\u00ad\", \"note-\\\\u2060\",\n            \"note-\\\\t\", \"note-\\\\n\", \"note-\\\\x7f\", \"note-\\\\u2028\",\n            \"note-\\\\u2029\", \"value-\\\\x00\", \"value-\\\\x1f\", \"value-\\\\u200b\",\n            \"value-\\\\u200c\", \"value-\\\\u200d\", \"value-\\\\ufeff\", \"value-\\\\u00ad\",\n            \"value-\\\\u2060\", \"value-\\\\t\", \"value-\\\\n\", \"value-\\\\x7f\",\n            \"value-\\\\u2028\", \"value-\\\\u2029\",\n        ],\n    )\n    def test_registry_rejects_control_and_zero_width_characters(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        selector: str,\n        expected_diagnostic: str,\n        character: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        note = (\n            f\"explanation{character}\" if selector == \"note\" else \"explanation\"\n        )\n        value = f\"bad{character}value\" if selector == \"value\" else \"bad value\"\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=value,\n                ),\n            ),\n        )\n    \n        assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\n        captured = capsys.readouterr()\n>       assert expected_diagnostic in captured.err\nE       AssertionError: assert 'prohibited character in finding value' in 'check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n'\nE        +  where 'check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n' = CaptureResult(out='', err='check_ai_provenance: 実行不能: known-violation-stale: sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent reason=expected-finding-missing checker-regression-suspected\\n').err\n\norchestrator/tests/test_check_ai_provenance.py:1802: AssertionError\n____ test_registry_rejects_control_and_zero_width_characters[note-\\\\u00ad] _____\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_registry_rejects_control_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14633165ffd0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14633167af80>\nselector = 'note', expected_diagnostic = 'prohibited character in note'\ncharacter = '\\xad'\n\n    @pytest.mark.parametrize(\n        (\"selector\", \"expected_diagnostic\", \"character\"),\n        [\n            (\"note\", \"prohibited character in note\", \"\\x00\"),\n            (\"note\", \"prohibited character in note\", \"\\x1f\"),\n            (\"note\", \"prohibited character in note\", \"\\u200b\"),\n            (\"note\", \"prohibited character in note\", \"\\u200c\"),\n            (\"note\", \"prohibited character in note\", \"\\u200d\"),\n            (\"note\", \"prohibited character in note\", \"\\ufeff\"),\n            (\"note\", \"prohibited character in note\", \"\\u00ad\"),\n            (\"note\", \"prohibited character in note\", \"\\u2060\"),\n            (\"note\", \"prohibited character in note\", \"\\t\"),\n            (\"note\", \"line break in note\", \"\\n\"),\n            (\"note\", \"prohibited character in note\", \"\\x7f\"),\n            (\"note\", \"line break in note\", \"\\u2028\"),\n            (\"note\", \"line break in note\", \"\\u2029\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x00\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x1f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200b\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200c\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u200d\"),\n            (\"value\", \"prohibited character in finding value\", \"\\ufeff\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u00ad\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2060\"),\n            (\"value\", \"prohibited character in finding value\", \"\\t\"),\n            (\"value\", \"prohibited character in finding value\", \"\\n\"),\n            (\"value\", \"prohibited character in finding value\", \"\\x7f\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2028\"),\n            (\"value\", \"prohibited character in finding value\", \"\\u2029\"),\n        ],\n        ids=[\n            \"note-\\\\x00\", \"note-\\\\x1f\", \"note-\\\\u200b\", \"note-\\\\u200c\",\n            \"note-\\\\u200d\", \"note-\\\\ufeff\", \"note-\\\\u00ad\", \"note-\\\\u2060\",\n            \"note-\\\\t\", \"note-\\\\n\", \"note-\\\\x7f\", \"note-\\\\u2028\",\n            \"note-\\\\u2029\", \"value-\\\\x00\", \"value-\\\\x1f\", \"value-\\\\u200b\",\n            \"value-\\\\u200c\", \"value-\\\\u200d\", \"value-\\\\ufeff\", \"value-\\\\u00ad\",\n            \"value-\\\\u2060\", \"value-\\\\t\", \"value-\\\\n\", \"value-\\\\x7f\",\n            \"value-\\\\u2028\", \"value-\\\\u2029\",\n        ],\n    )\n    def test_registry_rejects_control_and_zero_width_characters(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        selector: str,\n        expected_diagnostic: str,\n        character: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        note = (\n            f\"explanation{character}\" if selector == \"note\" else \"explanation\"\n        )\n        value = f\"bad{character}value\" if selector == \"value\" else \"bad value\"\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=value,\n                ),\n            ),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x1463319177f0>(['--range', 'f6855eccd2a8fd68a2d22515233e9ae198b972dc^!'], site='OTHER')\nE        +    where <function main at 0x1463319177f0> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1798: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=f6855eccd2a8fd68a2d22515233e9ae198b972dc finding=malformed-ai-agent note=explanation­\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u2028]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u00ad]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u2060]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u2060]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u2029]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u00ad]\n========================= 6 failed, 36 passed in 2.16s =========================\n",
+        "stdout_sha256": "8f0bdb2c10fa0f9c8fa0d2d80e84d6336b5f789f332cab4482df5fdba04264e5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5e47b7a52e9e9b45a8222865d60956e582f3ed641d7d1e61950219b735d0e07f",
+      "duration_s": 26.76,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u00ad]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u2060]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u00ad]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2060]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2028]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2029]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2028]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u00ad]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u2060]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2060]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2029]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u00ad]"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "36656d6672c17b4bf3b31ae9413faaf27ef79aa4d994c590be890d94550bdee5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "79d5c69a6ceb2080c7e7c7c6524a8ec36aa4edbcac289a7f0c7a47e7982c7977",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "_PROHIBITED_REGISTRY_CATEGORIES = frozenset({\"Cc\"})",
+          "old": "_PROHIBITED_REGISTRY_CATEGORIES = frozenset({\"Cc\", \"Cf\", \"Zl\", \"Zp\"})"
+        }
+      ],
+      "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+      "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+      "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+      "status": "KILLED",
+      "test_output_sha256": "8f0bdb2c10fa0f9c8fa0d2d80e84d6336b5f789f332cab4482df5fdba04264e5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/73f48a5b5803a2cd76fdda7f3a60e348/izdw-73f48a5b58.o896771",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/73f48a5b5803a2cd76fdda7f3a60e348/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [42 items]\n\n.......................................FFF                               [100%]\n=================================== FAILURES ===================================\n_ test_registry_rejects_non_descriptive_required_note_rc2[combining-grapheme-joiner] _\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_registry_rejects_non_desc0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1481d4423fa0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1481d443ef50>, note = '͏'\n\n    @pytest.mark.parametrize(\n        \"note\",\n        [\"\\u034f\", \"\\ufe0f\", \"\\u3164\"],\n        ids=[\"combining-grapheme-joiner\", \"variation-selector-16\", \"hangul-filler\"],\n    )\n    def test_registry_rejects_non_descriptive_required_note_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        note: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=\"bad value\",\n                ),\n            ),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x1481d46db7f0>(['--range', 'a587d417ab25ec25e00caa28fc262e7456cf06b8^!'], site='OTHER')\nE        +    where <function main at 0x1481d46db7f0> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1837: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=a587d417ab25ec25e00caa28fc262e7456cf06b8 finding=malformed-ai-agent note=͏\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n____ test_registry_rejects_non_descriptive_required_note_rc2[hangul-filler] ____\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_registry_rejects_non_desc0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d4b0767c70>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14d4b0782fb0>, note = 'ㅤ'\n\n    @pytest.mark.parametrize(\n        \"note\",\n        [\"\\u034f\", \"\\ufe0f\", \"\\u3164\"],\n        ids=[\"combining-grapheme-joiner\", \"variation-selector-16\", \"hangul-filler\"],\n    )\n    def test_registry_rejects_non_descriptive_required_note_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        note: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=\"bad value\",\n                ),\n            ),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x14d4b0a2b7f0>(['--range', 'a587d417ab25ec25e00caa28fc262e7456cf06b8^!'], site='OTHER')\nE        +    where <function main at 0x14d4b0a2b7f0> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1837: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=a587d417ab25ec25e00caa28fc262e7456cf06b8 finding=malformed-ai-agent note=ㅤ\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n_ test_registry_rejects_non_descriptive_required_note_rc2[variation-selector-16] _\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_registry_rejects_non_desc0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1500fdd6bfd0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1500fdd86f80>, note = '️'\n\n    @pytest.mark.parametrize(\n        \"note\",\n        [\"\\u034f\", \"\\ufe0f\", \"\\u3164\"],\n        ids=[\"combining-grapheme-joiner\", \"variation-selector-16\", \"hangul-filler\"],\n    )\n    def test_registry_rejects_non_descriptive_required_note_rc2(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n        note: str,\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance,\n            \"KNOWN_PROVENANCE_VIOLATIONS\",\n            (\n                _known_spec(\n                    commit,\n                    provenance.MALFORMED_AI_AGENT,\n                    note=note,\n                    expected_finding_value=\"bad value\",\n                ),\n            ),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 2\nE       AssertionError: assert 0 == 2\nE        +  where 0 = <function main at 0x1500fe0277f0>(['--range', 'a587d417ab25ec25e00caa28fc262e7456cf06b8^!'], site='OTHER')\nE        +    where <function main at 0x1500fe0277f0> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1837: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncheck_ai_provenance: known-violation sha=a587d417ab25ec25e00caa28fc262e7456cf06b8 finding=malformed-ai-agent note=️\ncheck_ai_provenance: known-violations=1\ncheck_ai_provenance: 1 件、新規違反なし\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[combining-grapheme-joiner]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[hangul-filler]\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[variation-selector-16]\n========================= 3 failed, 39 passed in 2.17s =========================\n",
+        "stdout_sha256": "c7006afb6673f1d52c9c535bfe8b9b23a47f9502c938a3d9f7a99c072999a22d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5e47b7a52e9e9b45a8222865d60956e582f3ed641d7d1e61950219b735d0e07f",
+      "duration_s": 26.774,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[combining-grapheme-joiner]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[variation-selector-16]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[hangul-filler]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[combining-grapheme-joiner]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[hangul-filler]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[variation-selector-16]"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "a8d0de3554a3cb500aa35d7a9fcd37df49e6fa0b2910ded27baf65c66738b75f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "47df32ee27c38573add577f2e3ef2b7fac5a0d3a0dd1397c1bf46cf5b9abd57f",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "",
+          "old": "        if (\n            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS\n            and not _contains_descriptive_note_character(spec.note)\n        ):\n            raise RuntimeError(\n                \"known provenance violation registry has non-descriptive required note: \"\n                f\"{spec.commit}\"\n            )\n"
+        }
+      ],
+      "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+      "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+      "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+      "status": "KILLED",
+      "test_output_sha256": "c7006afb6673f1d52c9c535bfe8b9b23a47f9502c938a3d9f7a99c072999a22d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/76a329e97ca4fe45530ef37def870d34/izdw-76a329e97c.o896772",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/76a329e97ca4fe45530ef37def870d34/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0\ncreated: 48/48 workers\n48 workers [42 items]\n\n.........................................F                               [100%]\n=================================== FAILURES ===================================\n_ test_registry_accepts_visible_character_mixed_with_non_descriptive_characters _\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_registry_accepts_visible_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14eb03a03c70>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14eb03a1efb0>\n\n    def test_registry_accepts_visible_character_mixed_with_non_descriptive_characters(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n    ):\n        _init_repo(tmp_path)\n        commit = _commit(\n            tmp_path,\n            {provenance.POLICY_PATH: \"# policy\\n\"},\n            \"malformed\\n\\nAI-Agent: bad value\\n\",\n        )\n        non_descriptive = \"\\u034f\\u115f\\u1160\\u17b4\\u17b5\\u2065\\u3164\\ufe0f\\uffa0\"\n        spec = _known_spec(\n            commit,\n            provenance.MALFORMED_AI_AGENT,\n            note=f\"A{non_descriptive}\",\n            expected_finding_value=\"bad value\",\n        )\n        monkeypatch.setattr(provenance, \"REPO\", tmp_path)\n        monkeypatch.setattr(\n            provenance, \"KNOWN_PROVENANCE_VIOLATIONS\", (spec,),\n        )\n    \n>       assert provenance.main(\n            [\"--range\", f\"{commit}^!\"], site=site_policy.OTHER,\n        ) == 0\nE       AssertionError: assert 2 == 0\nE        +  where 2 = <function main at 0x14eb03cbb7f0>(['--range', 'fde95b4512d7f8bb0d36813affd0ededa6eefc91^!'], site='OTHER')\nE        +    where <function main at 0x14eb03cbb7f0> = provenance.main\nE        +    and   'OTHER' = site_policy.OTHER\n\norchestrator/tests/test_check_ai_provenance.py:1878: AssertionError\n----------------------------- Captured stderr call -----------------------------\ncheck_ai_provenance: 実行不能: known provenance violation registry has non-descriptive required note: fde95b4512d7f8bb0d36813affd0ededa6eefc91\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_ai_provenance.py::test_registry_accepts_visible_character_mixed_with_non_descriptive_characters\n========================= 1 failed, 41 passed in 2.14s =========================\n",
+        "stdout_sha256": "b1c843486c85a317e6140d94405ee17abd60042a3af9a45d9b00826178c4b041"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "5e47b7a52e9e9b45a8222865d60956e582f3ed641d7d1e61950219b735d0e07f",
+      "duration_s": 26.727,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_accepts_visible_character_mixed_with_non_descriptive_characters"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_accepts_visible_character_mixed_with_non_descriptive_characters"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "97bb9a9cc9087f0df10f33a97f97f9c308562cd66ff7ddd6d085660a024ba97e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0c34e4149095ba595f84d0c67bb0d536a15801f73a382c15a693f125d732ea8d",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "new": "def _contains_descriptive_note_character(value: str) -> bool:\n    if any(char in _NON_DESCRIPTIVE_NOTE_CHARACTERS for char in value):\n        return False\n    return any(\n        unicodedata.category(char)[0] in _DESCRIPTIVE_NOTE_CATEGORY_PREFIXES\n        for char in value\n    )\n",
+          "old": "def _contains_descriptive_note_character(value: str) -> bool:\n    return any(\n        char not in _NON_DESCRIPTIVE_NOTE_CHARACTERS\n        and unicodedata.category(char)[0] in _DESCRIPTIVE_NOTE_CATEGORY_PREFIXES\n        for char in value\n    )\n"
+        }
+      ],
+      "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+      "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+      "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+      "status": "KILLED",
+      "test_output_sha256": "b1c843486c85a317e6140d94405ee17abd60042a3af9a45d9b00826178c4b041",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/ba19f7d8b0532bc971b06ee856de4769/izdw-ba19f7d8b0.o896760",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/pegasus-dispatch/ba19f7d8b0532bc971b06ee856de4769/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]\norchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\x00]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\x1f]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u200b]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u200c]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u200d]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\ufeff]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u00ad]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u2060]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\t]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\n]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\x7f]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u2028]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-\\\\u2029]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\x00]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\x1f]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u200b]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u200c]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u200d]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\ufeff]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u00ad]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u2060]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\t]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\n]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\x7f]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u2028]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-\\\\u2029]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[combining-grapheme-joiner]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[variation-selector-16]\norchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[hangul-filler]\norchestrator/tests/test_check_ai_provenance.py::test_registry_accepts_visible_character_mixed_with_non_descriptive_characters\norchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[non-string]\norchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[malformed-empty]\norchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[non-malformed-nonempty]\norchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[malformed]\norchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[duplicate]\norchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[none-mixed]\norchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[reserved]\norchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[model-none]\norchestrator/tests/test_check_ai_provenance.py::test_malformed_known_violation_missing_finding_is_stale_rc2\norchestrator/tests/test_check_ai_provenance.py::test_ai_agent_acceptance_language_is_unchanged\n\n42/283 tests collected (241 deselected) in 0.10s\n",
+        "stdout_sha256": "9faa9d3fd3f5203b3142f970d552d45d629b5f87c778e56b4dd3b32e1161e413"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//x00]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//x1f]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u200b]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u200c]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u200d]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//ufeff]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u00ad]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u2060]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//t]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//n]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//x7f]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u2028]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u2029]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//x00]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//x1f]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u200b]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u200c]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u200d]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//ufeff]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u00ad]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2060]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//t]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//n]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//x7f]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2028]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2029]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[combining-grapheme-joiner]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[variation-selector-16]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[hangul-filler]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_registry_accepts_visible_character_mixed_with_non_descriptive_characters",
+        "orchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[non-string]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[malformed-empty]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[non-malformed-nonempty]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[malformed]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[duplicate]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[none-mixed]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[reserved]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[model-none]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_malformed_known_violation_missing_finding_is_stale_rc2",
+        "orchestrator/tests/test_check_ai_provenance.py::test_ai_agent_acceptance_language_is_unchanged"
+      ],
+      "duration_s": 21.741,
+      "rc": 0,
+      "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+      "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+      "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+      "status": "PASSED",
+      "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "95c7b19c40df7d2109edbb15e9395316ed363dc62dfbbd830cd616f7ecebe559",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "",
+            "old": "        if (\n            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS\n            and not spec.note.strip()\n        ):\n            raise RuntimeError(\n                \"known provenance violation registry has empty required note: \"\n                f\"{spec.commit}\"\n            )\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[duplicate]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[none-mixed]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[reserved]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_base_finding_kind_is_anchored_after_full_label[model-none]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fe7741ddbe8a2aa33ed8fb71ca952a05e373bb2e37d0293eef24ef90379fb32b",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "    if \"AI-Agent の形式違反\" in finding:",
+            "old": "    if finding.startswith(f\"{label}: AI-Agent の形式違反: \"):"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_malformed_known_violation_missing_finding_is_stale_rc2"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4845d8eac11f3043e83e5dfcf89472e6491aec7cd7b3736b07d595e20d519a11",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "    if spec.expected_finding_kind in {\n        MISSING_AI_AGENT,\n    }:\n        return True\n",
+            "old": "    if spec.expected_finding_kind in {\n        MISSING_AI_AGENT,\n        MALFORMED_AI_AGENT,\n    }:\n        return True\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_expected_finding_value_registry_contract_is_rc2[non-malformed-nonempty]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ced5a2ecbeb93d8ab6efedc9936d181d75bbef034cbe8e0fada3f75a2df599c9",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "",
+            "old": "                and (\n                    not spec_for_commit.expected_finding_value\n                    or finding.text.startswith(\n                        f\"{audit.label}: AI-Agent の形式違反: \"\n                        f\"{spec_for_commit.expected_finding_value!r} — \"\n                    )\n                )\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_ai_agent_acceptance_language_is_unchanged"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c853364a6ec85292735d33696e1fdf01db351417a573c6b4b32c238ef8bd00ce",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "    rf\"(?:; scope=(?P<scope>{IDENT}))?(?:; extra={IDENT})?$\"",
+            "old": "    rf\"(?:; scope=(?P<scope>{IDENT}))?$\""
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u00ad]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[note-//u2060]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u00ad]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2060]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2028]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_control_and_zero_width_characters[value-//u2029]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "36656d6672c17b4bf3b31ae9413faaf27ef79aa4d994c590be890d94550bdee5",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "_PROHIBITED_REGISTRY_CATEGORIES = frozenset({\"Cc\"})",
+            "old": "_PROHIBITED_REGISTRY_CATEGORIES = frozenset({\"Cc\", \"Cf\", \"Zl\", \"Zp\"})"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[combining-grapheme-joiner]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[variation-selector-16]",
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_rejects_non_descriptive_required_note_rc2[hangul-filler]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a8d0de3554a3cb500aa35d7a9fcd37df49e6fa0b2910ded27baf65c66738b75f",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "",
+            "old": "        if (\n            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS\n            and not _contains_descriptive_note_character(spec.note)\n        ):\n            raise RuntimeError(\n                \"known provenance violation registry has non-descriptive required note: \"\n                f\"{spec.commit}\"\n            )\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_ai_provenance.py::test_registry_accepts_visible_character_mixed_with_non_descriptive_characters"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "97bb9a9cc9087f0df10f33a97f97f9c308562cd66ff7ddd6d085660a024ba97e",
+        "replacements": [
+          {
+            "file": "tools/check_ai_provenance.py",
+            "new": "def _contains_descriptive_note_character(value: str) -> bool:\n    if any(char in _NON_DESCRIPTIVE_NOTE_CHARACTERS for char in value):\n        return False\n    return any(\n        unicodedata.category(char)[0] in _DESCRIPTIVE_NOTE_CATEGORY_PREFIXES\n        for char in value\n    )\n",
+            "old": "def _contains_descriptive_note_character(value: str) -> bool:\n    return any(\n        char not in _NON_DESCRIPTIVE_NOTE_CHARACTERS\n        and unicodedata.category(char)[0] in _DESCRIPTIVE_NOTE_CATEGORY_PREFIXES\n        for char in value\n    )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "219226636a0a5cb0d32a332642610ac33265a57b8a5071ec6e30b4796f352824",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "-k",
+      "test_malformed_kind_requires_nonblank_note_rc2 or test_base_finding_kind_is_anchored_after_full_label or test_malformed_known_violation_missing_finding_is_stale_rc2 or test_expected_finding_value_registry_contract_is_rc2 or test_ai_agent_acceptance_language_is_unchanged or test_registry_rejects_control_and_zero_width_characters or test_registry_rejects_non_descriptive_required_note_rc2 or test_registry_accepts_visible_character_mixed_with_non_descriptive_characters",
+      "orchestrator/tests/test_check_ai_provenance.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "ef06e7f2413afc99398304c185d81ea4de25cfb4",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "-k",
+      "test_malformed_kind_requires_nonblank_note_rc2 or test_base_finding_kind_is_anchored_after_full_label or test_malformed_known_violation_missing_finding_is_stale_rc2 or test_expected_finding_value_registry_contract_is_rc2 or test_ai_agent_acceptance_language_is_unchanged or test_registry_rejects_control_and_zero_width_characters or test_registry_rejects_non_descriptive_required_note_rc2 or test_registry_accepts_visible_character_mixed_with_non_descriptive_characters",
+      "orchestrator/tests/test_check_ai_provenance.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "dd60601091e1c21894a65d6693aab588659b4f61",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "cf83bf39921c69f44958e1203c3b1549753c2ce8383576ab6b549fb8ffee1e34",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "9206a1f12f2643d0b710b710ed3ae63f8b1cdf99136d16625387a9717e884c54",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "ba6eb84ab352f2658249a4614654c7ec7b64e7c705f7b3df50ca16302a58cfca",
+  "updated_at": "2026-08-09T02:10:13.932375+00:00"
+}
