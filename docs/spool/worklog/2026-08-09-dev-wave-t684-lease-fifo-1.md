@@ -39,8 +39,13 @@ title: 受入 lease に公平な待ち行列 (FIFO 相当) を入れた — 停�
   request 896708)。**この受入値を記録する commit 自体は、その走行の対象に含まれない**
   (値を書く前に測る順序のため)。赤は `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
   の `PreregistrationError: git-timeout` 1 件で、**本 wave の差分が到達しない領域**である。
-  `DW-O18` に従い単独再走したところ **1 passed (16.01 秒)** で再現せず、実装差分へ帰属しない
-  フレークとして起票した ({{T:s8c-prereg-git-timeout-flake}})。
+  `DW-O18` に従い単独再走したところ **1 passed (16.01 秒)** で再現せず、実装差分へ帰属しない。
+  **これは新規所見ではなく [T-553] (F57 再発、`s8c_preregistration` の git 呼び出しが全走負荷下で
+  timeout する族) の既知事象である**ため、二重起票しなかった。親は当初フレークとして新規 T を
+  書きかけたが、[T-553] の本文が `docs/archive/worklog-phase3-0806-248.md` にあり現行 worklog では
+  carry stub しか見えないため取りこぼしていた。並行 wave の peer 通知 (同日 3 走とも同じ赤、
+  単独再走はいずれも緑) が契機で照合し直し、撤回した。**機構名で archive まで検索していれば
+  最初から当たっていた。** 恒久対応は同族の裁定パッケージ [T-692] が別 wave から返っている。
 - **受入 lease の待ちを 46 回 × 30 秒 = 約 23 分で抜けた。** 45 回が `held` (直前 holder は
   1855 秒保持)、46 回目で `acquired`。本 wave の `claim` は新実装なので**これが待ち行列の初実運用**
   である。自分が唯一の新実装待機者だったため `queued` は一度も出なかった。release 後の
@@ -97,9 +102,4 @@ title: 受入 lease に公平な待ち行列 (FIFO 相当) を入れた — 停�
   実装面の新規 artifact であり [T-684] の scope を超えるため裁定へ返す。成果物影響 = 直さない
   場合、待ち手の周期が待ち札 TTL 300 秒を超える実装が現れると、その wave は順番を失い続ける。
   段 6 レンズ B-01 / B-05 が発見。
-- {{T:s8c-prereg-git-timeout-flake}} **P3・新規**: 受入全走で
-  `orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
-  が `PreregistrationError: git-timeout` で赤くなった (2026-08-09、request 896708、全走 1338 秒)。
-  単独再走では 1 passed (16.01 秒) で再現しない。計算ノードの負荷で git subprocess が
-  timeout に掛かったと見られる。成果物影響 = 受入全走が偽の赤を出し、無関係な wave が
-  自分の差分を疑って再走に時間を使う。`DW-O18` に従いフレークとして起票する。
+  (受入で出た `git-timeout` の赤は [T-553] の既知族なので新規起票しない。上記「本文」参照。)
