@@ -68,6 +68,9 @@ title: [T-692] R3 の xdist 対応を実装し、受入 wall の律速が real-r
 - エージェント工数: Codex 9 session (解析 1 / plan 1 / 段 3 相談 2 / 実装 1 / 段 6 レビュー 2 /
   fix 4 のうち 3 は段 6・1 は受入赤対応 … 実数 9)。
   親 = brief・計測全走 2 本・切り分け実験 1 本・裁定・統合 commit 2 本・変異 3 投入・受入 3 投入・記録。
+- **受入を走らせた tip と land する tip の差**: 受入 (7746 passed / 20 skipped / 1247.95 秒) は
+  `984387ec` で走らせた。land する tip はその後の記録 commit と段 8 commit を含むため異なるが、
+  **差分は docs と output/insights のみでコード変更を含まない** (`orchestrator/` と `tools/` は無変更)。
 - **段 8 自己改善は候補 3 件、採用 1 件。**
   (採用) 受入 lease 取得後の main 取り込みに `--ff-only` を使うと、wave branch が自前 commit を
   持った時点で必ず失敗する。実測で取得済み lease を 1 回捨てた。runbook §7.3 を是正し、
