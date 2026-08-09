@@ -644,3 +644,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:atomic-publish-output-rollback":"[T-705]","T:launcher-interrupt-rc-split":"[T-706]","T:mutation-positive-control-subset":"[T-709]","T:publication-commit-protocol":"[T-703]","T:receipt-post-commit-exception":"[T-704]","T:replace-invalid-publication-pin":"[T-708]","T:staged-temp-replacement-window":"[T-707]"},"authored":"2026-08-09","content_sha256":"7504586913392ff2813674fe5b9c7190c60a4ae9e4ac3fe3c3838764c0bd36ef","seq":1,"wave":"dev-wave-t678-publication-wall-gate"}
 - {"allocations":{"D:late-admission-gate-at-last-reversible-point":"D256"},"authored":"2026-08-09","content_sha256":"381cd40658829b40776eebffa11ad00b3f9663a19c338ec019802d463873c92a","seq":1,"wave":"dev-wave-t678-publication-wall-gate"}
+
+- {"allocations":{"T:conflict-failure-reason-diagnostic":"[T-712]","T:scorer-decision-grammar-contract":"[T-710]","T:spool-failures-update-path":"[T-711]"},"authored":"2026-08-09","content_sha256":"a25fb458d0c6d271a1e324f4fccfa8f441ba1561ec739a73d1a0908646a4b4ae","seq":1,"wave":"dev-wave-t685-scorer-erratum"}
+- {"allocations":{"F:mutation-spec-diverged-from-preregistration":"F184","F:scorer-conflict-guard-inert":"F183"},"authored":"2026-08-09","content_sha256":"8c3ed0d27b29eb00215f9a0cb63e7048239137b36a6e646993653bd924df8ac0","seq":2,"wave":"dev-wave-t685-scorer-erratum"}
