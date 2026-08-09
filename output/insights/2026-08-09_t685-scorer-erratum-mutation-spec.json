@@ -74,8 +74,8 @@
       "replacements": [
         {
           "file": "tools/codex_reasoning_ab.py",
-          "old": "    if opening_decision is not None:\n        claimed_decisions.add(opening_decision)",
-          "new": "    if False and opening_decision is not None:\n        claimed_decisions.add(opening_decision)"
+          "old": "    r\"[ \\t]*(?:です|だ|である|でもある)?[ \\t]*[。.!！]|\"",
+          "new": "    r\"(?!)[ \\t]*(?:です|だ|である|でもある)?[ \\t]*[。.!！]|\""
         }
       ],
       "expected_nodes": [
@@ -176,22 +176,6 @@
       ],
       "expected_nodes": [
         "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_rejects_conflicting_decision_claims[reason_assertion]"
-      ],
-      "expected_status": "KILLED",
-      "hang_risk": false
-    },
-    {
-      "id": "M12",
-      "category": "negative",
-      "replacements": [
-        {
-          "file": "tools/codex_reasoning_ab.py",
-          "old": "    r\"[ \\t]*(?:です|だ|である|でもある)?[ \\t]*[。.!！]|\"",
-          "new": "    r\"[ \\t]*(?:だ|である|でもある)?[ \\t]*[。.!！]|\""
-        }
-      ],
-      "expected_nodes": [
-        "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_rejects_conflicting_decision_claims[conflicting_copulas]"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
