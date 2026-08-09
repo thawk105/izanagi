@@ -1,0 +1,446 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/d1a35e799d8f7306a042813eb398a4eb/izdw-d1a35e799d.o897214",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/d1a35e799d8f7306a042813eb398a4eb/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 93%]\n.....                                                                    [100%]\n77 passed in 5.70s\n",
+      "stdout_sha256": "32b2a36b81711d9eab5d81e85ce35ec515917f5918d6e3db98a8c57deee6ca2d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "87998dab0617fd0be06b68ff335d2ab06b3fcf3b09862517a420a959beafb9d1",
+    "duration_s": 26.922,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "b81a10c95fae5570a8a314ece48b54650c20a284dbcf9484cc243d8de8acc4ca",
+    "repo_head": "6ffbe8e314acbc0783aa5d89b6e0ac8d90003780",
+    "runner_sha256": "85b0d1fa817c5b49c879b9ae2ff36b250b24c66891387871ea2d80ea0ae2cf46",
+    "spec_sha256": "27d277d587800ca1592e870ed9b7453f0aa9cbae022cd47b7d8fc9971d4a5b23",
+    "status": "PASSED",
+    "test_output_sha256": "32b2a36b81711d9eab5d81e85ce35ec515917f5918d6e3db98a8c57deee6ca2d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "f1181af4bd4269a7443e1be63611ee894a9976a222ba68176f0580331810225b"
+  },
+  "date": "2026-08-09T07:45:50.060355+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/98b6794d37b32935337f890eff354bf3/izdw-98b6794d37.o897215",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/98b6794d37b32935337f890eff354bf3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................FF................................................... [ 93%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n__ test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output __\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15420d09b730>\n\n    def test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fake = _write_fake_codex(tmp_path / \"fake-codex\")\n        command, env, paths = _base_command(tmp_path, fake=fake)\n        env[\"FAKE_MODE\"] = \"normal\"\n        clock_offset_ns = 0\n        original_stage = LAUNCHER._stage_receipt_write\n        stage_calls = 0\n    \n        def logical_clock() -> int:\n            return time.monotonic_ns() + clock_offset_ns\n    \n        def delayed_stage(path: Path, receipt: Any) -> Path:\n            nonlocal clock_offset_ns, stage_calls\n            temporary = original_stage(path, receipt)\n            stage_calls += 1\n            if stage_calls == 1:\n                assert paths[\"output\"].exists()\n                clock_offset_ns += 4_000_000_000\n            return temporary\n    \n        monkeypatch.setattr(LAUNCHER, \"_monotonic_ns\", logical_clock)\n        monkeypatch.setattr(LAUNCHER, \"_stage_receipt_write\", delayed_stage)\n>       _run_main_in_process(\n            command, env, monkeypatch, paths=paths, expected_returncode=1\n        )\n\norchestrator/tests/test_codex_worker_launch.py:2101: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_codex_worker_launch.py:1087: in _run_main_in_process\n    _assert_launcher_returncode(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nresult = 0, expected_returncode = 1\npaths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0/artifacts'), ...}\nstdout = None, stderr = None, label = 'in-process launcher'\ncommand = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/tools/codex_worker_launch.py', 'run', '--job-id', 'job-a', '--wave-id', ...]\n\n    def _assert_launcher_returncode(\n        result: (\n            subprocess.CompletedProcess[Any]\n            | subprocess.Popen[Any]\n            | subprocess.TimeoutExpired\n            | int\n        ),\n        expected_returncode: int,\n        *,\n        paths: dict[str, Path],\n        stdout: str | bytes | None = None,\n        stderr: str | bytes | None = None,\n        label: str = \"launcher\",\n        command: list[str] | None = None,\n    ) -> None:\n        actual = _returncode_value(result)\n        if actual == expected_returncode:\n            return\n        prefix = (\n            f\"actual rc {actual} != expected rc {expected_returncode}; \"\n            f\"label={label}\"\n        )\n        try:\n            body = _launcher_failure_message(\n                result,\n                paths=paths,\n                stdout=stdout,\n                stderr=stderr,\n                command=command,\n            )\n        except Exception as exc:\n            body = (\n                f\"diagnostic_status=failed:{type(exc).__name__}\\n\"\n                f\"truth_summary: diagnostic_status=failed:{type(exc).__name__}\"\n            )\n>       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))\nE       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 0 != expected rc 1; label=in-process launcher\nE       truth_summary: outcome='accepted' stop_reason='completed' launcher_rc=0; attempt[1] accepted=True failed_predicates=[]\nE       stdout: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>\nE       stderr: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>\nE       receipt: outcome='accepted' stop_reason='completed' launcher_rc=0\nE       attempt[1]: accepted=True limit_trigger=None evidence_status='complete' metering_status='complete' codex_exit_code=0 validator_rc=0 process_group_residual=0 termination_verified=True wall_clock_s=Decimal('0.131578081') 不成立だったゲート failed_predicates=[]\nE       attempt[1].stdout: path='/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0/artifacts/attempt-0001.events.jsonl' total_bytes=465 sha256=b69f6547e52f6c7ed86c24033de0ab522530637a588c7c8d8e5403beacdd22e5 truncated_bytes=0 excerpt='{\"type\":\"thread.started\",\"thread_id\":\"9bb4c1d5-de52-4fc0-8b87-cab3190fa855\"}\\n{\"type\":\"turn.started\"}\\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"status\":\"in_progress\"}}\\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":100,\"cached_input_tokens\":20,\"cache_write_input_tokens\":0,\"output_tokens\":10,\"reasoning_output_tokens\":0}}\\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"status\":\"completed\",\"exit_code\":0}}\\n'\nE       attempt[1].stderr: path='/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0/artifacts/attempt-0001.stderr.log' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''\nE       runtime_context: hostname='bnode021' PYTEST_XDIST_WORKER='gw32' PBS_JOBID='0:897215.nqsv' test_pid=246065 loadavg=(0.412109375, 0.28857421875, 1.31787109375)\nE       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'\nE       receipt_limits={'max_attempts': 1, 'max_cli_reported_tokens': 100000, 'max_model_calls': 100, 'max_wall_clock_s': Decimal('3.0')}\nE       receipt_actuals={'attempt_count': 1, 'cached_input_tokens': 20, 'cli_reported': 90, 'input_tokens': 100, 'model_calls': 1, 'output_tokens': 10, 'reasoning_output_tokens': 0, 'total_tokens_raw': 110, 'wall_clock_s': Decimal('0.178397414')}\nE       truth_summary: outcome='accepted' stop_reason='completed' launcher_rc=0; attempt[1] accepted=True failed_predicates=[]\n\norchestrator/tests/test_codex_worker_launch.py:525: LauncherReturncodeMismatch\n____________ test_receipt_audit_wall_overrun_flips_to_not_accepted _____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149ac368f760>\n\n    def test_receipt_audit_wall_overrun_flips_to_not_accepted(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fake = _write_fake_codex(tmp_path / \"fake-codex\")\n        command, env, paths = _base_command(tmp_path, fake=fake)\n        env[\"FAKE_MODE\"] = \"normal\"\n        clock_offset_ns = 0\n        original_audit = LAUNCHER._audit_receipt_value\n        published_audits = 0\n    \n        def logical_clock() -> int:\n            return time.monotonic_ns() + clock_offset_ns\n    \n        def delayed_audit(*args: Any, **kwargs: Any) -> Any:\n            nonlocal clock_offset_ns, published_audits\n            result = original_audit(*args, **kwargs)\n            if kwargs.get(\"check_published_output\") is True:\n                published_audits += 1\n                assert paths[\"output\"].exists()\n                clock_offset_ns += 4_000_000_000\n            return result\n    \n        monkeypatch.setattr(LAUNCHER, \"_monotonic_ns\", logical_clock)\n        monkeypatch.setattr(LAUNCHER, \"_audit_receipt_value\", delayed_audit)\n>       _run_main_in_process(\n            command, env, monkeypatch, paths=paths, expected_returncode=1\n        )\n\norchestrator/tests/test_codex_worker_launch.py:2140: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_codex_worker_launch.py:1087: in _run_main_in_process\n    _assert_launcher_returncode(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nresult = 0, expected_returncode = 1\npaths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0/artifacts'), ...}\nstdout = None, stderr = None, label = 'in-process launcher'\ncommand = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/tools/codex_worker_launch.py', 'run', '--job-id', 'job-a', '--wave-id', ...]\n\n    def _assert_launcher_returncode(\n        result: (\n            subprocess.CompletedProcess[Any]\n            | subprocess.Popen[Any]\n            | subprocess.TimeoutExpired\n            | int\n        ),\n        expected_returncode: int,\n        *,\n        paths: dict[str, Path],\n        stdout: str | bytes | None = None,\n        stderr: str | bytes | None = None,\n        label: str = \"launcher\",\n        command: list[str] | None = None,\n    ) -> None:\n        actual = _returncode_value(result)\n        if actual == expected_returncode:\n            return\n        prefix = (\n            f\"actual rc {actual} != expected rc {expected_returncode}; \"\n            f\"label={label}\"\n        )\n        try:\n            body = _launcher_failure_message(\n                result,\n                paths=paths,\n                stdout=stdout,\n                stderr=stderr,\n                command=command,\n            )\n        except Exception as exc:\n            body = (\n                f\"diagnostic_status=failed:{type(exc).__name__}\\n\"\n                f\"truth_summary: diagnostic_status=failed:{type(exc).__name__}\"\n            )\n>       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))\nE       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 0 != expected rc 1; label=in-process launcher\nE       truth_summary: outcome='accepted' stop_reason='completed' launcher_rc=0; attempt[1] accepted=True failed_predicates=[]\nE       stdout: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>\nE       stderr: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>\nE       receipt: outcome='accepted' stop_reason='completed' launcher_rc=0\nE       attempt[1]: accepted=True limit_trigger=None evidence_status='complete' metering_status='complete' codex_exit_code=0 validator_rc=0 process_group_residual=0 termination_verified=True wall_clock_s=Decimal('0.13095611') 不成立だったゲート failed_predicates=[]\nE       attempt[1].stdout: path='/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0/artifacts/attempt-0001.events.jsonl' total_bytes=465 sha256=270ae47d333d57301debbbe90995ec1393673847cd728b0226a1921bdbbd9edc truncated_bytes=0 excerpt='{\"type\":\"thread.started\",\"thread_id\":\"aca2a332-dbd2-4bbb-83f0-b01d4460bd4e\"}\\n{\"type\":\"turn.started\"}\\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"status\":\"in_progress\"}}\\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":100,\"cached_input_tokens\":20,\"cache_write_input_tokens\":0,\"output_tokens\":10,\"reasoning_output_tokens\":0}}\\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"status\":\"completed\",\"exit_code\":0}}\\n'\nE       attempt[1].stderr: path='/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0/artifacts/attempt-0001.stderr.log' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''\nE       runtime_context: hostname='bnode021' PYTEST_XDIST_WORKER='gw33' PBS_JOBID='0:897215.nqsv' test_pid=246070 loadavg=(0.412109375, 0.28857421875, 1.31787109375)\nE       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'\nE       receipt_limits={'max_attempts': 1, 'max_cli_reported_tokens': 100000, 'max_model_calls': 100, 'max_wall_clock_s': Decimal('3.0')}\nE       receipt_actuals={'attempt_count': 1, 'cached_input_tokens': 20, 'cli_reported': 90, 'input_tokens': 100, 'model_calls': 1, 'output_tokens': 10, 'reasoning_output_tokens': 0, 'total_tokens_raw': 110, 'wall_clock_s': Decimal('0.18817686')}\nE       truth_summary: outcome='accepted' stop_reason='completed' launcher_rc=0; attempt[1] accepted=True failed_predicates=[]\n\norchestrator/tests/test_codex_worker_launch.py:525: LauncherReturncodeMismatch\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output\nFAILED orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted\n2 failed, 75 passed in 5.72s\n",
+        "stdout_sha256": "0c6222914944f02cb37c4c40722fb774c2b2d3b3b3a1546ca98e1b52f42da066"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "87998dab0617fd0be06b68ff335d2ab06b3fcf3b09862517a420a959beafb9d1",
+      "duration_s": 26.907,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "hang_risk": false,
+      "id": "MT1",
+      "injection_diff_sha256": "f8dd22e0b78a5a757df8159ac237442b33442b70525d1787dedab582a59cd2fb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "78d488485ed9502d9ecce3d280ea93817c85d40b4bf89b0358ad0c0fee87d0d0",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "new": "                staged_receipt = _stage_receipt_write(args.receipt, receipt)\n                if not attempts[-1][\"accepted\"]:\n",
+          "old": "                staged_receipt = _stage_receipt_write(args.receipt, receipt)\n                _latch_final_job_limit(\n                    args, attempts, job_started_ns=started_ns\n                )\n                if not attempts[-1][\"accepted\"]:\n"
+        }
+      ],
+      "repo_head": "6ffbe8e314acbc0783aa5d89b6e0ac8d90003780",
+      "runner_sha256": "85b0d1fa817c5b49c879b9ae2ff36b250b24c66891387871ea2d80ea0ae2cf46",
+      "spec_sha256": "27d277d587800ca1592e870ed9b7453f0aa9cbae022cd47b7d8fc9971d4a5b23",
+      "status": "KILLED",
+      "test_output_sha256": "0c6222914944f02cb37c4c40722fb774c2b2d3b3b3a1546ca98e1b52f42da066",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f1181af4bd4269a7443e1be63611ee894a9976a222ba68176f0580331810225b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/296f3b3347832150de66bc9e8501998c/izdw-296f3b3347.o897216",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/296f3b3347832150de66bc9e8501998c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................F................................................... [ 93%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n___________ test_accepted_publication_reuses_the_staged_receipt_temp ___________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_accepted_publication_reus0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x155146c72fb0>\n\n    def test_accepted_publication_reuses_the_staged_receipt_temp(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fake = _write_fake_codex(tmp_path / \"fake-codex\")\n        command, env, paths = _base_command(tmp_path, fake=fake)\n        env[\"FAKE_MODE\"] = \"normal\"\n        original_write = LAUNCHER._write_json_temp\n        receipt_temp_writes: list[tuple[Path, tuple[int, int]]] = []\n    \n        def recording_write(path: Path, value: object) -> Path:\n            temporary = original_write(path, value)\n            if path == paths[\"receipt\"]:\n                metadata = temporary.stat()\n                receipt_temp_writes.append(\n                    (temporary, (metadata.st_dev, metadata.st_ino))\n                )\n            return temporary\n    \n        monkeypatch.setattr(LAUNCHER, \"_write_json_temp\", recording_write)\n        _run_main_in_process(\n            command, env, monkeypatch, paths=paths, expected_returncode=0\n        )\n        receipt = json.loads(paths[\"receipt\"].read_text(encoding=\"utf-8\"))\n    \n        assert receipt[\"outcome\"] == \"accepted\"\n>       assert len(receipt_temp_writes) == 1\nE       AssertionError: assert 2 == 1\nE        +  where 2 = len([(PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_accepted_publication_reus0/.receipt.json.tmp.249025.932d67f...pen-gw34/test_accepted_publication_reus0/.receipt.json.tmp.249025.e4819febba924c34864fc766c2945640'), (66308, 261808))])\n\norchestrator/tests/test_codex_worker_launch.py:2179: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_codex_worker_launch.py::test_accepted_publication_reuses_the_staged_receipt_temp\n1 failed, 76 passed in 5.72s\n",
+        "stdout_sha256": "78d533205a844b73652c7811122b75ff78f5f7b4d290cc7999da8612081ea5a5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "87998dab0617fd0be06b68ff335d2ab06b3fcf3b09862517a420a959beafb9d1",
+      "duration_s": 26.908,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_accepted_publication_reuses_the_staged_receipt_temp"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_accepted_publication_reuses_the_staged_receipt_temp"
+      ],
+      "hang_risk": false,
+      "id": "MT2",
+      "injection_diff_sha256": "bbe7901adbc889d40c9718d113311a019206e3a758d4600e5aa70aba6e1bb928",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "10f2f104ac9f8b6013d4ce54000a35926c223c63b751b35b58a592ef941303c1",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "new": "    discarded = _write_json_temp(path, receipt)\n    os.unlink(discarded)\n    return _write_json_temp(path, receipt)\n",
+          "old": "    return _write_json_temp(path, receipt)\n"
+        }
+      ],
+      "repo_head": "6ffbe8e314acbc0783aa5d89b6e0ac8d90003780",
+      "runner_sha256": "85b0d1fa817c5b49c879b9ae2ff36b250b24c66891387871ea2d80ea0ae2cf46",
+      "spec_sha256": "27d277d587800ca1592e870ed9b7453f0aa9cbae022cd47b7d8fc9971d4a5b23",
+      "status": "KILLED",
+      "test_output_sha256": "78d533205a844b73652c7811122b75ff78f5f7b4d290cc7999da8612081ea5a5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f1181af4bd4269a7443e1be63611ee894a9976a222ba68176f0580331810225b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/5e14b754ac13bd84ca41fa577da44ff5/izdw-5e14b754ac.o897217",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/5e14b754ac13bd84ca41fa577da44ff5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................FF................................................... [ 93%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n__ test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output __\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e23587efb0>\n\n    def test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fake = _write_fake_codex(tmp_path / \"fake-codex\")\n        command, env, paths = _base_command(tmp_path, fake=fake)\n        env[\"FAKE_MODE\"] = \"normal\"\n        clock_offset_ns = 0\n        original_stage = LAUNCHER._stage_receipt_write\n        stage_calls = 0\n    \n        def logical_clock() -> int:\n            return time.monotonic_ns() + clock_offset_ns\n    \n        def delayed_stage(path: Path, receipt: Any) -> Path:\n            nonlocal clock_offset_ns, stage_calls\n            temporary = original_stage(path, receipt)\n            stage_calls += 1\n            if stage_calls == 1:\n                assert paths[\"output\"].exists()\n                clock_offset_ns += 4_000_000_000\n            return temporary\n    \n        monkeypatch.setattr(LAUNCHER, \"_monotonic_ns\", logical_clock)\n        monkeypatch.setattr(LAUNCHER, \"_stage_receipt_write\", delayed_stage)\n        _run_main_in_process(\n            command, env, monkeypatch, paths=paths, expected_returncode=1\n        )\n        receipt = json.loads(paths[\"receipt\"].read_text(encoding=\"utf-8\"))\n    \n        assert stage_calls == 2\n        assert receipt[\"outcome\"] == \"not_accepted\"\n        assert receipt[\"stop_reason\"] == \"max_wall_clock_s\"\n        assert receipt[\"launcher_rc\"] == 1\n        assert receipt[\"attempts\"][-1][\"accepted\"] is False\n        assert receipt[\"attempts\"][-1][\"limit_trigger\"] == \"max_wall_clock_s\"\n>       assert not paths[\"output\"].exists()\nE       AssertionError: assert not True\nE        +  where True = exists()\nE        +    where exists = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0/output.md').exists\n\norchestrator/tests/test_codex_worker_launch.py:2112: AssertionError\n____________ test_receipt_audit_wall_overrun_flips_to_not_accepted _____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145d56b6eb00>\n\n    def test_receipt_audit_wall_overrun_flips_to_not_accepted(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fake = _write_fake_codex(tmp_path / \"fake-codex\")\n        command, env, paths = _base_command(tmp_path, fake=fake)\n        env[\"FAKE_MODE\"] = \"normal\"\n        clock_offset_ns = 0\n        original_audit = LAUNCHER._audit_receipt_value\n        published_audits = 0\n    \n        def logical_clock() -> int:\n            return time.monotonic_ns() + clock_offset_ns\n    \n        def delayed_audit(*args: Any, **kwargs: Any) -> Any:\n            nonlocal clock_offset_ns, published_audits\n            result = original_audit(*args, **kwargs)\n            if kwargs.get(\"check_published_output\") is True:\n                published_audits += 1\n                assert paths[\"output\"].exists()\n                clock_offset_ns += 4_000_000_000\n            return result\n    \n        monkeypatch.setattr(LAUNCHER, \"_monotonic_ns\", logical_clock)\n        monkeypatch.setattr(LAUNCHER, \"_audit_receipt_value\", delayed_audit)\n        _run_main_in_process(\n            command, env, monkeypatch, paths=paths, expected_returncode=1\n        )\n        receipt = json.loads(paths[\"receipt\"].read_text(encoding=\"utf-8\"))\n    \n        assert published_audits == 1\n        assert receipt[\"outcome\"] == \"not_accepted\"\n        assert receipt[\"stop_reason\"] == \"max_wall_clock_s\"\n        assert receipt[\"launcher_rc\"] == 1\n        assert receipt[\"attempts\"][-1][\"accepted\"] is False\n        assert receipt[\"attempts\"][-1][\"limit_trigger\"] == \"max_wall_clock_s\"\n>       assert not paths[\"output\"].exists()\nE       AssertionError: assert not True\nE        +  where True = exists()\nE        +    where exists = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0/output.md').exists\n\norchestrator/tests/test_codex_worker_launch.py:2151: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output\nFAILED orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted\n2 failed, 75 passed in 5.71s\n",
+        "stdout_sha256": "79f71db67fedeacffcc509d5bdc18c75b47b3c175db49e87121412cccce5fc4c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "87998dab0617fd0be06b68ff335d2ab06b3fcf3b09862517a420a959beafb9d1",
+      "duration_s": 26.984,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "hang_risk": false,
+      "id": "MT3",
+      "injection_diff_sha256": "50b3a11838dca4b1aba48c38585b1d3fdad492d721a77730024231b9a1e642fe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a00259f967618d63f1c92fe0861194f9ca963f81f9f4c6761dbc2f319fc1ce2d",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "new": "                    _fsync_parent(args.output_file)\n",
+          "old": "                    args.output_file.unlink()\n                    _fsync_parent(args.output_file)\n"
+        }
+      ],
+      "repo_head": "6ffbe8e314acbc0783aa5d89b6e0ac8d90003780",
+      "runner_sha256": "85b0d1fa817c5b49c879b9ae2ff36b250b24c66891387871ea2d80ea0ae2cf46",
+      "spec_sha256": "27d277d587800ca1592e870ed9b7453f0aa9cbae022cd47b7d8fc9971d4a5b23",
+      "status": "KILLED",
+      "test_output_sha256": "79f71db67fedeacffcc509d5bdc18c75b47b3c175db49e87121412cccce5fc4c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f1181af4bd4269a7443e1be63611ee894a9976a222ba68176f0580331810225b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/5f9311960353b304c61c02c627130aa6/izdw-5f93119603.o897218",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/5f9311960353b304c61c02c627130aa6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................FF................................................... [ 93%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n__ test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output __\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c184b97010>\n\n    def test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fake = _write_fake_codex(tmp_path / \"fake-codex\")\n        command, env, paths = _base_command(tmp_path, fake=fake)\n        env[\"FAKE_MODE\"] = \"normal\"\n        clock_offset_ns = 0\n        original_stage = LAUNCHER._stage_receipt_write\n        stage_calls = 0\n    \n        def logical_clock() -> int:\n            return time.monotonic_ns() + clock_offset_ns\n    \n        def delayed_stage(path: Path, receipt: Any) -> Path:\n            nonlocal clock_offset_ns, stage_calls\n            temporary = original_stage(path, receipt)\n            stage_calls += 1\n            if stage_calls == 1:\n                assert paths[\"output\"].exists()\n                clock_offset_ns += 4_000_000_000\n            return temporary\n    \n        monkeypatch.setattr(LAUNCHER, \"_monotonic_ns\", logical_clock)\n        monkeypatch.setattr(LAUNCHER, \"_stage_receipt_write\", delayed_stage)\n>       _run_main_in_process(\n            command, env, monkeypatch, paths=paths, expected_returncode=1\n        )\n\norchestrator/tests/test_codex_worker_launch.py:2101: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_codex_worker_launch.py:1087: in _run_main_in_process\n    _assert_launcher_returncode(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nresult = 2, expected_returncode = 1\npaths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0/artifacts'), ...}\nstdout = None, stderr = None, label = 'in-process launcher'\ncommand = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/tools/codex_worker_launch.py', 'run', '--job-id', 'job-a', '--wave-id', ...]\n\n    def _assert_launcher_returncode(\n        result: (\n            subprocess.CompletedProcess[Any]\n            | subprocess.Popen[Any]\n            | subprocess.TimeoutExpired\n            | int\n        ),\n        expected_returncode: int,\n        *,\n        paths: dict[str, Path],\n        stdout: str | bytes | None = None,\n        stderr: str | bytes | None = None,\n        label: str = \"launcher\",\n        command: list[str] | None = None,\n    ) -> None:\n        actual = _returncode_value(result)\n        if actual == expected_returncode:\n            return\n        prefix = (\n            f\"actual rc {actual} != expected rc {expected_returncode}; \"\n            f\"label={label}\"\n        )\n        try:\n            body = _launcher_failure_message(\n                result,\n                paths=paths,\n                stdout=stdout,\n                stderr=stderr,\n                command=command,\n            )\n        except Exception as exc:\n            body = (\n                f\"diagnostic_status=failed:{type(exc).__name__}\\n\"\n                f\"truth_summary: diagnostic_status=failed:{type(exc).__name__}\"\n            )\n>       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))\nE       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 1; label=in-process launcher\nE       truth_summary: outcome='launcher_error' stop_reason='launcher_error' launcher_rc=2; attempt[1] accepted=False failed_predicates=[\"limit_trigger\"]\nE       stdout: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>\nE       stderr: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>\nE       receipt: outcome='launcher_error' stop_reason='launcher_error' launcher_rc=2\nE       attempt[1]: accepted=False limit_trigger='max_wall_clock_s' evidence_status='complete' metering_status='complete' codex_exit_code=0 validator_rc=0 process_group_residual=0 termination_verified=True wall_clock_s=Decimal('0.130292303') 不成立だったゲート failed_predicates=[\"limit_trigger\"]\nE       attempt[1].stdout: path='/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0/artifacts/attempt-0001.events.jsonl' total_bytes=465 sha256=12f9df5683636341f6d8a8cf371be82114551f96926d73c390617a9f23e98b3b truncated_bytes=0 excerpt='{\"type\":\"thread.started\",\"thread_id\":\"8f4e0166-8ef4-4305-a1a9-d43268769e04\"}\\n{\"type\":\"turn.started\"}\\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"status\":\"in_progress\"}}\\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":100,\"cached_input_tokens\":20,\"cache_write_input_tokens\":0,\"output_tokens\":10,\"reasoning_output_tokens\":0}}\\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"status\":\"completed\",\"exit_code\":0}}\\n'\nE       attempt[1].stderr: path='/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_receipt_staging_wall_over0/artifacts/attempt-0001.stderr.log' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''\nE       runtime_context: hostname='bnode021' PYTEST_XDIST_WORKER='gw32' PBS_JOBID='0:897218.nqsv' test_pid=254941 loadavg=(1.65966796875, 0.6943359375, 1.36376953125)\nE       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'\nE       receipt_limits={'max_attempts': 1, 'max_cli_reported_tokens': 100000, 'max_model_calls': 100, 'max_wall_clock_s': Decimal('3.0')}\nE       receipt_actuals={'attempt_count': 1, 'cached_input_tokens': 20, 'cli_reported': 90, 'input_tokens': 100, 'model_calls': 1, 'output_tokens': 10, 'reasoning_output_tokens': 0, 'total_tokens_raw': 110, 'wall_clock_s': Decimal('4.18587257')}\nE       truth_summary: outcome='launcher_error' stop_reason='launcher_error' launcher_rc=2; attempt[1] accepted=False failed_predicates=[\"limit_trigger\"]\n\norchestrator/tests/test_codex_worker_launch.py:525: LauncherReturncodeMismatch\n----------------------------- Captured stderr call -----------------------------\nNG: receipt truth table が不正\n____________ test_receipt_audit_wall_overrun_flips_to_not_accepted _____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f35af4c640>\n\n    def test_receipt_audit_wall_overrun_flips_to_not_accepted(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        fake = _write_fake_codex(tmp_path / \"fake-codex\")\n        command, env, paths = _base_command(tmp_path, fake=fake)\n        env[\"FAKE_MODE\"] = \"normal\"\n        clock_offset_ns = 0\n        original_audit = LAUNCHER._audit_receipt_value\n        published_audits = 0\n    \n        def logical_clock() -> int:\n            return time.monotonic_ns() + clock_offset_ns\n    \n        def delayed_audit(*args: Any, **kwargs: Any) -> Any:\n            nonlocal clock_offset_ns, published_audits\n            result = original_audit(*args, **kwargs)\n            if kwargs.get(\"check_published_output\") is True:\n                published_audits += 1\n                assert paths[\"output\"].exists()\n                clock_offset_ns += 4_000_000_000\n            return result\n    \n        monkeypatch.setattr(LAUNCHER, \"_monotonic_ns\", logical_clock)\n        monkeypatch.setattr(LAUNCHER, \"_audit_receipt_value\", delayed_audit)\n>       _run_main_in_process(\n            command, env, monkeypatch, paths=paths, expected_returncode=1\n        )\n\norchestrator/tests/test_codex_worker_launch.py:2140: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_codex_worker_launch.py:1087: in _run_main_in_process\n    _assert_launcher_returncode(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nresult = 2, expected_returncode = 1\npaths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0/artifacts'), ...}\nstdout = None, stderr = None, label = 'in-process launcher'\ncommand = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/tools/codex_worker_launch.py', 'run', '--job-id', 'job-a', '--wave-id', ...]\n\n    def _assert_launcher_returncode(\n        result: (\n            subprocess.CompletedProcess[Any]\n            | subprocess.Popen[Any]\n            | subprocess.TimeoutExpired\n            | int\n        ),\n        expected_returncode: int,\n        *,\n        paths: dict[str, Path],\n        stdout: str | bytes | None = None,\n        stderr: str | bytes | None = None,\n        label: str = \"launcher\",\n        command: list[str] | None = None,\n    ) -> None:\n        actual = _returncode_value(result)\n        if actual == expected_returncode:\n            return\n        prefix = (\n            f\"actual rc {actual} != expected rc {expected_returncode}; \"\n            f\"label={label}\"\n        )\n        try:\n            body = _launcher_failure_message(\n                result,\n                paths=paths,\n                stdout=stdout,\n                stderr=stderr,\n                command=command,\n            )\n        except Exception as exc:\n            body = (\n                f\"diagnostic_status=failed:{type(exc).__name__}\\n\"\n                f\"truth_summary: diagnostic_status=failed:{type(exc).__name__}\"\n            )\n>       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))\nE       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 1; label=in-process launcher\nE       truth_summary: outcome='launcher_error' stop_reason='launcher_error' launcher_rc=2; attempt[1] accepted=False failed_predicates=[\"limit_trigger\"]\nE       stdout: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>\nE       stderr: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>\nE       receipt: outcome='launcher_error' stop_reason='launcher_error' launcher_rc=2\nE       attempt[1]: accepted=False limit_trigger='max_wall_clock_s' evidence_status='complete' metering_status='complete' codex_exit_code=0 validator_rc=0 process_group_residual=0 termination_verified=True wall_clock_s=Decimal('0.130827688') 不成立だったゲート failed_predicates=[\"limit_trigger\"]\nE       attempt[1].stdout: path='/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0/artifacts/attempt-0001.events.jsonl' total_bytes=465 sha256=cd41c3fb46be7895604c2426c85a27d3307a366a14e549e62d148aba8621b9d4 truncated_bytes=0 excerpt='{\"type\":\"thread.started\",\"thread_id\":\"818baea7-c64d-4096-81ab-f27327791376\"}\\n{\"type\":\"turn.started\"}\\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"status\":\"in_progress\"}}\\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":100,\"cached_input_tokens\":20,\"cache_write_input_tokens\":0,\"output_tokens\":10,\"reasoning_output_tokens\":0}}\\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"status\":\"completed\",\"exit_code\":0}}\\n'\nE       attempt[1].stderr: path='/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_receipt_audit_wall_overru0/artifacts/attempt-0001.stderr.log' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''\nE       runtime_context: hostname='bnode021' PYTEST_XDIST_WORKER='gw33' PBS_JOBID='0:897218.nqsv' test_pid=254946 loadavg=(1.65966796875, 0.6943359375, 1.36376953125)\nE       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'\nE       receipt_limits={'max_attempts': 1, 'max_cli_reported_tokens': 100000, 'max_model_calls': 100, 'max_wall_clock_s': Decimal('3.0')}\nE       receipt_actuals={'attempt_count': 1, 'cached_input_tokens': 20, 'cli_reported': 90, 'input_tokens': 100, 'model_calls': 1, 'output_tokens': 10, 'reasoning_output_tokens': 0, 'total_tokens_raw': 110, 'wall_clock_s': Decimal('4.196407924')}\nE       truth_summary: outcome='launcher_error' stop_reason='launcher_error' launcher_rc=2; attempt[1] accepted=False failed_predicates=[\"limit_trigger\"]\n\norchestrator/tests/test_codex_worker_launch.py:525: LauncherReturncodeMismatch\n----------------------------- Captured stderr call -----------------------------\nNG: receipt truth table が不正\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output\nFAILED orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted\n2 failed, 75 passed in 5.77s\n",
+        "stdout_sha256": "a6cd9e9ca8659cb0b3e54f4c6f465446098a71c68d7fe1dfaba15212811c2e71"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "87998dab0617fd0be06b68ff335d2ab06b3fcf3b09862517a420a959beafb9d1",
+      "duration_s": 26.849,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "hang_risk": false,
+      "id": "MT4",
+      "injection_diff_sha256": "c4be63f101f02d6b1940fefad23c525f88e4a0c79407cb7c7167f0c2432971a0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c4b68eef2181a956d687a1321523212473c0eb716de93ddf4851bf83b06b94a3",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "new": "",
+          "old": "                    receipt = _receipt(\n                        args,\n                        attempts=attempts,\n                        job_started_ns=started_ns,\n                        codex_path=codex_path,\n                        codex_sha256=codex_sha256,\n                        codex_version=codex_version,\n                    )\n"
+        }
+      ],
+      "repo_head": "6ffbe8e314acbc0783aa5d89b6e0ac8d90003780",
+      "runner_sha256": "85b0d1fa817c5b49c879b9ae2ff36b250b24c66891387871ea2d80ea0ae2cf46",
+      "spec_sha256": "27d277d587800ca1592e870ed9b7453f0aa9cbae022cd47b7d8fc9971d4a5b23",
+      "status": "KILLED",
+      "test_output_sha256": "a6cd9e9ca8659cb0b3e54f4c6f465446098a71c68d7fe1dfaba15212811c2e71",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f1181af4bd4269a7443e1be63611ee894a9976a222ba68176f0580331810225b"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/4bdc03e055668c8417b7fbb7a7323818/izdw-4bdc03e055.o897213",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/output/pegasus-dispatch/4bdc03e055668c8417b7fbb7a7323818/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_failed_predicates\norchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_nonzero_codex_exit_code\norchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_validator_rejection\norchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_incomplete_evidence\norchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_survives_missing_or_invalid_receipt\norchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_is_wired_to_the_returncode_assertion\norchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_is_bounded_and_repeats_summary_at_end\norchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_all_visible_failures_and_guard\norchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_rejects_fifo_and_over_limit_streams\norchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_preserves_last_of_many_large_attempts\norchestrator/tests/test_codex_worker_launch.py::test_positive_p1_normal_job_is_accepted\norchestrator/tests/test_codex_worker_launch.py::test_unknown_reasoning_is_rejected_before_child_launch\norchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[low]\norchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[medium]\norchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[high]\norchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[xhigh]\norchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[max]\norchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted\norchestrator/tests/test_codex_worker_launch.py::test_missing_metering_evidence_is_not_accepted\norchestrator/tests/test_codex_worker_launch.py::test_token_cap_uses_cli_reported_definition\norchestrator/tests/test_codex_worker_launch.py::test_cli_reported_token_limit_stops_process\norchestrator/tests/test_codex_worker_launch.py::test_positive_p3_exact_limit_natural_exit_is_accepted\norchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed\norchestrator/tests/test_codex_worker_launch.py::test_proc_scan_and_missing_identity_are_unknown\norchestrator/tests/test_codex_worker_launch.py::test_individual_proc_read_failure_is_unknown\norchestrator/tests/test_codex_worker_launch.py::test_unknown_residual_never_verifies_normal_reap\norchestrator/tests/test_codex_worker_launch.py::test_cumulative_limits_do_not_reset_between_attempts\norchestrator/tests/test_codex_worker_launch.py::test_max_attempts_never_spawns_extra_attempt\norchestrator/tests/test_codex_worker_launch.py::test_workspace_write_retry_is_refused\norchestrator/tests/test_codex_worker_launch.py::test_launcher_process_wall_clock_includes_version_preflight\norchestrator/tests/test_codex_worker_launch.py::test_seal_failure_still_writes_launcher_error_receipt\norchestrator/tests/test_codex_worker_launch.py::test_post_attempt_audit_failure_still_writes_launcher_error_receipt\norchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output\norchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted\norchestrator/tests/test_codex_worker_launch.py::test_accepted_publication_reuses_the_staged_receipt_temp\norchestrator/tests/test_codex_worker_launch.py::test_receipt_publication_failure_removes_output_and_writes_error_receipt\norchestrator/tests/test_codex_worker_launch.py::test_help_does_not_claim_job_wide_hard_cap\norchestrator/tests/test_codex_worker_launch.py::test_parallel_jobs_preserve_both_manifest_entries\norchestrator/tests/test_codex_worker_launch.py::test_manifest_lock_covers_load_replace_critical_section\norchestrator/tests/test_codex_worker_launch.py::test_complete_receipt_publication_is_atomic_create_only_at_run_callsite\norchestrator/tests/test_codex_worker_launch.py::test_partial_receipt_never_visible_at_final_path\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_detects_output_tampering\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectations\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[True]\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_external_limit_detects_self_asserted_limit_tampering\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_recomputes_attempt_output_hash\norchestrator/tests/test_codex_worker_launch.py::test_manifest_refuses_foreign_wave_id\norchestrator/tests/test_codex_worker_launch.py::test_preflight_rejects_cwd_outside_repo_and_unknown_base\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[wave_id]\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[repo_root]\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[base_commit]\norchestrator/tests/test_codex_worker_launch.py::test_append_manifest_header_gate_fails_without_checker_mask\norchestrator/tests/test_codex_worker_launch.py::test_inconsistent_metering_is_not_accepted\norchestrator/tests/test_codex_worker_launch.py::test_cli_reported_running_max_latches_usage_rollback\norchestrator/tests/test_codex_worker_launch.py::test_usage_rollback_alone_is_rejected_without_peak_or_terminal_mask\norchestrator/tests/test_codex_worker_launch.py::test_null_token_count_is_observed_and_makes_metering_incomplete\norchestrator/tests/test_codex_worker_launch.py::test_delayed_thread_and_rollout_are_read_from_byte_zero\norchestrator/tests/test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running\norchestrator/tests/test_codex_worker_launch.py::test_spawned_process_group_is_cleaned_on_manifest_append_failure\norchestrator/tests/test_codex_worker_launch.py::test_final_drain_actuals_are_rechecked_before_acceptance\norchestrator/tests/test_codex_worker_launch.py::test_fake_stdout_matches_observed_cli_event_shape\norchestrator/tests/test_codex_worker_launch.py::test_rollout_missing_after_grace_is_stopped_and_not_accepted\norchestrator/tests/test_codex_worker_launch.py::test_thread_missing_after_grace_kills_process_group\norchestrator/tests/test_codex_worker_launch.py::test_cached_exceeding_input_is_malformed\norchestrator/tests/test_codex_worker_launch.py::test_late_rollout_writer_does_not_change_sealed_receipt\norchestrator/tests/test_codex_worker_launch.py::test_setsid_escape_is_not_claimed_as_contained\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_unknown_and_duplicate_fields\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table\norchestrator/tests/test_codex_worker_launch.py::test_check_receipt_detects_executable_identity_change\norchestrator/tests/test_codex_worker_launch.py::test_partial_existing_receipt_is_atomically_replaced\norchestrator/tests/test_codex_worker_launch.py::test_frozen_manifest_schema_is_closed[<lambda>0]\norchestrator/tests/test_codex_worker_launch.py::test_frozen_manifest_schema_is_closed[<lambda>1]\norchestrator/tests/test_codex_worker_launch.py::test_frozen_manifest_schema_is_closed[<lambda>2]\norchestrator/tests/test_codex_worker_launch.py::test_frozen_manifest_schema_is_closed[<lambda>3]\norchestrator/tests/test_codex_worker_launch.py::test_fake_can_reproduce_thread_id_change_and_multiple_sessions\n\n77 tests collected in 0.35s\n",
+        "stdout_sha256": "724b3c63e6030825595926296c9a0a87fabe962c38d5f0fc3745fc3e763ade1b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_failed_predicates",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_nonzero_codex_exit_code",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_validator_rejection",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_incomplete_evidence",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_survives_missing_or_invalid_receipt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_is_wired_to_the_returncode_assertion",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_is_bounded_and_repeats_summary_at_end",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_all_visible_failures_and_guard",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_rejects_fifo_and_over_limit_streams",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_preserves_last_of_many_large_attempts",
+        "orchestrator/tests/test_codex_worker_launch.py::test_positive_p1_normal_job_is_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_unknown_reasoning_is_rejected_before_child_launch",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[low]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[medium]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[high]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[xhigh]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[max]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_missing_metering_evidence_is_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_token_cap_uses_cli_reported_definition",
+        "orchestrator/tests/test_codex_worker_launch.py::test_cli_reported_token_limit_stops_process",
+        "orchestrator/tests/test_codex_worker_launch.py::test_positive_p3_exact_limit_natural_exit_is_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed",
+        "orchestrator/tests/test_codex_worker_launch.py::test_proc_scan_and_missing_identity_are_unknown",
+        "orchestrator/tests/test_codex_worker_launch.py::test_individual_proc_read_failure_is_unknown",
+        "orchestrator/tests/test_codex_worker_launch.py::test_unknown_residual_never_verifies_normal_reap",
+        "orchestrator/tests/test_codex_worker_launch.py::test_cumulative_limits_do_not_reset_between_attempts",
+        "orchestrator/tests/test_codex_worker_launch.py::test_max_attempts_never_spawns_extra_attempt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_retry_is_refused",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_process_wall_clock_includes_version_preflight",
+        "orchestrator/tests/test_codex_worker_launch.py::test_seal_failure_still_writes_launcher_error_receipt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_post_attempt_audit_failure_still_writes_launcher_error_receipt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_accepted_publication_reuses_the_staged_receipt_temp",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_publication_failure_removes_output_and_writes_error_receipt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_help_does_not_claim_job_wide_hard_cap",
+        "orchestrator/tests/test_codex_worker_launch.py::test_parallel_jobs_preserve_both_manifest_entries",
+        "orchestrator/tests/test_codex_worker_launch.py::test_manifest_lock_covers_load_replace_critical_section",
+        "orchestrator/tests/test_codex_worker_launch.py::test_complete_receipt_publication_is_atomic_create_only_at_run_callsite",
+        "orchestrator/tests/test_codex_worker_launch.py::test_partial_receipt_never_visible_at_final_path",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_detects_output_tampering",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectations",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[True]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_external_limit_detects_self_asserted_limit_tampering",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_recomputes_attempt_output_hash",
+        "orchestrator/tests/test_codex_worker_launch.py::test_manifest_refuses_foreign_wave_id",
+        "orchestrator/tests/test_codex_worker_launch.py::test_preflight_rejects_cwd_outside_repo_and_unknown_base",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[wave_id]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[repo_root]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[base_commit]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_append_manifest_header_gate_fails_without_checker_mask",
+        "orchestrator/tests/test_codex_worker_launch.py::test_inconsistent_metering_is_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_cli_reported_running_max_latches_usage_rollback",
+        "orchestrator/tests/test_codex_worker_launch.py::test_usage_rollback_alone_is_rejected_without_peak_or_terminal_mask",
+        "orchestrator/tests/test_codex_worker_launch.py::test_null_token_count_is_observed_and_makes_metering_incomplete",
+        "orchestrator/tests/test_codex_worker_launch.py::test_delayed_thread_and_rollout_are_read_from_byte_zero",
+        "orchestrator/tests/test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running",
+        "orchestrator/tests/test_codex_worker_launch.py::test_spawned_process_group_is_cleaned_on_manifest_append_failure",
+        "orchestrator/tests/test_codex_worker_launch.py::test_final_drain_actuals_are_rechecked_before_acceptance",
+        "orchestrator/tests/test_codex_worker_launch.py::test_fake_stdout_matches_observed_cli_event_shape",
+        "orchestrator/tests/test_codex_worker_launch.py::test_rollout_missing_after_grace_is_stopped_and_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_thread_missing_after_grace_kills_process_group",
+        "orchestrator/tests/test_codex_worker_launch.py::test_cached_exceeding_input_is_malformed",
+        "orchestrator/tests/test_codex_worker_launch.py::test_late_rollout_writer_does_not_change_sealed_receipt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_setsid_escape_is_not_claimed_as_contained",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_unknown_and_duplicate_fields",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_detects_executable_identity_change",
+        "orchestrator/tests/test_codex_worker_launch.py::test_partial_existing_receipt_is_atomically_replaced",
+        "orchestrator/tests/test_codex_worker_launch.py::test_frozen_manifest_schema_is_closed[<lambda>0]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_frozen_manifest_schema_is_closed[<lambda>1]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_frozen_manifest_schema_is_closed[<lambda>2]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_frozen_manifest_schema_is_closed[<lambda>3]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_fake_can_reproduce_thread_id_change_and_multiple_sessions"
+      ],
+      "duration_s": 26.88,
+      "rc": 0,
+      "repo_head": "6ffbe8e314acbc0783aa5d89b6e0ac8d90003780",
+      "runner_sha256": "85b0d1fa817c5b49c879b9ae2ff36b250b24c66891387871ea2d80ea0ae2cf46",
+      "spec_sha256": "27d277d587800ca1592e870ed9b7453f0aa9cbae022cd47b7d8fc9971d4a5b23",
+      "status": "PASSED",
+      "tool_sha256": "f1181af4bd4269a7443e1be63611ee894a9976a222ba68176f0580331810225b"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MT1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+          "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f8dd22e0b78a5a757df8159ac237442b33442b70525d1787dedab582a59cd2fb",
+        "replacements": [
+          {
+            "file": "tools/codex_worker_launch.py",
+            "new": "                staged_receipt = _stage_receipt_write(args.receipt, receipt)\n                if not attempts[-1][\"accepted\"]:\n",
+            "old": "                staged_receipt = _stage_receipt_write(args.receipt, receipt)\n                _latch_final_job_limit(\n                    args, attempts, job_started_ns=started_ns\n                )\n                if not attempts[-1][\"accepted\"]:\n"
+          }
+        ]
+      },
+      "MT2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_worker_launch.py::test_accepted_publication_reuses_the_staged_receipt_temp"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bbe7901adbc889d40c9718d113311a019206e3a758d4600e5aa70aba6e1bb928",
+        "replacements": [
+          {
+            "file": "tools/codex_worker_launch.py",
+            "new": "    discarded = _write_json_temp(path, receipt)\n    os.unlink(discarded)\n    return _write_json_temp(path, receipt)\n",
+            "old": "    return _write_json_temp(path, receipt)\n"
+          }
+        ]
+      },
+      "MT3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+          "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "50b3a11838dca4b1aba48c38585b1d3fdad492d721a77730024231b9a1e642fe",
+        "replacements": [
+          {
+            "file": "tools/codex_worker_launch.py",
+            "new": "                    _fsync_parent(args.output_file)\n",
+            "old": "                    args.output_file.unlink()\n                    _fsync_parent(args.output_file)\n"
+          }
+        ]
+      },
+      "MT4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+          "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c4be63f101f02d6b1940fefad23c525f88e4a0c79407cb7c7167f0c2432971a0",
+        "replacements": [
+          {
+            "file": "tools/codex_worker_launch.py",
+            "new": "",
+            "old": "                    receipt = _receipt(\n                        args,\n                        attempts=attempts,\n                        job_started_ns=started_ns,\n                        codex_path=codex_path,\n                        codex_sha256=codex_sha256,\n                        codex_version=codex_version,\n                    )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "b81a10c95fae5570a8a314ece48b54650c20a284dbcf9484cc243d8de8acc4ca",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_codex_worker_launch.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "6ffbe8e314acbc0783aa5d89b6e0ac8d90003780",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_codex_worker_launch.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "1769d3c40651925879f690e75083ec3ffb7d33a4",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "85b0d1fa817c5b49c879b9ae2ff36b250b24c66891387871ea2d80ea0ae2cf46",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "27d277d587800ca1592e870ed9b7453f0aa9cbae022cd47b7d8fc9971d4a5b23",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t678-publication-wall-gate/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "f1181af4bd4269a7443e1be63611ee894a9976a222ba68176f0580331810225b",
+  "updated_at": "2026-08-09T07:48:10.826977+00:00"
+}

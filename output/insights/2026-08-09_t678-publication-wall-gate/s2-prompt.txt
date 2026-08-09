@@ -1,0 +1,52 @@
+あなたは izanagi プロジェクトの dev-wave 段 2 プラン起草者です。出力は日本語で書いてください。
+
+## 前提資料 (必読)
+次のファイルを読んでください。読めない場合は推測せず、その旨だけを書いて直ちに停止してください。
+
+- 親 brief: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s1-brief.md
+- 対象 production: tools/codex_worker_launch.py (作業ディレクトリ直下)
+- 対象テスト: orchestrator/tests/test_codex_worker_launch.py
+- 出処の一次資料: output/insights/2026-08-09_t663-launcher-flake-diagnostic/s4-adjudication.md の「裁定パッケージ候補」S2、
+  および同ディレクトリ s3-lensA.md の所見 5
+
+## 依頼
+[T-678] 「launcher が最終 publication 後に wall gate を再評価しない。receipt の staging /
+publication が 10〜20 秒級で停滞しても accepted で通る」を塞ぐ実装プランを、
+file:line 粒度で起草してください。
+
+## 制約
+- あなたは read-only sandbox です。**テストを実走できません。** 緑を主張してはいけません。
+  静的検査 (コード読解・呼び出し元の全列挙・grep 相当の推論) だけで書き、
+  実走が必要な確認は「親が実測すべき項目」として列挙してください。
+- 実装は後段の別 worker が行います。あなたはプランだけを書きます。コードを編集しないでください。
+- 既存テストの期待値を反転・緩和・skip・削除する案を出さないでください。
+- 受理集合 (`accepted` になる job の集合) の**拡大**は禁止です。縮小 (予算超過を弾く) だけが目的です。
+- receipt は create-only 公開です。公開後に受理を取り消す設計は不可能です。この制約を明示的に扱ってください。
+
+## 必ず答えること
+1. **再評価点の設計択一。** 親 brief の (P1)〜(P4) を検討し、採否と理由を書いてください。
+   親の provisional 裁定は攻撃対象です。より良い案があれば file:line 付きで対案を出してください。
+   特に「publication 完了後に再評価する」という依頼文言を、create-only 制約の下でどう満たすかを
+   明示してください (残余として測れない区間が残るなら、それを正直に列挙してください)。
+2. **`_run_supervised` (tools/codex_worker_launch.py) の改修プラン。** 追加・変更する行を
+   file:line で指定し、before/after の制御フローを書いてください。
+   `_latch_final_job_limit` / `_receipt` / `_audit_receipt_value` / `_stage_receipt_write` /
+   `_atomic_create_json_reserved` / `_reserve_receipt_slot` / `args.output_published_by_run` の
+   相互作用と、accepted → not_accepted へ flip したときの巻き戻し手順を明記してください。
+   `outcome != "accepted"` の経路でも再評価が必要かを判断してください。
+3. **不変条件の維持。** `_writer_truth` の真理値表、`_validate_receipt` の schema v2 束縛
+   (特に `wall_clock_scope` の文字列一致検査)、`_RECEIPT_FIELDS_V2` の閉じた field 集合、
+   既存の実 receipt との互換を、この改修がどう保つかを書いてください。
+   `wall_clock_scope` の文字列を変えるべきか否かを、変えた場合の consumer 影響とともに裁定してください。
+4. **追加するテスト。** nodeid 案・配置ファイル・使う fixture/helper (`_run_case` など既存のもの) を
+   具体的に書き、それぞれが「変更前なら赤・変更後なら緑」になる理由を書いてください。
+   停滞の注入方法 (production を汚さずに遅延を作る手段) を具体的に示してください。
+   既存 helper の timeout 値との関係 (外側 timeout が先に発火しないこと) も確認してください。
+5. **波及の全列挙。** `outcome` / `stop_reason` / `launcher_rc` / `accepted` / `wall_clock_scope` を
+   読む repo 内の consumer (production・テスト・docs) を列挙し、この改修で挙動が変わるものを
+   file:line で示してください。
+6. **親が実測すべき項目。** あなたが静的にしか確認できなかった点を列挙してください。
+
+## 出力形式
+節見出しを付けた Markdown。最後に必ず `## 総括` 節を置き、
+プランの骨子・最大のリスク・親への申し送りを 10 行以内でまとめてください。
