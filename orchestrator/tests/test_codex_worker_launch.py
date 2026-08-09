@@ -2074,34 +2074,145 @@ def test_post_attempt_audit_failure_still_writes_launcher_error_receipt(
     assert not paths["output"].exists()
 
 
+def test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    env["FAKE_MODE"] = "normal"
+    clock_offset_ns = 0
+    original_stage = LAUNCHER._stage_receipt_write
+    stage_calls = 0
+
+    def logical_clock() -> int:
+        return time.monotonic_ns() + clock_offset_ns
+
+    def delayed_stage(path: Path, receipt: Any) -> Path:
+        nonlocal clock_offset_ns, stage_calls
+        temporary = original_stage(path, receipt)
+        stage_calls += 1
+        if stage_calls == 1:
+            assert paths["output"].exists()
+            clock_offset_ns += 4_000_000_000
+        return temporary
+
+    monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+    monkeypatch.setattr(LAUNCHER, "_stage_receipt_write", delayed_stage)
+    _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=1
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+
+    assert stage_calls == 2
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["stop_reason"] == "max_wall_clock_s"
+    assert receipt["launcher_rc"] == 1
+    assert receipt["attempts"][-1]["accepted"] is False
+    assert receipt["attempts"][-1]["limit_trigger"] == "max_wall_clock_s"
+    assert not paths["output"].exists()
+    assert list(tmp_path.glob(".receipt.json.tmp.*")) == []
+
+
+def test_receipt_audit_wall_overrun_flips_to_not_accepted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    env["FAKE_MODE"] = "normal"
+    clock_offset_ns = 0
+    original_audit = LAUNCHER._audit_receipt_value
+    published_audits = 0
+
+    def logical_clock() -> int:
+        return time.monotonic_ns() + clock_offset_ns
+
+    def delayed_audit(*args: Any, **kwargs: Any) -> Any:
+        nonlocal clock_offset_ns, published_audits
+        result = original_audit(*args, **kwargs)
+        if kwargs.get("check_published_output") is True:
+            published_audits += 1
+            assert paths["output"].exists()
+            clock_offset_ns += 4_000_000_000
+        return result
+
+    monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+    monkeypatch.setattr(LAUNCHER, "_audit_receipt_value", delayed_audit)
+    _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=1
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+
+    assert published_audits == 1
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["stop_reason"] == "max_wall_clock_s"
+    assert receipt["launcher_rc"] == 1
+    assert receipt["attempts"][-1]["accepted"] is False
+    assert receipt["attempts"][-1]["limit_trigger"] == "max_wall_clock_s"
+    assert not paths["output"].exists()
+
+
+def test_accepted_publication_reuses_the_staged_receipt_temp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    env["FAKE_MODE"] = "normal"
+    original_write = LAUNCHER._write_json_temp
+    receipt_temp_writes: list[tuple[Path, tuple[int, int]]] = []
+
+    def recording_write(path: Path, value: object) -> Path:
+        temporary = original_write(path, value)
+        if path == paths["receipt"]:
+            metadata = temporary.stat()
+            receipt_temp_writes.append(
+                (temporary, (metadata.st_dev, metadata.st_ino))
+            )
+        return temporary
+
+    monkeypatch.setattr(LAUNCHER, "_write_json_temp", recording_write)
+    _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=0
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+
+    assert receipt["outcome"] == "accepted"
+    assert len(receipt_temp_writes) == 1
+    temporary, staged_inode = receipt_temp_writes[0]
+    receipt_metadata = paths["receipt"].stat()
+    assert (receipt_metadata.st_dev, receipt_metadata.st_ino) == staged_inode
+    assert not temporary.exists()
+
+
 def test_receipt_publication_failure_removes_output_and_writes_error_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     fake = _write_fake_codex(tmp_path / "fake-codex")
     command, env, paths = _base_command(tmp_path, fake=fake)
     env["FAKE_MODE"] = "normal"
-    original = LAUNCHER._atomic_create_json_reserved
-    calls = 0
+    original_link = LAUNCHER.os.link
+    receipt_link_calls = 0
 
-    def fail_once(*args: Any, **kwargs: Any) -> None:
-        nonlocal calls
-        calls += 1
-        if calls == 1:
-            raise OSError("synthetic publication failure")
-        original(*args, **kwargs)
+    def fail_receipt_link_once(
+        source: Path, destination: Path, *args: Any, **kwargs: Any
+    ) -> None:
+        nonlocal receipt_link_calls
+        if destination == paths["receipt"]:
+            receipt_link_calls += 1
+            if receipt_link_calls == 1:
+                raise OSError("synthetic publication failure")
+        original_link(source, destination, *args, **kwargs)
 
-    monkeypatch.setattr(
-        LAUNCHER, "_atomic_create_json_reserved", fail_once
-    )
+    monkeypatch.setattr(LAUNCHER.os, "link", fail_receipt_link_once)
     rc = _run_main_in_process(
         command, env, monkeypatch, paths=paths, expected_returncode=2
     )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
 
-    assert calls == 2
+    assert receipt_link_calls == 2
     assert receipt["outcome"] == "launcher_error"
     assert receipt["launcher_rc"] == 2
     assert not paths["output"].exists()
+    assert list(tmp_path.glob(".receipt.json.tmp.*")) == []
 
 
 def test_help_does_not_claim_job_wide_hard_cap() -> None:

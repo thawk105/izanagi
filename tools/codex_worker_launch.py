@@ -27,7 +27,12 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 
-_LAUNCHER_PROCESS_STARTED_NS = time.monotonic_ns()
+def _monotonic_ns() -> int:
+    """Launcher-local monotonic clock seam."""
+    return time.monotonic_ns()
+
+
+_LAUNCHER_PROCESS_STARTED_NS = _monotonic_ns()
 _ROOT = Path(__file__).resolve().parents[1]
 if os.fspath(_ROOT) not in sys.path:
     sys.path.insert(0, os.fspath(_ROOT))
@@ -443,15 +448,18 @@ def _reserve_receipt_slot(path: Path) -> Any:
 
 
 def _atomic_create_json_reserved(
-    path: Path, value: object, *, replace_invalid: bool
+    path: Path, temporary: Path, *, replace_invalid: bool
 ) -> None:
-    """予約済み slot へ完全 JSON を公開する。呼出側は receipt lock を保持する。"""
-    temporary: Path | None = _write_json_temp(path, value)
+    """呼出側が fsync 済みにした temp を予約済み slot へ公開する。
+
+    呼出側は receipt lock を保持する。temp の所有権は本 helper へ
+    渡した時点で移り、成功時も例外時も本 helper が後始末する。
+    引渡し前の例外だけは caller が ``finally`` で unlink する。
+    """
     published = False
     try:
         if replace_invalid:
             os.replace(temporary, path)
-            temporary = None
         else:
             os.link(temporary, path)
         published = True
@@ -465,11 +473,10 @@ def _atomic_create_json_reserved(
                 pass
         raise
     finally:
-        if temporary is not None:
-            try:
-                os.unlink(temporary)
-            except OSError:
-                pass
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
 
 
 def _atomic_create_json(path: Path, value: object) -> None:
@@ -479,9 +486,20 @@ def _atomic_create_json(path: Path, value: object) -> None:
     が既に存在する場合と、temp の ``link(2)`` が競合した場合は上書きしない。
     """
     with _reserve_receipt_slot(path) as replace_invalid:
-        _atomic_create_json_reserved(
-            path, value, replace_invalid=replace_invalid
-        )
+        temporary: Path | None = None
+        try:
+            temporary = _write_json_temp(path, value)
+            publication_temp = temporary
+            temporary = None
+            _atomic_create_json_reserved(
+                path, publication_temp, replace_invalid=replace_invalid
+            )
+        finally:
+            if temporary is not None:
+                try:
+                    temporary.unlink()
+                except FileNotFoundError:
+                    pass
 
 
 def _atomic_publish(path: Path, raw: bytes) -> None:
@@ -1113,7 +1131,7 @@ def _attempt_loop(
     ]
     state = AttemptState(
         attempt_index=attempt_index,
-        started_ns=time.monotonic_ns(),
+        started_ns=_monotonic_ns(),
         stdout_path=stdout_path,
         stderr_path=stderr_path,
         output_path=attempt_output,
@@ -1179,7 +1197,7 @@ def _attempt_loop(
         forced_stop = False
         while True:
             observe(register_manifest=True)
-            now_ns = time.monotonic_ns()
+            now_ns = _monotonic_ns()
             current = _rollout_actuals(state)
             process_rc = process.poll()
             if process_rc is not None:
@@ -1284,11 +1302,11 @@ def _attempt_loop(
             raise caught
         raise LaunchError(f"attempt 起動前に失敗: {caught}") from caught
     assert process is not None
-    wall_clock_s = Decimal(time.monotonic_ns() - state.started_ns) / Decimal(
+    wall_clock_s = Decimal(_monotonic_ns() - state.started_ns) / Decimal(
         1_000_000_000
     )
     job_wall_clock_s = Decimal(
-        time.monotonic_ns() - job_started_ns
+        _monotonic_ns() - job_started_ns
     ) / Decimal(1_000_000_000)
     attempt = _seal_attempt(
         state,
@@ -1381,6 +1399,10 @@ def _receipt(
     codex_version: str,
     force_launcher_error: bool = False,
 ) -> dict[str, Any]:
+    """Receipt object と、その構築時点までの actuals を確定する。
+
+    ``actuals.wall_clock_s`` は後段の late admission gate の観測時刻ではない。
+    """
     if force_launcher_error:
         if any(item["accepted"] for item in attempts):
             raise LaunchError("launcher_error receipt に accepted attempt がある")
@@ -1395,7 +1417,7 @@ def _receipt(
         )
     actuals = _sum_attempts(attempts)
     actuals["wall_clock_s"] = Decimal(
-        time.monotonic_ns() - job_started_ns
+        _monotonic_ns() - job_started_ns
     ) / Decimal(1_000_000_000)
     last = attempts[-1] if attempts else None
     return {
@@ -1601,7 +1623,7 @@ def _latch_final_job_limit(
         return
     actuals = _sum_attempts(attempts)
     elapsed = Decimal(
-        time.monotonic_ns() - job_started_ns
+        _monotonic_ns() - job_started_ns
     ) / Decimal(1_000_000_000)
     reason: str | None = None
     if elapsed > args.max_wall_clock_s:
@@ -1622,10 +1644,15 @@ def _publish_complete_receipt(path: Path, receipt: Mapping[str, Any]) -> None:
     _atomic_create_json(path, receipt)
 
 
-def _stage_receipt_write(path: Path, receipt: Mapping[str, Any]) -> None:
-    """receipt write/fsync の費用を公開前の launcher scope に取り込む。"""
-    temporary = _write_json_temp(path, receipt)
-    os.unlink(temporary)
+def _stage_receipt_write(
+    path: Path, receipt: Mapping[str, Any]
+) -> Path:
+    """Receipt の exact bytes を temp へ write/fsync して caller に返す。
+
+    ``actuals.wall_clock_s`` は receipt object 構築時点の値であり、この
+    staging 後に実行する late admission gate の観測時刻とは別である。
+    """
+    return _write_json_temp(path, receipt)
 
 
 def _run_supervised(
@@ -1638,7 +1665,7 @@ def _run_supervised(
 ) -> int:
     started_ns = args.launcher_started_ns
     if (
-        Decimal(time.monotonic_ns() - started_ns) / Decimal(1_000_000_000)
+        Decimal(_monotonic_ns() - started_ns) / Decimal(1_000_000_000)
         > args.max_wall_clock_s
     ):
         receipt = _receipt(
@@ -1688,7 +1715,7 @@ def _run_supervised(
         if (
             prior["model_calls"] >= args.max_model_calls
             or prior["cli_reported"] >= args.max_cli_reported_tokens
-            or Decimal(time.monotonic_ns() - started_ns)
+            or Decimal(_monotonic_ns() - started_ns)
             / Decimal(1_000_000_000)
             >= args.max_wall_clock_s
         ):
@@ -1726,40 +1753,78 @@ def _run_supervised(
     )
     # N-3: receipt の create-only slot を output より先に確保する。
     with _reserve_receipt_slot(args.receipt) as replace_invalid:
-        if receipt["outcome"] == "accepted":
-            final_attempt = attempts[-1]
-            raw = Path(final_attempt["output_path"]).read_bytes()
-            if hashlib.sha256(raw).hexdigest() != final_attempt["output_sha256"]:
-                raise LaunchError("公開前に attempt output が変化した")
-            _atomic_publish(args.output_file, raw)
-            args.output_published_by_run = True
-            published_sha, _ = _hash_file(args.output_file)
-            if published_sha != receipt["output_sha256"]:
-                raise LaunchError("published output hash が一致しない")
-            _latch_final_job_limit(args, attempts, job_started_ns=started_ns)
-            receipt = _receipt(
-                args,
-                attempts=attempts,
-                job_started_ns=started_ns,
-                codex_path=codex_path,
-                codex_sha256=codex_sha256,
-                codex_version=codex_version,
+        staged_receipt: Path | None = None
+        try:
+            if receipt["outcome"] == "accepted":
+                final_attempt = attempts[-1]
+                raw = Path(final_attempt["output_path"]).read_bytes()
+                if (
+                    hashlib.sha256(raw).hexdigest()
+                    != final_attempt["output_sha256"]
+                ):
+                    raise LaunchError("公開前に attempt output が変化した")
+                _atomic_publish(args.output_file, raw)
+                args.output_published_by_run = True
+                published_sha, _ = _hash_file(args.output_file)
+                if published_sha != receipt["output_sha256"]:
+                    raise LaunchError("published output hash が一致しない")
+                _audit_receipt_value(
+                    receipt,
+                    args.manifest,
+                    expectations={},
+                    check_published_output=True,
+                )
+                staged_receipt = _stage_receipt_write(args.receipt, receipt)
+                _latch_final_job_limit(
+                    args, attempts, job_started_ns=started_ns
+                )
+                if not attempts[-1]["accepted"]:
+                    staged_receipt.unlink()
+                    staged_receipt = None
+                    args.output_file.unlink()
+                    _fsync_parent(args.output_file)
+                    args.output_published_by_run = False
+                    receipt = _receipt(
+                        args,
+                        attempts=attempts,
+                        job_started_ns=started_ns,
+                        codex_path=codex_path,
+                        codex_sha256=codex_sha256,
+                        codex_version=codex_version,
+                    )
+                    _audit_receipt_value(
+                        receipt,
+                        args.manifest,
+                        expectations={},
+                        check_published_output=False,
+                    )
+                    staged_receipt = _stage_receipt_write(
+                        args.receipt, receipt
+                    )
+            else:
+                _audit_receipt_value(
+                    receipt,
+                    args.manifest,
+                    expectations={},
+                    check_published_output=False,
+                )
+                staged_receipt = _stage_receipt_write(args.receipt, receipt)
+
+            assert staged_receipt is not None
+            publication_temp = staged_receipt
+            staged_receipt = None
+            _atomic_create_json_reserved(
+                args.receipt,
+                publication_temp,
+                replace_invalid=replace_invalid,
             )
-            if receipt["outcome"] != "accepted":
-                args.output_file.unlink()
-                args.output_published_by_run = False
-        _audit_receipt_value(
-            receipt,
-            args.manifest,
-            expectations={},
-            check_published_output=receipt["outcome"] == "accepted",
-        )
-        # scope はこの field 確定時点まで。serialize 可能性も公開前に実証する。
-        _stage_receipt_write(args.receipt, receipt)
-        _atomic_create_json_reserved(
-            args.receipt, receipt, replace_invalid=replace_invalid
-        )
-        return receipt["launcher_rc"]
+            return receipt["launcher_rc"]
+        finally:
+            if staged_receipt is not None:
+                try:
+                    staged_receipt.unlink()
+                except FileNotFoundError:
+                    pass
 
 
 def _publish_launcher_error_receipt(
@@ -1779,6 +1844,7 @@ def _publish_launcher_error_receipt(
             args.output_file.unlink()
         except FileNotFoundError:
             pass
+        _fsync_parent(args.output_file)
         args.output_published_by_run = False
     for attempt in attempts:
         attempt["accepted"] = False
@@ -1793,9 +1859,22 @@ def _publish_launcher_error_receipt(
     )
     _validate_receipt(receipt)
     with _reserve_receipt_slot(args.receipt) as replace_invalid:
-        _atomic_create_json_reserved(
-            args.receipt, receipt, replace_invalid=replace_invalid
-        )
+        staged_receipt: Path | None = None
+        try:
+            staged_receipt = _stage_receipt_write(args.receipt, receipt)
+            publication_temp = staged_receipt
+            staged_receipt = None
+            _atomic_create_json_reserved(
+                args.receipt,
+                publication_temp,
+                replace_invalid=replace_invalid,
+            )
+        finally:
+            if staged_receipt is not None:
+                try:
+                    staged_receipt.unlink()
+                except FileNotFoundError:
+                    pass
 
 
 def _run(args: argparse.Namespace) -> int:
