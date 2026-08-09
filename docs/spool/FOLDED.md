@@ -614,3 +614,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:score-decision-extraction-defect":"[T-685]"},"authored":"2026-08-09","content_sha256":"959f039b57d2d9658c32ecc0578ec50ed49e7c9a95d0f8e9cb5e6748aeedd52b","seq":1,"wave":"dev-wave-t181-certified-rerun"}
 - {"allocations":{"F:frozen-scorer-decision-regex":"F176"},"authored":"2026-08-09","content_sha256":"ac041fff54e820e7f740554c1edd67d93a389207f3cf44b1741bd5c5dfcf3889","seq":1,"wave":"dev-wave-t181-certified-rerun"}
+
+- {"allocations":{"T:insights-verbatim-not-checked":"[T-686]"},"authored":"2026-08-09","content_sha256":"e6af09df648007308fc90c8abfde0d8df2ce8d5134cd34b4d4321e6be0454fed","seq":1,"wave":"dev-wave-t682-provenance-known-violations"}
+- {"allocations":{"F:blacklist-only-note-gate":"F177"},"authored":"2026-08-09","content_sha256":"b2c84d87a6d76a810af429d5a77829ca980028eda8140f10095a99e83c3da475","seq":2,"wave":"dev-wave-t682-provenance-known-violations"}
