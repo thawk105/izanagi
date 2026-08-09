@@ -455,26 +455,27 @@ def _write_command_guard_docs(root: str) -> None:
         return "; ".join(chunks)
 
     stage_rows = []
-    for key, pairs in check_docs.STAGE_DISPATCH_CONTRACT.items():
-        display_key = (
-            f"{key} preflight" if key in {"段 2", "段 3", "段 8"} else key
-        )
-        grouped: dict[str, set[tuple[str, str]]] = {}
-        for path, section in pairs:
-            grouped.setdefault(path, set()).add((path, section))
-        for path, path_pairs in sorted(grouped.items()):
-            if key == "段 6" and path == "docs/dev-wave/workers.md":
-                s05 = {
-                    pair for pair in path_pairs
-                    if pair[1].startswith("DW-S05-")
-                }
-                s06 = path_pairs - s05
-                stage_rows.append(f"| {display_key} | {refs(s05)} |")
-                stage_rows.append(f"| {display_key} | {refs(s06)} |")
-            else:
-                stage_rows.append(f"| {display_key} | {refs(path_pairs)} |")
+    for mode, contract in (
+        ("U", check_docs.STAGE_UNCONDITIONAL_DISPATCH_CONTRACT),
+        ("C", check_docs.STAGE_CONDITIONAL_DISPATCH_CONTRACT),
+    ):
+        for key, pairs in contract.items():
+            grouped: dict[str, set[tuple[str, str]]] = {}
+            for path, section in pairs:
+                grouped.setdefault(path, set()).add((path, section))
+            for path, path_pairs in sorted(grouped.items()):
+                if key == "段 6" and path == "docs/dev-wave/workers.md":
+                    s05 = {
+                        pair for pair in path_pairs
+                        if pair[1].startswith("DW-S05-")
+                    }
+                    s06 = path_pairs - s05
+                    stage_rows.append(f"| {key} |{mode}| {refs(s05)} |")
+                    stage_rows.append(f"| {key} |{mode}| {refs(s06)} |")
+                else:
+                    stage_rows.append(f"| {key} |{mode}| {refs(path_pairs)} |")
     condition_rows = "\n".join(
-        f"| {key} | synthetic | {refs(pairs)} |"
+        f"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | {refs(pairs)} |"
         for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
     )
     dev_wave = f"""---
@@ -495,8 +496,10 @@ Codex `role=author` が書き、親は実装面を直接編集せず統合する
 
 ## 段 dispatch
 
-| 段 | 参照 |
-|---|---|
+{check_docs.DEV_WAVE_STAGE_DISPATCH_LEGEND}
+
+{check_docs.DEV_WAVE_STAGE_DISPATCH_HEADER}
+|---|---|---|
 {chr(10).join(stage_rows)}
 
 段 6 で fix を codex へ再投する子は、`DW-S05-A`、`DW-S05-B`、`DW-S05-C` を
@@ -504,7 +507,7 @@ Codex `role=author` が書き、親は実装面を直接編集せず統合する
 
 ## 条件 dispatch
 
-| # | 条件 | 参照 |
+{check_docs.DEV_WAVE_CONDITION_DISPATCH_HEADER}
 |---|---|---|
 {condition_rows}
 """
@@ -1642,39 +1645,15 @@ def test_backlog_guard_preservation_rule_still_rejects_implicit_drop():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_raised_doc_budgets_still_reject_each_new_limit_and_aggregate():
-    """N22: 引き上げ後の個別・合計予算を 1 byte 超える入力で gate 生存を固定する。"""
+def test_raised_rulings_budget_still_rejects_new_limit():
+    """N22: rulings の引上げ後予算を 1 byte 超える入力で gate 生存を固定する。"""
 
-    assert check_docs.REFERENCE_LIMITS["docs/dev-wave/core.md"].max_bytes == 9_600
-    assert check_docs.REFERENCE_LIMITS["docs/dev-wave/operations.md"].max_bytes == 8_400
-    assert check_docs.DEV_WAVE_AGGREGATE_BYTES == 25_200
     assert check_docs.COMMAND_LIMITS[".claude/commands/rulings.md"].max_bytes == 5_000
-
-    individual_cases = (
-        ("docs/dev-wave/core.md", 9_601, "予算 9600 bytes"),
-        ("docs/dev-wave/operations.md", 8_401, "予算 8400 bytes"),
-        (".claude/commands/rulings.md", 5_001, "予算 5000 bytes"),
-    )
-    for rel, size, needle in individual_cases:
-        root = _build_min_repo()
-        try:
-            _pad_to_bytes(root, rel, size)
-            _assert_violation(root, rel, needle)
-        finally:
-            shutil.rmtree(root, ignore_errors=True)
 
     root = _build_min_repo()
     try:
-        aggregate_sizes = {
-            "docs/dev-wave/core.md": 9_600,
-            "docs/dev-wave/workers.md": 5_000,
-            "docs/dev-wave/mutation.md": 3_750,
-            "docs/dev-wave/operations.md": 6_851,
-        }
-        assert sum(aggregate_sizes.values()) == 25_201
-        for rel, size in aggregate_sizes.items():
-            _pad_to_bytes(root, rel, size)
-        _assert_violation(root, "合計 25201 bytes", "hard ceiling 25200 bytes")
+        _pad_to_bytes(root, ".claude/commands/rulings.md", 5_001)
+        _assert_violation(root, ".claude/commands/rulings.md", "予算 5000 bytes")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -1822,43 +1801,78 @@ def test_spool_tree_is_excluded_from_all_legacy_doc_scans():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_dev_wave_reference_limits_pin_adjudicated_caps():
-    assert check_docs.REFERENCE_LIMITS == {
-        "docs/dev-wave/core.md": check_docs.TextLimit(9_600),
-        "docs/dev-wave/workers.md": check_docs.TextLimit(5_000),
-        "docs/dev-wave/mutation.md": check_docs.TextLimit(3_750),
-        "docs/dev-wave/operations.md": check_docs.TextLimit(8_400),
+def test_dev_wave_layer_budget_contract_is_literal():
+    assert not hasattr(check_docs, "REFERENCE_LIMITS")
+    assert not hasattr(check_docs, "DEV_WAVE_AGGREGATE_BYTES")
+    assert check_docs.DEV_WAVE_REFERENCE_FILES == {
+        "docs/dev-wave/core.md",
+        "docs/dev-wave/workers.md",
+        "docs/dev-wave/mutation.md",
+        "docs/dev-wave/operations.md",
+    }
+    assert check_docs.DEV_WAVE_L1_BYTES_MAX == 10_625
+    assert check_docs.DEV_WAVE_L1_5_BYTES_MAX == 9_566
+    assert check_docs.DEV_WAVE_L2_SECTION_BYTES_MAX == 1_000
+    assert check_docs.DEV_WAVE_STAGE_DISPATCH_LEGEND == (
+        "種別は U=無条件、C=条件 dispatch 成立時。"
+    )
+    assert check_docs.DEV_WAVE_STAGE_DISPATCH_HEADER == (
+        "| 入る直前 | 種別 | 必ず読む節 |"
+    )
+    assert check_docs.DEV_WAVE_CONDITION_DISPATCH_HEADER == (
+        "| # | 発火条件 | 読む節 |"
+    )
+    assert check_docs.NORMATIVE_DISPATCH_ALLOWLIST == {
+        *check_docs.DEV_WAVE_REFERENCE_FILES,
+        "docs/skill-self-improvement.md",
+    }
+    assert check_docs.DEV_WAVE_L1_STAGE_KEYS == {
+        "wave 開始", "段 1", "段 4", "段 7", "段 8 preflight", "段 9",
+    }
+    assert check_docs.DEV_WAVE_L1_5_STAGE_KEYS == {
+        "段 2 preflight", "段 3 preflight", "段 5", "段 6",
     }
 
-
-def test_dev_wave_reference_budget_pins_cap_sum():
-    assert sum(
-        limit.max_bytes for limit in check_docs.REFERENCE_LIMITS.values()
-    ) == 26_750
-
-
-def test_dev_wave_reference_budget_pins_aggregate_ceiling():
-    assert check_docs.DEV_WAVE_AGGREGATE_BYTES == 25_200
-    assert check_docs.DEV_WAVE_REFERENCE_CAP_SUM_MAX_PERCENT == 110
-
-
-def test_dev_wave_reference_cap_sum_rejects_above_110_percent():
-    root = _build_min_repo()
-    try:
-        rel = "tools/check_docs.py"
-        original = '"docs/dev-wave/core.md": TextLimit(9_600),'
-        replacement = '"docs/dev-wave/core.md": TextLimit(10_571),'
-        source = _read(root, rel)
-        assert source.count(original) == 1
-        _write(root, rel, source.replace(original, replacement, 1))
-
-        _assert_findings(
-            root,
-            "docs/dev-wave/**: 個別 cap 総和 27721 bytes > aggregate ceiling "
-            "25200 bytes の 1.10 倍 (27720 bytes)",
+    unconditional = check_docs.STAGE_UNCONDITIONAL_DISPATCH_CONTRACT
+    l1 = set().union(*(
+        unconditional.get(key, set()) for key in check_docs.DEV_WAVE_L1_STAGE_KEYS
+    ))
+    l1_5 = set().union(*(
+        unconditional.get(key, set()) for key in check_docs.DEV_WAVE_L1_5_STAGE_KEYS
+    )) - l1
+    registered = {
+        (path, section)
+        for path, sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items()
+        for section in sections
+    }
+    l1 &= registered
+    l1_5 &= registered
+    l2 = registered - l1 - l1_5
+    assert l1 == {
+        *(('docs/dev-wave/core.md', section) for section in {
+            'DW-C00', 'DW-STOP', 'DW-S01', 'DW-G01', 'DW-G02', 'DW-G03',
+            'DW-G04', 'DW-G05', 'DW-S04', 'DW-S07', 'DW-S08', 'DW-S09',
+            'DW-CTX',
+        }),
+        ('docs/dev-wave/mutation.md', 'DW-M01'),
+        ('docs/dev-wave/operations.md', 'DW-O23'),
+    }
+    assert l1_5 == {
+        *(('docs/dev-wave/workers.md', f'DW-S0{i}') for i in (2, 3)),
+        *(('docs/dev-wave/workers.md', f'DW-S0{i}-{suffix}')
+          for i in (5, 6) for suffix in ('A', 'B', 'C')),
+        *(('docs/dev-wave/mutation.md', f'DW-M{i:02d}') for i in range(2, 9)),
+        *(('docs/dev-wave/operations.md', section)
+          for section in ('DW-O01', 'DW-O02', 'DW-O03', 'DW-O05', 'DW-O13')),
+    }
+    assert l2 == {
+        ('docs/dev-wave/operations.md', section)
+        for section in (
+            'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10', 'DW-O11',
+            'DW-O12', 'DW-O14', 'DW-O16', 'DW-O17', 'DW-O18', 'DW-O19',
+            'DW-O20',
         )
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
+    }
 
 
 def _dispatch_inventory_findings(
@@ -2145,23 +2159,6 @@ def test_dispatch_inventory_deleted_table_row_is_rejected():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_dev_wave_reference_cap_sum_accepts_exactly_110_percent():
-    root = _build_min_repo()
-    try:
-        rel = "tools/check_docs.py"
-        original = '"docs/dev-wave/core.md": TextLimit(9_600),'
-        replacement = '"docs/dev-wave/core.md": TextLimit(10_570),'
-        source = _read(root, rel)
-        assert source.count(original) == 1
-        _write(root, rel, source.replace(original, replacement, 1))
-
-        res = _run_check(root)
-        assert res.returncode == 0, res.stdout
-        assert "違反なし" in res.stdout
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
-
-
 def test_dispatch_inventory_added_tasks_entry_is_rejected():
     root = _build_min_repo()
     try:
@@ -2251,26 +2248,6 @@ def test_dispatch_inventory_missing_section_is_rejected():
         shutil.rmtree(root, ignore_errors=True)
 
 
-_DEV_WAVE_REFERENCE_MEMBER_LIMITS = (
-    ("docs/dev-wave/core.md", 9_600),
-    ("docs/dev-wave/workers.md", 5_000),
-    ("docs/dev-wave/mutation.md", 3_750),
-    ("docs/dev-wave/operations.md", 8_400),
-)
-
-
-@pytest.mark.parametrize(("rel", "limit"), _DEV_WAVE_REFERENCE_MEMBER_LIMITS)
-def test_dev_wave_reference_limit_accepts_exact_boundary(rel, limit):
-    root = _build_min_repo()
-    try:
-        _pad_to_bytes(root, rel, limit)
-        res = _run_check(root)
-        assert res.returncode == 0, res.stdout
-        assert "違反なし" in res.stdout
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
-
-
 def test_dispatch_inventory_duplicate_task_row_is_rejected():
     root = _build_min_repo()
     try:
@@ -2306,19 +2283,626 @@ def test_dispatch_inventory_ignores_table_outside_7_0_section():
         shutil.rmtree(root, ignore_errors=True)
 
 
-@pytest.mark.parametrize(("rel", "limit"), _DEV_WAVE_REFERENCE_MEMBER_LIMITS)
-def test_dev_wave_reference_limit_rejects_plus_one(rel, limit):
+_TEST_DEV_WAVE_LAYERS = {
+    "L1": {
+        *(('docs/dev-wave/core.md', section) for section in {
+            'DW-C00', 'DW-STOP', 'DW-S01', 'DW-G01', 'DW-G02', 'DW-G03',
+            'DW-G04', 'DW-G05', 'DW-S04', 'DW-S07', 'DW-S08', 'DW-S09',
+            'DW-CTX',
+        }),
+        ('docs/dev-wave/mutation.md', 'DW-M01'),
+        ('docs/dev-wave/operations.md', 'DW-O23'),
+    },
+    "L1.5": {
+        *(('docs/dev-wave/workers.md', f'DW-S0{i}') for i in (2, 3)),
+        *(('docs/dev-wave/workers.md', f'DW-S0{i}-{suffix}')
+          for i in (5, 6) for suffix in ('A', 'B', 'C')),
+        *(('docs/dev-wave/mutation.md', f'DW-M{i:02d}') for i in range(2, 9)),
+        *(('docs/dev-wave/operations.md', section)
+          for section in ('DW-O01', 'DW-O02', 'DW-O03', 'DW-O05', 'DW-O13')),
+    },
+    "L2": {
+        ('docs/dev-wave/operations.md', section)
+        for section in (
+            'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10', 'DW-O11',
+            'DW-O12', 'DW-O14', 'DW-O16', 'DW-O17', 'DW-O18', 'DW-O19',
+            'DW-O20',
+        )
+    },
+}
+_OLD_DEV_WAVE_FILE_CAPS = {
+    "docs/dev-wave/core.md": 9_600,
+    "docs/dev-wave/workers.md": 5_000,
+    "docs/dev-wave/mutation.md": 3_750,
+    "docs/dev-wave/operations.md": 8_400,
+}
+
+
+def _test_reference_slices(root: str, rel: str) -> tuple[int, dict[str, str]]:
+    text = _read(root, rel)
+    headings = list(re.finditer(r"^##\s+([^\s—]+).*\n", text, re.MULTILINE))
+    assert headings
+    slices = {
+        heading.group(1): text[
+            heading.start():headings[index + 1].start()
+            if index + 1 < len(headings) else len(text)
+        ]
+        for index, heading in enumerate(headings)
+    }
+    return len(text[:headings[0].start()].encode()), slices
+
+
+def _test_layer_bytes(root: str) -> dict[str, int]:
+    totals = {"L1": 0, "L1.5": 0, "L2": 0}
+    for rel in _OLD_DEV_WAVE_FILE_CAPS:
+        preamble, slices = _test_reference_slices(root, rel)
+        present = []
+        for layer, pairs in _TEST_DEV_WAVE_LAYERS.items():
+            sections = [section for path, section in pairs if path == rel]
+            if sections:
+                present.append(layer)
+                totals[layer] += sum(
+                    len(slices[section].encode()) for section in sections
+                )
+        totals[next(layer for layer in ("L1", "L1.5") if layer in present)] += preamble
+    return totals
+
+
+def _grow_test_section(
+    root: str,
+    rel: str,
+    section: str,
+    add_bytes: int,
+    *,
+    multibyte: bool = False,
+) -> None:
+    text = _read(root, rel)
+    match = re.search(
+        rf"^## {re.escape(section)}(?:\s+—[^\n]*)?\n.*?(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None and add_bytes >= 0
+    payload = "x" * add_bytes
+    if multibyte:
+        assert add_bytes >= 3
+        payload = "あ" + ("x" * (add_bytes - 3))
+    insertion = match.end()
+    while insertion > match.start() and text[insertion - 1] in "\r\n":
+        insertion -= 1
+    _write(root, rel, text[:insertion] + payload + text[insertion:])
+
+
+def _pad_test_operations_l2_to_bytes(root: str, target_bytes: int) -> None:
+    """L1/L1.5 と O20 を動かさず、operations の L2 節だけで全体を埋める。"""
+
+    rel = "docs/dev-wave/operations.md"
+    candidates = sorted(
+        section
+        for path, section in _TEST_DEV_WAVE_LAYERS["L2"]
+        if path == rel and section != "DW-O20"
+    )
+    remaining = target_bytes - len(_read(root, rel).encode())
+    assert remaining >= 0
+    for section in candidates:
+        _, slices = _test_reference_slices(root, rel)
+        section_bytes = len(slices[section].encode())
+        addition = min(remaining, 1_000 - section_bytes)
+        _grow_test_section(root, rel, section, addition)
+        remaining -= addition
+        if remaining == 0:
+            break
+    assert remaining == 0
+    assert len(_read(root, rel).encode()) == target_bytes
+    _, slices = _test_reference_slices(root, rel)
+    assert all(len(slices[section].encode()) <= 1_000 for section in candidates)
+
+
+def _grow_test_layer_to(root: str, layer: str, target: int) -> None:
+    current = _test_layer_bytes(root)[layer]
+    remaining = target - current
+    assert remaining >= 0
+    candidates = {
+        "L1": (
+            ("docs/dev-wave/core.md", "DW-C00"),
+            ("docs/dev-wave/mutation.md", "DW-M01"),
+            ("docs/dev-wave/operations.md", "DW-O23"),
+        ),
+        "L1.5": (
+            ("docs/dev-wave/workers.md", "DW-S02"),
+            ("docs/dev-wave/mutation.md", "DW-M02"),
+            ("docs/dev-wave/operations.md", "DW-O01"),
+        ),
+    }[layer]
+    for rel, section in candidates:
+        file_bytes = len(_read(root, rel).encode())
+        addition = min(remaining, _OLD_DEV_WAVE_FILE_CAPS[rel] - file_bytes)
+        _grow_test_section(root, rel, section, addition)
+        remaining -= addition
+        if remaining == 0:
+            break
+    assert remaining == 0
+
+
+@pytest.mark.parametrize("target_layer", ["l1", "l1_5", "l2_section"])
+def test_dev_wave_layer_budget_rejects_plus_one(target_layer):
     root = _build_min_repo()
     try:
-        _pad_to_bytes(root, rel, limit + 1)
+        if target_layer == "l1":
+            _grow_test_layer_to(root, "L1", 10_626)
+        elif target_layer == "l1_5":
+            _grow_test_layer_to(root, "L1.5", 9_567)
+        else:
+            _, slices = _test_reference_slices(
+                root, "docs/dev-wave/operations.md"
+            )
+            add_bytes = 1_001 - len(slices["DW-O04"].encode())
+            _grow_test_section(
+                root,
+                "docs/dev-wave/operations.md",
+                "DW-O04",
+                add_bytes,
+                multibyte=True,
+            )
+
+        layers = _test_layer_bytes(root)
+        expected = {
+            "l1": ("L1", 10_626, "L1 unique footprint 10626 bytes"),
+            "l1_5": ("L1.5", 9_567, "L1.5 unique footprint 9567 bytes"),
+            "l2_section": ("L2", None, "L2 節 DW-O04 が 1001 bytes"),
+        }[target_layer]
+        if expected[1] is not None:
+            assert layers[expected[0]] == expected[1]
+        assert layers["L1" if target_layer != "l1" else "L1.5"] < (
+            10_625 if target_layer != "l1" else 9_566
+        )
+        for rel, old_cap in _OLD_DEV_WAVE_FILE_CAPS.items():
+            assert len(_read(root, rel).encode()) <= old_cap
+        assert sum(len(_read(root, rel).encode()) for rel in _OLD_DEV_WAVE_FILE_CAPS) <= 25_200
+        if target_layer == "l2_section":
+            _, slices = _test_reference_slices(
+                root, "docs/dev-wave/operations.md"
+            )
+            assert len(slices["DW-O04"].encode()) == 1_001
+            assert len(slices["DW-O04"]) <= 1_000
         res = _run_check(root)
         assert res.returncode == 1, res.stdout
         assert _violation_count(res) == 1
-        assert (
-            f"{rel}: {limit + 1} bytes > 予算 {limit} bytes" in res.stdout
-        )
+        assert expected[2] in res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+_DEV_WAVE_CONDITIONALITY_CASES = (
+    "stage-u-to-c",
+    "stage-marker-missing",
+    "stage-unknown-mode",
+    "condition-always",
+)
+_DEV_WAVE_BARE_PATH_CASES = (
+    "stage-reference",
+    "condition-reference",
+    "self-reference",
+)
+_DEV_WAVE_SLICING_CASES = (
+    "fence",
+    "html-comment",
+    "raw-html",
+    "malformed-heading",
+)
+_DEV_WAVE_SHARED_EDGE_CASES = ("dw-ctx", "dw-o04")
+
+
+def _flat_reference_pairs(text: str) -> set[tuple[str, str]]:
+    pairs: set[tuple[str, str]] = set()
+    for line in text.splitlines():
+        if line.startswith("|"):
+            pairs.update(check_docs._dispatch_pairs_from_line(line)[0])
+    return pairs
+
+
+@pytest.mark.parametrize("case", _DEV_WAVE_CONDITIONALITY_CASES)
+def test_dev_wave_dispatch_conditionality_retyping_is_rejected(case):
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        before = _read(root, rel)
+        if case.startswith("stage-"):
+            replacement = {
+                "stage-u-to-c": "|C|",
+                "stage-marker-missing": "||",
+                "stage-unknown-mode": "|X|",
+            }[case]
+            _rewrite_matching_lines(
+                root,
+                rel,
+                lambda line: line.startswith("| wave 開始 |U|"),
+                lambda line: line.replace("|U|", replacement, 1),
+            )
+        else:
+            trigger = check_docs.CONDITION_TRIGGER_CONTRACT["01"]
+            _rewrite_matching_lines(
+                root,
+                rel,
+                lambda line: line.startswith("| 01 |"),
+                lambda line: line.replace(trigger, "常に", 1),
+            )
+        after = _read(root, rel)
+        assert _flat_reference_pairs(after) == _flat_reference_pairs(before)
+        _assert_violation(root, "dispatch")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    if case == "stage-marker-missing":
+        for replacement in ("|U/C|", "|"):
+            row_root = _build_min_repo()
+            try:
+                rel = ".claude/commands/dev-wave.md"
+                _rewrite_matching_lines(
+                    row_root,
+                    rel,
+                    lambda line: line.startswith("| wave 開始 |U|"),
+                    lambda line: line.replace("|U|", replacement, 1),
+                )
+                _assert_violation(row_root, "dispatch 表の構造が不一致")
+            finally:
+                shutil.rmtree(row_root, ignore_errors=True)
+        for old, new, needle in (
+            (
+                check_docs.DEV_WAVE_STAGE_DISPATCH_LEGEND,
+                "種別は U=毎回、C=条件 dispatch 成立時。",
+                "段 dispatch 凡例",
+            ),
+            (
+                check_docs.DEV_WAVE_STAGE_DISPATCH_HEADER,
+                "| 入る直前 | mode | 必ず読む節 |",
+                "段 dispatch header",
+            ),
+        ):
+            pin_root = _build_min_repo()
+            try:
+                rel = ".claude/commands/dev-wave.md"
+                text = _read(pin_root, rel)
+                assert text.count(old) == 1
+                _write(pin_root, rel, text.replace(old, new, 1))
+                _assert_violation(pin_root, needle)
+            finally:
+                shutil.rmtree(pin_root, ignore_errors=True)
+
+
+def test_dev_wave_condition_dispatch_header_mismatch_is_dedicated():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        header = check_docs.DEV_WAVE_CONDITION_DISPATCH_HEADER
+        assert text.count(header) == 1
+        _write(root, rel, text.replace(header, "| # | 条件 | 参照 |", 1))
+
+        result = _run_check(root)
+        assert result.returncode == 1, result.stdout
+        assert _violation_count(result) == 1, result.stdout
+        assert "条件 dispatch header が exact 1 件でない" in result.stdout
+        assert "条件 dispatch '#' が契約と不一致" not in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("case", _DEV_WAVE_BARE_PATH_CASES)
+def test_dev_wave_dispatch_rejects_bare_path(case):
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        if case == "stage-reference":
+            _rewrite_matching_lines(
+                root,
+                rel,
+                lambda line: line.startswith("| wave 開始 |U|"),
+                lambda line: line.removesuffix(" |\n")
+                + "; `docs/dev-wave/operations.md` 全文 |\n",
+            )
+        elif case == "condition-reference":
+            _rewrite_matching_lines(
+                root,
+                rel,
+                lambda line: line.startswith("| 01 |"),
+                lambda line: line.removesuffix(" |\n")
+                + "; `docs/dev-wave/core.md` 全文 |\n",
+            )
+        else:
+            text = _read(root, rel)
+            exact = "`docs/skill-self-improvement.md` の全節"
+            assert text.count(exact) == 1
+            _write(root, rel, text.replace(exact, "`docs/skill-self-improvement.md` 全文", 1))
+        _assert_violation(root, "節へ束縛されない path")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_dispatch_accepts_self_all_sections():
+    root = _build_min_repo()
+    try:
+        text = _read(root, ".claude/commands/dev-wave.md")
+        assert text.count("`docs/skill-self-improvement.md` の全節") == 1
+        dispatch = check_docs._dispatch_tables(text)
+        assert dispatch is not None
+        assert check_docs._SELF_SECTIONS <= dispatch.stage_unconditional[
+            "段 8 preflight"
+        ]
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_dispatch_rejects_unquoted_raw_path():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        _rewrite_matching_lines(
+            root,
+            rel,
+            lambda line: line.startswith("| wave 開始 |U|"),
+            lambda line: line.removesuffix(" |\n")
+            + "; docs/dev-wave/operations.md 全文 |\n",
+        )
+        result = _assert_violation(root, "参照 cell grammar が不一致")
+        assert _violation_count(result) == 1, result.stdout
+        assert "unquoted=['docs/dev-wave/operations.md']" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_dispatch_rejects_all_sections_on_non_self_path():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        anchor = (
+            "| 段 9 |U| `docs/dev-wave/operations.md`: `DW-O23` |\n"
+        )
+        old = "`docs/dev-wave/operations.md`: `DW-O23`"
+        new = "`docs/dev-wave/operations.md` の全節: `DW-O23`"
+        _replace_fragment_in_exact_line(root, rel, anchor, old, new)
+        result = _assert_violation(root, "参照 cell grammar が不一致")
+        assert _violation_count(result) == 1, result.stdout
+        assert "exact fragment 以外に の全節がある" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _replace_fragment_in_exact_line(
+    root: str,
+    rel: str,
+    anchor: str,
+    old: str,
+    new: str,
+) -> None:
+    before = _read(root, rel).splitlines(keepends=True)
+    assert before.count(anchor) == 1
+    assert anchor.count(old) == 1
+    replacement = anchor.replace(old, new, 1)
+    assert replacement != anchor
+
+    anchor_index = before.index(anchor)
+    after = [replacement if line == anchor else line for line in before]
+    changed_lines = [
+        index
+        for index, (old_line, new_line) in enumerate(zip(before, after))
+        if old_line != new_line
+    ]
+    assert changed_lines == [anchor_index]
+    assert after[anchor_index] == replacement
+    _write(root, rel, "".join(after))
+    assert _read(root, rel).splitlines(keepends=True) == after
+
+
+def _replace_stage_one_range(root: str, replacement: str) -> None:
+    rel = ".claude/commands/dev-wave.md"
+    anchor = (
+        "| 段 1 |U| `docs/dev-wave/core.md`: `DW-G01`, `DW-G02`, "
+        "`DW-G03`, `DW-G04`, `DW-G05`, `DW-S01` |\n"
+    )
+    old = "`DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05`"
+    _replace_fragment_in_exact_line(root, rel, anchor, old, replacement)
+
+
+def test_dev_wave_dispatch_rejects_range_marker_inside_annotation():
+    root = _build_min_repo()
+    try:
+        _replace_stage_one_range(
+            root, "`DW-G01`（説明〜補足）, `DW-G05`"
+        )
+        result = _assert_violation(root, "段 dispatch '段 1' の U edge が契約と不一致")
+        assert "DW-G02" in result.stdout and "DW-G04" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_dispatch_rejects_ascii_tilde_inside_url():
+    root = _build_min_repo()
+    try:
+        _replace_stage_one_range(
+            root, "`DW-G01`（https://x/~u）, `DW-G05`"
+        )
+        result = _assert_violation(root, "段 dispatch '段 1' の U edge が契約と不一致")
+        assert "DW-G02" in result.stdout and "DW-G04" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_dispatch_accepts_exact_range_delimiter():
+    cell = "`docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`"
+    pairs, paths = check_docs._dispatch_pairs_from_line(cell)
+    assert paths == {"docs/dev-wave/operations.md"}
+    assert pairs == {
+        ("docs/dev-wave/operations.md", f"DW-O{i:02d}")
+        for i in range(1, 7)
+    }
+
+    root = _build_min_repo()
+    try:
+        assert cell in _read(root, ".claude/commands/dev-wave.md")
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("case", _DEV_WAVE_SLICING_CASES)
+def test_dev_wave_layer_slicing_ignores_fenced_heading(case):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/core.md"
+        text = _read(root, rel)
+        heading = "## DW-C00 — synthetic\n\nbody"
+        assert text.count(heading) == 1
+        if case == "malformed-heading":
+            _write(root, rel, text.replace(
+                "## DW-C00 — synthetic", "## DW-C00—", 1
+            ))
+            result = _assert_violation(root, "可視 H2 DW-C00 と byte slice が1:1でない")
+            assert _violation_count(result) == 1, result.stdout
+            return
+        injected = {
+            "fence": "\n\n```text\n## DW-X99 — hidden\n```",
+            "html-comment": "\n\n<!--\n## DW-X99 — hidden\n-->",
+            "raw-html": "\n\n<div>\n## DW-X99 — hidden\n</div>\n",
+        }[case]
+        _, before_slices, _ = check_docs._visible_reference_slices(text)
+        _write(root, rel, text.replace(heading, heading + injected, 1))
+        _, after_slices, _ = check_docs._visible_reference_slices(
+            _read(root, rel)
+        )
+        assert set(after_slices) == set(before_slices)
+        assert len(after_slices["DW-C00"]) == 1
+        assert (
+            len(after_slices["DW-C00"][0].encode())
+            - len(before_slices["DW-C00"][0].encode())
+            == len(injected.encode())
+        )
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_layer_coverage_rejects_anonymous_visible_h2_only():
+    """1:1 malformed-heading とは別入力・別理由で coverage 比較だけを赤にする。"""
+
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/core.md"
+        text = _read(root, rel)
+        marker = "## DW-G01 — synthetic"
+        assert text.count(marker) == 1
+        anonymous = "## — anonymous\n\nunclassified body\n\n"
+        _write(root, rel, text.replace(marker, anonymous + marker, 1))
+        result = _assert_violation(
+            root, "分類済み節 + preamble が実 bytes を被覆しない"
+        )
+        assert _violation_count(result) == 1, result.stdout
+        assert "可視 H2" not in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("case", _DEV_WAVE_SHARED_EDGE_CASES)
+def test_dev_wave_shared_reference_edges_are_typed(case):
+    root = _build_min_repo()
+    try:
+        dispatch = check_docs._dispatch_tables(
+            _read(root, ".claude/commands/dev-wave.md")
+        )
+        assert dispatch is not None and not dispatch.structure_errors
+        target = {
+            "dw-ctx": ("docs/dev-wave/core.md", "DW-CTX"),
+            "dw-o04": ("docs/dev-wave/operations.md", "DW-O04"),
+        }[case]
+        actual = {
+            (owner, mode)
+            for owner, mode, path, section in dispatch.edges
+            if (path, section) == target
+        }
+        expected = {
+            "dw-ctx": {("段 9", "U"), ("条件 21", "C"), ("条件 22", "C")},
+            "dw-o04": {("段 5", "C"), ("段 6", "C"), ("条件 04", "C")},
+        }[case]
+        assert actual == expected
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_l2_accepts_dw_o20_plus_154_bytes():
+    """O20 +154 後に旧 operations cap 8,400 bytes を跨いでも受理する。"""
+
+    root = _build_min_repo()
+    try:
+        _, before = _test_reference_slices(root, "docs/dev-wave/operations.md")
+        _grow_test_section(
+            root,
+            "docs/dev-wave/operations.md",
+            "DW-O20",
+            489 - len(before["DW-O20"].encode()),
+        )
+        _, before = _test_reference_slices(root, "docs/dev-wave/operations.md")
+        assert len(before["DW-O20"].encode()) == 489
+        legacy_cap = _OLD_DEV_WAVE_FILE_CAPS["docs/dev-wave/operations.md"]
+        _pad_test_operations_l2_to_bytes(root, legacy_cap - 154 + 1)
+        before_file_bytes = len(
+            _read(root, "docs/dev-wave/operations.md").encode()
+        )
+        assert before_file_bytes == legacy_cap - 154 + 1
+        _grow_test_section(
+            root, "docs/dev-wave/operations.md", "DW-O20", 154
+        )
+        _, after = _test_reference_slices(root, "docs/dev-wave/operations.md")
+        assert len(after["DW-O20"].encode()) == 643
+        after_file_bytes = len(
+            _read(root, "docs/dev-wave/operations.md").encode()
+        )
+        assert after_file_bytes == before_file_bytes + 154
+        assert after_file_bytes > legacy_cap
+        layers = _test_layer_bytes(root)
+        assert layers["L1"] <= 10_625
+        assert layers["L1.5"] <= 9_566
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_new_gate_case_registration_is_complete():
+    """F42: 新しい parametrize 外延と M1〜M12 の KILL node 名を固定する。"""
+
+    assert _DEV_WAVE_CONDITIONALITY_CASES == (
+        "stage-u-to-c", "stage-marker-missing", "stage-unknown-mode", "condition-always",
+    )
+    assert _DEV_WAVE_BARE_PATH_CASES == (
+        "stage-reference", "condition-reference", "self-reference",
+    )
+    assert _DEV_WAVE_SLICING_CASES == (
+        "fence", "html-comment", "raw-html", "malformed-heading",
+    )
+    assert _DEV_WAVE_SHARED_EDGE_CASES == ("dw-ctx", "dw-o04")
+    source = _read(_REPO, "orchestrator/tests/test_check_docs.py")
+    for test_name in (
+        "test_dev_wave_layer_budget_rejects_plus_one",
+        "test_dev_wave_dispatch_conditionality_retyping_is_rejected",
+        "test_dev_wave_condition_dispatch_header_mismatch_is_dedicated",
+        "test_dev_wave_dispatch_rejects_bare_path",
+        "test_dev_wave_dispatch_rejects_unquoted_raw_path",
+        "test_dev_wave_dispatch_rejects_all_sections_on_non_self_path",
+        "test_dev_wave_dispatch_rejects_range_marker_inside_annotation",
+        "test_dev_wave_dispatch_rejects_ascii_tilde_inside_url",
+        "test_dev_wave_dispatch_accepts_exact_range_delimiter",
+        "test_dev_wave_layer_slicing_ignores_fenced_heading",
+        "test_dev_wave_layer_coverage_rejects_anonymous_visible_h2_only",
+        "test_dev_wave_shared_reference_edges_are_typed",
+        "test_dev_wave_l2_accepts_dw_o20_plus_154_bytes",
+    ):
+        assert source.count(f"def {test_name}(") == 1
 
 
 def test_tools_readme_is_enumerated_and_budgeted():
@@ -4232,14 +4816,6 @@ def _mutate_command_guard(root: str, case: str) -> None:
                 ".claude/commands/rulings.md"
             ].max_bytes + 1,
         )
-    elif case == "reference_byte_over":
-        _pad_to_bytes(
-            root,
-            "docs/dev-wave/mutation.md",
-            check_docs.REFERENCE_LIMITS[
-                "docs/dev-wave/mutation.md"
-            ].max_bytes + 1,
-        )
     elif case == "self_byte_over":
         _pad_to_bytes(
             root,
@@ -4590,9 +5166,6 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _write(root, "docs/dev-wave/appendix/extra.md", "# extra\n")
     elif case == "non_md_reference":
         _write(root, "docs/dev-wave/extra.txt", "extra\n")
-    elif case == "aggregate_over":
-        for rel, limit in check_docs.REFERENCE_LIMITS.items():
-            _pad_to_bytes(root, rel, limit.max_bytes - 1)
     elif case == "invalid_utf8":
         path = os.path.join(root, "docs/dev-wave/core.md")
         with open(path, "wb") as f:
@@ -4621,7 +5194,6 @@ def _mutate_command_guard(root: str, case: str) -> None:
 
 _COMMAND_GUARD_CASES = [
     "command_byte_over",
-    "reference_byte_over",
     "self_byte_over",
     "long_line",
     "unregistered_command",
@@ -4682,7 +5254,6 @@ _COMMAND_GUARD_CASES = [
     "fifth_reference",
     "nested_reference",
     "non_md_reference",
-    "aggregate_over",
     "invalid_utf8",
     "symlink",
     "non_regular",
@@ -4692,7 +5263,6 @@ _COMMAND_GUARD_CASES = [
 
 _COMMAND_GUARD_NEEDLES = {
     "command_byte_over": "bytes > 予算",
-    "reference_byte_over": "bytes > 予算",
     "self_byte_over": "bytes > 予算",
     "long_line": "最長行予算",
     "unregistered_command": "command byte予算が未登録",
@@ -4704,13 +5274,13 @@ _COMMAND_GUARD_NEEDLES = {
     "disable_value_changed": "disable-model-invocation は 'true' 必須",
     "reference_section_deleted": "H2 見出し DW-M05 が 0 件",
     "reference_section_duplicated": "H2 見出し DW-M05 が 2 件",
-    "stage2_operations_deleted": "段 dispatch '段 2' が契約と不一致",
-    "stage3_o13_deleted": "段 dispatch '段 3' が契約と不一致",
-    "stage6_s05_inheritance_deleted": "段 dispatch '段 6' が契約と不一致",
-    "stage6_all_operations_deleted": "段 dispatch '段 6' が契約と不一致",
-    "stage8_operations_deleted": "段 dispatch '段 8' が契約と不一致",
-    "stage8_self_deleted": "段 dispatch '段 8' が契約と不一致",
-    "stage9_land_operation_deleted": "段 dispatch '段 9' が契約と不一致",
+    "stage2_operations_deleted": "段 dispatch '段 2 preflight' の U edge が契約と不一致",
+    "stage3_o13_deleted": "段 dispatch '段 3 preflight' の U edge が契約と不一致",
+    "stage6_s05_inheritance_deleted": "段 dispatch '段 6' の U edge が契約と不一致",
+    "stage6_all_operations_deleted": "段 dispatch '段 6' の C edge が契約と不一致",
+    "stage8_operations_deleted": "段 dispatch '段 8 preflight' の C edge が契約と不一致",
+    "stage8_self_deleted": "段 dispatch '段 8 preflight' の U edge が契約と不一致",
+    "stage9_land_operation_deleted": "段 dispatch '段 9' の U edge が契約と不一致",
     "condition_o13_deleted": "条件 dispatch '13' が契約と不一致",
     "condition_all_operations_deleted": "条件 dispatch '01' が契約と不一致",
     "condition_supervisor_deleted": "条件 dispatch '22' が契約と不一致",
@@ -4750,10 +5320,9 @@ _COMMAND_GUARD_NEEDLES = {
     "codex_rulings_skill_name_changed": "name は 'rulings' 必須",
     "codex_rulings_skill_adapter_deleted": "Codex adapter 契約がない",
     "codex_rulings_skill_openai_changed": "生成済み Skill interface 契約と不一致",
-    "fifth_reference": "docs/dev-wave/** の予算未登録実体",
-    "nested_reference": "docs/dev-wave/** の予算未登録実体",
-    "non_md_reference": "docs/dev-wave/** の予算未登録実体",
-    "aggregate_over": "hard ceiling",
+    "fifth_reference": "docs/dev-wave/** の層予算registry未登録実体",
+    "nested_reference": "docs/dev-wave/** の層予算registry未登録実体",
+    "non_md_reference": "docs/dev-wave/** の層予算registry未登録実体",
     "invalid_utf8": "invalid UTF-8",
     "symlink": "symlink または regular file 以外",
     "non_regular": "symlink または regular file 以外",
@@ -4766,6 +5335,9 @@ _COMMAND_GUARD_EXPECTED_COUNTS = {
 _COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = len(
     _OPERATION_CONDITION_KEYS
 )
+_COMMAND_GUARD_EXPECTED_COUNTS.update({
+    "dispatch_allowlist": 2,
+})
 
 
 def test_command_guard_case_registration_is_complete():
@@ -6270,7 +6842,7 @@ def test_missing_enumerated_doc_is_violation():
         rels = _enumerated_rels()
         assert rels, "列挙対象が空 — _ENUMERATED_DOCS の抽出に失敗している"
         governed = {
-            *check_docs.REFERENCE_LIMITS,
+            *check_docs.DEV_WAVE_REFERENCE_FILES,
             *check_docs.SELF_LIMITS,
             *check_docs.PROVENANCE_LIMITS,
         }

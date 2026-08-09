@@ -856,6 +856,22 @@
   見て緑と誤読しかけた。dispatch の `result.json` の `child_rc=1` を突き合わせて実測前に検出し、
   偽緑の記録には至っていない (near miss)。以後の受入・変異走行は rc をパイプに通さず
   ファイルへ直接取得した。
+
+- **再発: 2026-08-09 (3 例が同日・独立)** — [T-139] R4 probe wave の親が
+  `check_ai_provenance.py 2>&1 | tail -5; echo "rc=$?"` で `tail` の rc を読み、
+  **22 commit を形式違反のまま main へ land**した。[T-659] の親は `| tail -2` で末尾 2 行だけを
+  見て緑と誤判定し 1 件 land。t316 design の親は `| grep -E … | head -1` で、grep がたまたま
+  件数行に当たって検出した (rc では捕まえていない)。`DW-O17` は既に単独 rc を要求しており
+  規約の不足ではなく遵守漏れだが、**文章による注意喚起は 3 例とも防げていない**。
+  ユーザー裁定 (2026-08-09、rulings-inbox `2026-08-09-t659-provenance-and-f37-rulings.md`) により
+  **機械強制へ移した** — `tools/dev_wave_land.py` が ff-only を行う land でだけ全史 provenance 監査を
+  自ら走らせ、赤なら `RC_PROVENANCE = 29` で拒否する (D254)。
+  逃がし道は作らない。**設計は敵対検証 4 本 (段 3 の 2 レンズ、段 6 の 2 レビュー) が全部 NO-GO を
+  返したため 2 度組み直した。**親の当初案は (i) 監査を lock 内に置き `lock-busy` の即時性を壊す、
+  (ii) 38.3 秒という単発観測を lock 予算の根拠にする (実際は dispatch 経路で queue 900s +
+  walltime 2400s + grace 300s を含みうる)、(iii)「active fold recovery は新規 commit を 1 つも
+  admit しない」という**偽の署名**を書く、の 3 点で誤っていた。逐語は
+  `output/insights/2026-08-09_t139-f37-land-gate/`。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -4345,3 +4361,60 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   親は**単一ファイルではなく guard を含む組み合わせ**で実走する。
   単一ファイル実走の緑は本型を検出しない (今回、子は 14 passed / 26 passed を報告していたが
   組み合わせ実走で初めて赤が出た)。
+
+### F179. 受入 lease に待ち行列が無く、待ち周期が短い側が有利だった [手順漏れ] [コンテキスト浪費]
+
+- 事象: 並行 dev-wave が受入 lease を待つとき、待ち周期が短い側が release 直後の競争に勝つ。
+  同日 2026-08-09 に独立 2 例 — [T-648] wave が 2 時間 15 分 (holder 5 回交替、60 秒周期が
+  90 分空振り)、[T-671] wave が約 4 時間 (holder 5 回交替、120 秒周期の待ち手が 2 度空振りし、
+  45 秒周期へ詰めて取得)。待つ側は local main を都度取り込み直すため、待ち時間ぶん検査と
+  base digest の再基準化が増える。
+- 根本原因: D239 の lease は `O_CREAT|O_EXCL` の 1 発勝負だけで、**待機者が状態としてどこにも
+  残らない**。本 wave が既存 CLI だけで再現した — A が取得、B が `held`、A が release、
+  直後に来た C が `acquired` を取り、lease directory には `acceptance.lease` 以外に
+  1 byte も残っていなかった。
+- 恒久対応: D253 の待ち札方式待ち行列
+  (`tools/wave_land_window.py` の `_queue_head` / `_ensure_ticket` / `_drop_ticket_best_effort`)。
+  運用契約は `docs/pegasus-runbook.md` §7.3 に「30〜120 秒周期の loop」「待ち札は 300 秒で失効」
+  として明記した。
+- 再発検知: `orchestrator/tests/test_wave_land_window.py` の
+  `test_fifo_oldest_waiter_acquires_before_fast_newcomer` ほか。変異 matrix 10 件で
+  SURVIVED 0 を実測済み (`output/insights/2026-08-09_t684-lease-fifo/mutation-ledger.json`)。
+
+### F180. 待ち行列の初版は先頭が自分で全 wave を止められた [恒真ゲート] [手順漏れ]
+
+- 事象: 段 2 プランと段 5 実装は、先頭の待ち札を持つ wave が lease を作れないまま heartbeat を
+  続けられる形になっていた。この wave は毎回先頭のまま、後続は永久に `queued` を返され、
+  待ち札 TTL でも回復しない。**不公平を直すはずの機構が、より重い停止を作っていた。**
+  段 5 実装では別経路も成立した — 自分の待ち札を登録できない wave が `queued` を返し続け、
+  一度も従来の競争へ落ちない。
+- 根本原因: 「異常時は縮退する」という原則を段 2 プランが**待ち札 1 枚の異常にだけ**適用し、
+  自分が列に並べない場合と、先頭が取得に失敗し続ける場合に適用していなかった。
+  段 5 実装の `_drop_ticket_best_effort` は flock 取得に依存し、失敗を
+  `except Exception: pass` で握り潰していたため、生きた先頭札を残したまま `unavailable` を返せた。
+- 恒久対応: D253 の不変条件「非 `acquired` を返す `claim` は
+  自分が先頭のまま生きた待ち札を残さない」と、縮退の発火条件を 3 つに明文化したこと。
+  待ち札の削除は flock 非依存にし、成否を返す形にした。
+- 再発検知: `test_head_that_cannot_create_lease_drops_own_ticket` と、変異 M4
+  (V1 の cleanup を外す) が KILLED であること。段 3・段 6 とも敵対レビュー 2 本を独立レンズで
+  回し、いずれも NO-GO を返してこの経路を見つけた — **レビューを 1 本に減らしていたら
+  land していた**。
+
+### F181. dispatch の範囲記法が注記・URL の `~` でも展開し、読了 edge を捏造していた [恒真ゲート]
+
+- 事象: `tools/check_docs.py` の dispatch 表 parser は、隣接する 2 つの節 token の間に
+  `〜` または `~` が**一文字でも**あれば範囲記法とみなして中間の節をすべて展開していた。
+  そのため `` `DW-G01`（説明〜補足）, `DW-G05` `` や `` `DW-G01`（https://x/~u）, `DW-G05` `` のように、
+  人間には 2 節の列挙にしか見えない表記でも、checker は `DW-G02`〜`DW-G04` を
+  **読了済み edge として生成**した。必須参照集合の充足検査はその捏造された edge で緑になる。
+- 根本原因: 範囲判定が `re.search(r"[〜~]", between)` の部分一致で、
+  token 間文字列全体に対する完全一致でなかった。範囲記法は「区切り」であって
+  「どこかに現れる文字」ではない、という区別が実装に落ちていなかった。
+- 恒久対応: 範囲 delimiter を `re.fullmatch(r"[ \t]*〜[ \t]*", between)` 相当の完全一致に限定した
+  (D255 の両方向照合の一部)。
+  `docs/dev-wave/**` の層予算はこの edge 集合から導出されるため、捏造は予算値も歪めていた。
+- 再発検知: `orchestrator/tests/test_check_docs.py` の負例
+  `test_dev_wave_dispatch_rejects_range_marker_inside_annotation` と
+  `test_dev_wave_dispatch_rejects_ascii_tilde_inside_url`、および正規の
+  `` `DW-O01`〜`DW-O06` `` が引き続き展開されることを固定する正例。
+  いずれも fails-closed のテストで、変異 matrix の M04 が同 node を KILL する。

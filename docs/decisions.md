@@ -11610,3 +11610,159 @@ assert は注入した障害が保証する内容とメッセージ構造だけ�
   両方を持つ方針は維持しつつ、prefix 側を第一の防壁とする。
 - 改行をすべて escape して 1 行に潰す — consumer は守れるが、4 KiB 級の 1 行になり
   人間が traceback 構造を読めない。診断が「届く」ことの意味を満たさない。
+
+## D253. 受入 lease に待ち札方式の待ち行列を入れ、異常時は公平性を捨てて縮退する (2026-08-09)
+
+**決定:** 並行 dev-wave の受入 lease (D239) に、公平な待ち行列 (FIFO 相当) を入れる。待機者ごとに
+lease directory 内へ待ち札 `ticket.<sha256(wave)[:12]>` を 1 枚作る。到着順は待ち札 payload の
+`queued_at_ns` で決め、この値は `O_CREAT|O_EXCL` が成功した直後の inode mtime から採る
+(process が事前に採番できないので、作成を遅らせた側が古い時刻を先取りできない)。生存判定は
+ファイル mtime の heartbeat で行い、到着順とは分離する。lease が空いたとき、最古の待ち札を持つ
+wave だけが取得でき、それ以外は新しい state `queued` を受け取る。
+
+**停止しないことを公平性より優先する。** 待ち行列を扱えない状況では待ち行列を捨てて、
+D239 導入時の「先着競争」へ縮退する。縮退の発火条件は 3 つだけとする。
+
+1. 待ち札ディレクトリの走査そのものが失敗した
+2. 走査した entry が 4096 件、または待ち札が 64 枚を超えた
+3. **自分の待ち札を登録できなかった** — 列に並べない以上、順序づけられないので競争へ戻す
+
+**異常な待ち札 1 枚では待ち行列全体を壊さない。** 読めない・壊れている・所有者が違う待ち札は、
+その 1 枚だけを順序候補から外す。持ち主が順番を失うだけで、他の wave は影響を受けない。
+
+**不変条件:** 非 `acquired` を返す `claim` は、自分が先頭のまま生きた待ち札を残してはならない
+(`held` は先頭のまま待つのが正しいので例外)。放棄された待ち札は最後の `claim` から 300 秒で失効する。
+
+**理由:**
+
+- **最も重い失敗様式は不公平ではなく停止である。** 先頭の待ち札を持つ wave が lease を作れない
+  まま heartbeat を続けると、全 wave の受入が永久に止まる。この経路は段 3・段 6 の敵対レビューが
+  独立に指摘し、いずれも実コードから成立させた。不公平は待ち時間が延びるだけで、成果物の値は
+  変わらない。
+- **到着順と生存を同じ mtime に持たせられない。** 周期 `claim` を heartbeat にすると、
+  mtime を順序キーにした瞬間に「よく呼ぶ側が新しく見える」ため順序が消える。
+  到着順は内容へ、生存は mtime へ分ける必要がある。
+- 待ち札 1 枚の異常で全体を degrade する設計は、先頭が heartbeat 中に 1 回 lock 競合しただけで
+  待ち行列が消え、後着が取得できてしまう。逆に異常な待ち札を先頭の障害物として扱う設計は、
+  壊れた 1 枚で全 wave が最大 300 秒止まる。**1 枚だけ外す**のが両方を避ける唯一の形である。
+
+**land の権威は変えない (D239 から不変)。** 待ち行列も advisory である。`acquired` の意味、
+lease payload、`status` と `message` の挙動、TTL 2400 秒の境界、CLI の rc 意味論は変えない。
+`status` は待ち札を読まない・触らない・消さない (読むと heartbeat になって放棄札を延命するため)。
+
+**却下した選択肢:**
+
+- **単一の queue ファイルへ追記する** — read-modify-write と破損時の再構築、専用 mutex が要る。
+  1 待機者 1 ファイルなら `O_EXCL` と inode 同一性検査だけで済み、突然死の面が増えない。
+- **`held` を流用して `queued` を作らない** — 存在しない lease holder と `main_sha` を
+  返すことになり、二義的になる。
+- **待ち行列が壊れたら受入を止める (fail-closed)** — 本機構は advisory であり、止めれば
+  D239 導入前より悪化する。縮退先は必ず「待ち行列なし」= 現行挙動とする。
+- **rc の意味論を変えて非 `acquired` を非 0 にする** — 実在する repo 外の待ち手 script を
+  壊しうるため本 wave では採らず、択一として裁定へ返した。
+
+**受容した限界:** (i) mtime 粒度内の同着は holder digest で決定的に割るため厳密 FIFO ではない。
+(ii) 旧版 `claim` を走らせる wave は待ち札を無視するので、混在中は公平性を保証しない
+(退行はせず、待ち行列が無い状態へ戻るだけ)。(iii) 非協調な同一 uid process に対する
+`_same_entry` と `unlink` の間の TOCTOU は現行 lease 経路と同じで、advisory 境界のまま。
+(iv) **FIFO が保証するのは「後着が先着を追い越さない」ことだけで、待ち時間の上界ではない。**
+待ち時間は待ち行列の長さと受入 1 回の所要 (1055〜1338 秒) に比例し、release 忘れが連鎖すれば
+lease TTL 2400 秒に比例する。
+
+## D254. land の ff-only だけに全史 provenance 監査を課し、no-op と recovery は監査しない (2026-08-09)
+
+**決定:** `tools/dev_wave_land.py` は、**これから ff-only を行う land** =
+`locked_main != tested_tip` のときだけ、全史 provenance 監査を自ら走らせて rc を確認する。
+赤なら `RC_PROVENANCE = 29` で拒否し、main を 1 bit も変えない。逃がし道 (CLI flag、環境変数、
+「赤でも警告だけ」) は作らない。監査は **lock を解放してから**実行し、lock を取り直して
+全検査をやり直す。receipt は `tip_sha` / `checker_blob_sha` / `executed_bytes_sha` /
+`returncode` を束縛し、lock 内で再照合する。timeout は 480 秒。
+
+`already-landed` の no-op と active fold transaction の recovery は**監査を起動しない**。
+
+**D239 の「land の権威は変えない。lock・ff-only・監査は不変」を、本 D が supersede する。**
+D239 の他の決定 (受入窓の lease による直列化、通知の advisory 性) は変わらない。
+D239 が「land へ新しい直列化機構を足す理由はない」と述べたのは lease の設計判断であり、
+本 D が足すのは直列化機構ではなく受理条件である。
+
+**理由:**
+- 検査 rc をパイプで喪失する型 (F37) が同日・3 wave・3 親で独立に再発し、
+  実害は 22 commit / 1 commit / 検出は偶然だった。`DW-O17` は既に単独 rc を要求しており、
+  **文章による注意喚起では防げないことが実測で確定した。**
+- 効かせる場所を land の関門にするのはユーザー裁定である。3 例とも「気づかず land した」ことで
+  被害が出たため、ここで止めれば親の習慣に依存しない。
+- **監査を lock の外へ出す**のは、checker が login 完結せず Pegasus 計算ノードへ dispatch
+  しうるためである。dispatch 既定は queue 900 秒 + walltime 2400 秒 + grace 300 秒で、
+  lock 内に置くと global な land lock を最大で数十分保持する。lock は `LOCK_EX|LOCK_NB` なので、
+  その間の並行 wave は `lock-busy` で弾かれ続ける。同時に、lock を先に取ることで
+  「lock 保持中は 2 秒未満で `lock-busy` を返す」既存契約と D102 の順序を保つ。
+- **監査した木と land する木の同一性**は commit SHA と checker blob/実行 bytes の SHA で束縛する。
+  同じ commit SHA は同じ superproject tree を表すため、lock 内で SHA が変わっていないことを
+  確かめれば足りる。監査前後で main/wave の HEAD・collision path 集合・control-plane identity も
+  照合し、checker の副作用で受理集合が広がる経路を塞ぐ。
+- **no-op と recovery を除外する**のは、どちらも `locked_main == tested_tip` = wave の commit が
+  既に main に入っている状態でしか到達せず、**新しい commit を admit しない**ためである。
+  recovery は fold commit を作るが、それは既に admit 済みの commit に対する記帳である。
+  除外しないと `already-landed` の idempotency が壊れ、途中状態の canonical 3 台帳が固着する。
+- 実行体を wave tip 側の checker にするのは、self-weakening を許容するからではなく
+  **main 側では機能しないから**である。checker は repo root を cwd でなく
+  `Path(__file__).resolve().parent.parent` から決めるため、ff-only 前の main 側実行体は
+  main の履歴しか監査せず tip を一切見ない。既知違反台帳も実行体のソース内定数なので、
+  main 側実行体は既知違反を新規登録する wave を恒久 deadlock させる。
+
+**却下した選択肢:**
+- **監査を lock 内に置く** — 敵対検証 2 本が独立に blocker とした。global lock を dispatch の
+  queue 待ちごと保持し、並行 wave を連鎖的に `lock-busy` へ落とす。
+- **`--range` で軽くする** — `DW-O17` の「range は補助で、correction を含むときは full 監査だけが
+  権威」と衝突する。
+- **timeout 3900 秒** — 受入 lease の TTL 2400 秒と親の前景 600 秒上限の双方を破る。
+  滞留時は fail-fast で拒否し再試行に回す方が、lease を失効させるより害が小さい。
+- **hook / wrapper script による強制** — wrapper は使わなければ迂回でき、hook は Claude の
+  Bash 面しか見ない。ユーザー裁定が land の関門を指定した。
+- **recovery も含めて一律に監査する** — 台帳が before/after 混在で固着する。
+  admit をしない経路を止めても違反は 1 件も防げない。
+- **逃がし道を残す** — 規律 2 が名指しする reward hack の形であり、D95 と同型。
+
+**閉じない残余 (別 scope):** tip 側の land helper と checker が可変であるという協調境界そのもの。
+`tools/dev_wave_land.py` は自らを「悪意ある writer に対する sandbox ではない」と宣言しており、
+親は既に tip 側 helper を実行している。本 D は**この境界を悪化させないが解消もしない**。
+land 経路を通らない main 更新も覆わない。immutable trust root の設計はユーザー裁定へ返した。
+
+## D255. dev-wave docs の予算を file 別から層 scope へ移す (2026-08-09)
+
+**決定:** `docs/dev-wave/**` の byte 予算を、file 別 cap 4 本と集約 hard ceiling から、
+**読了トリガで決まる 3 層の予算**へ置き換える。
+
+- L1 (常に読む = wave 開始・段 1・4・7・8・9 の無条件節 + 該当 file の preamble): 固定上限。
+- L1.5 (wave クラス依存 = 段 2・3・5・6 の無条件節): 固定上限。
+- L2 (条件成立時だけ読む節): **byte の集約上限を持たない。単節 cap だけを持つ。**
+
+層分類は入口 command の段 dispatch 表の種別 marker (`U` = 無条件 / `C` = 条件成立時) から
+機械的に導出し、checker 側の typed contract と**両方向で照合**する。片方だけの編集で分類が
+動く経路を残さない。節の byte 計測は**可視 H2 の位置**で切り、
+「分類済み bytes + 算入 preamble == 実 bytes」と「可視の登録済み H2 と slice の 1:1 対応」を
+併置する。L2 の剪定は byte 数でなく `docs/skill-self-improvement.md` の routing 3 が定める
+「発火実績なし × テスト/機械検査で義務代替済み × ユーザー裁定」で行う。
+
+**理由:**
+
+- 旧予算が縛っていたのは「ファイルの大きさ」であって、実際に制約したかった
+  「毎回読まされる規則の量」ではなかった。常に読む節だけを厳しく縛れば、新しい義務は
+  「条件付きにする」方向へ誘導される (forcing function)。
+- 集約上限は、条件成立時にしか読まない節の増加まで一律に止めていた。増枠ではなく
+  「常に読まない部分を予算対象から外す」構造変更であり、上限値は上げない。
+- 分類を人間の散文修飾 (「成立した条件の」等) に置くと、修飾語を消すだけで層を移せる。
+  marker を機械可読にして両方向照合しない限り、層 cap は迂回できる。
+- 節の切り出しを raw の行頭 `## ` で行うと、fence や HTML comment 内の偽見出しが境界になり、
+  その後ろの本物の常時読了本文が未分類になる。合計一致だけの不変条件は恒真でこれを検出しない。
+
+**却下した選択肢:**
+
+- file 別 cap を残したまま集約だけ外す — 条件節はすべて 1 ファイルに集まっており、
+  そのファイルの残余が数十 bytes しかないため、裁定の趣旨 (条件節を予算対象から外す) を満たさない。
+- file 別 cap を L1/L1.5 の hot slice にだけ適用する第三案 — 層 cap が同じ形状 (層内での交換のみ) を
+  既に守る一方、根拠となる現在値を持たない pin が 4 本増えて drift 面が広がる。
+- 節の切り出しを可視 scanner へ全面的に置き換える — byte 予算以外の受理集合まで双方向に変わる。
+  本決定は**境界の位置だけ**を可視判定に合わせ、既存の見出し検査は変更しない。
+- 期待値を変異の実測結果に合わせて書き換える — 過剰決定の変異は、期待 node を実測へ寄せるのでなく
+  冗長 gate と明記して単独変異の証拠から外す。
