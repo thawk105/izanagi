@@ -1,0 +1,228 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 4,
+  "timeout_seconds": 30,
+  "hang_timeout_seconds": 15,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST = 0.0086",
+          "new": "GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST = 0.00086"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_constants_match_preregistered_measurement",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[legal-linear-example]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[max-batch-requests]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[above-max-batch-requests]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[no-trailing-lf]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[not-byte-length]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[lf-framing-only]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_never_exceeds_absolute_cap"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "GIT_TIMEOUT_SECONDS = 15.0",
+          "new": "GIT_TIMEOUT_SECONDS = 14.0"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_constants_match_preregistered_measurement",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[no-stdin]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[empty-stdin]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[legal-linear-example]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[no-trailing-lf]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[not-byte-length]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[lf-framing-only]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "GIT_TIMEOUT_CAP_SECONDS = 300.0",
+          "new": "GIT_TIMEOUT_CAP_SECONDS = (\n    GIT_TIMEOUT_SECONDS\n    + MAX_BATCH_REQUESTS * GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_constants_match_preregistered_measurement",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[max-batch-requests]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[above-max-batch-requests]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": true
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "    return min(\n        GIT_TIMEOUT_SECONDS + requests * GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST,\n        GIT_TIMEOUT_CAP_SECONDS,\n    )",
+          "new": "    return (\n        GIT_TIMEOUT_SECONDS + requests * GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST\n    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[max-batch-requests]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[above-max-batch-requests]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_never_exceeds_absolute_cap"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": true
+    },
+    {
+      "id": "M05",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "    requests = min(requests, MAX_BATCH_REQUESTS)",
+          "new": "    requests = requests"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_clamps_requests_before_rate_amplification"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "        requests = stdin.count(b\"\\n\") + int(not stdin.endswith(b\"\\n\"))",
+          "new": "        requests = len(stdin)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[legal-linear-example]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[no-trailing-lf]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[not-byte-length]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[lf-framing-only]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": true
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "        requests = stdin.count(b\"\\n\") + int(not stdin.endswith(b\"\\n\"))",
+          "new": "        requests = stdin.count(b\"\\n\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[no-trailing-lf]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[not-byte-length]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[lf-framing-only]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "                timeout=timeout_seconds,",
+          "new": "                timeout=GIT_TIMEOUT_SECONDS,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_uses_one_internal_budget_and_preserves_timeout_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "            completed = subprocess.run(\n                [\"git\", *_GIT_HARDEN, *args],\n                cwd=root,\n                input=stdin,\n                stdout=stdout,\n                stderr=subprocess.PIPE,\n                check=True,\n                timeout=timeout_seconds,\n            )\n            del completed",
+          "new": "            inputs = (stdin,)\n            if stdin and stdin.count(b\"\\n\") > MAX_BATCH_REQUESTS:\n                lines = stdin.splitlines(keepends=True)\n                inputs = tuple(\n                    b\"\".join(lines[offset : offset + MAX_BATCH_REQUESTS])\n                    for offset in range(0, len(lines), MAX_BATCH_REQUESTS)\n                )\n            for chunk in inputs:\n                completed = subprocess.run(\n                    [\"git\", *_GIT_HARDEN, *args],\n                    cwd=root,\n                    input=chunk,\n                    stdout=stdout,\n                    stderr=subprocess.PIPE,\n                    check=True,\n                    timeout=timeout_seconds,\n                )\n                del completed"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_uses_one_internal_budget_and_preserves_timeout_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": true
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "def _git(root: Path, args: Sequence[str], *, stdin: Optional[bytes] = None) -> bytes:",
+          "new": "def _git(\n    root: Path,\n    args: Sequence[str],\n    *,\n    stdin: Optional[bytes] = None,\n    timeout_override_seconds: Optional[float] = None,\n) -> bytes:"
+        },
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "    timeout_seconds = _git_timeout_budget_seconds(stdin)",
+          "new": "    timeout_seconds = (\n        _git_timeout_budget_seconds(stdin)\n        if timeout_override_seconds is None\n        else timeout_override_seconds\n    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_budget_caller_surfaces_match_exact_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "    except subprocess.TimeoutExpired as exc:\n        raise PreregistrationError(\"git-timeout\") from exc\n    except (OSError, subprocess.CalledProcessError) as exc:",
+          "new": "    except (OSError, subprocess.CalledProcessError) as exc:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_generation_commit_and_blob_limits_fail_closed",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_uses_one_internal_budget_and_preserves_timeout_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "    if stdin is not None and len(stdin) > MAX_GIT_INPUT_BYTES:\n        raise PreregistrationError(\"git-input-limit\", str(len(stdin)))\n    timeout_seconds = _git_timeout_budget_seconds(stdin)",
+          "new": "    timeout_seconds = _git_timeout_budget_seconds(stdin)\n    if stdin is not None and len(stdin) > MAX_GIT_INPUT_BYTES:\n        raise PreregistrationError(\"git-input-limit\", str(len(stdin)))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_input_limit_stops_before_subprocess"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
