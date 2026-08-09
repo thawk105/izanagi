@@ -266,11 +266,16 @@ def _run_range(
 def _known_spec(
     commit: str,
     finding_kind: str = "missing-ai-agent",
+    *,
+    note: str = "",
+    expected_finding_value: str = "",
 ) -> provenance.KnownViolationSpec:
     return provenance.KnownViolationSpec(
         commit=commit,
         expected_finding_kind=finding_kind,
         ruling="worklog(284) 2026-08-07 /rulings",
+        note=note,
+        expected_finding_value=expected_finding_value,
     )
 
 
@@ -1320,66 +1325,82 @@ def test_message_file_accepts_contiguous_cab_without_policy_history(
     assert "違反なし" in capsys.readouterr().out
 
 
-def test_known_violation_ledger_is_exactly_seven_literal_entries():
+def test_known_violation_ledger_is_exactly_thirty_literal_entries():
+    malformed_value = (
+        "product=claude; model=claude-opus-5[1m]; reasoning=high; "
+        "role=orchestrator"
+    )
+    malformed_ruling = (
+        "2026-08-09 dev-wave-jobs/rulings-inbox/"
+        "2026-08-09-t139-r4-probe-provenance-format-violation.md"
+    )
+    malformed_note = (
+        "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
+        "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+    )
+    observed = tuple(
+        (
+            spec.commit,
+            spec.expected_finding_kind,
+            spec.ruling,
+            spec.note,
+            spec.expected_finding_value,
+        )
+        for spec in provenance.KNOWN_PROVENANCE_VIOLATIONS
+    )
     expected = (
-        provenance.KnownViolationSpec(
-            "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
-            "missing-ai-agent",
-            "worklog(284) 2026-08-07 /rulings",
-            note="",
-        ),
-        provenance.KnownViolationSpec(
-            "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
-            "missing-ai-agent",
-            "worklog(284) 2026-08-07 /rulings",
-            note="",
-        ),
-        provenance.KnownViolationSpec(
-            "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
-            "missing-ai-agent",
-            "worklog(284) 2026-08-07 /rulings",
-            note="",
-        ),
-        provenance.KnownViolationSpec(
-            "16affe169185040b33f8c6cbdd452260bddc4089",
-            "missing-ai-agent",
-            "worklog(284) 2026-08-07 /rulings",
-            note="",
-        ),
-        provenance.KnownViolationSpec(
-            "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
-            "missing-ai-agent",
-            "worklog(284) 2026-08-07 /rulings",
-            note="",
-        ),
-        provenance.KnownViolationSpec(
-            "b0a07672737cf03424ec1790cc25a06e4c85b737",
-            "missing-codex-author",
-            "worklog(284) 2026-08-07 /rulings",
-            note="",
-        ),
-        provenance.KnownViolationSpec(
+        ("88f0f9f081f7c76c8ab5fc4a94e2640f70af129b", "missing-ai-agent", "worklog(284) 2026-08-07 /rulings", "", ""),
+        ("85dacc27054db0bd3db55d73cab4f8ca3b4843e5", "missing-ai-agent", "worklog(284) 2026-08-07 /rulings", "", ""),
+        ("6e69ca5c2bc2df403e1cda595aeffcba3a97c248", "missing-ai-agent", "worklog(284) 2026-08-07 /rulings", "", ""),
+        ("16affe169185040b33f8c6cbdd452260bddc4089", "missing-ai-agent", "worklog(284) 2026-08-07 /rulings", "", ""),
+        ("905c867a7b2342ff250a1bcf28a3ce74abdacc06", "missing-ai-agent", "worklog(284) 2026-08-07 /rulings", "", ""),
+        ("b0a07672737cf03424ec1790cc25a06e4c85b737", "missing-codex-author", "worklog(284) 2026-08-07 /rulings", "", ""),
+        (
             "3f2c43d7580b8c26724d90278589862057508965",
             "missing-ai-agent",
             "worklog(293) 2026-08-07 /rulings",
-            note=(
-                "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の"
-                "空行で trailer block 不成立"
-            ),
+            "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の空行で trailer block 不成立",
+            "",
         ),
+        ("f277efd4461d361d5c9aa6db9a7e00b194b76083", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=実装面（test・probe・PBS wrapper・機械設定、insight docs 併記）", malformed_value),
+        ("74b501962092373ba2e8bbca1566d0732e0f16c6", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=merge（全 parent 共通の combined path なし）", malformed_value),
+        ("7ec088163dee920f0b8e1e9783faa6e36b22b730", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=実装面（test・probe・PBS wrapper・契約、runbook・insight docs 併記）", malformed_value),
+        ("1d09940463ccacb0dbb0ab3e69ca0698a960fdf1", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=merge（全 parent 共通の combined path なし）", malformed_value),
+        ("f1406c22abece76276b43dde897750a46aae877e", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=実装面（test・probe・shell wrapper）", malformed_value),
+        ("a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=変異台帳（mutation-spec.json）", malformed_value),
+        ("ff264975a04aa19f36f861ca97efe9dc59c88659", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=変異台帳（mutation-spec.json）", malformed_value),
+        (
+            "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
+            "missing-codex-author",
+            "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t659-provenance-and-f37-rulings.md",
+            "親作成の所在不問 Python probe を含む実装面 commit に Codex role=author が欠落；変更 path 種別=実装面（verbatim/probe_split_window.py、.md 逐語移行対象）",
+            "",
+        ),
+        ("9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=変異台帳（mutation-spec.json）", malformed_value),
+        ("6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=変異台帳（mutation-ledger.json）", malformed_value),
+        ("2b3d06cbe81b1ae2675c153bdf307d508fc35a20", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=docs（submission receipt）", malformed_value),
+        ("30719e517dcee45c014cbf1052c6dc70a8fcf693", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=docs（submission receipt）", malformed_value),
+        ("1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=実装面（test・probe、実測成果物併記）", malformed_value),
+        ("622bd786191d40bda388596fa2adbf119ee84c9a", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=実測成果物・docs（追補 A・package・receipt）", malformed_value),
+        ("c75fde903384b6eb9e4d45239b66008b7639cbf7", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=merge（combined path は docs/pegasus-runbook.md）", malformed_value),
+        ("c55ace29e55bba948d7bdca89f6fc1fb1a5191da", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=docs（worklog fragment）", malformed_value),
+        ("edf74c94427686f2b91519ef10e94446d0fe89d5", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=merge（全 parent 共通の combined path なし）", malformed_value),
+        ("7e3cc116f2466fb439ec2bddd38f35dab928c942", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=merge（全 parent 共通の combined path なし）", malformed_value),
+        ("66769067ee57d78650b208b9a86438ff2f1bf73b", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=merge（全 parent 共通の combined path なし）", malformed_value),
+        ("1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=docs（worklog fragment）", malformed_value),
+        ("aaffa644a969f0a58969b2661318bda4c42ac767", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=merge（全 parent 共通の combined path なし）", malformed_value),
+        ("6f5411ceb7cc5d872e3112fb6d04013367ac092e", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=docs（worklog fragment）", malformed_value),
+        ("797db5def66ef1d318d06c7aa189ea51a66c9312", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=docs（worklog fragment）", malformed_value),
     )
-    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 7
-    assert provenance.KNOWN_PROVENANCE_VIOLATIONS == expected
-    commits = {spec.commit for spec in expected}
-    assert commits == {
-        "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
-        "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
-        "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
-        "16affe169185040b33f8c6cbdd452260bddc4089",
-        "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
-        "b0a07672737cf03424ec1790cc25a06e4c85b737",
-        "3f2c43d7580b8c26724d90278589862057508965",
-    }
+    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 30
+    assert observed == expected
+    assert len({row[0] for row in expected}) == 30
+    assert provenance._LEDGER_FINDING_KINDS == frozenset({
+        "missing-ai-agent", "missing-codex-author", "malformed-ai-agent",
+    })
+    assert provenance._NOTE_REQUIRED_FINDING_KINDS == frozenset({
+        "malformed-ai-agent",
+    })
 
 
 def test_known_violation_ledger_matches_real_commit_findings():
@@ -1391,6 +1412,29 @@ def test_known_violation_ledger_matches_real_commit_findings():
         "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
         "b0a07672737cf03424ec1790cc25a06e4c85b737",
         "3f2c43d7580b8c26724d90278589862057508965",
+        "f277efd4461d361d5c9aa6db9a7e00b194b76083",
+        "74b501962092373ba2e8bbca1566d0732e0f16c6",
+        "7ec088163dee920f0b8e1e9783faa6e36b22b730",
+        "1d09940463ccacb0dbb0ab3e69ca0698a960fdf1",
+        "f1406c22abece76276b43dde897750a46aae877e",
+        "a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f",
+        "ff264975a04aa19f36f861ca97efe9dc59c88659",
+        "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
+        "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+        "6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec",
+        "2b3d06cbe81b1ae2675c153bdf307d508fc35a20",
+        "30719e517dcee45c014cbf1052c6dc70a8fcf693",
+        "1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7",
+        "622bd786191d40bda388596fa2adbf119ee84c9a",
+        "c75fde903384b6eb9e4d45239b66008b7639cbf7",
+        "c55ace29e55bba948d7bdca89f6fc1fb1a5191da",
+        "edf74c94427686f2b91519ef10e94446d0fe89d5",
+        "7e3cc116f2466fb439ec2bddd38f35dab928c942",
+        "66769067ee57d78650b208b9a86438ff2f1bf73b",
+        "1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa",
+        "aaffa644a969f0a58969b2661318bda4c42ac767",
+        "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
+        "797db5def66ef1d318d06c7aa189ea51a66c9312",
     ]
     audit = provenance._audit_history(commits)
     assert audit.findings == []
@@ -1404,6 +1448,29 @@ def test_known_violation_ledger_matches_real_commit_findings():
         ("905c867a7b2342ff250a1bcf28a3ce74abdacc06", "missing-ai-agent"),
         ("b0a07672737cf03424ec1790cc25a06e4c85b737", "missing-codex-author"),
         ("3f2c43d7580b8c26724d90278589862057508965", "missing-ai-agent"),
+        ("f277efd4461d361d5c9aa6db9a7e00b194b76083", "malformed-ai-agent"),
+        ("74b501962092373ba2e8bbca1566d0732e0f16c6", "malformed-ai-agent"),
+        ("7ec088163dee920f0b8e1e9783faa6e36b22b730", "malformed-ai-agent"),
+        ("1d09940463ccacb0dbb0ab3e69ca0698a960fdf1", "malformed-ai-agent"),
+        ("f1406c22abece76276b43dde897750a46aae877e", "malformed-ai-agent"),
+        ("a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f", "malformed-ai-agent"),
+        ("ff264975a04aa19f36f861ca97efe9dc59c88659", "malformed-ai-agent"),
+        ("2c1929533a6f641b513f4f7990fe06e6cdb383b1", "missing-codex-author"),
+        ("9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320", "malformed-ai-agent"),
+        ("6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec", "malformed-ai-agent"),
+        ("2b3d06cbe81b1ae2675c153bdf307d508fc35a20", "malformed-ai-agent"),
+        ("30719e517dcee45c014cbf1052c6dc70a8fcf693", "malformed-ai-agent"),
+        ("1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7", "malformed-ai-agent"),
+        ("622bd786191d40bda388596fa2adbf119ee84c9a", "malformed-ai-agent"),
+        ("c75fde903384b6eb9e4d45239b66008b7639cbf7", "malformed-ai-agent"),
+        ("c55ace29e55bba948d7bdca89f6fc1fb1a5191da", "malformed-ai-agent"),
+        ("edf74c94427686f2b91519ef10e94446d0fe89d5", "malformed-ai-agent"),
+        ("7e3cc116f2466fb439ec2bddd38f35dab928c942", "malformed-ai-agent"),
+        ("66769067ee57d78650b208b9a86438ff2f1bf73b", "malformed-ai-agent"),
+        ("1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa", "malformed-ai-agent"),
+        ("aaffa644a969f0a58969b2661318bda4c42ac767", "malformed-ai-agent"),
+        ("6f5411ceb7cc5d872e3112fb6d04013367ac092e", "malformed-ai-agent"),
+        ("797db5def66ef1d318d06c7aa189ea51a66c9312", "malformed-ai-agent"),
     ]
 
 
@@ -1602,6 +1669,401 @@ def test_broken_registry_note_is_rc2(
     )
     assert captured.err == expected_diagnostic
     assert captured.out == ""
+
+
+@pytest.mark.parametrize("note", ["", " \t"], ids=["empty", "blank"])
+def test_malformed_kind_requires_nonblank_note_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    note: str,
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        "malformed\n\nAI-Agent: bad value\n",
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (
+            _known_spec(
+                commit,
+                provenance.MALFORMED_AI_AGENT,
+                note=note,
+                expected_finding_value="bad value",
+            ),
+        ),
+    )
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert f"empty required note: {commit}" in captured.err
+    assert captured.out == ""
+    missing = _commit(tmp_path, {"docs/missing.md": "missing\n"}, "missing\n")
+    malformed_spec = _known_spec(
+        commit,
+        provenance.MALFORMED_AI_AGENT,
+        note="single-line explanation",
+        expected_finding_value="bad value",
+    )
+    missing_spec = _known_spec(missing)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (malformed_spec, missing_spec),
+    )
+
+    audit = provenance._audit_history([commit, missing])
+    assert audit.findings == []
+    assert audit.known_violations == (malformed_spec, missing_spec)
+
+
+@pytest.mark.parametrize(
+    ("selector", "expected_diagnostic", "character"),
+    [
+        ("note", "prohibited character in note", "\x00"),
+        ("note", "prohibited character in note", "\x1f"),
+        ("note", "prohibited character in note", "\u200b"),
+        ("note", "prohibited character in note", "\u200c"),
+        ("note", "prohibited character in note", "\u200d"),
+        ("note", "prohibited character in note", "\ufeff"),
+        ("note", "prohibited character in note", "\u00ad"),
+        ("note", "prohibited character in note", "\u2060"),
+        ("note", "prohibited character in note", "\t"),
+        ("note", "line break in note", "\n"),
+        ("note", "prohibited character in note", "\x7f"),
+        ("note", "line break in note", "\u2028"),
+        ("note", "line break in note", "\u2029"),
+        ("value", "prohibited character in finding value", "\x00"),
+        ("value", "prohibited character in finding value", "\x1f"),
+        ("value", "prohibited character in finding value", "\u200b"),
+        ("value", "prohibited character in finding value", "\u200c"),
+        ("value", "prohibited character in finding value", "\u200d"),
+        ("value", "prohibited character in finding value", "\ufeff"),
+        ("value", "prohibited character in finding value", "\u00ad"),
+        ("value", "prohibited character in finding value", "\u2060"),
+        ("value", "prohibited character in finding value", "\t"),
+        ("value", "prohibited character in finding value", "\n"),
+        ("value", "prohibited character in finding value", "\x7f"),
+        ("value", "prohibited character in finding value", "\u2028"),
+        ("value", "prohibited character in finding value", "\u2029"),
+    ],
+    ids=[
+        "note-\\x00", "note-\\x1f", "note-\\u200b", "note-\\u200c",
+        "note-\\u200d", "note-\\ufeff", "note-\\u00ad", "note-\\u2060",
+        "note-\\t", "note-\\n", "note-\\x7f", "note-\\u2028",
+        "note-\\u2029", "value-\\x00", "value-\\x1f", "value-\\u200b",
+        "value-\\u200c", "value-\\u200d", "value-\\ufeff", "value-\\u00ad",
+        "value-\\u2060", "value-\\t", "value-\\n", "value-\\x7f",
+        "value-\\u2028", "value-\\u2029",
+    ],
+)
+def test_registry_rejects_control_and_zero_width_characters(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    selector: str,
+    expected_diagnostic: str,
+    character: str,
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        "malformed\n\nAI-Agent: bad value\n",
+    )
+    note = (
+        f"explanation{character}" if selector == "note" else "explanation"
+    )
+    value = f"bad{character}value" if selector == "value" else "bad value"
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (
+            _known_spec(
+                commit,
+                provenance.MALFORMED_AI_AGENT,
+                note=note,
+                expected_finding_value=value,
+            ),
+        ),
+    )
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert expected_diagnostic in captured.err
+    assert captured.out == ""
+
+
+@pytest.mark.parametrize(
+    ("spec", "error"),
+    [
+        (
+            provenance.KnownViolationSpec(
+                "1" * 40,
+                "malformed-ai-agent",
+                "ruling",
+                note="explanation",
+                expected_finding_value=None,
+            ),
+            "invalid finding value type: NoneType",
+        ),
+        (
+            provenance.KnownViolationSpec(
+                "1" * 40,
+                "malformed-ai-agent",
+                "ruling",
+                note="explanation",
+            ),
+            "empty required finding value",
+        ),
+        (
+            provenance.KnownViolationSpec(
+                "1" * 40,
+                "missing-ai-agent",
+                "ruling",
+                expected_finding_value="unexpected",
+            ),
+            "unexpected finding value",
+        ),
+    ],
+    ids=["non-string", "malformed-empty", "non-malformed-nonempty"],
+)
+def test_expected_finding_value_registry_contract_is_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    spec: provenance.KnownViolationSpec,
+    error: str,
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (
+            provenance.KnownViolationSpec(
+                commit=commit,
+                expected_finding_kind=spec.expected_finding_kind,
+                ruling=spec.ruling,
+                note=spec.note,
+                expected_finding_value=spec.expected_finding_value,
+            ),
+        ),
+    )
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert error in captured.err
+    assert captured.out == ""
+    if error == "unexpected finding value":
+        label = f"{commit[:12]} subject"
+        actual_value = "actual malformed value"
+        finding = provenance.NormalFinding(
+            f"{label}: AI-Agent の形式違反: {actual_value!r} — detail",
+            provenance.MALFORMED_AI_AGENT,
+        )
+        audit = provenance.CommitAudit(
+            commit,
+            label,
+            (finding,),
+            provenance.CorrectionAudit((), (), (), (), ()),
+        )
+        matching_kind_wrong_value = _known_spec(
+            commit,
+            provenance.MALFORMED_AI_AGENT,
+            note="explanation",
+            expected_finding_value="different malformed value",
+        )
+        result = provenance._known_violation_audit(
+            [audit],
+            registry={commit: matching_kind_wrong_value},
+            suppressed_missing=None,
+            stale_eligible_commits={commit},
+        )
+        assert result.findings == (finding.text,)
+        assert result.known_violations == ()
+        assert result.stale == (matching_kind_wrong_value,)
+
+
+@pytest.mark.parametrize(
+    ("message", "expected_kind"),
+    [
+        ("AI-Agent: malformed\n", "malformed-ai-agent"),
+        (
+            "AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\n"
+            "AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author\n",
+            None,
+        ),
+        ("AI-Agent: none\nAI-Agent: malformed\n", None),
+        (
+            "AI-Agent: product=none; model=gpt-5; reasoning=high; role=author\n",
+            None,
+        ),
+        (
+            "AI-Agent: product=codex; model=none; reasoning=high; role=author\n",
+            None,
+        ),
+    ],
+    ids=["malformed", "duplicate", "none-mixed", "reserved", "model-none"],
+)
+def test_base_finding_kind_is_anchored_after_full_label(
+    message: str, expected_kind: str | None,
+):
+    label = "123456789abc subject: AI-Agent の形式違反: injected"
+    base, _, _ = provenance.validate_message("label-probe", f"body\n\n{message}")
+    assert base
+    rewritten = [finding.replace("label-probe", label, 1) for finding in base]
+    assert [
+        provenance._base_finding_ledger_kind(label, finding)
+        for finding in rewritten
+    ] == [expected_kind] * len(rewritten)
+
+
+def test_registered_malformed_finding_uses_normal_commit_audit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _init_repo(tmp_path)
+    malformed_value = "bad value"
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        f"malformed\n\nAI-Agent: {malformed_value}\n",
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    normal = provenance._normal_commit_audit(
+        commit,
+        scope_epoch=None,
+        implementation_epoch=None,
+    )
+    assert normal.normal_findings == (
+        provenance.NormalFinding(
+            f"{normal.label}: AI-Agent の形式違反: {malformed_value!r} — "
+            "product/model/reasoning/role (任意で scope) の順と許可値を確認する",
+            provenance.MALFORMED_AI_AGENT,
+        ),
+    )
+    spec = _known_spec(
+        commit,
+        provenance.MALFORMED_AI_AGENT,
+        note="explanation",
+        expected_finding_value=malformed_value,
+    )
+    monkeypatch.setattr(
+        provenance, "KNOWN_PROVENANCE_VIOLATIONS", (spec,),
+    )
+    audit = provenance._audit_history([commit])
+    assert audit.findings == []
+    assert audit.known_violations == (spec,)
+
+
+def test_unregistered_malformed_finding_remains_rc1_with_production_registry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        "outside registry\n\nAI-Agent: malformed\n",
+    )
+    assert commit not in {spec.commit for spec in provenance.KNOWN_PROVENANCE_VIOLATIONS}
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 1
+    captured = capsys.readouterr()
+    assert f"{commit[:12]} outside registry: AI-Agent の形式違反" in captured.err
+    assert "known-violation" not in captured.out
+
+
+def test_malformed_known_violation_missing_finding_is_stale_rc2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    clean = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    monkeypatch.setattr(
+        provenance,
+        "KNOWN_PROVENANCE_VIOLATIONS",
+        (
+            _known_spec(
+                clean,
+                provenance.MALFORMED_AI_AGENT,
+                note="explanation",
+                expected_finding_value="bad value",
+            ),
+        ),
+    )
+
+    assert provenance.main(
+        ["--range", f"{clean}^!"], site=site_policy.OTHER,
+    ) == 2
+    captured = capsys.readouterr()
+    assert (
+        f"sha={clean} finding=malformed-ai-agent "
+        "reason=expected-finding-missing checker-regression-suspected"
+        in captured.err
+    )
+    assert captured.out == ""
+
+
+def test_ai_agent_acceptance_language_is_unchanged():
+    assert provenance.ROLES == (
+        "author", "reviewer", "researcher", "manager", "integrator",
+    )
+    assert provenance.IDENT == r"[a-z0-9][a-z0-9._-]*"
+    accepted = [
+        f"product=claude; model=claude-opus-5-1m; reasoning=high; role={role}"
+        for role in provenance.ROLES
+    ]
+    accepted.append(
+        "product=codex.v2; model=gpt_5-6; reasoning=x.high; role=author"
+    )
+    rejected = [
+        accepted[0] + "; extra=x",
+        "model=claude-opus-5-1m; product=claude; reasoning=high; role=manager",
+        "product=claude; modell=claude-opus-5-1m; reasoning=high; role=manager",
+        "product=claude; model=claude-opus-5[1m]; reasoning=high; role=manager",
+        "product=claude; model=claude-opus-5-1m; reasoning=high; role=orchestrator",
+        "product=Claude; model=claude-opus-5-1m; reasoning=high; role=manager",
+    ]
+    assert all(provenance.AGENT_VALUE.fullmatch(value) for value in accepted)
+    assert all(provenance.AGENT_VALUE.fullmatch(value) is None for value in rejected)
+    for value in accepted:
+        base, _, _ = provenance.validate_message(
+            "accepted", f"change\n\nAI-Agent: {value}\n",
+        )
+        assert base == []
+    for value in rejected:
+        base, _, _ = provenance.validate_message(
+            "rejected", f"change\n\nAI-Agent: {value}\n",
+        )
+        assert len(base) == 1
+        assert "AI-Agent の形式違反" in base[0]
 
 
 def test_known_violation_expected_kind_coexists_with_other_new_finding(
@@ -1922,7 +2384,7 @@ def test_known_violation_nonempty_note_is_public_on_rc1(
     assert "2 件中 1 新規違反" in captured.err
 
 
-def test_empty_registry_restores_all_seven_real_findings(
+def test_empty_registry_restores_all_thirty_real_findings(
     monkeypatch: pytest.MonkeyPatch,
 ):
     commits = [
@@ -1933,16 +2395,92 @@ def test_empty_registry_restores_all_seven_real_findings(
         "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
         "b0a07672737cf03424ec1790cc25a06e4c85b737",
         "3f2c43d7580b8c26724d90278589862057508965",
+        "f277efd4461d361d5c9aa6db9a7e00b194b76083",
+        "74b501962092373ba2e8bbca1566d0732e0f16c6",
+        "7ec088163dee920f0b8e1e9783faa6e36b22b730",
+        "1d09940463ccacb0dbb0ab3e69ca0698a960fdf1",
+        "f1406c22abece76276b43dde897750a46aae877e",
+        "a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f",
+        "ff264975a04aa19f36f861ca97efe9dc59c88659",
+        "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
+        "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+        "6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec",
+        "2b3d06cbe81b1ae2675c153bdf307d508fc35a20",
+        "30719e517dcee45c014cbf1052c6dc70a8fcf693",
+        "1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7",
+        "622bd786191d40bda388596fa2adbf119ee84c9a",
+        "c75fde903384b6eb9e4d45239b66008b7639cbf7",
+        "c55ace29e55bba948d7bdca89f6fc1fb1a5191da",
+        "edf74c94427686f2b91519ef10e94446d0fe89d5",
+        "7e3cc116f2466fb439ec2bddd38f35dab928c942",
+        "66769067ee57d78650b208b9a86438ff2f1bf73b",
+        "1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa",
+        "aaffa644a969f0a58969b2661318bda4c42ac767",
+        "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
+        "797db5def66ef1d318d06c7aa189ea51a66c9312",
     ]
     production = provenance._audit_history(commits)
     assert production.findings == []
-    assert len(production.known_violations) == 7
+    assert len(production.known_violations) == 30
 
     monkeypatch.setattr(provenance, "KNOWN_PROVENANCE_VIOLATIONS", ())
     audit = provenance._audit_history(commits)
-    assert len(audit.findings) == 7
+    malformed_value = (
+        "product=claude; model=claude-opus-5[1m]; reasoning=high; "
+        "role=orchestrator"
+    )
+    malformed_suffix = (
+        f": AI-Agent の形式違反: {malformed_value!r} — "
+        "product/model/reasoning/role (任意で scope) の順と許可値を確認する"
+    )
+    assert audit.findings == [
+        "88f0f9f081f7 Merge branch 'main' into worktree-rulings-20260806-a: AI-Agent trailer がない",
+        "85dacc27054d Merge branch 'main' into worktree-rulings-20260806-a: AI-Agent trailer がない",
+        "6e69ca5c2bc2 Merge branch 'main' into worktree-rulings-20260806-a: AI-Agent trailer がない",
+        "16affe169185 Merge branch 'main' into worktree-rulings-20260806-a: AI-Agent trailer がない",
+        "905c867a7b23 Merge branch 'main' into worktree-rulings-20260806-a: AI-Agent trailer がない",
+        (
+            "b0a07672737c docs(token-hygiene): 逐語・変異台帳・spool fragment を置く: "
+            "実装面に Codex role=author がない — paths="
+            "output/insights/2026-08-06_token-hygiene/analyze_codex.py, "
+            "output/insights/2026-08-06_token-hygiene/analyze_v2.py"
+        ),
+        (
+            "3f2c43d7580b docs(t503): 変異本走の停止原因の誤診断を訂正し、F148/F149 の再発として記録する: "
+            "AI-Agent trailer がない"
+        ),
+        "f277efd4461d feat(t139): R4 環境 probe の実装 (段 5、レビュー前の中間 commit)" + malformed_suffix,
+        "74b501962092 Merge local main 4816049f into worktree-dev-wave-t139-r4-probe" + malformed_suffix,
+        "7ec088163dee fix(t139): R4 probe の段 6 所見を閉じ、判定写像を凍結する" + malformed_suffix,
+        "1d09940463cc Merge local main ee2da0bf into worktree-dev-wave-t139-r4-probe (2 回目)" + malformed_suffix,
+        "f1406c22abec fix(t139): 焦点再レビューの blocker を閉じ、到達不能な 1 件を限界として記録する" + malformed_suffix,
+        "a567eb68d85d test(t139): R4 probe の変異 spec を事前登録する" + malformed_suffix,
+        "ff264975a04a test(t139): 変異 spec の category を harness の固定語彙へ揃える" + malformed_suffix,
+        (
+            "2c1929533a6f docs(t659): activation 発行→配備の分裂窓の設計択一を裁定へ返す: "
+            "実装面に Codex role=author がない — paths="
+            "output/insights/2026-08-09_t659-activation-deploy-window/verbatim/probe_split_window.py"
+        ),
+        "9af3e7a0f1c8 test(t139): M3 の期待 node を parametrize 済みの実 node id へ直す" + malformed_suffix,
+        "6fa5bde0d4e6 test(t139): R4 probe の変異 matrix 結果を台帳へ収める" + malformed_suffix,
+        "2b3d06cbe81b docs(t139): R4 probe の submission receipt を qsub より前に作る" + malformed_suffix,
+        "30719e517dce docs(t139): submission receipt の期待 commit を自己参照しない形へ直す" + malformed_suffix,
+        "1fa2b75b09b0 fix(t139): compile_commands の command 文字列形式を受理する" + malformed_suffix,
+        "622bd786191d docs(t139): R4 環境 probe の実測を反映して追補 A を再発行する" + malformed_suffix,
+        "c75fde903384 Merge local main 9233308a into worktree-dev-wave-t139-r4-probe (3 回目)" + malformed_suffix,
+        "c55ace29e55b docs(t139): R4 環境 probe の worklog fragment を spool へ書く" + malformed_suffix,
+        "edf74c944276 Merge local main eede11af into worktree-dev-wave-t139-r4-probe (4 回目)" + malformed_suffix,
+        "7e3cc116f246 Merge local main 1f625c32 into worktree-dev-wave-t139-r4-probe (5 回目)" + malformed_suffix,
+        "66769067ee57 Merge local main 5e75328d into worktree-dev-wave-t139-r4-probe (6 回目)" + malformed_suffix,
+        "1f884f6f6042 docs(t139): worklog fragment の base を裁定記録後の現本文へ合わせる" + malformed_suffix,
+        "aaffa644a969 Merge local main 34957a24 into worktree-dev-wave-t139-r4-probe (7 回目)" + malformed_suffix,
+        "6f5411ceb7cc docs(t139): 受入結果と段 8 の改善候補を worklog fragment へ反映する" + malformed_suffix,
+        "797db5def66e docs(t139): land 対象 tip の受入再走 (7570 passed / 20 skipped) を記録する" + malformed_suffix,
+    ]
+    assert len(audit.findings) == 30
     assert sum("AI-Agent trailer がない" in finding for finding in audit.findings) == 6
-    assert sum("実装面に Codex role=author がない" in finding for finding in audit.findings) == 1
+    assert sum("実装面に Codex role=author がない" in finding for finding in audit.findings) == 2
+    assert sum("AI-Agent の形式違反" in finding for finding in audit.findings) == 22
     assert audit.known_violations == ()
 
 
