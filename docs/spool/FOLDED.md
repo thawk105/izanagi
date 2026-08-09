@@ -624,3 +624,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:s8c-wall-clock-budget-policy":"[T-692]"},"authored":"2026-08-09","content_sha256":"6509e68498a632735635aebf484924e134dbb23f5ac591fec19ecb04d67ddb8f","seq":1,"wave":"dev-wave-red-suite-20260809"}
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"fc262047be04ca91e49b9e830bf03ff590efa94aba91cf7a7d330875dc764444","seq":2,"wave":"dev-wave-red-suite-20260809"}
+
+- {"allocations":{"T:canonical-lease-waiter":"[T-694]","T:lease-claim-rc-semantics":"[T-693]"},"authored":"2026-08-09","content_sha256":"2e49d6b1957ad78260e52a575ff93b531e903f9eb72b881742583e76da47e352","seq":1,"wave":"dev-wave-t684-lease-fifo"}
+- {"allocations":{"D:acceptance-lease-fifo-queue":"D253"},"authored":"2026-08-09","content_sha256":"c74662dd41cfcea2585659ed5ac3233469e86bceb8ca410a4870054970540af3","seq":1,"wave":"dev-wave-t684-lease-fifo"}
+- {"allocations":{"F:acceptance-lease-no-fairness":"F179","F:fifo-queue-self-sustaining-deadlock":"F180"},"authored":"2026-08-09","content_sha256":"b75754a857bad3b2f8ecae011fe5507492d9c96703a1b2128099137b8ce226d9","seq":1,"wave":"dev-wave-t684-lease-fifo"}
