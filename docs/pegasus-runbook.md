@@ -768,9 +768,16 @@ M=$(git rev-parse main)           # 40 桁。自分の checkout の local main
 python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
 ```
 
-- `state=acquired` のときだけ受入全走を投入する。`held` / `stale-held` / `unavailable` および
-  非 0 rc では**投入しない**。`held` なら holder の land を待ち、local main を取り直してから
-  再度 `claim` する。
+- `state=acquired` のときだけ受入全走を投入する。`held` / `queued` / `stale-held` / `unavailable`
+  および非 0 rc では**投入しない**。`held` / `queued` なら local main を取り直して再度 `claim` する。
+- **待ちは 30〜120 秒周期の loop にする ([T-684])。** `claim` は待ち行列 (FIFO 相当) の待ち札を
+  作り、呼ぶたびにその生存を更新する。**待ち札は最後の `claim` から 300 秒で失効する**ので、
+  一度だけ `claim` して長く放置すると順番を失い、後から来た wave に追い越される。
+  `queued` は「lease は空いているが自分より先に待っている wave がいる」を意味する。
+- **受入を直ちに投入できる状態になってから待ち始める。** 先頭を取ってから準備に手間取ると、
+  その間ほかの wave 全部が待つ (head-of-line blocking)。
+- **FIFO が保証するのは「後着が先着を追い越さない」ことだけで、待ち時間の上界ではない。**
+  待ち時間は待ち行列の長さと受入 1 回の所要 (1055〜1273 秒) に比例する。
 - 受入と land の**どの終わり方でも** `release --wave "$W"` する (赤・失敗・中断を含む)。
   他 wave の lease は消せない (holder digest 不一致なら `not-owner` で何もしない)。
 - land が成功したときだけ、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
@@ -786,6 +793,11 @@ python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json 
 - **既知の限界 (裁定パッケージ)**: TTL 超過で lease を取り直した場合、旧 holder の受入は
   止められない (fencing token が無い)。その場合の帰結は本機構が無かった場合と同じ競合であり、
   悪化はしない。release の権限証明は wave slug の digest だけである。
+- **待ち行列の既知の限界 ([T-684])**: 待ち行列を扱えない状況 — 走査の失敗、entry 4096 件または
+  待ち札 64 枚の cap 超過、自分の待ち札を登録できないこと — では待ち行列を捨てて従来の競争へ
+  縮退する。**停止しないことを公平性より優先する**設計である。旧版の `claim` を走らせる wave は
+  待ち札を無視するので、混在中は公平性を保証しない (退行はせず、待ち行列が無い状態へ戻るだけ)。
+  同着 (mtime 粒度内) は holder digest で決定的に割るため厳密な FIFO ではない。
 
 ### 7.4 変異 harness の runner argv
 
