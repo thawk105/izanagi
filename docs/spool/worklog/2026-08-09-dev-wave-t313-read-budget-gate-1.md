@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-t313-read-budget-gate
 seq: 1
-title: dev-wave docs の byte 予算を層 scope の常時読量 gate へ置き換えた ([T-313]) — 集約上限を撤廃し L1/L1.5 を凍結、L2 は単節 cap のみ (コード + docs、受入 …、branch worktree-dev-wave-t313-read-budget-gate)
+title: dev-wave docs の byte 予算を層 scope の常時読量 gate へ置き換えた ([T-313]) — 集約上限を撤廃し L1/L1.5 を凍結、L2 は単節 cap のみ (コード + docs、受入 7682 passed / 20 skipped、変異 SURVIVED 0、branch worktree-dev-wave-t313-read-budget-gate)
 ---
 
 ## 本文
@@ -64,7 +64,18 @@ title: dev-wave docs の byte 予算を層 scope の常時読量 gate へ置き�
 - **設計判断は {{D:dev-wave-layer-read-budget}} に記録した。**
 - **受入要否の判定証拠 ([T-648] fallback 義務)**: 本 wave は実 repo を読むテストを直接変更している
   (`orchestrator/tests/test_check_docs.py` は実 checkout の `docs/` と `.claude/commands/` を読む)。
-  したがって受入全走を実施した。
+  したがって受入全走を実施した。**7682 passed / 20 skipped、rc=0** (1492.92 秒、request `897902`、
+  測った checkout `9e3820c7` = local main `58d1878d` を含む land 対象 tip)。
+  この受入値を記録する commit 自体は、その走行の対象に含まれない (値を書く前に測る順序のため)。
+  受入 lease は 30 秒周期の待ち手で 60 回目 (約 30 分) に取得した。直前の holder は
+  TTL 2398 秒で失効しており、[T-684] の FIFO 待ち行列が入るまでこの待ち方が最短である。
+- **段 8 の改善候補は 1 件で、新 gate の下で「見送りで確定」になった。** `tools/mutation_harness.py` は
+  spec を試験対象 checkout の**外**に要求し (`--spec` が checkout 内だと rc=2)、本 wave は
+  これを知らずに 1 走を空振りさせた。手順として `DW-M05` へ 1 文足す価値があるが、
+  同節は L1.5 (段 6 の無条件節) にあり、**L1.5 は本 wave が 9,566 bytes で凍結して余白ゼロ**である。
+  L2 へは移せない (段 6 で無条件に読む手順であるため)。したがって [T-577] の既定どおり
+  **見送りで確定**し、記録のみとする。**新 gate を入れた直後の最初の自己改善候補が、
+  まさにその gate の凍結に当たった実例**である ([T-664] R5(a) の既定が 2 例目として機能した)。
 
 ## 次の一手差分
 
