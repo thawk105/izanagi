@@ -806,6 +806,10 @@ python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json 
 harness が要求する dispatch receipt 行を出さないため、baseline が `PARSE_ERROR` で中断する。
 **runner argv に `--force-dispatch` を必ず付ける。**
 
+**`--spec` は試験対象 checkout の外を指す。** commit 済み spec を repo 内の path で渡すと
+`runtime artifact は試験対象 checkout 外でなければならない: --spec` で rc=2 になる
+(2026-08-09 実測)。commit したうえで repo 外へ複製し、`--expected-spec-sha256` で内容を束縛する。
+
 ```
 python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
   --expected-spec-sha256 <sha> --out <ledger> --runner-mode dispatch --detached \
