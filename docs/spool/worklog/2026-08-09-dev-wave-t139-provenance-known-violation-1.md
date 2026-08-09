@@ -67,8 +67,14 @@ title: F37 を機械強制へ移した — land の ff-only だけに全史 prov
   main に land 済みの前例 `claude-opus-5-1m` が 4 commit あり checker を通るため、
   **既存慣行に揃えた**。`unknown` も `not-exposed` も厳密には該当しないという並行 session の
   精読と整合する。規約の穴自体は同 session が起票済み。
-- **受入全走は 3 走した。land 対象は 3 走目 (tip `011736bf`、request 897054.nqsv、
-  1385.83 秒、7628 passed / 20 skipped、rc=0)。**
+- **land は 1 度 race に負けた。** 3 走目の受入後の land が **rc=10 / `stale-main`**
+  ([T-677] の wave が 6 commit land した)。main は 1 bit も変わらず fail-closed が働いた。
+  ユーザー指示により同一 context で再試行し、main を 2 度取り込み直して
+  (`1724b6e1` → 待ち中に `b409bd28`)、**4 走目の受入 (tip `e60ad824`、request 897130.nqsv、
+  1585.14 秒、7670 passed / 20 skipped、rc=0) を land 対象とした。**
+  取り込んだ `[T-684]` は本 wave が実測した「lease の待ち手 30 秒間隔では解放窓を
+  取り逃す」への恒久対応 (公平な待ち行列) だった。
+- **受入全走は計 4 走した。1〜3 走目の記録は次のとおり。**
   1 走目は tip `05f99b6f` (request 896778.nqsv、1330.92 秒、7582 passed / **1 failed** /
   20 skipped、rc=1)。2 走目は [T-682] の land を取り込んだ tip `011736bf`
   (request 897048.nqsv、1393.12 秒、7627 passed / **1 failed** / 20 skipped、rc=1)。
