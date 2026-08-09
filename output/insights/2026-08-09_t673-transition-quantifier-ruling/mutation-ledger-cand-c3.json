@@ -1,0 +1,930 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6485bc3f6f9f1b85b30c8d67ff07fc5e/izdw-6485bc3f6f.o898169",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6485bc3f6f9f1b85b30c8d67ff07fc5e/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.45s\n",
+      "stdout_sha256": "15d70419155d9517cd88c2f332fd525dfca20b8c292305d439bda5b20da0bbe0"
+    },
+    "artifact_error": null,
+    "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+    "duration_s": 26.9,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "692721ee9fb6e930d14de6d6bc643c1d611431fbe763309e56bf39038db8b906",
+    "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+    "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+    "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+    "status": "PASSED",
+    "test_output_sha256": "15d70419155d9517cd88c2f332fd525dfca20b8c292305d439bda5b20da0bbe0",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+  },
+  "date": "2026-08-09T13:43:36.537493+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0d7eaf821e171b536d4da94f14dba040/izdw-0d7eaf821e.o898170",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0d7eaf821e171b536d4da94f14dba040/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_transition_gate_iterates_successor_rows_without_slicing _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_gate_iterates_successor_rows_without_slicing():\n        predecessor_rows, successor_rows = _transition_rows()\n>       result = activation._validate_activation_transition(\n            predecessor_rows,\n            successor_rows,\n            activation_serial=2,\n            is_valid_registered_successor=lambda _old, _new: True,\n        )\n\norchestrator/tests/test_t673_probe_c3.py:45: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n    for successor in successor_rows[:1]:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\nindex = slice(None, 1, None)\n\n    def __getitem__(self, index):\n        if isinstance(index, slice):\n>           raise _SliceAccessError(\"successor_rows was sliced\")\nE           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n\norchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\n1 failed, 1 passed in 2.39s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 rendered_excerpt_bytes=1356 sha256=d8a1043f2da036abc1df4ca23842c7d98b1a24dd7de3cc9a5ed88dfd29bbce28\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_gate_iterates_successor_rows_without_slicing():\n>         predecessor_rows, successor_rows = _transition_rows()\n> >       result = activation._validate_activation_transition(\n>             predecessor_rows,\n>             successor_rows,\n>             activation_serial=2,\n>             is_valid_registered_successor=lambda _old, _new: True,\n>         )\n> \n> orchestrator/tests/test_t673_probe_c3.py:45: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n>     for successor in successor_rows[:1]:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\n> index = slice(None, 1, None)\n> \n>     def __getitem__(self, index):\n>         if isinstance(index, slice):\n> >           raise _SliceAccessError(\"successor_rows was sliced\")\n> E           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n> \n> orchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2086 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "478b0c9d1161f255f60016465b5b1df0319653681c39353ac8e3a5e0c75aa127"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 21.728,
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "hang_risk": false,
+      "id": "G-N1",
+      "injection_diff_sha256": "78854c8ce99dbc0ce9cdc33090d55947ee8bf6d03df0a3d220fb2105d0b36c67",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c4f327faec64bb18ba4efec7c69fa434d86f91cb1e06614c97c465898dd9ec7e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:1]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "KILLED",
+      "test_output_sha256": "478b0c9d1161f255f60016465b5b1df0319653681c39353ac8e3a5e0c75aa127",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/81e3793238f3a2d701c17aeebd5ae1fc/izdw-81e3793238.o898171",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/81e3793238f3a2d701c17aeebd5ae1fc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_transition_gate_iterates_successor_rows_without_slicing _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_gate_iterates_successor_rows_without_slicing():\n        predecessor_rows, successor_rows = _transition_rows()\n>       result = activation._validate_activation_transition(\n            predecessor_rows,\n            successor_rows,\n            activation_serial=2,\n            is_valid_registered_successor=lambda _old, _new: True,\n        )\n\norchestrator/tests/test_t673_probe_c3.py:45: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n    for successor in successor_rows[:2]:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\nindex = slice(None, 2, None)\n\n    def __getitem__(self, index):\n        if isinstance(index, slice):\n>           raise _SliceAccessError(\"successor_rows was sliced\")\nE           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n\norchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\n1 failed, 1 passed in 2.39s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 rendered_excerpt_bytes=1356 sha256=1e886d33a938a6466796c04a2419401199725a30765eebb223ff4318c1e49386\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_gate_iterates_successor_rows_without_slicing():\n>         predecessor_rows, successor_rows = _transition_rows()\n> >       result = activation._validate_activation_transition(\n>             predecessor_rows,\n>             successor_rows,\n>             activation_serial=2,\n>             is_valid_registered_successor=lambda _old, _new: True,\n>         )\n> \n> orchestrator/tests/test_t673_probe_c3.py:45: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n>     for successor in successor_rows[:2]:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\n> index = slice(None, 2, None)\n> \n>     def __getitem__(self, index):\n>         if isinstance(index, slice):\n> >           raise _SliceAccessError(\"successor_rows was sliced\")\n> E           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n> \n> orchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2086 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "71f6e09d678f05c54786770b65de695e5d5319187740a2a02ab2602c351c467d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 21.762,
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "hang_risk": false,
+      "id": "G-N2",
+      "injection_diff_sha256": "d5f964bbfb58a7fe06d42c3d7ffa9011e9ff8052f219d87a9821a608d0fd4d39",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9f53c430447d813cf4a9c274321088476bb5e3eac0f6f78e1306264f6f87c177",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:2]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "KILLED",
+      "test_output_sha256": "71f6e09d678f05c54786770b65de695e5d5319187740a2a02ab2602c351c467d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e3c05f8983c2281f184c3f8bd33fea61/izdw-e3c05f8983.o898172",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e3c05f8983c2281f184c3f8bd33fea61/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_transition_gate_iterates_successor_rows_without_slicing _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_gate_iterates_successor_rows_without_slicing():\n        predecessor_rows, successor_rows = _transition_rows()\n>       result = activation._validate_activation_transition(\n            predecessor_rows,\n            successor_rows,\n            activation_serial=2,\n            is_valid_registered_successor=lambda _old, _new: True,\n        )\n\norchestrator/tests/test_t673_probe_c3.py:45: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n    for successor in successor_rows[:3]:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\nindex = slice(None, 3, None)\n\n    def __getitem__(self, index):\n        if isinstance(index, slice):\n>           raise _SliceAccessError(\"successor_rows was sliced\")\nE           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n\norchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\n1 failed, 1 passed in 2.39s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 rendered_excerpt_bytes=1356 sha256=f9e037a5340438864d562b2ea5cfad8a26bb1225326daa9328cefd9ad3d44c7b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_gate_iterates_successor_rows_without_slicing():\n>         predecessor_rows, successor_rows = _transition_rows()\n> >       result = activation._validate_activation_transition(\n>             predecessor_rows,\n>             successor_rows,\n>             activation_serial=2,\n>             is_valid_registered_successor=lambda _old, _new: True,\n>         )\n> \n> orchestrator/tests/test_t673_probe_c3.py:45: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n>     for successor in successor_rows[:3]:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\n> index = slice(None, 3, None)\n> \n>     def __getitem__(self, index):\n>         if isinstance(index, slice):\n> >           raise _SliceAccessError(\"successor_rows was sliced\")\n> E           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n> \n> orchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2086 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9b0759b2519b3fc854535ac24b9be0be1f6bec62eb5e437fd5529bdc2d6bf33b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 31.976,
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "hang_risk": false,
+      "id": "G-N3",
+      "injection_diff_sha256": "cfa55cf668b133f1bfaa0573db15db38eb72bd5b6d71f8c27e2c74abce9a2b15",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cdc4b7cdaed6d2c6363d7933284fadf0448c1ea81352caeeb172154475706976",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:3]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "KILLED",
+      "test_output_sha256": "9b0759b2519b3fc854535ac24b9be0be1f6bec62eb5e437fd5529bdc2d6bf33b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a09326c4a9419dc46ed0235f63e97e4c/izdw-a09326c4a9.o898173",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a09326c4a9419dc46ed0235f63e97e4c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_transition_gate_iterates_successor_rows_without_slicing _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_gate_iterates_successor_rows_without_slicing():\n        predecessor_rows, successor_rows = _transition_rows()\n>       result = activation._validate_activation_transition(\n            predecessor_rows,\n            successor_rows,\n            activation_serial=2,\n            is_valid_registered_successor=lambda _old, _new: True,\n        )\n\norchestrator/tests/test_t673_probe_c3.py:45: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n    for successor in successor_rows[:4]:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\nindex = slice(None, 4, None)\n\n    def __getitem__(self, index):\n        if isinstance(index, slice):\n>           raise _SliceAccessError(\"successor_rows was sliced\")\nE           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n\norchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\n1 failed, 1 passed in 2.41s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 rendered_excerpt_bytes=1356 sha256=38d1780c7422ffcf7d28d5f3b6435d16e44ab496f827626b1a156a39ad8eed0f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_gate_iterates_successor_rows_without_slicing():\n>         predecessor_rows, successor_rows = _transition_rows()\n> >       result = activation._validate_activation_transition(\n>             predecessor_rows,\n>             successor_rows,\n>             activation_serial=2,\n>             is_valid_registered_successor=lambda _old, _new: True,\n>         )\n> \n> orchestrator/tests/test_t673_probe_c3.py:45: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n>     for successor in successor_rows[:4]:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\n> index = slice(None, 4, None)\n> \n>     def __getitem__(self, index):\n>         if isinstance(index, slice):\n> >           raise _SliceAccessError(\"successor_rows was sliced\")\n> E           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n> \n> orchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2086 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0bca2a055765b333f5a70fad9d5ae0df2a679fbafa4cda90472a1eb1cc8c1f7f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 26.913,
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "hang_risk": false,
+      "id": "G-N4",
+      "injection_diff_sha256": "99ebc0de8a52c9297d77154fd367b42915eff34eb675c64e3571f0cdf03b07b8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9fcb9fc05aee7808d03a31bdd4474c43333b98b4c3d7a8536aaf35fec06e347a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:4]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "KILLED",
+      "test_output_sha256": "0bca2a055765b333f5a70fad9d5ae0df2a679fbafa4cda90472a1eb1cc8c1f7f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/335062a5a31e6de0b305f28e47088c5f/izdw-335062a5a3.o898174",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/335062a5a31e6de0b305f28e47088c5f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_transition_gate_iterates_successor_rows_without_slicing _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_gate_iterates_successor_rows_without_slicing():\n        predecessor_rows, successor_rows = _transition_rows()\n>       result = activation._validate_activation_transition(\n            predecessor_rows,\n            successor_rows,\n            activation_serial=2,\n            is_valid_registered_successor=lambda _old, _new: True,\n        )\n\norchestrator/tests/test_t673_probe_c3.py:45: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n    for successor in successor_rows[:8]:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\nindex = slice(None, 8, None)\n\n    def __getitem__(self, index):\n        if isinstance(index, slice):\n>           raise _SliceAccessError(\"successor_rows was sliced\")\nE           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n\norchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\n1 failed, 1 passed in 2.41s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 rendered_excerpt_bytes=1356 sha256=af5faf5cd54519ede69a47c6fda07eb230b6adac6df2121023758cec6a24f566\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_gate_iterates_successor_rows_without_slicing():\n>         predecessor_rows, successor_rows = _transition_rows()\n> >       result = activation._validate_activation_transition(\n>             predecessor_rows,\n>             successor_rows,\n>             activation_serial=2,\n>             is_valid_registered_successor=lambda _old, _new: True,\n>         )\n> \n> orchestrator/tests/test_t673_probe_c3.py:45: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n>     for successor in successor_rows[:8]:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\n> index = slice(None, 8, None)\n> \n>     def __getitem__(self, index):\n>         if isinstance(index, slice):\n> >           raise _SliceAccessError(\"successor_rows was sliced\")\n> E           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n> \n> orchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2086 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4895715da86fc7b76765de8df559ee7bdce7efa7e83f9209d1c436ffa3c64eab"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 26.845,
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "hang_risk": false,
+      "id": "G-N8",
+      "injection_diff_sha256": "a6aff2d56dad9b3a6f87209c8c2b8167008ce5cec31d299f032dbbf303560e99",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bdf4f7dedf7d49e21441f7a99bc81ca74e390ab12e73cebfc81622b9195646e5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:8]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "KILLED",
+      "test_output_sha256": "4895715da86fc7b76765de8df559ee7bdce7efa7e83f9209d1c436ffa3c64eab",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/00fb76a040a3fdf76720df0edc3704b2/izdw-00fb76a040.o898175",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/00fb76a040a3fdf76720df0edc3704b2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_transition_gate_iterates_successor_rows_without_slicing _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_gate_iterates_successor_rows_without_slicing():\n        predecessor_rows, successor_rows = _transition_rows()\n>       result = activation._validate_activation_transition(\n            predecessor_rows,\n            successor_rows,\n            activation_serial=2,\n            is_valid_registered_successor=lambda _old, _new: True,\n        )\n\norchestrator/tests/test_t673_probe_c3.py:45: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n    for successor in successor_rows[:63]:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\nindex = slice(None, 63, None)\n\n    def __getitem__(self, index):\n        if isinstance(index, slice):\n>           raise _SliceAccessError(\"successor_rows was sliced\")\nE           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n\norchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\n1 failed, 1 passed in 2.40s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1305 retained_bytes=1305 omitted_bytes=0 rendered_excerpt_bytes=1358 sha256=dda106a9b04b2df368ddf8c7195d90879166695d72b1689a4b446ed2e6b44cf4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_gate_iterates_successor_rows_without_slicing():\n>         predecessor_rows, successor_rows = _transition_rows()\n> >       result = activation._validate_activation_transition(\n>             predecessor_rows,\n>             successor_rows,\n>             activation_serial=2,\n>             is_valid_registered_successor=lambda _old, _new: True,\n>         )\n> \n> orchestrator/tests/test_t673_probe_c3.py:45: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n>     for successor in successor_rows[:63]:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\n> index = slice(None, 63, None)\n> \n>     def __getitem__(self, index):\n>         if isinstance(index, slice):\n> >           raise _SliceAccessError(\"successor_rows was sliced\")\n> E           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n> \n> orchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1305 retained_bytes=1305 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2088 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3fa3e94d9ddfe9953f06f78612ce7a65d622c83e204854cb4128afaf97508763"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 32.014,
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "hang_risk": false,
+      "id": "G-N63",
+      "injection_diff_sha256": "fdafd37c7eb2faec229baa94dc4b069b700c6970a24476b744400187589d587b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6d4895b11f0227d578ae1ea0caba0a80605acd0df2aaf90af9ffb2d5b2f3288d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:63]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "KILLED",
+      "test_output_sha256": "3fa3e94d9ddfe9953f06f78612ce7a65d622c83e204854cb4128afaf97508763",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/577d23ebad7eee0f52f1b06991de4a96/izdw-577d23ebad.o898176",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/577d23ebad7eee0f52f1b06991de4a96/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_transition_gate_iterates_successor_rows_without_slicing _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_gate_iterates_successor_rows_without_slicing():\n        predecessor_rows, successor_rows = _transition_rows()\n>       result = activation._validate_activation_transition(\n            predecessor_rows,\n            successor_rows,\n            activation_serial=2,\n            is_valid_registered_successor=lambda _old, _new: True,\n        )\n\norchestrator/tests/test_t673_probe_c3.py:45: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n    for successor in successor_rows[:64]:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\nindex = slice(None, 64, None)\n\n    def __getitem__(self, index):\n        if isinstance(index, slice):\n>           raise _SliceAccessError(\"successor_rows was sliced\")\nE           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n\norchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\n1 failed, 1 passed in 2.37s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1305 retained_bytes=1305 omitted_bytes=0 rendered_excerpt_bytes=1358 sha256=68ac4e82bb8f909223192bd78f5859bc51d6fe022c238a3c767ef1c5134cb1aa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_gate_iterates_successor_rows_without_slicing():\n>         predecessor_rows, successor_rows = _transition_rows()\n> >       result = activation._validate_activation_transition(\n>             predecessor_rows,\n>             successor_rows,\n>             activation_serial=2,\n>             is_valid_registered_successor=lambda _old, _new: True,\n>         )\n> \n> orchestrator/tests/test_t673_probe_c3.py:45: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/env_contract_activation.py:275: in _validate_activation_transition\n>     for successor in successor_rows[:64]:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = (ActiveContract(env_tag='env-a', generation=2, contract_sha256='222222222222222222222222222222222222222222222222222222...act(env_tag='env-b', generation=2, contract_sha256='4444444444444444444444444444444444444444444444444444444444444444'))\n> index = slice(None, 64, None)\n> \n>     def __getitem__(self, index):\n>         if isinstance(index, slice):\n> >           raise _SliceAccessError(\"successor_rows was sliced\")\n> E           test_t673_probe_c3._SliceAccessError: successor_rows was sliced\n> \n> orchestrator/tests/test_t673_probe_c3.py:21: _SliceAccessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1305 retained_bytes=1305 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2088 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b77d39e0dffeb5e739f3edf6509551f032b5cf058eeac4695c0d71e8ab442210"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 26.834,
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "hang_risk": false,
+      "id": "G-N64",
+      "injection_diff_sha256": "598f6025750ed1e3a8c29c79490e0ccdd5dfca32a6370a0e62dc88b3a4efd95d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8998daea8bdc156830c0f11e8ffaa280147fb136b007afe9003db4188bb93d38",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:64]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "KILLED",
+      "test_output_sha256": "b77d39e0dffeb5e739f3edf6509551f032b5cf058eeac4695c0d71e8ab442210",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7378bf706955de01a46ae77b7589959f/izdw-7378bf7069.o898177",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7378bf706955de01a46ae77b7589959f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.38s\n",
+        "stdout_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 26.858,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "P-N1",
+      "injection_diff_sha256": "84af10bba86a4b23db37d7253c0daffe5caeea3680ac8286d2ec02aad334424a",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "d45028834bf13fa5d18c5f1bc58cc68d2164298ff7f2f50c8e9d85f4dc446561",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:1]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "SURVIVED",
+      "test_output_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/18dd9b3ab79dc779bd04ea3bdaa1dab4/izdw-18dd9b3ab7.o898178",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/18dd9b3ab79dc779bd04ea3bdaa1dab4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.37s\n",
+        "stdout_sha256": "8d21786c4364579114c6941af0b9dbd9530a3533fcd64065a4111d69ef4f52ca"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 32.008,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "P-N2",
+      "injection_diff_sha256": "1957ed0151271e6fd415cf2d4ce79cca288840394da9321f388ae75d82957be0",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "a9888d185b7d2d2e836dc854bccf3ec81115a3b16fe1b2455e2edb160e2f61dd",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:2]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "SURVIVED",
+      "test_output_sha256": "8d21786c4364579114c6941af0b9dbd9530a3533fcd64065a4111d69ef4f52ca",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d8c7e4f6ff7747abe49c1a97f86dff4a/izdw-d8c7e4f6ff.o898179",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d8c7e4f6ff7747abe49c1a97f86dff4a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.39s\n",
+        "stdout_sha256": "c6f36b99f50befdb8fbb8107ac72a2cffd3d7f757d59202d01bfeb7ff05c3080"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 26.889,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "P-N3",
+      "injection_diff_sha256": "436e3a212b6bdd7b805cf8b921ead39095be34b7748e921fb4c9a54c0b566686",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "75eebd3f3e3e0329ba8c49b77ed3a66ceeff9f6a5af98b225f7105bdce288276",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:3]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "SURVIVED",
+      "test_output_sha256": "c6f36b99f50befdb8fbb8107ac72a2cffd3d7f757d59202d01bfeb7ff05c3080",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6f51bad4b4f8b461886f56b34237f142/izdw-6f51bad4b4.o898180",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6f51bad4b4f8b461886f56b34237f142/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.38s\n",
+        "stdout_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 27.813,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "P-N4",
+      "injection_diff_sha256": "332b34873cff863d190bc141f2aae55e36a2370899a461edb3c9d7215a3c9b8d",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "a6c33296ceafd8ad064cf901d43384e763129bce6ceda0b9e8bf949dd4147b46",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:4]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "SURVIVED",
+      "test_output_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/27d6cf65ed44bfb43b4a7c579c33351f/izdw-27d6cf65ed.o898181",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/27d6cf65ed44bfb43b4a7c579c33351f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.37s\n",
+        "stdout_sha256": "8d21786c4364579114c6941af0b9dbd9530a3533fcd64065a4111d69ef4f52ca"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 26.878,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "P-N8",
+      "injection_diff_sha256": "49391f16ba1e8a3df29af7772d4243f0777f5a09c7d4632a41a41ba0de5bf0ed",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "e08f8073dc9a0ed4e6936c69d8b8fc14b758ec5215552ccbdbc70106b536ce3c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:8]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "SURVIVED",
+      "test_output_sha256": "8d21786c4364579114c6941af0b9dbd9530a3533fcd64065a4111d69ef4f52ca",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e0aeff68e3d8fed65898c4d2bf9c08e1/izdw-e0aeff68e3.o898182",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e0aeff68e3d8fed65898c4d2bf9c08e1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.38s\n",
+        "stdout_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 21.746,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "P-N63",
+      "injection_diff_sha256": "bb7aa114aadb787f1a6f08c0c65dffc5ac1ab00ae4aa42253800f0deade8d983",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "38d429466be3b081c0e9abfa804a94efabcec9e6b88f38486ac9fd84aff73d32",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:63]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "SURVIVED",
+      "test_output_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/354ca2461068b3cddfb2c0892d5e41e4/izdw-354ca24610.o898183",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/354ca2461068b3cddfb2c0892d5e41e4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.38s\n",
+        "stdout_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "af324a10c8b51f8b93ae547ba20be8bfaaeef2d5e174b5938a124028255e3322",
+      "duration_s": 21.772,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "P-N64",
+      "injection_diff_sha256": "4aa86f59b0e582607aff579e398adaec5f5fc4271a2b5172089dbab8ea8c0dcb",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "b4701ded9ce627a62c9a0ad408d19a3919ef077595d314f9e4174f7489f66701",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:64]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "SURVIVED",
+      "test_output_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/79b213190981cc61460df47f3b3aa9d1/izdw-79b2131909.o898168",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/79b213190981cc61460df47f3b3aa9d1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t673_probe_c3.py::test_successor_rows_sentinel_rejects_slice_access\norchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing\n\n2 tests collected in 0.32s\n",
+        "stdout_sha256": "d218149e966565fa553fc9eb0305e2c91cc9619108d27941aa28b7d1a054a5fe"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t673_probe_c3.py::test_successor_rows_sentinel_rejects_slice_access",
+        "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+      ],
+      "duration_s": 21.74,
+      "rc": 0,
+      "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+      "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+      "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+      "status": "PASSED",
+      "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "G-N1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "78854c8ce99dbc0ce9cdc33090d55947ee8bf6d03df0a3d220fb2105d0b36c67",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:1]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "G-N2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d5f964bbfb58a7fe06d42c3d7ffa9011e9ff8052f219d87a9821a608d0fd4d39",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:2]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "G-N3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cfa55cf668b133f1bfaa0573db15db38eb72bd5b6d71f8c27e2c74abce9a2b15",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:3]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "G-N4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "99ebc0de8a52c9297d77154fd367b42915eff34eb675c64e3571f0cdf03b07b8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:4]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "G-N63": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fdafd37c7eb2faec229baa94dc4b069b700c6970a24476b744400187589d587b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:63]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "G-N64": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "598f6025750ed1e3a8c29c79490e0ccdd5dfca32a6370a0e62dc88b3a4efd95d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:64]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "G-N8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t673_probe_c3.py::test_transition_gate_iterates_successor_rows_without_slicing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a6aff2d56dad9b3a6f87209c8c2b8167008ce5cec31d299f032dbbf303560e99",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:8]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "P-N1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "84af10bba86a4b23db37d7253c0daffe5caeea3680ac8286d2ec02aad334424a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:1]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "P-N2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "1957ed0151271e6fd415cf2d4ce79cca288840394da9321f388ae75d82957be0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:2]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "P-N3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "436e3a212b6bdd7b805cf8b921ead39095be34b7748e921fb4c9a54c0b566686",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:3]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "P-N4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "332b34873cff863d190bc141f2aae55e36a2370899a461edb3c9d7215a3c9b8d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:4]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "P-N63": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "bb7aa114aadb787f1a6f08c0c65dffc5ac1ab00ae4aa42253800f0deade8d983",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:63]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "P-N64": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4aa86f59b0e582607aff579e398adaec5f5fc4271a2b5172089dbab8ea8c0dcb",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:64]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "P-N8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "49391f16ba1e8a3df29af7772d4243f0777f5a09c7d4632a41a41ba0de5bf0ed",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:8]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "692721ee9fb6e930d14de6d6bc643c1d611431fbe763309e56bf39038db8b906",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t673_probe_c3.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "3912c7fc9a7e13cfcbc2491878767c548cb3cbd1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t673_probe_c3.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7dc0ab2c096778d02d77dfc8d7ba5866f7e788cc",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "4960021be3bd446124b489097764f5f77f26cfe6f0786e8f8b641d23a7c10793",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "8e57c1e665db6c8e7b021ac0397a3b30dd08f49dac0fdd449299e8335ca0b371",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 7,
+    "TIMEOUT": 0,
+    "completed": 14,
+    "matching": 14,
+    "recorded": 14,
+    "registered": 14
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-transition-pbt-package/scratch-cand-c3/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "647dbac8794cdb051131a3603aed51ed509dd8e5fbb13758d965d3472b84c997",
+  "updated_at": "2026-08-09T13:50:36.170937+00:00"
+}
