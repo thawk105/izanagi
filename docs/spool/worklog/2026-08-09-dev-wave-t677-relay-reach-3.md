@@ -49,6 +49,10 @@ title: [T-677] 失敗診断が dispatch の末尾 64 KiB 中継を越えて届�
   本 wave は手当していない。
 - 工数: codex 子 8 本 (plan 1、敵対 2、実装 1、レビュー 2、fix 3 のうち再レビュー 1 を含む)。
   親の実走は targeted 4 回、変異 3 走 (Arm A / A2 / B)、受入 1 完走。
+- **段 8 の自己改善は本文編集を止めて裁定へ返した。** 実測した作法 2 件を該当 leaf 節へ
+  統合しようとしたが、`docs/dev-wave/**` は hard ceiling 25,200 bytes **ちょうど**で埋まっており、
+  最短の 1 行 (123 bytes) すら入らない。上限を上げないこと、節の削除はユーザー裁定に限ることが
+  既定なので、編集を revert して `{{T:dev-wave-docs-budget-full}}` へ起票した。
 
 ## 次の一手差分
 
@@ -73,6 +77,13 @@ title: [T-677] 失敗診断が dispatch の末尾 64 KiB 中継を越えて届�
   BrokenPipe と relay error を握る。真の「確実に届く」を要求するなら dispatcher 側の
   耐久経路が要る。receipt の `scheduler_logs.stdout.path` を人間向け fallback として
   手順・検査へ明示するかを含めて裁定する。
+- {{T:dev-wave-docs-budget-full}} **P2・新規・ユーザー裁定待ち**: `docs/dev-wave/**` が
+  hard ceiling 25,200 bytes ちょうどで飽和し、実測に基づく作法の追記が 1 行も入らない。
+  本 wave で入れられなかったのは (a) 実装子の緑判定を所有ファイル単独でなく、所有面を観測する
+  既存 guard を含む集合の実走に限る (`DW-S05-C`。本 wave で潜在フレークを 1 件見逃しかけた)、
+  (b) 既存 artifact から repo 無改変で測れる前提は probe を書かずそれを優先する (`DW-S01`)。
+  上限引き上げは通常の自己改善に含めない独立審査対象であり、L2 節の削除も裁定に限るため、
+  どちらの経路を採るかの裁定が要る。
 - {{T:digest-stash-session-binding}} **P3・新規**: 終端ダイジェストの failure stash が
   module global であり、同一 process の入れ子 `pytest.main()` で外側 session の report が失われる。
   session / plugin instance 束縛の collector へ移すかを裁定する。canonical acceptance に
