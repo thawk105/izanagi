@@ -653,3 +653,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:evidence-path-control-char":"[T-714]","T:s8c-heavy-git-xdist-group":"[T-713]"},"authored":"2026-08-09","content_sha256":"33740252c49c16f1476ebc1483ada6ec4adc8fc0462467c0ef383081e4869520","seq":1,"wave":"dev-wave-t553-git-budget"}
 - {"allocations":{"D:git-work-proportional-budget":"D257"},"authored":"2026-08-09","content_sha256":"27be8510a9271fa22fd1dba33a8d3246d6963c7c909c46ebe6ac610686cb7175","seq":2,"wave":"dev-wave-t553-git-budget"}
 - {"allocations":{"F:lease-state-matched-literally":"F186","F:mutation-spec-timeout-below-dispatch-floor":"F185"},"authored":"2026-08-09","content_sha256":"93b10a0cc036e9ca3fc74fdf7d9801da25763adcb432dfcda32f54e3a5f5ce20","seq":3,"wave":"dev-wave-t553-git-budget"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"40e904aaf1ff6bce870bb1353de6e498f50df74579c66ec96d99907fbe51cd09","seq":1,"wave":"dev-wave-t673-transition-pbt-package"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"3a4e0a100f796d4c1cf3f7ea88acc1199620b98da96551895cb91019a71cfa8f","seq":2,"wave":"dev-wave-t673-transition-pbt-package"}
