@@ -58,21 +58,42 @@ title: pegasus 第 2 世代を活性化し head=2 で末尾巻き戻し検査を
   (計算ノード、request 896505、22.21 秒、**333 passed**、非受入形) だけである。
   変異 spec の実 JSON も、`DW-M07` の anchor が再開時の tree と一致する保証がないため
   本走直前に作る裁定とし、設計 (5 件、うち 2 件は SURVIVED 期待) だけを凍結した。
-- **worktree と branch を残す。** ユーザーが再発行 script をこの worktree で実行する必要があるため、
-  背景 job の常例に反して畳まない。
+- **worktree と branch を残した。** ユーザーが再発行 script をこの worktree で実行する必要があったため、
+  背景 job の常例に反して畳まなかった。
+- **ユーザーが floor protocol を再発行し (`8780332c`、`AI-Agent: none`)、wave はその後を続行した。**
+  script は事前登録した全停止条件を通過し、bytes は親が独立検算した期待値と一致した。
+- **再発行が既存の盲検封印との紐付けを壊すことが判明した (裁定時点で未見の新事実)。**
+  `s8b_floor_campaign.py:1497` は「selector prediction を封印した時点の floor blob」と
+  「現在の floor」の一致を campaign launch の条件にする。再発行で両者が食い違い、
+  production が正しく launch を拒否した。**この E2E は再発行の前後どちらでも赤**であり
+  (前は現行契約 g2 と protocol 契約 g1 の不一致、後は封印時 floor と現行 floor の不一致)、
+  g2 世界と既存の固定封印は構造的に両立しない。段 3 レンズ A の A-6 が
+  「新規 seal は g2 floor commit を基点にする」と予告していたが、親は帰結の重さを詰め切れていなかった。
+- **ユーザー再裁定 (発話「推奨で」) で E2E を 2 lane へ分けた。** 歴史 lane は clone を封印 commit へ
+  detach し、activation authority を genesis record だけの合成 head=1 へ差し替えて第 1 世代を現行にする
+  (契約照合と launch gate が当時の状態で揃う)。現行 lane は launch が拒否されることを固定する。
+  **検査を 1 つも失わずに**歴史の再現性と g2 の防壁を両立させた。
+- **親が provenance trailer を 8 commit にわたり誤記した ({{F:provenance-model-after-model-switch}})。**
+  セッション途中の `/model` 切替後も開始時 system prompt の slug を書き続けた。ユーザーの指摘で判明。
+  裁定 (発話「推奨通りで」) は **B + C** — 既存 commit は rewrite せず訂正 commit と台帳で残し、
+  以降は `model=unknown` を使う。forward correction 枠は消費済みで使えない。
+  **形式として妥当な誤りのため checker では検出されない**点が同日の [T-139] (22 commit が
+  `claude-opus-5[1m]` で形式違反 → 機械検出) と対照的である。
+- **取り込んだ local main に既存の provenance 違反 22 件があった。** [T-139] R4 probe wave の commit 群で、
+  既知違反リストにも未登録。本 wave の commit に違反はゼロで、履歴書き換えは禁止のため修正できない。
+  事実として記録する。
 
 ## 次の一手差分
 
 ### 更新
 
-- [T-657] **P1・ユーザー手番待ち**: pegasus 第 2 世代の活性化。実装・commit は完了
-  (branch `worktree-dev-wave-t657-t660-g2-activation`)。残るのは前提 (b) floor protocol の再発行で、
-  対話 shell 限定・T-080 receipt 必須・create-only・hook 拒否・`AI-Agent: none` commit のため
-  **AI が実行できない**。同 branch の
-  `output/insights/2026-08-09_t657-t660-g2-activation/reissue_floor_protocol.sh` を worktree 内で
-  実行したのち、pin 3 件の更新 → 受入全走 → 変異本走 → land を fresh context で行う。
-  前提 (a) は実測により「テストの current 依存解消」へ縮小して完了。
-  base: 5bbbf44762f76230e5a720d8fb7ce639f1519aa7ed82f7c4e14eff2033c39f7a
+- [T-657] **P1・実装完了**: pegasus 第 2 世代を活性化した。**ユーザーが floor protocol を対話 shell で
+  再発行し (`8780332c`、`AI-Agent: none`)**、wave はその後を続行して pin 3 件を更新し、
+  裁定 (1) の検証 CLI 明示も同段へ同梱した。裁定 (2) は見送りどおり実装しない。
+  前提 (a) は実測により「テストの current 依存解消」へ縮小して完了 (production の silo は
+  受理集合を変えないため scope 外に落とした)。再発行が既存の盲検封印との紐付けを壊す新事実が
+  判明し、ユーザー再裁定で E2E を歴史 lane と現行 lane へ分けて解決した。
+  base: 8c4fcd02e2dde1ac1d65fad0dd2edc2a469b073d68c919e110714b787c5b548e
 - [T-660] **P3・実装済み・実測待ち**: production 層の末尾巻き戻し検査の検出力。head=2 になったため
   空 chain 拒否の mask が外れ、期待例外を head serial / state hash 不一致へ絞り、空 chain 拒否の
   理由を独立 node で固定した。**変異による検出力の実測は floor 再発行後の本走で行う**
@@ -82,12 +103,16 @@ title: pegasus 第 2 世代を活性化し head=2 で末尾巻き戻し検査を
 
 ### 新規
 
-- {{T:silo-full-historical-lane}} **P2・新規**: committed silo evidence の完全な historical 再検証
-  lane。現在 `verify-result` は contract 以前に driver / policy / verifier_module / runtime_modules /
-  raw bundle を current bytes と比較するため、committed evidence に対して恒常的に赤であり
-  誰も再検証に使えない (本 wave で実測)。記録 hash から歴史 blob を検証する独立経路を作るか、
-  この CLI は新規生成 evidence 専用と明示して committed 再検証の主張を撤回するかの設計択一。
-- {{T:t126-series-rotation-evidence}} **P3・新規**: g2 活性化で T126 の
-  `qualification_series_id` が回転することを受入成果物で固定する。protocol admission は
-  contract hash 非依存で不変だが、`env_contract.py` が code identity に入るため series は回る。
-  旧 series の継続・再利用を拒否する named acceptance node が無い (段 6 D-6)。
+- {{T:provenance-model-switch-rule}} **P2・新規**: `AI-Agent:` trailer の `model` について、
+  現行の共通則が覆えていない 2 つの契機を規約本体へ定める。(i) **セッション途中の `/model` 切替** —
+  共通則は「確定できないなら `unknown`」と述べるだけで切替を名指ししないため親が 8 commit 踏み抜いた
+  ({{F:provenance-model-after-model-switch}})。(ii) **実行面が許可文字集合外の slug を表示する場合** —
+  `claude-opus-5[1m]` は `[a-z0-9][a-z0-9._-]*` に反するが、値は表示されており「確定できない」わけでは
+  ないため `unknown` / `not-exposed` のどちらにも当てはまらない。main には変換した
+  `claude-opus-5-1m` が 4 commit land 済みで checker を通る一方、変換しなかった 22 commit は
+  形式違反になった。「表示名だけなら小文字化し空白を `-` に置換する」は**表示名**の規則であって
+  model ID が文字集合外のときの規則ではない。値の真偽を機械照合する層は存在せず、形式が妥当な誤りは
+  checker を素通りする。memory への記録は済んでいる。**本 wave では既成事実にしない。**
+  なお [T-139] の 22 commit の処置自体は 2026-08-09 に別途裁定済み (known-violation 登録、
+  逐語 `rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md`) であり本項の対象外。
+  親は当初これを未裁定として起票したが、当事者 wave からの指摘で訂正した。
