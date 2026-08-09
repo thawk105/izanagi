@@ -68,6 +68,18 @@ title: [T-692] R3 の xdist 対応を実装し、受入 wall の律速が real-r
 - エージェント工数: Codex 9 session (解析 1 / plan 1 / 段 3 相談 2 / 実装 1 / 段 6 レビュー 2 /
   fix 4 のうち 3 は段 6・1 は受入赤対応 … 実数 9)。
   親 = brief・計測全走 2 本・切り分け実験 1 本・裁定・統合 commit 2 本・変異 3 投入・受入 3 投入・記録。
+- **段 8 自己改善は候補 3 件、採用 1 件。**
+  (採用) 受入 lease 取得後の main 取り込みに `--ff-only` を使うと、wave branch が自前 commit を
+  持った時点で必ず失敗する。実測で取得済み lease を 1 回捨てた。runbook §7.3 を是正し、
+  取り込みは投入前に親が merge commit で済ませ、待ち手は子孫検査だけにすると明記した。
+  (返す) 変異 harness を `runner-mode=dispatch` で使うとき、対象を絞った runner argv には
+  `--force-dispatch` も要る (無いと login 実行になり receipt 行 0 で PARSE_ERROR)。
+  本 wave で 1 回空振りした。行き先は `DW-M08` だが、
+  **`docs/dev-wave/**` の L1.5 層は unique footprint 9566 bytes の予算に対し余裕 0 bytes** で、
+  159 bytes の追記が入らない。安全義務を削って空けることは自己改善契約が禁じるため候補のまま返す。
+  (返す) 親が段 6 で走らせる対象テストの選び方に、変更した hook の consumer を repo 全体から
+  洗う導線がない。本 wave は `pytest_collection_finish` へ追記したのに
+  `test_run_tests_task_run.py` を走らせておらず、受入全走 1 回 (21 分 + lease 1 枠) を空費した。
 - 一次資料と逐語 = `output/insights/2026-08-10_t692-xdist-walltime/`。
 
 ## 次の一手差分

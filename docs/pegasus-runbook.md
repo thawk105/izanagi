@@ -781,7 +781,11 @@ python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
 - **`acquired` の直後に local main を取り込んでから投入する。** 待っている間に先行 holder が land
   するので、`claim` 時の `main_sha` は待ち始めた時点の main ではない。取り込まずに走らせると
   land 対象 tip が main の子孫でなくなり、全走をもう一度やり直すことになる (2026-08-09 に
-  12 commit 差で 1324 秒を空費)。
+  12 commit 差で 1324 秒を空費)。**この取り込みに `git merge --ff-only main` を使ってはならない** —
+  wave branch が自前 commit を持った時点で fast-forward できず `Not possible to fast-forward` で
+  止まる。取り込みは投入前に親が merge commit として済ませ、待ち手側は
+  `git rev-list --count HEAD..main` が 0 であることの検査に留める。0 でなければ lease を返して
+  親へ戻す (2026-08-10 実測: 待ち手内の `--ff-only` が失敗し、取得した lease を 1 回捨てた)。
 - 受入と land の**どの終わり方でも** `release --wave "$W"` する (赤・失敗・中断を含む)。
   他 wave の lease は消せない (holder digest 不一致なら `not-owner` で何もしない)。
 - land が成功したときだけ、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
