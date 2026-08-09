@@ -67,6 +67,17 @@ title: F37 を機械強制へ移した — land の ff-only だけに全史 prov
   main に land 済みの前例 `claude-opus-5-1m` が 4 commit あり checker を通るため、
   **既存慣行に揃えた**。`unknown` も `not-exposed` も厳密には該当しないという並行 session の
   精読と整合する。規約の穴自体は同 session が起票済み。
+- **受入全走は tip `05f99b6f` で 1 走した** (request 896778.nqsv、1330.92 秒、
+  **7582 passed / 1 failed / 20 skipped、rc=1**)。lease は 30 秒間隔の待ち手が約 5 分で取得し、
+  受入の終端で解放した。取得時に main が `bcda1c02` → `c9d14c23` へ進んでいたため、
+  投入前に取り込んで merge commit を作った。
+  **赤 1 件はフレークである。** `test_s8c_preregistration_invariant.py::`
+  `test_candidate_freeze_matches_contract_and_generation_chain` が
+  `git cat-file --batch-check` の 15 秒 timeout で SIGKILL (`returncode: -9`) された。
+  論理的な失敗ではなく xdist 並列下の負荷由来である。**単独再走で 8 passed / rc=0** を実測し、
+  再現しないことを確認した (`DW-O18`)。本 wave の差分は `s8c_preregistration` 経路に到達しない。
+  なお心配していた `test_exploration_external_root_keeps_wave_clean` は**この走行では通った** —
+  同テストの赤はノードと大域状態に依存する。
 - 段 5 と段 6 の実装子・fix 子はいずれも **pytest を実走できなかった**
   (`qstat -Q preflight rc=1`、runner rc=16)。テスト実測はすべて親が行った。
   ログインノードでは bounded scope の attest が 4 回連続 rc=16 (並行 8 wave でメモリ逼迫、
