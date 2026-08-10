@@ -26,10 +26,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     verify_p.add_argument("--repo-root", type=Path, required=True)
     verify_p.add_argument("--receipt", type=Path, required=True)
     args = parser.parse_args(argv)
-    orchestrator = args.repo_root / "orchestrator"
-    sys.path.insert(0, str(orchestrator))
+    sys.path.insert(0, str(args.repo_root))
     try:
-        from qualification.collector import collect, verify_post_job_receipt
+        from orchestrator.qualification.collector import (
+            collect,
+            verify_post_job_receipt,
+        )
         if args.mode == "verify":
             result = verify_post_job_receipt(
                 args.receipt, repo_root=args.repo_root)

@@ -20,8 +20,8 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_REPO / "orchestrator"))
-from tests import repo_tree_util  # noqa: E402
+sys.path.insert(0, str(_REPO))
+from orchestrator.tests import repo_tree_util  # noqa: E402
 
 _TOOL = _REPO / "tools" / "ruleops.py"
 _SPEC = importlib.util.spec_from_file_location("ruleops_test_target", _TOOL)

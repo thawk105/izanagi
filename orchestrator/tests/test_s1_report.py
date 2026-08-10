@@ -10,11 +10,11 @@ from pathlib import Path
 import pytest
 
 ORCH = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ORCH))
+sys.path.insert(0, str(ORCH.parent))
 
-from campaign import model, pipeline, s1_direct_comparison as driver, wal  # noqa: E402
-from campaign import s1_report as report  # noqa: E402
-from campaign import t080_freeze_migration as T080  # noqa: E402
+from orchestrator.campaign import model, pipeline, s1_direct_comparison as driver, wal  # noqa: E402
+from orchestrator.campaign import s1_report as report  # noqa: E402
+from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
 
 
 WORKLOADS = ("balanced", "write-heavy", "read-heavy")

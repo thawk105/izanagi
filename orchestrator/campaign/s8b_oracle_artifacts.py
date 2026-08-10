@@ -2,7 +2,7 @@
 """8b oracle artifact の schema・runtime type・strict loader の leaf 契約。
 
 runtime type は JSON 互換の marker であり、provenance 検証の証明ではない。
-全 consumer はこの module を canonical name ``campaign.s8b_oracle_artifacts`` で
+全 consumer はこの module を canonical name ``orchestrator.campaign.s8b_oracle_artifacts`` で
 import し、同名 class が別 module identity で複製されることを避ける。
 
 この module は stdlib-only leaf とし、他の campaign module を import しない。

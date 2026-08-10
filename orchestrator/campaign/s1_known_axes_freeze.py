@@ -14,18 +14,21 @@ import os
 import re
 import subprocess
 import sys
-from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from pathlib import Path
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import axis_trigger_gating as trigger_axis  # noqa: E402
-from campaign import backoff_sweep, genome, s6_sort_sweep, s8a_trigger_sweep  # noqa: E402
-from campaign import trigger_gate_binding  # noqa: E402
-from campaign.model import Genome  # noqa: E402
-from campaign.pipeline import variant_id  # noqa: E402
+from . import axis_trigger_gating as trigger_axis  # noqa: E402
+from . import backoff_sweep, genome, s6_sort_sweep, s8a_trigger_sweep  # noqa: E402
+from . import trigger_gate_binding  # noqa: E402
+from .model import Genome  # noqa: E402
+from .pipeline import variant_id  # noqa: E402
 
 
 ROOT = _ORCHESTRATOR.parent

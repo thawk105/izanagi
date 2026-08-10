@@ -47,17 +47,21 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign.axis_trigger_gating import (                             # noqa: E402
+from .axis_trigger_gating import (                             # noqa: E402
     GATEABLE_REASONS, INSTR_PATCH, PIN, REASON_NAMES, TEMPLATE_PATCH, _BASE)
-from campaign.layout import repo_output_root                           # noqa: E402
-from campaign.model import Genome                                      # noqa: E402
-from campaign.p2_2 import (CLK, RECORDS, THREADS, WORKLOADS,           # noqa: E402
+from .layout import repo_output_root                           # noqa: E402
+from .model import Genome                                      # noqa: E402
+from .p2_2 import (CLK, RECORDS, THREADS, WORKLOADS,           # noqa: E402
                            _assert_single_tenant)
-from campaign.patchharness import applied, apply_patch, assert_pinned_clean  # noqa: E402
-from campaign.s8a_trigger_coverage import _build, _parse_abort_counts  # noqa: E402
+from .patchharness import applied, apply_patch, assert_pinned_clean  # noqa: E402
+from .s8a_trigger_coverage import _build, _parse_abort_counts  # noqa: E402
+
 
 ENV_TAG = "linux-baremetal"
 RUN_TIMEOUT_S = 600.0     # 1M records のロード + extime 1s + trace I/O 減速の余裕

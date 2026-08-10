@@ -183,8 +183,8 @@ import json
 import sys
 (path, commit, script_sha, job_id, project, queue, nodes, requested_s,
  repo_root) = sys.argv[1:]
-sys.path.insert(0, repo_root + "/orchestrator")
-from calibrator.schema_v2 import normalize_request_id
+sys.path.insert(0, repo_root)
+from orchestrator.calibrator.schema_v2 import normalize_request_id
 with open(path, encoding="utf-8") as handle:
     doc = json.load(handle)
 qsub = doc["qsub"]
@@ -560,8 +560,8 @@ from pathlib import Path
 (root, cc_head, binary_sha, script_sha, assigned, hostname, expected_cpu,
  expected_cores, requested_s, reserve_s, configure_text, build_text,
  repo_root) = sys.argv[1:]
-sys.path.insert(0, repo_root + "/orchestrator")
-from campaign.env_attestation import (
+sys.path.insert(0, repo_root)
+from orchestrator.campaign.env_attestation import (
     PEGASUS_PROBE_OUTPUT_V2,
     observed_profile_to_dict,
     parse_probe_output,

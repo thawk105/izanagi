@@ -123,7 +123,7 @@ sys.path.insert(0, str(_ORCH))
 
 from campaign import axis_trigger_gating as AXIS  # noqa: E402
 from campaign import reflux_ir as IR  # noqa: E402
-from campaign import s8a_trigger_sweep as LEGACY  # noqa: E402
+from orchestrator.campaign import s8a_trigger_sweep as LEGACY  # noqa: E402
 from orchestrator.campaign import reflux_ir as ORCH_IR  # noqa: E402
 from skiputil import Skip  # noqa: E402
 

@@ -11,9 +11,9 @@ import types
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from calibrator.stability import (                              # noqa: E402
+from orchestrator.calibrator.stability import (                              # noqa: E402
     between_run_noise_floor, compare, mann_whitney_u, remeasure_until_stable)
 
 

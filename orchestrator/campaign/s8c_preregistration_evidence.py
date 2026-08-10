@@ -15,10 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
-try:  # package 名は pytest と ``python -m`` の双方を許す。
-    from . import s8c_preregistration as core
-except ImportError:  # pragma: no cover - campaign top-level import 用
-    from campaign import s8c_preregistration as core
+from . import s8c_preregistration as core
 
 
 CONTRACT_SCHEMA_VERSION = "s8c-preregistration-evidence-contract/v1"

@@ -10,11 +10,11 @@ import pytest
 
 
 ORCHESTRATOR = Path(__file__).resolve().parent.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
+if str(ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from calibrator import cli  # noqa: E402
-from calibrator import effective_clock_policy  # noqa: E402
+from orchestrator.calibrator import cli  # noqa: E402
+from orchestrator.calibrator import effective_clock_policy  # noqa: E402
 
 
 def test_effective_clock_policy_is_single_literal_authority():

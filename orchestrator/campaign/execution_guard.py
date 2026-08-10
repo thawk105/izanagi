@@ -19,12 +19,8 @@ import statistics
 from pathlib import Path
 from typing import Callable, Mapping, Optional
 
-if __package__ == "orchestrator.campaign":
-    from ..calibrator import schema_v2 as _schema_v2
-    from ..calibrator import effective_clock_policy
-else:  # top-level ``campaign`` compatibility
-    from calibrator import schema_v2 as _schema_v2
-    from calibrator import effective_clock_policy
+from ..calibrator import schema_v2 as _schema_v2
+from ..calibrator import effective_clock_policy
 from . import env_contract as _env_contract
 from . import env_contract_activation as _env_contract_activation
 from . import env_attestation as _env_attestation

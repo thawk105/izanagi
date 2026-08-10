@@ -31,22 +31,22 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import ident                                        # noqa: E402
-from campaign import pipeline                                     # noqa: E402
-from campaign import p3_s4_loop as L                              # noqa: E402
-from campaign import s6_sort_sweep as W                           # noqa: E402
-from campaign import wal                                         # noqa: E402
-from campaign.artifact_admission import CampaignNotAdmitted       # noqa: E402
-from campaign.build_admission import (BuildAdmissionError,            # noqa: E402
+from orchestrator.campaign import ident                                        # noqa: E402
+from orchestrator.campaign import pipeline                                     # noqa: E402
+from orchestrator.campaign import p3_s4_loop as L                              # noqa: E402
+from orchestrator.campaign import s6_sort_sweep as W                           # noqa: E402
+from orchestrator.campaign import wal                                         # noqa: E402
+from orchestrator.campaign.artifact_admission import CampaignNotAdmitted       # noqa: E402
+from orchestrator.campaign.build_admission import (BuildAdmissionError,            # noqa: E402
                                       BuildProvenance, GeneratorId,
                                       attest_generator_output,
                                       build_run_context,
                                       derive_build_admission)
-from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
-from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
-from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
+from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
+from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
+from orchestrator.campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
                                     STOCK, SourceEvidence)
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
@@ -275,12 +275,12 @@ def test_genome_flags():
 # ==== 実装後レビューの是正 (2026-07-10) =======================================
 
 def _tmp_layout():
-    from campaign.layout import CampaignLayout
+    from orchestrator.campaign.layout import CampaignLayout
     return CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_s6sweep_lay_")).ensure()
 
 
 def _install_public_reject_sweep_fakes(monkeypatch, layout):
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     root = tempfile.mkdtemp(prefix="izanagi_s6_public_sweep_")
     os.makedirs(os.path.join(root, "external", "ccbench"))
@@ -430,7 +430,7 @@ def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatc
 
 def test_eval_one_propagates_context_and_source_capability_to_build_entry(monkeypatch):
     """検疫通過後の build は policy context と source-bound resolver を受ける。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     layout = _tmp_layout()
     name = W.CANDIDATES[0][0]

@@ -25,24 +25,27 @@ import json
 import re
 import sys
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import Callable, Optional, TypedDict
+from pathlib import Path
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import env_attestation, env_contract, model  # noqa: E402
-from campaign import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
-from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
-from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
-from campaign import s8b_experiment_numbers as _experiment_numbers  # noqa: E402
-from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
-from campaign import s8b_outcome_stage_contract as _outcome_stage_contract  # noqa: E402
-from campaign import s8b_ratified_freeze  # noqa: E402
-from campaign import t080_freeze_migration as _t080  # noqa: E402
-from campaign.layout import CampaignLayout, campaign_layout  # noqa: E402
+from . import env_attestation, env_contract, model  # noqa: E402
+from . import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
+from . import s8b_oracle_artifacts as _artifacts  # noqa: E402
+from . import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
+from . import s8b_experiment_numbers as _experiment_numbers  # noqa: E402
+from . import s8b_freeze_io as _freeze_io  # noqa: E402
+from . import s8b_outcome_stage_contract as _outcome_stage_contract  # noqa: E402
+from . import s8b_ratified_freeze  # noqa: E402
+from . import t080_freeze_migration as _t080  # noqa: E402
+from .layout import CampaignLayout, campaign_layout  # noqa: E402
 
 
 SCHEMA_VERSION = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA

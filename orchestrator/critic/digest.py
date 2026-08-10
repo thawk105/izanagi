@@ -16,21 +16,24 @@ critic は「生のカウンタでなく組み合わせて読み、特定の設�
 """
 from __future__ import annotations
 
-import os
 import sys
 from collections import Counter
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.critic"
 
-from campaign import pipeline, wal                                # noqa: E402
-from campaign.artifact_admission import (AdmittedCampaign,        # noqa: E402
-                                         require_admitted_campaign)
-from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
-                            STAGE_BUILD_START, STAGE_COMMIT, STAGE_VERIFY_DONE)
-from critic.identity_projection import IdentityProjection         # noqa: E402
+from orchestrator.campaign import pipeline, wal                    # noqa: E402
+from orchestrator.campaign.artifact_admission import (             # noqa: E402
+    AdmittedCampaign, require_admitted_campaign)
+from orchestrator.campaign.layout import CampaignLayout            # noqa: E402
+from orchestrator.campaign.model import (                          # noqa: E402
+    STAGE_ABORT, STAGE_BENCH_DONE, STAGE_BUILD_START, STAGE_COMMIT,
+    STAGE_VERIFY_DONE)
+from .identity_projection import IdentityProjection                # noqa: E402
 
 # critic が見る指標と「大きいほど良いか」(throughput/ipc は大、他は小が良い)。
 INDICATORS = ["throughput_tps", "abort_rate", "latency_ns", "llc_miss_rate", "ipc"]
@@ -485,8 +488,8 @@ def load_p2_2_digests() -> List[WorkloadDigest]:
     C1 回避: 旧実装の campaign-id 再計算 (宣言 ccbench_commit 依存) は submodule pin
     前進で on-disk id と食い違い、count=0 を沈黙して返していた。discover できなければ
     raise (critic の入力が空のまま進む方が有害、規律3)。"""
-    from campaign.p2_2 import WORKLOADS
-    from campaign.replay import discover_p2_2_dir
+    from orchestrator.campaign.p2_2 import WORKLOADS
+    from orchestrator.campaign.replay import discover_p2_2_dir
     return [build_digest(tag, wl, discover_p2_2_dir(tag)) for tag, wl in WORKLOADS]
 
 
@@ -745,7 +748,7 @@ def main(argv) -> int:
     a = ap.parse_args(argv[1:])
     if a.campaign_dir:
         view = require_admitted_campaign(CampaignLayout(root=a.campaign_dir))
-        from campaign.p3_s4_loop import make_critic_identity_projection
+        from orchestrator.campaign.p3_s4_loop import make_critic_identity_projection
         identity_projection = make_critic_identity_projection(view)
         parts = [render_text([build_digest(a.tag, {}, view)])]
         lrs, other = load_liveness_rejections(view)

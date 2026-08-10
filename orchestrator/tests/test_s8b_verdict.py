@@ -19,13 +19,13 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 ORCH = _HERE.parent
 REPO_ROOT = ORCH.parent
-for _p in (str(REPO_ROOT), str(ORCH), str(_HERE)):
+for _p in (str(REPO_ROOT), str(_HERE)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from campaign import s8b_verdict as verdict  # noqa: E402
-from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
-from campaign.s8b_selector_input import (  # noqa: E402
+from orchestrator.campaign import s8b_verdict as verdict  # noqa: E402
+from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
+from orchestrator.campaign.s8b_selector_input import (  # noqa: E402
     CHOICE_TO_BINDING,
     STATIC_DEFAULT_CHOICE_ID,
 )

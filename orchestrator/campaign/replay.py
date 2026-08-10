@@ -23,18 +23,22 @@ import os
 import sys
 from dataclasses import dataclass
 from typing import Dict, List, Optional
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import wal                                          # noqa: E402
-from campaign.artifact_admission import (AdmittedCampaign,        # noqa: E402
+from . import wal                                          # noqa: E402
+from .artifact_admission import (AdmittedCampaign,        # noqa: E402
                                          require_admitted_campaign)
-from campaign.genome import SILO_SPACE                            # noqa: E402
-from campaign.layout import CampaignLayout, repo_output_root      # noqa: E402
-from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
+from .genome import SILO_SPACE                            # noqa: E402
+from .layout import CampaignLayout, repo_output_root      # noqa: E402
+from .model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
                             STAGE_COMMIT, STAGE_VERIFY_DONE, Genome)
-from campaign.p2_2 import BETWEEN_RUN_CV, WORKLOADS               # noqa: E402
-from calibrator.stability import compare                         # noqa: E402
+from .p2_2 import BETWEEN_RUN_CV, WORKLOADS               # noqa: E402
+from ..calibrator.stability import compare                         # noqa: E402
+
 
 P2_2_SLUG = "p2-2-silo"
 P2_2_SEARCH_TAG = "enumerate"

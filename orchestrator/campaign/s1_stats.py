@@ -24,8 +24,8 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import Optional, Sequence, Tuple
 
-from calibrator.stability import _average_ranks
-from campaign.search_baselines import prob_superiority_two_sample
+from ..calibrator.stability import _average_ranks
+from .search_baselines import prob_superiority_two_sample
 
 
 N_STRATA = 2

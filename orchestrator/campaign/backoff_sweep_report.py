@@ -13,14 +13,18 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign.backoff_sweep import WORKLOADS, config_for         # noqa: E402
-from campaign.p2_2 import BETWEEN_RUN_CV                          # noqa: E402
-from campaign.replay import discover_campaign_dir                 # noqa: E402
-from critic.digest import load_workload                          # noqa: E402
-from reports.plot import DatFile, PlotSpec, Series, make_plot     # noqa: E402
+from .backoff_sweep import WORKLOADS, config_for         # noqa: E402
+from .p2_2 import BETWEEN_RUN_CV                          # noqa: E402
+from .replay import discover_campaign_dir                 # noqa: E402
+from ..critic.digest import load_workload                          # noqa: E402
+from ..reports.plot import DatFile, PlotSpec, Series, make_plot     # noqa: E402
+
 
 
 def _classify(g):

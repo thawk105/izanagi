@@ -23,24 +23,18 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal
 
-
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
-    _ROOT_FOR_IMPORT = Path(__file__).resolve().parents[2]
-    if str(_ROOT_FOR_IMPORT) not in sys.path:
-        sys.path.insert(0, str(_ROOT_FOR_IMPORT))
-    from orchestrator.campaign.autonomous_trial_completeness import (
-        AutonomousTrialCompletenessError,
-        assert_autonomous_trial_completeness,
-    )
-    from orchestrator.campaign import s8c_preregistration
-    from orchestrator.campaign import s8c_acceptance_receipt
-else:
-    from .autonomous_trial_completeness import (
-        AutonomousTrialCompletenessError,
-        assert_autonomous_trial_completeness,
-    )
-    from . import s8c_preregistration
-    from . import s8c_acceptance_receipt
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
+from .autonomous_trial_completeness import (
+    AutonomousTrialCompletenessError,
+    assert_autonomous_trial_completeness,
+)
+from . import s8c_preregistration
+from . import s8c_acceptance_receipt
+
+
 
 
 MANIFEST_SCHEMA_VERSION = "p3-8c-trial-manifest/v1"
