@@ -1,0 +1,61 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-08-10
+wave: dev-wave-t657-permanent-bundle-design
+seq: 1
+title: 較正 + 凍結の世代交代を上位の権限束として起票した — 封印と境界は先送りのまま、新たな裁定 4 件を返す (docs のみ、受入 7982 passed / 20 skipped / rc=0 / 508.06 秒、branch worktree-dev-wave-t657-permanent-bundle-design)
+---
+
+## 本文
+
+- **ユーザー裁定 §58 の [T-657] = R3 を消化した。** 較正 (環境契約の活性化) と凍結 (ratified
+  freeze の世代) の世代交代を 1 つの権限束として解決する上位層の恒久設計を、第 1 設計段パッケージ
+  として起票した ({{D:calibration-freeze-authority-bundle}})。実装差分ゼロ、凍結成果物の bytes 不変。
+- **封印 (S1/S2)・保証境界・副作用境界は先送りのまま据え置いた。** 設計はどちらに裁定されても
+  成立する形にし、封印束縛 slot と裁定 profile を「決める場所」として先に置いた。
+  保証境界の問いが **S1 を採る場合にのみ発生する**ことは、敵対レビューの指摘で本文へ反映した
+  (無条件に profile 解決を要求すると S2 が実行不能になる)。
+- **旧 branch は merge していない。** 再導出のみ。floor protocol の復元はユーザー確認だけの手番と
+  して設計文書へ残し、どの段の前提条件にもしていない。
+- **親 brief の前提 2 件が段 3 で反証され、訂正した。** (a) 現行実装が承認と pointer を同一 commit に
+  要求することは事実だが、承認済み第 2 設計段はすでに両者を別 commit と規定しており、これは
+  「恒久設計の制約」ではない。(b)「有効 head の literal を record 化することが必須」は成立しない —
+  literal を残したまま成立する topology の反例が構成された。よって環境権限の解決方式は未裁定の
+  択一として開いた。
+- **親の当初方針「凍結側正本を一切改訂しない」も撤回した。** 敵対レンズ 2 本が独立に
+  「正本が二重化し、環境は上位・凍結は下位から解決される直積が再生成される」経路を構成したため
+  (`DW-G03` の独立 2 例)。R1..R16 本文は変えず、適用範囲と precedence の注記だけを追記した。
+  precedence は状態文でなく「上位 resolver が一意に解決するか」で判定する形にした。
+- **段 6 のレビュー 2 本と焦点再レビュー 3 巡で、虚偽・自己矛盾・暗黙裁定を順に除いた。**
+  初版には「束の識別子を持たない成果物の拒否」を**保存すべき既存の拒否**と書いた虚偽があり、
+  現行では正常な形であることを実測して新設側へ訂正した。修正が新たな矛盾を生む往復が
+  2 度あり、3 巡目の最終確認で型 1 (虚偽) 0 件まで落とした。残った矛盾 2 件と暗黙裁定 1 件は
+  `DW-O16` の 3 巡上限に従い、レビューを重ねず親裁定で本文を直して閉じた。
+- **完了判定の書き方そのものを設計判断として記録した** ({{D:design-completion-criteria-need-positive-fixture}})。
+  陰性条件だけの完了判定は reject-all 実装で全段が緑になることを、独立した敵対レンズが 3 段で
+  構成した。
+- **変異 matrix は免除。** 実装差分ゼロの docs-only であり `DW-S04` の免除条件に当たる。
+  受入全走は免除せず実走した (lease 取得 → local main 取り込み → 全走)。
+- **受入結果:** tip `7b7503b4` で 1 走、**7982 passed / 20 skipped / rc=0 / 508.06 秒**。
+  lease は取得後に local main を取り込む待ち手内 merge ([T-732] 裁定 (a)) で 1 回発生した。
+  land 対象 tip は本記録 commit を含むため受入 tip と異なる。
+
+## 次の一手差分
+
+### 更新
+
+- [T-657] **P1・恒久設計を起票済み → ユーザー裁定待ち**: 正本 =
+  `docs/calibration-freeze-authority-bundle-design.md` (第 1 設計段)。**先送り 3 件は据え置き** —
+  封印 S1/S2、保証境界 G-a/G-b/G-c (**S1 を採る場合にのみ発生**)、副作用境界。
+  **新たに返す裁定 4 件** = Q1 環境候補 record の置き場と schema (親推奨 (i) 権威 directory の外。
+  (ii) は「活性化 record は増えたが有効 head は旧のまま」の拒否を消す) /
+  Q2 上位束の承認と発効の実行主体および承認の意味 (下位 R13/R14 は上位へ未適用) /
+  Q3 lockstep・rollback・revocation 政策と下位発効の位置 (親推奨 lockstep) /
+  Q4 source-side pin の喪失受諾 (literal を残す分岐なら発生しない)。
+  **段 0 は既存の未裁定 3 件にも依存** = U-A1 (承認の有効期間) / conformance 期待出力 literal /
+  下位実装と下位 exact 正本の承認・pointer commit 分離の差。
+  実装 wave はこれらの裁定後。旧 branch は merge 禁止のまま (再導出のみ)。
+  **floor protocol 復元はユーザー確認のみの手番として残置** (repo 書き戻し不要、手順 =
+  `output/insights/2026-08-10_t657-restore-redesign/restore-floor-protocol.md`)
+  base: 5558bbb687111de3f1bd3a609bac5d65a7d368914abd8ec8dfd05e068499d3a0
