@@ -803,3 +803,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dev-wave-docs-budget-review":"[T-789]"},"authored":"2026-08-11","content_sha256":"3cac629a35916738307bdb3d6d5b7a960a5738d62d6bddf95a33ff348fef8ed2","seq":1,"wave":"dev-wave-t139-manifest-land1"}
 - {"allocations":{"D:t139-record-items-and-second-erratum-approval":"D282"},"authored":"2026-08-11","content_sha256":"5b3921bae872533a97528b69d420fc96e42f831366d8eaf5405bdf3973d7e055","seq":1,"wave":"dev-wave-t139-manifest-land1"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"28285996a3e64824f8cab679c0b34212b54e3691058d968213fd14be85ae4920","seq":49,"wave":"rulings-20260806-a"}
