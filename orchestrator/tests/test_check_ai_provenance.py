@@ -1870,7 +1870,7 @@ def test_registry_rejects_non_descriptive_required_note_rc2(
 def test_production_registry_notes_satisfy_descriptive_contract():
     registry = provenance._known_violation_registry()
 
-    assert len(registry) == 30
+    assert len(registry) == 34
     assert tuple(registry.values()) == provenance.KNOWN_PROVENANCE_VIOLATIONS
 
 
