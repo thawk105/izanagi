@@ -36,8 +36,22 @@ title: 承認候補 3 点を承認可能水準へ直し、R1 裁定時に未見�
   land 2 の層 (manifest / resolver / writer / 台帳 / submit / driver / collector / consumer) は
   1 つも実装していない。見積りは production 7,600 行 + test 7,820 行、PBS 9〜11 割当て。
 - 変異 matrix は免除した (diff に実行可能コード・テスト・gate が 1 行も無く、kill を観測する面が無い)。
-  代わりに敵対レビュー 2 本を凍結対象の文書と schema へ当て、要件文書と schema の key 集合の
-  exact 1:1 を親が機械照合した。
+  代わりに敵対レビュー 2 本 + 焦点再レビュー 1 本を凍結対象へ当てた。
+  **焦点再レビューの対応表は closed 30 / partial 6 / regressed 0、独立再計算 7/7 一致**で、
+  凍結前に直すべきとされた 3 件 (§7.1 の件数条件、算術誤記の記述、erratum blob の manifest pin) は
+  親が全件対応した。
+- **レビュー C は 1 回目に必読資料欠落で fail-closed した** — land 1 branch は local main から
+  分岐しているため、第 1 波の未 land 草案が worktree に存在しない。repo 外へ写して再投入した。
+  正しい fail-closed であり所見ではない。
+- **land しないため受入全走は行わず、変更 path を読む対象テストだけを実走した** (`--force-dispatch`)。
+  結果 = **2 failed / 855 passed / 26.23 秒 / rc=1**。赤 2 件は
+  `test_real_repo_serialization.py` の `from tests import ...` が **file 選択走では import path を
+  確立できない**ことによる偽赤で (`ModuleNotFoundError: No module named 'tests'`、
+  `orchestrator/tests` に `__init__.py` 無し・repo 直下に `tests/` と root `conftest.py` 無し)、
+  docs 差分が到達しえない。同 nodeid は main の全走で緑である。`DW-O18` に従い実装差分へ帰属しない。
+  **land 時の全走が権威**であり、次 wave が land 対象 tip で全走・provenance を再実施する。
+- `check_docs.py` rc=0、`spool_fold.py --dry-run` = `planned`、
+  `check_ai_provenance.py` の全史監査は新規違反なし。
 
 ## 次の一手差分
 
