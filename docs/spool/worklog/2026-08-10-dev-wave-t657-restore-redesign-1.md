@@ -48,6 +48,11 @@ title: [T-657] 裁定 A を実行し復元手順と一体再設計パッケー�
   触れていない。**最終 tip で当該 2 file を実走して 450 passed / rc=0** (86.77 秒)。併せて
   `check_docs.py` rc=0、`spool_fold.py --dry-run` rc=0 (status=planned)、
   `check_ai_provenance.py` の全履歴監査 2064 件・新規違反なしを同 tip で実測した。
+  **land 直前に local main が `e91bf56d` へ進んでいたため取り込み、取り込み後の tip で全部を
+  再走した** — 影響テストは main 由来の `test_t080_freeze_migration.py` を足して
+  **492 passed / rc=0** (122.00 秒)、`check_docs.py` rc=0、`spool_fold.py --dry-run` rc=0、
+  provenance 全履歴 **2072 件・新規違反なし**。carry 解決済みの `base:` digest は fold を跨いでも
+  一致し、取り直しは不要だった (設計どおり)。
 - **変異 matrix は免除** (`DW-S04`)。実装差分ゼロの docs-only であり、実装しない裁定に該当する。
 - **段 3 の敵対レビューは 2 本とも NO-GO、real 所見 27 件、refuted 0 件。** 全件を採用または
   裁定パッケージへ回した。段 5・6 は実装差分ゼロのため実施していない。
