@@ -1,0 +1,64 @@
+{
+ "estimated_run_seconds": 240,
+ "hang_timeout_seconds": 1200,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "G-N4",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for successor in successor_rows[:4]:\n",
+     "old": "    for successor in successor_rows:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "G-N64",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for successor in successor_rows[:64]:\n",
+     "old": "    for successor in successor_rows:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "P-N4",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for predecessor, successor in changed[:4]:\n",
+     "old": "    for predecessor, successor in changed:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "P-N64",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for predecessor, successor in changed[:64]:\n",
+     "old": "    for predecessor, successor in changed:\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 900
+}
