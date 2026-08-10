@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-10
 wave: dev-wave-t675-pin-semantic-gap
 seq: 1
-title: whole-file SHA-256 pin の意味欠落 ([T-675]) の設計択一を裁定へ返した — 敵対 2 レンズが両方 NO-GO で親案を command の F26 edge 1 件まで縮めた (docs のみ、実装差分ゼロ、受入 8012 passed / 20 skipped / 511.08 秒 / rc=0、branch worktree-dev-wave-t675-pin-semantic-gap)
+title: whole-file SHA-256 pin の意味欠落 ([T-675]) の設計択一を裁定へ返した — 敵対 2 レンズが両方 NO-GO で親案を command の F26 edge 1 件まで縮めた (docs のみ、実装差分ゼロ、受入 8012 passed / 20 skipped / 486.83 秒 / rc=0、branch worktree-dev-wave-t675-pin-semantic-gap)
 ---
 
 ## 本文
@@ -14,6 +14,9 @@ title: whole-file SHA-256 pin の意味欠落 ([T-675]) の設計択一を裁定
   通った (`DW-S04` の「実装しない」裁定)。変異 matrix は同条項で免除。受入全走は免除せず実走した
   (実走根拠 nodeid = `orchestrator/tests/test_check_docs.py`、実 repo の pin 定数を読む)。
   裁定パッケージと逐語は `output/insights/2026-08-10_t675-pin-semantic-gap/`。
+  受入は 2 走した。1 走目 = tip `ffe28565` で 8012 passed / 20 skipped / 511.08 秒 / rc=0
+  (計算ノード `900548.nqsv`)。段 8 の記録 commit 2 本を足した後の**本走 (2 走目) =
+  最終 tip `174b2d10` で 8012 passed / 20 skipped / 486.83 秒 / rc=0**。
 - **[T-675] の主張を実 repo で実証した。**安全義務の文「正本は `docs/failures.md` F26。」を削り、
   pin 3 箇所 (checker 定数・test 定数・test 内の全文逐語コピー) を同時に再 pin した状態で
   `check_docs` **rc=0 / 違反なし**、`test_check_docs.py` **357 passed / rc=0**
