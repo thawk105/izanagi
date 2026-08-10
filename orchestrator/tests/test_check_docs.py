@@ -2374,13 +2374,13 @@ def _grow_test_section(
         re.MULTILINE | re.DOTALL,
     )
     assert match is not None and add_bytes >= 0
-    payload = "x" * add_bytes
+    if add_bytes == 0:
+        return
+    payload = ("x" * (add_bytes - 1)) + "\n"
     if multibyte:
-        assert add_bytes >= 3
-        payload = "あ" + ("x" * (add_bytes - 3))
-    insertion = match.end()
-    while insertion > match.start() and text[insertion - 1] in "\r\n":
-        insertion -= 1
+        assert add_bytes >= 4
+        payload = "あ" + ("x" * (add_bytes - 4)) + "\n"
+    insertion = text.index("\n", match.start(), match.end()) + 1
     _write(root, rel, text[:insertion] + payload + text[insertion:])
 
 

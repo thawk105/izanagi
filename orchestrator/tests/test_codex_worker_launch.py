@@ -3309,7 +3309,36 @@ def test_preflight_rejects_foreign_repo_before_artifact_creation(
     launcher_repo, _launcher_commit = _prepare_authority_repo(
         tmp_path / "launcher-repo"
     )
-    repo, commit = _prepare_authority_repo(tmp_path / "foreign-repo")
+    repo, _commit = _prepare_authority_repo(tmp_path / "outer-repo")
+    foreign_repo, _foreign_commit = _prepare_authority_repo(
+        tmp_path / "foreign-repo"
+    )
+    nested_submodule = repo / "nested-submodule"
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "protocol.file.allow=always",
+            "-C",
+            os.fspath(repo),
+            "submodule",
+            "add",
+            "-q",
+            os.fspath(foreign_repo),
+            os.fspath(nested_submodule),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", os.fspath(repo), "commit", "-qam", "add submodule"],
+        check=True,
+    )
+    commit = subprocess.run(
+        ["git", "-C", os.fspath(repo), "rev-parse", "HEAD"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip()
     monkeypatch.setattr(LAUNCHER, "_ROOT", launcher_repo)
     fake = _write_fake_codex(tmp_path / "fake-codex")
     job_root = tmp_path / "job"
@@ -3319,6 +3348,7 @@ def test_preflight_rejects_foreign_repo_before_artifact_creation(
         fake=fake,
         repo_root=repo,
         base_commit=commit,
+        cwd=nested_submodule,
     )
 
     _run_main_in_process(

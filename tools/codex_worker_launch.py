@@ -1813,15 +1813,10 @@ def _verify_repo_binding(repo_root: Path, cwd: Path, base_commit: str) -> None:
         raise LaunchError("--repo-root は repository root でなければならない")
     if exists.returncode != 0:
         raise LaunchError("--base-commit が --repo-root の repository に存在しない")
-    common_dirs = {
-        _git_common_dir(_ROOT, label="launcher repository"),
-        _git_common_dir(repo_root, label="--repo-root"),
-        _git_common_dir(cwd, label="--cwd"),
-    }
-    if len(common_dirs) != 1:
-        raise LaunchError(
-            "launcher repository/--repo-root/--cwd の git common-dir が一致しない"
-        )
+    repo_common_dir = _git_common_dir(repo_root, label="--repo-root")
+    cwd_common_dir = _git_common_dir(cwd, label="--cwd")
+    if repo_common_dir != cwd_common_dir:
+        raise LaunchError("--repo-root/--cwd の git common-dir が一致しない")
 
 
 def _preflight_run(args: argparse.Namespace) -> tuple[Path, str, str]:
