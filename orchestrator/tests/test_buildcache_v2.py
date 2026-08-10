@@ -18,10 +18,10 @@ import pytest
 
 _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
-sys.path.insert(0, str(_ORCH))
+sys.path.insert(0, str(_ORCH.parent))
 
-from campaign import buildcache  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign import buildcache  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildAdmission,
     BuildAdmissionError,
     GeneratorId,
@@ -32,14 +32,14 @@ from campaign.build_admission import (  # noqa: E402
     derive_build_admission,
     verify_review_receipt,
 )
-from campaign.env_contract import (  # noqa: E402
+from orchestrator.campaign.env_contract import (  # noqa: E402
     CalibrationRef,
     ExecutionEnvironmentContract,
     IsolationPolicy,
 )
-from campaign.model import Genome  # noqa: E402
-from campaign.pin import CURRENT_PIN  # noqa: E402
-from campaign.source_digest import SourceEvidence  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
+from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 
 
 def _source_evidence(genome: Genome, commit: str, source_root: str) -> SourceEvidence:
@@ -763,13 +763,13 @@ import hashlib, json, os, sys, time
 from pathlib import Path
 from types import SimpleNamespace
 sys.path.insert(0, sys.argv[1])
-from campaign import buildcache
-from campaign.build_admission import (
+from orchestrator.campaign import buildcache
+from orchestrator.campaign.build_admission import (
     GeneratorId, attest_generator_output, build_run_context, derive_build_admission,
 )
-from campaign.env_contract import CalibrationRef, ExecutionEnvironmentContract, IsolationPolicy
-from campaign.model import Genome
-from campaign.source_digest import SourceEvidence
+from orchestrator.campaign.env_contract import CalibrationRef, ExecutionEnvironmentContract, IsolationPolicy
+from orchestrator.campaign.model import Genome
+from orchestrator.campaign.source_digest import SourceEvidence
 
 root, sync, tools = map(Path, sys.argv[2:5])
 os.environ["PATH"] = str(tools) + os.pathsep + os.environ.get("PATH", "")
@@ -878,7 +878,15 @@ def test_v2_two_real_processes_only_one_claims(tmp_path):
     _write_tool(tools / "cmake", "cmake version A")
     sync = tmp_path / "sync"
     sync.mkdir()
-    argv = [sys.executable, "-c", textwrap.dedent(_CHILD), str(_ORCH), str(tmp_path), str(sync), str(tools)]
+    argv = [
+        sys.executable,
+        "-c",
+        textwrap.dedent(_CHILD),
+        str(_ORCH.parent),
+        str(tmp_path),
+        str(sync),
+        str(tools),
+    ]
     children = [subprocess.Popen(argv) for _ in range(2)]
     try:
         _wait_for_count(sync, "ready-", 2)

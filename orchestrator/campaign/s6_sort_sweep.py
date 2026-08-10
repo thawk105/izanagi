@@ -49,26 +49,30 @@ import json
 import os
 import sys
 from typing import Dict, List, Optional, Tuple
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import (env_contract, ident, pin, pipeline, screening_driver,  # noqa: E402
+from . import (env_contract, ident, pin, pipeline, screening_driver,  # noqa: E402
                       source_digest, wal)
-from campaign import p3_s4_loop as L                              # noqa: E402
-from campaign import p3_s4_loop_sort as S                         # noqa: E402
-from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
-from campaign.build_admission import (BuildAdmissionError,         # noqa: E402
+from . import p3_s4_loop as L                              # noqa: E402
+from . import p3_s4_loop_sort as S                         # noqa: E402
+from .artifact_admission import require_admitted_campaign  # noqa: E402
+from .build_admission import (BuildAdmissionError,         # noqa: E402
                                       BuildRunContext, GeneratorId,
                                       attest_generator_output,
                                       build_run_context)
-from campaign.layout import campaign_layout                       # noqa: E402
-from campaign.loop import run_campaign                            # noqa: E402
-from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
+from .layout import campaign_layout                       # noqa: E402
+from .loop import run_campaign                            # noqa: E402
+from .model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
                             STAGE_COMMIT, CampaignConfig, Genome)
-from campaign.p2_2 import (EXTIME, RECORDS, REPS, THREADS,        # noqa: E402
+from .p2_2 import (EXTIME, RECORDS, REPS, THREADS,        # noqa: E402
                            _assert_single_tenant)
-from campaign.pipeline import (SEARCH_CONFIG_VERIFY_KEY,          # noqa: E402
+from .pipeline import (SEARCH_CONFIG_VERIFY_KEY,          # noqa: E402
                                VERIFY_LEGACY_PLUS_S2, PerfConfig, variant_id)
+
 
 PIN = pin.CURRENT_PIN                 # d706650 (sort 軸系 driver と同一 pin)
 ENV_TAG = "linux-baremetal"
@@ -223,7 +227,7 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
     src_token で分岐)。中断再開は WAL replay (評価済み variant はスキップ)。失敗は
     variant 単位で abort 隔離され campaign は継続する (pipeline 既存)。
     返り値 = name → {variant_id, category, src_token, outcome}。"""
-    from campaign.patchharness import applied, assert_pinned_clean, checkout
+    from .patchharness import applied, assert_pinned_clean, checkout
 
     _assert_single_tenant()
     root = _repo_root()
@@ -311,7 +315,7 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
 
 def _candidate_ref(name: str, cfg: CampaignConfig, sub: str, patch: str) -> str:
     """candidate の確定variant id。screening identityを実測前に焼くために使う。"""
-    from campaign.patchharness import applied
+    from .patchharness import applied
     if name == STOCK_NAME:
         impl, genome = None, _genome(0)
     else:
@@ -330,7 +334,7 @@ def _candidate_ref(name: str, cfg: CampaignConfig, sub: str, patch: str) -> str:
 def _eval_one(name: str, cfg: CampaignConfig, perf: PerfConfig, layout, sub: str,
               patch: str, cache_root: str, log=print, *, screening=None,
               force: bool = False, build_context: BuildRunContext) -> Dict:
-    from campaign.patchharness import applied
+    from .patchharness import applied
     if name == STOCK_NAME:
         cat, impl = "stock", None
         genome = _genome(0)

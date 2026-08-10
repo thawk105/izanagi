@@ -1109,8 +1109,8 @@ timeout --signal=TERM 15 python3 - "$IZANAGI_ROOT" \
 import sys
 
 root, source_root, ipcount_path, srclines_path, map_path = sys.argv[1:]
-sys.path.insert(0, root + "/orchestrator")
-from campaign.profiler_directive import region_totals, srcline_region_mapper
+sys.path.insert(0, root)
+from orchestrator.campaign.profiler_directive import region_totals, srcline_region_mapper
 
 counts = []
 with open(ipcount_path, encoding="utf-8", errors="strict") as handle:
@@ -1562,8 +1562,8 @@ import sys
     workload,
     rep_text,
 ) = sys.argv[1:]
-sys.path.insert(0, root + "/orchestrator")
-from campaign.profiler_directive import region_totals, srcline_region_mapper
+sys.path.insert(0, root)
+from orchestrator.campaign.profiler_directive import region_totals, srcline_region_mapper
 
 with open(provenance_path, encoding="utf-8", errors="strict") as handle:
     provenance = json.load(handle)

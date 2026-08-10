@@ -10,12 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-if __package__ == "orchestrator.campaign":
-    from ..calibrator import effective_clock_policy
-    from ..calibrator import schema_v2 as _schema_v2
-else:  # top-level ``campaign`` compatibility
-    from calibrator import effective_clock_policy
-    from calibrator import schema_v2 as _schema_v2
+from ..calibrator import effective_clock_policy
+from ..calibrator import schema_v2 as _schema_v2
 
 
 GRANDFATHERED_V1_SHA256 = (

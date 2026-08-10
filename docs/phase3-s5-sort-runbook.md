@@ -79,7 +79,7 @@ axis は `"silo-writeset-sort"` (段4b は `"silo-backoff-magnitude"`)。**direc
 single-tenant 不要、read-only に近い):
 ```
 echo "$IMPLEMENTATION" > <scratch>/impl.txt
-python3 -m campaign.p3_s4_loop_sort --preview-diff <scratch>/impl.txt
+python3 -m orchestrator.campaign.p3_s4_loop_sort --preview-diff <scratch>/impl.txt
 ```
 出力 JSON = `{"passed": bool, "working_diff": "...", "diff_digest": "<sha256>", "subtype": ..., "reason": ...}`。
 - `passed=false` (フレーム/hole 逸脱) なら auditor を呼ばず、この時点で `<scratch>/prop.json`
@@ -135,7 +135,7 @@ iteration の返却値を使い回すと `AuditorGateFailure` で駆動が止ま
 
 ### (f) harness で 1 iteration を実走 (single-tenant!)
 ```
-python3 -m campaign.p3_s4_loop_sort --run-iteration <scratch>/prop.json \
+python3 -m orchestrator.campaign.p3_s4_loop_sort --run-iteration <scratch>/prop.json \
     --allow-coder-derived-build
 ```
 - **`--allow-coder-derived-build` は必須** — coder 由来 source の build は既定拒否であり、

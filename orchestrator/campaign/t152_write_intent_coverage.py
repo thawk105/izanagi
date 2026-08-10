@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """T-152 write-intent shadow characterization (correctness-only, not integrated).
 
-The target CCBench commit is deliberately not coupled to campaign.pin: this
+The target CCBench commit is deliberately not coupled to orchestrator.campaign.pin: this
 driver characterizes the staged T-152 commit before a separately approved pin
 bump.  Every build uses patchharness.checkout() and a fresh build directory, so
 the external/ccbench working tree and HEAD are never changed.
@@ -27,12 +27,16 @@ import subprocess
 import sys
 import tempfile
 from typing import Any, Iterable
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign.layout import repo_output_root  # noqa: E402
-from campaign.patchharness import applied, checkout  # noqa: E402
-from campaign.materializer_admission import non_admissible_materializer  # noqa: E402
+from .layout import repo_output_root  # noqa: E402
+from .patchharness import applied, checkout  # noqa: E402
+from .materializer_admission import non_admissible_materializer  # noqa: E402
+
 
 
 CONFIGURE_TIMEOUT_S = 120.0

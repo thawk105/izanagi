@@ -16,8 +16,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 RECEIPT = Path(__file__).resolve().with_name("receipt")
-sys.path.insert(0, os.fspath(ROOT / "orchestrator"))
-from campaign import auditor_gate, reflux_ir, reflux_origin_ledger as ledger  # noqa: E402
+sys.path.insert(0, os.fspath(ROOT))
+from orchestrator.campaign import (  # noqa: E402
+    auditor_gate,
+    reflux_ir,
+    reflux_origin_ledger as ledger,
+)
 
 CHECKS = ("C-a", "C-b", "C-c1", "C-c2", "C-d", "C-e")
 SEMANTICS = "ledger-vocabulary-only; not an execution result"

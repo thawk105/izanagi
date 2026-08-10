@@ -20,20 +20,24 @@ import hashlib
 import os
 import sys
 from typing import Optional
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import env_contract, ident, source_digest, wal     # noqa: E402
-from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+from . import env_contract, ident, source_digest, wal     # noqa: E402
+from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context)
-from campaign.backoff_sweep import _BASE                         # noqa: E402
-from campaign.layout import campaign_layout                      # noqa: E402
-from campaign.loop import run_campaign                           # noqa: E402
-from campaign.model import (STAGE_BENCH_DONE, STAGE_COMMIT,      # noqa: E402
+from .backoff_sweep import _BASE                         # noqa: E402
+from .layout import campaign_layout                      # noqa: E402
+from .loop import run_campaign                           # noqa: E402
+from .model import (STAGE_BENCH_DONE, STAGE_COMMIT,      # noqa: E402
                             CampaignConfig, Genome)
-from campaign.p2_2 import (BETWEEN_RUN_CV, CLK, ENV_TAG, EXTIME,  # noqa: E402
+from .p2_2 import (BETWEEN_RUN_CV, CLK, ENV_TAG, EXTIME,  # noqa: E402
                            NUMA, RECORDS, REPS, THREADS, _assert_single_tenant)
-from campaign.pipeline import PerfConfig, variant_id             # noqa: E402
+from .pipeline import PerfConfig, variant_id             # noqa: E402
+
 
 # 歴史的 pin を意図的に保持 (IDENT-1/IDENT-3、pin.py docstring 参照)。
 # 再走には submodule を dff0f1e へ checkout する。

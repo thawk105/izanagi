@@ -11,16 +11,16 @@ from pathlib import Path
 import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parent.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
+if str(ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from calibrator import schema_v2 as sv2  # noqa: E402
-from calibrator.model import (CalibrationResult, NoiseFloor, PerfCounters,  # noqa: E402
+from orchestrator.calibrator import schema_v2 as sv2  # noqa: E402
+from orchestrator.calibrator.model import (CalibrationResult, NoiseFloor, PerfCounters,  # noqa: E402
                               SaturationResult, ScalePoint)
-from calibrator.report import result_to_dict  # noqa: E402
-from campaign.campaign_claim import ClaimError, ClaimRecord  # noqa: E402
-from campaign.durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
-from campaign.reservation import ReservationBinding, ReservationError  # noqa: E402
+from orchestrator.calibrator.report import result_to_dict  # noqa: E402
+from orchestrator.campaign.campaign_claim import ClaimError, ClaimRecord  # noqa: E402
+from orchestrator.campaign.durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
+from orchestrator.campaign.reservation import ReservationBinding, ReservationError  # noqa: E402
 
 
 def _point() -> ScalePoint:

@@ -31,16 +31,16 @@ from types import MappingProxyType
 import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parent.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
+if str(ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR.parent))
 
 REPO_ROOT = ORCHESTRATOR.parent
 
-from campaign import env_attestation as ea  # noqa: E402
-from campaign import env_contract as ec  # noqa: E402
-from campaign import execution_guard as eg  # noqa: E402
-from campaign import p2_2  # noqa: E402
-from calibrator import effective_clock_policy  # noqa: E402
+from orchestrator.campaign import env_attestation as ea  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign import execution_guard as eg  # noqa: E402
+from orchestrator.campaign import p2_2  # noqa: E402
+from orchestrator.calibrator import effective_clock_policy  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #

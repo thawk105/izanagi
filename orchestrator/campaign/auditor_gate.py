@@ -20,8 +20,8 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-from campaign.diff_quarantine import DiffQuarantineResult
-from critic.digest import DIFF_QUARANTINE_REASON
+from .diff_quarantine import DiffQuarantineResult
+from ..critic.digest import DIFF_QUARANTINE_REASON
 
 _AUDITOR_VERDICTS = {"pass", "reject", "uncertain"}
 _AUDITOR_VIOLATION_TYPES = frozenset(range(1, 17))

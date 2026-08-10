@@ -15,11 +15,10 @@ _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
 _ROOT = _ORCH.parent
 sys.path.insert(0, str(_ROOT))
-sys.path.insert(0, str(_ORCH))
 
-from campaign import loop, p3_s4_loop, pipeline  # noqa: E402
-from campaign import reflux_ir as IR  # noqa: E402
-from campaign import trigger_gate_binding as BINDING  # noqa: E402
+from orchestrator.campaign import loop, p3_s4_loop, pipeline  # noqa: E402
+from orchestrator.campaign import reflux_ir as IR  # noqa: E402
+from orchestrator.campaign import trigger_gate_binding as BINDING  # noqa: E402
 
 _NONCE = "a5" * 32
 _SOURCE_SHA256 = hashlib.sha256(b"source bytes").hexdigest()
@@ -263,7 +262,7 @@ def test_canonicalize_predicate_returns_injected_emitter_bytes(
 
 def test_duplicate_stripped_predicate_fails_during_module_import(monkeypatch):
     monkeypatch.setattr(IR, "emit_predicate", lambda _ir: "\t duplicate \r\n")
-    module_name = "campaign._duplicate_trigger_gate_binding_test"
+    module_name = "orchestrator.campaign._duplicate_trigger_gate_binding_test"
     spec = importlib.util.spec_from_file_location(module_name, BINDING.__file__)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

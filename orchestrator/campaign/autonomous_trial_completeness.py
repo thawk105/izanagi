@@ -18,25 +18,17 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
-    _ROOT_FOR_IMPORT = Path(__file__).resolve().parents[2]
-    if str(_ROOT_FOR_IMPORT) not in sys.path:
-        sys.path.insert(0, str(_ROOT_FOR_IMPORT))
-    from orchestrator.campaign import campaign_lock
-    from orchestrator.campaign import layer3_report as _layer3_report
-    from orchestrator.campaign.artifact_admission import (ArtifactAdmissionError,
-                                                           require_admitted_campaign)
-    from orchestrator.campaign.layer3_report import canonical_record_ref
-    from orchestrator.campaign.role_session_isolation import (
-        evaluate_role_session_isolation,
-    )
-else:
-    from . import campaign_lock
-    from . import layer3_report as _layer3_report
-    from .artifact_admission import ArtifactAdmissionError, require_admitted_campaign
-    from .layer3_report import canonical_record_ref
-    from .role_session_isolation import evaluate_role_session_isolation
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
+from . import campaign_lock
+from . import layer3_report as _layer3_report
+from .artifact_admission import ArtifactAdmissionError, require_admitted_campaign
+from .layer3_report import canonical_record_ref
+from .role_session_isolation import evaluate_role_session_isolation
+
+
 
 
 _EVENTS = frozenset({
@@ -203,10 +195,7 @@ def _canonical_ref(record: Mapping[str, Any]) -> str:
 
 
 def _producer_module() -> Any:
-    if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
-        from orchestrator.campaign import p3_autonomous_workload_trial as producer
-    else:
-        from . import p3_autonomous_workload_trial as producer
+    from . import p3_autonomous_workload_trial as producer
     return producer
 
 

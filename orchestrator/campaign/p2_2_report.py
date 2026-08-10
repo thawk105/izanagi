@@ -15,17 +15,21 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from calibrator.stability import compare                        # noqa: E402
-from campaign import replay, wal                                # noqa: E402
-from campaign.layout import repo_output_root                    # noqa: E402
-from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_DONE,  # noqa: E402
+from ..calibrator.stability import compare                        # noqa: E402
+from . import replay, wal                                # noqa: E402
+from .layout import repo_output_root                    # noqa: E402
+from .model import (STAGE_BENCH_DONE, STAGE_BUILD_DONE,  # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT)
-from campaign.p2_2 import (BETWEEN_RUN_CV, CLK, EXTIME, RECORDS,  # noqa: E402
+from .p2_2 import (BETWEEN_RUN_CV, CLK, EXTIME, RECORDS,  # noqa: E402
                            REPS, THREADS, WITHIN_RUN_CV, WORKLOADS)
-from reports.plot import DatFile, PlotSpec, Series, make_plot    # noqa: E402
+from ..reports.plot import DatFile, PlotSpec, Series, make_plot    # noqa: E402
+
 
 # compare の採否 floor は **between-run** (別 run で測る variant/baseline の差の下限, A2)。
 # within-run (その 1 測定の品質) を流用すると偽 faster を出す (roadmap §3.6(3'))。

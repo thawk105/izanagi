@@ -179,6 +179,16 @@ _T659_PROBE_RULING = (
     "2026-08-09 dev-wave-jobs/rulings-inbox/"
     "2026-08-09-t659-provenance-and-f37-rulings.md"
 )
+_T720_MERGE_RULING = (
+    "2026-08-10 [T-720] 受入後の land 前裁定 (ユーザー選択 (a))"
+)
+_T720_MERGE_NOTE = (
+    "[T-720] の repo 全体 import 機械書換えと main の同一 file 変更を競合ゼロで"
+    "3 方向結合したため結果が両親のどちらとも異なり checker が実装面著作と判定；"
+    "wave 側は Codex `role=author`、main 側は各 wave land 時に監査済みで merge 自体に"
+    "新規著作なし；親作成 merge のため Codex 著者とは記さない；横断統一 wave 固有"
+    "（通常 merge 例 fbc95b2f は片親と一致）"
+)
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
@@ -473,6 +483,30 @@ KNOWN_PROVENANCE_VIOLATIONS = (
             "変更 path 種別=docs（worklog fragment）"
         ),
         expected_finding_value=_T139_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "b2e627a507cb50971168e4453457d5a1d87c274a",
+        MISSING_CODEX_AUTHOR,
+        _T720_MERGE_RULING,
+        note=_T720_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "dd87829899f674c8ad7854070d8a124d0ae9fe3a",
+        MISSING_CODEX_AUTHOR,
+        _T720_MERGE_RULING,
+        note=_T720_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "d72c18cdd3c81278e844b4fd15e9682e98e62c20",
+        MISSING_CODEX_AUTHOR,
+        _T720_MERGE_RULING,
+        note=_T720_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "668f4dfe1026a4ad5e7603e8161b1f3166ce589c",
+        MISSING_CODEX_AUTHOR,
+        _T720_MERGE_RULING,
+        note=_T720_MERGE_NOTE,
     ),
 )
 
