@@ -787,3 +787,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"D:normative-section-exact-pin":"D280","D:o25-admission-exemption":"D279"},"authored":"2026-08-11","content_sha256":"b3fa7a42d1f53200ad1ca7e086bc6d75ae0642391beab98f344dc7fa9cdfeee9","seq":1,"wave":"dev-wave-t695-t700-l2-routing"}
 - {"allocations":{"T:ruling-numbers-are-means":"[T-780]","T:stage5-recheck-main":"[T-779]"},"authored":"2026-08-11","content_sha256":"d9441702895a5163b09686eafd9a5eb223a5adb2e6cacd9217cc21eb159c3888","seq":2,"wave":"dev-wave-t695-t700-l2-routing"}
+
+- {"allocations":{"T:dw-o09-hash-bound-dataclass":"[T-784]","T:floor-campaign-site-compiler":"[T-783]","T:legacy-cache-key-default-toolchain":"[T-785]","T:oracle-manifest-schedule-authority":"[T-782]","T:t088-admission-authority":"[T-781]"},"authored":"2026-08-11","content_sha256":"4bb18ca562478387665e4256ba0c890e272132e18d8f772ce1a95dd00a9c01ef","seq":1,"wave":"dev-wave-t8b-restart-integration"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"c5a87761c4e7c0d2ada5079b0278fddc15ec34b12cd54611fd098bac35d2ecc7","seq":1,"wave":"dev-wave-t8b-restart-integration"}
