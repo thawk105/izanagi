@@ -110,6 +110,9 @@ cwd を必ず repo root にする。nested subprocess の import path による�
 意図した単一変異だけ (単一 entry が複数行ならその範囲) であることを確認して復元する。
 復元 bytes は commit と照合する。phase 完了は実装と同じ anchor commit へ含め、本走後の raw 台帳は
 後続の記録 commit へ置く。anchor を amend して自己 hash 循環を作らない。
+主 tree を変異させない経路として `tools/mutation_worktree.py --commit <commit>` が固定 commit の
+使い捨て worktree で harness を走らせる。`--scratch-root` は既存 directory 必須で、
+全 registered worktree の外に置く。
 
 ## DW-O20 — clean-tree gate
 
