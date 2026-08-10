@@ -1,0 +1,339 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/e642c7bd55fdee8e844e62fee88c50d1/izdw-e642c7bd55.o899057",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/e642c7bd55fdee8e844e62fee88c50d1/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................                                          [100%]\n31 passed in 2.41s\n",
+      "stdout_sha256": "0b05f5509f6d46216af8fe2d2338438cec0d1ba5b9e44faa7567218baf523c7c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "d6f23e0f5c90a401f01b9ffedd6bb29c3c6d5416c97854577d9d744a28e32c4d",
+    "duration_s": 21.756,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "921a719f5b48e9c4b952dbeb914ef1ab9e95ae371fb4c3ee6522bbd311097726",
+    "repo_head": "1e935961fb3ec994f56e82be486c7161cd7e82b9",
+    "runner_sha256": "e1e6a17e2f2f2e566aa222d564701e4a207eadb2688981974125d40df9e6a572",
+    "spec_sha256": "50309b3ee8cd65b9b091a32583b0fae8b527c8ac59e5014d394bef200417b483",
+    "status": "PASSED",
+    "test_output_sha256": "0b05f5509f6d46216af8fe2d2338438cec0d1ba5b9e44faa7567218baf523c7c",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "9a6f1638ec33f297a00be96650b7766faedd633cf62b11e8c2b53329cbeb315f"
+  },
+  "date": "2026-08-10T02:34:10.664823+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/22b56468d1465dbc0fc0bb455e1a4a6a/izdw-22b56468d1.o899058",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/22b56468d1465dbc0fc0bb455e1a4a6a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F..........F.                                          [100%]\n=================================== FAILURES ===================================\n____________ test_default_exact_fields_constant_rejects_a13_missing ____________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_default_exact_fields_constant_rejects_a13_missing():\n        blob = b\"## fields\\n\" + b\"\".join(\n            f\"### a{index:02d}\\n\".encode() for index in range(1, 13)\n        )\n>       with pytest.raises(MissingFieldsError):\nE       Failed: DID NOT RAISE MissingFieldsError\n\norchestrator/tests/test_t139_preregistration_binding.py:327: Failed\n__________ test_approved_addendum_is_accepted_by_default_exact_fields __________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_approved_addendum_is_accepted_by_default_exact_fields():\n        blob = read_pinned_blob(REPOSITORY_ROOT, ADDENDUM_REF)\n>       assert preregistration.require_approved_addendum_a_fields(blob) is None\n\norchestrator/tests/test_t139_preregistration_binding.py:489: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/preregistration/addendum_envelope.py:185: in require_approved_addendum_a_fields\n    require_exact_fields(blob, T139_EXACT_FIELDS)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nblob = b'# [T-139] \\xe6\\x9c\\xac\\xe8\\xb5\\xb0 \\xe2\\x80\\x94 \\xe4\\xba\\x8b\\xe5\\x89\\x8d\\xe7\\x99\\xbb\\xe9\\x8c\\xb2 \\xe8\\xbf\\xbd\\xe8\\xa...\\x96\\x93\\xe3\\x81\\xae\\xe5\\x90\\x8c\\xe4\\xb8\\x80\\xe6\\x80\\xa7\\xe3\\x81\\xa7\\xe3\\x81\\xaf\\xe3\\x81\\xaa\\xe3\\x81\\x84\\xe3\\x80\\x82\\n'\nexpected = frozenset({'a01', 'a02', 'a03', 'a04', 'a05', 'a06', ...})\n\n    def require_exact_fields(\n        blob: bytes, expected: frozenset[str] = T139_EXACT_FIELDS\n    ) -> None:\n        \"\"\"Envelope の key が ``expected`` と過不足なく一度ずつ一致することを課す。\n    \n        汎用 utility であり、T-139 の承認済み追補 A の検査には caller が集合を\n        選べない :func:`require_approved_addendum_a_fields` を使うこと。\n        \"\"\"\n    \n        if not isinstance(expected, frozenset) or not all(isinstance(key, str) for key in expected):\n            raise TypeError(\"expected は str の frozenset でなければならない\")\n        fields = parse_addendum_fields(blob)\n        seen: set[str] = set()\n        duplicates: set[str] = set()\n        for field in fields:\n            if field in seen:\n                duplicates.add(field)\n            seen.add(field)\n        if duplicates:\n            raise DuplicateFieldsError(frozenset(duplicates))\n        actual = frozenset(fields)\n        missing = expected - actual\n        extra = actual - expected\n        if missing and extra:\n            raise MissingAndExtraFieldsError(missing, extra)\n        if missing:\n            raise MissingFieldsError(missing)\n        if extra:\n>           raise ExtraFieldsError(extra)\nE           orchestrator.preregistration.addendum_envelope.ExtraFieldsError: field key が余剰: ['a13']\n\norchestrator/preregistration/addendum_envelope.py:179: ExtraFieldsError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields\n2 failed, 29 passed in 2.41s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=2386 retained_bytes=2386 omitted_bytes=0 rendered_excerpt_bytes=2853 sha256=01a56f2a615daed500537643355e9f06787f56f8a79a3d0e8f64690f6afd63f7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_approved_addendum_is_accepted_by_default_exact_fields():\n>         blob = read_pinned_blob(REPOSITORY_ROOT, ADDENDUM_REF)\n> >       assert preregistration.require_approved_addendum_a_fields(blob) is None\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:489: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/preregistration/addendum_envelope.py:185: in require_approved_addendum_a_fields\n>     require_exact_fields(blob, T139_EXACT_FIELDS)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> blob = b'# [T-139] \\x5cxe6\\x5cx9c\\x5cxac\\x5cxe8\\x5cxb5\\x5cxb0 \\x5cxe2\\x5cx80\\x5cx94 \\x5cxe4\\x5cxba\\x5cx8b\\x5cxe5\\x5cx89\\x5cx8d\\x5cxe7\\x5cx99\\x5cxbb\\x5cxe9\\x5cx8c\\x5cxb2 \\x5cxe8\\x5cxbf\\x5cxbd\\x5cxe8\\x5cxa...\\x5cx96\\x5cx93\\x5cxe3\\x5cx81\\x5cxae\\x5cxe5\\x5cx90\\x5cx8c\\x5cxe4\\x5cxb8\\x5cx80\\x5cxe6\\x5cx80\\x5cxa7\\x5cxe3\\x5cx81\\x5cxa7\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe3\\x5cx81\\x5cxaa\\x5cxe3\\x5cx81\\x5cx84\\x5cxe3\\x5cx80\\x5cx82\\x5cn'\n> expected = frozenset({'a01', 'a02', 'a03', 'a04', 'a05', 'a06', ...})\n> \n>     def require_exact_fields(\n>         blob: bytes, expected: frozenset[str] = T139_EXACT_FIELDS\n>     ) -> None:\n>         \"\"\"Envelope \\u306e key \\u304c ``expected`` \\u3068\\u904e\\u4e0d\\u8db3\\u306a\\u304f\\u4e00\\u5ea6\\u305a\\u3064\\u4e00\\u81f4\\u3059\\u308b\\u3053\\u3068\\u3092\\u8ab2\\u3059\\u3002\n>     \n>         \\u6c4e\\u7528 utility \\u3067\\u3042\\u308a\\u3001T-139 \\u306e\\u627f\\u8a8d\\u6e08\\u307f\\u8ffd\\u88dc A \\u306e\\u691c\\u67fb\\u306b\\u306f caller \\u304c\\u96c6\\u5408\\u3092\n>         \\u9078\\u3079\\u306a\\u3044 :func:`require_approved_addendum_a_fields` \\u3092\\u4f7f\\u3046\\u3053\\u3068\\u3002\n>         \"\"\"\n>     \n>         if not isinstance(expected, frozenset) or not all(isinstance(key, str) for key in expected):\n>             raise TypeError(\"expected \\u306f str \\u306e frozenset \\u3067\\u306a\\u3051\\u308c\\u3070\\u306a\\u3089\\u306a\\u3044\")\n>         fields = parse_addendum_fields(blob)\n>         seen: set[str] = set()\n>         duplicates: set[str] = set()\n>         for field in fields:\n>             if field in seen:\n>                 duplicates.add(field)\n>             seen.add(field)\n>         if duplicates:\n>             raise DuplicateFieldsError(frozenset(duplicates))\n>         actual = frozenset(fields)\n>         missing = expected - actual\n>         extra = actual - expected\n>         if missing and extra:\n>             raise MissingAndExtraFieldsError(missing, extra)\n>         if missing:\n>             raise MissingFieldsError(missing)\n>         if extra:\n> >           raise ExtraFieldsError(extra)\n> E           orchestrator.preregistration.addendum_envelope.ExtraFieldsError: field key \\u304c\\u4f59\\u5270: ['a13']\n> \n> orchestrator/preregistration/addendum_envelope.py:179: ExtraFieldsError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=400 retained_bytes=400 omitted_bytes=0 rendered_excerpt_bytes=427 sha256=4b1607aae5840eafc330b6314476d4b1b60dc9de97f03673bdfe75174f13f35f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_default_exact_fields_constant_rejects_a13_missing():\n>         blob = b\"## fields\\x5cn\" + b\"\".join(\n>             f\"### a{index:02d}\\x5cn\".encode() for index in range(1, 13)\n>         )\n> >       with pytest.raises(MissingFieldsError):\n> E       Failed: DID NOT RAISE MissingFieldsError\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:327: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2786 retained_bytes=2786 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4472 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "11a77a49e3d6c83c8334ad2a9e0743cd2a420d44ace3dd9938cfa2b62f046781"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d6f23e0f5c90a401f01b9ffedd6bb29c3c6d5416c97854577d9d744a28e32c4d",
+      "duration_s": 26.782,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+      ],
+      "hang_risk": false,
+      "id": "M11",
+      "injection_diff_sha256": "22ab30c4530bd51d5eb7125bbca66778d7ba54b5dfd03a32d6a8d303b3692b43",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e51f12b64f876a5e774c65f1854a25c5ec770da757c9aecb7021b660b7b58340",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/addendum_envelope.py",
+          "new": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n    }\n)",
+          "old": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n        \"a13\",\n    }\n)"
+        }
+      ],
+      "repo_head": "1e935961fb3ec994f56e82be486c7161cd7e82b9",
+      "runner_sha256": "e1e6a17e2f2f2e566aa222d564701e4a207eadb2688981974125d40df9e6a572",
+      "spec_sha256": "50309b3ee8cd65b9b091a32583b0fae8b527c8ac59e5014d394bef200417b483",
+      "status": "KILLED",
+      "test_output_sha256": "11a77a49e3d6c83c8334ad2a9e0743cd2a420d44ace3dd9938cfa2b62f046781",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9a6f1638ec33f297a00be96650b7766faedd633cf62b11e8c2b53329cbeb315f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/19b10649d9332e0aea890badf846238b/izdw-19b10649d9.o899059",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/19b10649d9332e0aea890badf846238b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.........F.                                          [100%]\n=================================== FAILURES ===================================\n____________ test_default_exact_fields_constant_rejects_a13_missing ____________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_default_exact_fields_constant_rejects_a13_missing():\n        blob = b\"## fields\\n\" + b\"\".join(\n            f\"### a{index:02d}\\n\".encode() for index in range(1, 13)\n        )\n        with pytest.raises(MissingFieldsError):\n            preregistration.require_exact_fields(blob)\n>       assert T139_EXACT_FIELDS == EXPECTED_FIELDS\nE       AssertionError: assert frozenset({'a..., 'a06', ...}) == frozenset({'a..., 'a06', ...})\nE         \nE         Extra items in the left set:\nE         'a14'\nE         Use -v to get more diff\n\norchestrator/tests/test_t139_preregistration_binding.py:329: AssertionError\n__________ test_approved_addendum_is_accepted_by_default_exact_fields __________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_approved_addendum_is_accepted_by_default_exact_fields():\n        blob = read_pinned_blob(REPOSITORY_ROOT, ADDENDUM_REF)\n>       assert preregistration.require_approved_addendum_a_fields(blob) is None\n\norchestrator/tests/test_t139_preregistration_binding.py:489: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/preregistration/addendum_envelope.py:187: in require_approved_addendum_a_fields\n    require_exact_fields(blob, T139_EXACT_FIELDS)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nblob = b'# [T-139] \\xe6\\x9c\\xac\\xe8\\xb5\\xb0 \\xe2\\x80\\x94 \\xe4\\xba\\x8b\\xe5\\x89\\x8d\\xe7\\x99\\xbb\\xe9\\x8c\\xb2 \\xe8\\xbf\\xbd\\xe8\\xa...\\x96\\x93\\xe3\\x81\\xae\\xe5\\x90\\x8c\\xe4\\xb8\\x80\\xe6\\x80\\xa7\\xe3\\x81\\xa7\\xe3\\x81\\xaf\\xe3\\x81\\xaa\\xe3\\x81\\x84\\xe3\\x80\\x82\\n'\nexpected = frozenset({'a01', 'a02', 'a03', 'a04', 'a05', 'a06', ...})\n\n    def require_exact_fields(\n        blob: bytes, expected: frozenset[str] = T139_EXACT_FIELDS\n    ) -> None:\n        \"\"\"Envelope の key が ``expected`` と過不足なく一度ずつ一致することを課す。\n    \n        汎用 utility であり、T-139 の承認済み追補 A の検査には caller が集合を\n        選べない :func:`require_approved_addendum_a_fields` を使うこと。\n        \"\"\"\n    \n        if not isinstance(expected, frozenset) or not all(isinstance(key, str) for key in expected):\n            raise TypeError(\"expected は str の frozenset でなければならない\")\n        fields = parse_addendum_fields(blob)\n        seen: set[str] = set()\n        duplicates: set[str] = set()\n        for field in fields:\n            if field in seen:\n                duplicates.add(field)\n            seen.add(field)\n        if duplicates:\n            raise DuplicateFieldsError(frozenset(duplicates))\n        actual = frozenset(fields)\n        missing = expected - actual\n        extra = actual - expected\n        if missing and extra:\n            raise MissingAndExtraFieldsError(missing, extra)\n        if missing:\n>           raise MissingFieldsError(missing)\nE           orchestrator.preregistration.addendum_envelope.MissingFieldsError: field key が欠落: ['a14']\n\norchestrator/preregistration/addendum_envelope.py:179: MissingFieldsError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields\n2 failed, 29 passed in 2.41s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=2330 retained_bytes=2330 omitted_bytes=0 rendered_excerpt_bytes=2793 sha256=c698c374c2004a85e60806a9ba1b4bfdc3515af87a020d84344258ba363a3e74\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_approved_addendum_is_accepted_by_default_exact_fields():\n>         blob = read_pinned_blob(REPOSITORY_ROOT, ADDENDUM_REF)\n> >       assert preregistration.require_approved_addendum_a_fields(blob) is None\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:489: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/preregistration/addendum_envelope.py:187: in require_approved_addendum_a_fields\n>     require_exact_fields(blob, T139_EXACT_FIELDS)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> blob = b'# [T-139] \\x5cxe6\\x5cx9c\\x5cxac\\x5cxe8\\x5cxb5\\x5cxb0 \\x5cxe2\\x5cx80\\x5cx94 \\x5cxe4\\x5cxba\\x5cx8b\\x5cxe5\\x5cx89\\x5cx8d\\x5cxe7\\x5cx99\\x5cxbb\\x5cxe9\\x5cx8c\\x5cxb2 \\x5cxe8\\x5cxbf\\x5cxbd\\x5cxe8\\x5cxa...\\x5cx96\\x5cx93\\x5cxe3\\x5cx81\\x5cxae\\x5cxe5\\x5cx90\\x5cx8c\\x5cxe4\\x5cxb8\\x5cx80\\x5cxe6\\x5cx80\\x5cxa7\\x5cxe3\\x5cx81\\x5cxa7\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe3\\x5cx81\\x5cxaa\\x5cxe3\\x5cx81\\x5cx84\\x5cxe3\\x5cx80\\x5cx82\\x5cn'\n> expected = frozenset({'a01', 'a02', 'a03', 'a04', 'a05', 'a06', ...})\n> \n>     def require_exact_fields(\n>         blob: bytes, expected: frozenset[str] = T139_EXACT_FIELDS\n>     ) -> None:\n>         \"\"\"Envelope \\u306e key \\u304c ``expected`` \\u3068\\u904e\\u4e0d\\u8db3\\u306a\\u304f\\u4e00\\u5ea6\\u305a\\u3064\\u4e00\\u81f4\\u3059\\u308b\\u3053\\u3068\\u3092\\u8ab2\\u3059\\u3002\n>     \n>         \\u6c4e\\u7528 utility \\u3067\\u3042\\u308a\\u3001T-139 \\u306e\\u627f\\u8a8d\\u6e08\\u307f\\u8ffd\\u88dc A \\u306e\\u691c\\u67fb\\u306b\\u306f caller \\u304c\\u96c6\\u5408\\u3092\n>         \\u9078\\u3079\\u306a\\u3044 :func:`require_approved_addendum_a_fields` \\u3092\\u4f7f\\u3046\\u3053\\u3068\\u3002\n>         \"\"\"\n>     \n>         if not isinstance(expected, frozenset) or not all(isinstance(key, str) for key in expected):\n>             raise TypeError(\"expected \\u306f str \\u306e frozenset \\u3067\\u306a\\u3051\\u308c\\u3070\\u306a\\u3089\\u306a\\u3044\")\n>         fields = parse_addendum_fields(blob)\n>         seen: set[str] = set()\n>         duplicates: set[str] = set()\n>         for field in fields:\n>             if field in seen:\n>                 duplicates.add(field)\n>             seen.add(field)\n>         if duplicates:\n>             raise DuplicateFieldsError(frozenset(duplicates))\n>         actual = frozenset(fields)\n>         missing = expected - actual\n>         extra = actual - expected\n>         if missing and extra:\n>             raise MissingAndExtraFieldsError(missing, extra)\n>         if missing:\n> >           raise MissingFieldsError(missing)\n> E           orchestrator.preregistration.addendum_envelope.MissingFieldsError: field key \\u304c\\u6b20\\u843d: ['a14']\n> \n> orchestrator/preregistration/addendum_envelope.py:179: MissingFieldsError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=662 retained_bytes=662 omitted_bytes=0 rendered_excerpt_bytes=701 sha256=c183f3b719330e500c5623ae8e7bec7117087b0b0b5519a7a9bda9c21f772389\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_default_exact_fields_constant_rejects_a13_missing():\n>         blob = b\"## fields\\x5cn\" + b\"\".join(\n>             f\"### a{index:02d}\\x5cn\".encode() for index in range(1, 13)\n>         )\n>         with pytest.raises(MissingFieldsError):\n>             preregistration.require_exact_fields(blob)\n> >       assert T139_EXACT_FIELDS == EXPECTED_FIELDS\n> E       AssertionError: assert frozenset({'a..., 'a06', ...}) == frozenset({'a..., 'a06', ...})\n> E         \n> E         Extra items in the left set:\n> E         'a14'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:329: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2992 retained_bytes=2992 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4686 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "03f7c62e9f69a29991ca26305c4c551285d5ec558c483e58cd26d5b415f3c4bc"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "d6f23e0f5c90a401f01b9ffedd6bb29c3c6d5416c97854577d9d744a28e32c4d",
+      "duration_s": 26.788,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+      ],
+      "hang_risk": false,
+      "id": "P1",
+      "injection_diff_sha256": "189f9c513b4a054a85a4337d599ec487dfc7a1f47c3ec16595b8de84ff871cbd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0f536ee7c267616809ad053d34102fe57f0d15e2fbedbef71f8afcb9442961ae",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/addendum_envelope.py",
+          "new": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n        \"a13\",\n        \"a14\",\n    }\n)",
+          "old": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n        \"a13\",\n    }\n)"
+        }
+      ],
+      "repo_head": "1e935961fb3ec994f56e82be486c7161cd7e82b9",
+      "runner_sha256": "e1e6a17e2f2f2e566aa222d564701e4a207eadb2688981974125d40df9e6a572",
+      "spec_sha256": "50309b3ee8cd65b9b091a32583b0fae8b527c8ac59e5014d394bef200417b483",
+      "status": "KILLED",
+      "test_output_sha256": "03f7c62e9f69a29991ca26305c4c551285d5ec558c483e58cd26d5b415f3c4bc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9a6f1638ec33f297a00be96650b7766faedd633cf62b11e8c2b53329cbeb315f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/1bbfe0dfeb7145982fca0ccd6141e1f0/izdw-1bbfe0dfeb.o899061",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/1bbfe0dfeb7145982fca0ccd6141e1f0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................FF.                                          [100%]\n=================================== FAILURES ===================================\n_______________ test_approved_addendum_parses_to_exact_thirteen ________________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_approved_addendum_parses_to_exact_thirteen():\n        blob = read_pinned_blob(REPOSITORY_ROOT, ADDENDUM_REF)\n>       assert preregistration.parse_addendum_fields(blob) == (\n            \"a01\",\n            \"a02\",\n            \"a03\",\n            \"a04\",\n            \"a05\",\n            \"a06\",\n            \"a07\",\n            \"a08\",\n            \"a09\",\n            \"a10\",\n            \"a11\",\n            \"a12\",\n            \"a13\",\n        )\nE       AssertionError: assert ('a01', 'a04'...', 'a12', ...) == ('a01', 'a02'...', 'a06', ...)\nE         \nE         At index 1 diff: 'a04' != 'a02'\nE         Right contains 6 more items, first extra item: 'a08'\nE         Use -v to get more diff\n\norchestrator/tests/test_t139_preregistration_binding.py:469: AssertionError\n__________ test_approved_addendum_is_accepted_by_default_exact_fields __________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_approved_addendum_is_accepted_by_default_exact_fields():\n        blob = read_pinned_blob(REPOSITORY_ROOT, ADDENDUM_REF)\n>       assert preregistration.require_approved_addendum_a_fields(blob) is None\n\norchestrator/tests/test_t139_preregistration_binding.py:489: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/preregistration/addendum_envelope.py:195: in require_approved_addendum_a_fields\n    require_exact_fields(blob, T139_EXACT_FIELDS)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nblob = b'# [T-139] \\xe6\\x9c\\xac\\xe8\\xb5\\xb0 \\xe2\\x80\\x94 \\xe4\\xba\\x8b\\xe5\\x89\\x8d\\xe7\\x99\\xbb\\xe9\\x8c\\xb2 \\xe8\\xbf\\xbd\\xe8\\xa...\\x96\\x93\\xe3\\x81\\xae\\xe5\\x90\\x8c\\xe4\\xb8\\x80\\xe6\\x80\\xa7\\xe3\\x81\\xa7\\xe3\\x81\\xaf\\xe3\\x81\\xaa\\xe3\\x81\\x84\\xe3\\x80\\x82\\n'\nexpected = frozenset({'a01', 'a02', 'a03', 'a04', 'a05', 'a06', ...})\n\n    def require_exact_fields(\n        blob: bytes, expected: frozenset[str] = T139_EXACT_FIELDS\n    ) -> None:\n        \"\"\"Envelope の key が ``expected`` と過不足なく一度ずつ一致することを課す。\n    \n        汎用 utility であり、T-139 の承認済み追補 A の検査には caller が集合を\n        選べない :func:`require_approved_addendum_a_fields` を使うこと。\n        \"\"\"\n    \n        if not isinstance(expected, frozenset) or not all(isinstance(key, str) for key in expected):\n            raise TypeError(\"expected は str の frozenset でなければならない\")\n        fields = parse_addendum_fields(blob)\n        seen: set[str] = set()\n        duplicates: set[str] = set()\n        for field in fields:\n            if field in seen:\n                duplicates.add(field)\n            seen.add(field)\n        if duplicates:\n            raise DuplicateFieldsError(frozenset(duplicates))\n        actual = frozenset(fields)\n        missing = expected - actual\n        extra = actual - expected\n        if missing and extra:\n            raise MissingAndExtraFieldsError(missing, extra)\n        if missing:\n>           raise MissingFieldsError(missing)\nE           orchestrator.preregistration.addendum_envelope.MissingFieldsError: field key が欠落: ['a02', 'a03', 'a06', 'a07', 'a10', 'a11']\n\norchestrator/preregistration/addendum_envelope.py:187: MissingFieldsError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields\n2 failed, 29 passed in 2.42s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=2365 retained_bytes=2365 omitted_bytes=0 rendered_excerpt_bytes=2828 sha256=10587be3bc853774020d58da31964a1643d37ed9339bf3d578c0dfd51f93ca66\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_approved_addendum_is_accepted_by_default_exact_fields():\n>         blob = read_pinned_blob(REPOSITORY_ROOT, ADDENDUM_REF)\n> >       assert preregistration.require_approved_addendum_a_fields(blob) is None\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:489: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/preregistration/addendum_envelope.py:195: in require_approved_addendum_a_fields\n>     require_exact_fields(blob, T139_EXACT_FIELDS)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> blob = b'# [T-139] \\x5cxe6\\x5cx9c\\x5cxac\\x5cxe8\\x5cxb5\\x5cxb0 \\x5cxe2\\x5cx80\\x5cx94 \\x5cxe4\\x5cxba\\x5cx8b\\x5cxe5\\x5cx89\\x5cx8d\\x5cxe7\\x5cx99\\x5cxbb\\x5cxe9\\x5cx8c\\x5cxb2 \\x5cxe8\\x5cxbf\\x5cxbd\\x5cxe8\\x5cxa...\\x5cx96\\x5cx93\\x5cxe3\\x5cx81\\x5cxae\\x5cxe5\\x5cx90\\x5cx8c\\x5cxe4\\x5cxb8\\x5cx80\\x5cxe6\\x5cx80\\x5cxa7\\x5cxe3\\x5cx81\\x5cxa7\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe3\\x5cx81\\x5cxaa\\x5cxe3\\x5cx81\\x5cx84\\x5cxe3\\x5cx80\\x5cx82\\x5cn'\n> expected = frozenset({'a01', 'a02', 'a03', 'a04', 'a05', 'a06', ...})\n> \n>     def require_exact_fields(\n>         blob: bytes, expected: frozenset[str] = T139_EXACT_FIELDS\n>     ) -> None:\n>         \"\"\"Envelope \\u306e key \\u304c ``expected`` \\u3068\\u904e\\u4e0d\\u8db3\\u306a\\u304f\\u4e00\\u5ea6\\u305a\\u3064\\u4e00\\u81f4\\u3059\\u308b\\u3053\\u3068\\u3092\\u8ab2\\u3059\\u3002\n>     \n>         \\u6c4e\\u7528 utility \\u3067\\u3042\\u308a\\u3001T-139 \\u306e\\u627f\\u8a8d\\u6e08\\u307f\\u8ffd\\u88dc A \\u306e\\u691c\\u67fb\\u306b\\u306f caller \\u304c\\u96c6\\u5408\\u3092\n>         \\u9078\\u3079\\u306a\\u3044 :func:`require_approved_addendum_a_fields` \\u3092\\u4f7f\\u3046\\u3053\\u3068\\u3002\n>         \"\"\"\n>     \n>         if not isinstance(expected, frozenset) or not all(isinstance(key, str) for key in expected):\n>             raise TypeError(\"expected \\u306f str \\u306e frozenset \\u3067\\u306a\\u3051\\u308c\\u3070\\u306a\\u3089\\u306a\\u3044\")\n>         fields = parse_addendum_fields(blob)\n>         seen: set[str] = set()\n>         duplicates: set[str] = set()\n>         for field in fields:\n>             if field in seen:\n>                 duplicates.add(field)\n>             seen.add(field)\n>         if duplicates:\n>             raise DuplicateFieldsError(frozenset(duplicates))\n>         actual = frozenset(fields)\n>         missing = expected - actual\n>         extra = actual - expected\n>         if missing and extra:\n>             raise MissingAndExtraFieldsError(missing, extra)\n>         if missing:\n> >           raise MissingFieldsError(missing)\n> E           orchestrator.preregistration.addendum_envelope.MissingFieldsError: field key \\u304c\\u6b20\\u843d: ['a02', 'a03', 'a06', 'a07', 'a10', 'a11']\n> \n> orchestrator/preregistration/addendum_envelope.py:187: MissingFieldsError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=813 retained_bytes=813 omitted_bytes=0 rendered_excerpt_bytes=866 sha256=eb3e38dd9c2068fbb9a7e5774fe589a46eeb44df25cbe1646021dd4200b6cf29\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_approved_addendum_parses_to_exact_thirteen():\n>         blob = read_pinned_blob(REPOSITORY_ROOT, ADDENDUM_REF)\n> >       assert preregistration.parse_addendum_fields(blob) == (\n>             \"a01\",\n>             \"a02\",\n>             \"a03\",\n>             \"a04\",\n>             \"a05\",\n>             \"a06\",\n>             \"a07\",\n>             \"a08\",\n>             \"a09\",\n>             \"a10\",\n>             \"a11\",\n>             \"a12\",\n>             \"a13\",\n>         )\n> E       AssertionError: assert ('a01', 'a04'...', 'a12', ...) == ('a01', 'a02'...', 'a06', ...)\n> E         \n> E         At index 1 diff: 'a04' != 'a02'\n> E         Right contains 6 more items, first extra item: 'a08'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:469: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3178 retained_bytes=3178 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4879 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5baf89148437d048bb181a3df4a0dcb24a9eb86def3e940106d6efc415fcea20"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "d6f23e0f5c90a401f01b9ffedd6bb29c3c6d5416c97854577d9d744a28e32c4d",
+      "duration_s": 26.755,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+      ],
+      "hang_risk": false,
+      "id": "P2",
+      "injection_diff_sha256": "235c80178269db72fd3da21eb32bb2e822e94154375ce6f0594e310d8bc45ec7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c500ddf9f89d5b49e4121e5fc5c568f9dd413bb33153299268a7e43a8d0b6582",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/addendum_envelope.py",
+          "new": "    for line in lines:\n        if \"`\" in line:\n            visible.append(False)\n            if fence_character is None:\n                fence_character = \"`\"\n                fence_width = 1\n            else:\n                fence_character = None\n                fence_width = 0\n            continue\n        if fence_character is not None:",
+          "old": "    for line in lines:\n        if fence_character is not None:"
+        }
+      ],
+      "repo_head": "1e935961fb3ec994f56e82be486c7161cd7e82b9",
+      "runner_sha256": "e1e6a17e2f2f2e566aa222d564701e4a207eadb2688981974125d40df9e6a572",
+      "spec_sha256": "50309b3ee8cd65b9b091a32583b0fae8b527c8ac59e5014d394bef200417b483",
+      "status": "KILLED",
+      "test_output_sha256": "5baf89148437d048bb181a3df4a0dcb24a9eb86def3e940106d6efc415fcea20",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9a6f1638ec33f297a00be96650b7766faedd633cf62b11e8c2b53329cbeb315f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/65daffee106771bedd7adc28bb6e366a/izdw-65daffee10.o899056",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/output/pegasus-dispatch/65daffee106771bedd7adc28bb6e366a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_operation_count_not_two\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_operations_must_be_direct_sequence\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_old_sha256_mismatch\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_occurrence_count_not_two\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_occurrences_must_bind_to_operation_lines\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_multi_token_delta\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_composed_digest_must_match\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_empty_reference_set_is_rejected\norchestrator/tests/test_t139_preregistration_binding.py::test_expected_composed_sha256_is_required_keyword_only\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_unknown_id_is_rejected\norchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_ignores_headings_outside_fields\norchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_ignores_fenced_headings_and_boundaries\norchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_rejects_extra_key\norchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_rejects_missing_key\norchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing\norchestrator/tests/test_t139_preregistration_binding.py::test_fields_section_missing_is_fail_closed\norchestrator/tests/test_t139_preregistration_binding.py::test_missing_commit_is_fail_closed\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_reference_requires_exact_commit\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_reference_rejects_symlink_mode\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_does_not_inherit_git_repository_overrides\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_requires_exact_git_top_level\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_uses_literal_pathspec\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_replace_refs\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_shallow_repository\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_grafts\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_enforces_blob_size_limit\norchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen\norchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields\norchestrator/tests/test_t139_preregistration_binding.py::test_approved_erratum_target_line_digests_are_frozen\norchestrator/tests/test_t139_preregistration_binding.py::test_approved_erratum_composes_to_expected_digest\norchestrator/tests/test_t139_preregistration_binding.py::test_module_exports_no_admission_api\n\n31 tests collected in 0.34s\n",
+        "stdout_sha256": "8f08168b7c5c1be05802ff6c771a391758df2bb7ca8ea7c04b901280377bced8"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_operation_count_not_two",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_operations_must_be_direct_sequence",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_old_sha256_mismatch",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_occurrence_count_not_two",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_occurrences_must_bind_to_operation_lines",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_multi_token_delta",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_composed_digest_must_match",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_empty_reference_set_is_rejected",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_expected_composed_sha256_is_required_keyword_only",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_unknown_id_is_rejected",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_ignores_headings_outside_fields",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_ignores_fenced_headings_and_boundaries",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_rejects_extra_key",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_rejects_missing_key",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_fields_section_missing_is_fail_closed",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_missing_commit_is_fail_closed",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_reference_requires_exact_commit",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_reference_rejects_symlink_mode",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_does_not_inherit_git_repository_overrides",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_requires_exact_git_top_level",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_uses_literal_pathspec",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_replace_refs",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_shallow_repository",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_grafts",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_enforces_blob_size_limit",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_erratum_target_line_digests_are_frozen",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_erratum_composes_to_expected_digest",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_module_exports_no_admission_api"
+      ],
+      "duration_s": 21.778,
+      "rc": 0,
+      "repo_head": "1e935961fb3ec994f56e82be486c7161cd7e82b9",
+      "runner_sha256": "e1e6a17e2f2f2e566aa222d564701e4a207eadb2688981974125d40df9e6a572",
+      "spec_sha256": "50309b3ee8cd65b9b091a32583b0fae8b527c8ac59e5014d394bef200417b483",
+      "status": "PASSED",
+      "tool_sha256": "9a6f1638ec33f297a00be96650b7766faedd633cf62b11e8c2b53329cbeb315f"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M11": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "22ab30c4530bd51d5eb7125bbca66778d7ba54b5dfd03a32d6a8d303b3692b43",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/addendum_envelope.py",
+            "new": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n    }\n)",
+            "old": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n        \"a13\",\n    }\n)"
+          }
+        ]
+      },
+      "P1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "189f9c513b4a054a85a4337d599ec487dfc7a1f47c3ec16595b8de84ff871cbd",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/addendum_envelope.py",
+            "new": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n        \"a13\",\n        \"a14\",\n    }\n)",
+            "old": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n        \"a13\",\n    }\n)"
+          }
+        ]
+      },
+      "P2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen",
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "235c80178269db72fd3da21eb32bb2e822e94154375ce6f0594e310d8bc45ec7",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/addendum_envelope.py",
+            "new": "    for line in lines:\n        if \"`\" in line:\n            visible.append(False)\n            if fence_character is None:\n                fence_character = \"`\"\n                fence_width = 1\n            else:\n                fence_character = None\n                fence_width = 0\n            continue\n        if fence_character is not None:",
+            "old": "    for line in lines:\n        if fence_character is not None:"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "921a719f5b48e9c4b952dbeb914ef1ab9e95ae371fb4c3ee6522bbd311097726",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t139_preregistration_binding.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "1e935961fb3ec994f56e82be486c7161cd7e82b9",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t139_preregistration_binding.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "44659d054fc2feb989c3d302be41a624d63df016",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "e1e6a17e2f2f2e566aa222d564701e4a207eadb2688981974125d40df9e6a572",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "50309b3ee8cd65b9b091a32583b0fae8b527c8ac59e5014d394bef200417b483",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-producer-slice/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "9a6f1638ec33f297a00be96650b7766faedd633cf62b11e8c2b53329cbeb315f",
+  "updated_at": "2026-08-10T02:35:57.500600+00:00"
+}
