@@ -790,3 +790,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dw-o09-hash-bound-dataclass":"[T-784]","T:floor-campaign-site-compiler":"[T-783]","T:legacy-cache-key-default-toolchain":"[T-785]","T:oracle-manifest-schedule-authority":"[T-782]","T:t088-admission-authority":"[T-781]"},"authored":"2026-08-11","content_sha256":"4bb18ca562478387665e4256ba0c890e272132e18d8f772ce1a95dd00a9c01ef","seq":1,"wave":"dev-wave-t8b-restart-integration"}
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"c5a87761c4e7c0d2ada5079b0278fddc15ec34b12cd54611fd098bac35d2ecc7","seq":1,"wave":"dev-wave-t8b-restart-integration"}
+
+- {"allocations":{"T:rulings-sweep-budget":"[T-786]"},"authored":"2026-08-11","content_sha256":"b748da3ad3f8329f4e0f5c3a4ffa1651db7d0de90149d5ae4732ccddc0d9017e","seq":45,"wave":"rulings-20260806-a"}
+- {"allocations":{"F:rulings-sweep-literal-miss":"F213"},"authored":"2026-08-11","content_sha256":"b2730230d5745f0399828914f8541b8e7420c01527ae549c06a26bcfd8e717c1","seq":46,"wave":"rulings-20260806-a"}
