@@ -55,6 +55,21 @@ title: cleanup-branches command の住所 (address edge) を構造 lint で塞�
   122 bytes 超える (追記は 134 bytes、超過前の実測余白は 12 bytes)。**byte を捻出するために
   既存の義務を削るのは F173 そのものなので行わず、追記を撤回した。**この規律は本 wave が
   塞いだ穴の当事者そのものである。→ {{T:mutation-expected-node-scope-doc}}
+- **land が 1 度 provenance 全履歴監査で拒否された (rc=29)。**原因は親が peer の land 通知を受けて
+  手動で作った merge commit で、両親がともに `tools/check_docs.py` と
+  `orchestrator/tests/test_check_docs.py` を変更していたため merge 結果がどちらの親とも異なり、
+  `DW-O17` の Codex `role=author` を要する。親は `role=integrator` だけを書いた。
+  **merge 直後に `check_ai_provenance` を回さず `check_docs` しか見ていなかったのが漏れである。**
+  退避 branch を作って merge 前へ戻し、Codex の merge 監査 (両親の意図の欠落・重複を
+  実コードと AST で照合、結果は修正不要) を通した merge commit へ作り直し、docs 2 commit を
+  cherry-pick で復元した。作り直し後の provenance は 2307 件・新規違反なし。
+- **同じ穴を塞ぐ runbook 修正が、本 wave の land 拒否と独立に別 wave から main へ入っていた**
+  (受入待ち手の merge に実装面 overlap 判定を足す)。取り込んだうえで本 wave の待ち手 script にも
+  同じ判定を入れた。overlap が非空なら待ち手では merge せず親へ戻す。
+- 受入全走は 2 走した。1 走目は作り直し前の tip で **8285 passed / 20 skipped / 521.07 秒 /
+  rc=0**。その tip は provenance 拒否で捨てたので、下の値が最終 tip の本走である。
+  変異 matrix も最終 tip で再走し、作り直し前と同じく 8/8 KILLED (baseline rc=0) を得た。
+  **再走時に 1 走目の ledger を上書きしてしまい、凍結する台帳は最終 tip の 1 本だけである。**
 - 受入全走: **未実走** (本 fragment を含む最終 tip で走らせ、結果は後続の docs commit で確定する)。
 
 ## 次の一手差分
