@@ -6,6 +6,7 @@ import importlib.util
 import hashlib
 import json
 import os
+import re
 import signal
 import socket
 import stat
@@ -719,14 +720,28 @@ def usage(input_tokens=100, cached=20, output_tokens=10, total=110):
 def create_rollout(session_id):
     path = session_root / f"rollout-2026-07-29T00-00-00-{session_id}.jsonl"
     with path.open("w", encoding="utf-8") as stream:
+        meta_payload = {"session_id": session_id}
+        if mode != "cwd_missing":
+            meta_payload["cwd"] = sys.argv[sys.argv.index("-C") + 1]
         write_line(stream, {
             "type": "session_meta",
-            "payload": {"session_id": session_id, "cwd": sys.argv[sys.argv.index("-C") + 1]},
+            "payload": meta_payload,
         })
-        write_line(stream, {
-            "type": "turn_context",
-            "payload": {"model": model, "effort": reasoning},
-        })
+        if mode == "payload_decoy":
+            write_line(stream, {
+                "type": "turn_context",
+                "model": model,
+                "effort": reasoning,
+                "payload": {},
+                "collaboration_mode": {
+                    "settings": {"model": model, "effort": reasoning}
+                },
+            })
+        else:
+            write_line(stream, {
+                "type": "turn_context",
+                "payload": {"model": model, "effort": reasoning},
+            })
     return path
 
 def append_token(path, total_usage):
@@ -937,6 +952,8 @@ def _base_command(
     fake: Path,
     job_id: str = "job-a",
     wave_id: str = "wave-a",
+    stage: str = "author",
+    lane: str | None = None,
     sandbox: str = "read-only",
     reasoning: str = "high",
     max_attempts: int = 1,
@@ -944,7 +961,22 @@ def _base_command(
     max_calls: int = 100,
     max_tokens: int = 100000,
     suffix: str = "",
+    repo_root: Path = _ROOT,
+    base_commit: str | None = None,
+    cwd: Path | None = None,
+    manifest_path: Path | None = None,
 ) -> tuple[list[str], dict[str, str], dict[str, Path]]:
+    if base_commit is None:
+        base_commit = subprocess.run(
+            ["git", "-C", os.fspath(repo_root), "rev-parse", "HEAD"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        ).stdout.strip()
+    if cwd is None:
+        cwd = repo_root
+    if manifest_path is None:
+        manifest_path = tmp_path / "manifest.json"
     prompt = tmp_path / f"prompt{suffix}.txt"
     prompt.write_text("fake prompt\n", encoding="utf-8")
     codex_home = tmp_path / f"codex-home{suffix}"
@@ -957,29 +989,29 @@ def _base_command(
         "artifact": artifact,
         "output": tmp_path / f"output{suffix}.md",
         "receipt": tmp_path / f"receipt{suffix}.json",
-        "manifest": tmp_path / "manifest.json",
+        "manifest": manifest_path,
         "counter": tmp_path / f"counter{suffix}",
     }
     command = [
         sys.executable,
         os.fspath(_LAUNCHER),
         "run",
+        "--stage",
+        stage,
         "--job-id",
         job_id,
         "--wave-id",
         wave_id,
         "--repo-root",
-        os.fspath(_ROOT),
+        os.fspath(repo_root),
         "--base-commit",
-        _BASE_COMMIT,
+        base_commit,
         "--prompt-file",
         os.fspath(prompt),
         "--cwd",
-        os.fspath(_ROOT),
+        os.fspath(cwd),
         "--sandbox",
         sandbox,
-        "--model",
-        "gpt-5.6-sol",
         "--reasoning",
         reasoning,
         "--max-wall-clock-s",
@@ -1009,6 +1041,8 @@ def _base_command(
         "--poll-interval-s",
         "0.01",
     ]
+    if lane is not None:
+        command[5:5] = ["--lane", lane]
     env = dict(os.environ)
     env.update(
         {
@@ -1044,6 +1078,82 @@ def _run_case(
     return completed, receipt, paths
 
 
+def _remove_option(command: list[str], option: str) -> None:
+    index = command.index(option)
+    del command[index : index + 2]
+
+
+def _prepare_authority_repo(path: Path) -> tuple[Path, str]:
+    root = path
+    (root / "docs/dev-wave").mkdir(parents=True)
+    for name in ("operations.md", "workers.md"):
+        (root / "docs/dev-wave" / name).write_bytes(
+            (_ROOT / "docs/dev-wave" / name).read_bytes()
+        )
+    subprocess.run(["git", "-C", os.fspath(root), "init", "-q"], check=True)
+    subprocess.run(
+        ["git", "-C", os.fspath(root), "config", "user.name", "launcher-test"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", os.fspath(root), "config", "user.email", "launcher-test@example.invalid"],
+        check=True,
+    )
+    subprocess.run(["git", "-C", os.fspath(root), "add", "docs"], check=True)
+    subprocess.run(
+        ["git", "-C", os.fspath(root), "commit", "-qm", "authority fixture"],
+        check=True,
+    )
+    commit = subprocess.run(
+        ["git", "-C", os.fspath(root), "rev-parse", "HEAD"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip()
+    return root, commit
+
+
+def _prepare_authority_worktree(
+    main: Path, path: Path
+) -> tuple[Path, str]:
+    commit = subprocess.run(
+        ["git", "-C", os.fspath(main), "rev-parse", "HEAD"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip()
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            os.fspath(main),
+            "worktree",
+            "add",
+            "--detach",
+            "-q",
+            os.fspath(path),
+            commit,
+        ],
+        check=True,
+    )
+    return path, commit
+
+
+def _remove_authority_worktree(main: Path, path: Path) -> None:
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            os.fspath(main),
+            "worktree",
+            "remove",
+            "--force",
+            os.fspath(path),
+        ],
+        check=True,
+    )
+
+
 def _assert_pid_gone(pid: int) -> None:
     deadline = time.monotonic() + 3
     while Path(f"/proc/{pid}").exists() and time.monotonic() < deadline:
@@ -1068,6 +1178,53 @@ def _check_command(paths: dict[str, Path]) -> list[str]:
         "--manifest",
         os.fspath(paths["manifest"]),
     ]
+
+
+def _write_legacy_v2_evidence(
+    receipt_v3: dict[str, Any], paths: dict[str, Path]
+) -> dict[str, Any]:
+    common = {
+        field: receipt_v3[field]
+        for field in LAUNCHER._RECEIPT_FIELDS_V2
+        if field
+        not in {
+            "schema_version",
+            "model",
+            "reasoning",
+            "cwd",
+            "manifest_repo_root",
+            "manifest_base_commit",
+        }
+    }
+    receipt_v2 = {
+        **common,
+        "schema_version": 2,
+        "model": receipt_v3["requested_model"],
+        "reasoning": receipt_v3["requested_effort"],
+        "cwd": receipt_v3["requested_cwd"],
+        "manifest_repo_root": receipt_v3["repo_root"],
+        "manifest_base_commit": receipt_v3["base_commit"],
+    }
+    manifest_v2 = json.loads(paths["manifest"].read_text(encoding="utf-8"))
+    manifest_v1 = {
+        "schema_version": 1,
+        "wave_id": manifest_v2["wave_id"],
+        "repo_root": receipt_v3["repo_root"],
+        "base_commit": receipt_v3["base_commit"],
+        "sessions": [
+            {
+                "job_id": entry["job_id"],
+                "attempt_index": entry["attempt_index"],
+                "session_id": entry["session_id"],
+            }
+            for entry in manifest_v2["sessions"]
+        ],
+    }
+    paths["manifest"].write_text(
+        json.dumps(manifest_v1, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    return receipt_v2
 
 
 def _run_main_in_process(
@@ -1637,14 +1794,21 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     assert receipt["stop_reason"] == "completed"
     assert receipt["launcher_rc"] == 0
     assert receipt["model_calls_semantics"] == "observed_token_count_events"
-    assert receipt["schema_version"] == 2
+    assert receipt["schema_version"] == 3
     assert receipt["limits_assertion"] == "self_asserted"
     assert (
         receipt["wall_clock_scope"]
         == "launcher_start_to_receipt_fields_finalized"
     )
-    assert receipt["manifest_repo_root"] == os.fspath(_ROOT)
-    assert receipt["manifest_base_commit"] == _BASE_COMMIT
+    assert receipt["repo_root"] == os.fspath(_ROOT)
+    assert receipt["base_commit"] == _BASE_COMMIT
+    derived = LAUNCHER.derive_launch(
+        LAUNCHER.snapshot_authority(_ROOT), stage="author", lane=None
+    )
+    assert receipt["requested_model"] == derived.model
+    assert receipt["requested_effort"] == receipt["recorded_effort"]
+    assert receipt["recorded_model"] == derived.model
+    assert receipt["recorded_turn_context_count"] >= 1
     assert receipt["possible_unobserved_overshoot"] is False
     assert receipt["retry_classification"] == "none"
     assert receipt["escaped_process_containment"] == "not_attempted"
@@ -1659,10 +1823,9 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     assert set(manifest) == {
         "schema_version",
         "wave_id",
-        "repo_root",
-        "base_commit",
         "sessions",
     }
+    assert manifest["schema_version"] == 2
     assert manifest["wave_id"] == "wave-a"
     assert len(manifest["sessions"]) == 1
     for pid in _leader_pids(paths):
@@ -1713,7 +1876,219 @@ def test_all_repo_policy_reasoning_values_are_accepted(
     )
 
     assert receipt is not None
-    assert receipt["reasoning"] == reasoning
+    assert receipt["requested_effort"] == reasoning
+
+
+def test_authority_bound_reasoning_is_rejected_before_all_side_effects(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, stage="review"
+    )
+    completed = _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=2
+    )
+    assert "--reasoning" in completed.stderr
+    for key in (
+        "receipt",
+        "manifest",
+        "pid_dir",
+        "counter",
+        "artifact",
+        "output",
+        "codex_home",
+    ):
+        assert not paths[key].exists()
+
+
+@pytest.mark.parametrize(
+    ("stage", "lane"),
+    (("consult", None), ("author", "sol")),
+)
+def test_stage_lane_contract_fails_before_side_effects(
+    tmp_path: Path, stage: str, lane: str | None
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, stage=stage, lane=lane
+    )
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=2
+    )
+    assert not paths["artifact"].exists()
+    assert not paths["receipt"].exists()
+    assert not paths["manifest"].exists()
+    assert not paths["pid_dir"].exists()
+
+
+def test_run_cli_has_no_model_override(tmp_path: Path) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    command.extend(("--model", "decoy-model"))
+    completed = _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=2
+    )
+    assert "unrecognized arguments" in completed.stderr
+    assert not paths["artifact"].exists()
+
+
+def test_authority_bound_launch_uses_derived_model_and_effort(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, stage="review"
+    )
+    _remove_option(command, "--reasoning")
+    completed = _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=0
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    derived = LAUNCHER.derive_launch(
+        LAUNCHER.snapshot_authority(_ROOT), stage="review", lane=None
+    )
+    assert receipt["requested_model"] == derived.model
+    assert receipt["requested_effort"] == derived.effort
+    assert receipt["effort_authority"] == derived.effort_authority
+    argv_path = next(paths["pid_dir"].glob("argv-*.json"))
+    argv = json.loads(argv_path.read_text(encoding="utf-8"))
+    assert argv[argv.index("-m") + 1] == derived.model
+    assert argv[argv.index("-c") + 1] == (
+        f'model_reasoning_effort="{derived.effort}"'
+    )
+    assert completed.returncode == 0
+
+
+def test_turn_context_top_level_and_collaboration_decoys_are_rejected(
+    tmp_path: Path,
+) -> None:
+    completed, receipt, paths = _run_case(
+        tmp_path, "payload_decoy", expected_returncode=1
+    )
+    assert receipt is not None
+    assert completed.returncode == 1
+    assert receipt["attempts"][0]["evidence_status"] == "invalid"
+    assert receipt["recorded_model"] is None
+    assert receipt["recorded_effort"] is None
+    assert receipt["recorded_turn_context_count"] == 1
+    manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
+    assert [entry["session_id"] for entry in manifest["sessions"]] == (
+        receipt["attempts"][0]["session_ids"]
+    )
+
+
+def test_correlated_authority_invalid_session_uses_nullable_manifest_value(
+    tmp_path: Path,
+) -> None:
+    completed, receipt, paths = _run_case(
+        tmp_path, "cwd_missing", expected_returncode=1
+    )
+    assert receipt is not None
+    assert completed.returncode == 1
+    assert receipt["attempts"][0]["evidence_status"] == "invalid"
+    assert receipt["recorded_cwd"] is None
+    manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
+    assert manifest["sessions"][0]["recorded_cwd"] is None
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert checked.returncode == 1, checked.stderr
+
+
+def test_authority_bound_job_rejects_prior_invalid_attempt(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        stage="review",
+        max_attempts=2,
+        sandbox="read-only",
+    )
+    _remove_option(command, "--reasoning")
+    env["FAKE_SEQUENCE"] = "payload_decoy,normal"
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=1
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    assert [item["evidence_status"] for item in receipt["attempts"]] == [
+        "invalid",
+        "complete",
+    ]
+    assert receipt["attempts"][-1]["accepted"] is True
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["launcher_rc"] == 1
+
+
+@pytest.mark.parametrize(
+    ("stage", "lane"),
+    [("author", None), ("consult", "sol")],
+)
+def test_all_v3_stages_reject_prior_invalid_attempt(
+    stage: str,
+    lane: str | None,
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        stage=stage,
+        lane=lane,
+        max_attempts=2,
+        sandbox="read-only",
+    )
+    env["FAKE_SEQUENCE"] = "payload_decoy,normal"
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=1
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    assert [item["evidence_status"] for item in receipt["attempts"]] == [
+        "invalid",
+        "complete",
+    ]
+    assert receipt["attempts"][-1]["accepted"] is True
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["launcher_rc"] == 1
+
+
+def test_checker_rejects_v3_acceptance_with_prior_invalid_attempt(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        stage="author",
+        max_attempts=2,
+        sandbox="read-only",
+    )
+    env["FAKE_SEQUENCE"] = "payload_decoy,normal"
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=1
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    final_attempt = receipt["attempts"][-1]
+    receipt.update(
+        {
+            "outcome": "accepted",
+            "stop_reason": "completed",
+            "launcher_rc": 0,
+            "output_sha256": final_attempt["output_sha256"],
+        }
+    )
+    paths["output"].write_bytes(Path(final_attempt["output_path"]).read_bytes())
+    paths["receipt"].write_text(
+        json.dumps(receipt, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert checked.returncode == 2
+    assert "truth table" in checked.stderr
 
 
 def test_limit_stop_is_never_accepted(tmp_path: Path) -> None:
@@ -1964,6 +2339,33 @@ def test_cumulative_limits_do_not_reset_between_attempts(
     assert receipt["attempts"][1]["accepted"] is False
     for pid in _leader_pids(paths):
         _assert_pid_gone(pid)
+
+
+def test_retry_admission_exact_model_call_limit_is_not_accepted(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        sandbox="read-only",
+        max_attempts=3,
+        max_calls=1,
+        max_tokens=100000,
+        max_wall="3",
+    )
+    env["FAKE_MODE"] = "retry_reject"
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=1
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["stop_reason"] == "max_model_calls"
+    assert receipt["actuals"]["attempt_count"] == 1
+    assert receipt["actuals"]["model_calls"] == 1
+    assert receipt["attempts"][0]["limit_trigger"] == "max_model_calls"
+    assert paths["counter"].read_text(encoding="ascii") == "1"
 
 
 def test_max_attempts_never_spawns_extra_attempt(tmp_path: Path) -> None:
@@ -2286,6 +2688,104 @@ def test_parallel_jobs_preserve_both_manifest_entries(tmp_path: Path) -> None:
     assert second_paths["receipt"].exists()
 
 
+def test_manifest_v2_accepts_two_sibling_worktree_repo_roots(
+    tmp_path: Path,
+) -> None:
+    repo_a, commit_a = _prepare_authority_repo(tmp_path / "repo-a")
+    repo_b, commit_b = _prepare_authority_repo(tmp_path / "repo-b")
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    shared_manifest = tmp_path / "shared-manifest.json"
+    commands: list[tuple[list[str], dict[str, str], dict[str, Path]]] = []
+    for index, (repo, commit) in enumerate(
+        ((repo_a, commit_a), (repo_b, commit_b)), 1
+    ):
+        job_root = tmp_path / f"job-{index}"
+        job_root.mkdir()
+        commands.append(
+            _base_command(
+                job_root,
+                fake=fake,
+                job_id=f"job-{index}",
+                suffix=f"-{index}",
+                repo_root=repo,
+                base_commit=commit,
+                manifest_path=shared_manifest,
+            )
+        )
+    for command, env, paths in commands:
+        _run_launcher_subprocess(
+            command, env=env, paths=paths, expected_returncode=0
+        )
+    manifest = json.loads(shared_manifest.read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == 2
+    assert {entry["repo_root"] for entry in manifest["sessions"]} == {
+        os.fspath(repo_a),
+        os.fspath(repo_b),
+    }
+
+
+def test_preflight_accepts_sibling_worktree_with_same_git_common_dir(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    main, _main_commit = _prepare_authority_repo(tmp_path / "main-repo")
+    repo, commit = _prepare_authority_worktree(
+        main, tmp_path / "sibling-worktree"
+    )
+    try:
+        monkeypatch.setattr(LAUNCHER, "_ROOT", main)
+        fake = _write_fake_codex(tmp_path / "fake-codex")
+        job_root = tmp_path / "job"
+        job_root.mkdir()
+        command, env, paths = _base_command(
+            job_root,
+            fake=fake,
+            repo_root=repo,
+            base_commit=commit,
+        )
+        env["FAKE_MODE"] = "normal"
+        _run_main_in_process(
+            command,
+            env,
+            monkeypatch,
+            paths=paths,
+            expected_returncode=0,
+        )
+        assert paths["receipt"].exists()
+    finally:
+        _remove_authority_worktree(main, repo)
+
+
+def test_manifest_v1_cannot_receive_new_stage_bound_session(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    legacy = {
+        "schema_version": 1,
+        "wave_id": "wave-a",
+        "repo_root": os.fspath(_ROOT),
+        "base_commit": _BASE_COMMIT,
+        "sessions": [
+            {
+                "job_id": "legacy-job",
+                "attempt_index": 1,
+                "session_id": "00000000-0000-0000-0000-000000000001",
+            }
+        ],
+    }
+    paths["manifest"].write_text(
+        json.dumps(legacy, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+    before = paths["manifest"].read_bytes()
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=2
+    )
+    assert paths["manifest"].read_bytes() == before
+    assert not paths["receipt"].exists()
+    assert not paths["pid_dir"].exists()
+
+
 def test_manifest_lock_covers_load_replace_critical_section(
     tmp_path: Path,
 ) -> None:
@@ -2301,15 +2801,24 @@ def test_manifest_lock_covers_load_replace_critical_section(
 
     def append(job_id: str, session_id: str, hook: Any = None) -> None:
         try:
+            snapshot = LAUNCHER.snapshot_authority(_ROOT)
             LAUNCHER._append_manifest(
                 manifest_path,
                 wave_id="wave-a",
-                repo_root=os.fspath(_ROOT),
-                base_commit=_BASE_COMMIT,
                 entry={
                     "job_id": job_id,
                     "attempt_index": 1,
                     "session_id": session_id,
+                    "stage": "author",
+                    "lane": None,
+                    "repo_root": os.fspath(_ROOT),
+                    "base_commit": _BASE_COMMIT,
+                    "requested_cwd": os.fspath(_ROOT),
+                    "recorded_cwd": os.fspath(_ROOT),
+                    "sessions_root": os.fspath(tmp_path / "sessions"),
+                    "receipt_path": os.fspath(tmp_path / f"{job_id}.json"),
+                    "authority_commit": snapshot.authority_commit,
+                    "authority_digest": snapshot.digest,
                 },
                 critical_section_hook=hook,
             )
@@ -2451,6 +2960,109 @@ def test_check_receipt_detects_output_tampering(tmp_path: Path) -> None:
     assert checked.returncode == 2
 
 
+def test_check_receipt_reconstructs_authority_from_recorded_commit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    main, _main_commit = _prepare_authority_repo(tmp_path / "main-repo")
+    repo, commit = _prepare_authority_worktree(
+        main, tmp_path / "authority-worktree"
+    )
+    try:
+        monkeypatch.setattr(LAUNCHER, "_ROOT", main)
+        fake = _write_fake_codex(tmp_path / "fake-codex")
+        job_root = tmp_path / "job"
+        job_root.mkdir()
+        command, env, paths = _base_command(
+            job_root,
+            fake=fake,
+            repo_root=repo,
+            base_commit=commit,
+        )
+        _run_main_in_process(
+            command,
+            env,
+            monkeypatch,
+            paths=paths,
+            expected_returncode=0,
+        )
+        operations = repo / "docs/dev-wave/operations.md"
+        text = operations.read_text(encoding="utf-8")
+        line = next(item for item in text.splitlines() if "`<model>`:" in item)
+        models = re.findall(r"gpt-[A-Za-z0-9._-]+", line)
+        changed_line = (
+            line.replace(models[0], "MODEL-TEMP")
+            .replace(models[1], models[0])
+            .replace("MODEL-TEMP", models[1])
+        )
+        operations.write_text(
+            text.replace(line, changed_line, 1), encoding="utf-8"
+        )
+        subprocess.run(
+            ["git", "-C", os.fspath(repo), "add", "docs/dev-wave/operations.md"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", os.fspath(repo), "commit", "-qm", "new authority"],
+            check=True,
+        )
+        checked = subprocess.run(
+            _check_command(paths), text=True, capture_output=True, timeout=10
+        )
+        assert checked.returncode == 0, checked.stderr
+    finally:
+        _remove_authority_worktree(main, repo)
+
+
+def test_docs_authority_alone_rejects_consistent_effort_mutation(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, stage="review"
+    )
+    _remove_option(command, "--reasoning")
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=0
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    derived = LAUNCHER.derive_launch(
+        LAUNCHER.snapshot_authority(_ROOT), stage="review", lane=None
+    )
+    alternative = next(
+        value
+        for value in LAUNCHER.CODEX_REASONING_EFFORTS
+        if value != derived.effort
+    )
+    rollout_record = receipt["attempts"][0]["rollouts"][0]
+    rollout_path = Path(rollout_record["path"])
+    events = [
+        json.loads(line)
+        for line in rollout_path.read_text(encoding="utf-8").splitlines()
+    ]
+    for event in events:
+        if event.get("type") == "turn_context":
+            event["payload"]["effort"] = alternative
+    raw = (
+        "\n".join(json.dumps(event, separators=(",", ":")) for event in events)
+        + "\n"
+    ).encode("utf-8")
+    rollout_path.write_bytes(raw)
+    rollout_record["sha256"] = hashlib.sha256(raw).hexdigest()
+    rollout_record["bytes"] = len(raw)
+    receipt["requested_effort"] = alternative
+    receipt["recorded_effort"] = alternative
+    assert receipt["attempts"][0]["evidence_status"] == "complete"
+    paths["receipt"].write_text(
+        json.dumps(receipt, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert checked.returncode == 2
+    assert "docs authority" in checked.stderr
+
+
 def test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectations(
     tmp_path: Path,
 ) -> None:
@@ -2501,6 +3113,7 @@ def test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics(
         tmp_path, "normal", expected_returncode=0
     )
     assert receipt is not None
+    receipt = _write_legacy_v2_evidence(receipt, paths)
     receipt["schema_version"] = 1
     if legacy_field_set:
         for field_name in (
@@ -2533,6 +3146,29 @@ def test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics(
             and item.endswith("_check_skipped")
             for item in diagnostics["compatibility_skips"]
         )
+
+
+def test_check_receipt_reads_v2_without_implicit_upgrade(
+    tmp_path: Path,
+) -> None:
+    completed, receipt, paths = _run_case(
+        tmp_path, "normal", expected_returncode=0
+    )
+    assert receipt is not None
+    receipt_v2 = _write_legacy_v2_evidence(receipt, paths)
+    paths["receipt"].write_text(
+        json.dumps(receipt_v2, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    before = paths["receipt"].read_bytes()
+
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+
+    assert checked.returncode == 0, checked.stderr
+    assert json.loads(checked.stdout)["schema_version"] == 2
+    assert paths["receipt"].read_bytes() == before
 
 
 def test_check_receipt_external_limit_detects_self_asserted_limit_tampering(
@@ -2623,7 +3259,7 @@ def test_manifest_refuses_foreign_wave_id(tmp_path: Path) -> None:
         command, env=env, paths=second_paths, expected_returncode=2
     )
 
-    assert "manifest header" in second.stderr
+    assert "wave_id" in second.stderr
     manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
     assert manifest["wave_id"] == "wave-a"
     assert len(manifest["sessions"]) == 1
@@ -2665,6 +3301,115 @@ def test_preflight_rejects_cwd_outside_repo_and_unknown_base(
     assert not unknown_paths["receipt"].exists()
 
 
+def test_preflight_rejects_foreign_repo_before_artifact_creation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    launcher_repo, _launcher_commit = _prepare_authority_repo(
+        tmp_path / "launcher-repo"
+    )
+    repo, _commit = _prepare_authority_repo(tmp_path / "outer-repo")
+    foreign_repo, _foreign_commit = _prepare_authority_repo(
+        tmp_path / "foreign-repo"
+    )
+    nested_submodule = repo / "nested-submodule"
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "protocol.file.allow=always",
+            "-C",
+            os.fspath(repo),
+            "submodule",
+            "add",
+            "-q",
+            os.fspath(foreign_repo),
+            os.fspath(nested_submodule),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", os.fspath(repo), "commit", "-qam", "add submodule"],
+        check=True,
+    )
+    commit = subprocess.run(
+        ["git", "-C", os.fspath(repo), "rev-parse", "HEAD"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip()
+    monkeypatch.setattr(LAUNCHER, "_ROOT", launcher_repo)
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    job_root = tmp_path / "job"
+    job_root.mkdir()
+    command, env, paths = _base_command(
+        job_root,
+        fake=fake,
+        repo_root=repo,
+        base_commit=commit,
+        cwd=nested_submodule,
+    )
+
+    _run_main_in_process(
+        command,
+        env,
+        monkeypatch,
+        paths=paths,
+        expected_returncode=2,
+    )
+
+    captured = capsys.readouterr()
+    assert "git common-dir" in captured.err
+    assert not paths["artifact"].exists()
+    assert not paths["receipt"].exists()
+    assert not paths["manifest"].exists()
+
+
+def test_preflight_rejects_nested_foreign_repo_as_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    main, _main_commit = _prepare_authority_repo(tmp_path / "main-repo")
+    repo, commit = _prepare_authority_worktree(
+        main, tmp_path / "outer-worktree"
+    )
+    try:
+        monkeypatch.setattr(LAUNCHER, "_ROOT", main)
+        nested = repo / "nested-repo"
+        nested.mkdir()
+        subprocess.run(
+            ["git", "-C", os.fspath(nested), "init", "-q"], check=True
+        )
+        fake = _write_fake_codex(tmp_path / "fake-codex")
+        job_root = tmp_path / "job"
+        job_root.mkdir()
+        command, env, paths = _base_command(
+            job_root,
+            fake=fake,
+            repo_root=repo,
+            base_commit=commit,
+            cwd=nested,
+        )
+
+        _run_main_in_process(
+            command,
+            env,
+            monkeypatch,
+            paths=paths,
+            expected_returncode=2,
+        )
+
+        captured = capsys.readouterr()
+        assert "git common-dir" in captured.err
+        assert not paths["artifact"].exists()
+        assert not paths["receipt"].exists()
+        assert not paths["manifest"].exists()
+    finally:
+        _remove_authority_worktree(main, repo)
+
+
 @pytest.mark.parametrize("field", ["wave_id", "repo_root", "base_commit"])
 def test_check_receipt_rechecks_all_manifest_header_fields(
     tmp_path: Path,
@@ -2680,7 +3425,10 @@ def test_check_receipt_rechecks_all_manifest_header_fields(
         "repo_root": "/tmp",
         "base_commit": "f" * 40,
     }
-    manifest[field] = replacements[field]
+    if field == "wave_id":
+        manifest[field] = replacements[field]
+    else:
+        manifest["sessions"][0][field] = replacements[field]
     paths["manifest"].write_text(
         json.dumps(manifest, separators=(",", ":")) + "\n",
         encoding="utf-8",
@@ -2697,29 +3445,40 @@ def test_append_manifest_header_gate_fails_without_checker_mask(
     tmp_path: Path,
 ) -> None:
     manifest_path = tmp_path / "manifest.json"
+    snapshot = LAUNCHER.snapshot_authority(_ROOT)
+
+    def entry(job_id: str, session_id: str) -> dict[str, Any]:
+        return {
+            "job_id": job_id,
+            "attempt_index": 1,
+            "session_id": session_id,
+            "stage": "author",
+            "lane": None,
+            "repo_root": os.fspath(_ROOT),
+            "base_commit": _BASE_COMMIT,
+            "requested_cwd": os.fspath(_ROOT),
+            "recorded_cwd": os.fspath(_ROOT),
+            "sessions_root": os.fspath(tmp_path / "sessions"),
+            "receipt_path": os.fspath(tmp_path / f"{job_id}.json"),
+            "authority_commit": snapshot.authority_commit,
+            "authority_digest": snapshot.digest,
+        }
+
     LAUNCHER._append_manifest(
         manifest_path,
         wave_id="wave-a",
-        repo_root=os.fspath(_ROOT),
-        base_commit=_BASE_COMMIT,
-        entry={
-            "job_id": "job-a",
-            "attempt_index": 1,
-            "session_id": "aaaaaaaa-0000-4000-8000-000000000001",
-        },
+        entry=entry(
+            "job-a", "aaaaaaaa-0000-4000-8000-000000000001"
+        ),
     )
 
     with pytest.raises(LAUNCHER.LaunchError, match="wave_id"):
         LAUNCHER._append_manifest(
             manifest_path,
             wave_id="wave-b",
-            repo_root=os.fspath(_ROOT),
-            base_commit=_BASE_COMMIT,
-            entry={
-                "job_id": "job-b",
-                "attempt_index": 1,
-                "session_id": "bbbbbbbb-0000-4000-8000-000000000002",
-            },
+            entry=entry(
+                "job-b", "bbbbbbbb-0000-4000-8000-000000000002"
+            ),
         )
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

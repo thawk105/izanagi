@@ -746,3 +746,19 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:duplicate-dev-wave-job":"F203"},"authored":"2026-08-10","content_sha256":"57ccc9651b1b612d2846096843b13ba8a1b726e4b1c77b3af7fc70724d44204a","seq":3,"wave":"dev-wave-t726-pickaxe-epoch"}
 
 - {"allocations":{"T:ccbench-anatomy-corrections":"[T-758]","T:dev-wave-waiter-liveness-note":"[T-757]","T:s1-design-choice-ruling":"[T-755]","T:trace-completeness-v2":"[T-756]"},"authored":"2026-08-10","content_sha256":"124315288f708e92c2eade023fd860de3c24359c27a3bdeea355486272b7b017","seq":1,"wave":"dev-wave-s1-design-choice"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"f2a9c497bb7dc89c0cbbeb7b711bf8a48e1982ff8132af483c8e019bc672eb98","seq":1,"wave":"dev-wave-t316-sandbox-measure"}
+- {"allocations":{"F:discharge-overrejection-unguarded":"F204","F:renameat2-einval-on-work":"F205"},"authored":"2026-08-10","content_sha256":"5d4452a11452080f1475d7d7afb5d2ec8dcb379af4e5582d0ae1502854e939f4","seq":1,"wave":"dev-wave-t316-sandbox-measure"}
+- {"allocations":{"F:stale-checker-range-audit":"F206"},"authored":"2026-08-10","content_sha256":"2b661a26ba5eeec0e532044ddf187e4d448df27b92db1978963b177592d97fd9","seq":2,"wave":"dev-wave-t316-sandbox-measure"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"eab9c1cc83665a8abcb65751259459967f7786e257579ff24c5c4e4135c8b53d","seq":43,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"30deb243250dc45ac236c9c6c8d1eccca4c104dccf68d4b13d80149dbd4e492f","seq":44,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dispatcher-sandbox-normative":"[T-760]","T:launch-binding-set-equality":"[T-759]","T:u2028-branch-redundancy":"[T-761]"},"authored":"2026-08-10","content_sha256":"6f314c65f06d64b5d02b61cdddc9e40e690114a89a68ceebe24a6ba712d9214d","seq":1,"wave":"dev-wave-t665-t662-launch-binding-impl"}
+- {"allocations":{"D:derived-value-test-needs-independent-oracle":"D276","D:launch-value-docs-binder":"D275"},"authored":"2026-08-10","content_sha256":"7995597b7150dffb531b01b99eddb4895d1ffd4d40ee7e8822f1b944b68ab2cf","seq":2,"wave":"dev-wave-t665-t662-launch-binding-impl"}
+- {"allocations":{"F:derived-oracle-circular-test":"F207","F:documented-route-not-executable":"F208"},"authored":"2026-08-10","content_sha256":"18fdafa915de339172ce54648a0db1cb660b13729bd168161f9f414f746a5093","seq":3,"wave":"dev-wave-t665-t662-launch-binding-impl"}
+
+- {"allocations":{"T:ident-activation-transition-pin":"[T-762]","T:issuer-test-syspath-restore":"[T-764]","T:loader-layer-semantic-kill":"[T-763]"},"authored":"2026-08-11","content_sha256":"99160070130fccb08a124d2a83e30d6f3e28ee20985f176265c84450cc0878eb","seq":1,"wave":"dev-wave-t737-rebuild"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"f3efe767a9e2d7159943b8d415c9592cb9a0f4b736e25101433a43391ed71897","seq":2,"wave":"dev-wave-t737-rebuild"}
+
+- {"allocations":{"T:dw-s04-zero-diff-exemption":"[T-765]"},"authored":"2026-08-11","content_sha256":"0e4ac88a7b7cd2b218ec6fc79ce761306b0c7c1da933328a7d947930c02b3061","seq":1,"wave":"dev-wave-t139-publication-core"}

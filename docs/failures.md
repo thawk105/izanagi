@@ -547,6 +547,25 @@
   本走では 15/15 が期待一致し、`DW-M08` に従って「受理集合を変える kill 12」
   「diagnostic sensitivity pin 2 (M4 / M5)」「SURVIVED 1 (M6、mask を事前登録済み)」に
   分けて記録した。**総数を 15 kill と書かないことが対応の本体である。**
+
+- **再発: 2026-08-10 ([T-737] wave)。** 事前登録した 8 変異の kill 意味論が、**上位層の 2 node に
+  ついてだけ成立していなかった**。65 env の合成 registry で `[:N]` 縮退を入れると遷移 gate は
+  通るが、その直後に `env_contract.py:535` の `_verify_entry_calibration` が存在しない合成
+  calibration を検証して**別理由で**拒否するため、`ec.current_activation_state()` を入口にした
+  node は赤くなっても受理集合が反転しない (`DW-M03` の semantic kill でない)。
+  **今回の新しさは、mask が変異位置の「手前」ではなく「後続」にあったこと**である。
+  `DW-M01` は既に「同じ入力を拒否する層が**前後に**無いこと」を求めており契約に穴はない。
+  破れたのは適用であって規則ではない — 親は段 4 で手前の層 (schema 検査・catalog 照合・chain 検査) だけを
+  読んで登録し、gate の**後続**にある別 module の検証層を見なかった。段 6 の敵対レビュー 2 本が
+  独立に検出し (2026-07-26 / 2026-08-08 の再発と同じ通過経路)、変異実測の前に落ちた。
+  一方で**本エントリの恒久対応 (i) の文言は `DW-M01` より狭く「その位置より手前」しか書いていない。**
+  正本は `DW-M01` の「前後」であり、(i) はそれに合わせて読むこと。
+  再照準は、受理集合が実際に反転する下位入口 (本件では `activation.load_activation_state`) へ
+  semantic kill を移し、上位層の node は**到達性 + 診断感度の pin** として `DW-M08` の別枠に
+  記録することで行った。本走は最終 commit `f9b44c4c` で 8/8 KILLED + 正例 1/1 KILLED、
+  変更前 HEAD 側 4/4 SURVIVED、いずれも事前登録と完全一致した。**総数を 13 kill と書かず、
+  層ごとに何が言えるかを `output/insights/2026-08-10_t737-loader-issuer-pin/README.md` の表で
+  書き分けたことが対応の本体である。**
 ### F29. 段 1 の実測確認が実差分をモデル化せず、正しく測って誤った結論を出した [テスト代表性] [手順漏れ]
 
 - 事象: [T-005]+[T-063]+[T-068] 束ね wave (2026-07-21、D72) の段 1 で、`frozen_at_head` の
@@ -3349,6 +3368,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `tools/check_ai_provenance.py` の full-history 監査が既に検出する
   (本件もそれで顕在化した)。preflight の `--dry-run -F` 単独通過を根拠にしない。
 
+
+- **再発: 2026-08-10** — 受入 lease 取得直後の main 取り込み merge で再発した。競合なしの
+  auto-merge だったが combined diff がテスト 2 件を含み、message が `role=integrator` 1 行
+  だけだった。取り込み後の full 監査が 1 新規違反として検出。実装面を書いたのは本 wave の
+  Codex 子なので `role=author` を併記して amend し、再走で全走 rc=0 を確認した。
+  merge message 生成器 (wave の `write_merge_msg.py`) が integrator 行しか書かない形だったのが
+  直接原因で、生成器側を直した。
 ### F126. 後段の fail-closed 安全弁が、狙った検査の変異を隠した [恒真ゲート] [変異帰属]
 
 - 事象: 世代 validator に「構造・連番・key 一致・hash 一意性・隣接遷移」の検査と、その後段に
@@ -5006,3 +5032,84 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 起動直後に handoff の内容が自分の書いたものと異なることを検出したら、
   外部混入と断ずる前に `pgrep -af <worktree path>` と `git worktree list` の lock 保持者を見る。
   今回は先方からの cross-session message で原因が判明した。
+
+### F204. 過剰拒否の方向が無検査で、機能を丸ごと無効化しても全テストが緑だった [恒真ゲート] [テスト代表性]
+
+- 事象: 変異 M7 (`if by_stage.get("S7") == "go":` → `if False:`) が SURVIVED。
+  probe の R3-1 coverage から perf 由来の discharge 項目を丸ごと発行しなくしても、
+  115 件のテストが 1 件も落ちなかった。等価変異ではない — 実測 receipt `0:900427.nqsv` は
+  当該項目を持っており、変異を入れると観測可能に消える。
+- 根本原因: `test_performance_discharge_requires_s7_go` が「S7 が go **でない**ときに
+  discharge しない」方向だけを検査し、「go の**ときに** discharge する」方向を検査していなかった。
+  条件付き発行を「発行しない側」だけで固定すると、発行経路を殺す変異が生き残る。
+- 恒久対応: 双方向を固定するテストを追加した
+  (`orchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_when_s7_go` と
+  `::test_containment_discharge_when_all_containment_stages_go`)。期待値は production から
+  import せず独立 literal で持つ。2 走目で M7 は KILLED。
+- 再発検知: 条件付き発行を新設する wave では、発行条件を `if False:` に潰す変異を
+  事前登録する (本 wave の `output/insights/2026-08-10_t316-sandbox-measurement/mutation-spec-v2.json`
+  の M7 が雛形)。静的レビュー 3 本 (敵対 2 + 焦点再) はこの穴を見つけられなかった。
+
+### F205. tmpfs でしか成立しない syscall を実出力先の前提にし、単体テストが緑のまま実機だけが落ちる形になった [テスト代表性] [計測汚染]
+
+- 事象: receipt の atomic publish に `renameat2(RENAME_NOREPLACE)` を使ったが、この機体の `/work` は
+  **通常ファイルに対しても EINVAL** を返す。単体テストは `tmp_path` (= `/tmp`、tmpfs) で走るため緑になり、
+  実出力先が `/work` 配下である実機の publish だけが必ず失敗する形だった。
+  90 分の測定を終えてから receipt を書けない、という最悪形の手前で親の実測が捕まえた。
+- 根本原因: `docs/pegasus-runbook.md` は **directory** の create-only publish について EINVAL を
+  記録していたが、通常ファイルは未実測だった。子はその未実測の隙間を埋めずに採用した。
+- 恒久対応: `os.link(tmp, final)` + `os.unlink(tmp)` による create-only publish へ置換
+  (親が同じ `/work` 上で新規名 OK / 既存名 EEXIST を実測)。加えて probe は起動直後に
+  **実出力先 directory で publish 機構の自己検査**を行い、失敗したら測定を始める前に停止する。
+- 再発検知: publish 関数へ EINVAL を注入し、canonical path に部分ファイルも `COMPLETED` も
+  残さないことを検査するテストを追加した。**永続化先の filesystem が単体テストの tmp と
+  異なる成果物では、その filesystem で機構を実測してから採用する。**
+
+### F206. 取り込み前の古い checker で incoming range を監査し、登録済みの既知違反を赤と誤認した [手順漏れ] [ドリフト]
+
+- 事象: 受入直前の `check_ai_provenance.py --range HEAD..main` が 4 違反で赤になり、
+  受入投入を 2 度止めた。実体は別 wave の merge commit 4 件で、**main 側の checker には
+  既知違反として登録済み**だった。wave 側 worktree は取り込み前の古い checker を持つため、
+  その登録を知らないまま赤を出していた。取り込み後の full 監査は同じ木で緑になる。
+- 根本原因: `DW-O17` は「`OLD_HEAD..HEAD` は補助で、correction を含むときは両 commit を含む
+  range か full 監査だけを権威とする」と定めている。既知違反台帳の更新は correction であり、
+  それが incoming 側にあるとき、**取り込み前の checker で incoming range を測る手順自体**が誤り。
+  他セッションの land 済み履歴を書き換えたくなる方向へ誘導する点で有害である。
+- 恒久対応: 受入 script の incoming gate を廃し、**取り込み後の full 監査**を権威にした
+  (本 wave の `acceptance.sh`)。`DW-O17` の既存規定で説明できる誤用なので新しい規則は足さない。
+- 再発検知: 同じ形の赤が出たら、まず incoming 側 checker
+  (`git show main:tools/check_ai_provenance.py`) に当該 SHA が登録されているかを見る。
+  登録済みなら wave 側 checker の陳腐化であって、履歴の欠陥ではない。
+
+### F207. 派生関数を期待値の出所にしたテストは、その派生関数の変異を検出できない [恒真ゲート] [検出力]
+
+- 事象: docs 権威から起動値を導出する機構で、`derive_launch` の段 6 effort を別の許容値へ
+  置換する変異が生存した。対象テストは 623 passed / 0 failed で全緑、段 3 と段 6 の
+  敵対レビュー計 4 本も通過した後だった。**束縛の中核主張がテストで証明されていなかった。**
+- 根本原因: 2 本のテストが期待値を `derive_launch(snapshot_authority(...), ...)` から取っていた。
+  派生関数そのものを変異させると期待値も一緒に動くため、比較が恒真になる。
+  静的レビューはこの循環を「期待値を hardcode していない良いテスト」と読んで見逃した。
+- 恒久対応: D276。
+  実体は `orchestrator/tests/test_dev_wave_launch_authority.py` の
+  `test_review_effort_matches_independent_docs_cross_check` /
+  `test_focus_effort_matches_independent_docs_cross_check` /
+  `test_all_stage_models_match_independent_docs_cross_check` で、
+  docs 節から独立に抽出した値と派生値の一致を要求する。
+- 再発検知: 同 3 本を変異 matrix の期待 node として登録する。派生関数の値を固定値へ置換する
+  変異 (本 wave の M08 / M08c) が KILLED になることを再走で確認した。
+
+### F208. 文書化した起動 route が実際には起動できない [手順漏れ]
+
+- 事象: `DW-O01` を新しい dispatcher 経路へ差し替えた直後、その契約どおりに段 6 の
+  レビュー 2 本を起動したところ両方 rc=2 で即死した。**契約に従うと codex 子が 1 本も起動できない
+  状態を land しかけた。**
+- 根本原因: 2 つ重なっていた。(i) 文書の route 行が必須引数を欠いていた。
+  (ii) dispatcher が生成 path の directory を作らず、launcher の `_preflight_run` が
+  `receipt.parent` / `manifest.parent` の実在を検査した**後で** `artifact_dir` を作る順序のため、
+  receipt と manifest を artifact_dir の中に置く構成では必ず先に落ちる。
+- 恒久対応: dispatcher が生成 path の directory を先に作る
+  (`tools/dev_wave_codex.py`。launcher の parent 実在検査は緩めない)。
+  文書の route 行は実行可能な参照へ直し、残りの引数は `--help` に従うと明記した。
+- 再発検知: 中間 directory が無い状態からの起動を `orchestrator/tests/test_dev_wave_codex.py` の
+  回帰テストに置いた。あわせて、land する起動経路は wave 内で実際に 1 度使う (dogfood)。
+  **この欠陥は段 3 と段 6 の静的レビュー計 4 本では出ず、実起動で初めて出た。**

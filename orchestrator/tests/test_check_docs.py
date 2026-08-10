@@ -522,6 +522,7 @@ docs/skill-self-improvement.md
 """
     _write(root, ".claude/commands/dev-wave.md", dev_wave)
     _write(root, "tools/dev_wave_land.py", "# synthetic land helper\n")
+    _write(root, "tools/dev_wave_codex.py", "# synthetic Codex dispatcher\n")
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
     codex_skill = """---
@@ -579,7 +580,9 @@ description: synthetic Codex rulings skill
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE
             if rel == "docs/dev-wave/operations.md" and section == "DW-O01":
                 body += (
-                    "\n\n`codex exec -m <model>`\n\n"
+                    "\n\n"
+                    + check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+                    + "\n\n"
                     + check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
                 )
             if rel == "docs/dev-wave/core.md" and section == "DW-S09":
@@ -718,6 +721,14 @@ def _build_min_repo() -> str:
     _dst = os.path.join(root, "tools", "check_docs.py")
     os.makedirs(os.path.dirname(_dst))
     shutil.copy(check_docs.__file__, _dst)
+    authority_dst = os.path.join(
+        root, "tools", "dev_waves", "launch_authority.py"
+    )
+    os.makedirs(os.path.dirname(authority_dst))
+    shutil.copy(
+        check_docs.REPO / "tools" / "dev_waves" / "launch_authority.py",
+        authority_dst,
+    )
     shutil.copy(check_docs.REPO / "tools" / "spool_fold.py", os.path.dirname(_dst))
     _write_empty_spool_layout(root)
 
@@ -2391,13 +2402,13 @@ def _grow_test_section(
         re.MULTILINE | re.DOTALL,
     )
     assert match is not None and add_bytes >= 0
-    payload = "x" * add_bytes
+    if add_bytes == 0:
+        return
+    payload = ("x" * (add_bytes - 1)) + "\n"
     if multibyte:
-        assert add_bytes >= 3
-        payload = "あ" + ("x" * (add_bytes - 3))
-    insertion = match.end()
-    while insertion > match.start() and text[insertion - 1] in "\r\n":
-        insertion -= 1
+        assert add_bytes >= 4
+        payload = "あ" + ("x" * (add_bytes - 4)) + "\n"
+    insertion = text.index("\n", match.start(), match.end()) + 1
     _write(root, rel, text[:insertion] + payload + text[insertion:])
 
 
@@ -6360,7 +6371,7 @@ def test_dev_wave_model_pin_rejects_missing_dw_o01_model_placeholder():
             _replace_reference_section_literal(
                 _read(root, rel),
                 "DW-O01",
-                "-m <model>",
+                check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL,
                 "--model-from-dispatcher",
             ),
         )
@@ -6370,6 +6381,111 @@ def test_dev_wave_model_pin_rejects_missing_dw_o01_model_placeholder():
         )
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    (
+        lambda line: f"> {line}",
+        lambda line: f"- {line}",
+        lambda line: f"<div>\n{line}\n</div>\n",
+        lambda line: f"この route では起動しない: {line}",
+    ),
+)
+def test_dev_wave_dispatch_route_requires_visible_top_level_full_match(
+    replacement,
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        route = check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+        changed = text.replace(route, replacement(route), 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("separator", ("\u2028", "\u2029"))
+def test_dev_wave_dispatch_route_rejects_separator_in_normative_candidate(
+    separator,
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        route = check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+        changed_route = route.replace(" --stage", f"{separator}--stage", 1)
+        assert changed_route != route
+        _write(root, rel, text.replace(route, changed_route, 1))
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+_ROUTE_SEPARATOR_NON_CANDIDATE_CASES = (
+    "fence",
+    "html_comment",
+    "raw_html",
+    "visible_prose",
+    "non_target_section",
+)
+
+
+@pytest.mark.parametrize("separator", ("\u2028", "\u2029"))
+@pytest.mark.parametrize("case", _ROUTE_SEPARATOR_NON_CANDIDATE_CASES)
+def test_dev_wave_dispatch_route_accepts_separator_outside_candidate(
+    case,
+    separator,
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        route = check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+        decoy = f"補足{separator}説明"
+        if case == "fence":
+            payload = f"```text\n{decoy}\n```"
+        elif case == "html_comment":
+            payload = f"<!-- {decoy} -->"
+        elif case == "raw_html":
+            payload = f"<div>\n{decoy}\n</div>\n"
+        elif case == "visible_prose":
+            payload = f"非規範の補足: {decoy}"
+        elif case == "non_target_section":
+            marker = "## DW-O02 — synthetic\n\n"
+            assert marker in text
+            changed = text.replace(marker, f"{marker}{decoy}\n\n", 1)
+            payload = None
+        else:  # pragma: no cover - registration meta-test が閉じる
+            raise AssertionError(case)
+        if payload is not None:
+            changed = text.replace(route, f"{payload}\n{route}", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert _finding_set(res) == set()
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_route_separator_non_candidate_registration_is_complete():
+    assert set(_ROUTE_SEPARATOR_NON_CANDIDATE_CASES) == {
+        "fence",
+        "html_comment",
+        "raw_html",
+        "visible_prose",
+        "non_target_section",
+    }
 
 
 def test_dev_wave_model_pin_rejects_slug_in_dw_s05_a():
@@ -6480,6 +6596,11 @@ def test_dev_wave_model_pin_contract_is_time_invariant():
         "gpt-5.4-mini",
         "gpt-6-next",
     ]
+    assert check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL == (
+        "`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` "
+        "で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus "
+        "が docs 権威から導出。caller 指定は不可。"
+    )
 
 
 def test_codex_dev_wave_skill_contract_pins_exact_surface():
