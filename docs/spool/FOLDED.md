@@ -800,3 +800,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:artifact-control-char-scan":"[T-788]","T:freeze-layer-crlf-gate":"[T-787]"},"authored":"2026-08-11","content_sha256":"0e12c49762351f6d7acc557fef3383a39e1c53424a77ce9fbc4c6cf6b9fae00a","seq":1,"wave":"dev-wave-t739-freeze-nul"}
 - {"allocations":{"D:freeze-layer-nul-gate":"D281"},"authored":"2026-08-11","content_sha256":"348ece450c21548d437a677fb6c96be977605154db161e43d75b229674f01775","seq":2,"wave":"dev-wave-t739-freeze-nul"}
+
+- {"allocations":{"T:dev-wave-docs-budget-review":"[T-789]"},"authored":"2026-08-11","content_sha256":"3cac629a35916738307bdb3d6d5b7a960a5738d62d6bddf95a33ff348fef8ed2","seq":1,"wave":"dev-wave-t139-manifest-land1"}
+- {"allocations":{"D:t139-record-items-and-second-erratum-approval":"D282"},"authored":"2026-08-11","content_sha256":"5b3921bae872533a97528b69d420fc96e42f831366d8eaf5405bdf3973d7e055","seq":1,"wave":"dev-wave-t139-manifest-land1"}
