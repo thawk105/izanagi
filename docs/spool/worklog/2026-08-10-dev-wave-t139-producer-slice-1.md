@@ -65,8 +65,14 @@ title: [T-139] producer の vertical slice は通せず、承認 payload と参�
   過剰決定であり、生存ではない。初回 spec と初回 ledger は変更せず、期待 node を実測へ合わせた
   erratum spec で 3 件を再走し 3/3 KILLED (期待一致) を得た。
 - **受入全走は 7876 passed / 20 skipped / rc=0** (495.47 秒、計算ノード、tip は
-  最新 main を取り込んだ merge commit)。取り込んだ受入下限の改善により、
+  最新 main を取り込んだ merge commit `519d91e3`)。取り込んだ受入下限の改善により、
   直前の wave 群が記録した 1200 秒台から 500 秒台へ短縮された。
+- **受入を走らせた tip と land する tip は異なる。** land 対象は本記録 commit を含み、
+  差分は `docs/spool/` の fragment 3 枚と `output/insights/` の逐語だけ (docs-only、
+  コードとテストの差分はゼロ)。**再走を免除した証拠** = その差分 path を読むテストは
+  `test_check_docs` と `test_spool_fold` の 2 本であり、docs commit 後に
+  `test_t139_preregistration_binding` と併せて再走して **481 passed / rc=0**、
+  同時に `check_docs.py` rc=0 と `spool_fold.py --dry-run` rc=0 を得た。
 - **記録した失敗 2 件はいずれも親と子の手順漏れである。**
   受入 lease の待ち手が JSON 出力を平文パターンで照合して取得済み lease を 2 時間見落とした件
   ({{F:lease-json-matched-as-plaintext}}) と、実装子が親の役割分担文書を自分への指示と読んで
