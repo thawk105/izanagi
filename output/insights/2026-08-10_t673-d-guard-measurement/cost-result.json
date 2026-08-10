@@ -1,0 +1,5651 @@
+{
+  "commit_oid": "61a60099c0dd63d578b28dd564f99d3d85f2e525",
+  "gc": {
+    "enabled_after_measurement": true,
+    "enabled_during_measurement": false,
+    "initially_enabled": true
+  },
+  "hostname": "bnode070",
+  "measurement_elapsed_seconds": 268.0199301278917,
+  "measurement_finished_monotonic": 1011027.192480992,
+  "measurement_started_monotonic": 1010759.172550864,
+  "measurements": [
+    {
+      "K": 8192,
+      "M": 2,
+      "block_pair_count": 32,
+      "budget_adjustment": null,
+      "calibrated_K": 8192,
+      "calibration_blocks": [
+        {
+          "A": {
+            "ns_per_call": 87063.0,
+            "raw_total_ns": 87063
+          },
+          "B": {
+            "ns_per_call": 85638.0,
+            "raw_total_ns": 85638
+          },
+          "discarded_from_statistics": true,
+          "k": 1,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 84758.5,
+            "raw_total_ns": 169517
+          },
+          "B": {
+            "ns_per_call": 84027.5,
+            "raw_total_ns": 168055
+          },
+          "discarded_from_statistics": true,
+          "k": 2,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 82130.0,
+            "raw_total_ns": 328520
+          },
+          "B": {
+            "ns_per_call": 82013.25,
+            "raw_total_ns": 328053
+          },
+          "discarded_from_statistics": true,
+          "k": 4,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 81130.25,
+            "raw_total_ns": 649042
+          },
+          "B": {
+            "ns_per_call": 83523.625,
+            "raw_total_ns": 668189
+          },
+          "discarded_from_statistics": true,
+          "k": 8,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 82496.4375,
+            "raw_total_ns": 1319943
+          },
+          "B": {
+            "ns_per_call": 83211.375,
+            "raw_total_ns": 1331382
+          },
+          "discarded_from_statistics": true,
+          "k": 16,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 82618.53125,
+            "raw_total_ns": 2643793
+          },
+          "B": {
+            "ns_per_call": 83282.5625,
+            "raw_total_ns": 2665042
+          },
+          "discarded_from_statistics": true,
+          "k": 32,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 82400.546875,
+            "raw_total_ns": 5273635
+          },
+          "B": {
+            "ns_per_call": 84107.03125,
+            "raw_total_ns": 5382850
+          },
+          "discarded_from_statistics": true,
+          "k": 64,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 82481.3359375,
+            "raw_total_ns": 10557611
+          },
+          "B": {
+            "ns_per_call": 83617.0078125,
+            "raw_total_ns": 10702977
+          },
+          "discarded_from_statistics": true,
+          "k": 128,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 81795.890625,
+            "raw_total_ns": 20939748
+          },
+          "B": {
+            "ns_per_call": 83617.6796875,
+            "raw_total_ns": 21406126
+          },
+          "discarded_from_statistics": true,
+          "k": 256,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 82387.958984375,
+            "raw_total_ns": 42182635
+          },
+          "B": {
+            "ns_per_call": 83997.0546875,
+            "raw_total_ns": 43006492
+          },
+          "discarded_from_statistics": true,
+          "k": 512,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 80991.0390625,
+            "raw_total_ns": 82934824
+          },
+          "B": {
+            "ns_per_call": 82094.958984375,
+            "raw_total_ns": 84065238
+          },
+          "discarded_from_statistics": true,
+          "k": 1024,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 81216.072265625,
+            "raw_total_ns": 166330516
+          },
+          "B": {
+            "ns_per_call": 82454.6298828125,
+            "raw_total_ns": 168867082
+          },
+          "discarded_from_statistics": true,
+          "k": 2048,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 80344.13549804688,
+            "raw_total_ns": 329089579
+          },
+          "B": {
+            "ns_per_call": 82481.16625976562,
+            "raw_total_ns": 337842857
+          },
+          "discarded_from_statistics": true,
+          "k": 4096,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 80404.19421386719,
+            "raw_total_ns": 658671159
+          },
+          "B": {
+            "ns_per_call": 82177.29443359375,
+            "raw_total_ns": 673196396
+          },
+          "discarded_from_statistics": true,
+          "k": 8192,
+          "order": "A_then_B"
+        }
+      ],
+      "noise": {
+        "A_vs_A_pairs": [
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80624.08251953125,
+                "raw_total_ns": 660472484,
+                "sequence_index": 4
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80775.48840332031,
+                "raw_total_ns": 661712801,
+                "sequence_index": 5
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 0,
+            "second_minus_first_ns_per_call": 151.4058837890625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80782.88293457031,
+                "raw_total_ns": 661773377,
+                "sequence_index": 6
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80943.87866210938,
+                "raw_total_ns": 663092254,
+                "sequence_index": 7
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 1,
+            "second_minus_first_ns_per_call": 160.9957275390625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80458.51867675781,
+                "raw_total_ns": 659116185,
+                "sequence_index": 14
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80420.68615722656,
+                "raw_total_ns": 658806261,
+                "sequence_index": 15
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 2,
+            "second_minus_first_ns_per_call": -37.83251953125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80490.54455566406,
+                "raw_total_ns": 659378541,
+                "sequence_index": 16
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80254.26818847656,
+                "raw_total_ns": 657442965,
+                "sequence_index": 17
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 3,
+            "second_minus_first_ns_per_call": -236.2763671875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80277.29431152344,
+                "raw_total_ns": 657631595,
+                "sequence_index": 24
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80281.71252441406,
+                "raw_total_ns": 657667789,
+                "sequence_index": 25
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 4,
+            "second_minus_first_ns_per_call": 4.418212890625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80400.86401367188,
+                "raw_total_ns": 658643878,
+                "sequence_index": 26
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80307.57946777344,
+                "raw_total_ns": 657879691,
+                "sequence_index": 27
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 5,
+            "second_minus_first_ns_per_call": -93.2845458984375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80296.60217285156,
+                "raw_total_ns": 657789765,
+                "sequence_index": 34
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80272.89050292969,
+                "raw_total_ns": 657595519,
+                "sequence_index": 35
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 6,
+            "second_minus_first_ns_per_call": -23.711669921875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80175.97119140625,
+                "raw_total_ns": 656801556,
+                "sequence_index": 36
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80122.64086914062,
+                "raw_total_ns": 656364674,
+                "sequence_index": 37
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 7,
+            "second_minus_first_ns_per_call": -53.330322265625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80280.64270019531,
+                "raw_total_ns": 657659025,
+                "sequence_index": 44
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80236.7333984375,
+                "raw_total_ns": 657299320,
+                "sequence_index": 45
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 8,
+            "second_minus_first_ns_per_call": -43.9093017578125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80280.92639160156,
+                "raw_total_ns": 657661349,
+                "sequence_index": 46
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80429.28295898438,
+                "raw_total_ns": 658876686,
+                "sequence_index": 47
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 9,
+            "second_minus_first_ns_per_call": 148.3565673828125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 79995.15930175781,
+                "raw_total_ns": 655320345,
+                "sequence_index": 54
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80350.36633300781,
+                "raw_total_ns": 658230201,
+                "sequence_index": 55
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 10,
+            "second_minus_first_ns_per_call": 355.20703125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80082.61328125,
+                "raw_total_ns": 656036768,
+                "sequence_index": 56
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80116.63952636719,
+                "raw_total_ns": 656315511,
+                "sequence_index": 57
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 11,
+            "second_minus_first_ns_per_call": 34.0262451171875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80158.34802246094,
+                "raw_total_ns": 656657187,
+                "sequence_index": 64
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80153.28540039062,
+                "raw_total_ns": 656615714,
+                "sequence_index": 65
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 12,
+            "second_minus_first_ns_per_call": -5.0626220703125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80283.22387695312,
+                "raw_total_ns": 657680170,
+                "sequence_index": 66
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80182.35986328125,
+                "raw_total_ns": 656853892,
+                "sequence_index": 67
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 13,
+            "second_minus_first_ns_per_call": -100.864013671875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80237.40344238281,
+                "raw_total_ns": 657304809,
+                "sequence_index": 74
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80278.98840332031,
+                "raw_total_ns": 657645473,
+                "sequence_index": 75
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 14,
+            "second_minus_first_ns_per_call": 41.5849609375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80083.11145019531,
+                "raw_total_ns": 656040849,
+                "sequence_index": 76
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80189.59936523438,
+                "raw_total_ns": 656913198,
+                "sequence_index": 77
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 15,
+            "second_minus_first_ns_per_call": 106.4879150390625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80102.77282714844,
+                "raw_total_ns": 656201915,
+                "sequence_index": 84
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80156.74230957031,
+                "raw_total_ns": 656644033,
+                "sequence_index": 85
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 16,
+            "second_minus_first_ns_per_call": 53.969482421875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80263.90966796875,
+                "raw_total_ns": 657521948,
+                "sequence_index": 86
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80288.21594238281,
+                "raw_total_ns": 657721065,
+                "sequence_index": 87
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 17,
+            "second_minus_first_ns_per_call": 24.3062744140625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80338.59741210938,
+                "raw_total_ns": 658133790,
+                "sequence_index": 94
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80317.58544921875,
+                "raw_total_ns": 657961660,
+                "sequence_index": 95
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 18,
+            "second_minus_first_ns_per_call": -21.011962890625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80618.23486328125,
+                "raw_total_ns": 660424580,
+                "sequence_index": 96
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80442.52966308594,
+                "raw_total_ns": 658985203,
+                "sequence_index": 97
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 19,
+            "second_minus_first_ns_per_call": -175.7052001953125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80374.20324707031,
+                "raw_total_ns": 658425473,
+                "sequence_index": 104
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80486.61511230469,
+                "raw_total_ns": 659346351,
+                "sequence_index": 105
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 20,
+            "second_minus_first_ns_per_call": 112.411865234375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80500.921875,
+                "raw_total_ns": 659463552,
+                "sequence_index": 106
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80454.52172851562,
+                "raw_total_ns": 659083442,
+                "sequence_index": 107
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 21,
+            "second_minus_first_ns_per_call": -46.400146484375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80618.47741699219,
+                "raw_total_ns": 660426567,
+                "sequence_index": 114
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80643.90344238281,
+                "raw_total_ns": 660634857,
+                "sequence_index": 115
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 22,
+            "second_minus_first_ns_per_call": 25.426025390625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80579.57824707031,
+                "raw_total_ns": 660107905,
+                "sequence_index": 116
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80600.21105957031,
+                "raw_total_ns": 660276929,
+                "sequence_index": 117
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 23,
+            "second_minus_first_ns_per_call": 20.6328125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80277.69616699219,
+                "raw_total_ns": 657634887,
+                "sequence_index": 124
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80318.42504882812,
+                "raw_total_ns": 657968538,
+                "sequence_index": 125
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 24,
+            "second_minus_first_ns_per_call": 40.7288818359375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80312.19250488281,
+                "raw_total_ns": 657917481,
+                "sequence_index": 126
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80398.35803222656,
+                "raw_total_ns": 658623349,
+                "sequence_index": 127
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 25,
+            "second_minus_first_ns_per_call": 86.16552734375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80238.93188476562,
+                "raw_total_ns": 657317330,
+                "sequence_index": 134
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80311.17639160156,
+                "raw_total_ns": 657909157,
+                "sequence_index": 135
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 26,
+            "second_minus_first_ns_per_call": 72.2445068359375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80347.67272949219,
+                "raw_total_ns": 658208135,
+                "sequence_index": 136
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80384.93505859375,
+                "raw_total_ns": 658513388,
+                "sequence_index": 137
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 27,
+            "second_minus_first_ns_per_call": 37.2623291015625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 81662.73132324219,
+                "raw_total_ns": 668981095,
+                "sequence_index": 144
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 81734.47619628906,
+                "raw_total_ns": 669568829,
+                "sequence_index": 145
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 28,
+            "second_minus_first_ns_per_call": 71.744873046875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 81116.06433105469,
+                "raw_total_ns": 664502799,
+                "sequence_index": 146
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 81146.76538085938,
+                "raw_total_ns": 664754302,
+                "sequence_index": 147
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 29,
+            "second_minus_first_ns_per_call": 30.7010498046875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80740.06848144531,
+                "raw_total_ns": 661422641,
+                "sequence_index": 154
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80367.30249023438,
+                "raw_total_ns": 658368942,
+                "sequence_index": 155
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 30,
+            "second_minus_first_ns_per_call": -372.7659912109375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80482.59558105469,
+                "raw_total_ns": 659313423,
+                "sequence_index": 156
+              },
+              {
+                "arm": "A",
+                "k": 8192,
+                "ns_per_call": 80442.60852050781,
+                "raw_total_ns": 658985849,
+                "sequence_index": 157
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 31,
+            "second_minus_first_ns_per_call": -39.987060546875
+          }
+        ],
+        "empty_callable_blocks": [
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.7862548828125,
+            "raw_total_ns": 309545,
+            "sequence_index": 8
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.9478759765625,
+            "raw_total_ns": 310869,
+            "sequence_index": 9
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 39.4326171875,
+            "raw_total_ns": 323032,
+            "sequence_index": 18
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 39.2125244140625,
+            "raw_total_ns": 321229,
+            "sequence_index": 19
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.746826171875,
+            "raw_total_ns": 309222,
+            "sequence_index": 28
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.595947265625,
+            "raw_total_ns": 307986,
+            "sequence_index": 29
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.5616455078125,
+            "raw_total_ns": 307705,
+            "sequence_index": 38
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.5498046875,
+            "raw_total_ns": 307608,
+            "sequence_index": 39
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.5343017578125,
+            "raw_total_ns": 307481,
+            "sequence_index": 48
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.4447021484375,
+            "raw_total_ns": 306747,
+            "sequence_index": 49
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.322265625,
+            "raw_total_ns": 305744,
+            "sequence_index": 58
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.064453125,
+            "raw_total_ns": 303632,
+            "sequence_index": 59
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.7008056640625,
+            "raw_total_ns": 308845,
+            "sequence_index": 68
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.5277099609375,
+            "raw_total_ns": 307427,
+            "sequence_index": 69
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.466552734375,
+            "raw_total_ns": 306926,
+            "sequence_index": 78
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.3466796875,
+            "raw_total_ns": 305944,
+            "sequence_index": 79
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.760009765625,
+            "raw_total_ns": 309330,
+            "sequence_index": 88
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.7576904296875,
+            "raw_total_ns": 309311,
+            "sequence_index": 89
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 38.772705078125,
+            "raw_total_ns": 317626,
+            "sequence_index": 98
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 38.7960205078125,
+            "raw_total_ns": 317817,
+            "sequence_index": 99
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 38.4886474609375,
+            "raw_total_ns": 315299,
+            "sequence_index": 108
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 38.234619140625,
+            "raw_total_ns": 313218,
+            "sequence_index": 109
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.0675048828125,
+            "raw_total_ns": 303657,
+            "sequence_index": 118
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.009765625,
+            "raw_total_ns": 303184,
+            "sequence_index": 119
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 38.45166015625,
+            "raw_total_ns": 314996,
+            "sequence_index": 128
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 38.538330078125,
+            "raw_total_ns": 315706,
+            "sequence_index": 129
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.71484375,
+            "raw_total_ns": 308960,
+            "sequence_index": 138
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.4931640625,
+            "raw_total_ns": 307144,
+            "sequence_index": 139
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.26220703125,
+            "raw_total_ns": 305252,
+            "sequence_index": 148
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.312744140625,
+            "raw_total_ns": 305666,
+            "sequence_index": 149
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.6580810546875,
+            "raw_total_ns": 308495,
+            "sequence_index": 158
+          },
+          {
+            "arm": "empty",
+            "k": 8192,
+            "ns_per_call": 37.634521484375,
+            "raw_total_ns": 308302,
+            "sequence_index": 159
+          }
+        ]
+      },
+      "operation_conversion": {
+        "median_overhead_ns_per_loader_process": 948.5818481445312,
+        "median_overhead_ns_per_publish": 948.5818481445312,
+        "practical_acceptance_threshold": null,
+        "threshold_owner": "user",
+        "validate_calls_per_loader_process": 1,
+        "validate_calls_per_publish": 1
+      },
+      "outliers_discarded": 0,
+      "primary_pairs": [
+        {
+          "B_minus_A_ns_per_call": 1237.51220703125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80614.9697265625,
+              "raw_total_ns": 660397832,
+              "sequence_index": 0
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81852.48193359375,
+              "raw_total_ns": 670535532,
+              "sequence_index": 1
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 0,
+          "schedule": "ABBA",
+          "schedule_index": 0
+        },
+        {
+          "B_minus_A_ns_per_call": 686.958984375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81248.59558105469,
+              "raw_total_ns": 665588495,
+              "sequence_index": 2
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80561.63659667969,
+              "raw_total_ns": 659960927,
+              "sequence_index": 3
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 1,
+          "schedule": "ABBA",
+          "schedule_index": 0
+        },
+        {
+          "B_minus_A_ns_per_call": 1758.152587890625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80475.84936523438,
+              "raw_total_ns": 659258158,
+              "sequence_index": 10
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 82234.001953125,
+              "raw_total_ns": 673660944,
+              "sequence_index": 11
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 2,
+          "schedule": "ABBA",
+          "schedule_index": 1
+        },
+        {
+          "B_minus_A_ns_per_call": 861.8280029296875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81185.8369140625,
+              "raw_total_ns": 665074376,
+              "sequence_index": 12
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80324.00891113281,
+              "raw_total_ns": 658014281,
+              "sequence_index": 13
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 3,
+          "schedule": "ABBA",
+          "schedule_index": 1
+        },
+        {
+          "B_minus_A_ns_per_call": 1432.2625732421875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81888.92346191406,
+              "raw_total_ns": 670834061,
+              "sequence_index": 20
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80456.66088867188,
+              "raw_total_ns": 659100966,
+              "sequence_index": 21
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 4,
+          "schedule": "BAAB",
+          "schedule_index": 2
+        },
+        {
+          "B_minus_A_ns_per_call": 1938.9991455078125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80309.95617675781,
+              "raw_total_ns": 657899161,
+              "sequence_index": 22
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 82248.95532226562,
+              "raw_total_ns": 673783442,
+              "sequence_index": 23
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 5,
+          "schedule": "BAAB",
+          "schedule_index": 2
+        },
+        {
+          "B_minus_A_ns_per_call": 772.045166015625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81280.84326171875,
+              "raw_total_ns": 665852668,
+              "sequence_index": 30
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80508.79809570312,
+              "raw_total_ns": 659528074,
+              "sequence_index": 31
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 6,
+          "schedule": "BAAB",
+          "schedule_index": 3
+        },
+        {
+          "B_minus_A_ns_per_call": 868.189453125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80348.54846191406,
+              "raw_total_ns": 658215309,
+              "sequence_index": 32
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81216.73791503906,
+              "raw_total_ns": 665327517,
+              "sequence_index": 33
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 7,
+          "schedule": "BAAB",
+          "schedule_index": 3
+        },
+        {
+          "B_minus_A_ns_per_call": 723.6248779296875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 80952.70715332031,
+              "raw_total_ns": 663164577,
+              "sequence_index": 40
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80229.08227539062,
+              "raw_total_ns": 657236642,
+              "sequence_index": 41
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 8,
+          "schedule": "BAAB",
+          "schedule_index": 4
+        },
+        {
+          "B_minus_A_ns_per_call": 591.5020751953125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80148.79370117188,
+              "raw_total_ns": 656578918,
+              "sequence_index": 42
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 80740.29577636719,
+              "raw_total_ns": 661424503,
+              "sequence_index": 43
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 9,
+          "schedule": "BAAB",
+          "schedule_index": 4
+        },
+        {
+          "B_minus_A_ns_per_call": 861.9249267578125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80191.49645996094,
+              "raw_total_ns": 656928739,
+              "sequence_index": 50
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81053.42138671875,
+              "raw_total_ns": 663989628,
+              "sequence_index": 51
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 10,
+          "schedule": "ABBA",
+          "schedule_index": 5
+        },
+        {
+          "B_minus_A_ns_per_call": 893.040283203125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81097.65966796875,
+              "raw_total_ns": 664352028,
+              "sequence_index": 52
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80204.61938476562,
+              "raw_total_ns": 657036242,
+              "sequence_index": 53
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 11,
+          "schedule": "ABBA",
+          "schedule_index": 5
+        },
+        {
+          "B_minus_A_ns_per_call": 1735.558837890625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 82201.98168945312,
+              "raw_total_ns": 673398634,
+              "sequence_index": 60
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80466.4228515625,
+              "raw_total_ns": 659180936,
+              "sequence_index": 61
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 12,
+          "schedule": "BAAB",
+          "schedule_index": 6
+        },
+        {
+          "B_minus_A_ns_per_call": 1098.086669921875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80240.30798339844,
+              "raw_total_ns": 657328603,
+              "sequence_index": 62
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81338.39465332031,
+              "raw_total_ns": 666324129,
+              "sequence_index": 63
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 13,
+          "schedule": "BAAB",
+          "schedule_index": 6
+        },
+        {
+          "B_minus_A_ns_per_call": 778.4959716796875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80215.53784179688,
+              "raw_total_ns": 657125686,
+              "sequence_index": 70
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 80994.03381347656,
+              "raw_total_ns": 663503125,
+              "sequence_index": 71
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 14,
+          "schedule": "ABBA",
+          "schedule_index": 7
+        },
+        {
+          "B_minus_A_ns_per_call": 1148.62353515625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81179.39489746094,
+              "raw_total_ns": 665021603,
+              "sequence_index": 72
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80030.77136230469,
+              "raw_total_ns": 655612079,
+              "sequence_index": 73
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 15,
+          "schedule": "ABBA",
+          "schedule_index": 7
+        },
+        {
+          "B_minus_A_ns_per_call": 433.5416259765625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80594.97473144531,
+              "raw_total_ns": 660234033,
+              "sequence_index": 80
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81028.51635742188,
+              "raw_total_ns": 663785606,
+              "sequence_index": 81
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 16,
+          "schedule": "ABBA",
+          "schedule_index": 8
+        },
+        {
+          "B_minus_A_ns_per_call": 1118.163818359375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 80974.70166015625,
+              "raw_total_ns": 663344756,
+              "sequence_index": 82
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 79856.53784179688,
+              "raw_total_ns": 654184758,
+              "sequence_index": 83
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 17,
+          "schedule": "ABBA",
+          "schedule_index": 8
+        },
+        {
+          "B_minus_A_ns_per_call": 938.7921142578125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81348.70227050781,
+              "raw_total_ns": 666408569,
+              "sequence_index": 90
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80409.91015625,
+              "raw_total_ns": 658717984,
+              "sequence_index": 91
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 18,
+          "schedule": "BAAB",
+          "schedule_index": 9
+        },
+        {
+          "B_minus_A_ns_per_call": 1068.4542236328125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80345.83874511719,
+              "raw_total_ns": 658193111,
+              "sequence_index": 92
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81414.29296875,
+              "raw_total_ns": 666945888,
+              "sequence_index": 93
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 19,
+          "schedule": "BAAB",
+          "schedule_index": 9
+        },
+        {
+          "B_minus_A_ns_per_call": 700.12646484375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81655.25561523438,
+              "raw_total_ns": 668919854,
+              "sequence_index": 100
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80955.12915039062,
+              "raw_total_ns": 663184418,
+              "sequence_index": 101
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 20,
+          "schedule": "BAAB",
+          "schedule_index": 10
+        },
+        {
+          "B_minus_A_ns_per_call": 958.37158203125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80733.30908203125,
+              "raw_total_ns": 661367268,
+              "sequence_index": 102
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81691.6806640625,
+              "raw_total_ns": 669218248,
+              "sequence_index": 103
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 21,
+          "schedule": "BAAB",
+          "schedule_index": 10
+        },
+        {
+          "B_minus_A_ns_per_call": 892.5789794921875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80820.08374023438,
+              "raw_total_ns": 662078126,
+              "sequence_index": 110
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81712.66271972656,
+              "raw_total_ns": 669390133,
+              "sequence_index": 111
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 22,
+          "schedule": "ABBA",
+          "schedule_index": 11
+        },
+        {
+          "B_minus_A_ns_per_call": 1094.4844970703125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81730.80041503906,
+              "raw_total_ns": 669538717,
+              "sequence_index": 112
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80636.31591796875,
+              "raw_total_ns": 660572700,
+              "sequence_index": 113
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 23,
+          "schedule": "ABBA",
+          "schedule_index": 11
+        },
+        {
+          "B_minus_A_ns_per_call": 1136.0555419921875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81556.35290527344,
+              "raw_total_ns": 668109643,
+              "sequence_index": 120
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80420.29736328125,
+              "raw_total_ns": 658803076,
+              "sequence_index": 121
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 24,
+          "schedule": "BAAB",
+          "schedule_index": 12
+        },
+        {
+          "B_minus_A_ns_per_call": 998.6983642578125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80399.48474121094,
+              "raw_total_ns": 658632579,
+              "sequence_index": 122
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81398.18310546875,
+              "raw_total_ns": 666813916,
+              "sequence_index": 123
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 25,
+          "schedule": "BAAB",
+          "schedule_index": 12
+        },
+        {
+          "B_minus_A_ns_per_call": 399.7564697265625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80806.431640625,
+              "raw_total_ns": 661966288,
+              "sequence_index": 130
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81206.18811035156,
+              "raw_total_ns": 665241093,
+              "sequence_index": 131
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 26,
+          "schedule": "ABBA",
+          "schedule_index": 13
+        },
+        {
+          "B_minus_A_ns_per_call": 989.7691650390625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81410.12854003906,
+              "raw_total_ns": 666911773,
+              "sequence_index": 132
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80420.359375,
+              "raw_total_ns": 658803584,
+              "sequence_index": 133
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 27,
+          "schedule": "ABBA",
+          "schedule_index": 13
+        },
+        {
+          "B_minus_A_ns_per_call": 296.0528564453125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 81128.85363769531,
+              "raw_total_ns": 664607569,
+              "sequence_index": 140
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81424.90649414062,
+              "raw_total_ns": 667032834,
+              "sequence_index": 141
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 28,
+          "schedule": "ABBA",
+          "schedule_index": 14
+        },
+        {
+          "B_minus_A_ns_per_call": 713.8818359375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81518.00073242188,
+              "raw_total_ns": 667795462,
+              "sequence_index": 142
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80804.11889648438,
+              "raw_total_ns": 661947342,
+              "sequence_index": 143
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 29,
+          "schedule": "ABBA",
+          "schedule_index": 14
+        },
+        {
+          "B_minus_A_ns_per_call": 1399.2601318359375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81875.26440429688,
+              "raw_total_ns": 670722166,
+              "sequence_index": 150
+            },
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80476.00427246094,
+              "raw_total_ns": 659259427,
+              "sequence_index": 151
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 30,
+          "schedule": "BAAB",
+          "schedule_index": 15
+        },
+        {
+          "B_minus_A_ns_per_call": 1625.7200927734375,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 8192,
+              "ns_per_call": 80240.68994140625,
+              "raw_total_ns": 657331732,
+              "sequence_index": 152
+            },
+            {
+              "arm": "B",
+              "k": 8192,
+              "ns_per_call": 81866.41003417969,
+              "raw_total_ns": 670649631,
+              "sequence_index": 153
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 31,
+          "schedule": "BAAB",
+          "schedule_index": 15
+        }
+      ],
+      "schedule_counts": {
+        "ABBA": 8,
+        "BAAB": 8
+      },
+      "schedule_order": [
+        "ABBA",
+        "ABBA",
+        "BAAB",
+        "BAAB",
+        "BAAB",
+        "ABBA",
+        "BAAB",
+        "ABBA",
+        "ABBA",
+        "BAAB",
+        "BAAB",
+        "ABBA",
+        "BAAB",
+        "ABBA",
+        "ABBA",
+        "BAAB"
+      ],
+      "statistics": {
+        "bootstrap_95_ci_ns_per_call": [
+          861.8280029296875,
+          1096.2855834960938
+        ],
+        "bootstrap_resamples": 10000,
+        "missing_conditions": [],
+        "noise_thresholds_ns_per_call": {
+          "absolute_A_vs_A_difference_p95": 289.7951660156249,
+          "empty_callable_p95": 38.983447265625
+        },
+        "observed_median_direction": "B_slower_than_A",
+        "paired_difference_definition": "B_ns_per_call - A_ns_per_call",
+        "paired_difference_median_ns_per_call": 948.5818481445312,
+        "ranked": true,
+        "ranked_direction": "B_slower_than_A",
+        "ranking_conditions": {
+          "absolute_median_exceeds_same_arm_and_empty_p95": true,
+          "ci_excludes_zero": true,
+          "same_sign_at_least_0_8": true
+        },
+        "same_sign_fraction": 1.0
+      },
+      "target_block_ns": 500000000,
+      "warmup_calls_discarded_per_arm": 3
+    },
+    {
+      "K": 4096,
+      "M": 8,
+      "block_pair_count": 32,
+      "budget_adjustment": null,
+      "calibrated_K": 4096,
+      "calibration_blocks": [
+        {
+          "A": {
+            "ns_per_call": 152531.0,
+            "raw_total_ns": 152531
+          },
+          "B": {
+            "ns_per_call": 152578.0,
+            "raw_total_ns": 152578
+          },
+          "discarded_from_statistics": true,
+          "k": 1,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 148112.5,
+            "raw_total_ns": 296225
+          },
+          "B": {
+            "ns_per_call": 149365.5,
+            "raw_total_ns": 298731
+          },
+          "discarded_from_statistics": true,
+          "k": 2,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 147442.0,
+            "raw_total_ns": 589768
+          },
+          "B": {
+            "ns_per_call": 148249.0,
+            "raw_total_ns": 592996
+          },
+          "discarded_from_statistics": true,
+          "k": 4,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 148424.75,
+            "raw_total_ns": 1187398
+          },
+          "B": {
+            "ns_per_call": 148879.25,
+            "raw_total_ns": 1191034
+          },
+          "discarded_from_statistics": true,
+          "k": 8,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 147042.3125,
+            "raw_total_ns": 2352677
+          },
+          "B": {
+            "ns_per_call": 149080.5,
+            "raw_total_ns": 2385288
+          },
+          "discarded_from_statistics": true,
+          "k": 16,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 147279.46875,
+            "raw_total_ns": 4712943
+          },
+          "B": {
+            "ns_per_call": 149922.15625,
+            "raw_total_ns": 4797509
+          },
+          "discarded_from_statistics": true,
+          "k": 32,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 147505.1875,
+            "raw_total_ns": 9440332
+          },
+          "B": {
+            "ns_per_call": 149025.265625,
+            "raw_total_ns": 9537617
+          },
+          "discarded_from_statistics": true,
+          "k": 64,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 147732.4140625,
+            "raw_total_ns": 18909749
+          },
+          "B": {
+            "ns_per_call": 148442.28125,
+            "raw_total_ns": 19000612
+          },
+          "discarded_from_statistics": true,
+          "k": 128,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 147453.08984375,
+            "raw_total_ns": 37747991
+          },
+          "B": {
+            "ns_per_call": 148379.671875,
+            "raw_total_ns": 37985196
+          },
+          "discarded_from_statistics": true,
+          "k": 256,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 147385.8046875,
+            "raw_total_ns": 75461532
+          },
+          "B": {
+            "ns_per_call": 148792.986328125,
+            "raw_total_ns": 76182009
+          },
+          "discarded_from_statistics": true,
+          "k": 512,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 147148.46484375,
+            "raw_total_ns": 150680028
+          },
+          "B": {
+            "ns_per_call": 148422.75390625,
+            "raw_total_ns": 151984900
+          },
+          "discarded_from_statistics": true,
+          "k": 1024,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 146989.9267578125,
+            "raw_total_ns": 301035370
+          },
+          "B": {
+            "ns_per_call": 148437.56103515625,
+            "raw_total_ns": 304000125
+          },
+          "discarded_from_statistics": true,
+          "k": 2048,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 147016.35595703125,
+            "raw_total_ns": 602178994
+          },
+          "B": {
+            "ns_per_call": 148385.07885742188,
+            "raw_total_ns": 607785283
+          },
+          "discarded_from_statistics": true,
+          "k": 4096,
+          "order": "A_then_B"
+        }
+      ],
+      "noise": {
+        "A_vs_A_pairs": [
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148835.6611328125,
+                "raw_total_ns": 609630868,
+                "sequence_index": 4
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148709.412109375,
+                "raw_total_ns": 609113752,
+                "sequence_index": 5
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 0,
+            "second_minus_first_ns_per_call": -126.2490234375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 149144.4150390625,
+                "raw_total_ns": 610895524,
+                "sequence_index": 6
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 149404.03955078125,
+                "raw_total_ns": 611958946,
+                "sequence_index": 7
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 1,
+            "second_minus_first_ns_per_call": 259.62451171875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147417.14794921875,
+                "raw_total_ns": 603820638,
+                "sequence_index": 14
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147484.70458984375,
+                "raw_total_ns": 604097350,
+                "sequence_index": 15
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 2,
+            "second_minus_first_ns_per_call": 67.556640625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147585.501953125,
+                "raw_total_ns": 604510216,
+                "sequence_index": 16
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147712.91430664062,
+                "raw_total_ns": 605032097,
+                "sequence_index": 17
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 3,
+            "second_minus_first_ns_per_call": 127.412353515625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147677.48291015625,
+                "raw_total_ns": 604886970,
+                "sequence_index": 24
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147568.3125,
+                "raw_total_ns": 604439808,
+                "sequence_index": 25
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 4,
+            "second_minus_first_ns_per_call": -109.17041015625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 146920.8125,
+                "raw_total_ns": 601787648,
+                "sequence_index": 26
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 146840.25048828125,
+                "raw_total_ns": 601457666,
+                "sequence_index": 27
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 5,
+            "second_minus_first_ns_per_call": -80.56201171875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147073.36938476562,
+                "raw_total_ns": 602412521,
+                "sequence_index": 34
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147255.2021484375,
+                "raw_total_ns": 603157308,
+                "sequence_index": 35
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 6,
+            "second_minus_first_ns_per_call": 181.832763671875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 146984.234375,
+                "raw_total_ns": 602047424,
+                "sequence_index": 36
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147017.53857421875,
+                "raw_total_ns": 602183838,
+                "sequence_index": 37
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 7,
+            "second_minus_first_ns_per_call": 33.30419921875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147137.025390625,
+                "raw_total_ns": 602673256,
+                "sequence_index": 44
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147378.44897460938,
+                "raw_total_ns": 603662127,
+                "sequence_index": 45
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 8,
+            "second_minus_first_ns_per_call": 241.423583984375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147182.66357421875,
+                "raw_total_ns": 602860190,
+                "sequence_index": 46
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147236.8671875,
+                "raw_total_ns": 603082208,
+                "sequence_index": 47
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 9,
+            "second_minus_first_ns_per_call": 54.20361328125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147196.970703125,
+                "raw_total_ns": 602918792,
+                "sequence_index": 54
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147073.38720703125,
+                "raw_total_ns": 602412594,
+                "sequence_index": 55
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 10,
+            "second_minus_first_ns_per_call": -123.58349609375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 146978.28125,
+                "raw_total_ns": 602023040,
+                "sequence_index": 56
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147029.42456054688,
+                "raw_total_ns": 602232523,
+                "sequence_index": 57
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 11,
+            "second_minus_first_ns_per_call": 51.143310546875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147481.34033203125,
+                "raw_total_ns": 604083570,
+                "sequence_index": 64
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147205.41918945312,
+                "raw_total_ns": 602953397,
+                "sequence_index": 65
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 12,
+            "second_minus_first_ns_per_call": -275.921142578125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147346.72973632812,
+                "raw_total_ns": 603532205,
+                "sequence_index": 66
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147377.6015625,
+                "raw_total_ns": 603658656,
+                "sequence_index": 67
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 13,
+            "second_minus_first_ns_per_call": 30.871826171875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147225.71850585938,
+                "raw_total_ns": 603036543,
+                "sequence_index": 74
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147313.55029296875,
+                "raw_total_ns": 603396302,
+                "sequence_index": 75
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 14,
+            "second_minus_first_ns_per_call": 87.831787109375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148159.4248046875,
+                "raw_total_ns": 606861004,
+                "sequence_index": 76
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148092.78564453125,
+                "raw_total_ns": 606588050,
+                "sequence_index": 77
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 15,
+            "second_minus_first_ns_per_call": -66.63916015625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148238.27026367188,
+                "raw_total_ns": 607183955,
+                "sequence_index": 84
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148156.26953125,
+                "raw_total_ns": 606848080,
+                "sequence_index": 85
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 16,
+            "second_minus_first_ns_per_call": -82.000732421875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148278.14672851562,
+                "raw_total_ns": 607347289,
+                "sequence_index": 86
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148354.6357421875,
+                "raw_total_ns": 607660588,
+                "sequence_index": 87
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 17,
+            "second_minus_first_ns_per_call": 76.489013671875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147592.07739257812,
+                "raw_total_ns": 604537149,
+                "sequence_index": 94
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147500.8916015625,
+                "raw_total_ns": 604163652,
+                "sequence_index": 95
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 18,
+            "second_minus_first_ns_per_call": -91.185791015625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147478.36328125,
+                "raw_total_ns": 604071376,
+                "sequence_index": 96
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147512.09594726562,
+                "raw_total_ns": 604209545,
+                "sequence_index": 97
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 19,
+            "second_minus_first_ns_per_call": 33.732666015625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147535.544921875,
+                "raw_total_ns": 604305592,
+                "sequence_index": 104
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147535.85131835938,
+                "raw_total_ns": 604306847,
+                "sequence_index": 105
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 20,
+            "second_minus_first_ns_per_call": 0.306396484375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147472.97680664062,
+                "raw_total_ns": 604049313,
+                "sequence_index": 106
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147485.79467773438,
+                "raw_total_ns": 604101815,
+                "sequence_index": 107
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 21,
+            "second_minus_first_ns_per_call": 12.81787109375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147493.283203125,
+                "raw_total_ns": 604132488,
+                "sequence_index": 114
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147770.96435546875,
+                "raw_total_ns": 605269870,
+                "sequence_index": 115
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 22,
+            "second_minus_first_ns_per_call": 277.68115234375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147632.98315429688,
+                "raw_total_ns": 604704699,
+                "sequence_index": 116
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147579.4443359375,
+                "raw_total_ns": 604485404,
+                "sequence_index": 117
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 23,
+            "second_minus_first_ns_per_call": -53.538818359375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147279.08032226562,
+                "raw_total_ns": 603255113,
+                "sequence_index": 124
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147523.515625,
+                "raw_total_ns": 604256320,
+                "sequence_index": 125
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 24,
+            "second_minus_first_ns_per_call": 244.435302734375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148757.84790039062,
+                "raw_total_ns": 609312145,
+                "sequence_index": 126
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 148224.00268554688,
+                "raw_total_ns": 607125515,
+                "sequence_index": 127
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 25,
+            "second_minus_first_ns_per_call": -533.84521484375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147570.34594726562,
+                "raw_total_ns": 604448137,
+                "sequence_index": 134
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147397.81201171875,
+                "raw_total_ns": 603741438,
+                "sequence_index": 135
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 26,
+            "second_minus_first_ns_per_call": -172.533935546875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147240.888671875,
+                "raw_total_ns": 603098680,
+                "sequence_index": 136
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147219.35205078125,
+                "raw_total_ns": 603010466,
+                "sequence_index": 137
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 27,
+            "second_minus_first_ns_per_call": -21.53662109375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147515.74829101562,
+                "raw_total_ns": 604224505,
+                "sequence_index": 144
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 146965.17651367188,
+                "raw_total_ns": 601969363,
+                "sequence_index": 145
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 28,
+            "second_minus_first_ns_per_call": -550.57177734375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147374.48681640625,
+                "raw_total_ns": 603645898,
+                "sequence_index": 146
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147678.87817382812,
+                "raw_total_ns": 604892685,
+                "sequence_index": 147
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 29,
+            "second_minus_first_ns_per_call": 304.391357421875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147188.54052734375,
+                "raw_total_ns": 602884262,
+                "sequence_index": 154
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147058.12841796875,
+                "raw_total_ns": 602350094,
+                "sequence_index": 155
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 30,
+            "second_minus_first_ns_per_call": -130.412109375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 147065.37133789062,
+                "raw_total_ns": 602379761,
+                "sequence_index": 156
+              },
+              {
+                "arm": "A",
+                "k": 4096,
+                "ns_per_call": 146959.3291015625,
+                "raw_total_ns": 601945412,
+                "sequence_index": 157
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 31,
+            "second_minus_first_ns_per_call": -106.042236328125
+          }
+        ],
+        "empty_callable_blocks": [
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.736328125,
+            "raw_total_ns": 154568,
+            "sequence_index": 8
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.5908203125,
+            "raw_total_ns": 153972,
+            "sequence_index": 9
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 38.883056640625,
+            "raw_total_ns": 159265,
+            "sequence_index": 18
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 39.20458984375,
+            "raw_total_ns": 160582,
+            "sequence_index": 19
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.630126953125,
+            "raw_total_ns": 154133,
+            "sequence_index": 28
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.53173828125,
+            "raw_total_ns": 153730,
+            "sequence_index": 29
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 38.021240234375,
+            "raw_total_ns": 155735,
+            "sequence_index": 38
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.40087890625,
+            "raw_total_ns": 153194,
+            "sequence_index": 39
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.55712890625,
+            "raw_total_ns": 153834,
+            "sequence_index": 48
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.29052734375,
+            "raw_total_ns": 152742,
+            "sequence_index": 49
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 40.742431640625,
+            "raw_total_ns": 166881,
+            "sequence_index": 58
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 40.3271484375,
+            "raw_total_ns": 165180,
+            "sequence_index": 59
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.849609375,
+            "raw_total_ns": 155032,
+            "sequence_index": 68
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.35302734375,
+            "raw_total_ns": 152998,
+            "sequence_index": 69
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.42529296875,
+            "raw_total_ns": 153294,
+            "sequence_index": 78
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.33349609375,
+            "raw_total_ns": 152918,
+            "sequence_index": 79
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 38.252685546875,
+            "raw_total_ns": 156683,
+            "sequence_index": 88
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 38.137939453125,
+            "raw_total_ns": 156213,
+            "sequence_index": 89
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 38.9921875,
+            "raw_total_ns": 159712,
+            "sequence_index": 98
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 39.00634765625,
+            "raw_total_ns": 159770,
+            "sequence_index": 99
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.52734375,
+            "raw_total_ns": 153712,
+            "sequence_index": 108
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.46875,
+            "raw_total_ns": 153472,
+            "sequence_index": 109
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.725830078125,
+            "raw_total_ns": 154525,
+            "sequence_index": 118
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.555419921875,
+            "raw_total_ns": 153827,
+            "sequence_index": 119
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 38.122802734375,
+            "raw_total_ns": 156151,
+            "sequence_index": 128
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.70458984375,
+            "raw_total_ns": 154438,
+            "sequence_index": 129
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.555908203125,
+            "raw_total_ns": 153829,
+            "sequence_index": 138
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.51806640625,
+            "raw_total_ns": 153674,
+            "sequence_index": 139
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 38.27880859375,
+            "raw_total_ns": 156790,
+            "sequence_index": 148
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 37.7763671875,
+            "raw_total_ns": 154732,
+            "sequence_index": 149
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 40.17529296875,
+            "raw_total_ns": 164558,
+            "sequence_index": 158
+          },
+          {
+            "arm": "empty",
+            "k": 4096,
+            "ns_per_call": 40.056396484375,
+            "raw_total_ns": 164071,
+            "sequence_index": 159
+          }
+        ]
+      },
+      "operation_conversion": {
+        "median_overhead_ns_per_loader_process": 1101.0103759765625,
+        "median_overhead_ns_per_publish": 1101.0103759765625,
+        "practical_acceptance_threshold": null,
+        "threshold_owner": "user",
+        "validate_calls_per_loader_process": 1,
+        "validate_calls_per_publish": 1
+      },
+      "outliers_discarded": 0,
+      "primary_pairs": [
+        {
+          "B_minus_A_ns_per_call": 1248.030029296875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148575.59887695312,
+              "raw_total_ns": 608565653,
+              "sequence_index": 0
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147327.56884765625,
+              "raw_total_ns": 603453722,
+              "sequence_index": 1
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 0,
+          "schedule": "BAAB",
+          "schedule_index": 0
+        },
+        {
+          "B_minus_A_ns_per_call": 1380.53076171875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147429.68969726562,
+              "raw_total_ns": 603872009,
+              "sequence_index": 2
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148810.22045898438,
+              "raw_total_ns": 609526663,
+              "sequence_index": 3
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 1,
+          "schedule": "BAAB",
+          "schedule_index": 0
+        },
+        {
+          "B_minus_A_ns_per_call": 1352.62060546875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 150080.23315429688,
+              "raw_total_ns": 614728635,
+              "sequence_index": 10
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 148727.61254882812,
+              "raw_total_ns": 609188301,
+              "sequence_index": 11
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 2,
+          "schedule": "BAAB",
+          "schedule_index": 1
+        },
+        {
+          "B_minus_A_ns_per_call": 1149.333984375,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 148456.45581054688,
+              "raw_total_ns": 608077643,
+              "sequence_index": 12
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 149605.78979492188,
+              "raw_total_ns": 612785315,
+              "sequence_index": 13
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 3,
+          "schedule": "BAAB",
+          "schedule_index": 1
+        },
+        {
+          "B_minus_A_ns_per_call": 841.18994140625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147584.52221679688,
+              "raw_total_ns": 604506203,
+              "sequence_index": 20
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148425.71215820312,
+              "raw_total_ns": 607951717,
+              "sequence_index": 21
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 4,
+          "schedule": "ABBA",
+          "schedule_index": 2
+        },
+        {
+          "B_minus_A_ns_per_call": 722.072265625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148376.03149414062,
+              "raw_total_ns": 607748225,
+              "sequence_index": 22
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147653.95922851562,
+              "raw_total_ns": 604790617,
+              "sequence_index": 23
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 5,
+          "schedule": "ABBA",
+          "schedule_index": 2
+        },
+        {
+          "B_minus_A_ns_per_call": 1114.570556640625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147009.5498046875,
+              "raw_total_ns": 602151116,
+              "sequence_index": 30
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148124.12036132812,
+              "raw_total_ns": 606716397,
+              "sequence_index": 31
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 6,
+          "schedule": "ABBA",
+          "schedule_index": 3
+        },
+        {
+          "B_minus_A_ns_per_call": 1122.236572265625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148029.9345703125,
+              "raw_total_ns": 606330612,
+              "sequence_index": 32
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 146907.69799804688,
+              "raw_total_ns": 601733931,
+              "sequence_index": 33
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 7,
+          "schedule": "ABBA",
+          "schedule_index": 3
+        },
+        {
+          "B_minus_A_ns_per_call": 1065.255615234375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148275.27221679688,
+              "raw_total_ns": 607335515,
+              "sequence_index": 40
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147210.0166015625,
+              "raw_total_ns": 602972228,
+              "sequence_index": 41
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 8,
+          "schedule": "BAAB",
+          "schedule_index": 4
+        },
+        {
+          "B_minus_A_ns_per_call": 1246.89794921875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147164.7265625,
+              "raw_total_ns": 602786720,
+              "sequence_index": 42
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148411.62451171875,
+              "raw_total_ns": 607894014,
+              "sequence_index": 43
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 9,
+          "schedule": "BAAB",
+          "schedule_index": 4
+        },
+        {
+          "B_minus_A_ns_per_call": 1014.217529296875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147244.060546875,
+              "raw_total_ns": 603111672,
+              "sequence_index": 50
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148258.27807617188,
+              "raw_total_ns": 607265907,
+              "sequence_index": 51
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 10,
+          "schedule": "ABBA",
+          "schedule_index": 5
+        },
+        {
+          "B_minus_A_ns_per_call": 1031.72900390625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148303.80541992188,
+              "raw_total_ns": 607452387,
+              "sequence_index": 52
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147272.07641601562,
+              "raw_total_ns": 603226425,
+              "sequence_index": 53
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 11,
+          "schedule": "ABBA",
+          "schedule_index": 5
+        },
+        {
+          "B_minus_A_ns_per_call": 781.559326171875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147418.65966796875,
+              "raw_total_ns": 603826830,
+              "sequence_index": 60
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148200.21899414062,
+              "raw_total_ns": 607028097,
+              "sequence_index": 61
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 12,
+          "schedule": "ABBA",
+          "schedule_index": 6
+        },
+        {
+          "B_minus_A_ns_per_call": 1000.38671875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148192.02514648438,
+              "raw_total_ns": 606994535,
+              "sequence_index": 62
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147191.63842773438,
+              "raw_total_ns": 602896951,
+              "sequence_index": 63
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 13,
+          "schedule": "ABBA",
+          "schedule_index": 6
+        },
+        {
+          "B_minus_A_ns_per_call": 1344.319580078125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147260.3017578125,
+              "raw_total_ns": 603178196,
+              "sequence_index": 70
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148604.62133789062,
+              "raw_total_ns": 608684529,
+              "sequence_index": 71
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 14,
+          "schedule": "ABBA",
+          "schedule_index": 7
+        },
+        {
+          "B_minus_A_ns_per_call": 941.529052734375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148634.9853515625,
+              "raw_total_ns": 608808900,
+              "sequence_index": 72
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147693.45629882812,
+              "raw_total_ns": 604952397,
+              "sequence_index": 73
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 15,
+          "schedule": "ABBA",
+          "schedule_index": 7
+        },
+        {
+          "B_minus_A_ns_per_call": 848.58251953125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 148215.68994140625,
+              "raw_total_ns": 607091466,
+              "sequence_index": 80
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 149064.2724609375,
+              "raw_total_ns": 610567260,
+              "sequence_index": 81
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 16,
+          "schedule": "ABBA",
+          "schedule_index": 8
+        },
+        {
+          "B_minus_A_ns_per_call": 1085.448486328125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 149266.19946289062,
+              "raw_total_ns": 611394353,
+              "sequence_index": 82
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 148180.7509765625,
+              "raw_total_ns": 606948356,
+              "sequence_index": 83
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 17,
+          "schedule": "ABBA",
+          "schedule_index": 8
+        },
+        {
+          "B_minus_A_ns_per_call": 1087.4501953125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 148234.23217773438,
+              "raw_total_ns": 607167415,
+              "sequence_index": 90
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 149321.68237304688,
+              "raw_total_ns": 611621611,
+              "sequence_index": 91
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 18,
+          "schedule": "ABBA",
+          "schedule_index": 9
+        },
+        {
+          "B_minus_A_ns_per_call": 1213.470703125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 149236.56567382812,
+              "raw_total_ns": 611272973,
+              "sequence_index": 92
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 148023.09497070312,
+              "raw_total_ns": 606302597,
+              "sequence_index": 93
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 19,
+          "schedule": "ABBA",
+          "schedule_index": 9
+        },
+        {
+          "B_minus_A_ns_per_call": 1283.052978515625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147570.11352539062,
+              "raw_total_ns": 604447185,
+              "sequence_index": 100
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148853.16650390625,
+              "raw_total_ns": 609702570,
+              "sequence_index": 101
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 20,
+          "schedule": "ABBA",
+          "schedule_index": 10
+        },
+        {
+          "B_minus_A_ns_per_call": 1063.288818359375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148654.30493164062,
+              "raw_total_ns": 608888033,
+              "sequence_index": 102
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147591.01611328125,
+              "raw_total_ns": 604532802,
+              "sequence_index": 103
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 21,
+          "schedule": "ABBA",
+          "schedule_index": 10
+        },
+        {
+          "B_minus_A_ns_per_call": 798.48046875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148592.04370117188,
+              "raw_total_ns": 608633011,
+              "sequence_index": 110
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147793.56323242188,
+              "raw_total_ns": 605362435,
+              "sequence_index": 111
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 22,
+          "schedule": "BAAB",
+          "schedule_index": 11
+        },
+        {
+          "B_minus_A_ns_per_call": 1141.314453125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147746.818359375,
+              "raw_total_ns": 605170968,
+              "sequence_index": 112
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148888.1328125,
+              "raw_total_ns": 609845792,
+              "sequence_index": 113
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 23,
+          "schedule": "BAAB",
+          "schedule_index": 11
+        },
+        {
+          "B_minus_A_ns_per_call": 1164.497314453125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148815.82470703125,
+              "raw_total_ns": 609549618,
+              "sequence_index": 120
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147651.32739257812,
+              "raw_total_ns": 604779837,
+              "sequence_index": 121
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 24,
+          "schedule": "BAAB",
+          "schedule_index": 12
+        },
+        {
+          "B_minus_A_ns_per_call": 1248.0498046875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147500.99584960938,
+              "raw_total_ns": 604164079,
+              "sequence_index": 122
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148749.04565429688,
+              "raw_total_ns": 609276091,
+              "sequence_index": 123
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 25,
+          "schedule": "BAAB",
+          "schedule_index": 12
+        },
+        {
+          "B_minus_A_ns_per_call": 1399.44189453125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148879.31420898438,
+              "raw_total_ns": 609809671,
+              "sequence_index": 130
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147479.87231445312,
+              "raw_total_ns": 604077557,
+              "sequence_index": 131
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 26,
+          "schedule": "BAAB",
+          "schedule_index": 13
+        },
+        {
+          "B_minus_A_ns_per_call": 1206.08203125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147353.4326171875,
+              "raw_total_ns": 603559660,
+              "sequence_index": 132
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148559.5146484375,
+              "raw_total_ns": 608499772,
+              "sequence_index": 133
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 27,
+          "schedule": "BAAB",
+          "schedule_index": 13
+        },
+        {
+          "B_minus_A_ns_per_call": 1076.802734375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148259.97436523438,
+              "raw_total_ns": 607272855,
+              "sequence_index": 140
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147183.17163085938,
+              "raw_total_ns": 602862271,
+              "sequence_index": 141
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 28,
+          "schedule": "BAAB",
+          "schedule_index": 14
+        },
+        {
+          "B_minus_A_ns_per_call": 1447.29296875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 146924.53393554688,
+              "raw_total_ns": 601802891,
+              "sequence_index": 142
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148371.82690429688,
+              "raw_total_ns": 607731003,
+              "sequence_index": 143
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 29,
+          "schedule": "BAAB",
+          "schedule_index": 14
+        },
+        {
+          "B_minus_A_ns_per_call": 1031.10986328125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148205.55004882812,
+              "raw_total_ns": 607049933,
+              "sequence_index": 150
+            },
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147174.44018554688,
+              "raw_total_ns": 602826507,
+              "sequence_index": 151
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 30,
+          "schedule": "BAAB",
+          "schedule_index": 15
+        },
+        {
+          "B_minus_A_ns_per_call": 1084.550048828125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 4096,
+              "ns_per_call": 147012.20581054688,
+              "raw_total_ns": 602161995,
+              "sequence_index": 152
+            },
+            {
+              "arm": "B",
+              "k": 4096,
+              "ns_per_call": 148096.755859375,
+              "raw_total_ns": 606604312,
+              "sequence_index": 153
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 31,
+          "schedule": "BAAB",
+          "schedule_index": 15
+        }
+      ],
+      "schedule_counts": {
+        "ABBA": 8,
+        "BAAB": 8
+      },
+      "schedule_order": [
+        "BAAB",
+        "BAAB",
+        "ABBA",
+        "ABBA",
+        "BAAB",
+        "ABBA",
+        "ABBA",
+        "ABBA",
+        "ABBA",
+        "ABBA",
+        "ABBA",
+        "BAAB",
+        "BAAB",
+        "BAAB",
+        "BAAB",
+        "BAAB"
+      ],
+      "statistics": {
+        "bootstrap_95_ci_ns_per_call": [
+          1063.288818359375,
+          1188.9840087890625
+        ],
+        "bootstrap_resamples": 10000,
+        "missing_conditions": [],
+        "noise_thresholds_ns_per_call": {
+          "absolute_A_vs_A_difference_p95": 407.6455932617186,
+          "empty_callable_p95": 40.2436279296875
+        },
+        "observed_median_direction": "B_slower_than_A",
+        "paired_difference_definition": "B_ns_per_call - A_ns_per_call",
+        "paired_difference_median_ns_per_call": 1101.0103759765625,
+        "ranked": true,
+        "ranked_direction": "B_slower_than_A",
+        "ranking_conditions": {
+          "absolute_median_exceeds_same_arm_and_empty_p95": true,
+          "ci_excludes_zero": true,
+          "same_sign_at_least_0_8": true
+        },
+        "same_sign_fraction": 1.0
+      },
+      "target_block_ns": 500000000,
+      "warmup_calls_discarded_per_arm": 3
+    },
+    {
+      "K": 1024,
+      "M": 64,
+      "block_pair_count": 32,
+      "budget_adjustment": null,
+      "calibrated_K": 1024,
+      "calibration_blocks": [
+        {
+          "A": {
+            "ns_per_call": 771866.0,
+            "raw_total_ns": 771866
+          },
+          "B": {
+            "ns_per_call": 770130.0,
+            "raw_total_ns": 770130
+          },
+          "discarded_from_statistics": true,
+          "k": 1,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 756489.0,
+            "raw_total_ns": 1512978
+          },
+          "B": {
+            "ns_per_call": 754726.0,
+            "raw_total_ns": 1509452
+          },
+          "discarded_from_statistics": true,
+          "k": 2,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 759063.75,
+            "raw_total_ns": 3036255
+          },
+          "B": {
+            "ns_per_call": 753769.25,
+            "raw_total_ns": 3015077
+          },
+          "discarded_from_statistics": true,
+          "k": 4,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 745897.375,
+            "raw_total_ns": 5967179
+          },
+          "B": {
+            "ns_per_call": 751790.875,
+            "raw_total_ns": 6014327
+          },
+          "discarded_from_statistics": true,
+          "k": 8,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 744107.5,
+            "raw_total_ns": 11905720
+          },
+          "B": {
+            "ns_per_call": 746622.6875,
+            "raw_total_ns": 11945963
+          },
+          "discarded_from_statistics": true,
+          "k": 16,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 746359.1875,
+            "raw_total_ns": 23883494
+          },
+          "B": {
+            "ns_per_call": 749080.1875,
+            "raw_total_ns": 23970566
+          },
+          "discarded_from_statistics": true,
+          "k": 32,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 747321.875,
+            "raw_total_ns": 47828600
+          },
+          "B": {
+            "ns_per_call": 748931.90625,
+            "raw_total_ns": 47931642
+          },
+          "discarded_from_statistics": true,
+          "k": 64,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 747919.6328125,
+            "raw_total_ns": 95733713
+          },
+          "B": {
+            "ns_per_call": 747403.796875,
+            "raw_total_ns": 95667686
+          },
+          "discarded_from_statistics": true,
+          "k": 128,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 747013.37109375,
+            "raw_total_ns": 191235423
+          },
+          "B": {
+            "ns_per_call": 749045.16015625,
+            "raw_total_ns": 191755561
+          },
+          "discarded_from_statistics": true,
+          "k": 256,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 746454.310546875,
+            "raw_total_ns": 382184607
+          },
+          "B": {
+            "ns_per_call": 749484.615234375,
+            "raw_total_ns": 383736123
+          },
+          "discarded_from_statistics": true,
+          "k": 512,
+          "order": "A_then_B"
+        },
+        {
+          "A": {
+            "ns_per_call": 746434.99609375,
+            "raw_total_ns": 764349436
+          },
+          "B": {
+            "ns_per_call": 747817.96484375,
+            "raw_total_ns": 765765596
+          },
+          "discarded_from_statistics": true,
+          "k": 1024,
+          "order": "A_then_B"
+        }
+      ],
+      "noise": {
+        "A_vs_A_pairs": [
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742242.21484375,
+                "raw_total_ns": 760056028,
+                "sequence_index": 4
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741912.4501953125,
+                "raw_total_ns": 759718349,
+                "sequence_index": 5
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 0,
+            "second_minus_first_ns_per_call": -329.7646484375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742588.091796875,
+                "raw_total_ns": 760410206,
+                "sequence_index": 6
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742946.5224609375,
+                "raw_total_ns": 760777239,
+                "sequence_index": 7
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 1,
+            "second_minus_first_ns_per_call": 358.4306640625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742396.7626953125,
+                "raw_total_ns": 760214285,
+                "sequence_index": 14
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742836.900390625,
+                "raw_total_ns": 760664986,
+                "sequence_index": 15
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 2,
+            "second_minus_first_ns_per_call": 440.1376953125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741783.8056640625,
+                "raw_total_ns": 759586617,
+                "sequence_index": 16
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742158.0302734375,
+                "raw_total_ns": 759969823,
+                "sequence_index": 17
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 3,
+            "second_minus_first_ns_per_call": 374.224609375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741910.3564453125,
+                "raw_total_ns": 759716205,
+                "sequence_index": 24
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741448.7333984375,
+                "raw_total_ns": 759243503,
+                "sequence_index": 25
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 4,
+            "second_minus_first_ns_per_call": -461.623046875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741877.3193359375,
+                "raw_total_ns": 759682375,
+                "sequence_index": 26
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742283.3125,
+                "raw_total_ns": 760098112,
+                "sequence_index": 27
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 5,
+            "second_minus_first_ns_per_call": 405.9931640625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742698.373046875,
+                "raw_total_ns": 760523134,
+                "sequence_index": 34
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742890.9296875,
+                "raw_total_ns": 760720312,
+                "sequence_index": 35
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 6,
+            "second_minus_first_ns_per_call": 192.556640625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742234.9345703125,
+                "raw_total_ns": 760048573,
+                "sequence_index": 36
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741690.68359375,
+                "raw_total_ns": 759491260,
+                "sequence_index": 37
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 7,
+            "second_minus_first_ns_per_call": -544.2509765625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742176.6689453125,
+                "raw_total_ns": 759988909,
+                "sequence_index": 44
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741924.0146484375,
+                "raw_total_ns": 759730191,
+                "sequence_index": 45
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 8,
+            "second_minus_first_ns_per_call": -252.654296875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742579.767578125,
+                "raw_total_ns": 760401682,
+                "sequence_index": 46
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742602.681640625,
+                "raw_total_ns": 760425146,
+                "sequence_index": 47
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 9,
+            "second_minus_first_ns_per_call": 22.9140625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742158.5517578125,
+                "raw_total_ns": 759970357,
+                "sequence_index": 54
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742645.4775390625,
+                "raw_total_ns": 760468969,
+                "sequence_index": 55
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 10,
+            "second_minus_first_ns_per_call": 486.92578125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742347.3115234375,
+                "raw_total_ns": 760163647,
+                "sequence_index": 56
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742178.0888671875,
+                "raw_total_ns": 759990363,
+                "sequence_index": 57
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 11,
+            "second_minus_first_ns_per_call": -169.22265625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 740449.439453125,
+                "raw_total_ns": 758220226,
+                "sequence_index": 64
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 740522.4013671875,
+                "raw_total_ns": 758294939,
+                "sequence_index": 65
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 12,
+            "second_minus_first_ns_per_call": 72.9619140625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741632.1142578125,
+                "raw_total_ns": 759431285,
+                "sequence_index": 66
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742235.7294921875,
+                "raw_total_ns": 760049387,
+                "sequence_index": 67
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 13,
+            "second_minus_first_ns_per_call": 603.615234375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741592.2294921875,
+                "raw_total_ns": 759390443,
+                "sequence_index": 74
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 740896.4775390625,
+                "raw_total_ns": 758677993,
+                "sequence_index": 75
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 14,
+            "second_minus_first_ns_per_call": -695.751953125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741150.1904296875,
+                "raw_total_ns": 758937795,
+                "sequence_index": 76
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741320.08984375,
+                "raw_total_ns": 759111772,
+                "sequence_index": 77
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 15,
+            "second_minus_first_ns_per_call": 169.8994140625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741581.3408203125,
+                "raw_total_ns": 759379293,
+                "sequence_index": 84
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741652.5654296875,
+                "raw_total_ns": 759452227,
+                "sequence_index": 85
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 16,
+            "second_minus_first_ns_per_call": 71.224609375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742359.416015625,
+                "raw_total_ns": 760176042,
+                "sequence_index": 86
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741886.44921875,
+                "raw_total_ns": 759691724,
+                "sequence_index": 87
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 17,
+            "second_minus_first_ns_per_call": -472.966796875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741371.22265625,
+                "raw_total_ns": 759164132,
+                "sequence_index": 94
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741055.1318359375,
+                "raw_total_ns": 758840455,
+                "sequence_index": 95
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 18,
+            "second_minus_first_ns_per_call": -316.0908203125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742420.8271484375,
+                "raw_total_ns": 760238927,
+                "sequence_index": 96
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742270.2802734375,
+                "raw_total_ns": 760084767,
+                "sequence_index": 97
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 19,
+            "second_minus_first_ns_per_call": -150.546875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741522.9130859375,
+                "raw_total_ns": 759319463,
+                "sequence_index": 104
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741618.0078125,
+                "raw_total_ns": 759416840,
+                "sequence_index": 105
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 20,
+            "second_minus_first_ns_per_call": 95.0947265625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742680.486328125,
+                "raw_total_ns": 760504818,
+                "sequence_index": 106
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742664.87109375,
+                "raw_total_ns": 760488828,
+                "sequence_index": 107
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 21,
+            "second_minus_first_ns_per_call": -15.615234375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742779.65234375,
+                "raw_total_ns": 760606364,
+                "sequence_index": 114
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 743522.453125,
+                "raw_total_ns": 761366992,
+                "sequence_index": 115
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 22,
+            "second_minus_first_ns_per_call": 742.80078125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742471.767578125,
+                "raw_total_ns": 760291090,
+                "sequence_index": 116
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742581.5625,
+                "raw_total_ns": 760403520,
+                "sequence_index": 117
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 23,
+            "second_minus_first_ns_per_call": 109.794921875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742960.0927734375,
+                "raw_total_ns": 760791135,
+                "sequence_index": 124
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 743424.6953125,
+                "raw_total_ns": 761266888,
+                "sequence_index": 125
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 24,
+            "second_minus_first_ns_per_call": 464.6025390625
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742396.30859375,
+                "raw_total_ns": 760213820,
+                "sequence_index": 126
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742867.4541015625,
+                "raw_total_ns": 760696273,
+                "sequence_index": 127
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 25,
+            "second_minus_first_ns_per_call": 471.1455078125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742472.2412109375,
+                "raw_total_ns": 760291575,
+                "sequence_index": 134
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742537.0849609375,
+                "raw_total_ns": 760357975,
+                "sequence_index": 135
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 26,
+            "second_minus_first_ns_per_call": 64.84375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 742526.8994140625,
+                "raw_total_ns": 760347545,
+                "sequence_index": 136
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741962.818359375,
+                "raw_total_ns": 759769926,
+                "sequence_index": 137
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 27,
+            "second_minus_first_ns_per_call": -564.0810546875
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 741562.3740234375,
+                "raw_total_ns": 759359871,
+                "sequence_index": 144
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 743173.396484375,
+                "raw_total_ns": 761009558,
+                "sequence_index": 145
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 28,
+            "second_minus_first_ns_per_call": 1611.0224609375
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 744654.044921875,
+                "raw_total_ns": 762525742,
+                "sequence_index": 146
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 744066.9931640625,
+                "raw_total_ns": 761924601,
+                "sequence_index": 147
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 29,
+            "second_minus_first_ns_per_call": -587.0517578125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 743474.6630859375,
+                "raw_total_ns": 761318055,
+                "sequence_index": 154
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 743697.8662109375,
+                "raw_total_ns": 761546615,
+                "sequence_index": 155
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 30,
+            "second_minus_first_ns_per_call": 223.203125
+          },
+          {
+            "blocks": [
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 743211.4609375,
+                "raw_total_ns": 761048536,
+                "sequence_index": 156
+              },
+              {
+                "arm": "A",
+                "k": 1024,
+                "ns_per_call": 743554.3681640625,
+                "raw_total_ns": 761399673,
+                "sequence_index": 157
+              }
+            ],
+            "order": "A_then_A",
+            "pair_index": 31,
+            "second_minus_first_ns_per_call": 342.9072265625
+          }
+        ],
+        "empty_callable_blocks": [
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 39.0205078125,
+            "raw_total_ns": 39957,
+            "sequence_index": 8
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 38.384765625,
+            "raw_total_ns": 39306,
+            "sequence_index": 9
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.4375,
+            "raw_total_ns": 38336,
+            "sequence_index": 18
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 36.8701171875,
+            "raw_total_ns": 37755,
+            "sequence_index": 19
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.5244140625,
+            "raw_total_ns": 38425,
+            "sequence_index": 28
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.0458984375,
+            "raw_total_ns": 37935,
+            "sequence_index": 29
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.6904296875,
+            "raw_total_ns": 38595,
+            "sequence_index": 38
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 36.818359375,
+            "raw_total_ns": 37702,
+            "sequence_index": 39
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.521484375,
+            "raw_total_ns": 38422,
+            "sequence_index": 48
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 36.66796875,
+            "raw_total_ns": 37548,
+            "sequence_index": 49
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.8359375,
+            "raw_total_ns": 38744,
+            "sequence_index": 58
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.107421875,
+            "raw_total_ns": 37998,
+            "sequence_index": 59
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 38.845703125,
+            "raw_total_ns": 39778,
+            "sequence_index": 68
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 38.1201171875,
+            "raw_total_ns": 39035,
+            "sequence_index": 69
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 38.4814453125,
+            "raw_total_ns": 39405,
+            "sequence_index": 78
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.6201171875,
+            "raw_total_ns": 38523,
+            "sequence_index": 79
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 38.212890625,
+            "raw_total_ns": 39130,
+            "sequence_index": 88
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.3115234375,
+            "raw_total_ns": 38207,
+            "sequence_index": 89
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.3232421875,
+            "raw_total_ns": 38219,
+            "sequence_index": 98
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 36.6083984375,
+            "raw_total_ns": 37487,
+            "sequence_index": 99
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.994140625,
+            "raw_total_ns": 38906,
+            "sequence_index": 108
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 36.9306640625,
+            "raw_total_ns": 37817,
+            "sequence_index": 109
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 39.2763671875,
+            "raw_total_ns": 40219,
+            "sequence_index": 118
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 38.5712890625,
+            "raw_total_ns": 39497,
+            "sequence_index": 119
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 39.033203125,
+            "raw_total_ns": 39970,
+            "sequence_index": 128
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 38.462890625,
+            "raw_total_ns": 39386,
+            "sequence_index": 129
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.486328125,
+            "raw_total_ns": 38386,
+            "sequence_index": 138
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 36.99609375,
+            "raw_total_ns": 37884,
+            "sequence_index": 139
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.7138671875,
+            "raw_total_ns": 38619,
+            "sequence_index": 148
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 38.185546875,
+            "raw_total_ns": 39102,
+            "sequence_index": 149
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 37.3984375,
+            "raw_total_ns": 38296,
+            "sequence_index": 158
+          },
+          {
+            "arm": "empty",
+            "k": 1024,
+            "ns_per_call": 36.818359375,
+            "raw_total_ns": 37702,
+            "sequence_index": 159
+          }
+        ]
+      },
+      "operation_conversion": {
+        "median_overhead_ns_per_loader_process": 1564.13720703125,
+        "median_overhead_ns_per_publish": 1564.13720703125,
+        "practical_acceptance_threshold": null,
+        "threshold_owner": "user",
+        "validate_calls_per_loader_process": 1,
+        "validate_calls_per_publish": 1
+      },
+      "outliers_discarded": 0,
+      "primary_pairs": [
+        {
+          "B_minus_A_ns_per_call": 1249.0576171875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 746537.30078125,
+              "raw_total_ns": 764454196,
+              "sequence_index": 0
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 747786.3583984375,
+              "raw_total_ns": 765733231,
+              "sequence_index": 1
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 0,
+          "schedule": "ABBA",
+          "schedule_index": 0
+        },
+        {
+          "B_minus_A_ns_per_call": 922.2255859375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 747564.1767578125,
+              "raw_total_ns": 765505717,
+              "sequence_index": 2
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 746641.951171875,
+              "raw_total_ns": 764561358,
+              "sequence_index": 3
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 1,
+          "schedule": "ABBA",
+          "schedule_index": 0
+        },
+        {
+          "B_minus_A_ns_per_call": 1708.2783203125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 744245.748046875,
+              "raw_total_ns": 762107646,
+              "sequence_index": 10
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742537.4697265625,
+              "raw_total_ns": 760358369,
+              "sequence_index": 11
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 2,
+          "schedule": "BAAB",
+          "schedule_index": 1
+        },
+        {
+          "B_minus_A_ns_per_call": 1642.2099609375,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742000.1845703125,
+              "raw_total_ns": 759808189,
+              "sequence_index": 12
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743642.39453125,
+              "raw_total_ns": 761489812,
+              "sequence_index": 13
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 3,
+          "schedule": "BAAB",
+          "schedule_index": 1
+        },
+        {
+          "B_minus_A_ns_per_call": 1757.693359375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743180.7392578125,
+              "raw_total_ns": 761017077,
+              "sequence_index": 20
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 741423.0458984375,
+              "raw_total_ns": 759217199,
+              "sequence_index": 21
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 4,
+          "schedule": "BAAB",
+          "schedule_index": 2
+        },
+        {
+          "B_minus_A_ns_per_call": 1578.2177734375,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742382.9345703125,
+              "raw_total_ns": 760200125,
+              "sequence_index": 22
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743961.15234375,
+              "raw_total_ns": 761816220,
+              "sequence_index": 23
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 5,
+          "schedule": "BAAB",
+          "schedule_index": 2
+        },
+        {
+          "B_minus_A_ns_per_call": 1541.8720703125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743697.9189453125,
+              "raw_total_ns": 761546669,
+              "sequence_index": 30
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742156.046875,
+              "raw_total_ns": 759967792,
+              "sequence_index": 31
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 6,
+          "schedule": "BAAB",
+          "schedule_index": 3
+        },
+        {
+          "B_minus_A_ns_per_call": 1778.4658203125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742152.1357421875,
+              "raw_total_ns": 759963787,
+              "sequence_index": 32
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743930.6015625,
+              "raw_total_ns": 761784936,
+              "sequence_index": 33
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 7,
+          "schedule": "BAAB",
+          "schedule_index": 3
+        },
+        {
+          "B_minus_A_ns_per_call": 737.8447265625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 742787.546875,
+              "raw_total_ns": 760614448,
+              "sequence_index": 40
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742049.7021484375,
+              "raw_total_ns": 759858895,
+              "sequence_index": 41
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 8,
+          "schedule": "BAAB",
+          "schedule_index": 4
+        },
+        {
+          "B_minus_A_ns_per_call": 2034.8720703125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 741439.3984375,
+              "raw_total_ns": 759233944,
+              "sequence_index": 42
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743474.2705078125,
+              "raw_total_ns": 761317653,
+              "sequence_index": 43
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 9,
+          "schedule": "BAAB",
+          "schedule_index": 4
+        },
+        {
+          "B_minus_A_ns_per_call": 2354.798828125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742310.259765625,
+              "raw_total_ns": 760125706,
+              "sequence_index": 50
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 744665.05859375,
+              "raw_total_ns": 762537020,
+              "sequence_index": 51
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 10,
+          "schedule": "ABBA",
+          "schedule_index": 5
+        },
+        {
+          "B_minus_A_ns_per_call": 1721.0947265625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743942.6533203125,
+              "raw_total_ns": 761797277,
+              "sequence_index": 52
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742221.55859375,
+              "raw_total_ns": 760034876,
+              "sequence_index": 53
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 11,
+          "schedule": "ABBA",
+          "schedule_index": 5
+        },
+        {
+          "B_minus_A_ns_per_call": 1620.0087890625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742227.03515625,
+              "raw_total_ns": 760040484,
+              "sequence_index": 60
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743847.0439453125,
+              "raw_total_ns": 761699373,
+              "sequence_index": 61
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 12,
+          "schedule": "ABBA",
+          "schedule_index": 6
+        },
+        {
+          "B_minus_A_ns_per_call": 1947.4638671875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743952.29296875,
+              "raw_total_ns": 761807148,
+              "sequence_index": 62
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742004.8291015625,
+              "raw_total_ns": 759812945,
+              "sequence_index": 63
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 13,
+          "schedule": "ABBA",
+          "schedule_index": 6
+        },
+        {
+          "B_minus_A_ns_per_call": 838.265625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 742490.32421875,
+              "raw_total_ns": 760310092,
+              "sequence_index": 70
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 741652.05859375,
+              "raw_total_ns": 759451708,
+              "sequence_index": 71
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 14,
+          "schedule": "BAAB",
+          "schedule_index": 7
+        },
+        {
+          "B_minus_A_ns_per_call": 833.349609375,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742160.482421875,
+              "raw_total_ns": 759972334,
+              "sequence_index": 72
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 742993.83203125,
+              "raw_total_ns": 760825684,
+              "sequence_index": 73
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 15,
+          "schedule": "BAAB",
+          "schedule_index": 7
+        },
+        {
+          "B_minus_A_ns_per_call": 1381.7783203125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 742472.345703125,
+              "raw_total_ns": 760291682,
+              "sequence_index": 80
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 741090.5673828125,
+              "raw_total_ns": 758876741,
+              "sequence_index": 81
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 16,
+          "schedule": "BAAB",
+          "schedule_index": 8
+        },
+        {
+          "B_minus_A_ns_per_call": 1757.5986328125,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 740835.8388671875,
+              "raw_total_ns": 758615899,
+              "sequence_index": 82
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 742593.4375,
+              "raw_total_ns": 760415680,
+              "sequence_index": 83
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 17,
+          "schedule": "BAAB",
+          "schedule_index": 8
+        },
+        {
+          "B_minus_A_ns_per_call": 2143.5693359375,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 741577.6474609375,
+              "raw_total_ns": 759375511,
+              "sequence_index": 90
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743721.216796875,
+              "raw_total_ns": 761570526,
+              "sequence_index": 91
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 18,
+          "schedule": "ABBA",
+          "schedule_index": 9
+        },
+        {
+          "B_minus_A_ns_per_call": 2347.603515625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743442.322265625,
+              "raw_total_ns": 761284938,
+              "sequence_index": 92
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 741094.71875,
+              "raw_total_ns": 758880992,
+              "sequence_index": 93
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 19,
+          "schedule": "ABBA",
+          "schedule_index": 9
+        },
+        {
+          "B_minus_A_ns_per_call": 1711.298828125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 744229.287109375,
+              "raw_total_ns": 762090790,
+              "sequence_index": 100
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742517.98828125,
+              "raw_total_ns": 760338420,
+              "sequence_index": 101
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 20,
+          "schedule": "BAAB",
+          "schedule_index": 10
+        },
+        {
+          "B_minus_A_ns_per_call": 1188.599609375,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742763.6484375,
+              "raw_total_ns": 760589976,
+              "sequence_index": 102
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743952.248046875,
+              "raw_total_ns": 761807102,
+              "sequence_index": 103
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 21,
+          "schedule": "BAAB",
+          "schedule_index": 10
+        },
+        {
+          "B_minus_A_ns_per_call": 1287.9921875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 741959.9658203125,
+              "raw_total_ns": 759767005,
+              "sequence_index": 110
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743247.9580078125,
+              "raw_total_ns": 761085909,
+              "sequence_index": 111
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 22,
+          "schedule": "ABBA",
+          "schedule_index": 11
+        },
+        {
+          "B_minus_A_ns_per_call": 1923.3369140625,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743653.203125,
+              "raw_total_ns": 761500880,
+              "sequence_index": 112
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 741729.8662109375,
+              "raw_total_ns": 759531383,
+              "sequence_index": 113
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 23,
+          "schedule": "ABBA",
+          "schedule_index": 11
+        },
+        {
+          "B_minus_A_ns_per_call": 1099.0654296875,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743839.06640625,
+              "raw_total_ns": 761691204,
+              "sequence_index": 120
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742740.0009765625,
+              "raw_total_ns": 760565761,
+              "sequence_index": 121
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 24,
+          "schedule": "BAAB",
+          "schedule_index": 12
+        },
+        {
+          "B_minus_A_ns_per_call": 1550.056640625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742543.6591796875,
+              "raw_total_ns": 760364707,
+              "sequence_index": 122
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 744093.7158203125,
+              "raw_total_ns": 761951965,
+              "sequence_index": 123
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 25,
+          "schedule": "BAAB",
+          "schedule_index": 12
+        },
+        {
+          "B_minus_A_ns_per_call": 1255.0322265625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 743296.9208984375,
+              "raw_total_ns": 761136047,
+              "sequence_index": 130
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 744551.953125,
+              "raw_total_ns": 762421200,
+              "sequence_index": 131
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 26,
+          "schedule": "ABBA",
+          "schedule_index": 13
+        },
+        {
+          "B_minus_A_ns_per_call": 1495.896484375,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 744548.470703125,
+              "raw_total_ns": 762417634,
+              "sequence_index": 132
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 743052.57421875,
+              "raw_total_ns": 760885836,
+              "sequence_index": 133
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 27,
+          "schedule": "ABBA",
+          "schedule_index": 13
+        },
+        {
+          "B_minus_A_ns_per_call": 1966.009765625,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742204.7392578125,
+              "raw_total_ns": 760017653,
+              "sequence_index": 140
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 744170.7490234375,
+              "raw_total_ns": 762030847,
+              "sequence_index": 141
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 28,
+          "schedule": "ABBA",
+          "schedule_index": 14
+        },
+        {
+          "B_minus_A_ns_per_call": 1370.533203125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 743955.494140625,
+              "raw_total_ns": 761810426,
+              "sequence_index": 142
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 742584.9609375,
+              "raw_total_ns": 760407000,
+              "sequence_index": 143
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 29,
+          "schedule": "ABBA",
+          "schedule_index": 14
+        },
+        {
+          "B_minus_A_ns_per_call": 1267.4716796875,
+          "blocks": [
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 743736.736328125,
+              "raw_total_ns": 761586418,
+              "sequence_index": 150
+            },
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 745004.2080078125,
+              "raw_total_ns": 762884309,
+              "sequence_index": 151
+            }
+          ],
+          "order": "A_first",
+          "pair_index": 30,
+          "schedule": "ABBA",
+          "schedule_index": 15
+        },
+        {
+          "B_minus_A_ns_per_call": 1227.4501953125,
+          "blocks": [
+            {
+              "arm": "B",
+              "k": 1024,
+              "ns_per_call": 745191.841796875,
+              "raw_total_ns": 763076446,
+              "sequence_index": 152
+            },
+            {
+              "arm": "A",
+              "k": 1024,
+              "ns_per_call": 743964.3916015625,
+              "raw_total_ns": 761819537,
+              "sequence_index": 153
+            }
+          ],
+          "order": "B_first",
+          "pair_index": 31,
+          "schedule": "ABBA",
+          "schedule_index": 15
+        }
+      ],
+      "schedule_counts": {
+        "ABBA": 8,
+        "BAAB": 8
+      },
+      "schedule_order": [
+        "ABBA",
+        "BAAB",
+        "BAAB",
+        "BAAB",
+        "BAAB",
+        "ABBA",
+        "ABBA",
+        "BAAB",
+        "BAAB",
+        "ABBA",
+        "BAAB",
+        "ABBA",
+        "BAAB",
+        "ABBA",
+        "ABBA",
+        "ABBA"
+      ],
+      "statistics": {
+        "bootstrap_95_ci_ns_per_call": [
+          1319.00244140625,
+          1716.19677734375
+        ],
+        "bootstrap_resamples": 10000,
+        "missing_conditions": [],
+        "noise_thresholds_ns_per_call": {
+          "absolute_A_vs_A_difference_p95": 716.92392578125,
+          "empty_callable_p95": 39.026220703125
+        },
+        "observed_median_direction": "B_slower_than_A",
+        "paired_difference_definition": "B_ns_per_call - A_ns_per_call",
+        "paired_difference_median_ns_per_call": 1564.13720703125,
+        "ranked": true,
+        "ranked_direction": "B_slower_than_A",
+        "ranking_conditions": {
+          "absolute_median_exceeds_same_arm_and_empty_p95": true,
+          "ci_excludes_zero": true,
+          "same_sign_at_least_0_8": true
+        },
+        "same_sign_fraction": 1.0
+      },
+      "target_block_ns": 500000000,
+      "warmup_calls_discarded_per_arm": 3
+    }
+  ],
+  "modules": {
+    "A": {
+      "absolute_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/probe-clone/orchestrator/campaign/env_contract_activation.py",
+      "import_name": "_iz_t673_cost_arm_a",
+      "role": "base",
+      "sha256": "679b6ef0d356d6d1d7377eee3846793757b7bc9a2e0b91f26f07d5d69741ef6b"
+    },
+    "B": {
+      "absolute_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/probe-clone/probe-variants/env_contract_activation_d1.py",
+      "import_name": "_iz_t673_cost_arm_b",
+      "role": "D1",
+      "sha256": "0651773a5073f9ccf56e6586af9dd587d009a7373facf419189447d62f67bd54"
+    }
+  },
+  "notes": [
+    "outlier は一件も除外しない",
+    "順位は三条件の連言で JSON 内だけに記録し pytest 合否には使わない",
+    "実用上の許容閾値は設定せず、1 call/operation の換算だけを出す",
+    "10 分超過予測はなく M=64 の K 低減は行わなかった"
+  ],
+  "python_version": "3.10.12",
+  "runtime_limit_seconds": 600.0,
+  "schema": "izanagi/t673-d-cost/v1",
+  "seeds": {
+    "bootstrap": 20260811,
+    "order": 20260810
+  },
+  "sys_executable": "/bin/python3.10"
+}

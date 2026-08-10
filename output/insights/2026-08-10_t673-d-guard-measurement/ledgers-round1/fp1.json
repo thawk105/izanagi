@@ -1,0 +1,535 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/46d50dd3505304a5214bbfe6a03afad8/izdw-46d50dd350.o900779",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/46d50dd3505304a5214bbfe6a03afad8/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 4.40s\n",
+      "stdout_sha256": "38929f9c2d3a3fcc48b130851e4e4c25df99d533c4d91751f730b7c5910756a9"
+    },
+    "artifact_error": null,
+    "collection_sha256": "1c18583aca9a3c1b5e307eccca9a131981e32e847c36130585829b94c4644e58",
+    "duration_s": 26.883,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "9391bfe430d646d692e2d3205ca2e411818e630cefdcd769223e60263a2f19eb",
+    "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+    "runner_sha256": "2b793c153d5a9710d7544d7053443d8e45c14d1918c6e961264348c311b22dee",
+    "spec_sha256": "e8893398062b18b703253154b04cc30d3c4614c31b21e4410a9f3ceed6cf54a9",
+    "status": "PASSED",
+    "test_output_sha256": "38929f9c2d3a3fcc48b130851e4e4c25df99d533c4d91751f730b7c5910756a9",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "0d4dd9e028bc6a8efb11e74ec1ec038b76f364add2ea2f42a8532b2a125aedf1"
+  },
+  "date": "2026-08-10T13:34:38.059336+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/632f4c539feffa178564e67ad656f476/izdw-632f4c539f.o900781",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/632f4c539feffa178564e67ad656f476/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 4.35s\n",
+        "stdout_sha256": "b9c7b727331a33065f72a336970ceae7384a7fe347df0d115cb03b2ca9c20545"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "1c18583aca9a3c1b5e307eccca9a131981e32e847c36130585829b94c4644e58",
+      "duration_s": 26.827,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "FP1-G-TUPLE",
+      "injection_diff_sha256": "20fd509928356532bf0e30ae6f10c042e0a7bf78bd40e59f12e16209ad3ea7ca",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "c2f9dd5b4dfba401f858c103067e7e08b191a0d731074beb66922e119fc3351e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in tuple(successor_rows):\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "2b793c153d5a9710d7544d7053443d8e45c14d1918c6e961264348c311b22dee",
+      "spec_sha256": "e8893398062b18b703253154b04cc30d3c4614c31b21e4410a9f3ceed6cf54a9",
+      "status": "SURVIVED",
+      "test_output_sha256": "b9c7b727331a33065f72a336970ceae7384a7fe347df0d115cb03b2ca9c20545",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d4dd9e028bc6a8efb11e74ec1ec038b76f364add2ea2f42a8532b2a125aedf1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0691c888fac1c15282a16fbd502e9b76/izdw-0691c888fa.o900783",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0691c888fac1c15282a16fbd502e9b76/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 4.35s\n",
+        "stdout_sha256": "b9c7b727331a33065f72a336970ceae7384a7fe347df0d115cb03b2ca9c20545"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "1c18583aca9a3c1b5e307eccca9a131981e32e847c36130585829b94c4644e58",
+      "duration_s": 42.21,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "FP1-P-TUPLE",
+      "injection_diff_sha256": "2434734176a16e407b4a6e1fe1a936036d9a1edc209647d29c26180b21216fed",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "46200991e57d88d721de4b71249d70a7c853b2458bc5da4151a1416fdba7a6a0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in tuple(changed):\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "2b793c153d5a9710d7544d7053443d8e45c14d1918c6e961264348c311b22dee",
+      "spec_sha256": "e8893398062b18b703253154b04cc30d3c4614c31b21e4410a9f3ceed6cf54a9",
+      "status": "SURVIVED",
+      "test_output_sha256": "b9c7b727331a33065f72a336970ceae7384a7fe347df0d115cb03b2ca9c20545",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d4dd9e028bc6a8efb11e74ec1ec038b76f364add2ea2f42a8532b2a125aedf1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1,
+        "3": 1,
+        "4": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2f695f48e7701d4c2098e97c6960e79c/izdw-2f695f48e7.o900784",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2f695f48e7701d4c2098e97c6960e79c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 4.44s\n",
+        "stdout_sha256": "8cf567b41a5c8eb687ab317a3f071448c745e6fb9281d25dcc7a2cdbb3a53c52"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "1c18583aca9a3c1b5e307eccca9a131981e32e847c36130585829b94c4644e58",
+      "duration_s": 26.956,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "FP1-RENAME-CHANGED",
+      "injection_diff_sha256": "490c8d6cb8ee45db97222bcf2660dae0f1e88c52752abd656250da80e21dc31b",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "da3c11a848ab11161cf75589ad6261ac8797dee221a946fb50d9504dfef89946",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    changed_rows: list[tuple[ActiveContract, ActiveContract]] = []\n",
+          "old": "    changed: list[tuple[ActiveContract, ActiveContract]] = []\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "        changed_rows.append((predecessor, successor))\n",
+          "old": "        changed.append((predecessor, successor))\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    if not changed_rows:\n",
+          "old": "    if not changed:\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    expected_predicate_checks = len(changed_rows)\n",
+          "old": "    expected_predicate_checks = len(changed)\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed_rows:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "2b793c153d5a9710d7544d7053443d8e45c14d1918c6e961264348c311b22dee",
+      "spec_sha256": "e8893398062b18b703253154b04cc30d3c4614c31b21e4410a9f3ceed6cf54a9",
+      "status": "SURVIVED",
+      "test_output_sha256": "8cf567b41a5c8eb687ab317a3f071448c745e6fb9281d25dcc7a2cdbb3a53c52",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d4dd9e028bc6a8efb11e74ec1ec038b76f364add2ea2f42a8532b2a125aedf1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ec1bb854dbef4556392532fecb52db87/izdw-ec1bb854db.o900786",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ec1bb854dbef4556392532fecb52db87/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 4.37s\n",
+        "stdout_sha256": "3284d3cf2efb96f525ec39ad50424b0ab292082fba8ff2b97d9b6dbd50f9357e"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "1c18583aca9a3c1b5e307eccca9a131981e32e847c36130585829b94c4644e58",
+      "duration_s": 42.258,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "FP1-DIAGNOSTIC-LOOP",
+      "injection_diff_sha256": "d415001184f5085f5a1685aeae2dcd8c81efb8268ead95093ea6a99fee6a9322",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "8289d6b725464feedbd61f7a8e2cc63694ee1d90c4d4b3585f39acca23369138",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for diagnostic_predecessor, diagnostic_successor in changed:\n        _ = (diagnostic_predecessor, diagnostic_successor)\n\n    if first_failure is not None:\n",
+          "old": "    if first_failure is not None:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "2b793c153d5a9710d7544d7053443d8e45c14d1918c6e961264348c311b22dee",
+      "spec_sha256": "e8893398062b18b703253154b04cc30d3c4614c31b21e4410a9f3ceed6cf54a9",
+      "status": "SURVIVED",
+      "test_output_sha256": "3284d3cf2efb96f525ec39ad50424b0ab292082fba8ff2b97d9b6dbd50f9357e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d4dd9e028bc6a8efb11e74ec1ec038b76f364add2ea2f42a8532b2a125aedf1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/30b1a515b714e46663dbb7a54864b452/izdw-30b1a515b7.o900788",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/30b1a515b714e46663dbb7a54864b452/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 4.38s\n",
+        "stdout_sha256": "d09c6c8502f58364c6cdf0b6d5f3312cc7c30776a1aca1836352c3732d59b57e"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "1c18583aca9a3c1b5e307eccca9a131981e32e847c36130585829b94c4644e58",
+      "duration_s": 42.293,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "FP1-COMMENT",
+      "injection_diff_sha256": "082297f995c377054907ceb613ff4a3a6e47b73b445bd04b1c8fcfc366b097a4",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "3d50171792e9cd924fca6279b34a7182241a078daaa05e79fad2d89ae70ad0e6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    # Track each semantic change without altering traversal.\n    changed: list[tuple[ActiveContract, ActiveContract]] = []\n",
+          "old": "    changed: list[tuple[ActiveContract, ActiveContract]] = []\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "2b793c153d5a9710d7544d7053443d8e45c14d1918c6e961264348c311b22dee",
+      "spec_sha256": "e8893398062b18b703253154b04cc30d3c4614c31b21e4410a9f3ceed6cf54a9",
+      "status": "SURVIVED",
+      "test_output_sha256": "d09c6c8502f58364c6cdf0b6d5f3312cc7c30776a1aca1836352c3732d59b57e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d4dd9e028bc6a8efb11e74ec1ec038b76f364add2ea2f42a8532b2a125aedf1"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/607c4f9d8b43b6e89ec9402afeca89b2/izdw-607c4f9d8b.o900776",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/607c4f9d8b43b6e89ec9402afeca89b2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_env_contract_activation.py::test_initial_record_is_exact_canonical_hash_bound_and_selects_both_g1\norchestrator/tests/test_env_contract_activation.py::test_record_rejects_duplicate_unknown_noncanonical_and_bool_integer_fields\norchestrator/tests/test_env_contract_activation.py::test_chain_rejects_gap_filename_mismatch_and_bad_predecessor\norchestrator/tests/test_env_contract_activation.py::test_chain_rejects_symlink_nonregular_and_extra_entry\norchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_tail_rollback\norchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_valid_suffix_injection\norchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_same_serial_state_hash_mismatch\norchestrator/tests/test_env_contract_activation.py::test_record_requires_exact_registered_env_set_and_contract_pair\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_one_plus_one_with_other_env_unchanged\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_multiple_simultaneous_plus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_env_simultaneous_plus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_four_env_simultaneous_plus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_noop_in_middle_of_chain\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_record_forward_chain\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_invalid_successor_in_later_pair\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_downgrade_even_when_successor_predicate_accepts\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_two_minus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_one_minus_one\norchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule\norchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule\norchestrator/tests/test_env_contract_activation.py::test_transition_checks_generation_change_even_when_hash_is_reused\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_change_with_reused_hash_when_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_accepts_generation_change_when_hash_is_reused_and_other_env_is_unchanged\norchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_plus_one_when_bound_contract_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_second_changed_env_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_third_changed_env_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_fourth_changed_env_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_failure_when_later_successor_is_true\norchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true\norchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_exception_when_later_successor_is_true\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env\norchestrator/tests/test_env_contract_activation.py::test_transition_wraps_exception_from_second_changed_env\norchestrator/tests/test_env_contract_activation.py::test_successor_predicate_is_called_once_for_each_changed_env\norchestrator/tests/test_env_contract_activation.py::test_successor_predicate_receives_exact_generation_hash_rows\norchestrator/tests/test_env_contract_activation.py::test_record_rejects_registered_generation_with_wrong_contract_hash\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_successor_result\norchestrator/tests/test_env_contract_activation.py::test_transition_wraps_successor_exception_fail_closed\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_resolves_bound_generation_entries\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_reads_current_generations_global\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_when_is_valid_successor_is_false\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_for_resolved_invalid_contract\norchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_rejects_rows_that_do_not_resolve\norchestrator/tests/test_env_contract_activation.py::test_validate_activation_records_requires_successor_predicate\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_missing_env_before_calling_predicate\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_extra_env_fail_closed_before_calling_predicate\norchestrator/tests/test_env_contract_activation.py::test_real_pegasus_g2_serial2_is_accepted_and_switches_lookup\norchestrator/tests/test_env_contract_activation.py::test_production_loader_rejects_tail_deletion_with_source_head_unchanged\norchestrator/tests/test_env_contract_activation.py::test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart\norchestrator/tests/test_env_contract_activation.py::test_production_loader_passes_source_head_constants_to_leaf\norchestrator/tests/test_env_contract_activation.py::test_pegasus_g2_authorization_reaches_certified_sink_without_lookup\norchestrator/tests/test_env_contract_activation.py::test_serial2_preserves_g1_as_ever_active_and_verifies_history_on_resolution\norchestrator/tests/test_env_contract_activation.py::test_forward_activation_preserves_pegasus_g1_for_historical_resolution\norchestrator/tests/test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[missing]\norchestrator/tests/test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[modified]\norchestrator/tests/test_env_contract_activation.py::test_registered_but_never_active_hash_has_distinct_refusal_reason\norchestrator/tests/test_env_contract_activation.py::test_lazy_registry_mapping_contract_is_compatible_and_read_only\norchestrator/tests/test_env_contract_activation.py::test_import_performs_no_open_or_stat_io_in_worktree_or_archive_source_stage\norchestrator/tests/test_env_contract_activation.py::test_authority_validation_is_cached_once_per_pid\norchestrator/tests/test_env_contract_activation.py::test_held_lock_fork_reinitializes_child_cache_without_deadlock\norchestrator/tests/test_env_contract_activation.py::test_repo_root_is_cwd_independent\norchestrator/tests/test_env_contract_activation.py::test_activation_leaf_is_stdlib_only_campaign_import_free_and_env_neutral\norchestrator/tests/test_env_contract_activation.py::test_issue_cli_parses_before_authority_load_and_writes_create_only\norchestrator/tests/test_env_contract_activation.py::test_issue_publish_never_exposes_partial_bytes_and_fsyncs_directories\norchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[write]\norchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[file_fsync]\norchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[directory_fsync]\norchestrator/tests/test_env_contract_activation.py::test_issue_success_message_names_inactive_state_head_constants_and_restart\norchestrator/tests/test_env_contract_activation.py::test_issue_main_success_prints_required_head_and_inactive_warning\norchestrator/tests/test_env_contract_activation.py::test_issue_main_passes_production_successor_adapter_by_identity\norchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_when_production_successor_adapter_rejects\norchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_noop_without_publishing\norchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted\norchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o\norchestrator/tests/test_t673_d_probe.py::test_valid_m2_accepted\norchestrator/tests/test_t673_d_probe.py::test_invgen_first_rejected\norchestrator/tests/test_t673_d_probe.py::test_invgen_first_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected\norchestrator/tests/test_t673_d_probe.py::test_invgen_middle_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected\norchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invpred_first_rejected\norchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected\norchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected\norchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted\norchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected\n\n94 tests collected in 0.36s\n",
+        "stdout_sha256": "87e52b3c3c43ba082e52f8c6ff28b1e8c50684f8b4b6a0985c9c883deef4b8a0"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_initial_record_is_exact_canonical_hash_bound_and_selects_both_g1",
+        "orchestrator/tests/test_env_contract_activation.py::test_record_rejects_duplicate_unknown_noncanonical_and_bool_integer_fields",
+        "orchestrator/tests/test_env_contract_activation.py::test_chain_rejects_gap_filename_mismatch_and_bad_predecessor",
+        "orchestrator/tests/test_env_contract_activation.py::test_chain_rejects_symlink_nonregular_and_extra_entry",
+        "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_tail_rollback",
+        "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_valid_suffix_injection",
+        "orchestrator/tests/test_env_contract_activation.py::test_head_pin_rejects_same_serial_state_hash_mismatch",
+        "orchestrator/tests/test_env_contract_activation.py::test_record_requires_exact_registered_env_set_and_contract_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_one_plus_one_with_other_env_unchanged",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_multiple_simultaneous_plus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_env_simultaneous_plus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_four_env_simultaneous_plus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_noop_in_middle_of_chain",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_three_record_forward_chain",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_invalid_successor_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_skip_in_later_pair",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_downgrade_even_when_successor_predicate_accepts",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_two_minus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_compensating_plus_one_minus_one",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_three_env_matrix_matches_d228_rule",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_checks_generation_change_even_when_hash_is_reused",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_generation_change_with_reused_hash_when_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_accepts_generation_change_when_hash_is_reused_and_other_env_is_unchanged",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_gate_rejects_same_generation_hash_substitution_when_other_env_advances",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_skip_when_catalog_order_is_not_generation_order",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_plus_one_when_bound_contract_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_second_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_third_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_when_fourth_changed_env_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_failure_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_non_bool_failure_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_preserves_first_exception_when_later_successor_is_true",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_result_from_second_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_wraps_exception_from_second_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_successor_predicate_is_called_once_for_each_changed_env",
+        "orchestrator/tests/test_env_contract_activation.py::test_successor_predicate_receives_exact_generation_hash_rows",
+        "orchestrator/tests/test_env_contract_activation.py::test_record_rejects_registered_generation_with_wrong_contract_hash",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_non_bool_successor_result",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_wraps_successor_exception_fail_closed",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_resolves_bound_generation_entries",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_reads_current_generations_global",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_when_is_valid_successor_is_false",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_returns_false_for_resolved_invalid_contract",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_successor_adapter_rejects_rows_that_do_not_resolve",
+        "orchestrator/tests/test_env_contract_activation.py::test_validate_activation_records_requires_successor_predicate",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_missing_env_before_calling_predicate",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_extra_env_fail_closed_before_calling_predicate",
+        "orchestrator/tests/test_env_contract_activation.py::test_real_pegasus_g2_serial2_is_accepted_and_switches_lookup",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_loader_rejects_tail_deletion_with_source_head_unchanged",
+        "orchestrator/tests/test_env_contract_activation.py::test_issued_valid_suffix_is_not_active_until_source_head_update_and_restart",
+        "orchestrator/tests/test_env_contract_activation.py::test_production_loader_passes_source_head_constants_to_leaf",
+        "orchestrator/tests/test_env_contract_activation.py::test_pegasus_g2_authorization_reaches_certified_sink_without_lookup",
+        "orchestrator/tests/test_env_contract_activation.py::test_serial2_preserves_g1_as_ever_active_and_verifies_history_on_resolution",
+        "orchestrator/tests/test_env_contract_activation.py::test_forward_activation_preserves_pegasus_g1_for_historical_resolution",
+        "orchestrator/tests/test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[missing]",
+        "orchestrator/tests/test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[modified]",
+        "orchestrator/tests/test_env_contract_activation.py::test_registered_but_never_active_hash_has_distinct_refusal_reason",
+        "orchestrator/tests/test_env_contract_activation.py::test_lazy_registry_mapping_contract_is_compatible_and_read_only",
+        "orchestrator/tests/test_env_contract_activation.py::test_import_performs_no_open_or_stat_io_in_worktree_or_archive_source_stage",
+        "orchestrator/tests/test_env_contract_activation.py::test_authority_validation_is_cached_once_per_pid",
+        "orchestrator/tests/test_env_contract_activation.py::test_held_lock_fork_reinitializes_child_cache_without_deadlock",
+        "orchestrator/tests/test_env_contract_activation.py::test_repo_root_is_cwd_independent",
+        "orchestrator/tests/test_env_contract_activation.py::test_activation_leaf_is_stdlib_only_campaign_import_free_and_env_neutral",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_cli_parses_before_authority_load_and_writes_create_only",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_publish_never_exposes_partial_bytes_and_fsyncs_directories",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[write]",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[file_fsync]",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_failure_removes_all_residue_and_allows_retry[directory_fsync]",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_success_message_names_inactive_state_head_constants_and_restart",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_success_prints_required_head_and_inactive_warning",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_passes_production_successor_adapter_by_identity",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_when_production_successor_adapter_rejects",
+        "orchestrator/tests/test_env_contract_activation.py::test_issue_main_rejects_noop_without_publishing",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m2_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_first_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected"
+      ],
+      "duration_s": 21.769,
+      "rc": 0,
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "2b793c153d5a9710d7544d7053443d8e45c14d1918c6e961264348c311b22dee",
+      "spec_sha256": "e8893398062b18b703253154b04cc30d3c4614c31b21e4410a9f3ceed6cf54a9",
+      "status": "PASSED",
+      "tool_sha256": "0d4dd9e028bc6a8efb11e74ec1ec038b76f364add2ea2f42a8532b2a125aedf1"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "FP1-COMMENT": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "082297f995c377054907ceb613ff4a3a6e47b73b445bd04b1c8fcfc366b097a4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    # Track each semantic change without altering traversal.\n    changed: list[tuple[ActiveContract, ActiveContract]] = []\n",
+            "old": "    changed: list[tuple[ActiveContract, ActiveContract]] = []\n"
+          }
+        ]
+      },
+      "FP1-DIAGNOSTIC-LOOP": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "d415001184f5085f5a1685aeae2dcd8c81efb8268ead95093ea6a99fee6a9322",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for diagnostic_predecessor, diagnostic_successor in changed:\n        _ = (diagnostic_predecessor, diagnostic_successor)\n\n    if first_failure is not None:\n",
+            "old": "    if first_failure is not None:\n"
+          }
+        ]
+      },
+      "FP1-G-TUPLE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "20fd509928356532bf0e30ae6f10c042e0a7bf78bd40e59f12e16209ad3ea7ca",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in tuple(successor_rows):\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "FP1-P-TUPLE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "2434734176a16e407b4a6e1fe1a936036d9a1edc209647d29c26180b21216fed",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in tuple(changed):\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "FP1-RENAME-CHANGED": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1,
+          "3": 1,
+          "4": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "490c8d6cb8ee45db97222bcf2660dae0f1e88c52752abd656250da80e21dc31b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    changed_rows: list[tuple[ActiveContract, ActiveContract]] = []\n",
+            "old": "    changed: list[tuple[ActiveContract, ActiveContract]] = []\n"
+          },
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "        changed_rows.append((predecessor, successor))\n",
+            "old": "        changed.append((predecessor, successor))\n"
+          },
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    if not changed_rows:\n",
+            "old": "    if not changed:\n"
+          },
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    expected_predicate_checks = len(changed_rows)\n",
+            "old": "    expected_predicate_checks = len(changed)\n"
+          },
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed_rows:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "9391bfe430d646d692e2d3205ca2e411818e630cefdcd769223e60263a2f19eb",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_env_contract_activation.py",
+      "orchestrator/tests/test_t673_d_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_env_contract_activation.py",
+      "orchestrator/tests/test_t673_d_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "486a40790f7d6a8380d8e882f757c2f4b6d5d631",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "2b793c153d5a9710d7544d7053443d8e45c14d1918c6e961264348c311b22dee",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "e8893398062b18b703253154b04cc30d3c4614c31b21e4410a9f3ceed6cf54a9",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 5,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/fp1/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "0d4dd9e028bc6a8efb11e74ec1ec038b76f364add2ea2f42a8532b2a125aedf1",
+  "updated_at": "2026-08-10T13:38:16.324457+00:00"
+}

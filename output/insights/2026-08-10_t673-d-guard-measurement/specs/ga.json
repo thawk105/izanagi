@@ -1,0 +1,65 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "GA-G-DELETE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if observed_generation_checks != expected_generation_checks:\n        raise ActivationRecordError(\n            \"activation transition scan count mismatch: site=G \"\n            f\"expected={expected_generation_checks} \"\n            f\"observed={observed_generation_checks} serial={activation_serial}\"\n        )\n\n",
+          "new": ""
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "GA-G-FALSE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if observed_generation_checks != expected_generation_checks:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "GA-P-DELETE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if observed_predicate_checks != expected_predicate_checks:\n        raise ActivationRecordError(\n            \"activation transition scan count mismatch: site=P \"\n            f\"expected={expected_predicate_checks} \"\n            f\"observed={observed_predicate_checks} serial={activation_serial}\"\n        )\n\n",
+          "new": ""
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "GA-P-FALSE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if observed_predicate_checks != expected_predicate_checks:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    }
+  ]
+}
+

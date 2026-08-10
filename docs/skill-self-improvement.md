@@ -80,5 +80,5 @@ handoff、phase doc に残し、command や本契約を裁定台帳にしない�
 `python3 tools/check_docs.py` を実行する。command と、変更理由になった failures / decisions /
 reference の整合を同じ commit で保つ。AI provenance、local main、push の境界に例外を作らない。
 
-`check_docs.py` が担保するのは byte・最長行予算と dispatch・節・孤児・逃がしの構造である。
-義務本文の文言と意味の保存は lint に固定せず、敵対監査と人間レビューで担保する。
+`check_docs.py` の担保は予算と dispatch・節・孤児・逃がし・住所 (address edge) の構造 lint に限る。
+whole-file SHA-256 pin も bytes 差だけを検知し、意味は敵対監査と人間レビューが担う。

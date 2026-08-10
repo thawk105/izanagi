@@ -1,0 +1,99 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "FP1-G-TUPLE",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for successor in successor_rows:\n",
+          "new": "    for successor in tuple(successor_rows):\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "FP1-P-TUPLE",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in tuple(changed):\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "FP1-RENAME-CHANGED",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    changed: list[tuple[ActiveContract, ActiveContract]] = []\n",
+          "new": "    changed_rows: list[tuple[ActiveContract, ActiveContract]] = []\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "        changed.append((predecessor, successor))\n",
+          "new": "        changed_rows.append((predecessor, successor))\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if not changed:\n",
+          "new": "    if not changed_rows:\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    expected_predicate_checks = len(changed)\n",
+          "new": "    expected_predicate_checks = len(changed_rows)\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in changed_rows:\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "FP1-DIAGNOSTIC-LOOP",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if first_failure is not None:\n",
+          "new": "    for diagnostic_predecessor, diagnostic_successor in changed:\n        _ = (diagnostic_predecessor, diagnostic_successor)\n\n    if first_failure is not None:\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "FP1-COMMENT",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    changed: list[tuple[ActiveContract, ActiveContract]] = []\n",
+          "new": "    # Track each semantic change without altering traversal.\n    changed: list[tuple[ActiveContract, ActiveContract]] = []\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    }
+  ]
+}
+
