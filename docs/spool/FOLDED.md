@@ -689,3 +689,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:stage-reasoning-policy-adoption":"D266"},"authored":"2026-08-10","content_sha256":"099f190e68c68fe2641b109a49d90306e80fb9f192c4c5d1d7673fc0a9e359bf","seq":1,"wave":"dev-wave-t184-reasoning-policy"}
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"266de09a59255b4d3170967e0eaf3cc43fec34f470d67b251338cfc4a1d42c75","seq":2,"wave":"dev-wave-t184-reasoning-policy"}
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"658e3387528edbfc7c5c62b68af8d9828792d5009adac54da8dd87b9c03808d8","seq":3,"wave":"dev-wave-t184-reasoning-policy"}
+
+- {"allocations":{"T:evidence-path-nul-alias":"[T-730]","T:land-test-scope-dependent-red":"[T-731]"},"authored":"2026-08-10","content_sha256":"f781fc1618f9e716fdb2d21c08c180ae3cf042d915b5165236ddd5eba8223a7d","seq":1,"wave":"dev-wave-t714-evidence-path-ctrlchar"}
+- {"allocations":{"D:evidence-path-identity-wall":"D267"},"authored":"2026-08-10","content_sha256":"0e2c2976175b17aee371e1b7d52689b99de518b247e77a40c612d149facafe14","seq":2,"wave":"dev-wave-t714-evidence-path-ctrlchar"}
+- {"allocations":{"F:lease-claim-output-is-json":"F195"},"authored":"2026-08-10","content_sha256":"b1412b2d5f85d7070f373cef0afad7daafb583d0bb7e6ae9614ef474c602c8ad","seq":3,"wave":"dev-wave-t714-evidence-path-ctrlchar"}
