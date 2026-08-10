@@ -711,3 +711,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"D:guard-input-exact-str":"D269","D:lease-waiter-internal-merge":"D270"},"authored":"2026-08-10","content_sha256":"86d758a5a14bc4b0f26948944511a527d9618bf3b46d32195a91702b6a389eac","seq":1,"wave":"dev-wave-t730-t732-nul-lease-merge"}
 - {"allocations":{"T:canonical-acceptance-waiter":"[T-740]","T:freeze-layer-nul-gate":"[T-739]","T:guard-non-str-input":"[T-742]","T:spool-failures-supersede":"[T-741]"},"authored":"2026-08-10","content_sha256":"8a8198cdf3879b8c767a61f329681bc9075cd3145eb05d470ca1cfd4f316b483","seq":2,"wave":"dev-wave-t730-t732-nul-lease-merge"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"44f5cd3abd359686c54d6e70a80a80dc4d2b6e42f7d3f0b3690f108075523102","seq":1,"wave":"dev-wave-t700-t695-l2-admission"}
+- {"allocations":{"D:l2-admission":"D271"},"authored":"2026-08-10","content_sha256":"9e4c3d2516ad308561c46849bd2ac24e73ee2cbb3ecb385812bf8f44059c912c","seq":2,"wave":"dev-wave-t700-t695-l2-admission"}
