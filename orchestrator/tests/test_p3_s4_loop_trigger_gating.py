@@ -2168,24 +2168,6 @@ def test_inner_run_reject_start_crash_fails_before_second_start(monkeypatch):
         require_admitted_campaign(mutant)
 
 
-def _pinned_clean_sub_or_skip():
-    import subprocess
-    import pytest
-    root = os.path.dirname(_ORCH)
-    sub = os.path.join(root, "external", "ccbench")
-    try:
-        head = subprocess.check_output(["git", "-C", sub, "rev-parse", "--short", "HEAD"],
-                                       text=True).strip()
-        dirty = subprocess.check_output(["git", "-C", sub, "status", "--porcelain"],
-                                        text=True).strip()
-    except Exception:
-        pytest.skip("submodule 未取得")
-    if not head.startswith(T.PIN[:7]) or dirty:
-        pytest.skip(f"submodule が pinned-clean でない (head={head} dirty={bool(dirty)}, "
-                    f"要求 pin={T.PIN})")
-    return sub
-
-
 def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     """fresh reject 後も次候補の public funnel が identity を照合して resume する。"""
     import contextlib

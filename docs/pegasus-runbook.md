@@ -808,10 +808,17 @@ script が担う判定は次のとおりで、**同じ内容を別 shell loop �
   待っている間に先行 holder が land するので、`claim` 時の `main_sha` は取得時点の main では
   ない。取り込まずに走らせると land 対象 tip が main の子孫でなくなり、全走をやり直すことになる。
   順序は `git rev-parse main` → `git rev-list --count HEAD..main` → (非 0 のときだけ)
-  `git merge --no-ff --no-commit main` → `git commit --dry-run -F` → `git commit -F` →
-  作成 commit の SHA を固定して message の trailer を確認 → `HEAD..main` の再検査、である。
+  **所有実装面の overlap 判定** → `git merge --no-ff --no-commit main` →
+  `git commit --dry-run -F` → `git commit -F` → 作成 commit の SHA を固定して message の
+  trailer を確認 → `HEAD..main` の再検査、である。
   **`--ff-only` と `--no-edit` は使わない** (wave branch が自前 commit を持つと fast-forward
   できず `Not possible to fast-forward` で止まる)。中断は `git merge --abort` → `release` の順。
+- **merge の前に所有実装面の overlap を見る。** `git diff --name-only HEAD...main` の結果に
+  本 wave が触った実装面 path が含まれるなら、**待ち手では merge せず親へ戻す** (fail-closed)。
+  両親が同じ実装面を変えた merge 結果はどちらの親とも異なるため `DW-O17` が Codex
+  `role=author` を要求するが、trailer を固定した待ち手の message file では条件を満たせない。
+  待ち手が判定しなければ無審査の merge commit ができ、land の provenance 監査まで赤にならない。
+  本 wave が触った実装面 path は `--owned-path` で外から渡す (repo へ固定値を焼かない)。
 - 待ちの周期は 30〜120 秒 (既定 30 秒)、claim loop の全体上限は既定 7200 秒である。
 - `claim` が構造化された `held` / `queued` を返した時点で「この呼出しが lease を作った可能性」は
   消えるので、**その後の失敗では release しない**。`release` の権限証明は wave slug の digest
@@ -848,6 +855,10 @@ python3 tools/dev_wave_wait.py producer \
   待ち時間は待ち行列の長さと受入 1 回の所要 (1055〜1273 秒) に比例する。
   **待ち周期を詰めても追い越しは消えない** — 原因は周期ではなく待ち行列長であり、
   効くのは上の「待ち手内で取り込む」手順である (F196)。
+- **claim の loop・main の取り直し・merge・受入投入は同じ待ち手 script に置く。** 取り込みを親の
+  事前作業にし、待ち手を `git rev-list --count HEAD..main` の検査だけにすると、待機中に main が
+  進むたびに取得した lease を捨てる (2026-08-10 実測: 24 分待って `acquired`、その時点で
+  15 commit 遅れ。別 wave では 4 回空振り)。
 - 待ち手が閉じない残余 race が 1 つ残る — 最後の `HEAD..main` 再検査から受入 command 起動までの
   間に main が進む場合である (fencing token が無いので閉じられない)。
 - 受入と land の**どの終わり方でも** lease を手放す。待ち手は成功時だけ保持したまま返すので、
