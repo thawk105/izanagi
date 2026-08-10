@@ -1008,6 +1008,26 @@ def test_r3_1_coverage_does_not_overclaim(monkeypatch: pytest.MonkeyPatch, tmp_p
     ]
 
 
+def test_containment_discharge_when_all_containment_stages_go(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _rc, receipt = _run_injected(monkeypatch, tmp_path, _good_stages())
+    assert (
+        "compute-node backend containment observations"
+        in receipt["r3_1_coverage"]["discharged_by_this_probe"]
+    )
+
+
+def test_performance_discharge_when_s7_go(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _rc, receipt = _run_injected(monkeypatch, tmp_path, _good_stages())
+    assert (
+        "single stock trace-disabled binary sandbox elapsed-overhead sample"
+        in receipt["r3_1_coverage"]["discharged_by_this_probe"]
+    )
+
+
 @pytest.mark.parametrize("stage", ["S1", "S2", "S3", "S4", "S5"])
 def test_containment_discharge_requires_each_containment_stage_go(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str
