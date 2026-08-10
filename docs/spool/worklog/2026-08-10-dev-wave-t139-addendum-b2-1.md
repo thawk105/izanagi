@@ -15,6 +15,13 @@ title: 停止した追補 B wave を別 session が引き取って完遂した �
   段 2 用の待ち手は 20 時間 23 分、段 6 用は 7 時間 36 分、`.done` も成果物も揃った後に滞留した。
   同 wave の `wait2.sh` / `wait6.sh` は pattern を script 内へ埋め込んでおり正常終了しているため、
   正例と失敗例が同一 wave 内に揃っている。既知型につき新しい F を採らず F32 の再発として記録した。
+- **段 8 の候補 1 件は予算で入らず裁定へ返した。** F32 恒久対応 4 の自己一致禁止は `DW-M05`
+  (変異 harness) にあり、`DW-C00` の汎用待ち手条項には掛からない。同じ禁止を `DW-C00` へ入れる
+  150 bytes の追記を試したが、dev-wave の L1 unique footprint は上限 10625 bytes ちょうどで
+  **余白が 0 byte** であり、`check_docs` が 10775 > 10625 で拒否した。予算を上げる提案も、
+  場所を空けるための既存安全義務の削除もしない契約なので、追記は revert して
+  {{T:dev-wave-waiter-pid-rule}} として返した。発火する恒久対応としては memory
+  `waiter-death-check-by-pid` を置き、本 wave の待ち手 3 本を pid 判定で実装した。
 - **引き取りは非破壊で行った。** 旧 worktree は停止 session が lock を保持しており、
   process の停止 (`kill`) も `cp -r` も権限層に拒否された。旧 worktree・旧 branch を非接触のまま、
   local main から `worktree-dev-wave-t139-addendum-b2` を新設して insights 11 ファイルを引き取った。
@@ -73,3 +80,13 @@ title: 停止した追補 B wave を別 session が引き取って完遂した �
   調整済み `p` 値・同時区間・有意セル集合を一意に再生成できないため。**最大の未裁定点は B4**
   (公表手続きの正本をどこで凍結するか)。追補 B は閉集合により正本になれない
   base: 292ce70ea6a8ad628ef9c8f513283afed53ebf18d5c7a5f996cd87a912b72e8d
+
+### 新規
+
+- {{T:dev-wave-waiter-pid-rule}} **P2・ユーザー裁定待ち**: 汎用待ち手の producer 死判定を pid に
+  限る禁止を `DW-C00` へ入れる案。同じ禁止は `DW-M05` にあるが変異 harness の節であり、段 2・3・
+  5・6 で作る待ち手には掛からない。150 bytes の追記に対し dev-wave の L1 unique footprint は
+  上限 10625 bytes ちょうどで余白 0 byte、`check_docs` が 10775 > 10625 で拒否した。
+  択一は (a) 既存 L1 節の意味等価な圧縮を審査して場所を空ける / (b) L1 予算値を独立審査する /
+  (c) memory `waiter-death-check-by-pid` と F32 の記録だけに留め入口へは入れない。
+  現状は (c) で運用している

@@ -18,5 +18,8 @@ seq: 2
   完遂した。同 wave の `wait2.sh` / `wait6.sh` は pattern を script 内へ埋め込んでおり正常終了
   しているため、正例と失敗例が同一 wave 内に揃っている。
   恒久対応: **producer の生死は pid で直接見る** (`kill -0`)。pattern 照合を使うなら
-  待ち手自身の argv に pattern を載せない。`DW-M05` の自己マッチ禁止は変異 harness の節にあり
-  汎用待ち手には掛からなかったため、`DW-C00` の待ち手条項へ同じ禁止を入れた。
+  待ち手自身の argv に pattern を載せない。実体は memory `waiter-death-check-by-pid` と、
+  本 wave の待ち手 3 本 (`s6r3/wait.sh`、`s6r3b/wait.sh`、`accept/wait.sh`) の実装である。
+  `DW-M05` の自己マッチ禁止は変異 harness の節にあり汎用待ち手には掛からない。`DW-C00` の
+  待ち手条項へ同じ禁止を入れる案は L1 予算の余白が 0 byte で入らず、{{T:dev-wave-waiter-pid-rule}}
+  としてユーザー裁定へ返した (予算のために既存の安全義務を削らない)。
