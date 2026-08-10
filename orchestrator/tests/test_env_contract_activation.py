@@ -17,6 +17,7 @@ import sys
 import threading
 from collections.abc import Mapping
 from dataclasses import replace
+from functools import lru_cache
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
 
@@ -66,6 +67,53 @@ FOUR_ENV_CATALOG = MappingProxyType({
     **THREE_ENV_CATALOG,
     "env-d": ((1, H_D1), (2, H_D2), (3, H_D3)),
 })
+_PIN_ENV_COUNT = 65
+
+
+@lru_cache(maxsize=1)
+def _synthetic_registry():
+    base = ec.GENERATIONS["linux-baremetal"][0].contract
+    generations = MappingProxyType({
+        env_tag: tuple(
+            ec.GenerationEntry(
+                generation=generation,
+                contract=replace(
+                    base,
+                    env_tag=env_tag,
+                    calibration_ref=ec.CalibrationRef(
+                        path=(
+                            f"output/synthetic-activation/{env_tag}/"
+                            f"g{generation}.json"
+                        ),
+                        sha256=hashlib.sha256(
+                            f"{env_tag}:g{generation}".encode("ascii")
+                        ).hexdigest(),
+                    ),
+                ),
+            )
+            for generation in range(
+                1,
+                4 if index == _PIN_ENV_COUNT - 1 else 3,
+            )
+        )
+        for index, env_tag in enumerate(
+            f"pin-env-{index:03d}" for index in range(_PIN_ENV_COUNT)
+        )
+    })
+    ec.validate_generations(generations)
+    catalog = MappingProxyType({
+        env_tag: tuple(
+            (entry.generation, entry.contract.contract_sha256)
+            for entry in sequence
+        )
+        for env_tag, sequence in generations.items()
+    })
+    return generations, catalog
+
+
+_PIN_GENERATIONS, _PIN_CATALOG = _synthetic_registry()
+_PIN_ENV_TAGS = tuple(sorted(_PIN_GENERATIONS))
+_LAST_PIN_ENV_TAG = _PIN_ENV_TAGS[-1]
 
 
 def _is_synthetic_successor(
@@ -150,6 +198,57 @@ def _chain(
         records.append((f"{serial:08d}.json", _raw(head)))
         previous = head["activation_state_sha256"]
     return tuple(records), head
+
+
+def _write_raw_records(directory: Path, records) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for filename, raw in records:
+        (directory / filename).write_bytes(raw)
+
+
+def _initial_state_from_head(head: dict[str, object]) -> activation.ActivationState:
+    rows = tuple(
+        activation.ActiveContract(
+            env_tag=row["env_tag"],
+            generation=row["generation"],
+            contract_sha256=row["contract_sha256"],
+        )
+        for row in head["active_contracts"]
+    )
+    return activation.ActivationState(
+        activation_serial=head["activation_serial"],
+        activation_state_sha256=head["activation_state_sha256"],
+        active_contracts=rows,
+        ever_active_contract_sha256s=frozenset(
+            row.contract_sha256 for row in rows
+        ),
+    )
+
+
+def _active_argv(
+    env_tags: tuple[str, ...],
+    target_generations: tuple[int, ...],
+) -> list[str]:
+    assert len(env_tags) == len(target_generations) == _PIN_ENV_COUNT
+    argv = [
+        part
+        for env_tag, generation in zip(env_tags, target_generations)
+        for part in ("--active", f"{env_tag}={generation}")
+    ]
+    assert argv.count("--active") == _PIN_ENV_COUNT
+    assert len(argv) == 2 * _PIN_ENV_COUNT
+    return argv
+
+
+def _entry_names(directory: Path) -> frozenset[str]:
+    return frozenset(entry.name for entry in directory.iterdir())
+
+
+def _entry_sha256s(directory: Path) -> dict[str, str]:
+    return {
+        entry.name: hashlib.sha256(entry.read_bytes()).hexdigest()
+        for entry in directory.iterdir()
+    }
 
 
 def _validate(
@@ -1562,6 +1661,142 @@ def test_production_loader_passes_source_head_constants_to_leaf(monkeypatch):
     )
 
 
+def test_production_loader_rejects_generation_skip_at_last_of_65_envs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    authority = tmp_path / "authority"
+    records, head = _chain(
+        (1,) * _PIN_ENV_COUNT,
+        (2,) * (_PIN_ENV_COUNT - 1) + (3,),
+        registered_contracts=_PIN_CATALOG,
+    )
+    _write_raw_records(authority, records)
+    monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
+    monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", _PIN_CATALOG)
+
+    with _use_authority(monkeypatch, authority, head):
+        with pytest.raises(ec.EnvContractError) as exc_info:
+            ec.current_activation_state()
+    message = str(exc_info.value)
+    assert "activation authority 検証失敗" in message
+    assert "exactly +1" in message
+    assert _LAST_PIN_ENV_TAG in message
+    assert "g1 -> g3" in message
+
+
+def test_production_loader_rejects_invalid_successor_at_last_of_65_changed_envs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    authority = tmp_path / "authority"
+    records, head = _chain(
+        (1,) * _PIN_ENV_COUNT,
+        (2,) * _PIN_ENV_COUNT,
+        registered_contracts=_PIN_CATALOG,
+    )
+    _write_raw_records(authority, records)
+    original_is_valid_successor = ec.is_valid_successor
+
+    def reject_last_successor(predecessor, successor):
+        if successor.env_tag == _LAST_PIN_ENV_TAG:
+            return False
+        return original_is_valid_successor(predecessor, successor)
+
+    monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
+    monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", _PIN_CATALOG)
+    monkeypatch.setattr(ec, "is_valid_successor", reject_last_successor)
+
+    with _use_authority(monkeypatch, authority, head):
+        with pytest.raises(ec.EnvContractError) as exc_info:
+            ec.current_activation_state()
+    message = str(exc_info.value)
+    assert "activation authority 検証失敗" in message
+    assert "successor でない" in message
+    assert _LAST_PIN_ENV_TAG in message
+
+
+def test_loader_leaf_rejects_generation_skip_at_last_of_65_envs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    authority = tmp_path / "authority"
+    records, head = _chain(
+        (1,) * _PIN_ENV_COUNT,
+        (2,) * (_PIN_ENV_COUNT - 1) + (3,),
+        registered_contracts=_PIN_CATALOG,
+    )
+    _write_raw_records(authority, records)
+    monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
+
+    with pytest.raises(activation.ActivationRecordError) as exc_info:
+        activation.load_activation_state(
+            authority,
+            registered_contracts=_PIN_CATALOG,
+            is_valid_registered_successor=ec._is_valid_activation_successor,
+            expected_head_serial=head["activation_serial"],
+            expected_head_state_sha256=head["activation_state_sha256"],
+        )
+    message = str(exc_info.value)
+    assert "exactly +1" in message
+    assert _LAST_PIN_ENV_TAG in message
+    assert "g1 -> g3" in message
+
+
+def test_loader_leaf_rejects_invalid_successor_at_last_of_65_changed_envs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    authority = tmp_path / "authority"
+    records, head = _chain(
+        (1,) * _PIN_ENV_COUNT,
+        (2,) * _PIN_ENV_COUNT,
+        registered_contracts=_PIN_CATALOG,
+    )
+    _write_raw_records(authority, records)
+    original_is_valid_successor = ec.is_valid_successor
+
+    def reject_last_successor(predecessor, successor):
+        if successor.env_tag == _LAST_PIN_ENV_TAG:
+            return False
+        return original_is_valid_successor(predecessor, successor)
+
+    monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
+    monkeypatch.setattr(ec, "is_valid_successor", reject_last_successor)
+
+    with pytest.raises(activation.ActivationRecordError) as exc_info:
+        activation.load_activation_state(
+            authority,
+            registered_contracts=_PIN_CATALOG,
+            is_valid_registered_successor=ec._is_valid_activation_successor,
+            expected_head_serial=head["activation_serial"],
+            expected_head_state_sha256=head["activation_state_sha256"],
+        )
+    message = str(exc_info.value)
+    assert "successor でない" in message
+    assert _LAST_PIN_ENV_TAG in message
+
+
+def test_loader_leaf_accepts_65_env_plus_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    authority = tmp_path / "authority"
+    records, head = _chain(
+        (1,) * _PIN_ENV_COUNT,
+        (2,) * _PIN_ENV_COUNT,
+        registered_contracts=_PIN_CATALOG,
+    )
+    _write_raw_records(authority, records)
+    monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
+
+    state = activation.load_activation_state(
+        authority,
+        registered_contracts=_PIN_CATALOG,
+        is_valid_registered_successor=ec._is_valid_activation_successor,
+        expected_head_serial=head["activation_serial"],
+        expected_head_state_sha256=head["activation_state_sha256"],
+    )
+    assert state.activation_serial == 2
+    assert len(state.active_contracts) == _PIN_ENV_COUNT
+    assert all(row.generation == 2 for row in state.active_contracts)
+
+
 def test_pegasus_g2_authorization_reaches_certified_sink_without_lookup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
@@ -2152,6 +2387,165 @@ def test_issue_main_rejects_noop_without_publishing(
     assert exc_info.value.code == 1
     assert "no-op" in capsys.readouterr().err
     assert not (authority / "00000002.json").exists()
+
+
+def test_issue_main_rejects_generation_skip_at_last_of_65_envs_without_publishing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+):
+    issuer = _load_issue_tool()
+    authority = tmp_path / "authority"
+    records, head = _chain(
+        (1,) * _PIN_ENV_COUNT,
+        registered_contracts=_PIN_CATALOG,
+    )
+    _write_raw_records(authority, records)
+    initial_state = _initial_state_from_head(head)
+    target_generations = (2,) * (_PIN_ENV_COUNT - 1) + (3,)
+    argv = _active_argv(_PIN_ENV_TAGS, target_generations)
+    activation_state_calls = []
+
+    def current_activation_state_spy():
+        activation_state_calls.append(None)
+        return initial_state
+
+    monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
+    monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", _PIN_CATALOG)
+    monkeypatch.setattr(ec, "current_activation_state", current_activation_state_spy)
+    monkeypatch.setattr(
+        ec, "_ACTIVATION_DIRECTORY", PurePosixPath(authority.as_posix())
+    )
+    monkeypatch.setattr(
+        issuer, "__file__", str(tmp_path / "tools/issue_env_contract_activation.py")
+    )
+
+    published = authority / "00000002.json"
+    assert not published.exists()
+    real_authority = (
+        REPO_ROOT / "orchestrator/campaign/env_contract_activations"
+    )
+    real_entries_before = _entry_sha256s(real_authority)
+    sys_path_before = tuple(sys.path)
+    try:
+        with pytest.raises(SystemExit) as exc_info:
+            issuer.main(argv)
+    finally:
+        sys.path[:] = sys_path_before
+        assert _entry_sha256s(real_authority) == real_entries_before
+        assert activation_state_calls == [None]
+    assert exc_info.value.code == 1
+    error = capsys.readouterr().err
+    assert "exactly +1" in error
+    assert _LAST_PIN_ENV_TAG in error
+    assert "g1 -> g3" in error
+    assert not published.exists()
+
+
+def test_issue_main_rejects_invalid_successor_at_last_of_65_changed_envs_without_publishing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+):
+    issuer = _load_issue_tool()
+    authority = tmp_path / "authority"
+    records, head = _chain(
+        (1,) * _PIN_ENV_COUNT,
+        registered_contracts=_PIN_CATALOG,
+    )
+    _write_raw_records(authority, records)
+    initial_state = _initial_state_from_head(head)
+    argv = _active_argv(_PIN_ENV_TAGS, (2,) * _PIN_ENV_COUNT)
+    original_is_valid_successor = ec.is_valid_successor
+    activation_state_calls = []
+
+    def current_activation_state_spy():
+        activation_state_calls.append(None)
+        return initial_state
+
+    def reject_last_successor(predecessor, successor):
+        if successor.env_tag == _LAST_PIN_ENV_TAG:
+            return False
+        return original_is_valid_successor(predecessor, successor)
+
+    monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
+    monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", _PIN_CATALOG)
+    monkeypatch.setattr(ec, "current_activation_state", current_activation_state_spy)
+    monkeypatch.setattr(
+        ec, "_ACTIVATION_DIRECTORY", PurePosixPath(authority.as_posix())
+    )
+    monkeypatch.setattr(ec, "is_valid_successor", reject_last_successor)
+    monkeypatch.setattr(
+        issuer, "__file__", str(tmp_path / "tools/issue_env_contract_activation.py")
+    )
+
+    published = authority / "00000002.json"
+    assert not published.exists()
+    real_authority = (
+        REPO_ROOT / "orchestrator/campaign/env_contract_activations"
+    )
+    real_entries_before = _entry_sha256s(real_authority)
+    sys_path_before = tuple(sys.path)
+    try:
+        with pytest.raises(SystemExit) as exc_info:
+            issuer.main(argv)
+    finally:
+        sys.path[:] = sys_path_before
+        assert _entry_sha256s(real_authority) == real_entries_before
+        assert activation_state_calls == [None]
+    assert exc_info.value.code == 1
+    error = capsys.readouterr().err
+    assert "successor でない" in error
+    assert _LAST_PIN_ENV_TAG in error
+    assert not published.exists()
+
+
+def test_issue_main_accepts_65_env_plus_one_and_publishes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    issuer = _load_issue_tool()
+    authority = tmp_path / "authority"
+    records, head = _chain(
+        (1,) * _PIN_ENV_COUNT,
+        registered_contracts=_PIN_CATALOG,
+    )
+    _write_raw_records(authority, records)
+    initial_state = _initial_state_from_head(head)
+    argv = _active_argv(_PIN_ENV_TAGS, (2,) * _PIN_ENV_COUNT)
+    activation_state_calls = []
+
+    def current_activation_state_spy():
+        activation_state_calls.append(None)
+        return initial_state
+
+    monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
+    monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", _PIN_CATALOG)
+    monkeypatch.setattr(ec, "current_activation_state", current_activation_state_spy)
+    monkeypatch.setattr(
+        ec, "_ACTIVATION_DIRECTORY", PurePosixPath(authority.as_posix())
+    )
+    monkeypatch.setattr(
+        issuer, "__file__", str(tmp_path / "tools/issue_env_contract_activation.py")
+    )
+
+    real_authority = (
+        REPO_ROOT / "orchestrator/campaign/env_contract_activations"
+    )
+    real_entries_before = _entry_sha256s(real_authority)
+    sys_path_before = tuple(sys.path)
+    try:
+        result = issuer.main(argv)
+    finally:
+        sys.path[:] = sys_path_before
+        assert _entry_sha256s(real_authority) == real_entries_before
+        assert activation_state_calls == [None]
+
+    assert result == 0
+    published = authority / "00000002.json"
+    raw = published.read_bytes()
+    document = json.loads(raw)
+    assert raw == activation.canonical_record_bytes(document) + b"\n"
+    assert document["activation_serial"] == 2
+    assert len(document["active_contracts"]) == _PIN_ENV_COUNT
+    assert all(
+        row["generation"] == 2 for row in document["active_contracts"]
+    )
 
 
 def _run() -> int:
