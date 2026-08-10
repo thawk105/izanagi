@@ -5,11 +5,11 @@
 
 ## DW-O01 — codex subprocess 起動
 
-`codex exec -m <model> -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach する。
-投入前に prompt の非空を検査し、既存 `.done` は消さず再利用せず再投入を止め、完了は `.done` と exit code だけで判定する。
-ログの grep も完了通知も判定にしてはならず（通知は子より先行しうる）、
-成果物は `-o` の最終メッセージから読む（F23/F24）。
-採用条件 = `tools/check_codex_output.py <出力>.md` の rc=0（prompt に `## 総括` を義務付ける。F43）。
+`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus が docs 権威から導出。caller 指定は不可。
+`bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach。
+prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再投入を止め、完了は `.done` と exit code だけで判定。
+grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
+採用は `tools/check_codex_output.py` の rc=0（prompt は `## 総括` 必須。F43）。
 `<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、他段 `gpt-5.6-sol`。
 
 ## DW-O02 — job artifact
@@ -101,7 +101,8 @@ trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage fi
 cwd を必ず repo root にする。nested subprocess の import path による偽赤を、差分の回帰として扱わない。
 差分が到達しえないファイルで出た赤は、単独再走で再現性を実測してから扱う。
 再現しなければ実装差分へ帰属せず、フレークとして新規所見に起票する。
-測定値は測った checkout を併記する（F41）。
+測定値は測った checkout を併記する（F41）。並行 wave が自分の編集 file を所有すると判明している
+wave では、受入全走の前に main を取り込んだ木で焦点 node を 1 度走らせる。
 
 ## DW-O19 — tracked file の一時変異
 

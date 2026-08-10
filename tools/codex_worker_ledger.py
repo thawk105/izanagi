@@ -118,14 +118,32 @@ _ROLLOUT_SESSION_RE = re.compile(
     r"[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$",
     re.ASCII,
 )
-_MANIFEST_FIELDS = {
+_MANIFEST_FIELDS_V1 = {
     "schema_version",
     "wave_id",
     "repo_root",
     "base_commit",
     "sessions",
 }
-_MANIFEST_SESSION_FIELDS = {"job_id", "attempt_index", "session_id"}
+_MANIFEST_SESSION_FIELDS_V1 = {"job_id", "attempt_index", "session_id"}
+_MANIFEST_FIELDS_V2 = {"schema_version", "wave_id", "sessions"}
+_MANIFEST_SESSION_FIELDS_V2 = {
+    "job_id",
+    "attempt_index",
+    "session_id",
+    "stage",
+    "lane",
+    "repo_root",
+    "base_commit",
+    "requested_cwd",
+    "recorded_cwd",
+    "sessions_root",
+    "receipt_path",
+    "authority_commit",
+    "authority_digest",
+}
+_MANIFEST_SHA256_RE = re.compile(r"[0-9a-f]{64}", re.ASCII)
+_MANIFEST_STAGES = {"plan", "consult", "author", "review", "fix", "focus"}
 
 
 class _ManifestError(ValueError):
@@ -275,26 +293,31 @@ def _load_manifest(path: Path) -> dict[str, Any]:
         )
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise _ManifestError("manifest JSON が不正") from exc
-    manifest = _require_exact_fields(
-        parsed, _MANIFEST_FIELDS, location="manifest"
-    )
-    schema_version = manifest["schema_version"]
+    if not isinstance(parsed, dict):
+        raise _ManifestError("manifest is not an object")
+    schema_version = parsed.get("schema_version")
     if (
         isinstance(schema_version, bool)
         or not isinstance(schema_version, int)
-        or schema_version != 1
+        or schema_version not in (1, 2)
     ):
-        raise _ManifestError("manifest.schema_version must be integer 1")
+        raise _ManifestError("manifest.schema_version must be integer 1 or 2")
+    manifest = _require_exact_fields(
+        parsed,
+        _MANIFEST_FIELDS_V1 if schema_version == 1 else _MANIFEST_FIELDS_V2,
+        location="manifest",
+    )
     _manifest_identifier(manifest["wave_id"], location="manifest.wave_id")
-    repo_root = manifest["repo_root"]
-    if not isinstance(repo_root, str) or not os.path.isabs(repo_root):
-        raise _ManifestError("manifest.repo_root must be an absolute path")
-    base_commit = manifest["base_commit"]
-    if (
-        not isinstance(base_commit, str)
-        or _MANIFEST_COMMIT_RE.fullmatch(base_commit) is None
-    ):
-        raise _ManifestError("manifest.base_commit must be lowercase hex40")
+    if schema_version == 1:
+        repo_root = manifest["repo_root"]
+        if not isinstance(repo_root, str) or not os.path.isabs(repo_root):
+            raise _ManifestError("manifest.repo_root must be an absolute path")
+        base_commit = manifest["base_commit"]
+        if (
+            not isinstance(base_commit, str)
+            or _MANIFEST_COMMIT_RE.fullmatch(base_commit) is None
+        ):
+            raise _ManifestError("manifest.base_commit must be lowercase hex40")
     sessions = manifest["sessions"]
     if not isinstance(sessions, list):
         raise _ManifestError("manifest.sessions is not an array")
@@ -302,10 +325,17 @@ def _load_manifest(path: Path) -> dict[str, Any]:
         raise _ManifestError("manifest.sessions must contain 1..1024 entries")
     seen_attempts: set[tuple[str, int]] = set()
     seen_sessions: set[str] = set()
+    job_identities: dict[str, tuple[Any, ...]] = {}
     for index, raw_session in enumerate(sessions):
         location = f"manifest.sessions[{index}]"
         session = _require_exact_fields(
-            raw_session, _MANIFEST_SESSION_FIELDS, location=location
+            raw_session,
+            (
+                _MANIFEST_SESSION_FIELDS_V1
+                if schema_version == 1
+                else _MANIFEST_SESSION_FIELDS_V2
+            ),
+            location=location,
         )
         job_id = _manifest_identifier(
             session["job_id"], location=f"{location}.job_id"
@@ -337,6 +367,61 @@ def _load_manifest(path: Path) -> dict[str, Any]:
             raise _ManifestError(f"duplicate session_id: {session_id}")
         seen_attempts.add(attempt_key)
         seen_sessions.add(session_id)
+        if schema_version == 2:
+            stage = session["stage"]
+            lane = session["lane"]
+            if stage not in _MANIFEST_STAGES:
+                raise _ManifestError(f"{location}.stage is invalid")
+            if (stage == "consult") != (lane in ("sol", "luna")):
+                raise _ManifestError(f"{location}.lane is invalid")
+            for field in (
+                "repo_root",
+                "requested_cwd",
+                "sessions_root",
+                "receipt_path",
+            ):
+                value = session[field]
+                if not isinstance(value, str) or not os.path.isabs(value):
+                    raise _ManifestError(f"{location}.{field} must be absolute")
+            recorded_cwd = session["recorded_cwd"]
+            if recorded_cwd is not None and (
+                not isinstance(recorded_cwd, str)
+                or not os.path.isabs(recorded_cwd)
+            ):
+                raise _ManifestError(
+                    f"{location}.recorded_cwd must be absolute or null"
+                )
+            for field in ("base_commit", "authority_commit"):
+                value = session[field]
+                if (
+                    not isinstance(value, str)
+                    or _MANIFEST_COMMIT_RE.fullmatch(value) is None
+                ):
+                    raise _ManifestError(f"{location}.{field} must be hex40")
+            if (
+                not isinstance(session["authority_digest"], str)
+                or _MANIFEST_SHA256_RE.fullmatch(session["authority_digest"])
+                is None
+            ):
+                raise _ManifestError(f"{location}.authority_digest must be sha256")
+            identity = tuple(
+                session[field]
+                for field in (
+                    "stage",
+                    "lane",
+                    "repo_root",
+                    "base_commit",
+                    "requested_cwd",
+                    "recorded_cwd",
+                    "sessions_root",
+                    "receipt_path",
+                    "authority_commit",
+                    "authority_digest",
+                )
+            )
+            if job_id in job_identities and job_identities[job_id] != identity:
+                raise _ManifestError("same job retry identity differs")
+            job_identities[job_id] = identity
     return manifest
 
 
@@ -361,6 +446,7 @@ def _new_record(path: Path) -> dict[str, Any]:
         "session_metas": [],
         "model": "",
         "reasoning": "",
+        "lane": None,
         "prompt": "",
         "model_calls": 0,
         "turn_contexts": 0,
@@ -385,6 +471,7 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
     record = _new_record(path)
     issues: dict[str, list[str]] = {}
     first_turn_context: tuple[str, str] | None = None
+    turn_context_rows: list[tuple[str, tuple[str, str], bool]] = []
     previous_cumulative_total: int | None = None
     previous_cumulative_usage: dict[str, int] | None = None
     with path.open("rb") as stream:
@@ -439,22 +526,26 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
                 continue
             if item_type == "turn_context":
                 record["turn_contexts"] += 1
-                model = str(payload.get("model", item.get("model", "")))
-                reasoning = str(
-                    payload.get("effort", item.get("effort", ""))
+                raw_model = payload.get("model")
+                raw_reasoning = payload.get("effort")
+                has_authority = bool(
+                    isinstance(raw_model, str)
+                    and raw_model
+                    and isinstance(raw_reasoning, str)
+                    and raw_reasoning
+                )
+                model = raw_model if isinstance(raw_model, str) else ""
+                reasoning = (
+                    raw_reasoning if isinstance(raw_reasoning, str) else ""
                 )
                 context = (model, reasoning)
+                turn_context_rows.append(
+                    (line_location, context, has_authority)
+                )
                 if first_turn_context is None:
                     first_turn_context = context
                     record["model"] = model
                     record["reasoning"] = reasoning
-                elif context != first_turn_context:
-                    issues.setdefault(
-                        "inconsistent_turn_context", []
-                    ).append(
-                        f"{line_location}: "
-                        f"{context!r} != {first_turn_context!r}"
-                    )
                 continue
             if item_type != "event_msg":
                 continue
@@ -545,6 +636,25 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
     record["cumulative_minus_per_turn"] = (
         record["cli_reported"] - record["per_turn_sum"]
     )
+    if turn_context_rows:
+        authoritative = [
+            (location, context)
+            for location, context, has_authority in turn_context_rows
+            if has_authority
+        ]
+        if not authoritative:
+            issues["missing_turn_context_authority"] = [
+                location for location, _context, _valid in turn_context_rows
+            ]
+        else:
+            reference = authoritative[0][1]
+            inconsistent = [
+                f"{location}: {context!r} != {reference!r}"
+                for location, context, has_authority in turn_context_rows
+                if not has_authority or context != reference
+            ]
+            if inconsistent:
+                issues["inconsistent_turn_context"] = inconsistent
     return record, issues
 
 
@@ -837,7 +947,7 @@ def _public_record(
         "session_id",
     ]
     if manifest_mode:
-        keys.extend(("job_id", "attempt_index"))
+        keys.extend(("job_id", "attempt_index", "lane"))
     keys.extend(
         (
             "stage",
@@ -932,6 +1042,7 @@ def _strict_messages(issues: dict[str, list[str]]) -> list[str]:
         "usage_cached_exceeds_input": "cached input exceeds input usage",
         "usage_cumulative_rollback": "cumulative usage rollback",
         "inconsistent_turn_context": "inconsistent turn_context",
+        "missing_turn_context_authority": "missing turn_context payload authority",
         "non_monotonic_cumulative": "non-monotonic cumulative usage",
         "missing_session_meta": "missing session_meta files",
         "missing_session_cwd": "missing session_meta.cwd",
@@ -951,6 +1062,7 @@ def _strict_messages(issues: dict[str, list[str]]) -> list[str]:
         "usage_cached_exceeds_input",
         "usage_cumulative_rollback",
         "inconsistent_turn_context",
+        "missing_turn_context_authority",
         "non_monotonic_cumulative",
         "missing_session_meta",
         "missing_session_cwd",
@@ -1025,6 +1137,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             manifest_session = manifest_sessions[filename_session_id]
             record["job_id"] = manifest_session["job_id"]
             record["attempt_index"] = manifest_session["attempt_index"]
+            if manifest["schema_version"] == 2:
+                record["manifest_stage"] = manifest_session["stage"]
+                record["lane"] = manifest_session["lane"]
             has_session_meta = True
             has_cwd = record["session_meta_has_cwd"]
         else:
@@ -1075,7 +1190,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     for session_id in sorted(set(stage_map) - known_ids_all):
         issues.setdefault("unknown_stage_map_session", []).append(session_id)
     for record in records:
-        if record["session_id"] in stage_map:
+        if manifest_mode and manifest["schema_version"] == 2:
+            record["stage"] = record["manifest_stage"]
+            stage_matches = ()
+        elif record["session_id"] in stage_map:
             record["stage"] = stage_map[record["session_id"]]
             stage_matches: tuple[str, ...] = ()
         else:
