@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-10
 wave: dev-wave-t510-ruleops-git-budget
 seq: 1
-title: ruleops の git timeout を作業量比例の上限付き予算へ変えた ([T-510]) — 律速の同定は親 brief が誤っており、一次資料と実測で 2 経路へ訂正した (コード + docs、受入 7881 passed / 20 skipped / 503.73 秒 / rc=0、変異 16/16 KILLED・SURVIVED 0、branch worktree-dev-wave-t510-ruleops-git-budget)
+title: ruleops の git timeout を作業量比例の上限付き予算へ変えた ([T-510]) — 律速の同定は親 brief が誤っており、一次資料と実測で 2 経路へ訂正した (コード + docs、受入 2 走とも rc=0 (7912 passed / 20 skipped / 446.41 秒)、変異 16/16 KILLED・SURVIVED 0、branch worktree-dev-wave-t510-ruleops-git-budget)
 ---
 
 ## 本文
@@ -76,15 +76,19 @@ title: ruleops の git timeout を作業量比例の上限付き予算へ変え�
   それが実走で完全一致した。変異走行では real-repo テスト 1 件を `-k` で除いている
   (1 走 70 秒のほぼ全てを占め、どの変異も対象にしていないため。意図的な絞り込みである)。
 
-- **受入全走は 1 走で完全な緑になった。** `7881 passed / 20 skipped / 0 failed / rc=0`
-  (request `899755.nqsv`、503.73 秒、tip `b1637998`)。F57 族の `git-timeout` は出ていない。
-  **ただし 1 回の緑は「稀な尾部事象が来ても落ちない」ことの証拠ではない。** 本 wave が示せたのは
+- **受入全走は 2 走ともいきなり完全な緑だった。** 1 走目は
+  `7881 passed / 20 skipped / 0 failed / rc=0` (request `899755.nqsv`、503.73 秒、tip `b1637998`)。
+  **1 走目の直後に main が `dce4ae4f` へ進んだため、取り込んで 2 走目を測り直した** —
+  `7912 passed / 20 skipped / 0 failed / rc=0` (446.41 秒、tip `b2664435`)。
+  F57 族の `git-timeout` はどちらにも出ていない。
+  **ただし 2 回の緑は「稀な尾部事象が来ても落ちない」ことの証拠ではない。** 本 wave が示せたのは
   予算化して赤が増えていないことと、観測された 2 経路の余裕が 33〜46 倍から 171〜238 倍へ
   上がったことまでである。
 
-- **受入を測った tip は land する tip と一致しない見込みである。** lease 取得は main
-  `dce4ae4f` を見て行ったが、worktree は直前に `4fd852dc` を取り込んだ状態で測った。
-  記録 commit を上に載せる分と併せ、差分の性質をここに明示する。
+- **受入を測った tip は `b2664435` で、land する tip はその上に本記録の docs-only commit を
+  1 つ載せたものである。** 記録が受入値を含む以上、厳密一致は記録 commit ごとの再走を要する
+  無限後退になるため、台帳の慣行に従って差分の性質をここに明示する。
+  最終 tip では実 repo の docs を読むテスト 2 file を実走した ([T-648] の免除証拠規則)。
 
 - **段 8 自己改善は候補 3 件、`docs/dev-wave/**` への採用 0 件。**
   (候補 1) `DW-S01` の一次資料条項へ failures 台帳を足す — F1 再発の恒久対応。
@@ -104,7 +108,7 @@ title: ruleops の git timeout を作業量比例の上限付き予算へ変え�
 ### 完了
 
 - [T-510] `tools/ruleops.py` の固定 git timeout を subcommand 別の作業量比例予算へ置き換えた。
-  受入 7881 passed / 20 skipped / rc=0、変異 16/16 KILLED。律速の同定が親 brief の誤りであった
+  受入 2 走とも rc=0 (最終 7912 passed / 20 skipped)、変異 16/16 KILLED。律速の同定が親 brief の誤りであった
   こと、および「受入全走を安定な緑へ戻す」が本 wave 単独では達成されないことは本文の留保に記録した。
   remaining: none
   base: 44cb961a1f668300ab7baa6673d4a4d166286ca96c74220ecd566f0b33ba7324
