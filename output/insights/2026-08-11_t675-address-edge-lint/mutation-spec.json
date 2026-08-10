@@ -1,0 +1,156 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if rel == \".claude/commands/cleanup-branches.md\":",
+          "new": "        if False and rel == \".claude/commands/cleanup-branches.md\":"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_split_lines",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_id_adjacent_decoy",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_non_code_span_path_decoy",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_raw_html_block",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_link_definition",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_frontmatter_decoy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "re.search(r\"(?<![0-9A-Za-z])F26(?![0-9A-Za-z])\", line)",
+          "new": "(\"F26\" in line)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_id_adjacent_decoy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "and \"`docs/failures.md`\" in line",
+          "new": "and \"docs/failures.md\" in line"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_non_code_span_path_decoy",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_link_definition"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "for line in _visible_dispatch_inventory_text(command_body).splitlines()",
+          "new": "for line in command_body.splitlines()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_raw_html_block"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            if not any(\n                re.search(r\"(?<![0-9A-Za-z])F26(?![0-9A-Za-z])\", line)",
+          "new": "            if any(\n                re.search(r\"(?<![0-9A-Za-z])F26(?![0-9A-Za-z])\", line)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_split_lines",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_id_adjacent_decoy",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_non_code_span_path_decoy",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_raw_html_block",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_link_definition",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_frontmatter_decoy",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_accepts_rewording",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_accepts_baseline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if rel == \".claude/commands/cleanup-branches.md\":",
+          "new": "        if rel == \".claude/commands/dev-wave.md\":"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_split_lines",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_id_adjacent_decoy",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_non_code_span_path_decoy",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_raw_html_block",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_link_definition",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_frontmatter_decoy",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_accepts_rewording",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_accepts_baseline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "for line in _visible_dispatch_inventory_text(command_body).splitlines()",
+          "new": "for line in _visible_markdown_text(command_body).splitlines()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_raw_html_block"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "                    command_body = \"\\n\".join(command_lines[frontmatter_end + 1:])",
+          "new": "                    command_body = text"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_address_edge_rejects_frontmatter_decoy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

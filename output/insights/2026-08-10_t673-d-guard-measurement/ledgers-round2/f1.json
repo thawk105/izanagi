@@ -1,0 +1,908 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1940dbb99a85f54cca7105738aca159d/izdw-1940dbb99a.o900823",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1940dbb99a85f54cca7105738aca159d/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.44s\n",
+      "stdout_sha256": "bfc6b21a49974a3d855c91e6971d5ff608f6876d08f5c1042eab8076cf9d6837"
+    },
+    "artifact_error": null,
+    "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+    "duration_s": 26.789,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "5a337ebc80681a6ab48ce00288fc2fdb10e2d2264ad5a610d38c09762ec02535",
+    "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+    "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+    "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+    "status": "PASSED",
+    "test_output_sha256": "bfc6b21a49974a3d855c91e6971d5ff608f6876d08f5c1042eab8076cf9d6837",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+  },
+  "date": "2026-08-10T14:07:40.897638+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/40bf853d376e717b39218f1788e26889/izdw-40bf853d37.o900824",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/40bf853d376e717b39218f1788e26889/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________________ test_transition_rejects_fourth_env_downgrade _________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_fourth_env_downgrade():\n        records, head = _chain(\n            (1, 1, 1, 2),\n            (2, 2, 2, 1),\n            registered_contracts=FOUR_ENV_CATALOG,\n        )\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*env-d.*g2 -> g1\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'exactly \\\\+1.*env-d.*g2 -> g1'\nE         Actual message: 'activation transition scan count mismatch: site=G expected=4 observed=1 serial=2'\n\norchestrator/tests/test_env_contract_activation.py:577: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\n1 failed, 1 passed in 2.42s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=675 retained_bytes=675 omitted_bytes=0 rendered_excerpt_bytes=719 sha256=4d807ac35e3e8584ce35f140bd844b081192f51e225550d43a0ff1c774fff3e0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_rejects_fourth_env_downgrade():\n>         records, head = _chain(\n>             (1, 1, 1, 2),\n>             (2, 2, 2, 1),\n>             registered_contracts=FOUR_ENV_CATALOG,\n>         )\n> >       with pytest.raises(\n>             activation.ActivationRecordError,\n>             match=r\"exactly \\x5c+1.*env-d.*g2 -> g1\",\n>         ):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'exactly \\x5c\\x5c+1.*env-d.*g2 -> g1'\n> E         Actual message: 'activation transition scan count mismatch: site=G expected=4 observed=1 serial=2'\n> \n> orchestrator/tests/test_env_contract_activation.py:577: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=675 retained_bytes=675 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1437 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "95671a436de9a8699c40a783d042178f1edff5a9c1bc24a8c052c59837dfaf0b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 21.785,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+      ],
+      "hang_risk": false,
+      "id": "F1-G-N1",
+      "injection_diff_sha256": "f9187f0c324a2d92e4fd6759dc3009d0af8c4aec365cf47b435e2238ce0cb08d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "574ebdcc3e513925c4a1ca27cee8fae4ca774d5f7d4f7dde814e3ca9d8ac873b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:1]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "KILLED",
+      "test_output_sha256": "95671a436de9a8699c40a783d042178f1edff5a9c1bc24a8c052c59837dfaf0b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f99757946fcc8de7c1eb620a8f18d946/izdw-f99757946f.o900826",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f99757946fcc8de7c1eb620a8f18d946/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________________ test_transition_rejects_fourth_env_downgrade _________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_fourth_env_downgrade():\n        records, head = _chain(\n            (1, 1, 1, 2),\n            (2, 2, 2, 1),\n            registered_contracts=FOUR_ENV_CATALOG,\n        )\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*env-d.*g2 -> g1\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'exactly \\\\+1.*env-d.*g2 -> g1'\nE         Actual message: 'activation transition scan count mismatch: site=G expected=4 observed=2 serial=2'\n\norchestrator/tests/test_env_contract_activation.py:577: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\n1 failed, 1 passed in 2.54s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=675 retained_bytes=675 omitted_bytes=0 rendered_excerpt_bytes=719 sha256=2bd28ceb48c30210ac1646cd747fdbd8e4864ce4ef963b3aad6b0709afcaa333\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_rejects_fourth_env_downgrade():\n>         records, head = _chain(\n>             (1, 1, 1, 2),\n>             (2, 2, 2, 1),\n>             registered_contracts=FOUR_ENV_CATALOG,\n>         )\n> >       with pytest.raises(\n>             activation.ActivationRecordError,\n>             match=r\"exactly \\x5c+1.*env-d.*g2 -> g1\",\n>         ):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'exactly \\x5c\\x5c+1.*env-d.*g2 -> g1'\n> E         Actual message: 'activation transition scan count mismatch: site=G expected=4 observed=2 serial=2'\n> \n> orchestrator/tests/test_env_contract_activation.py:577: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=675 retained_bytes=675 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1437 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9fc54070791b1c877b44f0fc623c689e97e6bfe372b8b5281783777b4b67a980"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.874,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+      ],
+      "hang_risk": false,
+      "id": "F1-G-N2",
+      "injection_diff_sha256": "f1ce4a0808eb26db12da98c7cb6b8daf880972f7e118513899312dcfa727a728",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "55c2360a197d444b855a5d9c61defcb1b908f7c5be9761ec846db61652fa0d28",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:2]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "KILLED",
+      "test_output_sha256": "9fc54070791b1c877b44f0fc623c689e97e6bfe372b8b5281783777b4b67a980",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/193d2ecf18e94854d2207a2e80d6782d/izdw-193d2ecf18.o900828",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/193d2ecf18e94854d2207a2e80d6782d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________________ test_transition_rejects_fourth_env_downgrade _________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_transition_rejects_fourth_env_downgrade():\n        records, head = _chain(\n            (1, 1, 1, 2),\n            (2, 2, 2, 1),\n            registered_contracts=FOUR_ENV_CATALOG,\n        )\n>       with pytest.raises(\n            activation.ActivationRecordError,\n            match=r\"exactly \\+1.*env-d.*g2 -> g1\",\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'exactly \\\\+1.*env-d.*g2 -> g1'\nE         Actual message: 'activation transition scan count mismatch: site=G expected=4 observed=3 serial=2'\n\norchestrator/tests/test_env_contract_activation.py:577: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\n1 failed, 1 passed in 2.44s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=675 retained_bytes=675 omitted_bytes=0 rendered_excerpt_bytes=719 sha256=838936bbd0931290e88664e015c524d1ba22ec04c34502bddc292615a99770d8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_transition_rejects_fourth_env_downgrade():\n>         records, head = _chain(\n>             (1, 1, 1, 2),\n>             (2, 2, 2, 1),\n>             registered_contracts=FOUR_ENV_CATALOG,\n>         )\n> >       with pytest.raises(\n>             activation.ActivationRecordError,\n>             match=r\"exactly \\x5c+1.*env-d.*g2 -> g1\",\n>         ):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'exactly \\x5c\\x5c+1.*env-d.*g2 -> g1'\n> E         Actual message: 'activation transition scan count mismatch: site=G expected=4 observed=3 serial=2'\n> \n> orchestrator/tests/test_env_contract_activation.py:577: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=675 retained_bytes=675 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1437 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "00d3c97286e3b46959fb983f3b83331595856c83a8577eb1ef8b4dd8d38b4104"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 21.772,
+      "expected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+      ],
+      "hang_risk": false,
+      "id": "F1-G-N3",
+      "injection_diff_sha256": "da33422e3a72a69fef973b8e1bcc0b0c124287be02253ca34e4fea047d44bd86",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c7e2ba0e8a08048e9b89f83a3e6dd92ffe54aa13ac2227b42c0a99335d21834e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:3]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "KILLED",
+      "test_output_sha256": "00d3c97286e3b46959fb983f3b83331595856c83a8577eb1ef8b4dd8d38b4104",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe2e5db2c0da59c514c9951f57d60de9/izdw-fe2e5db2c0.o900830",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe2e5db2c0da59c514c9951f57d60de9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.43s\n",
+        "stdout_sha256": "ea1656f0ca7d02358e64d712cc906af0bda437b5b52c9f9290b57e9611428019"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.883,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-G-N4",
+      "injection_diff_sha256": "1fc038f0969213517b6ffe28a914359cbc4c9eb74a8477b1b198c774369070a7",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "9cfc82ea5e12f57574465a3b6c47bcb473d865cef344e8440e208ba36f009138",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:4]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "ea1656f0ca7d02358e64d712cc906af0bda437b5b52c9f9290b57e9611428019",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/79e0f81f094b00bef4cae282e28e56fd/izdw-79e0f81f09.o900831",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/79e0f81f094b00bef4cae282e28e56fd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.43s\n",
+        "stdout_sha256": "ea1656f0ca7d02358e64d712cc906af0bda437b5b52c9f9290b57e9611428019"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.89,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-G-N8",
+      "injection_diff_sha256": "b14985641412ad292ea332b96c1d7b9c4d9458d8524b71e4b9cc56ec5ea81123",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "2aaf73c4e911c4b80c5a56a5e35f1e1d6ba2261142f36fee34640c6e9953a84c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:8]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "ea1656f0ca7d02358e64d712cc906af0bda437b5b52c9f9290b57e9611428019",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7d0786b5959ad9ec62de2d607c37427a/izdw-7d0786b595.o900832",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7d0786b5959ad9ec62de2d607c37427a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.41s\n",
+        "stdout_sha256": "e7211519987ac47736e2b7be8e25b2eb924104df14f3252d5f099c6764c539bd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 32.037,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-G-N63",
+      "injection_diff_sha256": "bbdc67d1e867a020cc01cd56c702a2913261a4b70d3ba8fc6cd9b0a623c20165",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "59c71b1afc18edc092f82ac62723c56be6fe06784ae7ac117e23ebe0cb03d4fe",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:63]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "e7211519987ac47736e2b7be8e25b2eb924104df14f3252d5f099c6764c539bd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/de03bc00330c10e0c1de894ede621480/izdw-de03bc0033.o900833",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/de03bc00330c10e0c1de894ede621480/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.40s\n",
+        "stdout_sha256": "8879623b1001f3cf5ae5d98677c7eba6b6c0350f1200254c91cfff739cc13d53"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.952,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-G-N64",
+      "injection_diff_sha256": "acc5054e51b9f60862eccfbf29960236cd89c022df3ba3ec427eaa4d578c0734",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "e978790b5c95001fa0ccb7025a610f43e98eedea104b8793c41b87f6b2431c35",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:64]:\n",
+          "old": "    for successor in successor_rows:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "8879623b1001f3cf5ae5d98677c7eba6b6c0350f1200254c91cfff739cc13d53",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/06034d3214e39c267c1eed4cb2d36fcf/izdw-06034d3214.o900835",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/06034d3214e39c267c1eed4cb2d36fcf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.41s\n",
+        "stdout_sha256": "e7211519987ac47736e2b7be8e25b2eb924104df14f3252d5f099c6764c539bd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.956,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-P-N1",
+      "injection_diff_sha256": "8c343c1de248288b70ccbd70b104bc66158453ee9c4658728fc6c866a8d02fe0",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "7043788279c403edf77fe49c816fa8756c7c3b94bae0165c984466dc2e34ce13",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:1]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "e7211519987ac47736e2b7be8e25b2eb924104df14f3252d5f099c6764c539bd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a750e02c316dc36148cd4502cf206b2/izdw-0a750e02c3.o900836",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a750e02c316dc36148cd4502cf206b2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.38s\n",
+        "stdout_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.928,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-P-N2",
+      "injection_diff_sha256": "831db5ff9eda80b37411737a9a2f0d607263624eae0d8f51e3e08ed5593b75d0",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "1f353defeef60a41f6776a4de4eaf7cdf993275f80b519c9468ce5e653f2e9d7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:2]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a7cbd71f4c5590621ff1ae284e67e53b/izdw-a7cbd71f4c.o900840",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a7cbd71f4c5590621ff1ae284e67e53b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.41s\n",
+        "stdout_sha256": "e7211519987ac47736e2b7be8e25b2eb924104df14f3252d5f099c6764c539bd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.953,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-P-N3",
+      "injection_diff_sha256": "d4f7c4daed6bb294239bdf3e1afb5f09e103ea99e20d49cf81cd959b556c21ee",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "cfa5585243776550b4c54eccecf87b243a24de507579ddc05a465d45f2128809",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:3]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "e7211519987ac47736e2b7be8e25b2eb924104df14f3252d5f099c6764c539bd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a560d6d3677bfb20087b2bf7d28565b1/izdw-a560d6d367.o900842",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a560d6d3677bfb20087b2bf7d28565b1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.41s\n",
+        "stdout_sha256": "e7211519987ac47736e2b7be8e25b2eb924104df14f3252d5f099c6764c539bd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 31.928,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-P-N4",
+      "injection_diff_sha256": "02b709093428aacd55f856414f1bf4eed82222631bc246e0f8eed51397e24f38",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "0829bea219e847cafbe50bd0e0cd864e966da833a2e400892c651bfaba90abab",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:4]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "e7211519987ac47736e2b7be8e25b2eb924104df14f3252d5f099c6764c539bd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/81d45b742fe65bac0638cd7563b8f7bc/izdw-81d45b742f.o900845",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/81d45b742fe65bac0638cd7563b8f7bc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.38s\n",
+        "stdout_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.953,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-P-N8",
+      "injection_diff_sha256": "8b133a13e522fc7e5f6993a3d4c69c86b397b74ef9c441dc15b82198be6195c1",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "160eafcfad38b49bbde4d822bfffa5dece6511c7f1966306fbfc3fde28401269",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:8]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "3140a87ede29c06830f8e5fea6c6a7a7696cd8eaa9351d5e99fa2a2f5ede713e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4636aa4d90d665f2564bce16cd967191/izdw-4636aa4d90.o900846",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4636aa4d90d665f2564bce16cd967191/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.40s\n",
+        "stdout_sha256": "8879623b1001f3cf5ae5d98677c7eba6b6c0350f1200254c91cfff739cc13d53"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.916,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-P-N63",
+      "injection_diff_sha256": "c2899acab88aa7081a383ab214197342909c4f77a4fe10135850afbd38729eb6",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "a054695aebc8aecd7edbcf75fa215cfd13078c19eeb49b23455b939b5f4b766b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:63]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "8879623b1001f3cf5ae5d98677c7eba6b6c0350f1200254c91cfff739cc13d53",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/21461df6cccf7ea1b0d75dd885aee90f/izdw-21461df6cc.o900848",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/21461df6cccf7ea1b0d75dd885aee90f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 2.43s\n",
+        "stdout_sha256": "ea1656f0ca7d02358e64d712cc906af0bda437b5b52c9f9290b57e9611428019"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5b64802ea2e98d86a8ad260b70aa4adcc3aa0bfc69eff4fcad1c99e986874bc4",
+      "duration_s": 26.914,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "F1-P-N64",
+      "injection_diff_sha256": "5f553f8e248173e7c4116d9279469524bd5c18120467a6f9d84782a3f225bdda",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "10b363ecb30df2372540bc16bfdca2deaa6c14b7b9c57fef69988f603efa4fb4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:64]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "SURVIVED",
+      "test_output_sha256": "ea1656f0ca7d02358e64d712cc906af0bda437b5b52c9f9290b57e9611428019",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8a2ca54318cc9bd52334e5379160af49/izdw-8a2ca54318.o900821",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8a2ca54318cc9bd52334e5379160af49/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade\norchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop\n\n2 tests collected in 0.34s\n",
+        "stdout_sha256": "622cc59988a0a7fd245e451d3d7b542e187cb6ab4f5db0a439310a1b8bf21621"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade",
+        "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop"
+      ],
+      "duration_s": 26.895,
+      "rc": 0,
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+      "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+      "status": "PASSED",
+      "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "F1-G-N1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f9187f0c324a2d92e4fd6759dc3009d0af8c4aec365cf47b435e2238ce0cb08d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:1]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "F1-G-N2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f1ce4a0808eb26db12da98c7cb6b8daf880972f7e118513899312dcfa727a728",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:2]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "F1-G-N3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "da33422e3a72a69fef973b8e1bcc0b0c124287be02253ca34e4fea047d44bd86",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:3]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "F1-G-N4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "1fc038f0969213517b6ffe28a914359cbc4c9eb74a8477b1b198c774369070a7",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:4]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "F1-G-N63": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "bbdc67d1e867a020cc01cd56c702a2913261a4b70d3ba8fc6cd9b0a623c20165",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:63]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "F1-G-N64": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "acc5054e51b9f60862eccfbf29960236cd89c022df3ba3ec427eaa4d578c0734",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:64]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "F1-G-N8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b14985641412ad292ea332b96c1d7b9c4d9458d8524b71e4b9cc56ec5ea81123",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:8]:\n",
+            "old": "    for successor in successor_rows:\n"
+          }
+        ]
+      },
+      "F1-P-N1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "8c343c1de248288b70ccbd70b104bc66158453ee9c4658728fc6c866a8d02fe0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:1]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "F1-P-N2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "831db5ff9eda80b37411737a9a2f0d607263624eae0d8f51e3e08ed5593b75d0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:2]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "F1-P-N3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "d4f7c4daed6bb294239bdf3e1afb5f09e103ea99e20d49cf81cd959b556c21ee",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:3]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "F1-P-N4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "02b709093428aacd55f856414f1bf4eed82222631bc246e0f8eed51397e24f38",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:4]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "F1-P-N63": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "c2899acab88aa7081a383ab214197342909c4f77a4fe10135850afbd38729eb6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:63]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "F1-P-N64": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "5f553f8e248173e7c4116d9279469524bd5c18120467a6f9d84782a3f225bdda",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:64]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      },
+      "F1-P-N8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "8b133a13e522fc7e5f6993a3d4c69c86b397b74ef9c441dc15b82198be6195c1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:8]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "5a337ebc80681a6ab48ce00288fc2fdb10e2d2264ad5a610d38c09762ec02535",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade",
+      "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_fourth_env_downgrade",
+      "orchestrator/tests/test_env_contract_activation.py::test_transition_rejects_all_env_noop",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "486a40790f7d6a8380d8e882f757c2f4b6d5d631",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "dd43ab206401bbdca241ec62a88e1ba019eb1c0ffaea04e0e3654fe32e59d43d",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 11,
+    "TIMEOUT": 0,
+    "completed": 14,
+    "matching": 14,
+    "recorded": 14,
+    "registered": 14
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch2/f1/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "9133580c28cecad2965561391810905b3cb823601aa98c211cbe2c0c5261265b",
+  "updated_at": "2026-08-10T14:14:51.008209+00:00"
+}

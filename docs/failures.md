@@ -71,6 +71,14 @@
   `primary-source-includes-failures-ledger` を新設して閉じた。`DW-S01` への統合は
   **実測で予算超過** (L1 unique footprint 10656 bytes > 予算 10625 bytes、31 bytes 超過) となり、
   意味等価な縮約先が無いため段 8 の候補としてユーザーへ返す。
+
+- **再発: 2026-08-11** — F173 の恒久対応が「機械化は `docs/dev-wave/**` の byte 予算に阻まれて
+  おり、段 8 の改善候補として残す」と書いていたが、**この機械化の実装面は
+  `tools/check_docs.py` (Python) にあり `TextLimit` の byte 予算の対象外**である。阻害要因を
+  実在確認なしに断定した誤記で、2026-07-28 の追記が顕在化させた「機構の実在状態を転写する」型の
+  再発にあたる。本 wave が同じ機械化を production 9 行で実装して反証した。
+  検出は段 3 の敵対レビュー 2 本のうち 1 本が独立に一次資料へ当たったことによる。
+  古くなった記述そのものは F173 の supersede 追記で明示する。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -1681,6 +1689,30 @@
   **1 分平均だけが突出した瞬間負荷**の下で発火している。これは「wall 上限の超過」ではなく
   「高負荷下で子 process group の終了確認が期限内に観測できない」機序を示唆する。
   従来の再発記録は returncode 系に偏っており、述語側の不成立は本件が初出である
+
+- **再発: 2026-08-11 (8b 再開統合 wave の変異 baseline)。** 変異 harness の baseline (48 worker 全走、
+  523.38 秒) で `test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[xhigh]`
+  が 1 件落ち、harness は production write 前に fail-closed で中止した (rc=2、**1 failed**)。
+  同 file の単独再走は **77 passed / 6.00 秒 / rc=0** で再現せず、2 回目の baseline は
+  **PASSED / rc=0 / 533.56 秒** だった。本 wave の差分は `s8b_holdout_freeze.py` と同 test file だけで
+  launcher 実装へ到達しえず、`DW-O18` により帰属しない。
+  **新しい情報が 2 つある。** (1) 2026-08-10 の既載再発は `loadavg=(15.05, 3.57, 1.18)` だったが、
+  本件は `loadavg=(12.67, 3.24, 1.68)` で同じ述語 2 本
+  (`failed_predicates=["process_group_residual","termination_verified"]`) が不成立になった。
+  **1 分平均 15 台でなく 12 台でも発火する**ことを示す。(2) 既載は
+  `test_late_rollout_writer_does_not_change_sealed_receipt` で、本件は**同一 file の別 node** である。
+  述語側の不成立が異なる node へ移動した初の対照であり、F57 の題が言う「失敗 node が移動する」
+  性質が述語系の失敗でも成り立つことを裏付ける
+- **再発: 2026-08-11 (同 wave の変異 MU-1、別 test file)。** 変異 MU-1 の走行で期待 node
+  (`test_verify_cli_active_receipt_hash_mismatch_is_immediate_red`) が正しく落ちた一方、
+  `test_campaign.py::test_pipeline_stale_screening_falls_back_to_verify_first_and_records_trace`
+  が同時に落ち、harness の完全一致判定が **MISMATCH** を返した (期待は KILLED)。
+  同 test file は `s8b_holdout_freeze` を 1 箇所も参照せず、MU-1 の変異は構造的に到達しえない。
+  単独再走は **1 passed / 2.60 秒 / rc=0** で再現しない。
+  **新しい情報は、フレークが変異 matrix の判定へ直接漏れること**である。
+  `DW-M03` の kill 判定は失敗 node 集合の完全一致で行うため、無関係なフレークが 1 件混ざるだけで
+  正しく kill された変異が MISMATCH に化ける。`DW-M02` に従い初回結果を消さず erratum として残し、
+  実質 KILLED として扱った。恒久対応は [T-553] のままで本 wave では変えない
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -4438,6 +4470,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   を明示的なレンズとして入れる。本件はそれで捕まった (`s6re.md` の所見 2)。
 - 併記: whole-file SHA-256 pin は bytes しか守らないため、**安全文を削って 3 箇所を同時に再 pin
   すれば検査は通る**。この構造的な穴は本 wave の scope 外として裁定へ返した。
+- **supersede: 2026-08-11** — 恒久対応の「機械化は `docs/dev-wave/**` の byte 予算に阻まれており」は誤り。実装面は `tools/check_docs.py` にあり byte 予算の対象外で、住所 (address edge) の構造 lint として実装済み (D278)。ただし塞いだのは cleanup-branches command の F26 edge 1 件だけで、pin が bytes しか守らない構造そのものは変わらない。
 
 ### F174. 未 commit の子成果が乗った tree で probe を `git checkout --` 復元し、実装を消した [手順漏れ]
 
@@ -5123,3 +5156,84 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 中間 directory が無い状態からの起動を `orchestrator/tests/test_dev_wave_codex.py` の
   回帰テストに置いた。あわせて、land する起動経路は wave 内で実際に 1 度使う (dogfood)。
   **この欠陥は段 3 と段 6 の静的レビュー計 4 本では出ず、実起動で初めて出た。**
+
+### F209. 依存物ガードの疑似スキップと防壁配線欠落の skip が、受入全走を緑のまま素通りしていた [恒真ゲート] [テスト代表性]
+
+- 事象: 静的全数走査で 4 箇所が見つかった。(1) `orchestrator/tests/test_calibrator.py` の
+  F3 (計測前の単独性確認) 実プロセス番人 2 本が `pgrep` / `/proc` 不在時に早期 `return` で
+  打ち切り、**pytest は正常 return を PASS に数える**。(2) `orchestrator/tests/test_hooks.py` の
+  `test_settings_json_wires_all_hooks` が `.claude/settings.json` に `hooks` key が無いと skip し、
+  第二防壁の配線が丸ごと消えた構成を受入が緑で通す。(3)
+  `orchestrator/tests/test_dev_waves_isolation_contract.py` が conftest import 中の全 `ImportError` を
+  「pytest 不在」と誤ラベルして skip。(4) `orchestrator/tests/test_p3_s4_loop_trigger_gating.py` の
+  `_pinned_clean_sub_or_skip` が git の全例外を「submodule 未取得」の skip に化かす
+  (呼び出し元 0 件の死んだ罠)。いずれも赤にならないため、受入全走の rc と件数からは見えない。
+- 根本原因: 規約 (`orchestrator/tests/README.md` の「依存物不在時の skip (可視化)」= print + return の
+  疑似スキップ禁止と、二重 runner 契約の Skip 分離計上) が**文章としてしか存在せず、機械検査が
+  無かった**。(1) は同ファイルの `_run()` が `except Skip` を持たないため、規約どおり
+  `skiputil.skip` を使うと素の runner で ERROR に化ける構造になっており、規約違反の方が
+  「動く」状態だった。(2) は hooks 未配線時代 (D30 の over-claim 事件) の暫定 skip が、
+  配線完了後も残った陳腐化である。
+- 恒久対応: 4 箇所を修正し (疑似 return → `skiputil.skip`、`_run()` の Skip 計上、
+  hooks key 欠落の assert failure 化、`ImportError` の `exc.name == "pytest"` 限定、死んだ helper の削除)、
+  **巻き戻しを撃つ positive control を 2 本新設**した
+  (`test_calibrator.py::test_competing_bench_pids_missing_dependency_is_visible_skip` と
+  `test_hooks.py::test_settings_json_missing_hooks_is_assertion_failure`)。
+  どちらも変異 matrix で kill されることを実測済み (M2 / M3)。
+- 再発検知: 上記 2 本の positive control が、それぞれ「依存物不在が PASS に化ける」形と
+  「防壁配線の欠落が skip で通る」形の巻き戻しを赤にする。族全体を撃つ meta 検査は、
+  疑似 return の producer が 1 ファイルだけであるため `DW-G03` に従い作っていない
+  (2 例目が出たら `test_plain_runner_coverage.py` へ寄せる)。
+
+### F210. 事前登録の期待 node を別 runner 範囲から流用し、変異 26 件を判定不能にした [手順漏れ]
+
+- 事象: [T-673] 残余 (3) の計測 wave で、先行 wave の *focal 4 node* 実行から写した
+  `expected_nodes` を、runner にはテストファイル全体 (77 node) を渡す arm へそのまま登録した。
+  範囲が違うので該当 arm は全件 `MISMATCH` になり、F 系 3 arm 26 entry が判定不能になった。
+  同 wave の別誤り (F211) と合わせて第 1 巡 77 entry のうち
+  47 entry を再走した。実害は再走コストだけで、誤った結論は 1 件も出ていない
+  (harness が fail-closed で止めたため)。
+- 根本原因: 変異 spec には runner 対象範囲を書く field が無く、期待 node 集合 (spec) と
+  runner argv (実行スクリプト) が別の場所にある。両者が対であることを機械検査する経路が無い。
+  先行 wave は focal 用と full-file 用の spec を分けて回避していたが、その理由はどの台帳にも
+  reference にも記録されておらず、暗黙知だった。
+- 恒久対応: 発火段 (段 4 の事前登録) に対応する `DW-M01` は L1 層で **予算残 0 bytes** のため
+  reference へ統合できない ([T-627]・[T-673] 先行 wave に続き 3 波連続)。裁定 §56 (7)
+  「T-700 (b) 規範下で L2 か台帳」に従い、本エントリと memory
+  `mutation-expected-nodes-need-runner-scope` を恒久対応とする。
+  機械側の防壁は既存の `MISMATCH` fail-closed (harness が status を kill と読み替えず停止する) で、
+  本件でも実際にここで止まった。
+- 再発検知: arm ごとに `summary.matching == summary.registered` かつ `MISMATCH == 0` を要求する
+  (`check-ledgers.py` 相当の照合)。範囲違いは必ず全件 MISMATCH として現れる。
+
+### F211. 新設 guard が後段の診断を先取りする経路を事前登録で数え落とした [恒真ゲート]
+
+- 事象: 同 wave で、走査完全性 guard を loop 直後に置いた変種に対する期待 node を
+  「不正行の位置が `pos ≥ N` のときだけ診断が変わる」という規則で導いた。実際には
+  **前段 (量化点 G) の guard が発火すると後段 (量化点 P) の loop 自体が 1 度も走らない**ため、
+  P 側の意味的診断は位置によらず全部走査診断へ置き換わる。8 entry が `MISMATCH` になった。
+- 根本原因: 新設 gate の変異設計で「その gate が何を検出するか」だけを数え、
+  **その gate が fail-closed したことで到達しなくなる後段の検査**を数えなかった。
+  gate は通過時には何もしないが、発火時には後段の観測点を丸ごと消す。
+- 恒久対応: 発火段 (段 4) の `DW-M01` は L1 予算残 0 のため統合できない。本エントリと memory
+  `new-gate-mutations-count-preempted-checks` を恒久対応とする。既存の機械防壁は
+  `MISMATCH` の fail-closed で、本件でも規則をコードから導き直して再走する契機になった
+  (kill への読み替えはしていない)。
+- 再発検知: 同上。期待と観測の食い違いは `MISMATCH` として必ず露出する。
+
+### F212. fold の dry-run を受入の前に通さず、stale な carry で land が止まり受入 1 回分を空費した [手順漏れ]
+
+- 事象: [T-673] 残余 (3) の wave で、worklog fragment の `### carry` に `[T-737]` を書いたまま
+  受入全走 (524 秒) を通して land したところ、`tools/dev_wave_land.py` が rc=26
+  `candidate fold planning failed: SpoolValidationError: active でない操作対象: [T-737]` で停止した。
+  [T-737] は本 wave の走行中に別 session が land して active でなくなっていた。
+  fragment を直すと tip が動くため、**受入全走をもう 1 回やり直す**ことになった。
+- 根本原因: fragment の妥当性 (carry 対象が active か、placeholder が解決するか) は
+  `tools/spool_fold.py --dry-run` で land 前に検査できるが、受入全走はこれを検査しない。
+  一方 land は tested tip と HEAD の一致を要求するので、**受入の後に fragment を直せない**。
+  この 2 つの制約の交点に、順序の落とし穴がある。
+- 恒久対応: 記録 commit の直後・受入投入の前に `python3 tools/spool_fold.py --dry-run` を通す。
+  memory `fold-dryrun-before-acceptance` を恒久対応とする (発火段 段 7 の `DW-S07` は L1 層で
+  予算残 0 bytes のため reference へ統合できない)。
+- 再発検知: dry-run の `status` が `planned` 以外なら受入を投入しない。stale carry は
+  `SpoolValidationError` として必ず露出する。

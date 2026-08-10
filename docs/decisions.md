@@ -12665,3 +12665,174 @@ docs を独立に読む最小の抽出をテスト側に置き、両者の一致
 
 - **期待値を literal で書く** — 機械 pin を増やさないという既存の見送り裁定の実質的な再提案になる。
 - **派生関数を呼ぶ既存テストを消す** — 循環していても回帰検出には効く。消さずに独立検査を足す。
+
+## D277. 較正と凍結の上位権限束 — 段 0 の語彙・schema・完了判定 (2026-08-11)
+
+**決定:**
+
+- **候補 record は権威 directory の外の候補 namespace に置き、公式 record を「包む」。**
+  公式 activation record の exact key 集合を変えない。包む側は
+  `schema_version` / `lifecycle_state` / `activation_record` / `activation_record_raw_sha256` の
+  exact 4 key とし、chain の検証は公式側の規則をそのまま再利用する (別の緩い規則を作らない)。
+- **上位束の承認 A と発効 X はどちらも人間が行う。** A は承認 record 1 file の追加のみ、
+  X は有効 head literal を保持する方式ゆえ exact 3 path (公式 activation record の追加、
+  head literal の更新、上位 pointer の追加)。いずれも非 merge で、逐語の人間 trailer を要求する。
+- **lockstep は検査 receipt の自己申告 `pass` で満たしてはならない。** 承認 record の成分一覧に
+  対し、(a) 環境成分と凍結成分が親束の同名成分と双方とも異なること、(b) 環境成分が同じ列の
+  候補 record と一致すること、(c) 凍結成分が下位 family 自身の検証器が承認済みと判定した参照で
+  あることを**再計算**する。
+- **上位 digest は下位と別の domain separator を新設し、原像を exact 7 成分の固定順とする。**
+  承認 record 自身の bytes を原像に入れない。凍結側の separator と成分数は 1 byte も変えない。
+- **裁定 profile は固定 ID 集合・`status` enum・applicability 表を持つ record とする。**
+  未裁定 ID の `selection` enum は、その裁定が land する commit で追加する。それまで検証器は
+  当該 ID の `resolved` を受理しない。裁定が済むまで status が未完了のままなのは意図した
+  fail-closed である。
+- **Git に導入 commit を持たない実行時成果物は、proof chain の根に置く admission record で
+  分類する。** legacy 側は発効 commit の **strict** ancestor を要求し、その根を列挙した catalog
+  自身も strict ancestor で導入され、hash を検査 receipt と承認 record へ束縛する。
+  発効後に catalog へ根を足して legacy を名乗る経路と、既存成果物の遡及拒否の**両方**を閉じる。
+- **fixture の manifest は閉じた集合とし、設計文書の不変条件行と全単射にする。**
+  hash pin は「実 bytes」「manifest literal」「検査側の独立期待値」の 3 者比較とし、
+  期待値を入力から生成しない。裁定待ちを表す印を不変条件 fixture の代用にしない。
+  実行できていない行は `pending` として理由と entrypoint を持ち、件数を manifest が数える。
+- **整合検査と完了要求を分ける。** 整合検査の緑を段の完了証明として使えない名前と出力契約にし、
+  完了要求は fail-closed の別 API とする。未完了を成功結果として返さない。
+- **保存すべき既存拒否の fixture は、実 entrypoint へ入力を流して受理と拒否を観測する。**
+  ただし射程は当該 entrypoint が担う層に限り、上位の semantic 層まで検証したと主張しない。
+
+**理由:**
+
+- 上位に別 domain separator の束を置けば、承認済みの下位契約を 1 byte も変えずに済む。
+  下位 digest へ環境成分を足す案は承認済み契約の改訂を要する。
+- 陰性条件だけを完了判定にすると、何も受理しない実装が全段で緑になる。陽性条件は fixture を
+  名指ししなければ判定にならず、fixture を置くだけでは検査を一度も呼ばない実装が完了を主張できる。
+  この 3 段の穴は、設計段の敵対レビューと実装段の敵対レビューが独立に構成した。
+- 「持っている」ではなく「識別に使われている」を検査しなければ、schema を満たしたまま
+  表示専用 field で条件を満たしたと主張できる。同型の構成が承認 record・pointer・検査 receipt・
+  裁定 profile・候補 record の 5 つすべてに存在する。
+- 発効の瞬間に受理集合が変わる以上、変える対象と時点を機械的に判定できる形で書く義務がある。
+  自己申告の「移行中だから」を通してはならない。
+
+**却下した選択肢:**
+
+- **終端と有効 head の一致検査を束参照検査へ置換する案** — 現行の正しい fail-closed を 1 つ消す。
+  候補を権威 directory の外へ置けば、その拒否を保存したまま候補を表現できる。
+- **有効 head literal を record 由来へ移す案** — 環境契約 source の blob 変化という review signal と、
+  loader closure 経由の間接 pin を失う。代替の data-side pin は同一の保証ではない。
+- **未裁定 ID にも `resolved` を書けるようにする案** — 裁定を経ずに発効へ進める抜け道になる。
+- **不変条件行を「裁定待ち」印で埋められるようにする案** — 最重要の不変条件を fixture 無しのまま
+  完了と算出できる。裁定待ちは裁定 profile と required gate の側にだけ書く。
+- **合成入力を実物より甘いまま「実 entrypoint で確認した」と書く案** — 過剰主張である。
+  射程を明記するか、担当 entrypoint の行として別に持つ。
+
+## D278. 住所 (address edge) の構造 lint は非協調 drift の検出であって防壁ではない (2026-08-11)
+
+**決定:** whole-file SHA-256 pin と構造 lint の責務を分ける。command 本文から他文書にしか無い
+義務への**到達 edge (住所)** を機械が検査してよい対象は、その edge の**構造**だけとする。
+呼称は **「住所 (address edge) の構造 lint」**とし、「意味検査の機械化」とは呼ばない。
+効能は**非協調 drift の検出と、意図の diff への顕在化**に限り、**trust root は人間レビュー**である
+(敵対監査はその判断材料を作る手順であって trust root ではない)。
+「協調改変を防ぐ防壁」と書いてはならない。
+
+**理由:**
+- whole-file SHA-256 pin は期待値と異なる bytes だけを検知し、義務の意味を保証しない。安全義務の
+  文を削って pin 3 箇所 (checker 定数・test 定数・test 内の逐語コピー) を同時再同期すれば検査は
+  通る。実測で `check_docs` rc=0 / 違反なし、`test_check_docs.py` 357 passed / rc=0 だった。
+- 期待値 (必須 edge の一覧) は同じ commit で削除できるので、edge 契約も trust root にならない。
+  増えるのはレビュー時の顕著性だけである。sha256 の再同期は意味を持たない機械作業で byte 予算に
+  追われた編集が自然に行うが、edge 契約から 1 行消す差分は自己記述的で「到達契約を外した」と読める。
+- 「到達性は機械が守り、意味は人間が守る」は既にこの repo の実装方針である。pin 済み command の
+  正本ポインタ到達性検査、`docs/archive/` の双方向到達性 lint、dispatch inventory の
+  同一可視行からの typed edge 構成が既に存在する。新しいのは検査パターンではなく対象だけである。
+- **検出できるのは非協調な drift だけである。**この lint は Markdown の意味を解釈しないので、
+  次はすべて素通りする — 同一 commit で期待値ごと消す協調改変、inline の hidden HTML、
+  4-space indented code block、link definition の quoted title、打ち消し線で消した prose、
+  そして「この住所を参照してはならない」のような否定形の prose。**穴の列挙が短いことを
+  検出力の証拠にしてはならない。**
+- **edge の書き方を 1 つの形に固定する契約である。**同一可視行かつ backtick 込みの
+  code span という**形**を要求するので、見出しと本文に分けた 2 行形、key/value の 2 行表、
+  backtick の無い Markdown link は赤になる。これは偽陽性ではなく、住所の書式を 1 つに畳む副作用で
+  ある。書式を変えたければ lint 側の契約を同じ commit で変える。
+- 実装面は `tools/check_docs.py` (Python) にあり `TextLimit` の byte 予算の対象外である。
+  「機械化は `docs/dev-wave/**` の byte 予算に阻まれている」という先行記述は誤りである。
+
+**却下した選択肢:**
+- 「意味検査の機械化」という呼称 — 自然文の意味検査は恒真化しやすく、偽陰性が防壁の錯覚を生む
+  (D30 / D45 と同根)。この lint は日本語の文言を pin しない。語順・助詞を変えた正当な言い換えは
+  緑のままであることを実測で確認した。
+- 必須要素を token の存在へ分解する形 — 安全義務の文を削ったうえで path を別行へ足す攻撃を
+  1 件も検出しない (実測)。同一可視行の共起でなければ迂回を殺せない。
+- 単純な部分文字列一致 — `F260` と `archive/docs/failures.md.bak`、link definition、表セル横断、
+  block raw HTML で偽の edge を作れる。ASCII 英数字に隣接しない ID と backtick 込みの
+  exact code span を要求し、raw HTML block も不可視化しなければならない。
+- 族一般化 (helper path の literal 固定、Skill 側、全 path の実在性、全 ID の到達性) —
+  同型欠陥が独立に 2 件再現していない (`DW-G03`)。2 例目が出るまで却下する。
+
+## D279. 明示裁定による L2 admission の個別適用除外は `DW-O25` 限りとし先例にしない (2026-08-11)
+
+**決定:** `docs/dev-wave/operations.md` の `DW-O25` (ff-only land の全史 provenance 関門) は、
+D271 が新規 L2 節へ課す 3 条件のうち**条件 2 (現に機械代替されていない) と条件 3 (意味検索で
+反証されず同一発火点の既存正本もなし) を満たさないまま登録した**。根拠はユーザーの明示裁定
+(2026-08-10 /rulings §60、`[T-695]` (i)「新規 L2 節を作り登録する」) である。
+
+この適用除外は **`DW-O25` 限りの一回限り**であり、**将来の L2 admission の先例にしない**。
+以後の新規 L2 節は D271 の 3 条件をすべて満たすか、同じくユーザーの明示裁定を要する。
+「過去に例がある」を admission の根拠にしてはならない。
+
+**満たさない事実の逐語:**
+
+- 条件 2 — 同じ義務は `tools/dev_wave_land.py` に runtime gate として実装済みで、
+  非 0 拒否と main 不変を検証するテストも存在する。
+- 条件 3 — D254 が同じ発火点 (ff-only land) の同じ義務を既に逐語で規定している。
+  `DW-O25` はその reference 同期であり、定義上「同一発火点の既存正本」が存在する。
+
+**理由:**
+
+- D271 が塞ぎたかったのは「byte 余白が空いたことを理由に見送り済み候補を復活させる」非対称である。
+  本件はその型ではなく、**ユーザーが reference 同期を明示的に要求した**ものである。
+- 機械代替済みを理由に本文を置かない運用は、同じユーザーが §54 で既に否定している
+  (「実装が強制するから本文不要」は採らない)。条件 2 を機械的に適用すると、
+  §54 の裁定と正面から衝突する。
+- 適用除外を記録せずに登録すると、次の wave が「D271 は満たさなくても通る」と読む。
+  除外の射程を節 1 つに束縛して明文化することが、規範を空洞化させない唯一の方法である。
+
+**却下した選択肢:**
+
+- **D271 の条件 2・3 を一般に緩める** — 削除側の鏡像という設計意図が消え、
+  byte 余白による復活を塞げなくなる。
+- **`DW-O25` を登録しない** — ユーザーの明示裁定に反する。親が承認済み裁定を不採用にしない。
+- **除外を worklog にだけ書く** — 将来の admission 判断者は decisions を索引して読む。
+  規範 (D271) の隣に置かなければ届かない。
+
+## D280. dev-wave の規範節は可視 H2 節全体を exact で pin し、不可視構造を節内に許さない (2026-08-11)
+
+**決定:** dev-wave の起動導線と routing を担う規範節は、**可視 H2 節全体の exact 一致**で
+`tools/check_docs.py` が pin する。対象は `.claude/commands/dev-wave.md` の `## 入力と開始`、
+`.agents/skills/dev-wave/SKILL.md` の `## 開始する`、`docs/skill-self-improvement.md` の
+`## routing`、`docs/dev-wave/operations.md` の `DW-O25` の 4 節である。
+
+- 比較は **dispatch 可視化を通した slice だけ**で行い、raw slice と混ぜない。
+- 同じ 4 節について **raw slice と可視 slice の一致**も要求する。
+  節の内側に fence・HTML comment・raw HTML block を置けない。
+- `DW-O25` の可視 H2 が `DW-O23` の可視 H2 より後にあることを検査する。
+  対象 H2 の探索は**題の有無に依らず**行い、欠落・重複は fail-closed で finding にする。
+
+**理由:**
+
+- 規範節は「どの語で義務が書かれているか」が意味を持つ。語の言い換え・item の移動・
+  例外文の差し込みは、いずれも義務を弱めるのに従来の検査 (H2 の有無、literal の出現件数) を通る。
+- 節全体 exact にすると、pin 済み節の**内側**へ例外規定を差し込む経路が閉じる。
+- 順序 pin の heading 探索を題込みの前方一致にすると、題を消すだけで検査が
+  finding を出さずに通る。実装時にこの形が実際に入り、敵対レビューが検出した。
+  **見つからない場合に黙って通す検査は恒真と同じである。**
+
+**閉じない残余:** pin 済み節の**外側** (同じ file の他節) へ「ただし任意参照とする」型の
+例外文を置く経路は残る。全 file を exact pin すると通常の docs 改訂が checker 改変を
+必須にするため採らなかった。dispatch 契約がどの節を読むかを限定していることが緩和になる。
+
+**却下した選択肢:**
+
+- **literal の出現件数だけを pin する** — blockquote 化・別節移動・言い換えを通す。
+- **raw slice を exact 比較する** — fence や HTML comment の正当な使用まで拒否し、
+  可視化を通した検査と二重管理になる。
+- **全 file を exact pin する** — 誤字修正のたびに checker 改変が要り、実運用が回らない。

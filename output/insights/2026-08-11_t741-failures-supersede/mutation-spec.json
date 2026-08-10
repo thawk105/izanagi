@@ -1,0 +1,123 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 200,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if rendered_line in existing_lines or identity in seen:\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_existing_identical_line",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_duplicate_line_within_same_fold",
+        "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_and_supersede_identical_line_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_replay_guards_exact_and_changed_fragments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "                or not _valid_date(item.group(\"date\"))\n",
+          "new": "                or False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    _assert_failure_topology(\n        failure_numbers,\n        rendered_failures_text,\n        appended_failure_numbers,\n        allocated_failure_numbers,\n    )\n",
+          "new": "    _ = (\n        failure_numbers,\n        rendered_failures_text,\n        appended_failure_numbers,\n        allocated_failure_numbers,\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_topology_rejects_forged_heading_from_recurrence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            if FAILURE_RECURRENCE_SUPERSEDE_MISUSE_RE.match(normalized):\n",
+          "new": "            if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_supersede_misuse_is_rejected_but_prose_mention_is_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if number not in positions:\n            raise SpoolValidationError([\n                Issue(\n                    \"docs/failures.md\",\n                    1,\n                    \"failure-supersede-missing\",\n",
+          "new": "        if False:\n            raise SpoolValidationError([\n                Issue(\n                    \"docs/failures.md\",\n                    1,\n                    \"failure-supersede-missing\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if not items:\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_empty_failure_supersede_section_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    expected = [*before_numbers, *appended_numbers]\n",
+          "new": "    expected = [*before_numbers, *allocated_numbers]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_topology_uses_new_entry_append_order_across_fragments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

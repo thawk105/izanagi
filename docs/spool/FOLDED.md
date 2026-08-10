@@ -765,3 +765,28 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dev-wave-l15-budget-headroom":"[T-769]","T:dry-run-after-bytes":"[T-768]","T:land-rollback-state-retention":"[T-766]","T:reserved-label-display-equivalence":"[T-767]"},"authored":"2026-08-11","content_sha256":"5fe8b35d5308af335c87b6127cf8127e2fc5f93459b6e6adecab5539f53a6898","seq":1,"wave":"dev-wave-t741-failures-supersede"}
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"a584715ae1966a28521f7fb4cb595bef224858ac4922a308a4ba8e35024dd528","seq":1,"wave":"dev-wave-t741-failures-supersede"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"2990edadcb7627242ef458aac71614a9ebcaac86472abe205235725e9adf96c3","seq":2,"wave":"dev-wave-t741-failures-supersede"}
+
+- {"allocations":{"T:s8b-git-failure-skip-narrowing":"[T-771]","T:template-patch-test-window":"[T-770]"},"authored":"2026-08-11","content_sha256":"9a33c83f71935a2c49ee929d07586441ddacbced4c5315ecf3c9059d707b3c03","seq":1,"wave":"dev-wave-known-red-exceptions"}
+- {"allocations":{"F:pseudo-skip-passes-as-green":"F209"},"authored":"2026-08-11","content_sha256":"8972eabe984df635815eb46068d930fb9af6adabe84b0b17dd2a47dda4720ce7","seq":2,"wave":"dev-wave-known-red-exceptions"}
+
+- {"allocations":{"T:codex-launch-receipt-termination-flake":"[T-772]"},"authored":"2026-08-11","content_sha256":"0737287d91b73ca7de58b7b83851202b211ffb50f094ab0bb00c884ea07aca3d","seq":1,"wave":"dev-wave-t657-stage0"}
+- {"allocations":{"D:calibration-freeze-authority-stage0":"D277"},"authored":"2026-08-11","content_sha256":"1a5c8f5867e3ae82e46b70a97c624e86f3f0d8f6e3b59e75b62c5e306c39e62f","seq":2,"wave":"dev-wave-t657-stage0"}
+
+- {"allocations":{"T:dev-wave-l15-budget-exhausted":"[T-775]","T:mutation-harness-hang-artifact":"[T-776]","T:waiter-acceptance-shape":"[T-774]","T:waiter-consumer-binding":"[T-773]"},"authored":"2026-08-11","content_sha256":"3392c7f4bd6ad5e3fa96586922a788eb9e18939c75f74345edc4d3f137f2a939","seq":1,"wave":"dev-wave-t740-canonical-waiter"}
+
+- {"allocations":{"D:address-edge-structural-lint":"D278"},"authored":"2026-08-11","content_sha256":"a78beec6b59fc844746ca03860cbb5635b10acd63cda7ba9089b83f14fbef7e1","seq":1,"wave":"dev-wave-t675-address-edge-lint"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"be8f9a33e21fb89216e0324cc408127a6c161afb86ac78e5b55bafe2b6e8a8c1","seq":2,"wave":"dev-wave-t675-address-edge-lint"}
+- {"allocations":{"T:address-edge-lint-layer-coverage":"[T-777]","T:mutation-expected-node-scope-doc":"[T-778]"},"authored":"2026-08-11","content_sha256":"d3477ea1fc3923a0efd0d0004ad28d157e967f56c0c51d4664158c4b1f969f96","seq":3,"wave":"dev-wave-t675-address-edge-lint"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"5b55714e65329af83d078f48e9f2a091f1ce96f0b07911eb01e79460604a014a","seq":1,"wave":"dev-wave-t673-d-guard-measurement"}
+- {"allocations":{"F:fold-dryrun-before-acceptance":"F212","F:guard-preempts-later-diagnostics":"F211","F:preregistered-nodes-need-runner-scope":"F210"},"authored":"2026-08-11","content_sha256":"8ddb59e74f014e310821bea4e3906095b3b611f95208e777e9f643d1fb2a5799","seq":2,"wave":"dev-wave-t673-d-guard-measurement"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"199e9ebf96f81a4dd884fd290170f3cd3878b05dd29f7a7085fa9178a5389a74","seq":4,"wave":"dev-wave-t675-address-edge-lint"}
+
+- {"allocations":{"D:normative-section-exact-pin":"D280","D:o25-admission-exemption":"D279"},"authored":"2026-08-11","content_sha256":"b3fa7a42d1f53200ad1ca7e086bc6d75ae0642391beab98f344dc7fa9cdfeee9","seq":1,"wave":"dev-wave-t695-t700-l2-routing"}
+- {"allocations":{"T:ruling-numbers-are-means":"[T-780]","T:stage5-recheck-main":"[T-779]"},"authored":"2026-08-11","content_sha256":"d9441702895a5163b09686eafd9a5eb223a5adb2e6cacd9217cc21eb159c3888","seq":2,"wave":"dev-wave-t695-t700-l2-routing"}
+
+- {"allocations":{"T:dw-o09-hash-bound-dataclass":"[T-784]","T:floor-campaign-site-compiler":"[T-783]","T:legacy-cache-key-default-toolchain":"[T-785]","T:oracle-manifest-schedule-authority":"[T-782]","T:t088-admission-authority":"[T-781]"},"authored":"2026-08-11","content_sha256":"4bb18ca562478387665e4256ba0c890e272132e18d8f772ce1a95dd00a9c01ef","seq":1,"wave":"dev-wave-t8b-restart-integration"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"c5a87761c4e7c0d2ada5079b0278fddc15ec34b12cd54611fd098bac35d2ecc7","seq":1,"wave":"dev-wave-t8b-restart-integration"}

@@ -1,0 +1,54 @@
+diff --git a/orchestrator/campaign/env_contract_activation.py b/orchestrator/campaign/env_contract_activation.py
+index 2d4adf9c..fa225327 100644
+--- a/orchestrator/campaign/env_contract_activation.py
++++ b/orchestrator/campaign/env_contract_activation.py
+@@ -272,7 +272,10 @@ def _validate_activation_transition(
+         )
+ 
+     changed: list[tuple[ActiveContract, ActiveContract]] = []
++    expected_generation_checks = len(successor_rows)
++    observed_generation_checks = 0
+     for successor in successor_rows:
++        observed_generation_checks += 1
+         predecessor = predecessor_by_env[successor.env_tag]
+         if (
+             predecessor.generation,
+@@ -290,14 +293,24 @@ def _validate_activation_transition(
+             )
+         changed.append((predecessor, successor))
+ 
++    if observed_generation_checks != expected_generation_checks:
++        raise ActivationRecordError(
++            "activation transition scan count mismatch: site=G "
++            f"expected={expected_generation_checks} "
++            f"observed={observed_generation_checks} serial={activation_serial}"
++        )
++
+     if not changed:
+         raise ActivationRecordError(
+             "activation transition が全 env 据置の no-op: "
+             f"serial={activation_serial}"
+         )
+ 
++    expected_predicate_checks = len(changed)
++    observed_predicate_checks = 0
+     first_failure: tuple[str, BaseException | None] | None = None
+     for predecessor, successor in changed:
++        observed_predicate_checks += 1
+         try:
+             result = is_valid_registered_successor(predecessor, successor)
+         # process 中断を握り潰さないため、BaseException は包まずそのまま伝播させる。
+@@ -322,6 +335,13 @@ def _validate_activation_transition(
+                 f"serial={activation_serial} env_tag={successor.env_tag}",
+                 None,
+             )
++    if observed_predicate_checks != expected_predicate_checks:
++        raise ActivationRecordError(
++            "activation transition scan count mismatch: site=P "
++            f"expected={expected_predicate_checks} "
++            f"observed={observed_predicate_checks} serial={activation_serial}"
++        )
++
+     if first_failure is not None:
+         message, cause = first_failure
+         if cause is not None:
