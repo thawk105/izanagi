@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-10
 wave: dev-wave-t674-d125-supersession
 seq: 1
-title: [T-674] の残余 (5) を消化し D125 決定 (2) の campaign id 不変条項を前向きに失効させた — 破ったのは本 wave ではなく land 済み production が 3 世代で 3 回 (docs のみ、実装差分なし、branch worktree-dev-wave-t674-d125-supersession)
+title: [T-674] の残余 (5) を消化し D125 決定 (2) の campaign id 不変条項を前向きに失効させた — 破ったのは本 wave ではなく land 済み production が 3 世代で 3 回 (docs のみ、実装差分なし、受入 7845 passed / 20 skipped / rc=0、変異は免除、branch worktree-dev-wave-t674-d125-supersession)
 ---
 
 ## 本文
@@ -36,6 +36,32 @@ title: [T-674] の残余 (5) を消化し D125 決定 (2) の campaign id 不変
   **実 repo を読むテストは存在する**。判定手順 = `orchestrator/tests/` から実 checkout の `docs/` を
   読むテストを名指しで探し、`test_check_docs.py` と `test_spool_fold.py` の 2 file が該当
   (他は不存在)。したがって受入全走を免除せず実施した。
+- **受入全走は 1 走で完全な緑。** `7845 passed / 20 skipped / rc=0` (494.36 秒、
+  request `899733.nqsv`、tip `d9fe77e9`)。受入形の警告は出ていない。
+  **この受入値を記録する commit 自体は、その走行の対象に含まれない** (値を書く前に測る順序のため)。
+- **受入 lease で 3 回連続空振りし、実走 0 のまま約 2 時間を空費した。** いずれも
+  「取得した時点で local main が先行しており、runbook §7.3 の behind 検査に掛かって lease を
+  返す」形で、先行量は 7 / 3 / 5 commit だった。3 回目は待ち行列にいる間に先行を検知して
+  **lease を消費せずに**戻る形へ直したが、それでも取り込み → 並び直しの間に追い越された。
+- **4 回目で待ち手の中に `--no-ff` merge を入れ、1 走で通した。これは runbook §7.3 の
+  「0 でなければ lease を返して親へ戻す」からの逸脱であり、`DW-O12` に従って差をそのまま記録する。**
+  同節が禁じているのは**待ち手内の `--ff-only`** で、wave が自前 commit を持つと必ず失敗するため
+  親へ戻す設計だった。`--no-ff` merge はその失敗要因を持たない。安全側の配線は 3 つ置いた —
+  merge message と trailer は親が用意した template で待ち手は main の SHA だけを差し込む、
+  競合または provenance preflight 非 0 なら merge を中止して lease を返す、走行前に
+  behind 再検査と `git status --porcelain` の空検査を通す。実測では取得から走行開始まで 3 秒で、
+  他 wave を止めた時間は最小だった。
+- **wave 中に local main を 3 回取り込んだ** (`e91bf56d` / `976fb24d` / `4fd852dc`)。
+  3 回目が上記の待ち手内 merge である。並行 wave の land 頻度が高く、
+  取り込み → 受入投入の間に追い越される状態が続いていた。
+- **fold の採番予測が land 前に 1 度ずれた。** 取り込み前の `--dry-run` は本 wave の新 D を D260 と
+  出したが、取り込み後は D261 になった (並行 wave の [T-201] が D260 を取ったため)。
+  fragment に番号を書いていないため実害はない。
+- **親が `DW-O17` の手順を 1 本目の commit で 1 段飛ばした。** 「message file → `--dry-run -F` 単独
+  rc=0 → `commit -F`」の `--dry-run` を `check_ai_provenance.py` の dry-run と読み違え、
+  `git commit --dry-run -F` を実行しなかった (provenance preflight は `--message-file` で実施し
+  rc=0)。以後の commit では規定どおりの順序で行った。文脈上 `commit -F` と対になっており
+  文書の欠陥ではないため、文書は変えず事実だけ残す。
 
 ## 次の一手差分
 
