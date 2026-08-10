@@ -740,3 +740,16 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"3b0f46e7a810f14b9403f9bba09635a3121bc6b489f5533ea471c377b509e1d0","seq":41,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"77a8469ebcaa1a5a006e9413a7e024ef70f4ce503eccd0d84802dd88f5fe45f8","seq":42,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:mutation-expected-nodes-two-pass":"[T-753]","T:ruleops-epoch-evidence-checkpoint":"[T-751]","T:ruleops-history-boundary-race":"[T-752]","T:wave-startup-detect-duplicate-job":"[T-754]"},"authored":"2026-08-10","content_sha256":"f2053d9359a7f8de8c5777e288e1cf8485af4fc747207b72c2429fcbfca25a1c","seq":1,"wave":"dev-wave-t726-pickaxe-epoch"}
+- {"allocations":{"D:ruleops-pickaxe-epoch-window":"D274"},"authored":"2026-08-10","content_sha256":"935ebf7065fedad6211535f85cda884fda0d2f824e0e1433dd78c9def9444f9b","seq":2,"wave":"dev-wave-t726-pickaxe-epoch"}
+- {"allocations":{"F:duplicate-dev-wave-job":"F203"},"authored":"2026-08-10","content_sha256":"57ccc9651b1b612d2846096843b13ba8a1b726e4b1c77b3af7fc70724d44204a","seq":3,"wave":"dev-wave-t726-pickaxe-epoch"}
+
+- {"allocations":{"T:ccbench-anatomy-corrections":"[T-758]","T:dev-wave-waiter-liveness-note":"[T-757]","T:s1-design-choice-ruling":"[T-755]","T:trace-completeness-v2":"[T-756]"},"authored":"2026-08-10","content_sha256":"124315288f708e92c2eade023fd860de3c24359c27a3bdeea355486272b7b017","seq":1,"wave":"dev-wave-s1-design-choice"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"f2a9c497bb7dc89c0cbbeb7b711bf8a48e1982ff8132af483c8e019bc672eb98","seq":1,"wave":"dev-wave-t316-sandbox-measure"}
+- {"allocations":{"F:discharge-overrejection-unguarded":"F204","F:renameat2-einval-on-work":"F205"},"authored":"2026-08-10","content_sha256":"5d4452a11452080f1475d7d7afb5d2ec8dcb379af4e5582d0ae1502854e939f4","seq":1,"wave":"dev-wave-t316-sandbox-measure"}
+- {"allocations":{"F:stale-checker-range-audit":"F206"},"authored":"2026-08-10","content_sha256":"2b661a26ba5eeec0e532044ddf187e4d448df27b92db1978963b177592d97fd9","seq":2,"wave":"dev-wave-t316-sandbox-measure"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"eab9c1cc83665a8abcb65751259459967f7786e257579ff24c5c4e4135c8b53d","seq":43,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"30deb243250dc45ac236c9c6c8d1eccca4c104dccf68d4b13d80149dbd4e492f","seq":44,"wave":"rulings-20260806-a"}
