@@ -15,12 +15,37 @@ seq: 1
 適用対象は、source study の validator が確定した cluster level の代表値だけを入力とし、
 新しい測定を 1 件も要求せず、paired 設計の例外を再行使しない解析に限る。
 
-**継承する条件 (適用の前提。1 つでも欠ければ適用外):**
+**継承する条件 (適用の前提。1 つでも欠ければ結論は「判定不能」とする)。**
+roadmap 条文が列挙する条件をすべて引き継ぐ。下流解析は新しい測定を行わないため、
+測定の実施に関する条件は「その条件を満たした測定の結果だけを入力にしてよい」と読み替える。
 
-- 解析は core と追補として事前登録され、データを見る前に凍結・承認・fold されていること。
-- 推論は cluster level で行い、cluster 内の個別観測を独立標本として扱わないこと。
-- 前提が満たせないときは fail-closed で終端し、緩和した代替解析へ落ちないこと。
-- 適格性の判定は解析を行う側から独立した validator が行い、その判定を解析側が上書きしないこと。
+- **発効条件.** 本適用裁定を canonical 台帳へ fold した land 以後にのみ効力を持つ。
+  fold 前の中間状態では発効しない。
+- **事前登録.** 下流解析の推論構造を固定した core と、数値パラメータを確定する追補が、
+  source study の最初の pilot より前に commit され、結果の記録がそれぞれの
+  commit・path・blob digest を参照し、当該 commit が測定 checkout の祖先であること。
+  core の canonical path は producer が選べない。core 単独では完結せず、core と追補の組で完結する。
+- **cluster level 推論.** 入力は 1 割当てを 1 cluster とする代表値だけとし、
+  推定量・検定・区間は cluster 間の標本平均と標本共分散だけから構成する。
+  cluster 内の反復・block・個々の測定値を独立標本や追加の自由度として数えない。
+- **順序均衡と結果後の選別禁止.** 入力にしてよいのは、各適格 cluster が 3 arm の全 6 順列を
+  ちょうど 1 回ずつ含み、arm 位置と直前 arm の組が厳密に均衡し、workload の block 順が
+  cluster 間で差 1 以内に均衡した測定だけである。**結果を見た後の cluster 選別・順序変更をしない。**
+- **観測者効果の分離 (絶対規律 1 は不変).** 入力にしてよいのは trace-disabled ビルドで揃えた
+  性能測定だけである。correctness 検証は trace-enabled の別ビルド・別 run の結果を使い、
+  同一割当ての中で性能測定と混ぜない。
+- **fail-closed.** pairing・順序均衡・cluster の受領証のいずれかが成立しなければ「判定不能」とし、
+  unpaired 推定へも通常の campaign compare へも自動 fallback しない。
+  correctness anomaly は候補の終端 reject とし、性能測定の開始後の失敗を予備割当てで置き換えない。
+- **権威.** 適格性は producer の自己申告では決まらず、保存した生の受領証から独立 validator が
+  再計算した結果だけを権威とする。
+- **流用禁止の境界.** 本適用は within-run / between-run の区別、`BETWEEN_RUN_CV` の値、
+  品質ゲート、floor 丸めを一切変更しない。paired cluster の反復や cluster 内 contrast を
+  通常の campaign compare の独立 run 列へ流用しない。
+
+**機械執行は無い。**上の条件は文書上の契約であり、投入 script・producer・受領証 schema・
+validator・消費側のいずれにも配線されていない。**本裁定を根拠に「機械的に阻止されている」と
+記録してはならない。**配線は producer 実装 wave の責務である。
 
 **理由:**
 
@@ -47,6 +72,11 @@ seq: 1
 **決定:** source study の追補 B は、primary 系列の累積台帳への参照を持たない。
 個別公表系列の受理条件に primary 側の予約 entry を含めない。この不採用は終端であり、
 将来の producer 実装 wave が primary digest 参照を「未確定仕様」として復活させてはならない。
+
+**混同への注意:** これは追補 B の裁定パッケージが立てた「`b03` に primary 台帳への参照を置くか」
+という問い (第 5 問) の不採用終端である。**別に存在する「追補 B の第 5 案」**
+(現 study を維持したまま erratum で公表手続きを固定する案) の不採用終端とは**別の裁定**であり、
+一方を他方の根拠にしてはならない。
 
 **理由:**
 

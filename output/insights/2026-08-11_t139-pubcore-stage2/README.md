@@ -18,21 +18,31 @@ worklog 404 の裁定 **C-1〜C-5 (全問 (a))** を実行した wave の成果�
 - 段階 1 = `output/insights/2026-08-10_t139-publication-core/` (land 済み)。
   新 core の草案と、C-1〜C-5 の裁定パッケージ。
 - 追補 B 初版 = `output/insights/2026-08-09_t139-addendum-b/` (land 済み)。**不変のまま残す。**
-- source study の凍結 core = `output/insights/2026-08-07_t139-mainrun-design/preregistration.md`。
-  追補 A = `output/insights/2026-08-08_t139-addendum-a/`。**いずれも 1 byte も触れていない。**
+- source study の凍結 core = `output/insights/2026-08-07_t139-mainrun-design/preregistration.md`
+  (`ac939af4…`)。**effective な追補 A は再発行版**
+  `output/insights/2026-08-08_t139-r4-env-probe/addendum-a-reissue.md` (`f7db96ce…`) であり、
+  初版ディレクトリ `2026-08-08_t139-addendum-a/` の blob (`1f561258…`) ではない。
+  新 core が束縛しているのも再発行版である。**いずれも 1 byte も触れていない。**
 
 ## この wave が確定したこと
 
 1. **`b03` の正本は本 wave が持つ。**land 2 側 (`output/insights/2026-08-11_t139-manifest-land1/package.md`
    の §S7 表 7 行目) は「記録要件が未凍結」という要件の指し先で、定義を持たない。
    機械執行は C-5 (a) により producer 実装 wave。**定義 / 要件 / 執行に分かれ、二重定義は生じない。**
-2. **新 core v2 の変更は 5 行だけ** (104, 105, 569, 570, 571)。行数は不変。
-   §8.1 の「どちらが正本か未確定」という一節を、C-2b (a) の結論へ差し替えた。追補 B を参照しない。
-3. **追補 B v2 の変更は `b03` の縮小 1 点だけ。**落とした 5 項目は `addendum-b-v2.md` の
-   末尾節で逐語に列挙した。`fields` が `{b01, b02, b03}` を過不足なく解決することを
-   repo の実装で機械確認した。
+2. **新 core v2 の変更は §0 の段階表 2 行と §8.1 の blockquote だけ。**
+   §8.1 の「どちらが正本か未確定」という一節を C-2b (a) の結論へ差し替えた。追補 B を参照しない。
+   §1〜§7、§8.2 以降、§9〜§11 は初版の逐語のまま。
+3. **追補 B v2 の変更は 7 hunk (39 行追加 / 33 行削除)。**内訳は (i) 再発行 preamble の追加、
+   (ii) `b03` の縮小、(iii) 末尾節の追加・変更 (落とした項目の説明と、裁定 B5 の終端を
+   明文化する**初版に無い恒久禁止文**)。**`b01`・`b02` の field slice は初版と byte 単位で一致** (5186 bytes)。
+   `fields` が `{b01, b02, b03}` を過不足なく解決することを repo の実装で機械確認した。
 4. **追補 P は凍結できない。**従属先 `core_ref.commit` は先例では「承認決定を canonical 台帳へ
    fold した commit」であり、それは承認の後にしか存在しない。草案のまま置いた。
+   置いた未確定 marker は**人が読むための印であって機械的な防壁ではない** — 現行の
+   placeholder 検査は別 literal だけを見ており、本 marker では land も fold も止まらない。
+5. **`p03` は「同じ根のまま台帳実体を取り替える」経路を閉じない。**呼び手が選べなくても、
+   実装側が版を上げるときに空の台帳実体を固定すれば要件を満たしたまま番号を取り直せる。
+   根から唯一の台帳実体への束縛が要り、それは producer 実装 wave の必須要件として送った。
 
 ## 機械確認したこと
 
