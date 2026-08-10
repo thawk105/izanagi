@@ -103,6 +103,18 @@
       "primary_gate": "hook deny pending admission evidence",
       "evidence": "unmeasured probe artifact"
     },
+    "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": {
+      "class": "dispatch-required",
+      "reason": "gen_S sandbox-backend measurement PBS job body",
+      "primary_gate": "PBS allocation and job-body environment validation",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t316_sandbox_backend_probe.py": {
+      "class": "dispatch-required",
+      "reason": "compute-side sandbox and performance measurement probe",
+      "primary_gate": "PBS_JOBID and compute allocation owned by t316_sandbox_backend_probe.pbs",
+      "evidence": "static compute-side call-site classification"
+    },
     "tools/pegasus/probes/t419_probe_causality.pbs": {
       "class": "unknown",
       "reason": "probe artifact has no login admission ruling",
