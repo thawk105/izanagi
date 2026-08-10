@@ -21,10 +21,21 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
 
-from . import pipeline, wal
+from . import (
+    campaign_lock,
+    contract_loader_binding,
+    ident,
+    pipeline,
+    wal,
+)
 from .build_admission import GeneratorId, build_run_context
 from .layout import CampaignLayout
-from .model import Genome, STAGE_BUILD_START
+from .model import (
+    COMMIT_CONTRACT_SHA256_KEY,
+    Genome,
+    STAGE_BUILD_START,
+    STAGE_COMMIT,
+)
 
 
 LEDGER_SCHEMA = "legacy-campaign-admission-overlay/v1"
@@ -388,6 +399,17 @@ def _is_legacy_trigger_lock(lock: object) -> bool:
     return type(search) is dict and search.get("axis") == wal.TRIGGER_AXIS
 
 
+def _claims_certified_execution(
+        records: tuple[Any, ...] | list[Any],
+) -> bool:
+    """Return whether WAL records claim a contract-bound certified execution."""
+    return any(
+        record.stage == STAGE_COMMIT
+        and COMMIT_CONTRACT_SHA256_KEY in record.payload
+        for record in records
+    )
+
+
 def _parse_canonical_genome(value: object) -> Genome:
     if type(value) is not str or "|" not in value:
         raise ArtifactAdmissionError(
@@ -484,38 +506,72 @@ def _validate_trigger_provenance(
         )
 
 
-def _validate_post_policy_campaign_id(
-        *, lock_raw: bytes, lock: object, campaign_id: str,
+def _validate_trigger_proposal_campaign_id(
+        *, decoded: campaign_lock.DecodedCampaignLock, campaign_id: str,
 ) -> None:
-    """Pin canonical lock bytes and directory identity for trigger proposals."""
+    """Retain the pre-existing trigger-proposal directory identity check.
+
+    T-671 temporarily broadened this check to every v2 lock.  That unapproved
+    broadening rejected valid non-trigger consumers which deliberately relocate
+    an otherwise self-contained campaign view, so only the original trigger
+    proposal axis remains subject to the directory-name binding.
+    """
+    if not decoded.is_v2:
+        raise ArtifactAdmissionError("directory identity validation requires v2 lock")
+    lock = decoded.identity
     if not wal.is_trigger_proposal_campaign_lock(lock):
         return
-    if type(lock) is not dict:
-        raise ArtifactAdmissionError("post-policy campaign.lock が object でない")
-    try:
-        canonical = json.dumps(
-            lock, sort_keys=True, ensure_ascii=False, separators=(",", ":"),
-            allow_nan=False,
-        ).encode("utf-8")
-    except (TypeError, ValueError) as exc:
-        raise ArtifactAdmissionError(
-            "post-policy campaign.lock が canonical preimage でない"
-        ) from exc
-    if lock_raw != canonical:
-        raise ArtifactAdmissionError(
-            "post-policy campaign.lock が canonical preimage でない"
-        )
+    identity_bytes = decoded.identity_preimage.encode("utf-8")
     search_tag = lock.get("search_tag")
     if type(search_tag) is not str or not search_tag:
         raise ArtifactAdmissionError("post-policy campaign.lock search_tag が不正")
-    cfg_hash8 = hashlib.sha256(canonical).hexdigest()[:8]
+    cfg_hash8 = hashlib.sha256(identity_bytes).hexdigest()[:8]
     suffix = f"-{search_tag}-{cfg_hash8}"
     slug = campaign_id[:-len(suffix)] if campaign_id.endswith(suffix) else ""
     expected = f"{slug}{suffix}" if slug else ""
     if expected != campaign_id:
         raise ArtifactAdmissionError(
-            "post-policy campaign directory ID が lock canonical preimage と不一致"
+            "post-policy campaign directory ID が inner identity preimage と不一致"
         )
+
+
+def _decode_campaign_lock(
+        lock_raw: bytes,
+) -> campaign_lock.DecodedCampaignLock:
+    try:
+        return campaign_lock.decode_campaign_lock_bytes(lock_raw)
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise ArtifactAdmissionError(
+            f"campaign.lock codec validation failed: {exc}"
+        ) from exc
+
+
+def _verify_committed_loader_binding(
+        decoded: campaign_lock.DecodedCampaignLock,
+) -> None:
+    authority = decoded.authority
+    if authority is None:
+        raise ArtifactAdmissionError("campaign-lock/v2 authority が存在しない")
+    try:
+        binding = contract_loader_binding.binding_from_authority(
+            authority.contract_loader_commit,
+            authority.contract_loader_blob_sha256s,
+        )
+        contract_loader_binding.verify_committed_contract_loader_binding(binding)
+    except contract_loader_binding.ContractLoaderBindingError as exc:
+        raise ArtifactAdmissionError(
+            f"contract loader committed validation failed: {exc}"
+        ) from exc
+
+
+def _validate_recorded_activation(
+        decoded: campaign_lock.DecodedCampaignLock,
+) -> None:
+    """Map the shared resume/admission tuple validator onto this error surface."""
+    try:
+        ident.verify_recorded_activation_tuple(decoded)
+    except ident.IdentityMismatch as exc:
+        raise ArtifactAdmissionError(str(exc)) from exc
 
 
 def _inspect_campaign(
@@ -597,11 +653,29 @@ def _inspect_campaign(
             validator_sha256=validator_sha,
         ), tuple(records)
 
+    decoded = _decode_campaign_lock(lock_raw)
+    lock = decoded.identity
+    search = lock["search_config"]
+    if decoded.is_v2:
+        _verify_committed_loader_binding(decoded)
+        _validate_recorded_activation(decoded)
+        if "build_admission" not in search:
+            raise ArtifactAdmissionError(
+                "campaign-lock/v2 identity lacks build_admission"
+            )
+        _validate_trigger_proposal_campaign_id(
+            decoded=decoded, campaign_id=campaign_id,
+        )
+
     records, truncated = wal.read_records_checked(layout)
 
-    lock = _decode_json(lock_raw, label="campaign.lock")
-    search = lock.get("search_config") if type(lock) is dict else None
-    if type(search) is not dict or "build_admission" not in search:
+    if (decoded.is_v1 and "build_admission" in search
+            and _claims_certified_execution(records)):
+        raise ArtifactAdmissionError(
+            "campaign-lock/v1 with build_admission is a post-policy downgrade"
+        )
+
+    if decoded.is_v1 and "build_admission" not in search:
         if not _is_proven_pre_policy_artifact(
             relative=relative,
             ledger=ledger,
@@ -634,9 +708,6 @@ def _inspect_campaign(
             validator_sha256=validator_sha,
         ), tuple(records)
 
-    _validate_post_policy_campaign_id(
-        lock_raw=lock_raw, lock=lock, campaign_id=campaign_id,
-    )
     if truncated:
         raise ArtifactAdmissionError("post-policy campaign WAL has a truncated tail")
     policy = _current_policy()
@@ -644,7 +715,7 @@ def _inspect_campaign(
         raise ArtifactAdmissionError("post-policy campaign lock admission policy differs")
     try:
         wal._validate_attempt_topology(
-            records, admission_policy=policy, campaign_lock=lock,
+            records, admission_policy=policy, campaign_lock=decoded,
         )
         if (wal.is_trigger_machine_campaign_lock(lock)
                 and any(

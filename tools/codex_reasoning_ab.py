@@ -3321,6 +3321,24 @@ def _normalize_inline_emphasis(text: str) -> str:
     return re.sub(r"(?<!\\)(?:\*{1,3}|_{1,3}|`+)", "", text)
 
 
+_DECISION_OPENING_RE = re.compile(
+    r"(?:[ \t]*\r?\n)*[ \t]*"
+    r"(?:結論[ \t]*は[ \t]*)?(NO-GO|GO)"
+    r"[ \t]*(?:です)?[ \t]*[。.!！]"
+)
+_DECISION_TOKEN_RE = re.compile(
+    r"(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z一-龯ぁ-んァ-ヶ-])"
+)
+_DECISION_ASSERTION_RE = re.compile(
+    r"(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z-])"
+    r"(?:"
+    r"[ \t]*(?:です|だ|である|でもある)?[ \t]*[。.!！]|"
+    r"[ \t]*と[ \t]*(?:判断|結論|裁定)|"
+    r"[ \t]*の?[ \t]*結論"
+    r")"
+)
+
+
 def score_text(text: str) -> dict[str, Any]:
     visible = without_fenced_code(text)
     reasons: list[str] = []
@@ -3341,18 +3359,19 @@ def score_text(text: str) -> dict[str, Any]:
         r"^\s*[^。.!！]*[。.!！]", normalized_summary
     )
     decision_match = (
-        re.fullmatch(
-            r"\s*(NO-GO|GO)(?:です)?[。.!！]",
-            first_sentence.group(0),
-        )
+        _DECISION_OPENING_RE.fullmatch(first_sentence.group(0))
         if first_sentence is not None
         else None
     )
-    decisions = re.findall(
-        r"(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z一-龯ぁ-んァ-ヶ-])",
-        normalized_summary,
+    opening_decision = (
+        decision_match.group(1) if decision_match is not None else None
     )
-    distinct_decisions = set(decisions)
+    extracted_decisions = set(_DECISION_TOKEN_RE.findall(normalized_summary))
+    asserted_decisions = {
+        match.group(1)
+        for match in _DECISION_ASSERTION_RE.finditer(normalized_summary)
+    }
+    claimed_decisions = extracted_decisions | asserted_decisions
     decision_disclaimed = bool(
         re.search(
             r"(?:NO-GO|GO)\s*(?:ではない|でない|とは言えない|を否定)|"
@@ -3369,14 +3388,14 @@ def score_text(text: str) -> dict[str, Any]:
         )
     )
     if (
-        decision_match is None
-        or len(distinct_decisions) != 1
+        opening_decision is None
+        or claimed_decisions != {opening_decision}
         or decision_disclaimed
     ):
         reasons.append("score: summary does not start with one GO/NO-GO decision")
         decision = None
     else:
-        decision = decision_match.group(1)
+        decision = opening_decision
 
     finding_sections: list[dict[str, Any]] = []
     seen_ids: set[str] = set()

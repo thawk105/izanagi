@@ -1,0 +1,195 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 8,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if disk != blob:\n            raise ContractLoaderBindingError(\n                f\"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}\"\n            )\n",
+          "new": "        if False and disk != blob:\n            raise ContractLoaderBindingError(\n                f\"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}\"\n            )\n"
+        },
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if disk != blob:\n            raise ContractLoaderBindingError(\n                f\"contract-loader-drift: disk bytes が記録 commit blob と不一致: {relative}\"\n            )\n",
+          "new": "        if False and disk != blob:\n            raise ContractLoaderBindingError(\n                f\"contract-loader-drift: disk bytes が記録 commit blob と不一致: {relative}\"\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t671_source_binding.py::test_loader_drift_rejected_before_campaign_lock_or_wal_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ident.py",
+          "old": "        binding = _capture_current_loader_binding()\n",
+          "new": "        binding = contract_loader_binding.ContractLoaderBinding(\n            contract_loader_commit=\"0\" * 40,\n            contract_loader_blob_sha256s={\n                relative: \"0\" * 64\n                for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS\n            },\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t671_source_binding.py::test_loader_drift_rejected_before_campaign_lock_or_wal_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        _verify_committed_loader_binding(decoded)\n",
+          "new": "        pass  # mutation: skip committed loader binding validation\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "    else:\n        if (type(search_config) is not dict\n                or _LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY not in search_config):\n            return\n        expected = search_config.get(_LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY)\n",
+          "new": "    else:\n        return\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_lock_wal_consumers.py::test_v1_lock_with_contract_h_rejects_unbound_commit[payload0-exact lowercase]",
+        "orchestrator/tests/test_campaign_lock_wal_consumers.py::test_v1_lock_with_contract_h_rejects_unbound_commit[payload1-campaign.lock \\u3068\\u4e0d\\u4e00\\u81f4]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    if certifying_input is True and (\n        not isinstance(admission_decision, Mapping)\n        or admission_decision.get(\"admission_status\") != \"admitted\"\n    ):\n        raise Layer3ReportError(\n            \"certifying_input=true には admission_status=admitted が必須\"\n        )\n",
+          "new": "    if False and certifying_input is True and (\n        not isinstance(admission_decision, Mapping)\n        or admission_decision.get(\"admission_status\") != \"admitted\"\n    ):\n        raise Layer3ReportError(\n            \"certifying_input=true には admission_status=admitted が必須\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_reader_rejects_certifying_historical_admission"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if decision.get(\"admission_status\") != \"admitted\":\n        _fail(\n            \"campaign-chain\",\n            f\"{label} certifying input requires admission_status=admitted\",\n        )\n",
+          "new": "    if False and decision.get(\"admission_status\") != \"admitted\":\n        _fail(\n            \"campaign-chain\",\n            f\"{label} certifying input requires admission_status=admitted\",\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_completeness_rejects_certifying_historical_admission"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        _validate_recorded_activation(decoded)\n",
+          "new": "        pass  # mutation: skip recorded activation validation\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_v2_activation_tuple_must_name_real_active_record[missing-serial]",
+        "orchestrator/tests/test_artifact_admission.py::test_v2_activation_tuple_must_name_real_active_record[missing-state]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    if (decoded.is_v1 and \"build_admission\" in search\n            and _claims_certified_execution(records)):\n",
+          "new": "    if (False and decoded.is_v1 and \"build_admission\" in search\n            and _claims_certified_execution(records)):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_v2_outer_envelope_stripped_to_v1_post_policy_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ident.py",
+          "old": "    if not require_environment_contract:\n        return\n",
+          "new": "    if not require_environment_contract:\n        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_guided.py::test_cmd_start_atomic_loser_is_structured_and_touches_no_meta_or_wal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P2",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        return self.admission_status != \"legacy-unclassified\"\n",
+          "new": "        return self.admission_status == \"admitted\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-repro-silo-balanced-repro-87dbbf50]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-repro-silo-write-heavy-repro-181607af]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-balanced-sweep-484c663e]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-read-heavy-sweep-610004b9]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-read-heavy-sweep-6f169f90]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-read-heavy-sweep-8ff95955]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-write-heavy-sweep-493813a7]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p2-2-silo-balanced-enumerate-f1588056]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p2-2-silo-read-heavy-enumerate-5ffcabad]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p2-2-silo-write-heavy-enumerate-8967bed6]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-kickoff-coder-wiring-cba40400]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s4-red-s4-red-consumer-9a1897c4]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-balanced-sweep-1b39095e]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-balanced-sweep-dd25aa8c]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-write-heavy-sweep-0484feef]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-write-heavy-sweep-d4552403]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-block1-direct-comparison-74ff9ba2]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-block2-direct-comparison-9645b16a]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-develop-direct-comparison-7bccdf1a]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-develop-direct-comparison-d0f495bf]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-floor-direct-comparison-b82b9229]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -43,8 +43,7 @@ from campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: 
 from campaign.build_admission import (GeneratorId, add_coder_build_authority_argument,  # noqa: E402
                                       build_run_context)
 from campaign.layout import CampaignLayout                          # noqa: E402
-from campaign.model import (ENVIRONMENT_CONTRACT_SEARCH_KEY,       # noqa: E402
-                            Genome)
+from campaign.model import CampaignConfig, Genome                  # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
 from campaign.projection_guard import (                              # noqa: E402
@@ -60,6 +59,7 @@ from campaign.trigger_gate_binding import (                          # noqa: E40
     TriggerGateBinding,
     expected_predicate_sha256,
 )
+from campaign_lock_test_support import build_v2_lock                # noqa: E402
 
 _AUTHORITY_PARSER = argparse.ArgumentParser()
 add_coder_build_authority_argument(_AUTHORITY_PARSER)
@@ -128,7 +128,7 @@ _T530_COMPUTE_CAMPAIGN_ID = (
 
 def _critic_view(layout: CampaignLayout):
     cfg = T._campaign_cfg_for_site(T.default_cfg(), site_policy.OTHER)
-    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     return require_admitted_campaign(layout)
 
 
@@ -141,20 +141,15 @@ def _mk_template_dir() -> str:
     return d
 
 
-def _tmp_layout(tag: str) -> CampaignLayout:
+def _tmp_layout(
+        tag: str, *, cfg: CampaignConfig | None = None,
+) -> CampaignLayout:
+    # Runtime contract authority is outside campaign identity (R2(a)).
+    cfg = T.default_cfg() if cfg is None else cfg
+    parent = tempfile.mkdtemp(prefix=f"izanagi_s8atrigloop_{tag}_")
     return CampaignLayout(
-        root=tempfile.mkdtemp(prefix=f"izanagi_s8atrigloop_{tag}_")).ensure()
-
-
-def _campaign_id_without_environment_contract(cfg) -> str:
-    preimage = json.loads(ident.canonical_preimage(cfg))
-    preimage["search_config"].pop(ENVIRONMENT_CONTRACT_SEARCH_KEY)
-    rendered = json.dumps(
-        preimage, sort_keys=True, separators=(",", ":"),
-        ensure_ascii=False,
-    ).encode("utf-8")
-    digest = hashlib.sha256(rendered).hexdigest()[:8]
-    return f"{cfg.spec_slug}-{cfg.search_tag}-{digest}"
+        root=os.path.join(parent, str(ident.campaign_id(cfg)))
+    ).ensure()
 
 
 def _planner() -> "L.PlannerProposal":
@@ -506,7 +501,7 @@ def test_environment_module_surface_and_default_seams():
     assert not hasattr(T, "NUMA")
     assert T._current_site is site_policy.current_site
     assert T._lookup is env_contract.lookup
-    assert ENVIRONMENT_CONTRACT_SEARCH_KEY not in T.default_cfg().search_config
+    assert "environment_contract_sha256" not in T.default_cfg().search_config
     assert "site" not in inspect.signature(T.run_one_iteration).parameters
     assert "site" not in inspect.signature(T.drive_iteration).parameters
 
@@ -554,7 +549,6 @@ def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
     assert contract.numactl != registry_contract.numactl
     assert contract.clocks_per_us != T.L.CLK
     assert list(contract.numactl) != T.L.NUMA
-
     invoke, _lay, calls = _measurement_case(
         monkeypatch, site=site_policy.OTHER,
         lookup=lambda _env_tag: contract,
@@ -614,10 +608,11 @@ def test_campaign_identity_is_unchanged_for_other_and_split_for_compute():
         T._lookup = saved_site_lookup
     assert other_cfg is cfg
     assert str(ident.campaign_id(other_cfg)) == str(ident.campaign_id(cfg))
-    assert str(ident.campaign_id(other_cfg)) == _T530_OTHER_CAMPAIGN_ID
-    assert str(ident.campaign_id(compute_cfg)) == _T530_COMPUTE_CAMPAIGN_ID
-    assert _campaign_id_without_environment_contract(cfg) == \
-        _T343_OTHER_CAMPAIGN_ID
+    # T-671 で H が identity から外れ、current は旧 T343 値になる。
+    assert str(ident.campaign_id(other_cfg)) == _T343_OTHER_CAMPAIGN_ID
+    assert str(ident.campaign_id(compute_cfg)) == _T343_COMPUTE_CAMPAIGN_ID
+    assert str(ident.campaign_id(other_cfg)) != _T530_OTHER_CAMPAIGN_ID
+    assert str(ident.campaign_id(compute_cfg)) != _T530_COMPUTE_CAMPAIGN_ID
     t343_compute = replace(
         unbound,
         search_config={
@@ -626,9 +621,7 @@ def test_campaign_identity_is_unchanged_for_other_and_split_for_compute():
         },
     )
     t343_compute_hash = hashlib.sha256(
-        ident.canonical_preimage(
-            t343_compute, require_environment_contract=False,
-        ).encode("utf-8")
+        ident.canonical_preimage(t343_compute).encode("utf-8")
     ).hexdigest()[:8]
     assert (
         f"{t343_compute.spec_slug}-{t343_compute.search_tag}-{t343_compute_hash}"
@@ -662,6 +655,11 @@ def test_injected_layout_must_match_final_campaign_id(monkeypatch):
     contract = env_contract.GENERATIONS["linux-baremetal"][0].contract
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     monkeypatch.setattr(T, "_lookup", lambda _env_tag: contract)
+    # Contract H no longer changes campaign-id, so mismatch on the retained records axis.
+    mismatched_cfg = replace(
+        T.default_cfg(),
+        search_config={**T.default_cfg().search_config, "records": 100_001},
+    )
     with pytest.raises(ValueError, match="layout 注入"):
         T.run_one_iteration(
             T.default_cfg(), T.default_perf(), _planner(),
@@ -669,7 +667,7 @@ def test_injected_layout_must_match_final_campaign_id(monkeypatch):
             AuditorVerdict(verdict="pass", diff_digest="a" * 64),
             L.LoopState(start_ts=time.monotonic()),
             "/must-not-be-read", do_build=False,
-            layout=_tmp_layout("identity-mismatch"),
+            layout=_tmp_layout("identity-mismatch", cfg=mismatched_cfg),
         )
 
 
@@ -2011,7 +2009,7 @@ def test_drive_trigger_crash_tail_fails_before_stop_checkpoint_and_provenance(
     monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: lay)
     cfg = T._campaign_cfg_for_site(T.default_cfg(), site_policy.OTHER)
     perf = T.default_perf()
-    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    wal.write_lock(lay, build_v2_lock(ident.canonical_preimage(cfg)))
     attempt_id = "trigger-crashed-attempt"
     binding = _binding()
     commitment_value = wal.log_trigger_binding(
@@ -2071,7 +2069,7 @@ def test_inner_run_reject_start_crash_fails_before_second_start(monkeypatch):
         ).ensure()
 
     def seed_active_attempt(layout):
-        wal.write_lock(layout, ident.canonical_preimage(cfg))
+        wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
         commitment_value = wal.log_trigger_binding(
             layout, variant, "test-env", attempt_id, _binding(),
         )
@@ -2212,7 +2210,7 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     out = T.drive_iteration(cfg, perf, _planner(), coder, auditor, None, sub, do_build=False,
                             layout=lay, proposal_path="/scratch/prop1.json")
     assert out["ran"] is True and out["outcome"] == "rejected" and out["iteration"] == 1
-    assert wal.read_lock(lay) == ident.canonical_preimage(cfg)
+    assert wal.read_lock(lay) == build_v2_lock(ident.canonical_preimage(cfg))
     second_wire = "01000"
     next_coder = T.CoderProposalTriggerGating(
         axis=T.MARKER_ID, wire=second_wire,

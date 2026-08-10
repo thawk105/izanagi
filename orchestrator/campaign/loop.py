@@ -146,6 +146,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     # 同一性を照合した後に限り、replay 前に無終端 tail を物理修復する。
     repair = ident.ensure_resumable_wal(
         cfg, layout, admission_policy=build_context.policy,
+        authorization_contract=authorization_contract,
     )
     log(f"[campaign] {cid}  ({layout.root})")
     if repair.status == "repaired":

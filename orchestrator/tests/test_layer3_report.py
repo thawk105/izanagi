@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -16,8 +17,13 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
 from campaign import (  # noqa: E402
+    autonomous_trial_completeness,
+    campaign_lock,
+    contract_loader_binding,
+    env_contract,
     layer3_report,
     model,
+    p3_autonomous_workload_trial,
     s8c_acceptance_receipt,
     trigger_gate_binding,
     wal,
@@ -42,6 +48,36 @@ LEGACY_TRIGGER_SWEEP_CAMPAIGN = (
 YCSB = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
 ABORTED_FIXTURE_VARIANT = "2225adf39fa3"
 REJECTED_FIXTURE_VARIANT = "d85dc0fc5a6e"
+
+
+def build_v2_campaign_lock(
+        identity_preimage: str, *,
+        authorization: env_contract.AuthorizedContract | None = None,
+        binding: contract_loader_binding.ContractLoaderBinding | None = None,
+) -> str:
+    """Build a v2 fixture without crossing the campaign module namespace."""
+    if authorization is None:
+        authorization = env_contract.authorize("linux-baremetal")
+    if type(authorization) is not env_contract.AuthorizedContract:
+        raise TypeError("authorization は exact AuthorizedContract が必要")
+    if binding is None:
+        binding = contract_loader_binding.capture_contract_loader_binding()
+    if type(binding) is not contract_loader_binding.ContractLoaderBinding:
+        raise TypeError("binding は exact ContractLoaderBinding が必要")
+    return campaign_lock.encode_campaign_lock_v2(
+        identity_preimage,
+        campaign_lock.CampaignLockAuthority(
+            environment_contract_sha256=(
+                authorization.contract.contract_sha256
+            ),
+            activation_serial=authorization.activation_serial,
+            activation_state_sha256=authorization.activation_state_sha256,
+            contract_loader_commit=binding.contract_loader_commit,
+            contract_loader_blob_sha256s=dict(
+                binding.contract_loader_blob_sha256s
+            ),
+        ),
+    )
 
 
 def _admission_bound_records(tmp_path: Path, records: list[dict]) -> tuple[list[dict], dict]:
@@ -127,8 +163,6 @@ def _admission_bound_records(tmp_path: Path, records: list[dict]) -> tuple[list[
 def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
               ycsb=None) -> tuple[Path, Path]:
     output_root = tmp_path / "repo" / "output"
-    root = output_root / "campaigns" / "campaign"
-    (root / "runs").mkdir(parents=True)
     records, admission_policy = _admission_bound_records(tmp_path, records)
     search_config = {
         "records": 100000,
@@ -137,10 +171,20 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     }
     if ycsb is not None:
         search_config["ycsb"] = ycsb
-    (root / "campaign.lock").write_text(json.dumps({
+    identity_preimage = campaign_lock.canonical_json({
         "ccbench_commit": CURRENT_PIN, "search_config": search_config,
         "search_tag": "test", "spec_content": "test", "trial": "trial",
-    }), encoding="utf-8")
+    })
+    cfg_hash8 = hashlib.sha256(
+        identity_preimage.encode("utf-8")
+    ).hexdigest()[:8]
+    root = output_root / "campaigns" / (
+        "campaign-test-" + cfg_hash8
+    )
+    (root / "runs").mkdir(parents=True)
+    (root / "campaign.lock").write_text(
+        build_v2_campaign_lock(identity_preimage), encoding="utf-8",
+    )
     if loop_state:
         (root / "loop_state.json").write_text(
             json.dumps({"whiteboard": whiteboard if whiteboard is not None else []}),
@@ -148,6 +192,25 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     (root / "runs/wal.jsonl").write_text(
         "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
     return root, output_root
+
+
+def _historical_admitted_campaign(campaign: Path):
+    admitted = layer3_report.require_admitted_campaign(campaign)
+    decision = dataclasses.replace(
+        admitted.decision,
+        classification="historical-pre-admission-schema",
+        admission_status="historical-not-reclassified",
+    )
+    return dataclasses.replace(admitted, decision=decision)
+
+
+def _certifying_receipt_for(campaign: Path):
+    return SimpleNamespace(
+        certifying=True,
+        trials=(SimpleNamespace(campaign_id=campaign.name, trial_id="trial"),),
+        relative_path="acceptance/receipt.json",
+        sha256="a" * 64,
+    )
 
 
 def _verified_non_certifying_receipt(
@@ -280,19 +343,23 @@ def test_trigger_campaign_report_keeps_commitment_and_excludes_raw_binding(tmp_p
         ],
     )
     lock_path = campaign / "campaign.lock"
-    lock = json.loads(lock_path.read_text())
-    lock["search_config"].update({
+    identity = json.loads(
+        campaign_lock.decode_campaign_lock(
+            lock_path.read_text(encoding="utf-8")
+        ).identity_preimage
+    )
+    identity["search_config"].update({
         "axis": wal.TRIGGER_AXIS,
         "reflux": "on",
         wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY: trigger_gate_binding.SCHEMA_VERSION,
     })
-    canonical_lock = json.dumps(
-        lock, sort_keys=True, ensure_ascii=False,
-        separators=(",", ":"), allow_nan=False,
-    ).encode("utf-8")
-    lock_path.write_bytes(canonical_lock)
+    identity_preimage = campaign_lock.canonical_json(identity)
+    lock_path.write_text(
+        build_v2_campaign_lock(identity_preimage), encoding="utf-8",
+    )
     canonical_campaign = campaign.with_name(
-        f"campaign-{lock['search_tag']}-{hashlib.sha256(canonical_lock).hexdigest()[:8]}"
+        f"campaign-{identity['search_tag']}-"
+        f"{hashlib.sha256(identity_preimage.encode('utf-8')).hexdigest()[:8]}"
     )
     campaign.rename(canonical_campaign)
     campaign = canonical_campaign
@@ -391,6 +458,73 @@ def test_campaign_without_loop_state_has_empty_absent_whiteboard(tmp_path):
     assert decision["classification"] == "admitted-new-schema"
     assert decision["admission_status"] == "admitted"
     assert decision["overlay"]["record_key"] is None
+
+
+def test_historical_build_report_remains_non_certifying(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    historical = _historical_admitted_campaign(campaign)
+    monkeypatch.setattr(
+        layer3_report, "require_admitted_campaign", lambda _path: historical,
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["admission_decision"]["admission_status"] == (
+        "historical-not-reclassified"
+    )
+    assert report["acceptance_receipt"] is None
+    assert report["certifying_input"] is False
+
+
+def test_v2_lock_projects_only_inner_identity_without_authority_or_new_source_refs(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    admitted = layer3_report.require_admitted_campaign(campaign)
+    baseline_report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    lock_path = campaign / "campaign.lock"
+    identity_preimage = campaign_lock.decode_campaign_lock(
+        lock_path.read_text(encoding="utf-8")
+    ).identity_preimage
+    v2_text = build_v2_campaign_lock(
+        identity_preimage,
+        authorization=env_contract.authorize("pegasus"),
+    )
+    lock_path.write_text(v2_text, encoding="utf-8")
+    v2_admitted = dataclasses.replace(
+        admitted,
+        decision=dataclasses.replace(
+            admitted.decision,
+            campaign_lock_sha256=hashlib.sha256(v2_text.encode("utf-8")).hexdigest(),
+        ),
+    )
+    monkeypatch.setattr(
+        layer3_report, "require_admitted_campaign", lambda _path: v2_admitted,
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["schema_version"] == "layer3-material-report/v3"
+    assert report["workload"] == baseline_report["workload"]
+    assert report["meta"]["ccbench_commit"] == (
+        baseline_report["meta"]["ccbench_commit"]
+    )
+    assert report["source_refs"] == baseline_report["source_refs"]
+    rendered = json.dumps(report, ensure_ascii=False, sort_keys=True)
+    assert '"authority"' not in rendered
+    assert '"environment_contract_sha256"' not in rendered
 
 
 def test_legacy_v2_report_schema_remains_readable(tmp_path):
@@ -494,6 +628,29 @@ def test_reader_rejects_acceptance_receipt_without_certifying_input(
         layer3_report._validate_schema(report)
 
 
+def test_reader_rejects_certifying_historical_admission(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    historical = _historical_admitted_campaign(campaign)
+    monkeypatch.setattr(
+        layer3_report, "require_admitted_campaign", lambda _path: historical,
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["acceptance_receipt"] = {"path": "receipt.json", "sha256": "a" * 64}
+    report["certifying_input"] = True
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="certifying_input=true には admission_status=admitted が必須$",
+    ):
+        layer3_report._validate_schema(report)
+
+
 def test_m14_non_certifying_receipt_is_rejected_downstream(
     tmp_path: Path,
 ) -> None:
@@ -534,6 +691,243 @@ def test_accepted_report_rejects_unsealed_receipt_capability(tmp_path: Path) -> 
             campaign,
             acceptance_receipt=forged,
             output_root=output_root,
+        )
+
+
+def test_accepted_report_rejects_historical_before_certifying_fields_are_set(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    historical = _historical_admitted_campaign(campaign)
+    monkeypatch.setattr(
+        layer3_report, "require_admitted_campaign", lambda _path: historical,
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    verified = _certifying_receipt_for(campaign)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
+    monkeypatch.setattr(
+        layer3_report, "build_report", lambda *_args, **_kwargs: report,
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="certifying Layer3 report には admission_status=admitted が必須$",
+    ):
+        layer3_report.build_accepted_report(
+            campaign,
+            acceptance_receipt=object(),
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
+
+    assert report["acceptance_receipt"] is None
+    assert report["certifying_input"] is False
+
+
+@pytest.fixture
+def certifying_completeness_chain(tmp_path: Path, monkeypatch):
+    """Build a full campaign-chain fixture with admission as the only variable."""
+    output_root = tmp_path / "output"
+    campaign_id = "campaign-chain-fixture"
+    campaign_root = output_root / "campaigns" / campaign_id
+    persisted_path = campaign_root / "reports" / "layer3_report.json"
+    persisted_path.parent.mkdir(parents=True)
+    workload_flags = {"ycsb_rratio": "50"}
+    descriptor = {"name": "fixture"}
+    descriptor_binding = {"output_sha256": "a" * 64}
+
+    producer = SimpleNamespace(
+        MAX_APPROVED_GENERATIONS=1,
+        WORKLOADS={"ycsb-a": workload_flags},
+        GeneratorId=SimpleNamespace(S8A_TRIGGER_SWEEP="fixture"),
+        ident=SimpleNamespace(campaign_id=lambda _cfg: campaign_id),
+        _descriptor_for=lambda _flags: (descriptor, descriptor_binding),
+        build_run_context=lambda **_kwargs: object(),
+        _campaign_for=lambda **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        autonomous_trial_completeness, "_producer_module", lambda: producer,
+    )
+    monkeypatch.setattr(
+        autonomous_trial_completeness,
+        "_environment_contract_from_campaign_lock",
+        lambda *_args, **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        autonomous_trial_completeness,
+        "_fresh_layer3_for_comparison",
+        lambda **kwargs: kwargs["persisted"],
+    )
+
+    decision_ref: dict[str, dict] = {}
+    monkeypatch.setattr(
+        autonomous_trial_completeness,
+        "require_admitted_campaign",
+        lambda _path: SimpleNamespace(
+            decision=SimpleNamespace(
+                as_receipt=lambda: decision_ref["value"],
+            ),
+        ),
+    )
+    persisted = {
+        "meta": {
+            "campaign_id": campaign_id,
+            "generated_from_head": "a" * 40,
+        },
+        "certifying_input": True,
+    }
+    cell = {
+        "campaign_id": campaign_id,
+        "campaign_root": str(campaign_root),
+        "workload": "ycsb-a",
+        "workload_flags": workload_flags,
+        "descriptor": descriptor,
+        "descriptor_binding": descriptor_binding,
+    }
+    report = {
+        "trial_id": "fixture-trial",
+        "generation_budget_per_workload": 1,
+        "launch_admission": {"certifying": True},
+        "cells": [cell],
+    }
+
+    def set_admission(*, classification: str, admission_status: str) -> None:
+        decision = {
+            "schema_version": "campaign-artifact-admission-decision/v1",
+            "classification": classification,
+            "admission_status": admission_status,
+            "verification_status": "verified",
+            "campaign_id": campaign_id,
+            "campaign_path": f"campaigns/{campaign_id}",
+            "campaign_lock_sha256": "b" * 64,
+            "wal_sha256": "c" * 64,
+            "policy_sha256": "d" * 64,
+            "attempt_receipt_sha256s": [],
+            "validator": {"identity": "fixture", "sha256": "e" * 64},
+            "overlay": {"ledger_sha256": None, "record_key": None},
+        }
+        decision_ref["value"] = decision
+        persisted["admission_decision"] = decision
+        cell["admission_decision"] = decision
+        persisted_path.write_text(
+            json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    return output_root, report, set_admission
+
+
+def test_completeness_rejects_certifying_historical_admission(
+    certifying_completeness_chain,
+) -> None:
+    output_root, report, set_admission = certifying_completeness_chain
+    set_admission(
+        classification="verified-post-admission-schema",
+        admission_status="admitted",
+    )
+    autonomous_trial_completeness.assert_campaign_layer3_chain(
+        report=report, output_root=output_root,
+    )
+
+    set_admission(
+        classification="historical-pre-admission-schema",
+        admission_status="historical-not-reclassified",
+    )
+    with pytest.raises(
+        autonomous_trial_completeness.AutonomousTrialCompletenessError,
+        match=(
+            r"\[campaign-chain\] persisted layer3 report certifying input "
+            r"requires admission_status=admitted$"
+        ),
+    ):
+        autonomous_trial_completeness.assert_campaign_layer3_chain(
+            report=report, output_root=output_root,
+        )
+
+
+def test_completeness_reads_contract_from_v2_authority_and_identity_excludes_it(
+    tmp_path: Path,
+) -> None:
+    producer = p3_autonomous_workload_trial
+    identity_preimage = campaign_lock.canonical_json({
+        "spec_content": "fixture",
+        "ccbench_commit": CURRENT_PIN,
+        "search_tag": "fixture",
+        "search_config": {"build_admission": {"fixture": True}},
+        "trial": "fixture",
+    })
+    contracts = []
+    for env_tag in ("linux-baremetal", "pegasus"):
+        campaign_root = tmp_path / env_tag
+        campaign_root.mkdir()
+        authorization = env_contract.authorize(env_tag)
+        (campaign_root / "campaign.lock").write_text(
+            build_v2_campaign_lock(
+                identity_preimage, authorization=authorization,
+            ),
+            encoding="utf-8",
+        )
+        contract = (
+            autonomous_trial_completeness
+            ._environment_contract_from_campaign_lock(
+                campaign_root, producer=producer,
+            )
+        )
+        assert contract == authorization.contract
+        contracts.append(contract)
+
+    workload = "ycsb-a"
+    workload_flags = producer.WORKLOADS[workload]
+    descriptor, descriptor_binding = producer._descriptor_for(workload_flags)
+    context = producer.build_run_context(
+        generator_id=producer.GeneratorId.S8A_TRIGGER_SWEEP,
+    )
+    campaign_ids = {
+        str(producer.ident.campaign_id(producer._campaign_for(
+            workload=workload,
+            workload_flags=workload_flags,
+            descriptor=descriptor,
+            descriptor_record=descriptor_binding,
+            trial_id="fixture",
+            generations=1,
+            contract=contract,
+            build_context=context,
+        )))
+        for contract in contracts
+    }
+    assert len(campaign_ids) == 1
+
+
+def test_completeness_rejects_v1_lock_without_authority(tmp_path: Path) -> None:
+    campaign_root = tmp_path / "campaign"
+    campaign_root.mkdir()
+    identity_preimage = campaign_lock.canonical_json({
+        "spec_content": "fixture",
+        "ccbench_commit": CURRENT_PIN,
+        "search_tag": "fixture",
+        "search_config": {},
+        "trial": "fixture",
+    })
+    (campaign_root / "campaign.lock").write_text(
+        identity_preimage, encoding="utf-8",
+    )
+    with pytest.raises(
+        autonomous_trial_completeness.AutonomousTrialCompletenessError,
+        match=(
+            r"\[campaign-chain\] campaign.lock v2 authority is required "
+            r"for completeness proof$"
+        ),
+    ):
+        autonomous_trial_completeness._environment_contract_from_campaign_lock(
+            campaign_root, producer=p3_autonomous_workload_trial,
         )
 
 

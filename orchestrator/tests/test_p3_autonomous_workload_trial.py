@@ -36,6 +36,7 @@ from orchestrator.campaign.reflux_ir import RefluxIRError, emit_predicate
 from orchestrator.critic.digest import DiffQuarantineRejection
 from calibrator import runner as calibrator_runner
 from orchestrator.campaign import claude_projected_provider as P
+from orchestrator.tests.campaign_lock_test_support import build_v2_lock
 
 _PRE_T343_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
@@ -54,11 +55,12 @@ _T530_PEGASUS_CONTRACT = A.env_contract.GENERATIONS["pegasus"][1].contract
 assert _T530_PEGASUS_CONTRACT.contract_sha256 == (
     "1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c"
 )
+# T-671 で契約 H が identity から外れ、C01 の golden も H なし preimage へ戻る。
 _C01_OTHER_CAMPAIGN_ID = (
-    "p3-t178-ycsb-a-workload-conditioned-autonomous-32985b96"
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-1f567653"
 )
 _C01_PEGASUS_CAMPAIGN_ID = (
-    "p3-t178-ycsb-a-workload-conditioned-autonomous-37c5e748"
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-5336ac05"
 )
 
 
@@ -68,17 +70,6 @@ class _CliGateReached(Exception):
 
 def _no_build_context():
     return A.build_run_context(generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP)
-
-
-def _campaign_id_without_environment_contract(cfg) -> str:
-    search_config = dict(cfg.search_config)
-    search_config.pop(campaign_model.ENVIRONMENT_CONTRACT_SEARCH_KEY)
-    historical = dataclasses.replace(cfg, search_config=search_config)
-    preimage = A.ident.canonical_preimage(
-        historical, require_environment_contract=False,
-    )
-    digest = hashlib.sha256(preimage.encode("utf-8")).hexdigest()[:8]
-    return f"{cfg.spec_slug}-{cfg.search_tag}-{digest}"
 
 
 def _coder_authority():
@@ -189,7 +180,9 @@ def _write_admitted_rejection_digest(cfg, layout, coder) -> str:
     (reports / artifact_admission._TRIGGER_PROVENANCE_BASENAME).write_bytes(
         A._canonical_json_bytes(provenance) + b"\n"
     )
-    A.loop_core.wal.write_lock(layout, A.ident.canonical_preimage(cfg))
+    A.loop_core.wal.write_lock(
+        layout, build_v2_lock(A.ident.canonical_preimage(cfg))
+    )
     critic_view = A.require_admitted_campaign(layout.root)
     raw_digest = A.loop_core.make_critic_digest(
         critic_view,
@@ -323,12 +316,12 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
         contract=_T530_CONTRACT, build_context=context,
     )
     assert cfg.search_config["build_admission"] == context.policy.as_preimage()
-    assert str(A.ident.campaign_id(cfg)) == _T530_NO_BUILD_CAMPAIGN_ID
+    # T-671 で H が identity から外れ、current は旧 T343 値になる。
+    assert str(A.ident.campaign_id(cfg)) == _T343_NO_BUILD_CAMPAIGN_ID
     assert _PRE_T343_NO_BUILD_CAMPAIGN_ID == (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     )
-    assert _campaign_id_without_environment_contract(cfg) == \
-        _T343_NO_BUILD_CAMPAIGN_ID
+    assert str(A.ident.campaign_id(cfg)) != _T530_NO_BUILD_CAMPAIGN_ID
 
 
 def test_prepare_campaign_identity_uses_injected_contract_once(monkeypatch) -> None:
@@ -347,9 +340,8 @@ def test_prepare_campaign_identity_uses_injected_contract_once(monkeypatch) -> N
         build_context=_no_build_context(),
     )
     assert calls == ["linux-baremetal"]
-    assert prepared.campaign.search_config[
-        campaign_model.ENVIRONMENT_CONTRACT_SEARCH_KEY
-    ] == _T530_CONTRACT.contract_sha256
+    assert "environment_contract_sha256" not in prepared.campaign.search_config
+    assert prepared.campaign.bound_environment_contract is _T530_CONTRACT
 
 
 def _pegasus_transport_fixture():
@@ -492,9 +484,8 @@ def _assert_workload_campaign_uses_site_contract(
     assert lookup_calls == [expected_env_tag]
     assert observed["site"] == site
     assert observed["contract"] is contract
-    assert observed["cfg"].search_config[
-        campaign_model.ENVIRONMENT_CONTRACT_SEARCH_KEY
-    ] == contract.contract_sha256
+    assert "environment_contract_sha256" not in observed["cfg"].search_config
+    assert observed["cfg"].bound_environment_contract is contract
     if site == A.trigger.site_policy.PEGASUS_COMPUTE:
         assert observed["cfg"].search_config["measurement_env"] == "pegasus"
     else:

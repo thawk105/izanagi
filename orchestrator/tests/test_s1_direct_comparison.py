@@ -40,6 +40,7 @@ from s1_expected_goldens import (  # noqa: E402
     EXPECTED_IDENT_ALL_PREDICATE,
     EXPECTED_SORT,
 )
+from campaign_lock_test_support import build_v2_lock              # noqa: E402
 
 _OUTER_WHITESPACE = (
     ("space", " "),
@@ -831,7 +832,9 @@ def test_schedule_mutation_refused_and_deviation_recorded(tmp_path):
     freeze_path = _write_freeze(tmp_path, document)
     layout = S.layout_for(document, "floor", output_root=str(tmp_path / "out"))
     layout.ensure()
-    wal.write_lock(layout, S.ident.canonical_preimage(S.config_for(document, "floor")))
+    wal.write_lock(layout, build_v2_lock(
+        S.ident.canonical_preimage(S.config_for(document, "floor"))
+    ))
     schedule = S.schedule_for_role(document, "floor")
     S._append_event(layout, S._base_event(schedule[0], "v0", 0))
     S._append_event(layout, S._base_event(schedule[0], "v0-duplicate", 0))
@@ -1109,7 +1112,7 @@ def test_resume_repairs_tail_before_retry_and_session_result(tmp_path):
     output_root = str(tmp_path / "out")
     layout = S.layout_for(document, "develop", output_root=output_root).ensure()
     cfg = S.config_for(document, "develop")
-    wal.write_lock(layout, S.ident.canonical_preimage(cfg))
+    wal.write_lock(layout, build_v2_lock(S.ident.canonical_preimage(cfg)))
     first = S.schedule_for_role(document, "develop")[0]
     S._append_event(layout, S._base_event(first, "interrupted", 0))
     with open(layout.wal_file, "ab") as stream:

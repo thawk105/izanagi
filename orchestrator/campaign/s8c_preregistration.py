@@ -92,6 +92,16 @@ MAX_TOTAL_BLOB_BYTES = 64 * 1024 * 1024
 MAX_GIT_OUTPUT_BYTES = MAX_TOTAL_BLOB_BYTES + 4 * 1024 * 1024
 MAX_GIT_INPUT_BYTES = 16 * 1024 * 1024
 MAX_BATCH_REQUESTS = 50_000
+# RATE が採用する実測は during phase 全体の最大 0.588973 秒 / 7,044 要求
+# = 8.3613e-5 秒/要求。この最大サンプルは worker 0 であり、worker 実在に限った最大は
+# 0.445290 秒（6.3216e-5 秒/要求）。大きい方を採るのは予算を保守側に出す意図的な選択で、
+# 15 秒での打ち切り観測から逆算した 25.6 倍と安全係数 4 を掛け、0.0086 へ上向きに丸めた。
+GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST = 0.0086
+# CAP は RATE から独立した絶対値。受入全走 1 走の 1055〜1408 秒に対して 1/4 未満、
+# 計算ノード既定 walltime 30 分に対して 1/6 以下とする。凍結された生実測は
+# output/insights/2026-08-09_t553-git-budget/。commit 数が約 4,700（実測時の 2 倍）を
+# 超える、generation が g2 以上になる、または同じ nodeid で再発した場合に再較正する。
+GIT_TIMEOUT_CAP_SECONDS = 300.0
 _DOMAIN_FIELD_NAMES = b"izanagi:s8c:section5-field-names:v1\0"
 _DOMAIN_CONDITIONS = b"izanagi:s8c:section6-conditions:v1\0"
 _DOMAIN_CONDITION = b"izanagi:s8c:section6-condition:v1\0"
@@ -877,9 +887,21 @@ def parse_preregistration_worktree(repo_root: Path | str = Path(".")) -> Markdow
     return parse_preregistration_markdown(Path(repo_root, SOURCE_PATH).read_bytes())
 
 
+def _git_timeout_budget_seconds(stdin: Optional[bytes]) -> float:
+    requests = 0
+    if stdin:
+        requests = stdin.count(b"\n") + int(not stdin.endswith(b"\n"))
+    requests = min(requests, MAX_BATCH_REQUESTS)
+    return min(
+        GIT_TIMEOUT_SECONDS + requests * GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST,
+        GIT_TIMEOUT_CAP_SECONDS,
+    )
+
+
 def _git(root: Path, args: Sequence[str], *, stdin: Optional[bytes] = None) -> bytes:
     if stdin is not None and len(stdin) > MAX_GIT_INPUT_BYTES:
         raise PreregistrationError("git-input-limit", str(len(stdin)))
+    timeout_seconds = _git_timeout_budget_seconds(stdin)
     try:
         with tempfile.TemporaryFile() as stdout:
             completed = subprocess.run(
@@ -889,7 +911,7 @@ def _git(root: Path, args: Sequence[str], *, stdin: Optional[bytes] = None) -> b
                 stdout=stdout,
                 stderr=subprocess.PIPE,
                 check=True,
-                timeout=GIT_TIMEOUT_SECONDS,
+                timeout=timeout_seconds,
             )
             del completed
             size = stdout.tell()

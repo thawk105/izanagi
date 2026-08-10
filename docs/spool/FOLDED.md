@@ -644,3 +644,22 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:atomic-publish-output-rollback":"[T-705]","T:launcher-interrupt-rc-split":"[T-706]","T:mutation-positive-control-subset":"[T-709]","T:publication-commit-protocol":"[T-703]","T:receipt-post-commit-exception":"[T-704]","T:replace-invalid-publication-pin":"[T-708]","T:staged-temp-replacement-window":"[T-707]"},"authored":"2026-08-09","content_sha256":"7504586913392ff2813674fe5b9c7190c60a4ae9e4ac3fe3c3838764c0bd36ef","seq":1,"wave":"dev-wave-t678-publication-wall-gate"}
 - {"allocations":{"D:late-admission-gate-at-last-reversible-point":"D256"},"authored":"2026-08-09","content_sha256":"381cd40658829b40776eebffa11ad00b3f9663a19c338ec019802d463873c92a","seq":1,"wave":"dev-wave-t678-publication-wall-gate"}
+
+- {"allocations":{"T:conflict-failure-reason-diagnostic":"[T-712]","T:scorer-decision-grammar-contract":"[T-710]","T:spool-failures-update-path":"[T-711]"},"authored":"2026-08-09","content_sha256":"a25fb458d0c6d271a1e324f4fccfa8f441ba1561ec739a73d1a0908646a4b4ae","seq":1,"wave":"dev-wave-t685-scorer-erratum"}
+- {"allocations":{"F:mutation-spec-diverged-from-preregistration":"F184","F:scorer-conflict-guard-inert":"F183"},"authored":"2026-08-09","content_sha256":"8c3ed0d27b29eb00215f9a0cb63e7048239137b36a6e646993653bd924df8ac0","seq":2,"wave":"dev-wave-t685-scorer-erratum"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"087ecf010e2238ae858f3353df2bf931eeeac4cfcfb320a42a09f625e0cb3e81","seq":1,"wave":"dev-wave-provenance-model-switch-rule"}
+
+- {"allocations":{"T:evidence-path-control-char":"[T-714]","T:s8c-heavy-git-xdist-group":"[T-713]"},"authored":"2026-08-09","content_sha256":"33740252c49c16f1476ebc1483ada6ec4adc8fc0462467c0ef383081e4869520","seq":1,"wave":"dev-wave-t553-git-budget"}
+- {"allocations":{"D:git-work-proportional-budget":"D257"},"authored":"2026-08-09","content_sha256":"27be8510a9271fa22fd1dba33a8d3246d6963c7c909c46ebe6ac610686cb7175","seq":2,"wave":"dev-wave-t553-git-budget"}
+- {"allocations":{"F:lease-state-matched-literally":"F186","F:mutation-spec-timeout-below-dispatch-floor":"F185"},"authored":"2026-08-09","content_sha256":"93b10a0cc036e9ca3fc74fdf7d9801da25763adcb432dfcda32f54e3a5f5ce20","seq":3,"wave":"dev-wave-t553-git-budget"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"40e904aaf1ff6bce870bb1353de6e498f50df74579c66ec96d99907fbe51cd09","seq":1,"wave":"dev-wave-t673-transition-pbt-package"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"3a4e0a100f796d4c1cf3f7ea88acc1199620b98da96551895cb91019a71cfa8f","seq":2,"wave":"dev-wave-t673-transition-pbt-package"}
+
+- {"allocations":{"T:acceptance-walltime-ceiling":"[T-717]","T:cli-second-resolution":"[T-718]","T:mutation-expected-node-overdetermination":"[T-719]","T:realrepo-payer-closure":"[T-715]","T:s8c-canonical-group":"[T-716]"},"authored":"2026-08-10","content_sha256":"4787b49e85645f990bd3fecc2df6165abe75f6e8c3f4b21a9489796123b8f119","seq":1,"wave":"dev-wave-t692-r3-xdist-walltime"}
+- {"allocations":{"D:xdist-group-closure-audit":"D258"},"authored":"2026-08-10","content_sha256":"6a6d7b86746aa36d24eb97cad666d7149770605a632c11867ca3d718a57a380e","seq":1,"wave":"dev-wave-t692-r3-xdist-walltime"}
+
+- {"allocations":{"D:campaign-identity-authority-split":"D259"},"authored":"2026-08-09","content_sha256":"e1d434e13e6b08716d45bd1b3209ce514c34c553eb5bab2d67563bc7cd6b4dff","seq":1,"wave":"dev-wave-t671-impl"}
+- {"allocations":{"T:authority-external-anchor":"[T-722]","T:guided-lane-nonforgeable-marker":"[T-723]","T:import-namespace-unification":"[T-720]","T:r1-closure-expansion":"[T-721]"},"authored":"2026-08-09","content_sha256":"3af0defaa7d06c85816834c49775153df77826a83bb4b558c79ead6a5fa27bcc","seq":2,"wave":"dev-wave-t671-impl"}
+- {"allocations":{"F:dual-import-namespace-breaks-exact-type-checks":"F187","F:parent-adds-gates-outside-approved-ruling":"F188"},"authored":"2026-08-09","content_sha256":"69da3a4f8f6674d38e9385fd6a73ab0762fadcbc11a50aa6157b23256fcd2051","seq":3,"wave":"dev-wave-t671-impl"}

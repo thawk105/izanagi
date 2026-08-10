@@ -11799,3 +11799,172 @@ literal・writer / checker の真理値表は変えない。`actuals.wall_clock_
   そのまま新しい穴になる。段 2 の初案で、段 3 のレンズが具体的な回帰構成を示して倒した。
 - **late gate の時刻を receipt bytes へ入れる** — bytes を変えると再 staging が要り、
   その費用がまた gate の外へ出る再帰になる。schema 世代を上げる別裁定が要る。
+
+## D257. s8c 事前登録の git wall-clock を作業量比例の上限付き予算にする (2026-08-09)
+
+**決定:** `orchestrator/campaign/s8c_preregistration.py` の `_git` は、固定 15 秒ではなく
+次式で算出した予算で git subprocess を待つ。
+
+```
+R    = min(stdin の LF 要求行数, MAX_BATCH_REQUESTS)
+B(R) = min(GIT_TIMEOUT_SECONDS + R * GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST,
+           GIT_TIMEOUT_CAP_SECONDS)
+```
+
+`GIT_TIMEOUT_SECONDS = 15.0` (据え置き)、`GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST = 0.0086`、
+`GIT_TIMEOUT_CAP_SECONDS = 300.0`。次の 5 条件を必須要件とする。
+
+1. 予算に **caller 引数を持たせない**。`_git` が stdin から一意に算出する。
+2. 1 回の `_git` 呼び出し = 1 logical invocation = deadline 1 つ。chunk 分割しない。
+3. `MAX_BATCH_REQUESTS` 相当点で**絶対時間 cap** を置く。
+4. rate は warm・単独の値から線形外挿せず、競合下の計算ノードでの実測から決める。
+5. 実 repo の invariant テストは引数を渡さず production と同じ式を通す。
+
+**理由:**
+- 固定値は履歴長に依らないのに、要求数は `commits × paths` で増える。モジュールは
+  `MAX_COMMITS = 10_000` / `MAX_BATCH_REQUESTS = 50_000` を受理可能と宣言しているのに、
+  15 秒で完走する契約はどこにもなかった。実際に 7,002 要求で 6 回落ちている。
+- **CAP は RATE から独立させる。** `CAP = BASE + MAX_BATCH_REQUESTS × RATE` にすると、
+  rate の過大推定がそのまま cap の増大になり、絶対上限として機能しない。
+  300 秒の根拠は受入全走 1 走の実測 1055〜1408 秒に対して 1/4 未満、かつ計算ノード既定
+  walltime 30 分に対して 1/6 未満であること。**この値は RATE を変えても動かない。**
+- **`R` に `min` を掛けるのは予算増幅の遮断である。** stdin の行数は command に束縛されないため、
+  `MAX_BATCH_REQUESTS` の検査を通らない経路から `_git` へ到達しても予算が CAP を超えないよう、
+  算出側で clamp する。
+- rate の決定は実測だけでは閉じない。実測は失敗条件を再現できなかった (競合下でも
+  最大 0.588973 秒 / 7,044 要求) 一方、production は同じ呼び出しで 15 秒を超えている。
+  **実測 (uncensored) と打ち切り観測 (censored) の両方**を使い、後者が示す下界 25.6 倍に
+  安全係数 4 を掛けた。導出の正本は `output/insights/2026-08-09_t553-git-budget/MEASUREMENT.md`。
+
+**却下した選択肢:**
+- **public API へ timeout 引数を出す** — `timeout=10**9` を止めるものが無い迂回口になり、
+  「実 repo で production 既定が効くか」を断言する唯一のテストが無効になる。
+- **テスト側で `git-timeout` に限って有限回再試行する** — 規律 2 違反。
+  「production 既定での一発成功」という現に成立している断言を「有限回中一成功」へ緩める。
+  再試行のたびに OS / git cache が温まるため「恒常的劣化なら全試行が落ちる」分界線も成立しない。
+- **git 呼び出しを chunk へ分割し旧 invocation ごとの 15 秒を据え置く** — 総締切が変わらない以上
+  赤に無関係で、chunk 境界で reason code が入れ替わる経路が生じる。
+- **byte 量を予算に入れる** — `cat-file --batch` の所要は出力 bytes に支配されるが、
+  `_git` は実行前に blob size を知らない。caller から渡せば条件 1 に反し、先行の
+  `batch-check` を足せば条件 2 に反する。byte 支配の入力は既存の per-blob 16 MiB /
+  合計 64 MiB 上限と絶対 CAP で bound する。
+- **無 stdin の呼び出しも予算化する** — `rev-list` / `log --name-only` / `ls-tree` は
+  実行前に得られる cardinality を持たない。実測では競合下でも 15 秒に対して 6.9〜13.3 倍の
+  余裕があるため、本決定の射程外とする。
+
+## D258. 実 repo 競合閉包の収集監査を marker の形・個数・名前集合・provenance の 4 面へ広げる (2026-08-10)
+
+**背景:** D63 は実 repo working tree と共有 ccbench submodule の reader / writer を
+単一 `xdist_group("real-repo")` へ閉じ込めると決めた。しかし収集監査は
+`REAL_REPO_SERIAL_NODES` と独立 golden の**集合一致**しか見ておらず、marker の与え方を見ていなかった。
+その結果 `test_ruleops.py` の実 checkout reader が `@pytest.mark.xdist_group(name="real_repo")` と
+kwargs + underscore で書かれ、canonical `real-repo` とは**別 group**として 2026-08-04 から
+今日まで排他が効かないまま残った ([T-438])。xdist は group 名が違えば別 worker へ配るため、
+実 submodule を patch する writer と同時に走りうる。
+
+**決定 (1): 監査対象を全 collected item の全 `xdist_group` marker にする。**
+canonical node だけでなく suite 全体を見る。検査する不変条件は 4 つ。
+
+- marker は 1 node につき最大 1 個 (二個目は xdist が名前を結合して別 scope になる)
+- group 名は positional 引数 1 個で与える (`kwargs={"name": ...}` 形を拒否)
+- 実際に現れた group 名の集合が独立 golden と**完全一致**する
+- canonical node の関数ソースに**手書きの `xdist_group` decorator が無い** (provenance)。
+  conftest の hook は既存 marker があれば付与を skip するため、手書きが正しい名前でも
+  「hook 由来である」ことは保証されない
+
+**決定 (2): 各不変条件に合成負例の positive control を必ず添える。**
+恒真ゲートを禁じる。負例は互いに独立させ、1 つの負例が 2 つの検査を同時に発火させない
+(kwargs 形の負例は positional も 1 個持たせ、group 名集合の負例は marker の形を正しくする)。
+これを守らないと、片側の検査を消す変異が別の検査に殺されて**単一理由性が検証できない**。
+本 wave では実際に、分離前は kwargs 負例が `len(args) == 1` でも落ちて MT4 を殺せなかった。
+
+**決定 (3): `real-repo` group 内の実行順を定数で固定し、`pytest_collection_finish` で適用する。**
+独立解決を行う CLI node を先頭、共有 cache barrier をその次に置く。
+`pytest_collection_modifyitems` の非 wrapper hook では pytest 本体の `--ff` / `--nf` が
+post-yield で items を再配置して上書きするため、collection の**最後**で適用する。
+
+**この順序は wall の性質であって D63 の排他ではない。** 同一 group は単一 worker が
+逐次実行するので、順序が崩れても相互排他は崩れない。崩れるのは受入 wall の短縮効果だけである。
+排他が崩れうるのは group の**外**にいる実 repo reader であり、それは別途裁定へ返した。
+
+**却下した案:**
+
+- **並列度 (`_NPROC_CAP` / `default_test_jobs`) の引き上げ** — 計算ノードでは既に affinity 全数
+  48 worker で、実効並列度は 11.74 相当しかない。critical path 下界は最大 group の直列和
+  (1388.80 秒) が決めるので worker を増やしても動かない。
+- **`DEFAULT_WALLTIME` の単独引き上げ** — 期限が延びるだけで消費は縮まない。
+- **reader / writer の flock 化 (D63 保証機構の置換)** — 理論下界は最良 (約 691 秒) だが
+  分類漏れ 1 件で偽緑を作る。D63 自身が bare な reader/writer 分割を明示的に却下している。
+- **収集順で group 外の 2 解決を意図的に重ねる案** — 段 2 の推奨案 (期待 wall 約 876 秒) だが、
+  段 3 の両レンズが「同時開始は未測定の仮定。非重複なら 1529.17 秒」と計算し、
+  かつ group 外 payer との意図的な並走を新規に作るため却下した。
+
+## D259. campaign identity から実行契約 hash を外し、campaign.lock の v2 authority 欄と契約 loader の commit 束縛へ移す (2026-08-10)
+
+**決定:**
+
+1. **identity と authority を分離する。** 実行契約の fingerprint (`environment_contract_sha256`) を
+   campaign identity の pre-image から外し、`campaign.lock` を v2 envelope
+   (`schema_version` / `identity_preimage` / `authority`) にして authority 欄へ置く。
+   campaign id は inner identity preimage だけから導く。
+2. **契約 loader 2 module を記録 commit の blob へ束縛する。** 対象は
+   `orchestrator/campaign/env_contract.py` と `env_contract_activation.py` の exact 2 path で、
+   単一の名前付き定数に置く。検証は「記録 commit の blob」と「現在の disk bytes」の一致で行い、
+   current HEAD の一致は要求しない。
+3. **停止点は `ident.ensure_campaign_identity` の 1 点とする。** `campaign.lock` を書く唯一の関数が
+   ここであり、`run_campaign` も先行 8 caller も必ず通る。
+   **停止するのは「lock と WAL の 1 byte 目より前」であって「durable write より前」ではない** —
+   `layout.ensure()` が作るディレクトリと exploration lane の `namespace.json` は検査より前に残る。
+4. **記録は full、比較は対象 env の H だけ。** authority へ `contract_sha256` に加えて
+   `activation_serial` と `activation_state_sha256` を記録する。**記録 tuple の真正性は admission で
+   検証し、lock 作成時の事前条件にはしない。** resume 可否の比較は対象 env の H だけに限る
+   (他 env の活性化で既存 resume を拒否しない)。
+5. **v1 lock は historical read-only。** certified lane が v1 lock を見たら repair / recovery より前に
+   拒否する。guided lane は明示 exemption で v1 を書き続ける。
+6. **anti-downgrade は「その成果物が certified 実行を主張しているか」で判定する。**
+   v1 lock + `build_admission` + WAL の COMMIT に契約 hash あり ⇒ 降格として拒否。
+   lane 名・slug・`search_tag` の値を判定に使わない。
+7. **`measurement_env` は identity に残す。** 「契約 hash は id に入れないが env tag は入る」という
+   非対称を明文化する。D125 決定 (2) の失効記録は [T-674] (5) の別 wave が持つ。
+8. **certifying 入力の判定を `admission_status == "admitted"` に限定する** ([T-674] (1))。
+   `layer3_schema.json` は変更しない — enum を狭めると非 certifying な historical report まで拒否し、
+   裁定より広く受理集合を縮めるため。
+9. **D246 の分離を維持する** ([T-674] (4))。契約 hash は `wal.log` 経由の COMMIT 2 口だけに載せ、
+   qualification event sink の 2 口には載せない。裁定文は所有 wave の指定であって方向の指定ではない
+   と読み、分離が沈黙で崩れないことを挙動テストと AST census で固定した。
+
+**名乗ってよい範囲 (これを超えて書いてはならない):**
+
+**「契約 loader 2 module の disk bytes が、lock に記録した commit の blob と一致する」までである。**
+
+- 「certified 経路が source-bound」とは名乗らない。契約を**強制する** `execution_guard` / `loop` /
+  `pipeline` / `wal` / `ident` / `artifact_admission` の bytes は束縛していない。
+- 「悪意ある in-process 改変を防ぐ」とは名乗らない。検査対象は disk 上の bytes であって
+  実行中の bytes ではない。
+- **成果物 bytes の書き換えは検出しない。** lock の authority と全 COMMIT の契約 hash を整合的に
+  書き換える改竄、および外側 envelope と COMMIT 契約 hash を同時に削除した artifact は検出できない。
+
+**受けた既知コスト:**
+
+- **campaign directory 名による再束縛検出を失う。** 従来は契約 hash が identity に入っていたため
+  H1 → H2 の付け替えが directory 名の変更を強制し可視だった。これは決定 1 が意図的に手放した性質で
+  あり、ユーザーが承認済みの択一である。D246 が買った「H を独立 2 箇所へ置き相互照合する」性質
+  自体は保たれる (lock authority と全 COMMIT payload は引き続き独立に読まれ照合される)。
+- **外側 envelope と COMMIT 契約 hash を同時に削除した artifact は guided と区別できない。**
+  これは main の現状と同じ挙動であり本決定が広げたものではない。素朴な envelope 剥がしは新たに捕まる。
+
+**却下した案:**
+
+- **lock 作成時に explicit `AuthorizedContract` を必須にする案。** 親が一度採ったが撤回した。
+  承認済み裁定に含まれない上乗せであり、実測で 10 個の driver テストファイル・55 件を拒否した。
+  main も素の contract を受け付けるため、外しても退行ではない。
+- **lock 作成時に「束縛契約が activation state で active」を要求する案。** 同じく親の上乗せで、
+  合成契約を注入する正当な driver テストを拒否した。真正性検証は admission に置くのが正しい層である。
+- **v2 campaign の directory 名と inner identity を全面照合する案。** 同じく親の上乗せで、
+  任意名の一時 directory を使う正当な consumer を拒否した。trigger proposal 専用の既存照合だけを残す。
+
+**延期 (実装しない):**
+
+report v4 / authority の report 投影 / historical report reader の authority 解釈 /
+raw reader ([T-674] (2) 見送り) / S8b private lock ([T-674] (3) 見送り) / caller 閉包の拡張。
+**したがって R1〜R8 を実装しても「proof chain が全経路で完結した」とは名乗れない。**

@@ -23,19 +23,19 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     _ROOT_FOR_IMPORT = Path(__file__).resolve().parents[2]
     if str(_ROOT_FOR_IMPORT) not in sys.path:
         sys.path.insert(0, str(_ROOT_FOR_IMPORT))
+    from orchestrator.campaign import campaign_lock
     from orchestrator.campaign import layer3_report as _layer3_report
     from orchestrator.campaign.artifact_admission import (ArtifactAdmissionError,
                                                            require_admitted_campaign)
     from orchestrator.campaign.layer3_report import canonical_record_ref
-    from orchestrator.campaign.model import ENVIRONMENT_CONTRACT_SEARCH_KEY
     from orchestrator.campaign.role_session_isolation import (
         evaluate_role_session_isolation,
     )
 else:
+    from . import campaign_lock
     from . import layer3_report as _layer3_report
     from .artifact_admission import ArtifactAdmissionError, require_admitted_campaign
     from .layer3_report import canonical_record_ref
-    from .model import ENVIRONMENT_CONTRACT_SEARCH_KEY
     from .role_session_isolation import evaluate_role_session_isolation
 
 
@@ -170,20 +170,19 @@ def _environment_contract_from_campaign_lock(
         raise AutonomousTrialCompletenessError(
             f"[campaign-chain] campaign.lock cannot be read: {lock_path}"
         ) from exc
-    lock = _decode_json(raw, label="campaign.lock")
-    if not isinstance(lock, dict):
-        _fail("campaign-chain", "campaign.lock root is not an object")
-    search_config = lock.get("search_config")
-    if not isinstance(search_config, dict):
-        _fail("campaign-chain", "campaign.lock search_config is not an object")
-    contract_sha256 = search_config.get(ENVIRONMENT_CONTRACT_SEARCH_KEY)
-    if not isinstance(contract_sha256, str) or _SHA256_RE.fullmatch(
-        contract_sha256
-    ) is None:
+    try:
+        decoded = campaign_lock.decode_campaign_lock_bytes(raw)
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise AutonomousTrialCompletenessError(
+            "[campaign-chain] campaign.lock schema is invalid"
+        ) from exc
+    authority = decoded.authority
+    if decoded.is_v1 or authority is None:
         _fail(
             "campaign-chain",
-            "campaign.lock environment contract is not a lowercase SHA-256",
+            "campaign.lock v2 authority is required for completeness proof",
         )
+    contract_sha256 = authority.environment_contract_sha256
     try:
         return producer.env_contract.resolve_by_contract_sha256(
             contract_sha256
@@ -1115,6 +1114,23 @@ def _require_exact_layer3_admission_decision(
     return decision
 
 
+def _require_certifying_layer3_admission(
+    report: Mapping[str, Any], *, label: str,
+) -> None:
+    """certifying Layer3 入力は明示的に admitted のものだけへ閉じる。"""
+    if report.get("certifying_input", False) is not True:
+        return
+    decision = _mapping(
+        report.get("admission_decision"), gate="campaign-chain",
+        label=f"{label}.admission_decision",
+    )
+    if decision.get("admission_status") != "admitted":
+        _fail(
+            "campaign-chain",
+            f"{label} certifying input requires admission_status=admitted",
+        )
+
+
 def assert_campaign_layer3_chain(
     *, report: Mapping[str, Any], output_root: Path,
 ) -> None:
@@ -1201,6 +1217,9 @@ def assert_campaign_layer3_chain(
                 "campaign-chain",
                 "persisted layer3 certifying_input differs from launch admission",
             )
+        _require_certifying_layer3_admission(
+            persisted, label="persisted layer3 report",
+        )
         try:
             expected_decision = require_admitted_campaign(
                 campaign_root,

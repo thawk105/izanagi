@@ -720,8 +720,13 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   `aggregate`/`verify` とも rc=0 / `experiment_complete=true`、両読者一致 10/10、
   正例 `high` 3/3・`max` 3/3、負例の偽 R-1 は両 arm 0 件で 4 run とも GO。
   台帳は `output/insights/2026-08-09_t181-certified-rerun/`。
-  ただし機械 `decision` 行は採点器の decision 抽出欠陥を含むため、
-  当該行を実質的知見として [T-184] へ渡す前に是正と再走要否の裁定が要る。
+  ただし機械 `decision` 行は採点器の decision 抽出欠陥 (F176) に汚染されている。
+  **2026-08-09 のユーザー裁定 (b) により 10 run は再走せず、採点器だけを是正し、
+  台帳へ erratum を添えて [T-184] へ渡す** ([T-685])。汚染閉包 8 field と、
+  [T-184] が使ってよい human-derived の join は
+  `output/insights/2026-08-09_t181-certified-rerun/erratum-f176.md` が正本である。
+  **機械 `decision` 行・`primary_judgment_ledger`・両 eligibility を実質的に引用してはならない。**
+  充足されるのは [T-184] の [T-181] 依存だけで、[T-184] 全体の開始可否は別条件による。
   logical turn は測れておらず、finding dedup は意味同値判断、masking は
   same-owner advisory である (limitation は insight に全文)。
 - [T-182] **(完了 2026-07-29) model routing の限定 shadow pilot** — 段 3 敵対相談レンズ B を

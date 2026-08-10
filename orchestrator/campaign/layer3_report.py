@@ -47,7 +47,12 @@ STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "c
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
-from campaign import s8c_acceptance_receipt, trigger_gate_binding, wal  # noqa: E402
+from campaign import (  # noqa: E402
+    campaign_lock,
+    s8c_acceptance_receipt,
+    trigger_gate_binding,
+    wal,
+)
 from campaign.artifact_admission import (  # noqa: E402
     ArtifactAdmissionError,
     require_admitted_campaign,
@@ -80,6 +85,17 @@ def _read_json(path: Path) -> Any:
             return json.load(stream)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise Layer3ReportError("JSON を読めない: %s" % path) from exc
+
+
+def _read_campaign_lock(path: Path) -> campaign_lock.DecodedCampaignLock:
+    """v1/v2 lock を検証し、report 投影用の inner identity を返せる形にする。"""
+    try:
+        text = path.read_text(encoding="utf-8")
+        return campaign_lock.decode_campaign_lock(text)
+    except (OSError, UnicodeDecodeError) as exc:
+        raise Layer3ReportError("campaign.lock を読めない: %s" % path) from exc
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise Layer3ReportError("campaign.lock schema が不正") from exc
 
 
 def _assert_unique_refs(kind: str, records: Sequence[Mapping[str, Any]], label: str) -> None:
@@ -232,6 +248,14 @@ def _validate_schema(report: Mapping[str, Any]) -> None:
     if (certifying_input is True) != (acceptance_receipt is not None):
         raise Layer3ReportError(
             "certifying_input=true と acceptance_receipt 非 null は同値必須"
+        )
+    admission_decision = report.get("admission_decision")
+    if certifying_input is True and (
+        not isinstance(admission_decision, Mapping)
+        or admission_decision.get("admission_status") != "admitted"
+    ):
+        raise Layer3ReportError(
+            "certifying_input=true には admission_status=admitted が必須"
         )
 
 
@@ -420,7 +444,8 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
             "WAL record が不正: %s: %s" % (type(exc).__name__, exc)
         ) from exc
     _reject_qualification_ancestry(campaign_dir, output_root.resolve().parent)
-    lock = _read_json(campaign_dir / "campaign.lock")
+    decoded_lock = _read_campaign_lock(campaign_dir / "campaign.lock")
+    lock = decoded_lock.identity
     state_path = campaign_dir / "loop_state.json"
     try:
         state_mode = state_path.stat().st_mode
@@ -540,8 +565,8 @@ def build_accepted_report(
         raise Layer3ReportError(
             "acceptance receipt の campaign_id が対象 campaign と一意に一致しない"
         )
-    lock = _read_json(resolved_campaign / "campaign.lock")
-    lock_trial = lock.get("trial") if isinstance(lock, Mapping) else None
+    lock = _read_campaign_lock(resolved_campaign / "campaign.lock").identity
+    lock_trial = lock.get("trial")
     receipt_trial_id = matching[0].trial_id
     if not isinstance(lock_trial, str) or not (
         lock_trial == receipt_trial_id
@@ -556,6 +581,14 @@ def build_accepted_report(
         generated_from_head=generated_from_head,
         output_root=output_root,
     )
+    admission_decision = report.get("admission_decision")
+    if (
+        not isinstance(admission_decision, Mapping)
+        or admission_decision.get("admission_status") != "admitted"
+    ):
+        raise Layer3ReportError(
+            "certifying Layer3 report には admission_status=admitted が必須"
+        )
     report.update({
         "acceptance_receipt": {
             "path": verified.relative_path,

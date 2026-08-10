@@ -87,9 +87,9 @@ def test_online_digest_leakage_assert():
     注: この assert は独立な第二防壁ではない — genome 数も iterations も同一誘導 WAL の
     STAGE_COMMIT 由来ゆえ同一 layout 経路では恒真化する (D26)。中立性の真の担保は WAL 分離
     + load_p2_2 非 import。ここで固定するのは「iterations を誤って渡した配線ミスを捕える」挙動。"""
-    lay = _tmp_layout()
+    guided_v1_layout = _tmp_layout()
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    cfg = ident.bind_admission_policy(CampaignConfig(
+    guided_v1_cfg = ident.bind_admission_policy(CampaignConfig(
         spec_slug="guided-online-digest-fixture",
         search_tag="critic-replay",
         spec_content="guided online digest post-policy fixture",
@@ -97,9 +97,9 @@ def test_online_digest_leakage_assert():
         search_config={"fixture": "post-admission-schema"},
         trial="online-digest",
     ), context.policy)
-    wal.write_lock(lay, ident.canonical_preimage(
-        cfg, require_environment_contract=False,
-    ))
+    wal.write_lock(
+        guided_v1_layout, ident.canonical_preimage(guided_v1_cfg),
+    )
     genomes = (
         _G.format(b=0, l=1, t=0, w=0),
         _G.format(b=1, l=1, t=0, w=0),
@@ -108,7 +108,7 @@ def test_online_digest_leakage_assert():
         genome = Genome("silo", replay.parse_flags(canonical))
         evidence = SourceEvidence(
             schema_version="source-evidence/v1",
-            source_root=os.path.realpath(lay.root),
+            source_root=os.path.realpath(guided_v1_layout.root),
             ccbench_commit=CURRENT_PIN,
             genome_sha256=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
             src_token="stock",
@@ -126,28 +126,31 @@ def test_online_digest_leakage_assert():
             "build_admission_receipt_sha256": receipt["receipt_sha256"],
         }
         variant = pipeline.variant_id(genome)
-        wal.log(lay, variant, STAGE_BUILD_START, "test", {
+        wal.log(guided_v1_layout, variant, STAGE_BUILD_START, "test", {
             "genome": canonical,
             "src_token": "stock",
             "build_admission": receipt,
             **propagated,
         })
-        wal.log(lay, variant, STAGE_BUILD_DONE, "test", dict(propagated))
-        wal.log(lay, variant, STAGE_BENCH_DONE, "test", {
+        wal.log(
+            guided_v1_layout, variant, STAGE_BUILD_DONE, "test",
+            dict(propagated),
+        )
+        wal.log(guided_v1_layout, variant, STAGE_BENCH_DONE, "test", {
             "leading_indicators": {"throughput_tps": 1.0},
             **propagated,
         })
-        wal.log(lay, variant, STAGE_COMMIT, "test", {
+        wal.log(guided_v1_layout, variant, STAGE_COMMIT, "test", {
             "fitness_tps": 1.0,
             **propagated,
         })
     # committed 2 genome。iterations=1 と誤計算したら sanity が発火する。
     try:
-        online_digest(lay, "x", {}, iterations=1)
+        online_digest(guided_v1_layout, "x", {}, iterations=1)
         raise AssertionError("LeakageError が出なかった (配線 sanity が壊れている)")
     except LeakageError:
         pass
-    d = online_digest(lay, "x", {}, iterations=2)        # 整合 → OK
+    d = online_digest(guided_v1_layout, "x", {}, iterations=2)  # 整合 → OK
     assert len(d.genomes) == 2
 
 
@@ -348,7 +351,6 @@ def test_cmd_start_acquires_lock_before_winner_writes_meta():
     def checked_write_meta(candidate_layout, meta):
         assert wal.read_lock(candidate_layout) == ident.canonical_preimage(
             guided._trial_config(meta, trial),
-            require_environment_contract=False,
         )
         real_write_meta(candidate_layout, meta)
 

@@ -580,6 +580,21 @@
   使う射影関数を通して作る。** 手組みの「それらしい mapping」は shape 拒否と値拒否を区別できず、
   gate が「必ず落ちる」ように見える。F29 の再発検知行 (レンズに「親の実測は実差分を
   モデル化しているか」を含める) は今回も設計どおり機能した
+
+- **再発: 2026-08-09** ([T-673] wave)。AST 構造検査 (案 C1) の偽陽性率を測る負制御で、
+  「変数 rename は意味保存だから、これで赤になるなら偽陽性だ」という命題を立てながら、
+  実際に測ったのは **loop 側の `changed` だけを `pending` に書き換え、定義側
+  (`changed: list[...] = []`、`changed.append(...)`、`if not changed:`) を残した変更**だった。
+  これは `NameError` になる壊れたコードであり、意味保存 refactor ではない。
+  測定自体は正確だったが、**測定対象が命題と違っていた**という F29 の型そのものである。
+  検出は段 6 の焦点再レビュー (codex) で、親が定義側も含めて正しく rename して測り直した。
+  **結論は変わらず** C1 は依然赤で、「意味保存 refactor 3/3 で誤検出」は維持された。
+  過去 2 回の再発と異なり結論が覆らなかったが、覆らなかったのは結果論であり、
+  対照が命題を模していなかった事実は同じである。恒久対応は既存のまま
+  (「何を模擬したか・実差分との差を書く」)。本件が足す再発検知は、
+  **意味保存を主張する対照は、その対照自体が壊れていないこと (import・名前解決が通ること) を
+  先に確かめる**である。同 wave では無害な対照 (コメント行の追加のみ) を 1 本置き、
+  検査が闇雲に赤くならないことを同時に示した。
 ### F30. 凍結成果物を触る wave で `FROZEN_MANIFEST` を見落とした [手順漏れ]
 
 - 事象: 同 wave で、S-1 成果物の bytes を変える設計を検討しながら、
@@ -4431,3 +4446,134 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: `.claude/commands/rulings.md` 収集 1 の退行検査 (裁定なしに待ちが消えた・
   降格した ID は上書き退行を疑い原文 entry へ遡る。同 commit で追加)。
 - 再発検知: /rulings 毎実行の pending 差分照合。
+
+### F183. 曖昧さ検出が同じ lookahead で無力化され、相反する総括を 13/18 受理していた [恒真ゲート] [テスト代表性]
+
+- 事象: `tools/codex_reasoning_ab.py` の `score_text` は「総括に GO と NO-GO が併記されていたら
+  拒否する」二段目を持つが、抽出正規表現の lookahead
+  `(?![A-Za-z一-龯ぁ-んァ-ヶ-])` が決定語の直後のひらがなを除外するため、
+  2 つ目の決定が `NO-GOです。` `NO-GOでもある。` のように日本語で続く限り数えられない。
+  親が [T-685] wave で実測したところ、相反・否定を含む 18 種のうち **13 種を valid として受理**していた
+  (`GO。しかしNO-GOでもある。` が `valid=True / decision=GO` になる等)。
+  F176 は同じ lookahead の**取りこぼし側 (false reject)** だけを記録しており、
+  この**受理側 (false accept)** は 1 年分の運用で一度も顕在化していなかった。
+- 根本原因: 同一の lookahead が「決定語の言及を数えない」ためにあり、
+  false reject と false accept の両方を同時に生んでいた。二段目は存在するが**発火しない恒真ゲート**
+  だった。事前登録された采点器 control が歴史 `focus1.md` / `focus2.md` の 2 本だけで、
+  どちらも単一決定の総括だったため、併記を突く負例が control に一件も無かった。
+- 恒久対応: `tools/codex_reasoning_ab.py` の `_DECISION_ASSERTION_RE` と
+  `score_text` の `claimed_decisions = extracted_decisions | asserted_decisions` —
+  抽出は据え置いたまま、「文末の断定」「〜と判断/結論/裁定」「〜の結論」の 3 枝からなる
+  閉じた断定形を和集合に足し、冒頭決定との完全一致を要求する fails-closed 判定。
+  同 commit で F176 の恒久対応 (`decision` 抽出 0 件を曖昧と誤判定しない) も実装した。
+- 再発検知: `orchestrator/tests/test_codex_reasoning_ab.py` の
+  `test_f176_rejects_conflicting_decision_claims` (相反 14 種) と
+  `test_f176_preserves_legitimate_opposite_mentions` (過剰拒否を検出する正例 10 文)。
+  変異 11 件を実装前に事前登録して本走し、11/11 検出・SURVIVED 0 を
+  `output/insights/2026-08-09_t685-scorer-erratum-mutation-ledger.json` へ凍結した。
+
+### F184. 変異 spec を裁定表と同期させずに書き換え、実走前検査で初めて気づいた [手順漏れ]
+
+- 事象: [T-685] wave の親が、段 6 裁定に載せた変異表 v2 を更新しないまま
+  `mutation-spec.json` だけを書き換えた (1 件を落として番号を詰め、裁定に無い変異を 1 件足した)。
+  焦点再レビューが「spec は裁定表と一致しない」と指摘し、続く親の実走前検査で
+  さらに 2 件の欠陥 (削除済み行を anchor にした M05、期待 node を反転させず生存する M12) が出た。
+  harness は M05 で `anchor count=0` を検出して fail-closed に中断した (実装は無傷)。
+- 根本原因: 事前登録 (`DW-M01`) は「集合と意図」を実装前に固定するものだが、
+  逐語の置換文字列は実装後にしか書けない。この**二段階性**を手順として明示していないため、
+  spec 作成時に裁定表へ書き戻す手が抜けた。加えて、fix 2 巡目が anchor 行を削除したのに
+  spec を追随させなかった。
+- 恒久対応: 実走前に spec を機械検査する手順を親の義務に加えた —
+  各 `old` が source 中にちょうど 1 回現れることと、**memory 上で変異させて期待入力の判定が
+  実際に反転すること**を全数で確かめてから本走する。[T-685] wave はこれで 2 件を実走前に潰した。
+  手順の逐語は `docs/dev-wave/mutation.md` の `DW-M01` / `DW-M04` が既に要求している
+  「単一理由性をコードで確認する」の実施形である。
+- 再発検知: harness 自身の anchor 一意性検査 (`anchor count` の fail-closed 中断) が
+  第 1 層で、実走前の反転検査が第 2 層。生存する変異は本走の `summary.SURVIVED` に出る。
+
+### F185. 変異 spec の timeout を local 実測から決め、dispatch 経路の下限を割った [テスト代表性] [手順漏れ]
+
+- 事象: 変異 matrix が `mutation harness aborted: mutation record M03.artifact dispatch path
+  field が文字列でない` で中断した。`--resume` を 3 回繰り返しても同じ変異で止まり進捗ゼロ。
+  中断した dispatch dir には `receipt.json` も job 出力も無く、job が完走する前に打ち切られていた。
+- 根本原因: 親が実装子へ渡した所要見積りが**ログインノード local の 3.87 秒**で、
+  spec がそこから `timeout_seconds: 30` / `hang_timeout_seconds: 15` を決めた。
+  しかし runner は `--runner-mode dispatch` であり、**scheduler への投入・queue・ノード起動・
+  回収の往復だけで 21.8〜26.9 秒**かかる。台帳実測は baseline 21.761 秒、M01 26.855 秒、
+  M02 26.923 秒。`hang_timeout_seconds = 15` は往復すら終わらない値で、
+  `hang_risk: true` の 4 件が全部 artifact 不完全で落ちた。non-hang の 30 秒も
+  実測 26.9 秒に対して余裕 3 秒しかなかった。
+- 分離できた範囲: 順序依存ではない (resume で先頭に来ても同じ変異で落ちる)。
+  変異内容とも無関係で、`hang_risk` の真偽だけが分岐条件だった。
+- 恒久対応: `estimated_run_seconds` / `timeout_seconds` / `hang_timeout_seconds` を
+  dispatch 実測 (26.923 秒) から決め直し `27 / 90 / 60` とした。倍数で余裕を取る
+  (queue 待ちは他ジョブ次第で伸びるため、秒数の加算では足りない)。
+  再走で **12/12 KILLED、SURVIVED 0、baseline PASSED** を得た。
+  規律として `docs/dev-wave/mutation.md` の `DW-M05` が親へ課す「起動前に総所要を見積る」義務は、
+  **runner mode ごとの下限を含めて見積る**ことを意味する。
+- 再発検知: 変異 spec の timeout が runner mode の実測下限を下回っていないかを、
+  親が spec 起草子へ渡す見積り値の出所 (local か dispatch か) で確認する。
+
+### F186. 受入 lease の状態判定を逐語一致で書き、取得済みのまま lease を握り続けた [手順漏れ]
+
+- 事象: 受入 lease の待ち手スクリプトが `state=acquired` という文字列一致で判定していたが、
+  `tools/wave_land_window.py claim` の出力は JSON (`"state": "acquired"`) だった。
+  そのため **lease を取得した後も break せず claim を回し続け、受入全走を投入しないまま
+  約 3 分間 lease を保持**した。その間ほかの wave の受入投入は止まる (head-of-line blocking)。
+- 根本原因: 出力形式を確かめずに、runbook §7.3 の説明文にある `state=acquired` という
+  表記をそのまま shell の pattern にした。**説明文の表記と実際の出力形式は別物である。**
+- 分離できた範囲: lease 自体は正常に動作しており (`holder_self: true` を返していた)、
+  欠陥は親の投入ラッパだけにあった。実害は他 wave の待ち時間のみで、受入結果には影響しない。
+- 恒久対応: 判定を JSON parse へ変え、`state` と `holder_self` の両方を見る形にした。
+  規律としては、**待ち手を書く前に対象コマンドの出力を 1 回実際に見る**ことに尽きる。
+  runbook §7.3 は「`state=acquired` のときだけ投入する」と意味を述べており、
+  逐語の pattern を与えているわけではない。
+- 再発検知: 待ち手が「取得できたのに投入していない」状態は、lease の `age_seconds` が
+  伸び続けるのに受入ログが生成されないことで検出できる。
+
+### F187. 同一ファイルの二重 namespace 読み込みが exact 型検査を壊す [ドリフト]
+
+- 事象: `ident` から `execution_guard` を跨いで `AuthorizedContract` を渡す経路を新設したところ、
+  `orchestrator.campaign.*` で得た object が `_contract_from_authorization` の exact 型検査で
+  別 class object として弾かれた。順序変更で症状を隠しかけたが、実装子が停止して根因を出した。
+  同型の失敗が本 wave で 3 度連続した (`execution_guard` → `axis_trigger_gating` →
+  `env_attestation` / `calibration_verify`)。
+- 根本原因: `orchestrator/campaign/` の 53 ファイルが `from campaign import ...` の絶対 import を
+  使い、library module の相対 import と混在する。package を `campaign.*` と
+  `orchestrator.campaign.*` の 2 経路で読み込めるため、同じファイルが 2 つの module object になる。
+  1 か所を相対化すると、その先で絶対 import のまま残る module との間に新しい不整合が生まれる。
+- 恒久対応: 本 wave が到達する library module 4 本の import を相対形へ揃えた
+  (`execution_guard.py` / `axis_trigger_gating.py` / `env_attestation.py` /
+  `calibration_verify.py`)。`env_attestation` / `calibration_verify` は兄弟 package を参照するため
+  `__package__` で入口を判別する。**慣習の全面統一は本 wave の scope 外**で、
+  [T-720] として起票する。
+- 再発検知: `python3 -c "import orchestrator.campaign.loop"` と
+  `sys.path` に `orchestrator` を足した `import campaign.loop` の**両方**が通ること、および
+  両 namespace で module object が同一であることの smoke (`s6-fix6.md` の逐語)。
+  **exact 型検査を `isinstance` へ緩めることは対応と認めない。**
+
+### F188. 親がレビュー所見への応答として承認範囲外の gate を上乗せした [手順漏れ]
+
+- 事象: 段 6 のレビュー所見に応えるつもりで、親が承認済み裁定 (R1〜R8) に無い gate を 3 つ足し、
+  **3 件とも実測で正当な経路を拒否した**。(i) v2 の campaign directory 名と inner identity の
+  全面照合 → 任意名の一時 directory を使う consumer を 6 件拒否。(ii) 新規 certified lock への
+  explicit `AuthorizedContract` 必須 → driver 10 ファイル・55 件を拒否。(iii) lock 作成時の
+  「束縛契約が activation state で active」要求 → 合成契約を注入する継ぎ目テストを 4 件拒否。
+  撤回のたびに 1〜2 巡を消費し、実装は 13 巡に達した。
+- 根本原因: レビュー所見は「この形では守れていない」を示すが、**どこまで強めてよいかは示さない**。
+  親が所見の推奨をそのまま実装 scope へ入れ、承認済み裁定の範囲内かを確認しなかった。
+  3 件とも main の現状より強い要求で、受理集合を承認外に縮めていた。
+- 恒久対応: `docs/dev-wave/core.md` `DW-S04` の既存条項
+  「scope 外の real 所見は実装せず、設計択一・所見・推奨案を裁定パッケージでユーザーへ返す」を、
+  **レビュー所見由来の gate 強化にも適用する**と読む。判定は「その gate は承認済み裁定の文面から
+  導けるか」「main の現状より受理集合を縮めるか」の 2 点。縮めるなら裁定へ返す。
+  本 wave の 3 件は D259 の「却下した案」に逐語で残した。
+- 再発検知: 段 6 の fix prompt に「この gate は承認済み裁定のどの文から導けるか」を書かせる。
+  書けない gate は実装せず所見として返す。**本 wave では 5 件とも書けなかった。**
+- **追記 (受入全走で 5 件目が出た)**: codec の v1 を「exact 5 key」と定義した件。
+  main の低層 reader はキー集合を強制せず、exact 5 key の検査は
+  `ident.verify_admission_preimage` にあった。**元からそこにあった厳密さを別の層へ移して強めた**
+  ため、実在する部分的 lock を拒否し、受入全走で 5 件の赤になった。
+  判定基準は 2 つで足りる — **(1) その要求は承認済み裁定の文面から導けるか、
+  (2) main の現状より受理集合を縮めるか。(2) に該当して (1) に該当しないなら実装せず裁定へ返す。**
+  厳密化を新しい層へ持ち込むときは、**元の層にあった厳密さの範囲を先に読む**。
