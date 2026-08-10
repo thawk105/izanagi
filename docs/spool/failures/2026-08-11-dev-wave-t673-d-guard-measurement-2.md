@@ -43,3 +43,20 @@ seq: 2
   `MISMATCH` の fail-closed で、本件でも規則をコードから導き直して再走する契機になった
   (kill への読み替えはしていない)。
 - 再発検知: 同上。期待と観測の食い違いは `MISMATCH` として必ず露出する。
+
+### {{F:fold-dryrun-before-acceptance}}. fold の dry-run を受入の前に通さず、stale な carry で land が止まり受入 1 回分を空費した [手順漏れ]
+
+- 事象: [T-673] 残余 (3) の wave で、worklog fragment の `### carry` に `[T-737]` を書いたまま
+  受入全走 (524 秒) を通して land したところ、`tools/dev_wave_land.py` が rc=26
+  `candidate fold planning failed: SpoolValidationError: active でない操作対象: [T-737]` で停止した。
+  [T-737] は本 wave の走行中に別 session が land して active でなくなっていた。
+  fragment を直すと tip が動くため、**受入全走をもう 1 回やり直す**ことになった。
+- 根本原因: fragment の妥当性 (carry 対象が active か、placeholder が解決するか) は
+  `tools/spool_fold.py --dry-run` で land 前に検査できるが、受入全走はこれを検査しない。
+  一方 land は tested tip と HEAD の一致を要求するので、**受入の後に fragment を直せない**。
+  この 2 つの制約の交点に、順序の落とし穴がある。
+- 恒久対応: 記録 commit の直後・受入投入の前に `python3 tools/spool_fold.py --dry-run` を通す。
+  memory `fold-dryrun-before-acceptance` を恒久対応とする (発火段 段 7 の `DW-S07` は L1 層で
+  予算残 0 bytes のため reference へ統合できない)。
+- 再発検知: dry-run の `status` が `planned` 以外なら受入を投入しない。stale carry は
+  `SpoolValidationError` として必ず露出する。
