@@ -62,6 +62,11 @@ title: 既知の失敗・依存物不在を緑に化かしていた 4 箇所を�
   4 node の実挙動を測ろうとしたが、submodule への patch 適用が拒否されたため迂回せず静的判断に
   切り替えた。`git apply --check` が rc=0 で当たることだけは確認している。
 
+- **受入 tip と land tip は 3 commit 違う。** 受入全走を回したのは `34255bba` (lease 取得後に
+  local main を取り込んだ merge commit) で、land したのはその上に docs のみを積んだ tip である。
+  差分は本記録 fragment・insights・裁定パッケージの commit、段 8 の runbook 1 箇所、
+  および受入 tip と land tip の差を書いた本項の commit だけで、実装面は 1 byte も動いていない。
+
 - **工数。** codex 子 6 本 (実装 1 / 段 6 敵対 2 / fix 1 / 焦点再レビュー 1 / merge 監査 1、
   すべて sol)。計算ノードへの dispatch は診断走行 1、targeted 2、変異 matrix 1 (baseline + 3 変異)、
   受入全走 1。段 2 (プラン起草) と段 3 (敵対相談) は軽量版として省いた。
