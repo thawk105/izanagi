@@ -60,9 +60,16 @@ title: land 1 を実行した — 再発行 record-items・受領証 schema・�
 - **受入全走は 2 度必要になった。** 1 走目は main `0c336b8e` を取り込んだ tip で
   **8427 passed / 20 skipped / 557.96 秒 / rc=0** (計算ノード dispatch、request 901498.nqsv)。
   ところが 9 分 17 秒の走行中に local main が 3 commit 進んで ff-only が成立しなくなり、
-  取り込み直して再走した。**受入 lease の待ち手は「最後の `HEAD..main` 再検査から受入 command
+  取り込み直して再走した。**2 走目は待ち手が lease 内で main を取り込んだ tip で
+  8483 passed / 20 skipped / 523.02 秒 / rc=0** (request 901514.nqsv)。これが land 対象の
+  tested tip である。**受入 lease の待ち手は「最後の `HEAD..main` 再検査から受入 command
   起動までの間」の race しか閉じておらず、走行中に main が進む race は閉じていない。**
-  受入 1 走が約 10 分ある以上、並行 land が多い時間帯では常態的に起こる。
+  受入 1 走が約 9 分ある以上、並行 land が多い時間帯では常態的に起こる。
+  なお lease は受入を直列化するが land は直列化しないため、受入を要さない docs-only の land が
+  走行中に main を進めうる。
+- **自分が保持したままの lease へ 2 走目を投入すると待ち手が空転する** (本 wave で約 18 分)。
+  `claim` は自己保持を `held` で返し `acquired` にしないため claim loop を抜けない。
+  **2 走目の前に親が `release` する必要がある。**
 - **段 8 の改善候補 3 件は `docs/dev-wave/**` の L1.5 予算に入らないため編集せず返した**
   (実測 9508 bytes / 予算 9566 bytes = 余裕 58 bytes)。S9 = (a) の裁定に従い、予算の独立審査を
   {{T:dev-wave-docs-budget-review}} として起票する。
