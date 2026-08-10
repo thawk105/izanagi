@@ -32,6 +32,8 @@ EXPECTED_ROW_IDS = (
 EXPECTED_EXECUTABLE_FIXTURE_IDS = (
     "activation-head-consistency",
     "environment-floor-contract-consistency",
+    "freeze-history-immutability",
+    "orphan-generation-no-authority",
     "unapproved-generation-no-authority",
 )
 
@@ -109,7 +111,7 @@ def _assert_rejected(
     fixture_root: Path, design_doc: Path, expected_reason: str
 ) -> None:
     try:
-        contract._validate_repository(fixture_root, design_doc)
+        contract.validate_repository(fixture_root, design_doc)
     except contract.ContractError as exc:
         assert expected_reason in str(exc), str(exc)
     else:
@@ -127,7 +129,7 @@ def test_real_repository_contract_is_consistent_but_incomplete() -> None:
     }
     assert result == {
         "status": "incomplete",
-        "pending_count": 7,
+        "pending_count": 5,
         "unresolved_count": 6,
         "row_ids": EXPECTED_ROW_IDS,
         "executable_fixture_ids": EXPECTED_EXECUTABLE_FIXTURE_IDS,
@@ -149,6 +151,18 @@ def test_real_repository_contract_is_consistent_but_incomplete() -> None:
             }
         )
     )
+
+
+def test_current_repository_is_rejected_as_stage0_incomplete() -> None:
+    try:
+        contract.require_stage0_complete()
+    except contract.ContractError as exc:
+        assert str(exc) == (
+            "stage 0 is incomplete: status=incomplete, pending=5, "
+            "applicable_unresolved=6, blocking_gates=8"
+        )
+    else:
+        raise AssertionError("the incomplete repository was accepted as stage 0 complete")
 
 
 def test_design_row_removed_is_rejected(tmp_path: Path) -> None:
@@ -215,6 +229,37 @@ def test_case_file_bytes_tamper_with_manifest_unchanged_is_rejected(
             "entrypoint", document["entrypoint"] + "_changed"
         ),
     )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "fixture raw SHA-256 mismatch for approved-freeze-reference",
+    )
+
+
+def test_case_and_manifest_hash_tamper_together_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    fixture_id = "approved-freeze-reference"
+    _rewrite_case(
+        fixture_root,
+        fixture_id,
+        lambda document: document.__setitem__(
+            "entrypoint", document["entrypoint"] + "_changed"
+        ),
+    )
+
+    def mutate(document: dict[str, Any]) -> None:
+        entry = next(
+            entry
+            for entry in document["fixtures"]["entries"]
+            if entry["fixture_id"] == fixture_id
+        )
+        case_path = fixture_root / entry["path"]
+        entry["raw_sha256"] = hashlib.sha256(case_path.read_bytes()).hexdigest()
+        _refresh_entries_sha(document, "fixtures")
+
+    _rewrite_manifest(fixture_root, mutate)
     _assert_rejected(
         fixture_root,
         design_doc,
@@ -309,6 +354,53 @@ def test_manifest_status_cannot_claim_complete_while_gates_remain(
     )
     _assert_rejected(
         fixture_root, design_doc, "manifest status disagrees with computed repository status"
+    )
+
+
+def test_required_gate_removed_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        entries = document["required_gates"]["entries"]
+        entries.pop(0)
+        document["required_gates"]["count"] = len(entries)
+        _refresh_entries_sha(document, "required_gates")
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "required_gates entries do not exactly match",
+    )
+
+
+def test_required_gate_owner_changed_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        document["required_gates"]["entries"][0]["owner"] = "wrong-owner"
+        _refresh_entries_sha(document, "required_gates")
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "required_gates entries do not exactly match",
+    )
+
+
+def test_required_gate_resolved_without_evidence_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        document["required_gates"]["entries"][0]["status"] = "resolved"
+        _refresh_entries_sha(document, "required_gates")
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "required_gates entries do not exactly match",
     )
 
 

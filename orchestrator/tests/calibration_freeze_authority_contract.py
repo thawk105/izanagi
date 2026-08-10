@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Mapping
 
 
@@ -27,6 +28,7 @@ __all__ = (
     "load_ruling_profile",
     "load_fixture_cases",
     "validate_repository",
+    "require_stage0_complete",
 )
 
 
@@ -80,6 +82,48 @@ _SELECTION_ENUMS = {
         {"activation-window", "post-activation-lease"}
     ),
 }
+
+# These literals were calculated once from the checked-in case-file bytes.  They
+# are deliberately independent of manifest.v1.json so that changing a case and
+# refreshing the manifest cannot move the fixture pin.
+_EXPECTED_RAW_SHA256_BY_FIXTURE: Mapping[str, str] = MappingProxyType({
+    "activation-head-consistency":
+        "88366e954ff42f772116e9708247747132a9c8ee6ec1720ada89dfba071e59c5",
+    "approved-freeze-reference":
+        "63b27b6a1baad78daffaa81d8d9e0d89471477745288e3f8fcc4924952e4a740",
+    "bundle-identity-propagation":
+        "67600f26c1f604add2abce21171ad24ff0e87b9409c97b3d3f37806b5ea0ce5c",
+    "candidate-type-preservation":
+        "8530e43e975b15de2bde8dff2436c376e77a8d7a2b48fbe9c78fed90211369e1",
+    "environment-floor-contract-consistency":
+        "041ddc01676a9c5cf20fa6586d9d02e56394593e2a81f240249b05f2c231f6e1",
+    "floor-seal-consistency":
+        "db154c0e98d5686d9f724345f2f7eef240e60efe6f2d9386a3bc6d5adf90ff44",
+    "freeze-history-immutability":
+        "170268fb92660769fc7b4b628bd727ab49c12532e336238133eebf97f86b67c4",
+    "orphan-generation-no-authority":
+        "e0166f918a5302871071e84a5f38443771d849d311933e78b0798e1cb16357d4",
+    "post-cutoff-bundle-identity":
+        "be7219a39230586bf0cde4347ba024ab746c48740eb83e2d247b50fd99a2508d",
+    "unapproved-generation-no-authority":
+        "92b70ce5cd7bff0678b3a6b24bc3d5950a134108f7616cd4b37b8b0eec6a1d73",
+})
+_EXPECTED_FIXTURE_ENTRIES_SHA256 = (
+    "a8bf16889b3b83a6c22506fd2069fad16ea20b08195597ac361b905f2476a91b"
+)
+_EXPECTED_ROW_IDS_SHA256 = (
+    "facd79bcbd94c1783df767bede2a727df5db6e758bba79833deb5478d76eabfe"
+)
+_EXPECTED_REQUIRED_GATES = frozenset({
+    ("CFAB-Q3-REVOCATION", "user", "unresolved"),
+    ("CFAB-Q3-ROLLBACK", "user", "unresolved"),
+    ("CFAB-Q3-XF-POSITION", "user", "unresolved"),
+    ("CFAB-S8-S10-CONTRADICTION", "user", "unresolved"),
+    ("CFAB-STAGE-FIXTURE-ASSIGNMENT", "stage1-and-later", "pending"),
+    ("FREEZE-AX-TOPOLOGY", "lower-impl-wave", "nonconforming"),
+    ("FREEZE-CONFORMANCE-LITERAL", "lower-wa-wave", "unresolved"),
+    ("FREEZE-U-A1", "user", "unresolved"),
+})
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -365,6 +409,15 @@ def _validate_manifest(document: dict[str, Any]) -> None:
             raise ContractError(f"{label}.status is outside the required gate enum")
     if len(gate_ids) != len(set(gate_ids)):
         raise ContractError("required_gates.entries has duplicate gate_id values")
+    actual_required_gates = frozenset(
+        (entry["gate_id"], entry["owner"], entry["status"])
+        for entry in gate_entries
+    )
+    if actual_required_gates != _EXPECTED_REQUIRED_GATES:
+        raise ContractError(
+            "required_gates entries do not exactly match the required "
+            "gate_id/owner/initial-status set"
+        )
     expected_gates_sha = _sha256_canonical(gate_entries)
     actual_gates_sha = _expect_sha256(
         gates["entries_sha256"], label="required_gates.entries_sha256"
@@ -618,6 +671,13 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
             f"missing case files={sorted(declared_ids - actual_ids)}, "
             f"orphan case files={sorted(actual_ids - declared_ids)}"
         )
+    expected_ids = set(_EXPECTED_RAW_SHA256_BY_FIXTURE)
+    if declared_ids != expected_ids:
+        raise ContractError(
+            "fixture IDs do not exactly match the independent raw SHA-256 pins: "
+            f"missing pins={sorted(declared_ids - expected_ids)}, "
+            f"unused pins={sorted(expected_ids - declared_ids)}"
+        )
 
     for fixture_id, entry in declared_by_id.items():
         path = fixture_root / entry["path"]
@@ -626,11 +686,15 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
         except OSError as exc:
             raise ContractError(f"declared fixture case cannot be read: {path}") from exc
         actual_sha = hashlib.sha256(raw).hexdigest()
-        if entry["raw_sha256"] != actual_sha:
+        expected_sha = _EXPECTED_RAW_SHA256_BY_FIXTURE[fixture_id]
+        if entry["raw_sha256"] != actual_sha or actual_sha != expected_sha:
             raise ContractError(
                 f"fixture raw SHA-256 mismatch for {fixture_id}: "
-                f"manifest={entry['raw_sha256']}, actual={actual_sha}"
+                f"manifest={entry['raw_sha256']}, actual={actual_sha}, "
+                f"independent={expected_sha}"
             )
+    if manifest["fixtures"]["entries_sha256"] != _EXPECTED_FIXTURE_ENTRIES_SHA256:
+        raise ContractError("fixtures.entries_sha256 does not match its independent pin")
 
     coverage_entries = manifest["row_coverage"]["entries"]
     coverage_row_ids = [entry["row_id"] for entry in coverage_entries]
@@ -667,6 +731,10 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
     if row_coverage["row_ids_sha256"] != expected_row_ids_sha:
         raise ContractError(
             "row_coverage.row_ids_sha256 does not match extracted design row IDs"
+        )
+    if row_coverage["row_ids_sha256"] != _EXPECTED_ROW_IDS_SHA256:
+        raise ContractError(
+            "row_coverage.row_ids_sha256 does not match its independent pin"
         )
 
     pending_count = sum(case["binding_state"] == "pending" for case in cases)
@@ -707,7 +775,39 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
     }
 
 
-def validate_repository() -> Mapping[str, Any]:
-    """実 repository の fixture 閉包を検査し、完了とは別の status 要約を返す。"""
+def validate_repository(
+    fixture_root: Path = FIXTURE_ROOT,
+    design_doc: Path = DESIGN_DOC,
+) -> Mapping[str, Any]:
+    """指定 repository の fixture 閉包を検査し、完了とは別の要約を返す。"""
 
-    return _validate_repository(FIXTURE_ROOT, DESIGN_DOC)
+    return _validate_repository(fixture_root, design_doc)
+
+
+def require_stage0_complete(
+    fixture_root: Path = FIXTURE_ROOT,
+    design_doc: Path = DESIGN_DOC,
+) -> Mapping[str, Any]:
+    """段 0 の完了を要求し、blocker が一つでもあれば fail-closed にする。"""
+
+    summary = validate_repository(fixture_root, design_doc)
+    manifest = _load_manifest(fixture_root)
+    blocking_gate_statuses = {"unresolved", "pending", "nonconforming"}
+    blocking_gate_count = sum(
+        entry["status"] in blocking_gate_statuses
+        for entry in manifest["required_gates"]["entries"]
+    )
+    if (
+        summary["status"] != "complete"
+        or summary["pending_count"] != 0
+        or summary["unresolved_count"] != 0
+        or blocking_gate_count != 0
+    ):
+        raise ContractError(
+            "stage 0 is incomplete: "
+            f"status={summary['status']}, pending={summary['pending_count']}, "
+            f"applicable_unresolved={summary['unresolved_count']}, "
+            f"blocking_gates={blocking_gate_count}"
+        )
+
+    return summary
