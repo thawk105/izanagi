@@ -673,3 +673,19 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"5b1881d8f7ad1bf260020af2eaad898636047e92d12a4513148892a8447febad","seq":33,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"dc5f52dc273b8564523dc8ff71506345404333c836dc67e897fb3797fdf72b6d","seq":1,"wave":"dev-wave-t657-restore-redesign"}
+
+- {"allocations":{"T:acceptance-lease-merge-after-acquire":"[T-725]"},"authored":"2026-08-10","content_sha256":"5929e142d566ff342ef56afc16f385a0a5b6215f736bcf36d27c73da3e8a6ce4","seq":1,"wave":"dev-wave-t674-d125-supersession"}
+- {"allocations":{"D:d125-campaign-id-invariance-superseded":"D261"},"authored":"2026-08-10","content_sha256":"c0cdbb8d3048dfd73a586c1ee19598352f6daf44c01f06ba1744112c8f5d5a7d","seq":1,"wave":"dev-wave-t674-d125-supersession"}
+- {"allocations":{"F:acceptance-lease-behind-livelock":"F191"},"authored":"2026-08-10","content_sha256":"39a653c683bd34052d1e340797ba9b7e1007711ab5a06431b70ffebf29fa9409","seq":2,"wave":"dev-wave-t674-d125-supersession"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"0a984a5c01892fa8d09210efff675181e8123b09f8a4e90e0e5615cbf9de1bd2","seq":1,"wave":"dev-wave-t139-producer-slice"}
+- {"allocations":{"D:t139-erratum-validator-registry":"D263","D:t139-reference-binding-not-a-gate":"D264","D:t139-stage2-approval-payload":"D262"},"authored":"2026-08-10","content_sha256":"3af3cd1569bba51d4e28ccbc9aaa32e8a46a5a087476196fed1454531d661706","seq":2,"wave":"dev-wave-t139-producer-slice"}
+- {"allocations":{"F:codex-child-reads-parent-protocol-as-own":"F193","F:lease-json-matched-as-plaintext":"F192"},"authored":"2026-08-10","content_sha256":"a54723a8be242d3e875f4a7245bfb67cfbe91d146e9514539fbfd0e6a0d0e264","seq":3,"wave":"dev-wave-t139-producer-slice"}
+
+- {"allocations":{"T:ruleops-batch-blob-memory-bound":"[T-729]","T:ruleops-cap-is-per-call-only":"[T-727]","T:ruleops-default-controls-swallows-git-timeout":"[T-728]","T:ruleops-preflight-60s-ceiling":"[T-726]"},"authored":"2026-08-10","content_sha256":"ca4813c584ee0bf9761ed74a81a732d9e47a11d126b7ee8b5f61d788ee7023f1","seq":1,"wave":"dev-wave-t510-ruleops-git-budget"}
+- {"allocations":{"D:ruleops-git-timeout-budget":"D265"},"authored":"2026-08-10","content_sha256":"cf9bd040483ffd734475868a4c3a2c170c6278268a0b253517501563c6658bd5","seq":2,"wave":"dev-wave-t510-ruleops-git-budget"}
+- {"allocations":{"F:parametrize-id-breaks-node-extraction":"F194"},"authored":"2026-08-10","content_sha256":"dc8e2d7254b89ce830d0fd139c648e27221e7ad4a9523e0988d55d7d72cf5574","seq":3,"wave":"dev-wave-t510-ruleops-git-budget"}
+
+- {"allocations":{"D:stage-reasoning-policy-adoption":"D266"},"authored":"2026-08-10","content_sha256":"099f190e68c68fe2641b109a49d90306e80fb9f192c4c5d1d7673fc0a9e359bf","seq":1,"wave":"dev-wave-t184-reasoning-policy"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"266de09a59255b4d3170967e0eaf3cc43fec34f470d67b251338cfc4a1d42c75","seq":2,"wave":"dev-wave-t184-reasoning-policy"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"658e3387528edbfc7c5c62b68af8d9828792d5009adac54da8dd87b9c03808d8","seq":3,"wave":"dev-wave-t184-reasoning-policy"}
