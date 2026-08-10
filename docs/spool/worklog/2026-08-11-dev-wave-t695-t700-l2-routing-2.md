@@ -59,6 +59,15 @@ title: [T-695] + [T-700] の §60 裁定を実施した — land 関門を新規
   D271 適用除外は {{D:o25-admission-exemption}} に、pin 済み節の外側の残余は
   {{D:normative-section-exact-pin}} に記録した。
 - **設計判断は {{D:o25-admission-exemption}} と {{D:normative-section-exact-pin}}。**
+- **受入全走は 1 走で緑。** tip `d54c80a1` で **rc=0 / 8,326 passed / 20 skipped / 530.61 秒**。
+  lease は `acquired` 直後に local main を取り直して 1 回取り込んでから走らせ、終了時に release した
+  (待ち手 script が claim・取り直し・merge・投入・release を 1 本で行う)。
+  親検査は投入前に `check_docs` rc=0、`spool_fold --dry-run` rc=0、全史 provenance 監査 rc=0。
+  **land tip は受入 tip より 1 commit 進む。** 差分はこの worklog fragment への受入結果の追記だけで、
+  コード・テスト・reference・入口を含まない。
+- **wave 中に local main を 3 回取り込んだ** (`f4435e48`、`ae6db879`、`6d8b8f1b`、計 35 commit)。
+  1 回目は段 5 の実装子を投入直後に停止させて先行させたもので、main 側 3 commit が
+  本 wave の編集対象 (`tools/check_docs.py` −166 行ほか) を書き換えていたためである。
 - **エージェント工数: 親 1、Codex 子 9** (段 2 plan 1、段 3 敵対 2、段 5 実装 1、
   段 6 fix 4 (うち 1 は自分が新設したテストの是正)、段 6 敵対レビュー 2、焦点再レビュー 1
   — 実装系は `-s workspace-write`・`reasoning=high`、相談・レビュー系は `-s read-only`)。
@@ -90,3 +99,20 @@ title: [T-695] + [T-700] の §60 裁定を実施した — land 関門を新規
   選択肢は (a) 現行 trigger を維持して残余を受容 / (b) L1 へ再分類 (L1 は 10,625/10,625 で
   余白 0 のため別途捻出が要る) / (c) trigger を親の preflight 契約として明文化する新規義務を足す。
   base: af454f8d7c26d662e6a97e5ed8fa8f97a466ef0d9a70312da65e5f5571808602
+
+### 新規
+
+- {{T:stage5-recheck-main}} **P2・新規 (段 8 自己改善から)**: 段 5 の実装子を投入する直前に
+  local main を確認する規律が入口にも reference にもない。本 wave は投入直後にたまたま気づいて
+  停止・取り込み・再投入で済んだが、気づかなければ `tools/check_docs.py` (main 側 −166 行) の
+  3-way merge が要った。既存の `recheck-main-just-before-acceptance` は受入直前だけを言う。
+  **本文を足す先がない** — `DW-S05-A` は L1.5 で余白 0、入口は余白 3 bytes。
+  新規 L2 節は D271 条件 1 の発火実績が本 wave の 1 例だけで `DW-G03` の独立 2 例を満たさない。
+  選択肢は (a) 独立 2 例目まで待つ / (b) 予算値を独立審査して枠を作る /
+  (c) 既存 L1.5 節から意味等価に捻出する / (d) 見送る。
+- {{T:ruling-numbers-are-means}} **P3・新規 (段 8 自己改善から)**: 裁定文が「N bytes 捻出」の
+  ような**手段の数値**を含むとき、その数値が前提にしていた別項目が同じ裁定で見送られると
+  数値だけが陳腐化する。本 wave の「83 bytes」がこれで、実際に必要だったのは 61 + 1 bytes だった。
+  `DW-S01` の「brief 前に承認済み裁定の前提を実測する」で検出はできた (実際に検出した) ので
+  規則の欠落ではないが、「裁定文の数値は手段であって義務ではない」ことは明示がない。
+  L1 は 10,625/10,625 で余白 0 のため本文追記はできない。独立 2 例目が出るまで記録に留める。
