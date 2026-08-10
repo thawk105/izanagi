@@ -8,9 +8,9 @@ product・model・reasoning の選択とタスク種別・レビュー結果・�
 
 ## 必須形式
 
-すべての commit は message 末尾に次の trailer を 1 行以上持つ。`AI-Agent` は本文と空行で区切った最終段落
-(Git が trailer と認識する位置) に置き、本文は任意。フィールド順と区切りは固定し、値に `;` や改行を
-含めない。ここまでが機械検査対象。
+すべての commit は、本文と空行で区切った最終段落 (Git が trailer と認識する位置) に次の trailer を
+1 行以上持つ。本文は任意。フィールド順と区切りは固定し、値に `;` や改行を含めない。
+ここまでが機械検査対象。
 
 `Co-Authored-By` を併用する場合は空行を挟まず連続させる。
 Co-Authored-By 候補行はすべて最終 trailer block に置く。
@@ -21,16 +21,18 @@ AI-Agent: product=<product>; model=<model>; reasoning=<reasoning>; role=<role>[;
 ```
 
 - `product`: `codex` または `claude`。他製品は安定した小文字の識別子。
-- `model`: 実行面が表示する slug。表示名だけなら小文字化し空白を `-` に置換する。
-- `reasoning`: 選択面が表示する値を同じ規則で正規化する。明示的に既定設定を選んだ場合は `default`。
-- 共通則: 値を表示しない場合は `not-exposed`、本来確認できるが記録時に確定できない場合は `unknown`
-  とし、世代や内部モデルを推測しない。
+- `model`: 実行面が表示する slug。
+- `reasoning`: 選択面が表示する値。明示的に既定設定を選んだ場合は `default`。
+- 共通則: 値を表示しない場合は `not-exposed`、本来確認できるが記録時に確定できない場合
+  (セッション途中の `/model` 切替後を含む) は `unknown` とし、世代や内部モデルを推測しない。
 - `role`: 実質的な寄与を `author`, `reviewer`, `researcher`, `manager`, `integrator` から選び、複数役割は行を分ける。
 - `scope` (任意、2026-07-17 導入): その構成が担った作業範囲の短い識別子。**同じ role が複数行に
   わたる commit では全行に必須**、単独行は省略可。導入 commit 以降にのみ適用して遡及せず、
   checker も内容検出した導入 commit 以後だけ検査する。
 
 `product`, `model`, `reasoning`, `scope` と waiver の `reason` は `[a-z0-9][a-z0-9._-]*` に収める。
+外れる表示値は小文字化し、非適合文字を `-` へ替えて連続と前後を畳む
+(`claude-opus-5[1m]`→`claude-opus-5-1m`)。
 
 AI が実質的に関与しない commit は次の 1 行を使う。
 
@@ -71,9 +73,8 @@ checker は変更 path と trailer を本節の導入 commit から照合する 
 - Git 操作の機械的代行は記録しない。範囲選定・競合解決・採否を伴う最終統合に実質的な判断を加えた場合だけ
   `integrator`、説明と実体を独立レビューした構成は `reviewer` とする。
 - `Co-Authored-By` は著者表示に併用してよいが、model と reasoning がないため `AI-Agent` の代用にしない。
-  セッション URL は commit message にも PR 本文にも記録しない (2026-07-17 ユーザー裁定: 履歴に永続し公開時に
-  session の存在と ID を露出するため)。機械抑止は `.claude/settings.json` の
-  `attribution.sessionUrl=false`。
+  セッション URL は commit message にも PR 本文にも記録しない (2026-07-17 ユーザー裁定)。
+  機械抑止は `.claude/settings.json` の `attribution.sessionUrl=false`。
 - トークン数・利用枠・料金は対象外。工数や棄却 finding は `docs/worklog.md` 冒頭の書式で worklog か
   一次資料へ残す。
 

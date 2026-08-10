@@ -48,6 +48,7 @@ from critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection,  # noqa: E4
                            load_workload,
                            render_rejections as _render_rejections,
                            render_text)
+from campaign_lock_test_support import build_v2_lock              # noqa: E402
 
 
 _ADMISSION_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
@@ -61,9 +62,8 @@ def render_rejections(*args, **kwargs):
 
 
 def _tmp_layout():
-    d = tempfile.mkdtemp(prefix="izanagi_critic_")
-    atexit.register(shutil.rmtree, d, ignore_errors=True)
-    layout = CampaignLayout(root=d).ensure()
+    parent = tempfile.mkdtemp(prefix="izanagi_critic_")
+    atexit.register(shutil.rmtree, parent, ignore_errors=True)
     cfg = ident.bind_admission_policy(CampaignConfig(
         spec_slug="critic-fixture",
         search_tag="test",
@@ -73,7 +73,10 @@ def _tmp_layout():
         trial="test",
     ), _ADMISSION_CONTEXT.policy)
     cfg = ident.bind_environment_contract(cfg, _ENV_CONTRACT)
-    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    layout = CampaignLayout(
+        root=os.path.join(parent, str(ident.campaign_id(cfg)))
+    ).ensure()
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     return layout
 
 

@@ -1,0 +1,52 @@
+あなたは izanagi プロジェクトの dev-wave 段 6 の敵対レビュアー (R1: 不変条件と例外経路) です。
+これは**防御目的のレビュー**です。自分たちのツールに入った差分の欠陥を land 前に見つけるため、
+実装を意図的に攻撃します。出力は日本語で書いてください。
+
+## 前提資料 (必読)
+次のファイルを読んでください。読めない場合は推測せず、その旨だけを書いて直ちに停止してください。
+
+- 親裁定 (受入基準の正本): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s4-adjudication.md
+- 実装子の報告: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s5-impl.md
+- 統合差分: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s5-integrated.patch
+- 変更後の実物 (作業ディレクトリ、未 commit): tools/codex_worker_launch.py、
+  orchestrator/tests/test_codex_worker_launch.py
+
+## レビュー対象
+上記差分が **[T-678]** を親裁定どおりに実装できているかを攻撃してください。
+親裁定に無い要求を持ち込まないでください (S-A〜S-G は scope 外と裁定済みです)。
+
+## R1 の攻撃面
+1. **受理集合。** 親裁定の不変条件 1′ に照らし、`accepted` になる論理 job が拡大する経路は
+   ないか。逆に予算内の正常 job を誤って弾く経路はないか。file:line で。
+2. **例外経路と temp 所有。** `_atomic_create_json_reserved` の新しい所有契約
+   (helper が成功時も例外時も temp を消す) が全経路で守られているか。
+   `_run_supervised` / `_atomic_create_json` / `_publish_launcher_error_receipt` の
+   `try/finally` に、二重 unlink・temp 漏れ・所有の宙吊りがないか。
+   `replace_invalid=True` (os.replace) と `False` (os.link) の両方を追ってください。
+3. **flip 経路の巻き戻し。** staged temp 破棄 → output unlink → `_fsync_parent` →
+   flag 復元 → receipt 再構築 → 再 audit → 再 staging の順序に、
+   例外が挟まった場合の穴 (output が残る / flag が誤ったまま / receipt slot が塞がる) はないか。
+4. **rc と receipt の整合。** receipt が `accepted` なのに process rc≠0、
+   あるいはその逆になる経路が新しく生じていないか。
+5. **既存不変条件。** N-3 順序 (receipt slot 予約 → output 公開)、create-only 公開、
+   `_writer_truth`、`_validate_receipt`、schema v2 の closed field 集合、
+   `wall_clock_scope` literal が保たれているか。
+6. **既存テストへの波及。** 差分が既存 node の前提を壊していないか。特に
+   `test_receipt_publication_failure_removes_output_and_writes_error_receipt`、
+   `test_complete_receipt_publication_is_atomic_create_only_at_run_callsite`、
+   `test_partial_receipt_never_visible_at_final_path` を追ってください。
+7. **clock seam。** `_monotonic_ns()` の導入で置き換え漏れ・二重時計がないか。
+   差し替え時に意図しない範囲へ波及しないか。
+
+## 制約
+- read-only sandbox です。**テストを実走できません。** 緑・赤を実測として主張しないでください。
+  実走が必要な確認は「親が実測すべき項目」として列挙してください。
+- 所見ごとに **主張 / 根拠 (file:line) / 影響 / 提案** を書き、
+  **must-fix / nit / backlog** に分類してください。
+- must-fix には「直さない場合に成果物 (receipt の受理判断・output の実在・rc) のどの値が
+  どう変わるか」を 1 行で必ず書いてください。書けないものは nit か backlog にしてください。
+- 未実測の構成例は `[構成例・未実測]` と明記してください。
+
+## 出力形式
+節見出し付き Markdown。最後に必ず `## 総括` 節を置き、
+must-fix の件数と GO / 条件付き GO / NO-GO を 10 行以内で書いてください。

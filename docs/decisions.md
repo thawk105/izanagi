@@ -11560,3 +11560,411 @@ assert は注入した障害が保証する内容とメッセージ構造だけ�
 **却下した選択肢:**
 - 期待値を「0 または 1」の集合にする — 不一致が成立しない場合が残り、同じ穴が開く。
 - meta-test を負荷の少ない環境限定にする — 受入全走で走らないなら検出力がない。
+
+## D251. 失敗診断の中継到達は producer 側の終端ダイジェストで保証する (2026-08-09)
+
+**決定:** pytest セッションの終端に bounded な失敗診断ダイジェストを出し、その到達を機械検査で
+固定する。dispatcher (`tools/pegasus/dispatch_compute.py`) の中継仕様は変更しない。
+
+- 出力位置は `@pytest.hookimpl(wrapper=True, tryfirst=True)` の `pytest_unconfigure` post-yield とする。
+  pytest 自身の `short test summary info` と `summary_stats` はこの hook より前に出るため、
+  後続出力に上限が無くてもダイジェストが押し出されない。
+- 予算はダイジェスト総量を `DEFAULT_FAILURE_RELAY_LIMIT_BYTES` の 3/4 とし、残り 1/4 を後続余白にする。
+  定数は複製せず import して導出する。
+- 保証範囲は **pytest セッションが完走した場合**に限る。
+
+**理由:**
+- 中継は末尾 64 KiB だけであり、失敗が多い全走では診断本体が丸ごと落ちる。実測で
+  child stdout 523,987 bytes のうち 458,452 bytes (87.5%) が欠落し、`=== FAILURES ===` の
+  見出しごと消えていた。
+- `pytest_terminal_summary` は不可。その後に無上限の `short test summary info` が出るため、
+  実測 artifact の行長では 156 件目で開始マーカが 64 KiB の外へ出る。
+- producer 側なら local 走行・変異 harness・他 transport にも同時に効く。dispatcher は
+  sanctioned control plane であり、変更コストと影響範囲が大きい。
+- 完全ログへの耐久参照は新規実装を要しない。dispatcher が既に receipt path を表示し、
+  receipt の `scheduler_logs.stdout.path` が全文を指す。
+
+**却下した選択肢:**
+- 中継予算の増量 — 後続出力に上限が無いため到達保証にならない。
+- dispatcher 側でのマーカ抽出 — Pegasus 経路にしか効かず、control plane の変更を要する。
+- 完全ログ path だけの中継 — 人間の二段操作が要る。既に receipt 経由で存在する。
+- 一行固定マーカ — per-failure の本体と省略会計を失い、原因帰属に足りない。
+
+## D252. 機械可読な出力へ付ける行頭 prefix に `|` を使わない (2026-08-09)
+
+**決定:** 診断ダイジェスト等、pytest の失敗出力に混ざる機械可読ブロックの行頭 prefix は
+`> ` とし、`| ` を使わない。行構造は保ったまま**全物理行**へ付ける。先頭行だけに付けてはならない。
+
+**理由:**
+- `tools/mutation_harness.py` の `_strip_relay_prefix` は ANSI 除去と `lstrip` の後、
+  行頭の `|` を**個数を問わず**すべて剥がす。その後 `_failed_nodes` が `FAILED ` で始まる行を
+  失敗 node として抽出する。
+- したがって `| ` を付けた診断本文中に `FAILED path.py::name` があると、実際には落ちていない
+  node が変異台帳へ混入する。F65 と同型の consumer 取り残しである。
+- `> ` は `_strip_relay_prefix` が剥がさないため、この経路を構造的に塞ぐ。
+- 先頭行だけに付ける実装は 2 行目以降が素の `FAILED ...` になり、同じ穴が開く。
+
+**却下した選択肢:**
+- `FAILED ` で始まる行だけを無害化する — 単独では成立するが、prefix 側の防護と合わせて
+  冗長 gate になり、単独変異では consumer 抽出が破れないため検出力の帰属が曖昧になる。
+  両方を持つ方針は維持しつつ、prefix 側を第一の防壁とする。
+- 改行をすべて escape して 1 行に潰す — consumer は守れるが、4 KiB 級の 1 行になり
+  人間が traceback 構造を読めない。診断が「届く」ことの意味を満たさない。
+
+## D253. 受入 lease に待ち札方式の待ち行列を入れ、異常時は公平性を捨てて縮退する (2026-08-09)
+
+**決定:** 並行 dev-wave の受入 lease (D239) に、公平な待ち行列 (FIFO 相当) を入れる。待機者ごとに
+lease directory 内へ待ち札 `ticket.<sha256(wave)[:12]>` を 1 枚作る。到着順は待ち札 payload の
+`queued_at_ns` で決め、この値は `O_CREAT|O_EXCL` が成功した直後の inode mtime から採る
+(process が事前に採番できないので、作成を遅らせた側が古い時刻を先取りできない)。生存判定は
+ファイル mtime の heartbeat で行い、到着順とは分離する。lease が空いたとき、最古の待ち札を持つ
+wave だけが取得でき、それ以外は新しい state `queued` を受け取る。
+
+**停止しないことを公平性より優先する。** 待ち行列を扱えない状況では待ち行列を捨てて、
+D239 導入時の「先着競争」へ縮退する。縮退の発火条件は 3 つだけとする。
+
+1. 待ち札ディレクトリの走査そのものが失敗した
+2. 走査した entry が 4096 件、または待ち札が 64 枚を超えた
+3. **自分の待ち札を登録できなかった** — 列に並べない以上、順序づけられないので競争へ戻す
+
+**異常な待ち札 1 枚では待ち行列全体を壊さない。** 読めない・壊れている・所有者が違う待ち札は、
+その 1 枚だけを順序候補から外す。持ち主が順番を失うだけで、他の wave は影響を受けない。
+
+**不変条件:** 非 `acquired` を返す `claim` は、自分が先頭のまま生きた待ち札を残してはならない
+(`held` は先頭のまま待つのが正しいので例外)。放棄された待ち札は最後の `claim` から 300 秒で失効する。
+
+**理由:**
+
+- **最も重い失敗様式は不公平ではなく停止である。** 先頭の待ち札を持つ wave が lease を作れない
+  まま heartbeat を続けると、全 wave の受入が永久に止まる。この経路は段 3・段 6 の敵対レビューが
+  独立に指摘し、いずれも実コードから成立させた。不公平は待ち時間が延びるだけで、成果物の値は
+  変わらない。
+- **到着順と生存を同じ mtime に持たせられない。** 周期 `claim` を heartbeat にすると、
+  mtime を順序キーにした瞬間に「よく呼ぶ側が新しく見える」ため順序が消える。
+  到着順は内容へ、生存は mtime へ分ける必要がある。
+- 待ち札 1 枚の異常で全体を degrade する設計は、先頭が heartbeat 中に 1 回 lock 競合しただけで
+  待ち行列が消え、後着が取得できてしまう。逆に異常な待ち札を先頭の障害物として扱う設計は、
+  壊れた 1 枚で全 wave が最大 300 秒止まる。**1 枚だけ外す**のが両方を避ける唯一の形である。
+
+**land の権威は変えない (D239 から不変)。** 待ち行列も advisory である。`acquired` の意味、
+lease payload、`status` と `message` の挙動、TTL 2400 秒の境界、CLI の rc 意味論は変えない。
+`status` は待ち札を読まない・触らない・消さない (読むと heartbeat になって放棄札を延命するため)。
+
+**却下した選択肢:**
+
+- **単一の queue ファイルへ追記する** — read-modify-write と破損時の再構築、専用 mutex が要る。
+  1 待機者 1 ファイルなら `O_EXCL` と inode 同一性検査だけで済み、突然死の面が増えない。
+- **`held` を流用して `queued` を作らない** — 存在しない lease holder と `main_sha` を
+  返すことになり、二義的になる。
+- **待ち行列が壊れたら受入を止める (fail-closed)** — 本機構は advisory であり、止めれば
+  D239 導入前より悪化する。縮退先は必ず「待ち行列なし」= 現行挙動とする。
+- **rc の意味論を変えて非 `acquired` を非 0 にする** — 実在する repo 外の待ち手 script を
+  壊しうるため本 wave では採らず、択一として裁定へ返した。
+
+**受容した限界:** (i) mtime 粒度内の同着は holder digest で決定的に割るため厳密 FIFO ではない。
+(ii) 旧版 `claim` を走らせる wave は待ち札を無視するので、混在中は公平性を保証しない
+(退行はせず、待ち行列が無い状態へ戻るだけ)。(iii) 非協調な同一 uid process に対する
+`_same_entry` と `unlink` の間の TOCTOU は現行 lease 経路と同じで、advisory 境界のまま。
+(iv) **FIFO が保証するのは「後着が先着を追い越さない」ことだけで、待ち時間の上界ではない。**
+待ち時間は待ち行列の長さと受入 1 回の所要 (1055〜1338 秒) に比例し、release 忘れが連鎖すれば
+lease TTL 2400 秒に比例する。
+
+## D254. land の ff-only だけに全史 provenance 監査を課し、no-op と recovery は監査しない (2026-08-09)
+
+**決定:** `tools/dev_wave_land.py` は、**これから ff-only を行う land** =
+`locked_main != tested_tip` のときだけ、全史 provenance 監査を自ら走らせて rc を確認する。
+赤なら `RC_PROVENANCE = 29` で拒否し、main を 1 bit も変えない。逃がし道 (CLI flag、環境変数、
+「赤でも警告だけ」) は作らない。監査は **lock を解放してから**実行し、lock を取り直して
+全検査をやり直す。receipt は `tip_sha` / `checker_blob_sha` / `executed_bytes_sha` /
+`returncode` を束縛し、lock 内で再照合する。timeout は 480 秒。
+
+`already-landed` の no-op と active fold transaction の recovery は**監査を起動しない**。
+
+**D239 の「land の権威は変えない。lock・ff-only・監査は不変」を、本 D が supersede する。**
+D239 の他の決定 (受入窓の lease による直列化、通知の advisory 性) は変わらない。
+D239 が「land へ新しい直列化機構を足す理由はない」と述べたのは lease の設計判断であり、
+本 D が足すのは直列化機構ではなく受理条件である。
+
+**理由:**
+- 検査 rc をパイプで喪失する型 (F37) が同日・3 wave・3 親で独立に再発し、
+  実害は 22 commit / 1 commit / 検出は偶然だった。`DW-O17` は既に単独 rc を要求しており、
+  **文章による注意喚起では防げないことが実測で確定した。**
+- 効かせる場所を land の関門にするのはユーザー裁定である。3 例とも「気づかず land した」ことで
+  被害が出たため、ここで止めれば親の習慣に依存しない。
+- **監査を lock の外へ出す**のは、checker が login 完結せず Pegasus 計算ノードへ dispatch
+  しうるためである。dispatch 既定は queue 900 秒 + walltime 2400 秒 + grace 300 秒で、
+  lock 内に置くと global な land lock を最大で数十分保持する。lock は `LOCK_EX|LOCK_NB` なので、
+  その間の並行 wave は `lock-busy` で弾かれ続ける。同時に、lock を先に取ることで
+  「lock 保持中は 2 秒未満で `lock-busy` を返す」既存契約と D102 の順序を保つ。
+- **監査した木と land する木の同一性**は commit SHA と checker blob/実行 bytes の SHA で束縛する。
+  同じ commit SHA は同じ superproject tree を表すため、lock 内で SHA が変わっていないことを
+  確かめれば足りる。監査前後で main/wave の HEAD・collision path 集合・control-plane identity も
+  照合し、checker の副作用で受理集合が広がる経路を塞ぐ。
+- **no-op と recovery を除外する**のは、どちらも `locked_main == tested_tip` = wave の commit が
+  既に main に入っている状態でしか到達せず、**新しい commit を admit しない**ためである。
+  recovery は fold commit を作るが、それは既に admit 済みの commit に対する記帳である。
+  除外しないと `already-landed` の idempotency が壊れ、途中状態の canonical 3 台帳が固着する。
+- 実行体を wave tip 側の checker にするのは、self-weakening を許容するからではなく
+  **main 側では機能しないから**である。checker は repo root を cwd でなく
+  `Path(__file__).resolve().parent.parent` から決めるため、ff-only 前の main 側実行体は
+  main の履歴しか監査せず tip を一切見ない。既知違反台帳も実行体のソース内定数なので、
+  main 側実行体は既知違反を新規登録する wave を恒久 deadlock させる。
+
+**却下した選択肢:**
+- **監査を lock 内に置く** — 敵対検証 2 本が独立に blocker とした。global lock を dispatch の
+  queue 待ちごと保持し、並行 wave を連鎖的に `lock-busy` へ落とす。
+- **`--range` で軽くする** — `DW-O17` の「range は補助で、correction を含むときは full 監査だけが
+  権威」と衝突する。
+- **timeout 3900 秒** — 受入 lease の TTL 2400 秒と親の前景 600 秒上限の双方を破る。
+  滞留時は fail-fast で拒否し再試行に回す方が、lease を失効させるより害が小さい。
+- **hook / wrapper script による強制** — wrapper は使わなければ迂回でき、hook は Claude の
+  Bash 面しか見ない。ユーザー裁定が land の関門を指定した。
+- **recovery も含めて一律に監査する** — 台帳が before/after 混在で固着する。
+  admit をしない経路を止めても違反は 1 件も防げない。
+- **逃がし道を残す** — 規律 2 が名指しする reward hack の形であり、D95 と同型。
+
+**閉じない残余 (別 scope):** tip 側の land helper と checker が可変であるという協調境界そのもの。
+`tools/dev_wave_land.py` は自らを「悪意ある writer に対する sandbox ではない」と宣言しており、
+親は既に tip 側 helper を実行している。本 D は**この境界を悪化させないが解消もしない**。
+land 経路を通らない main 更新も覆わない。immutable trust root の設計はユーザー裁定へ返した。
+
+## D255. dev-wave docs の予算を file 別から層 scope へ移す (2026-08-09)
+
+**決定:** `docs/dev-wave/**` の byte 予算を、file 別 cap 4 本と集約 hard ceiling から、
+**読了トリガで決まる 3 層の予算**へ置き換える。
+
+- L1 (常に読む = wave 開始・段 1・4・7・8・9 の無条件節 + 該当 file の preamble): 固定上限。
+- L1.5 (wave クラス依存 = 段 2・3・5・6 の無条件節): 固定上限。
+- L2 (条件成立時だけ読む節): **byte の集約上限を持たない。単節 cap だけを持つ。**
+
+層分類は入口 command の段 dispatch 表の種別 marker (`U` = 無条件 / `C` = 条件成立時) から
+機械的に導出し、checker 側の typed contract と**両方向で照合**する。片方だけの編集で分類が
+動く経路を残さない。節の byte 計測は**可視 H2 の位置**で切り、
+「分類済み bytes + 算入 preamble == 実 bytes」と「可視の登録済み H2 と slice の 1:1 対応」を
+併置する。L2 の剪定は byte 数でなく `docs/skill-self-improvement.md` の routing 3 が定める
+「発火実績なし × テスト/機械検査で義務代替済み × ユーザー裁定」で行う。
+
+**理由:**
+
+- 旧予算が縛っていたのは「ファイルの大きさ」であって、実際に制約したかった
+  「毎回読まされる規則の量」ではなかった。常に読む節だけを厳しく縛れば、新しい義務は
+  「条件付きにする」方向へ誘導される (forcing function)。
+- 集約上限は、条件成立時にしか読まない節の増加まで一律に止めていた。増枠ではなく
+  「常に読まない部分を予算対象から外す」構造変更であり、上限値は上げない。
+- 分類を人間の散文修飾 (「成立した条件の」等) に置くと、修飾語を消すだけで層を移せる。
+  marker を機械可読にして両方向照合しない限り、層 cap は迂回できる。
+- 節の切り出しを raw の行頭 `## ` で行うと、fence や HTML comment 内の偽見出しが境界になり、
+  その後ろの本物の常時読了本文が未分類になる。合計一致だけの不変条件は恒真でこれを検出しない。
+
+**却下した選択肢:**
+
+- file 別 cap を残したまま集約だけ外す — 条件節はすべて 1 ファイルに集まっており、
+  そのファイルの残余が数十 bytes しかないため、裁定の趣旨 (条件節を予算対象から外す) を満たさない。
+- file 別 cap を L1/L1.5 の hot slice にだけ適用する第三案 — 層 cap が同じ形状 (層内での交換のみ) を
+  既に守る一方、根拠となる現在値を持たない pin が 4 本増えて drift 面が広がる。
+- 節の切り出しを可視 scanner へ全面的に置き換える — byte 予算以外の受理集合まで双方向に変わる。
+  本決定は**境界の位置だけ**を可視判定に合わせ、既存の見出し検査は変更しない。
+- 期待値を変異の実測結果に合わせて書き換える — 過剰決定の変異は、期待 node を実測へ寄せるのでなく
+  冗長 gate と明記して単独変異の証拠から外す。
+
+## D256. worker launcher の受理判定は最後の可逆点で確定する (2026-08-09)
+
+**決定:** `tools/codex_worker_launch.py` の wall gate 再評価は、output publication・published output を
+含む audit・**公開する exact bytes の temp write + fsync** をすべて終えた後、receipt final path の
+可視化直前に置く。receipt は create-only 公開のままとし、公開後に受理を取り消す経路は作らない。
+`_stage_receipt_write` が返した fsync 済み temp をそのまま公開して、gate の後に同じ bytes を
+もう一度書く経路を無くす。receipt の `schema_version`・closed field 集合・`wall_clock_scope` の
+literal・writer / checker の真理値表は変えない。`actuals.wall_clock_s` は receipt object 構築時点の
+値であり、late gate の観測時刻とは別の量である。
+
+**理由:**
+- gate の目的は「実際に公開する bytes の write / fsync 費用を受理判断へ含める」ことである。
+  gate の後に同じ bytes をもう一度書く構造では、その二度目の停滞が受理判断から漏れる。
+- 「publication 完了後に再評価する」は create-only 公開の下では実装不能である。final path が
+  可視化された瞬間に別 consumer が `accepted` を読めるため、その後の再評価は受理を取り消せない。
+  取り消せない再評価で process rc だけを変えれば、receipt と rc が矛盾する。
+- 受理集合は「publication I/O が成功した論理 job」について狭まるだけである。二度目の temp write が
+  消えることで「一度目は成功し二度目だけが失敗する」冗長な失敗面は無くなるが、これは受理集合の
+  拡大ではなく重複の解消である。
+- 塞げない残余 (`os.link` / `os.replace`、親 directory の fsync、staged temp cleanup、lock 解放、
+  return から process 終了まで) は 10〜20 秒に限定されず任意に長くなり得る。**この限界は
+  記録・docstring で明示し、「publication 完了後に塞いだ」とは書かない。** 字義どおりの保証が
+  必要なら commit protocol の再設計 (schema 世代更新 / 2 段 receipt / 可視化と admission の分離) が
+  要り、それは別裁定とする。
+
+**却下した選択肢:**
+- **create 後に再評価して process rc だけを変える** — receipt が `accepted` のまま rc≠0 になり、
+  receipt と rc の整合という既存不変条件を破る。
+- **staging 後に gate を置くが temp は捨てて公開時に書き直す** — gate の後に残る write / fsync が
+  そのまま新しい穴になる。段 2 の初案で、段 3 のレンズが具体的な回帰構成を示して倒した。
+- **late gate の時刻を receipt bytes へ入れる** — bytes を変えると再 staging が要り、
+  その費用がまた gate の外へ出る再帰になる。schema 世代を上げる別裁定が要る。
+
+## D257. s8c 事前登録の git wall-clock を作業量比例の上限付き予算にする (2026-08-09)
+
+**決定:** `orchestrator/campaign/s8c_preregistration.py` の `_git` は、固定 15 秒ではなく
+次式で算出した予算で git subprocess を待つ。
+
+```
+R    = min(stdin の LF 要求行数, MAX_BATCH_REQUESTS)
+B(R) = min(GIT_TIMEOUT_SECONDS + R * GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST,
+           GIT_TIMEOUT_CAP_SECONDS)
+```
+
+`GIT_TIMEOUT_SECONDS = 15.0` (据え置き)、`GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST = 0.0086`、
+`GIT_TIMEOUT_CAP_SECONDS = 300.0`。次の 5 条件を必須要件とする。
+
+1. 予算に **caller 引数を持たせない**。`_git` が stdin から一意に算出する。
+2. 1 回の `_git` 呼び出し = 1 logical invocation = deadline 1 つ。chunk 分割しない。
+3. `MAX_BATCH_REQUESTS` 相当点で**絶対時間 cap** を置く。
+4. rate は warm・単独の値から線形外挿せず、競合下の計算ノードでの実測から決める。
+5. 実 repo の invariant テストは引数を渡さず production と同じ式を通す。
+
+**理由:**
+- 固定値は履歴長に依らないのに、要求数は `commits × paths` で増える。モジュールは
+  `MAX_COMMITS = 10_000` / `MAX_BATCH_REQUESTS = 50_000` を受理可能と宣言しているのに、
+  15 秒で完走する契約はどこにもなかった。実際に 7,002 要求で 6 回落ちている。
+- **CAP は RATE から独立させる。** `CAP = BASE + MAX_BATCH_REQUESTS × RATE` にすると、
+  rate の過大推定がそのまま cap の増大になり、絶対上限として機能しない。
+  300 秒の根拠は受入全走 1 走の実測 1055〜1408 秒に対して 1/4 未満、かつ計算ノード既定
+  walltime 30 分に対して 1/6 未満であること。**この値は RATE を変えても動かない。**
+- **`R` に `min` を掛けるのは予算増幅の遮断である。** stdin の行数は command に束縛されないため、
+  `MAX_BATCH_REQUESTS` の検査を通らない経路から `_git` へ到達しても予算が CAP を超えないよう、
+  算出側で clamp する。
+- rate の決定は実測だけでは閉じない。実測は失敗条件を再現できなかった (競合下でも
+  最大 0.588973 秒 / 7,044 要求) 一方、production は同じ呼び出しで 15 秒を超えている。
+  **実測 (uncensored) と打ち切り観測 (censored) の両方**を使い、後者が示す下界 25.6 倍に
+  安全係数 4 を掛けた。導出の正本は `output/insights/2026-08-09_t553-git-budget/MEASUREMENT.md`。
+
+**却下した選択肢:**
+- **public API へ timeout 引数を出す** — `timeout=10**9` を止めるものが無い迂回口になり、
+  「実 repo で production 既定が効くか」を断言する唯一のテストが無効になる。
+- **テスト側で `git-timeout` に限って有限回再試行する** — 規律 2 違反。
+  「production 既定での一発成功」という現に成立している断言を「有限回中一成功」へ緩める。
+  再試行のたびに OS / git cache が温まるため「恒常的劣化なら全試行が落ちる」分界線も成立しない。
+- **git 呼び出しを chunk へ分割し旧 invocation ごとの 15 秒を据え置く** — 総締切が変わらない以上
+  赤に無関係で、chunk 境界で reason code が入れ替わる経路が生じる。
+- **byte 量を予算に入れる** — `cat-file --batch` の所要は出力 bytes に支配されるが、
+  `_git` は実行前に blob size を知らない。caller から渡せば条件 1 に反し、先行の
+  `batch-check` を足せば条件 2 に反する。byte 支配の入力は既存の per-blob 16 MiB /
+  合計 64 MiB 上限と絶対 CAP で bound する。
+- **無 stdin の呼び出しも予算化する** — `rev-list` / `log --name-only` / `ls-tree` は
+  実行前に得られる cardinality を持たない。実測では競合下でも 15 秒に対して 6.9〜13.3 倍の
+  余裕があるため、本決定の射程外とする。
+
+## D258. 実 repo 競合閉包の収集監査を marker の形・個数・名前集合・provenance の 4 面へ広げる (2026-08-10)
+
+**背景:** D63 は実 repo working tree と共有 ccbench submodule の reader / writer を
+単一 `xdist_group("real-repo")` へ閉じ込めると決めた。しかし収集監査は
+`REAL_REPO_SERIAL_NODES` と独立 golden の**集合一致**しか見ておらず、marker の与え方を見ていなかった。
+その結果 `test_ruleops.py` の実 checkout reader が `@pytest.mark.xdist_group(name="real_repo")` と
+kwargs + underscore で書かれ、canonical `real-repo` とは**別 group**として 2026-08-04 から
+今日まで排他が効かないまま残った ([T-438])。xdist は group 名が違えば別 worker へ配るため、
+実 submodule を patch する writer と同時に走りうる。
+
+**決定 (1): 監査対象を全 collected item の全 `xdist_group` marker にする。**
+canonical node だけでなく suite 全体を見る。検査する不変条件は 4 つ。
+
+- marker は 1 node につき最大 1 個 (二個目は xdist が名前を結合して別 scope になる)
+- group 名は positional 引数 1 個で与える (`kwargs={"name": ...}` 形を拒否)
+- 実際に現れた group 名の集合が独立 golden と**完全一致**する
+- canonical node の関数ソースに**手書きの `xdist_group` decorator が無い** (provenance)。
+  conftest の hook は既存 marker があれば付与を skip するため、手書きが正しい名前でも
+  「hook 由来である」ことは保証されない
+
+**決定 (2): 各不変条件に合成負例の positive control を必ず添える。**
+恒真ゲートを禁じる。負例は互いに独立させ、1 つの負例が 2 つの検査を同時に発火させない
+(kwargs 形の負例は positional も 1 個持たせ、group 名集合の負例は marker の形を正しくする)。
+これを守らないと、片側の検査を消す変異が別の検査に殺されて**単一理由性が検証できない**。
+本 wave では実際に、分離前は kwargs 負例が `len(args) == 1` でも落ちて MT4 を殺せなかった。
+
+**決定 (3): `real-repo` group 内の実行順を定数で固定し、`pytest_collection_finish` で適用する。**
+独立解決を行う CLI node を先頭、共有 cache barrier をその次に置く。
+`pytest_collection_modifyitems` の非 wrapper hook では pytest 本体の `--ff` / `--nf` が
+post-yield で items を再配置して上書きするため、collection の**最後**で適用する。
+
+**この順序は wall の性質であって D63 の排他ではない。** 同一 group は単一 worker が
+逐次実行するので、順序が崩れても相互排他は崩れない。崩れるのは受入 wall の短縮効果だけである。
+排他が崩れうるのは group の**外**にいる実 repo reader であり、それは別途裁定へ返した。
+
+**却下した案:**
+
+- **並列度 (`_NPROC_CAP` / `default_test_jobs`) の引き上げ** — 計算ノードでは既に affinity 全数
+  48 worker で、実効並列度は 11.74 相当しかない。critical path 下界は最大 group の直列和
+  (1388.80 秒) が決めるので worker を増やしても動かない。
+- **`DEFAULT_WALLTIME` の単独引き上げ** — 期限が延びるだけで消費は縮まない。
+- **reader / writer の flock 化 (D63 保証機構の置換)** — 理論下界は最良 (約 691 秒) だが
+  分類漏れ 1 件で偽緑を作る。D63 自身が bare な reader/writer 分割を明示的に却下している。
+- **収集順で group 外の 2 解決を意図的に重ねる案** — 段 2 の推奨案 (期待 wall 約 876 秒) だが、
+  段 3 の両レンズが「同時開始は未測定の仮定。非重複なら 1529.17 秒」と計算し、
+  かつ group 外 payer との意図的な並走を新規に作るため却下した。
+
+## D259. campaign identity から実行契約 hash を外し、campaign.lock の v2 authority 欄と契約 loader の commit 束縛へ移す (2026-08-10)
+
+**決定:**
+
+1. **identity と authority を分離する。** 実行契約の fingerprint (`environment_contract_sha256`) を
+   campaign identity の pre-image から外し、`campaign.lock` を v2 envelope
+   (`schema_version` / `identity_preimage` / `authority`) にして authority 欄へ置く。
+   campaign id は inner identity preimage だけから導く。
+2. **契約 loader 2 module を記録 commit の blob へ束縛する。** 対象は
+   `orchestrator/campaign/env_contract.py` と `env_contract_activation.py` の exact 2 path で、
+   単一の名前付き定数に置く。検証は「記録 commit の blob」と「現在の disk bytes」の一致で行い、
+   current HEAD の一致は要求しない。
+3. **停止点は `ident.ensure_campaign_identity` の 1 点とする。** `campaign.lock` を書く唯一の関数が
+   ここであり、`run_campaign` も先行 8 caller も必ず通る。
+   **停止するのは「lock と WAL の 1 byte 目より前」であって「durable write より前」ではない** —
+   `layout.ensure()` が作るディレクトリと exploration lane の `namespace.json` は検査より前に残る。
+4. **記録は full、比較は対象 env の H だけ。** authority へ `contract_sha256` に加えて
+   `activation_serial` と `activation_state_sha256` を記録する。**記録 tuple の真正性は admission で
+   検証し、lock 作成時の事前条件にはしない。** resume 可否の比較は対象 env の H だけに限る
+   (他 env の活性化で既存 resume を拒否しない)。
+5. **v1 lock は historical read-only。** certified lane が v1 lock を見たら repair / recovery より前に
+   拒否する。guided lane は明示 exemption で v1 を書き続ける。
+6. **anti-downgrade は「その成果物が certified 実行を主張しているか」で判定する。**
+   v1 lock + `build_admission` + WAL の COMMIT に契約 hash あり ⇒ 降格として拒否。
+   lane 名・slug・`search_tag` の値を判定に使わない。
+7. **`measurement_env` は identity に残す。** 「契約 hash は id に入れないが env tag は入る」という
+   非対称を明文化する。D125 決定 (2) の失効記録は [T-674] (5) の別 wave が持つ。
+8. **certifying 入力の判定を `admission_status == "admitted"` に限定する** ([T-674] (1))。
+   `layer3_schema.json` は変更しない — enum を狭めると非 certifying な historical report まで拒否し、
+   裁定より広く受理集合を縮めるため。
+9. **D246 の分離を維持する** ([T-674] (4))。契約 hash は `wal.log` 経由の COMMIT 2 口だけに載せ、
+   qualification event sink の 2 口には載せない。裁定文は所有 wave の指定であって方向の指定ではない
+   と読み、分離が沈黙で崩れないことを挙動テストと AST census で固定した。
+
+**名乗ってよい範囲 (これを超えて書いてはならない):**
+
+**「契約 loader 2 module の disk bytes が、lock に記録した commit の blob と一致する」までである。**
+
+- 「certified 経路が source-bound」とは名乗らない。契約を**強制する** `execution_guard` / `loop` /
+  `pipeline` / `wal` / `ident` / `artifact_admission` の bytes は束縛していない。
+- 「悪意ある in-process 改変を防ぐ」とは名乗らない。検査対象は disk 上の bytes であって
+  実行中の bytes ではない。
+- **成果物 bytes の書き換えは検出しない。** lock の authority と全 COMMIT の契約 hash を整合的に
+  書き換える改竄、および外側 envelope と COMMIT 契約 hash を同時に削除した artifact は検出できない。
+
+**受けた既知コスト:**
+
+- **campaign directory 名による再束縛検出を失う。** 従来は契約 hash が identity に入っていたため
+  H1 → H2 の付け替えが directory 名の変更を強制し可視だった。これは決定 1 が意図的に手放した性質で
+  あり、ユーザーが承認済みの択一である。D246 が買った「H を独立 2 箇所へ置き相互照合する」性質
+  自体は保たれる (lock authority と全 COMMIT payload は引き続き独立に読まれ照合される)。
+- **外側 envelope と COMMIT 契約 hash を同時に削除した artifact は guided と区別できない。**
+  これは main の現状と同じ挙動であり本決定が広げたものではない。素朴な envelope 剥がしは新たに捕まる。
+
+**却下した案:**
+
+- **lock 作成時に explicit `AuthorizedContract` を必須にする案。** 親が一度採ったが撤回した。
+  承認済み裁定に含まれない上乗せであり、実測で 10 個の driver テストファイル・55 件を拒否した。
+  main も素の contract を受け付けるため、外しても退行ではない。
+- **lock 作成時に「束縛契約が activation state で active」を要求する案。** 同じく親の上乗せで、
+  合成契約を注入する正当な driver テストを拒否した。真正性検証は admission に置くのが正しい層である。
+- **v2 campaign の directory 名と inner identity を全面照合する案。** 同じく親の上乗せで、
+  任意名の一時 directory を使う正当な consumer を拒否した。trigger proposal 専用の既存照合だけを残す。
+
+**延期 (実装しない):**
+
+report v4 / authority の report 投影 / historical report reader の authority 解釈 /
+raw reader ([T-674] (2) 見送り) / S8b private lock ([T-674] (3) 見送り) / caller 閉包の拡張。
+**したがって R1〜R8 を実装しても「proof chain が全経路で完結した」とは名乗れない。**

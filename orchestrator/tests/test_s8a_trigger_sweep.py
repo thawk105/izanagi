@@ -45,12 +45,12 @@ from campaign.build_admission import (BuildAdmissionError,            # noqa: E4
                                       attest_generator_output,
                                       build_run_context,
                                       derive_build_admission)
-from campaign.model import (ENVIRONMENT_CONTRACT_SEARCH_KEY,      # noqa: E402
-                            STAGE_BUILD_START)
+from campaign.model import STAGE_BUILD_START                       # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
                                     STOCK, SourceEvidence)
+from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
 # 頻度実測の予想結果 (シート導出: YCSB では node/absent 構造ゼロ)。テストは実測に
 # 依存しない — 代表として 3 ビットの実効集合で列挙の機械性質を検査する。
@@ -265,7 +265,7 @@ def test_workload_trial_effective_baked_into_identity():
 
 
 def test_default_off_campaign_ids_remain_historical_values():
-    """pre-T343/T343 を保存し、現行 contract-bound ID を固定する。"""
+    """pre-T343/T530 を保存し、authority-free current ID を固定する。"""
     workloads = {
         "balanced": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
         "write-heavy": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"},
@@ -312,19 +312,14 @@ def test_default_off_campaign_ids_remain_historical_values():
     current = {
         tag: str(ident.campaign_id(cfg)) for tag, cfg in configs.items()
     }
-    t343 = {}
-    for tag, cfg in configs.items():
-        preimage = json.loads(ident.canonical_preimage(cfg))
-        assert preimage["search_config"].pop(
-            ENVIRONMENT_CONTRACT_SEARCH_KEY
-        ) == explicit_contract.contract_sha256
-        digest = hashlib.sha256(json.dumps(
-            preimage, sort_keys=True, separators=(",", ":"),
-            ensure_ascii=False,
-        ).encode("utf-8")).hexdigest()[:8]
-        t343[tag] = f"{cfg.spec_slug}-{cfg.search_tag}-{digest}"
-    assert t343 == _T343_S8A_CAMPAIGN_IDS
-    assert current == _T530_S8A_CAMPAIGN_IDS
+    assert all(
+        "environment_contract_sha256" not in cfg.search_config
+        and cfg.bound_environment_contract is explicit_contract
+        for cfg in configs.values()
+    )
+    # T-671 で H が identity から外れ、current は旧 T343 値になる。
+    assert current == _T343_S8A_CAMPAIGN_IDS
+    assert set(current.values()).isdisjoint(_T530_S8A_CAMPAIGN_IDS.values())
 
 
 def test_config_wires_s2_verify_and_provenance():
@@ -387,7 +382,7 @@ def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     )
     assert first_result[first]["outcome"] == "quarantine-reject"
     cfg = W.config_for("balanced", EFF3)
-    assert wal.read_lock(layout) == ident.canonical_preimage(cfg)
+    assert wal.read_lock(layout) == build_v2_lock(ident.canonical_preimage(cfg))
 
     resumed = W.run_sweep(
         "balanced", names=[second], isolate=False, log=lambda _line: None,
@@ -404,7 +399,7 @@ def test_public_sweep_trigger_crash_tail_fails_before_quarantine_write(monkeypat
     ).ensure()
     _install_public_reject_sweep_fakes(monkeypatch, layout)
     cfg = W.config_for("balanced", EFF3)
-    wal.write_lock(layout, ident.canonical_preimage(cfg))
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     wal.log(layout, "trigger-crashed-v", STAGE_BUILD_START, W.ENV_TAG, {
         "build_attempt_id": "trigger-crashed-attempt",
     })

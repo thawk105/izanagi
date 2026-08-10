@@ -1,0 +1,312 @@
+{
+ "estimated_run_seconds": 90,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_downgrade_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_downgrade_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M2]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M4]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M8]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M2]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M4]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M8]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "G-N1",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for successor in successor_rows[:1]:\n",
+     "old": "    for successor in successor_rows:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_downgrade_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_downgrade_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M4]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M8]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M4]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M8]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "G-N2",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for successor in successor_rows[:2]:\n",
+     "old": "    for successor in successor_rows:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_downgrade_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_downgrade_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M4]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M8]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M4]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M8]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "G-N3",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for successor in successor_rows[:3]:\n",
+     "old": "    for successor in successor_rows:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_downgrade_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_downgrade_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M8]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M8]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "G-N4",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for successor in successor_rows[:4]:\n",
+     "old": "    for successor in successor_rows:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "G-N8",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for successor in successor_rows[:8]:\n",
+     "old": "    for successor in successor_rows:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_generation_quantifier_rejects_tail_downgrade[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "G-N63",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for successor in successor_rows[:63]:\n",
+     "old": "    for successor in successor_rows:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "G-N64",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for successor in successor_rows[:64]:\n",
+     "old": "    for successor in successor_rows:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M2]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M4]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M8]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "P-N1",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for predecessor, successor in changed[:1]:\n",
+     "old": "    for predecessor, successor in changed:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M4]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M8]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "P-N2",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for predecessor, successor in changed[:2]:\n",
+     "old": "    for predecessor, successor in changed:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M4]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M8]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "P-N3",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for predecessor, successor in changed[:3]:\n",
+     "old": "    for predecessor, successor in changed:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[last]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_false_at_varied_position[middle]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M8]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "P-N4",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for predecessor, successor in changed[:4]:\n",
+     "old": "    for predecessor, successor in changed:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M16]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M32]",
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "P-N8",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for predecessor, successor in changed[:8]:\n",
+     "old": "    for predecessor, successor in changed:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t673_probe_b1.py::test_successor_quantifier_rejects_tail_false[M64]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "P-N63",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for predecessor, successor in changed[:63]:\n",
+     "old": "    for predecessor, successor in changed:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "P-N64",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "    for predecessor, successor in changed[:64]:\n",
+     "old": "    for predecessor, successor in changed:\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 3600
+}

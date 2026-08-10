@@ -18,8 +18,10 @@ from pathlib import Path
 
 import pytest
 
-
 _REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO / "orchestrator"))
+from tests import repo_tree_util  # noqa: E402
+
 _TOOL = _REPO / "tools" / "ruleops.py"
 _SPEC = importlib.util.spec_from_file_location("ruleops_test_target", _TOOL)
 assert _SPEC and _SPEC.loader
@@ -2029,44 +2031,36 @@ def test_m12_shallow_repo_rejected(tmp_path):
     assert caught.value.reason == "shallow-repo"
 
 
-@pytest.mark.xdist_group(name="real_repo")
 def test_real_checkout_independent_maximum_package_and_runner_preflight(
     tmp_path,
 ):
-    before = _run_checked(
-        ["git", "status", "--porcelain=v1", "-z"],
-        cwd=_REPO,
-        capture_output=True,
-    ).stdout
-    inventory_run = _run_checked(
-        [
-            sys.executable,
-            str(_TOOL),
-            "inventory",
-            "--repo",
-            str(_REPO),
-        ],
-        capture_output=True,
-    )
-    inventory = json.loads(inventory_run.stdout)
-    assert set(inventory) == _INVENTORY_ROOT_KEYS
-    assert inventory["items"]
-    assert any(
-        item["path"] == "orchestrator/tests/test_plain_runner_coverage.py"
-        for item in inventory["items"]
-    )
-    assert all(
-        item["kind"] == "test"
-        if item["path"].startswith("orchestrator/tests/")
-        else item["kind"] == "insight"
-        for item in inventory["items"]
-    )
-    after = _run_checked(
-        ["git", "status", "--porcelain=v1", "-z"],
-        cwd=_REPO,
-        capture_output=True,
-    ).stdout
-    assert after == before
+    def inventory_action():
+        inventory_run = _run_checked(
+            [
+                sys.executable,
+                str(_TOOL),
+                "inventory",
+                "--repo",
+                str(_REPO),
+            ],
+            capture_output=True,
+        )
+        inventory = json.loads(inventory_run.stdout)
+        assert set(inventory) == _INVENTORY_ROOT_KEYS
+        assert inventory["items"]
+        assert any(
+            item["path"] == "orchestrator/tests/test_plain_runner_coverage.py"
+            for item in inventory["items"]
+        )
+        assert all(
+            item["kind"] == "test"
+            if item["path"].startswith("orchestrator/tests/")
+            else item["kind"] == "insight"
+            for item in inventory["items"]
+        )
+
+    # uall snapshot は既存 untracked dir 内の追加も拒否し、受理集合を狭める D63 強化。
+    repo_tree_util.assert_repo_tree_unchanged(_REPO, inventory_action)
 
     checkout = tmp_path / "real-checkout"
     _run_checked(

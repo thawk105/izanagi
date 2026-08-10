@@ -1,0 +1,219 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    if layer_bytes[\"L1\"] > DEV_WAVE_L1_BYTES_MAX:\n        findings.append(\n            f\"docs/dev-wave/**: L1 unique footprint {layer_bytes['L1']} bytes > \"\n            f\"予算 {DEV_WAVE_L1_BYTES_MAX} bytes\"\n        )",
+          "new": "    if False and layer_bytes[\"L1\"] > DEV_WAVE_L1_BYTES_MAX:\n        findings.append(\n            f\"docs/dev-wave/**: L1 unique footprint {layer_bytes['L1']} bytes > \"\n            f\"予算 {DEV_WAVE_L1_BYTES_MAX} bytes\"\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_budget_rejects_plus_one[l1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    if layer_bytes[\"L1.5\"] > DEV_WAVE_L1_5_BYTES_MAX:\n        findings.append(\n            f\"docs/dev-wave/**: L1.5 unique footprint {layer_bytes['L1.5']} bytes > \"\n            f\"予算 {DEV_WAVE_L1_5_BYTES_MAX} bytes\"\n        )",
+          "new": "    if False and layer_bytes[\"L1.5\"] > DEV_WAVE_L1_5_BYTES_MAX:\n        findings.append(\n            f\"docs/dev-wave/**: L1.5 unique footprint {layer_bytes['L1.5']} bytes > \"\n            f\"予算 {DEV_WAVE_L1_5_BYTES_MAX} bytes\"\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_budget_rejects_plus_one[l1_5]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "                if (\n                    layer == \"L2\"\n                    and section_bytes > DEV_WAVE_L2_SECTION_BYTES_MAX\n                ):\n                    findings.append(\n                        f\"{rel}: L2 節 {section} が {section_bytes} bytes > \"\n                        f\"単節予算 {DEV_WAVE_L2_SECTION_BYTES_MAX} bytes\"\n                    )",
+          "new": "                if (\n                    layer == \"L2\"\n                    and False\n                ):\n                    findings.append(\n                        f\"{rel}: L2 節 {section} が {section_bytes} bytes > \"\n                        f\"単節予算 {DEV_WAVE_L2_SECTION_BYTES_MAX} bytes\"\n                    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_budget_rejects_plus_one[l2_section]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            for mode, expected_map, actual_map in (\n                (\n                    \"U\",\n                    STAGE_UNCONDITIONAL_DISPATCH_CONTRACT,\n                    dispatch.stage_unconditional,\n                ),\n                (\n                    \"C\",\n                    STAGE_CONDITIONAL_DISPATCH_CONTRACT,\n                    dispatch.stage_conditional,\n                ),\n            ):\n                for key in sorted(set(expected_map) | set(actual_map)):\n                    expected = expected_map.get(key, frozenset())\n                    actual = actual_map.get(key, set())\n                    if actual == expected:\n                        continue\n                    findings.append(\n                        \".claude/commands/dev-wave.md: \"\n                        f\"段 dispatch {key!r} の {mode} edge が契約と不一致 — \"\n                        f\"missing={sorted(expected - actual)}, \"\n                        f\"extra={sorted(actual - expected)}\"\n                    )",
+          "new": "            expected_stages = {\n                key: (\n                    STAGE_UNCONDITIONAL_DISPATCH_CONTRACT.get(key, frozenset())\n                    | STAGE_CONDITIONAL_DISPATCH_CONTRACT.get(key, frozenset())\n                )\n                for key in (\n                    set(STAGE_UNCONDITIONAL_DISPATCH_CONTRACT)\n                    | set(STAGE_CONDITIONAL_DISPATCH_CONTRACT)\n                )\n            }\n            for key in sorted(set(expected_stages) | set(dispatch.stages)):\n                expected = expected_stages.get(key, frozenset())\n                actual = dispatch.stages.get(key, set())\n                if actual == expected:\n                    continue\n                findings.append(\n                    \".claude/commands/dev-wave.md: \"\n                    f\"段 dispatch {key!r} が契約と不一致 — \"\n                    f\"missing={sorted(expected - actual)}, \"\n                    f\"extra={sorted(actual - expected)}\"\n                )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_dispatch_conditionality_retyping_is_rejected[stage-u-to-c]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if mode not in {\"U\", \"C\"}:\n            structure_errors.append(\n                f\"段 dispatch {key!r} の種別が U/C exact 1文字でない — {mode!r}\"\n            )\n            continue",
+          "new": "        if not mode:\n            mode = \"U\"\n        elif mode not in {\"U\", \"C\"}:\n            structure_errors.append(\n                f\"段 dispatch {key!r} の種別が U/C exact 1文字でない — {mode!r}\"\n            )\n            continue"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_dispatch_conditionality_retyping_is_rejected[stage-marker-missing]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "                if (\n                    actual != expected\n                    or row_count != 1\n                    or actual_triggers != {expected_trigger}\n                ):",
+          "new": "                if (\n                    actual != expected\n                    or row_count != 1\n                ):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_dispatch_conditionality_retyping_is_rejected[condition-always]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            assigned_preamble_bytes += preamble_bytes\n            layer_bytes[preamble_layer] += preamble_bytes",
+          "new": "            assigned_preamble_bytes += preamble_bytes"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_budget_rejects_plus_one[l1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "                section_bytes = len(section_slices[0].encode(\"utf-8\"))",
+          "new": "                section_bytes = len(section_slices[0])"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_budget_rejects_plus_one[l2_section]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        pair_paths = {path for path, _ in pairs}\n        if line_paths != pair_paths:\n            structure_errors.append(\n                f\"段 dispatch {key!r} に節へ束縛されない path がある — \"\n                f\"paths={sorted(line_paths)}, pair_paths={sorted(pair_paths)}\"\n            )",
+          "new": "        pair_paths = {path for path, _ in pairs}"
+        },
+        {
+          "file": "tools/check_docs.py",
+          "old": "        pair_paths = {path for path, _ in pairs}\n        if line_paths != pair_paths:\n            structure_errors.append(\n                f\"条件 dispatch {key!r} に節へ束縛されない path がある — \"\n                f\"paths={sorted(line_paths)}, pair_paths={sorted(pair_paths)}\"\n            )",
+          "new": "        pair_paths = {path for path, _ in pairs}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_dispatch_rejects_bare_path[stage-reference]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_dispatch_rejects_bare_path[condition-reference]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    boundaries: list[tuple[int, str | None]] = []\n    for visible, offset, _ in visible_lines:\n        if not re.match(r\"^##\\s+\", visible):\n            continue\n        match = re.match(r\"^##\\s+([^\\s—]+)\", visible)\n        boundaries.append((offset, match.group(1) if match is not None else None))",
+          "new": "    boundaries: list[tuple[int, str | None]] = []\n    for raw_heading in re.finditer(r\"^## \", text, re.MULTILINE):\n        line_end = text.find(\"\\n\", raw_heading.start())\n        raw_line = text[\n            raw_heading.start():line_end if line_end >= 0 else len(text)\n        ]\n        match = re.match(r\"^## ([^\\s—]+)\", raw_line)\n        boundaries.append((\n            raw_heading.start(),\n            match.group(1) if match is not None else None,\n        ))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_slicing_ignores_fenced_heading[fence]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_slicing_ignores_fenced_heading[html-comment]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_slicing_ignores_fenced_heading[raw-html]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "                section_slices = slices.get(section, [])\n                exact_count = len(_reference_id_sections(visible_text, section))\n                if len(section_slices) != 1 or exact_count != 1:\n                    findings.append(\n                        f\"{rel}: 可視 H2 {section} と byte slice が1:1でない — \"\n                        f\"visible_exact={exact_count}, slices={len(section_slices)}\"\n                    )\n                if len(section_slices) != 1:\n                    continue",
+          "new": "                section_slices = slices.get(section, [])\n                if len(section_slices) != 1:\n                    continue"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_slicing_ignores_fenced_heading[malformed-heading]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "@dataclass\nclass _DispatchTables:\n    edges: set[tuple[str, str, str, str]]\n    condition_triggers: dict[str, set[str]]\n    condition_row_counts: dict[str, int]\n    paths: set[str]\n    structure_errors: tuple[str, ...]\n\n    @property\n    def stage_unconditional(self) -> dict[str, set[tuple[str, str]]]:\n        return _stage_dispatch_from_edges(self.edges, \"U\")\n\n    @property\n    def stage_conditional(self) -> dict[str, set[tuple[str, str]]]:\n        return _stage_dispatch_from_edges(self.edges, \"C\")\n\n    @property\n    def stages(self) -> dict[str, set[tuple[str, str]]]:\n        keys = set(self.stage_unconditional) | set(self.stage_conditional)\n        return {\n            key: (\n                self.stage_unconditional.get(key, set())\n                | self.stage_conditional.get(key, set())\n            )\n            for key in keys\n        }\n\n    @property\n    def conditions(self) -> dict[str, set[tuple[str, str]]]:\n        result: dict[str, set[tuple[str, str]]] = {}\n        for owner, mode, path, section in self.edges:\n            if owner.startswith(\"条件 \") and mode == \"C\":\n                result.setdefault(owner.removeprefix(\"条件 \"), set()).add(\n                    (path, section)\n                )\n        return result",
+          "new": "@dataclass\nclass _DispatchTables:\n    _typed_edges: set[tuple[str, str, str, str]]\n    condition_triggers: dict[str, set[str]]\n    condition_row_counts: dict[str, int]\n    paths: set[str]\n    structure_errors: tuple[str, ...]\n\n    @property\n    def edges(self) -> set[tuple[str, str]]:\n        return {\n            (path, section)\n            for _, _, path, section in self._typed_edges\n        }\n\n    @property\n    def stage_unconditional(self) -> dict[str, set[tuple[str, str]]]:\n        return _stage_dispatch_from_edges(self._typed_edges, \"U\")\n\n    @property\n    def stage_conditional(self) -> dict[str, set[tuple[str, str]]]:\n        return _stage_dispatch_from_edges(self._typed_edges, \"C\")\n\n    @property\n    def stages(self) -> dict[str, set[tuple[str, str]]]:\n        keys = set(self.stage_unconditional) | set(self.stage_conditional)\n        return {\n            key: (\n                self.stage_unconditional.get(key, set())\n                | self.stage_conditional.get(key, set())\n            )\n            for key in keys\n        }\n\n    @property\n    def conditions(self) -> dict[str, set[tuple[str, str]]]:\n        result: dict[str, set[tuple[str, str]]] = {}\n        for owner, mode, path, section in self._typed_edges:\n            if owner.startswith(\"条件 \") and mode == \"C\":\n                result.setdefault(owner.removeprefix(\"条件 \"), set()).add(\n                    (path, section)\n                )\n        return result"
+        },
+        {
+          "file": "tools/check_docs.py",
+          "old": "                for _, _, path, section in dispatch.edges",
+          "new": "                for _, _, path, section in dispatch._typed_edges"
+        },
+        {
+          "file": "tools/check_docs.py",
+          "old": "                _check_dev_wave_layer_budget(findings, decoded, dispatch.edges)",
+          "new": "                _check_dev_wave_layer_budget(\n                    findings, decoded, dispatch._typed_edges\n                )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_shared_reference_edges_are_typed[dw-ctx]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_shared_reference_edges_are_typed[dw-o04]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

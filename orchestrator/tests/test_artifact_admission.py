@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import subprocess
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -12,17 +13,29 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import artifact_admission as A
-from orchestrator.campaign import trigger_gate_binding, wal
+from orchestrator.campaign import (
+    campaign_lock,
+    contract_loader_binding,
+    env_contract,
+    ident,
+    trigger_gate_binding,
+    wal,
+)
 from orchestrator.campaign.build_admission import (
     GeneratorId,
     add_coder_build_authority_argument,
     build_run_context,
     derive_build_admission,
 )
-from orchestrator.campaign.model import Genome
+from orchestrator.campaign.model import (
+    COMMIT_CONTRACT_SHA256_KEY,
+    CampaignConfig,
+    Genome,
+)
 from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.pin import CURRENT_PIN
 from orchestrator.campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, SourceEvidence
+from orchestrator.tests.campaign_lock_test_support import build_v2_campaign_lock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -110,13 +123,81 @@ ADMITTED_HISTORICAL_CAMPAIGNS = (
     "output/campaigns/s1-direct-develop-direct-comparison-d0f495bf",
     "output/campaigns/s1-direct-floor-direct-comparison-b82b9229",
 )
+EXPECTED_CAMPAIGN_CLASSIFICATIONS = {
+    "backoff-repro-silo-balanced-repro-87dbbf50":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "backoff-repro-silo-write-heavy-repro-181607af":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "backoff-sweep-silo-balanced-sweep-484c663e":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "backoff-sweep-silo-read-heavy-sweep-610004b9":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "backoff-sweep-silo-read-heavy-sweep-6f169f90":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "backoff-sweep-silo-read-heavy-sweep-8ff95955":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "backoff-sweep-silo-write-heavy-sweep-493813a7":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p2-2-silo-balanced-enumerate-f1588056":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p2-2-silo-read-heavy-enumerate-5ffcabad":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p2-2-silo-write-heavy-enumerate-8967bed6":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p3-kickoff-coder-wiring-cba40400":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p3-s4-loop-s4-autonomous-0b53a387":
+        ("overlay-denied", "legacy-unclassified"),
+    "p3-s4-red-s4-red-consumer-9a1897c4":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p3-s5-sort-loop-s5-sort-autonomous-3be89e0d":
+        ("overlay-denied", "legacy-unclassified"),
+    "p3-s6-sort-sweep-balanced-sweep-1b39095e":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p3-s6-sort-sweep-balanced-sweep-dd25aa8c":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p3-s6-sort-sweep-write-heavy-sweep-0484feef":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p3-s6-sort-sweep-write-heavy-sweep-d4552403":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5":
+        ("overlay-denied", "legacy-unclassified"),
+    "p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2":
+        ("historical-pre-admission-schema", "legacy-unclassified"),
+    "p3-s8a-trigger-sweep-balanced-sweep-c2d838b8":
+        ("historical-pre-admission-schema", "legacy-unclassified"),
+    "p3-s8a-trigger-sweep-read-heavy-sweep-654d5cd7":
+        ("historical-pre-admission-schema", "legacy-unclassified"),
+    "p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c":
+        ("historical-pre-admission-schema", "legacy-unclassified"),
+    "p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8":
+        ("historical-pre-admission-schema", "legacy-unclassified"),
+    "p3-s8a-trigger-sweep-write-heavy-sweep-dcd2bbfb":
+        ("historical-pre-admission-schema", "legacy-unclassified"),
+    "s1-direct-block1-direct-comparison-74ff9ba2":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "s1-direct-block2-direct-comparison-9645b16a":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "s1-direct-develop-direct-comparison-7bccdf1a":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "s1-direct-develop-direct-comparison-d0f495bf":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+    "s1-direct-floor-direct-comparison-b82b9229":
+        ("historical-pre-admission-schema", "historical-not-reclassified"),
+}
 
 
-def _write_campaign(root: Path, lock: dict, records: list[dict]) -> Path:
-    (root / "runs").mkdir(parents=True)
-    (root / "campaign.lock").write_text(
-        json.dumps(lock, sort_keys=True, separators=(",", ":")), encoding="utf-8",
+def _canonical_json(value: object) -> str:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        allow_nan=False,
     )
+
+
+def _write_campaign(root: Path, lock: dict | str, records: list[dict]) -> Path:
+    (root / "runs").mkdir(parents=True)
+    lock_text = lock if type(lock) is str else _canonical_json(lock)
+    (root / "campaign.lock").write_text(lock_text, encoding="utf-8")
     (root / "runs/wal.jsonl").write_text(
         "".join(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
                 for record in records),
@@ -127,27 +208,95 @@ def _write_campaign(root: Path, lock: dict, records: list[dict]) -> Path:
 
 def _record(
         stage: str, payload: dict, *, ts: float,
-        variant: str = "6a803ba39f7b",
+        variant: str = "6a803ba39f7b", env_tag: str = "test",
 ) -> dict:
     return {
-        "variant": variant, "stage": stage, "env_tag": "test", "ts": ts,
+        "variant": variant, "stage": stage, "env_tag": env_tag, "ts": ts,
         "payload": payload,
     }
 
 
-def _campaign_id_for_lock(lock: dict, *, slug: str = "campaign") -> str:
-    encoded = json.dumps(
-        lock, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
-    ).encode("utf-8")
-    return f"{slug}-{lock['search_tag']}-{hashlib.sha256(encoded).hexdigest()[:8]}"
+def _campaign_id_for_lock(lock: dict | str, *, slug: str = "campaign") -> str:
+    if type(lock) is str:
+        decoded = campaign_lock.decode_campaign_lock(lock)
+        identity = decoded.identity
+        identity_preimage = decoded.identity_preimage
+    else:
+        identity = lock
+        identity_preimage = _canonical_json(lock)
+    digest = hashlib.sha256(identity_preimage.encode("utf-8")).hexdigest()[:8]
+    return f"{slug}-{identity['search_tag']}-{digest}"
 
 
 def _rename_for_lock(campaign: Path) -> Path:
-    lock = json.loads((campaign / "campaign.lock").read_text())
+    lock = (campaign / "campaign.lock").read_text()
     expected = campaign.parent / _campaign_id_for_lock(lock)
     if expected != campaign:
         campaign.rename(expected)
     return expected
+
+
+def _rewrite_v2_identity(lock_path: Path, mutate) -> None:
+    decoded = campaign_lock.decode_campaign_lock(lock_path.read_text())
+    assert decoded.is_v2 and decoded.authority is not None
+    identity = json.loads(decoded.identity_preimage)
+    mutate(identity)
+    lock_path.write_text(
+        campaign_lock.encode_campaign_lock_v2(
+            _canonical_json(identity), decoded.authority,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _rewrite_v2_authority(lock_path: Path, **changes: object) -> None:
+    decoded = campaign_lock.decode_campaign_lock(lock_path.read_text())
+    assert decoded.is_v2 and decoded.authority is not None
+    authority = decoded.authority.as_dict()
+    authority.update(changes)
+    lock_path.write_text(
+        campaign_lock.encode_campaign_lock_v2(
+            decoded.identity_preimage,
+            campaign_lock.CampaignLockAuthority(**authority),
+        ),
+        encoding="utf-8",
+    )
+
+
+def _rewrite_wal(campaign: Path, mutate) -> None:
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    mutate(records)
+    wal_path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+
+
+def _fixture_git(repo: Path, *args: str) -> bytes:
+    executable = shutil.which("git")
+    if executable is None:
+        pytest.fail("git is required for artifact admission fixtures")
+    try:
+        completed = subprocess.run(
+            [executable, "-C", str(repo), *args],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        pytest.fail(f"git fixture command could not run: {exc}")
+    if completed.returncode != 0:
+        pytest.fail(
+            "git fixture command failed: "
+            f"args={args!r} rc={completed.returncode} "
+            f"stderr={completed.stderr.decode('utf-8', errors='replace')!r}"
+        )
+    return completed.stdout
 
 
 def _new_schema_campaign(
@@ -194,16 +343,6 @@ def _new_schema_campaign(
             "build_admission": receipt,
             "build_admission_receipt_sha256": receipt["receipt_sha256"],
         })
-    terminal = {
-        "build_attempt_id": attempt_id,
-        "build_admission_receipt_sha256": receipt["receipt_sha256"],
-    }
-    variant = A.pipeline.variant_id(genome_value, src_token)
-    records = [
-        _record("build_start", start, ts=1.0, variant=variant),
-        _record("build_done", terminal, ts=2.0, variant=variant),
-        _record("commit", terminal, ts=3.0, variant=variant),
-    ]
     lock = {
         "ccbench_commit": CURRENT_PIN,
         "search_config": {
@@ -215,7 +354,32 @@ def _new_schema_campaign(
         "spec_content": "test",
         "trial": "test",
     }
-    return _write_campaign(tmp_path / _campaign_id_for_lock(lock), lock, records)
+    authorization = env_contract.authorize("linux-baremetal")
+    lock_text = build_v2_campaign_lock(
+        _canonical_json(lock), authorization=authorization,
+    )
+    decoded = campaign_lock.decode_campaign_lock(lock_text)
+    assert decoded.authority is not None
+    terminal = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    }
+    # v2 envelope 剥離攻撃を忠実に再現できるよう、COMMIT は authority と同じ契約 hash を持つ。
+    commit = {
+        **terminal,
+        COMMIT_CONTRACT_SHA256_KEY:
+            decoded.authority.environment_contract_sha256,
+    }
+    variant = A.pipeline.variant_id(genome_value, src_token)
+    env_tag = authorization.contract.env_tag
+    records = [
+        _record("build_start", start, ts=1.0, variant=variant, env_tag=env_tag),
+        _record("build_done", terminal, ts=2.0, variant=variant, env_tag=env_tag),
+        _record("commit", commit, ts=3.0, variant=variant, env_tag=env_tag),
+    ]
+    return _write_campaign(
+        tmp_path / _campaign_id_for_lock(lock_text), lock_text, records,
+    )
 
 
 def _classify_as_trigger(
@@ -223,7 +387,10 @@ def _classify_as_trigger(
         axis: str = wal.TRIGGER_AXIS,
 ) -> Path:
     lock_path = campaign / "campaign.lock"
-    lock = json.loads(lock_path.read_text())
+    decoded = campaign_lock.decode_campaign_lock(lock_path.read_text())
+    assert decoded.is_v2 and decoded.authority is not None
+    lock = dict(decoded.identity)
+    lock["search_config"] = dict(lock["search_config"])
     search = lock["search_config"]
     search["axis"] = axis
     if proposal:
@@ -235,9 +402,9 @@ def _classify_as_trigger(
         })
     if marker:
         search[wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY] = trigger_gate_binding.SCHEMA_VERSION
-    lock_path.write_text(
-        json.dumps(lock, sort_keys=True, separators=(",", ":")), encoding="utf-8",
-    )
+    lock_path.write_text(campaign_lock.encode_campaign_lock_v2(
+        _canonical_json(lock), decoded.authority,
+    ), encoding="utf-8")
     if not binding:
         return _rename_for_lock(campaign)
 
@@ -259,7 +426,7 @@ def _classify_as_trigger(
     raw = _record(trigger_gate_binding.WAL_RECORD_STAGE, {
         "build_attempt_id": start["payload"]["build_attempt_id"],
         wal.TRIGGER_BINDING_PAYLOAD_KEY: trigger_gate_binding.to_record(value),
-    }, ts=start["ts"] - 0.5)
+    }, ts=start["ts"] - 0.5, env_tag=start["env_tag"])
     raw["variant"] = start["variant"]
     records.insert(records.index(start), raw)
     wal_path.write_text(
@@ -314,7 +481,13 @@ def test_recovered_attempt_then_retry_is_admitted_without_read_mutation(tmp_path
     }
     wal.log(layout, start.variant, "build_start", start.env_tag, retry_payload)
     wal.log(layout, start.variant, "build_done", start.env_tag, terminal_payload)
-    wal.log(layout, start.variant, "commit", start.env_tag, terminal_payload)
+    decoded = campaign_lock.decode_campaign_lock(Path(layout.lock_file).read_text())
+    assert decoded.authority is not None
+    wal.log(layout, start.variant, "commit", start.env_tag, {
+        **terminal_payload,
+        COMMIT_CONTRACT_SHA256_KEY:
+            decoded.authority.environment_contract_sha256,
+    })
     before_admission = (campaign / "runs/wal.jsonl").read_bytes()
 
     admitted = A.require_admitted_campaign(campaign)
@@ -398,7 +571,13 @@ def _append_committed_retry(layout, start, attempt_id: str) -> None:
     }
     wal.log(layout, start.variant, "build_start", start.env_tag, retry_start)
     wal.log(layout, start.variant, "build_done", start.env_tag, terminal)
-    wal.log(layout, start.variant, "commit", start.env_tag, terminal)
+    decoded = campaign_lock.decode_campaign_lock(Path(layout.lock_file).read_text())
+    assert decoded.authority is not None
+    wal.log(layout, start.variant, "commit", start.env_tag, {
+        **terminal,
+        COMMIT_CONTRACT_SHA256_KEY:
+            decoded.authority.environment_contract_sha256,
+    })
 
 
 def test_historical_signal_does_not_overreject_later_start_only_recovery(tmp_path):
@@ -512,6 +691,43 @@ def test_trusted_snapshot_campaign_corpus_is_fully_enumerated() -> None:
     admitted_historical = set(ADMITTED_HISTORICAL_CAMPAIGNS)
 
     assert actual == overlay | legacy_trigger | admitted_historical
+
+
+def test_existing_campaign_tracked_bytes_match_git_head() -> None:
+    executable = shutil.which("git")
+    if executable is None:
+        pytest.fail("git is required to prove output/campaigns tracked bytes")
+    try:
+        completed = subprocess.run(
+            [
+                executable, "-C", str(ROOT), "diff", "--quiet", "HEAD", "--",
+                "output/campaigns",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        pytest.fail(f"git diff for output/campaigns could not run: {exc}")
+    assert completed.returncode == 0, (
+        "tracked output/campaigns bytes differ from git HEAD: "
+        f"rc={completed.returncode} "
+        f"stderr={completed.stderr.decode('utf-8', errors='replace')!r}"
+    )
+
+
+def test_existing_campaign_classification_exact_mapping() -> None:
+    actual = {
+        campaign.name: (
+            decision.classification,
+            decision.admission_status,
+        )
+        for campaign in sorted((ROOT / "output/campaigns").iterdir())
+        if campaign.is_dir()
+        for decision in (A.classify_campaign(campaign),)
+    }
+    assert actual == EXPECTED_CAMPAIGN_CLASSIFICATIONS
 
 
 @pytest.mark.parametrize(
@@ -704,6 +920,388 @@ def test_unlisted_post_policy_campaign_requires_exact_attempt_receipt(tmp_path: 
     assert len(admitted.decision.attempt_receipt_sha256s) == 1
 
 
+def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    decoded = campaign_lock.decode_campaign_lock(
+        (campaign / "campaign.lock").read_text()
+    )
+    assert decoded.is_v2
+    assert A.classify_campaign(campaign).admission_status == "admitted"
+
+
+def test_v2_admission_rejects_commit_contract_hash_missing(tmp_path: Path) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+
+    def remove_hash(records: list[dict]) -> None:
+        commit = next(record for record in records if record["stage"] == "commit")
+        commit["payload"].pop(COMMIT_CONTRACT_SHA256_KEY)
+
+    _rewrite_wal(campaign, remove_hash)
+    with pytest.raises(A.ArtifactAdmissionError, match="contract_sha256.*exact"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_admission_rejects_commit_contract_hash_mismatch(tmp_path: Path) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+
+    def replace_hash(records: list[dict]) -> None:
+        commit = next(record for record in records if record["stage"] == "commit")
+        actual = commit["payload"][COMMIT_CONTRACT_SHA256_KEY]
+        commit["payload"][COMMIT_CONTRACT_SHA256_KEY] = (
+            "0" * 64 if actual != "0" * 64 else "1" * 64
+        )
+
+    _rewrite_wal(campaign, replace_hash)
+    with pytest.raises(A.ArtifactAdmissionError, match="campaign.lock と不一致"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_admission_rejects_commit_environment_tag_mismatch(
+    tmp_path: Path,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+
+    def replace_env_tag(records: list[dict]) -> None:
+        commit = next(record for record in records if record["stage"] == "commit")
+        commit["env_tag"] = f"{commit['env_tag']}-foreign"
+
+    _rewrite_wal(campaign, replace_env_tag)
+    with pytest.raises(A.ArtifactAdmissionError, match="env_tag.*不一致"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_loader_mismatch_rejection_preserves_lock_wal_and_report_bytes(
+    tmp_path: Path,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    lock_path = campaign / "campaign.lock"
+    decoded = campaign_lock.decode_campaign_lock(lock_path.read_text())
+    assert decoded.authority is not None
+    digests = dict(decoded.authority.contract_loader_blob_sha256s)
+    first_path = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[0]
+    digests[first_path] = "0" * 64 if digests[first_path] != "0" * 64 else "1" * 64
+    _rewrite_v2_authority(
+        lock_path, contract_loader_blob_sha256s=digests,
+    )
+    wal_path = campaign / "runs/wal.jsonl"
+    report_path = campaign / "reports" / "sentinel.json"
+    report_path.parent.mkdir()
+    report_path.write_bytes(b'{"sentinel":"unchanged"}\n')
+    before = {
+        lock_path: lock_path.read_bytes(),
+        wal_path: wal_path.read_bytes(),
+        report_path: report_path.read_bytes(),
+    }
+
+    with pytest.raises(A.ArtifactAdmissionError, match="contract-loader-blob-mismatch"):
+        A.classify_campaign(campaign)
+
+    assert {path: path.read_bytes() for path in before} == before
+
+
+def test_v2_outer_envelope_stripped_to_v1_post_policy_is_rejected(
+    tmp_path: Path,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    lock_path = campaign / "campaign.lock"
+    decoded = campaign_lock.decode_campaign_lock(lock_path.read_text())
+    lock_path.write_text(decoded.identity_preimage, encoding="utf-8")
+
+    with pytest.raises(A.ArtifactAdmissionError, match="post-policy downgrade"):
+        A.classify_campaign(campaign)
+
+
+def test_guided_equivalent_v1_non_certified_lane_is_admitted(
+    tmp_path: Path,
+) -> None:
+    """Guided 相当の非 certified lane を過剰拒否せず受理する正例。
+
+    封筒と COMMIT hash を同時に削った artifact はこの経路では区別できない
+    （既知の限界。脅威モデルは bytes 書き換えを含まない）。
+    """
+    campaign = _new_schema_campaign(tmp_path)
+    lock_path = campaign / "campaign.lock"
+    decoded = campaign_lock.decode_campaign_lock(lock_path.read_text())
+    lock_path.write_text(decoded.identity_preimage, encoding="utf-8")
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    for record in records:
+        if record["stage"] == "commit":
+            record["payload"].pop(COMMIT_CONTRACT_SHA256_KEY)
+    wal_path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+
+    decision = A.classify_campaign(campaign)
+    assert decision.classification == "admitted-new-schema"
+    assert decision.admission_status == "admitted"
+
+
+def test_v2_outer_and_build_admission_stripped_cannot_claim_history(
+    tmp_path: Path,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    lock_path = campaign / "campaign.lock"
+    decoded = campaign_lock.decode_campaign_lock(lock_path.read_text())
+    identity = json.loads(decoded.identity_preimage)
+    identity["search_config"].pop("build_admission")
+    lock_path.write_text(_canonical_json(identity), encoding="utf-8")
+
+    with pytest.raises(A.ArtifactAdmissionError, match="historicity"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_loader_validation_rejects_git_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    monkeypatch.setattr(contract_loader_binding.shutil, "which", lambda _name: None)
+
+    with pytest.raises(A.ArtifactAdmissionError, match="git executable"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_loader_validation_rejects_valid_second_git_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    second = tmp_path / "second-repository"
+    second.mkdir()
+    _fixture_git(second, "init", "-q")
+    marker = second / "marker"
+    marker.write_text("valid second repository", encoding="utf-8")
+    _fixture_git(second, "add", "marker")
+    _fixture_git(
+        second,
+        "-c", "user.email=artifact-fixture@example.invalid",
+        "-c", "user.name=artifact fixture",
+        "commit", "-q", "-m", "valid second repository",
+    )
+    real_run_git = contract_loader_binding._run_git
+
+    def redirected_git_view(root: Path, *args: str) -> bytes:
+        if args == ("rev-parse", "--show-toplevel"):
+            return f"{second.resolve()}\n".encode()
+        return real_run_git(root, *args)
+
+    monkeypatch.setattr(
+        contract_loader_binding, "_run_git", redirected_git_view,
+    )
+
+    with pytest.raises(A.ArtifactAdmissionError, match="Git top-level"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_loader_validation_rejects_ambient_git_repository_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    monkeypatch.setenv("GIT_DIR", str(tmp_path / "foreign.git"))
+
+    with pytest.raises(A.ArtifactAdmissionError, match="ambient Git"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_loader_validation_rejects_git_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+
+    def timeout(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired(cmd="git", timeout=10)
+
+    monkeypatch.setattr(contract_loader_binding.subprocess, "run", timeout)
+    with pytest.raises(A.ArtifactAdmissionError, match="git-timeout"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_loader_validation_rejects_missing_commit(tmp_path: Path) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    _rewrite_v2_authority(
+        campaign / "campaign.lock", contract_loader_commit="f" * 40,
+    )
+
+    with pytest.raises(A.ArtifactAdmissionError, match="git command"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_loader_validation_rejects_missing_blob(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    real_run_git = contract_loader_binding._run_git
+    missing = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[-1]
+    decoded = campaign_lock.decode_campaign_lock(
+        (campaign / "campaign.lock").read_text()
+    )
+    assert decoded.authority is not None
+    commit = decoded.authority.contract_loader_commit
+
+    def missing_blob(root: Path, *args: str) -> bytes:
+        if args == ("cat-file", "blob", f"{commit}:{missing}"):
+            raise contract_loader_binding.ContractLoaderBindingError(
+                "contract-loader-git-error: git command が失敗: blob 不在"
+            )
+        return real_run_git(root, *args)
+
+    monkeypatch.setattr(contract_loader_binding, "_run_git", missing_blob)
+
+    with pytest.raises(A.ArtifactAdmissionError, match="git command"):
+        A.classify_campaign(campaign)
+
+
+def test_contract_loader_rejects_leaf_symlink(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    relative = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[0]
+    leaf = root / relative
+    leaf.parent.mkdir(parents=True)
+    target = root / "loader-target.py"
+    target.write_bytes(b"loader")
+    leaf.symlink_to(target)
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="symlink/non-regular",
+    ):
+        contract_loader_binding._read_regular_file_no_follow(root, relative)
+
+
+def test_contract_loader_rejects_parent_directory_symlink(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    real_parent = root / "real-campaign"
+    real_parent.mkdir(parents=True)
+    (real_parent / "env_contract.py").write_bytes(b"loader")
+    orchestrator_dir = root / "orchestrator"
+    orchestrator_dir.mkdir()
+    (orchestrator_dir / "campaign").symlink_to(real_parent, target_is_directory=True)
+    relative = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[0]
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="open-error",
+    ):
+        contract_loader_binding._read_regular_file_no_follow(root, relative)
+
+
+def test_contract_loader_rejects_file_swap_during_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "root"
+    relative = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[0]
+    loader = root / relative
+    loader.parent.mkdir(parents=True)
+    loader.write_bytes(b"before")
+    real_read = contract_loader_binding.os.read
+    swapped = False
+
+    def read_then_swap(fd: int, size: int) -> bytes:
+        nonlocal swapped
+        chunk = real_read(fd, size)
+        if chunk and not swapped:
+            swapped = True
+            loader.write_bytes(b"after-different-size")
+        return chunk
+
+    monkeypatch.setattr(contract_loader_binding.os, "read", read_then_swap)
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="path-race",
+    ):
+        contract_loader_binding._read_regular_file_no_follow(root, relative)
+
+
+def test_contract_loader_path_closure_uses_codec_single_source() -> None:
+    assert (
+        contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
+        is campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    )
+    assert set(contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS) == set(
+        campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    )
+
+
+def test_v2_loader_validation_rejects_broken_symlink_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    broken = tmp_path / "loader-repo-link"
+    broken.symlink_to(tmp_path / "does-not-exist", target_is_directory=True)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", broken)
+
+    with pytest.raises(A.ArtifactAdmissionError, match="root"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_loader_validation_rejects_root_escape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    outside = tmp_path.parent
+    assert outside.resolve() != ROOT.resolve()
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", outside)
+
+    with pytest.raises(A.ArtifactAdmissionError, match="git command"):
+        A.classify_campaign(campaign)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        pytest.param({"activation_serial": 999999}, id="missing-serial"),
+        pytest.param(
+            {"activation_state_sha256": "f" * 64}, id="missing-state",
+        ),
+    ],
+)
+def test_v2_activation_tuple_must_name_real_active_record(
+    tmp_path: Path, changes: dict[str, object],
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    _rewrite_v2_authority(campaign / "campaign.lock", **changes)
+
+    with pytest.raises(A.ArtifactAdmissionError, match="activation tuple"):
+        A.classify_campaign(campaign)
+
+
+def test_v2_resume_authenticates_activation_tuple_before_wal_repair(
+    tmp_path: Path,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    lock_path = campaign / "campaign.lock"
+    decoded = campaign_lock.decode_campaign_lock(lock_path.read_text())
+    identity = decoded.identity
+    authorization = env_contract.authorize("linux-baremetal")
+    cfg = CampaignConfig(
+        spec_slug="campaign",
+        search_tag=identity["search_tag"],
+        spec_content=identity["spec_content"],
+        ccbench_commit=identity["ccbench_commit"],
+        search_config=dict(identity["search_config"]),
+        trial=identity["trial"],
+        bound_environment_contract=authorization.contract,
+    )
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    _rewrite_v2_authority(lock_path, activation_state_sha256="f" * 64)
+    wal_path = campaign / "runs/wal.jsonl"
+    with wal_path.open("ab") as stream:
+        stream.write(b'{"torn":')
+    before = wal_path.read_bytes()
+
+    with pytest.raises(ident.IdentityMismatch) as rejected:
+        ident.ensure_resumable_wal(
+            cfg,
+            CampaignLayout(root=str(campaign)),
+            admission_policy=context.policy,
+        )
+
+    assert rejected.value.reason == "activation-tuple-invalid"
+    assert wal_path.read_bytes() == before
+
+
 def test_post_policy_trigger_proposal_requires_marker_and_complete_binding(tmp_path: Path) -> None:
     canonical = _classify_as_trigger(
         _new_schema_campaign(tmp_path / "canonical"),
@@ -731,28 +1329,23 @@ def test_post_policy_trigger_machine_sweep_does_not_require_binding(tmp_path: Pa
         _new_schema_campaign(tmp_path),
         marker=False, proposal=False, binding=False,
     )
-    lock_path = campaign / "campaign.lock"
-    lock_path.write_text(json.dumps(json.loads(lock_path.read_text())), encoding="utf-8")
-    arbitrary_layout = campaign.parent / "machine-sweep-layout"
-    campaign.rename(arbitrary_layout)
-    campaign = arbitrary_layout
     decision = A.classify_campaign(campaign)
     assert decision.classification == "admitted-new-schema"
     assert decision.admission_status == "admitted"
 
 
-def test_nontrigger_post_policy_preserves_default_json_and_arbitrary_layout(
+def test_nontrigger_post_policy_v2_allows_relocated_directory(
     tmp_path: Path,
 ) -> None:
+    """全 v2 照合は親の独自追加で正当な relocation consumer を拒否したため撤回した。"""
     campaign = _new_schema_campaign(tmp_path)
-    lock_path = campaign / "campaign.lock"
-    lock_path.write_text(json.dumps(json.loads(lock_path.read_text())), encoding="utf-8")
+    assert A.classify_campaign(campaign).classification == "admitted-new-schema"
     arbitrary_layout = campaign.parent / "formal-shaped"
     campaign.rename(arbitrary_layout)
 
     decision = A.classify_campaign(arbitrary_layout)
     assert decision.classification == "admitted-new-schema"
-    assert decision.campaign_id == "formal-shaped"
+    assert decision.admission_status == "admitted"
 
 
 def test_post_policy_campaign_directory_id_must_match_lock_preimage(
@@ -778,7 +1371,7 @@ def test_post_policy_trigger_proposal_requires_canonical_lock_bytes(
     lock_path = campaign / "campaign.lock"
     lock_path.write_text(json.dumps(json.loads(lock_path.read_text())), encoding="utf-8")
 
-    with pytest.raises(A.ArtifactAdmissionError, match="canonical preimage"):
+    with pytest.raises(A.ArtifactAdmissionError, match="canonical"):
         A.classify_campaign(campaign)
 
 
@@ -790,17 +1383,16 @@ def test_proposal_cannot_be_rewritten_as_machine_sweep_with_coder_receipt(
         marker=True, proposal=True, binding=True,
     )
     lock_path = campaign / "campaign.lock"
-    lock = json.loads(lock_path.read_text())
-    search = lock["search_config"]
-    search.pop(wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY)
-    search.pop("reflux")
-    search.update({
-        "generator": "reason-subset-v1",
-        "space": "reason-subsets(effective)+identall+stock",
-    })
-    lock_path.write_text(
-        json.dumps(lock, sort_keys=True, separators=(",", ":")), encoding="utf-8",
-    )
+
+    def rewrite_as_machine(lock: dict) -> None:
+        search = lock["search_config"]
+        search.pop(wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY)
+        search.pop("reflux")
+        search.update({
+            "generator": "reason-subset-v1",
+            "space": "reason-subsets(effective)+identall+stock",
+        })
+    _rewrite_v2_identity(lock_path, rewrite_as_machine)
 
     wal_path = campaign / "runs/wal.jsonl"
     records = [json.loads(line) for line in wal_path.read_text().splitlines()]
@@ -936,10 +1528,11 @@ def test_post_policy_trigger_unknown_marker_or_unclassified_shape_is_rejected(
         marker=True, proposal=True, binding=False,
     )
     lock_path = unknown_marker / "campaign.lock"
-    lock = json.loads(lock_path.read_text())
-    lock["search_config"][wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY] = "unknown/v9"
-    lock_path.write_text(
-        json.dumps(lock, sort_keys=True, separators=(",", ":")), encoding="utf-8",
+    _rewrite_v2_identity(
+        lock_path,
+        lambda lock: lock["search_config"].__setitem__(
+            wal.TRIGGER_BINDING_SCHEMA_MARKER_KEY, "unknown/v9",
+        ),
     )
     unknown_marker = _rename_for_lock(unknown_marker)
     with pytest.raises(A.ArtifactAdmissionError, match="binding marker"):
@@ -947,10 +1540,9 @@ def test_post_policy_trigger_unknown_marker_or_unclassified_shape_is_rejected(
 
     unknown_shape = _new_schema_campaign(tmp_path / "unknown-shape")
     lock_path = unknown_shape / "campaign.lock"
-    lock = json.loads(lock_path.read_text())
-    lock["search_config"]["axis"] = wal.TRIGGER_AXIS
-    lock_path.write_text(
-        json.dumps(lock, sort_keys=True, separators=(",", ":")), encoding="utf-8",
+    _rewrite_v2_identity(
+        lock_path,
+        lambda lock: lock["search_config"].__setitem__("axis", wal.TRIGGER_AXIS),
     )
     unknown_shape = _rename_for_lock(unknown_shape)
     with pytest.raises(A.ArtifactAdmissionError, match="classification is unknown|分類が unknown"):

@@ -1,0 +1,9 @@
+## 総括
+
+- G1: **対応済み**。shape 負例と集合負例を分離し、集合側は全 marker が positional 1 個・kwargs 空になるよう固定しました。[test_real_repo_serialization.py:669](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t692-r3-xdist-walltime/orchestrator/tests/test_real_repo_serialization.py:669)
+- G2: **対応済み**。canonical node のソースを AST 解析し、手書き `xdist_group` decorator を拒否します。合成負例も追加しました。[test_real_repo_serialization.py:466](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t692-r3-xdist-walltime/orchestrator/tests/test_real_repo_serialization.py:466)、[同:755](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t692-r3-xdist-walltime/orchestrator/tests/test_real_repo_serialization.py:755)
+- 実走結果: runner は `qstat -Q preflight rc=1`、rc=16 で停止。許可された代替として指定コマンドを直接実行し、**14 nodeid / 14 passed / 0 failed**（19.49秒）。
+- 追加検査: `check_codex_agents.py` rc=0、`check_docs.py` rc=0、`git diff --check` rc=0。
+- G1 の単一理由性: 集合 fixture の marker shape は [同:701](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t692-r3-xdist-walltime/orchestrator/tests/test_real_repo_serialization.py:701) で正しい形に固定され、kwargs assertion を通過します。拒否箇所は集合 equality の [同:459](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t692-r3-xdist-walltime/orchestrator/tests/test_real_repo_serialization.py:459) だけです。`actual <= expected` は missing-only [同:718](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t692-r3-xdist-walltime/orchestrator/tests/test_real_repo_serialization.py:718)、`expected <= actual` は extra-only [同:723](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t692-r3-xdist-walltime/orchestrator/tests/test_real_repo_serialization.py:723) が緩和を検出します。
+- production・tools・docs・禁止対象ファイルは編集せず、commit もしていません。
+- 直せなかったもの: **指定された G1/G2 の範囲ではなし**。再レビューの B2・MT3 は今回の二件外として非対応です。

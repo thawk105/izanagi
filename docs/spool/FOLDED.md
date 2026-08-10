@@ -611,3 +611,57 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"13ef1a13a267a1d1405fb02f69a27cdbe9c28849174521c5ab1e5bad72859e97","seq":28,"wave":"rulings-20260806-a"}
 - {"allocations":{},"authored":"2026-08-09","content_sha256":"fc36eb2411b5f0a79fbeba2bb2ede13ccc1c51d92687c75d32681588f072e8e1","seq":1,"wave":"rulings2-20260809-b"}
+
+- {"allocations":{"T:score-decision-extraction-defect":"[T-685]"},"authored":"2026-08-09","content_sha256":"959f039b57d2d9658c32ecc0578ec50ed49e7c9a95d0f8e9cb5e6748aeedd52b","seq":1,"wave":"dev-wave-t181-certified-rerun"}
+- {"allocations":{"F:frozen-scorer-decision-regex":"F176"},"authored":"2026-08-09","content_sha256":"ac041fff54e820e7f740554c1edd67d93a389207f3cf44b1741bd5c5dfcf3889","seq":1,"wave":"dev-wave-t181-certified-rerun"}
+
+- {"allocations":{"T:insights-verbatim-not-checked":"[T-686]"},"authored":"2026-08-09","content_sha256":"e6af09df648007308fc90c8abfde0d8df2ce8d5134cd34b4d4321e6be0454fed","seq":1,"wave":"dev-wave-t682-provenance-known-violations"}
+- {"allocations":{"F:blacklist-only-note-gate":"F177"},"authored":"2026-08-09","content_sha256":"b2c84d87a6d76a810af429d5a77829ca980028eda8140f10095a99e83c3da475","seq":2,"wave":"dev-wave-t682-provenance-known-violations"}
+
+- {"allocations":{"D:diagnostic-line-prefix-not-pipe":"D252","D:failure-digest-producer-side":"D251"},"authored":"2026-08-09","content_sha256":"19ae57d58fe2f3f59b3dbf72046c094601158282b7fc232a9f978b7bd6c4c52a","seq":1,"wave":"dev-wave-t677-relay-reach"}
+- {"allocations":{"F:in-tree-temp-test-tree":"F178"},"authored":"2026-08-09","content_sha256":"80eb22600a57ab87d36f1907d30d371daa82d25aa5d8e0d3034006bf40ef0af3","seq":2,"wave":"dev-wave-t677-relay-reach"}
+- {"allocations":{"T:dev-wave-docs-budget-full":"[T-690]","T:digest-infra-kill-evidence":"[T-688]","T:digest-stash-session-binding":"[T-691]","T:digest-xdist-crash-coverage":"[T-687]","T:relay-best-effort-durability":"[T-689]"},"authored":"2026-08-09","content_sha256":"1e9151c686c2d4b305f6a19327f66b4140cb81556135428e5af3b38478516c1e","seq":3,"wave":"dev-wave-t677-relay-reach"}
+
+- {"allocations":{"T:s8c-wall-clock-budget-policy":"[T-692]"},"authored":"2026-08-09","content_sha256":"6509e68498a632735635aebf484924e134dbb23f5ac591fec19ecb04d67ddb8f","seq":1,"wave":"dev-wave-red-suite-20260809"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"fc262047be04ca91e49b9e830bf03ff590efa94aba91cf7a7d330875dc764444","seq":2,"wave":"dev-wave-red-suite-20260809"}
+
+- {"allocations":{"T:canonical-lease-waiter":"[T-694]","T:lease-claim-rc-semantics":"[T-693]"},"authored":"2026-08-09","content_sha256":"2e49d6b1957ad78260e52a575ff93b531e903f9eb72b881742583e76da47e352","seq":1,"wave":"dev-wave-t684-lease-fifo"}
+- {"allocations":{"D:acceptance-lease-fifo-queue":"D253"},"authored":"2026-08-09","content_sha256":"c74662dd41cfcea2585659ed5ac3233469e86bceb8ca410a4870054970540af3","seq":1,"wave":"dev-wave-t684-lease-fifo"}
+- {"allocations":{"F:acceptance-lease-no-fairness":"F179","F:fifo-queue-self-sustaining-deadlock":"F180"},"authored":"2026-08-09","content_sha256":"b75754a857bad3b2f8ecae011fe5507492d9c96703a1b2128099137b8ce226d9","seq":1,"wave":"dev-wave-t684-lease-fifo"}
+
+- {"allocations":{"T:dev-wave-docs-budget-blocks-gate-sync":"[T-695]","T:exploration-external-root-test-red-both-nodes":"[T-698]","T:land-gate-immutable-trust-root":"[T-696]","T:s8c-git-batch-timeout-under-load":"[T-697]"},"authored":"2026-08-09","content_sha256":"0b54137fe4e0321b0628fd47930f4855c2f6a6e3dce841e94afddd49c6c54942","seq":1,"wave":"dev-wave-t139-provenance-known-violation"}
+- {"allocations":{"D:land-ff-only-provenance-gate":"D254"},"authored":"2026-08-09","content_sha256":"8155801802269121b357a1092c7d52b2469641ff66f80850fc1566530baf4b8b","seq":1,"wave":"dev-wave-t139-provenance-known-violation"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"4aa1a5845eed50ffcf547172ceaa9950c2b9e53f5faa3efc24616af49caedd4a","seq":1,"wave":"dev-wave-t139-provenance-known-violation"}
+
+- {"allocations":{"T:dev-wave-ctx-supervisor-wiring":"[T-702]","T:dev-wave-read-scope-envelope":"[T-701]","T:dispatch-cell-grammar":"[T-699]","T:l2-admission-control":"[T-700]"},"authored":"2026-08-09","content_sha256":"402ba9c55b19580a1fc26b8433b25be179561ce4e20e2d7efa68e1b8e1159a64","seq":1,"wave":"dev-wave-t313-read-budget-gate"}
+- {"allocations":{"D:dev-wave-layer-read-budget":"D255"},"authored":"2026-08-09","content_sha256":"6bd82c195c3fd6f85359c14028428bfce047f0ea90b1b0596d80893696c2363b","seq":2,"wave":"dev-wave-t313-read-budget-gate"}
+- {"allocations":{"F:range-marker-over-expansion":"F181"},"authored":"2026-08-09","content_sha256":"7643a4205b7e4ae051a43672872413a1e240419c36e2a9877734402b8db385c7","seq":3,"wave":"dev-wave-t313-read-budget-gate"}
+
+- {"allocations":{"F:fragment-update-clobbers-pending-ruling":"F182"},"authored":"2026-08-09","content_sha256":"c9901aaa5cae2045127406d4afae04179094bc7bd03f64e6a70ea8b3b422452c","seq":1,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"b1a6bd5cb88bde11edec2282c561ea1271732b528348240fe94d06f5412e9887","seq":29,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"fdb4dc02553c2711835dbdb86fed655992ba522f25010f2070bd3430b7df813b","seq":30,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"75a9526d6124b841decb32a730f79497c89680518d1b42ff9cd3cf0fd47e03b4","seq":31,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:atomic-publish-output-rollback":"[T-705]","T:launcher-interrupt-rc-split":"[T-706]","T:mutation-positive-control-subset":"[T-709]","T:publication-commit-protocol":"[T-703]","T:receipt-post-commit-exception":"[T-704]","T:replace-invalid-publication-pin":"[T-708]","T:staged-temp-replacement-window":"[T-707]"},"authored":"2026-08-09","content_sha256":"7504586913392ff2813674fe5b9c7190c60a4ae9e4ac3fe3c3838764c0bd36ef","seq":1,"wave":"dev-wave-t678-publication-wall-gate"}
+- {"allocations":{"D:late-admission-gate-at-last-reversible-point":"D256"},"authored":"2026-08-09","content_sha256":"381cd40658829b40776eebffa11ad00b3f9663a19c338ec019802d463873c92a","seq":1,"wave":"dev-wave-t678-publication-wall-gate"}
+
+- {"allocations":{"T:conflict-failure-reason-diagnostic":"[T-712]","T:scorer-decision-grammar-contract":"[T-710]","T:spool-failures-update-path":"[T-711]"},"authored":"2026-08-09","content_sha256":"a25fb458d0c6d271a1e324f4fccfa8f441ba1561ec739a73d1a0908646a4b4ae","seq":1,"wave":"dev-wave-t685-scorer-erratum"}
+- {"allocations":{"F:mutation-spec-diverged-from-preregistration":"F184","F:scorer-conflict-guard-inert":"F183"},"authored":"2026-08-09","content_sha256":"8c3ed0d27b29eb00215f9a0cb63e7048239137b36a6e646993653bd924df8ac0","seq":2,"wave":"dev-wave-t685-scorer-erratum"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"087ecf010e2238ae858f3353df2bf931eeeac4cfcfb320a42a09f625e0cb3e81","seq":1,"wave":"dev-wave-provenance-model-switch-rule"}
+
+- {"allocations":{"T:evidence-path-control-char":"[T-714]","T:s8c-heavy-git-xdist-group":"[T-713]"},"authored":"2026-08-09","content_sha256":"33740252c49c16f1476ebc1483ada6ec4adc8fc0462467c0ef383081e4869520","seq":1,"wave":"dev-wave-t553-git-budget"}
+- {"allocations":{"D:git-work-proportional-budget":"D257"},"authored":"2026-08-09","content_sha256":"27be8510a9271fa22fd1dba33a8d3246d6963c7c909c46ebe6ac610686cb7175","seq":2,"wave":"dev-wave-t553-git-budget"}
+- {"allocations":{"F:lease-state-matched-literally":"F186","F:mutation-spec-timeout-below-dispatch-floor":"F185"},"authored":"2026-08-09","content_sha256":"93b10a0cc036e9ca3fc74fdf7d9801da25763adcb432dfcda32f54e3a5f5ce20","seq":3,"wave":"dev-wave-t553-git-budget"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"40e904aaf1ff6bce870bb1353de6e498f50df74579c66ec96d99907fbe51cd09","seq":1,"wave":"dev-wave-t673-transition-pbt-package"}
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"3a4e0a100f796d4c1cf3f7ea88acc1199620b98da96551895cb91019a71cfa8f","seq":2,"wave":"dev-wave-t673-transition-pbt-package"}
+
+- {"allocations":{"T:acceptance-walltime-ceiling":"[T-717]","T:cli-second-resolution":"[T-718]","T:mutation-expected-node-overdetermination":"[T-719]","T:realrepo-payer-closure":"[T-715]","T:s8c-canonical-group":"[T-716]"},"authored":"2026-08-10","content_sha256":"4787b49e85645f990bd3fecc2df6165abe75f6e8c3f4b21a9489796123b8f119","seq":1,"wave":"dev-wave-t692-r3-xdist-walltime"}
+- {"allocations":{"D:xdist-group-closure-audit":"D258"},"authored":"2026-08-10","content_sha256":"6a6d7b86746aa36d24eb97cad666d7149770605a632c11867ca3d718a57a380e","seq":1,"wave":"dev-wave-t692-r3-xdist-walltime"}
+
+- {"allocations":{"D:campaign-identity-authority-split":"D259"},"authored":"2026-08-09","content_sha256":"e1d434e13e6b08716d45bd1b3209ce514c34c553eb5bab2d67563bc7cd6b4dff","seq":1,"wave":"dev-wave-t671-impl"}
+- {"allocations":{"T:authority-external-anchor":"[T-722]","T:guided-lane-nonforgeable-marker":"[T-723]","T:import-namespace-unification":"[T-720]","T:r1-closure-expansion":"[T-721]"},"authored":"2026-08-09","content_sha256":"3af0defaa7d06c85816834c49775153df77826a83bb4b558c79ead6a5fa27bcc","seq":2,"wave":"dev-wave-t671-impl"}
+- {"allocations":{"F:dual-import-namespace-breaks-exact-type-checks":"F187","F:parent-adds-gates-outside-approved-ruling":"F188"},"authored":"2026-08-09","content_sha256":"69da3a4f8f6674d38e9385fd6a73ab0762fadcbc11a50aa6157b23256fcd2051","seq":3,"wave":"dev-wave-t671-impl"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"b6cd991c3cf930fbc869f1261401fa23fd149801d2ad91c89ab2cafc86a52ebd","seq":32,"wave":"rulings-20260806-a"}

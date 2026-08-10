@@ -27,10 +27,14 @@ fsync を呼ぶコード経路は変えていない (検査は弱めない) — 
   ``test_real_repo_serialization.py`` の回帰ガードが検査して赤にする
 - 素の python3 実行 (二重 runner) は元から conftest を経由しない
 """
+import hashlib
+import json
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType, SimpleNamespace
+from typing import Callable, Iterable, Sequence
 
 import pytest
 
@@ -179,7 +183,16 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation",
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+    # RuleOps inventory が親 working tree と実履歴を読む reader ([T-438])。
+    "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
 })
+
+# real-repo worker の先頭で独立 CLI 解決を開始し、次に共有 cache barrier を置く。
+# この 2 node 以外は collection 時点の相対順を維持する。
+REAL_REPO_EXECUTION_PRIORITY = (
+    "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
+    "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+)
 
 # 意図的な除外（正本リストの境界）:
 # - test_s1_measurement_freeze.py のうち fixture 非利用 3 node (AST import 検査 +
@@ -246,8 +259,30 @@ def pytest_collection_modifyitems(items) -> None:
         item.add_marker(pytest.mark.xdist_group("real-repo"))
 
 
+def _prioritize_real_repo_items(items) -> None:
+    """collection 確定後の real-repo slots へ優先順を適用する。"""
+    priority = {
+        node: index for index, node in enumerate(REAL_REPO_EXECUTION_PRIORITY)
+    }
+    serial_positions = [
+        index for index, item in enumerate(items)
+        if _real_repo_node_id(item) in REAL_REPO_SERIAL_NODES
+    ]
+    serial_items = [items[index] for index in serial_positions]
+    serial_items.sort(
+        key=lambda item: priority.get(
+            _real_repo_node_id(item), len(REAL_REPO_EXECUTION_PRIORITY),
+        ),
+    )
+    for index, item in zip(serial_positions, serial_items):
+        items[index] = item
+
+
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_finish(session) -> None:
-    """Opt-in task-run stats collection; observation must never affect pytest."""
+    """cacheprovider の後で順序を固定し、任意の task-run stats を収集する。"""
+    # collection_finish は --ff / --nf の post-yield より後に来るため、最終順を固定できる。
+    _prioritize_real_repo_items(session.items)
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
@@ -281,3 +316,449 @@ def pytest_sessionfinish(session, exitstatus) -> None:
         pytest_stats.write_session_stats(session)
     except Exception:
         pass
+
+
+# pytest 完走時に failure 本体を relay の末尾へ残す bounded digest。relay 定数は
+# plain runner の conftest import を壊さないよう、failure 検出後にだけ lazy import する。
+_FAILURE_DIGEST_START = "=== IZANAGI FAILURE DIGEST v1 BEGIN ==="
+_FAILURE_DIGEST_END = "=== IZANAGI FAILURE DIGEST v1 END ==="
+_FAILURE_DIGEST_NUMERATOR = 3
+_FAILURE_DIGEST_DENOMINATOR = 4
+_FAILURE_EXCERPT_MAX_BYTES = 4 * 1024
+_FAILURE_ENTRY_MAX_BYTES = 5 * 1024
+_FAILURE_FRAME_ACCOUNT_RESERVE_BYTES = 1024
+_FAILURE_NODEID_DISPLAY_MAX_BYTES = 256
+_FAILURE_MANIFEST_PLACEHOLDER = "0" * 64
+
+
+@dataclass(frozen=True)
+class _StashedFailure:
+    category: str
+    report: object
+
+
+@dataclass(frozen=True)
+class _FailureDigestItem:
+    category: str
+    nodeid: str
+    when: str
+    source: str
+    source_bytes: int
+    sha256: str
+
+    @property
+    def source_file(self) -> str:
+        return self.nodeid.split("::", 1)[0]
+
+
+# pytest_runtest_logreport / pytest_collectreport は Config を受け取らないため、process
+# local な session stash を使う。xdist controller/worker は別 process であり、逐次の
+# pytest.main() 再入では configure ごとに初期化して前 session の report を持ち越さない。
+# 同一 process の入れ子 session は内側 configure が外側 stash を消す現行制約を持つ。
+_FAILURE_REPORTS: list[_StashedFailure] = []
+
+
+def pytest_configure(config) -> None:
+    _FAILURE_REPORTS.clear()
+
+
+def pytest_runtest_logreport(report) -> None:
+    if report.failed:
+        category = "failed" if getattr(report, "when", "") == "call" else "error"
+        _FAILURE_REPORTS.append(_StashedFailure(category, report))
+
+
+def pytest_collectreport(report) -> None:
+    if report.failed:
+        _FAILURE_REPORTS.append(_StashedFailure("error", report))
+
+
+def _canonical_ascii(value: str) -> str:
+    r"""非 ASCII、C0、DEL、backslash を一意な ASCII 表現へ escape する。"""
+    rendered: list[str] = []
+    for char in value:
+        codepoint = ord(char)
+        if char == "\\":
+            rendered.append(r"\x5c")
+        elif 0x20 <= codepoint < 0x7f:
+            rendered.append(char)
+        elif codepoint <= 0xff:
+            rendered.append(f"\\x{codepoint:02x}")
+        elif codepoint <= 0xffff:
+            rendered.append(f"\\u{codepoint:04x}")
+        else:
+            rendered.append(f"\\U{codepoint:08x}")
+    return "".join(rendered)
+
+
+def _bounded_rendered_tail(value: str, max_bytes: int) -> tuple[str, int]:
+    """escape 後 byte 枠に収まる Unicode code point 境界の source tail を返す。"""
+    selected: list[tuple[str, str]] = []
+    used = 0
+    for char in reversed(value):
+        escaped = _canonical_ascii(char)
+        width = len(escaped.encode("ascii"))
+        if used + width > max_bytes:
+            break
+        selected.append((char, escaped))
+        used += width
+    selected.reverse()
+    return (
+        "".join(escaped for _char, escaped in selected),
+        len("".join(char for char, _escaped in selected).encode("utf-8")),
+    )
+
+
+def _render_failure_lines(value: str) -> str:
+    """論理 LF を物理行へ戻し、consumer が剥がさない prefix を全行へ付ける。"""
+    lines = value.split("\n")
+    if value.endswith("\n"):
+        lines.pop()
+    if not lines:
+        lines = [""]
+    rendered: list[str] = []
+    for line in lines:
+        escaped = _canonical_ascii(line)
+        if escaped.startswith("FAILED "):
+            escaped = "! " + escaped
+        rendered.append(f"> {escaped}\n")
+    return "".join(rendered)
+
+
+def _bounded_failure_excerpt_tail(value: str, max_bytes: int) -> tuple[str, int]:
+    """全物理行の frame を含む byte 枠に収まる source tail を返す。"""
+    selected_reversed: list[str] = []
+    retained_bytes = 0
+    # 空 source でも ``> \n`` を出す。末尾 LF はこの終端改行と共有できる。
+    used = len("> \n")
+    have_selected = False
+    first_line_prefix = ""
+    first_line_neutralized = False
+    for char in reversed(value):
+        if char == "\n":
+            width = len("\n> ") if have_selected else 0
+            next_prefix = ""
+            next_neutralized = False
+        else:
+            next_prefix = (char + first_line_prefix)[:len("FAILED ")]
+            next_neutralized = next_prefix == "FAILED "
+            width = len(_canonical_ascii(char).encode("ascii"))
+            if next_neutralized and not first_line_neutralized:
+                width += len("! ")
+            elif first_line_neutralized and not next_neutralized:
+                width -= len("! ")
+        if used + width > max_bytes:
+            break
+        selected_reversed.append(char)
+        retained_bytes += len(char.encode("utf-8"))
+        used += width
+        have_selected = True
+        first_line_prefix = next_prefix
+        first_line_neutralized = next_neutralized
+    selected_reversed.reverse()
+    selected = "".join(selected_reversed)
+    excerpt = _render_failure_lines(selected)
+    assert len(excerpt.encode("ascii")) == used
+    return excerpt, retained_bytes
+
+
+def _render_failure_excerpt(item: _FailureDigestItem) -> tuple[str, int]:
+    excerpt, retained_bytes = _bounded_failure_excerpt_tail(
+        item.source, _FAILURE_EXCERPT_MAX_BYTES,
+    )
+    assert len(excerpt.encode("ascii")) <= _FAILURE_EXCERPT_MAX_BYTES
+    return excerpt, retained_bytes
+
+
+def _render_nodeid(nodeid: str) -> tuple[str, int, int]:
+    source_bytes = len(nodeid.encode("utf-8"))
+    rendered, retained_bytes = _bounded_rendered_tail(
+        nodeid, _FAILURE_NODEID_DISPLAY_MAX_BYTES,
+    )
+    return rendered, source_bytes, source_bytes - retained_bytes
+
+
+def _item_sort_key(item: _FailureDigestItem) -> tuple[object, ...]:
+    return (-item.source_bytes, item.nodeid, item.when, item.sha256)
+
+
+def _stable_failure_order(
+    items: Sequence[_FailureDigestItem],
+) -> list[_FailureDigestItem]:
+    """xdist 到着順に依存しない error/failed・source representative 順。"""
+    ordered: list[_FailureDigestItem] = []
+    for category in ("error", "failed"):
+        category_items = sorted(
+            (item for item in items if item.category == category),
+            key=_item_sort_key,
+        )
+        representatives: list[_FailureDigestItem] = []
+        remaining: list[_FailureDigestItem] = []
+        seen_sources: set[str] = set()
+        for item in category_items:
+            if item.source_file not in seen_sources:
+                seen_sources.add(item.source_file)
+                representatives.append(item)
+            else:
+                remaining.append(item)
+        ordered.extend(sorted(representatives, key=_item_sort_key))
+        ordered.extend(sorted(remaining, key=_item_sort_key))
+    return ordered
+
+
+def _digest_items(stashed: Iterable[_StashedFailure]) -> list[_FailureDigestItem]:
+    items: list[_FailureDigestItem] = []
+    for stashed_failure in stashed:
+        report = stashed_failure.report
+        source = str(report.longreprtext)
+        source_raw = source.encode("utf-8")
+        items.append(_FailureDigestItem(
+            category=stashed_failure.category,
+            nodeid=str(report.nodeid),
+            when=str(getattr(report, "when", "collect")),
+            source=source,
+            source_bytes=len(source_raw),
+            sha256=hashlib.sha256(source_raw).hexdigest(),
+        ))
+    return _stable_failure_order(items)
+
+
+def _render_failure_block(
+    item: _FailureDigestItem, rank: int,
+) -> tuple[str, int]:
+    excerpt, retained_bytes = _render_failure_excerpt(item)
+    nodeid, nodeid_bytes, nodeid_omitted_bytes = _render_nodeid(item.nodeid)
+    header = (
+        f"IZANAGI_FAILURE rank={rank} category={item.category} when={_canonical_ascii(item.when)} "
+        f"nodeid={json.dumps(nodeid, ensure_ascii=True, separators=(',', ':'))} "
+        f"nodeid_bytes={nodeid_bytes} nodeid_omitted_bytes={nodeid_omitted_bytes} "
+        f"source_bytes={item.source_bytes} retained_bytes={retained_bytes} "
+        f"omitted_bytes={item.source_bytes - retained_bytes} "
+        f"rendered_excerpt_bytes={len(excerpt.encode('ascii'))} sha256={item.sha256}\n"
+    )
+    block = (
+        header
+        + f"--- IZANAGI FAILURE EXCERPT rank={rank} BEGIN ---\n"
+        + excerpt
+        + f"--- IZANAGI FAILURE EXCERPT rank={rank} END ---\n"
+    )
+    if len(block.encode("ascii")) > _FAILURE_ENTRY_MAX_BYTES:
+        raise ValueError("failure digest entry が byte 予算を超えました")
+    return block, retained_bytes
+
+
+def _omitted_manifest_sha256(items: Sequence[_FailureDigestItem]) -> str:
+    if not items:
+        return "-"
+    ordered = sorted(
+        items,
+        key=lambda item: (
+            item.nodeid, item.when, item.source_bytes, item.sha256,
+        ),
+    )
+    canonical = "".join(
+        json.dumps(
+            {
+                "nodeid": item.nodeid,
+                "when": item.when,
+                "source_bytes": item.source_bytes,
+                "sha256": item.sha256,
+            },
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+        for item in ordered
+    )
+    return hashlib.sha256(canonical.encode("ascii")).hexdigest()
+
+
+def _compose_failure_digest(
+    items: Sequence[_FailureDigestItem],
+    selected_count: int,
+    budget_bytes: int,
+    rendered_blocks: Sequence[str],
+    retained_bytes: int,
+    omitted_manifest: str,
+) -> str:
+    omitted = items[selected_count:]
+    source_bytes = sum(item.source_bytes for item in items)
+    failed = sum(item.category == "failed" for item in items)
+    errors = len(items) - failed
+    rendered_bytes = -1
+    for _attempt in range(10):
+        account = (
+            "IZANAGI_FAILURE_DIGEST_ACCOUNT "
+            f"failures={len(items)} failed={failed} errors={errors} "
+            f"selected={selected_count} omitted_failures={len(omitted)} "
+            f"source_bytes={source_bytes} retained_bytes={retained_bytes} "
+            f"omitted_bytes={source_bytes - retained_bytes} budget_bytes={budget_bytes} "
+            f"rendered_bytes={rendered_bytes} "
+            f"omitted_manifest_sha256={omitted_manifest}\n"
+        )
+        digest = (
+            _FAILURE_DIGEST_START + "\n"
+            + "".join(rendered_blocks)
+            + account
+            + _FAILURE_DIGEST_END + "\n"
+        )
+        actual_bytes = len(digest.encode("ascii"))
+        if actual_bytes == rendered_bytes:
+            return digest
+        rendered_bytes = actual_bytes
+    raise RuntimeError("failure digest rendered_bytes が収束しません")
+
+
+def _render_failure_digest(
+    items: Sequence[_FailureDigestItem], selected_count: int, budget_bytes: int,
+) -> str:
+    rendered_blocks: list[str] = []
+    retained_bytes = 0
+    for rank, item in enumerate(items[:selected_count], start=1):
+        block, retained = _render_failure_block(item, rank)
+        rendered_blocks.append(block)
+        retained_bytes += retained
+    return _compose_failure_digest(
+        items,
+        selected_count,
+        budget_bytes,
+        rendered_blocks,
+        retained_bytes,
+        _omitted_manifest_sha256(items[selected_count:]),
+    )
+
+
+def _build_failure_digest(
+    stashed: Sequence[_StashedFailure],
+    budget_bytes: int,
+    *,
+    block_renderer: Callable[[_FailureDigestItem, int], tuple[str, int]] = _render_failure_block,
+    manifest_renderer: Callable[
+        [Sequence[_FailureDigestItem]], str
+    ] = _omitted_manifest_sha256,
+) -> str:
+    items = _digest_items(stashed)
+    empty_manifest = _FAILURE_MANIFEST_PLACEHOLDER if items else "-"
+    empty = _compose_failure_digest(
+        items, 0, budget_bytes, (), 0, empty_manifest,
+    )
+    if len(empty.encode("ascii")) > _FAILURE_FRAME_ACCOUNT_RESERVE_BYTES:
+        raise ValueError("failure digest frame/account 予約を超えました")
+
+    best_selected_count = 0
+    best_retained_bytes = 0
+    rendered_blocks: list[str] = []
+    retained_bytes = 0
+    for rank, item in enumerate(items, start=1):
+        block, retained = block_renderer(item, rank)
+        rendered_blocks.append(block)
+        retained_bytes += retained
+        # omitted manifest は実 hash と同じ 64 bytes の placeholder で予算を
+        # 判定する。omitted なしの `-` は既存表現を保つ。
+        omitted_manifest = (
+            _FAILURE_MANIFEST_PLACEHOLDER if rank < len(items) else "-"
+        )
+        candidate = _compose_failure_digest(
+            items,
+            rank,
+            budget_bytes,
+            rendered_blocks,
+            retained_bytes,
+            omitted_manifest,
+        )
+        if len(candidate.encode("ascii")) > budget_bytes:
+            break
+        best_selected_count = rank
+        best_retained_bytes = retained_bytes
+
+    omitted_manifest = manifest_renderer(items[best_selected_count:])
+    return _compose_failure_digest(
+        items,
+        best_selected_count,
+        budget_bytes,
+        rendered_blocks[:best_selected_count],
+        best_retained_bytes,
+        omitted_manifest,
+    )
+
+
+def _load_failure_digest_budget() -> int:
+    from tools.pegasus.dispatch_compute import DEFAULT_FAILURE_RELAY_LIMIT_BYTES
+
+    return (
+        DEFAULT_FAILURE_RELAY_LIMIT_BYTES
+        * _FAILURE_DIGEST_NUMERATOR
+        // _FAILURE_DIGEST_DENOMINATOR
+    )
+
+
+def _write_failure_digest(text: str) -> None:
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
+
+def _write_failure_digest_error(writer: Callable[[str], None], exc: Exception) -> None:
+    error_line = (
+        "=== IZANAGI FAILURE DIGEST v1 ERROR exception="
+        f"{_canonical_ascii(type(exc).__name__)} ===\n"
+    )
+    try:
+        writer(error_line)
+    except Exception:
+        pass
+
+
+def _emit_failure_digest(
+    stashed: Sequence[_StashedFailure],
+    *,
+    budget_loader: Callable[[], int] = _load_failure_digest_budget,
+    builder: Callable[[Sequence[_StashedFailure], int], str] = _build_failure_digest,
+    writer: Callable[[str], None] = _write_failure_digest,
+) -> None:
+    # 緑走行では lazy import・builder・writer のすべてを呼ばない。
+    if not stashed:
+        return
+    try:
+        budget_bytes = budget_loader()
+    except ModuleNotFoundError as exc:
+        if exc.name == "tools":
+            return
+        _write_failure_digest_error(writer, exc)
+        return
+    except ImportError as exc:
+        _write_failure_digest_error(writer, exc)
+        return
+    except Exception as exc:
+        _write_failure_digest_error(writer, exc)
+        return
+    try:
+        writer(builder(stashed, budget_bytes))
+    except Exception as exc:
+        # digest は表示専用。通常例外で pytest の元 exit code を変えない。
+        _write_failure_digest_error(writer, exc)
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_unconfigure(config):
+    inner_exception: BaseException | None = None
+    try:
+        yield
+    except BaseException as exc:
+        inner_exception = exc
+        raise
+    finally:
+        stashed = tuple(_FAILURE_REPORTS)
+        _FAILURE_REPORTS.clear()
+        # finally 内で return すると inner hook の例外を StopIteration で消すため、
+        # worker/green とも条件分岐だけで通過する。
+        if not hasattr(config, "workerinput") and stashed:
+            if inner_exception is None:
+                _emit_failure_digest(stashed)
+            else:
+                # inner hook の元例外を最優先する。digest は試みるが、同時に
+                # emitter が投げた BaseException も含めて元例外を置換させない。
+                try:
+                    _emit_failure_digest(stashed)
+                except BaseException:
+                    pass

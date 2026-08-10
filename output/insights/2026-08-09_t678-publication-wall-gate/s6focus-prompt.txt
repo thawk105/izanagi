@@ -1,0 +1,49 @@
+あなたは izanagi プロジェクトの dev-wave 段 6 の焦点再レビュアーです。
+これは**防御目的のレビュー**です。fix 後の差分を land 前に攻撃します。出力は日本語で書いてください。
+
+## 前提資料 (必読)
+次のファイルを読んでください。読めない場合は推測せず、その旨だけを書いて直ちに停止してください。
+
+- 親裁定 (受入基準の正本): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s4-adjudication.md
+- 段 6 レビュー R1: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s6-R1.md
+- 段 6 レビュー R2: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s6-R2.md
+- fix 子の報告: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s6fix.md
+- fix 後のテスト差分: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t678-publication-wall-gate/s6-final.patch
+- 変更後の実物 (作業ディレクトリ、未 commit): tools/codex_worker_launch.py、
+  orchestrator/tests/test_codex_worker_launch.py
+
+## 親が実測した事実 (前提として使ってよい)
+`python3 tools/run_tests.py orchestrator/tests/test_codex_worker_launch.py --force-dispatch`
+= **77 passed** (fix 後、計算ノード)。
+
+## 依頼
+次の 2 点だけを判定してください。範囲を広げないでください。
+
+1. **所見の closed 判定。** R2 の MF-1 (N3 の検出力) と R1 の nit 1 (例外時の temp 所有契約) が
+   fix で本当に閉じたか。各所見について **closed / partial / regressed** を根拠 (file:line) 付きで
+   判定してください。**表なしで閉じたと判定しないでください。**
+   特に次を疑ってください。
+   - `_write_json_temp` の wrapper が receipt path 以外を取りこぼしていないか、
+     逆に receipt 以外を数え込んでいないか。
+   - inode 同一性の assert が、変更前 production で**意味のある理由**で赤になるか
+     (`AttributeError` 等の観測器起因でなく、回数不一致 / inode 不一致で落ちるか)。
+   - `os.link` の失敗注入が receipt path に正しく限定され、production helper の
+     例外時 cleanup を実際に通っているか。恒真になっていないか。
+2. **回帰の有無。** fix が既存 assert の反転・緩和・skip・削除、production の fail-open 緩和、
+   時間予算の拡大を持ち込んでいないか。持ち込んでいれば file:line で示してください。
+
+## 追加で確認してほしいこと (変異の予測)
+親裁定 §4 の事前登録変異 MT1〜MT5 について、fix 後のテストで
+「どの node がどの理由で赤になるか」を予測し、**SURVIVED になりそうな変異**があれば
+その理由を書いてください。特に MT2 (staged temp を捨てて公開時に新 temp を書く) が
+意味のある理由で kill されるかを判定してください。
+
+## 制約
+- read-only sandbox です。テストを実走できません。緑・赤を実測として主張しないでください。
+- 新しい scope を持ち込まないでください。S-A〜S-G と R1 backlog 1 は scope 外です。
+- must-fix には「直さない場合に成果物 (receipt の受理判断・output の実在・rc) のどの値が
+  どう変わるか」を 1 行で必ず書いてください。書けないものは nit か backlog にしてください。
+
+## 出力形式
+節見出し付き Markdown。所見対応表を必ず含めること。最後に必ず `## 総括` 節を置き、
+残 must-fix 件数と GO / 条件付き GO / NO-GO を 10 行以内で書いてください。

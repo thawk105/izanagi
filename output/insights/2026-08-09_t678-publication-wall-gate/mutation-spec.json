@@ -1,0 +1,75 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "MT1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "                staged_receipt = _stage_receipt_write(args.receipt, receipt)\n                _latch_final_job_limit(\n                    args, attempts, job_started_ns=started_ns\n                )\n                if not attempts[-1][\"accepted\"]:\n",
+          "new": "                staged_receipt = _stage_receipt_write(args.receipt, receipt)\n                if not attempts[-1][\"accepted\"]:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    return _write_json_temp(path, receipt)\n",
+          "new": "    discarded = _write_json_temp(path, receipt)\n    os.unlink(discarded)\n    return _write_json_temp(path, receipt)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_accepted_publication_reuses_the_staged_receipt_temp"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "                    args.output_file.unlink()\n                    _fsync_parent(args.output_file)\n",
+          "new": "                    _fsync_parent(args.output_file)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MT4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "                    receipt = _receipt(\n                        args,\n                        attempts=attempts,\n                        job_started_ns=started_ns,\n                        codex_path=codex_path,\n                        codex_sha256=codex_sha256,\n                        codex_version=codex_version,\n                    )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

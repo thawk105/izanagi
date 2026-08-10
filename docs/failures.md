@@ -580,6 +580,21 @@
   使う射影関数を通して作る。** 手組みの「それらしい mapping」は shape 拒否と値拒否を区別できず、
   gate が「必ず落ちる」ように見える。F29 の再発検知行 (レンズに「親の実測は実差分を
   モデル化しているか」を含める) は今回も設計どおり機能した
+
+- **再発: 2026-08-09** ([T-673] wave)。AST 構造検査 (案 C1) の偽陽性率を測る負制御で、
+  「変数 rename は意味保存だから、これで赤になるなら偽陽性だ」という命題を立てながら、
+  実際に測ったのは **loop 側の `changed` だけを `pending` に書き換え、定義側
+  (`changed: list[...] = []`、`changed.append(...)`、`if not changed:`) を残した変更**だった。
+  これは `NameError` になる壊れたコードであり、意味保存 refactor ではない。
+  測定自体は正確だったが、**測定対象が命題と違っていた**という F29 の型そのものである。
+  検出は段 6 の焦点再レビュー (codex) で、親が定義側も含めて正しく rename して測り直した。
+  **結論は変わらず** C1 は依然赤で、「意味保存 refactor 3/3 で誤検出」は維持された。
+  過去 2 回の再発と異なり結論が覆らなかったが、覆らなかったのは結果論であり、
+  対照が命題を模していなかった事実は同じである。恒久対応は既存のまま
+  (「何を模擬したか・実差分との差を書く」)。本件が足す再発検知は、
+  **意味保存を主張する対照は、その対照自体が壊れていないこと (import・名前解決が通ること) を
+  先に確かめる**である。同 wave では無害な対照 (コメント行の追加のみ) を 1 本置き、
+  検査が闇雲に赤くならないことを同時に示した。
 ### F30. 凍結成果物を触る wave で `FROZEN_MANIFEST` を見落とした [手順漏れ]
 
 - 事象: 同 wave で、S-1 成果物の bytes を変える設計を検討しながら、
@@ -856,6 +871,22 @@
   見て緑と誤読しかけた。dispatch の `result.json` の `child_rc=1` を突き合わせて実測前に検出し、
   偽緑の記録には至っていない (near miss)。以後の受入・変異走行は rc をパイプに通さず
   ファイルへ直接取得した。
+
+- **再発: 2026-08-09 (3 例が同日・独立)** — [T-139] R4 probe wave の親が
+  `check_ai_provenance.py 2>&1 | tail -5; echo "rc=$?"` で `tail` の rc を読み、
+  **22 commit を形式違反のまま main へ land**した。[T-659] の親は `| tail -2` で末尾 2 行だけを
+  見て緑と誤判定し 1 件 land。t316 design の親は `| grep -E … | head -1` で、grep がたまたま
+  件数行に当たって検出した (rc では捕まえていない)。`DW-O17` は既に単独 rc を要求しており
+  規約の不足ではなく遵守漏れだが、**文章による注意喚起は 3 例とも防げていない**。
+  ユーザー裁定 (2026-08-09、rulings-inbox `2026-08-09-t659-provenance-and-f37-rulings.md`) により
+  **機械強制へ移した** — `tools/dev_wave_land.py` が ff-only を行う land でだけ全史 provenance 監査を
+  自ら走らせ、赤なら `RC_PROVENANCE = 29` で拒否する (D254)。
+  逃がし道は作らない。**設計は敵対検証 4 本 (段 3 の 2 レンズ、段 6 の 2 レビュー) が全部 NO-GO を
+  返したため 2 度組み直した。**親の当初案は (i) 監査を lock 内に置き `lock-busy` の即時性を壊す、
+  (ii) 38.3 秒という単発観測を lock 予算の根拠にする (実際は dispatch 経路で queue 900s +
+  walltime 2400s + grace 300s を含みうる)、(iii)「active fold recovery は新規 commit を 1 つも
+  admit しない」という**偽の署名**を書く、の 3 点で誤っていた。逐語は
+  `output/insights/2026-08-09_t139-f37-land-gate/`。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -1523,6 +1554,52 @@
   となり、テスト結果を得られなかった。`--force-dispatch` を付けた 2 回目で 8 passed を得た。
   **F57 の再現性判定を bounded local の単独再走で行うと、判定そのものが基盤側の理由で空振りする。**
   恒久対応は F57 既載の失敗 artifact 保存による原因分離 ([T-190]) のままで、本 wave では変えない。
+
+- **再発: 2026-08-09 (「今コケているテストと検査を全部直す」依頼の全数調査)。** 48 worker の全走
+  (request `896686`、Elapse 1463 秒) で
+  `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  が 1 件落ちた (**1 failed / 7569 passed / 20 skipped**)。既載の [T-459] / [T-522] / [T-639] /
+  [T-656] / [T-664] と**同一 nodeid・同一 producer・同一原因**で、
+  `git -c core.useReplaceRefs=false cat-file --batch-check` の 15 秒 timeout (`returncode -9`) である。
+  同 file の単独再走は 8 passed / 40.48 秒 / rc=0 (request `896706`) で再現しない。
+  本 wave は base main `bcda1c02` に実装差分ゼロで、当該コードへ到達しえない。
+  **新しい情報は 3 点。**
+  (i) 本 wave は F57 の再発を偶発として記録するのではなく、**[T-553] の恒久対応を実装しに来て
+  実装せずに終端した**。段 2 プランと段 3・段 3v2 の敵対 4 レンズが 5 案を評価し、
+  chunk 分割案・timeout 引数案・テスト側再試行案の 3 案が棄却された。逐語は
+  `output/insights/2026-08-09_t553-s8c-git-timeout/`。
+  (ii) **テスト側での有限回再試行 (案 E) は規律 2 違反である**とレンズ C が判定した。
+  「production 既定での一発成功」という現に成立している断言を「有限回中一成功」へ緩めるうえ、
+  再試行のたびに OS/git cache が温まるため「恒常的劣化なら全試行が落ちる」という分界線が成立しない。
+  **F57 の族に対して「テストを再試行で緑にする」対応を今後採らない根拠**として記録する。
+  (iii) 実効性のある唯一の案 (要求数から内部算出する上限付き比例予算) は、
+  `prepare_revision` (`s8c_preregistration.py:1688` → `:1713-1725`) 経由で**凍結成果物の
+  producer write path に到達する**。旧 `git-timeout` が通れば旧来作られなかった generation が
+  作られうるため、DW-O09 / DW-O10 を成立として扱う必要がある。この事実は段 1 brief が
+  「不成立」と誤って宣言しており、段 3 レンズ B が blocker として指摘して訂正された。
+  恒久対応は [T-553] のままで本 wave では変えない。要裁定 R1〜R3 は上記 insights の `package.md`。
+- **再発: 2026-08-09 (同 wave の land 前受入、同日 2 走目)。** 48 worker の全走
+  (Elapse 1345 秒) で `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  と `test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight@real_repo`
+  が**同時に**落ちた (**2 failed / 7568 passed / 20 skipped**)。前者は
+  `cat-file --batch-check` の 15 秒 timeout、後者は `ruleops: git-timeout: git log timeout` で、
+  producer はどちらも git である。2 file の単独再走は **99 passed / 83.50 秒 / rc=0** で再現しない。
+  本 wave の差分は docs のみ (spool fragment と insights) で当該コードへ到達しえない。
+  2026-08-08 ([T-639]) に続く**同一走行 2 node 同時**の 2 例目である。
+  **新しい情報は、同一 wave・同一 tip 系列の連続 2 走で 1 走目 1 件・2 走目 2 件と、
+  発生件数が走行ごとに揺れること**で、[T-648] が記録した「顕在化する node 数は揺れる」を
+  同一 wave 内の対照で裏付ける。恒久対応は [T-553] のままで本 wave では変えない。
+- **再発: 2026-08-09 (同 wave の land 対象 tip の受入、同日 3 走目)。** tip `f8f3ac63` の全走
+  (request `897098`、Elapse 1408 秒) で
+  `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  が再び 1 件落ちた (**1 failed / 7614 passed / 20 skipped**)。原因は既載と同一である。
+  **新しい情報は、同一 wave の連続 3 走がすべて当該 node で赤になったこと**である。
+  台帳既載の再発はいずれも「1 走で当たり、次走または単独走で緑」であり、
+  **3 走連続は初めて**である。同日に並行 wave t682 は緑 (7615 passed / 20 skipped) を得ているため
+  決定的ではないが、「再走すれば緑が取れる」という運用上の前提が崩れつつあることを示す。
+  この事実は裁定 R1 の緊急度を上げる — 恒久対応が入るまで、land 前受入の緑は
+  走行回数に依存する賭けになる。本 wave は `DW-O18` により docs のみの差分へ帰属させず、
+  単独再走の緑 (99 passed / 83.50 秒 / rc=0) を非再現の証拠として land する。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -4229,3 +4306,274 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   診断 meta-test は起こりえない期待値を渡し、不一致の成立を無条件にする。
 - 再発検知: 時間予算を縮めた probe で診断 meta-test の赤がゼロであること
   (fix 後の同 probe は `DID NOT RAISE` 0 件、診断 meta-test の赤 0 件)。
+
+### F176. 実走前に凍結した採点器の decision 抽出が、正例 1 run を誤って post-treatment に落とした [テスト代表性] [計測汚染]
+
+- 事象: [T-181] 認証再走 (2026-08-09) の 10 run のうち s03 (POS / max) だけが
+  `score_run` で rc=23 `score: summary does not start with one GO/NO-GO decision` になり、
+  `failure_class="post-treatment"` として primary の k 計上から外れた。結果、認証済み
+  `aggregate.decision` は `max=2/3, high=3/3` により
+  `quality_decision="benchmarkまたはmax基準が不安定"` を返した。
+  **両読者 (親 + 独立第二読者) は s03 の R-1 を true と裁定しており、10/10 一致している。**
+  s03 の総括は完結し 500 bytes を超え、結論も一意 (`NO-GO`) である
+- 根本原因: decision 検査が二段構えで、第 1 段 `decision_match` (総括の最初の一文が単一
+  GO/NO-GO) は**通過**したが、第 2 段の本文全体抽出
+  `(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z一-龯ぁ-んァ-ヶ-])` が `GO` 直後のひらがなを除外するため、
+  総括を「**NO-GO です。**」で始めた s03 は抽出 0 件となり `len(distinct)!=1` に該当した。
+  第 2 段の意図は「GO と NO-GO の併記による曖昧さ」の検出であり、**抽出 0 件は曖昧さではない**。
+  事前登録が義務づけた採点器 control は歴史 `focus1.md` (正例) / `focus2.md` (負例) の 2 本だけで、
+  どちらも「`NO-GO。`」表記だったため、この分岐は control を通っていなかった。
+  2026-07-30 の 10 run も全て「`NO-GO。`」「`GO。`」で、欠陥は 1 年分の運用で潜在したまま初発火した
+- 恒久対応: 未実施。**実走後に採点器を直すと F61 が再発する** (凍結装置が変わり本走の replay 認証が
+  失われる) ため、本 wave では直していない。是正と再走要否は
+  [T-685] でユーザー裁定へ返す。
+  暫定の防壁は `output/insights/2026-08-09_t181-certified-rerun/README.md` の
+  「機械 `decision` 行は採点器の欠陥を含んでいる」節であり、当該行の実質的引用を禁じている
+- 再発検知: 是正時に、同義だが表記の異なる決定文
+  (`NO-GO。` / `NO-GO です。` / `**NO-GO**です。` / `結論は NO-GO です。`) を采点器の正例 control へ
+  追加し、抽出 0 件を「曖昧」と誤判定しないことを単独 kill 可能にする。
+  F60 と同型 (control が実運用の表記多様性を覆っていない) であり、**独立 2 例目**である
+
+### F177. 必須 note の実質性を拒否リストだけで守ろうとし、不可視文字で名目化できた [恒真ゲート]
+
+- 事象: [T-139] 裁定は known-violation の追加 kind に「なぜ内容が正確で綴りだけの誤りなのかを
+  1 件ずつ書く」note を必須とした。これを `not note.strip()` と、Unicode category
+  `Cc` / `Cf` / `Zl` / `Zp` および zero-width 4 文字の**拒否リスト**で実装したところ、
+  U+034F COMBINING GRAPHEME JOINER と U+FE0F VARIATION SELECTOR-16 (ともに `Mn`)、
+  U+3164 HANGUL FILLER (`Lo`) だけからなる note が registry を通った。
+  視覚上ほぼ空の note で、説明のない entry を既知違反として抑止できる状態だった。
+  段 6 の焦点再レビューが実測で示すまで、拒否リストを 2 度広げても閉じなかった。
+- 根本原因: 「望ましくないものを列挙して除く」形で実質性を守ろうとしたこと。
+  実質性は正条件 (可視の説明文字が最低 1 つある) でしか表せず、拒否リストは
+  Unicode の未列挙領域が常に残るため原理的に閉じない。`Lo` (Letter) に属する filler が
+  あるため「category が Letter なら可視」という素朴な正条件も不十分で、
+  default-ignorable 相当の明示除外が要る。
+- 恒久対応: `tools/check_ai_provenance.py` の `_contains_descriptive_note_character` —
+  category が `L/N/P/S` で始まり、default-ignorable 相当の明示集合に含まれない文字を
+  最低 1 つ要求する fails-closed 検査。拒否リストは縮小せず併存させる。
+- 再発検知: `orchestrator/tests/test_check_ai_provenance.py` の
+  `test_registry_rejects_non_descriptive_required_note_rc2` (U+034F / U+FE0F / U+3164 の負例) と
+  `test_registry_accepts_visible_character_mixed_with_non_descriptive_characters`
+  (過剰拒否を検出する正例)。変異 M7 / M8 で両方向の検出力を実測済み (ともに KILLED)。
+
+### F178. 新規テストが repo 作業ツリーへ一時 test file を作り、tree 安定性 guard と競合した [手順漏れ]
+
+- 事象: 段 6 の fix 1 巡目後、親の組み合わせ実走で
+  `test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root`
+  が赤になった (1 failed, 25 passed)。新規テストが subprocess pytest 用の一時 test file を
+  `orchestrator/tests/.failure-digest-states-<rand>/` へ作っており、guard の観測窓に
+  未追跡ファイルとして写り込んだ。
+- 根本原因: subprocess pytest に**実 conftest の自動 discovery を通す**という要件を、
+  一時 test tree を `orchestrator/tests/` 配下へ置くことで満たしていた。
+  作ってすぐ消していたため単独走行では通り、**xdist 並列で guard と時間が重なったときだけ赤**になる。
+  fix 前の実装も同じ在処に作っており、偶然通っていた潜在フレークが顕在化した。
+- 恒久対応: 一時 test tree を `tmp_path` 配下へ移し、実 `conftest.py` を一時 rootdir へ
+  コピーして自動 discovery を満たす。全 subprocess に `PYTHONDONTWRITEBYTECODE=1` を設定し、
+  一時 root が repo 配下でないことを assert する
+  (`orchestrator/tests/test_pytest_failure_digest.py` の E2E / 終了形 fixture)。
+  既存の repo tree 安定性 guard がこの型を fail-closed で検出する。
+- 再発検知: 実走の直前・直後で `git status --porcelain` が完全一致することを子の完了条件に入れ、
+  親は**単一ファイルではなく guard を含む組み合わせ**で実走する。
+  単一ファイル実走の緑は本型を検出しない (今回、子は 14 passed / 26 passed を報告していたが
+  組み合わせ実走で初めて赤が出た)。
+
+### F179. 受入 lease に待ち行列が無く、待ち周期が短い側が有利だった [手順漏れ] [コンテキスト浪費]
+
+- 事象: 並行 dev-wave が受入 lease を待つとき、待ち周期が短い側が release 直後の競争に勝つ。
+  同日 2026-08-09 に独立 2 例 — [T-648] wave が 2 時間 15 分 (holder 5 回交替、60 秒周期が
+  90 分空振り)、[T-671] wave が約 4 時間 (holder 5 回交替、120 秒周期の待ち手が 2 度空振りし、
+  45 秒周期へ詰めて取得)。待つ側は local main を都度取り込み直すため、待ち時間ぶん検査と
+  base digest の再基準化が増える。
+- 根本原因: D239 の lease は `O_CREAT|O_EXCL` の 1 発勝負だけで、**待機者が状態としてどこにも
+  残らない**。本 wave が既存 CLI だけで再現した — A が取得、B が `held`、A が release、
+  直後に来た C が `acquired` を取り、lease directory には `acceptance.lease` 以外に
+  1 byte も残っていなかった。
+- 恒久対応: D253 の待ち札方式待ち行列
+  (`tools/wave_land_window.py` の `_queue_head` / `_ensure_ticket` / `_drop_ticket_best_effort`)。
+  運用契約は `docs/pegasus-runbook.md` §7.3 に「30〜120 秒周期の loop」「待ち札は 300 秒で失効」
+  として明記した。
+- 再発検知: `orchestrator/tests/test_wave_land_window.py` の
+  `test_fifo_oldest_waiter_acquires_before_fast_newcomer` ほか。変異 matrix 10 件で
+  SURVIVED 0 を実測済み (`output/insights/2026-08-09_t684-lease-fifo/mutation-ledger.json`)。
+
+### F180. 待ち行列の初版は先頭が自分で全 wave を止められた [恒真ゲート] [手順漏れ]
+
+- 事象: 段 2 プランと段 5 実装は、先頭の待ち札を持つ wave が lease を作れないまま heartbeat を
+  続けられる形になっていた。この wave は毎回先頭のまま、後続は永久に `queued` を返され、
+  待ち札 TTL でも回復しない。**不公平を直すはずの機構が、より重い停止を作っていた。**
+  段 5 実装では別経路も成立した — 自分の待ち札を登録できない wave が `queued` を返し続け、
+  一度も従来の競争へ落ちない。
+- 根本原因: 「異常時は縮退する」という原則を段 2 プランが**待ち札 1 枚の異常にだけ**適用し、
+  自分が列に並べない場合と、先頭が取得に失敗し続ける場合に適用していなかった。
+  段 5 実装の `_drop_ticket_best_effort` は flock 取得に依存し、失敗を
+  `except Exception: pass` で握り潰していたため、生きた先頭札を残したまま `unavailable` を返せた。
+- 恒久対応: D253 の不変条件「非 `acquired` を返す `claim` は
+  自分が先頭のまま生きた待ち札を残さない」と、縮退の発火条件を 3 つに明文化したこと。
+  待ち札の削除は flock 非依存にし、成否を返す形にした。
+- 再発検知: `test_head_that_cannot_create_lease_drops_own_ticket` と、変異 M4
+  (V1 の cleanup を外す) が KILLED であること。段 3・段 6 とも敵対レビュー 2 本を独立レンズで
+  回し、いずれも NO-GO を返してこの経路を見つけた — **レビューを 1 本に減らしていたら
+  land していた**。
+
+### F181. dispatch の範囲記法が注記・URL の `~` でも展開し、読了 edge を捏造していた [恒真ゲート]
+
+- 事象: `tools/check_docs.py` の dispatch 表 parser は、隣接する 2 つの節 token の間に
+  `〜` または `~` が**一文字でも**あれば範囲記法とみなして中間の節をすべて展開していた。
+  そのため `` `DW-G01`（説明〜補足）, `DW-G05` `` や `` `DW-G01`（https://x/~u）, `DW-G05` `` のように、
+  人間には 2 節の列挙にしか見えない表記でも、checker は `DW-G02`〜`DW-G04` を
+  **読了済み edge として生成**した。必須参照集合の充足検査はその捏造された edge で緑になる。
+- 根本原因: 範囲判定が `re.search(r"[〜~]", between)` の部分一致で、
+  token 間文字列全体に対する完全一致でなかった。範囲記法は「区切り」であって
+  「どこかに現れる文字」ではない、という区別が実装に落ちていなかった。
+- 恒久対応: 範囲 delimiter を `re.fullmatch(r"[ \t]*〜[ \t]*", between)` 相当の完全一致に限定した
+  (D255 の両方向照合の一部)。
+  `docs/dev-wave/**` の層予算はこの edge 集合から導出されるため、捏造は予算値も歪めていた。
+- 再発検知: `orchestrator/tests/test_check_docs.py` の負例
+  `test_dev_wave_dispatch_rejects_range_marker_inside_annotation` と
+  `test_dev_wave_dispatch_rejects_ascii_tilde_inside_url`、および正規の
+  `` `DW-O01`〜`DW-O06` `` が引き続き展開されることを固定する正例。
+  いずれも fails-closed のテストで、変異 matrix の M04 が同 node を KILL する。
+
+### F182. wave の fragment 更新が他所有の裁定待ちを消した [手順漏れ]
+
+- 事象: [T-682] wave の worklog fragment が [T-139] 項を全置換し、並行して返されていた
+  P1 裁定待ち (R4 probe の Q1〜Q5、再提出) を active 項から消して P2 へ降格させた。
+  fold の 更新 は追記でなく項の置換であるため、直前状態を写さない更新は他 wave の
+  pending を黙って落とす。/rulings の照合 (前回 pending 集合との差分) が検出した。
+- 根本原因: 更新 fragment を書く際に対象項の現本文を読まず、自 wave の関心事だけで
+  本文を再構成した。base digest 検査は「古い本文からの更新」を拒むだけで、
+  「内容を狭める更新」は機械検出されない。
+- 恒久対応: `.claude/commands/rulings.md` 収集 1 の退行検査 (裁定なしに待ちが消えた・
+  降格した ID は上書き退行を疑い原文 entry へ遡る。同 commit で追加)。
+- 再発検知: /rulings 毎実行の pending 差分照合。
+
+### F183. 曖昧さ検出が同じ lookahead で無力化され、相反する総括を 13/18 受理していた [恒真ゲート] [テスト代表性]
+
+- 事象: `tools/codex_reasoning_ab.py` の `score_text` は「総括に GO と NO-GO が併記されていたら
+  拒否する」二段目を持つが、抽出正規表現の lookahead
+  `(?![A-Za-z一-龯ぁ-んァ-ヶ-])` が決定語の直後のひらがなを除外するため、
+  2 つ目の決定が `NO-GOです。` `NO-GOでもある。` のように日本語で続く限り数えられない。
+  親が [T-685] wave で実測したところ、相反・否定を含む 18 種のうち **13 種を valid として受理**していた
+  (`GO。しかしNO-GOでもある。` が `valid=True / decision=GO` になる等)。
+  F176 は同じ lookahead の**取りこぼし側 (false reject)** だけを記録しており、
+  この**受理側 (false accept)** は 1 年分の運用で一度も顕在化していなかった。
+- 根本原因: 同一の lookahead が「決定語の言及を数えない」ためにあり、
+  false reject と false accept の両方を同時に生んでいた。二段目は存在するが**発火しない恒真ゲート**
+  だった。事前登録された采点器 control が歴史 `focus1.md` / `focus2.md` の 2 本だけで、
+  どちらも単一決定の総括だったため、併記を突く負例が control に一件も無かった。
+- 恒久対応: `tools/codex_reasoning_ab.py` の `_DECISION_ASSERTION_RE` と
+  `score_text` の `claimed_decisions = extracted_decisions | asserted_decisions` —
+  抽出は据え置いたまま、「文末の断定」「〜と判断/結論/裁定」「〜の結論」の 3 枝からなる
+  閉じた断定形を和集合に足し、冒頭決定との完全一致を要求する fails-closed 判定。
+  同 commit で F176 の恒久対応 (`decision` 抽出 0 件を曖昧と誤判定しない) も実装した。
+- 再発検知: `orchestrator/tests/test_codex_reasoning_ab.py` の
+  `test_f176_rejects_conflicting_decision_claims` (相反 14 種) と
+  `test_f176_preserves_legitimate_opposite_mentions` (過剰拒否を検出する正例 10 文)。
+  変異 11 件を実装前に事前登録して本走し、11/11 検出・SURVIVED 0 を
+  `output/insights/2026-08-09_t685-scorer-erratum-mutation-ledger.json` へ凍結した。
+
+### F184. 変異 spec を裁定表と同期させずに書き換え、実走前検査で初めて気づいた [手順漏れ]
+
+- 事象: [T-685] wave の親が、段 6 裁定に載せた変異表 v2 を更新しないまま
+  `mutation-spec.json` だけを書き換えた (1 件を落として番号を詰め、裁定に無い変異を 1 件足した)。
+  焦点再レビューが「spec は裁定表と一致しない」と指摘し、続く親の実走前検査で
+  さらに 2 件の欠陥 (削除済み行を anchor にした M05、期待 node を反転させず生存する M12) が出た。
+  harness は M05 で `anchor count=0` を検出して fail-closed に中断した (実装は無傷)。
+- 根本原因: 事前登録 (`DW-M01`) は「集合と意図」を実装前に固定するものだが、
+  逐語の置換文字列は実装後にしか書けない。この**二段階性**を手順として明示していないため、
+  spec 作成時に裁定表へ書き戻す手が抜けた。加えて、fix 2 巡目が anchor 行を削除したのに
+  spec を追随させなかった。
+- 恒久対応: 実走前に spec を機械検査する手順を親の義務に加えた —
+  各 `old` が source 中にちょうど 1 回現れることと、**memory 上で変異させて期待入力の判定が
+  実際に反転すること**を全数で確かめてから本走する。[T-685] wave はこれで 2 件を実走前に潰した。
+  手順の逐語は `docs/dev-wave/mutation.md` の `DW-M01` / `DW-M04` が既に要求している
+  「単一理由性をコードで確認する」の実施形である。
+- 再発検知: harness 自身の anchor 一意性検査 (`anchor count` の fail-closed 中断) が
+  第 1 層で、実走前の反転検査が第 2 層。生存する変異は本走の `summary.SURVIVED` に出る。
+
+### F185. 変異 spec の timeout を local 実測から決め、dispatch 経路の下限を割った [テスト代表性] [手順漏れ]
+
+- 事象: 変異 matrix が `mutation harness aborted: mutation record M03.artifact dispatch path
+  field が文字列でない` で中断した。`--resume` を 3 回繰り返しても同じ変異で止まり進捗ゼロ。
+  中断した dispatch dir には `receipt.json` も job 出力も無く、job が完走する前に打ち切られていた。
+- 根本原因: 親が実装子へ渡した所要見積りが**ログインノード local の 3.87 秒**で、
+  spec がそこから `timeout_seconds: 30` / `hang_timeout_seconds: 15` を決めた。
+  しかし runner は `--runner-mode dispatch` であり、**scheduler への投入・queue・ノード起動・
+  回収の往復だけで 21.8〜26.9 秒**かかる。台帳実測は baseline 21.761 秒、M01 26.855 秒、
+  M02 26.923 秒。`hang_timeout_seconds = 15` は往復すら終わらない値で、
+  `hang_risk: true` の 4 件が全部 artifact 不完全で落ちた。non-hang の 30 秒も
+  実測 26.9 秒に対して余裕 3 秒しかなかった。
+- 分離できた範囲: 順序依存ではない (resume で先頭に来ても同じ変異で落ちる)。
+  変異内容とも無関係で、`hang_risk` の真偽だけが分岐条件だった。
+- 恒久対応: `estimated_run_seconds` / `timeout_seconds` / `hang_timeout_seconds` を
+  dispatch 実測 (26.923 秒) から決め直し `27 / 90 / 60` とした。倍数で余裕を取る
+  (queue 待ちは他ジョブ次第で伸びるため、秒数の加算では足りない)。
+  再走で **12/12 KILLED、SURVIVED 0、baseline PASSED** を得た。
+  規律として `docs/dev-wave/mutation.md` の `DW-M05` が親へ課す「起動前に総所要を見積る」義務は、
+  **runner mode ごとの下限を含めて見積る**ことを意味する。
+- 再発検知: 変異 spec の timeout が runner mode の実測下限を下回っていないかを、
+  親が spec 起草子へ渡す見積り値の出所 (local か dispatch か) で確認する。
+
+### F186. 受入 lease の状態判定を逐語一致で書き、取得済みのまま lease を握り続けた [手順漏れ]
+
+- 事象: 受入 lease の待ち手スクリプトが `state=acquired` という文字列一致で判定していたが、
+  `tools/wave_land_window.py claim` の出力は JSON (`"state": "acquired"`) だった。
+  そのため **lease を取得した後も break せず claim を回し続け、受入全走を投入しないまま
+  約 3 分間 lease を保持**した。その間ほかの wave の受入投入は止まる (head-of-line blocking)。
+- 根本原因: 出力形式を確かめずに、runbook §7.3 の説明文にある `state=acquired` という
+  表記をそのまま shell の pattern にした。**説明文の表記と実際の出力形式は別物である。**
+- 分離できた範囲: lease 自体は正常に動作しており (`holder_self: true` を返していた)、
+  欠陥は親の投入ラッパだけにあった。実害は他 wave の待ち時間のみで、受入結果には影響しない。
+- 恒久対応: 判定を JSON parse へ変え、`state` と `holder_self` の両方を見る形にした。
+  規律としては、**待ち手を書く前に対象コマンドの出力を 1 回実際に見る**ことに尽きる。
+  runbook §7.3 は「`state=acquired` のときだけ投入する」と意味を述べており、
+  逐語の pattern を与えているわけではない。
+- 再発検知: 待ち手が「取得できたのに投入していない」状態は、lease の `age_seconds` が
+  伸び続けるのに受入ログが生成されないことで検出できる。
+
+### F187. 同一ファイルの二重 namespace 読み込みが exact 型検査を壊す [ドリフト]
+
+- 事象: `ident` から `execution_guard` を跨いで `AuthorizedContract` を渡す経路を新設したところ、
+  `orchestrator.campaign.*` で得た object が `_contract_from_authorization` の exact 型検査で
+  別 class object として弾かれた。順序変更で症状を隠しかけたが、実装子が停止して根因を出した。
+  同型の失敗が本 wave で 3 度連続した (`execution_guard` → `axis_trigger_gating` →
+  `env_attestation` / `calibration_verify`)。
+- 根本原因: `orchestrator/campaign/` の 53 ファイルが `from campaign import ...` の絶対 import を
+  使い、library module の相対 import と混在する。package を `campaign.*` と
+  `orchestrator.campaign.*` の 2 経路で読み込めるため、同じファイルが 2 つの module object になる。
+  1 か所を相対化すると、その先で絶対 import のまま残る module との間に新しい不整合が生まれる。
+- 恒久対応: 本 wave が到達する library module 4 本の import を相対形へ揃えた
+  (`execution_guard.py` / `axis_trigger_gating.py` / `env_attestation.py` /
+  `calibration_verify.py`)。`env_attestation` / `calibration_verify` は兄弟 package を参照するため
+  `__package__` で入口を判別する。**慣習の全面統一は本 wave の scope 外**で、
+  [T-720] として起票する。
+- 再発検知: `python3 -c "import orchestrator.campaign.loop"` と
+  `sys.path` に `orchestrator` を足した `import campaign.loop` の**両方**が通ること、および
+  両 namespace で module object が同一であることの smoke (`s6-fix6.md` の逐語)。
+  **exact 型検査を `isinstance` へ緩めることは対応と認めない。**
+
+### F188. 親がレビュー所見への応答として承認範囲外の gate を上乗せした [手順漏れ]
+
+- 事象: 段 6 のレビュー所見に応えるつもりで、親が承認済み裁定 (R1〜R8) に無い gate を 3 つ足し、
+  **3 件とも実測で正当な経路を拒否した**。(i) v2 の campaign directory 名と inner identity の
+  全面照合 → 任意名の一時 directory を使う consumer を 6 件拒否。(ii) 新規 certified lock への
+  explicit `AuthorizedContract` 必須 → driver 10 ファイル・55 件を拒否。(iii) lock 作成時の
+  「束縛契約が activation state で active」要求 → 合成契約を注入する継ぎ目テストを 4 件拒否。
+  撤回のたびに 1〜2 巡を消費し、実装は 13 巡に達した。
+- 根本原因: レビュー所見は「この形では守れていない」を示すが、**どこまで強めてよいかは示さない**。
+  親が所見の推奨をそのまま実装 scope へ入れ、承認済み裁定の範囲内かを確認しなかった。
+  3 件とも main の現状より強い要求で、受理集合を承認外に縮めていた。
+- 恒久対応: `docs/dev-wave/core.md` `DW-S04` の既存条項
+  「scope 外の real 所見は実装せず、設計択一・所見・推奨案を裁定パッケージでユーザーへ返す」を、
+  **レビュー所見由来の gate 強化にも適用する**と読む。判定は「その gate は承認済み裁定の文面から
+  導けるか」「main の現状より受理集合を縮めるか」の 2 点。縮めるなら裁定へ返す。
+  本 wave の 3 件は D259 の「却下した案」に逐語で残した。
+- 再発検知: 段 6 の fix prompt に「この gate は承認済み裁定のどの文から導けるか」を書かせる。
+  書けない gate は実装せず所見として返す。**本 wave では 5 件とも書けなかった。**
+- **追記 (受入全走で 5 件目が出た)**: codec の v1 を「exact 5 key」と定義した件。
+  main の低層 reader はキー集合を強制せず、exact 5 key の検査は
+  `ident.verify_admission_preimage` にあった。**元からそこにあった厳密さを別の層へ移して強めた**
+  ため、実在する部分的 lock を拒否し、受入全走で 5 件の赤になった。
+  判定基準は 2 つで足りる — **(1) その要求は承認済み裁定の文面から導けるか、
+  (2) main の現状より受理集合を縮めるか。(2) に該当して (1) に該当しないなら実装せず裁定へ返す。**
+  厳密化を新しい層へ持ち込むときは、**元の層にあった厳密さの範囲を先に読む**。

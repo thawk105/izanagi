@@ -30,6 +30,7 @@ from campaign.model import Genome                                   # noqa: E402
 from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
 from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
 from critic.digest import IdentityProjection, load_diff_rejections  # noqa: E402
+from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
 # 実 transaction.cc の EVOLVE-BLOCK 骨格 (sort marker) を写した fixture。silo-sort-variant.patch
 # と同型 (hole = #if 枝全体、実テンプレ原文の `// coder 編集面` も回帰保存)。
@@ -75,11 +76,16 @@ def _mk_template_dir() -> str:
 
 
 def _tmp_layout(tag: str) -> CampaignLayout:
-    return CampaignLayout(root=tempfile.mkdtemp(prefix=f"izanagi_s5sortloop_{tag}_")).ensure()
+    parent = tempfile.mkdtemp(prefix=f"izanagi_s5sortloop_{tag}_")
+    return CampaignLayout(
+        root=os.path.join(parent, str(ident.campaign_id(S.default_cfg())))
+    ).ensure()
 
 
 def _critic_view(layout: CampaignLayout):
-    wal.write_lock(layout, ident.canonical_preimage(S.default_cfg()))
+    wal.write_lock(layout, build_v2_lock(
+        ident.canonical_preimage(S.default_cfg())
+    ))
     return require_admitted_campaign(layout)
 
 
@@ -353,7 +359,7 @@ def test_drive_iteration_stops_before_running_when_reverse_exhausted():
 def test_drive_iteration_recovers_real_wal_start_before_entry_stop():
     lay = _tmp_layout("recover-before-stop")
     cfg, perf = S.default_cfg(), S.default_perf()
-    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    wal.write_lock(lay, build_v2_lock(ident.canonical_preimage(cfg)))
     wal.log(lay, "crashed-v", "build_start", "test-env", {
         "build_attempt_id": "crashed-attempt",
     })
@@ -388,7 +394,7 @@ def test_inner_run_recovers_reject_start_before_writing_retry_start():
 
     lay = _tmp_layout("inner-reject-recovery")
     cfg, perf = S.default_cfg(), S.default_perf()
-    wal.write_lock(lay, ident.canonical_preimage(cfg))
+    wal.write_lock(lay, build_v2_lock(ident.canonical_preimage(cfg)))
     implementation = "#define EVIL 1\n" + _CLEAN_IMPL
     variant = L.diffq_variant_id(_G, implementation)
     wal.log(lay, variant, "build_start", "test-env", {
@@ -443,7 +449,7 @@ def test_drive_iteration_checkpoint_survives_across_calls():
             cfg, perf, pl, cd, au, None, sub, do_build=False, layout=lay,
         )
     assert out1["ran"] is True and out1["outcome"] == "rejected" and out1["iteration"] == 1
-    assert wal.read_lock(lay) == ident.canonical_preimage(cfg)
+    assert wal.read_lock(lay) == build_v2_lock(ident.canonical_preimage(cfg))
     st = L.load_loop_state(lay)
     assert len(st.whiteboard) == 1 and st.whiteboard[0].result == "rejected"
     next_cd = S.CoderProposalSort(
