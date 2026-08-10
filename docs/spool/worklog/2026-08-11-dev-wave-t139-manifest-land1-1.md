@@ -57,6 +57,12 @@ title: land 1 を実行した — 再発行 record-items・受領証 schema・�
   いる。land 2 の層 (manifest / resolver / writer / 台帳 / submit / driver / collector / consumer) は
   1 つも実装していない。見積りは production 7,600 行 + test 7,820 行、PBS 9〜11 割当て。
   land 2 の必須要件 7 件は `package.md` §S7 に名指しで記録した。
+- **受入全走は 2 度必要になった。** 1 走目は main `0c336b8e` を取り込んだ tip で
+  **8427 passed / 20 skipped / 557.96 秒 / rc=0** (計算ノード dispatch、request 901498.nqsv)。
+  ところが 9 分 17 秒の走行中に local main が 3 commit 進んで ff-only が成立しなくなり、
+  取り込み直して再走した。**受入 lease の待ち手は「最後の `HEAD..main` 再検査から受入 command
+  起動までの間」の race しか閉じておらず、走行中に main が進む race は閉じていない。**
+  受入 1 走が約 10 分ある以上、並行 land が多い時間帯では常態的に起こる。
 - **段 8 の改善候補 3 件は `docs/dev-wave/**` の L1.5 予算に入らないため編集せず返した**
   (実測 9508 bytes / 予算 9566 bytes = 余裕 58 bytes)。S9 = (a) の裁定に従い、予算の独立審査を
   {{T:dev-wave-docs-budget-review}} として起票する。
@@ -76,9 +82,9 @@ title: land 1 を実行した — 再発行 record-items・受領証 schema・�
   land 2 の必須要件は `output/insights/2026-08-11_t139-manifest-land1/package.md` §S7 の 7 件
   (台帳 → manifest の第 1 矢印、`PATH` 差し替え、symlink/TOCTOU、correctness anomaly の構造化
   還流、変異の単一理由帰属、`a05` の build 再利用、`b03`) で、`DRAFT_ERRATUM_PATH` は承認 path
-  へ差し替える。公表 core の C-1〜C-5 は前エントリで裁定済み (段階 2 の再提出へ)。
+  へ差し替える。公表 core の C-1〜C-5 と追補 B 第 5 案不採用は裁定済み (段階 2 の再提出へ)。
   **本走投入は段階 2 の再提出後まで依然不可**
-  base: 05fbc1a2d3c7e854cc0cd5212fabdec62e4e492eb4f805b26e01bb2c3a76354b
+  base: c842e39b69aa3015f907b4fc9be64262acb49c3b0f4a585d5fdc48cc2249540c
 
 ### 新規
 
