@@ -12,6 +12,7 @@ import argparse
 import ast
 import collections
 import contextlib
+import enum
 import errno
 import fcntl
 import hashlib
@@ -26,6 +27,7 @@ import sys
 import tempfile
 import threading
 import time
+import tokenize
 import types
 from pathlib import Path
 from unittest import mock as unittest_mock
@@ -2933,7 +2935,1831 @@ def test_p1_run_campaign_accepts_registered_contract():
     assert summary.total == 0 and summary.results == []
 
 
+_CERTIFIED_WRITER_TARGETS = frozenset({
+    "campaign.loop.run_campaign",
+    "campaign.pipeline.evaluate",
+})
+_CERTIFIED_WRITER_OTHER = "<other>"
+_CERTIFIED_WRITER_MODULE = "module:"
+_CERTIFIED_WRITER_SYMBOL = "symbol:"
+_CERTIFIED_WRITER_UNKNOWN = "unknown:"
+_CERTIFIED_WRITER_OUT_OF_SCOPE = "out-of-scope:"
+_CERTIFIED_WRITER_BUILTIN_GETATTR = "builtin:getattr"
+_CERTIFIED_WRITER_PROVEN_LOCAL_GETATTR = "local:getattr-noncanonical-result"
+
+
+class _CertifiedWriterOutOfScopeReason(enum.Enum):
+    LEXICAL_LOCAL_SHADOW = "lexical-local-shadow"
+    DEFINITE_NONCANONICAL_REBIND = "definite-noncanonical-rebind"
+    PROVEN_NONCANONICAL_GETATTR_RESULT = "proven-noncanonical-getattr-result"
+
+
+_CERTIFIED_WRITER_SAFE_OUT_OF_SCOPE_REASONS = frozenset({
+    _CertifiedWriterOutOfScopeReason.LEXICAL_LOCAL_SHADOW,
+    _CertifiedWriterOutOfScopeReason.DEFINITE_NONCANONICAL_REBIND,
+    _CertifiedWriterOutOfScopeReason.PROVEN_NONCANONICAL_GETATTR_RESULT,
+})
+
+
+def _certified_writer_normalize_module(name):
+    if name == "orchestrator.campaign":
+        return "campaign"
+    if name.startswith("orchestrator.campaign."):
+        return name[len("orchestrator."):]
+    return name
+
+
+class _CertifiedWriterLocalBindings(ast.NodeVisitor):
+    """Collect one lexical scope's bindings without entering nested scopes."""
+
+    def __init__(self):
+        self.names = set()
+        self.global_names = set()
+        self.nonlocal_names = set()
+
+    def visit_Name(self, node):
+        if isinstance(node.ctx, ast.Store):
+            self.names.add(node.id)
+
+    def visit_FunctionDef(self, node):
+        self.names.add(node.name)
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_ClassDef(self, node):
+        self.names.add(node.name)
+
+    def visit_Lambda(self, node):
+        return None
+
+    def visit_ListComp(self, node):
+        # Comprehension iteration variables stay in the implicit scope, but a
+        # walrus target is local to the containing scope.  Walk only evaluated
+        # expressions so NamedExpr Store nodes are predeclared outside.
+        for generator in node.generators:
+            self.visit(generator.iter)
+            for condition in generator.ifs:
+                self.visit(condition)
+        self.visit(node.elt)
+
+    visit_SetComp = visit_ListComp
+    visit_GeneratorExp = visit_ListComp
+
+    def visit_DictComp(self, node):
+        for generator in node.generators:
+            self.visit(generator.iter)
+            for condition in generator.ifs:
+                self.visit(condition)
+        self.visit(node.key)
+        self.visit(node.value)
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            self.names.add(alias.asname or alias.name.split(".", 1)[0])
+
+    def visit_ImportFrom(self, node):
+        for alias in node.names:
+            if alias.name != "*":
+                self.names.add(alias.asname or alias.name)
+
+    def visit_Global(self, node):
+        self.global_names.update(node.names)
+
+    def visit_Nonlocal(self, node):
+        self.nonlocal_names.update(node.names)
+
+    def visit_ExceptHandler(self, node):
+        if node.name:
+            self.names.add(node.name)
+        self.generic_visit(node)
+
+
+class _CertifiedWriterResolver(ast.NodeVisitor):
+    """Resolve certified-writer calls by import provenance and lexical scope."""
+
+    def __init__(self, rel_path, module_name):
+        self.rel_path = rel_path
+        self.module_name = _certified_writer_normalize_module(module_name)
+        self.scopes = [{}]
+        self.scope_kinds = ["module"]
+        self.scope_globals = [set()]
+        self.scope_nonlocals = [set()]
+        self.resolved = []
+        self.unresolved = []
+        self.out_of_scope = []
+        self._unresolved_keys = set()
+        self._out_of_scope_keys = set()
+
+    @staticmethod
+    def _module_value(name):
+        return _CERTIFIED_WRITER_MODULE + _certified_writer_normalize_module(name)
+
+    @staticmethod
+    def _symbol_value(name):
+        return _CERTIFIED_WRITER_SYMBOL + _certified_writer_normalize_module(name)
+
+    @staticmethod
+    def _unknown_value(target):
+        return _CERTIFIED_WRITER_UNKNOWN + target
+
+    @staticmethod
+    def _out_of_scope_value(target, reason):
+        assert isinstance(reason, _CertifiedWriterOutOfScopeReason)
+        return f"{_CERTIFIED_WRITER_OUT_OF_SCOPE}{reason.value}:{target}"
+
+    @staticmethod
+    def _targets(values):
+        return {value for value in values if value in _CERTIFIED_WRITER_TARGETS}
+
+    @staticmethod
+    def _unknown_targets(values):
+        return {
+            value[len(_CERTIFIED_WRITER_UNKNOWN):]
+            for value in values
+            if value.startswith(_CERTIFIED_WRITER_UNKNOWN)
+        }
+
+    @staticmethod
+    def _out_of_scope_entries(values):
+        entries = set()
+        for value in values:
+            if not value.startswith(_CERTIFIED_WRITER_OUT_OF_SCOPE):
+                continue
+            payload = value[len(_CERTIFIED_WRITER_OUT_OF_SCOPE):]
+            reason_value, target = payload.split(":", 1)
+            entries.add((target, _CertifiedWriterOutOfScopeReason(reason_value)))
+        return entries
+
+    @classmethod
+    def _out_of_scope_targets(cls, values):
+        return {target for target, _reason in cls._out_of_scope_entries(values)}
+
+    @staticmethod
+    def _spelled_targets(name):
+        return {
+            target for target in _CERTIFIED_WRITER_TARGETS
+            if target.rsplit(".", 1)[1] == name
+        }
+
+    def _lookup(self, name):
+        skip_class_scopes = self.scope_kinds[-1] in {
+            "function", "lambda", "comprehension",
+        }
+        for scope, kind in zip(reversed(self.scopes),
+                               reversed(self.scope_kinds)):
+            if skip_class_scopes and kind == "class":
+                continue
+            if name in scope:
+                return scope[name]
+        if name == "getattr":
+            return frozenset({_CERTIFIED_WRITER_BUILTIN_GETATTR})
+        return frozenset({_CERTIFIED_WRITER_OTHER})
+
+    def _bind(self, name, values):
+        self.scopes[-1][name] = frozenset(values)
+
+    def _bind_at(self, scope_index, name, values):
+        self.scopes[scope_index][name] = frozenset(values)
+
+    def _binding_scope_index(self):
+        for index in range(len(self.scope_kinds) - 1, -1, -1):
+            if self.scope_kinds[index] != "comprehension":
+                return index
+        return 0
+
+    def _assignment_scope(self, name, scope_index=None):
+        index = len(self.scopes) - 1 if scope_index is None else scope_index
+        if name in self.scope_globals[index]:
+            return 0, True
+        if name in self.scope_nonlocals[index]:
+            for outer in range(index - 1, 0, -1):
+                if self.scope_kinds[outer] in {"function", "lambda"}:
+                    return outer, True
+            return 0, True
+        return index, False
+
+    def _candidate_targets(self, values):
+        return (
+            self._targets(values)
+            | self._unknown_targets(values)
+            | self._out_of_scope_targets(values)
+        )
+
+    def _replacement_values(self, name, values, *, scope_index=None,
+                            uncertain=False):
+        """Keep canonical provenance when a binding ceases to be canonical."""
+        index = len(self.scopes) - 1 if scope_index is None else scope_index
+        old_values = self.scopes[index].get(
+            name, frozenset({_CERTIFIED_WRITER_OTHER}),
+        )
+        old_targets = self._candidate_targets(old_values)
+        new_targets = self._candidate_targets(values)
+        if new_targets:
+            return frozenset(values)
+        candidates = old_targets | self._spelled_targets(name)
+        if not candidates:
+            return frozenset(values)
+        if uncertain or self.scope_kinds[index] == "class":
+            return frozenset(self._unknown_value(target) for target in candidates)
+        return frozenset(
+            self._out_of_scope_value(
+                target,
+                _CertifiedWriterOutOfScopeReason.DEFINITE_NONCANONICAL_REBIND,
+            )
+            for target in candidates
+        )
+
+    def _local_other_values(self, name):
+        targets = self._spelled_targets(name)
+        return frozenset(
+            self._out_of_scope_value(
+                target,
+                _CertifiedWriterOutOfScopeReason.LEXICAL_LOCAL_SHADOW,
+            )
+            for target in targets
+        ) if targets else frozenset({_CERTIFIED_WRITER_OTHER})
+
+    def _snapshot_scopes(self):
+        return [dict(scope) for scope in self.scopes]
+
+    def _restore_scopes(self, snapshot):
+        self.scopes = [dict(scope) for scope in snapshot]
+
+    def _merge_path_scopes(self, paths):
+        merged = []
+        for scope_index in range(len(self.scopes)):
+            names = set().union(*(path[scope_index] for path in paths))
+            scope = {}
+            for name in names:
+                values_by_path = [
+                    path[scope_index].get(
+                        name, frozenset({_CERTIFIED_WRITER_OTHER}),
+                    )
+                    for path in paths
+                ]
+                if all(values == values_by_path[0]
+                       for values in values_by_path[1:]):
+                    scope[name] = values_by_path[0]
+                    continue
+                targets = set().union(
+                    *(self._candidate_targets(values)
+                      for values in values_by_path)
+                )
+                scope[name] = frozenset(
+                    self._unknown_value(target) for target in targets
+                ) if targets else frozenset({_CERTIFIED_WRITER_OTHER})
+            merged.append(scope)
+        self.scopes = merged
+
+    def _relative_import_base(self, module, level):
+        if not level:
+            return _certified_writer_normalize_module(module or "")
+        module_parts = self.module_name.split(".")
+        package = (
+            module_parts
+            if Path(self.rel_path).name == "__init__.py"
+            else module_parts[:-1]
+        )
+        keep = len(package) - (level - 1)
+        base = package[:max(keep, 0)]
+        if module:
+            base.extend(module.split("."))
+        return _certified_writer_normalize_module(".".join(base))
+
+    def _imported_value(self, full_name):
+        normalized = _certified_writer_normalize_module(full_name)
+        if normalized == "builtins.getattr":
+            return frozenset({_CERTIFIED_WRITER_BUILTIN_GETATTR})
+        if normalized in _CERTIFIED_WRITER_TARGETS:
+            return frozenset({normalized})
+        if normalized in {"campaign", "campaign.loop", "campaign.pipeline"}:
+            return frozenset({self._module_value(normalized)})
+        return frozenset({self._symbol_value(normalized)})
+
+    def _attribute_values(self, base_values, attr):
+        values = set()
+        for value in base_values:
+            if value.startswith(_CERTIFIED_WRITER_MODULE):
+                module = value[len(_CERTIFIED_WRITER_MODULE):]
+                full_name = _certified_writer_normalize_module(f"{module}.{attr}")
+                if full_name == "builtins.getattr":
+                    values.add(_CERTIFIED_WRITER_BUILTIN_GETATTR)
+                elif full_name in _CERTIFIED_WRITER_TARGETS:
+                    values.add(full_name)
+                else:
+                    values.add(self._module_value(full_name))
+            elif value.startswith(_CERTIFIED_WRITER_UNKNOWN):
+                values.add(value)
+            elif value.startswith(_CERTIFIED_WRITER_OUT_OF_SCOPE):
+                values.add(value)
+            else:
+                values.add(_CERTIFIED_WRITER_OTHER)
+        return frozenset(values or {_CERTIFIED_WRITER_OTHER})
+
+    def _expr_values(self, node):
+        if isinstance(node, ast.Name):
+            return self._lookup(node.id)
+        if isinstance(node, ast.Attribute):
+            return self._attribute_values(self._expr_values(node.value), node.attr)
+        if isinstance(node, (ast.BoolOp, ast.IfExp)):
+            children = node.values if isinstance(node, ast.BoolOp) else (node.body, node.orelse)
+            values = set()
+            for child in children:
+                values.update(self._expr_values(child))
+            return frozenset(values or {_CERTIFIED_WRITER_OTHER})
+        if isinstance(node, ast.NamedExpr):
+            return self._named_expr_values(node)
+        if isinstance(node, ast.Lambda):
+            return frozenset({_CERTIFIED_WRITER_OTHER})
+        if isinstance(node, ast.Call):
+            targets = self._dynamic_call_targets(node)
+            if targets:
+                return frozenset(self._unknown_value(target) for target in targets)
+        if isinstance(node, ast.Subscript):
+            targets = self._canonical_provenance_targets(node)
+            if targets:
+                return frozenset(self._unknown_value(target) for target in targets)
+        return frozenset({_CERTIFIED_WRITER_OTHER})
+
+    def _dynamic_call_targets(self, node):
+        if not isinstance(node, ast.Call):
+            return set()
+        func_values = self._expr_values(node.func)
+        if (_CERTIFIED_WRITER_BUILTIN_GETATTR in func_values
+                and len(node.args) >= 2):
+            base_values = self._expr_values(node.args[0])
+            if (isinstance(node.args[1], ast.Constant)
+                    and isinstance(node.args[1].value, str)):
+                values = self._attribute_values(
+                    base_values, node.args[1].value,
+                )
+                return self._targets(values) | self._unknown_targets(values)
+
+            # The attribute name is runtime data.  If its base can be a
+            # canonical module, conservatively retain every target exported by
+            # that module as UNRESOLVED instead of silently dropping the call.
+            targets = set()
+            for value in base_values:
+                if not value.startswith(_CERTIFIED_WRITER_MODULE):
+                    continue
+                module = value[len(_CERTIFIED_WRITER_MODULE):]
+                targets.update(
+                    target for target in _CERTIFIED_WRITER_TARGETS
+                    if target.rsplit(".", 1)[0] == module
+                )
+            return targets
+        partial_values = {
+            self._module_value("functools.partial"),
+            self._symbol_value("functools.partial"),
+        }
+        if func_values & partial_values:
+            targets = set()
+            for arg in node.args:
+                values = self._expr_values(arg)
+                targets.update(self._targets(values))
+                targets.update(self._unknown_targets(values))
+            return targets
+        return set()
+
+    def _shadowed_getattr_targets(self, node):
+        if not isinstance(node, ast.Call) or len(node.args) < 2:
+            return set()
+        func_values = self._expr_values(node.func)
+        if _CERTIFIED_WRITER_BUILTIN_GETATTR in func_values:
+            return set()
+        if _CERTIFIED_WRITER_PROVEN_LOCAL_GETATTR not in func_values:
+            return set()
+        is_getattr_spelling = (
+            isinstance(node.func, ast.Name) and node.func.id == "getattr"
+        ) or (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "getattr"
+        )
+        if not is_getattr_spelling:
+            return set()
+        if not (isinstance(node.args[1], ast.Constant)
+                and isinstance(node.args[1].value, str)):
+            return set()
+        values = self._attribute_values(
+            self._expr_values(node.args[0]), node.args[1].value,
+        )
+        return self._targets(values) | self._unknown_targets(values)
+
+    def _unmodelled_shadowed_getattr_targets(self, node):
+        if not isinstance(node, ast.Call) or len(node.args) < 2:
+            return set()
+        func_values = self._expr_values(node.func)
+        if func_values & {
+                _CERTIFIED_WRITER_BUILTIN_GETATTR,
+                _CERTIFIED_WRITER_PROVEN_LOCAL_GETATTR,
+        }:
+            return set()
+        is_getattr_spelling = (
+            isinstance(node.func, ast.Name) and node.func.id == "getattr"
+        ) or (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "getattr"
+        )
+        if not is_getattr_spelling:
+            return set()
+        values = self._expr_values(node.args[0])
+        targets = set()
+        for value in values:
+            if not value.startswith(_CERTIFIED_WRITER_MODULE):
+                continue
+            module = value[len(_CERTIFIED_WRITER_MODULE):]
+            targets.update(
+                target for target in _CERTIFIED_WRITER_TARGETS
+                if target.rsplit(".", 1)[0] == module
+            )
+        return targets
+
+    def _targets_in_expr(self, node):
+        targets = set()
+        for child in ast.walk(node):
+            if isinstance(child, (ast.Name, ast.Attribute)):
+                values = self._expr_values(child)
+                targets.update(self._targets(values))
+                targets.update(self._unknown_targets(values))
+            elif isinstance(child, ast.Call):
+                targets.update(self._dynamic_call_targets(child))
+                targets.update(
+                    self._unmodelled_shadowed_getattr_targets(child)
+                )
+        return targets
+
+    def _canonical_provenance_targets(self, node):
+        """Return targets exposed to an unsupported callable-producing form."""
+        targets = set()
+        for child in ast.walk(node):
+            if not isinstance(child, (ast.Name, ast.Attribute)):
+                continue
+            values = self._expr_values(child)
+            targets.update(self._targets(values))
+            targets.update(self._unknown_targets(values))
+            for value in values:
+                if not value.startswith(_CERTIFIED_WRITER_MODULE):
+                    continue
+                module = value[len(_CERTIFIED_WRITER_MODULE):]
+                targets.update(
+                    target for target in _CERTIFIED_WRITER_TARGETS
+                    if target.rsplit(".", 1)[0] == module
+                )
+        return targets
+
+    def _out_of_scope_entries_in_expr(self, node):
+        entries = set()
+        for child in ast.walk(node):
+            if isinstance(child, (ast.Name, ast.Attribute)):
+                entries.update(
+                    self._out_of_scope_entries(self._expr_values(child))
+                )
+            elif isinstance(child, ast.Call):
+                entries.update(
+                    (target,
+                     _CertifiedWriterOutOfScopeReason.PROVEN_NONCANONICAL_GETATTR_RESULT)
+                    for target in self._shadowed_getattr_targets(child)
+                )
+        return entries
+
+    @staticmethod
+    def _traceable_alias_expr(node):
+        if isinstance(node, (ast.Name, ast.Attribute, ast.Constant)):
+            return True
+        if isinstance(node, ast.BoolOp):
+            return all(_CertifiedWriterResolver._traceable_alias_expr(value)
+                       for value in node.values)
+        if isinstance(node, ast.IfExp):
+            return (
+                _CertifiedWriterResolver._traceable_alias_expr(node.body)
+                and _CertifiedWriterResolver._traceable_alias_expr(node.orelse)
+            )
+        return False
+
+    @staticmethod
+    def _assignment_names(node):
+        if isinstance(node, ast.Name):
+            return {node.id}
+        if isinstance(node, (ast.Tuple, ast.List)):
+            names = set()
+            for element in node.elts:
+                names.update(_CertifiedWriterResolver._assignment_names(element))
+            return names
+        if isinstance(node, ast.Starred):
+            return _CertifiedWriterResolver._assignment_names(node.value)
+        return set()
+
+    def _bind_assignment_target(self, node, values, *, scope_index=None,
+                                uncertain=False):
+        names = self._assignment_names(node)
+        if isinstance(node, ast.Name):
+            index, indirect = self._assignment_scope(node.id, scope_index)
+            if indirect:
+                candidates = (
+                    self._candidate_targets(values)
+                    | self._candidate_targets(
+                        self.scopes[index].get(
+                            node.id, frozenset({_CERTIFIED_WRITER_OTHER}),
+                        )
+                    )
+                    | self._spelled_targets(node.id)
+                )
+                values = (
+                    {self._unknown_value(target) for target in candidates}
+                    or {_CERTIFIED_WRITER_OTHER}
+                )
+                uncertain = True
+            replacement = self._replacement_values(
+                node.id, values, scope_index=index, uncertain=uncertain,
+            )
+            self._bind_at(index, node.id, replacement)
+        else:
+            for name in names:
+                index, indirect = self._assignment_scope(name, scope_index)
+                replacement = self._replacement_values(
+                    name, {_CERTIFIED_WRITER_OTHER}, scope_index=index,
+                    uncertain=uncertain or indirect,
+                )
+                self._bind_at(index, name, replacement)
+
+    def _record(self, collection, node, target, display=None, reason=None):
+        display = display or ast.unparse(node)
+        if collection is self.out_of_scope:
+            assert isinstance(reason, _CertifiedWriterOutOfScopeReason)
+        record = (
+            self.rel_path,
+            getattr(node, "lineno", 0),
+            getattr(node, "col_offset", 0) + 1,
+            display,
+            target,
+            node if isinstance(node, ast.Call) else None,
+            reason,
+        )
+        if collection is self.unresolved:
+            key = record[:5]
+            if key in self._unresolved_keys:
+                return
+            self._unresolved_keys.add(key)
+        elif collection is self.out_of_scope:
+            key = record[:5] + (reason,)
+            if key in self._out_of_scope_keys:
+                return
+            self._out_of_scope_keys.add(key)
+        collection.append(record)
+
+    def _record_unresolved(self, node, targets, display=None):
+        for target in sorted(targets):
+            self._record(self.unresolved, node, target, display=display)
+
+    def _record_out_of_scope(self, node, entries, display=None):
+        for target, reason in sorted(entries, key=lambda entry: (
+                entry[0], entry[1].value)):
+            self._record(
+                self.out_of_scope, node, target, display=display,
+                reason=reason,
+            )
+
+    def _scope_declarations(self, body):
+        collector = _CertifiedWriterLocalBindings()
+        for statement in body:
+            collector.visit(statement)
+        local_names = collector.names - collector.global_names - collector.nonlocal_names
+        scope = {name: self._local_other_values(name) for name in local_names}
+        return scope, collector.global_names, collector.nonlocal_names
+
+    def _argument_defaults(self, arguments):
+        positional = list(arguments.posonlyargs) + list(arguments.args)
+        default_values = {}
+        for argument, default in zip(positional[-len(arguments.defaults):],
+                                     arguments.defaults):
+            default_values[argument.arg] = self._expr_values(default)
+            if not self._traceable_alias_expr(default):
+                self.visit(default)
+        for argument, default in zip(arguments.kwonlyargs,
+                                     arguments.kw_defaults):
+            if default is None:
+                continue
+            default_values[argument.arg] = self._expr_values(default)
+            if not self._traceable_alias_expr(default):
+                self.visit(default)
+        return positional, default_values
+
+    def _visit_argument_annotations(self, arguments):
+        annotated = (
+            list(arguments.posonlyargs) + list(arguments.args)
+            + list(arguments.kwonlyargs)
+        )
+        if arguments.vararg:
+            annotated.append(arguments.vararg)
+        if arguments.kwarg:
+            annotated.append(arguments.kwarg)
+        for argument in annotated:
+            if argument.annotation is not None:
+                self.visit(argument.annotation)
+
+    def _bind_definition_name(self, name, values=None):
+        values = self._replacement_values(
+            name, values or {_CERTIFIED_WRITER_OTHER},
+        )
+        self._bind(name, values)
+
+    @staticmethod
+    def _proven_noncanonical_getattr_definition(node):
+        return (
+            node.name == "getattr"
+            and not node.decorator_list
+            and len(node.body) == 1
+            and isinstance(node.body[0], ast.Return)
+            and isinstance(node.body[0].value, ast.Lambda)
+        )
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            if alias.asname:
+                self._bind(alias.asname, {self._module_value(alias.name)})
+            else:
+                root = alias.name.split(".", 1)[0]
+                self._bind(root, {self._module_value(root)})
+
+    def visit_ImportFrom(self, node):
+        base = self._relative_import_base(node.module, node.level)
+        for alias in node.names:
+            if alias.name == "*":
+                targets = {
+                    target for target in _CERTIFIED_WRITER_TARGETS
+                    if target.rsplit(".", 1)[0] == base
+                }
+                self._record_unresolved(node, targets)
+                continue
+            full_name = f"{base}.{alias.name}" if base else alias.name
+            self._bind(alias.asname or alias.name, self._imported_value(full_name))
+
+    def visit_FunctionDef(self, node):
+        # Python evaluates decorators, defaults, and annotations in the outer
+        # scope before installing the newly defined name.
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        positional, default_values = self._argument_defaults(node.args)
+        self._visit_argument_annotations(node.args)
+        if node.returns is not None:
+            self.visit(node.returns)
+        for type_parameter in getattr(node, "type_params", ()):  # Python 3.12+
+            self.visit(type_parameter)
+        definition_values = (
+            {_CERTIFIED_WRITER_PROVEN_LOCAL_GETATTR}
+            if self._proven_noncanonical_getattr_definition(node)
+            else None
+        )
+        self._bind_definition_name(node.name, definition_values)
+
+        scope, global_names, nonlocal_names = self._scope_declarations(node.body)
+        arguments = positional + list(node.args.kwonlyargs)
+        if node.args.vararg:
+            arguments.append(node.args.vararg)
+        if node.args.kwarg:
+            arguments.append(node.args.kwarg)
+        for argument in arguments:
+            scope[argument.arg] = default_values.get(
+                argument.arg, self._local_other_values(argument.arg),
+            )
+        self.scopes.append(scope)
+        self.scope_kinds.append("function")
+        self.scope_globals.append(global_names)
+        self.scope_nonlocals.append(nonlocal_names)
+        for statement in node.body:
+            self.visit(statement)
+        self.scope_nonlocals.pop()
+        self.scope_globals.pop()
+        self.scope_kinds.pop()
+        self.scopes.pop()
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_ClassDef(self, node):
+        for expression in [*node.decorator_list, *node.bases, *node.keywords]:
+            self.visit(expression)
+        for type_parameter in getattr(node, "type_params", ()):  # Python 3.12+
+            self.visit(type_parameter)
+        self._bind_definition_name(node.name)
+        _scope, global_names, nonlocal_names = self._scope_declarations(node.body)
+        ambiguous_scope = {}
+        for name in _scope:
+            candidates = self._candidate_targets(self._lookup(name))
+            candidates.update(self._spelled_targets(name))
+            if candidates:
+                ambiguous_scope[name] = frozenset(
+                    self._unknown_value(target) for target in candidates
+                )
+        self.scopes.append(ambiguous_scope)
+        self.scope_kinds.append("class")
+        self.scope_globals.append(global_names)
+        self.scope_nonlocals.append(nonlocal_names)
+        for statement in node.body:
+            self.visit(statement)
+        self.scope_nonlocals.pop()
+        self.scope_globals.pop()
+        self.scope_kinds.pop()
+        self.scopes.pop()
+
+    def visit_Lambda(self, node):
+        positional, default_values = self._argument_defaults(node.args)
+        self._visit_argument_annotations(node.args)
+        scope = {}
+        arguments = (
+            positional + list(node.args.kwonlyargs)
+        )
+        if node.args.vararg:
+            arguments.append(node.args.vararg)
+        if node.args.kwarg:
+            arguments.append(node.args.kwarg)
+        for argument in arguments:
+            scope[argument.arg] = default_values.get(
+                argument.arg, self._local_other_values(argument.arg),
+            )
+        self.scopes.append(scope)
+        self.scope_kinds.append("lambda")
+        self.scope_globals.append(set())
+        self.scope_nonlocals.append(set())
+        self.visit(node.body)
+        self.scope_nonlocals.pop()
+        self.scope_globals.pop()
+        self.scope_kinds.pop()
+        self.scopes.pop()
+
+    def visit_Assign(self, node):
+        if isinstance(node.value, ast.Lambda):
+            self.visit(node.value)
+            for target in node.targets:
+                self._bind_assignment_target(
+                    target, {_CERTIFIED_WRITER_OTHER},
+                )
+            return
+        if isinstance(node.value, ast.Subscript):
+            values = self._expr_values(node.value)
+            unknown = self._unknown_targets(values)
+            if unknown:
+                self._record_unresolved(node.value, unknown)
+                for target in node.targets:
+                    self._bind_assignment_target(
+                        target, values, uncertain=True,
+                    )
+                return
+        if self._traceable_alias_expr(node.value):
+            values = self._expr_values(node.value)
+            unknown = self._unknown_targets(values)
+            if unknown:
+                self._record_unresolved(node.value, unknown)
+            canonical = self._targets(values)
+            if canonical and not all(isinstance(target, ast.Name)
+                                     for target in node.targets):
+                # Storing a certified callable behind an attribute/subscript
+                # leaves a callable container that direct-call provenance can
+                # no longer close.
+                self._record_unresolved(node.value, canonical)
+                for target in node.targets:
+                    self._bind_assignment_target(
+                        target, {_CERTIFIED_WRITER_OTHER},
+                    )
+                return
+            for target in node.targets:
+                self._bind_assignment_target(target, values)
+            return
+
+        overwritten = set()
+        for target in node.targets:
+            for name in self._assignment_names(target):
+                values = self._lookup(name)
+                overwritten.update(self._targets(values))
+                overwritten.update(self._unknown_targets(values))
+        if overwritten:
+            self._record_unresolved(node.value, overwritten)
+        self.visit(node.value)
+        replacement = (
+            {self._unknown_value(target) for target in overwritten}
+            or {_CERTIFIED_WRITER_OTHER}
+        )
+        for target in node.targets:
+            self._bind_assignment_target(
+                target, replacement, uncertain=True,
+            )
+
+    def visit_AnnAssign(self, node):
+        # Value-less annotations still evaluate their annotation expression in
+        # module/class scopes.  Visiting everywhere is the conservative choice
+        # when postponed-annotation details are not modelled.
+        self.visit(node.annotation)
+        if node.value is None:
+            # A value-less annotation does not execute a store and therefore
+            # must not erase an existing runtime binding.
+            return
+        proxy = ast.Assign(targets=[node.target], value=node.value)
+        ast.copy_location(proxy, node)
+        self.visit_Assign(proxy)
+
+    def _named_expr_values(self, node):
+        # Walrus targets are Store nodes.  Evaluate the value first, then bind
+        # the target in the containing (non-comprehension) scope; never treat
+        # the Store-side Name as a callable reference.
+        scope_index = self._binding_scope_index()
+        if isinstance(node.value, ast.Lambda):
+            self.visit(node.value)
+            values = frozenset({_CERTIFIED_WRITER_OTHER})
+            uncertain = False
+        else:
+            values = self._expr_values(node.value)
+            uncertain = False
+            if not self._traceable_alias_expr(node.value):
+                overwritten = set()
+                for name in self._assignment_names(node.target):
+                    old_values = self.scopes[scope_index].get(
+                        name, frozenset({_CERTIFIED_WRITER_OTHER}),
+                    )
+                    overwritten.update(self._targets(old_values))
+                    overwritten.update(self._unknown_targets(old_values))
+                self._record_unresolved(node.value, overwritten)
+                self.visit(node.value)
+                values = frozenset(
+                    {self._unknown_value(target) for target in overwritten}
+                    or {_CERTIFIED_WRITER_OTHER}
+                )
+                uncertain = True
+        self._bind_assignment_target(
+            node.target, values, scope_index=scope_index,
+            uncertain=uncertain,
+        )
+        return values
+
+    def visit_NamedExpr(self, node):
+        self._named_expr_values(node)
+
+    def visit_AugAssign(self, node):
+        targets = set()
+        for name in self._assignment_names(node.target):
+            values = self._lookup(name)
+            targets.update(self._targets(values))
+            targets.update(self._unknown_targets(values))
+        self._record_unresolved(node, targets)
+        self.visit(node.value)
+        self._bind_assignment_target(
+            node.target,
+            {self._unknown_value(target) for target in targets}
+            or {_CERTIFIED_WRITER_OTHER},
+        )
+
+    def visit_For(self, node):
+        self.visit(node.iter)
+        before = self._snapshot_scopes()
+        definitely_nonempty = (
+            isinstance(node.iter, (ast.Tuple, ast.List))
+            and bool(node.iter.elts)
+            and not any(isinstance(element, ast.Starred)
+                        for element in node.iter.elts)
+        )
+        if definitely_nonempty:
+            # A literal tuple/list runs in order, so the post-loop target is
+            # the final element rather than an arbitrary union of iterations.
+            assigned_values = self._expr_values(node.iter.elts[-1])
+            uncertain = False
+        else:
+            assigned_values = {_CERTIFIED_WRITER_OTHER}
+            uncertain = True
+
+        self._bind_assignment_target(
+            node.target, assigned_values, uncertain=uncertain,
+        )
+        for statement in node.body:
+            self.visit(statement)
+        iterated = self._snapshot_scopes()
+
+        # Only a statically non-empty literal sequence proves that the old
+        # target binding cannot survive.  Every other loop keeps both paths;
+        # disagreement involving canonical provenance becomes UNRESOLVED.
+        if definitely_nonempty:
+            self._restore_scopes(iterated)
+        else:
+            self._restore_scopes(before)
+            self._merge_path_scopes([before, iterated])
+        loop_exit = self._snapshot_scopes()
+        for statement in node.orelse:
+            self.visit(statement)
+        else_exit = self._snapshot_scopes()
+        if node.orelse and any(
+                isinstance(child, ast.Break)
+                for statement in node.body for child in ast.walk(statement)):
+            self._restore_scopes(loop_exit)
+            self._merge_path_scopes([loop_exit, else_exit])
+
+    visit_AsyncFor = visit_For
+
+    def visit_While(self, node):
+        self.visit(node.test)
+        before = self._snapshot_scopes()
+        for statement in node.body:
+            self.visit(statement)
+        iterated = self._snapshot_scopes()
+        self._restore_scopes(before)
+        self._merge_path_scopes([before, iterated])
+        loop_exit = self._snapshot_scopes()
+        for statement in node.orelse:
+            self.visit(statement)
+        else_exit = self._snapshot_scopes()
+        if node.orelse and any(
+                isinstance(child, ast.Break)
+                for statement in node.body for child in ast.walk(statement)):
+            self._restore_scopes(loop_exit)
+            self._merge_path_scopes([loop_exit, else_exit])
+
+    def visit_If(self, node):
+        self.visit(node.test)
+        before = self._snapshot_scopes()
+        for statement in node.body:
+            self.visit(statement)
+        body_path = self._snapshot_scopes()
+        self._restore_scopes(before)
+        for statement in node.orelse:
+            self.visit(statement)
+        else_path = self._snapshot_scopes()
+        self._restore_scopes(before)
+        self._merge_path_scopes([body_path, else_path])
+
+    def visit_Try(self, node):
+        before = self._snapshot_scopes()
+        for statement in [*node.body, *node.orelse]:
+            self.visit(statement)
+        paths = [self._snapshot_scopes()]
+        for handler in node.handlers:
+            self._restore_scopes(before)
+            if handler.type is not None:
+                self.visit(handler.type)
+            if handler.name:
+                self._bind(
+                    handler.name, {_CERTIFIED_WRITER_OTHER},
+                )
+            for statement in handler.body:
+                self.visit(statement)
+            paths.append(self._snapshot_scopes())
+        self._restore_scopes(before)
+        self._merge_path_scopes(paths)
+        for statement in node.finalbody:
+            self.visit(statement)
+
+    visit_TryStar = visit_Try
+
+    def visit_Match(self, node):
+        self.visit(node.subject)
+        before = self._snapshot_scopes()
+        paths = [before]
+        for case in node.cases:
+            self._restore_scopes(before)
+            if case.guard is not None:
+                self.visit(case.guard)
+            for statement in case.body:
+                self.visit(statement)
+            paths.append(self._snapshot_scopes())
+        self._restore_scopes(before)
+        self._merge_path_scopes(paths)
+
+    def visit_With(self, node):
+        for item in node.items:
+            self.visit(item.context_expr)
+            if item.optional_vars:
+                self._bind_assignment_target(
+                    item.optional_vars, {_CERTIFIED_WRITER_OTHER},
+                )
+        for statement in node.body:
+            self.visit(statement)
+
+    visit_AsyncWith = visit_With
+
+    def _mark_deferred_namedexprs_unresolved(self, expressions):
+        for expression in expressions:
+            for child in ast.walk(expression):
+                if not isinstance(child, ast.NamedExpr):
+                    continue
+                scope_index = self._binding_scope_index()
+                candidates = self._candidate_targets(
+                    self._expr_values(child.value)
+                )
+                for name in self._assignment_names(child.target):
+                    candidates.update(self._candidate_targets(
+                        self.scopes[scope_index].get(
+                            name, frozenset({_CERTIFIED_WRITER_OTHER}),
+                        )
+                    ))
+                    candidates.update(self._spelled_targets(name))
+                if not candidates:
+                    continue
+                self._record_unresolved(child, candidates)
+                self._bind_assignment_target(
+                    child.target,
+                    {self._unknown_value(target) for target in candidates},
+                    scope_index=scope_index, uncertain=True,
+                )
+
+    def _visit_comprehension(self, node, result_expressions, *, deferred=False):
+        first, *rest = node.generators
+        self.visit(first.iter)
+        scope = {
+            name: frozenset({_CERTIFIED_WRITER_OTHER})
+            for name in self._assignment_names(first.target)
+        }
+        self.scopes.append(scope)
+        self.scope_kinds.append("comprehension")
+        self.scope_globals.append(set())
+        self.scope_nonlocals.append(set())
+        self._bind_assignment_target(first.target, {_CERTIFIED_WRITER_OTHER})
+        definitely_empty = (
+            isinstance(first.iter, (ast.Tuple, ast.List))
+            and not first.iter.elts
+        )
+        if deferred or definitely_empty:
+            uncertain_expressions = list(result_expressions)
+            uncertain_expressions.extend(first.ifs)
+            for generator in rest:
+                uncertain_expressions.append(generator.iter)
+                uncertain_expressions.extend(generator.ifs)
+            self._mark_deferred_namedexprs_unresolved(uncertain_expressions)
+            self.scope_nonlocals.pop()
+            self.scope_globals.pop()
+            self.scope_kinds.pop()
+            self.scopes.pop()
+            return
+        for condition in first.ifs:
+            self.visit(condition)
+        for generator in rest:
+            self.visit(generator.iter)
+            self._bind_assignment_target(
+                generator.target, {_CERTIFIED_WRITER_OTHER},
+            )
+            for condition in generator.ifs:
+                self.visit(condition)
+        for expression in result_expressions:
+            self.visit(expression)
+        self.scope_nonlocals.pop()
+        self.scope_globals.pop()
+        self.scope_kinds.pop()
+        self.scopes.pop()
+
+    def visit_ListComp(self, node):
+        self._visit_comprehension(node, [node.elt])
+
+    visit_SetComp = visit_ListComp
+
+    def visit_GeneratorExp(self, node):
+        self._visit_comprehension(node, [node.elt], deferred=True)
+
+    def visit_DictComp(self, node):
+        self._visit_comprehension(node, [node.key, node.value])
+
+    def visit_Call(self, node):
+        dynamic_targets = self._dynamic_call_targets(node.func)
+        if dynamic_targets:
+            self._record_unresolved(node.func, dynamic_targets)
+        else:
+            values = self._expr_values(node.func)
+            targets = self._targets(values)
+            unknown_targets = self._unknown_targets(values)
+            out_of_scope_entries = self._out_of_scope_entries(values)
+            if unknown_targets:
+                self._record_unresolved(node.func, unknown_targets)
+            elif targets:
+                for target in sorted(targets):
+                    self._record(
+                        self.resolved, node, target,
+                        display=ast.unparse(node.func),
+                    )
+            elif out_of_scope_entries:
+                self._record_out_of_scope(node.func, out_of_scope_entries)
+            else:
+                nested_targets = self._targets_in_expr(node.func)
+                if nested_targets:
+                    self._record_unresolved(node.func, nested_targets)
+                else:
+                    nested_out_of_scope = self._out_of_scope_entries_in_expr(
+                        node.func,
+                    )
+                    if nested_out_of_scope:
+                        self._record_out_of_scope(
+                            node.func, nested_out_of_scope,
+                        )
+
+        if self._dynamic_call_targets(node):
+            self._record_unresolved(node.func, self._dynamic_call_targets(node))
+        for argument in node.args:
+            self.visit(argument)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+
+    def visit_Name(self, node):
+        if not isinstance(node.ctx, ast.Load):
+            return
+        values = self._expr_values(node)
+        targets = self._targets(values) | self._unknown_targets(values)
+        self._record_unresolved(node, targets)
+        self._record_out_of_scope(
+            node, self._out_of_scope_entries(values),
+        )
+
+    def visit_Attribute(self, node):
+        values = self._expr_values(node)
+        targets = self._targets(values) | self._unknown_targets(values)
+        if targets:
+            self._record_unresolved(node, targets)
+        elif self._out_of_scope_entries(values):
+            self._record_out_of_scope(
+                node, self._out_of_scope_entries(values),
+            )
+        else:
+            self.visit(node.value)
+
+
+def _certified_writer_module_name(rel_path):
+    parts = list(Path(rel_path).with_suffix("").parts)
+    if parts and parts[-1] == "__init__":
+        parts.pop()
+    return _certified_writer_normalize_module(".".join(parts))
+
+
+def _certified_writer_resolve_source(source, rel_path, module_name=None):
+    tree = ast.parse(source, filename=rel_path)
+    resolver = _CertifiedWriterResolver(
+        rel_path,
+        module_name or _certified_writer_module_name(rel_path),
+    )
+    resolver.visit(tree)
+    return resolver.resolved, resolver.unresolved, resolver.out_of_scope
+
+
+def _certified_writer_diagnostic(record):
+    rel_path, lineno, col, unparsed_func, target, _call = record[:6]
+    return f"{rel_path}:{lineno}:{col} {unparsed_func} -> {target}"
+
+
+def _certified_writer_resolve_path(path, rel_path):
+    try:
+        with tokenize.open(path) as source_file:
+            source = source_file.read()
+    except (OSError, SyntaxError, UnicodeError) as exc:
+        return [], [], [], {
+            "path": rel_path,
+            "phase": "decode",
+            "error": type(exc).__name__,
+            "message": str(exc),
+        }
+    try:
+        resolved, unresolved, out_of_scope = _certified_writer_resolve_source(
+            source, rel_path,
+        )
+    except SyntaxError as exc:
+        return [], [], [], {
+            "path": rel_path,
+            "phase": "parse",
+            "error": type(exc).__name__,
+            "line": exc.lineno,
+            "column": exc.offset,
+            "message": exc.msg,
+        }
+    return resolved, unresolved, out_of_scope, None
+
+
 def test_certified_writer_authorization_caller_inventory_is_closed():
+    """Close repo source outside tests, VCS/worktrees, generated, and vendored trees."""
+    from campaign import loop as campaign_loop
+
+    for callable_obj in (campaign_loop.run_campaign, pipeline.evaluate):
+        parameter = inspect.signature(callable_obj).parameters["authorization_contract"]
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameter.default is inspect.Parameter.empty
+
+    fixture_cases = [
+        (
+            "direct-name.py",
+            "from campaign.loop import run_campaign\n"
+            "run_campaign(authorization_contract=object())\n",
+            "fixture.direct_name",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+        ),
+        (
+            "module-alias.py",
+            "import campaign.loop as L\n"
+            "L.run_campaign(authorization_contract=object())\n",
+            "fixture.module_alias",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+        ),
+        (
+            "from-alias.py",
+            "from campaign.pipeline import evaluate as ev\n"
+            "ev(authorization_contract=object())\n",
+            "fixture.from_alias",
+            collections.Counter({"campaign.pipeline.evaluate": 1}),
+            collections.Counter(),
+        ),
+        (
+            "relative.py",
+            "from .pipeline import evaluate\n"
+            "evaluate(authorization_contract=object())\n",
+            "campaign.relative_fixture",
+            collections.Counter({"campaign.pipeline.evaluate": 1}),
+            collections.Counter(),
+        ),
+        (
+            "fully-qualified.py",
+            "import campaign.loop\n"
+            "campaign.loop.run_campaign(authorization_contract=object())\n",
+            "fixture.fully_qualified",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+        ),
+        (
+            "default-binding.py",
+            "from campaign import pipeline\n"
+            "def drive(evaluate_fn=pipeline.evaluate):\n"
+            "    evaluate_fn(authorization_contract=object())\n",
+            "fixture.default_binding",
+            collections.Counter({"campaign.pipeline.evaluate": 1}),
+            collections.Counter(),
+        ),
+        (
+            "fallback-binding.py",
+            "from campaign import pipeline\n"
+            "def drive(evaluate_fn=None):\n"
+            "    evaluate_fn = evaluate_fn or pipeline.evaluate\n"
+            "    evaluate_fn(authorization_contract=object())\n",
+            "fixture.fallback_binding",
+            collections.Counter({"campaign.pipeline.evaluate": 1}),
+            collections.Counter(),
+        ),
+        (
+            "shadow.py",
+            "from campaign.loop import run_campaign as certified\n"
+            "def argument_shadow(run_campaign):\n"
+            "    run_campaign()\n"
+            "def assignment_shadow():\n"
+            "    run_campaign = lambda: None\n"
+            "    run_campaign()\n"
+            "def definition_shadow():\n"
+            "    def run_campaign():\n"
+            "        return None\n"
+            "    run_campaign()\n"
+            "certified(authorization_contract=object())\n",
+            "fixture.shadow",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter({"campaign.loop.run_campaign": 3}),
+        ),
+    ]
+    assert len(fixture_cases) == 8
+    assert {case[0] for case in fixture_cases} == {
+        "direct-name.py",
+        "module-alias.py",
+        "from-alias.py",
+        "relative.py",
+        "fully-qualified.py",
+        "default-binding.py",
+        "fallback-binding.py",
+        "shadow.py",
+    }
+    for rel_path, source, module_name, expected, expected_out_of_scope in fixture_cases:
+        resolved, unresolved, out_of_scope = _certified_writer_resolve_source(
+            source, rel_path, module_name,
+        )
+        expected_count = sum(expected.values())
+        assert expected_count > 0
+        assert len(resolved) == expected_count, rel_path
+        assert collections.Counter(record[4] for record in resolved) == expected
+        assert not unresolved, rel_path
+        assert len(out_of_scope) == sum(expected_out_of_scope.values()), rel_path
+        assert collections.Counter(
+            record[4] for record in out_of_scope
+        ) == expected_out_of_scope
+        assert all(
+            any(keyword.arg == "authorization_contract"
+                for keyword in record[5].keywords)
+            for record in resolved
+        ), rel_path
+
+    unresolved_fixtures = [
+        (
+            "getattr.py",
+            "import campaign.loop as L\n"
+            "getattr(L, 'run_campaign')()\n",
+            "campaign.loop.run_campaign",
+        ),
+        (
+            "getattr-nonliteral.py",
+            "import campaign.loop as L\n"
+            "name = 'run_campaign'\n"
+            "getattr(L, name)()\n",
+            "campaign.loop.run_campaign",
+        ),
+        (
+            "getattr-assignment-alias.py",
+            "import campaign.loop as L\n"
+            "g = getattr\n"
+            "g(L, 'run_campaign')()\n",
+            "campaign.loop.run_campaign",
+        ),
+        (
+            "builtins-getattr.py",
+            "import builtins\n"
+            "import campaign.loop as L\n"
+            "builtins.getattr(L, 'run_campaign')()\n",
+            "campaign.loop.run_campaign",
+        ),
+        (
+            "builtins-module-alias.py",
+            "import builtins as b\n"
+            "from campaign import pipeline\n"
+            "b.getattr(pipeline, 'evaluate')()\n",
+            "campaign.pipeline.evaluate",
+        ),
+        (
+            "builtins-getattr-import-alias.py",
+            "from builtins import getattr as g\n"
+            "from campaign import pipeline\n"
+            "g(pipeline, 'evaluate')()\n",
+            "campaign.pipeline.evaluate",
+        ),
+        (
+            "partial.py",
+            "from functools import partial\n"
+            "from campaign.loop import run_campaign\n"
+            "partial(run_campaign)()\n",
+            "campaign.loop.run_campaign",
+        ),
+        (
+            "container.py",
+            "from campaign.pipeline import evaluate\n"
+            "[evaluate][0]()\n",
+            "campaign.pipeline.evaluate",
+        ),
+    ]
+    assert len(unresolved_fixtures) == 8
+    assert {case[0] for case in unresolved_fixtures} == {
+        "getattr.py",
+        "getattr-nonliteral.py",
+        "getattr-assignment-alias.py",
+        "builtins-getattr.py",
+        "builtins-module-alias.py",
+        "builtins-getattr-import-alias.py",
+        "partial.py",
+        "container.py",
+    }
+    for rel_path, source, expected_target in unresolved_fixtures:
+        resolved, unresolved, out_of_scope = _certified_writer_resolve_source(
+            source, rel_path, "fixture.unresolved",
+        )
+        assert len(unresolved) == 1, rel_path
+        assert unresolved[0][4] == expected_target
+        assert not resolved, rel_path
+        assert not out_of_scope, rel_path
+
+    regression_fixtures = [
+        (
+            "loop-target-merge.py",
+            "from campaign.loop import run_campaign as writer\n"
+            "for writer in ():\n"
+            "    pass\n"
+            "writer()\n",
+            collections.Counter(),
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+        ),
+        (
+            "valueless-annassign.py",
+            "from campaign.loop import run_campaign as writer\n"
+            "writer: object\n"
+            "writer(authorization_contract=object())\n",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+            collections.Counter(),
+        ),
+        (
+            "lambda-default.py",
+            "from campaign import pipeline\n"
+            "drive = lambda evaluate_fn=pipeline.evaluate: "
+            "evaluate_fn(authorization_contract=object())\n",
+            collections.Counter({"campaign.pipeline.evaluate": 1}),
+            collections.Counter(),
+            collections.Counter(),
+        ),
+        (
+            "class-method-free-name.py",
+            "from campaign.loop import run_campaign\n"
+            "class Driver:\n"
+            "    run_campaign = lambda: None\n"
+            "    def drive(self):\n"
+            "        run_campaign(authorization_contract=object())\n",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+            collections.Counter(),
+        ),
+        (
+            "walrus-shadow.py",
+            "from campaign.loop import run_campaign\n"
+            "(run_campaign := lambda: None)\n"
+            "run_campaign()\n",
+            collections.Counter(),
+            collections.Counter(),
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+        ),
+        (
+            "shadowed-getattr.py",
+            "import campaign.loop as L\n"
+            "def getattr(_obj, _name):\n"
+            "    return lambda: None\n"
+            "getattr(L, 'run_campaign')()\n",
+            collections.Counter(),
+            collections.Counter(),
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+        ),
+        (
+            "class-annassign-call.py",
+            "from campaign.loop import run_campaign\n"
+            "def build():\n"
+            "    class Driver:\n"
+            "        marker: run_campaign()\n",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+            collections.Counter(),
+        ),
+        (
+            "empty-loop-body-rebind.py",
+            "from campaign.loop import run_campaign as writer\n"
+            "def local_fn():\n"
+            "    return None\n"
+            "for _ in ():\n"
+            "    writer = local_fn\n"
+            "writer()\n",
+            collections.Counter(),
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+        ),
+        (
+            "branch-body-rebind.py",
+            "from campaign.loop import run_campaign as writer\n"
+            "def local_fn():\n"
+            "    return None\n"
+            "if condition:\n"
+            "    writer = local_fn\n"
+            "writer()\n",
+            collections.Counter(),
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+        ),
+        (
+            "definite-loop-target.py",
+            "from campaign.loop import run_campaign as writer\n"
+            "for writer in (lambda: None,):\n"
+            "    pass\n"
+            "writer()\n",
+            collections.Counter(),
+            collections.Counter(),
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+        ),
+        (
+            "function-default-before-name.py",
+            "from campaign.loop import run_campaign\n"
+            "def run_campaign(x=run_campaign()):\n"
+            "    return x\n",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+            collections.Counter(),
+        ),
+        (
+            "comprehension-walrus-canonical.py",
+            "from campaign.loop import run_campaign\n"
+            "[(writer := run_campaign) for _ in (0,)]\n"
+            "writer()\n",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+            collections.Counter(),
+            collections.Counter(),
+        ),
+        (
+            "comprehension-walrus-shadow.py",
+            "from campaign.loop import run_campaign\n"
+            "[(run_campaign := lambda: None) for _ in (0,)]\n"
+            "run_campaign()\n",
+            collections.Counter(),
+            collections.Counter(),
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+        ),
+    ]
+    assert len(regression_fixtures) == 13
+    assert {case[0] for case in regression_fixtures} == {
+        "loop-target-merge.py",
+        "valueless-annassign.py",
+        "lambda-default.py",
+        "class-method-free-name.py",
+        "walrus-shadow.py",
+        "shadowed-getattr.py",
+        "class-annassign-call.py",
+        "empty-loop-body-rebind.py",
+        "branch-body-rebind.py",
+        "definite-loop-target.py",
+        "function-default-before-name.py",
+        "comprehension-walrus-canonical.py",
+        "comprehension-walrus-shadow.py",
+    }
+    for (rel_path, source, expected_resolved, expected_unresolved,
+         expected_out_of_scope) in regression_fixtures:
+        resolved, unresolved, out_of_scope = _certified_writer_resolve_source(
+            source, rel_path, "fixture.regression",
+        )
+        assert len(resolved) == sum(expected_resolved.values()), rel_path
+        assert collections.Counter(record[4] for record in resolved) == expected_resolved
+        assert len(unresolved) == sum(expected_unresolved.values()), rel_path
+        assert collections.Counter(record[4] for record in unresolved) == expected_unresolved
+        assert len(out_of_scope) == sum(expected_out_of_scope.values()), rel_path
+        assert collections.Counter(
+            record[4] for record in out_of_scope
+        ) == expected_out_of_scope
+
+    out_of_scope_reason_fixtures = [
+        (
+            "lexical-local-shadow-reason.py",
+            "def drive(run_campaign):\n"
+            "    run_campaign()\n",
+            _CertifiedWriterOutOfScopeReason.LEXICAL_LOCAL_SHADOW,
+        ),
+        (
+            "definite-rebind-reason.py",
+            "from campaign.loop import run_campaign\n"
+            "run_campaign = lambda: None\n"
+            "run_campaign()\n",
+            _CertifiedWriterOutOfScopeReason.DEFINITE_NONCANONICAL_REBIND,
+        ),
+        (
+            "shadowed-getattr-reason.py",
+            "import campaign.loop as L\n"
+            "def getattr(_obj, _name):\n"
+            "    return lambda: None\n"
+            "getattr(L, 'run_campaign')()\n",
+            _CertifiedWriterOutOfScopeReason.PROVEN_NONCANONICAL_GETATTR_RESULT,
+        ),
+    ]
+    assert len(out_of_scope_reason_fixtures) == 3
+    for rel_path, source, expected_reason in out_of_scope_reason_fixtures:
+        resolved, unresolved, out_of_scope = _certified_writer_resolve_source(
+            source, rel_path, "fixture.out_of_scope_reason",
+        )
+        assert not resolved, rel_path
+        assert not unresolved, rel_path
+        assert len(out_of_scope) == 1, rel_path
+        assert out_of_scope[0][4] == "campaign.loop.run_campaign", rel_path
+        assert out_of_scope[0][6] is expected_reason, rel_path
+
+    final_fix_fixtures = [
+        (
+            "break-loop-else.py",
+            "from campaign.loop import run_campaign as writer\n"
+            "for _ in (0,):\n"
+            "    break\n"
+            "else:\n"
+            "    writer = None\n"
+            "writer()\n",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+        ),
+        (
+            "empty-comprehension-walrus.py",
+            "from campaign.loop import run_campaign\n"
+            "[(run_campaign := lambda: None) for _ in ()]\n"
+            "run_campaign()\n",
+            collections.Counter({"campaign.loop.run_campaign": 2}),
+        ),
+        (
+            "global-canonical-binding.py",
+            "from campaign.loop import run_campaign\n"
+            "writer = lambda: None\n"
+            "def bind():\n"
+            "    global writer\n"
+            "    writer = run_campaign\n"
+            "bind()\n"
+            "writer()\n",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+        ),
+        (
+            "nonlocal-canonical-binding.py",
+            "from campaign.loop import run_campaign\n"
+            "def outer():\n"
+            "    writer = lambda: None\n"
+            "    def bind():\n"
+            "        nonlocal writer\n"
+            "        writer = run_campaign\n"
+            "    bind()\n"
+            "    writer()\n",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+        ),
+        (
+            "class-sequential-binding.py",
+            "from campaign.loop import run_campaign\n"
+            "class Driver:\n"
+            "    run_campaign()\n"
+            "    run_campaign = lambda: None\n",
+            collections.Counter({"campaign.loop.run_campaign": 1}),
+        ),
+        (
+            "vars-dynamic-extraction.py",
+            "import campaign.loop as L\n"
+            "writer = vars(L)['run_campaign']\n"
+            "writer()\n",
+            collections.Counter({"campaign.loop.run_campaign": 2}),
+        ),
+    ]
+    assert len(final_fix_fixtures) == 6
+    for rel_path, source, expected_unresolved in final_fix_fixtures:
+        resolved, unresolved, out_of_scope = _certified_writer_resolve_source(
+            source, rel_path, "fixture.final_fix",
+        )
+        assert not resolved, rel_path
+        assert len(unresolved) == sum(expected_unresolved.values()), rel_path
+        assert collections.Counter(
+            record[4] for record in unresolved
+        ) == expected_unresolved
+        assert not out_of_scope, rel_path
+
+    with tempfile.TemporaryDirectory(prefix="certified-writer-source-") as tmpdir:
+        encoded_path = Path(tmpdir) / "pep263.py"
+        encoded_path.write_bytes(
+            b"# coding: latin-1\n"
+            b"from campaign.loop import run_campaign\n"
+            b"label = 'caf\xe9'\n"
+            b"run_campaign(authorization_contract=object())\n"
+        )
+        resolved, unresolved, out_of_scope, source_error = _certified_writer_resolve_path(
+            encoded_path, "pep263.py",
+        )
+        assert len(resolved) == 1
+        assert resolved[0][4] == "campaign.loop.run_campaign"
+        assert not unresolved
+        assert not out_of_scope
+        assert source_error is None
+
+        malformed_path = Path(tmpdir) / "malformed.py"
+        malformed_path.write_text("def broken(:\n", encoding="utf-8")
+        resolved, unresolved, out_of_scope, source_error = _certified_writer_resolve_path(
+            malformed_path, "malformed.py",
+        )
+        assert not resolved and not unresolved and not out_of_scope
+        assert source_error is not None
+        assert source_error["path"] == "malformed.py"
+        assert source_error["phase"] == "parse"
+        assert source_error["error"] == "SyntaxError"
+        assert isinstance(source_error["line"], int)
+        assert isinstance(source_error["column"], int)
+
+    repo_root = Path(_ORCH).parent
+    source_paths = []
+    for path in sorted(repo_root.rglob("*.py")):
+        rel_path = path.relative_to(repo_root)
+        parts = rel_path.parts
+        # Tests contain authority-omission negative controls and same-name mocks.
+        if parts[:2] == ("orchestrator", "tests"):
+            continue
+        # .git is version-control metadata, not repository-owned source.
+        if ".git" in parts:
+            continue
+        # .claude contains nested worktrees whose callers belong to other trees.
+        if ".claude" in parts:
+            continue
+        # .codex contains nested worktrees whose callers belong to other trees.
+        if ".codex" in parts:
+            continue
+        # external is vendored/submodule code outside this repository's authority.
+        if parts and parts[0] == "external":
+            continue
+        # __pycache__ is generated interpreter cache content.
+        if "__pycache__" in parts:
+            continue
+        # output is generated campaign/dispatch output, not an import source root.
+        if parts and parts[0] == "output":
+            continue
+        # Virtual environments and build trees are generated dependency/artifact roots.
+        if parts and parts[0] in {".venv", "venv", "build"}:
+            continue
+        source_paths.append(path)
+    assert source_paths, "repo-wide certified-writer scan found no Python files"
+
+    resolved_calls = []
+    unresolved_calls = []
+    out_of_scope_calls = []
+    source_errors = []
+    for path in source_paths:
+        rel_path = path.relative_to(repo_root).as_posix()
+        resolved, unresolved, out_of_scope, source_error = _certified_writer_resolve_path(
+            path, rel_path,
+        )
+        if source_error is not None:
+            source_errors.append(source_error)
+            continue
+        resolved_calls.extend(resolved)
+        unresolved_calls.extend(unresolved)
+        out_of_scope_calls.extend(out_of_scope)
+
+    assert not source_errors, (
+        "certified-writer source scan failures:\n"
+        + json.dumps(source_errors, ensure_ascii=False, sort_keys=True, indent=2)
+    )
+
+    assert all(
+        isinstance(record[6], _CertifiedWriterOutOfScopeReason)
+        for record in out_of_scope_calls
+    ), "OUT_OF_SCOPE certified-writer record missing a closed reason"
+    observed_out_of_scope_reasons = {
+        record[6] for record in out_of_scope_calls
+    }
+    unsafe_out_of_scope_reasons = (
+        observed_out_of_scope_reasons
+        - _CERTIFIED_WRITER_SAFE_OUT_OF_SCOPE_REASONS
+    )
+    assert not unsafe_out_of_scope_reasons, (
+        "unsafe OUT_OF_SCOPE certified-writer reasons: "
+        + ", ".join(sorted(reason.value
+                           for reason in unsafe_out_of_scope_reasons))
+    )
+
+    expected_inventory = collections.Counter({
+        ("orchestrator/campaign/backoff_repro.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/backoff_sweep.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/demo.py", "campaign.loop.run_campaign"): 2,
+        ("orchestrator/campaign/p2_2.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/p3_kickoff.py", "campaign.loop.run_campaign"): 2,
+        ("orchestrator/campaign/p3_s4_loop.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/p3_s4_loop_sort.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/p3_s4_loop_trigger_gating.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/p3_s4_red.py", "campaign.loop.run_campaign"): 2,
+        ("orchestrator/campaign/s6_sort_sweep.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/s8a_trigger_sweep.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/sanity_silo.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/loop.py", "campaign.pipeline.evaluate"): 1,
+        ("orchestrator/campaign/screening_driver.py", "campaign.pipeline.evaluate"): 1,
+        ("orchestrator/campaign/s1_direct_comparison.py", "campaign.pipeline.evaluate"): 1,
+        ("orchestrator/campaign/s8b_oracle_driver.py", "campaign.pipeline.evaluate"): 1,
+        ("orchestrator/qualification/t126_driver.py", "campaign.pipeline.evaluate"): 1,
+    })
+    assert sum(count for (path, target), count in expected_inventory.items()
+               if target == "campaign.loop.run_campaign") == 15
+    assert sum(count for (path, target), count in expected_inventory.items()
+               if target == "campaign.pipeline.evaluate") == 5
+
+    unresolved_diagnostics = "\n".join(
+        _certified_writer_diagnostic(record)
+        for record in sorted(unresolved_calls, key=lambda record: record[:5])
+    )
+    # Ordered contract: UNRESOLVED, missing authority, then inventory drift.
+    assert not unresolved_calls, (
+        "UNRESOLVED certified-writer references:\n" + unresolved_diagnostics
+    )
+
+    missing_authorization = [
+        record for record in resolved_calls
+        if not any(keyword.arg == "authorization_contract"
+                   for keyword in record[5].keywords)
+    ]
+    missing_diagnostics = "\n".join(
+        _certified_writer_diagnostic(record)
+        for record in sorted(missing_authorization, key=lambda record: record[:5])
+    )
+    assert not missing_authorization, (
+        "authorization_contract missing:\n" + missing_diagnostics
+    )
+
+    actual_inventory = collections.Counter(
+        (record[0], record[4]) for record in resolved_calls
+    )
+    new_callers = actual_inventory - expected_inventory
+    stale_inventory = expected_inventory - actual_inventory
+
+    def inventory_diagnostics(difference, *, expected_first):
+        lines = []
+        for (rel_path, target), count in sorted(difference.items()):
+            actual_count = actual_inventory[(rel_path, target)]
+            expected_count = expected_inventory[(rel_path, target)]
+            records = [
+                record for record in resolved_calls
+                if (record[0], record[4]) == (rel_path, target)
+            ]
+            callsites = ", ".join(
+                _certified_writer_diagnostic(record) for record in records
+            )
+            prefix = "stale fixed inventory" if expected_first else "new/unregistered caller"
+            lines.append(
+                f"{prefix}: {rel_path} target={target} "
+                f"expected={expected_count} actual={actual_count} delta={count} "
+                f"callsites=[{callsites}]"
+            )
+        return "\n".join(lines)
+
+    inventory_message = "\n".join(filter(None, [
+        inventory_diagnostics(new_callers, expected_first=False),
+        inventory_diagnostics(stale_inventory, expected_first=True),
+    ]))
+    assert not new_callers and not stale_inventory, inventory_message
+
+    # Legacy raw-AST guards remain intact so every formerly rejected input is
+    # still rejected even when semantic provenance classifies a same-name call
+    # as unrelated.
     campaign_dir = Path(_ORCH) / "campaign"
     expected_run_calls = {
         "backoff_repro.py": 1, "backoff_sweep.py": 1, "demo.py": 2,
