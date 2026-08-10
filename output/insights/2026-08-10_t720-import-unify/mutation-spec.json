@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
   "estimated_run_seconds": 1400,
   "timeout_seconds": 600,
   "hang_timeout_seconds": 300,
@@ -7,193 +7,182 @@
     {
       "id": "M1",
       "category": "negative",
-      "hang_risk": false,
-      "note": "R-A: campaign 本体へ legacy 絶対 import を再導入する。実行時は両形とも import 可能なので落ちず、静的検査だけが落ちる (単一理由性)",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_real_repository_legacy_namespace_matches_exception_ledger"
-      ],
       "replacements": [
         {
           "file": "orchestrator/campaign/demo.py",
           "old": "from . import env_contract                              # noqa: E402",
           "new": "from campaign import env_contract                       # noqa: E402"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_real_repository_legacy_namespace_matches_exception_ledger"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M2",
       "category": "negative",
-      "hang_risk": false,
-      "note": "R-A の走査配線を切る。台帳との完全一致が stale で落ちる。fix6 の合成 repo 配線テストも同時に落ちるため両方を期待 node に登録する",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_real_repository_legacy_namespace_matches_exception_ledger",
-        "orchestrator/tests/test_campaign_import_invariant.py::test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end"
-      ],
       "replacements": [
         {
           "file": "orchestrator/tests/test_campaign_import_invariant.py",
           "old": "        violations.extend(scan_legacy_namespace(path, source, tree=tree))",
           "new": "        violations.extend(())"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_real_repository_legacy_namespace_matches_exception_ledger",
+        "orchestrator/tests/test_campaign_import_invariant.py::test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M3",
       "category": "negative",
-      "hang_risk": false,
-      "note": "R-B の走査配線を切る。bootstrap 規則の完全一致が落ちる。fix6 の合成 repo 配線テストも同時に落ちるため両方を期待 node に登録する",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_real_campaign_package_has_canonical_direct_bootstrap",
-        "orchestrator/tests/test_campaign_import_invariant.py::test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end"
-      ],
       "replacements": [
         {
           "file": "orchestrator/tests/test_campaign_import_invariant.py",
           "old": "            violations.extend(scan_campaign_shape(path, source, tree=tree))",
           "new": "            violations.extend(())"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_real_campaign_package_has_canonical_direct_bootstrap",
+        "orchestrator/tests/test_campaign_import_invariant.py::test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M4",
       "category": "negative",
-      "hang_risk": false,
-      "note": "R-D の走査配線を切る。相対形規則の完全一致が落ちる。fix6 の合成 repo 配線テストも同時に落ちるため両方を期待 node に登録する",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_real_campaign_package_uses_relative_sibling_imports",
-        "orchestrator/tests/test_campaign_import_invariant.py::test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end"
-      ],
       "replacements": [
         {
           "file": "orchestrator/tests/test_campaign_import_invariant.py",
           "old": "            violations.extend(scan_campaign_relative_imports(path, source, tree=tree))",
           "new": "            violations.extend(())"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_real_campaign_package_uses_relative_sibling_imports",
+        "orchestrator/tests/test_campaign_import_invariant.py::test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M5",
       "category": "negative",
-      "hang_risk": false,
-      "note": "R-C の走査配線を切る。docs 規則の完全一致が落ちる。fix6 の合成 repo 配線テストも同時に落ちるため両方を期待 node に登録する",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_real_current_docs_have_no_legacy_module_command",
-        "orchestrator/tests/test_campaign_import_invariant.py::test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end"
-      ],
       "replacements": [
         {
           "file": "orchestrator/tests/test_campaign_import_invariant.py",
           "old": "        violations.extend(scan_current_doc(path, sources[path]))",
           "new": "        violations.extend(())"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_real_current_docs_have_no_legacy_module_command",
+        "orchestrator/tests/test_campaign_import_invariant.py::test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M6",
       "category": "negative",
-      "hang_risk": false,
-      "note": "除外判定を絶対 path の部分一致へ退行させる。現在の worktree の絶対 path に .claude/worktrees が含まれるため走査集合が空になり、生存検査が落ちる",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_repository_scan_set_is_nonempty_and_contains_sentinels"
-      ],
       "replacements": [
         {
           "file": "orchestrator/tests/test_campaign_import_invariant.py",
           "old": "    relative_paths = repo_tree_util.list_tracked_and_untracked_files(root)",
           "new": "    relative_paths = () if \".claude/worktrees\" in str(root) else repo_tree_util.list_tracked_and_untracked_files(root)"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_repository_scan_set_is_nonempty_and_contains_sentinels"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M7",
       "category": "negative",
-      "hang_risk": false,
-      "note": "例外台帳を空にする。件数 pin が落ちる (RB-04 の恒真化を塞いだことの裏取り)",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_known_exception_ledger_is_unique_rationalized_and_commented"
-      ],
       "replacements": [
         {
           "file": "orchestrator/tests/test_campaign_import_invariant.py",
           "old": "KNOWN_EXCEPTIONS: tuple[ImportException, ...] = (",
           "new": "KNOWN_EXCEPTIONS: tuple[ImportException, ...] = () or ("
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_known_exception_ledger_is_unique_rationalized_and_commented"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M8",
       "category": "negative",
-      "hang_risk": false,
-      "note": "直接実行 CLI から __package__ 代入を落とす。逐語 bootstrap の形が崩れて R-B が落ちる",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_real_campaign_package_has_canonical_direct_bootstrap"
-      ],
       "replacements": [
         {
           "file": "orchestrator/campaign/s8b_verdict.py",
           "old": "    __package__ = \"orchestrator.campaign\"",
           "new": "    pass"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_real_campaign_package_has_canonical_direct_bootstrap"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M9",
       "category": "negative",
-      "hang_risk": false,
-      "note": "R-A の module 名判定を campaign_* まで広げる。campaign_lock_test_support 等の別名が誤検出され、台帳との完全一致が unlisted で落ちる (過剰検出の防止が効いていることの裏取り)",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_real_repository_legacy_namespace_matches_exception_ledger"
-      ],
       "replacements": [
         {
           "file": "orchestrator/tests/test_campaign_import_invariant.py",
           "old": "_MODULE_PATH_RE = re.compile(r\"campaign(?:\\.[A-Za-z_]\\w*)*\\Z\")",
           "new": "_MODULE_PATH_RE = re.compile(r\"campaign\\w*(?:\\.[A-Za-z_]\\w*)*\\Z\")"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_real_repository_legacy_namespace_matches_exception_ledger"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M10",
       "category": "negative",
-      "hang_risk": false,
-      "note": "docs runbook へ legacy 起動形を戻す。R-C が落ちる",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_real_current_docs_have_no_legacy_module_command"
-      ],
       "replacements": [
         {
           "file": "docs/phase3-s4b-runbook.md",
           "old": "python3 -m orchestrator.campaign.p3_s4_loop --run-iteration <scratch>/prop.json \\",
           "new": "python3 -m campaign.p3_s4_loop --run-iteration <scratch>/prop.json \\"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_real_current_docs_have_no_legacy_module_command"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     },
     {
       "id": "M11",
       "category": "negative",
-      "hang_risk": false,
-      "note": "campaign 本体へ <repo>/orchestrator の sys.path 挿入を再導入する。PATH_RULE が発火する。BOOTSTRAP_RULE と同じ nodeid が見る",
-      "expected_status": "KILLED",
-      "expected_nodes": [
-        "orchestrator/tests/test_campaign_import_invariant.py::test_real_campaign_package_has_canonical_direct_bootstrap"
-      ],
       "replacements": [
         {
           "file": "orchestrator/campaign/loop.py",
           "old": "from __future__ import annotations",
           "new": "from __future__ import annotations\nimport os as _os_probe, sys as _sys_probe\n_sys_probe.path.insert(0, _os_probe.path.join(_os_probe.path.dirname(_os_probe.path.dirname(_os_probe.path.abspath(__file__)))))"
         }
-      ]
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_import_invariant.py::test_real_campaign_package_has_canonical_direct_bootstrap"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     }
   ]
 }
