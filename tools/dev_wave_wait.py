@@ -5,11 +5,13 @@ from __future__ import annotations
 import argparse
 import errno
 import json
+import math
 import os
 import re
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -31,6 +33,19 @@ _DEFAULT_ACCEPTANCE_POLL_SECONDS = 30
 _MIN_ACCEPTANCE_POLL_SECONDS = 30
 _MAX_ACCEPTANCE_POLL_SECONDS = 120
 _DEFAULT_ACCEPTANCE_MAX_WAIT_SECONDS = 7200
+_STAGE_TIMEOUT_SECONDS = 300
+_LEASE_TTL_SECONDS = 2400
+_GIT_ENV_KEYS = frozenset(
+    {
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+    }
+)
+_HANDLED_SIGNALS = (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
 _SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 _CLAIM_STATES = frozenset(
     {"acquired", "held", "queued", "stale-held", "unavailable"}
@@ -61,12 +76,22 @@ class _PidState(Enum):
 @dataclass(frozen=True)
 class _Effects:
     run: Callable[[Sequence[str], Path, bool], _CommandResult]
+    run_unbounded: Callable[[Sequence[str], Path, bool], _CommandResult]
     sleep: Callable[[float], None]
     kill: Callable[[int, int], None]
     is_file: Callable[[Path], bool]
     read_text: Callable[[Path], str]
     getenv: Callable[[str], str | None]
     monotonic: Callable[[], float]
+    write_temp: Callable[[bytes], Path]
+    unlink: Callable[[Path], None]
+
+
+@dataclass
+class _AcceptanceLifecycle:
+    claim_started: bool = False
+    acquired_at: float | None = None
+    keep_lease: bool = False
 
 
 class _StageFailure(Exception):
@@ -81,16 +106,31 @@ class _SignalReceived(BaseException):
         self.signum = signum
 
 
-def _default_run(argv: Sequence[str], cwd: Path, capture: bool) -> _CommandResult:
+def _run_subprocess(
+    argv: Sequence[str], cwd: Path, capture: bool, *, stage_policy: bool
+) -> _CommandResult:
+    values = list(argv)
     kwargs: dict[str, object] = {
         "cwd": cwd,
         "check": False,
         "text": True,
         "shell": False,
     }
+    if values and values[0] == "git":
+        kwargs["env"] = {
+            key: value for key, value in os.environ.items() if key not in _GIT_ENV_KEYS
+        }
+        if stage_policy:
+            kwargs["timeout"] = _STAGE_TIMEOUT_SECONDS
+    elif (
+        stage_policy
+        and len(values) >= 2
+        and Path(values[1]).name == "wave_land_window.py"
+    ):
+        kwargs["timeout"] = _STAGE_TIMEOUT_SECONDS
     if capture:
         kwargs["capture_output"] = True
-    result = subprocess.run(list(argv), **kwargs)
+    result = subprocess.run(values, **kwargs)
     return _CommandResult(
         result.returncode,
         result.stdout if capture else "",
@@ -98,19 +138,48 @@ def _default_run(argv: Sequence[str], cwd: Path, capture: bool) -> _CommandResul
     )
 
 
+def _default_run(argv: Sequence[str], cwd: Path, capture: bool) -> _CommandResult:
+    return _run_subprocess(argv, cwd, capture, stage_policy=True)
+
+
+def _default_run_unbounded(
+    argv: Sequence[str], cwd: Path, capture: bool
+) -> _CommandResult:
+    return _run_subprocess(argv, cwd, capture, stage_policy=False)
+
+
 def _default_read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+    # newline translation を無効にし、検査した UTF-8 bytes を一時 file へ再現する。
+    with path.open("r", encoding="utf-8", newline="") as stream:
+        return stream.read()
+
+
+def _default_write_temp(content: bytes) -> Path:
+    fd, raw_path = tempfile.mkstemp(prefix="dev-wave-wait-message-", suffix=".txt")
+    path = Path(raw_path)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except BaseException:
+        path.unlink(missing_ok=True)
+        raise
+    return path
 
 
 def _default_effects() -> _Effects:
     return _Effects(
         run=_default_run,
+        run_unbounded=_default_run_unbounded,
         sleep=time.sleep,
         kill=os.kill,
         is_file=Path.is_file,
         read_text=_default_read_text,
         getenv=os.environ.get,
         monotonic=time.monotonic,
+        write_temp=_default_write_temp,
+        unlink=lambda path: path.unlink(missing_ok=True),
     )
 
 
@@ -213,7 +282,7 @@ def _resolve_pid(
     return _parse_pid(raw.strip())
 
 
-def _parse_start_time(value: str, pid: int) -> int:
+def _parse_process_identity(value: str, pid: int) -> tuple[str, int]:
     prefix = f"{pid} ("
     if not value.startswith(prefix):
         raise ValueError("pid mismatch")
@@ -221,13 +290,28 @@ def _parse_start_time(value: str, pid: int) -> int:
     if close < len(prefix):
         raise ValueError("malformed stat")
     remaining = value[close + 1 :].split()
-    if len(remaining) <= 19 or not remaining[19].isascii() or not remaining[19].isdecimal():
+    if (
+        len(remaining) <= 19
+        or len(remaining[0]) != 1
+        or not remaining[19].isascii()
+        or not remaining[19].isdecimal()
+    ):
         raise ValueError("missing starttime")
-    return int(remaining[19], 10)
+    return remaining[0], int(remaining[19], 10)
+
+
+def _parse_start_time(value: str, pid: int) -> int:
+    return _parse_process_identity(value, pid)[1]
 
 
 def _read_start_time(pid: int, effects: _Effects) -> int:
     return _parse_start_time(effects.read_text(Path(f"/proc/{pid}/stat")), pid)
+
+
+def _read_process_identity(pid: int, effects: _Effects) -> tuple[str, int]:
+    return _parse_process_identity(
+        effects.read_text(Path(f"/proc/{pid}/stat")), pid
+    )
 
 
 def _initial_start_time(pid: int, effects: _Effects) -> int | None:
@@ -255,9 +339,11 @@ def _pid_state(pid: int, start_time: int | None, effects: _Effects) -> _PidState
     if start_time is None:
         return _PidState.ALIVE
     try:
-        current = _read_start_time(pid, effects)
+        process_state, current = _read_process_identity(pid, effects)
     except (OSError, UnicodeError, ValueError):
         return _PidState.UNKNOWN
+    if process_state == "Z":
+        return _PidState.DEAD
     return _PidState.ALIVE if current == start_time else _PidState.DEAD
 
 
@@ -363,6 +449,14 @@ def _identity_preflight(effects: _Effects, repo: Path, wave: str) -> None:
     )
     if inside.stdout.strip() != "true":
         raise _StageFailure("preflight-worktree", RC_USAGE)
+    top_level = preflight_run(
+        ("git", "rev-parse", "--show-toplevel"), "preflight-toplevel"
+    ).stdout.strip()
+    try:
+        if not top_level or Path(top_level).resolve() != repo.resolve():
+            raise _StageFailure("preflight-toplevel", RC_USAGE)
+    except OSError:
+        raise _StageFailure("preflight-toplevel", RC_USAGE) from None
     branch = preflight_run(
         ("git", "symbolic-ref", "--quiet", "--short", "HEAD"),
         "preflight-branch",
@@ -404,7 +498,10 @@ def _claim_once(
     lease_dir: Path,
     wave: str,
     main_sha: str,
+    lifecycle: _AcceptanceLifecycle | None = None,
 ) -> str:
+    if lifecycle is not None:
+        lifecycle.claim_started = True
     result = _run_capture(
         effects,
         _lease_command(repo, "claim", lease_dir, wave, main_sha),
@@ -425,13 +522,16 @@ def _wait_until_acquired(
     wave: str,
     poll_seconds: int,
     max_wait_seconds: int,
-) -> None:
+    lifecycle: _AcceptanceLifecycle,
+) -> float:
     started = effects.monotonic()
     while True:
         sha = _main_sha(effects, repo, "preclaim-rev-parse")
-        state = _claim_once(effects, repo, lease_dir, wave, sha)
+        claim_started_at = effects.monotonic()
+        state = _claim_once(effects, repo, lease_dir, wave, sha, lifecycle)
         if state == "acquired":
-            return
+            lifecycle.acquired_at = claim_started_at
+            return claim_started_at
         if state not in {"held", "queued"}:
             raise _StageFailure("claim-state")
         if effects.monotonic() - started + poll_seconds > max_wait_seconds:
@@ -439,16 +539,25 @@ def _wait_until_acquired(
         effects.sleep(poll_seconds)
 
 
-def _message_file_valid(path: Path, effects: _Effects) -> bool:
-    if not effects.is_file(path):
-        return False
-    try:
-        content = effects.read_text(path)
-    except (OSError, UnicodeError):
-        return False
+def _message_has_ai_agent(content: str) -> bool:
     return bool(content.strip()) and any(
         line.startswith("AI-Agent:") for line in content.splitlines()
     )
+
+
+def _validated_message_copy(path: Path, effects: _Effects) -> Path | None:
+    if not effects.is_file(path):
+        return None
+    try:
+        content = effects.read_text(path)
+    except (OSError, UnicodeError):
+        return None
+    if not _message_has_ai_agent(content):
+        return None
+    try:
+        return effects.write_temp(content.encode("utf-8"))
+    except (OSError, UnicodeError):
+        return None
 
 
 def _release_once(
@@ -491,6 +600,43 @@ def _normalize_child_rc(returncode: int) -> int:
     return 128 + (-returncode)
 
 
+def _cleanup_after_claim(
+    effects: _Effects,
+    repo: Path,
+    lease_dir: Path,
+    wave: str,
+    *,
+    merge_pending: bool,
+) -> _Outcome | None:
+    cleanup_failure: _Outcome | None = None
+    previous_mask: set[signal.Signals] | None = None
+    pthread_sigmask = getattr(signal, "pthread_sigmask", None)
+    if pthread_sigmask is not None:
+        try:
+            previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+        except (OSError, ValueError):
+            previous_mask = None
+    try:
+        if merge_pending:
+            abort_outcome = _abort_pending_merge(effects, repo)
+            if abort_outcome.rc != RC_OK:
+                cleanup_failure = abort_outcome
+        release_outcome = _release_once(effects, repo, lease_dir, wave)
+        if release_outcome.rc != RC_OK:
+            if cleanup_failure is not None:
+                _print_outcome(release_outcome)
+            else:
+                cleanup_failure = release_outcome
+    finally:
+        if previous_mask is not None:
+            try:
+                pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            except _SignalReceived:
+                # cleanup 中に届いた再 signal は cleanup 完了後まで遅延できた。
+                pass
+    return cleanup_failure
+
+
 def run_acceptance(
     *,
     wave: str,
@@ -501,29 +647,34 @@ def run_acceptance(
     command: Sequence[str],
     repo: Path,
     effects: _Effects,
+    lifecycle: _AcceptanceLifecycle | None = None,
 ) -> _Outcome:
+    active_lifecycle = lifecycle or _AcceptanceLifecycle()
     primary = _Outcome(RC_FAIL_CLOSED, "internal")
     merge_pending = False
     keep_lease = False
     cleanup_failure: _Outcome | None = None
+    validated_message: Path | None = None
     try:
         _identity_preflight(effects, repo, wave)
         if merge_message_file is not None and not effects.is_file(merge_message_file):
             raise _StageFailure("merge-message-preflight", RC_USAGE)
-        _wait_until_acquired(
+        acquired_at = _wait_until_acquired(
             effects,
             repo,
             lease_dir,
             wave,
             poll_seconds,
             max_wait_seconds,
+            active_lifecycle,
         )
         _main_sha(effects, repo, "postclaim-rev-parse")
         behind = _behind_count(effects, repo, "behind-count")
         if behind > 0:
-            if merge_message_file is None or not _message_file_valid(
-                merge_message_file, effects
-            ):
+            if merge_message_file is None:
+                raise _StageFailure("merge-message")
+            validated_message = _validated_message_copy(merge_message_file, effects)
+            if validated_message is None:
                 raise _StageFailure("merge-message")
             merge_pending = True
             _run_capture(
@@ -534,31 +685,57 @@ def run_acceptance(
             )
             _run_capture(
                 effects,
-                ("git", "commit", "--dry-run", "-F", str(merge_message_file)),
+                ("git", "commit", "--dry-run", "-F", str(validated_message)),
                 repo,
                 "commit-dry-run",
             )
             _run_capture(
                 effects,
-                ("git", "commit", "-F", str(merge_message_file)),
+                ("git", "commit", "-F", str(validated_message)),
                 repo,
                 "commit",
             )
             merge_pending = False
+            committed_message = _run_capture(
+                effects,
+                ("git", "log", "-1", "--format=%B", "HEAD"),
+                repo,
+                "commit-message-postcheck",
+            ).stdout
+            if not _message_has_ai_agent(committed_message):
+                raise _StageFailure("commit-message-postcheck")
         if _behind_count(effects, repo, "postcheck") != 0:
             raise _StageFailure("postcheck")
         print(
             "acceptance-command argv=" + json.dumps(list(command), ensure_ascii=True),
             file=sys.stderr,
         )
+        print(
+            "acceptance-command timeout=none (long-running acceptance is intentional)",
+            file=sys.stderr,
+        )
         try:
-            child = effects.run(tuple(command), repo, False)
+            # 受入 command 自身は正当に長時間走るため、stage timeout を適用しない。
+            child = effects.run_unbounded(tuple(command), repo, False)
         except (OSError, UnicodeError, subprocess.SubprocessError):
             raise _StageFailure("acceptance-command") from None
         child_rc = _normalize_child_rc(child.returncode)
         if child_rc == 0:
-            print("acceptance succeeded; lease is held until land termination")
+            try:
+                elapsed = effects.monotonic() - acquired_at
+            except Exception:
+                raise _StageFailure("acceptance-clock") from None
+            if not math.isfinite(elapsed) or elapsed < 0:
+                raise _StageFailure("acceptance-clock")
+            ttl_remaining = max(0, _LEASE_TTL_SECONDS - math.ceil(elapsed))
+            print(
+                "acceptance succeeded; lease is held; "
+                f"TTL remaining at most {ttl_remaining} seconds; "
+                "exclusivity is lost after expiry"
+            )
+            print("known limitation: no fencing token is provided")
             keep_lease = True
+            active_lifecycle.keep_lease = True
             primary = _Outcome(RC_OK)
         else:
             primary = _Outcome(child_rc, "acceptance-command", child.returncode)
@@ -571,17 +748,22 @@ def run_acceptance(
     except BaseException:
         primary = _Outcome(RC_FAIL_CLOSED, "unexpected-error")
     finally:
-        if not (keep_lease and primary.rc == RC_OK):
-            if merge_pending:
-                abort_outcome = _abort_pending_merge(effects, repo)
-                if abort_outcome.rc != RC_OK:
-                    cleanup_failure = abort_outcome
-            release_outcome = _release_once(effects, repo, lease_dir, wave)
-            if release_outcome.rc != RC_OK:
-                if cleanup_failure is not None:
-                    _print_outcome(release_outcome)
-                else:
-                    cleanup_failure = release_outcome
+        if validated_message is not None:
+            try:
+                effects.unlink(validated_message)
+            except OSError:
+                pass
+        if (
+            active_lifecycle.claim_started
+            and not (keep_lease and primary.rc == RC_OK)
+        ):
+            cleanup_failure = _cleanup_after_claim(
+                effects,
+                repo,
+                lease_dir,
+                wave,
+                merge_pending=merge_pending,
+            )
     return cleanup_failure if cleanup_failure is not None else primary
 
 
@@ -594,15 +776,19 @@ def _lease_dir(argument: Path | None, effects: _Effects) -> Path:
     return Path(value)
 
 
-def _install_signal_handlers() -> dict[int, object]:
+def _install_signal_handlers(
+    cleanup_held_lease: Callable[[], None] | None = None,
+) -> dict[int, object]:
     # SIGKILL と host 停止は unwind 不能なので既存 lease TTL に委ねる。
     previous: dict[int, object] = {}
 
     def handler(signum: int, frame: object) -> None:
         del frame
+        if cleanup_held_lease is not None:
+            cleanup_held_lease()
         raise _SignalReceived(signum)
 
-    for signum in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+    for signum in _HANDLED_SIGNALS:
         previous[signum] = signal.getsignal(signum)
         signal.signal(signum, handler)
     return previous
@@ -643,7 +829,25 @@ def main(
         else:
             active_repo = Path.cwd() if repo is None else repo
             lease_dir = _lease_dir(args.lease_dir, active_effects)
-            previous = _install_signal_handlers()
+            lifecycle = _AcceptanceLifecycle()
+
+            def cleanup_held_lease() -> None:
+                if not (lifecycle.claim_started and lifecycle.keep_lease):
+                    return
+                lifecycle.keep_lease = False
+                cleanup = _cleanup_after_claim(
+                    active_effects,
+                    active_repo,
+                    lease_dir,
+                    args.wave,
+                    merge_pending=False,
+                )
+                if cleanup is None:
+                    lifecycle.claim_started = False
+                else:
+                    _print_outcome(cleanup)
+
+            previous = _install_signal_handlers(cleanup_held_lease)
             try:
                 outcome = run_acceptance(
                     wave=args.wave,
@@ -654,9 +858,37 @@ def main(
                     command=child_argv,
                     repo=active_repo,
                     effects=active_effects,
+                    lifecycle=lifecycle,
                 )
-            finally:
+                if outcome.rc == RC_OK:
+                    # handler を有効にした try 内から直接 return する。ここまでの
+                    # signal は callback が lease を解放し、except が非成功へ正規化する。
+                    _print_outcome(outcome)
+                    return outcome.rc
                 _restore_signal_handlers(previous)
+            except BaseException as exc:
+                if isinstance(exc, _SignalReceived):
+                    outcome = _Outcome(128 + exc.signum, f"signal-{exc.signum}")
+                elif isinstance(exc, KeyboardInterrupt):
+                    outcome = _Outcome(RC_INTERRUPTED, "keyboard-interrupt")
+                else:
+                    outcome = _Outcome(RC_FAIL_CLOSED, "internal")
+                if lifecycle.claim_started:
+                    cleanup = _cleanup_after_claim(
+                        active_effects,
+                        active_repo,
+                        lease_dir,
+                        args.wave,
+                        merge_pending=False,
+                    )
+                    if cleanup is not None:
+                        outcome = cleanup
+                try:
+                    _restore_signal_handlers(previous)
+                except BaseException:
+                    # lease cleanup は完了済み。handler 復元失敗も成功へ倒さない。
+                    if outcome.rc == RC_OK:
+                        outcome = _Outcome(RC_FAIL_CLOSED, "signal-restore")
     except _StageFailure as exc:
         outcome = exc.outcome
     except (Exception, KeyboardInterrupt):
