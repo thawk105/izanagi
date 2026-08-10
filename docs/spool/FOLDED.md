@@ -693,3 +693,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:evidence-path-nul-alias":"[T-730]","T:land-test-scope-dependent-red":"[T-731]"},"authored":"2026-08-10","content_sha256":"f781fc1618f9e716fdb2d21c08c180ae3cf042d915b5165236ddd5eba8223a7d","seq":1,"wave":"dev-wave-t714-evidence-path-ctrlchar"}
 - {"allocations":{"D:evidence-path-identity-wall":"D267"},"authored":"2026-08-10","content_sha256":"0e2c2976175b17aee371e1b7d52689b99de518b247e77a40c612d149facafe14","seq":2,"wave":"dev-wave-t714-evidence-path-ctrlchar"}
 - {"allocations":{"F:lease-claim-output-is-json":"F195"},"authored":"2026-08-10","content_sha256":"b1412b2d5f85d7070f373cef0afad7daafb583d0bb7e6ae9614ef474c602c8ad","seq":3,"wave":"dev-wave-t714-evidence-path-ctrlchar"}
+
+- {"allocations":{"T:acceptance-lease-waiter-merge-contract":"[T-732]"},"authored":"2026-08-10","content_sha256":"2c1c15e4f84e1d4b7eb69a32537ebb7dd9497f3f872c73c6c6428f5c6548d8af","seq":1,"wave":"dev-wave-t683-caller-closure"}
+- {"allocations":{"F:acceptance-lease-overtaken-while-queued":"F196"},"authored":"2026-08-10","content_sha256":"96c287c043ca741889af665c49470ae575021a5c84c5821eca1a525a934424bc","seq":2,"wave":"dev-wave-t683-caller-closure"}
