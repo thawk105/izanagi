@@ -21,6 +21,10 @@ C0 `101e8f2b` (driver のみ) / C1 `85afbbe8` (+D₁) / C2 `a7f5be04` (+D₂) / 
 - **切り詰めが実際に起きる入力では、D は 43 セルで誤受理を拒否へ変えた** (env 65 個の合成 chain、
   公開 API と loader の 2 層)。両層変異 (guard を `if False` へ) で赤が C0 と同じ集合へ戻ることを
   確認したので、この 43 セルは driver でなく **D の作用**である。
+- **ただし計測 base 以降に [T-737] が land し、現行 main では既存テストがこの族を自前で全域殺す。**
+  land 前に測り直した arm F3 (現行 main `39e993cb`、既存 8 node、同じ 14 変異) は **14/14 KILLED**。
+  **現行 main に対する D の CI 検出上の限界便益は、この族についてゼロ**である。
+  残るのは N ≥ 65 の領域と、テストに書かれていない入力への runtime 防御だけになる。
 - **D は測定可能に遅い。** `validate_activation_records()` 1 call あたり中央値
   +949 ns (M=2) / +1101 ns (M=8) / +1564 ns (M=64)。相対 1.18 % / 0.75 % / 0.21 %。
   事前登録した順位判定 3 条件が 3 つの M すべてで成立した (先行 wave は単発観測で順位を付けられなかった)。
@@ -33,14 +37,14 @@ C0 `101e8f2b` (driver のみ) / C1 `85afbbe8` (+D₁) / C2 `a7f5be04` (+D₂) / 
 - **D 自身は無保護である。** guard の削除・骨抜き 4 件は、既存 77 node + probe 17 node の
   どれも赤にしない (4/4 SURVIVED)。
 - **未変異のとき D は何も変えない。** C0 / C1 / C2 の 3 tree で 94 node すべて緑。
-- **発行 tool 層は測れない。** 実 catalog が env 2 個に固定されており、N≥2 の切り詰めが恒等になる
-  ため、今日の入力では露出しない (`UNMEASURED`、[T-737] へ)。
-- **変異は distinct 32 種を 10 arm へ適用し、最終 ledger entry 93 件、事前登録との不一致 0。**
+- **発行 tool 層は、[T-737] の合成 catalog テスト経由でなら測れた** (F3 arm、D 抜きで 14/14 KILLED)。
+  ただし**本番の実入力**では依然として露出しない — 実 catalog が env 2 個に固定されているため。
+- **変異は distinct 32 種を 11 arm へ適用し、最終 ledger entry 107 件、事前登録との不一致 0。**
 
 ## 構成
 
 - `RULING-PACKAGE.md` — 裁定パッケージ (本体)
-- `ledgers-round2/` — 最終台帳のうち再走した 5 arm (f0 / f1 / f2 / v1 / ra)
+- `ledgers-round2/` — 最終台帳のうち再走・追加した 6 arm (f0 / f1 / f2 / f3 / v1 / ra)
 - `ledgers-round1/` — 第 1 巡。うち `v0` `ga` `bl` `fp0` `fp1` は最終台帳、残りは erratum の証拠
 - `specs/` — 変異 spec 10 本 (最終)
 - `cost-result.json` — overhead 測定の生データ (block 単位まで保存)

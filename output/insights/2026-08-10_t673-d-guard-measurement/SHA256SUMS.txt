@@ -1,3 +1,5 @@
+5683d826f198b0ec0b76d0d5e4ca7851d852b6923a908f45633fdff2abfd4207  ./README.md
+ef232ec7b30dc769eeabe6ba5c9168dd244664d4f00bf9ce441685d12cfca47d  ./RULING-PACKAGE.md
 7e659d7acbe850125556901f7f376e69d8f02854ed5efca8e0ea5af0254852ac  ./cost-result.json
 878fa46cb69722148a5958295caa1b15460cab900451def3ac14a7c4e08db547  ./ledgers-round1/bl.json
 72f1b1735e00465848b334030ce1db877fb72fd4f083e9b54e5c438d04e787fc  ./ledgers-round1/bl.json.wrapper-receipt.json
@@ -25,6 +27,8 @@ f1d8c7fcdadc6eb680aa2ec18aa16e2f8c7d756c8718418bfb186e7be052049d  ./ledgers-roun
 75f0b0d7589adb4434cbdee5dc6cf878b1492d97975aff4b28911c29ce22ec90  ./ledgers-round2/f1.json.wrapper-receipt.json
 c88b2e1782816a81dec5556a842aeb94182a4a6c497cb8780fa5ce37bb08a7f6  ./ledgers-round2/f2.json
 c42e2694087f3659de910170357969a0c7368a9816291032190eaaf3a2ce06b3  ./ledgers-round2/f2.json.wrapper-receipt.json
+209e3f911fdf556127ba9cba3e4ad8d9bc41a242beaeea1df3f15fdbacf012a1  ./ledgers-round2/f3.json
+360106966688e462db3b3b586a93dbcafc531e5ee8e1a8a5aef657eb977bf8a4  ./ledgers-round2/f3.json.wrapper-receipt.json
 021813a862dc6d1d4ceb95d44e31e9186363fdd4a7ebf41ce5ccbf8abaa47cf2  ./ledgers-round2/ra.json
 4c9b2a9578f314cd50159d7b7b38f8c316d71fe0dfb15097851cab4c46b07061  ./ledgers-round2/ra.json.wrapper-receipt.json
 e0b22bed24bdb9187fa95ac21c9ab3f26e43727bc3da609cc29b7f2760807359  ./ledgers-round2/v1.json
@@ -33,6 +37,7 @@ e0b22bed24bdb9187fa95ac21c9ab3f26e43727bc3da609cc29b7f2760807359  ./ledgers-roun
 3f0192a2a38bde0675e69cf66ca797a484cad331c3df4d14c9b5a2bd81ca3307  ./specs/f0.json
 0603495cffc5b5890481f1b8a721428344a7fe147555a5eef8a23ece830004ec  ./specs/f1.json
 03894ee566f4c4ab42480c799c61198f9ac3cb0cdb00c98bc8ce2f0bcb42b14b  ./specs/f2.json
+bd79e06df9ed015ceee527b9573dc12c316a7fef6a589b0928200a6d9cf55ae2  ./specs/f3.json
 49ecbeaa2139713ff0cc422601000cfd0ffa38f413d78e5edd3fbe00015ff7da  ./specs/fp0.json
 e8893398062b18b703253154b04cc30d3c4614c31b21e4410a9f3ceed6cf54a9  ./specs/fp1.json
 f44efa67b23bc61d777eabcb63758a2c8365ce427610a32fde3ff48a0fdfc25a  ./specs/ga.json
