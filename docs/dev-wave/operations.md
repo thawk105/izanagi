@@ -101,7 +101,8 @@ trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage fi
 cwd を必ず repo root にする。nested subprocess の import path による偽赤を、差分の回帰として扱わない。
 差分が到達しえないファイルで出た赤は、単独再走で再現性を実測してから扱う。
 再現しなければ実装差分へ帰属せず、フレークとして新規所見に起票する。
-測定値は測った checkout を併記する（F41）。
+測定値は測った checkout を併記する（F41）。並行 wave が自分の編集 file を所有すると判明している
+wave では、受入全走の前に main を取り込んだ木で焦点 node を 1 度走らせる。
 
 ## DW-O19 — tracked file の一時変異
 
