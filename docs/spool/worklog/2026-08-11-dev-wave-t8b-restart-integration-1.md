@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-11
 wave: dev-wave-t8b-restart-integration
 seq: 1
-title: 8b 再開の統合 wave — 実装は T-749 の 1 件に縮み、W-1/W-3/W-4 と R-4 は新事実つきで裁定へ返した (コード + docs、branch worktree-dev-wave-t8b-restart-integration)
+title: 8b 再開の統合 wave — 実装は T-749 の 1 件に縮み、W-1/W-3/W-4 と R-4 は新事実つきで裁定へ返した (コード + docs、受入 8412 passed / 20 skipped / 515.68 秒 / rc=0、変異 7 KILLED + 1 MISMATCH = 実質 8/8、branch worktree-dev-wave-t8b-restart-integration)
 ---
 
 ## 本文
@@ -56,9 +56,18 @@ title: 8b 再開の統合 wave — 実装は T-749 の 1 件に縮み、W-1/W-3/
   が同時に落ちた。同 test file は `s8b_holdout_freeze` を 1 箇所も参照せず変異は到達しえない。
   単独再走は **1 passed / 2.60 秒 / rc=0** で再現しないため `DW-O18` により帰属せず、
   `DW-M02` に従い初回結果を消さず erratum として残す。**実質は KILLED 8 件である**
+- **検査の実測**: 受入全走 **8412 passed / 20 skipped / 515.68 秒 / rc=0**。
+  対象 6 ファイルの部分走 196 passed / 1 skipped / rc=0 (計算ノード job 901134、250.75 秒)。
+  repo scan gate rc=0 (両 holdout の conjunction hit 0 件)、`check_docs` 違反なし、
+  provenance full 監査 rc=0。実 repo の CLI verify は **rc=1 から rc=0** へ変わった
 - **エージェント工数**: codex 子 6 本 (プラン 1 = max / 敵対相談 2 = max / 実装 1 = high /
   レビュー 2 = high) + fix 1 本 = 7 本。親は brief・裁定・統合・実走・記録
-- **ユーザー手番**: 裁定 4 件 (下記「新規」)。push は行わない
+- **段 8 自己改善**: 候補 1 件を予算超過で**起票へ回した**。`DW-O09` は「path 検索が見つけるのは
+  path を key にする pin だけ」と述べるが、**同一性 hash を全 field から導く dataclass**
+  (env contract) は path でも role 名でもなく、本 wave はこれを runbook §4 からの連想で測った。
+  該当 reference 節への 1 行統合を試したところ `DW-O09` が 1063 bytes となり単節予算 1000 を超えた。
+  「予算のために安全義務を削除・弱化しない」に従い撤回し、下記「新規」へ起票する
+- **ユーザー手番**: 裁定 5 件 (下記「新規」)。push は行わない
 
 ## 次の一手差分
 
@@ -104,6 +113,10 @@ title: 8b 再開の統合 wave — 実装は T-749 の 1 件に縮み、W-1/W-3/
   `buildcache.compilers_for_current_site()` を使わず `DEFAULT_CC/CXX` を直接渡している。
   `pegasus_floor_scoping.py` / `pipeline.py` / `loop.py` / `screening_driver.py` は既に site 解決を使う。
   [T-747] の択が (B) に決まった場合の実装単位として起票する
+- {{T:dw-o09-hash-bound-dataclass}} **P3・新規 (段 8 発、ユーザー裁定待ち)**: `DW-O09` の pin 閉包に
+  「同一性 hash を全 field から導く dataclass・schema」を含める明確化。1 行統合を試したが
+  単節予算 1000 bytes を 63 bytes 超過した。択 = (a) `DW-O09` の既存文を意味等価に縮めて空ける /
+  (b) 予算値の独立審査 / (c) 見送り。**予算のために安全義務を削除・弱化する案は採らない**
 - {{T:legacy-cache-key-default-toolchain}} **P2・新規 (B 系)**: legacy `buildcache.cache_key` は
   既定 toolchain を key から省く後方互換規則を持つため、既定を替えると旧ビルドと偽 hit する。
   床値の `build_v2` は保護されているが legacy 経路の production caller は複数実在する。
