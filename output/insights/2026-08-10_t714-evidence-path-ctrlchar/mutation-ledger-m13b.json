@@ -1,0 +1,216 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t714-evidence-path-ctrlchar/output/pegasus-dispatch/15860b0f93106c69796ad2155a659eb6/izdw-15860b0f93.o899462",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t714-evidence-path-ctrlchar/output/pegasus-dispatch/15860b0f93106c69796ad2155a659eb6/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............                                                          [100%]\n15 passed in 2.40s\n",
+      "stdout_sha256": "86895357590b40161fc76e326279561a866211a8ffe64a2c474b3ffbba3c1e3a"
+    },
+    "artifact_error": null,
+    "collection_sha256": "c364210acaf2b7c9d924533a8dab534e347d9e09b0c416f33581abbf650596ec",
+    "duration_s": 26.91,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "7d052665a8e47dae26b97a949c90195470138ddf3711ff9a8fa43b52c5bd4105",
+    "repo_head": "eb0959645b9299bdc1e293dbbedcbcc9925f4838",
+    "runner_sha256": "0274f18e3518c15d2ebacbd9cd12540327cc1cde7e31e99b480fdbd341649a84",
+    "spec_sha256": "64447a7196c18b16e2b6cb1f07520344208b13936d353b199f06c6278f645c10",
+    "status": "PASSED",
+    "test_output_sha256": "86895357590b40161fc76e326279561a866211a8ffe64a2c474b3ffbba3c1e3a",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "882223af6ee51e3ab36491746089cc4a525a4559860bf9494d37df26d2cebd95"
+  },
+  "date": "2026-08-10T03:13:52.012863+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t714-evidence-path-ctrlchar/output/pegasus-dispatch/587ddcf727d8ed0b7cfbb7e80cba24ad/izdw-587ddcf727.o899464",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t714-evidence-path-ctrlchar/output/pegasus-dispatch/587ddcf727d8ed0b7cfbb7e80cba24ad/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............FFF                                                          [100%]\n=================================== FAILURES ===================================\n_ test_registry_rejects_control_char_contract_before_evidence_ref_construction _\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_registry_rejects_control_0')\n\n    def test_registry_rejects_control_char_contract_before_evidence_ref_construction(\n        tmp_path: Path,\n    ) -> None:\n        value = json.loads(CONTRACT_FILE.read_bytes())\n        candidate = \"dir/in\\nside.py\"\n        assert candidate == candidate.strip()\n        value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n        root = _init_repo(tmp_path)\n        _write(\n            root,\n            core.EVIDENCE_CONTRACT_PATH,\n            json.dumps(value, ensure_ascii=False).encode(\"utf-8\"),\n        )\n        head = _commit(root, \"control character contract\")\n    \n        results = M.get_registry().evaluate_all(head, repo_root=root)\n        assert len(results) == 12\n        assert {item.status for item in results} == {core.PredicateStatus.ERROR}\n>       assert {item.reason_code for item in results} == {\"evidence-contract-invalid\"}\nE       AssertionError: assert {'commit-blob-read-error'} == {'evidence-contract-invalid'}\nE         \nE         Extra items in the left set:\nE         'commit-blob-read-error'\nE         Extra items in the right set:\nE         'evidence-contract-invalid'\nE         Use -v to get more diff\n\norchestrator/tests/test_s8c_preregistration_predicates.py:261: AssertionError\n_____ test_read_blob_at_uses_checked_text_without_str_subclass_format_hook _____\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_read_blob_at_uses_checked0')\n\n    def test_read_blob_at_uses_checked_text_without_str_subclass_format_hook(\n        tmp_path: Path,\n    ) -> None:\n        root = _init_repo(tmp_path)\n        _write(root, \"alias-target.txt\", b\"wrong-prefix-blob\\n\")\n        intended_path = \"alias-target-controlled.txt\"\n        intended_blob = b\"intended-subclass-path-blob\\n\"\n        _write(root, intended_path, intended_blob)\n        head = _commit(root, \"str subclass format hook fixture\")\n    \n        class FormattingPath(str):\n            format_calls = 0\n    \n            def __format__(self, format_spec: str) -> str:\n                self.format_calls += 1\n                return \"alias-target.txt\\r\"\n    \n        candidate = FormattingPath(intended_path)\n>       assert M.read_blob_at(root, head, candidate) == intended_blob\n\norchestrator/tests/test_s8c_preregistration_core.py:1076: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_read_blob_at_uses_checked0/repo')\ncommit = '0104dbbf754881c6ca572d341019c9af3da6bf43'\npath = 'alias-target-controlled.txt', required = True\n\n    def read_blob_at(\n        repo_root: Path | str, commit: str, path: str, *, required: bool = True\n    ) -> Optional[bytes]:\n        rendered = path if isinstance(path, str) else str(path)\n        text = \"\".join((rendered,))\n        if True:\n>           raise PreregistrationError(\"path-control-char\")\nE           campaign.s8c_preregistration.PreregistrationError: path-control-char\n\norchestrator/campaign/s8c_preregistration.py:966: PreregistrationError\n____________________ test_read_blob_at_accepts_normal_path _____________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_read_blob_at_accepts_norm0')\n\n    def test_read_blob_at_accepts_normal_path(tmp_path: Path) -> None:\n        root = _init_repo(tmp_path)\n        _write(root, \"nested/evidence.txt\", b\"normal-path\\n\")\n        head = _commit(root, \"normal path\")\n    \n>       assert M.read_blob_at(root, head, \"nested/evidence.txt\") == b\"normal-path\\n\"\n\norchestrator/tests/test_s8c_preregistration_core.py:991: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_read_blob_at_accepts_norm0/repo')\ncommit = '24a9e7117b09b5589c8cdb068f4e22c88124238b'\npath = 'nested/evidence.txt', required = True\n\n    def read_blob_at(\n        repo_root: Path | str, commit: str, path: str, *, required: bool = True\n    ) -> Optional[bytes]:\n        rendered = path if isinstance(path, str) else str(path)\n        text = \"\".join((rendered,))\n        if True:\n>           raise PreregistrationError(\"path-control-char\")\nE           campaign.s8c_preregistration.PreregistrationError: path-control-char\n\norchestrator/campaign/s8c_preregistration.py:966: PreregistrationError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction\nFAILED orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook\nFAILED orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path\n3 failed, 12 passed in 2.42s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1738 retained_bytes=1738 omitted_bytes=0 rendered_excerpt_bytes=1830 sha256=84c0f369b2f852716e1ed1c67f1ace9b7b91588b7ae8a81b9184bb8488fc8cc2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_read_blob_at_uses_checked0')\n> \n>     def test_read_blob_at_uses_checked_text_without_str_subclass_format_hook(\n>         tmp_path: Path,\n>     ) -> None:\n>         root = _init_repo(tmp_path)\n>         _write(root, \"alias-target.txt\", b\"wrong-prefix-blob\\x5cn\")\n>         intended_path = \"alias-target-controlled.txt\"\n>         intended_blob = b\"intended-subclass-path-blob\\x5cn\"\n>         _write(root, intended_path, intended_blob)\n>         head = _commit(root, \"str subclass format hook fixture\")\n>     \n>         class FormattingPath(str):\n>             format_calls = 0\n>     \n>             def __format__(self, format_spec: str) -> str:\n>                 self.format_calls += 1\n>                 return \"alias-target.txt\\x5cr\"\n>     \n>         candidate = FormattingPath(intended_path)\n> >       assert M.read_blob_at(root, head, candidate) == intended_blob\n> \n> orchestrator/tests/test_s8c_preregistration_core.py:1076: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_read_blob_at_uses_checked0/repo')\n> commit = '0104dbbf754881c6ca572d341019c9af3da6bf43'\n> path = 'alias-target-controlled.txt', required = True\n> \n>     def read_blob_at(\n>         repo_root: Path | str, commit: str, path: str, *, required: bool = True\n>     ) -> Optional[bytes]:\n>         rendered = path if isinstance(path, str) else str(path)\n>         text = \"\".join((rendered,))\n>         if True:\n> >           raise PreregistrationError(\"path-control-char\")\n> E           campaign.s8c_preregistration.PreregistrationError: path-control-char\n> \n> orchestrator/campaign/s8c_preregistration.py:966: PreregistrationError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=1375 retained_bytes=1375 omitted_bytes=0 rendered_excerpt_bytes=1443 sha256=b5153c2d5e49a0e5eaacd6293d4d98c40496ef50577869c32260c96c7e2ba99a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_registry_rejects_control_0')\n> \n>     def test_registry_rejects_control_char_contract_before_evidence_ref_construction(\n>         tmp_path: Path,\n>     ) -> None:\n>         value = json.loads(CONTRACT_FILE.read_bytes())\n>         candidate = \"dir/in\\x5cnside.py\"\n>         assert candidate == candidate.strip()\n>         value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n>         root = _init_repo(tmp_path)\n>         _write(\n>             root,\n>             core.EVIDENCE_CONTRACT_PATH,\n>             json.dumps(value, ensure_ascii=False).encode(\"utf-8\"),\n>         )\n>         head = _commit(root, \"control character contract\")\n>     \n>         results = M.get_registry().evaluate_all(head, repo_root=root)\n>         assert len(results) == 12\n>         assert {item.status for item in results} == {core.PredicateStatus.ERROR}\n> >       assert {item.reason_code for item in results} == {\"evidence-contract-invalid\"}\n> E       AssertionError: assert {'commit-blob-read-error'} == {'evidence-contract-invalid'}\n> E         \n> E         Extra items in the left set:\n> E         'commit-blob-read-error'\n> E         Extra items in the right set:\n> E         'evidence-contract-invalid'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:261: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=1246 retained_bytes=1246 omitted_bytes=0 rendered_excerpt_bytes=1309 sha256=320ae798b59ce8ab2691b87faf137e168b533170cf5b7d87067f3681ac3ee28d\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_read_blob_at_accepts_norm0')\n> \n>     def test_read_blob_at_accepts_normal_path(tmp_path: Path) -> None:\n>         root = _init_repo(tmp_path)\n>         _write(root, \"nested/evidence.txt\", b\"normal-path\\x5cn\")\n>         head = _commit(root, \"normal path\")\n>     \n> >       assert M.read_blob_at(root, head, \"nested/evidence.txt\") == b\"normal-path\\x5cn\"\n> \n> orchestrator/tests/test_s8c_preregistration_core.py:991: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_read_blob_at_accepts_norm0/repo')\n> commit = '24a9e7117b09b5589c8cdb068f4e22c88124238b'\n> path = 'nested/evidence.txt', required = True\n> \n>     def read_blob_at(\n>         repo_root: Path | str, commit: str, path: str, *, required: bool = True\n>     ) -> Optional[bytes]:\n>         rendered = path if isinstance(path, str) else str(path)\n>         text = \"\".join((rendered,))\n>         if True:\n> >           raise PreregistrationError(\"path-control-char\")\n> E           campaign.s8c_preregistration.PreregistrationError: path-control-char\n> \n> orchestrator/campaign/s8c_preregistration.py:966: PreregistrationError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4359 retained_bytes=4359 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6237 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1c70d3fa90e1ceb74b3eb83e6d82211ba05b0f6aff5ccd0696e1834352a08cd5"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "c364210acaf2b7c9d924533a8dab534e347d9e09b0c416f33581abbf650596ec",
+      "duration_s": 21.739,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path"
+      ],
+      "hang_risk": false,
+      "id": "M13b",
+      "injection_diff_sha256": "c3eea6c2dc8a3f1e7a61eb8c5214eac41b2ba61b3a4980ccb968b0115ae2284e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bf6ed08dad604bd09c26974f93e4ddb9b03f697cf09335b54022a1fd0db68b56",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "    if True:\n",
+          "old": "    if \"\\r\" in text or \"\\n\" in text:\n"
+        }
+      ],
+      "repo_head": "eb0959645b9299bdc1e293dbbedcbcc9925f4838",
+      "runner_sha256": "0274f18e3518c15d2ebacbd9cd12540327cc1cde7e31e99b480fdbd341649a84",
+      "spec_sha256": "64447a7196c18b16e2b6cb1f07520344208b13936d353b199f06c6278f645c10",
+      "status": "KILLED",
+      "test_output_sha256": "1c70d3fa90e1ceb74b3eb83e6d82211ba05b0f6aff5ccd0696e1834352a08cd5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "882223af6ee51e3ab36491746089cc4a525a4559860bf9494d37df26d2cebd95"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t714-evidence-path-ctrlchar/output/pegasus-dispatch/cedf619033f5b4d13e87a296d3f16ff5/izdw-cedf619033.o899460",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t714-evidence-path-ctrlchar/output/pegasus-dispatch/cedf619033f5b4d13e87a296d3f16ff5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-cr]\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-lf]\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-cr]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_normal_relative_paths\norchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction\n\n15 tests collected in 0.32s\n",
+        "stdout_sha256": "14e859a7287add307e7af2a793363a77feaaa884fe303417728898b0c188af98"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-cr]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-lf]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-cr]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_normal_relative_paths",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction"
+      ],
+      "duration_s": 26.844,
+      "rc": 0,
+      "repo_head": "eb0959645b9299bdc1e293dbbedcbcc9925f4838",
+      "runner_sha256": "0274f18e3518c15d2ebacbd9cd12540327cc1cde7e31e99b480fdbd341649a84",
+      "spec_sha256": "64447a7196c18b16e2b6cb1f07520344208b13936d353b199f06c6278f645c10",
+      "status": "PASSED",
+      "tool_sha256": "882223af6ee51e3ab36491746089cc4a525a4559860bf9494d37df26d2cebd95"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M13b": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path",
+          "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c3eea6c2dc8a3f1e7a61eb8c5214eac41b2ba61b3a4980ccb968b0115ae2284e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "    if True:\n",
+            "old": "    if \"\\r\" in text or \"\\n\" in text:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "7d052665a8e47dae26b97a949c90195470138ddf3711ff9a8fa43b52c5bd4105",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_normal_relative_paths",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "eb0959645b9299bdc1e293dbbedcbcc9925f4838",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook",
+      "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_normal_relative_paths",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t714-evidence-path-ctrlchar/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t714-evidence-path-ctrlchar/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "b5bef6f4c099e32fafaaaf39fa16d0740a796d99",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "0274f18e3518c15d2ebacbd9cd12540327cc1cde7e31e99b480fdbd341649a84",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "64447a7196c18b16e2b6cb1f07520344208b13936d353b199f06c6278f645c10",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t714-evidence-path-ctrlchar/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "882223af6ee51e3ab36491746089cc4a525a4559860bf9494d37df26d2cebd95",
+  "updated_at": "2026-08-10T03:14:43.284776+00:00"
+}

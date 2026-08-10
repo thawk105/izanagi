@@ -179,6 +179,91 @@ def test_contract_loader_rejects_unknown_and_duplicate_keys() -> None:
     assert repeated.value.reason_code == "contract-duplicate-key"
 
 
+@pytest.mark.parametrize(
+    ("owner", "control"),
+    [
+        pytest.param("required", "\r", id="required-cr"),
+        pytest.param("required", "\n", id="required-lf"),
+        pytest.param("consumer", "\r", id="consumer-cr"),
+        pytest.param("consumer", "\n", id="consumer-lf"),
+    ],
+)
+def test_contract_loader_rejects_embedded_path_control_chars(
+    owner: str, control: str
+) -> None:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    candidate = f"dir/in{control}side.py"
+    assert candidate == candidate.strip()
+    if owner == "required":
+        value["conditions"][0]["required_evidence"][0]["path"] = candidate
+    else:
+        value["conditions"][0]["consumer_requirement"]["path"] = candidate
+
+    with pytest.raises(M.EvidenceContractError) as caught:
+        M.load_contract_bytes(json.dumps(value, ensure_ascii=False).encode("utf-8"))
+    assert caught.value.reason_code == "contract-path-control-char"
+    assert "\r" not in str(caught.value)
+    assert "\n" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "control",
+    [
+        pytest.param("\r", id="trailing-cr"),
+        pytest.param("\n", id="trailing-lf"),
+    ],
+)
+def test_contract_loader_reports_explicit_path_reason_for_trailing_controls(
+    control: str,
+) -> None:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    current = value["conditions"][0]["required_evidence"][0]["path"]
+    value["conditions"][0]["required_evidence"][0]["path"] = current + control
+
+    with pytest.raises(M.EvidenceContractError) as caught:
+        M.load_contract_bytes(json.dumps(value, ensure_ascii=False).encode("utf-8"))
+    assert caught.value.reason_code == "contract-path-control-char"
+    assert "\r" not in str(caught.value)
+    assert "\n" not in str(caught.value)
+
+
+def test_contract_loader_accepts_normal_relative_paths() -> None:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    value["conditions"][0]["required_evidence"][0]["path"] = "nested/evidence.py"
+    value["conditions"][0]["consumer_requirement"]["path"] = "nested/consumer.py"
+    raw = json.dumps(value, ensure_ascii=False).encode("utf-8")
+
+    contract = M.load_contract_bytes(raw)
+    condition = contract.conditions[0]
+    assert condition.required_evidence[0].path == "nested/evidence.py"
+    assert condition.consumer_requirement.path == "nested/consumer.py"
+    assert len(M.semantic_contract_sha256(raw)) == 64
+
+
+def test_registry_rejects_control_char_contract_before_evidence_ref_construction(
+    tmp_path: Path,
+) -> None:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    candidate = "dir/in\nside.py"
+    assert candidate == candidate.strip()
+    value["conditions"][0]["required_evidence"][0]["path"] = candidate
+    root = _init_repo(tmp_path)
+    _write(
+        root,
+        core.EVIDENCE_CONTRACT_PATH,
+        json.dumps(value, ensure_ascii=False).encode("utf-8"),
+    )
+    head = _commit(root, "control character contract")
+
+    results = M.get_registry().evaluate_all(head, repo_root=root)
+    assert len(results) == 12
+    assert {item.status for item in results} == {core.PredicateStatus.ERROR}
+    assert {item.reason_code for item in results} == {"evidence-contract-invalid"}
+    assert {
+        tuple(reference.path for reference in item.evidence) for item in results
+    } == {(core.EVIDENCE_CONTRACT_PATH,)}
+
+
 def test_contract_does_not_add_a_holdout_axis_conjunction() -> None:
     text = CONTRACT_FILE.read_text(encoding="utf-8")
     hits = s8b_holdout_freeze.holdout_conjunction_hits(
