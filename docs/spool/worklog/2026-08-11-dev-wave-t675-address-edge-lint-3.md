@@ -42,9 +42,10 @@ title: cleanup-branches command の住所 (address edge) を構造 lint で塞�
   偽 edge を作れる。いずれも Markdown の意味解釈が要り `DW-G03` の族一般化にあたる。
   → {{T:address-edge-lint-layer-coverage}}
 - **F173 の恒久対応にある「機械化は `docs/dev-wave/**` の byte 予算に阻まれており」は誤りだった。**
-  実装面は `tools/check_docs.py` (Python) にあり `TextLimit` の対象外である。failures 台帳は
-  追記のみで fold も canonical の既存 bytes を書き換えられないため、**F173 本文は訂正できない**。
-  F1 の再発として記録し、正しい判断は {{D:address-edge-structural-lint}} を正本とした。
+  実装面は `tools/check_docs.py` (Python) にあり `TextLimit` の対象外である。当初は
+  「追記のみの台帳なので訂正できない」と裁定して F1 の再発だけを記録したが、**wave 中に別 wave が
+  land した `supersede 追記` 節でこの前提が消えた**ため、F173 へ supersede 行を追記して古い記述を
+  明示した。誤記の型そのものは F1 の再発として残す。
 - **codex 子は 2 回とも pytest を実走できなかった。**login の headroom 不足 (約 1.73 GB /
   user slice 約 12.5 GiB 使用) と sandbox 内の `qstat` 不通で rc=16。子は正直に
   「実装済み・未実走」と申告し、親が `--force-dispatch` で計算ノードへ投げて実測した。
