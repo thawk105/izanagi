@@ -767,3 +767,9 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"a584715ae1966a28521f7fb4cb595bef224858ac4922a308a4ba8e35024dd528","seq":1,"wave":"dev-wave-t741-failures-supersede"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"2990edadcb7627242ef458aac71614a9ebcaac86472abe205235725e9adf96c3","seq":2,"wave":"dev-wave-t741-failures-supersede"}
+
+- {"allocations":{"T:s8b-git-failure-skip-narrowing":"[T-771]","T:template-patch-test-window":"[T-770]"},"authored":"2026-08-11","content_sha256":"9a33c83f71935a2c49ee929d07586441ddacbced4c5315ecf3c9059d707b3c03","seq":1,"wave":"dev-wave-known-red-exceptions"}
+- {"allocations":{"F:pseudo-skip-passes-as-green":"F209"},"authored":"2026-08-11","content_sha256":"8972eabe984df635815eb46068d930fb9af6adabe84b0b17dd2a47dda4720ce7","seq":2,"wave":"dev-wave-known-red-exceptions"}
+
+- {"allocations":{"T:codex-launch-receipt-termination-flake":"[T-772]"},"authored":"2026-08-11","content_sha256":"0737287d91b73ca7de58b7b83851202b211ffb50f094ab0bb00c884ea07aca3d","seq":1,"wave":"dev-wave-t657-stage0"}
+- {"allocations":{"D:calibration-freeze-authority-stage0":"D277"},"authored":"2026-08-11","content_sha256":"1a5c8f5867e3ae82e46b70a97c624e86f3f0d8f6e3b59e75b62c5e306c39e62f","seq":2,"wave":"dev-wave-t657-stage0"}

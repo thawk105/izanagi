@@ -12665,3 +12665,62 @@ docs を独立に読む最小の抽出をテスト側に置き、両者の一致
 
 - **期待値を literal で書く** — 機械 pin を増やさないという既存の見送り裁定の実質的な再提案になる。
 - **派生関数を呼ぶ既存テストを消す** — 循環していても回帰検出には効く。消さずに独立検査を足す。
+
+## D277. 較正と凍結の上位権限束 — 段 0 の語彙・schema・完了判定 (2026-08-11)
+
+**決定:**
+
+- **候補 record は権威 directory の外の候補 namespace に置き、公式 record を「包む」。**
+  公式 activation record の exact key 集合を変えない。包む側は
+  `schema_version` / `lifecycle_state` / `activation_record` / `activation_record_raw_sha256` の
+  exact 4 key とし、chain の検証は公式側の規則をそのまま再利用する (別の緩い規則を作らない)。
+- **上位束の承認 A と発効 X はどちらも人間が行う。** A は承認 record 1 file の追加のみ、
+  X は有効 head literal を保持する方式ゆえ exact 3 path (公式 activation record の追加、
+  head literal の更新、上位 pointer の追加)。いずれも非 merge で、逐語の人間 trailer を要求する。
+- **lockstep は検査 receipt の自己申告 `pass` で満たしてはならない。** 承認 record の成分一覧に
+  対し、(a) 環境成分と凍結成分が親束の同名成分と双方とも異なること、(b) 環境成分が同じ列の
+  候補 record と一致すること、(c) 凍結成分が下位 family 自身の検証器が承認済みと判定した参照で
+  あることを**再計算**する。
+- **上位 digest は下位と別の domain separator を新設し、原像を exact 7 成分の固定順とする。**
+  承認 record 自身の bytes を原像に入れない。凍結側の separator と成分数は 1 byte も変えない。
+- **裁定 profile は固定 ID 集合・`status` enum・applicability 表を持つ record とする。**
+  未裁定 ID の `selection` enum は、その裁定が land する commit で追加する。それまで検証器は
+  当該 ID の `resolved` を受理しない。裁定が済むまで status が未完了のままなのは意図した
+  fail-closed である。
+- **Git に導入 commit を持たない実行時成果物は、proof chain の根に置く admission record で
+  分類する。** legacy 側は発効 commit の **strict** ancestor を要求し、その根を列挙した catalog
+  自身も strict ancestor で導入され、hash を検査 receipt と承認 record へ束縛する。
+  発効後に catalog へ根を足して legacy を名乗る経路と、既存成果物の遡及拒否の**両方**を閉じる。
+- **fixture の manifest は閉じた集合とし、設計文書の不変条件行と全単射にする。**
+  hash pin は「実 bytes」「manifest literal」「検査側の独立期待値」の 3 者比較とし、
+  期待値を入力から生成しない。裁定待ちを表す印を不変条件 fixture の代用にしない。
+  実行できていない行は `pending` として理由と entrypoint を持ち、件数を manifest が数える。
+- **整合検査と完了要求を分ける。** 整合検査の緑を段の完了証明として使えない名前と出力契約にし、
+  完了要求は fail-closed の別 API とする。未完了を成功結果として返さない。
+- **保存すべき既存拒否の fixture は、実 entrypoint へ入力を流して受理と拒否を観測する。**
+  ただし射程は当該 entrypoint が担う層に限り、上位の semantic 層まで検証したと主張しない。
+
+**理由:**
+
+- 上位に別 domain separator の束を置けば、承認済みの下位契約を 1 byte も変えずに済む。
+  下位 digest へ環境成分を足す案は承認済み契約の改訂を要する。
+- 陰性条件だけを完了判定にすると、何も受理しない実装が全段で緑になる。陽性条件は fixture を
+  名指ししなければ判定にならず、fixture を置くだけでは検査を一度も呼ばない実装が完了を主張できる。
+  この 3 段の穴は、設計段の敵対レビューと実装段の敵対レビューが独立に構成した。
+- 「持っている」ではなく「識別に使われている」を検査しなければ、schema を満たしたまま
+  表示専用 field で条件を満たしたと主張できる。同型の構成が承認 record・pointer・検査 receipt・
+  裁定 profile・候補 record の 5 つすべてに存在する。
+- 発効の瞬間に受理集合が変わる以上、変える対象と時点を機械的に判定できる形で書く義務がある。
+  自己申告の「移行中だから」を通してはならない。
+
+**却下した選択肢:**
+
+- **終端と有効 head の一致検査を束参照検査へ置換する案** — 現行の正しい fail-closed を 1 つ消す。
+  候補を権威 directory の外へ置けば、その拒否を保存したまま候補を表現できる。
+- **有効 head literal を record 由来へ移す案** — 環境契約 source の blob 変化という review signal と、
+  loader closure 経由の間接 pin を失う。代替の data-side pin は同一の保証ではない。
+- **未裁定 ID にも `resolved` を書けるようにする案** — 裁定を経ずに発効へ進める抜け道になる。
+- **不変条件行を「裁定待ち」印で埋められるようにする案** — 最重要の不変条件を fixture 無しのまま
+  完了と算出できる。裁定待ちは裁定 profile と required gate の側にだけ書く。
+- **合成入力を実物より甘いまま「実 entrypoint で確認した」と書く案** — 過剰主張である。
+  射程を明記するか、担当 entrypoint の行として別に持つ。
