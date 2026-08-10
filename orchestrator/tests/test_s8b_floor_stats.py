@@ -26,9 +26,9 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign.s8b_floor_stats import (  # noqa: E402
+from orchestrator.campaign.s8b_floor_stats import (  # noqa: E402
     ALLOWED_EXCLUDED_REASONS,
     FORMULA_ID,
     CellStats,

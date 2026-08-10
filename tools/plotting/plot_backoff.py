@@ -23,9 +23,9 @@ import sys, os, json, re, glob, hashlib, datetime
 
 # この script を cwd/PYTHONPATH に依存せず直接起動できるよう、repo 内の共有 WAL parser
 # への import root を __file__ から解決する。plotting 独自の JSON reader は持たない。
-_ORCHESTRATOR=os.path.abspath(os.path.join(os.path.dirname(__file__),"..","..","orchestrator"))
-if _ORCHESTRATOR not in sys.path: sys.path.insert(0,_ORCHESTRATOR)
-from campaign import wal as campaign_wal
+_REPO_ROOT=os.path.abspath(os.path.join(os.path.dirname(__file__),"..",".."))
+if _REPO_ROOT not in sys.path: sys.path.insert(0,_REPO_ROOT)
+from orchestrator.campaign import wal as campaign_wal
 
 np=mpl=plt=FixedLocator=FixedFormatter=NullLocator=None
 

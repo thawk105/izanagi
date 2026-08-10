@@ -15,7 +15,7 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
 from skiputil import Skip  # noqa: E402  (二重 runner 契約: _run が捕捉する)
 

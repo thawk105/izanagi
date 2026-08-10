@@ -30,14 +30,18 @@ import sys
 from dataclasses import dataclass, field
 from math import comb
 from typing import Dict, List, Tuple
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import replay                                       # noqa: E402
-from campaign.genome import SILO_SPACE                            # noqa: E402
-from campaign.model import Genome                                 # noqa: E402
-from campaign.p2_2 import BETWEEN_RUN_CV, WORKLOADS               # noqa: E402
-from critic import digest                                        # noqa: E402
+from . import replay                                       # noqa: E402
+from .genome import SILO_SPACE                            # noqa: E402
+from .model import Genome                                 # noqa: E402
+from .p2_2 import BETWEEN_RUN_CV, WORKLOADS               # noqa: E402
+from ..critic import digest                                        # noqa: E402
+
 
 _AXES = ["BACK_OFF", "no_wait", "WAL"]
 

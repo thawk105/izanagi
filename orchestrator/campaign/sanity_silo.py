@@ -14,15 +14,19 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign.genome import SILO_SPACE                          # noqa: E402
-from campaign import env_contract                              # noqa: E402
-from campaign.build_admission import GeneratorId, build_run_context  # noqa: E402
-from campaign.loop import run_campaign                          # noqa: E402
-from campaign.model import CampaignConfig                       # noqa: E402
-from campaign.pipeline import PerfConfig                        # noqa: E402
+from .genome import SILO_SPACE                          # noqa: E402
+from . import env_contract                              # noqa: E402
+from .build_admission import GeneratorId, build_run_context  # noqa: E402
+from .loop import run_campaign                          # noqa: E402
+from .model import CampaignConfig                       # noqa: E402
+from .pipeline import PerfConfig                        # noqa: E402
+
 
 # 歴史的 pin を意図的に保持 (IDENT-1/IDENT-3、pin.py docstring 参照)。
 # 再走には submodule を dff0f1e へ checkout する。

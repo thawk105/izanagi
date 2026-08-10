@@ -724,3 +724,11 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"879632ecf64347ab0c2bac75dc005814cb2fa731670586bb1a6fa8f0c33fa554","seq":3,"wave":"dev-wave-t657-permanent-bundle-design"}
 
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"a8b728430377d9a540619e9cbb17234b05c2aab1beacece6be4b2f77e03261d1","seq":37,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dual-namespace-permanent-policy":"[T-744]","T:import-scan-non-source-artifacts":"[T-745]","T:t720-untracked-campaign-residue":"[T-746]"},"authored":"2026-08-10","content_sha256":"0491ac2f3fe3e69ea572ab6cc5ce9433a8295c296709da05d70080cd43b00ab2","seq":1,"wave":"dev-wave-t720-import-unify"}
+- {"allocations":{"F:mutation-found-what-review-missed":"F199","F:parent-ruling-broke-under-measurement":"F201","F:secondary-fanout-missed-in-scope":"F200"},"authored":"2026-08-10","content_sha256":"9fe7d314d8e899dc0d4e43d97a1453bbda95736d765d84d3ecace076b5b8aba5","seq":2,"wave":"dev-wave-t720-import-unify"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"366815694db051a27b38084a10a8b059299e18a2ee4f277585da2b0288eeca99","seq":38,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"41827a52a54ec81edf3e323957c4fe6a8d623a833c74e01e3370a5fc6e9ea71f","seq":1,"wave":"dev-wave-t675-pin-semantic-gap"}
+- {"allocations":{"F:codex-child-oom-under-shared-user-cap":"F202"},"authored":"2026-08-10","content_sha256":"809a17a45a301ef1250e8528d8d09d759195db1f59ae7afcdd62253a1d861718","seq":1,"wave":"dev-wave-t675-pin-semantic-gap"}

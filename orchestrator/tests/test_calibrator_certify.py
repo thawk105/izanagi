@@ -15,20 +15,20 @@ from pathlib import Path
 import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parent.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
+if str(ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from calibrator import cli  # noqa: E402
-from calibrator import runner, sweep  # noqa: E402
-from calibrator.model import (CalibrationResult, CertificationEvidence,  # noqa: E402
+from orchestrator.calibrator import cli  # noqa: E402
+from orchestrator.calibrator import runner, sweep  # noqa: E402
+from orchestrator.calibrator.model import (CalibrationResult, CertificationEvidence,  # noqa: E402
                               CertificationMeasurement, NoiseFloor,
                               PerfCounters, SaturationResult, ScalePoint)
-from calibrator.report import certification_quality_reasons  # noqa: E402
-from calibrator.schema_v2 import validate_calibration_v2  # noqa: E402
-from calibrator.tsc import TscMeasurement  # noqa: E402
-from campaign import env_attestation as ea  # noqa: E402
-from campaign import env_contract as ec  # noqa: E402
-from campaign import execution_guard as eg  # noqa: E402
+from orchestrator.calibrator.report import certification_quality_reasons  # noqa: E402
+from orchestrator.calibrator.schema_v2 import validate_calibration_v2  # noqa: E402
+from orchestrator.calibrator.tsc import TscMeasurement  # noqa: E402
+from orchestrator.campaign import env_attestation as ea  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign import execution_guard as eg  # noqa: E402
 
 
 _EARLY_CLOCK_NOT_EVALUATED = [

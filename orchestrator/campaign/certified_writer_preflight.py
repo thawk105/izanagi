@@ -153,11 +153,11 @@ def main(argv=None) -> int:
     except ValueError as exc:
         _emit("input", str(exc))
         return 4
-    orchestrator = str(Path(args.repo_root) / "orchestrator")
-    if orchestrator not in sys.path:
-        sys.path.insert(0, orchestrator)
+    repo_root = str(Path(args.repo_root))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
     try:
-        from campaign.certified_writer_admission import (
+        from orchestrator.campaign.certified_writer_admission import (
             AdmissionInputError,
             AdmissionRejected,
             admit,

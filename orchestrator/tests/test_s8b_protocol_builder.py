@@ -29,11 +29,11 @@ import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import env_contract as ec  # noqa: E402
-from campaign import s8b_approved  # noqa: E402
-from campaign import s8b_floor_campaign as fc  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign import s8b_approved  # noqa: E402
+from orchestrator.campaign import s8b_floor_campaign as fc  # noqa: E402
 from tests import repo_tree_util  # noqa: E402
 from tests.skiputil import Skip, skip  # noqa: E402
 

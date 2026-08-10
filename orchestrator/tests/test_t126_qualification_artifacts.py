@@ -13,22 +13,22 @@ from pathlib import Path
 import pytest
 
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parent))
+sys.path.insert(0, str(_HERE.parents[1]))
 
-from campaign import campaign_lock, ident, layer3_report, pipeline  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign import campaign_lock, ident, layer3_report, pipeline  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
     derive_build_admission,
 )
-from campaign.model import CampaignConfig, Genome  # noqa: E402
-from campaign.pin import CURRENT_PIN  # noqa: E402
-from campaign.source_digest import (  # noqa: E402
+from orchestrator.campaign.model import CampaignConfig, Genome  # noqa: E402
+from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
+from orchestrator.campaign.source_digest import (  # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     STOCK,
     SourceEvidence,
 )
-from qualification.artifacts import (  # noqa: E402
+from orchestrator.qualification.artifacts import (  # noqa: E402
     QualificationArtifactError,
     QualificationRoot,
     create_bytes,
@@ -39,13 +39,13 @@ from qualification.artifacts import (  # noqa: E402
     validate_member_evidence,
     validate_retry_history,
 )
-from qualification.contract import canonical_json_bytes, load_protocol  # noqa: E402
-from qualification.attempt_ledger import (  # noqa: E402
+from orchestrator.qualification.contract import canonical_json_bytes, load_protocol  # noqa: E402
+from orchestrator.qualification.attempt_ledger import (  # noqa: E402
     AttemptLedgerError,
     SeriesAttemptLedger,
     replay_attempt_ledger,
 )
-from qualification import attempt_ledger as attempt_ledger_module  # noqa: E402
+from orchestrator.qualification import attempt_ledger as attempt_ledger_module  # noqa: E402
 from campaign_lock_test_support import build_v2_lock  # noqa: E402
 
 

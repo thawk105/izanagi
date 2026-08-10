@@ -13,9 +13,9 @@ import tempfile
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from reports.plot import (DatFile, PlotSpec, Series,            # noqa: E402
+from orchestrator.reports.plot import (DatFile, PlotSpec, Series,            # noqa: E402
                           make_plot, render_plt)
 from skiputil import Skip, skip                                 # noqa: E402
 

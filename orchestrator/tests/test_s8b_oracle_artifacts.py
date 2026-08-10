@@ -13,12 +13,12 @@ import pytest
 
 ORCH = Path(__file__).resolve().parents[1]
 ROOT = ORCH.parent
-if str(ORCH) not in sys.path:
-    sys.path.insert(0, str(ORCH))
+if str(ORCH.parent) not in sys.path:
+    sys.path.insert(0, str(ORCH.parent))
 
-from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
-from campaign import s8b_oracle_exploration as exploration  # noqa: E402
-from campaign.layout import (  # noqa: E402
+from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
+from orchestrator.campaign import s8b_oracle_exploration as exploration  # noqa: E402
+from orchestrator.campaign.layout import (  # noqa: E402
     campaign_layout,
     exploration_campaign_layout,
 )
@@ -200,11 +200,12 @@ def test_manifest_loader_rejects_explicit_null_or_unknown_schema():
 def test_artifact_contract_import_loads_no_other_campaign_module():
     code = f"""
 import sys
-sys.path.insert(0, {str(ORCH)!r})
+sys.path.insert(0, {str(ORCH.parent)!r})
 before = set(sys.modules)
-import campaign.s8b_oracle_artifacts
+import orchestrator.campaign.s8b_oracle_artifacts
 loaded = sorted(name for name in set(sys.modules) - before
-                if name.startswith('campaign.') and name != 'campaign.s8b_oracle_artifacts')
+                if name.startswith('orchestrator.campaign.')
+                and name != 'orchestrator.campaign.s8b_oracle_artifacts')
 assert loaded == [], loaded
 """
     completed = subprocess.run(
