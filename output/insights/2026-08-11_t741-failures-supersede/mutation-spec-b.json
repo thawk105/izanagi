@@ -1,0 +1,42 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 200,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "                or not _valid_date(item.group(\"date\"))\n",
+          "new": "                or False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_reports_failure_supersede_issue"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if number not in positions:\n            raise SpoolValidationError([\n                Issue(\n                    \"docs/failures.md\",\n                    1,\n                    \"failure-supersede-missing\",\n",
+          "new": "        if False:\n            raise SpoolValidationError([\n                Issue(\n                    \"docs/failures.md\",\n                    1,\n                    \"failure-supersede-missing\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

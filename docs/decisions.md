@@ -12606,3 +12606,121 @@ control の path 限定 `log` は履歴長に比例したまま残る。
 - 算術 pin だけで時限を機械化する案 — 定数を積一定で入れ替えると緑のままになり、実時間が
   倍化しても発火しない。実測 guard を別に置いた。
 - 全史 pickaxe を維持して外側 60 秒を引き上げる案 — ユーザー裁定で不採用。履歴長にも追随しない。
+
+## D275. dev-wave の起動値は docs 権威から導出し、caller に指定させない (2026-08-11)
+
+**決定:**
+
+- dev-wave の codex 子は `tools/dev_wave_codex.py` 経由で起動する。`DW-O01` の規範行がこの経路を
+  指定し、`tools/check_docs.py` が可視 top-level の full-match で pin する。
+- **model は全段**、`DW-O01` の model 権威行から導出する。`--model` は launcher から削除し、
+  既定値も置かない。
+- **effort は段 6 の review / focus だけ**、`DW-S06-A` / `DW-S06-C` から導出する。
+  それ以外の段は権威が存在しないので `effort_authority="unbound"` を receipt へ記録し、
+  `--reasoning` を caller から取る。authority-bound な段では `--reasoning` の指定を禁止する
+  (第二の権威を作らない)。
+- **parse 対象は上記 3 節だけ。** `DW-S02` / `DW-S03` / `DW-S05-A` / `DW-S06-B` は parse しない。
+  sandbox も導出しない。
+- 権威は job ごとに snapshot する。`authority_commit` と対象節の sha256 を receipt へ固定し、
+  working tree が当該 commit と 1 byte でも異なれば起動前に停止する。live HEAD とは照合しない。
+- 規範位置は可視 top-level の full-match に限る。blockquote、list、link 例示、否定文、
+  raw HTML block、Unicode 行分離は規範として受理しない。
+- 実効値の照合は**全 `turn_context` の `payload.model` / `.effort` だけ**を見る。
+  top-level への fallback を持たない。`collaboration_mode.settings.*` は読まない。
+- 記録値は `recorded_*`、要求値は `requested_*` と別名で持ち、記録値を served identity の
+  attest として扱わない。
+
+**理由:**
+
+- 起動値の権威 (docs) と実引数を突き合わせる層がどこにも無く、存在しない effort 値でも
+  rc=0 で通ることが F56 で実測されていた。
+- launcher は既に「caller が要求した値」対「実効値」を全 `turn_context` で照合していた。
+  欠けていたのは「docs 権威」対「要求値」の一段だけだった。
+- parse 対象を 3 節に限るのは、段 5 の機械 pin 拡大が見送り裁定の射程にあり、
+  sandbox は docs に値そのものが存在しないためである。名指しされた範囲を超えて
+  受理集合を変えない。
+- authority を job ごとに snapshot するのは、権威行が時間変化し、wave が自分の land する契約を
+  wave 内で dogfood する運用が実在するためである。
+
+**却下した選択肢:**
+
+- **caller の `--model` / `--reasoning` を assertion として残す** — 第二の権威になる。
+- **段 5 の `DW-S05-A` も parse する** — 見送り裁定の射程を侵し、節の書式を事実上凍結する。
+- **`DW-S06-A` / `DW-S06-C` へ sandbox 値を新設する** — 無裁定の受理集合変更である。
+- **live HEAD を権威にする** — 過去 wave に偽の赤が出る。
+- **契約文だけで raw `codex exec` を禁じる** — docs pin と同じ強度しかなく、
+  本機構が解こうとしている問題の再演になる。
+
+## D276. 派生値の検査は独立した oracle を持たせる (2026-08-11)
+
+**決定:** docs から導出した値を検査するテストは、期待値を派生関数自身から取ってはならない。
+docs を独立に読む最小の抽出をテスト側に置き、両者の一致を要求する。
+期待値の literal をテストへ書くことは、これとは別に禁じる。
+
+**理由:** 期待値を派生関数から取ると、その派生関数を変異させたとき期待値も一緒に動くため、
+変異が検出できない。実際に本 wave では、対象テスト 623 全緑・敵対レビュー 4 本通過の状態で
+派生関数の変異が生存し、束縛の中核主張が未証明であることが変異でだけ判明した。
+
+**却下した選択肢:**
+
+- **期待値を literal で書く** — 機械 pin を増やさないという既存の見送り裁定の実質的な再提案になる。
+- **派生関数を呼ぶ既存テストを消す** — 循環していても回帰検出には効く。消さずに独立検査を足す。
+
+## D277. 較正と凍結の上位権限束 — 段 0 の語彙・schema・完了判定 (2026-08-11)
+
+**決定:**
+
+- **候補 record は権威 directory の外の候補 namespace に置き、公式 record を「包む」。**
+  公式 activation record の exact key 集合を変えない。包む側は
+  `schema_version` / `lifecycle_state` / `activation_record` / `activation_record_raw_sha256` の
+  exact 4 key とし、chain の検証は公式側の規則をそのまま再利用する (別の緩い規則を作らない)。
+- **上位束の承認 A と発効 X はどちらも人間が行う。** A は承認 record 1 file の追加のみ、
+  X は有効 head literal を保持する方式ゆえ exact 3 path (公式 activation record の追加、
+  head literal の更新、上位 pointer の追加)。いずれも非 merge で、逐語の人間 trailer を要求する。
+- **lockstep は検査 receipt の自己申告 `pass` で満たしてはならない。** 承認 record の成分一覧に
+  対し、(a) 環境成分と凍結成分が親束の同名成分と双方とも異なること、(b) 環境成分が同じ列の
+  候補 record と一致すること、(c) 凍結成分が下位 family 自身の検証器が承認済みと判定した参照で
+  あることを**再計算**する。
+- **上位 digest は下位と別の domain separator を新設し、原像を exact 7 成分の固定順とする。**
+  承認 record 自身の bytes を原像に入れない。凍結側の separator と成分数は 1 byte も変えない。
+- **裁定 profile は固定 ID 集合・`status` enum・applicability 表を持つ record とする。**
+  未裁定 ID の `selection` enum は、その裁定が land する commit で追加する。それまで検証器は
+  当該 ID の `resolved` を受理しない。裁定が済むまで status が未完了のままなのは意図した
+  fail-closed である。
+- **Git に導入 commit を持たない実行時成果物は、proof chain の根に置く admission record で
+  分類する。** legacy 側は発効 commit の **strict** ancestor を要求し、その根を列挙した catalog
+  自身も strict ancestor で導入され、hash を検査 receipt と承認 record へ束縛する。
+  発効後に catalog へ根を足して legacy を名乗る経路と、既存成果物の遡及拒否の**両方**を閉じる。
+- **fixture の manifest は閉じた集合とし、設計文書の不変条件行と全単射にする。**
+  hash pin は「実 bytes」「manifest literal」「検査側の独立期待値」の 3 者比較とし、
+  期待値を入力から生成しない。裁定待ちを表す印を不変条件 fixture の代用にしない。
+  実行できていない行は `pending` として理由と entrypoint を持ち、件数を manifest が数える。
+- **整合検査と完了要求を分ける。** 整合検査の緑を段の完了証明として使えない名前と出力契約にし、
+  完了要求は fail-closed の別 API とする。未完了を成功結果として返さない。
+- **保存すべき既存拒否の fixture は、実 entrypoint へ入力を流して受理と拒否を観測する。**
+  ただし射程は当該 entrypoint が担う層に限り、上位の semantic 層まで検証したと主張しない。
+
+**理由:**
+
+- 上位に別 domain separator の束を置けば、承認済みの下位契約を 1 byte も変えずに済む。
+  下位 digest へ環境成分を足す案は承認済み契約の改訂を要する。
+- 陰性条件だけを完了判定にすると、何も受理しない実装が全段で緑になる。陽性条件は fixture を
+  名指ししなければ判定にならず、fixture を置くだけでは検査を一度も呼ばない実装が完了を主張できる。
+  この 3 段の穴は、設計段の敵対レビューと実装段の敵対レビューが独立に構成した。
+- 「持っている」ではなく「識別に使われている」を検査しなければ、schema を満たしたまま
+  表示専用 field で条件を満たしたと主張できる。同型の構成が承認 record・pointer・検査 receipt・
+  裁定 profile・候補 record の 5 つすべてに存在する。
+- 発効の瞬間に受理集合が変わる以上、変える対象と時点を機械的に判定できる形で書く義務がある。
+  自己申告の「移行中だから」を通してはならない。
+
+**却下した選択肢:**
+
+- **終端と有効 head の一致検査を束参照検査へ置換する案** — 現行の正しい fail-closed を 1 つ消す。
+  候補を権威 directory の外へ置けば、その拒否を保存したまま候補を表現できる。
+- **有効 head literal を record 由来へ移す案** — 環境契約 source の blob 変化という review signal と、
+  loader closure 経由の間接 pin を失う。代替の data-side pin は同一の保証ではない。
+- **未裁定 ID にも `resolved` を書けるようにする案** — 裁定を経ずに発効へ進める抜け道になる。
+- **不変条件行を「裁定待ち」印で埋められるようにする案** — 最重要の不変条件を fixture 無しのまま
+  完了と算出できる。裁定待ちは裁定 profile と required gate の側にだけ書く。
+- **合成入力を実物より甘いまま「実 entrypoint で確認した」と書く案** — 過剰主張である。
+  射程を明記するか、担当 entrypoint の行として別に持つ。

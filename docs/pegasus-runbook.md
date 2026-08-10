@@ -474,6 +474,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/probes/t139_r4_env_probe.sh` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/probes/t293_perf_site_probe.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t293_perf_site_probe.py` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/probes/t316_sandbox_backend_probe.pbs` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/probes/t316_sandbox_backend_probe.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/probes/t419_probe_causality.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t419_probe_causality.py` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t503_restore_durability_probe.pbs` | `unknown` | `unmeasured probe artifact` |
@@ -793,6 +795,10 @@ python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
   2. `git rev-list --count HEAD..main` を見る。**非 0 のときだけ**
      `git merge --no-ff --no-commit main` → `git commit -F <message file>` で merge commit を作る。
      0 なら merge しない (`nothing to commit` で止まるだけである)。
+     merge の前に `git diff --name-only HEAD...main -- <本 wave が触った実装面 path>` を見る。
+     **非空なら待ち手では merge せず親へ戻す** — 両親が同じ実装面を変えた merge 結果は
+     どちらの親とも異なり、`DW-O17` が Codex `role=author` を要求するので、
+     trailer を固定した待ち手の message file では作れない。
   3. **`git merge --ff-only main` と `--no-edit` は使わない。** wave branch が自前 commit を
      持った時点で fast-forward できず `Not possible to fast-forward` で止まる。merge commit の
      provenance は `DW-O17` に従い、AI-Agent trailer を message file に書く。
