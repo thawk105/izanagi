@@ -38,6 +38,10 @@ title: 証拠 path の CR/LF を両防壁で fail-closed 拒否した — 同じ
 - **受入 lease の待ち手を自分の欠陥で約 40 分空費した。** `claim` の出力は JSON なのに、
   runbook の例が示す `status` の key=value 形式で待っていたため `state=acquired` が
   永久に一致しなかった ({{F:lease-claim-output-is-json}})。
+- **段 8 の未統合候補。** M13 の教訓 (変異の期待 node には間接 caller の統合テストも含める) を
+  `DW-M08` へ 1 行入れようとしたが、`docs/dev-wave/**` は L1 も L1.5 も予算満杯で入らなかった。
+  重複規則 1 文の削除で 67 bytes 空けても 23 bytes 足りず、**予算は上げない**方針どおり見送った。
+  教訓は本エントリと insights に残す。空ける手当てを伴う別 wave で再訪する。
 - 逐語と台帳は `output/insights/2026-08-10_t714-evidence-path-ctrlchar/`。
 
 ## 次の一手差分
