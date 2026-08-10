@@ -111,7 +111,7 @@
         {
           "file": "orchestrator/tests/test_campaign_import_invariant.py",
           "old": "KNOWN_EXCEPTIONS: tuple[ImportException, ...] = (",
-          "new": "KNOWN_EXCEPTIONS: tuple[ImportException, ...] = () or ("
+          "new": "KNOWN_EXCEPTIONS: tuple[ImportException, ...] = ()\n_DISABLED_EXCEPTIONS: tuple[ImportException, ...] = ("
         }
       ],
       "expected_nodes": [
@@ -175,7 +175,7 @@
         {
           "file": "orchestrator/campaign/loop.py",
           "old": "from __future__ import annotations",
-          "new": "from __future__ import annotations\nimport os as _os_probe, sys as _sys_probe\n_sys_probe.path.insert(0, _os_probe.path.join(_os_probe.path.dirname(_os_probe.path.dirname(_os_probe.path.abspath(__file__)))))"
+          "new": "from __future__ import annotations\nimport os as _os_probe, sys as _sys_probe\n_sys_probe.path.insert(0, _os_probe.path.dirname(_os_probe.path.dirname(_os_probe.path.abspath(__file__))))"
         }
       ],
       "expected_nodes": [
