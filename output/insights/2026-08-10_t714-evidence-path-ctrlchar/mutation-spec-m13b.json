@@ -1,0 +1,26 @@
+{
+ "estimated_run_seconds": 300,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M13b",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "new": "    if True:\n",
+     "old": "    if \"\\r\" in text or \"\\n\" in text:\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}
