@@ -78,3 +78,13 @@ title: [T-201] 択 (a) を実装し受入下限を半分にした — 履歴走�
   これは裁定済みの意図的な縮小である ({{D:history-scan-copy-clause}})。残るのは択 (b) の
   `output/` tracked bytes 削減で、本 wave の実測 (費用は tracked bytes への I/O に比例) が直接支持する。
   base: d6b33f8225c6e29820681043ef2e6db861d954bc88bf91738febcce3ff474153
+
+### 新規
+
+- {{T:spool-fold-carry-legacy-stub}} **P2・新規 (本エントリ)**: `tools/spool_fold.py:1151` の
+  `carry_re` が `変わらず (前エントリ参照)` という序数なしの旧形式 stub を carry と認識せず、
+  `substantive_digest` がそこで停止する。carry 鎖にこの形式を含む item では、fragment の
+  `base:` 照合が実本文でなく stub の digest と突き合わされ、「他 wave が先に書き換えていたら
+  止まる」保護が実質的に効かない。本 wave の [T-201] で実測した ({{F:spool-fold-carry-legacy-stub}})。
+  閉じ方は `carry_re` の拡張か旧形式を carry として解決する経路の追加、および
+  一致しない `変わらず` 形式の存在を検査する meta-test。
