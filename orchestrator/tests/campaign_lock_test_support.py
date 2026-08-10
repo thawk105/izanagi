@@ -2,7 +2,22 @@
 """campaign lock v2 fixture の共有 helper。"""
 from __future__ import annotations
 
+import hashlib
+
 from orchestrator.campaign import campaign_lock, contract_loader_binding, env_contract
+
+
+def _binding_from_recorded_head() -> contract_loader_binding.ContractLoaderBinding:
+    """HEAD の実 blob digest から、disk 非依存の test-only binding を作る。"""
+    root = contract_loader_binding._validated_root()
+    commit = contract_loader_binding._head_commit(root)
+    digests = {
+        relative: hashlib.sha256(
+            contract_loader_binding._blob(root, commit, relative)
+        ).hexdigest()
+        for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    }
+    return contract_loader_binding.ContractLoaderBinding(commit, digests)
 
 
 def build_v2_campaign_lock(
@@ -10,13 +25,13 @@ def build_v2_campaign_lock(
         authorization: env_contract.AuthorizedContract | None = None,
         binding: contract_loader_binding.ContractLoaderBinding | None = None,
 ) -> str:
-    """current activation と current Git commit から v2 lock を動的に作る。"""
+    """current activation と記録 HEAD blob から v2 lock を動的に作る。"""
     if authorization is None:
         authorization = env_contract.authorize("linux-baremetal")
     if type(authorization) is not env_contract.AuthorizedContract:
         raise TypeError("authorization は exact AuthorizedContract が必要")
     if binding is None:
-        binding = contract_loader_binding.capture_contract_loader_binding()
+        binding = _binding_from_recorded_head()
     if type(binding) is not contract_loader_binding.ContractLoaderBinding:
         raise TypeError("binding は exact ContractLoaderBinding が必要")
     return campaign_lock.encode_campaign_lock_v2(

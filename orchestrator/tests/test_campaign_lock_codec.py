@@ -2,6 +2,7 @@
 """campaign.lock v1/v2 codec の exact wire contract。"""
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -37,7 +38,9 @@ def _authority() -> dict[str, object]:
         "activation_state_sha256": "2" * 64,
         "contract_loader_commit": "3" * 40,
         "contract_loader_blob_sha256s": {
-            path: str(index) * 64
+            path: hashlib.sha256(
+                f"loader-blob-{index}:{path}".encode("utf-8")
+            ).hexdigest()
             for index, path in enumerate(
                 campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=4,
             )
@@ -158,6 +161,39 @@ def test_v2_rejects_extra_authority_and_blob_keys() -> None:
     for value in (extra_authority, extra_blob):
         with pytest.raises(campaign_lock.CampaignLockCodecError):
             campaign_lock.decode_campaign_lock(_canonical(value))
+
+
+@pytest.mark.parametrize(
+    "missing", campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+    ids=lambda path: Path(path).name,
+)
+def test_v2_rejects_each_missing_enforcement_source_blob_key(
+        missing: str,
+) -> None:
+    value = _v2_value()
+    del value["authority"]["contract_loader_blob_sha256s"][missing]
+    with pytest.raises(
+        campaign_lock.CampaignLockCodecError,
+        match="contract_loader_blob_sha256s の exact key",
+    ):
+        campaign_lock.decode_campaign_lock(_canonical(value))
+
+
+def test_v2_rejects_legacy_exact_two_source_blob_keys() -> None:
+    legacy_paths = (
+        "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/env_contract_activation.py",
+    )
+    value = _v2_value()
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    value["authority"]["contract_loader_blob_sha256s"] = {
+        path: blobs[path] for path in legacy_paths
+    }
+    with pytest.raises(
+        campaign_lock.CampaignLockCodecError,
+        match="contract_loader_blob_sha256s の exact key",
+    ):
+        campaign_lock.decode_campaign_lock(_canonical(value))
 
 
 @pytest.mark.parametrize("serial", [True, False, 0, -1, 1.0, "1", None])

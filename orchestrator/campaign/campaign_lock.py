@@ -24,9 +24,17 @@ AUTHORITY_KEYS = frozenset({
     "contract_loader_blob_sha256s",
 })
 V2_KEYS = frozenset({"schema_version", "identity_preimage", "authority"})
+# ``contract_loader_*`` は歴史的名称であり、この値は exact 8 path の
+# enforcement source closure である。
 CONTRACT_LOADER_RELATIVE_PATHS = (
     "orchestrator/campaign/env_contract.py",
     "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
 )
 
 _HEX40_RE = re.compile(r"[0-9a-f]{40}\Z")
