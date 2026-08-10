@@ -663,3 +663,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:campaign-identity-authority-split":"D259"},"authored":"2026-08-09","content_sha256":"e1d434e13e6b08716d45bd1b3209ce514c34c553eb5bab2d67563bc7cd6b4dff","seq":1,"wave":"dev-wave-t671-impl"}
 - {"allocations":{"T:authority-external-anchor":"[T-722]","T:guided-lane-nonforgeable-marker":"[T-723]","T:import-namespace-unification":"[T-720]","T:r1-closure-expansion":"[T-721]"},"authored":"2026-08-09","content_sha256":"3af0defaa7d06c85816834c49775153df77826a83bb4b558c79ead6a5fa27bcc","seq":2,"wave":"dev-wave-t671-impl"}
 - {"allocations":{"F:dual-import-namespace-breaks-exact-type-checks":"F187","F:parent-adds-gates-outside-approved-ruling":"F188"},"authored":"2026-08-09","content_sha256":"69da3a4f8f6674d38e9385fd6a73ab0762fadcbc11a50aa6157b23256fcd2051","seq":3,"wave":"dev-wave-t671-impl"}
+
+- {"allocations":{},"authored":"2026-08-09","content_sha256":"b6cd991c3cf930fbc869f1261401fa23fd149801d2ad91c89ab2cafc86a52ebd","seq":32,"wave":"rulings-20260806-a"}
