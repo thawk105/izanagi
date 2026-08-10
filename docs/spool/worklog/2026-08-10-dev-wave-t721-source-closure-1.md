@@ -53,9 +53,15 @@ title: source closure を enforcement 閉包 8 path へ広げた — 実装は�
 - **実装子は 3 回とも sandbox から dispatch できず pytest 0 件実走で「実装済み・未実走」と
   報告した。** prompt に「実走できなければ緑を主張するな」と書いたことで偽の緑は出ていない。
   実測はすべて親が行った。
-- **受入全走は 486.74 秒で終わった** ([T-201] の history scan 置換を取り込んだ効果。
-  従来 1248 秒)。tip `654a199a`、7958 passed / 20 skipped / rc=0。
-  **この受入値を記録する commit 自体は、その走行の対象に含まれない。**
+- **受入全走を 2 回した。** 1 走目は tip `654a199a` で 7958 passed / 20 skipped / rc=0、486.74 秒
+  ([T-201] の history scan 置換を取り込んだ効果。従来 1248 秒)。記録・自己改善 commit と
+  main 取り込みを重ねた後、2 走目を tip `a684b3b8` で行い 7973 passed / 20 skipped / rc=0、
+  485.61 秒。**この受入値を記録する commit 自体は、その走行の対象に含まれない。**
+- **land tip は受入 tip と異なる。** 受入 (`a684b3b8`) の 485 秒の間に main が 8 commit 進み、
+  land は「tested main が tested wave tip の祖先でない」で rc=23 拒否された。**受入 lease は
+  受入投入の排他であって land を止めない**ため、受入所要より main の前進が速い区画では
+  受入 tip での land は原理的に成立しない。差分は他 wave が各自の受入を通して land 済みの
+  commit と、その merge commit だけである。
 
 ## 次の一手差分
 
