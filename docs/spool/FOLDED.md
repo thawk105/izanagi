@@ -696,3 +696,27 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:acceptance-lease-waiter-merge-contract":"[T-732]"},"authored":"2026-08-10","content_sha256":"2c1c15e4f84e1d4b7eb69a32537ebb7dd9497f3f872c73c6c6428f5c6548d8af","seq":1,"wave":"dev-wave-t683-caller-closure"}
 - {"allocations":{"F:acceptance-lease-overtaken-while-queued":"F196"},"authored":"2026-08-10","content_sha256":"96c287c043ca741889af665c49470ae575021a5c84c5821eca1a525a934424bc","seq":2,"wave":"dev-wave-t683-caller-closure"}
+
+- {"allocations":{"T:certified-sink-gate":"[T-734]","T:enforcement-transitive-closure":"[T-733]","T:local-run-tmp-git-ancestor":"[T-736]","T:source-closure-wire-rename":"[T-735]"},"authored":"2026-08-10","content_sha256":"6c9f1ec00aa4f17ec4d82ee26f0dfcf33f2b85e29d0d0c1daa6de8a125413d16","seq":1,"wave":"dev-wave-t721-source-closure"}
+- {"allocations":{"D:enforcement-source-closure":"D268"},"authored":"2026-08-10","content_sha256":"30ef680599ddee8710abeada63b11fb32eb996010177904d1db064b326f9b858","seq":2,"wave":"dev-wave-t721-source-closure"}
+- {"allocations":{"F:acceptance-lease-starves-on-prefetch-merge":"F197"},"authored":"2026-08-10","content_sha256":"d6c4c1b0754b907f02d26107bd66eb915c20ffcb72b7094d975db6b372b11605","seq":3,"wave":"dev-wave-t721-source-closure"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"6dffa1ea154f5b8901abd0160d3ad89bf1c21a012933af4dc7770a05eaa6a31d","seq":34,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:loader-issuer-integration-pin":"[T-737]"},"authored":"2026-08-10","content_sha256":"c3a548f0374df5c9bb0bbab2c51a396d12ee0a35f5394964073c8e50997c3d7b","seq":1,"wave":"dev-wave-t673-residual"}
+- {"allocations":{"F:mutation-spec-field-contract-unwritten":"F198"},"authored":"2026-08-10","content_sha256":"19d7a44b628e1554ed2e04d20c1548e16123bb75776296dd1dd0e16a86839db3","seq":2,"wave":"dev-wave-t673-residual"}
+
+- {"allocations":{"T:dev-wave-waiter-pid-rule":"[T-738]"},"authored":"2026-08-10","content_sha256":"8760c421bdb160d883242aa54e9744f7d51b817bc648503dc0bb546d503e7a77","seq":1,"wave":"dev-wave-t139-addendum-b2"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"0d2deb65ee395bbaca60e6ad675a034b101058ff4d5456f06c719908b0517b59","seq":2,"wave":"dev-wave-t139-addendum-b2"}
+
+- {"allocations":{"D:guard-input-exact-str":"D269","D:lease-waiter-internal-merge":"D270"},"authored":"2026-08-10","content_sha256":"86d758a5a14bc4b0f26948944511a527d9618bf3b46d32195a91702b6a389eac","seq":1,"wave":"dev-wave-t730-t732-nul-lease-merge"}
+- {"allocations":{"T:canonical-acceptance-waiter":"[T-740]","T:freeze-layer-nul-gate":"[T-739]","T:guard-non-str-input":"[T-742]","T:spool-failures-supersede":"[T-741]"},"authored":"2026-08-10","content_sha256":"8a8198cdf3879b8c767a61f329681bc9075cd3145eb05d470ca1cfd4f316b483","seq":2,"wave":"dev-wave-t730-t732-nul-lease-merge"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"44f5cd3abd359686c54d6e70a80a80dc4d2b6e42f7d3f0b3690f108075523102","seq":1,"wave":"dev-wave-t700-t695-l2-admission"}
+- {"allocations":{"D:l2-admission":"D271"},"authored":"2026-08-10","content_sha256":"9e4c3d2516ad308561c46849bd2ac24e73ee2cbb3ecb385812bf8f44059c912c","seq":2,"wave":"dev-wave-t700-t695-l2-admission"}
+
+- {"allocations":{"T:design-wave-review-rubric":"[T-743]"},"authored":"2026-08-10","content_sha256":"dcf3d95092953538995c2dd5fbbce9a08de1e05ebd724b9a4c895c584c77d190","seq":1,"wave":"dev-wave-t657-permanent-bundle-design"}
+- {"allocations":{"D:calibration-freeze-authority-bundle":"D272","D:design-completion-criteria-need-positive-fixture":"D273"},"authored":"2026-08-10","content_sha256":"c374d85c32f03fd3af64c1d44156fa7445205be3ad52b3f3b28032671674ca36","seq":2,"wave":"dev-wave-t657-permanent-bundle-design"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"b58f7cd63dc6d660ec4c093de828ea58eeadd3a19ff66bfc93afe339915808c6","seq":35,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"7f6b1aa4e7c0aff0f018c1d0c281300a39a8cf333c1f63f73ad75adf0791ee1b","seq":36,"wave":"rulings-20260806-a"}

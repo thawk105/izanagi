@@ -723,6 +723,20 @@
 - Phase 1〜2 の恒久対応 4 件 (docs/archive/worklog-phase1-2.md 内) は本台帳へ未回収 —
   必要になったとき grep で回収して追記する
 
+
+- **再発: 2026-08-10** ([T-139] 追補 B wave)。恒久対応 4 の自己一致が、変異ハーネスではなく
+  **dev-wave の汎用待ち手**で再現した。`wait.sh <done> <artifact> <pattern>` が producer 消滅を
+  `until ! pgrep -f "$PAT"` で判定し、`$PAT` が待ち手自身の argv に載るため常に自己マッチする。
+  `.done` も成果物も揃った後に 2 本 (段 2 用 20 時間 23 分、段 6 用 7 時間 36 分) 滞留し、
+  親 session は通知待ちのまま 7 時間 36 分停止して wave が無音で死んだ。別 session が引き取って
+  完遂した。同 wave の `wait2.sh` / `wait6.sh` は pattern を script 内へ埋め込んでおり正常終了
+  しているため、正例と失敗例が同一 wave 内に揃っている。
+  恒久対応: **producer の生死は pid で直接見る** (`kill -0`)。pattern 照合を使うなら
+  待ち手自身の argv に pattern を載せない。実体は memory `waiter-death-check-by-pid` と、
+  本 wave の待ち手 3 本 (`s6r3/wait.sh`、`s6r3b/wait.sh`、`accept/wait.sh`) の実装である。
+  `DW-M05` の自己マッチ禁止は変異 harness の節にあり汎用待ち手には掛からない。`DW-C00` の
+  待ち手条項へ同じ禁止を入れる案は L1 予算の余白が 0 byte で入らず、[T-738]
+  としてユーザー裁定へ返した (予算のために既存の安全義務を削らない)。
 ### F33. 変異ハーネスの同一ファイル複数置換が上書きで消え、両層変異が偽 SURVIVED になった [恒真ゲート] [手順漏れ]
 
 - 事象: [T-004] の変異 matrix 2 巡目で、両層変異 (M06ab/M07b) の各置換を**毎回 originals から**
@@ -1975,6 +1989,13 @@
   land される前に独立に観測されたものであり、`DW-G03` の族一般化を追認する。一次資料 =
   `output/insights/2026-08-01_t249-pegasus-policy-split/README.md` の「初回走の erratum」節
 
+
+- **再発: 2026-08-10** — `tools/run_tests.py --collect-only` の**コンソール出力**から
+  parameterized nodeid を採って変異 spec の期待 node にしたところ、8 件あるはずの case が
+  5 件しか出ておらず、harness が「期待 node が pytest collection に実在しない」で fail-closed
+  停止した。F71 根本原因 (2) と同じ「runner のコンソール出力は行前置と切り詰めを伴うため
+  正本にならない」型で、consumer が harness ではなく spec 執筆へ移っただけである。
+  件数は passed 数 (35 = 1 + 8 × 4 + 1 + 1) で照合して確定した。
 ### F72. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
 - 事象: D106 残余 1 と 8c runbook 3 箇所が「`--max-generations >= 2` の運転を禁止する」と宣言
   していたが、CLI の既定値は `2` だった (`p3_autonomous_workload_trial.py` の `add_argument`)。
@@ -4802,3 +4823,45 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   runbook §7.3 の待ち手契約自体の改訂は本 wave の scope 外であり、裁定へ返す。
 - 再発検知: 待ち手 log (`lease.log`) に `acquired` があるのに `acceptance-status.txt` が
   `behind-main:*` になる組み合わせ。この組が出たら待ち手が取り込みを行っていない。
+
+### F197. 受入 lease の取り込み手順が待機時間の長い区画で飢餓し、取得した lease を捨てた [手順漏れ]
+
+- 事象: 受入 lease を 24 分待って `acquired` を得たが、runbook 7.3 の
+  「取り込みは親が事前に済ませ、待ち手は `git rev-list --count HEAD..main` が 0 であることの
+  検査に留める」に従い、15 commit 遅れを検出して lease を返した。並行 wave が 4 本走る区画では
+  待機中に必ず main が進むため、この手順は取るたびに捨てることになる。
+- 根本原因: runbook 7.3 は「`acquired` の直後に local main を取り込んでから投入する」という
+  **原理**を書きながら、その**機構**を「親が待ち始める前に済ませる」と規定していた。待ち時間が
+  取り込みの鮮度を超える区画では原理と機構が両立しない。`--ff-only` を待ち手で使えないという
+  既知の制約 (wave branch が自前 commit を持つと fast-forward できない) が、機構を親側へ
+  寄せる誘因になっていた。
+- 恒久対応: `docs/pegasus-runbook.md` 7.3 を是正し、**待ち手自身が `acquired` の直後に
+  merge commit として取り込む** (message file を用意して `git commit -F`、`--no-edit` は使わない、
+  競合時は `merge --abort` して lease を返す) と規定した。
+- 再発検知: 待ち手 script が取り込み後に `git rev-list --count HEAD..main` を再検査し、
+  0 でなければ受入を投入せず lease を返して非 0 で終わる (本 wave の
+  `acceptance.sh` が実装。逐語は `output/insights/2026-08-10_t721-source-closure/`)。
+
+### F198. 変異 spec の field 契約が走行時 reference に無く、preflight を 2 度やり直した [手順漏れ]
+
+- 事象: [T-673] wave の変異 preflight で、spec の `estimated_run_seconds` を「総所要」と誤読して
+  値を決め、**preflight を 2 度やり直した**。同 wave はさらに、`DW-M08` が義務づける「新旧両走」に
+  **同一 spec を使い回せない**ことを走行設計の途中で知った。後者に実害は出ていない — 候補ごとに
+  spec を分けて回避しており、insights の変異台帳 7 本はいずれも `MISMATCH` 0 である。
+- 根本原因: harness が要求する field の意味 (`estimated_run_seconds` は総量でなく 1 run あたり、
+  `SURVIVED` / `TIMEOUT` 期待では `expected_nodes` が空必須) は `tools/mutation_harness.py` に
+  しか無く、走行時に読む `docs/dev-wave/mutation.md` の `DW-M05` / `DW-M08` には書かれていない。
+  同 reference の L1.5 読量予算は上限ちょうどで余白が無く、追記は 2 波連続で見送られた
+  ([T-627]、[T-673])。予算のために安全記述を削らない契約と、予算値を上げない方針の交点に落ちた
+  知見である。
+- 恒久対応: memory `mutation-spec-field-contract` に 2 つの field 契約を置いた (docs 予算に依らない
+  到達面)。使い捨て worktree 経路と `--scratch-root` の要件は、単節予算に余白のある L2 節
+  `DW-O19` へ採録した。振り分けは §56 の [T-673] (7) 裁定に基づく。
+- 再発検知: (a) `tools/mutation_harness.py` の preflight が
+  `mutation estimate: N mutation(s) x X.XXXs, baseline=B run(s), total=M run(s)/Y.YYYs` を出力し、
+  1 run あたりと総量を分けて表示する。総量として決めた値なら `total` が想定と桁で食い違う。
+  (b) 同 tool の spec 検証が `SURVIVED 期待では expected_nodes は空でなければならない` で
+  fail-closed に落ちる。(c) 使い回した spec で走らせた場合は `MISMATCH` になり `KILLED` には
+  ならない (`failed_keys == expected_keys` の完全一致契約)。
+- 近縁: F185 (同じ field を local 実測から決めて dispatch 経路の下限を割った)、
+  F87 (`MISMATCH` を期待 node の過少列挙として読む型)。

@@ -185,6 +185,14 @@ EXPECTED_CAMPAIGN_CLASSIFICATIONS = {
     "s1-direct-floor-direct-comparison-b82b9229":
         ("historical-pre-admission-schema", "historical-not-reclassified"),
 }
+EXPECTED_EVIDENCE_CAMPAIGN_LOCKS = frozenset({
+    "output/insights/2026-08-04_wave-a-campaign-transport-smoke/evidence/"
+    "campaign-layout/campaigns/"
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-0a11751c/campaign.lock",
+    "output/insights/2026-08-04_wave-a-campaign-transport-smoke/evidence/"
+    "campaign-layout/campaigns/"
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-9785aec6/campaign.lock",
+})
 
 
 def _canonical_json(value: object) -> str:
@@ -717,6 +725,27 @@ def test_existing_campaign_tracked_bytes_match_git_head() -> None:
     )
 
 
+def test_existing_campaign_lock_corpus_is_exactly_32_v1_locks() -> None:
+    actual_paths = {
+        path.relative_to(ROOT).as_posix()
+        for path in (ROOT / "output").glob("**/campaign.lock")
+    }
+    expected_paths = {
+        f"output/campaigns/{name}/campaign.lock"
+        for name in EXPECTED_CAMPAIGN_CLASSIFICATIONS
+    } | set(EXPECTED_EVIDENCE_CAMPAIGN_LOCKS)
+    assert len(actual_paths) == 32
+    assert actual_paths == expected_paths
+
+    schema_versions = {
+        relative: campaign_lock.decode_campaign_lock(
+            (ROOT / relative).read_text(encoding="utf-8")
+        ).schema_version
+        for relative in sorted(actual_paths)
+    }
+    assert set(schema_versions.values()) == {"campaign-lock/v1"}
+
+
 def test_existing_campaign_classification_exact_mapping() -> None:
     actual = {
         campaign.name: (
@@ -728,6 +757,25 @@ def test_existing_campaign_classification_exact_mapping() -> None:
         for decision in (A.classify_campaign(campaign),)
     }
     assert actual == EXPECTED_CAMPAIGN_CLASSIFICATIONS
+
+
+@pytest.mark.parametrize(
+    "campaign_path",
+    sorted(
+        lock_path.removesuffix("/campaign.lock")
+        for lock_path in EXPECTED_EVIDENCE_CAMPAIGN_LOCKS
+    ),
+    ids=lambda campaign_path: Path(campaign_path).name,
+)
+def test_existing_evidence_campaign_classification_exact_rejection(
+    campaign_path: str,
+) -> None:
+    with pytest.raises(A.ArtifactAdmissionError) as exc_info:
+        A.classify_campaign(ROOT / campaign_path)
+    assert type(exc_info.value) is A.ArtifactAdmissionError
+    assert str(exc_info.value) == (
+        "campaign requires a directory, campaign.lock, and WAL"
+    )
 
 
 @pytest.mark.parametrize(
@@ -926,6 +974,54 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
         (campaign / "campaign.lock").read_text()
     )
     assert decoded.is_v2
+    assert decoded.authority is not None
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 8
+    assert A.classify_campaign(campaign).admission_status == "admitted"
+
+
+def test_v2_committed_admission_ignores_dirty_live_loader_disk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "loader-repo"
+    repo.mkdir()
+    _fixture_git(repo, "init", "-q")
+    for index, relative in enumerate(
+        campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=1,
+    ):
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"admission loader fixture {index}".encode("ascii"))
+    _fixture_git(
+        repo, "add", "--", *campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+    )
+    _fixture_git(
+        repo,
+        "-c", "user.email=admission-fixture@example.invalid",
+        "-c", "user.name=admission fixture",
+        "commit", "-q", "-m", "commit loader fixture",
+    )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    decoded = campaign_lock.decode_campaign_lock(
+        (campaign / "campaign.lock").read_text(encoding="utf-8")
+    )
+    assert decoded.authority is not None
+
+    dirty_path = "orchestrator/campaign/loop.py"
+    assert dirty_path in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    dirty_file = repo / dirty_path
+    recorded_blob = _fixture_git(
+        repo, "cat-file", "blob",
+        f"{decoded.authority.contract_loader_commit}:{dirty_path}",
+    )
+    recorded_digest = hashlib.sha256(recorded_blob).hexdigest()
+    assert (
+        decoded.authority.contract_loader_blob_sha256s[dirty_path]
+        == recorded_digest
+    )
+    dirty_file.write_bytes(dirty_file.read_bytes() + b"\nuncommitted edit\n")
+    assert hashlib.sha256(dirty_file.read_bytes()).hexdigest() != recorded_digest
+
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
@@ -1134,7 +1230,8 @@ def test_v2_loader_validation_rejects_missing_blob(
 ) -> None:
     campaign = _new_schema_campaign(tmp_path)
     real_run_git = contract_loader_binding._run_git
-    missing = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[-1]
+    missing = "orchestrator/campaign/env_contract_activation.py"
+    assert missing in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
     decoded = campaign_lock.decode_campaign_lock(
         (campaign / "campaign.lock").read_text()
     )

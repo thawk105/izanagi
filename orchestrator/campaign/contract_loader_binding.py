@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Execution contract loader 2 module の committed-source binding。"""
+"""歴史名 ``contract_loader_*`` が表す enforcement source closure の binding。"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -46,7 +46,11 @@ class ContractLoaderBindingError(Exception):
 
 @dataclass(frozen=True)
 class ContractLoaderBinding:
-    """記録 commit と exact 2 loader blob の SHA-256。"""
+    """記録 commit と enforcement source closure 8 path の SHA-256。
+
+    ``contract_loader_*`` 識別子は歴史的名称であり、値は loader 2 path では
+    なく enforcement source closure 8 path を表す。
+    """
 
     contract_loader_commit: str
     contract_loader_blob_sha256s: Mapping[str, str]
@@ -318,7 +322,7 @@ def _blob(root: Path, commit: str, relative: str) -> bytes:
 
 
 def capture_contract_loader_binding() -> ContractLoaderBinding:
-    """current HEAD blob と live loader bytes が一致する binding を取得する。"""
+    """current HEAD blob と live closure bytes が一致する binding を取得する。"""
     root = _validated_root()
     commit = _head_commit(root)
     digests: dict[str, str] = {}
@@ -334,7 +338,7 @@ def capture_contract_loader_binding() -> ContractLoaderBinding:
 
 
 def verify_live_contract_loader_binding(binding: ContractLoaderBinding) -> None:
-    """記録 commit blob・記録 digest・現在の disk bytes を exact 照合する。"""
+    """記録 commit blob・記録 digest・現在の closure bytes を exact 照合する。"""
     if type(binding) is not ContractLoaderBinding:
         raise ContractLoaderBindingError(
             "contract-loader-invalid-binding: exact ContractLoaderBinding が必要"

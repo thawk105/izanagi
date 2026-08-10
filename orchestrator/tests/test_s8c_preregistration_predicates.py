@@ -184,8 +184,10 @@ def test_contract_loader_rejects_unknown_and_duplicate_keys() -> None:
     [
         pytest.param("required", "\r", id="required-cr"),
         pytest.param("required", "\n", id="required-lf"),
+        pytest.param("required", "\x00", id="required-nul"),
         pytest.param("consumer", "\r", id="consumer-cr"),
         pytest.param("consumer", "\n", id="consumer-lf"),
+        pytest.param("consumer", "\x00", id="consumer-nul"),
     ],
 )
 def test_contract_loader_rejects_embedded_path_control_chars(
@@ -202,6 +204,7 @@ def test_contract_loader_rejects_embedded_path_control_chars(
     with pytest.raises(M.EvidenceContractError) as caught:
         M.load_contract_bytes(json.dumps(value, ensure_ascii=False).encode("utf-8"))
     assert caught.value.reason_code == "contract-path-control-char"
+    assert "\x00" not in str(caught.value)
     assert "\r" not in str(caught.value)
     assert "\n" not in str(caught.value)
 
@@ -211,6 +214,7 @@ def test_contract_loader_rejects_embedded_path_control_chars(
     [
         pytest.param("\r", id="trailing-cr"),
         pytest.param("\n", id="trailing-lf"),
+        pytest.param("\x00", id="trailing-nul"),
     ],
 )
 def test_contract_loader_reports_explicit_path_reason_for_trailing_controls(
@@ -223,6 +227,7 @@ def test_contract_loader_reports_explicit_path_reason_for_trailing_controls(
     with pytest.raises(M.EvidenceContractError) as caught:
         M.load_contract_bytes(json.dumps(value, ensure_ascii=False).encode("utf-8"))
     assert caught.value.reason_code == "contract-path-control-char"
+    assert "\x00" not in str(caught.value)
     assert "\r" not in str(caught.value)
     assert "\n" not in str(caught.value)
 
@@ -238,6 +243,37 @@ def test_contract_loader_accepts_normal_relative_paths() -> None:
     assert condition.required_evidence[0].path == "nested/evidence.py"
     assert condition.consumer_requirement.path == "nested/consumer.py"
     assert len(M.semantic_contract_sha256(raw)) == 64
+
+
+def test_contract_loader_accepts_embedded_tab_path() -> None:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    candidate = "nested/tab\tpath.py"
+    value["conditions"][0]["required_evidence"][0]["path"] = candidate
+    raw = json.dumps(value, ensure_ascii=False).encode("utf-8")
+
+    contract = M.load_contract_bytes(raw)
+    assert contract.conditions[0].required_evidence[0].path == candidate
+
+
+def test_safe_path_rejects_membership_spoofing_str_subclass() -> None:
+    class MembershipSpoofingPath(str):
+        def __contains__(self, item: object) -> bool:
+            return False
+
+    candidate = MembershipSpoofingPath("nested/in\rside.py")
+    with pytest.raises(M.EvidenceContractError) as caught:
+        M._safe_path(candidate, where="spoofed.path")
+    assert caught.value.reason_code == "contract-path-control-char"
+
+
+def test_safe_path_returns_exact_str_for_accepted_str_subclass() -> None:
+    class AcceptedPath(str):
+        pass
+
+    candidate = AcceptedPath("nested/accepted.py")
+    result = M._safe_path(candidate, where="accepted.path")
+    assert type(result) is str
+    assert result == candidate
 
 
 def test_registry_rejects_control_char_contract_before_evidence_ref_construction(

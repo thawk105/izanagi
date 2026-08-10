@@ -12347,3 +12347,201 @@ erratum が汚染と列挙した機械集計行・一次品質台帳・両適格
 - 制御文字一般 (C0 全体) の拒否 — tab は alias しないと実測しており、同一性の観点では過剰。
   承認された裁定の範囲を親が広げない。
 - 非文字列 path そのものの拒否 — 受理集合の変更が CR/LF を越える。API 前提の明示で足りる。
+
+## D268. source closure を enforcement 閉包 8 path へ広げ、名乗りを「ident を通った呼出し」に限定する (2026-08-10)
+
+**決定:**
+
+1. **閉包を exact 8 path にする。** `campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS` へ
+   `execution_guard.py` / `loop.py` / `pipeline.py` / `wal.py` / `ident.py` /
+   `artifact_admission.py` を加える。D259 決定 2 の「exact 2 path」を supersede する。
+   検証の意味論 (記録 commit の blob と現在の disk bytes の一致であって current HEAD との
+   一致ではない)、停止点 (`ident.ensure_campaign_identity` の 1 点)、fail-closed は変えない。
+2. **識別子と wire key は変えない。** `contract_loader_*` は歴史的名称として残し、値が
+   enforcement 閉包であることを定数直前・class docstring・本決定に書く。改名は成果物形式の
+   別変更であり、本決定の範囲ではない。
+3. **共有 v2 fixture は記録 commit の blob digest から作る (test-only)。** production の
+   `capture_contract_loader_binding` / `verify_live_*` / `verify_committed_*` は変えない。
+   閉包メンバーに未 commit 差分があるだけで fixture 生成が落ち、gate を検査していない
+   16 の consumer が偽の赤になるためである (実測: clean 16 passed → dirty 6 failed、
+   赤 6 件すべて fixture 生成側)。production の呼出し口 4 口は census テストで固定する。
+
+**名乗ってよい範囲 (これを超えて書いてはならない):**
+
+> `require_environment_contract=True` で `ident.ensure_campaign_identity` の source 検査が
+> 実際に完了した呼出しについて、**検査が読み取った時点の** enforcement source closure 8 path の
+> disk bytes は、その呼出しが authority に採用した `contract_loader_commit` の同 path Git blob と
+> 一致した。
+
+- **「certified 経路が source-bound」とは名乗らない。** 閉包は推移的に閉じていない。
+  `pipeline.py` は verifier / calibrator / buildcache / build_admission / source_digest へ、
+  `execution_guard.py` は env_attestation / site_policy へ判定を委譲しており、いずれも閉包外である。
+- **「ensure 成功時点で一致」とは名乗らない。** capture から lock 獲得までの間に再検査はなく、
+  保証は「検査が読み取った bytes」までである。
+- **停止点は certified sink の支配点ではない。** `pipeline.evaluate` と低層 WAL writer は
+  ident を通さずに書け、S8b oracle driver が実在の別経路である。
+- **admission 時点の disk 一致は保証しない。** admission は記録 commit の blob と記録 digest
+  だけを照合し、working tree を読まない。これは意図した設計であり、正例テストで固定した。
+- **in-process 改変・`__pycache__`・動的生成コード・成果物 bytes の改竄は検出しない。**
+- **未束縛 bootstrap** = `campaign_lock.py`、`contract_loader_binding.py`、Git executable、
+  既ロードの Python state。これらは閉包に入れない (検証器自身を自分で検証させないため) 。
+  accidental drift のモデルでは受容できるが、敵対モデルでは root of trust である。
+
+**受理集合の変化:**
+
+- 既存 artifact は不変。`output/**/campaign.lock` は 32 本すべて v1 で、v2 は 0 本である。
+- v2 wire の受理言語は exact-2 key から **exact-8 key への置換**であって、部分集合化ではない。
+  旧 exact-2 map は拒否になり、exact-8 map は受理になる。
+- 閉包 8 path のいずれかに未 commit 差分がある working tree からの certified 実行は、
+  新規作成・resume とも `ident` の停止点で拒否される。これが本決定の目的である。
+
+**却下した選択肢:**
+
+- **`contract_loader_*` の改名。** v2 lock が 0 本の現在はコスト最小の窓だが、裁定は閉包拡張で
+  あって wire 形式の変更ではない。敵対レビュー 2 本のうち 1 本は改名を推し、1 本は
+  correctness hole ではないと判定した。窓の非対称性は裁定パッケージへ回した。
+- **qualification の既存 exact set への統合。** 裁定で採られていない選択肢であり、
+  campaign 側と qualification 側は別目的の別集合として残す。
+- **共有 fixture の合成 digest 化。** 実 blob を読まない fixture は、記録 digest の実在を
+  検査しなくなる。記録 commit の実 blob を読む形にした。
+- **全 certified sink への gate receipt 導入。** 承認範囲外の受理集合変更であり、別 wave とする。
+
+## D269. 証拠 path の防壁は、検査する前に exact `str` を作り、その値だけを使う (2026-08-10)
+
+**決定:** 証拠 path を検査する防壁は、入力を一度 exact な `str` へ固定してから検査し、
+以後の canonical 化・git への引き渡し・返却も**その固定した値**で行う。`_safe_path` と
+`read_blob_at` の 2 層に適用する。防壁が拒否する制御文字は NUL / CR / LF の 3 つで、
+C0 一般へは広げない (ユーザー裁定で不採用)。
+
+**理由:**
+- `str` サブクラスは `__format__` (D267 で実測) だけでなく `__contains__` も偽装でき、
+  「検査時は安全に見え、使うときだけ危険」という値を作れる。検査対象と使用対象が
+  同じ object であることを型で保証しない限り、層ごとの検査は独立に閉じない。
+- 固定した値を返すことで、下流の cache key・dataclass field・proof chain の参照 path が
+  検査済みの値と一致することまで含めて保証できる。返却だけ元の object に戻す実装は、
+  検査を通っても保証を失う。
+- NUL は git の要求行を切り詰めるため、path 文字列と実際に読む blob が乖離する。
+  CR / LF と機序が同じであり、同じ層で同じ理由コードで拒否するのが一貫する。
+
+**却下した選択肢:**
+- **C0 制御文字一般の拒否** — 証拠同一性の観点では過剰で、TAB を含む正当な path を落とす。
+  層ごとに TAB の正例を置き、この過剰一般化が入ったら赤くなるようにした。
+- **非 `str` 入力 (bytes / PathLike) の意味まで守る** — 受理集合が変わるため裁定へ返す。
+  現行の保証は「単一文字列化した後の値が API 上の path である」に限定する。
+- **凍結発行・検証層への同じ検査の追加** — 承認された 2 層の外側であり、裁定へ返す。
+
+## D270. 受入 lease の main 取り込みは待ち手 script の中で行う (2026-08-10)
+
+**決定:** 受入 lease を `acquired` にした待ち手は、その直後に自分で local main を取り直し、
+`HEAD..main` が非 0 のときだけ `--no-ff` の merge commit として取り込み、再検査してから
+受入全走を投入する。claim の loop・取り直し・merge・投入は同じ script に置く。
+判定は claim の JSON の `state` と固定 literal の exact 比較で行い、各段の rc を個別に見る。
+lease の粒度 (受入と land の終端で解放) は D239 のまま変えない。
+
+**理由:**
+- 取り込みを親の事前作業にすると、待機時間が取り込みの鮮度を超える区画で原理と機構が
+  両立しない。並行 wave が飽和した区画では `acquired` の時点で必ず追い越されており、
+  取るたびに lease を捨てることになる (24 分待って 15 commit 遅れ、別 wave で 4 回空振り)。
+- `--ff-only` は wave branch が自前 commit を持った時点で使えない。取り込みは merge commit
+  でなければならず、その provenance は通常 commit と同じ規約に従う必要がある。
+- 出力全体への部分一致で `acquired` を判定すると、`state` 以外の field や診断文で
+  偽陽性になる。逆に `status` の見た目に合わせた文字列一致は永久に一致しない。
+
+**却下した選択肢:**
+- **lease 粒度を「受入 + land」へ広げる** — 保持時間が伸び、飽和を悪化させる。
+  D239 は既に「受入と land の終端で解放」と定めており、拡大の必要もない。
+- **正本の待ち手 script を `tools/` へ新設する** — 実装面の新機構であり、
+  runbook 改訂の範囲外。散文手順のままにする実効性の限界は裁定へ返す。
+- **fencing token で残余 race を閉じる** — D239 が受容済みの限界であり、本決定では変えない。
+  再検査から投入までの間に main が進む race は残る。
+
+## D271. 新規 L2 節の admission に削除条件の鏡像 3 条件を課す (2026-08-10)
+
+**決定:** `docs/dev-wave/` の L2 (条件成立時だけ読む節) を新規に登録できるのは、登録時点で
+次の 3 条件をすべて満たす場合だけとする。`docs/skill-self-improvement.md` の routing 3 が
+削除側へ課している条件の鏡像である。
+
+1. **発火実績がある。** 実際の wave で、その義務の欠落による失敗または near miss が観測されている。
+   自己申告では足りない。発火点、時刻付きの一次資料 (worklog / insights / 裁定の控え)、
+   欠落したときに変わった成果物 (どの値・受理集合・参照がどう変わったか) を登録時に示す。
+2. **現に機械代替されていない。** 登録時点で、その義務がテストまたは機械検査で代替済みでない。
+   「機械代替不能」は将来その設計が原理的に不可能という意味ではなく、**現時点で代替済みでない**
+   ことをいう。将来の設計可能性を証明対象にすると、まだ存在しない仮想設計だけで必要な本文を
+   拒否できてしまう。
+3. **意味検索で反証されない。** repo 全体 (`output/insights/**` と memo を含む) を意味検索し、
+   条件 1・2 を覆す事実がないこと、および同じ発火点で同じ義務を課す既存正本がないことを確認する。
+   探索範囲・検索語群・hit・real/refuted の判定を登録時の記録に残す。
+
+**削除済み節 ID の番号を再利用しない。** 復活には新規裁定を要する (該当 ID は
+`tools/check_docs.py` の `_OPERATION_NUMBERS` 付近のコメントが正本)。
+
+3 条件は**必要条件**であり、既存 gate を免除しない。`DW-G03` (族全体への制度一般化には
+異なる producer/consumer で独立 2 例)、`DW-G04` (条件付き機能の発火 gate)、層別 byte 予算は
+そのまま適用する。**byte 余白が空いたことは admission の理由にならない。**
+層の U/C 分類を byte 予算の都合で選ばない (D255 は読了実態から機械導出すると決めている)。
+
+**範囲と未裁定:** 本規範は**事後型の手順義務**の admission を対象とする。次の 2 点は未裁定であり、
+本規範を根拠に結論しない。
+
+- (a) 条件 2 を「現に代替されていない」と読む結果、**機械検査へ移すべき義務が本文として通る**経路が
+  開く。どこで機械化を要求するかは別途裁定する。
+- (b) 初回事故の前に置く**予防的な fail-closed 義務**は、定義上条件 1 を満たせない。
+  ユーザーが明示的に要求した予防的安全義務を、本規範を根拠に拒否してはならない。
+
+**理由:**
+- L2 の削除に課している「発火実績なし × テスト/機械検査で義務代替済み」を登録側から鏡像化すると、
+  **byte 余白だけを理由とする見送り済み候補の復活**を塞げる。削除側だけに条件があると、
+  予算が空いた時点で無条件に戻せる非対称が残る。
+- 削除側の条件は「代替済み」という現在状態を問う。その鏡像は「代替されていない」であり、
+  将来の設計の不存在ではない。後者は有限の repo 検査で証明できない。
+- 自己申告を許すと 3 条件が実質無条件になる。登録時に一次資料と探索記録を要求することで、
+  admission の根拠が後から再現・反証できる。
+
+**却下した選択肢:**
+- **条件 2 を「機械化する設計が原理的に成立しない」と読む** — 反証不能な gate になり、
+  本文で担うべき義務まで一律に拒否する。
+- **削除側の条件だけを残す** — 予算が空いた時点で見送り済み候補が無条件に復活する非対称が残る。
+- **3 条件を満たせば既存 gate を免除する** — 族一般化と発火 gate を迂回する経路になる。
+- **番号の空きを再利用可とする** — 削除裁定を無効化する。
+
+## D272. 較正と凍結の世代交代を上位の権限束として設計する (2026-08-10)
+
+**決定:** 環境契約の活性化 (較正) と ratified freeze の世代を、**上位層の権限束**として 1 つの
+identity のもとで解決する。正本は `docs/calibration-freeze-authority-bundle-design.md` (第 1 設計段、
+裁定待ち)。freeze 族**内部**の設計正本は改訂せず、適用範囲と precedence の注記だけを追記する。
+precedence は状態文でなく「上位 namespace の pointer record が上位 resolver の検証をちょうど 1 つ
+通って解決できる HEAD か」で判定する。
+
+**理由:**
+- 較正の世代交代は凍結の世代交代なしに完了しない。環境だけ進めると live admission の契約 hash が
+  食い違い、固定 path の凍結成果物を上書きすると履歴不変条件と盲検封印の紐付けが同時に壊れる。
+- 凍結側の bundle digest は成分数固定・配列長強制・domain separator 固定として既にユーザー承認済みの
+  exact 契約である。環境成分をそこへ足すと承認済み契約の改訂になる。上位に別 domain の束を置けば
+  凍結側を 1 byte も変えずに済む。
+- 上位束は下位と同じ形 (承認 record が成分一覧と digest を持ち、pointer が承認 record を指す) に
+  する。独立した束 record を別に置くと、その hash を digest の原像へ入れれば自己参照になり、
+  入れなければ差し替えても identity が変わらない。
+
+**却下した選択肢:**
+- 凍結側 digest への環境成分の追加 — 承認済み exact 契約の改訂を要する。
+- 下位 pointer をそのまま production authority として使い続ける — 環境と凍結を別々に解決すると、
+  上位が承認していない直積が再生成される。敵対レビュー 2 本が独立にこの経路を構成した。
+- 環境の有効 head を literal から record へ移すことを前提にする — literal を残したまま成立する
+  topology の反例が構成されたため、必要条件ではない。解決方式は択一として開く。
+
+## D273. 設計の完了判定は陽性 fixture を実体として固定する (2026-08-10)
+
+**決定:** 段階分割の各段の完了判定は、陰性条件 (不正入力が落ちる) だけでなく**陽性条件
+(正常入力がちょうど受理される)** を持つ。さらに陽性・陰性 fixture は、閉じた manifest、
+不変条件の各行との全単射、実際に走らせる検査 node の名前まで固定して初めて完了判定になる。
+「未定義」と書かれた段は完了と宣言できない。
+
+**理由:**
+- 陰性条件だけを完了判定にすると、**何も受理しない実装 (reject-all) が全段で緑になる**。
+  敵対レビューが独立に 3 段でこの構成を作った。
+- 「正常な入力が通る」と書くだけでは、任意の 1 ケースを通して完了と主張できる。
+- fixture を置くだけでは、検査を一度も呼ばずに完了と主張できる。
+
+**却下した選択肢:**
+- 各段の完了判定を設計文書の時点で exact に書く — 陽性 fixture の実体が裁定に依存するため、
+  書けば恒真になる。書けないものを書けたことにしない。

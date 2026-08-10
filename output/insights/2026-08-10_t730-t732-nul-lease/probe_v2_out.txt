@@ -1,0 +1,22 @@
+repo           : /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t730-t732-nul-lease-merge
+source tree    : /work/1/SFC/tanab/dev-wave-jobs/t730-t732-nul-lease/prewave-tree (HEAD=n/a — 非 git tree)
+対象 commit    : 6a159e0d -> 6a159e0d36114e98469648bd7de491c509af50d6
+git            : git version 2.34.1
+
+== 1. git 側の NUL alias ==
+  plain    : ('1744da0e3bae18375b017a39b8442a10f240e114', 'blob', 13812)
+  NUL 付き : ('1744da0e3bae18375b017a39b8442a10f240e114', 'blob', 13812)
+  TAB 付き : ('', 'missing', -1)
+  -> alias 成立: OID=1744da0e3bae18375b017a39b8442a10f240e114 size=13812 sha256=1dfb04e990b216810ff3315e9e34044d23334c51fe56da4bc6d6f7c88a153f50
+  -> TAB は alias しない (missing)
+
+== 2. 防壁 1: _safe_path ==
+  NUL 埋め込み: 素通し -> 'docs/a\x00b.md'
+  NUL 末尾: 素通し -> 'docs/a.md\x00'
+
+== 3. 防壁 2: read_blob_at ==
+  NUL 付き: 素通し -> 13812 bytes sha256=1dfb04e990b216810ff3315e9e34044d23334c51fe56da4bc6d6f7c88a153f50
+  -> 契約 path と異なる文字列で、対照と同一の blob を読んだ
+  素の path: 受理 -> 13812 bytes (対照と一致)
+
+すべての assert を通過した。

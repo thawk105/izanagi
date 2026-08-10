@@ -50,6 +50,19 @@ ABORTED_FIXTURE_VARIANT = "2225adf39fa3"
 REJECTED_FIXTURE_VARIANT = "d85dc0fc5a6e"
 
 
+def _binding_from_recorded_head() -> contract_loader_binding.ContractLoaderBinding:
+    """Build a disk-independent binding from the recorded HEAD blobs."""
+    root = contract_loader_binding._validated_root()
+    commit = contract_loader_binding._head_commit(root)
+    digests = {
+        relative: hashlib.sha256(
+            contract_loader_binding._blob(root, commit, relative)
+        ).hexdigest()
+        for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    }
+    return contract_loader_binding.ContractLoaderBinding(commit, digests)
+
+
 def build_v2_campaign_lock(
         identity_preimage: str, *,
         authorization: env_contract.AuthorizedContract | None = None,
@@ -61,7 +74,7 @@ def build_v2_campaign_lock(
     if type(authorization) is not env_contract.AuthorizedContract:
         raise TypeError("authorization は exact AuthorizedContract が必要")
     if binding is None:
-        binding = contract_loader_binding.capture_contract_loader_binding()
+        binding = _binding_from_recorded_head()
     if type(binding) is not contract_loader_binding.ContractLoaderBinding:
         raise TypeError("binding は exact ContractLoaderBinding が必要")
     return campaign_lock.encode_campaign_lock_v2(

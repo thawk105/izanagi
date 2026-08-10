@@ -2,6 +2,8 @@
 """[T-671] contract loader source binding の決定的な test-first 回帰。"""
 from __future__ import annotations
 
+import ast
+from collections import Counter
 import hashlib
 import json
 import shutil
@@ -17,9 +19,15 @@ from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.model import CampaignConfig
 
 
-_LOADER_PATHS = (
+_EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     "orchestrator/campaign/env_contract.py",
     "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
 )
 
 
@@ -54,7 +62,9 @@ def _committed_loader_repo(
     repo.mkdir()
     _git(repo, "init", "-q")
 
-    for index, relative in enumerate(_LOADER_PATHS, start=1):
+    for index, relative in enumerate(
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS, start=1,
+    ):
         path = repo / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         if copy_current_loaders:
@@ -63,7 +73,7 @@ def _committed_loader_repo(
         else:
             path.write_bytes(f"loader fixture {index}".encode("ascii"))
 
-    _git(repo, "add", "--", *_LOADER_PATHS)
+    _git(repo, "add", "--", *_EXPECTED_ENFORCEMENT_SOURCE_PATHS)
     _git(
         repo,
         "-c", "user.email=t671-fixture@example.invalid",
@@ -75,7 +85,7 @@ def _committed_loader_repo(
         relative: hashlib.sha256(
             _git(repo, "cat-file", "blob", f"{commit}:{relative}")
         ).hexdigest()
-        for relative in _LOADER_PATHS
+        for relative in _EXPECTED_ENFORCEMENT_SOURCE_PATHS
     }
     return repo, commit, blob_sha256s
 
@@ -106,20 +116,38 @@ def _canonical_json(value: object) -> str:
     )
 
 
+def test_enforcement_source_closure_is_the_independent_exact_eight_paths() -> None:
+    from orchestrator.campaign import campaign_lock, contract_loader_binding
+
+    assert campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS == (
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    )
+    assert (
+        contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
+        is campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    )
+
+
+@pytest.mark.parametrize(
+    "drift_path", _EXPECTED_ENFORCEMENT_SOURCE_PATHS,
+    ids=lambda path: Path(path).name,
+)
 def test_loader_drift_rejected_before_campaign_lock_or_wal_bytes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift_path: str,
 ) -> None:
     # Import stays inside the node: before U1 exists, this node itself must be red
     # because the source-binding gate module is absent, never a collection error.
     from orchestrator.campaign import contract_loader_binding
 
-    assert contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS == _LOADER_PATHS
+    assert contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS == (
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    )
     assert isinstance(contract_loader_binding._REPO_ROOT, Path)
     assert issubclass(contract_loader_binding.ContractLoaderBindingError, Exception)
     repo, _commit, _blob_sha256s = _committed_loader_repo(
         tmp_path, copy_current_loaders=True,
     )
-    drifted_loader = repo / _LOADER_PATHS[0]
+    drifted_loader = repo / drift_path
     drifted_loader.write_bytes(drifted_loader.read_bytes() + b"\n")
     monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
 
@@ -140,6 +168,7 @@ def test_loader_drift_rejected_before_campaign_lock_or_wal_bytes(
             )
         assert caught.value.reason == "contract-loader-drift"
         assert "contract-loader-drift" in str(caught.value)
+        assert drift_path in str(caught.value)
     finally:
         assert not lock_path.exists(), "loader drift rejection wrote campaign.lock bytes"
         assert not wal_path.exists() or wal_path.read_bytes() == b"", (
@@ -147,13 +176,47 @@ def test_loader_drift_rejected_before_campaign_lock_or_wal_bytes(
         )
 
 
+@pytest.mark.parametrize(
+    "drift_path", _EXPECTED_ENFORCEMENT_SOURCE_PATHS,
+    ids=lambda path: Path(path).name,
+)
+def test_live_verification_rejects_each_dirty_enforcement_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift_path: str,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    repo, _commit, _blob_sha256s = _committed_loader_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    binding = contract_loader_binding.capture_contract_loader_binding()
+    assert set(binding.contract_loader_blob_sha256s) == set(
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    )
+
+    drifted = repo / drift_path
+    drifted.write_bytes(drifted.read_bytes() + b"\nuncommitted edit\n")
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+    ) as caught:
+        contract_loader_binding.verify_live_contract_loader_binding(binding)
+    message = str(caught.value)
+    assert "contract-loader-drift" in message
+    assert drift_path in message
+
+
+@pytest.mark.parametrize(
+    "mismatch_path", _EXPECTED_ENFORCEMENT_SOURCE_PATHS,
+    ids=lambda path: Path(path).name,
+)
 def test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mismatch_path: str,
 ) -> None:
     # Keep the future resolver seam import node-local for the same test-first red.
     from orchestrator.campaign import contract_loader_binding
 
-    assert contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS == _LOADER_PATHS
+    assert contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS == (
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    )
     assert isinstance(contract_loader_binding._REPO_ROOT, Path)
     assert issubclass(contract_loader_binding.ContractLoaderBindingError, Exception)
     repo, commit, blob_sha256s = _committed_loader_repo(tmp_path)
@@ -173,7 +236,6 @@ def test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit(
     }
     identity_preimage = _canonical_json(identity)
     mismatched = dict(blob_sha256s)
-    mismatch_path = _LOADER_PATHS[0]
     recorded_blob = _git(
         repo, "cat-file", "blob", f"{commit}:{mismatch_path}",
     )
@@ -206,11 +268,117 @@ def test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit(
             artifact_admission.classify_campaign(layout)
         message = str(caught.value)
         assert "contract-loader-blob-mismatch" in message
+        assert mismatch_path in message
         assert "historicity" not in message.lower()
         assert "historical" not in message.lower()
     finally:
         assert lock_path.read_bytes() == before_lock
         assert wal_path.read_bytes() == before_wal
+
+
+def test_live_verification_uses_recorded_commit_when_head_has_advanced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    repo, recorded_commit, _blob_sha256s = _committed_loader_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    binding = contract_loader_binding.capture_contract_loader_binding()
+    changed_path = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[0]
+    changed = repo / changed_path
+    changed.write_bytes(changed.read_bytes() + b"\nhead advanced\n")
+    _git(repo, "add", "--", changed_path)
+    _git(
+        repo,
+        "-c", "user.email=t671-fixture@example.invalid",
+        "-c", "user.name=T671 fixture",
+        "commit", "-q", "-m", "advance fixture head",
+    )
+    current_head = _git(
+        repo, "rev-parse", "--verify", "HEAD^{commit}",
+    ).decode().strip()
+    assert current_head != recorded_commit
+    changed.write_bytes(
+        _git(repo, "cat-file", "blob", f"{recorded_commit}:{changed_path}")
+    )
+
+    contract_loader_binding.verify_live_contract_loader_binding(binding)
+
+
+@pytest.mark.parametrize(
+    "dirty_path", _EXPECTED_ENFORCEMENT_SOURCE_PATHS,
+    ids=lambda path: Path(path).name,
+)
+def test_shared_v2_fixture_default_uses_recorded_blobs_when_disk_is_dirty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dirty_path: str,
+) -> None:
+    from orchestrator.campaign import campaign_lock, contract_loader_binding
+    from orchestrator.tests.campaign_lock_test_support import (
+        build_v2_campaign_lock,
+    )
+
+    repo, recorded_commit, _blob_sha256s = _committed_loader_repo(tmp_path)
+    dirty_file = repo / dirty_path
+    dirty_file.write_bytes(dirty_file.read_bytes() + b"\nuncommitted edit\n")
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    identity_preimage = _canonical_json({
+        "spec_content": "dirty shared fixture",
+        "ccbench_commit": "0" * 40,
+        "search_tag": "fixture",
+        "search_config": {},
+        "trial": None,
+    })
+
+    decoded = campaign_lock.decode_campaign_lock(
+        build_v2_campaign_lock(identity_preimage)
+    )
+
+    assert decoded.authority is not None
+    assert decoded.authority.contract_loader_commit == recorded_commit
+    recorded_blob = _git(
+        repo, "cat-file", "blob", f"{recorded_commit}:{dirty_path}",
+    )
+    recorded_digest = hashlib.sha256(recorded_blob).hexdigest()
+    assert (
+        decoded.authority.contract_loader_blob_sha256s[dirty_path]
+        == recorded_digest
+    )
+    assert recorded_digest != hashlib.sha256(dirty_file.read_bytes()).hexdigest()
+
+
+def test_production_contract_loader_binding_call_sites_are_exact() -> None:
+    campaign_dir = Path(__file__).resolve().parents[1] / "campaign"
+    expected = Counter({
+        ("ident.py", "_capture_current_loader_binding",
+         "capture_contract_loader_binding"): 1,
+        ("ident.py", "_capture_current_loader_binding",
+         "verify_live_contract_loader_binding"): 1,
+        ("ident.py", "_binding_from_lock", "binding_from_authority"): 1,
+        ("ident.py", "verify_against_lock",
+         "verify_live_contract_loader_binding"): 1,
+        ("artifact_admission.py", "_verify_committed_loader_binding",
+         "binding_from_authority"): 1,
+        ("artifact_admission.py", "_verify_committed_loader_binding",
+         "verify_committed_contract_loader_binding"): 1,
+    })
+    actual: Counter[tuple[str, str, str]] = Counter()
+
+    for name in ("ident.py", "artifact_admission.py"):
+        tree = ast.parse((campaign_dir / name).read_text(encoding="utf-8"))
+        for function in (
+            node for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        ):
+            for call in (
+                node for node in ast.walk(function) if isinstance(node, ast.Call)
+            ):
+                func = call.func
+                if (isinstance(func, ast.Attribute)
+                        and isinstance(func.value, ast.Name)
+                        and func.value.id == "contract_loader_binding"):
+                    actual[(name, function.name, func.attr)] += 1
+
+    assert actual == expected
 
 
 def _run() -> int:
