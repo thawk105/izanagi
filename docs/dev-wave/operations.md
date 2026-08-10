@@ -135,3 +135,7 @@ docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは�
 成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyはfresh contextで
 既存branchを再利用し、新main監査、固定SHAのwave-side merge、条件再評価・受入後に再試行する。
 他session所有物、rebase、force、remote、pushで解消しない。
+## DW-O25 — ff-only land の全史 provenance 関門
+
+D254 に従い、land は `locked_main != tested_tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
+lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
