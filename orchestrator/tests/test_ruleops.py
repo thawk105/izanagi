@@ -1915,6 +1915,15 @@ def test_git_timeout_detail_carries_mode_and_budget(tmp_path, monkeypatch):
             "(mode=diff-tree-stdin, budget=20.035s, units=1)",
         ),
     ],
+    ids=[
+        "log-bootstrap",
+        "log-last-change",
+        "log-control-change",
+        "log-pickaxe",
+        "log-receipt-range",
+        "cat-file-batch",
+        "diff-tree-stdin",
+    ],
 )
 def test_git_timeout_detail_identifies_production_mode(
     tmp_path, monkeypatch, timeout_mode, expected,
