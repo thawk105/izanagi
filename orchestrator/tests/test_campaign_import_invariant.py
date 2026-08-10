@@ -484,37 +484,93 @@ def _is_pythonpath_target(node: ast.AST) -> bool:
     return is_environ and _static_string(node.slice, {}) == "PYTHONPATH"
 
 
+_SYMBOLIC_REPOSITORY = "/<repository>"
+_SYMBOLIC_FILE = f"{_SYMBOLIC_REPOSITORY}/orchestrator/campaign/<file>"
+_SYMBOLIC_ORCHESTRATOR = f"{_SYMBOLIC_REPOSITORY}/orchestrator"
+
+
+def _is_os_path_call(node: ast.Call, name: str) -> bool:
+    return (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == name
+        and isinstance(node.func.value, ast.Attribute)
+        and node.func.value.attr == "path"
+        and isinstance(node.func.value.value, ast.Name)
+        and node.func.value.value.id == "os"
+    )
+
+
 def _path_expression_kind(node: ast.AST, kinds: dict[str, str]) -> str | None:
     if isinstance(node, ast.Name):
+        if node.id == "__file__":
+            return _SYMBOLIC_FILE
         return kinds.get(node.id)
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         parts = Path(node.value).parts
-        return "orchestrator" if parts and parts[-1] == "orchestrator" else None
-    if isinstance(node, ast.Call) and node.args:
-        return _path_expression_kind(node.args[0], kinds)
+        return _SYMBOLIC_ORCHESTRATOR if parts and parts[-1] == "orchestrator" else None
+    if isinstance(node, ast.Call):
+        if _is_os_path_call(node, "dirname"):
+            if len(node.args) != 1 or node.keywords:
+                return None
+            kind = _path_expression_kind(node.args[0], kinds)
+            return os.path.dirname(kind) if kind is not None else None
+        if _is_os_path_call(node, "join"):
+            if not node.args or node.keywords:
+                return None
+            kind = _path_expression_kind(node.args[0], kinds)
+            if kind is None:
+                return None
+            suffixes = [_static_string(argument, {}) for argument in node.args[1:]]
+            if any(suffix is None for suffix in suffixes):
+                return None
+            return os.path.normpath(
+                os.path.join(kind, *(suffix for suffix in suffixes if suffix is not None))
+            )
+        if _is_os_path_call(node, "abspath") or _is_os_path_call(node, "realpath"):
+            if len(node.args) != 1 or node.keywords:
+                return None
+            return _path_expression_kind(node.args[0], kinds)
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"absolute", "resolve"}
+            and not node.args
+            and not node.keywords
+        ):
+            return _path_expression_kind(node.func.value, kinds)
+        if len(node.args) == 1 and not node.keywords:
+            return _path_expression_kind(node.args[0], kinds)
+        return None
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        left = _path_expression_kind(node.left, kinds)
         right = _static_string(node.right, {})
+        if left is not None and right is not None:
+            return os.path.normpath(os.path.join(left, right))
         if right == "orchestrator":
-            return "orchestrator"
+            return _SYMBOLIC_ORCHESTRATOR
     if (
         isinstance(node, ast.Subscript)
         and isinstance(node.value, ast.Attribute)
         and node.value.attr == "parents"
         and isinstance(node.slice, ast.Constant)
-        and node.slice.value == 1
+        and isinstance(node.slice.value, int)
+        and node.slice.value >= 0
     ):
-        return "orchestrator"
+        kind = _path_expression_kind(node.value.value, kinds)
+        if kind is None:
+            return None
+        for _ in range(node.slice.value + 1):
+            kind = os.path.dirname(kind)
+        return kind
     if isinstance(node, ast.Attribute) and node.attr == "parent":
-        parent = node.value
-        if isinstance(parent, ast.Attribute) and parent.attr == "parent":
-            return "orchestrator"
+        kind = _path_expression_kind(node.value, kinds)
+        return os.path.dirname(kind) if kind is not None else None
     return None
 
 
 def _path_kinds(tree: ast.AST) -> dict[str, str]:
     kinds: dict[str, str] = {}
     assignments = [node for node in ast.walk(tree) if isinstance(node, (ast.Assign, ast.AnnAssign))]
-    for _ in range(2):
+    for _ in range(len(assignments) + 1):
         changed = False
         for assignment in assignments:
             value_node = assignment.value
@@ -629,7 +685,10 @@ def scan_campaign_shape(
                 values = [node.value] if node.value is not None else []
         for value in values:
             candidates = value.elts if isinstance(value, (ast.List, ast.Tuple)) else [value]
-            if any(_path_expression_kind(item, kinds) == "orchestrator" for item in candidates):
+            if any(
+                _path_expression_kind(item, kinds) == _SYMBOLIC_ORCHESTRATOR
+                for item in candidates
+            ):
                 matched = ast.get_source_segment(source, node) or "sys.path mutation"
                 found.add(_violation(path, node.lineno, PATH_RULE, matched))
 
@@ -1079,6 +1138,49 @@ os.environ["PYTHONPATH"] = str(Path(__file__).resolve().parents[1])
     assert scan_campaign_shape(path, no_relative_import) == ()
 
 
+def test_r_b_os_path_and_pathlib_depth_controls():
+    os_path_nested = '''import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+'''
+    os_path_join = '''import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+'''
+    pathlib_orchestrator = '''import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+'''
+    pathlib_repository = '''import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+'''
+    join_repository_to_orchestrator = '''import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), "orchestrator"))
+'''
+    join_orchestrator_to_repository = '''import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ".."))
+'''
+    join_unresolved_suffix = '''import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), suffix))
+'''
+
+    source_file = REPOSITORY / "orchestrator/campaign/x.py"
+    os_path_result = os.path.dirname(os.path.dirname(os.path.abspath(source_file)))
+    assert Path(os_path_result) == REPOSITORY / "orchestrator"
+
+    path = "orchestrator/campaign/x.py"
+    for source in (os_path_nested, os_path_join, pathlib_orchestrator):
+        violations = scan_campaign_shape(path, source)
+        assert len(violations) == 1
+        assert [item.rule for item in violations] == [PATH_RULE]
+    assert scan_campaign_shape(path, pathlib_repository) == ()
+    assert [
+        item.rule
+        for item in scan_campaign_shape(path, join_repository_to_orchestrator)
+    ] == [PATH_RULE]
+    assert scan_campaign_shape(path, join_orchestrator_to_repository) == ()
+    assert scan_campaign_shape(path, join_unresolved_suffix) == ()
+
+
 def test_r_c_positive_control_rejects_legacy_doc_command():
     source = f"python3 -m {_legacy_module('p3_s4_loop')} --help\n"
     violations = scan_current_doc("docs/control.md", source)
@@ -1168,6 +1270,17 @@ def test_exception_ledger_comparison_rejects_stale_entry():
     )
     with pytest.raises(AssertionError, match="stale"):
         _assert_ledger_matches((), (stale,))
+
+
+def test_exception_ledger_comparison_rejects_empty_ledger_with_real_violation():
+    source = '''import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+'''
+    actual = scan_campaign_shape("orchestrator/campaign/x.py", source)
+    assert len(actual) == 1
+    assert actual[0].rule == PATH_RULE
+    with pytest.raises(AssertionError, match="unlisted"):
+        _assert_ledger_matches(actual, ())
 
 
 def _run() -> int:
