@@ -3613,6 +3613,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   登録した。実際には同じ入力経路を共有する既存 2 node も赤くなり MISMATCH。変異の適用範囲を
   field 不在経路だけへ狭めたうえで、コードを読んで期待 node を 2 件に確定して再走し 4/4 一致。
   初回台帳は erratum として保持している。
+
+- **再発: 2026-08-11** — 本 wave の変異 7 件のうち 2 件 (M02 暦日検査の無効化、M05 target
+  不存在検査の無効化) が MISMATCH。いずれも赤は出ており検出は成立していたが、登録した期待 node が
+  1 件ずつ不足していた。実際には同じ不正入力を使う consumer 側のテスト
+  (`test_spool_guard_reports_failure_supersede_issue`) と CLI 側のテスト
+  (`test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes`) も同時に赤くなる。
+  観測集合で再登録して再走し 2/2 KILLED。初回台帳は erratum として保持している。
+  **恒久対応の内容は変わらないが、3 例目まで機械強制が無いことが顕在化した** — 同じ不正 fixture を
+  複数層のテストが共有する設計では、層の数だけ赤 node が増えるのが正常である。
 ### F139. 実機の外部書式と防壁を机上で仮定し、実験 leg を 3 度空振りさせた [手順漏れ] [テスト代表性]
 
 - 事象: 生死確認 probe の実走で、机上レビューを通過した実装が実機で 3 回止まった。
@@ -4869,6 +4878,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   runbook §7.3 の待ち手契約自体の改訂は本 wave の scope 外であり、裁定へ返す。
 - 再発検知: 待ち手 log (`lease.log`) に `acquired` があるのに `acceptance-status.txt` が
   `behind-main:*` になる組み合わせ。この組が出たら待ち手が取り込みを行っていない。
+- **supersede: 2026-08-11** — 恒久対応末尾の「runbook §7.3 の待ち手契約自体の改訂は本 wave の scope 外であり、裁定へ返す」は F197 で実施済み ([T-732] 裁定 (a)、待ち手内 merge が §7.3 の正本)。
 
 ### F197. 受入 lease の取り込み手順が待機時間の長い区画で飢餓し、取得した lease を捨てた [手順漏れ]
 
