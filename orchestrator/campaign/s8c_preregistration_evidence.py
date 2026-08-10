@@ -181,6 +181,8 @@ def _string_tuple(value: object, *, where: str) -> tuple[str, ...]:
 
 
 def _safe_path(value: object, *, where: str) -> str:
+    if isinstance(value, str) and ("\r" in value or "\n" in value):
+        raise EvidenceContractError("contract-path-control-char", repr(where))
     path = _nonempty_string(value, where=where)
     pure = PurePosixPath(path)
     if pure.is_absolute() or ".." in pure.parts or path != pure.as_posix():

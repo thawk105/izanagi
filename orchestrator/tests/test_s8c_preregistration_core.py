@@ -189,6 +189,22 @@ def _assert_reason(reason: str, function, *args, **kwargs) -> None:
     assert caught.value.reason == reason
 
 
+def _legacy_unframed_blob(root: Path, commit: str, path: str) -> bytes:
+    """Path guard 導入前の line-based batch request を fixture 内で再現する。"""
+    resolved = M.resolve_commit(root, commit)
+    result = M._git_text(
+        root,
+        ["cat-file", "--batch-check"],
+        stdin=f"{resolved}:{path}\n".encode(),
+    )
+    tokens = result.split()
+    assert len(tokens) >= 3
+    assert M._OBJECT_ID_RE.fullmatch(tokens[0])
+    assert tokens[1] == "blob"
+    assert tokens[2].isdigit()
+    return M._git(root, ["cat-file", "blob", tokens[0]])
+
+
 def test_current_markdown_extracts_nine_fields_and_conditions_1_to_12() -> None:
     contract = M.parse_preregistration_markdown(
         (_ROOT / M.SOURCE_PATH).read_bytes()
@@ -943,6 +959,81 @@ def test_prepare_revision_is_exclusive_create(tmp_path: Path) -> None:
             revision_reason="initial generated contract",
         )
     assert caught.value.reason == "revision-exists"
+
+
+def test_read_blob_at_accepts_normal_path(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path)
+    _write(root, "nested/evidence.txt", b"normal-path\n")
+    head = _commit(root, "normal path")
+
+    assert M.read_blob_at(root, head, "nested/evidence.txt") == b"normal-path\n"
+    assert M.read_blob_at(  # type: ignore[arg-type]
+        root, head, Path("nested/evidence.txt")
+    ) == b"normal-path\n"
+
+
+def test_read_blob_at_rejects_trailing_cr_without_aliasing(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path)
+    _write(root, "alias-target.txt", b"prefix-blob\n")
+    head = _commit(root, "trailing CR alias fixture")
+    candidate = "alias-target.txt\r"
+
+    assert _legacy_unframed_blob(root, head, candidate) == b"prefix-blob\n"
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.read_blob_at(root, head, candidate)
+    assert caught.value.reason == "path-control-char"
+    assert str(caught.value) == "path-control-char"
+
+
+@pytest.mark.parametrize(
+    "control",
+    [
+        # Git は LF で request を分け、直前の CR も終端として落とす。
+        pytest.param("\r\n", id="embedded-cr"),
+        pytest.param("\n", id="embedded-lf"),
+    ],
+)
+def test_read_blob_at_rejects_embedded_path_control_chars(
+    tmp_path: Path, control: str
+) -> None:
+    root = _init_repo(tmp_path)
+    candidate = f"alias-{control}HEAD:-target.txt"
+    prefix_blob = b"wrong-prefix-blob\n"
+    intended_blob = b"intended-controlled-path-blob\n"
+    _write(root, "alias-", prefix_blob)
+    _write(root, "-target.txt", b"second-request-blob\n")
+    _write(root, candidate, intended_blob)
+    head = _commit(root, "embedded control alias fixture")
+
+    assert candidate == candidate.strip()
+    assert intended_blob != prefix_blob
+    assert _legacy_unframed_blob(root, head, candidate) == prefix_blob
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.read_blob_at(root, head, candidate)
+    assert caught.value.reason == "path-control-char"
+    assert str(caught.value) == "path-control-char"
+
+
+def test_read_blob_at_rejects_control_chars_after_single_stringification(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    _write(root, "alias-target.txt", b"prefix-blob\n")
+    head = _commit(root, "non-string path fixture")
+
+    class StringablePath:
+        calls = 0
+
+        def __str__(self) -> str:
+            self.calls += 1
+            return "alias-target.txt\r"
+
+    candidate = StringablePath()
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.read_blob_at(root, head, candidate)  # type: ignore[arg-type]
+    assert candidate.calls == 1
+    assert caught.value.reason == "path-control-char"
+    assert str(caught.value) == "path-control-char"
 
 
 def test_git_timeout_generation_commit_and_blob_limits_fail_closed(
