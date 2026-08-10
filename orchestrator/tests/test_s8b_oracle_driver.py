@@ -1196,13 +1196,94 @@ def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(t
     _run_git(root, "add", "-u", migration.RECEIPT_REL)
     _run_git(root, "commit", "-q", "-m", "delete receipt", "-m", "AI-Agent: none")
     basis = _run_git(root, "rev-parse", "HEAD")
+    known = json.loads(
+        (root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8")
+    )
+    source_paths: set[str] = set()
+
+    def collect_source_paths(value) -> None:
+        if isinstance(value, dict):
+            if isinstance(value.get("path"), str) and isinstance(
+                    value.get("sha256"), str):
+                source_paths.add(value["path"])
+            for child_value in value.values():
+                collect_source_paths(child_value)
+        elif isinstance(value, list):
+            for child_value in value:
+                collect_source_paths(child_value)
+
+    collect_source_paths(known)
+    runtime_relatives = sorted(
+        path for path in source_paths
+        if path.startswith("orchestrator/campaign/") and path.endswith(".py")
+    )
+    assert runtime_relatives
+    runtime_source_root = tmp_path / "t080-post-r-current-runtime"
+    for relative in runtime_relatives:
+        _copy_t080_basis_file(runtime_source_root, relative)
+    historical_runtime_bytes = {
+        relative: (root / relative).read_bytes()
+        for relative in runtime_relatives
+    }
     child = textwrap.dedent("""
+        import importlib
+        import importlib.abc
+        import importlib.util
         import json
         import sys
         from pathlib import Path
+
         root = Path(sys.argv[1]).resolve()
+        runtime_source_root = Path(sys.argv[3]).resolve()
+        runtime_relatives = tuple(json.loads(sys.argv[4]))
+        runtime_modules = {
+            ".".join(Path(relative).with_suffix("").parts): relative
+            for relative in runtime_relatives
+        }
+
+        class _CurrentSourceLoader(importlib.abc.Loader):
+            def __init__(self, fullname, repository_path, source_path):
+                self.fullname = fullname
+                self.repository_path = repository_path
+                self.source_path = source_path
+
+            def create_module(self, spec):
+                return None
+
+            def exec_module(self, module):
+                source = self.source_path.read_bytes()
+                code = compile(source, str(self.repository_path), "exec")
+                exec(code, module.__dict__)
+
+        class _CurrentSourceFinder(importlib.abc.MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                relative = runtime_modules.get(fullname)
+                if relative is None:
+                    return None
+                repository_path = root / relative
+                source_path = runtime_source_root / relative
+                loader = _CurrentSourceLoader(
+                    fullname, repository_path, source_path,
+                )
+                spec = importlib.util.spec_from_loader(
+                    fullname, loader, origin=str(repository_path),
+                )
+                assert spec is not None
+                spec.has_location = True
+                return spec
+
+        sys.meta_path.insert(0, _CurrentSourceFinder())
         sys.path[0] = str(root)
         from orchestrator.campaign import t080_freeze_migration as migration
+        for module_name in sorted(runtime_modules):
+            importlib.import_module(module_name)
+        loaded_runtime_modules = tuple(
+            sys.modules[module_name] for module_name in sorted(runtime_modules)
+        )
+        assert all(
+            type(module.__loader__) is _CurrentSourceLoader
+            for module in loaded_runtime_modules
+        ), loaded_runtime_modules
         try:
             migration.draft_receipt(
                 basis=sys.argv[2], out=migration.DRAFT_REL, root=root,
@@ -1213,7 +1294,8 @@ def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(t
             raise AssertionError("post-R 再発行が拒否されなかった")
     """)
     completed = subprocess.run(
-        [sys.executable, "-I", "-B", "-c", child, str(root), basis],
+        [sys.executable, "-I", "-B", "-c", child, str(root), basis,
+         str(runtime_source_root), json.dumps(runtime_relatives)],
         cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True,
         env={
@@ -1222,6 +1304,10 @@ def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(t
             "PYTHONNOUSERSITE": "1",
         },
     )
+    assert {
+        relative: (root / relative).read_bytes()
+        for relative in runtime_relatives
+    } == historical_runtime_bytes
     refusal = json.loads(completed.stdout)
     assert refusal["reason"] == "receipt.invalid"
     assert "issued-but-missing" in refusal["detail"]
