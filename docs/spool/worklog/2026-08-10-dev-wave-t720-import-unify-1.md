@@ -57,17 +57,28 @@ title: orchestrator/campaign の import 形を canonical へ統一し、再発�
   この untracked は残っている ({{T:t720-untracked-campaign-residue}})。
 - **主戦場は Pegasus。** 実行はすべて計算ノードへ dispatch した (login node は hook が拒否する)。
   子は sandbox から queue へ届かず全員「実装済み・未実走」を正直に報告し、実測は親が行った。
+- **land していない。** 受入全走に 20 件の赤が残る。10 巡の fix で「repo を複製・stage して
+  subprocess で実行する harness」を 3 つ直したが (t080 e2e は 29 → 1 件)、
+  `test_t126_pegasus_tools.py` の 19 件が残った。これは静的な台帳作りでは見えにくい consumer 群で、
+  1 巡あたり 20〜40 分かかる。**成果物自体は完成して検証済み**なので、
+  残りは fresh context の継続 wave で閉じる方が安い、と親が判断して停止した。
+- **凍結成果物の違反は無かった。** 途中で `known_axes_freeze.json` が campaign source 7 本の
+  sha256 を pin していることに気づき DW-O09 の取りこぼしを疑ったが、実測すると
+  pin 済み 6 本は**本 wave 以前から**作業ツリーと不一致だった (harness が歴史 commit から
+  復元する設計のため)。凍結の再発行は不要である。
 
 ## 次の一手差分
 
-### 完了
+### 更新
 
-- [T-720] `orchestrator/campaign/` の import 形を canonical (`orchestrator.campaign`) へ統一し、
-  再発を受入全走の中の機械検査で固定した。package 内は相対、兄弟 package は `..calibrator` 等、
-  外部 consumer は `orchestrator.campaign.X`。直接実行 CLI は逐語 3 行の bootstrap で
-  `__package__` を確立する。検査は 4 規則 (legacy namespace / sys.path 形 / docs 起動形 /
-  package 内の相対形) を、走査の配線ごと合成 repository で固定する。
-  remaining: none
+- [T-720] **P2・実装済み・受入未通過 (land していない)**: import 形の統一と機械検査は完成し、
+  変異は 3 走目で SURVIVED 0。しかし**受入全走に 20 件の赤が残る**ため land していない。
+  branch `worktree-dev-wave-t720-import-unify` に全成果がある。
+  残る赤は 19 件が `orchestrator/tests/test_t126_pegasus_tools.py`、1 件が
+  `test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28`。
+  いずれも **repo を複製・stage して subprocess で実行する harness** に属する。
+  条件を揃えた main 単独では 547 passed / 0 failed なので本 wave 由来である。
+  親は同型の harness を 3 つ直した (t080 e2e は 29 → 1 件)。**残りは fresh context の継続 wave で閉じる。**
   base: 963b103a901a979327522297653c996b6625db9c5d92126a1a60b7c2370723c2
 
 ### 新規
