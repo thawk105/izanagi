@@ -14,15 +14,22 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
+
+from . import t080_freeze_migration  # noqa: E402
 
 SCRIPT_REL = "orchestrator/campaign/s8b_holdout_freeze.py"
 FREEZE_REL = "output/s8b-freeze/holdout_freeze.json"
@@ -838,6 +845,119 @@ def verify(
     return doc
 
 
+def _read_regular_nofollow(path: Path) -> bytes:
+    """symlink を辿らず、open 前後で同じ regular file だけを capture する。"""
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    try:
+        before = path.lstat()
+        fd = os.open(path, flags)
+        try:
+            after = os.fstat(fd)
+            if (not stat.S_ISREG(before.st_mode) or not stat.S_ISREG(after.st_mode)
+                    or (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)):
+                raise FreezeError(f"canonical freeze が同一 regular file でない: {path}")
+            chunks = []
+            while True:
+                chunk = os.read(fd, 1024 * 1024)
+                if not chunk:
+                    return b"".join(chunks)
+                chunks.append(chunk)
+        finally:
+            os.close(fd)
+    except FreezeError:
+        raise
+    except OSError as exc:
+        raise FreezeError(f"canonical freeze を nofollow で読めない: {path}: {exc}") from exc
+
+
+def _t080_migration_module():
+    """package import と直接 CLI 実行の双方で同じ T-080 module を返す。"""
+    return t080_freeze_migration
+
+
+def verify_cli_with_t080_receipt(path: Path = FREEZE_PATH, *, root: Path = ROOT) -> Dict:
+    """CLI verify だけに T-080 移行 receipt の例外を適用する。
+
+    adapter 成功後に canonical 2 artifact を再読して差替え窓を最小化する。ただし
+    filesystem を lock しないため、最終再読後から return までの残余 TOCTOU 窓は消せない。
+    """
+    root = Path(root).absolute()
+    path = Path(path)
+    candidate = path if path.is_absolute() else root / path
+    canonical = root / FREEZE_REL
+    migration = _t080_migration_module()
+
+    captured = None
+    path_refusal = None
+    if candidate != canonical:
+        path_refusal = f"T-080 例外対象 path が canonical active path でない: {path}"
+    else:
+        try:
+            captured = _read_regular_nofollow(candidate)
+        except FreezeError as exc:
+            path_refusal = str(exc)
+
+    try:
+        resolution = migration.verify_receipt(root=root)
+    except migration.MigrationError as exc:
+        detail = f" {exc.detail}" if exc.detail else ""
+        raise FreezeError(f"T-080 receipt 検証失敗: [{exc.reason}]{detail}") from exc
+
+    if resolution.state == "never-issued":
+        return verify(path, root=root)
+    if path_refusal is not None or captured is None:
+        raise FreezeError(path_refusal or "T-080 例外対象 bytes を capture できない")
+    if resolution.state != "active-valid" or resolution.refusals or resolution.receipt is None:
+        refusals = "; ".join(resolution.refusals) or "refusal detail なし"
+        raise FreezeError(f"T-080 receipt が有効でない: {resolution.state}: {refusals}")
+
+    try:
+        expected_sha256 = resolution.receipt["artifacts"]["holdout"]["raw_sha256"]
+    except (KeyError, TypeError) as exc:
+        raise FreezeError("T-080 receipt の holdout 固定値が不正") from exc
+    captured_sha256 = hashlib.sha256(captured).hexdigest()
+    if captured_sha256 != expected_sha256:
+        raise FreezeError("T-080 receipt と capture bytes の sha256 が不一致")
+
+    reread = _read_regular_nofollow(candidate)
+    if reread != captured:
+        raise FreezeError("T-080 receipt 検証前後で freeze bytes が変化")
+
+    try:
+        document = json.loads(captured.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise FreezeError(f"T-080 holdout capture を JSON として読めない: {exc}") from exc
+    known_record = document.get("known_axes_freeze") if isinstance(document, Mapping) else None
+    if (not isinstance(known_record, Mapping)
+            or known_record.get("path") != migration.KNOWN_AXES_REL
+            or known_record.get("sha256") != migration.KNOWN_AXES_RAW_SHA256):
+        raise FreezeError("T-080 adapter の known_axes 発火条件が一致しない")
+
+    known_raw = _read_regular_nofollow(root / migration.KNOWN_AXES_REL)
+    try:
+        adapted = migration.static_gate_adapter(
+            resolution=resolution,
+            known_raw=known_raw,
+            holdout_raw=captured,
+            root=root,
+        )
+    except migration.MigrationError as exc:
+        detail = f" {exc.detail}" if exc.detail else ""
+        raise FreezeError(f"T-080 adapter 検証失敗: [{exc.reason}]{detail}") from exc
+    if adapted.refusals:
+        raise FreezeError(f"T-080 adapter refusal: {'; '.join(adapted.refusals)}")
+    if adapted.t080_freeze_migration_observation is None:
+        raise FreezeError("T-080 adapter observation が空")
+
+    final_holdout = _read_regular_nofollow(candidate)
+    if final_holdout != captured:
+        raise FreezeError("T-080 adapter 検証中に freeze bytes が変化")
+    final_known = _read_regular_nofollow(root / migration.KNOWN_AXES_REL)
+    if final_known != known_raw:
+        raise FreezeError("T-080 adapter 検証中に known_axes bytes が変化")
+    return dict(document)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="8b holdout freeze の検索・生成・照合")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -868,7 +988,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
             print(f"generated: {args.output}")
         else:
-            verify(args.path)
+            verify_cli_with_t080_receipt(args.path)
             print(f"verified: {args.path}")
     except FreezeError as exc:
         print(f"fails-closed: {exc}", file=sys.stderr)

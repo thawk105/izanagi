@@ -129,6 +129,14 @@ def _synthetic_freeze_root(tmp_path: Path) -> tuple[Path, list[str], str]:
     generator_path = root / M.SCRIPT_REL
     generator_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(Path(M.__file__), generator_path)
+    ccbench = root / "external/ccbench"
+    ccbench.mkdir(parents=True)
+    _git(ccbench, "init", "-q")
+    _git(
+        ccbench, "-c", "user.name=fixture", "-c",
+        "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false",
+        "commit", "--allow-empty", "-qm", "ccbench fixture",
+    )
     rel = "fixtures/positive.txt"
     _write(root / rel, _positive_text())
     return root, [rel], "a" * 40
@@ -464,6 +472,262 @@ def test_verify_rejects_unratified_generation_documents(tmp_path):
         gen_path.write_text(json.dumps(generation), encoding="utf-8")
         with pytest.raises(M.FreezeError, match="未承認世代 document は発効しない"):
             M.verify(gen_path, root=root, files=files, current_head=head)
+
+
+def _active_t080_resolution(*, holdout_sha256: str = T080.HOLDOUT_RAW_SHA256):
+    receipt = {
+        "artifacts": {
+            "holdout": {"raw_sha256": holdout_sha256},
+        },
+    }
+    return T080.ReceiptResolution(
+        "active-valid", (), {"migration_id": "T-080"}, "a" * 40,
+        receipt=receipt,
+    )
+
+
+def _t080_artifact_root(tmp_path: Path) -> tuple[Path, Path, Path]:
+    root = tmp_path / "repo"
+    holdout = root / M.FREEZE_REL
+    known = root / T080.KNOWN_AXES_REL
+    holdout.parent.mkdir(parents=True)
+    known.parent.mkdir(parents=True)
+    shutil.copyfile(M.FREEZE_PATH, holdout)
+    shutil.copyfile(M.ROOT / T080.KNOWN_AXES_REL, known)
+    return root, holdout, known
+
+
+def test_verify_cli_accepts_active_t080_receipt_exact_match(capsys):
+    assert M.main(["verify"]) == 0
+    captured = capsys.readouterr()
+    assert f"verified: {M.FREEZE_PATH}" in captured.out
+    assert captured.err == ""
+
+
+def test_verify_direct_cli_accepts_active_t080_receipt_exact_match():
+    completed = subprocess.run(
+        ["python3", M.SCRIPT_REL, "verify"], cwd=M.ROOT, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert f"verified: {M.FREEZE_PATH}" in completed.stdout
+    assert completed.stderr == ""
+
+
+def test_verify_cli_active_receipt_hash_mismatch_is_immediate_red(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    path = root / M.FREEZE_REL
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"{}\n")
+    monkeypatch.setattr(T080, "verify_receipt", lambda **_kwargs: _active_t080_resolution())
+    monkeypatch.setattr(
+        T080, "static_gate_adapter",
+        lambda **_kwargs: pytest.fail("hash mismatch で adapter を呼んだ"),
+    )
+    monkeypatch.setattr(
+        M, "verify", lambda *_args, **_kwargs: pytest.fail("legacy fallback へ戻った"),
+    )
+
+    with pytest.raises(M.FreezeError, match="capture bytes の sha256 が不一致"):
+        M.verify_cli_with_t080_receipt(path, root=root)
+
+
+def test_verify_cli_same_bytes_at_noncanonical_path_are_rejected(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    alternate = root / "alternate" / "holdout_freeze.json"
+    known = root / T080.KNOWN_AXES_REL
+    alternate.parent.mkdir(parents=True)
+    known.parent.mkdir(parents=True)
+    alternate.write_bytes(M.FREEZE_PATH.read_bytes())
+    shutil.copyfile(M.ROOT / T080.KNOWN_AXES_REL, known)
+    monkeypatch.setattr(T080, "verify_receipt", lambda **_kwargs: _active_t080_resolution())
+    monkeypatch.setattr(
+        T080, "static_gate_adapter",
+        lambda **_kwargs: T080.AdapterResult((), {"migration_id": "T-080"}),
+    )
+    monkeypatch.setattr(
+        M, "verify", lambda *_args, **_kwargs: pytest.fail("legacy fallback へ戻った"),
+    )
+
+    with pytest.raises(M.FreezeError, match="canonical active path でない"):
+        M.verify_cli_with_t080_receipt(alternate, root=root)
+
+
+@pytest.mark.parametrize(
+    ("state", "refusals"),
+    [
+        ("invalid", ("migration-receipt-verify:receipt.invalid",)),
+        ("issued-but-missing", ("migration-receipt-verify:receipt.issued_but_missing",)),
+    ],
+    ids=["invalid", "issued-but-missing"],
+)
+def test_verify_cli_issued_receipt_failure_never_delegates_to_legacy_verify(
+        tmp_path, monkeypatch, state, refusals):
+    root, files, _ = _synthetic_freeze_root(tmp_path)
+    head = _commit_all(root)
+    path = root / M.FREEZE_REL
+    M.generate(
+        confirmed_by="reviewer", confirmed_at="date", output_path=path,
+        root=root, files=files, frozen_at_head=head,
+    )
+    M.verify(path, root=root, current_head=head)
+    resolution = T080.ReceiptResolution(state, refusals, None, head)
+    monkeypatch.setattr(T080, "verify_receipt", lambda **_kwargs: resolution)
+
+    with pytest.raises(M.FreezeError, match=f"receipt が有効でない: {state}"):
+        M.verify_cli_with_t080_receipt(path, root=root)
+
+
+def test_verify_cli_known_axes_fire_condition_mismatch_is_red(
+        tmp_path, monkeypatch):
+    root, path, _known = _t080_artifact_root(tmp_path)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["known_axes_freeze"]["sha256"] = "0" * 64
+    raw = json.dumps(document, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    path.write_bytes(raw)
+    monkeypatch.setattr(
+        T080, "verify_receipt",
+        lambda **_kwargs: _active_t080_resolution(
+            holdout_sha256=hashlib.sha256(raw).hexdigest(),
+        ),
+    )
+    monkeypatch.setattr(
+        T080, "static_gate_adapter",
+        lambda **_kwargs: T080.AdapterResult((), {"migration_id": "T-080"}),
+    )
+
+    with pytest.raises(M.FreezeError, match="known_axes 発火条件が一致しない"):
+        M.verify_cli_with_t080_receipt(path, root=root)
+
+
+def test_verify_cli_rejects_bytes_changed_while_receipt_is_verified(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    path = root / M.FREEZE_REL
+    path.parent.mkdir(parents=True)
+    original = M.FREEZE_PATH.read_bytes()
+    path.write_bytes(original)
+
+    def swap_after_capture(**_kwargs):
+        path.write_bytes(original + b" ")
+        return _active_t080_resolution()
+
+    monkeypatch.setattr(T080, "verify_receipt", swap_after_capture)
+    monkeypatch.setattr(
+        T080, "static_gate_adapter",
+        lambda **_kwargs: pytest.fail("TOCTOU mismatch で adapter を呼んだ"),
+    )
+    monkeypatch.setattr(
+        M, "verify", lambda *_args, **_kwargs: pytest.fail("legacy fallback へ戻った"),
+    )
+
+    with pytest.raises(M.FreezeError, match="検証前後で freeze bytes が変化"):
+        M.verify_cli_with_t080_receipt(path, root=root)
+
+
+@pytest.mark.parametrize(
+    ("changed_artifact", "message"),
+    [
+        ("holdout", "adapter 検証中に freeze bytes が変化"),
+        ("known", "adapter 検証中に known_axes bytes が変化"),
+    ],
+    ids=["holdout", "known-axes"],
+)
+def test_verify_cli_rejects_artifact_changed_while_adapter_runs(
+        tmp_path, monkeypatch, changed_artifact, message):
+    root, path, known = _t080_artifact_root(tmp_path)
+    target = path if changed_artifact == "holdout" else known
+    original = target.read_bytes()
+    monkeypatch.setattr(T080, "verify_receipt", lambda **_kwargs: _active_t080_resolution())
+
+    def swap_in_adapter(**_kwargs):
+        target.write_bytes(original + b" ")
+        return T080.AdapterResult((), {"migration_id": "T-080"})
+
+    monkeypatch.setattr(T080, "static_gate_adapter", swap_in_adapter)
+
+    with pytest.raises(M.FreezeError, match=message):
+        M.verify_cli_with_t080_receipt(path, root=root)
+
+
+def test_verify_cli_never_issued_delegates_to_legacy_verify_and_keeps_drift_red(
+        tmp_path, monkeypatch):
+    root, files, _ = _synthetic_freeze_root(tmp_path)
+    head = _commit_all(root)
+    path = root / M.FREEZE_REL
+    M.generate(
+        confirmed_by="reviewer", confirmed_at="date", output_path=path,
+        root=root, files=files, frozen_at_head=head,
+    )
+    M.verify(path, root=root, current_head=head)
+    (root / M.DESIGN_REL).write_text("unreceived drift\n", encoding="utf-8")
+    never_issued = T080.ReceiptResolution("never-issued", (), None, head)
+    monkeypatch.setattr(T080, "verify_receipt", lambda **_kwargs: never_issued)
+    monkeypatch.setattr(
+        T080, "static_gate_adapter",
+        lambda **_kwargs: pytest.fail("never-issued で adapter を呼んだ"),
+    )
+
+    with pytest.raises(M.FreezeError, match="design_source sha256 不一致"):
+        M.verify_cli_with_t080_receipt(path, root=root)
+
+
+def test_read_regular_nofollow_rejects_symlink(tmp_path):
+    target = tmp_path / "target"
+    target.write_bytes(b"freeze\n")
+    link = tmp_path / "canonical"
+    link.symlink_to(target)
+
+    with pytest.raises(M.FreezeError, match="nofollow|regular file"):
+        M._read_regular_nofollow(link)
+
+
+def test_read_regular_nofollow_rejects_fifo_without_blocking(tmp_path):
+    fifo = tmp_path / "canonical"
+    os.mkfifo(fifo)
+    script = """
+import sys
+from pathlib import Path
+from orchestrator.campaign import s8b_holdout_freeze as module
+try:
+    module._read_regular_nofollow(Path(sys.argv[1]))
+except module.FreezeError:
+    raise SystemExit(0)
+raise SystemExit(1)
+"""
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script, str(fifo)], cwd=M.ROOT, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=3,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_verify_cli_does_not_mask_unexpected_receipt_exception(tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    monkeypatch.setattr(
+        T080, "verify_receipt",
+        lambda **_kwargs: (_ for _ in ()).throw(ValueError("internal receipt bug")),
+    )
+
+    with pytest.raises(ValueError, match="internal receipt bug"):
+        M.verify_cli_with_t080_receipt(root / M.FREEZE_REL, root=root)
+
+
+def test_verify_cli_does_not_mask_unexpected_adapter_exception(tmp_path, monkeypatch):
+    root, path, _known = _t080_artifact_root(tmp_path)
+    monkeypatch.setattr(T080, "verify_receipt", lambda **_kwargs: _active_t080_resolution())
+    monkeypatch.setattr(
+        T080, "static_gate_adapter",
+        lambda **_kwargs: (_ for _ in ()).throw(TypeError("internal adapter bug")),
+    )
+
+    with pytest.raises(TypeError, match="internal adapter bug"):
+        M.verify_cli_with_t080_receipt(path, root=root)
 
 
 def test_source_guard_has_no_static_concrete_axis_encoding():
