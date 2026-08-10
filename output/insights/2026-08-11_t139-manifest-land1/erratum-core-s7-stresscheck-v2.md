@@ -27,7 +27,12 @@ supersedes_draft_sha256: 9eb96f88e93f0d027e7f86281ebd7ee00e0cb4d243e0c27edd2afa1
 
 ### 0.1 草案 (v1) から変えた点
 
-**operation を 1 件から 2 件へ増やした。** 草案は core 221 行 (§7 の帰無仮説段落) だけを置換していたが、
+**operation を 1 件から 2 件へ増やし、置換内容を digest で pin した。**
+段 6 の敵対レビューが、検査 1〜7 だけでは同じ `erratum_id` のまま科学的に逆向きの `new_text`
+(例: `結果を見て q を選び直す。`) を持つ文書が通ることを構成例で示したため、
+`new_sha256` と `expected_composed_sha256` を §3 の受理述語へ入れた。
+
+**operation を増やした理由。** 草案は core 221 行 (§7 の帰無仮説段落) だけを置換していたが、
 **同じ較正義務が core 333 行 (§14 の `a12` 行) にも残る**ことが判明した。221 行だけを置換すると、
 置換後の core は「§7 では事前固定 stress model のもとでの確認」「§14 では型 I 誤りの較正」を
 同時に要求する**二重状態**になる。
@@ -103,6 +108,7 @@ operations:
       anchor: "帰無仮説の段落の最終行"
       line_number_at_target_commit: 221
     old_sha256: 225268a9fe702eae37ac3f4c150fcbc24e71835ce40bd3735ce0116784278e89
+    new_sha256: 92fd71754c81b45b6cc01fb14600bfdc140af8e464c50484b45e1bb8caaa01a4
     old_text: |
       事前 simulation で較正する。
     new_text: |
@@ -113,15 +119,19 @@ operations:
       anchor: "追補 A field 表の a12 行"
       line_number_at_target_commit: 333
     old_sha256: a7852ad9a4812f8adc8ebf33354a5934bd6620205a23defa48732a1737a89952
+    new_sha256: b8741cc99c5c45acee8e9c78a9e72a34f9ab9c2a0e27bdfd5ee71e9ec54b37fe
     old_text: |
       | a12 | weak null の型 I 誤りを較正する事前 simulation の仕様 |
     new_text: |
       | a12 | 事前固定した stress model のもとで名目水準を超えないことを確認する事前 simulation の仕様 |
+expected_composed_sha256: e0b0caeaca9300acffbb5cd6b81db7b6fb7fa8f9eeab81219affb4e2f94a8e0c
 ```
 
-**検査可能性。** 「この 2 箇所だけ」は自己記述ではなく次で機械的に判定できる。
+**検査可能性。** 「この 2 箇所だけ」「この置換内容だけ」は自己記述ではなく次で機械的に判定できる。
+**検査 8〜12 は、同じ `erratum_id` を名乗りながら別の `new_text` を持つ文書を拒否するために要る**
+(検査 1〜7 だけでは、`較正` を含まない任意の 1 行へ置換する文書が通ってしまう)。
 
-1. `operations` の要素数が `== 2` であること。
+1. `operations` の要素数が `== 2` であり、`index` の集合が exact `{1, 2}` であること。
 2. 各 `old_sha256` が、対象 core の当該行の bytes の SHA-256 と一致すること。
 3. 対象 core 全体で、文字列 `較正` の出現が**ちょうど 2 件**であり、その 2 行が
    `operations` の 2 行と**一致**すること。
@@ -129,6 +139,16 @@ operations:
 5. 置換後の core 全体で、文字列 `較正` の出現が**0 件**であること。
 6. 第 1 erratum の locator (404 / 424 行) と本書の locator (221 / 333 行) が**互いに重ならない**こと。
 7. index 2 の置換後の行が、`| a12 |` で始まる表の行の形を保つこと (列数不変)。
+8. **各 `new_text` の bytes (行末 LF を含む) の SHA-256 が、当該 operation の `new_sha256` と
+   一致すること。** すなわち置換内容が本書の宣言値に pin される。
+9. **各 `old_text` の bytes が、対象 core の当該行の bytes と exact 一致すること**
+   (`old_sha256` との二重検査)。
+10. **本書の 2 operation と第 1 erratum の 2 operation をすべて適用した core 全 bytes の SHA-256 が
+    `expected_composed_sha256` と一致すること。**
+11. `operations` の各要素の key 集合が exact
+    `{index, locator, old_sha256, new_sha256, old_text, new_text}` であり、
+    `locator` の key 集合が exact `{section, anchor, line_number_at_target_commit}` であること。
+12. 本節の YAML block を parse する際、**duplicate key を拒否する**こと。
 
 **上記 2 operation 以外の core の bytes・文言・受理条件・閉集合・投入順序・commit/blob 束縛を、
 変更または supersede しない。**本書の他の節 (§0 §1 §2 §4 §5 §6 §7) は説明であって受理述語ではなく、
@@ -178,6 +198,14 @@ operations:
 
 **承認集合への membership。** 本書が承認 manifest の `approved_errata` に入るのは `F_s` の後だけである。
 それまでは `draft_errata` に置く。
+
+**固有検査だけでは pin にならない (段 6 の焦点再レビューが示した限界)。** §3 の検査 8〜12 は
+「宣言した `new_sha256` / `expected_composed_sha256` と本書の `new_text` が整合するか」を見る
+**自己整合検査**である。したがって攻撃者が `new_text` と `new_sha256` と
+`expected_composed_sha256` を**まとめて**差し替えた文書は、同じ `erratum_id` のまま検査 8〜12 を通る。
+**唯一の anchor は、承認 manifest が本書の blob digest を pin し、resolver がそれを台帳の
+承認 payload と exact 一致させることである。**gate を実装する wave は、この 2 段の照合
+(台帳 → manifest → blob digest) を erratum 適用の前提条件に含めなければならない。
 **`erratum_id` 別 validator registry (D263) への登録は、承認とは独立である** —
 registry は「この ID の文書をどう検査するか」を定めるだけで、「適用してよいか」は定めない。
 D263 の理由節が本書 (相当の第 2 erratum) を「既に承認済み」と記す箇所は事実誤りであり、

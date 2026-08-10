@@ -17,7 +17,22 @@ branch `worktree-dev-wave-t139-manifest-land1` (local main から分岐)。
 | `erratum-core-s7-stresscheck-v2.md` | 凍結 core への第 2 erratum (2 operation)。**承認候補** |
 | `receipt-schema-v1.json` | 上記と exact 1:1 の機械可読 schema (JSON Schema draft-07)。**承認候補** |
 | `package.md` | ユーザー裁定 7 問 (S1〜S7) と報告 3 件 |
-| `verbatim/` | 段 1 brief、段 2 プラン、段 3 敵対レンズ 2 本、段 4 裁定、段 5 実装子報告、段 6 レビュー |
+| `verbatim/` | 段 1 brief、段 2 プラン、段 3 敵対レンズ 2 本、段 4 裁定、段 5 実装子報告、段 6 レビュー 2 本 + fix + 焦点再レビュー |
+
+## 検証の経過 (すべて read-only。pytest / PBS は走らせていない)
+
+| 段 | 結果 |
+|---|---|
+| 段 2 プラン (`gpt-5.6-sol`) | NO-GO。land 1 に blocker 6 件、1 wave 不可、R1×R3 の因果循環 |
+| 段 3 レンズ A (`gpt-5.6-sol`) / B (`gpt-5.6-luna`) | ともに NO-GO (blocker 11 / 8)。親は refuted 2 件、残りを real と裁定 |
+| 段 6 レビュー C (`gpt-5.6-sol`) | NO-GO。blocker 9、前版から落ちた受理条件 16、schema と文書の不一致 10。**1 回目は必読資料欠落で fail-closed し、path 修正後に再走** |
+| 段 6 レビュー D (`gpt-5.6-luna`) | NO-GO。blocker 4、新しい偽装経路 2、記録不能箇所 6 |
+| 段 6 fix (`gpt-5.6-sol`、`role=author`) | schema 12 項目を修正。正例・負例の静的検査 6/6 期待どおり |
+| 段 6 焦点再レビュー (`gpt-5.6-luna`) | **closed 30 / partial 6 / regressed 0**、独立再計算 7/7 一致、凍結前に直すべき 3 件 → 親が全件対応 |
+
+**変異 matrix は免除した** — 本 wave の diff に実行可能コード・テスト・gate が 1 行も無く、
+kill を観測する面が存在しない (`DW-S04` の実装差分ゼロ免除)。代わりに敵対レビュー 2 本 +
+焦点再レビュー 1 本を凍結対象へ当て、digest を親が独立に再計算した。
 
 ## 直した欠陥 (段 2 プランと段 3 レンズ 2 本が挙げ、親が一次資料で裁定した)
 

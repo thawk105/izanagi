@@ -16,10 +16,18 @@ wave `dev-wave-t139-manifest-w2`。裁定 R1〜R5 に従って land 1 (文書承
 
 | 成果物 | 内容 |
 |---|---|
-| `record-items-v2.md` | **自己完結版**。前 2 版の受理条件を再掲し、第三分岐 (`a03` 不成立証拠) の追加、`pre_performance_infra_failure` の `a04` 準拠への**縮小**、全 nested object の exact key 閉包、`binary_rehash` 9 要素、`malformed_reason` の非 null 必須化、`a13` の append-only 全履歴検査、pilot cluster slot の 1〜8 固定、schedule 表の canonical bytes、否定検査の実在 field 化、非保証節 |
-| `erratum-core-s7-stresscheck-v2.md` | operation を **1 件から 2 件**へ (core 221 行 + 333 行)。合成 digest は `e0b0caea…8e0c` |
-| `receipt-schema-v1.json` | 上記と exact 1:1 の機械可読 schema (JSON Schema draft-07)。Codex `role=author` が起草 |
+| `record-items-v2.md` | **自己完結版**。前 2 版の受理条件を再掲し、第三分岐 (`a03` 不成立証拠) の追加、`pre_performance_infra_failure` の `a04` 準拠への**縮小**、全 nested object の exact key 閉包、到達 point 条件つき `binary_rehash` (最大 9 要素)、`malformed_reason` の非 null 必須化と評価順序、`a13` の append-only 全履歴検査、消費 cluster slot の pilot での 1〜8 固定、schedule 表の canonical bytes、受領証の粒度と terminal 性、役割別 phase 閉集合、申告値と実体の 3 者一致、非保証節、**§10 の閉包 8 件の明示** |
+| `erratum-core-s7-stresscheck-v2.md` | operation を **1 件から 2 件**へ (core 221 行 + 333 行)。**置換内容を `new_sha256` と `expected_composed_sha256` で pin** し固有検査を 12 件へ。合成 digest は `e0b0caea…8e0c` |
+| `receipt-schema-v1.json` | 上記に対応する機械可読 schema (JSON Schema draft-07、1326 行、object schema 51 件すべて `additionalProperties:false` + `required`)。Codex `role=author` が起草・修正 |
 | 承認 decision fragment | **機械可読 payload**。D262 の `record_items` 承認を role 付きで前向きに supersede |
+
+**schema と要件文書の関係は「exact 1:1」ではない。** draft-07 は配列内の種別別件数・参照整合性・
+raw 再計算を表現できないため、**要件文書 §7.1 が列挙する 20 項目は schema の外**にあり、
+固定 semantic validator (land 2) が担う。schema の適合は受理ではない。
+
+**この 3 点は敵対レビュー 2 本 (レンズ C = 凍結述語の一意性・網羅性 / レンズ D = producer 視点の攻撃) を
+通した後の版である。** 両レンズはいずれも初版に NO-GO を返し (blocker 9 件 / 4 件)、
+親は 12 件を real として採用、1 件を refuted と裁定した。**残余リスクは §S8 に書いた。**
 
 **land 1 に残っている作業は「S1〜S7 の裁定 → main 取り込み → 受入全走 → land」だけである。**
 
@@ -160,11 +168,35 @@ wave `dev-wave-t139-manifest-w2`。裁定 R1〜R5 に従って land 1 (文書承
 
 ---
 
+## S8. 残余リスク (承認するなら引き受けることになるもの)
+
+裁定は求めないが、承認の意味を正確にするために書く。
+
+1. **§10 の閉包 8 件は承認済み文書から一意に導けない選択である。** 承認するとこれらが受理述語になる。
+   反転したい項目があれば S1 の裁定で名指ししてほしい (特に閉包 1 = pilot slot 1〜8 は S4 の問い)。
+2. **schema の適合は受理ではない。** §7.1 の 20 項目は semantic validator が実装されるまで
+   **1 つも発火しない。**したがって land 1 の時点では「受領証を機械的に検査できる」状態にはならない。
+   これは R1 (a) が「コード・gate を含めない」と定めた帰結であり、欠陥ではない。
+3. **既存 driver は要求証拠を取得していない** (S7 #6 の展開)。レビュー D が既存 probe を読み、
+   次が未取得と判定した — 全 build が `CCBENCH_TRACE=0` で correctness 用の trace-enabled build が
+   無い / 全 TU の `translation_units` と canonical `compile_commands` を保存しない /
+   executable の inode・per-run `exec_witness`・9 点 `binary_rehash`・dynamic deps・ELF interpreter を
+   取得しない / `exclusivity.raw` と scheduler accounting trace を受領証形式で取らない /
+   marker が単純な state file で 36 観測窓・canonical schedule・wait trace を保存しない。
+   **要件が実装不能なのではなく、land 2 で collector / driver を作る量がこれだけあるという意味である。**
+4. **本 wave の 2 レビューは実装を走らせていない** (read-only)。文書と schema の静的検査、
+   digest 再計算、部分 schema の正例・負例検査だけである。
+5. **要件文書は 1 晩で書かれた。** 前 2 版はいずれも次 wave のレビューで blocker を出しており、
+   本版も同様の残余がある可能性を排除できない。凍結の可否は S1 の裁定に委ねる。
+
 ## 付録 A. 報告のみ (裁定不要)
 
-- **承認済み追補 A `a01` (B) の算術誤記。** 検証割当ての非余裕小計は
-  `180+1440+360+360+180+120 = 2640` であり同表本文も 2640 だが、直後の検算文だけが 2340 と書く。
-  **受理集合は phase 別 cap で決まるため変わらない。**erratum の対象にはしない (scope 爆発を避ける)。
+- **承認済み追補 A `a01` (B) の算術誤記 (正しい値は 2640)。** 検証割当ての非余裕小計は
+  `180+1440+360+360+180+120 = 2640` であり、`a01` (B) の表本文も **2640** と書いている。
+  ところが同 field の直後にある検算文だけが **2340** と書いており、**この 1 箇所が誤記である。**
+  本 wave の要件文書 §6.9 は正しい **2640** を採り、`2340` を一切参照しない。
+  **受理集合は phase 別 cap で決まるため変わらない。**承認済み blob の再発行を伴うため
+  erratum の対象にはしない (scope 爆発を避ける)。将来 core / 追補を再発行する機会があれば同時に直す。
 - **pilot 1 本の E2E は成果物を変えない。** `a10` は適格 pilot 8 本を要求するため、
   1 本では `J`・certified 選択・材料 report・試行台帳の値が 1 つも動かない。
   pilot 1 本を「gate が効いた」証拠として報告してはならない。

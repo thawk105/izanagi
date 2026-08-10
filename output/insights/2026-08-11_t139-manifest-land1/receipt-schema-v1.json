@@ -370,7 +370,7 @@
       "additionalProperties": false,
       "required": ["phase", "cap_s", "sub_cap_s_or_null"],
       "properties": {
-        "phase": {"enum": ["preflight", "observation", "decision", "marker", "run", "teardown"]},
+        "phase": {"type": "string"},
         "cap_s": {"type": "integer"},
         "sub_cap_s_or_null": {"type": ["integer", "null"]}
       }
@@ -380,7 +380,7 @@
       "additionalProperties": false,
       "required": ["phase", "event", "monotonic_ns"],
       "properties": {
-        "phase": {"enum": ["preflight", "observation", "decision", "marker", "run", "teardown"]},
+        "phase": {"type": "string"},
         "event": {"enum": ["enter", "leave", "term_signal"]},
         "monotonic_ns": {"type": "integer", "minimum": 0}
       }
@@ -436,17 +436,7 @@
         "exclusivity": {"$ref": "#/definitions/exclusivity"},
         "phase_caps": {
           "type": "array",
-          "minItems": 6,
-          "maxItems": 6,
-          "items": {"$ref": "#/definitions/phaseCap"},
-          "allOf": [
-            {"contains": {"properties": {"phase": {"const": "preflight"}}, "required": ["phase"]}},
-            {"contains": {"properties": {"phase": {"const": "observation"}}, "required": ["phase"]}},
-            {"contains": {"properties": {"phase": {"const": "decision"}}, "required": ["phase"]}},
-            {"contains": {"properties": {"phase": {"const": "marker"}}, "required": ["phase"]}},
-            {"contains": {"properties": {"phase": {"const": "run"}}, "required": ["phase"]}},
-            {"contains": {"properties": {"phase": {"const": "teardown"}}, "required": ["phase"]}}
-          ]
+          "items": {"$ref": "#/definitions/phaseCap"}
         },
         "phase_events": {
           "type": "array",
@@ -454,20 +444,10 @@
         },
         "binary_rehash": {
           "type": "array",
-          "minItems": 9,
+          "minItems": 0,
           "maxItems": 9,
-          "items": {"$ref": "#/definitions/binaryRehash"},
-          "allOf": [
-            {"contains": {"properties": {"point": {"const": "after_staging"}, "arm": {"const": "stock"}}, "required": ["point", "arm"]}},
-            {"contains": {"properties": {"point": {"const": "after_staging"}, "arm": {"const": "mode1"}}, "required": ["point", "arm"]}},
-            {"contains": {"properties": {"point": {"const": "after_staging"}, "arm": {"const": "modeX"}}, "required": ["point", "arm"]}},
-            {"contains": {"properties": {"point": {"const": "before_first_run"}, "arm": {"const": "stock"}}, "required": ["point", "arm"]}},
-            {"contains": {"properties": {"point": {"const": "before_first_run"}, "arm": {"const": "mode1"}}, "required": ["point", "arm"]}},
-            {"contains": {"properties": {"point": {"const": "before_first_run"}, "arm": {"const": "modeX"}}, "required": ["point", "arm"]}},
-            {"contains": {"properties": {"point": {"const": "after_last_run"}, "arm": {"const": "stock"}}, "required": ["point", "arm"]}},
-            {"contains": {"properties": {"point": {"const": "after_last_run"}, "arm": {"const": "mode1"}}, "required": ["point", "arm"]}},
-            {"contains": {"properties": {"point": {"const": "after_last_run"}, "arm": {"const": "modeX"}}, "required": ["point", "arm"]}}
-          ]
+          "uniqueItems": true,
+          "items": {"$ref": "#/definitions/binaryRehash"}
         }
       },
       "allOf": [
@@ -485,6 +465,74 @@
           "else": {
             "properties": {"cluster_slot_or_null": {"type": "null"}},
             "required": ["cluster_slot_or_null"]
+          }
+        },
+        {
+          "if": {
+            "properties": {"allocation_role": {"const": "performance_cluster"}},
+            "required": ["allocation_role"]
+          },
+          "then": {
+            "properties": {
+              "phase_caps": {
+                "items": {
+                  "allOf": [
+                    {"$ref": "#/definitions/phaseCap"},
+                    {
+                      "properties": {
+                        "phase": {"enum": ["preflight", "observation", "decision", "marker", "run", "teardown"]}
+                      },
+                      "required": ["phase"]
+                    }
+                  ]
+                }
+              },
+              "phase_events": {
+                "items": {
+                  "allOf": [
+                    {"$ref": "#/definitions/phaseEvent"},
+                    {
+                      "properties": {
+                        "phase": {"enum": ["preflight", "observation", "decision", "marker", "run", "teardown"]}
+                      },
+                      "required": ["phase"]
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["phase_caps", "phase_events"]
+          },
+          "else": {
+            "properties": {
+              "phase_caps": {
+                "items": {
+                  "allOf": [
+                    {"$ref": "#/definitions/phaseCap"},
+                    {
+                      "properties": {
+                        "phase": {"enum": ["staging", "build", "build_post", "correctness_run", "evidence", "teardown"]}
+                      },
+                      "required": ["phase"]
+                    }
+                  ]
+                }
+              },
+              "phase_events": {
+                "items": {
+                  "allOf": [
+                    {"$ref": "#/definitions/phaseEvent"},
+                    {
+                      "properties": {
+                        "phase": {"enum": ["staging", "build", "build_post", "correctness_run", "evidence", "teardown"]}
+                      },
+                      "required": ["phase"]
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["phase_caps", "phase_events"]
           }
         },
         {
@@ -528,15 +576,15 @@
         "ycsb_zipf_skew"
       ],
       "properties": {
-        "clocks_per_us": {},
-        "epoch_time": {},
-        "extime": {},
-        "thread_num": {},
-        "ycsb_max_ope": {},
-        "ycsb_rmw": {},
-        "ycsb_rratio": {},
-        "ycsb_tuple_num": {},
-        "ycsb_zipf_skew": {}
+        "clocks_per_us": {"type": "number"},
+        "epoch_time": {"type": "number"},
+        "extime": {"type": "number"},
+        "thread_num": {"type": "integer"},
+        "ycsb_max_ope": {"type": "integer"},
+        "ycsb_rmw": {"type": "integer"},
+        "ycsb_rratio": {"type": "integer"},
+        "ycsb_tuple_num": {"type": "integer"},
+        "ycsb_zipf_skew": {"type": "number"}
       }
     },
     "optParameters": {
@@ -596,7 +644,7 @@
       "properties": {
         "cluster_slot": {"type": "integer", "minimum": 1, "maximum": 13},
         "workload": {"enum": ["W1", "W2"]},
-        "block_index": {"type": "integer", "minimum": 1, "maximum": 12},
+        "block_index": {"type": "integer", "minimum": 1, "maximum": 6},
         "permutation": {"enum": ["SDX", "SXD", "DSX", "DXS", "XSD", "XDS"]}
       }
     },
@@ -628,7 +676,7 @@
         "run_id": {"type": "string"},
         "cluster_slot": {"type": "integer", "minimum": 1, "maximum": 13},
         "workload": {"enum": ["W1", "W2"]},
-        "block_index": {"type": "integer", "minimum": 1, "maximum": 12},
+        "block_index": {"type": "integer", "minimum": 1, "maximum": 6},
         "permutation": {"enum": ["SDX", "SXD", "DSX", "DXS", "XSD", "XDS"]},
         "planned_ordinal": {"type": "integer", "minimum": 1},
         "position": {"type": "integer", "minimum": 1, "maximum": 3},
@@ -658,7 +706,7 @@
         "schedule_algorithm",
         "schedule_table",
         "schedule_sha256",
-        "pilot_cluster_slots",
+        "consumed_cluster_slots",
         "cluster_slots",
         "runs"
       ],
@@ -668,30 +716,19 @@
         "schedule_algorithm": {"const": "t139-a09-v1"},
         "schedule_table": {"$ref": "#/definitions/fileRecord"},
         "schedule_sha256": {"$ref": "#/definitions/hex64"},
-        "pilot_cluster_slots": {
+        "consumed_cluster_slots": {
           "type": "array",
-          "minItems": 8,
-          "maxItems": 8,
-          "items": [
-            {"const": 1},
-            {"const": 2},
-            {"const": 3},
-            {"const": 4},
-            {"const": 5},
-            {"const": 6},
-            {"const": 7},
-            {"const": 8}
-          ],
-          "additionalItems": false
+          "items": {"type": "integer", "minimum": 1, "maximum": 13}
         },
         "cluster_slots": {
           "type": "array",
+          "minItems": 156,
+          "maxItems": 156,
           "items": {"$ref": "#/definitions/clusterSlot"}
         },
         "runs": {
           "type": "array",
           "minItems": 36,
-          "maxItems": 36,
           "items": {"$ref": "#/definitions/plannedRun"}
         }
       }
@@ -749,7 +786,7 @@
         "allocation_id": {"type": "string"},
         "cluster_slot": {"type": "integer", "minimum": 1, "maximum": 13},
         "workload": {"enum": ["W1", "W2"]},
-        "block_index": {"type": "integer", "minimum": 1, "maximum": 12},
+        "block_index": {"type": "integer", "minimum": 1, "maximum": 6},
         "permutation": {"enum": ["SDX", "SXD", "DSX", "DXS", "XSD", "XDS"]},
         "actual_ordinal": {"type": "integer", "minimum": 1},
         "position": {"type": "integer", "minimum": 1, "maximum": 3},
@@ -819,6 +856,7 @@
         "run_scope": {"$ref": "#/definitions/runScope"},
         "outputs": {
           "type": "array",
+          "minItems": 1,
           "items": {"$ref": "#/definitions/fileRecord"}
         }
       }
@@ -1016,10 +1054,14 @@
         "stat_after_raw": {"$ref": "#/definitions/fileRecord"},
         "stat_before": {
           "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
           "items": {"type": "integer"}
         },
         "stat_after": {
           "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
           "items": {"type": "integer"}
         },
         "monotonic_start_ns": {"type": "integer", "minimum": 0},
@@ -1105,10 +1147,27 @@
           "then": {
             "properties": {
               "allocation_id": {"type": "string"},
-              "performance_started_marker": {"$ref": "#/definitions/performanceStartedMarker"},
               "failure_evidence": {"type": "null"}
             },
-            "required": ["allocation_id", "performance_started_marker", "failure_evidence"]
+            "required": ["allocation_id", "failure_evidence"],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {"cluster_slot_or_null": {"type": "integer"}},
+                  "required": ["cluster_slot_or_null"]
+                },
+                "then": {
+                  "properties": {
+                    "performance_started_marker": {"$ref": "#/definitions/performanceStartedMarker"}
+                  },
+                  "required": ["performance_started_marker"]
+                },
+                "else": {
+                  "properties": {"performance_started_marker": {"type": "null"}},
+                  "required": ["performance_started_marker"]
+                }
+              }
+            ]
           }
         },
         {
@@ -1223,29 +1282,13 @@
     },
     "correctness_evidence": {
       "type": "array",
-      "minItems": 6,
+      "minItems": 0,
       "maxItems": 6,
-      "items": {"$ref": "#/definitions/correctnessEvidence"},
-      "allOf": [
-        {"contains": {"properties": {"arm": {"const": "stock"}, "workload": {"const": "W1"}}, "required": ["arm", "workload"]}},
-        {"contains": {"properties": {"arm": {"const": "stock"}, "workload": {"const": "W2"}}, "required": ["arm", "workload"]}},
-        {"contains": {"properties": {"arm": {"const": "mode1"}, "workload": {"const": "W1"}}, "required": ["arm", "workload"]}},
-        {"contains": {"properties": {"arm": {"const": "mode1"}, "workload": {"const": "W2"}}, "required": ["arm", "workload"]}},
-        {"contains": {"properties": {"arm": {"const": "modeX"}, "workload": {"const": "W1"}}, "required": ["arm", "workload"]}},
-        {"contains": {"properties": {"arm": {"const": "modeX"}, "workload": {"const": "W2"}}, "required": ["arm", "workload"]}}
-      ]
+      "items": {"$ref": "#/definitions/correctnessEvidence"}
     },
     "liveness": {
       "type": "array",
-      "items": {"$ref": "#/definitions/liveness"},
-      "allOf": [
-        {"contains": {"properties": {"probe": {"const": "liveness_run"}, "arm_or_null": {"const": "stock"}, "workload_or_null": {"const": "W1"}}, "required": ["probe", "arm_or_null", "workload_or_null"]}},
-        {"contains": {"properties": {"probe": {"const": "liveness_run"}, "arm_or_null": {"const": "stock"}, "workload_or_null": {"const": "W2"}}, "required": ["probe", "arm_or_null", "workload_or_null"]}},
-        {"contains": {"properties": {"probe": {"const": "liveness_run"}, "arm_or_null": {"const": "mode1"}, "workload_or_null": {"const": "W1"}}, "required": ["probe", "arm_or_null", "workload_or_null"]}},
-        {"contains": {"properties": {"probe": {"const": "liveness_run"}, "arm_or_null": {"const": "mode1"}, "workload_or_null": {"const": "W2"}}, "required": ["probe", "arm_or_null", "workload_or_null"]}},
-        {"contains": {"properties": {"probe": {"const": "liveness_run"}, "arm_or_null": {"const": "modeX"}, "workload_or_null": {"const": "W1"}}, "required": ["probe", "arm_or_null", "workload_or_null"]}},
-        {"contains": {"properties": {"probe": {"const": "liveness_run"}, "arm_or_null": {"const": "modeX"}, "workload_or_null": {"const": "W2"}}, "required": ["probe", "arm_or_null", "workload_or_null"]}}
-      ]
+      "items": {"$ref": "#/definitions/liveness"}
     },
     "admission_telemetry": {
       "type": "array",
@@ -1255,5 +1298,29 @@
       "type": "array",
       "items": {"$ref": "#/definitions/attempt"}
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"study_stage": {"const": "pilot"}},
+        "required": ["study_stage"]
+      },
+      "then": {
+        "properties": {
+          "planned_execution": {
+            "allOf": [
+              {"$ref": "#/definitions/plannedExecution"},
+              {
+                "properties": {
+                  "consumed_cluster_slots": {"const": [1, 2, 3, 4, 5, 6, 7, 8]}
+                },
+                "required": ["consumed_cluster_slots"]
+              }
+            ]
+          }
+        },
+        "required": ["planned_execution"]
+      }
+    }
+  ]
 }
