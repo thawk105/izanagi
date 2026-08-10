@@ -51,6 +51,18 @@ title: 証拠 path の NUL を両防壁で拒否し、受入 lease の待ち手�
 - 受入 lease は本 wave が正本化した手順そのもので取得した (JSON の `state` を exact 比較、
   `acquired` 直後に main を取り直し、6 commit 遅れを待ち手内で `--no-ff` merge、
   再検査 0 を確認してから投入)。**1 回の claim で取得でき、空振りゼロ**だった。
+- **記録後の影響テストで [T-731] が独立 2 例目として再現した。** `test_check_docs.py` ほか
+  4 file subset で `test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean` が
+  1 件赤 (527 passed)。記録された再現手順 (当該 file 単独走) でも同じ node が赤になり、署名も
+  `campaign env_tag は exact str でなければならない` で一致した。同じ tree の受入全走は 0 failed。
+  `tools/dev_wave_land.py` と `orchestrator/campaign/execution_guard.py` は本 wave が変更した
+  2 module を import しない (grep で実測) ため、実装差分へ帰属させない。
+  [T-714] wave に続く 2 例目であり、走行範囲依存であることが独立に裏付いた。
+- **段 8 の自己改善候補は 2 件とも本 wave では入れられなかった。** (i) failures fragment の
+  supersede 文法は `tools/spool_fold.py` の変更を伴う実装面なので裁定へ返した (上記 新規項)。
+  (ii) 「変異の期待 node は完全集合で登録する」を `DW-M08` へ 1 行入れる案は、[T-714] wave が
+  同じ場所で予算超過により見送っており、本 wave も予算状況は変わらないため見送った
+  (本 wave では段 4 の裁定として運用で担保し、7/7 完全一致を得た)。
 - 逐語・変異台帳・probe 出力は `output/insights/2026-08-10_t730-t732-nul-lease/`。
 
 ## 次の一手差分
